@@ -36,7 +36,7 @@ import { syncNowAndReturn } from './support/sync.ts';
  * notice, and the sheet still concludes; set to 0,5 kV the store holds {raw '0.5', unit 'kV'}.
  * The TC with EXATIDÃO 1,2 judges a 0,84 % ratio Satisfatório at ±1,2 %, and with no class the
  * helper asks for it. A para-raio is marked Não ensaiado for "Defeito no equipamento". The DOCX
- * prints the TENSÃO (kV) column (10, 10, 0,5), ACEITÁVEL ±1,2 %, DESLOCAMENTO ANGULAR and the
+ * prints the TENSÃO (kV) column (5, 5, 0,5 since e22g: the 13,8 kV plate sets the high-voltage rows), ACEITÁVEL ±1,2 %, DESLOCAMENTO ANGULAR and the
  * defect's justification. It generates through the one queue and LibreOffice of the api, so the
  * file is in the serial group. Each test resets this worker's own Empresa B (E6-Q7).
  */

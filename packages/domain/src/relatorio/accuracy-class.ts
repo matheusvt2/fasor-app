@@ -35,7 +35,7 @@ const PROTECTION_CLASSES: Readonly<Record<string, number>> = { '3': 3, '5': 1, '
 const NBR_PROTECTION_CLASSES: readonly string[] = ['5', '10'];
 
 /** A burden in VA, in front of or behind the class ("25VA", "12,5 VA"). */
-const BURDEN_VA = /\d+(?:[.,]\d+)?\s*va\b/gi;
+const BURDEN_VA = /\d+(?:[.,]\d+)?\s*va(?![a-z])/gi;
 const CLASS_TEXT = /^[\s;,/-]*(?:cl(?:asse)?\.?\s*)?(\d+(?:[.,]\d+)?)\s*([pab])?/i;
 
 /**
@@ -53,7 +53,8 @@ export function parseAccuracyClass(text: unknown): string | null {
   const digits = String(number);
   const letter = match[2]?.toLowerCase();
   if (letter === 'p' && Object.hasOwn(PROTECTION_CLASSES, digits)) return `${digits}P`;
-  if (letter === 'a' || letter === 'b') return NBR_PROTECTION_CLASSES.includes(digits) ? `${digits}P` : null;
+  // An A or B after 5 or 10 is the NBR protection class; after any other number the number is the measurement class.
+  if ((letter === 'a' || letter === 'b') && NBR_PROTECTION_CLASSES.includes(digits)) return `${digits}P`;
   return digits.replace('.', ',');
 }
 

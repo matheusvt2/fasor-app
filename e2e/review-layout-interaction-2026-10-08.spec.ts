@@ -149,16 +149,14 @@ async function expectTableWhole(page: Page, mt: Locator, where: string, minWidth
   // without the focus scroll of the last capture before it), so the title's place was the run's,
   // not this focus's. From here a focus that scrolls the title out of view still fails.
   await last.blur();
-  await mt.evaluate((el) => {
-    const title = el.querySelector<HTMLElement>(':scope > .mt-title-row')!;
-    window.scrollBy({ top: title.getBoundingClientRect().top - 120, behavior: 'instant' });
-  });
+  // Each try scrolls again (a layout that moved after the last try is caught up) and needs two still frames.
   await expect
     .poll(() =>
       mt.evaluate(
         (el) =>
           new Promise<boolean>((resolve) => {
             const title = el.querySelector<HTMLElement>(':scope > .mt-title-row')!;
+            window.scrollBy({ top: title.getBoundingClientRect().top - 120, behavior: 'instant' });
             const first = title.getBoundingClientRect().top;
             requestAnimationFrame(() => requestAnimationFrame(() => resolve(Math.abs(title.getBoundingClientRect().top - first) < 0.5 && Math.abs(first - 120) < 1)));
           }),

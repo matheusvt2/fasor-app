@@ -163,11 +163,15 @@ export function rowTestVoltage(block: Pick<BlockRow, 'sheet'>, test: TestDef, ro
   if (col === -1) return null;
   const seeded = home.table.voltage_rows?.[home.r] ?? { default_kv: null, winding: null };
   const typed = typedKv(block.sheet.test[test.key]?.cells[String(row)]?.[String(col)]?.value);
-  const fallback = seeded.default_kv ?? ratingDefaultKv(block, seeded.winding) ?? instrumentKv(block, test);
+  const rated = seeded.default_kv === null ? ratingDefaultKv(block, seeded.winding) : null;
+  const fallback = seeded.default_kv ?? rated ?? instrumentKv(block, test);
   const kv = typed ?? fallback;
   const source: RowVoltageSource | null = typed !== null ? 'typed' : fallback !== null ? 'default' : null;
   const linha = home.table.rows[home.r]?.[0] ?? '';
-  return { col, kv, text: kv === null ? '-' : kvText(kv), source, notice: rowVoltageNotice(block, seeded.winding, kv, linha) };
+  // e22g (review loop): a voltage the winding's own rating chose (an AT rated 601 V to 1000 V starts at 2,5 kV) never warns
+  // that the winding does not support it; a typed or instrument voltage on that winding still does.
+  const notice = typed === null && rated !== null ? null : rowVoltageNotice(block, seeded.winding, kv, linha);
+  return { col, kv, text: kv === null ? '-' : kvText(kv), source, notice };
 }
 
 /**

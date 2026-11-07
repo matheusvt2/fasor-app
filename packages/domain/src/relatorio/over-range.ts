@@ -107,7 +107,7 @@ export function overRangeMissingLimitText(range: InstrumentRange | null, units: 
 }
 
 /** Spelled-out prefixes a typed limit unit may use, by the Ω table's prefix ("micro" -> "µ"). */
-const PREFIX_WORDS: Readonly<Record<string, string>> = { micro: 'µ', mili: 'm', milli: 'm', kilo: 'k', quilo: 'k', mega: 'M', giga: 'G', tera: 'T' };
+const PREFIX_WORDS: Readonly<Record<string, string>> = { micro: 'µ', mili: 'm', milli: 'm', kilo: 'k', quilo: 'k', mega: 'M', meg: 'M', giga: 'G', tera: 'T', kil: 'k' };
 /** One-letter prefixes by the Ω table's prefix: the micro sign, the Greek mu and "u"; m and M kept apart by case. */
 const PREFIX_LETTERS: Readonly<Record<string, string>> = { 'µ': 'µ', 'μ': 'µ', u: 'µ', U: 'µ', m: 'm', k: 'k', K: 'k', M: 'M', g: 'G', G: 'G', t: 'T', T: 'T' };
 

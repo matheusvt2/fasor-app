@@ -135,4 +135,6 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   expect(withPrevious[0]![2]!.at(-1)).toBe('4,9 GΩ');
   expect(withPrevious[0]!.slice(3).map((row) => row.at(-1))).toEqual(withPrevious[0]!.slice(3).map(() => '-'));
   for (const table of insulation.filter((one) => one !== withPrevious[0])) expect(table.flat()).not.toContain('MANUT. ANTERIOR');
+  // e22g (review N1): decided per table, so the transformer's own ratio table, with nothing from that visit, has no column of "-".
+  expect(tables.filter((table) => table.flat().includes('MANUT. ANTERIOR'))).toEqual([withPrevious[0]]);
 });

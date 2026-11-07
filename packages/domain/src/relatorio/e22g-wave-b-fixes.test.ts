@@ -14,7 +14,8 @@ import { accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts'
 import { composeConclusion } from './conclusion.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import { instrumentRangeOf } from './instrument-pick.ts';
-import { overRangeRefusal, parseMeasurementReadingPtBr } from './measurement-evaluation.ts';
+import { evaluateSheetMeasurements, overRangeRefusal, parseMeasurementReadingPtBr } from './measurement-evaluation.ts';
+import { colOf, ctaDefinition, ctaRows, E2, rowOf } from './measurement-test-support.ts';
 import { instrumentRangeHelperText, normalizeOhmUnit, OVER_RANGE_ALLOWED, overRangeMissingLimitText } from './over-range.ts';
 import { composeParecer } from './parecer.ts';
 import { readingRowLabel } from './reading-cells.ts';
@@ -78,6 +79,8 @@ describe('e22g S1: the instrument limit unit read the way it is typed', () => {
       ['TOhm', 'TΩ'],
       ['tΩ', 'TΩ'],
       ['tera', 'TΩ'],
+      ['megohm', 'MΩ'],
+      ['kilohm', 'kΩ'],
       ['k', 'kΩ'],
       ['Ω', 'Ω'],
       ['Ω', 'Ω'],
@@ -141,6 +144,21 @@ describe('e22g S2: a row above the limit never lends its unit to the next row', 
   });
 });
 
+describe('e22g S2 on a measurement test (the CTA\'s E2, seed v5)', () => {
+  it('"OL" (2 TΩ) on A-T: the next row\'s empty cell shows the column\'s MΩ; a measured TΩ row still carries', () => {
+    const col = colOf(E2, 'normal_fechada');
+    const first = rowOf(E2, 'a_t');
+    const unitBelow = (value: Cell) => {
+      const block = withCells(ctaRows().block, E2, { [`${first}/${col}`]: value });
+      const test = evaluateSheetMeasurements(block, ctaDefinition()).find((one) => one.testKey === E2)!;
+      const at = test.rows.findIndex((row) => row.row === first);
+      return test.rows[at + 1]!.cells[col]!.unit;
+    };
+    expect(unitBelow(overRange('2', 'TΩ'))).toBe('MΩ');
+    expect(unitBelow(measured('1.5', 'TΩ'))).toBe('TΩ');
+  });
+});
+
 describe('e22g S4: over_range is a test cell\'s alone', () => {
   const f = opFactory();
   const issue = (path: string, value: unknown) => opValueIssue(f.op({ path, value: value as never }), parsePath(path)!);
@@ -192,7 +210,10 @@ describe('e22g S6 and Bruno\'s test base rev03 (8a to 8c): the accuracy classes'
       ['10B100', '10P'],
       ['10A400', '10P'],
       ['5B200', '5P'],
-      ['2,5B100', null],
+      ['2,5B100', '2,5'],
+      ['0,6A', '0,6'],
+      ['25VA5P20', '5P'],
+      ['15VA0,3', '0,3'],
       ['0,3P75', '0,3'],
       ['1,2P200', '1,2'],
       ['25VA 5P20', '5P'],
@@ -233,6 +254,15 @@ describe('e22g 8d: the transformer\'s high-voltage rows start from the plate\'s 
     expect(kvs(at('5001'))).toEqual(['5', '5', '1']);
     expect(kvs(at('13.8', 'kV'))).toEqual(['5', '5', '1']);
     expect(rowTestVoltage(at('13.8', 'kV'), test, 0)!.source).toBe('default');
+  });
+
+  it('review loop: an AT rated 601 V to 1000 V starts at 2,5 kV with no notice; a voltage typed on it still warns', () => {
+    const low = at('800');
+    expect(kvs(low)).toEqual(['2.5', '2.5', '1']);
+    expect(rowTestVoltage(low, test, 0)!.notice).toBeNull();
+    expect(rowTestVoltage(low, test, 1)!.notice).toBeNull();
+    const voltageCol = rowTestVoltage(base, test, 0)!.col;
+    expect(rowTestVoltage(withCells(low, 'isolacao', { [`0/${voltageCol}`]: measured('2.5', 'kV') }), test, 0)!.notice).toBe('Tensão de ensaio acima do suportado pelo enrolamento Primário (800 V): use 0,5 ou 1 kV.');
   });
 
   it('a rating at most 600 V, empty or unreadable gives no default: the instrument\'s TENSÃO ENSAIO, else none, as before', () => {
