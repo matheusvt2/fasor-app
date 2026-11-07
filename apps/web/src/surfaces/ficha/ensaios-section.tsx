@@ -159,8 +159,7 @@ export function EnsaiosSection({
   // Story 22.10: the limit "OL" takes, from the instrument picked on each test (read live from the
   // registry); Story 22.12: the previous visit's "Anterior: …" line of each cell, from the sheet's
   // equipment row (`nameplate-section.tsx` finds it the same way). Both are the kernel's.
-  // The context value changes only when a limit or a previous value does, never on every cell
-  // edit, so the cells do not all re-render while one is typed in (R8LAY-E2E-001's focus geometry).
+  // The context value changes only when a limit or a previous value does, never on every cell edit.
   const own = block.equipment_id === null ? undefined : snapshot.equipment.find((row) => row.id === block.equipment_id);
   const lastResults = own?.last_results ?? null;
   const blockType = block.block_type;
