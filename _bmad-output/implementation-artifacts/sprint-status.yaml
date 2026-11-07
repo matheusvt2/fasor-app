@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-06-2026 09:40
+last_updated: 11-07-2026 08:37
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -254,12 +254,12 @@ development_status:
   22-4-the-fichas-conclusion-follows-brunos-rules: done  # 2026-11-06: merged in #267; was ready-for-dev  # added 2026-11-06 (Matheus: "Seguir o Bruno inteiro"); wave A, e22c; contract 31; floor mechanics are the coordinator's reading
   22-5-every-nc-and-every-reprovacao-is-a-point-of-attention: done  # 2026-11-06: merged in #267; was ready-for-dev  # added 2026-11-06 (Matheus: "Seguir o Bruno inteiro"); wave A, e22c, after 22.4; old manual points flagged "Possivel duplicado" is the coordinator's reading
   22-6-the-conclusao-of-the-relatorio-is-derived-from-the-fichas: done  # 2026-11-06: merged in #267; was ready-for-dev  # added 2026-11-06 (Matheus: "Seguir o Bruno inteiro"); wave A, e22c, after 22.4; earlier typed summary kept as an observation is the coordinator's reading
-  22-7-seed-v12-oil-transformers-deslocamento-angular-tp-checklist-defect-reason: ready-for-dev  # added 2026-11-06 (Bruno items 1, 3, 27; Matheus: "So relatorios novos"); wave B, e22s; seed v12, contract 32; TP list and TIPO DO OLEO A/B are the coordinator's reading
-  22-8-the-test-voltage-per-row-of-the-insulation-table: ready-for-dev  # added 2026-11-06 (Matheus: "Ensaio: tensao e classe"); wave B, e22s, after 22.7; options and defaults are the coordinator's reading
-  22-9-the-tc-and-tp-ratio-criterion-follows-the-accuracy-class: ready-for-dev  # added 2026-11-06 (Matheus: "Ensaio: tensao e classe"); wave B, e22s, after 22.7; class lists are the coordinator's reading
-  22-10-a-reading-above-the-instruments-limit: ready-for-dev  # added 2026-11-06 (Matheus: "Ensaio: tensao e classe"); wave B, e22r; notes under contract 32
-  22-11-a-short-qgbt-inspection-sheet: ready-for-dev  # added 2026-11-06 (Matheus: "Ficha simples de QGBT"); wave B, e22s, after 22.7; content is the coordinator's reading
-  22-12-the-previous-visits-value-beside-each-reading: ready-for-dev  # added 2026-11-06 (Matheus: "Manutencao anterior"); wave B, e22r; notes under contract 32; amends AD-25 and the SPEC non-goal
+  22-7-seed-v12-oil-transformers-deslocamento-angular-tp-checklist-defect-reason: done  # 2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Bruno items 1, 3, 27; Matheus: "So relatorios novos"); wave B, e22s; seed v12, contract 32; TP list and TIPO DO OLEO A/B are the coordinator's reading
+  22-8-the-test-voltage-per-row-of-the-insulation-table: done  # 2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Ensaio: tensao e classe"); wave B, e22s, after 22.7; options and defaults are the coordinator's reading
+  22-9-the-tc-and-tp-ratio-criterion-follows-the-accuracy-class: done  # 2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Ensaio: tensao e classe"); wave B, e22s, after 22.7; class lists are the coordinator's reading
+  22-10-a-reading-above-the-instruments-limit: done  # 2026-11-07: merged in #268, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Ensaio: tensao e classe"); wave B, e22r; notes under contract 32
+  22-11-a-short-qgbt-inspection-sheet: done  # 2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Ficha simples de QGBT"); wave B, e22s, after 22.7; content is the coordinator's reading
+  22-12-the-previous-visits-value-beside-each-reading: done  # 2026-11-07: merged in #268, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Manutencao anterior"); wave B, e22r; notes under contract 32; amends AD-25 and the SPEC non-goal
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
