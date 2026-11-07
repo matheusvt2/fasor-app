@@ -141,7 +141,8 @@ describe('22.5-UNIT the derived kinds', () => {
   it('an old manual point on the equipment of an NC entry suppresses nothing: both read "Possível duplicado"', () => {
     const { snapshot, trafo } = scenario();
     // e22f N4: as a client older than contract 31 wrote it, with no `item_key` key at all.
-    const { item_key: _none, ...old } = point(snapshot, { origin: 'manual', equipment_id: trafo.equipment_id, text: 'Terminais oxidados' });
+    const old = point(snapshot, { origin: 'manual', equipment_id: trafo.equipment_id, text: 'Terminais oxidados' });
+    delete (old as Partial<PointRow>).item_key;
     const both = withPoints(snapshot, old);
     expect(derivedPoints(both).filter((e) => e.block_id === trafo.id)).toHaveLength(2);
     const flags = possibleDuplicatePoints(both);

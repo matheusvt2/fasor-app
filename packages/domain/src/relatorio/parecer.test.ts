@@ -82,12 +82,12 @@ function withParecer(snapshot: RelatorioSnapshot, parecer: RelatorioParecer | nu
 }
 
 describe('22.6-UNIT derivedParecer, effectiveParecer and the reason line (amends 7.4 suggestParecer)', () => {
-  it('Apto when every live sheet is Aprovado · Sem restrições with no site NC and no point, and with no sheet or open sheets: always one verdict', () => {
+  it('Apto when every live sheet is Aprovado · Sem restrições with no site NC and no point; e22f S5: with no sheet or only open sheets, nothing is judged and there is none', () => {
     const snapshot = mapSheets(withSheets(3), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
     expect(derivedParecer(snapshot)).toBe('apto');
     expect(parecerReasonText(snapshot)).toBeNull();
-    expect(derivedParecer(withSheets(0))).toBe('apto');
-    expect(derivedParecer(withSheets(3))).toBe('apto');
+    expect(derivedParecer(withSheets(0))).toBeNull();
+    expect(derivedParecer(withSheets(3))).toBeNull();
     for (const verdict of ['apto', 'apto_com_restricoes', 'nao_apto'] as const) expect(parecerLooser(snapshot, verdict)).toBe(false);
   });
 
@@ -251,8 +251,8 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     expect(parecerReasonText(withSiteNc(snapshot, 0, [3, 5]))).toContain('2 NC nas verificações do local');
   });
 
-  it('N4 edge: with no sheet at all, a site NC still gives Apto com restrições; with none, Apto', () => {
-    expect(derivedParecer(withSheets(0))).toBe('apto');
+  it('N4 edge: with no sheet at all, a site NC still gives Apto com restrições (a floor); with none, no verdict (e22f S5)', () => {
+    expect(derivedParecer(withSheets(0))).toBeNull();
     expect(derivedParecer(withSiteNc(withSheets(0), 0, [1]))).toBe('apto_com_restricoes');
   });
 
@@ -335,24 +335,26 @@ describe('17.5-UNIT a ratio row INSATISFATÓRIO restricts the sheet in the parec
     const snapshot = withTp('125');
     const name = tpName(snapshot);
     const counts = parecerCounts(snapshot);
-    expect(counts.withRestriction).toEqual([name]);
+    // e22f N1: a Reprovado sheet is named once, under its reason.
+    expect(counts.withRestriction).toEqual([]);
     expect(counts.reprovado).toEqual([name]);
     // The failed ratio has its own clause, never the out-readings one.
     expect(counts.outReadings).toEqual([]);
     expect(derivedParecer(snapshot)).toBe('nao_apto');
     expect(parecerReasonText(snapshot)).toBe(`O relatório exige no mínimo Não apto: 1 ficha reprovada (${name}).`);
     const composed = composeParecer(snapshot);
-    expect(composed.text).toContain(`1 ficha apresentou restrições (${name}).`);
-    expect(composed.text).toContain(`Relação de transformação insatisfatória em 1 ficha (${name}).`);
-    expect(composed.criteriaItems).toContain(`relação de transformação insatisfatória (${name})`);
-    expect(composed.criteriaItems.indexOf(`relação de transformação insatisfatória (${name})`)).toBe(composed.criteriaItems.indexOf(`1 com restrições (${name})`) + 1);
+    expect(composed.text).toContain(`1 ficha foi reprovada por relação de transformação insatisfatória (${name}).`);
+    expect(composed.text).not.toContain('apresentou restrições');
+    expect(composed.text).not.toContain('Relação de transformação insatisfatória em');
+    expect(composed.criteriaItems).toContain(`1 reprovada (${name})`);
+    expect(composed.criteriaItems.some((item) => item.startsWith('relação de transformação') || item.includes('com restrições'))).toBe(false);
   });
 
   it('B5: concluded Com restrições over a failed ratio, the same counts and the same ratio item', () => {
     const snapshot = withTp('125', 'com_restricoes');
     const name = tpName(snapshot);
-    expect(parecerCounts(snapshot).withRestriction).toEqual([name]);
-    expect(composeParecer(snapshot).criteriaItems).toContain(`relação de transformação insatisfatória (${name})`);
+    expect(parecerCounts(snapshot).withRestriction).toEqual([]);
+    expect(composeParecer(snapshot).text).toContain(`1 ficha foi reprovada por relação de transformação insatisfatória (${name}).`);
   });
 
   it('a within ratio: Apto, no ratio sentence nor item, and the basis has no `ratio` key (byte-identical to before)', () => {
@@ -388,9 +390,10 @@ describe('22.6-UNIT the out-of-criterion readings clause', () => {
     expect(counts.outReadings).toEqual([name]);
     expect(counts.reprovado).toEqual([name]);
     const composed = composeParecer(snapshot);
-    expect(composed.text).toContain(`1 ficha foi reprovada (${name}).`);
-    expect(composed.text).toContain(`Leituras fora do critério de aceitação em 1 ficha (${name}).`);
-    expect(composed.criteriaItems).toContain(`leituras fora do critério (${name})`);
+    // e22f N1: named once, in the Reprovado sentence with its reason.
+    expect(composed.text).toContain(`1 ficha foi reprovada por leituras fora do critério de aceitação (${name}).`);
+    expect(composed.text).not.toContain('Leituras fora do critério de aceitação em');
+    expect(composed.criteriaItems).not.toContain(`leituras fora do critério (${name})`);
     const { total, concluded, open, notTested, withRestriction } = parecerCounts(base);
     expect(composeParecer(base).basis).toBe(fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc: [], points: 0 })));
   });

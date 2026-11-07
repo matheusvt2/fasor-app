@@ -197,8 +197,8 @@ describe('e22f S5: nothing judged, no derived verdict', () => {
 /** A manual point as a client older than contract 31 wrote it: no `item_key` key at all. */
 function legacyPoint(snapshot: RelatorioSnapshot, id: string, equipmentId: string | null): PointRow {
   const row = newPointRow({ id, relatorioId: snapshot.relatorio.id, text: 'Item 1: contatos oxidados', equipmentId, origin: 'manual', action: 'Limpar' }, snapshot.points);
-  const { item_key: _dropped, ...legacy } = row;
-  return legacy as PointRow;
+  delete (row as Partial<PointRow>).item_key;
+  return row;
 }
 
 function ncOn(block: BlockRow, index: number, observation: string | null): BlockRow {

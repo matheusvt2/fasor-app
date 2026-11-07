@@ -162,7 +162,8 @@ test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entr
     const [first] = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt'), 'isolacao');
     // A point written from the NC row before Story 22.5: origin manual, the same equipment.
     // e22f N4: as a client older than contract 31 wrote it, with no `item_key` key at all.
-    const { item_key: _none, ...old } = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Terminais oxidados', equipmentId: null, origin: 'manual', action: 'Limpar' }, []);
+    const old = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Terminais oxidados', equipmentId: null, origin: 'manual', action: 'Limpar' }, []);
+    delete (old as Partial<typeof old>).item_key;
     return [
       officeDraft(account, scope, `point/${old.id}`, { ...old, equipment_id: equipment.get(chave.blockId) ?? null }, 'create'),
       officeDraft(account, scope, `sheet/${chave.blockId}/checklist/${FIRST_ITEM.key}/result`, 'NC'),
