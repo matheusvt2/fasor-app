@@ -24,7 +24,7 @@ import { expandLocation, section9Chevron } from './support/tree.ts';
  * creates one in the coluna with a QGBT TAG; its sheet shows the four fields, the ten items and
  * no Ensaios step; the numbers are typed, an item is NC and the rest Conforme, a photo is added on
  * the sheet, and the conclusion floor (an NC item) asks Aprovado · Com restrições. The DOCX prints
- * it under the coluna's "Outros equipamentos" after the full QGBT sheet, as QGBT/QD's, with its
+ * it under the coluna's "Outros equipamentos" after the full QGBT sheet, as INSPEÇÃO DE QGBT (e22g N3), with its
  * nameplate, its ten-item checklist, its photo and its conclusion. It generates through the one
  * queue and LibreOffice of the api, so the file is in the serial group. It resets this worker's
  * own Empresa B (E6-Q7).
@@ -208,8 +208,10 @@ test('@p0 22.11-E2E-001 at 1024: the field palette of a painel adds an Inspeçã
   // Under the coluna's "Outros equipamentos", after the full QGBT sheet.
   const outros = structure.headings.filter((heading) => heading.level === 2 && heading.text.includes('Outros equipamentos') && heading.text.includes('Coluna 1'));
   expect(outros, JSON.stringify(structure.headings)).toHaveLength(1);
+  // e22g (review N3): the inspection prints its own title, the full sheet the Quadro elétrico's.
+  expect(DEFINITION.print_title).toBe('INSPEÇÃO DE QGBT');
   const title = `${DEFINITION.print_title} ${tag}`;
-  const full = `${DEFINITION.print_title} QD-C01`;
+  const full = `${getDefinition(SEED_VERSION, 'cabine_primaria', 'quadro_eletrico').print_title} QD-C01`;
   expect(structure.paragraphs).toContain(title);
   expect(structure.paragraphs.indexOf(full)).toBeGreaterThan(-1);
   expect(structure.paragraphs.indexOf(full)).toBeLessThan(structure.paragraphs.indexOf(title));

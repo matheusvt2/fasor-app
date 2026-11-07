@@ -48,6 +48,12 @@ export type ValueRule =
    * `over_range` state holds a positive plain decimal `raw` and a `unit` that is a short string.
    */
   | { readonly kind: 'test_cell'; readonly cap: number }
+  /**
+   * e22g (review S4): a seed-defined cell that is no test cell (a nameplate field, a measurement
+   * test's value), any JSON as `strings` (K-10), and never a value in the `over_range` state: only
+   * a test cell takes a reading above the instrument's limit.
+   */
+  | { readonly kind: 'plain_cell'; readonly cap: number }
   /** An AD-11 number value: `raw` and `unit` at most short, and `raw`, when set, a number in `range`. */
   | { readonly kind: 'number_value'; readonly range?: Range }
   /** A plain number in `range`, or null. */
@@ -73,6 +79,7 @@ const long = text(TEXT_CAPS.long);
 const textCell = (cap: number): ValueRule => ({ kind: 'text_cell', cap });
 const strings = (cap: number): ValueRule => ({ kind: 'strings', cap });
 const shortStrings = strings(TEXT_CAPS.short);
+const plainCell: ValueRule = { kind: 'plain_cell', cap: TEXT_CAPS.short };
 const numberValue: ValueRule = { kind: 'number_value' };
 const structured: ValueRule = { kind: 'structured' };
 const schema: ValueRule = { kind: 'schema' };
@@ -140,7 +147,7 @@ const VALUE_RULES = {
   'location/checklist': { kind: 'fields', fields: { result: shortStrings, observation: textCell(TEXT_CAPS.medium) } },
   block: { kind: 'row', fields: { block_type: short, seed_version: short, order_key: orderKey, not_tested: NOT_TESTED_RULE } },
   'block/field': { kind: 'fields', fields: { order_key: orderKey, not_tested: NOT_TESTED_RULE, config: structured }, otherwise: schema },
-  'sheet/nameplate': { kind: 'value', rule: shortStrings },
+  'sheet/nameplate': { kind: 'value', rule: plainCell },
   'sheet/checklist': { kind: 'fields', fields: { result: shortStrings, observation: textCell(TEXT_CAPS.medium) } },
   'sheet/test': { kind: 'fields', fields: { instrument: structured, criterion_override: structured } },
   'sheet/test/cell': { kind: 'value', rule: { kind: 'test_cell', cap: TEXT_CAPS.short } },
@@ -174,7 +181,7 @@ const VALUE_RULES = {
   'relatorio/preview_file_id': SERVER_ONLY,
   audit_run: SERVER_ONLY,
   'audit_run/field': SERVER_ONLY,
-  'sheet/test/value': { kind: 'value', rule: shortStrings },
+  'sheet/test/value': { kind: 'value', rule: plainCell },
   'relatorio/removed_at': { kind: 'value', rule: schema },
   // Story 14.6 (contract 33): a type's draft and a version's definition are structured values
   // (every string at most long, the whole bounded by `VALUE_MAX_BYTES`); the rest is the row schema's.
@@ -218,6 +225,11 @@ function ruleIssue(rule: ValueRule, value: unknown, where: string): string | nul
       return Array.isArray(value) ? stringsIssue(value, rule.cap, where) : null;
     case 'strings':
       return stringsIssue(value, rule.cap, where);
+    case 'plain_cell': {
+      const issue = stringsIssue(value, rule.cap, where);
+      if (issue !== null || value === null || typeof value !== 'object' || Array.isArray(value)) return issue;
+      return (value as { state?: unknown }).state === 'over_range' ? `${where}.state over_range is a test cell's alone` : null;
+    }
     case 'test_cell': {
       const issue = stringsIssue(value, rule.cap, where);
       if (issue !== null || value === null || typeof value !== 'object' || Array.isArray(value)) return issue;
@@ -424,7 +436,7 @@ export interface OpenValuePart {
   readonly value: unknown;
 }
 
-const isOpen = (rule: ValueRule): boolean => rule.kind === 'strings' || rule.kind === 'test_cell' || rule.kind === 'structured';
+const isOpen = (rule: ValueRule): boolean => rule.kind === 'strings' || rule.kind === 'plain_cell' || rule.kind === 'test_cell' || rule.kind === 'structured';
 
 /**
  * The parts of a client op's value an open rule judges: the whole value of a field-less put or of
@@ -527,6 +539,7 @@ function capOfRule(rule: ValueRule | undefined, keys: readonly string[]): number
     case 'text_cell':
     case 'texts':
     case 'strings':
+    case 'plain_cell':
     case 'test_cell':
       return rule.cap;
     case 'structured':

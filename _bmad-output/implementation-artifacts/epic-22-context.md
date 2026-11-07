@@ -84,10 +84,11 @@ The text of each, with its DoR, ACs and DoD, is in `epics.md` § Epic 22 (14.6 t
 - **TP checklist.** It is the TC's v10 list.
 - **Oil.** An oil unit marks no item NA until Bruno names a dry-only one.
 - **TIPO DO ÓLEO** is a select of A and B.
-- **Insulation rows.** The options are 0,5, 1, 2,5, 5 and 10 kV, low-voltage rows default to 1 kV, and the criterion stays > 400 MΩ.
+- **Insulation rows.** The options are 0,5, 1, 2,5, 5 and 10 kV, low-voltage rows default to 1 kV, and the criterion stays > 400 MΩ. *(2026-11-07, batch e22g, from Bruno's test base rev03 (2026-11-07), TR-OL-02 and TR-SE-02: the transformer's two high-voltage rows default by the plate's TENSÃO NOMINAL AT, 2,5 kV from 601 V to 5000 V and 5 kV above; with the rating empty, unreadable or at most 600 V they take the instrument's TENSÃO ENSAIO as before; SECUNDÁRIO/MASSA keeps 1 kV.)*
 - **Accuracy classes.**
-  - TC: 0,3, 0,6, 1,2, 3, 5P and 10P; the protection classes are judged at ± 3 %.
-  - TP: 0,3, 0,6 and 1,2.
+  - TC: 0,3, 0,6, 1,2, 3, 5P and 10P; ~~the protection classes are judged at ± 3 %~~ *(2026-11-07, batch e22g, from Bruno's test base rev03 (2026-11-07), TC-03: 5P at ± 1 % (IEC 61869-2, ratio error at rated current), 10P at ± 3 %, the class 3 kept)*.
+  - TP: 0,3, 0,6 and 1,2. *(2026-11-07, batch e22g, from Bruno's test base rev03 (2026-11-07), TP-03: plus 3P at ± 3 % and 6P at ± 6 % (IEC 61869-3, "CONFERIR NA NORMA"); seed v12 changed in place, not yet deployed.)*
+  - *(2026-11-07, batch e22g: the class reader takes the old NBR notation, "0,6C25", "10B100", "0,3P75", and the IEC one, "25VA 5P20", "12,5VA 0,3", "10P20", onto the select's options, keyed on the EXATIDÃO field, review S6.)*
 - **Over-range.** "OL" takes the instrument registry's top of range. A ± criterion refuses the state.
 - **Caption ordinal.** The suffix is " (2)", " (3)".
 - **Conclusion floor.** Its sources are listed in Story 22.4. The effective pair is the stricter of the floor and the stored pair.
@@ -169,6 +170,32 @@ Matheus, 2026-11-06: "pode seguir ate o final, tem minha aprovacao".
 - PR #270 (e22f) merged as 06df24b4, on an unmoved main. Story gate on 7b968ac7: lint and static green, test:api 883, test:unit 5319 after one fix of its own test, touched specs 259 of 260 then the red fixed and green alone, `dry-transformer.durability.spec.ts` 15 of 15 on the matrix; the three integrated-gate reds green. Findings: the R8DRY and 14.2 reds were fixtures typing an out-of-criterion ratio (kernel right, fixtures moved within criterion); 12.5 and N2 fixed (the conclusion step and the printed marks count only a stored pair); S1 to S4, S6, S7 (37/28 ms to 13/7 ms), N1, N3, N4, N8 fixed; S5 narrowed (no Apto without a concluded sheet; a stricter derived verdict still stands); N5 to N7 deferred. Golden: 9 lines (8 sheets' marks back to their pre-wave state, the N1 summary). Open for Matheus: whether an open sheet's floor counts in the parecer before any sheet is concluded; N3 clears on NC to C only, not NC to NA. e22f must deploy with wave A (a contract 31 client without it flags false duplicates).
 - Deploy: wave A deploys together with wave B after wave B's integrated gate (one `test:e2e:full` on the integrated main instead of two); the AWS session expired on 2026-11-07 and waits for Matheus's `aws login`.
 
+### Wave B (coordinator, 2026-11-07)
+
+**Merges.**
+- PR #269 (e22s, 22.7, 22.8, 22.9 and 22.11; seed v12, contract 32, MIN 32) merged first as b811ace9, after the cross-batch rule against e22f's main.
+- PR #272 (Bruno's test base in the KB, docs only) merged as bf50118d.
+- PR #268 (e22r, 22.10 and 22.12; notes under contract 32) merged as 538062a4, after the cross-batch rule: one contract bump kept, the TENSÃO column before MANUT. ANTERIOR, both `deferred-work.md` headings kept.
+
+**Integrated gate on 538062a4.**
+- Under the host lock, 68 min, load 4.3 to 8.1.
+- lint 0 (41 s), static 0 (34 s), test:api green (393 s).
+- test:unit 5442 of 5445: three web tests timed out under load (`relatorio-tree-edges`, `relatorio-tree-painel`, `setup-surface`) and passed 79 of 79 alone under the lock.
+- `test:e2e:full`: 605 of 609 passed, 4 skipped, 0 failed, 0 flaky.
+- `test:e2e:matrix`: 143 of 159 passed, 16 skipped (the WebKit Blob skips), 0 failed.
+- Verdict: green.
+
+**Integrated review** (`epic-22-wave-b-integrated-review-2026-11-07.md`, two passes per § 9): not accepted.
+- B1 (blocker): words break in the v12 insulation tables, whose TENSÃO and MANUT. ANTERIOR columns overflow the fitted widths.
+- S1 to S6: range unit spellings; a unit carried past an over-range row; the "Anterior" line in the outlier colour; over-range not refused on the nameplate and `sheet/test/value` paths; the R8LAY-E2E-001 settle window; `parseAccuracyClass` keyed on the option shape.
+- N1 to N9 notes.
+
+**Fix batch e22g** (branch `e22g-wave-b-fixes`, port base 64), with B1, S1 to S6, N1 to N5, N7 and three corrections from Bruno's test base applied to v12 in place (TC 5P at ±1 %, TP 3P/6P, old and new class notations, the transformer HV insulation default by rating). N6, N8 and N9 accepted.
+- PR #273 merged as 1742c21f, on an unmoved main. Story gate on 08637dc0: lint and static green, test:unit 5514 of 5515 (the red, `template-composer-local.test.tsx`, outside the diff, passed 17 of 17 alone), test:api 892 passed and 6 skipped (Porto Seguro goldens unchanged), touched specs 127 of 127, `over-range.durability` on the matrix 3 of 3, R8LAY-E2E-001 with `--repeat-each 10` 10 of 10. The head d63b60b7 adds only the spec record.
+- Readings beyond the brief: the B1 trigger at 60 em (every v1 to v11 transformer table measures 59.8 em and printed whole on the wave A PDF); a side-by-side pair decides MANUT. ANTERIOR together; a rating of 600 V or less keeps the instrument's voltage and a rating-chosen voltage shows no notice; S5 fixed in the test only, the `preventScroll` UX question is a `deferred-work.md` row for Matheus; S3 takes `.helper`'s `--ink-secondary`.
+- Open: N2, N4 and N5 have kernel tests only; no e2e judges 5P or picks 3P/6P.
+- Deploy: waves A and B deploy together after `test:e2e:full` on the integrated main and the paid plate eval, both waiting on Matheus's `aws login`.
+
 ## Bruno's test base against Epic 22 (coordinator, 2026-11-07)
 
 Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `docs/kbs/project/test-base.md`). The values stay in that file; rows are cited by ID. Read against main b811ace9 and PR #268.
@@ -179,7 +206,7 @@ Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `
 - The transformer ratio criterion (TR-OL-04, TR-SE-04) and the contact criterion (DJ-03, SC-03) match `seed/criteria.ts`.
 - The low-voltage insulation row's 1 kV default (Story 22.8) matches TR-OL-02 and TR-SE-02. Pendência P02 leaves Fasor's 0,5 kV practice open.
 
-**Differs from a coordinator's reading listed for Bruno; the base is taken as his answer.** The wave B fix batch takes these three:
+**Differs from a coordinator's reading listed for Bruno; the base is taken as his answer.** The wave B fix batch takes these three *(2026-11-07, taken by batch e22g; see Coordinator's readings above)*:
 - TC-03: the 5P class has its own tolerance in the base. Story 22.9 judges 5P and 10P alike (`relatorio/accuracy-class.ts` `PROTECTION_CLASSES`).
 - TP-03: the TP's classes include 3P and 6P with their tolerances. Seed v12 `TP_CLASSES` offers only the three measurement classes.
 - TR-OL-02 and TR-SE-02: the high-voltage insulation rows take a default by winding voltage. Seed v12 leaves them with no default (`default_kv: null`).

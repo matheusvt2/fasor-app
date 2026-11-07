@@ -314,8 +314,10 @@
  * `range_resistencia_contato` (AR-18's test-default shape, absent and null both meaning unset), so
  * `registry/instrument/{id}/range_*` are new put paths. A test cell value in `over_range` whose
  * `raw` is no positive plain decimal or whose `unit` is no short text is refused
- * (`op_value_invalid`, `ops/value-limits.ts`). No plate or display reading proposes the state. A
- * row written before 32 parses to the same bytes.
+ * (`op_value_invalid`, `ops/value-limits.ts`), and so is a value in `over_range` anywhere but a
+ * test cell: a nameplate field, a measurement test's value and the cabine's `se` and `env`
+ * numbers (e22g, review S4). No plate or display reading proposes the state. A row written
+ * before 32 parses to the same bytes.
  *
  * 32 (2026-11-06, Story 22.12, batch e22r): the previous visit's value beside each reading. An
  * equipment row gains the optional `last_results` (`lastResultsSchema`, absent and null both

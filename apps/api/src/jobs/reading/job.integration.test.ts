@@ -301,7 +301,7 @@ describe('8.4-INT reading job attempts', () => {
     ['tc', 'plate-tc.png'],
   ] as const) {
     it(`13.7: a ${type} plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value`, async () => {
-      // e22s: on the seed the synthetic plates were laid out on (v12 reads the TC's "10B100" as no class it offers).
+      // e22s: on the seed the synthetic plates were laid out on (v12 adds TIPO DO ÓLEO and the TP's EXATIDÃO; e22g: it reads the TC's "10B100" as 10P).
       const { relatorioId, blocks } = await relatorio('v11');
       const block = blocks.find((b) => b.block_type === type)!;
       const committed = readFileSync(join(IMAGES, file));

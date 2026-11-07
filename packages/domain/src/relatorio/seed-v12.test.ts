@@ -107,14 +107,21 @@ describe('22.8-UNIT the test voltage per row (seed v12)', () => {
     return instrument === null ? block : withTest(block, 'isolacao', {}, megger(instrument));
   };
   const at = (block: BlockRow, row: number) => rowTestVoltage(block, testOf(block, 'isolacao'), row)!;
+  /** e22g: a transformer with no TENSÃO NOMINAL AT, so its high-voltage rows take the instrument, as before. */
+  const noAt = (instrument: string | null) => {
+    const block = withNameplate(sheet('transformador_forca'), { tensao_nominal_bt: measured('220', 'V') });
+    return instrument === null ? block : withTest(block, 'isolacao', {}, megger(instrument));
+  };
 
-  it('a 10 kV megger: PRIMÁRIO/MASSA and PRIMÁRIO/SECUNDÁRIO at 10, SECUNDÁRIO/MASSA at 1, the column appended after the five value columns', () => {
-    const block = tf('10 kV');
+  it('a 10 kV megger and no AT rating: PRIMÁRIO/MASSA and PRIMÁRIO/SECUNDÁRIO at 10, SECUNDÁRIO/MASSA at 1, the column appended after the five value columns', () => {
+    const block = noAt('10 kV');
     expect([0, 1, 2].map((row) => at(block, row))).toEqual([
       { col: 5, kv: '10', text: '10', source: 'default', notice: null },
       { col: 5, kv: '10', text: '10', source: 'default', notice: null },
       { col: 5, kv: '1', text: '1', source: 'default', notice: null },
     ]);
+    // e22g (Bruno's test base rev03, 2026-11-07): a 13,8 kV AT rating starts them at 5 kV whatever the megger.
+    expect([0, 1, 2].map((row) => at(tf('10 kV'), row).kv)).toEqual(['5', '5', '1']);
     expect([...TEST_VOLTAGE_OPTIONS_KV]).toEqual(['0,5', '1', '2,5', '5', '10']);
   });
 
@@ -128,12 +135,12 @@ describe('22.8-UNIT the test voltage per row (seed v12)', () => {
     expect(rowVoltageCell('3')).toBeNull();
   });
 
-  it('an instrument value that is not an option, or none, leaves the high-voltage rows empty, never missing; "5.000 V" reads 5', () => {
-    expect(at(tf('3 kV'), 0)).toMatchObject({ kv: null, text: '-', source: null });
-    expect(at(tf(null), 0)).toMatchObject({ kv: null, text: '-', source: null });
-    expect(at(tf(null), 2)).toMatchObject({ kv: '1', source: 'default' });
-    expect(at(tf('5.000 V'), 0)).toMatchObject({ kv: '5', text: '5' });
-    const evaluation = evaluateSheetReadings(tf(null), getDefinition('v12', 'cabine_primaria', 'transformador_forca')).find((one) => one.testKey === 'isolacao')!;
+  it('with no AT rating, an instrument value that is not an option, or none, leaves the high-voltage rows empty, never missing; "5.000 V" reads 5', () => {
+    expect(at(noAt('3 kV'), 0)).toMatchObject({ kv: null, text: '-', source: null });
+    expect(at(noAt(null), 0)).toMatchObject({ kv: null, text: '-', source: null });
+    expect(at(noAt(null), 2)).toMatchObject({ kv: '1', source: 'default' });
+    expect(at(noAt('5.000 V'), 0)).toMatchObject({ kv: '5', text: '5' });
+    const evaluation = evaluateSheetReadings(noAt(null), getDefinition('v12', 'cabine_primaria', 'transformador_forca')).find((one) => one.testKey === 'isolacao')!;
     const table = evaluation.tables[0]!;
     expect(table.columns.some((column) => column.col === 5)).toBe(false);
     expect(table.rows.every((row) => row.cells.every((one) => one.address.col !== 5))).toBe(true);
@@ -197,7 +204,8 @@ describe('22.9-UNIT the accuracy class (seed v12)', () => {
     ];
     for (const [text, cls] of table) expect(parseAccuracyClass(text), String(text)).toBe(cls);
     expect(accuracyClassDeviation('1,2')).toBe(1.2);
-    expect(accuracyClassDeviation('5P')).toBe(3);
+    // e22g (Bruno's test base rev03, 2026-11-07): 5P at ± 1 % (IEC 61869-2), 10P at ± 3 %.
+    expect(accuracyClassDeviation('5P')).toBe(1);
     expect(accuracyClassDeviation('10P')).toBe(3);
     expect(accuracyClassDeviation(null)).toBeNull();
   });
@@ -221,8 +229,12 @@ describe('22.9-UNIT the accuracy class (seed v12)', () => {
     expect(conclusionFloor(tc(null, '20.168'))?.pair.result).toBe('reprovado');
   });
 
-  it('5P and 10P are judged at ±3 %; no class at ±0,5 % with the helper asking for EXATIDÃO', () => {
-    for (const cls of ['5P', '10P']) expect(ratioOf(tc(cls, '20.5')).criterionText, cls).toBe('±3 %');
+  it('5P is judged at ±1 % and 10P at ±3 % (e22g, Bruno\'s test base rev03); no class at ±0,5 % with the helper asking for EXATIDÃO', () => {
+    expect(ratioOf(tc('5P', '20.5')).criterionText).toBe('±1 %');
+    expect(ratioOf(tc('10P', '20.5')).criterionText).toBe('±3 %');
+    // 2,5 % off: out at 5P, within at 10P.
+    expect(ratioOf(tc('5P', '20.5')).tables[0]!.rows[0]!.condicao).toBe('INSATISFATÓRIO');
+    expect(ratioOf(tc('10P', '20.5')).tables[0]!.rows[0]!.condicao).toBe('SATISFATÓRIO');
     const none = ratioOf(tc(null, '20.168'));
     expect(none.criterionText).toBe('±0,5 %');
     expect(none.tables[0]!.rows[0]!.condicao).toBe('INSATISFATÓRIO');

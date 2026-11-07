@@ -71,10 +71,18 @@ function transformerNameplate(nameplate: readonly FieldDef[]): FieldDef[] {
 
 // --- Story 22.9 ------------------------------------------------------------------------------
 
-/** The accuracy classes of a TC (NBR 6856): measurement, then protection (coordinator's reading, listed for Bruno). */
+/**
+ * The accuracy classes of a TC (NBR 6856): measurement, then protection (coordinator's reading,
+ * listed for Bruno). 2026-11-07 (e22g, Bruno's test base rev03): 5P is judged at ± 1 % (IEC
+ * 61869-2, ratio error at rated current), 10P stays ± 3 % and the class 3 stays.
+ */
 const TC_CLASSES = ['0,3', '0,6', '1,2', '3', '5P', '10P'];
-/** The accuracy classes of a TP (NBR 6855; coordinator's reading, listed for Bruno). */
-const TP_CLASSES = ['0,3', '0,6', '1,2'];
+/**
+ * The accuracy classes of a TP (NBR 6855; coordinator's reading, listed for Bruno), and since
+ * 2026-11-07 (e22g, Bruno's test base rev03) the IEC 61869-3 protection classes 3P (± 3 %) and
+ * 6P (± 6 %). CONFERIR NA NORMA: Bruno's own note on the two protection classes.
+ */
+const TP_CLASSES = ['0,3', '0,6', '1,2', '3P', '6P'];
 const EXATIDAO = 'exatidao';
 
 const exatidao = (options: readonly string[]): FieldDef => ({ key: EXATIDAO, label: 'EXATIDÃO', kind: 'select', options: [...options] });
@@ -92,9 +100,13 @@ const VOLTAGE_COLUMN: ColumnDef = { label: 'TENSÃO', unit: 'kV', role: 'voltage
 type VoltageRow = NonNullable<TableDef['voltage_rows']>[number];
 
 /**
- * The transformer's rows (PRIMÁRIO/MASSA, PRIMÁRIO/SECUNDÁRIO, SECUNDÁRIO/MASSA): the high-voltage
- * rows take the instrument's TENSÃO ENSAIO, the low-voltage one starts at 1 kV (Bruno: "Incluir o
- * teste em BT de 1kV"), each naming the winding its LINHA tests.
+ * The transformer's rows (PRIMÁRIO/MASSA, PRIMÁRIO/SECUNDÁRIO, SECUNDÁRIO/MASSA): the low-voltage
+ * one starts at 1 kV (Bruno: "Incluir o teste em BT de 1kV"), each naming the winding its LINHA
+ * tests. The high-voltage rows carry no seeded default: since 2026-11-07 (e22g, Bruno's test base
+ * rev03; until then they took the instrument's TENSÃO ENSAIO) they start from the plate's TENSÃO
+ * NOMINAL AT, 2,5 kV for a winding rated 601 V to 5000 V and 5 kV above
+ * (`relatorio/row-voltage.ts`), and take the instrument's TENSÃO ENSAIO only while the rating is
+ * empty, unreadable or at most 600 V.
  */
 const TRANSFORMER_VOLTAGE_ROWS: VoltageRow[] = [
   { default_kv: null, winding: 'tensao_nominal_at' },
@@ -184,7 +196,9 @@ function inspecaoQgbt(quadro: BlockDefinition): BlockDefinition {
     subtypes: [],
     conclusion: true,
     library: true,
-    print_title: quadro.print_title!,
+    // authored (e22g, review N3, listed for Bruno): the inspection's own printed title, so it never
+    // reads as a full Quadro elétrico sheet beside one ("QGBT/QD's").
+    print_title: 'INSPEÇÃO DE QGBT',
   };
 }
 

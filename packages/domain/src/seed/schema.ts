@@ -228,7 +228,7 @@ export const testDefSchema = z.object({
   criterion_bands: criterionBandsSchema.optional(),
   /**
    * Seed v12 (Story 22.9): the nameplate select whose accuracy class gives the ratio criterion
-   * (`relatorio/accuracy-class.ts`): ± the class % for a measurement class, ± 3 % for 5P and 10P,
+   * (`relatorio/accuracy-class.ts`): ± the class % for a measurement class, ± 1 % for 5P, ± 3 % for 10P and 3P, ± 6 % for 6P (e22g, Bruno's test base rev03),
    * the seeded criterion while the field is empty. Optional and never defaulted, so v1 to v11
    * parse to the bytes they shipped with.
    */

@@ -187,7 +187,8 @@ describe('Story 22.12: the previous visit\'s value under the cell', () => {
     render(wrap(PREVIOUS, <MeasurementField api={api} cell={insulation()} label="Fase A" presentation="table" missing={false} onRun={() => false} />));
     const line = screen.getByText('Anterior: 4,9 GΩ (rev. 1, 05/10/2026)');
     expect(line).toHaveClass('mf-helper');
-    expect(line).toHaveAttribute('data-tone', 'outlier');
+    // e22g (review S3): the neutral tone, never the out-of-limit one (`app.css` mirrors `.helper`).
+    expect(line).toHaveAttribute('data-tone', 'previous');
     expect(line).not.toHaveAttribute('role');
     expect(screen.getByRole('textbox', { name: 'Fase A' })).toHaveValue('');
     expect(written()).toEqual([]);

@@ -424,6 +424,19 @@ describe('Story 14.5 (contract 19): the Chave de transferência automática thro
     expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey('block', t.block)) as never));
   });
 
+  it('e22g (review S4): a test value put in the over_range state is refused op_value_invalid, never logged; the measured value stays', async () => {
+    const t = await relatorio('v5');
+    const current = sheetTestValuePath(t.block, E1, 'corrente_ensaio');
+    const good = put(t.relatorio, current, num('100', 'A'));
+    expect((await pushOk([good])).rejected).toEqual([]);
+    const over = put(t.relatorio, current, { raw: '100', unit: 'A', state: 'over_range' });
+    const result = await pushOk([over]);
+    expect(result.rejected).toEqual([{ op_id: over.op_id, code: 'op_value_invalid' }]);
+    expect((await storedIds([over.op_id])).size).toBe(0);
+    const server = (await rowOfEntity('block', t.block)) as BlockRow;
+    expect(server.sheet.test[E1]!.values!.corrente_ensaio!.value).toEqual({ raw: '100', unit: 'A', state: 'measured' });
+  });
+
   it('C1 (2026-10-14): E2 has no N-T row, so a cell at row index 7 (past Linha-carga, the old eighth row) is op_invalid, 200, and the sheet is untouched', async () => {
     expect(testOf(E2).rows.map((row) => row.key)).not.toContain('n_t');
     expect(testOf(E2).rows.map((row) => row.key).at(-1)).toBe('linha_carga');

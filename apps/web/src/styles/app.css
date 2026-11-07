@@ -1140,3 +1140,10 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
    text wrap inside the pill. Every other chip row (status, "Hoje", recent values) keeps the mock's
    `nowrap`; `components.css` is untouched. */
 .checklist-row .row-expand > .chip-row > .chip { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; padding-block: var(--sp-2); }
+
+/* e22g (review S3): the previous visit's "Anterior: ..." line under a reading cell (Story 22.12). Every
+   `.mf-helper` tone of `components.css` (the base rule and `[data-tone="outlier"]`) draws in
+   `--fora-do-limite`, which reads as a warning, and no mock draws a neutral cell helper; so the line
+   takes the field helper's neutral colour, the declaration of `.helper` (components.css) copied
+   verbatim. Layout, size and weight stay the `.mf-helper` base rule's. */
+.mf-helper[data-tone="previous"] { color: var(--ink-secondary); }

@@ -1,5 +1,5 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
-import { scaleToUnit } from '../seed/criteria.ts';
+import { OHM_UNITS, scaleToUnit } from '../seed/criteria.ts';
 import { shiftDecimal } from './reading-cells.ts';
 
 /*
@@ -80,11 +80,68 @@ export const OVER_RANGE_COMPARED_REFUSAL = 'Este valor é comparado com outros: 
 
 /**
  * authored (Story 22.10, open for Bruno): "OL" typed with no instrument limit to fill in (no
- * instrument picked, its limit unset, or in a unit the cell cannot take); the example in the
- * cell's default unit.
+ * instrument picked or its limit unset); the example in the cell's default unit.
  */
 export function overRangeNoRangeText(unit: string | null): string {
   return `Instrumento sem limite cadastrado: digite > e o limite (ex.: > 2${unit === null || unit === '' ? '' : ` ${unit}`})`;
+}
+
+/**
+ * authored (e22g, review S1, listed for Bruno): "OL" typed where the instrument's limit is set but
+ * its unit cannot be read as one of the cell's (blank, "ohm?", or a TΩ limit on a µΩ cell): the
+ * stored unit shown, the example in the cell's default unit.
+ */
+export function overRangeUnreadableUnitText(stored: string | null, unit: string | null): string {
+  const shown = stored === null || stored.trim() === '' ? 'sem unidade' : `"${stored.trim()}"`;
+  return `Limite do instrumento com unidade não reconhecida (${shown}): corrija em Cadastros ou digite > e o limite (ex.: > 2${unit === null || unit === '' ? '' : ` ${unit}`})`;
+}
+
+/**
+ * e22g (review S1): why "OL" has no limit to take on a cell: the instrument has none
+ * (`overRangeNoRangeText`), or has one whose unit cannot become one of the cell's units
+ * (`overRangeUnreadableUnitText`); the example in `defaultUnit`, else the cell's first unit.
+ */
+export function overRangeMissingLimitText(range: InstrumentRange | null, units: readonly string[], defaultUnit: string | null): string {
+  const example = defaultUnit ?? units[0] ?? null;
+  return range === null || !isOverRangeRaw(range.raw) ? overRangeNoRangeText(example) : overRangeUnreadableUnitText(range.unit, example);
+}
+
+/** Spelled-out prefixes a typed limit unit may use, by the Ω table's prefix ("micro" -> "µ"). */
+const PREFIX_WORDS: Readonly<Record<string, string>> = { micro: 'µ', mili: 'm', milli: 'm', kilo: 'k', quilo: 'k', mega: 'M', meg: 'M', giga: 'G', tera: 'T', kil: 'k' };
+/** One-letter prefixes by the Ω table's prefix: the micro sign, the Greek mu and "u"; m and M kept apart by case. */
+const PREFIX_LETTERS: Readonly<Record<string, string>> = { 'µ': 'µ', 'μ': 'µ', u: 'µ', U: 'µ', m: 'm', k: 'k', K: 'k', M: 'M', g: 'G', G: 'G', t: 'T', T: 'T' };
+
+/**
+ * e22g (review S1): an instrument limit's unit as typed in Cadastros, read as a key of the Ω
+ * table (`OHM_UNITS`): "µΩ" (U+00B5), "μΩ" (U+03BC), "uΩ", "micro ohm" and "uohm" are µΩ; "T",
+ * "TOhm", "tΩ" and "tera ohms" are TΩ; a bare prefix is the prefix's Ω unit ("G" is GΩ); m is
+ * milli and M mega, by case. Null for a blank and for a text it cannot read ("ohm?", "V"); never
+ * throws. Ω has no keyboard key, so a typed "ohm" and the ohm sign (U+2126) both read as Ω.
+ */
+export function normalizeOhmUnit(text: string | null | undefined): string | null {
+  if (typeof text !== 'string') return null;
+  const compact = text.trim().replace(/\s+/g, '');
+  if (compact === '') return null;
+  if (OHM_UNITS.includes(compact)) return compact;
+  const ohm = /(\u03A9|\u2126|ohms?)$/iu.exec(compact);
+  const prefix = ohm === null ? compact : compact.slice(0, ohm.index);
+  if (prefix === '') return ohm === null ? null : 'Ω';
+  const read = PREFIX_WORDS[prefix.toLocaleLowerCase('pt-BR')] ?? PREFIX_LETTERS[prefix] ?? null;
+  if (read === null) return null;
+  const unit = `${read}Ω`;
+  return OHM_UNITS.includes(unit) ? unit : null;
+}
+
+/**
+ * authored (e22g, review S1, listed for Bruno): Cadastros' helper under an instrument's limit
+ * whose stored pair the cells cannot read; null when it reads (or nothing is stored).
+ */
+export function instrumentRangeHelperText(stored: { raw?: string | null; unit?: string | null } | null | undefined): string | null {
+  const raw = stored?.raw?.trim() ?? '';
+  const unit = stored?.unit?.trim() ?? '';
+  if (raw === '' && unit === '') return null;
+  if (raw !== '' && normalizeOhmUnit(unit) === null) return 'Unidade não reconhecida: use µΩ, mΩ, Ω, kΩ, MΩ, GΩ ou TΩ (ex.: 2 e TΩ).';
+  return null;
 }
 
 /** Whether a cell takes a reading above the limit, and why not when it does not. */

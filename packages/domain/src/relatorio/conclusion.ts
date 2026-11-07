@@ -7,7 +7,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
 import { measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
-import { isReadingValue } from './over-range.ts';
+import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { evaluatedCells, failedRatioRows, worstReadings, type TestKey, type WorstReading } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultOf } from './sheet-progress.ts';
@@ -387,7 +387,13 @@ export interface ComposedConclusion {
 }
 
 function readingClause(reading: WorstReading): string {
-  return `${TEST_WORDS[reading.testKey].phrase} ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
+  const phrase = TEST_WORDS[reading.testKey].phrase;
+  // authored (e22g, review N2, listed for Bruno): a limit the instrument passed reads "acima de 2.000 µΩ (limite do instrumento)", never "de > 2.000 µΩ".
+  const value =
+    reading.overRange === true && reading.valueText.startsWith(OVER_RANGE_TEXT_PREFIX)
+      ? `${phrase.replace(/ de$/, '')} acima de ${reading.valueText.slice(OVER_RANGE_TEXT_PREFIX.length)} (limite do instrumento)`
+      : `${phrase} ${reading.valueText}`;
+  return `${value} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
 // authored (Story 14.5): how an out reading of a measurement test is named, whatever its
@@ -462,7 +468,10 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
       : hasReadings
         ? `${verb} ${readings}, sem itens verificados registrados`
         : checked
-          ? `${verb} ${checklist}, sem valores medidos registrados`
+          ? // e22g (review N5): a type with nothing to measure (the Inspeção de QGBT) never says no value was recorded.
+            definition.tests.length === 0 && (definition.measurement_tests ?? []).length === 0
+            ? `${verb} ${checklist}`
+            : `${verb} ${checklist}, sem valores medidos registrados`
           : `não ${verb} valores medidos nem itens verificados registrados`;
   const text = `${subject} ${body}.${recommend ? ` ${RECOMMENDATION}` : ''}`;
 

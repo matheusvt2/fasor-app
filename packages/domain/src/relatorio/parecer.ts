@@ -5,6 +5,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isCompanyBlockType } from '../schemas/block-config.ts';
 import { blockDefinitionIn, findSeed, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { isDefectReason } from '../seed/defect-reason.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { effectiveConclusionPair } from './conclusion.ts';
@@ -274,7 +275,13 @@ export interface ComposedParecer {
 }
 
 // authored (e22f N1, open for Bruno): why a Reprovado sheet was reprovada, as its sentence names it.
-const REPROVADO_REASONS = { ratio: 'relação de transformação insatisfatória', reading: 'leituras fora do critério de aceitação', other: 'outro motivo' } as const;
+// authored (e22g, review N4, listed for Bruno): a sheet Não ensaiado for a defect reason (`isDefectReason`) is "por defeito no equipamento", never "outro motivo".
+const REPROVADO_REASONS = {
+  ratio: 'relação de transformação insatisfatória',
+  reading: 'leituras fora do critério de aceitação',
+  defect: 'defeito no equipamento',
+  other: 'outro motivo',
+} as const;
 
 /**
  * e22f N1: the Reprovado sentence, each sheet named once with the reason that reproved it (a
@@ -328,11 +335,12 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   const ratio = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id)).map(({ name }) => name);
   const outOthers = sheets.filter(({ block, definition }) => !reprovadoSet.has(block.id) && outReading(block, definition)).map(({ name }) => name);
   const ratioIds = new Set(ratioSheets.map(({ block }) => block.id));
-  const byReason = { ratio: [] as string[], reading: [] as string[], other: [] as string[] };
+  const byReason = { ratio: [] as string[], reading: [] as string[], defect: [] as string[], other: [] as string[] };
   for (const { block, definition, name } of sheets) {
     if (!reprovadoSet.has(block.id)) continue;
     if (ratioIds.has(block.id)) byReason.ratio.push(name);
     else if (outReading(block, definition)) byReason.reading.push(name);
+    else if (block.not_tested !== null && isDefectReason(block.seed_version, block.not_tested.reason)) byReason.defect.push(name);
     else byReason.other.push(name);
   }
   const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
@@ -409,7 +417,10 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
       ...(ratio.length > 0 ? { ratio } : {}),
       ...(reprovados.length > 0 ? { reprovado: reprovados } : {}),
       ...(outOthers.length > 0 ? { outReadings: outOthers } : {}),
-      ...(byReason.ratio.length + byReason.reading.length > 0 ? { reprovadoBy: byReason } : {}),
+      // e22g N4: the defect group joins the basis only where it holds a sheet, so a basis written before keeps its bytes.
+      ...(byReason.ratio.length + byReason.reading.length + byReason.defect.length > 0
+        ? { reprovadoBy: byReason.defect.length > 0 ? byReason : { ratio: byReason.ratio, reading: byReason.reading, other: byReason.other } }
+        : {}),
     }),
   );
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };

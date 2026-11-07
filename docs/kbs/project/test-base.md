@@ -72,8 +72,8 @@ CM, AT, CP and GE have no seeded type today. The others map to the seeded eight.
 
 The detail is in `_bmad-output/implementation-artifacts/epic-22-context.md` § "Bruno's test base against Epic 22". In short, the base:
 
-- judges the protection accuracy classes and the TP's protection classes differently from Story 22.9's reading;
-- picks the insulation test voltage by winding voltage;
+- judges the protection accuracy classes and the TP's protection classes differently from Story 22.9's reading *(2026-11-07, taken by fix batch e22g: TC 5P ± 1 %, 10P ± 3 %; TP 3P ± 3 %, 6P ± 6 %)*;
+- picks the insulation test voltage by winding voltage *(2026-11-07, taken by e22g for the transformer's high-voltage rows: 2,5 kV from 601 V to 5000 V, 5 kV above)*;
 - uses insulation minimums by voltage and medium where the product keeps one fixed minimum;
 - names the transformer's insulating liquid where the product has TIPO DO ÓLEO A or B;
 - uses the previous visit's value to judge Aprovado com restrições. Story 22.12 only shows that value.
