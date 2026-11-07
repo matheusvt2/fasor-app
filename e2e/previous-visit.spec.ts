@@ -5,7 +5,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { escapeDialog } from './support/dialogs.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { confirmIssue } from './support/relatorio-flow.ts';
+import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
@@ -42,6 +42,8 @@ const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
 /** Issues revision 1 of `relatorioId` from its Sumário and returns the DOCX's tables. */
 async function issue(page: Page, relatorioId: string): Promise<string[][][]> {
+  // e22f S5: no sheet is concluded, so nothing is judged and the parecer is tapped before issuing.
+  await setParecer(page, relatorioId);
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });

@@ -159,15 +159,24 @@ export function EnsaiosSection({
   // Story 22.10: the limit "OL" takes, from the instrument picked on each test (read live from the
   // registry); Story 22.12: the previous visit's "Anterior: …" line of each cell, from the sheet's
   // equipment row (`nameplate-section.tsx` finds it the same way). Both are the kernel's.
+  // The context value changes only when a limit or a previous value does, never on every cell
+  // edit, so the cells do not all re-render while one is typed in (R8LAY-E2E-001's focus geometry).
   const own = block.equipment_id === null ? undefined : snapshot.equipment.find((row) => row.id === block.equipment_id);
-  const previous = useMemo(() => previousHelpers(own, block, definition, snapshot.relatorio.id), [own, block, definition, snapshot.relatorio.id]);
-  const extras = useMemo<SheetCellExtras>(
-    () => ({
-      rangeOf: (testKey) => instrumentRangeFor(block, instruments, testKey),
-      previousOf: (address) => previous.get(readingAddressKey(address)) ?? null,
-    }),
-    [block, instruments, previous],
+  const lastResults = own?.last_results ?? null;
+  const blockType = block.block_type;
+  const previous = useMemo(
+    () => previousHelpers({ last_results: lastResults }, { block_type: blockType }, definition, snapshot.relatorio.id),
+    [lastResults, blockType, definition, snapshot.relatorio.id],
   );
+  const testKeys = [...evaluations.map((test) => test.testKey as string), ...measurements.map((test) => test.testKey as string)];
+  const rangesKey = JSON.stringify(Object.fromEntries(testKeys.map((testKey) => [testKey, instrumentRangeFor(block, instruments, testKey)])));
+  const extras = useMemo<SheetCellExtras>(() => {
+    const ranges = JSON.parse(rangesKey) as Record<string, ReturnType<typeof instrumentRangeFor>>;
+    return {
+      rangeOf: (testKey) => ranges[testKey] ?? null,
+      previousOf: (address) => previous.get(readingAddressKey(address)) ?? null,
+    };
+  }, [rangesKey, previous]);
 
   return (
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>
