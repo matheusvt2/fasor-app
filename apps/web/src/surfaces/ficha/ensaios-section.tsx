@@ -10,6 +10,7 @@ import {
   measurementCellName,
   measurementRunTarget,
   runEnterKeyHint,
+  snapshotDefinitionContext,
   runTarget,
   screenLabel,
   tableDictationLabel,
@@ -167,8 +168,10 @@ export function EnsaiosSection({
     () => previousHelpers({ last_results: lastResults }, { block_type: blockType }, definition, snapshot.relatorio.id),
     [lastResults, blockType, definition, snapshot.relatorio.id],
   );
+  // Story 14.8: a company sheet's tests resolve through the snapshot's type versions.
+  const definitions = snapshotDefinitionContext(snapshot);
   const testKeys = [...evaluations.map((test) => test.testKey as string), ...measurements.map((test) => test.testKey as string)];
-  const rangesKey = JSON.stringify(Object.fromEntries(testKeys.map((testKey) => [testKey, instrumentRangeFor(block, instruments, testKey)])));
+  const rangesKey = JSON.stringify(Object.fromEntries(testKeys.map((testKey) => [testKey, instrumentRangeFor(block, instruments, testKey, definitions)])));
   const extras = useMemo<SheetCellExtras>(() => {
     const ranges = JSON.parse(rangesKey) as Record<string, ReturnType<typeof instrumentRangeFor>>;
     return {

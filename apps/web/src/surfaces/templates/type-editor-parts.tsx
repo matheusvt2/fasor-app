@@ -5,6 +5,7 @@ import {
   addDraftTest,
   CRITERION_RULE_WORDS,
   CRITERION_RULES,
+  criterionRulesFor,
   criterionUsedByText,
   FIELD_KIND_WORDS,
   FIELD_KINDS,
@@ -630,6 +631,11 @@ const numberText = (value: unknown): string => (typeof value === 'number' ? Stri
 
 export function CriteriaPanel({ draft, issues, edit }: PanelProps) {
   const criteria = listOf(draft, 'criteria');
+  // The rules the kernel allows for where the criterion is used (the rule held now stays listed, its issue said).
+  const rulesOf = (key: string, current: CompanyCriterionOperator | undefined): CompanyCriterionOperator[] => {
+    const allowed = criterionRulesFor(draft, key);
+    return current === undefined || allowed.includes(current) ? allowed : CRITERION_RULES.filter((rule) => rule === current || allowed.includes(rule));
+  };
   return (
     <section className="section" aria-labelledby="tipo-h-crit">
       <div className="section-head">
@@ -665,7 +671,7 @@ export function CriteriaPanel({ draft, issues, edit }: PanelProps) {
                     <IssueLines issues={[...at('label'), ...issuesAt(issues, ['criteria', index], true)]} />
                   </td>
                   <td data-label={t.colRule}>
-                    <SelectField hideLabel label={t.ruleLabel(name)} value={operator ?? ''} options={CRITERION_RULES.map((value) => ({ value, label: CRITERION_RULE_WORDS[value] }))} onChange={(value) => edit((d) => updateDraftCriterion(d, index, { operator: value }))} />
+                    <SelectField hideLabel label={t.ruleLabel(name)} value={operator ?? ''} options={rulesOf(text(criterion.key), operator).map((value) => ({ value, label: CRITERION_RULE_WORDS[value] }))} onChange={(value) => edit((d) => updateDraftCriterion(d, index, { operator: value }))} />
                     <IssueLines issues={[...at('operator'), ...at('type')]} />
                   </td>
                   <td className="cell-crit" data-label={t.colValue}>

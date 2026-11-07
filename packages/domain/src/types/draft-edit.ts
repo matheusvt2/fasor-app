@@ -464,6 +464,8 @@ export function updateDraftCriterion(
     criterion.type = criterionTypeOf(patch.operator);
     if (patch.operator === 'between') criterion.value_max = typeof criterion.value_max === 'number' ? criterion.value_max : typeof criterion.value === 'number' ? criterion.value : 0;
     else delete criterion.value_max;
+    // A pass/fail reading passes at 1 (aprovado): the rule's value, which the tab never asks for.
+    if (patch.operator === 'pass_fail') criterion.value = 1;
   }
   // A cleared number leaves the key out, so the schema names it ("informe o valor").
   if (patch.value !== undefined) {

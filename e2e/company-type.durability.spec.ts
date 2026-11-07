@@ -25,6 +25,7 @@ import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
+import { expandLocation, section9Chevron } from './support/tree.ts';
 
 /*
  * Story 14.8 in the durability matrix (desktop Chrome, Android Chrome emulation, WebKit), against
@@ -309,6 +310,37 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await openSheet(page, r1, r1Block.blockId);
   await expect(sheetTitle(page)).toContainText(NAME_V1);
   await expect(sheetTitle(page)).not.toContainText(NAME_V2);
+
+  // --- the field Block palette of R2's tree offers the published type: one tap, born at v2 with its prefix ---
+  // At tablet width the palette is the field variant (one tap creates); wider it is the office's confirm.
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto(`/relatorio/${r2}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  const chevron = section9Chevron(page);
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expandLocation(page, LOCAL);
+  await page.getByRole('button', { name: `Adicionar equipamento no local ${LOCAL}`, exact: true }).click();
+  const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
+  const companyRow = fieldPalette.locator(`.palette-type[data-block-type="type:${typeId}"] .pf-field`);
+  await expect(companyRow.locator('.pi-text > span:first-child')).toHaveText(NAME_V2);
+  const before = new Set((await outbox()).map((row) => row.path));
+  await companyRow.click();
+  await expect(fieldPalette).toBeHidden();
+  let added: { value: { block_type?: string; config?: { type_version?: number } }; tag: string } | undefined;
+  await expect
+    .poll(async () => {
+      const fresh = (await outbox()).filter((row) => !before.has(row.path));
+      const block = fresh.find((row) => row.path.startsWith('block/') && (row.value as { block_type?: string }).block_type === `type:${typeId}`);
+      const equipment = fresh.find((row) => row.path.startsWith('equipment/'));
+      if (block === undefined || equipment === undefined) return false;
+      added = { value: block.value as { block_type?: string; config?: { type_version?: number } }, tag: (equipment.value as { tag: string }).tag };
+      return true;
+    })
+    .toBe(true);
+  expect(added!.value.config?.type_version).toBe(2);
+  expect(added!.tag).toMatch(/^NB-/);
+  if (viewport !== null) await page.setViewportSize(viewport);
 
   // --- R0, the CTA relatório from before, is unchanged: the library type, by its own name ---
   await openSheet(page, r0.relatorioId, r0Pair.block.id);
