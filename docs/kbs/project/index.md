@@ -11,3 +11,4 @@ timestamp: 2026-09-30T00:00:00Z
 - [rules](/project/rules.md) policy that binds every change: public repo, no emoji, naming, AWS ceiling, no paid keys. Open before writing any file.
 - [vocabulary](/project/vocabulary.md) fixed domain words (relatório, cabine, ficha, parecer, TAG, Suggestion...). Open when a term is unclear.
 - [delivery-slice](/project/delivery-slice.md) what ships by 2026-10-03, what waits, dated post-MVP items.
+- [test-base](/project/test-base.md) Bruno's spreadsheet of tests, characteristics and criteria per MV equipment type (gitignored source), its sheets and where it differs from the product. Open before planning tests, criteria, equipment types or field help.
