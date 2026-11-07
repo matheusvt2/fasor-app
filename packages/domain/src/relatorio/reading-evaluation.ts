@@ -4,6 +4,7 @@ import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, t
 import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type TableDef, type TestDef } from '../seed/schema.ts';
 import { listPtBr } from '../text/plural.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
+import { OVER_RANGE_ALLOWED, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
 import { rowTestVoltage, voltageColumnOf } from './row-voltage.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import {
@@ -212,6 +213,8 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   const typed = typedColumns(table);
   const inputs = typed.filter(({ column }) => column.role === 'input');
   const helper = criterion === null ? null : outHelperText(criterion);
+  // Story 22.10: a ratio cell (a ± criterion), capture or input, never takes a reading above the limit.
+  const overRange: OverRangeAllowance = ratio || criterion?.operator === '±' ? { allowed: false, refusal: OVER_RANGE_RATIO_REFUSAL } : OVER_RANGE_ALLOWED;
 
   const rows: EvaluatedRow[] = table.rows.map((connection, r) => {
     const row = offset + r;
@@ -222,7 +225,9 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     for (const { col, column } of typed) {
       const address: CellAddress = { testKey: test.key, row, col };
       const stored = readStored(storedCell(block, address));
-      const state = stored?.state ?? 'empty';
+      // Story 22.10: a stored limit where the cell refuses one (an op written by hand or an old path) reads invalid: "> 2", no verdict.
+      const refusedLimit = stored?.state === 'over_range' && !overRange.allowed;
+      const state = refusedLimit ? 'invalid' : (stored?.state ?? 'empty');
       const unit = stored?.unit ?? column.unit;
       const cell: EvaluatedCell = {
         address,
@@ -232,7 +237,17 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
         raw: stored?.raw ?? '',
         unit,
         units: unitsOf(column),
-        displayText: state === 'measured' ? formatDecimalGroupedPtBr(stored!.raw) : state === 'not_measured' ? '-' : state === 'invalid' ? stored!.raw : '—',
+        displayText:
+          state === 'measured'
+            ? formatDecimalGroupedPtBr(stored!.raw)
+            : state === 'over_range' || refusedLimit
+              ? overRangeDisplay(stored!.raw)
+              : state === 'not_measured'
+                ? '-'
+                : state === 'invalid'
+                  ? stored!.raw
+                  : '—',
+        overRange,
         source: state === 'empty' ? null : 'typed',
         fallback: null,
         verdict: null,
@@ -272,13 +287,16 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
         if (Number.isFinite(value) && Number(raw) > 0) calculated = { raw, text: formatCalculated(value) };
       }
     }
-    // The verdicts: every measured capture against the criterion.
+    // The verdicts: every measured capture against the criterion; Story 22.10: a limit the instrument passed by `overRangeVerdict`.
     for (const cell of cells) {
-      if (cell.role !== 'capture' || cell.state !== 'measured' || criterion === null) continue;
+      if (cell.role !== 'capture' || (cell.state !== 'measured' && cell.state !== 'over_range') || criterion === null) continue;
       const value = Number(cell.raw);
       let within: boolean | null;
       try {
-        if (ratio) within = calculated === null ? null : compareCriterion({ value: deviationPct(value, Number(calculated.raw)), unit: '%' }, criterion);
+        if (cell.state === 'over_range') {
+          const verdict = overRangeVerdict(value, cell.unit, criterion);
+          within = verdict === null ? null : verdict === 'within';
+        } else if (ratio) within = calculated === null ? null : compareCriterion({ value: deviationPct(value, Number(calculated.raw)), unit: '%' }, criterion);
         else within = compareCriterion({ value, unit: cell.unit }, criterion);
       } catch {
         within = null;

@@ -22,11 +22,13 @@ import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
-import type { BlockRow, NumberValue } from '../schemas/entities.ts';
+import { isReadingValue } from '../relatorio/over-range.ts';
+import type { BlockRow, EquipmentRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, findSeed, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { withCaptionOrdinals } from './caption-ordinal.ts';
+import { previousReadingsByAddress, previousResultsFor, previousRowText, type LastResultReading } from './last-results.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
 import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
 
@@ -290,6 +292,8 @@ interface Context {
   snapshot: RelatorioSnapshot;
   blocks: ReadonlyMap<string, BlockRow>;
   tags: ReadonlyMap<string, string>;
+  /** Story 22.12: the snapshot's equipment rows by id, for each sheet's previous visit (`previousResultsFor`). */
+  equipment: ReadonlyMap<string, EquipmentRow>;
   /** Every live photo's number, in document order (`numberPhotos`'s map). */
   numbers: ReadonlyMap<string, number>;
   /** Stories 17.1 and 17.4: the one walk the numbers come from; its groups are what prints where. */
@@ -304,6 +308,7 @@ function contextOf(snapshot: RelatorioSnapshot): Context {
     snapshot,
     blocks: new Map(snapshot.blocks.map((block) => [block.id, block])),
     tags: new Map(snapshot.equipment.map((row) => [row.id, row.tag])),
+    equipment: new Map(snapshot.equipment.map((row) => [row.id, row])),
     numbers: new Map(photos.order.map((photo, i) => [photo.id, i + 1])),
     photos,
     definitions: snapshotDefinitionContext(snapshot),
@@ -506,7 +511,7 @@ function bandValueText(value: number): string {
 function valoresUnit(cols: readonly number[], evaluated: EvaluatedTable, columns: readonly ColumnDef[]): string | null {
   const measured = new Set<string>();
   for (const row of evaluated.rows) {
-    for (const cell of row.cells) if (cols.includes(cell.address.col) && cell.state === 'measured' && cell.unit !== null) measured.add(cell.unit);
+    for (const cell of row.cells) if (cols.includes(cell.address.col) && isReadingValue(cell.state) && cell.unit !== null) measured.add(cell.unit);
   }
   const seeded = new Set(cols.map((col) => columns[col]?.unit ?? null).filter((unit): unit is string => unit !== null));
   const units = measured.size > 0 ? measured : seeded;
@@ -576,11 +581,12 @@ function printedValueColumns(definition: TableDef): { col: number; column: Colum
 
 /**
  * A row's voltage cell: the effective voltage ("10", "1", "0,5"), "-" when none applies or the row
- * holds no measured capture (a row not tested prints no test voltage).
+ * holds no measured capture (a row not tested prints no test voltage). Story 22.10: a capture
+ * above the instrument's limit is a reading too, so its row prints its voltage.
  */
 function voltageText(row: EvaluatedRow): string {
   if (row.voltage === null || row.voltage.kv === null) return DASH;
-  return row.cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') ? row.voltage.text : DASH;
+  return row.cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)) ? row.voltage.text : DASH;
 }
 
 /** One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD). */
@@ -615,11 +621,13 @@ function measurementHeader(definition: TableDef, evaluated: EvaluatedTable): Pri
 /**
  * A typed reading: the number with its own unit, "-" when not measured or empty; an untyped
  * ratio input reads the nameplate. Story 22.2: the number alone when its header carries that unit.
+ * Story 22.10: a reading above the instrument's limit prints "> 2 TΩ" ("> 2" under "VALORES
+ * (TΩ)"), and one stored where the cell refuses it reads invalid and prints "> 2" as shown.
  */
 function readingText(cell: EvaluatedCell, column: ColumnDef, headerUnit: string | null): string {
   const unitOf = (unit: string | null | undefined) => (headerUnit !== null && unit === headerUnit ? null : unit);
-  if (cell.state === 'measured') return withUnit(cell.displayText, unitOf(cell.unit));
-  if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.raw;
+  if (isReadingValue(cell.state)) return withUnit(cell.displayText, unitOf(cell.unit));
+  if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.displayText;
   if (cell.state === 'empty' && cell.fallback !== null) return withUnit(cell.fallback.text, unitOf(column.unit));
   return DASH;
 }
@@ -817,10 +825,62 @@ function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
   return { columns: fittedColumns(rows, left.columns.length + right.columns.length), rows };
 }
 
-function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>): SheetPart[] {
+// --- MANUT. ANTERIOR (Story 22.12) ----------------------------------------------------------------
+
+/** Story 22.12: the header of the previous visit's column, the last column of a reading table. */
+const PREVIOUS_HEADER = 'MANUT. ANTERIOR';
+
+/** The previous visit's readings of a sheet by `readingAddressKey`, or null when its equipment has none from another relatório. */
+type PreviousReadings = ReadonlyMap<string, LastResultReading> | null;
+
+/**
+ * Story 22.12: a reading table with MANUT. ANTERIOR appended as its last column, nothing else
+ * moved: the last header row gets the header (an earlier header row, where the table has two, an
+ * empty shaded cell), a band or a line across the table spans one more, and each other row gets
+ * its cell, `texts` in order ('' past their end: a reference or a group row). Columns re-fitted.
+ */
+export function withPreviousColumn(printed: PrintTable, texts: readonly string[]): PrintTable {
+  const width = printed.columns.length;
+  const headers = printed.rows.filter((row) => row.header === true);
+  const last = headers[headers.length - 1];
+  let data = 0;
+  const rows = printed.rows.map((row): PrintRow => {
+    if (row.header === true) return { ...row, cells: [...row.cells, headerCell(row === last ? PREVIOUS_HEADER : '')] };
+    const span = row.cells.reduce((sum, cell) => sum + (cell.span ?? 1), 0);
+    if (row.band === true || (row.cells.length === 1 && span === width && width > 1)) return { ...row, cells: [{ ...row.cells[0]!, span: width + 1 }] };
+    const text = texts[data] ?? '';
+    data += 1;
+    return { ...row, cells: [...row.cells, valueCell(text)] };
+  });
+  return { ...printed, columns: fittedColumns(rows, width + 1), rows };
+}
+
+/** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
+function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefinition): PreviousReadings {
+  const equipment = block.equipment_id === null ? undefined : ctx.equipment.get(block.equipment_id);
+  const entry = previousResultsFor(equipment, block, ctx.snapshot.relatorio.id);
+  if (entry === null) return null;
+  // An entry none of whose keys this definition holds (every row renamed by a later seed) is no previous visit to print.
+  const readings = previousReadingsByAddress(entry, definition);
+  return readings.size === 0 ? null : readings;
+}
+
+function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>, previous: PreviousReadings): SheetPart[] {
   const test = definition.tests.find((candidate) => candidate.key === evaluation.testKey);
   if (test === undefined) return [];
-  const tables = test.tables.map((tableDef, i) => measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled));
+  let offset = 0;
+  const tables = test.tables.map((tableDef, i) => {
+    const printed = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled);
+    const start = offset;
+    offset += tableDef.rows.length;
+    if (previous === null) return printed;
+    // Story 22.12: each row's previous captures, in column order.
+    const captures = tableDef.value_columns.flatMap((column, col) => (column.role === 'capture' ? [col] : []));
+    return withPreviousColumn(
+      printed,
+      tableDef.rows.map((_, r) => previousRowText(previous, captures.map((col) => ({ testKey: test.key, row: start + r, col })))),
+    );
+  });
   // FO.SERV-03 prints the seccionadora's and the disjuntor's contato aberto and contato
   // fechado tables side by side (`extract-fo-serv-03.md` §2, modelos 3 and 4).
   const [first, second] = test.tables;
@@ -891,8 +951,9 @@ function sharedUnit(test: MeasurementTestEvaluation, col: number): string | null
 /** A cell as printed: a fixed text as written, a choice's option in caps, a number (with its unit unless the header carries it), "-" when empty. */
 function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | null): string {
   if (cell.fixed !== null) return cell.fixed;
-  if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.raw;
-  if (cell.state !== 'measured') return DASH;
+  if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.displayText;
+  // Story 22.10: a reading above the instrument's limit prints as a number does ("> 2.000 µΩ").
+  if (!isReadingValue(cell.state)) return DASH;
   if (cell.kind === 'choice') return printLabel(cell.displayText);
   return headerUnit === null ? withUnit(cell.displayText, cell.unit) : cell.displayText;
 }
@@ -902,7 +963,7 @@ function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | nu
  * one marked not run (`skipped`, E5's método "Não realizado"): neither prints a title, a
  * method or a criterion line. The other tests keep their numbers ("E6 · …").
  */
-function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation): SheetPart | null {
+function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
   if (!test.enabled || test.skipped) return null;
   const width = 1 + test.columns.length;
   const rows: PrintRow[] = [bandRow(printLabel(test.title), width)];
@@ -927,13 +988,22 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation): 
     if (group.text === '') continue;
     rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: test.columns.length, align: 'center' }] });
   }
-  return { kind: 'table', table: { columns: fittedColumns(rows, width), rows } };
+  const printed: PrintTable = { columns: fittedColumns(rows, width), rows };
+  if (previous === null) return { kind: 'table', table: printed };
+  // Story 22.12: each shown row's previous number cells, in column order (the reference and group rows take none).
+  const texts = test.rows.map((row) =>
+    previousRowText(
+      previous,
+      row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null).map((cell) => cell.address),
+    ),
+  );
+  return { kind: 'table', table: withPreviousColumn(printed, texts) };
 }
 
 /** The measurement tests of a sheet that print, in the definition's order. */
-function measurementParts(block: BlockRow, definition: BlockDefinition): SheetPart[] {
+function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings): SheetPart[] {
   return evaluateSheetMeasurements(block, definition).flatMap((test) => {
-    const part = measurementTestPart(block, test);
+    const part = measurementTestPart(block, test, previous);
     return part === null ? [] : [part];
   });
 }
@@ -1051,8 +1121,10 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   // The walk splits items from the other photos by the same predicate.
   const checklist = sheetChecklistPrinted(block, definition) && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
   if (checklist !== null) parts.push(checklist);
-  for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled));
-  parts.push(...measurementParts(block, definition));
+  // Story 22.12: with a previous visit of another relatório, every reading table gets MANUT. ANTERIOR.
+  const previous = previousReadingsOf(ctx, block, definition);
+  for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled, previous));
+  parts.push(...measurementParts(block, definition, previous));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
   if (enabled.has('conclusion')) {

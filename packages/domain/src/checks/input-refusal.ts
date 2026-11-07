@@ -1,7 +1,8 @@
 import type { InputRefusalKind } from '../contract/telemetry.ts';
 import { parsePlateDateText } from '../format/datetime.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
-import { measurementReadingRefusal } from '../relatorio/measurement-evaluation.ts';
+import { measurementReadingRefusal, overRangeRefusal, type ReadingCellInput } from '../relatorio/measurement-evaluation.ts';
+import type { InstrumentRange } from '../relatorio/over-range.ts';
 import { isNotApplicableText, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { isValidCnpjFormat } from './cnpj.ts';
@@ -24,11 +25,13 @@ export function refusedNumberKind(typed: string): InputRefusalKind {
 /**
  * A measurement cell refused `text` (`parseMeasurementReadingPtBr`): at or below zero on a cell
  * that takes only a positive reading (`measurementReadingRefusal`), an "N/A" (a measurement
- * never takes one), else no number.
+ * never takes one), else no number. Story 22.10: a reading above the limit the cell refuses, or
+ * an "OL" with no instrument limit to take (`overRangeRefusal`), is `out_of_range`.
  */
-export function refusedMeasurementKind(text: string, cell: { units: readonly string[]; positiveOnlyText?: string | null }, defaultUnit: string | null): InputRefusalKind {
+export function refusedMeasurementKind(text: string, cell: ReadingCellInput, defaultUnit: string | null, range: InstrumentRange | null = null): InputRefusalKind {
   if (isNotApplicableText(text)) return 'not_applicable';
-  if (measurementReadingRefusal(text, cell, defaultUnit) !== null) return 'not_positive';
+  if (overRangeRefusal(text, cell, defaultUnit, range) !== null) return 'out_of_range';
+  if (measurementReadingRefusal(text, cell, defaultUnit, range) !== null) return 'not_positive';
   return 'not_a_number';
 }
 

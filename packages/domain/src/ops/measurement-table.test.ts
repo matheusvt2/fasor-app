@@ -74,8 +74,8 @@ describe('contract 19: sheet/{block_id}/test/{test_key}/value/{value_key}', () =
     expect(isCreateFamily(parsed)).toBe(false);
     expect(isServerOnly(parsed)).toBe(false);
     expect(isCellFamily(parsed.family)).toBe(true);
-    // Fix batch fxrm (contract 28) appended `relatorio/removed_at` after it, Story 14.6 (contract 33) the three equipment type families.
-    expect(FAMILIES).toHaveLength(49);
+    // Fix batch fxrm (contract 28) appended `relatorio/removed_at` after it, Story 22.12 (contract 32) `equipment/last_results`, Story 14.6 (contract 33) the three equipment type families.
+    expect(FAMILIES).toHaveLength(50);
     expect(FAMILIES[44]!.family).toBe('sheet/test/value');
   });
 

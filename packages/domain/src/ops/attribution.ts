@@ -79,6 +79,8 @@ export const ATTRIBUTED_FIELDS: readonly AttributedField[] = [
 
   // Project scope.
   { pointer: 'equipment.last_nameplate.issued_at', instant: 'future', reason: 'the issue instant of an earlier visit\'s plate (AD-25), which may predate every relatório of the obra' },
+  { pointer: 'equipment.last_results.issued_at', instant: 'future', reason: 'the issue instant of an earlier visit\'s readings (AD-25, Story 22.12), which may predate every relatório of the obra' },
+  { pointer: 'equipment.last_results.prior.issued_at', instant: 'future', reason: 'the issue instant of the visit before a re-issued relatório (AD-25, Story 22.12)' },
   { pointer: 'equipment.removed_at', instant: 'bounded' },
 
   // Relatório scope.

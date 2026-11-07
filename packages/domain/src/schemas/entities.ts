@@ -27,12 +27,14 @@ const nullableString = z.string().nullable();
 /**
  * AD-11 `number` value shape; `raw` is a decimal string using `.`. Story 16.4 (contract 26):
  * `not_applicable` is "N.A" typed in a nameplate or cabine number field, stored
- * `{ raw: '', unit: null, state: 'not_applicable' }` (`NOT_APPLICABLE_NUMBER`).
+ * `{ raw: '', unit: null, state: 'not_applicable' }` (`NOT_APPLICABLE_NUMBER`). Story 22.10
+ * (contract 32): `over_range` is a reading above the instrument's limit, `raw` that limit (a
+ * positive decimal) and `unit` its unit (`relatorio/over-range.ts`); only a test cell takes it.
  */
 export const numberValueSchema = z.object({
   raw: z.string(),
   unit: nullableString,
-  state: z.enum(['measured', 'not_measured', 'empty', 'not_applicable']),
+  state: z.enum(['measured', 'not_measured', 'empty', 'not_applicable', 'over_range']),
 });
 export type NumberValue = z.infer<typeof numberValueSchema>;
 
@@ -190,6 +192,11 @@ export const registryRowSchemas = {
     test_isolacao: instrumentTestDefaultSchema,
     test_resistencia_contato: instrumentTestDefaultSchema,
     test_relacao_transformacao: instrumentTestDefaultSchema,
+    // Story 22.10 (contract 32): the top of the instrument's range for a test type, what "OL"
+    // typed in a cell of that type stores (`instrumentRangeOf`). Optional and never defaulted,
+    // so a row written before parses to the same bytes; absent and null both mean unset.
+    range_isolacao: instrumentTestDefaultSchema.optional(),
+    range_resistencia_contato: instrumentTestDefaultSchema.optional(),
     certificate_file_id: nullableId,
   }),
   manufacturer: z.object({ ...registryBase, kind: z.literal('manufacturer'), ...wordMetadata }),
@@ -333,12 +340,40 @@ export const lastNameplateSchema = z.object({
   fields: z.record(z.string(), fieldValueSchema),
 });
 
+/** Story 22.12: one stored reading of an issued revision, by value (AR-10's number shape). */
+export const lastResultReadingSchema = z.object({ raw: z.string(), unit: nullableString, state: z.enum(['measured', 'over_range']) });
+
+/** Story 22.12: the readings of one issued revision of one equipment (`print/last-results.ts`), keyed `${testKey}|${rowKey}|${colKey}`. */
+const lastResultsEntryShape = {
+  relatorio_id: uuidV7Schema,
+  revision_number: z.number().int().positive(),
+  issued_at: isoTimestampSchema,
+  seed_version: z.string(),
+  block_type: z.string(),
+  readings: z.record(z.string(), lastResultReadingSchema),
+};
+
+/**
+ * Story 22.12 (contract 32), AD-25's second projection: the readings of the last issued
+ * revision of an equipment, so the next relatório's sheet shows "Anterior: …" and its section 9
+ * prints MANUT. ANTERIOR. `prior` is the entry an earlier relatório left, kept when the same
+ * relatório is issued again (a re-issue never hides the previous visit). `relatorio_id` is
+ * provenance of values copied at issue time, never a reference that is followed.
+ */
+export const lastResultsSchema = z.object({
+  ...lastResultsEntryShape,
+  prior: z.object(lastResultsEntryShape).nullable(),
+});
+export type LastResults = z.infer<typeof lastResultsSchema>;
+
 export const equipmentRowSchema = z.object({
   id: uuidV7Schema,
   project_id: uuidV7Schema,
   tag: z.string(),
   type: z.string(),
   last_nameplate: lastNameplateSchema.nullable(),
+  // Story 22.12 (contract 32): optional and never defaulted, so a row written before parses to the same bytes.
+  last_results: lastResultsSchema.nullable().optional(),
   removed_at: nullableIso,
 });
 

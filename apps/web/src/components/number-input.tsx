@@ -24,8 +24,20 @@ import { useDraftSource } from '../state/drafts.tsx';
 export interface ParsedNumber {
   raw: string;
   unit: string | null;
-  /** Story 16.4: an "N/A" typed in a nameplate or cabine number field; absent for a number. */
-  state?: 'not_applicable';
+  /**
+   * Story 16.4: an "N/A" typed in a nameplate or cabine number field; Story 22.10: a reading
+   * above the instrument's limit typed in a Measurement field ("OL", "> 2 TΩ"); absent for a number.
+   */
+  state?: 'not_applicable' | 'over_range';
+}
+
+/**
+ * Story 22.10: the `storedRaw` of a stored reading above the limit (`> ` and its raw). `rawOf`
+ * answers the same for a typed one, so "> 2" stored and shown keeps the text while a stored
+ * number "2" differs from it. Never a decimal string.
+ */
+export function overRangeStoredRaw(raw: string): string {
+  return `>${raw}`;
 }
 
 /**
@@ -97,10 +109,27 @@ export interface NumberInputState {
    * then have nothing left to commit.
    */
   markClean: () => void;
+  /**
+   * Story 22.10: puts `next` in the input as if typed (dirty, committed on blur or Enter as
+   * usual): the "> limite" action with no instrument limit starts the text with "> ".
+   */
+  typeText: (next: string) => void;
+  /**
+   * Story 22.10 (review fix): drops the typed text and shows the stored value again, clean and
+   * valid, so the blur that follows commits nothing and reports no refusal (a "> " left by
+   * "> limite" with no limit typed after it).
+   */
+  discard: () => void;
 }
 
 const rawOf = (parsed: ParsedNumber | null | 'invalid'): string | null =>
-  parsed === null || parsed === 'invalid' ? null : parsed.state === 'not_applicable' ? NOT_APPLICABLE_STORED_RAW : parsed.raw;
+  parsed === null || parsed === 'invalid'
+    ? null
+    : parsed.state === 'not_applicable'
+      ? NOT_APPLICABLE_STORED_RAW
+      : parsed.state === 'over_range'
+        ? overRangeStoredRaw(parsed.raw)
+        : parsed.raw;
 
 export function useNumberInput(options: NumberInputOptions): NumberInputState {
   const { storedText, storedRaw, parse, draft } = options;
@@ -205,6 +234,24 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
       movedWhileFocused.current = false;
       setInvalid(false);
       dirty.current = false;
+    },
+    typeText: (next: string) => {
+      dirty.current = true;
+      echoKept.current = false;
+      reportedOnEnter.current = null;
+      current.current = next;
+      setInvalid(false);
+      setText(next);
+    },
+    discard: () => {
+      const shown = latest.current.storedText;
+      dirty.current = false;
+      echoKept.current = false;
+      reportedOnEnter.current = null;
+      movedWhileFocused.current = false;
+      current.current = shown;
+      setInvalid(false);
+      setText(shown);
     },
     inputProps: {
       ref: element,

@@ -3061,6 +3061,28 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: The spec names `_bmad-output/planning-artifacts/source-deltas.md`; the file is `_bmad-output/specs/spec-fasor/source-deltas.md`, where the 2026-11-06 FR-68 row was already written by the planning PR: it was marked built rather than duplicated, and the AD-18 attribution row amended beside it.
   evidence: `source-deltas.md` rows FR-68 (2026-11-06) and FR-32/AD-18.
 
+## e22r
+
+Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contract 32.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (open questions, conservative readings taken, for Matheus and Bruno)
+  summary: (1) a limit below a `>` criterion is out (it cannot prove the criterion); (2) MANUT. ANTERIOR is the table's last column, not inside the VALORES group; (3) measurement tests carry their number cells only; (4) the instrument range is per test type in the registry (AR-18's pattern), read live at entry and stored by value. The authored wordings: the two refusals, the no-limit text, "> limite", "Limite de medição (…)" and its helper "Gravado na ficha quando o visor mostra OL (ex.: 2 e TΩ)".
+  evidence: `packages/domain/src/relatorio/over-range.ts`, `apps/web/src/copy/pt-br.ts` (`rangeLabel`, `rangeHelper`), `apps/web/src/copy/ui.ts` (`overRange`).
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Code Map, value-limits bullet)
+  summary: The spec says a malformed over-range cell value is refused "(op_invalid)"; the check lives in `ops/value-limits.ts` as the spec places it, whose refusals answer `op_value_invalid` (Story 20.9), so that is the code a push gets.
+  evidence: `apps/api/src/sync/apply.ts` (`opValueIssue` -> `op_value_invalid`), `apps/api/src/http/generate.integration.test.ts` 22.10 case.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Story 22.10)
+  summary: A display-reading suggestion typed over (`read-display.tsx` `SuggestedCell`, `parseReadingPtBr`) still refuses ">"/"OL": only the Measurement field and the dictated cell take a limit. A plate or display reading never proposes one (the spec's Never). The instrument limit's unit is kept as typed in Cadastros: "TΩ" or "µΩ" works, a bare "T" finds no unit and "OL" then says there is no limit.
+  evidence: `apps/web/src/surfaces/ficha/read-display.tsx` line 210; `relatorio/instrument-pick.ts` `instrumentRangeOf`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Story 22.12)
+  summary: MANUT. ANTERIOR is decided per sheet: when its equipment has a previous value from another relatório, every reading table of the sheet gets the column, a test with nothing from that visit printing "-" on each row. The merge after e22s re-runs `section-9.test.ts`, `last-results.test.ts` and `previous-visit.spec.ts` on a v12 relatório (e22s owns the insulation table's columns; `withPreviousColumn` appends after them).
+  evidence: `packages/domain/src/print/section-9.ts` `withPreviousColumn`, `previousReadingsOf`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Review Triage Log, Edge Case Hunter, unverified medium)
+  summary: Re-issuing an older relatório X after a newer relatório Y of the same equipment was issued makes X the top `last_results` entry with Y as its prior: X's sheet and MANUT. ANTERIOR would show Y's later values as "previous", and a later relatório Z would read X's older values. The chain is ordered by issue, not by the visit's service date. Settled by ordering the chain by the visit's service date in `lastResults`.
+  evidence: `packages/domain/src/print/last-results.ts` `lastResults`, `previousResultsFor`.
+  class: defect
+  state: open (owner: the Epic 22 wave B integrated review)
+
 ## Deferred from: Epic 22 batch e22s (2026-11-06)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.11)

@@ -144,6 +144,8 @@ export const REFERENCE_FIELDS: readonly ReferenceField[] = [
   { pointer: 'equipment.id', exempt: OWN_ID },
   { pointer: 'equipment.project_id', exempt: ENVELOPE },
   { pointer: 'equipment.last_nameplate.relatorio_id', exempt: 'AD-25 provenance of an earlier visit\'s plate, written by the server-only last_nameplate put' },
+  { pointer: 'equipment.last_results.relatorio_id', exempt: 'AD-25 provenance of an earlier visit\'s readings (Story 22.12), written by the server-only last_results put' },
+  { pointer: 'equipment.last_results.prior.relatorio_id', exempt: 'AD-25 provenance of the visit before a re-issued relatório (Story 22.12), written by the server-only last_results put' },
 
   // Relatório scope.
   { pointer: 'relatorio.id', exempt: OWN_ID },

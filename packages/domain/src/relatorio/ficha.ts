@@ -17,6 +17,7 @@ import { wordRowByName } from '../registry/instrument-row.ts';
 import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
 import { isOilItem } from './oil-rule.ts';
+import { isReadingValue } from './over-range.ts';
 import { checklistResultIsStored, checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
 import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
@@ -101,7 +102,7 @@ export const HUMIDITY_NOTE_THRESHOLD_PCT = 80;
 /** True when the cabine's recorded humidity is above the threshold (Story 5.2 AC 4); only a measured humidity counts (Story 16.4: never "N/A"). */
 export function humidityNoteSurfaced(env: Pick<Extract<LocationRow, { kind: 'cabine' }>['env'], 'humidity_pct'> | null): boolean {
   const value = env?.humidity_pct;
-  if (value === null || value === undefined || value.state !== 'measured') return false;
+  if (value === null || value === undefined || !isReadingValue(value.state)) return false;
   const n = Number(value.raw);
   return Number.isFinite(n) && n > HUMIDITY_NOTE_THRESHOLD_PCT;
 }

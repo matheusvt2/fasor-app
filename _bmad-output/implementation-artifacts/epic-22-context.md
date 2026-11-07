@@ -168,3 +168,32 @@ Matheus, 2026-11-06: "pode seguir ate o final, tem minha aprovacao".
 **Fix batch e22f** (branch `e22f-wave-a-fixes`, port base 63), launched 2026-11-06 with the three gate reds, S1 to S7, N1, N3, N4 and N8; N5 to N7 deferred; N2 by the coordinator's reading (an unconcluded sheet prints no floor marks; the conclusion step counts ready only from a stored pair). Coordinator readings on the review's open questions, open to Bruno: the adjust "Confirmar" replaces a conclusion text still unedited (S1); possible duplicates get a non-blocking pre-issue row (S2); a point created from an NC row starts with the entry's text (S4); a relatório with no judged sheet has no derived verdict and stays blocked (S5).
 - PR #270 (e22f) merged as 06df24b4, on an unmoved main. Story gate on 7b968ac7: lint and static green, test:api 883, test:unit 5319 after one fix of its own test, touched specs 259 of 260 then the red fixed and green alone, `dry-transformer.durability.spec.ts` 15 of 15 on the matrix; the three integrated-gate reds green. Findings: the R8DRY and 14.2 reds were fixtures typing an out-of-criterion ratio (kernel right, fixtures moved within criterion); 12.5 and N2 fixed (the conclusion step and the printed marks count only a stored pair); S1 to S4, S6, S7 (37/28 ms to 13/7 ms), N1, N3, N4, N8 fixed; S5 narrowed (no Apto without a concluded sheet; a stricter derived verdict still stands); N5 to N7 deferred. Golden: 9 lines (8 sheets' marks back to their pre-wave state, the N1 summary). Open for Matheus: whether an open sheet's floor counts in the parecer before any sheet is concluded; N3 clears on NC to C only, not NC to NA. e22f must deploy with wave A (a contract 31 client without it flags false duplicates).
 - Deploy: wave A deploys together with wave B after wave B's integrated gate (one `test:e2e:full` on the integrated main instead of two); the AWS session expired on 2026-11-07 and waits for Matheus's `aws login`.
+
+## Bruno's test base against Epic 22 (coordinator, 2026-11-07)
+
+Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `docs/kbs/project/test-base.md`). The values stay in that file; rows are cited by ID. Read against main b811ace9 and PR #268.
+
+**Agrees with what was built.**
+- LEIA-ME rule 4 (every Reprovado in the ficha, the points and the conclusion) is Stories 22.4 to 22.6.
+- Rule 2 (a reading over the limit approved) is Story 22.10, except the standard observation the base adds.
+- The transformer ratio criterion (TR-OL-04, TR-SE-04) and the contact criterion (DJ-03, SC-03) match `seed/criteria.ts`.
+- The low-voltage insulation row's 1 kV default (Story 22.8) matches TR-OL-02 and TR-SE-02. Pendência P02 leaves Fasor's 0,5 kV practice open.
+
+**Differs from a coordinator's reading listed for Bruno; the base is taken as his answer.** The wave B fix batch takes these three:
+- TC-03: the 5P class has its own tolerance in the base. Story 22.9 judges 5P and 10P alike (`relatorio/accuracy-class.ts` `PROTECTION_CLASSES`).
+- TP-03: the TP's classes include 3P and 6P with their tolerances. Seed v12 `TP_CLASSES` offers only the three measurement classes.
+- TR-OL-02 and TR-SE-02: the high-voltage insulation rows take a default by winding voltage. Seed v12 leaves them with no default (`default_kv: null`).
+
+**Differs, and needs Matheus or Bruno (not in Epic 22).**
+- Insulation minimums by voltage and medium, corrected to 20 °C (TR-OL-02, TR-SE-02, DJ-02, TC-02, TP-02 and others), where the product keeps the single FO.SERV-03 minimum. Pendência P01 asks the same for cables.
+- The insulating liquid (TR-OL `tipo_oleo`) where seed v12 has TIPO DO ÓLEO A or B. Plates print the A or B class, so both may be needed.
+- The previous visit's value as a restriction criterion (TR-OL-02, TR-OL-05). Story 22.12 only shows it.
+- The manufacturer's value prevailing over a table (rule 1), and automatic temperature correction (rule 3).
+
+**New scope for after wave C**, the carrier being company types 14.6 to 14.8:
+- tests chosen from characteristics ("Aplica-se quando");
+- the base's tests that are not in FO.SERV-03 (IP/DAR, winding resistance, tan δ, breaker timing, coil voltage, vacuum, SF6, VLF, thermography, ground grid, capacitors, switchgear);
+- the procedure as field help;
+- the recommendation as the derived point's default text.
+
+Planned through bmad-correct-course on Matheus's word.

@@ -43,6 +43,11 @@ export type ValueRule =
   | { readonly kind: 'texts'; readonly cap: number }
   /** A value of any shape whose every string is at most `cap` (a seed-defined cell, any JSON by design, K-10; a registry row). */
   | { readonly kind: 'strings'; readonly cap: number }
+  /**
+   * Story 22.10 (contract 32): a test cell, any JSON as `strings` (K-10), and a value in the
+   * `over_range` state holds a positive plain decimal `raw` and a `unit` that is a short string.
+   */
+  | { readonly kind: 'test_cell'; readonly cap: number }
   /** An AD-11 number value: `raw` and `unit` at most short, and `raw`, when set, a number in `range`. */
   | { readonly kind: 'number_value'; readonly range?: Range }
   /** A plain number in `range`, or null. */
@@ -138,7 +143,7 @@ const VALUE_RULES = {
   'sheet/nameplate': { kind: 'value', rule: shortStrings },
   'sheet/checklist': { kind: 'fields', fields: { result: shortStrings, observation: textCell(TEXT_CAPS.medium) } },
   'sheet/test': { kind: 'fields', fields: { instrument: structured, criterion_override: structured } },
-  'sheet/test/cell': { kind: 'value', rule: shortStrings },
+  'sheet/test/cell': { kind: 'value', rule: { kind: 'test_cell', cap: TEXT_CAPS.short } },
   'sheet/conclusion': {
     kind: 'fields',
     fields: { result: shortStrings, restriction: shortStrings, text: textCell(TEXT_CAPS.long), text_status: shortStrings, text_basis: textCell(TEXT_CAPS.long) },
@@ -147,6 +152,7 @@ const VALUE_RULES = {
   equipment: { kind: 'row', fields: { tag: short, type: short } },
   'equipment/field': { kind: 'fields', fields: { tag: short }, otherwise: schema },
   'equipment/last_nameplate': SERVER_ONLY,
+  'equipment/last_results': SERVER_ONLY,
   file: { kind: 'row', fields: { sha256: short, mime: short, caption: medium, item_key: short, order_key: orderKey } },
   'file/field': { kind: 'fields', fields: { caption: medium, item_key: short, reading_target: structured, order_key: orderKey }, otherwise: schema },
   'file/server': SERVER_ONLY,
@@ -212,9 +218,21 @@ function ruleIssue(rule: ValueRule, value: unknown, where: string): string | nul
       return Array.isArray(value) ? stringsIssue(value, rule.cap, where) : null;
     case 'strings':
       return stringsIssue(value, rule.cap, where);
+    case 'test_cell': {
+      const issue = stringsIssue(value, rule.cap, where);
+      if (issue !== null || value === null || typeof value !== 'object' || Array.isArray(value)) return issue;
+      const { raw, unit, state } = value as { raw?: unknown; unit?: unknown; state?: unknown };
+      if (state !== 'over_range') return null;
+      // Story 22.10: the limit the instrument passed, a positive plain decimal ("2", "2000"), never "0", "-1" or "2,5".
+      if (typeof raw !== 'string' || !/^\d+(\.\d+)?$/.test(raw) || !(Number(raw) > 0)) return `${where}.raw ${JSON.stringify(raw)} is no positive decimal limit`;
+      if (typeof unit !== 'string' || unit === '' || unit.length > TEXT_CAPS.short) return `${where}.unit of an over_range value is no short text`;
+      return null;
+    }
     case 'number_value': {
       if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-      const { raw, unit } = value as { raw?: unknown; unit?: unknown };
+      const { raw, unit, state } = value as { raw?: unknown; unit?: unknown; state?: unknown };
+      // Story 22.10 (review fix): only a test cell takes a reading above the instrument's limit.
+      if (state === 'over_range') return `${where}.state over_range is a test cell's alone`;
       const cap = TEXT_CAPS.short;
       if (typeof raw === 'string' && raw.length > cap) return `${where}.raw holds ${raw.length} characters, over ${cap}`;
       if (typeof unit === 'string' && unit.length > cap) return `${where}.unit holds ${unit.length} characters, over ${cap}`;
@@ -406,7 +424,7 @@ export interface OpenValuePart {
   readonly value: unknown;
 }
 
-const isOpen = (rule: ValueRule): boolean => rule.kind === 'strings' || rule.kind === 'structured';
+const isOpen = (rule: ValueRule): boolean => rule.kind === 'strings' || rule.kind === 'test_cell' || rule.kind === 'structured';
 
 /**
  * The parts of a client op's value an open rule judges: the whole value of a field-less put or of
@@ -509,6 +527,7 @@ function capOfRule(rule: ValueRule | undefined, keys: readonly string[]): number
     case 'text_cell':
     case 'texts':
     case 'strings':
+    case 'test_cell':
       return rule.cap;
     case 'structured':
       return TEXT_CAPS.long;

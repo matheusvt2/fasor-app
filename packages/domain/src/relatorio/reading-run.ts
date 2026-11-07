@@ -2,6 +2,7 @@ import { scaleToUnit } from '../seed/criteria.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { CellAddress, EvaluatedCell, EvaluatedRow, EvaluatedTable, ReadingVerdict, TestEvaluation, TestKey } from './reading-cells.ts';
 import { deviationPct, formatDeviation, sameAddress } from './reading-evaluation.ts';
+import { isReadingValue } from './over-range.ts';
 import { sheetState } from './sheet-state.ts';
 
 /*
@@ -81,7 +82,7 @@ export function runEnterKeyHint(evaluations: readonly TestEvaluation[], address:
  * the input holds the focus, cycles as on an open sheet.
  */
 export function unitTapNeedsEdit(block: BlockRow, cell: Pick<EvaluatedCell, 'state'>): boolean {
-  return cell.state === 'measured' && sheetState(block) === 'concluida';
+  return isReadingValue(cell.state) && sheetState(block) === 'concluida';
 }
 
 /** The first cell the run would stop at (the first empty one), or null when every cell holds a value. */
@@ -125,7 +126,7 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
     for (const table of test.tables) {
       for (const row of table.rows) {
         for (const cell of row.cells) {
-          if (cell.role !== 'capture' || cell.state !== 'measured') continue;
+          if (cell.role !== 'capture' || !isReadingValue(cell.state)) continue;
           const value = Number(cell.raw);
           let score: number;
           let valueText: string;

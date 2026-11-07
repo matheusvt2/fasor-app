@@ -655,6 +655,9 @@ export function readPath(state: EntityState, op: Op): unknown {
       return r.status;
     case 'equipment/last_nameplate':
       return r.last_nameplate;
+    case 'equipment/last_results':
+      // Story 22.12: absent (a row written before contract 32) and null both mean none.
+      return r.last_results ?? null;
     case 'sheet/nameplate':
     case 'sheet/checklist':
     case 'sheet/test':
@@ -754,6 +757,8 @@ function writeRow(row: EntityRow, op: Op, path: OpPath, ctx: () => DefinitionCon
       return { ...r, status: value } as EntityRow;
     case 'equipment/last_nameplate':
       return { ...r, last_nameplate: value } as EntityRow;
+    case 'equipment/last_results':
+      return { ...r, last_results: value } as EntityRow;
     case 'sheet/nameplate':
     case 'sheet/checklist':
     case 'sheet/test':

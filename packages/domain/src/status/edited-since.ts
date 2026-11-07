@@ -69,6 +69,7 @@ const FAMILY_DECISIONS = {
   'relatorio/export/scheme': never('the order the printed document lists the sheets in: a print choice, not content; AD-15 does not name it'),
   'relatorio/preview_file_id': never('server-only: the preview job pointing at its own file'),
   'equipment/last_nameplate': never('server-only: the last issued plate of an equipment, kept for "Copiar da última visita"'),
+  'equipment/last_results': never('server-only: the readings of the last issued revision of an equipment, kept for "Anterior" and MANUT. ANTERIOR'),
   'file/server': never('server-only: the upload, the variants and the reading state of a file, written by the server'),
   suggestion: never('server-only: the reading job proposing a value, which nobody has accepted yet'),
   'suggestion/status': never('confirming or discarding a suggestion; a confirmed value lands as its own sheet op, which counts'),
