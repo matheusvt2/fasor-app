@@ -225,6 +225,11 @@ const SCREEN_FORMS: Record<string, string> = {
   // The two hints, shown under their item on the sheet only.
   'FUNCIONAMENTO MECÂNICO (LIGA/DESLIGA/TRIP)': 'Funcionamento mecânico (liga/desliga/trip)',
   'CANALETA, CHICOTE, CABOS...': 'Canaleta, chicote, cabos...',
+  // Seed v12 (Stories 22.7, 22.8 and 22.11).
+  TENSÃO: 'Tensão',
+  'TIPO DO ÓLEO': 'Tipo do óleo',
+  'DESLOCAMENTO ANGULAR': 'Deslocamento angular',
+  'Inspeção de QGBT': 'Inspeção de QGBT',
 };
 
 /** Every label of every shipped seed version that renders on screen. */

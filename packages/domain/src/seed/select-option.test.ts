@@ -47,3 +47,18 @@ describe('21.1-UNIT selectOptionFor on the vector-group select', () => {
     expect(lastNameplateCopy(plate('DYN1'), getDefinition('v11', 'cabine_primaria', 'tp'))).toEqual([{ fieldKey: 'ligacao_secundaria', value: 'DYN1' }]);
   });
 });
+
+describe('22.9-UNIT selectOptionFor on the v12 EXATIDÃO select', () => {
+  const tc = getDefinition('v12', 'cabine_primaria', 'tc').nameplate.find((field) => field.key === 'exatidao')!;
+  const tp = getDefinition('v12', 'cabine_primaria', 'tp').nameplate.find((field) => field.key === 'exatidao')!;
+
+  it('maps a v11 text naming one of its classes onto the class; a class it does not offer, or no class, stays null', () => {
+    expect(selectOptionFor(tc, '0,6C25')).toBe('0,6');
+    expect(selectOptionFor(tc, '0.6')).toBe('0,6');
+    expect(selectOptionFor(tc, '10P20')).toBe('10P');
+    expect(selectOptionFor(tp, '5P10')).toBeNull();
+    expect(selectOptionFor(tc, 'C25')).toBeNull();
+    // Another select is untouched by the class reading.
+    expect(selectOptionFor(getDefinition('v12', 'cabine_primaria', 'transformador_forca').nameplate.find((field) => field.key === 'tipo_do_oleo')!, '0,6')).toBeNull();
+  });
+});

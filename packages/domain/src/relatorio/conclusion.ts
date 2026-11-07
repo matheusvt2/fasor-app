@@ -323,6 +323,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
   chave_transferencia_automatica: { noun: 'A chave de transferência automática', plural: false },
   // authored (Story 14.9).
   quadro_eletrico: { noun: 'O quadro elétrico', plural: false },
+  // authored (Story 22.11, listed for Bruno).
+  inspecao_qgbt: { noun: 'A inspeção do QGBT', plural: false },
 };
 
 // authored: the recommendation that follows a restricted or failed result.

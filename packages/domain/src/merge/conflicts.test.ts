@@ -151,6 +151,17 @@ describe('10.2 the contradiction mark', () => {
     expect((decisions[0] as CellDecision).cells.map((cell) => cell.path)).toEqual([result]);
   });
 
+  it('22.8: two voltages on a v12 insulation row name the cell by its row and the TENSÃO header, not "Linha · coluna"', () => {
+    expect(SEED_VERSION).toBe('v12');
+    const voltageCol = definition.tests[0]!.tables[0]!.value_columns.findIndex((column) => column.role === 'voltage');
+    const path = `sheet/${BLOCK}/test/${TEST}/cell/0/${voltageCol}`;
+    const kv = (raw: string): JsonValue => ({ raw, unit: 'kV', state: 'measured' });
+    const { create, eduardo, ana } = world();
+    const row = fold([create, eduardo(path, kv('5')), ana(path, kv('10'))]);
+    const decision = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
+    expect(decision.cells.map((cell) => [cell.path, cell.label])).toEqual([[path, 'T1 · Tensão (kV)']]);
+  });
+
   it('"Aplicar" is a sequential put that clears the mark and leaves the NC merge of the sheet as it is', () => {
     const { create, eduardo, ana } = world();
     const e1 = eduardo(reading, measured('330'));

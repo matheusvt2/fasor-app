@@ -297,7 +297,8 @@ describe('8.4-INT reading job attempts', () => {
     ['tc', 'plate-tc.png'],
   ] as const) {
     it(`13.7: a ${type} plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value`, async () => {
-      const { relatorioId, blocks } = await relatorio();
+      // e22s: on the seed the synthetic plates were laid out on (v12 reads the TC's "10B100" as no class it offers).
+      const { relatorioId, blocks } = await relatorio('v11');
       const block = blocks.find((b) => b.block_type === type)!;
       const committed = readFileSync(join(IMAGES, file));
       const values = (JSON.parse(readFileSync(join(DEFAULT_FIXTURES_DIR, `${DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]!}.json`), 'utf8')) as { structuring: { values: { key: string }[] } }).structuring.values;
@@ -338,7 +339,7 @@ describe('8.4-INT reading job attempts', () => {
   }, 60_000);
 
   it('21.2: a v11 transformer plate printing "Dyn1" suggests it citing its word; one drawing a Yyn0 diagram offers "Yyn0" in verify, citing no token over the whole image', async () => {
-    const { relatorioId, blocks } = await relatorio();
+    const { relatorioId, blocks } = await relatorio('v11');
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
     expect(block.seed_version).toBe('v11');
     const read = async (file: string) => {
@@ -366,6 +367,30 @@ describe('8.4-INT reading job attempts', () => {
     expect(drawn.source.bbox).toEqual([0, 0, 1, 1]);
     expect(plateSuggestionNoteText(drawn)).toBe('Lido do diagrama — confira');
   }, 60_000);
+
+  it('22.7 and 22.9 plumbing tests: a v12 oil transformer plate ("TIPO TRICAST", "Tipo óleo isolante B", no insulation word) suggests TIPO TRICAST, TIPO DO ÓLEO B and TIPO DE ISOLAÇÃO ÓLEO MINERAL in verify citing the oil words; a v12 TC plate printing "0,6C25" suggests EXATIDÃO 0,6', async () => {
+    const { relatorioId, blocks } = await relatorio('v12');
+    const read = async (file: string, type: string) => {
+      const block = blocks.find((b) => b.block_type === type)!;
+      expect(block.seed_version).toBe('v12');
+      const bytes = new Uint8Array(readFileSync(join(IMAGES, file)));
+      copyFileSync(join(DEFAULT_FIXTURES_DIR, `${sha256(bytes)}.json`), join(fixturesDir, `${sha256(bytes)}.json`));
+      const id = await photo(relatorioId, block, bytes, 'image/png');
+      await send(id);
+      await waitFor(`the reading of ${file}`, async () => (await status(id)) === 'done');
+      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      return (key: string) => mine.find((s) => s.target_path === `sheet/${block.id}/nameplate/${key}`);
+    };
+    const oil = await read('plate-transformador-oleo.png', 'transformador_forca');
+    expect(oil('tipo')).toMatchObject({ value: 'TRICAST', status: 'pending' });
+    expect(oil('tipo_do_oleo')).toMatchObject({ value: 'B', status: 'pending' });
+    const insulation = oil('tipo_de_isolacao')!;
+    expect(insulation).toMatchObject({ value: 'ÓLEO MINERAL', trust: 'verify', status: 'pending' });
+    expect(insulation.source.ocr_token_ids).toEqual(oil('tipo_do_oleo')!.source.ocr_token_ids);
+    expect(insulation.source.ocr_token_ids).toHaveLength(4);
+    const tc = await read('plate-tc-classe.png', 'tc');
+    expect(tc('exatidao')).toMatchObject({ value: '0,6', status: 'pending' });
+  }, 90_000);
 
   it('an OCR read of another image size is transient: three attempts, failed, no suggestion', async () => {
     const { relatorioId, blocks } = await relatorio();
@@ -1092,7 +1117,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(client.prompts[0]).toContain(vectorGroupPrompt('ligacao_secundaria'));
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(11);
-    expect(mine.every((s) => s.status === 'pending' && s.prompt_version === 'bedrock-structuring-4')).toBe(true);
+    expect(mine.every((s) => s.status === 'pending' && s.prompt_version === 'bedrock-structuring-5')).toBe(true);
     expect(mine.find((s) => s.target_path.endsWith('/identificacao'))).toMatchObject({ value: 'TR-01', trust: 'suggested', source: { ocr_token_ids: ['t4'] } });
     const [run] = await runs(id);
     expect(run).toMatchObject({
@@ -1100,13 +1125,13 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
       outcome: 'ok',
       ocr_provider: 'fake',
       model: HAIKU,
-      prompt_version: 'bedrock-structuring-4',
+      prompt_version: 'bedrock-structuring-5',
       llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) },
     });
   }, 60_000);
 
-  it('e21f: the drawn Yyn0 plate answered with a wrong composed "Dy1" and the Yyn0 diagram facts stores "Yyn0" in verify, citing no token, on bedrock-structuring-4', async () => {
-    const { relatorioId, blocks } = await relatorio();
+  it('e21f: the drawn Yyn0 plate answered with a wrong composed "Dy1" and the Yyn0 diagram facts stores "Yyn0" in verify, citing no token, on bedrock-structuring-5', async () => {
+    const { relatorioId, blocks } = await relatorio('v11');
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
     expect(block.seed_version).toBe('v11');
     const bytes = new Uint8Array(readFileSync(join(IMAGES, 'plate-transformador-yyn0.png')));
@@ -1123,11 +1148,11 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(client.models).toEqual([HAIKU]);
     expect(client.prompts[0]).toContain(vectorGroupPrompt('ligacao_secundaria'));
     const group = (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`)!;
-    expect(group).toMatchObject({ value: 'Yyn0', trust: 'verify', status: 'pending', prompt_version: 'bedrock-structuring-4' });
+    expect(group).toMatchObject({ value: 'Yyn0', trust: 'verify', status: 'pending', prompt_version: 'bedrock-structuring-5' });
     expect(group.source.ocr_token_ids).toEqual([]);
     expect(group.source.bbox).toEqual([0, 0, 1, 1]);
     expect(plateSuggestionNoteText(group)).toBe('Lido do diagrama — confira');
-    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-4' });
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-5' });
   }, 60_000);
 
   it('e21a R-1: the drawn plate answered with the model\'s own "Dy1" and diagram facts citing only ids the OCR did not return keeps "Dy1" as a diagram read, not lost', async () => {
@@ -1188,7 +1213,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(run).toMatchObject({
       outcome: 'ok',
       model: NOVA_PRO,
-      prompt_version: 'bedrock-structuring-4',
+      prompt_version: 'bedrock-structuring-5',
       llm_usage: { input_tokens: 4100, output_tokens: 800, usd: Math.round((usd(HAIKU) + usd(NOVA_PRO)) * 1e6) / 1e6 },
     });
   }, 60_000);
@@ -1278,7 +1303,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
       expect(mine.map((s) => s.trust).sort()).toEqual(['suggested', 'verify', 'verify']);
       const rows = await runs(id);
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-4', llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+      expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-5', llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
     }, 60_000);
   }
 
@@ -1294,8 +1319,8 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(client.models).toEqual([QWEN]);
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(1);
-    expect(mine[0]).toMatchObject({ target_path: `file/${id}/block_id`, prompt_version: 'bedrock-structuring-4' });
-    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: QWEN, prompt_version: 'bedrock-structuring-4', llm_usage: { input_tokens: 1700, output_tokens: 120, usd: usd(QWEN) } });
+    expect(mine[0]).toMatchObject({ target_path: `file/${id}/block_id`, prompt_version: 'bedrock-structuring-5' });
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: QWEN, prompt_version: 'bedrock-structuring-5', llm_usage: { input_tokens: 1700, output_tokens: 120, usd: usd(QWEN) } });
   }, 60_000);
 
   it('a panel front whose reading is all low-confidence (verify) still never escalates: only the panel model is called', async () => {

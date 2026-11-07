@@ -10,6 +10,7 @@ import {
   runTarget,
   screenLabel,
   tableDictationLabel,
+  rowVoltageCell,
   testVoltageCheck,
   unitTapNeedsEdit,
   type BlockDefinition,
@@ -31,6 +32,7 @@ import { WholeWords } from '../../components/whole-words.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
+import { testCellOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, UnitTapGuardProvider, type FieldAddress, type RunDirection } from './measurement-field.tsx';
 import { MeasurementTests } from './measurement-test-section.tsx';
@@ -299,6 +301,12 @@ function TestSection({
         readOnly={readOnly}
       />
       {tables.length > 1 ? <div className="tests-two">{tables}</div> : tables}
+      {/* Story 22.9 (seed v12): the kernel's helper while the class the ratio is judged by is empty; never printed. */}
+      {test.classHelper === null ? null : (
+        <p className="helper" data-class-helper="">
+          {test.classHelper}
+        </p>
+      )}
     </section>
   );
 }
@@ -361,6 +369,9 @@ function MeasurementTable({
       />
     );
   const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? condicaoScreenText(row.condicao) : (row.calculated?.text ?? '—'));
+  // Story 22.8 (seed v12): the row's test voltage, drawn right after the connection cells; null on v1 to v11 tables.
+  const voltageColumn = table.voltageColumn;
+  const notices = table.rows.flatMap((row) => (row.voltage?.notice === null || row.voltage?.notice === undefined ? [] : [{ row: row.row, text: row.voltage.notice }]));
 
   return (
     <div className="ficha-mt" data-table-key={table.key}>
@@ -400,6 +411,11 @@ function MeasurementTable({
                   <WholeWords className="mt-word" text={screenLabel(header)} />
                 </th>
               ))}
+              {voltageColumn === null ? null : (
+                <th scope="col" data-voltage-column="">
+                  <WholeWords className="mt-word" text={voltageColumn.header} />
+                </th>
+              )}
               {table.columns.map((column) => (
                 // DC-1: Condição is a word column (`60-ficha.html` draws its header without `col-value`).
                 <th key={column.col} scope="col" className={column.role === 'input' || column.derivedKind === 'condicao' ? undefined : 'col-value'}>
@@ -416,6 +432,11 @@ function MeasurementTable({
                     {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
                   </td>
                 ))}
+                {voltageColumn === null || row.voltage === null ? null : (
+                  <td className="cell-voltage">
+                    <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(screenLabel(row.label), voltageColumn.header)} readOnly={readOnly} />
+                  </td>
+                )}
                 {table.columns.map((column) => {
                   if (column.role === 'derived') {
                     return (
@@ -434,8 +455,18 @@ function MeasurementTable({
                     );
                   }
                   const cell = cellOf(row, column.col);
+                  // Story 22.8: below 768 px the row's voltage sits over its first typed cell, the column hidden (`ficha.css`).
+                  const stacked = voltageColumn !== null && row.voltage !== null && cell !== undefined && cell === row.cells[0];
                   return (
                     <td key={column.col} className="cell-value">
+                      {stacked ? (
+                        <div className="voltage-stacked">
+                          <span className="field-label" aria-hidden="true">
+                            {voltageColumn.header}
+                          </span>
+                          <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(screenLabel(row.label), voltageColumn.header)} readOnly={readOnly} stacked />
+                        </div>
+                      ) : null}
                       {cell === undefined ? null : field(row, cell, 'table')}
                     </td>
                   );
@@ -479,11 +510,74 @@ function MeasurementTable({
           </div>
         </div>
       ) : null}
+      {/* Story 22.8: the kernel's notice of a row tested above what its winding supports; on the sheet only, never blocking. */}
+      {notices.map((notice) => (
+        <p key={notice.row} className="helper" data-tone="amber" role="status" data-row-voltage-notice={notice.row}>
+          {notice.text}
+        </p>
+      ))}
       {/* Story 15.6: the kernel's formula under a ratio table whose VAL CALCULADO applies a factor, at every width; never printed. */}
       {table.formulaHelper === null ? null : <p className="helper">{table.formulaHelper}</p>}
       {/* Story 21.1: the kernel's vector-group helpers (the windings to short, a missing or unrecognized group); never printed. */}
       {table.shortHelper === null ? null : <p className="helper">{table.shortHelper}</p>}
       {table.groupHelper === null ? null : <p className="helper">{table.groupHelper}</p>}
+    </div>
+  );
+}
+
+/**
+ * Story 22.8 (seed v12): a row's test voltage, a select of the kernel's options showing the row's
+ * effective voltage (typed, else its default). Picking one writes the existing cell put
+ * (`{raw, unit: 'kV', state: 'measured'}`, the kernel's `rowVoltageCell`); the empty option clears
+ * the cell, so the row falls back to its default. Read-only, the effective voltage as text.
+ */
+function RowVoltageField({
+  api,
+  testKey,
+  row,
+  options,
+  label,
+  readOnly,
+  stacked = false,
+}: {
+  api: FichaApi;
+  testKey: string;
+  row: EvaluatedRow;
+  options: readonly string[];
+  label: string;
+  readOnly: boolean;
+  /** Below 768 px the select is drawn over the row's first typed cell instead of in its own column. */
+  stacked?: boolean;
+}) {
+  const voltage = row.voltage!;
+  const current = voltage.kv === null ? '' : voltage.text;
+  const where = stacked ? { 'data-row-voltage-stacked': row.row } : { 'data-row-voltage': row.row };
+  if (readOnly) {
+    return (
+      <div className="input" role="textbox" aria-readonly="true" aria-label={label} {...where}>
+        {voltage.text}
+      </div>
+    );
+  }
+  const write = (option: string) => {
+    const value = option === '' ? null : rowVoltageCell(option);
+    if ((option !== '' && value === null) || api.author === null) return;
+    // The empty option on a row whose voltage is its default (nothing typed) has nothing to clear.
+    if (value === null && voltage.source !== 'typed') return;
+    void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, testKey, row.row, voltage.col, value)]).catch(() => undefined);
+  };
+  return (
+    <div className="ficha-cell" {...where}>
+      {/* The empty option reads "—", as an empty cell does, so the select is as narrow as "2,5" at 390 px. */}
+      <select className="input" aria-label={label} value={current} onChange={(event) => write(event.target.value)}>
+        <option value="">—</option>
+        {current !== '' && !options.includes(current) ? <option value={current}>{current}</option> : null}
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

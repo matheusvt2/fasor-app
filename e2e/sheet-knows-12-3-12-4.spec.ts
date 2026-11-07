@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, instrumentHeaderOf, type FieldDef, type InstrumentRow, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, getSeed, instrumentHeaderOf, SEED_VERSION, type FieldDef, type InstrumentRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -567,7 +567,10 @@ test('@p0 12.4-E2E-002 "Marcar não ensaiado" from the sheet menu and the tree m
   await page.getByRole('button', { name: `Mais opções da ficha ${first.tag}` }).click();
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
   let dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
-  const reasons = ['Impossibilidade de desligamento', 'Solicitação do cliente', 'Equipamento inacessível', 'Outro'];
+  // Seed v12 (Story 22.7) adds "Defeito no equipamento" before "Outro": the reasons are the kernel's.
+  const reasons = getSeed(SEED_VERSION, 'cabine_primaria').not_tested_reasons.map((reason) => reason.label);
+  expect(reasons.slice(0, 3)).toEqual(['Impossibilidade de desligamento', 'Solicitação do cliente', 'Equipamento inacessível']);
+  expect(reasons.at(-1)).toBe('Outro');
   await expect(dialog.getByRole('radio')).toHaveText(reasons);
   for (const reason of reasons) await expect(dialog.getByRole('radio', { name: reason })).toHaveAttribute('aria-checked', 'false');
   let primary: Locator = dialog.getByRole('button', { name: 'Marcar não ensaiado' });

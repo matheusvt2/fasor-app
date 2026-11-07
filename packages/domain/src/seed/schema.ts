@@ -87,13 +87,26 @@ export type ChecklistItem = z.infer<typeof checklistItemSchema>;
  * kernel, never typed (VAL CALCULADO, CONDIÇÕES); `print`: printed "-" unless a sub-block
  * captures it (30 SEGUNDOS, ESTAB./10MIN, ABSORÇÃO, POLARIZAÇÃO).
  */
-export const columnDefSchema = z.object({
-  label: z.string().min(1),
-  unit: z.string().min(1).nullable(),
-  role: z.enum(['capture', 'input', 'derived', 'print']),
-  derived: z.boolean(),
-  group: z.string().min(1).optional(),
-});
+export const columnDefSchema = z
+  .object({
+    label: z.string().min(1),
+    unit: z.string().min(1).nullable(),
+    /**
+     * Seed v12 (Story 22.8): `voltage` is the per-row test voltage of an insulation table, a select
+     * typed on site (`relatorio/row-voltage.ts`), never missing and never judged; it is appended
+     * after the other value columns so their stored indices stay v11's, and screen and print draw
+     * it right after the connection columns.
+     */
+    role: z.enum(['capture', 'input', 'derived', 'print', 'voltage']),
+    derived: z.boolean(),
+    group: z.string().min(1).optional(),
+    /**
+     * Seed v12 (Story 22.8): on a `voltage` column only, the pt-BR texts of its select ("0,5", "10").
+     * Optional and never defaulted, so v1 to v11 parse to the bytes they shipped with.
+     */
+    options: z.array(z.string().min(1)).min(1).optional(),
+  })
+  .refine((c) => (c.role === 'voltage') === (c.options !== undefined), { message: 'options exist exactly on a voltage column' });
 export type ColumnDef = z.infer<typeof columnDefSchema>;
 
 /**
@@ -125,6 +138,13 @@ export const tableDefSchema = z
      * group applies it too, and one that names none keeps √3 and the Dyn1 pairs.
      */
     ratio_factor: z.enum(['sqrt3', 'vector_group']).optional(),
+    /**
+     * Seed v12 (Story 22.8): one entry per row of a table with a `voltage` column: the row's own
+     * default in kV (`'1'` on a low-voltage winding; null takes the instrument's TENSÃO ENSAIO) and
+     * the nameplate number field of the winding the row tests (null: no winding, no notice).
+     * Optional and never defaulted, so v1 to v11 parse to the bytes they shipped with.
+     */
+    voltage_rows: z.array(z.object({ default_kv: z.string().min(1).nullable(), winding: seedKey.nullable() })).optional(),
   })
   .refine((t) => t.rows.every((row) => row.length === t.connection_columns.length), {
     message: 'every row has one cell per connection column',
@@ -134,7 +154,12 @@ export const tableDefSchema = z
   })
   .refine((t) => t.value_columns.every((c) => c.derived === (c.role === 'derived')), {
     message: 'derived is true exactly on a derived column',
-  });
+  })
+  .refine((t) => t.value_columns.filter((c) => c.role === 'voltage').length <= 1, { message: 'a table has at most one voltage column' })
+  .refine((t) => (t.voltage_rows !== undefined) === t.value_columns.some((c) => c.role === 'voltage'), {
+    message: 'voltage_rows exist exactly on a table with a voltage column',
+  })
+  .refine((t) => t.voltage_rows === undefined || t.voltage_rows.length === t.rows.length, { message: 'voltage_rows has one entry per row' });
 export type TableDef = z.infer<typeof tableDefSchema>;
 
 /**
@@ -194,6 +219,13 @@ export const testDefSchema = z.object({
    * defaulted, so v1 to v5 parse to the bytes they shipped with.
    */
   criterion_bands: criterionBandsSchema.optional(),
+  /**
+   * Seed v12 (Story 22.9): the nameplate select whose accuracy class gives the ratio criterion
+   * (`relatorio/accuracy-class.ts`): ± the class % for a measurement class, ± 3 % for 5P and 10P,
+   * the seeded criterion while the field is empty. Optional and never defaulted, so v1 to v11
+   * parse to the bytes they shipped with.
+   */
+  criterion_class_field: seedKey.optional(),
 });
 export type TestDef = z.infer<typeof testDefSchema>;
 
@@ -249,6 +281,17 @@ function checkSeedV6Definition(
     const items = new Set((definition.checklist ?? []).map((item) => item.key));
     if (!rule.items.every((key) => items.has(key))) ctx.addIssue({ code: 'custom', message: 'an oil item is not on the checklist' });
     if (!rule.fields.every((key) => field(key) !== undefined)) ctx.addIssue({ code: 'custom', message: 'an oil field is not on the nameplate' });
+  }
+  // Seed v12 (Stories 22.8 and 22.9): a row's winding is a number field, a class field a select.
+  for (const test of definition.tests) {
+    if (test.criterion_class_field !== undefined && field(test.criterion_class_field)?.kind !== 'select') {
+      ctx.addIssue({ code: 'custom', message: `criterion_class_field "${test.criterion_class_field}" is not a select of the nameplate` });
+    }
+    for (const table of test.tables) {
+      for (const entry of table.voltage_rows ?? []) {
+        if (entry.winding !== null && field(entry.winding)?.kind !== 'number') ctx.addIssue({ code: 'custom', message: `voltage_rows winding "${entry.winding}" is not a number field of the nameplate` });
+      }
+    }
   }
   for (const test of definition.tests) {
     const bands = test.criterion_bands;
@@ -343,8 +386,8 @@ export const notTestedReasonSchema = z.object({
   /**
    * Story 22.4: the reason names a defect found on the equipment, so a sheet marked Não
    * ensaiado for it concludes Reprovado · Com restrições (`conclusionFloor`). Optional and
-   * set by no shipped seed (seed v12, Story 22.7, owns the real reason), so every shipped
-   * version parses to the bytes it shipped with; absent reads false (`isDefectReason`).
+   * never defaulted, so v1 to v11 parse to the bytes they shipped with; absent reads false
+   * (`isDefectReason`). Seed v12 (Story 22.7) sets it on "Defeito no equipamento", the first.
    */
   defect: z.boolean().optional(),
 });

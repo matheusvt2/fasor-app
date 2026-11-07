@@ -1,11 +1,12 @@
 import type { OcrReadResult, OcrToken, StructuringOutput, StructuringValue } from '../contract/ocr.ts';
 import type { NewId } from '../ids.ts';
 import { sheetNameplatePath } from '../ops/path.ts';
+import { parseAccuracyClass } from '../relatorio/accuracy-class.ts';
 import { isCellFilled } from '../relatorio/sheet-state.ts';
 import { isVectorGroupField, parseVectorGroup } from '../relatorio/vector-group.ts';
 import { suggestionRowSchema, type BlockRow, type SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
-import type { FieldDef } from '../seed/schema.ts';
+import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { assessReadingValue, type ReadingRegistry } from './assess.ts';
 import { normalizeBox, unionBox } from './boxes.ts';
 import { inTokenOrder } from './digits.ts';
@@ -58,16 +59,53 @@ export interface BuiltReadingSuggestions {
   dropped: ReadingDrop[];
 }
 
-function nameplateOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): readonly FieldDef[] {
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
   try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).nameplate;
+    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
   } catch {
-    return [];
+    return null;
   }
 }
 
+/** Story 22.9 (seed v12): the field whose select holds an accuracy class (the TC's and the TP's EXATIDÃO). */
+const ACCURACY_CLASS_FIELD = 'exatidao';
+/** Story 22.7 (seed v12): the transformer's oil class and the insulation it implies. */
+const OIL_CLASS_FIELD = 'tipo_do_oleo';
+
+/**
+ * Story 22.7 (seed v12, P-2: the model reports what the plate prints, the kernel composes): a plate
+ * that prints the oil's class ("Tipo óleo isolante B") and no insulation names an oil unit, so a
+ * TIPO DE ISOLAÇÃO the model left out reads as the oil value of the definition's oil rule, citing
+ * the oil class's words, to verify. Only a definition whose oil rule is on TIPO DE ISOLAÇÃO and
+ * lists TIPO DO ÓLEO (the v12 transformador de força) composes it, only from a TIPO DO ÓLEO the job
+ * keeps (cited, one of its options) and only when no TIPO DE ISOLAÇÃO of the model's is kept; null
+ * otherwise. A model's TIPO DE ISOLAÇÃO that is dropped is reported as dropped by the caller.
+ */
+function composedInsulation(definition: BlockDefinition | null, byKey: ReadonlyMap<string, StructuringValue>, tokens: ReadonlyMap<string, OcrToken>): StructuringValue | null {
+  const rule = definition?.oil_rule;
+  if (rule === undefined || !rule.fields.includes(OIL_CLASS_FIELD)) return null;
+  const fieldOf = (key: string) => definition!.nameplate.find((candidate) => candidate.key === key);
+  const own = byKey.get(rule.field);
+  if (own !== undefined && dropReasonOf(fieldOf(rule.field), own, tokens) === null) return null;
+  const oil = byKey.get(OIL_CLASS_FIELD);
+  if (oil === undefined || dropReasonOf(fieldOf(OIL_CLASS_FIELD), oil, tokens) !== null) return null;
+  const value = rule.oil_values[0];
+  if (value === undefined || fieldOf(rule.field)?.options?.includes(value) !== true) return null;
+  return { key: rule.field, value, ocr_token_ids: [...oil.ocr_token_ids], confidence: oil.confidence };
+}
+
+/** Why the job would drop this structured value of `field` (its citation, then its shape), or null when it keeps it. */
+function dropReasonOf(field: FieldDef | undefined, structured: StructuringValue, tokens: ReadonlyMap<string, OcrToken>): ReadingDropReason | null {
+  if (field === undefined) return 'unknown_key';
+  const ordered = citedInOrder(structured.ocr_token_ids, tokens);
+  if (ordered === null) return 'unknown_token';
+  const normalized = normalizeReadingValue(field, structured.value, ordered);
+  return normalized.ok ? null : normalized.reason;
+}
+
 export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): BuiltReadingSuggestions {
-  const fields = nameplateOf(input.block);
+  const definition = definitionOf(input.block);
+  const fields = definition?.nameplate ?? [];
   const fieldKeys = new Set(fields.map((field) => field.key));
   const tokens = new Map<string, OcrToken>(input.ocr.tokens.map((token) => [token.id, token]));
   const dropped: ReadingDrop[] = [];
@@ -75,6 +113,14 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
   for (const value of input.output.values) {
     if (!fieldKeys.has(value.key)) dropped.push({ key: value.key, reason: 'unknown_key' });
     else byKey.set(value.key, value);
+  }
+  const composed = composedInsulation(definition, byKey, tokens);
+  if (composed !== null) {
+    // A TIPO DE ISOLAÇÃO of the model's the job would drop is reported, and the composed one takes its place.
+    const own = byKey.get(composed.key);
+    const reason = own === undefined ? null : dropReasonOf(fields.find((field) => field.key === composed.key), own, tokens);
+    if (reason !== null) dropped.push({ key: composed.key, reason });
+    byKey.set(composed.key, composed);
   }
 
   const rows: SuggestionRow[] = [];
@@ -86,7 +132,17 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
       dropped.push({ key: field.key, reason: 'unknown_token' });
       continue;
     }
-    let normalized: NormalizedReadingValue = normalizeReadingValue(field, structured.value, ordered);
+    // Story 22.9: a printed class carries its burden ("0,6C25"); the class alone meets the select, and a text naming none is dropped.
+    let read: unknown = structured.value;
+    if (field.key === ACCURACY_CLASS_FIELD && field.kind === 'select') {
+      const cls = parseAccuracyClass(structured.value);
+      if (cls === null) {
+        dropped.push({ key: field.key, reason: 'invalid_shape' });
+        continue;
+      }
+      read = cls;
+    }
+    let normalized: NormalizedReadingValue = normalizeReadingValue(field, read, ordered);
     if (!normalized.ok) {
       dropped.push({ key: field.key, reason: normalized.reason });
       continue;
@@ -108,7 +164,7 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
       value: normalized.value,
       cited: ordered,
       registry: input.registry,
-      verify: normalized.verify || diagram || otherGroup,
+      verify: normalized.verify || diagram || otherGroup || structured === composed,
       ...(normalized.printedText === undefined ? {} : { printedText: normalized.printedText }),
     });
     const union = unionBox(ordered.map((token) => token.bbox))!;

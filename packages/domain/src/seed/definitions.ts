@@ -32,6 +32,7 @@ import { CABINE_PRIMARIA_V8 } from './v8.ts';
 import { CABINE_PRIMARIA_V9 } from './v9.ts';
 import { CABINE_PRIMARIA_V10 } from './v10.ts';
 import { CABINE_PRIMARIA_V11 } from './v11.ts';
+import { CABINE_PRIMARIA_V12 } from './v12.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -50,7 +51,7 @@ import { CABINE_PRIMARIA_V11 } from './v11.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v11';
+export const SEED_VERSION = 'v12';
 
 /**
  * The named variables section boilerplate may carry, resolved at generation. Seed v8 (UX pass
@@ -113,6 +114,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v9: bundle('v9', CABINE_PRIMARIA_V9),
   v10: bundle('v10', CABINE_PRIMARIA_V10),
   v11: bundle('v11', CABINE_PRIMARIA_V11),
+  v12: bundle('v12', CABINE_PRIMARIA_V12),
 });
 
 /**
@@ -152,7 +154,7 @@ export function getDefinition(seedVersion: string, reportType: string, blockType
 /**
  * Story 14.5: the equipment block types a seed version ships, in `EQUIPMENT_BLOCK_TYPES`
  * order: the eight on v1 to v4, the eight then the Chave de transferência automática on v5,
- * and on v6 and v7 the Quadro elétrico (QGBT/QD) after it.
+ * on v6 to v11 the Quadro elétrico (QGBT/QD) after it, and on v12 the Inspeção de QGBT last.
  * Every list of types a surface offers reads this, so a relatório or a template never offers
  * a type its own version has no definition of. A version this bundle does not ship answers
  * the eight, which every version holds.

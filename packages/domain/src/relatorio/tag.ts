@@ -23,6 +23,8 @@ export const TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
   chave_transferencia_automatica: 'CTA',
   // Story 14.9 (seed v6; Bruno 2026-10-20 answer 5): the Quadro elétrico (QGBT/QD), "QD-C05".
   quadro_eletrico: 'QD',
+  // Story 22.11 (seed v12): the Inspeção de QGBT, "QGBT-C05".
+  inspecao_qgbt: 'QGBT',
 };
 
 /** What `suggestTag` needs of the location a block is placed on. */

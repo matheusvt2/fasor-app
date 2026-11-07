@@ -351,6 +351,20 @@
    `select.input { appearance: none }` above is undone for it). */
 [data-route="/relatorio/:id/ficha/:blockId"] .ficha-cell > select.input { width: 100%; appearance: auto; padding-right: var(--sp-3); }
 
+/* ---------- authored (Story 22.8) ---------- */
+/* The per-row TENSÃO select of a seed v12 insulation table (`td.cell-voltage`, after the connection
+   cells): as narrow as its options ("2,5") with the browser's arrow, so the value cell keeps its
+   room at 390 px and the table its 300 px value cell from 768 px. Layout only; no mock draws it. */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-voltage { width: 1%; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table :is(td.cell-voltage, .voltage-stacked) .ficha-cell > select.input { width: auto; padding-left: var(--sp-1); padding-right: var(--sp-1); }
+/* Below 768 px the phone table has no room for a fifth column (E5-Q2): the column is hidden and the
+   select stands over the row's first typed cell, its header as a label beside it. */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .voltage-stacked { display: none; }
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table :is(th[data-voltage-column], td.cell-voltage) { display: none; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .voltage-stacked { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-1); }
+}
+
 /* ---------- authored (Story 14.9) ---------- */
 /* A checklist item's hint (the QGBT's items 8 and 16): the `.helper` text on its own line under the
    label, wrapping inside the label's column at every width. No mock draws it. */

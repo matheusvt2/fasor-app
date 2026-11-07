@@ -1339,7 +1339,8 @@ describe('seed v6 (Stories 14.9 and 14.11): v5 plus the Quadro elétrico (QGBT/Q
       }
     }
     expect(JSON.stringify(stripped)).toBe(JSON.stringify(v5));
-    expect(Object.keys(v6.blocks)).toEqual([...EQUIPMENT_BLOCK_TYPES]);
+    // e22s: the types up to the Quadro elétrico (the Inspeção de QGBT is seed v12's).
+    expect(Object.keys(v6.blocks)).toEqual(EQUIPMENT_BLOCK_TYPES.slice(0, EQUIPMENT_BLOCK_TYPES.indexOf('quadro_eletrico') + 1));
     for (const type of ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'cabos_saida', 'chave_transferencia_automatica'] as const) {
       expect(JSON.stringify(v6.blocks[type]), type).toBe(JSON.stringify(v5.blocks[type]));
     }
@@ -1750,7 +1751,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 (vector_group) transformador de força ratio table only', () => {
+  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 and v12 (vector_group) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
@@ -1761,6 +1762,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
       'v9/transformador_forca/relacao_transformacao/sqrt3',
       'v10/transformador_forca/relacao_transformacao/sqrt3',
       'v11/transformador_forca/relacao_transformacao/vector_group',
+      'v12/transformador_forca/relacao_transformacao/vector_group',
     ]);
   });
 
@@ -1879,10 +1881,9 @@ describe('seed v11 (Story 21.1): v10 with the transformador de força\'s vector 
   const v11 = getSeed('v11', 'cabine_primaria');
   const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v11');
+  it('was the version a new Template is created with until seed v12 (pinned there)', () => {
     expect(SEED_VERSIONS.v11!.version).toBe('v11');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 11)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11']);
     expect(equipmentTypesOf('v11')).toEqual(equipmentTypesOf('v10'));
   });
 
@@ -1924,6 +1925,215 @@ describe('seed v11 (Story 21.1): v10 with the transformador de força\'s vector 
     }
     const ratio = getDefinition('v11', 'cabine_primaria', 'transformador_forca').tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!;
     expect(ratio.value_columns.filter((column) => column.role === 'capture').map((column) => column.label)).toEqual(['H1-H3 / X1-X0', 'H2-H1 / X2-X0', 'H3-H2 / X3-X0']);
+  });
+});
+
+/** v11 as it shipped (Stories 21.1 and 21.2), hashed before seed v12 was written; a change to it is a new version. */
+const V11_HASH = 'abf0ca496d8883659a1fc2379212e7363c35e55eb2aa9e676c1b28d58d46eb33';
+
+/** v12 as it ships (Stories 22.7 to 22.9 and 22.11); a change to it after the deploy is a new version. */
+const V12_HASH = '2b855b38fae446757e098fd882f0c8a6e23ce332de72789a4067c9f75f98c2e1';
+
+describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, the TP on the TC list, the defect reason, a voltage per insulation row, the accuracy class and the Inspeção de QGBT', () => {
+  const v11 = getSeed('v11', 'cabine_primaria');
+  const v12 = getSeed('v12', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
+  const at = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type);
+  const field = (version: string, type: string, key: string) => at(version, type).nameplate.find((candidate) => candidate.key === key);
+  const INSULATED = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca', 'quadro_eletrico'];
+
+  it('is the version a new Template is created with, shipping the Inspeção de QGBT after the types of v11', () => {
+    expect(SEED_VERSION).toBe('v12');
+    expect(SEED_VERSIONS.v12!.version).toBe('v12');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']);
+    expect(equipmentTypesOf('v12')).toEqual([...equipmentTypesOf('v11'), 'inspecao_qgbt']);
+    expect(EQUIPMENT_BLOCK_TYPES.at(-1)).toBe('inspecao_qgbt');
+    for (const version of Object.keys(SEED_VERSIONS).slice(0, 11)) expect(equipmentTypesOf(version), version).not.toContain('inspecao_qgbt');
+  });
+
+  it('differs from v11 by exactly its four stories, field by field, and v1 to v11 hash as they shipped', () => {
+    const stripped = structuredClone(v12) as typeof v12;
+    const blocks = stripped.blocks as Record<string, BlockDefinition | undefined>;
+    // Story 22.11: one library type more.
+    expect(blocks.inspecao_qgbt).toBeDefined();
+    delete blocks.inspecao_qgbt;
+    // Story 22.7: the defect reason, before "Outro".
+    expect(stripped.not_tested_reasons.map((reason) => reason.key)).toEqual([...v11.not_tested_reasons.filter((reason) => reason.key !== 'outro').map((reason) => reason.key), 'defeito_no_equipamento', 'outro']);
+    stripped.not_tested_reasons = stripped.not_tested_reasons.filter((reason) => reason.key !== 'defeito_no_equipamento');
+    // Story 22.8: every insulation table's appended TENSÃO column and its rows.
+    for (const type of INSULATED) {
+      for (const table of blocks[type]!.tests.find((candidate) => candidate.key === 'isolacao')!.tables) {
+        expect(table.value_columns.at(-1), `${type}/${table.key}`).toEqual({ label: 'TENSÃO', unit: 'kV', role: 'voltage', derived: false, options: ['0,5', '1', '2,5', '5', '10'] });
+        table.value_columns.pop();
+        expect(table.voltage_rows, `${type}/${table.key}`).toHaveLength(table.rows.length);
+        delete table.voltage_rows;
+      }
+    }
+    // Story 22.7: ÓLEO MINERAL on the three transformers.
+    for (const type of ['transformador_forca', 'tp', 'tc']) {
+      const own = blocks[type]!;
+      const insulation = own.nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')!;
+      expect(insulation, type).toEqual({ key: 'tipo_de_isolacao', label: 'TIPO DE ISOLAÇÃO', kind: 'select', options: ['EPÓXI', 'Á SECO', 'ÓLEO MINERAL'], option_aliases: { ÓLEO: 'ÓLEO MINERAL' } });
+      insulation.options = ['EPÓXI', 'Á SECO', 'ÓLEO'];
+      delete insulation.option_aliases;
+      expect(own.oil_rule!.oil_values, type).toEqual(['ÓLEO MINERAL']);
+      own.oil_rule!.oil_values = ['ÓLEO'];
+    }
+    // Story 22.7: the transformer's TIPO DO ÓLEO and DESLOCAMENTO ANGULAR.
+    const tf = blocks.transformador_forca!;
+    const oilAt = tf.nameplate.findIndex((candidate) => candidate.key === 'tipo_do_oleo');
+    expect(tf.nameplate[oilAt - 1]!.key).toBe('tipo_de_isolacao');
+    expect(tf.nameplate[oilAt]).toEqual({ key: 'tipo_do_oleo', label: 'TIPO DO ÓLEO', kind: 'select', options: ['A', 'B'] });
+    tf.nameplate.splice(oilAt, 1);
+    const group = tf.nameplate.find((candidate) => candidate.key === 'ligacao_secundaria')!;
+    expect(group.label).toBe('DESLOCAMENTO ANGULAR');
+    expect(group.options).toEqual([...VECTOR_GROUP_CODES]);
+    group.label = 'LIGAÇÃO SECUNDÁRIA';
+    expect(tf.oil_rule!.fields).toEqual(['vol_oleo', 'tipo_do_oleo']);
+    tf.oil_rule!.fields = ['vol_oleo'];
+    // Story 22.7: the TP on the TC's v10 list; Story 22.9: its EXATIDÃO and its class ratio.
+    const tp = blocks.tp!;
+    expect(tp.checklist).toEqual(getDefinition('v10', 'cabine_primaria', 'tc').checklist);
+    tp.checklist = structuredClone(v11.blocks.tp.checklist);
+    expect(tp.subtypes.map((subtype) => subtype.na_defaults)).toEqual([['vasamento'], ['vasamento']]);
+    tp.subtypes = structuredClone(v11.blocks.tp.subtypes);
+    expect(tp.oil_rule!.items).toEqual(['vasamento']);
+    tp.oil_rule!.items = [...v11.blocks.tp.oil_rule!.items];
+    expect(tp.nameplate.at(-1)).toEqual({ key: 'exatidao', label: 'EXATIDÃO', kind: 'select', options: ['0,3', '0,6', '1,2'] });
+    tp.nameplate.pop();
+    // Story 22.9: the TC's EXATIDÃO select.
+    const tc = blocks.tc!;
+    const classAt = tc.nameplate.findIndex((candidate) => candidate.key === 'exatidao');
+    expect(tc.nameplate[classAt]).toEqual({ key: 'exatidao', label: 'EXATIDÃO', kind: 'select', options: ['0,3', '0,6', '1,2', '3', '5P', '10P'] });
+    tc.nameplate[classAt] = structuredClone(v11.blocks.tc.nameplate[classAt]!);
+    for (const own of [tp, tc]) {
+      const ratio = own.tests.find((candidate) => candidate.key === 'relacao_transformacao')!;
+      expect(ratio.criterion_class_field).toBe('exatidao');
+      delete ratio.criterion_class_field;
+    }
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v11));
+    expect(hash('v1')).toBe(V1_HASH);
+    expect(hash('v2')).toBe(V2_HASH);
+    expect(hash('v3')).toBe(V3_HASH);
+    expect(hash('v4')).toBe(V4_HASH);
+    expect(hash('v5')).toBe(V5_HASH);
+    expect(hash('v6')).toBe(V6_HASH);
+    expect(hash('v7')).toBe(V7_HASH);
+    expect(hash('v8')).toBe(V8_HASH);
+    expect(hash('v9')).toBe(V9_HASH);
+    expect(hash('v10')).toBe(V10_HASH);
+    expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
+    expect(hash('v12'), 'seed v12 changed: before its first deploy update this pin, after it add a new version').toBe(V12_HASH);
+  });
+
+  it('every v12 insulation table carries the TENSÃO column after its value columns, their indices as v11; the transformer rows name their windings', () => {
+    for (const type of INSULATED) {
+      const v11Tables = at('v11', type).tests.find((candidate) => candidate.key === 'isolacao')!.tables;
+      at('v12', type)
+        .tests.find((candidate) => candidate.key === 'isolacao')!
+        .tables.forEach((table, i) => {
+          expect(table.value_columns.slice(0, -1), `${type}/${table.key}`).toEqual(v11Tables[i]!.value_columns);
+          expect(table.value_columns.filter((column) => column.role === 'voltage'), `${type}/${table.key}`).toHaveLength(1);
+          if (type !== 'transformador_forca') expect(table.voltage_rows!.every((row) => row.default_kv === null && row.winding === null), `${type}/${table.key}`).toBe(true);
+        });
+    }
+    const tf = at('v12', 'transformador_forca').tests.find((candidate) => candidate.key === 'isolacao')!.tables[0]!;
+    expect(tf.rows.map((row) => row[0])).toEqual(['PRIMÁRIO', 'PRIMÁRIO', 'SECUNDÁRIO']);
+    expect(tf.voltage_rows).toEqual([
+      { default_kv: null, winding: 'tensao_nominal_at' },
+      { default_kv: null, winding: 'tensao_nominal_at' },
+      { default_kv: '1', winding: 'tensao_nominal_bt' },
+    ]);
+    // The library measurement tests (the CTA's) are v11's.
+    expect(at('v12', 'chave_transferencia_automatica')).toEqual(at('v11', 'chave_transferencia_automatica'));
+    // No v1 to v11 table has a voltage column.
+    for (const version of Object.keys(SEED_VERSIONS).slice(0, 11)) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const one of definition!.tests) for (const t of one.tables) expect(t.value_columns.some((column) => column.role === 'voltage'), `${version}/${definition!.block_type}`).toBe(false);
+      }
+    }
+  });
+
+  it("the TP holds the TC's items, with no VÁLVULA DE ALÍVIO, RELÉ DE GÁS or VENTILADORES, VASAMENTO its only oil item; the transformer keeps its seven oil items", () => {
+    const tp = at('v12', 'tp');
+    expect(tp.checklist!.map((one) => one.key)).toEqual(at('v12', 'tc').checklist!.map((one) => one.key));
+    for (const gone of ['valvula_de_alivio', 'rele_de_gas_funcionamento', 'ventiladores']) expect(tp.checklist!.some((one) => one.key === gone), gone).toBe(false);
+    expect(tp.subtypes.map((subtype) => subtype.key)).toEqual(['epoxi', 'a_seco']);
+    expect(tp.oil_rule).toEqual({ field: 'tipo_de_isolacao', oil_values: ['ÓLEO MINERAL'], items: ['vasamento'], fields: ['vol_oleo'] });
+    expect(at('v12', 'transformador_forca').oil_rule!.items).toEqual(at('v11', 'transformador_forca').oil_rule!.items);
+    expect(at('v12', 'transformador_forca').oil_rule!.items).toHaveLength(7);
+  });
+
+  it('the defect reason is flagged and justified; the v11 reasons are unflagged', () => {
+    const defect = v12.not_tested_reasons.find((reason) => reason.key === 'defeito_no_equipamento');
+    expect(defect).toEqual({ key: 'defeito_no_equipamento', label: 'Defeito no equipamento', justification: 'Os ensaios não foram realizados devido a defeito constatado no equipamento.', defect: true });
+    expect(v11.not_tested_reasons.some((reason) => reason.defect !== undefined)).toBe(false);
+  });
+
+  it('EXATIDÃO is a select on the TC and the TP, both ratio tests read it; the transformer has no class field', () => {
+    expect(field('v12', 'tc', 'exatidao')!.options).toEqual(['0,3', '0,6', '1,2', '3', '5P', '10P']);
+    expect(field('v12', 'tp', 'exatidao')!.options).toEqual(['0,3', '0,6', '1,2']);
+    expect(field('v11', 'tc', 'exatidao')!.kind).toBe('text');
+    expect(field('v11', 'tp', 'exatidao')).toBeUndefined();
+    for (const type of ['tc', 'tp']) expect(at('v12', type).tests.find((one) => one.key === 'relacao_transformacao')!.criterion_class_field, type).toBe('exatidao');
+    expect(at('v12', 'transformador_forca').tests.find((one) => one.key === 'relacao_transformacao')!.criterion_class_field).toBeUndefined();
+  });
+
+  it("the Inspeção de QGBT: four fields, the quadro's ten visual items, no tests, observations and conclusion, printed as the QGBT/QD's", () => {
+    const qgbt = at('v12', 'inspecao_qgbt');
+    const quadro = at('v12', 'quadro_eletrico');
+    expect(qgbt.label).toBe('Inspeção de QGBT');
+    expect(isLibraryType('v12', 'inspecao_qgbt')).toBe(true);
+    expect(qgbt.print_title).toBe("QGBT/QD's");
+    expect(qgbt.nameplate.map((one) => one.label)).toEqual(['IDENTIFICAÇÃO', 'FABRICANTE', 'TENSÃO NOMINAL', 'CORRENTE NOMINAL']);
+    for (const key of ['identificacao', 'fabricante', 'tensao_nominal']) expect(qgbt.nameplate.find((one) => one.key === key), key).toEqual(quadro.nameplate.find((one) => one.key === key));
+    expect(qgbt.nameplate.find((one) => one.key === 'corrente_nominal')).toEqual({ key: 'corrente_nominal', label: 'CORRENTE NOMINAL', kind: 'number', unit: 'A' });
+    expect(qgbt.checklist!.map((one) => one.label)).toEqual([
+      'LIMPEZA INTERNA E EXTERNA',
+      'PINTURA, CORROSÃO DA CAIXA',
+      'FUSÍVEIS',
+      'ATERRAMENTO',
+      'BARRAMENTOS',
+      'ISOLADORES',
+      'FIAÇÃO INTERNA',
+      'PLACAS DE SINALIZAÇÃO',
+      'ORGANIZAÇÃO INTERNA',
+      'IDENTIFICAÇÃO DE CIRCUITOS',
+    ]);
+    for (const one of qgbt.checklist!) expect(one, one.key).toEqual(quadro.checklist!.find((candidate) => candidate.key === one.key));
+    expect(qgbt.tests).toEqual([]);
+    expect(qgbt.measurement_tests).toBeUndefined();
+    expect(qgbt.sub_blocks).toEqual(['nameplate', 'checklist', 'observations', 'conclusion']);
+    expect(qgbt.subtypes).toEqual([]);
+    expect(qgbt.conclusion).toBe(true);
+  });
+
+  it('v5 and v11 resolve as they did: no ÓLEO MINERAL, no TIPO DO ÓLEO, LIGAÇÃO SECUNDÁRIA, the shared transformer list on the TP', () => {
+    for (const version of ['v5', 'v11']) {
+      expect(field(version, 'transformador_forca', 'tipo_do_oleo'), version).toBeUndefined();
+      expect(field(version, 'transformador_forca', 'ligacao_secundaria')!.label, version).toBe('LIGAÇÃO SECUNDÁRIA');
+      expect(field(version, 'transformador_forca', 'tipo_de_isolacao')!.options, version).toEqual(['EPÓXI', 'Á SECO', 'ÓLEO']);
+      expect(at(version, 'tp').checklist!.some((one) => one.key === 'valvula_de_alivio'), version).toBe(true);
+      expect(findDefinition(version, 'inspecao_qgbt'), version).toBeNull();
+    }
+  });
+
+  it('the new keys refuse a malformed seed: options off a voltage column, voltage_rows of the wrong length, a class or winding field that is not one', () => {
+    const tf = structuredClone(at('v12', 'transformador_forca')) as BlockDefinition;
+    const insulationOf = (definition: BlockDefinition) => definition.tests.find((one) => one.key === 'isolacao')!.tables[0]!;
+    expect(blockDefinitionSchema.safeParse(tf).success).toBe(true);
+    const shortRows = structuredClone(tf);
+    insulationOf(shortRows).voltage_rows!.pop();
+    expect(blockDefinitionSchema.safeParse(shortRows).success).toBe(false);
+    const noOptions = structuredClone(tf);
+    delete insulationOf(noOptions).value_columns.at(-1)!.options;
+    expect(blockDefinitionSchema.safeParse(noOptions).success).toBe(false);
+    const badWinding = structuredClone(tf);
+    insulationOf(badWinding).voltage_rows![2]!.winding = 'tipo';
+    expect(blockDefinitionSchema.safeParse(badWinding).success).toBe(false);
+    const badClass = structuredClone(at('v12', 'tc')) as BlockDefinition;
+    badClass.tests.find((one) => one.key === 'relacao_transformacao')!.criterion_class_field = 'tipo';
+    expect(blockDefinitionSchema.safeParse(badClass).success).toBe(false);
   });
 });
 

@@ -3061,6 +3061,34 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: The spec names `_bmad-output/planning-artifacts/source-deltas.md`; the file is `_bmad-output/specs/spec-fasor/source-deltas.md`, where the 2026-11-06 FR-68 row was already written by the planning PR: it was marked built rather than duplicated, and the AD-18 attribution row amended beside it.
   evidence: `source-deltas.md` rows FR-68 (2026-11-06) and FR-32/AD-18.
 
+## Deferred from: Epic 22 batch e22s (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.11)
+  summary: "Section 3 counts it": section 3 (LIMITE DE ESCOPO) is seeded boilerplate with no equipment list or count in any seed version, so there is nothing for the Inspeção de QGBT to be counted in; the batch counts it where totals exist (`templates/text.ts` `TOTALS_ORDER`, the composer's totals) and prints it in section 9. A section 3 equipment list is a new feature. Owner: Matheus or Bruno.
+  evidence: `packages/domain/src/seed/sections-v1.ts` `SECTION_3`; `relatorio/section-variables.ts` `section3Blocks`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
+  summary: The DoR and the AC write ACEITÁVEL as "± 1,2 %"; the kernel's one criterion format (`formatCriterionValue`) prints "±1,2 %" with no space, as v1 to v11 print "±0,5 %". Kept, so older documents print byte-identical. Owner: Bruno, if the spaced form is wanted on every seed.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.8, OQ-1)
+  summary: The notice follows Bruno's "0,5 ou 1 kV na BT": a winding rated at most 1000 V warns only above 1 kV, not above the DoR's 0,5 kV band (under which the 1 kV default would warn on every 220 V transformer). A two-level secondary ("380/220 V") is rated by its higher side.
+  evidence: `packages/domain/src/relatorio/row-voltage.ts` `rowVoltageNotice`.
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Stories 22.7 and 22.9)
+  summary: The paid eval of the `bedrock-structuring-5` prompt (the oil plate in the synthetic set, the class reading) runs on Matheus's word before the wave B deploy, outside `verify`; this batch ran the fake-provider plumbing tests only.
+  evidence: `apps/api/src/scripts/bedrock-eval.ts`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
+  summary: The TC's default fake plate prints EXATIDÃO "10B100" (an ANSI class); on v12 the parser reads "10", not an option of the select, so the plate reading drops that field (`invalid_shape`) where v11 stored the text.
+  evidence: `apps/api/src/jobs/reading/fixtures/92d3a9fb2cdc8ae0cf174211fe614107cb03edd31093dd126be275d53d7e2ecb.json`.
+  class: decision
+  state: open (owner: the Epic 22 wave B integrated review)
+
 ## Deferred from: Epic 22 fix batch e22f (2026-11-06)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N5)

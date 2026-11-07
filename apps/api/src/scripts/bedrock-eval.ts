@@ -68,7 +68,8 @@ import { renderVariants } from '../storage/variants.ts';
  * when its cited words print it, "<code> (diagram)" when they print no group, "<code> (other group)"
  * when they print another, an unparsed text quoted, "- (dropped)" when the job stores nothing (an
  * unknown cited id, a value naming no option), "-" for no entry. The synthetic set gains the two seed v11 transformer plates
- * of `make-plate-fixtures.ts` (one printing "Dyn1", one drawing a Yyn0 diagram).
+ * of `make-plate-fixtures.ts` (one printing "Dyn1", one drawing a Yyn0 diagram). Story 22.7 adds the
+ * seed v12 oil transformer plate (prompt `bedrock-structuring-5`): TIPO is TRICAST and TIPO DO ÓLEO B.
  *
  * Options: `--models a,b` (default: the four candidates and Nova Pro), `--ocr textract|fake|ocr-svc`,
  * `--dir <folder>`, `--verbose` (one line per reading). The regions are BEDROCK_REGION and
@@ -142,6 +143,17 @@ const SYNTHETIC: Sample[] = [
       kind: 'plate',
       block_type: 'transformador_forca',
       values: { identificacao: 'TR-03', fabricacao: 'Varnelo', tensao_nominal_at: '13.8', tensao_nominal_bt: '380', ligacao_secundaria: 'Yyn0' },
+    },
+  },
+  {
+    // Story 22.7: a seed v12 oil transformer printing "TIPO TRICAST" and "Tipo óleo isolante B" and no insulation word;
+    // the kernel composes TIPO DE ISOLAÇÃO (ÓLEO MINERAL, verify) from TIPO DO ÓLEO, so the model is expected to leave it out.
+    name: 'plate-transformador-oleo (synthetic, seed v12, Story 22.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-transformador-oleo.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'transformador_forca',
+      values: { identificacao: 'TR-04', fabricacao: 'Varnelo', tipo: 'TRICAST', tipo_do_oleo: 'B', potencia_nominal: '500', tensao_nominal_at: '13.8', tensao_nominal_bt: '220' },
     },
   },
   {

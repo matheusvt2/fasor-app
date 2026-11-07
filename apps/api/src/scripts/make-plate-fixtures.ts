@@ -36,6 +36,13 @@ import sharp from 'sharp';
  * gives no LIGAÇÃO SECUNDÁRIA value; it describes the drawing in `vector_diagram` (two stars, X0
  * at the LV centre, no H0, X1 with H1) citing every terminal label, the provider composes "Yyn0"
  * from those facts (`composeVectorGroup`), and the kernel reads it as a diagram read (`verify`).
+ *
+ * Stories 22.7 and 22.9 add two seed v12 plates, no block type's default either: an oil
+ * transformer (`transformador_forca_oleo`) printing "TIPO TRICAST" and "Tipo óleo isolante B" and no
+ * insulation word, whose answer gives TIPO and TIPO DO ÓLEO only (the kernel composes the oil
+ * insulation, to verify); and a TC (`tc_classe`) printing EXATIDÃO "0,6C25", answered as printed
+ * (the kernel reads the class 0,6). A row may print words of its own at the left (`label`) instead
+ * of the field's label, and cite them with its value (`citeLabel`).
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -54,10 +61,16 @@ interface PlateRow {
   key: string;
   tokens: string[];
   value: unknown;
+  /** Stories 22.7 and 22.9: the words printed at the left instead of the field's label ("Tipo óleo isolante"). */
+  label?: string[];
+  /** Story 22.7: the value cites the label's words too ("Tipo óleo isolante B"). */
+  citeLabel?: boolean;
 }
 
 interface PlateSpec {
   blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca';
+  /** The seed version whose definition the plate is laid out on (default: the one a new relatório is created with). */
+  seedVersion?: string;
   /** The argument that selects the plate when it is not its block type (Story 21.2: two transformer plates). */
   name?: string;
   file: string;
@@ -192,6 +205,8 @@ const PLATES: PlateSpec[] = [
     // Story 21.2: a seed v11 transformer plate that prints its vector group.
     blockType: 'transformador_forca',
     name: 'transformador_forca_dyn1',
+    // Laid out on v11, the version it was made on (v12 relabels LIGAÇÃO SECUNDÁRIA).
+    seedVersion: 'v11',
     file: 'plate-transformador-dyn1.png',
     rows: [
       { key: 'identificacao', tokens: ['TR-02'], value: 'TR-02' },
@@ -207,6 +222,8 @@ const PLATES: PlateSpec[] = [
     // Story 21.2: a seed v11 transformer plate that prints no group and draws a Yyn0 diagram.
     blockType: 'transformador_forca',
     name: 'transformador_forca_yyn0',
+    // Laid out on v11, the version it was made on (v12 relabels LIGAÇÃO SECUNDÁRIA).
+    seedVersion: 'v11',
     file: 'plate-transformador-yyn0.png',
     rows: [
       { key: 'identificacao', tokens: ['TR-03'], value: 'TR-03' },
@@ -217,6 +234,36 @@ const PLATES: PlateSpec[] = [
       { key: 'ligacao_secundaria', tokens: [], value: null },
     ],
     diagram: 'yyn0',
+  },
+  {
+    // Story 22.7: a seed v12 oil transformer that prints its oil class and no insulation word.
+    blockType: 'transformador_forca',
+    name: 'transformador_forca_oleo',
+    seedVersion: 'v12',
+    file: 'plate-transformador-oleo.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TR-04'], value: 'TR-04' },
+      { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
+      { key: 'tipo', tokens: ['TRICAST'], value: 'TRICAST' },
+      { key: 'tipo_do_oleo', label: ['Tipo', 'óleo', 'isolante'], tokens: ['B'], value: 'B', citeLabel: true },
+      { key: 'potencia_nominal', tokens: ['500', 'kVA'], value: num('500', 'kVA') },
+      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      { key: 'tensao_nominal_bt', tokens: ['220', 'V'], value: num('220', 'V') },
+    ],
+  },
+  {
+    // Story 22.9: a seed v12 TC that prints its accuracy class with its burden.
+    blockType: 'tc',
+    name: 'tc_classe',
+    seedVersion: 'v12',
+    file: 'plate-tc-classe.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TC-02'], value: 'TC-02' },
+      { key: 'fabricacao', tokens: ['Velquor'], value: 'Velquor' },
+      { key: 'n_serie', tokens: ['TC-305290'], value: 'TC-305290' },
+      { key: 'relacao', tokens: ['100-5', 'A'], value: '100-5 A' },
+      { key: 'exatidao', tokens: ['0,6C25'], value: '0,6C25' },
+    ],
   },
 ];
 
@@ -267,7 +314,7 @@ async function words(texts: string[], x: number, baseline: number, size: number,
 }
 
 async function make(plate: PlateSpec): Promise<string> {
-  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', plate.blockType);
+  const definition = getDefinition(plate.seedVersion ?? SEED_VERSION, 'cabine_primaria', plate.blockType);
   const fields = new Map<string, FieldDef>(definition.nameplate.map((field) => [field.key, field]));
   const tokens: Token[] = [];
   const values: { key: string; value: unknown; ocr_token_ids: string[]; confidence: number }[] = [];
@@ -281,10 +328,11 @@ async function make(plate: PlateSpec): Promise<string> {
     if (field === undefined) throw new Error(`${plateName(plate)} has no nameplate key ${row.key}`);
     const baseline = 150 + step * index + ROW_SIZE;
     body += `<line x1="50" y1="${baseline + 14}" x2="1150" y2="${baseline + 14}" stroke="#9AA0A6" stroke-width="2"/>`;
-    const label = await words(field.label.split(' '), LABEL_X, baseline, ROW_SIZE, false, tokens);
+    const label = await words(row.label ?? field.label.split(' '), LABEL_X, baseline, ROW_SIZE, false, tokens);
     const value = await words(row.tokens, VALUE_X, baseline, ROW_SIZE, true, tokens);
     body += label.svg + value.svg;
-    if (row.value !== null) values.push({ key: row.key, value: row.value, ocr_token_ids: value.ids, confidence: 0.97 });
+    const cited = row.citeLabel === true ? [...label.ids, ...value.ids] : value.ids;
+    if (row.value !== null) values.push({ key: row.key, value: row.value, ocr_token_ids: cited, confidence: 0.97 });
   }
   if (plate.diagram !== undefined) {
     const drawn = await yyn0Diagram(HEIGHT - DIAGRAM_HEIGHT + 20, tokens);
