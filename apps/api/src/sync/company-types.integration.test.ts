@@ -178,7 +178,9 @@ describe('Story 14.6: publishing through the route', () => {
     const skipId = newId();
     const skip = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(skipId), value: versionValue(companyA, skipId, typeId, 3) });
     const badId = newId();
-    const bad = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(badId), value: versionValue(companyA, badId, typeId, 2, { ...DEFINITION_1, criteria: [{ ...DEFINITION_1.criteria[0]!, source: { name: '', edition: null } }] }) });
+    // Built valid and then broken: `makeOp` would refuse it before it reached the route.
+    const valid = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(badId), value: versionValue(companyA, badId, typeId, 2) });
+    const bad = { ...valid, value: versionValue(companyA, badId, typeId, 2, { ...DEFINITION_1, criteria: [{ ...DEFINITION_1.criteria[0]!, source: { name: '', edition: null } }] }) } as Op;
     const strayId = newId();
     const stray = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(strayId), value: versionValue(companyA, strayId, newId(), 1) });
     const result = await h.push(companyA, [skip, bad, stray]);

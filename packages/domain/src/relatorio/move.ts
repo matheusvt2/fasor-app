@@ -1,7 +1,9 @@
 import { isEquipmentBlockType, isEquipmentKind } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { liveLocationIds } from './location-live.ts';
-import { blockTypeLabel, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
+import { typeVersionOf } from '../schemas/block-config.ts';
+import { EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
+import { blockTypeLabelIn, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
 import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
 
 /*
@@ -98,6 +100,8 @@ export function movePlan(input: {
   blockId: string;
   targetId: string;
   rename: boolean;
+  /** Story 14.6: the company's type versions, naming a company block without a TAG; seeded types only when omitted. */
+  definitions?: DefinitionContext;
 }): MovePlan {
   const block = input.blocks.find((row) => row.id === input.blockId && row.removed_at === null);
   // Story 14.6: a company type's sheet moves as any other; its TAG is never renamed by the move (no prefix without its definition).
@@ -113,7 +117,7 @@ export function movePlan(input: {
   // The name the sentence gives the block: its TAG, else (no live equipment row here, or a
   // blank TAG) the seed's name of its type, never the raw slug.
   const current = rename?.tag ?? own?.tag ?? '';
-  const tag = current.trim() === '' ? blockTypeLabel(block.seed_version, block.block_type) : current;
+  const tag = current.trim() === '' ? blockTypeLabelIn(input.definitions ?? EMPTY_DEFINITION_CONTEXT, block.seed_version, block.block_type, typeVersionOf(block.config)) : current;
   return {
     kind: 'move',
     blockId: block.id,

@@ -6,7 +6,9 @@ import { isRelatorioSectionType } from '../relatorio/instantiate.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { SUMARIO_TITLES } from '../relatorio/sumario.ts';
 import { sheetState } from '../relatorio/sheet-state.ts';
-import { blockTypeLabel } from '../relatorio/tree.ts';
+import { blockTypeLabelIn } from '../relatorio/tree.ts';
+import { typeVersionOf } from '../schemas/block-config.ts';
+import { snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { AuditTarget } from './schema.ts';
 
@@ -92,7 +94,8 @@ function sheetLabelOf(snapshot: RelatorioSnapshot, sheet: PrintSheet): string {
   const block = snapshot.blocks.find((row) => row.id === sheet.blockId);
   if (block === undefined) return screenLabel(sheet.title);
   const tag = block.equipment_id === null ? '' : (snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
-  const type = blockTypeLabel(block.seed_version, block.block_type);
+  // Story 14.6: a company sheet is named by the label of the version its block references.
+  const type = blockTypeLabelIn(snapshotDefinitionContext(snapshot), block.seed_version, block.block_type, typeVersionOf(block.config));
   return tag === '' ? type : `${type} ${tag}`;
 }
 

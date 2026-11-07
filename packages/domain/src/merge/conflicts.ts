@@ -11,10 +11,11 @@ import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
 import { isTagTaken } from '../relatorio/tag.ts';
-import { blockTypeLabel } from '../relatorio/tree.ts';
+import { blockTypeLabelIn } from '../relatorio/tree.ts';
 import { equipmentBlockName } from './info.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { relatorioOpEnvelope, type Author } from '../relatorio/ops.ts';
+import { typeVersionOf } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, EquipmentRow, JsonValue, LocationRow } from '../schemas/entities.ts';
 import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
@@ -562,7 +563,7 @@ export function applyPickOps(author: Author, decision: CellDecision, picks: Read
 
 /** What the words of a decision are read from: the device's rows and who is looking. */
 export interface DecisionTextContext {
-  blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version' | 'location_id'>[];
+  blocks: readonly (Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version' | 'location_id'> & Partial<Pick<BlockRow, 'config'>>)[];
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[];
   /** The relatório's locations, removed ones included: a decision on a sheet that left with its location still names the place. */
   locations: readonly Pick<LocationRow, 'id' | 'name'>[];
@@ -571,13 +572,15 @@ export interface DecisionTextContext {
   viewerActorId: string | null;
   /** This device ("este aparelho"). */
   viewerDeviceId: string | null;
+  /** Story 14.6: the company's type versions, through which a company block is named; seeded types only when omitted. */
+  definitions?: DefinitionContext;
 }
 
 /** The block as the sheet names it: its equipment's TAG, else its type's name. */
-export function decisionBlockName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'equipment'>): string {
+export function decisionBlockName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'equipment'> & Partial<Pick<DecisionTextContext, 'definitions'>>): string {
   const block = context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return 'Ficha'; // authored: a block this device does not hold
-  return equipmentBlockName(block, context.equipment);
+  return equipmentBlockName(block, context.equipment, context.definitions);
 }
 
 function locationName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'locations'>): string {
@@ -612,11 +615,11 @@ export function decisionText(decision: Decision, context: DecisionTextContext): 
 }
 
 /** The Conflict view's title: "SEC-C12 · Chave seccionadora · Coluna 12" (`86-sync-conflito.html`). */
-export function conflictViewTitle(blockId: string, context: Pick<DecisionTextContext, 'blocks' | 'equipment' | 'locations'>): string {
+export function conflictViewTitle(blockId: string, context: Pick<DecisionTextContext, 'blocks' | 'equipment' | 'locations'> & Partial<Pick<DecisionTextContext, 'definitions'>>): string {
   const block = context.blocks.find((row) => row.id === blockId);
   const parts = [decisionBlockName(blockId, context)];
   if (block !== undefined) {
-    const type = blockTypeLabel(block.seed_version, block.block_type);
+    const type = blockTypeLabelIn(context.definitions ?? EMPTY_DEFINITION_CONTEXT, block.seed_version, block.block_type, typeVersionOf(block.config));
     if (type !== parts[0]) parts.push(type);
   }
   const where = locationName(blockId, context);
