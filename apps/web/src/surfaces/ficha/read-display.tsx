@@ -50,6 +50,7 @@ import {
   type PhotoFileRow,
   type RelatorioSnapshot,
   type SuggestionRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
@@ -180,7 +181,9 @@ export function useDisplaySuggestions({
   const { showToast } = useToast();
   const rows = useMemo(() => suggestionRowsOf(state, api.relatorioId), [state, api.relatorioId]);
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);
-  const list = useMemo(() => measurementSuggestions(block, pending), [block, pending]);
+  // e22h B1: a company test's table is its version's, from the snapshot.
+  const definitions = snapshotDefinitionContext(snapshot);
+  const list = useMemo(() => measurementSuggestions(block, pending, definitions), [block, pending, definitions]);
   const entries = useMemo(() => new Map(list.map((entry) => [cellKey(entry.address), entry])), [list]);
   const photos = useMemo(() => photosOf(snapshot), [snapshot]);
   // CAPT-V1: with every suggestion row of any status, a done reading that read nothing is `empty`.
@@ -240,9 +243,9 @@ export function useDisplaySuggestions({
         // The freshest sheet decides: a cell typed a moment ago is no longer a fill; a cell
         // showing a dictated reading is left out as the button's count left it out.
         const fresh = blocks.find((row) => row.id === block.id) ?? block;
-        const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey, exclude);
+        const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey, exclude, definitions);
         done = picked.length;
-        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey, exclude);
+        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey, exclude, definitions);
         return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
@@ -251,7 +254,7 @@ export function useDisplaySuggestions({
       .catch(() => undefined);
   };
 
-  const confirmable = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, exclude).length;
+  const confirmable = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, exclude, definitions).length;
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
   return { block, entries, queued, tiles, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos, retake };

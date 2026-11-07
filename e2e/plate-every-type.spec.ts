@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentTypesOf, getDefinition, initialOrderKey, isLibraryType, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, getDefinition, initialOrderKey, isLibraryType, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -169,6 +169,7 @@ async function openLibrarySheet(page: Page, cabine: string, type: EquipmentBlock
   const local = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === cabine)!.value as { id: string };
   const { equipment, block } = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: built.relatorioId,
     projectId: built.projectId,

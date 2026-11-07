@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { emptySheet, type BlockRow, type LocationRow, type ProjectRow, type RegistryRow, type RelatorioRow, type RelatorioStatus, type SuggestionRow, type TemplateRow } from '../schemas/entities.ts';
@@ -115,7 +116,7 @@ const onDevice = (id: string, last_sync_at: string | null = '2026-09-08T00:40:00
 });
 
 function input(overrides: Partial<HomeCardsInput> = {}): HomeCardsInput {
-  return {
+  return { definitions: EMPTY_DEFINITION_CONTEXT,
     relatorios: [],
     summary: [],
     projects: [project],

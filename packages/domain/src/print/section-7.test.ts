@@ -10,6 +10,7 @@ import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec, photosWithSheetsNote } from './layout.ts';
 import { captionSentence, PHOTO_UNAVAILABLE_TEXT, section7Layout, section7Photos } from './section-7.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * 7.2-UNIT: section 7's layout data (the I/O rows S7 happy, uncaptioned, none) on a
@@ -20,7 +21,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0701-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0702-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0703-7000-8000-'), now: T0 }), seq: i + 1 }));

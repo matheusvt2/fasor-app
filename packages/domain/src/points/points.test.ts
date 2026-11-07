@@ -18,6 +18,7 @@ import { derivedPointReasonText, derivedPoints, groupDerivedPoints, notTestedPoi
 import { livePoints, livePointsOfLocals, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
 import { pointLinkValues } from './link.ts';
 import { pointOrderText, pointsHeadingText, pointsSummary, pointsSummaryText, pointTitle, sectionEightEntries } from './summary.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 const A = '019966b0-0070-7000-8000-00000000000a';
 const B = '019966b0-0070-7000-8000-00000000000b';
@@ -26,7 +27,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0071-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0072-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0073-7000-8000-'), now: T0 }), seq: i + 1 }));

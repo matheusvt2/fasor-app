@@ -34,6 +34,7 @@ import {
   type FileVariantName,
   type SyncCounts,
   type UserRow,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { publishReAuth } from '../api/auth-client.ts';
@@ -66,6 +67,7 @@ import { startWait, trackError } from '../telemetry/hooks.ts';
 import { failureCode, observeCycle, syncWaitOutcome } from '../telemetry/sync-observer.ts';
 import { configureTelemetry } from '../telemetry/track.ts';
 import type { AppDatabase } from '../db/schema.ts';
+import { useDefinitionContext } from './definition-context.ts';
 import { useSession } from './session.tsx';
 import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
 
@@ -235,8 +237,8 @@ const NO_STATES: SyncStateRow[] = [];
 const NO_USERS: UserRow[] = [];
 const NO_SUMMARY: RelatorioSummary[] = [];
 const NO_READING: ReadingCountRows = { suggestions: [], photos: [] };
-const NO_CONTEXT: MergeInfoContext = { blocks: [], equipment: [], users: [], files: [] };
-const NO_SHEET_CONTEXT: PendingSheetContext = { blocks: [], equipment: [], users: [] };
+const NO_CONTEXT: MergeInfoContext = { blocks: [], equipment: [], users: [], files: [], definitions: EMPTY_DEFINITION_CONTEXT };
+const NO_SHEET_CONTEXT: PendingSheetContext = { blocks: [], equipment: [], users: [], definitions: EMPTY_DEFINITION_CONTEXT };
 const NO_UPLOADS: Awaited<ReturnType<typeof unackedPhotoUploads>> = [];
 const NO_DOWNLOAD_CONTEXT: DownloadRowsContext = { projects: [], clients: [], local: new Map() };
 const NO_HELD: HeldDecisions[] = [];
@@ -434,9 +436,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // "Decisões" rows, the headline's contradiction count and the badge's "Conflito".
   const held = useLiveQuery(() => (db === null ? Promise.resolve(NO_HELD) : heldDecisions(db)), [db], NO_HELD);
   const viewerId = session.user?.id ?? null;
+  // e22h B1: a company sheet's decision row is named by its version's label.
+  const definitions = useDefinitionContext();
   const decisions = useMemo(
-    () => syncDecisionRows(held, { users, viewerActorId: viewerId, viewerDeviceId: device }),
-    [held, users, viewerId, device],
+    () => syncDecisionRows(held, { users, viewerActorId: viewerId, viewerDeviceId: device, definitions }),
+    [held, users, viewerId, device, definitions],
   );
   const decisionCount = useMemo(() => decisionTotal(held), [held]);
   // E10-Q4: cells and structure are worded apart; the badge state counts the total.

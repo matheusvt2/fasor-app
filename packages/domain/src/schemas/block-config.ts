@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { uuidV7Schema } from '../ids.ts';
 
 /*
  * AD-21: `BlockConfig` is the only piece of seed-resolved structure ever copied into a
@@ -310,14 +311,19 @@ const ITEM_KEY_SET: ReadonlySet<string> = new Set(ITEM_KEYS);
  * role, and its `sub_blocks` and `na_defaults` keys are its definition's, which `applyOp` checks
  * against the resolved definition (the schema has no definition to read).
  */
-function checkConfigKeys(config: { block_type: string; subtype?: unknown; role?: unknown; sub_blocks: Record<string, unknown>; na_defaults: readonly string[]; type_version?: number | undefined }, ctx: z.RefinementCtx): void {
+function checkConfigKeys(
+  config: { block_type: string; subtype?: unknown; role?: unknown; sub_blocks: Record<string, unknown>; na_defaults: readonly string[]; type_version?: number | undefined; type_version_id?: string | undefined },
+  ctx: z.RefinementCtx,
+): void {
   if (isCompanyBlockType(config.block_type)) {
     if (config.type_version === undefined) ctx.addIssue({ code: 'custom', path: ['type_version'], message: 'a company type names its version' });
+    if (config.type_version_id !== undefined && config.type_version === undefined) ctx.addIssue({ code: 'custom', path: ['type_version_id'], message: 'a version row id goes beside its version' });
     if (config.subtype !== undefined) ctx.addIssue({ code: 'custom', path: ['subtype'], message: 'a company type has no subtype' });
     if (config.role !== undefined) ctx.addIssue({ code: 'custom', path: ['role'], message: 'a company type has no role' });
     return;
   }
   if (config.type_version !== undefined) ctx.addIssue({ code: 'custom', path: ['type_version'], message: 'only a company type names a version' });
+  if (config.type_version_id !== undefined) ctx.addIssue({ code: 'custom', path: ['type_version_id'], message: 'only a company type names a version row' });
   for (const key of Object.keys(config.sub_blocks)) {
     if (!SUB_BLOCK_KEY_SET.has(key)) ctx.addIssue({ code: 'custom', path: ['sub_blocks', key], message: `"${key}" is not a sub-block key` });
   }
@@ -351,19 +357,56 @@ export const blockConfigSchema = z
      * defaulted, so every config written before the key existed parses to the same bytes.
      */
     type_version: z.number().int().min(1).optional(),
+    /**
+     * e22h S2 (contract 33, amended in place): the id of the version row the block places, beside
+     * `type_version` on a company type only. Two devices publishing the same number hold two rows
+     * of it until the server refuses one: the id binds the block to the definition its device
+     * showed, so a refused publish never re-binds it to the other device's (the block is refused
+     * with it and resent with the renumbered row, `resendRenumberedVersions`). `applyOp` requires it
+     * on a company block create; a template block may omit it (the instantiation fills it).
+     */
+    type_version_id: uuidV7Schema.optional(),
   })
   .superRefine(checkConfigKeys);
 export type BlockConfig = z.infer<typeof blockConfigSchema>;
 
 /**
+ * e22h S2: how a reader names a company type version. A number resolves the one row of that
+ * number the context keeps (`DefinitionContext.versions`); an object, a config carrying the version
+ * row's id, resolves that row alone (`DefinitionContext.byId`), and nothing when the row is not of
+ * that number.
+ */
+export type TypeVersionRef = number | { readonly version: number; readonly id: string };
+
+/**
  * Story 14.6: the company type version a stored config names (`type_version`), or undefined when it
  * names none (a seeded or section type, or a config that is not an object). Read from a row's
- * config, which the row schema keeps as JSON.
+ * config, which the row schema keeps as JSON. e22h S2: with the version row's id beside it
+ * (`type_version_id`), the reference names that row (`{version, id}`).
  */
-export function typeVersionOf(config: unknown): number | undefined {
+export function typeVersionOf(config: unknown): TypeVersionRef | undefined {
   if (typeof config !== 'object' || config === null || Array.isArray(config)) return undefined;
   const version = (config as { type_version?: unknown }).type_version;
-  return typeof version === 'number' && Number.isInteger(version) && version >= 1 ? version : undefined;
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return undefined;
+  const id = (config as { type_version_id?: unknown }).type_version_id;
+  return typeof id === 'string' && id !== '' ? { version, id } : version;
+}
+
+/** e22h S2: the number a type version reference names. */
+export function typeVersionNumber(ref: TypeVersionRef): number;
+export function typeVersionNumber(ref: TypeVersionRef | undefined): number | undefined;
+export function typeVersionNumber(ref: TypeVersionRef | undefined): number | undefined {
+  return ref === undefined || typeof ref === 'number' ? ref : ref.version;
+}
+
+/** e22h S2: the version row id a type version reference names, or undefined for a bare number. */
+export function typeVersionIdOf(ref: TypeVersionRef | undefined): string | undefined {
+  return ref === undefined || typeof ref === 'number' ? undefined : ref.id;
+}
+
+/** e22h S2: whether two references name the same version: the same number and the same row id (or none on both). */
+export function sameTypeVersion(a: TypeVersionRef | undefined, b: TypeVersionRef | undefined): boolean {
+  return typeVersionNumber(a) === typeVersionNumber(b) && typeVersionIdOf(a) === typeVersionIdOf(b);
 }
 
 /** UX-DR30: the Quantity stepper counts 0 to 99 of one type at one node; a Template block holds 1 to 99. */

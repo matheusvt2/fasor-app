@@ -45,7 +45,6 @@ import {
   type TreeEquipmentNode,
   type TreeLocationNode,
 } from '@app/domain';
-import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { now } from '../../clock.ts';
@@ -90,8 +89,8 @@ export interface TreeContext {
   /** The relatório's seed version: new blocks are born on it. */
   seedVersion: string;
   editor: RelatorioEditor;
-  /** Story 14.8: the company's equipment types on this device, for a block of a company type the palette creates. */
-  definitions?: DefinitionContext;
+  /** Story 14.8: the company's equipment types on this device (`useDefinitionContext`), for a block of a company type the palette creates. */
+  definitions: DefinitionContext;
 }
 
 /** What the actions need of the tree they act on. */
@@ -170,10 +169,7 @@ export function locationChevron(root: HTMLElement | null, locationId: string): H
 }
 
 export function useTreeActions(context: TreeContext, host: TreeHost): TreeActions {
-  const { relatorioId, projectId, seedVersion, editor } = context;
-  // Story 14.8: the device's company types (a live query), unless the caller hands its own.
-  const deviceDefinitions = useDefinitionContext();
-  const definitions = context.definitions ?? deviceDefinitions;
+  const { relatorioId, projectId, seedVersion, editor, definitions } = context;
   const { edit, announce, undoable, settle } = editor;
   const db = useSession().database;
   const { showToast } = useToast();
@@ -273,7 +269,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
 
   const moveToLocation = useCallback(
     (node: TreeEquipmentNode, targetId: string, rename: boolean) => {
-      void commitMove(edit, { relatorioId, projectId, blockId: node.blockId, targetId, rename })
+      void commitMove(edit, { relatorioId, projectId, blockId: node.blockId, targetId, rename, definitions })
         .then(({ batch, plan }) => {
           if (batch === null || plan.kind !== 'move') {
             // Already there (another device moved it first): nothing to write, nothing to say.
@@ -350,9 +346,10 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           tag,
           seedVersion,
           orderKey: newBlockOrderKey(blocks, location.id, input.anchorBlockId),
+          definitions,
           // "Duplicar" copies the structure (sub-blocks, subtype), never the data (EXPERIENCE.md › Block Model).
           ...(source === undefined ? {} : { config: source.config }),
-          ...(typeVersion === undefined ? {} : { typeVersion, definitions }),
+          ...(typeVersion === undefined ? {} : { typeVersion }),
         });
         out.created = { tag: pair.equipment.tag, blockId: pair.block.id, location: { kind: location.kind, name: location.name } };
         // Story 9.2: "Fotografar equipamento" re-targets its photo to the new block's plate, and
@@ -823,11 +820,19 @@ export function restoreStrandedSheetOps(
  */
 export async function commitMove(
   edit: (build: Build) => Promise<string | null>,
-  input: { relatorioId: string; projectId: string; blockId: string; targetId: string; rename: boolean },
+  input: { relatorioId: string; projectId: string; blockId: string; targetId: string; rename: boolean; definitions: DefinitionContext },
 ): Promise<{ batch: string | null; plan: MovePlan }> {
   const out: { plan: MovePlan } = { plan: { kind: 'refused', reason: 'gone' } };
   const batch = await edit((blocks, by, fresh) => {
-    const plan = movePlan({ blocks, locations: fresh.locations, equipment: fresh.equipment, blockId: input.blockId, targetId: input.targetId, rename: input.rename });
+    const plan = movePlan({
+      blocks,
+      locations: fresh.locations,
+      equipment: fresh.equipment,
+      blockId: input.blockId,
+      targetId: input.targetId,
+      rename: input.rename,
+      definitions: input.definitions,
+    });
     out.plan = plan;
     if (plan.kind !== 'move') return null;
     const ops: OpDraft[] = [

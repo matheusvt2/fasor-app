@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
@@ -53,7 +54,7 @@ interface Built {
 
 /** An equipment sheet `n` of a relatório on seed v5 (block id(1000+n), equipment id(2000+n), TAG "T⟨n⟩") at `location`. */
 function sheet(n: number, location: number, type: EquipmentBlockType, orderKey: string, tag = `T${n}`): Built {
-  return newEquipmentBlock({ blockId: block(n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag, seedVersion: 'v5', orderKey });
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: block(n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag, seedVersion: 'v5', orderKey });
 }
 
 function snapshotOf(locations: LocationRow[], sheets: Built[], scheme: 'por_local_e_tipo' | 'ordem_de_campo' = 'por_local_e_tipo'): RelatorioSnapshot {

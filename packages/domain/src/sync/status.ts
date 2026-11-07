@@ -7,7 +7,6 @@ import { leiturasNaFilaText } from '../relatorio/plate-suggestions.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
 import { blockTypeLabelIn } from '../relatorio/tree.ts';
 import { typeVersionOf } from '../schemas/block-config.ts';
-import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import type { BlockRow, ProjectRow } from '../schemas/entities.ts';
 import { plural } from '../text/plural.ts';
 import { outboxBlockId, pendingSummaryText, type OutboxLike, type SyncCounts } from './counts.ts';
@@ -96,7 +95,7 @@ export function syncSummaryBadges({ counts, contradictions = 0, decisions = 0 }:
 export type PendingSheetOutboxLike = OutboxLike & { actor_id: string; client_ts: string };
 
 /** The rows the sheet rows are named from. */
-export type PendingSheetContext = Pick<MergeInfoContext, 'blocks' | 'equipment' | 'users'> & Partial<Pick<MergeInfoContext, 'definitions'>>;
+export type PendingSheetContext = Pick<MergeInfoContext, 'blocks' | 'equipment' | 'users' | 'definitions'>;
 
 export interface PendingSheetRow {
   block_id: string;
@@ -120,7 +119,7 @@ function sheetLabel(blockId: string, context: PendingSheetContext): string {
   if (block === undefined) return 'Ficha';
   const name = blockName(blockId, context);
   // Story 14.6: a company block is named by its version's label when the context is given.
-  const type = blockTypeLabelIn(context.definitions ?? EMPTY_DEFINITION_CONTEXT, block.seed_version, block.block_type, typeVersionOf(block.config));
+  const type = blockTypeLabelIn(context.definitions, block.seed_version, block.block_type, typeVersionOf(block.config));
   return name === type ? type : `${name} — ${type}`;
 }
 

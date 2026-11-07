@@ -1,4 +1,4 @@
-import { getDefinition, paletteItems, SEED_VERSION, SELV_VOLTAGE_NOTICE, TEST_VOLTAGE_NOT_CHECKED, type BlockRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, paletteItems, SEED_VERSION, SELV_VOLTAGE_NOTICE, TEST_VOLTAGE_NOT_CHECKED, type BlockRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -204,7 +204,7 @@ test('@p0 14.14-E2E-002 a Quadro elétrico: the SELV/PELV help, the SELV notice 
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.getByRole('button', { name: 'Adicionar equipamento no local Geradores', exact: true }).click();
   const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
-  const item = paletteItems(SEED_VERSION, { kind: 'cabine', name: 'Geradores' }, []).find((entry) => entry.type === QD)!;
+  const item = paletteItems(SEED_VERSION, { kind: 'cabine', name: 'Geradores' }, [], EMPTY_DEFINITION_CONTEXT).find((entry) => entry.type === QD)!;
   const qdRow = typeRows(fieldPalette, [QD]);
   const tag = (await qdRow.locator('.pi-meta').innerText()).trim().slice(`${item.summary} · `.length);
   await qdRow.click();

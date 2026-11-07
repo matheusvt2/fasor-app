@@ -1,14 +1,14 @@
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
-import type { BlockDefinition } from '../seed/schema.ts';
+import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import type { BlockDefinition, OilRule } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
 import { chosenConclusionPair, effectiveConclusionPair } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { measurementCounts } from './measurement-evaluation.ts';
-import { isOilItem, oilDerivedNaKeys } from './oil-rule.ts';
+import { oilDerivedNaKeysUnder, oilRuleOf } from './oil-rule.ts';
 import { evaluatedCells } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
@@ -135,13 +135,25 @@ type ResultBlock = Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, '
  * shows "NA" whenever its own result is not filled (a cell cleared to null included); on an oil
  * or unknown unit it shows its stored value or nothing.
  */
-export function checklistResultOf(block: ResultBlock, itemKey: string): 'C' | 'NC' | 'NA' | null {
+export function checklistResultOf(block: ResultBlock, itemKey: string, ctx: DefinitionContext): 'C' | 'NC' | 'NA' | null {
+  return resultUnder(block, itemKey, oilRuleOf(block, ctx));
+}
+
+/**
+ * `checklistResultOf` for a reader that holds the block's own definition (the conclusion, the
+ * parecer): its oil rule is the definition's, a company type's included (e22h).
+ */
+export function checklistResultUnder(block: ResultBlock, itemKey: string, definition: Pick<BlockDefinition, 'oil_rule'> | null): 'C' | 'NC' | 'NA' | null {
+  return resultUnder(block, itemKey, definition?.oil_rule ?? null);
+}
+
+function resultUnder(block: ResultBlock, itemKey: string, rule: OilRule | null): 'C' | 'NC' | 'NA' | null {
   const cell = block.sheet.checklist[itemKey]?.result;
   if (isCellFilled(cell)) {
     const value = cell!.value;
     return value === 'C' || value === 'NC' || value === 'NA' ? value : null;
   }
-  if (isOilItem(block, itemKey)) return oilDerivedNaKeys(block).has(itemKey) ? 'NA' : null;
+  if (rule?.items.includes(itemKey as OilRule['items'][number]) === true) return oilDerivedNaKeysUnder(rule, block).has(itemKey) ? 'NA' : null;
   if (cell !== undefined) return null;
   return naDefaultsOf(block).has(itemKey) ? 'NA' : null;
 }
@@ -151,10 +163,10 @@ export function checklistResultOf(block: ResultBlock, itemKey: string): 'C' | 'N
  * (an `na_defaults` NA with no cell, an oil item's derived NA), so the first tap on that row
  * still commits a real cell.
  */
-export function checklistResultIsStored(block: ResultBlock, itemKey: string): boolean {
+export function checklistResultIsStored(block: ResultBlock, itemKey: string, ctx: DefinitionContext): boolean {
   const cell = block.sheet.checklist[itemKey]?.result;
   if (cell === undefined) return false;
-  return isCellFilled(cell) || checklistResultOf(block, itemKey) === null;
+  return isCellFilled(cell) || checklistResultOf(block, itemKey, ctx) === null;
 }
 
 /** What `sheetProgress` reads: the blocks, and the rest of the snapshot when the caller has it. */
@@ -169,7 +181,7 @@ export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations'
 
 /** The Placa step's missing fields: the plate's own and, on the cabine's first sheet, the cabine's. */
 function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled: ReadonlySet<string>): { plate: number; cabine: number } {
-  const plate = enabled.has('nameplate') ? nameplateMissingKeys(snapshot, block.id).size : 0;
+  const plate = enabled.has('nameplate') ? nameplateMissingKeys({ blocks: snapshot.blocks, equipment: snapshot.equipment, equipment_types: snapshot.equipment_types }, block.id).size : 0;
   let cabineMissing = 0;
   const { relatorio, locations, equipment } = snapshot;
   if (relatorio !== undefined && locations !== undefined && equipment !== undefined && isCabineFirstSheet({ blocks: snapshot.blocks, locations, equipment }, block.id)) {
@@ -179,11 +191,11 @@ function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled:
   return { plate, cabine: cabineMissing };
 }
 
-function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>): number {
+function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>, ctx: DefinitionContext): number {
   if (!enabled.has('checklist') || definition.checklist === null) return 0;
   let missing = 0;
   for (const item of definition.checklist) {
-    const result = checklistResultOf(block, item.key);
+    const result = checklistResultOf(block, item.key, ctx);
     if (result === null) missing += 1;
     else if (result === NC && !isCellFilled(block.sheet.checklist[item.key]?.observation)) missing += 1;
   }
@@ -230,7 +242,8 @@ function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled:
 export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, options: { floorFills?: boolean } = {}): SheetProgress {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   // Story 14.6: a company sheet's definition comes from the snapshot's type versions.
-  const definition = block === undefined ? null : blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
+  const ctx = snapshotDefinitionContext(snapshot);
+  const definition = block === undefined ? null : blockDefinitionIn(ctx, block);
   const steps: Record<SheetStep, SheetStepProgress> = {
     placa: { missing: 0, outOfLimit: 0 },
     verificacoes: { missing: 0, outOfLimit: 0 },
@@ -247,7 +260,7 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, 
     const enabled = enabledSubBlocksOf(block);
     const placa = placaMissing(snapshot, block, enabled);
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
-    steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
+    steps.verificacoes.missing = verificacoesMissing(block, definition, enabled, ctx);
     steps.ensaios = ensaiosCounts(block, definition, enabled);
     const conclusao = conclusaoMissing(block, definition, enabled, options.floorFills === true);
     steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };

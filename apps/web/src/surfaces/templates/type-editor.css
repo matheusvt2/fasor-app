@@ -46,3 +46,9 @@
 [data-route="/templates/tipos/:id"] .value-pair { display: flex; align-items: center; gap: var(--sp-2); }
 [data-route="/templates/tipos/:id"] .value-pair .input { min-width: 0; flex: 1 1 0; }
 [data-route="/templates/tipos/:id"] .value-pair .unit { color: var(--ink-secondary); white-space: nowrap; }
+/* authored: e22h N12, the preview's measurement tables scroll inside their box (`.ficha-mt`, as the ficha does), never the page at 390 px. */
+[data-route="/templates/tipos/:id"] .tipo-content, [data-route="/templates/tipos/:id"] .preview-frame { min-width: 0; }
+[data-route="/templates/tipos/:id"] .preview-frame .ficha-mt { max-width: 100%; overflow-x: auto; }
+/* authored: e22h S1, a criterion the plate picks: its bands or classes listed under its name. */
+[data-route="/templates/tipos/:id"] .data-table td .plate-criterion { display: flex; flex-direction: column; gap: var(--sp-1); margin-top: var(--sp-1); }
+[data-route="/templates/tipos/:id"] .data-table td .plate-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }

@@ -1,4 +1,4 @@
-import { blockTypeLabel, equipmentTypesOf, paletteTypeGroups } from '@app/domain';
+import { blockTypeLabel, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, paletteTypeGroups } from '@app/domain';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { readStore } from './outbox.ts';
 
@@ -27,12 +27,12 @@ export async function relatorioSeedVersion(page: Page, database: string, relator
  * one `type` per seeded type, then each later group's heading and its `type` rows.
  */
 export function paletteRowOrder(seedVersion: string, chooseHeading: string): string[] {
-  return paletteTypeGroups(seedVersion).flatMap((group) => [group.label ?? chooseHeading, ...group.types.map(() => 'type')]);
+  return paletteTypeGroups(seedVersion, EMPTY_DEFINITION_CONTEXT).flatMap((group) => [group.label ?? chooseHeading, ...group.types.map(() => 'type')]);
 }
 
 /** The seeded (FO.SERV-03) and the library type keys of a seed version. */
 export function paletteTypes(seedVersion: string): { seeded: string[]; library: string[] } {
-  const groups = paletteTypeGroups(seedVersion);
+  const groups = paletteTypeGroups(seedVersion, EMPTY_DEFINITION_CONTEXT);
   return {
     seeded: groups.filter((group) => group.key === 'seeded').flatMap((group) => group.types),
     library: groups.filter((group) => group.key === 'library').flatMap((group) => group.types),

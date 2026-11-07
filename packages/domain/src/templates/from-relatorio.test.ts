@@ -5,7 +5,7 @@ import { replay } from '../ops/replay.ts';
 import { blockConfigSchema, MAX_QUANTITY, SECTION_BLOCK_TYPES, type Subtype, type TemplateBlock } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
+import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { defaultBlockConfig, standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
@@ -21,7 +21,7 @@ function build(template = standardTemplate({ id: '019966b0-0060-7000-8000-000000
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence(prefix), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d) => makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0062-7000-8000-'), now: T0 }));
@@ -217,7 +217,7 @@ describe('14.2-UNIT templateFromRelatorio with painéis', () => {
   });
   const child = (n: number, kind: 'painel' | 'coluna', name: string, parent: number, order_key: string): LocationRow => ({ id: id(n), relatorio_id: TEST_RELATORIO, parent_id: id(parent), kind, name, order_key, removed_at: null });
   const sheet = (n: number, location: number, type: 'transformador_forca' | 'chave_seccionadora' | 'disjuntor_mt', order_key: string): BlockRow =>
-    newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag: `T-${n}`, seedVersion: 'v1', orderKey: order_key }).block;
+    newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag: `T-${n}`, seedVersion: 'v1', orderKey: order_key }).block;
 
   const locations: LocationRow[] = [
     cabine(LOCAL, 'Cabine de transformação', 'a0'),

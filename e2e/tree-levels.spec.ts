@@ -1,4 +1,4 @@
-import { addCabine, addColuna, addPainel, blockTypeLabel, funcaoLabel, instantiateTemplate, SEED_VERSION, setQuantity, siteItems, standardTemplate, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, addCabine, addColuna, addPainel, blockTypeLabel, funcaoLabel, instantiateTemplate, SEED_VERSION, setQuantity, siteItems, standardTemplate, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -83,14 +83,14 @@ function levelsRelatorio(): Built {
   skeleton = addColuna(skeleton, 'tl-painel', 'tl-c2', 'Coluna 2');
   // The standard template's section blocks stay; its equipment, placed on refs this skeleton does not hold, is dropped by `setQuantity`.
   const base = { ...standardTemplate({ id: newId() }), skeleton };
-  let blocks = setQuantity(base, 'tl-local', 'transformador_forca', 1);
-  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'chave_seccionadora', 1);
-  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'disjuntor_mt', 1);
-  blocks = setQuantity({ ...base, blocks }, 'tl-c2', 'chave_seccionadora', 1);
+  let blocks = setQuantity(base, 'tl-local', 'transformador_forca', 1, EMPTY_DEFINITION_CONTEXT);
+  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
+  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'disjuntor_mt', 1, EMPTY_DEFINITION_CONTEXT);
+  blocks = setQuantity({ ...base, blocks }, 'tl-c2', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
   const { relatorioId, drafts } = instantiateTemplate(
     { ...base, blocks },
     { id: projectId },
-    { service_start: '2026-10-20', service_end: '2026-10-22', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-10-20', service_end: '2026-10-22', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const rows = (prefix: string) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);

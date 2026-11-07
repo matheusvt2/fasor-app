@@ -14,6 +14,7 @@ import {
   type BlockRow,
   type EntityState,
   type RelatorioSnapshot,
+  isCompanyBlockType,
 } from '@app/domain';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
@@ -149,7 +150,11 @@ function FichaBody({
   // Story 8.2 (EXPERIENCE.md › Reading arrived): a sheet holding suggestions to confirm says so
   // in the one banner slot, "Sugestões prontas — N campos para confirmar"; a read-only (not
   // tested) sheet confirms nothing, so it says nothing.
-  const shownSuggestions = useMemo(() => suggestionGroupCounts(block, pending, registries.manufacturer).shown, [block, pending, registries.manufacturer]);
+  // e22h B1: a company sheet's plate is its version's, from the snapshot.
+  const shownSuggestions = useMemo(
+    () => suggestionGroupCounts(block, pending, registries.manufacturer, snapshotDefinitionContext(snapshot)).shown,
+    [block, pending, registries.manufacturer, snapshot],
+  );
   const suggestionsBanner = useMemo<Banner | null>(
     () => (shownSuggestions === 0 || block.not_tested !== null ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
     [shownSuggestions, block.not_tested],
@@ -182,6 +187,7 @@ function FichaBody({
             menu={menu}
             notTested={block.not_tested !== null}
             library={definition.library === true}
+            company={isCompanyBlockType(block.block_type)}
             onRename={block.equipment_id === null ? null : () => setRenaming(true)}
             savedAt={savedAt}
           />

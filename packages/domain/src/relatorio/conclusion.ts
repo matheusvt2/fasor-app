@@ -10,7 +10,7 @@ import { measurementCells, worstMeasurements, type WorstMeasurement } from './me
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { evaluatedCells, failedRatioRows, worstReadings, type TestKey, type WorstReading } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
-import { checklistResultOf } from './sheet-progress.ts';
+import { checklistResultUnder } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
@@ -65,7 +65,7 @@ export function conclusionRestrictionOf(block: Pick<BlockRow, 'sheet'>): Conclus
 function ncItems(block: BlockRow, definition: BlockDefinition): { n: number; label: string; observation: string | null }[] {
   if (definition.checklist === null || !enabledSubBlocksOf(block).has('checklist')) return [];
   return definition.checklist.flatMap((item, index) => {
-    if (checklistResultOf(block, item.key) !== 'NC') return [];
+    if (checklistResultUnder(block, item.key, definition) !== 'NC') return [];
     const cell = block.sheet.checklist[item.key]?.observation;
     const observation = isCellFilled(cell) && typeof cell!.value === 'string' ? cell!.value.trim() : null;
     return [{ n: index + 1, label: item.label, observation }];
@@ -75,7 +75,7 @@ function ncItems(block: BlockRow, definition: BlockDefinition): { n: number; lab
 /** E5-Q4: true when the enabled checklist holds at least one Conforme row. */
 function anyConforme(block: BlockRow, definition: BlockDefinition): boolean {
   if (definition.checklist === null || !enabledSubBlocksOf(block).has('checklist')) return false;
-  return definition.checklist.some((item) => checklistResultOf(block, item.key) === 'C');
+  return definition.checklist.some((item) => checklistResultUnder(block, item.key, definition) === 'C');
 }
 
 /** True when any stored checklist result was answered by the engineer (a `na_defaults` NA alone is not an answer). */
@@ -106,7 +106,7 @@ function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
   const enabled = enabledSubBlocksOf(block);
   if (enabled.has('observations') && holdsText(block.sheet.observations)) return true;
   if (definition.checklist === null || !enabled.has('checklist')) return false;
-  return definition.checklist.some((item) => checklistResultOf(block, item.key) !== 'NC' && holdsText(block.sheet.checklist[item.key]?.observation));
+  return definition.checklist.some((item) => checklistResultUnder(block, item.key, definition) !== 'NC' && holdsText(block.sheet.checklist[item.key]?.observation));
 }
 
 /**

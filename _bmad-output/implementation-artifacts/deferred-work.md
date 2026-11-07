@@ -3132,3 +3132,21 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
   evidence: `.scratch-e22g/r8lay-run1.log`, `r8lay-run2.log` (the batch worktree, ignored); `e2e/review-layout-interaction-2026-10-08.spec.ts` `expectTableWhole`; `apps/web/src/surfaces/ficha/ensaios-section.tsx` (the run's `primary?.focus()`).
   class: decision
   state: open (owner: Matheus)
+
+## Deferred from: Epic 22 fix batch e22h (2026-11-07)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (N7)
+  summary: The api's `toSnapshot` loads every `equipment_type_version` row of the company for every snapshot and generate, and `buildSnapshot` keeps the referenced ones. Fine at today's scale (a few types per company); filter the query by the type ids the relatório's blocks reference when a company holds many versions.
+  evidence: `apps/api/src/sync/snapshot.ts:45-47`.
+  class: performance
+  state: open (owner: the first batch that sees a company with more than about 50 published versions, or the next batch touching `sync/snapshot.ts`)
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (E21-A4 P-3, "a test red under load in two gates")
+  summary: `apps/web/src/surfaces/templates/template-composer-local.test.tsx` went red under load in two gates of Epic 22, both times green alone. Harden it (its waits on the composer's live query, the 15 s test timeout) so it does not depend on the host load.
+  evidence: the Epic 22 wave gate logs; `template-composer-local.test.tsx`.
+  class: test-hardening
+  state: open (owner: the next carry-over batch)
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (N10)
+  summary: The review asked that `formatCriterionValue` print `>=` and `<=` as "≥" and "≤", on the premise that seeded criteria use only `>`, `<` and `±`. That premise is wrong: the Quadro elétrico's NBR 5410 bands (seeds v5 and v6) are `>=` and have printed "Aceitável >=0,5 MΩ" and "critério: >=0,5 MΩ" on the sheet and in the DOCX since seed v5 (`e2e/qgbt.spec.ts`, `docx-qgbt.test.ts`, `quadro-eletrico.test.ts`). Changing the formatter moves every printed QGBT relatório (the protected layout: print changes only the asked delta), and changing it for company rows alone would print "≥" and ">=" side by side on a copy that carries the bands (S1). e22h left the formatter as it is. Decision for Bruno: "≥ 0,5 MΩ" everywhere (seeded and company, one formatter change, goldens and specs re-read), or ">=" as today.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`; `packages/domain/src/seed/v6.ts` bands.
+  class: decision
+  state: open (owner: Bruno, via Matheus)

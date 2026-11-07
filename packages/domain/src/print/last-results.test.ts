@@ -8,7 +8,7 @@ import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { lastResultsSchema, type BlockRow, type Cell, type EquipmentRow, type LastResults, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, getDefinition } from '../seed/definitions.ts';
+import { findDefinition, getDefinition, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import {
   blockReadings,
@@ -63,7 +63,7 @@ function local(): LocationRow {
 }
 
 function sheet(n: number, type: EquipmentBlockType, cells: Record<string, Record<string, unknown>> = {}, seedVersion = 'v1'): Built {
-  const built = newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO_B, projectId: TEST_PROJECT, locationId: id(1), type, tag: `T${n}`, seedVersion, orderKey: `a${n}` });
+  const built = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO_B, projectId: TEST_PROJECT, locationId: id(1), type, tag: `T${n}`, seedVersion, orderKey: `a${n}` });
   for (const [testKey, values] of Object.entries(cells)) {
     const test = built.block.sheet.test[testKey] ?? { cells: {} };
     for (const [address, value] of Object.entries(values)) {

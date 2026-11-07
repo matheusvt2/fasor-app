@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
@@ -14,7 +15,7 @@ function relatorio() {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0050-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0051-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d) => makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0052-7000-8000-'), now: T0 }));
@@ -92,33 +93,33 @@ describe('11.2-UNIT movePlan', () => {
   const base = { blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment, blockId: sec.id, targetId: coluna9.id };
 
   it('keeps the TAG and lands after the target last block', () => {
-    const plan = movePlan({ ...base, rename: false });
+    const plan = movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, rename: false });
     expect(plan).toMatchObject({ kind: 'move', blockId: sec.id, targetId: coluna9.id, rename: null, text: 'SEC-C05 movida para a Coluna 9' });
     const coluna1 = byName('Coluna 1');
-    const into1 = movePlan({ ...base, targetId: coluna1.id, rename: false });
+    const into1 = movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, targetId: coluna1.id, rename: false });
     const last = locationBlocks(snapshot.blocks, coluna1.id).at(-1)!;
     expect(into1.kind === 'move' && into1.orderKey > last.order_key).toBe(true);
   });
 
   it('renames with the suggestion computed now, and names the new TAG', () => {
-    expect(movePlan({ ...base, rename: true })).toMatchObject({ kind: 'move', rename: { equipmentId: sec.equipment_id, tag: 'SEC-C09' }, text: 'SEC-C09 movida para a Coluna 9' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, rename: true })).toMatchObject({ kind: 'move', rename: { equipmentId: sec.equipment_id, tag: 'SEC-C09' }, text: 'SEC-C09 movida para a Coluna 9' });
     // SEC-C09 taken meanwhile: the fresh suggestion is committed instead.
     const taken = [...snapshot.equipment, { id: '019966b0-0053-7000-8000-000000000002', project_id: TEST_PROJECT, tag: 'SEC-C09', type: 'chave_seccionadora' as const, last_nameplate: null, removed_at: null }];
-    expect(movePlan({ ...base, equipment: taken, rename: true })).toMatchObject({ rename: { tag: 'SEC-C09-2' }, text: 'SEC-C09-2 movida para a Coluna 9' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, equipment: taken, rename: true })).toMatchObject({ rename: { tag: 'SEC-C09-2' }, text: 'SEC-C09-2 movida para a Coluna 9' });
   });
 
   it('names the block by its type when it has no live equipment row or a blank TAG', () => {
     const noEquipment = snapshot.equipment.filter((row) => row.id !== sec.equipment_id);
-    expect(movePlan({ ...base, equipment: noEquipment, rename: false })).toMatchObject({ text: 'Chave seccionadora movida para a Coluna 9' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, equipment: noEquipment, rename: false })).toMatchObject({ text: 'Chave seccionadora movida para a Coluna 9' });
     const blank = snapshot.equipment.map((row) => (row.id === sec.equipment_id ? { ...row, tag: '  ' } : row));
-    expect(movePlan({ ...base, equipment: blank, rename: false })).toMatchObject({ text: 'Chave seccionadora movida para a Coluna 9' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, equipment: blank, rename: false })).toMatchObject({ text: 'Chave seccionadora movida para a Coluna 9' });
   });
 
   it('refuses a gone block, a gone target and the same location', () => {
     const removed = snapshot.blocks.map((row) => (row.id === sec.id ? { ...row, removed_at: T0.toISOString() } : row));
-    expect(movePlan({ ...base, blocks: removed, rename: false })).toEqual({ kind: 'refused', reason: 'gone' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, blocks: removed, rename: false })).toEqual({ kind: 'refused', reason: 'gone' });
     const gone = snapshot.locations.filter((row) => row.id !== coluna9.id);
-    expect(movePlan({ ...base, locations: gone, rename: false })).toEqual({ kind: 'refused', reason: 'location-gone' });
-    expect(movePlan({ ...base, targetId: coluna5.id, rename: false })).toEqual({ kind: 'refused', reason: 'same-location' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, locations: gone, rename: false })).toEqual({ kind: 'refused', reason: 'location-gone' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, targetId: coluna5.id, rename: false })).toEqual({ kind: 'refused', reason: 'same-location' });
   });
 });

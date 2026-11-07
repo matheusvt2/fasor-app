@@ -32,6 +32,7 @@ import {
   VALUE_MAX_ITEMS,
   valueDepth,
 } from './value-limits.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * Story 20.9 (contract 29, security pass S4): per-kind tests at the cap and one past it, the
@@ -254,7 +255,7 @@ describe('whole-value caps, set from measurement (e20f)', () => {
     const { drafts } = instantiateTemplate(
       template,
       { id: PROJECT },
-      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null },
+      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: (() => { let n = 0; return () => `019966c1-0000-7000-8001-${String(++n).padStart(12, '0')}`; })(), actorId: '019966c1-0000-7000-8000-0000000000e9', companyId: COMPANY },
     );
     const seeded = drafts.map((draft, i) => opSchema.parse({ ...draft, op_id: `019966c1-0000-7000-8002-${String(i).padStart(12, '0')}`, client_ts: '2026-11-04T12:00:00.000Z', device_id: 'tablet-1' }));

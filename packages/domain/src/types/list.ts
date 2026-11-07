@@ -1,10 +1,10 @@
-import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType } from '../schemas/block-config.ts';
-import type { EquipmentTypeRow } from '../schemas/entities.ts';
-import { equipmentTypesOf, findDefinition, findDefinitionIn, isLibraryType, latestTypeVersion, type DefinitionContext } from '../seed/definitions.ts';
+import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType, type TypeVersionRef } from '../schemas/block-config.ts';
+import type { EquipmentTypeRow, EquipmentTypeVersionRow } from '../schemas/entities.ts';
+import { equipmentTypesOf, findDefinition, findDefinitionIn, isLibraryType, latestTypeVersion, versionRowIn, type DefinitionContext } from '../seed/definitions.ts';
 import { TAG_PREFIX } from '../relatorio/tag.ts';
 import { LIBRARY_GROUP_LABEL } from '../relatorio/tree.ts';
 import { plural } from '../text/plural.ts';
-import { companyBlockType } from '../schemas/block-config.ts';
+import { companyBlockType, companyTypeIdOf } from '../schemas/block-config.ts';
 import type { CompanyTypeDraft } from './definition.ts';
 import { openDraftText, typeStatusOf, typeStatusText, type TypeStatus } from './duplicate.ts';
 import { TYPE_EDITOR_PARTS, validateTypeDraft, type TypeDraftIssue, type TypeEditorPart } from './validate.ts';
@@ -238,8 +238,8 @@ export function suggestedTagHelperText(prefix: string | undefined): string {
  * "Aposentado" when the type is retired. Null for a seeded type.
  */
 export function templateTypeVersionText(ctx: DefinitionContext, blockType: BlockTypeKey, recorded: number | undefined): string | null {
-  if (!isCompanyBlockType(blockType)) return null;
-  const typeId = blockType.slice('type:'.length);
+  const typeId = companyTypeIdOf(blockType);
+  if (typeId === null) return null;
   const latest = latestTypeVersion(ctx, typeId);
   const retired = (ctx.types.get(typeId)?.retired_at ?? null) !== null;
   // authored (Story 14.8).
@@ -251,9 +251,10 @@ export function templateTypeVersionText(ctx: DefinitionContext, blockType: Block
 }
 
 /** A company type's noun of the version given (else its latest): what the composed texts and the quantity labels agree with. */
-export function companyTypeNoun(ctx: DefinitionContext, blockType: string, typeVersion?: number): { singular: string; plural: string; gender: 'm' | 'f' } | null {
-  if (!isCompanyBlockType(blockType)) return null;
-  const version = typeVersion ?? latestTypeVersion(ctx, blockType.slice('type:'.length)) ?? undefined;
+export function companyTypeNoun(ctx: DefinitionContext, blockType: string, typeVersion?: TypeVersionRef): { singular: string; plural: string; gender: 'm' | 'f' } | null {
+  const typeId = companyTypeIdOf(blockType);
+  if (typeId === null) return null;
+  const version = typeVersion ?? latestTypeVersion(ctx, typeId) ?? undefined;
   return findDefinitionIn(ctx, '', blockType, version)?.noun ?? null;
 }
 
@@ -262,4 +263,26 @@ export function companyTypeKeys(ctx: DefinitionContext): BlockTypeKey[] {
   const ids = new Set<string>();
   for (const row of ctx.versions.values()) ids.add(row.type_id);
   return [...ids].sort().map((id) => companyBlockType(id));
+}
+
+// --- fix batch e22h (N2): derivations the web read by hand ---------------------------------------
+
+/** The version row a type's `latest_version` names in the context; null while never published or not held. */
+export function latestVersionRow(ctx: DefinitionContext, typeId: string): EquipmentTypeVersionRow | null {
+  const type = ctx.types.get(typeId);
+  if (type === undefined || type.latest_version === 0) return null;
+  return versionRowIn(ctx, typeId, type.latest_version);
+}
+
+/** The latest published version of a block type when it is a company type (the palette's line); undefined for a seeded type or none. */
+export function latestCompanyTypeVersion(ctx: DefinitionContext, blockType: string): number | undefined {
+  const typeId = companyTypeIdOf(blockType);
+  return typeId === null ? undefined : (latestTypeVersion(ctx, typeId) ?? undefined);
+}
+
+/** The version each company type's placements record in a template: the first placement's, by block type (AD-21 item 5). */
+export function recordedTypeVersions(blocks: readonly { block_type: string; type_version?: number | undefined }[]): Map<string, number> {
+  const recorded = new Map<string, number>();
+  for (const block of blocks) if (isCompanyBlockType(block.block_type) && block.type_version !== undefined && !recorded.has(block.block_type)) recorded.set(block.block_type, block.type_version);
+  return recorded;
 }

@@ -1,7 +1,7 @@
 import { applyOp, cellAt, entityKey, type EntityKey, type EntityState } from '../ops/apply.ts';
 import { blockPath, parsePath, sheetChecklistPath, sheetNameplatePath, sheetTestCellPath, sheetTestValuePath } from '../ops/path.ts';
 import { relatorioRowSchema, type BlockRow, type Cell, type EntityRow, type EquipmentRow, type JsonValue, type LocationRow, type RelatorioRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { getDefinition, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import type { MeasurementTest } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
@@ -79,7 +79,7 @@ export const ctaRelatorio = (seedVersion = 'v5', status: RelatorioRow['status'] 
 export function ctaRows(options: Record<string, string> = {}, ids: { blockId?: string; equipmentId?: string; tag?: string; orderKey?: string } = {}): { equipment: EquipmentRow; block: BlockRow } {
   let config = defaultBlockConfig('v5', CTA) as unknown as JsonValue;
   for (const [key, value] of Object.entries(options)) config = blockConfigWithOption(config, key, value);
-  return newEquipmentBlock({
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: ids.blockId ?? CTA_BLOCK,
     equipmentId: ids.equipmentId ?? CTA_EQUIPMENT,
     relatorioId: TEST_RELATORIO,

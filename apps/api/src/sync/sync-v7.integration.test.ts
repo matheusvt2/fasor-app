@@ -23,6 +23,7 @@ import {
   type Op,
   type OpInput,
   type SyncPushResponse,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -165,7 +166,7 @@ function blockCreates(ids: { relatorio: string; project: string; local: string }
   const equipment = newId();
   written.entityIds.add(block);
   written.entityIds.add(equipment);
-  const built = newEquipmentBlock({
+  const built = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: block,
     equipmentId: equipment,
     relatorioId: ids.relatorio,
@@ -272,12 +273,12 @@ describe('Story 14.14 (contract 22): seed v7 through POST /api/sync/ops', () => 
     expect(first.rejected).toEqual([]);
     const before = (await rowOfEntity('block', dj.id)) as BlockRow;
     expect(before).toMatchObject({ block_type: 'disjuntor_mt', seed_version: 'v7' });
-    expect(checklistResultOf(before, OIL_ITEM)).toBe('C');
+    expect(checklistResultOf(before, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBe('C');
     expect(before.sheet.nameplate.vol_oleo!.value).toEqual(num('45', 'L'));
     const photoRow = (await rowOfEntity('file', (photo.value as { id: string }).id)) as FileRow;
     // Outro to Óleo crosses nothing; Outro to Ar clears the item, VOL. ÓLEO and the photo tie.
-    expect(oilCrossingPuts({ blocks: [before], files: [photoRow] as never }, dj.id, 'meio_de_extincao', 'Óleo')).toEqual([]);
-    const crossing = oilCrossingPuts({ blocks: [before], files: [photoRow] as never }, dj.id, 'meio_de_extincao', 'Ar');
+    expect(oilCrossingPuts({ blocks: [before], files: [photoRow] as never, equipment_types: undefined }, dj.id, 'meio_de_extincao', 'Óleo')).toEqual([]);
+    const crossing = oilCrossingPuts({ blocks: [before], files: [photoRow] as never, equipment_types: undefined }, dj.id, 'meio_de_extincao', 'Ar');
     expect(crossing.map((entry) => entry.path)).toEqual([sheetChecklistPath(dj.id, OIL_ITEM, 'result'), sheetNameplatePath(dj.id, 'vol_oleo'), fileFieldPath(photoRow.id, 'item_key')]);
     const prev = (path: string) => {
       const parsed = path.split('/');
@@ -294,7 +295,7 @@ describe('Story 14.14 (contract 22): seed v7 through POST /api/sync/ops', () => 
     const server = (await rowOfEntity('block', dj.id)) as BlockRow;
     const pure = replay([...t.log, ...setup, ...batch].map((o, i) => ({ ...o, seq: i + 1 })));
     expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey('block', dj.id)) as never));
-    expect(checklistResultOf(server, OIL_ITEM)).toBe('NA');
+    expect(checklistResultOf(server, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBe('NA');
     expect(server.sheet.nameplate.vol_oleo?.value ?? null).toBeNull();
     const untied = (await rowOfEntity('file', photoRow.id)) as FileRow & { item_key: string | null };
     expect(untied).toMatchObject({ block_id: dj.id, item_key: null, removed_at: null });

@@ -9,6 +9,7 @@ import {
   toIso,
   type GenerationResult,
   type Op,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { BLOCK_CHAVE_ID, BLOCK_TRANSFORMADOR_ID, CABINE_ID } from '@app/domain/fixtures/porto-seguro/small';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -162,7 +163,7 @@ async function productionShapeOps(): Promise<Op[]> {
   }
   for (let n = 0; n < BLANK_SHEETS; n++) {
     const type = BASE_EQUIPMENT_BLOCK_TYPES[n % BASE_EQUIPMENT_BLOCK_TYPES.length]!;
-    const { block, equipment } = newEquipmentBlock({
+    const { block, equipment } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: newId(),
       equipmentId: newId(),
       relatorioId: RELATORIO_ID,

@@ -1,6 +1,7 @@
 import { railHeadText, sheetOrder, type EquipmentRow, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
 import { useMemo, useRef } from 'react';
 import { copy } from '../../copy/pt-br.ts';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
 import { RelatorioTree } from '../relatorio/relatorio-tree.tsx';
 
@@ -33,9 +34,11 @@ export function FichaRail({
   const relatorio = snapshot.relatorio;
   const stripToggle = useRef<HTMLButtonElement>(null);
   const collapse = useRef<HTMLButtonElement>(null);
+  // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
+  const definitions = useDefinitionContext();
   const treeContext = useMemo(
-    () => ({ relatorioId, projectId, seedVersion: relatorio.seed_version, editor }),
-    [relatorioId, projectId, relatorio.seed_version, editor],
+    () => ({ relatorioId, projectId, seedVersion: relatorio.seed_version, editor, definitions }),
+    [relatorioId, projectId, relatorio.seed_version, editor, definitions],
   );
   const total = useMemo(() => sheetOrder(snapshot).length, [snapshot]);
 

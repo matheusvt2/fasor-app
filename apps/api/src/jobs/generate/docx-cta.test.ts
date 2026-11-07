@@ -27,6 +27,7 @@ import {
   type LocationRow,
   type MeasurementTest,
   type RelatorioSnapshot,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { describe, expect, it } from 'vitest';
@@ -167,7 +168,7 @@ function snapshotOf(options: { cta?: boolean; off?: readonly (typeof E1 | typeof
     env: { altitude_m: null, temperature_c: null, humidity_pct: null },
     agrupar_por_tipo: true,
   };
-  const transformer = newEquipmentBlock({
+  const transformer = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: id(1002),
     equipmentId: id(2002),
     relatorioId: relatorio.id,
@@ -182,7 +183,7 @@ function snapshotOf(options: { cta?: boolean; off?: readonly (typeof E1 | typeof
   let config = defaultBlockConfig('v5', CTA) as unknown as JsonValue;
   config = blockConfigWithOption(config, 'polos', '4');
   config = blockConfigWithOption(config, 'neutro', 'chaveado');
-  const cta = newEquipmentBlock({ blockId: CTA_BLOCK, equipmentId: CTA_EQUIPMENT, relatorioId: relatorio.id, projectId: relatorio.project_id, locationId: LOCAL, type: CTA, tag: CTA_TAG, seedVersion: 'v5', orderKey: 'a1', config });
+  const cta = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: CTA_BLOCK, equipmentId: CTA_EQUIPMENT, relatorioId: relatorio.id, projectId: relatorio.project_id, locationId: LOCAL, type: CTA, tag: CTA_TAG, seedVersion: 'v5', orderKey: 'a1', config });
 
   // The sheet as a device writes it: the block create, then one put per value, folded by the only reducer.
   const origin = portoSeguro.log[0]!;

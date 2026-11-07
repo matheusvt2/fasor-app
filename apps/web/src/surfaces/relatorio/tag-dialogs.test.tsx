@@ -1,4 +1,4 @@
-import { newEquipmentBlock, TEXT_CAPS, type LocationRow } from '@app/domain';
+import { newEquipmentBlock, TEXT_CAPS, type LocationRow, EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -7,8 +7,8 @@ import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 
 const id = (n: number) => `019966c1-0031-7000-8000-${n.toString(16).padStart(12, '0')}`;
 const coluna: LocationRow = { id: id(1), relatorio_id: id(100), parent_id: null, kind: 'coluna', name: 'Coluna 5', order_key: 'a0', removed_at: null };
-const sec = newEquipmentBlock({ blockId: id(2), equipmentId: id(3), relatorioId: id(100), projectId: id(101), locationId: id(1), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
-const dj = newEquipmentBlock({ blockId: id(4), equipmentId: id(5), relatorioId: id(100), projectId: id(101), locationId: id(1), type: 'disjuntor_mt', tag: 'DJ-C05', seedVersion: 'v1', orderKey: 'a1' });
+const sec = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(2), equipmentId: id(3), relatorioId: id(100), projectId: id(101), locationId: id(1), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
+const dj = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(4), equipmentId: id(5), relatorioId: id(100), projectId: id(101), locationId: id(1), type: 'disjuntor_mt', tag: 'DJ-C05', seedVersion: 'v1', orderKey: 'a1' });
 const outside = { id: id(6), project_id: id(101), tag: 'TR-1', type: 'transformador_forca' as const, last_nameplate: null, removed_at: null };
 
 function renderTag(props: Partial<Parameters<typeof TagDialog>[0]> = {}) {

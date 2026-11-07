@@ -5,7 +5,7 @@ import { invertBatch } from '../ops/outbox.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { getDefinition, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { holdsConflictMarks } from '../merge/conflicts.ts';
 import { stampSeen } from '../merge/stamp.ts';
 import { atMinutes, idSequence, opFactory, T0, TEST_PROJECT, TEST_USER } from '../test-support.ts';
@@ -429,7 +429,7 @@ describe('14.2-UNIT locationRestorePlan', () => {
     // Another device, not having seen the removal: a new coluna with a sheet, and a sheet in Coluna 1.
     const coluna3: LocationRow = { id: '019966b0-0159-7000-8000-000000000010', relatorio_id: f.relatorioId, parent_id: painel, kind: 'coluna', name: 'Coluna 3', order_key: 'a2', removed_at: null };
     const sheet = (n: number, at: string, tag: string) =>
-      newEquipmentBlock({ blockId: `019966b0-0159-7000-8000-0000000000${n}1`, equipmentId: `019966b0-0159-7000-8000-0000000000${n}2`, relatorioId: f.relatorioId, projectId: TEST_PROJECT, locationId: at, type: 'tc', tag, seedVersion: 'v3', orderKey: 'z0' });
+      newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: `019966b0-0159-7000-8000-0000000000${n}1`, equipmentId: `019966b0-0159-7000-8000-0000000000${n}2`, relatorioId: f.relatorioId, projectId: TEST_PROJECT, locationId: at, type: 'tc', tag, seedVersion: 'v3', orderKey: 'z0' });
     const a = sheet(2, coluna3.id, 'TC-C03');
     const b = sheet(3, coluna1, 'TC-C01');
     f.state.set(entityKey('location', coluna3.id), coluna3);
@@ -683,7 +683,7 @@ describe('14.2-UNIT restorableEntries', () => {
     const original = blockIdOf(f.state, 'SEC-C01');
     remove(f, painel, T1);
     // SEC-C01 is free now: a new sheet of Painel 2 takes it.
-    const reused = newEquipmentBlock({
+    const reused = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: '019966b0-0159-7000-8000-000000000031',
       equipmentId: '019966b0-0159-7000-8000-000000000032',
       relatorioId: f.relatorioId,

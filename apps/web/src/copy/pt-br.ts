@@ -828,6 +828,9 @@ export const copy = {
     create: 'Criar relatório',
     // authored: the reason beside "Criar relatório" while its 223 ops are being written.
     creating: 'Criando o relatório…',
+    // authored: e22h N4, in the dialog after the kernel's sentence naming the company types a
+    // relatório would be born without (`omittedPlacementsText`; the toast on create says it alone).
+    omittedHint: 'Sincronize o aparelho antes de criar o relatório.',
   },
   // The Sumário (`40-relatorio-overview.html`, Story 4.3). Every row title, meta, count
   // and reason is the kernel's (`sumarioRows`, `preIssue`, `progress`, `generateReason`).
@@ -1553,6 +1556,8 @@ export const copy = {
     },
     // Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the header pill of a library type's sheet, verbatim.
     libraryPill: 'Tipo da biblioteca',
+    // authored: e22h N11, the same pill on the sheet of a type of the company (a copy or a new type), which is not the library's.
+    companyPill: 'Tipo da empresa',
     // Story 14.5 (`63-ficha-cta.html`, the "Configuração" section of a library type's sheet), verbatim.
     configuracao: {
       title: 'Configuração',

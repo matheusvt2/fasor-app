@@ -1,6 +1,6 @@
 import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, getSeed, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
 import {
@@ -43,10 +43,10 @@ export function sheetOrder(snapshot: Pick<RelatorioSnapshot, 'locations' | 'bloc
  * "N sugestões por confirmar" leads; null when none does.
  */
 export function firstSheetWithPendingSuggestions(
-  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>,
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & { readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   pending: readonly SuggestionRow[],
 ): string | null {
-  const held = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, pending));
+  const held = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, pending, [], snapshotDefinitionContext(snapshot)));
   return sheetOrder(snapshot).find((node) => held.has(node.blockId))?.blockId ?? null;
 }
 
@@ -127,10 +127,10 @@ export function appendObservation(current: string | null, note: string): string 
 // --- the checklist ------------------------------------------------------------------------
 
 /** The items "Marcar os restantes como Conforme" sets: the unset ones (NC rows and NA defaults stay as they are). */
-export function checklistUnsetItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string[] {
+export function checklistUnsetItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, ctx: DefinitionContext): string[] {
   const definition = definitionOf(block, ctx);
   if (definition === null || definition.checklist === null) return [];
-  return definition.checklist.filter((item) => checklistResultOf(block, item.key) === null).map((item) => item.key);
+  return definition.checklist.filter((item) => checklistResultOf(block, item.key, ctx) === null).map((item) => item.key);
 }
 
 /** "11 itens marcados Conforme", "1 item marcado Conforme". */
@@ -162,17 +162,17 @@ export function repeatChecklistSource(snapshot: Pick<RelatorioSnapshot, 'blocks'
 export function repeatChecklistPattern(
   source: Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type'>>,
   target: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>,
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): { itemKey: string; value: 'C' | 'NC' | 'NA' }[] {
   const definition = definitionOf(target, ctx);
   if (definition === null || definition.checklist === null) return [];
   const out: { itemKey: string; value: 'C' | 'NC' | 'NA' }[] = [];
   for (const item of definition.checklist) {
-    if (checklistResultOf(target, item.key) !== null) continue;
-    const value = checklistResultOf(source, item.key);
+    if (checklistResultOf(target, item.key, ctx) !== null) continue;
+    const value = checklistResultOf(source, item.key, ctx);
     if (value === null) continue;
     // Story 14.11: an oil item's NA the source's oil rule only derives is not an answer to copy.
-    if (isOilItem(source, item.key) && !checklistResultIsStored(source, item.key)) continue;
+    if (isOilItem(source, item.key, ctx) && !checklistResultIsStored(source, item.key, ctx)) continue;
     out.push({ itemKey: item.key, value });
   }
   return out;
@@ -249,7 +249,7 @@ export function nameplateWordRecents(
   kind: 'manufacturer' | 'voltage_class',
   rows: readonly WordRow[],
   limit = 5,
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): string[] {
   const live = rows.filter((row) => row.removed_at === null);
   const used: { name: string; opId: string }[] = [];

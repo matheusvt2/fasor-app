@@ -17,6 +17,7 @@ import {
   type RelatorioSnapshot,
   type Sheet,
   type SubBlockKey,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -78,7 +79,7 @@ interface Filled {
 
 /** A CTA block as the palette creates it, with a configuration, tests switched off, cells and values. */
 function cta({ options = {}, off = [], cells = {}, values = {} }: Filled = {}): BlockRow {
-  const { block } = newEquipmentBlock({ blockId: BLOCK, equipmentId: id(2), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: CTA, tag: 'CTA-GER', seedVersion: 'v5', orderKey: 'a0' });
+  const { block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: id(2), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: CTA, tag: 'CTA-GER', seedVersion: 'v5', orderKey: 'a0' });
   let config = block.config as JsonValue;
   for (const [key, value] of Object.entries(options)) config = blockConfigWithOption(config, key, value);
   for (const key of off) config = blockConfigWithSubBlock(config, key, false);
@@ -491,7 +492,7 @@ describe('14.5 MeasurementTests: a test switched off, the instrument, a sheet no
 
   it('E1 to E3 show the instrument last used for their kind in the relatório as "Sugerido", like a seeded test', () => {
     const row = { id: id(20), kind: 'instrument', code: '3M', name: 'Microhmímetro', manufacturer: null, model: null, serial: null, cert_number: null, laboratory: null, calibrated_at: null, calibration_interval_months: null, rbc_accredited: false, test_isolacao: null, test_resistencia_contato: null, test_relacao_transformacao: null, certificate_file_id: null, removed_at: null } as unknown as InstrumentRow;
-    const { block: other } = newEquipmentBlock({ blockId: id(30), equipmentId: id(31), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v5', orderKey: 'a1' });
+    const { block: other } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(30), equipmentId: id(31), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v5', orderKey: 'a1' });
     const used: BlockRow = { ...other, sheet: { ...other.sheet, test: { resistencia_contato: { cells: {}, instrument: stored(instrumentHeaderOf(row, 'resistencia_contato') as unknown as JsonValue) } } } };
     const { container } = renderTests(cta(), { instruments: [row], others: [used] });
     const e1 = section(container, E1).querySelector('.instrument-picker')!;
@@ -519,7 +520,7 @@ describe('14.5 MeasurementTests: a test switched off, the instrument, a sheet no
 
   it('draws nothing for a block type with no measurement test', () => {
     const seccionadora = getDefinition('v5', 'cabine_primaria', 'chave_seccionadora');
-    const { block } = newEquipmentBlock({ blockId: BLOCK, equipmentId: id(2), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v5', orderKey: 'a0' });
+    const { block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: id(2), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v5', orderKey: 'a0' });
     const evaluations = evaluateSheetMeasurements(block, seccionadora);
     expect(evaluations).toEqual([]);
     const { container } = render(

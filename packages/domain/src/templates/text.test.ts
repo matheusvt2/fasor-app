@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getDefinition, siteItems } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, siteItems } from '../seed/definitions.ts';
 import { standardTemplate, templateTotals, zeroTotals } from '../seed/template.ts';
 import { addCabine, addColuna, addPainel, composerView, findComposerNode, setAgruparPorTipo, setQuantity } from './compose.ts';
 import { emptyTemplate } from './list.ts';
@@ -37,23 +37,23 @@ describe('3.3-UNIT templateSummaryText', () => {
     expect(templateSummaryText(standard, 3)).toMatch(/ · usado em 3 relatórios$/);
     expect(templateSummaryText(emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), 0)).toBe('Semente v1 · 0 seções');
     const one = { ...emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), skeleton: addCabine([], 'c', 'C') };
-    const withBlock = { ...one, blocks: setQuantity(one, 'c', 'tp', 1) };
+    const withBlock = { ...one, blocks: setQuantity(one, 'c', 'tp', 1, EMPTY_DEFINITION_CONTEXT) };
     expect(templateSummaryText(withBlock, 0)).toBe('Semente v1 · 0 seções · 1 local · 1 bloco de equipamento');
   });
 });
 
 describe('3.4-UNIT totalsText and quantityLabel', () => {
   it('reads the mock line for the reference job, in the mock order', () => {
-    expect(totalsText(templateTotals(standard))).toBe(
+    expect(totalsText(templateTotals(standard), EMPTY_DEFINITION_CONTEXT)).toBe(
       '25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios',
     );
   });
 
   it('omits zeros, uses the singular at one, and names an empty composition', () => {
-    expect(totalsText({ ...zeroTotals(), chave_seccionadora: 1, transformador_forca: 1, para_raio: 1, cabos_entrada: 1 })).toBe(
+    expect(totalsText({ ...zeroTotals(), chave_seccionadora: 1, transformador_forca: 1, para_raio: 1, cabos_entrada: 1 }, EMPTY_DEFINITION_CONTEXT)).toBe(
       '1 seccionadora · 1 trafo · 1 cabo de entrada · 1 para-raio',
     );
-    expect(totalsText(zeroTotals())).toBe('Nenhum equipamento');
+    expect(totalsText(zeroTotals(), EMPTY_DEFINITION_CONTEXT)).toBe('Nenhum equipamento');
   });
 
   it('reads every type in the singular at one and the plural at two', () => {
@@ -68,15 +68,15 @@ describe('3.4-UNIT totalsText and quantityLabel', () => {
       para_raio: ['1 para-raio', '2 para-raios'],
     };
     for (const [type, [one, two]] of Object.entries(expected)) {
-      expect(totalsText({ ...zeroTotals(), [type]: 1 })).toBe(one);
-      expect(totalsText({ ...zeroTotals(), [type]: 2 })).toBe(two);
+      expect(totalsText({ ...zeroTotals(), [type]: 1 }, EMPTY_DEFINITION_CONTEXT)).toBe(one);
+      expect(totalsText({ ...zeroTotals(), [type]: 2 }, EMPTY_DEFINITION_CONTEXT)).toBe(two);
     }
   });
 
   it('names the stepper "Seccionadoras, 25"', () => {
-    expect(quantityLabel('chave_seccionadora', 25)).toBe('Seccionadoras, 25');
-    expect(quantityLabel('tp', 0)).toBe('TP, 0');
-    expect(quantityLabel('transformador_forca', 1)).toBe('Transformadores, 1');
+    expect(quantityLabel('chave_seccionadora', 25, EMPTY_DEFINITION_CONTEXT)).toBe('Seccionadoras, 25');
+    expect(quantityLabel('tp', 0, EMPTY_DEFINITION_CONTEXT)).toBe('TP, 0');
+    expect(quantityLabel('transformador_forca', 1, EMPTY_DEFINITION_CONTEXT)).toBe('Transformadores, 1');
   });
 });
 
@@ -91,14 +91,14 @@ describe('3.4-UNIT composer headings and node summaries', () => {
   it('summarizes a cabine with its colunas and blocks, and a coluna with its own', () => {
     const view = composerView(standard);
     // Story 14.2: a local nothing hangs under says so, as the mock's masonry room does.
-    expect(nodeSummaryText(view.cabines[0]!)).toEqual({
+    expect(nodeSummaryText(view.cabines[0]!, EMPTY_DEFINITION_CONTEXT)).toEqual({
       flag: 'sem painéis · 9 blocos',
       sum: '2 seccionadoras · 1 disjuntor · 1 TP · 1 TC · 1 cabo de entrada · 1 cabo de saída · 2 para-raios',
     });
-    expect(nodeSummaryText(view.cabines[1]!).flag).toBe('17 colunas · 49 blocos');
-    expect(nodeSummaryText(view.cabines[1]!.colunas[3]!)).toEqual({ flag: '3 blocos', sum: '1 disjuntor · 1 TP · 1 TC' });
+    expect(nodeSummaryText(view.cabines[1]!, EMPTY_DEFINITION_CONTEXT).flag).toBe('17 colunas · 49 blocos');
+    expect(nodeSummaryText(view.cabines[1]!.colunas[3]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: '3 blocos', sum: '1 disjuntor · 1 TP · 1 TC' });
     const lone = composerView({ blocks: [], skeleton: addColuna(addCabine([], 'c', 'C'), 'c', 'k', 'Coluna 1') });
-    expect(nodeSummaryText(lone.cabines[0]!)).toEqual({ flag: '1 coluna · 0 blocos', sum: 'Nenhum equipamento' });
+    expect(nodeSummaryText(lone.cabines[0]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: '1 coluna · 0 blocos', sum: 'Nenhum equipamento' });
   });
 
   it('announces a move and names new nodes', () => {
@@ -160,9 +160,9 @@ describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
     skeleton = addColuna(skeleton, 'velho', 'v1', 'Coluna 1');
     skeleton = setAgruparPorTipo(skeleton, 'loc', true);
     const base = { ...emptyTemplate('019966b0-0035-7000-8000-000000000009', 'v3'), skeleton };
-    let blocks = setQuantity(base, 'c5', 'chave_seccionadora', 1);
-    blocks = setQuantity({ ...base, blocks }, 'c6', 'disjuntor_mt', 2);
-    blocks = setQuantity({ ...base, blocks }, 'trafo', 'transformador_forca', 2);
+    let blocks = setQuantity(base, 'c5', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
+    blocks = setQuantity({ ...base, blocks }, 'c6', 'disjuntor_mt', 2, EMPTY_DEFINITION_CONTEXT);
+    blocks = setQuantity({ ...base, blocks }, 'trafo', 'transformador_forca', 2, EMPTY_DEFINITION_CONTEXT);
     return { ...base, blocks };
   }
   const view = composerView(composed());
@@ -175,13 +175,13 @@ describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
   });
 
   it('summarizes a local (painéis, colunas, blocks), a painel (colunas, blocks), an empty painel and a local with none', () => {
-    expect(nodeSummaryText(view.cabines[0]!)).toEqual({ flag: '2 painéis · 2 colunas · 3 blocos', sum: '1 seccionadora · 2 disjuntores' });
-    expect(nodeSummaryText(view.cabines[0]!.paineis[0]!)).toEqual({ flag: '2 colunas · 3 blocos', sum: '1 seccionadora · 2 disjuntores' });
-    expect(nodeSummaryText(view.cabines[0]!.paineis[1]!)).toEqual({ flag: 'sem colunas · 0 blocos', sum: 'Nenhum equipamento' });
-    expect(nodeSummaryText(view.cabines[1]!)).toEqual({ flag: 'sem painéis · 2 blocos', sum: '2 trafos' });
+    expect(nodeSummaryText(view.cabines[0]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: '2 painéis · 2 colunas · 3 blocos', sum: '1 seccionadora · 2 disjuntores' });
+    expect(nodeSummaryText(view.cabines[0]!.paineis[0]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: '2 colunas · 3 blocos', sum: '1 seccionadora · 2 disjuntores' });
+    expect(nodeSummaryText(view.cabines[0]!.paineis[1]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: 'sem colunas · 0 blocos', sum: 'Nenhum equipamento' });
+    expect(nodeSummaryText(view.cabines[1]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: 'sem painéis · 2 blocos', sum: '2 trafos' });
     // A local from before the painel level keeps its line.
-    expect(nodeSummaryText(view.cabines[2]!).flag).toBe('1 coluna · 0 blocos');
-    expect(nodeSummaryText(view.cabines[0]!.paineis[0]!.colunas[1]!)).toEqual({ flag: '2 blocos', sum: '2 disjuntores' });
+    expect(nodeSummaryText(view.cabines[2]!, EMPTY_DEFINITION_CONTEXT).flag).toBe('1 coluna · 0 blocos');
+    expect(nodeSummaryText(view.cabines[0]!.paineis[0]!.colunas[1]!, EMPTY_DEFINITION_CONTEXT)).toEqual({ flag: '2 blocos', sum: '2 disjuntores' });
   });
 
   it('writes the local sub-line: the Função in lower case when there is one, the site checklist, then Agrupar por tipo', () => {

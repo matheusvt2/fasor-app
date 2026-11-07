@@ -13,6 +13,8 @@ import {
   type InstrumentRow,
   type MeasurementTestKey,
   type TestKey,
+  snapshotDefinitionContext,
+  type RelatorioSnapshot,
 } from '@app/domain';
 import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
@@ -38,6 +40,7 @@ export function InstrumentPicker({
   api,
   block,
   blocks,
+  equipmentTypes,
   testKey,
   instrumentOf,
   instruments,
@@ -49,6 +52,11 @@ export function InstrumentPicker({
   block: BlockRow;
   /** The relatório's blocks: the last instrument used per test type is remembered across them. */
   blocks: readonly BlockRow[];
+  /**
+   * e22h N6: the snapshot's type versions (`equipment_types`), so a company sheet's measurement
+   * tests count in "last used" and its suggestion resolves; named on purpose, never defaulted.
+   */
+  equipmentTypes: RelatorioSnapshot['equipment_types'];
   /** The test whose `instrument` cell holds the header: a seeded test or (Story 14.5) a measurement test. */
   testKey: TestKey | MeasurementTestKey;
   /**
@@ -82,13 +90,13 @@ export function InstrumentPicker({
   // Story 12.3 (D-4): with nothing stored, the kernel's suggestion (the last one used for
   // this test kind in the relatório) shows amber "Sugerido"; "Concluir ficha" writes it. A
   // measurement test is suggested the same way, through its `instrument_of`.
-  const suggestion = header === null && !readOnly ? suggestedInstrument({ blocks, instruments }, block.id, testKey) : null;
+  const suggestion = header === null && !readOnly ? suggestedInstrument({ blocks, instruments, equipment_types: equipmentTypes }, block.id, testKey) : null;
   const shown = header ?? suggestion;
   const at = now();
   const registryRow = shown === null ? undefined : instruments.find((row) => row.id === shown.instrument_id);
   const expired = shown === null ? null : instrumentExpiredText(shown, serviceEnd, at);
   // F-27: the ones that fit this test and were ticked in setup first (the kernel's order).
-  const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, kind), { testKey: kind, setupIds: setupInstrumentIds });
+  const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, kind, snapshotDefinitionContext({ equipment_types: equipmentTypes })), { testKey: kind, setupIds: setupInstrumentIds });
   const list = ordered.map((row) => instrumentOptionOf(row, serviceEnd, at));
   const selectedIndex = header === null ? -1 : list.findIndex((option) => option.id === header.instrument_id);
   const tabbable = selectedIndex === -1 ? 0 : selectedIndex;

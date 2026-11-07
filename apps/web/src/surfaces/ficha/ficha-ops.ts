@@ -56,7 +56,8 @@ export function nameplateOp(author: Author, relatorioId: string, blockId: string
 export function withOilCrossing(
   author: Author,
   relatorioId: string,
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files'] },
+  /** e22h: `equipment_types` named on purpose, so a company sheet's oil rule (its version's) is read. */
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files']; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   drafts: readonly OpDraft[],
 ): { drafts: OpDraft[]; cleared: number } {
   const written = new Set(drafts.map((draft) => draft.path));

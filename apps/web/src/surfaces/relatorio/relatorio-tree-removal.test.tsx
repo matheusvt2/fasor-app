@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, newEquipmentBlock, orderKeyBetween, standardTemplate, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioSummary } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, instantiateTemplate, newEquipmentBlock, orderKeyBetween, standardTemplate, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioSummary } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -87,7 +87,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0154-7000-8000-000000000001' }),
     { id: PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts
@@ -122,7 +122,7 @@ async function seeded(): Promise<AppDatabase> {
     { ...base, id: COLUNA_5, parent_id: PAINEL, kind: 'coluna', name: 'Coluna 5', order_key: 'a0' },
     { ...base, id: COLUNA_6, parent_id: PAINEL, kind: 'coluna', name: 'Coluna 6', order_key: 'a1' },
   ];
-  const pair = newEquipmentBlock({ blockId: SEC_C05, equipmentId: SEC_C05_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
+  const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: SEC_C05, equipmentId: SEC_C05_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
   await db.entities.bulkPut([
     ...sectionBlocksFor(RELATORIO).map((b) => toRecord(`block:${b.id}`, b)),
     ...locations.map((row) => toRecord(`location:${row.id}`, row)),
@@ -577,8 +577,8 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
       const record = (await db.entities.get([entity, entityId]))!;
       await db.entities.put({ ...record, removed_at: at, row: { ...(record.row as object), removed_at: at } as never });
     };
-    const old = newEquipmentBlock({ blockId: OLD, equipmentId: OLD_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-OLD', seedVersion: 'v1', orderKey: 'a1' });
-    const taker = newEquipmentBlock({ blockId: TAKER, equipmentId: TAKER_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: LOCAL, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'z0' });
+    const old = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: OLD, equipmentId: OLD_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-OLD', seedVersion: 'v1', orderKey: 'a1' });
+    const taker = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: TAKER, equipmentId: TAKER_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: LOCAL, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'z0' });
     await db.entities.bulkPut([
       toRecord(`equipment:${old.equipment.id}`, { ...old.equipment, removed_at: T0 } as EquipmentRow),
       toRecord(`block:${old.block.id}`, { ...old.block, removed_at: T0 }),

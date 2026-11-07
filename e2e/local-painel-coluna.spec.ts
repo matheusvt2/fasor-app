@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   cellAddressesOf,
   defaultBlockConfig,
   getDefinition,
@@ -444,7 +445,7 @@ async function pushPainelRelatorio(page: Page): Promise<{ relatorioId: string }>
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: projectId },
-    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   // Born Em campo, as a relatório being filled on site is (status flow 2026-10-10).
@@ -1278,6 +1279,7 @@ test('@p1 14.2-E2E-006 Epic 14 QA ledger (h): a sheet another device created in 
   // A second device that had not seen the removal pushes a sheet it created on Geradores.
   const created = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId,
     projectId,

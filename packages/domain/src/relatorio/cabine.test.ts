@@ -10,6 +10,7 @@ import { acceptsVoltagePair, cabineLineText, cabineMissingText, cabineOf, cabine
 import { instantiateTemplate } from './instantiate.ts';
 import { isCabineFirstSheet, sheetProgress } from './sheet-progress.ts';
 import { firstInTree, locationTree } from './tree.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * 12.3-UNIT: the cabine's required fields (J-03, D-5) over a relatório of the standard
@@ -23,7 +24,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: TEMPLATE_ID }),
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0062-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0063-7000-8000-'), now: T0 }), seq: i + 1 }));

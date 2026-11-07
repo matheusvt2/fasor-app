@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   blockConfigWithOption,
   defaultBlockConfig,
   evaluateSheetMeasurements,
@@ -788,6 +789,7 @@ test('@p0 P020-E2E-004 P-6 at 390: a CTA with 4 polos, an E1 reading out of its 
   config = blockConfigWithOption(config, 'tensao', 'mt');
   const { equipment, block } = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: built.relatorioId,
     projectId: built.projectId,

@@ -11,6 +11,7 @@ import {
   type FileRow,
   type LocationRow,
   type RelatorioSnapshot,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { describe, expect, it } from 'vitest';
@@ -117,7 +118,7 @@ function snapshotOf(options: Options = {}): RelatorioSnapshot {
   for (const location of locations) put('location', location);
 
   const sheet = (n: number, location: string, type: EquipmentBlockType, tag: string) =>
-    newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId, projectId: base.relatorio.project_id, locationId: location, type, tag, seedVersion, orderKey: `a${n}` });
+    newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId, projectId: base.relatorio.project_id, locationId: location, type, tag, seedVersion, orderKey: `a${n}` });
   const sheets = [
     ...(direct ? [sheet(1, LOCAL, 'transformador_forca', 'TR-1'), sheet(2, LOCAL, 'transformador_forca', 'TR-2')] : []),
     sheet(3, id(11), 'chave_seccionadora', 'SEC-C01'),

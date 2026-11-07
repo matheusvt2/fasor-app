@@ -288,7 +288,7 @@ describe('14.11 the oil rule on the nameplate', () => {
       path,
       value: i === 0 ? 'Á SECO' : copied,
     })) as OpDraft[];
-    const built = withOilCrossing(AUTHOR, REL, { blocks: [shown], files: snapshotOf(shown).files }, drafts);
+    const built = withOilCrossing(AUTHOR, REL, { blocks: [shown], files: snapshotOf(shown).files, equipment_types: undefined }, drafts);
     expect(built.drafts.filter((op) => op.path === `sheet/${ID}/nameplate/vol_oleo`).map((op) => op.value)).toEqual([copied]);
     expect(built.drafts.map((op) => op.path)).toEqual([...drafts.map((op) => op.path), TERMOMETRO, `file/${PHOTO}/item_key`]);
     expect(built.cleared).toBe(1);

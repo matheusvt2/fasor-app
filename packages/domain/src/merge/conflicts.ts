@@ -18,7 +18,7 @@ import type { OpDraft } from '../ops/op.ts';
 import { relatorioOpEnvelope, type Author } from '../relatorio/ops.ts';
 import { typeVersionOf } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, EquipmentRow, JsonValue, LocationRow } from '../schemas/entities.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { SyncDecisionRow } from '../sync/status.ts';
 import { plural } from '../text/plural.ts';
@@ -127,13 +127,13 @@ export interface OpenDecisionsInput {
   /** The create op of one entity (`equipment:{id}`), from the same log. */
   createOpOf: (key: EntityKey) => OpFacts | undefined;
   /** Story 14.6: the company's type versions, through which a company block's cells are named. */
-  definitions?: DefinitionContext;
+  definitions: DefinitionContext;
 }
 
 // --- listing -----------------------------------------------------------------------------
 
 /** A block's definition; Story 14.6: a company type's through the context (the device's type versions). */
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): BlockDefinition | null {
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, ctx: DefinitionContext): BlockDefinition | null {
   return blockDefinitionIn(ctx, block);
 }
 
@@ -261,7 +261,7 @@ function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | n
 }
 
 /** Every cell of a block holding a `conflict`, in the sheet's order, with its section and name. */
-function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = [], ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): CellConflict[] {
+function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = [], ctx: DefinitionContext): CellConflict[] {
   const definition = definitionOf(block, ctx);
   const out: CellConflict[] = [];
   const push = (path: OpPath, cell: Cell | undefined, section: string, label: string) => {
@@ -502,7 +502,7 @@ export function decisionSplit(entries: readonly { projectId: string; decisions: 
  */
 export function syncDecisionRows(
   entries: readonly ({ relatorioId: string; projectId: string; decisions: readonly Decision[] } & Pick<DecisionTextContext, 'blocks' | 'equipment' | 'locations'>)[],
-  viewer: Pick<DecisionTextContext, 'users' | 'viewerActorId' | 'viewerDeviceId'>,
+  viewer: Pick<DecisionTextContext, 'users' | 'viewerActorId' | 'viewerDeviceId' | 'definitions'>,
 ): SyncDecisionRow[] {
   return uniqueHeldDecisions(entries).flatMap((entry) =>
     entry.decisions.map((decision) => ({
@@ -574,11 +574,11 @@ export interface DecisionTextContext {
   /** This device ("este aparelho"). */
   viewerDeviceId: string | null;
   /** Story 14.6: the company's type versions, through which a company block is named; seeded types only when omitted. */
-  definitions?: DefinitionContext;
+  definitions: DefinitionContext;
 }
 
 /** The block as the sheet names it: its equipment's TAG, else its type's name. */
-export function decisionBlockName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'equipment'> & Partial<Pick<DecisionTextContext, 'definitions'>>): string {
+export function decisionBlockName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'equipment' | 'definitions'>): string {
   const block = context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return 'Ficha'; // authored: a block this device does not hold
   return equipmentBlockName(block, context.equipment, context.definitions);
@@ -616,11 +616,11 @@ export function decisionText(decision: Decision, context: DecisionTextContext): 
 }
 
 /** The Conflict view's title: "SEC-C12 · Chave seccionadora · Coluna 12" (`86-sync-conflito.html`). */
-export function conflictViewTitle(blockId: string, context: Pick<DecisionTextContext, 'blocks' | 'equipment' | 'locations'> & Partial<Pick<DecisionTextContext, 'definitions'>>): string {
+export function conflictViewTitle(blockId: string, context: Pick<DecisionTextContext, 'blocks' | 'equipment' | 'locations' | 'definitions'>): string {
   const block = context.blocks.find((row) => row.id === blockId);
   const parts = [decisionBlockName(blockId, context)];
   if (block !== undefined) {
-    const type = blockTypeLabelIn(context.definitions ?? EMPTY_DEFINITION_CONTEXT, block.seed_version, block.block_type, typeVersionOf(block.config));
+    const type = blockTypeLabelIn(context.definitions, block.seed_version, block.block_type, typeVersionOf(block.config));
     if (type !== parts[0]) parts.push(type);
   }
   const where = locationName(blockId, context);
@@ -666,9 +666,9 @@ function measurementValueText(path: string, value: unknown, block: Pick<BlockRow
 export function conflictValueText(
   cell: Pick<CellConflict, 'path'>,
   value: unknown,
-  block?: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>,
+  block: (Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>) | undefined,
   /** Story 14.6: the company's type versions, for a company block's fields. */
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
@@ -714,7 +714,7 @@ export function conflictSideView(
   cell: CellConflict,
   side: DecisionSide,
   context: DecisionTextContext,
-  block?: Pick<BlockRow, 'seed_version' | 'block_type'>,
+  block?: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>,
 ): ConflictSideView {
   const mine = side.actor_id !== null && side.actor_id === context.viewerActorId;
   const name = context.users.find((row) => row.id === side.actor_id)?.name.trim() ?? '';
@@ -728,7 +728,7 @@ export function conflictSideView(
   return {
     initial: avatarInitial(name === '' ? '?' : name),
     who: mine ? 'A minha' : `A de ${firstName(side.actor_id, context)}`,
-    value: conflictValueText(cell, side.value, block),
+    value: conflictValueText(cell, side.value, block, context.definitions),
     meta: meta.join(' · '),
   };
 }

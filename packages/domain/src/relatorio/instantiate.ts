@@ -1,7 +1,7 @@
 import type { NewId } from '../ids.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { initialOrderKey } from '../ops/order-key.ts';
-import { companyTypeIdOf, isCompanyBlockType, isEquipmentKind, isSectionBlockType, type TemplateBlock } from '../schemas/block-config.ts';
+import { companyTypeIdOf, isCompanyBlockType, isEquipmentKind, isSectionBlockType, typeVersionOf, type CompanyBlockType, type TemplateBlock } from '../schemas/block-config.ts';
 import { findDefinitionIn, latestTypeVersion, type DefinitionContext } from '../seed/definitions.ts';
 import { defaultBlockConfigIn, lockedSubBlocksOf } from '../seed/template.ts';
 import {
@@ -15,6 +15,7 @@ import {
   type TemplateRow,
 } from '../schemas/entities.ts';
 import { canonicalSkeleton, sectionNumber, withoutOrphans } from '../templates/compose.ts';
+import { listPtBr, plural } from '../text/plural.ts';
 import { normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
 
 /*
@@ -95,9 +96,9 @@ export interface InstantiateInputs {
   /**
    * Story 14.6 (AD-21 item 5): the company's published type versions (and type rows), through
    * which each company block of the template takes its type's latest version, a retired type's
-   * included. Absent: a template with no company block, as every template before 14.6.
+   * included. e22h B1: required; a caller with no company type passes `EMPTY_DEFINITION_CONTEXT`.
    */
-  definitions?: DefinitionContext;
+  definitions: DefinitionContext;
 }
 
 export interface InstantiateDeps {
@@ -106,9 +107,23 @@ export interface InstantiateDeps {
   companyId: string;
 }
 
+/**
+ * e22h N4: a company type the template places that the relatório is born without, because no
+ * published version of it resolves on the device (its company stream has not brought one yet).
+ */
+export interface OmittedPlacement {
+  blockType: CompanyBlockType;
+  /** The type's name as the device last knew it (`companyTypeNameIn`), null when it knows none. */
+  label: string | null;
+  /** How many blocks of it the template places, over every node. */
+  quantity: number;
+}
+
 export interface Instantiated {
   relatorioId: string;
   drafts: OpDraft[];
+  /** e22h N4: the company placements left out, one entry per type in template order; empty when none. */
+  omitted: OmittedPlacement[];
 }
 
 /**
@@ -119,10 +134,11 @@ export interface Instantiated {
  * the version still has. Null when no version of the type resolves (the block is left out: the
  * fold would refuse it).
  */
-function companyBlockConfigOf(block: TemplateBlock, seedVersion: string, ctx: DefinitionContext | undefined): JsonValue | null {
+function companyBlockConfigOf(block: TemplateBlock, seedVersion: string, ctx: DefinitionContext): JsonValue | null {
   const typeId = companyTypeIdOf(block.block_type);
-  if (typeId === null || ctx === undefined) return null;
-  const version = latestTypeVersion(ctx, typeId) ?? block.type_version;
+  if (typeId === null) return null;
+  // e22h S2: the config names the version row it resolves (`defaultBlockConfigIn` writes its id).
+  const version = latestTypeVersion(ctx, typeId) ?? typeVersionOf(block);
   const definition = findDefinitionIn(ctx, seedVersion, block.block_type, version);
   if (definition === null) return null;
   const config = defaultBlockConfigIn(ctx, seedVersion, block.block_type, version);
@@ -298,6 +314,7 @@ export function instantiateTemplate(
   const produced: TagEquipment[] = [];
   const taken: TagEquipment[] = [...inputs.existingEquipment];
   const blockCount = new Map<string, number>();
+  const omitted: OmittedPlacement[] = [];
   for (const node of nodes) {
     // A painel takes no block: `withoutOrphans` already dropped any block naming one.
     if (node.kind === 'painel') continue;
@@ -308,8 +325,12 @@ export function instantiateTemplate(
       // Story 14.6: a company block takes its type's latest version; one no version resolves is left out.
       const company = isCompanyBlockType(block.block_type);
       const config = company ? companyBlockConfigOf(block, seedVersion, inputs.definitions) : blockConfigOf(block);
-      if (config === null) continue;
-      const definition = company ? findDefinitionIn(inputs.definitions!, seedVersion, block.block_type, (config as { type_version?: number }).type_version) : null;
+      if (config === null) {
+        // e22h N4: said, never silent: "Novo relatório" names what the relatório is born without.
+        if (company) omitPlacement(omitted, block.block_type as CompanyBlockType, block.quantity, inputs.definitions);
+        continue;
+      }
+      const definition = company ? findDefinitionIn(inputs.definitions, seedVersion, block.block_type, typeVersionOf(config)) : null;
       for (let i = 0; i < block.quantity; i++) {
         const n = blockCount.get(locationId) ?? 0;
         blockCount.set(locationId, n + 1);
@@ -341,5 +362,62 @@ export function instantiateTemplate(
     }
   }
 
-  return { relatorioId, drafts };
+  return { relatorioId, drafts, omitted };
+}
+
+function omitPlacement(omitted: OmittedPlacement[], blockType: CompanyBlockType, quantity: number, ctx: DefinitionContext): void {
+  const known = omitted.find((entry) => entry.blockType === blockType);
+  if (known !== undefined) known.quantity += quantity;
+  else omitted.push({ blockType, label: companyTypeNameIn(ctx, blockType), quantity });
+}
+
+/**
+ * e22h N4: the name a device knows a company type by when no version of it may be placed: the
+ * label of the highest version row it holds, else its open draft's label; null when it holds
+ * neither (the type row and its versions have not reached the device).
+ */
+export function companyTypeNameIn(ctx: DefinitionContext, blockType: string): string | null {
+  const typeId = companyTypeIdOf(blockType);
+  if (typeId === null) return null;
+  // One row per number (`versions`: the smaller id when the device holds two), so the name is stable.
+  let latest: { version: number; label: string } | null = null;
+  for (const row of ctx.versions.values()) {
+    if (row.type_id === typeId && (latest === null || row.version > latest.version)) latest = { version: row.version, label: row.definition.label };
+  }
+  if (latest !== null && latest.label.trim() !== '') return latest.label;
+  const draft = ctx.types.get(typeId)?.draft as { label?: unknown } | null | undefined;
+  return typeof draft?.label === 'string' && draft.label.trim() !== '' ? draft.label : null;
+}
+
+/**
+ * e22h N4: the company placements a template would leave out of a relatório created on this
+ * device now (`instantiateTemplate`'s `omitted`, without building the drafts): what "Novo
+ * relatório" says before "Criar relatório" is pressed.
+ */
+export function omittedPlacementsOf(template: Pick<TemplateRow, 'seed_version' | 'skeleton' | 'blocks'>, ctx: DefinitionContext): OmittedPlacement[] {
+  const omitted: OmittedPlacement[] = [];
+  const nodes = canonicalSkeleton(template.skeleton);
+  const liveBlocks = withoutOrphans(template);
+  for (const node of nodes) {
+    if (node.kind === 'painel') continue;
+    for (const block of liveBlocks) {
+      if (!isCompanyBlockType(block.block_type) || block.skeleton_location_ref !== node.ref) continue;
+      if (companyBlockConfigOf(block, template.seed_version, ctx) === null) omitPlacement(omitted, block.block_type, block.quantity, ctx);
+    }
+  }
+  return omitted;
+}
+
+/**
+ * e22h N4: the sentence "Novo relatório" shows for the company placements a relatório would be
+ * born without, naming each type and how many of it; null when none. A type the device knows no
+ * name of reads "um tipo de equipamento da empresa".
+ */
+export function omittedPlacementsText(omitted: readonly OmittedPlacement[]): string | null {
+  if (omitted.length === 0) return null;
+  const items = omitted.map((entry) => `${entry.label ?? 'um tipo de equipamento da empresa'} (${plural(entry.quantity, 'equipamento', 'equipamentos')})`);
+  // authored: e22h N4
+  return omitted.length === 1
+    ? `Fica de fora deste relatório: ${items[0]}, cuja versão publicada ainda não chegou a este aparelho.`
+    : `Ficam de fora deste relatório: ${listPtBr(items)}, cujas versões publicadas ainda não chegaram a este aparelho.`;
 }

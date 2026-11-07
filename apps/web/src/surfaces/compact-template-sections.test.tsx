@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, standardTemplate, type BlockRow, type RelatorioSnapshot } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, instantiateTemplate, standardTemplate, type BlockRow, type RelatorioSnapshot } from '@app/domain';
 import { BLOCK_CHAVE_ID, BLOCK_DISJUNTOR_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -67,7 +67,7 @@ function compactSectionBlocks(without7 = false): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-00f2-7000-8000-000000000001' }),
     { id: portoSeguroSmall.projectId },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: () => `019966c1-00f3-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: USER, companyId: COMPANY },
   );
   return drafts

@@ -10,6 +10,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { SECTION_TITLES_V1 } from '../seed/sections-v1.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec, sectionHeading } from './layout.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * Story 4.8: the layout spec over the Porto Seguro fixtures. The kernel data is asserted
@@ -218,7 +219,7 @@ describe('4.8-UNIT-007 layoutSpec follows the relat√≥rio\'s section blocks (Sum√
     const { drafts } = instantiateTemplate(
       standardTemplate({ id: '019966c1-00f1-7000-8000-000000000001' }),
       { id: small.project!.id },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId, actorId: portoSeguroSmall.userId, companyId: portoSeguroSmall.companyId },
     );
     const blocks = drafts

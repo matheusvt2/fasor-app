@@ -219,13 +219,24 @@ describe('e21a parseVectorGroup: a trailing letter I or l after a connection let
 
 describe('21.2-UNIT the vector-group field', () => {
   it('is the transformador de força LIGAÇÃO SECUNDÁRIA only', () => {
-    expect(isVectorGroupField('transformador_forca', 'ligacao_secundaria')).toBe(true);
-    expect(isVectorGroupField('tp', 'ligacao_secundaria')).toBe(false);
-    expect(isVectorGroupField('tc', 'ligacao_secundaria')).toBe(false);
-    expect(isVectorGroupField('transformador_forca', 'tipo')).toBe(false);
+    // A seeded type answers by its block type, whatever the field's kind (v9/v10 kept a text field).
+    expect(isVectorGroupField('transformador_forca', { key: 'ligacao_secundaria' })).toBe(true);
+    expect(isVectorGroupField('transformador_forca', { key: 'ligacao_secundaria', kind: 'text' })).toBe(true);
+    expect(isVectorGroupField('tp', { key: 'ligacao_secundaria', kind: 'select', options: [...VECTOR_GROUP_CODES] })).toBe(false);
+    expect(isVectorGroupField('tc', { key: 'ligacao_secundaria' })).toBe(false);
+    expect(isVectorGroupField('transformador_forca', { key: 'tipo' })).toBe(false);
     expect(isVectorGroupOptions([...VECTOR_GROUP_CODES])).toBe(true);
     expect(isVectorGroupOptions(['AR', 'SF6'])).toBe(false);
     expect(isVectorGroupOptions(undefined)).toBe(false);
+  });
+
+  it('e22h N9: a company type by its data, the ligacao_secundaria select of the vector-group codes', () => {
+    const company = 'type:0190f5a0-0000-7000-8000-000000000001';
+    expect(isVectorGroupField(company, { key: 'ligacao_secundaria', kind: 'select', options: [...VECTOR_GROUP_CODES] })).toBe(true);
+    // The boundaries: another key, a text field, one code short.
+    expect(isVectorGroupField(company, { key: 'ligacao', kind: 'select', options: [...VECTOR_GROUP_CODES] })).toBe(false);
+    expect(isVectorGroupField(company, { key: 'ligacao_secundaria', kind: 'text' })).toBe(false);
+    expect(isVectorGroupField(company, { key: 'ligacao_secundaria', kind: 'select', options: VECTOR_GROUP_CODES.slice(1) })).toBe(false);
   });
 });
 

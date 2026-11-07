@@ -15,8 +15,9 @@ import {
   grammarTaken,
   itemSummaryText,
   moveDraftEntry,
-  NC_PHRASES_MAX,
+  ncPhrasesFull,
   parseDecimalPtBr,
+  plateCriterionOf,
   removeDraftEntry,
   removeDraftMeasurementRow,
   SEED_VERSION,
@@ -38,14 +39,14 @@ import {
   type TestGrammar,
   type TypeDraftIssue,
 } from '@app/domain';
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button, Chip, FormDialog, OverflowMenu, SegmentedControl, TextButton, Toggle, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 
 /*
  * Story 14.7: the tab panels of the type editor (`43-tipo-equipamento.html`). Each control hands
  * one kernel edit (`types/draft-edit.ts`) to `edit`, which writes the whole draft; a text input
- * writes when it is left (blur or Enter), a choice at once. The kernel's issues (`validateTypeDraft`)
+ * writes when it is left (blur or Enter) or goes (a tab change, fix batch e22h B2), a choice at once. The kernel's issues (`validateTypeDraft`)
  * show inline beside the part they name, as the mock's red helper.
  */
 
@@ -101,28 +102,62 @@ interface TextInputProps {
   describedBy?: string;
 }
 
-/** An `.input` that keeps what is typed and writes it when left (blur or Enter); a new value from the draft replaces it while it is not focused. */
-function TextInput({ value, onCommit, placeholder, className = 'input', inputMode, describedBy, ...rest }: TextInputProps) {
+/**
+ * Fix batch e22h (B2): what an `.input` of the editor keeps while it is typed in. It writes when
+ * left (blur or Enter) and when it goes (its panel unmounts on a tab change before a blur reaches
+ * React), never an unchanged value (React StrictMode runs the unmount cleanup once at mount) and
+ * never the same value twice; a new value from the draft replaces it while it is not focused.
+ */
+function useCommittedText(value: string, onCommit: (value: string) => void) {
   const [typed, setTyped] = useState(value);
   const [focused, setFocused] = useState(false);
+  const latest = useRef({ typed: value, value, onCommit, sent: null as string | null });
   useEffect(() => {
-    if (!focused) setTyped(value);
+    latest.current.value = value;
+    latest.current.onCommit = onCommit;
+  });
+  useEffect(() => {
+    if (focused) return;
+    setTyped(value);
+    latest.current.typed = value;
+    latest.current.sent = null;
   }, [value, focused]);
-  const leave = () => {
-    setFocused(false);
-    if (typed !== value) onCommit(typed);
+  const flush = useCallback(() => {
+    const now = latest.current;
+    if (now.typed === now.value || now.typed === now.sent) return;
+    now.sent = now.typed;
+    now.onCommit(now.typed);
+  }, []);
+  useEffect(() => flush, [flush]);
+  return {
+    typed,
+    onFocus: () => setFocused(true),
+    onChange: (next: string) => {
+      latest.current.typed = next;
+      setTyped(next);
+    },
+    onBlur: () => {
+      flush();
+      setFocused(false);
+    },
   };
+}
+
+/** An `.input` that keeps what is typed and writes it when left or unmounted (`useCommittedText`). */
+function TextInput({ value, onCommit, placeholder, className = 'input', inputMode, describedBy, id, ...rest }: TextInputProps & { id?: string }) {
+  const text = useCommittedText(value, onCommit);
   return (
     <input
+      id={id}
       className={className}
-      value={typed}
+      value={text.typed}
       placeholder={placeholder}
       inputMode={inputMode}
-      aria-label={rest['aria-label'] ?? rest.label}
+      aria-label={id === undefined ? (rest['aria-label'] ?? rest.label) : undefined}
       aria-describedby={describedBy}
-      onFocus={() => setFocused(true)}
-      onChange={(event) => setTyped(event.target.value)}
-      onBlur={leave}
+      onFocus={text.onFocus}
+      onChange={(event) => text.onChange(event.target.value)}
+      onBlur={text.onBlur}
       onKeyDown={(event) => {
         if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
       }}
@@ -138,35 +173,10 @@ function TextField({ label, value, onCommit, helper, issues = [], className = 'f
       <label className="field-label" htmlFor={id}>
         {label}
       </label>
-      <TextInputWithId id={id} value={value} onCommit={onCommit} placeholder={placeholder} />
+      <TextInput id={id} value={value} onCommit={onCommit} placeholder={placeholder} />
       {helper === undefined ? null : <span className="helper">{helper}</span>}
       <IssueLines issues={issues} />
     </div>
-  );
-}
-
-function TextInputWithId({ id, ...props }: TextInputProps & { id: string }) {
-  const [typed, setTyped] = useState(props.value);
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setTyped(props.value);
-  }, [props.value, focused]);
-  return (
-    <input
-      id={id}
-      className="input"
-      value={typed}
-      placeholder={props.placeholder}
-      onFocus={() => setFocused(true)}
-      onChange={(event) => setTyped(event.target.value)}
-      onBlur={() => {
-        setFocused(false);
-        if (typed !== props.value) props.onCommit(typed);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
-      }}
-    />
   );
 }
 
@@ -193,15 +203,60 @@ function SelectField<Value extends string>({ label, value, options, onChange, hi
   );
 }
 
-/** Chips of a list of words (select options, NC phrases), each removed by a tap, and the add input with the add-chip. */
-function ChipList({ words, onChange, max, addLabel, addWord, removeLabel }: { words: readonly string[]; onChange: (words: string[]) => void; max?: number; addLabel: string; addWord: string; removeLabel: (word: string) => string }) {
+/**
+ * Review e22h finding 3: the pending adds of the chip lists inside a `RowList`'s open editor. The
+ * rows are keyed by their index, so after a row menu's Subir, Descer or Remover the editor's index
+ * names another entry (or the next nameplate field): every row menu action of the list first
+ * cancels the word typed and not yet added, so the unmount add never writes it there.
+ */
+const PendingChipAdds = createContext<Set<() => void> | null>(null);
+
+/**
+ * Chips of a list of words (select options, NC phrases), each removed by a tap, and the add input
+ * with the add-chip; `full` (the kernel's `ncPhrasesFull`) hides the input. Fix batch e22h (B2): a
+ * word typed and not yet added is added when the input goes (a tab change unmounts the panel),
+ * unless a row menu of its list acted first (`PendingChipAdds`).
+ */
+function ChipList({ words, onChange, full = false, addLabel, addWord, removeLabel }: { words: readonly string[]; onChange: (words: string[]) => void; full?: boolean; addLabel: string; addWord: string; removeLabel: (word: string) => string }) {
   const [typed, setTyped] = useState('');
-  const full = max !== undefined && words.length >= max;
+  const latest = useRef({ typed: '', words, onChange, full });
+  const pending = useContext(PendingChipAdds);
+  useEffect(() => {
+    latest.current.words = words;
+    latest.current.onChange = onChange;
+    latest.current.full = full;
+  });
+  useEffect(() => {
+    if (pending === null) return;
+    const cancel = () => {
+      latest.current.typed = '';
+      setTyped('');
+    };
+    pending.add(cancel);
+    return () => {
+      pending.delete(cancel);
+    };
+  }, [pending]);
   const add = () => {
-    const word = typed.trim();
-    if (word === '' || full) return;
-    onChange([...words, word]);
+    const word = latest.current.typed.trim();
+    if (word === '' || latest.current.full) return;
+    latest.current.typed = '';
+    latest.current.onChange([...latest.current.words, word]);
     setTyped('');
+  };
+  useEffect(
+    () => () => {
+      const now = latest.current;
+      const word = now.typed.trim();
+      if (word === '' || now.full) return;
+      now.typed = '';
+      now.onChange([...now.words, word]);
+    },
+    [],
+  );
+  const type = (next: string) => {
+    latest.current.typed = next;
+    setTyped(next);
   };
   return (
     <div className="chip-row">
@@ -217,7 +272,7 @@ function ChipList({ words, onChange, max, addLabel, addWord, removeLabel }: { wo
             className="input chip-input"
             aria-label={addLabel}
             value={typed}
-            onChange={(event) => setTyped(event.target.value)}
+            onChange={(event) => type(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
@@ -310,6 +365,15 @@ interface ListRow {
 
 /** `.registry-list` of rows, one open below itself (`.registry-row.is-open` + `.def-edit`). */
 function RowList({ label, rows, open, setOpen }: { label: string; rows: readonly ListRow[]; open: string | null; setOpen: (key: string | null) => void }) {
+  const [pending] = useState(() => new Set<() => void>());
+  const guarded = (actions: readonly OverflowMenuAction[]): OverflowMenuAction[] =>
+    actions.map((action) => ({
+      ...action,
+      onAction: () => {
+        for (const cancel of [...pending]) cancel();
+        action.onAction();
+      },
+    }));
   return (
     <ul className="registry-list" aria-label={label}>
       {rows.flatMap((row) => {
@@ -321,13 +385,13 @@ function RowList({ label, rows, open, setOpen }: { label: string; rows: readonly
               <span className="rr-secondary">{row.secondary}</span>
               {isOpen ? null : <IssueLines issues={row.issues} />}
             </button>
-            <OverflowMenu name={row.name} items={row.menu.items} destructiveItems={row.menu.destructiveItems} />
+            <OverflowMenu name={row.name} items={guarded(row.menu.items)} destructiveItems={guarded(row.menu.destructiveItems)} />
           </li>,
         ];
         if (isOpen) {
           out.push(
             <li key={`${row.key}:edit`} className="def-edit" aria-label={row.editLabel}>
-              {row.editor}
+              <PendingChipAdds.Provider value={pending}>{row.editor}</PendingChipAdds.Provider>
               <IssueLines issues={row.issues} />
             </li>,
           );
@@ -417,8 +481,8 @@ export function ChecklistPanel({ draft, issues, edit }: PanelProps) {
           <TextField label={t.itemText} value={label} onCommit={(value) => edit((d) => updateDraftItem(d, index, { label: value }))} />
           <div className="field">
             <span className="field-label">{t.itemPhrases}</span>
-            <ChipList words={phrases} max={NC_PHRASES_MAX} onChange={(words) => edit((d) => updateDraftItem(d, index, { nc_phrases: words }))} addLabel={t.newPhraseLabel} addWord={t.newPhrase} removeLabel={t.removePhrase} />
-            {phrases.length >= NC_PHRASES_MAX ? <span className="helper">{t.phrasesFull}</span> : null}
+            <ChipList words={phrases} full={ncPhrasesFull(phrases)} onChange={(words) => edit((d) => updateDraftItem(d, index, { nc_phrases: words }))} addLabel={t.newPhraseLabel} addWord={t.newPhrase} removeLabel={t.removePhrase} />
+            {ncPhrasesFull(phrases) ? <span className="helper">{t.phrasesFull}</span> : null}
           </div>
           <TextField label={t.itemHint} value={text(item.hint)} onCommit={(value) => edit((d) => updateDraftItem(d, index, { hint: value }))} />
         </>
@@ -663,39 +727,72 @@ export function CriteriaPanel({ draft, issues, edit }: PanelProps) {
               const source = (criterion.source ?? {}) as { name?: string; edition?: string | null };
               const usedBy = criterionUsedByText(draft, index);
               const at = (leaf: string) => issuesAt(issues, ['criteria', index, leaf]);
+              // Fix batch e22h (S1): a criterion the plate picks, read-only; a row that judges nothing offers no edit.
+              const plate = plateCriterionOf(draft, index);
+              const readOnly = plate !== null && !plate.rowJudges;
               return (
-                <tr key={`${index}:${text(criterion.key)}`} data-criterion-key={text(criterion.key)}>
+                <tr key={`${index}:${text(criterion.key)}`} data-criterion-key={text(criterion.key)} data-plate-picked={plate === null ? undefined : ''}>
                   <td data-label={t.colCriterion}>
                     {name}
                     {usedBy === null ? null : <span className="helper used-by">{usedBy}</span>}
+                    {plate === null ? null : (
+                      <span className="plate-criterion" data-plate-criterion="">
+                        <span className="helper">{plate.lead}</span>
+                        <ul className="plate-lines">
+                          {plate.lines.map((line) => (
+                            <li key={line} className="helper">
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                        <span className="helper" data-tone={readOnly ? undefined : 'amber'}>
+                          {plate.rowNote}
+                        </span>
+                      </span>
+                    )}
                     <IssueLines issues={[...at('label'), ...issuesAt(issues, ['criteria', index], true)]} />
                   </td>
-                  <td data-label={t.colRule}>
-                    <SelectField hideLabel label={t.ruleLabel(name)} value={operator ?? ''} options={rulesOf(text(criterion.key), operator).map((value) => ({ value, label: CRITERION_RULE_WORDS[value] }))} onChange={(value) => edit((d) => updateDraftCriterion(d, index, { operator: value }))} />
-                    <IssueLines issues={[...at('operator'), ...at('type')]} />
-                  </td>
-                  <td className="cell-crit" data-label={t.colValue}>
-                    {operator === 'pass_fail' ? (
-                      CRITERION_RULE_WORDS.pass_fail
-                    ) : (
-                      <div className="value-pair">
-                        <TextInput className="input tabular" inputMode="decimal" aria-label={t.valueLabel(name)} value={numberText(criterion.value)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { value: numberOf(value) }))} />
-                        {operator === 'between' ? (
-                          <>
-                            <span className="unit">{t.and}</span>
-                            <TextInput className="input tabular" inputMode="decimal" aria-label={t.valueMaxLabel(name)} value={numberText(criterion.value_max)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { value_max: numberOf(value) }))} />
-                          </>
-                        ) : null}
-                        {unit === '' ? null : <span className="unit">{unit}</span>}
-                      </div>
-                    )}
-                    <IssueLines issues={[...at('value'), ...at('value_max'), ...at('unit')]} />
-                  </td>
-                  <td className="cell-src" data-label={t.colSource}>
-                    <TextInput aria-label={t.sourceLabel(name)} placeholder={t.sourcePlaceholder} value={text(source.name)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { source_name: value }))} />
-                    <TextInput aria-label={t.editionLabel(name)} placeholder={t.editionPlaceholder} value={text(source.edition)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { source_edition: value }))} />
-                    <IssueLines issues={at('source')} />
-                  </td>
+                  {readOnly ? (
+                    <>
+                      <td data-label={t.colRule}>{operator === undefined ? '' : CRITERION_RULE_WORDS[operator]}</td>
+                      <td className="cell-crit" data-label={t.colValue}>
+                        {typeof criterion.value === 'number' && operator !== undefined ? formatCriterionValue({ operator, value: criterion.value, ...(typeof criterion.value_max === 'number' ? { value_max: criterion.value_max } : {}), unit: unit === '' ? null : unit }) : ''}
+                      </td>
+                      <td className="cell-src" data-label={t.colSource}>
+                        {[text(source.name), text(source.edition)].filter((part) => part.trim() !== '').join(' ')}
+                        <IssueLines issues={at('source')} />
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td data-label={t.colRule}>
+                        <SelectField hideLabel label={t.ruleLabel(name)} value={operator ?? ''} options={rulesOf(text(criterion.key), operator).map((value) => ({ value, label: CRITERION_RULE_WORDS[value] }))} onChange={(value) => edit((d) => updateDraftCriterion(d, index, { operator: value }))} />
+                        <IssueLines issues={[...at('operator'), ...at('type')]} />
+                      </td>
+                      <td className="cell-crit" data-label={t.colValue}>
+                        {operator === 'pass_fail' ? (
+                          CRITERION_RULE_WORDS.pass_fail
+                        ) : (
+                          <div className="value-pair">
+                            <TextInput className="input tabular" inputMode="decimal" aria-label={t.valueLabel(name)} value={numberText(criterion.value)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { value: numberOf(value) }))} />
+                            {operator === 'between' ? (
+                              <>
+                                <span className="unit">{t.and}</span>
+                                <TextInput className="input tabular" inputMode="decimal" aria-label={t.valueMaxLabel(name)} value={numberText(criterion.value_max)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { value_max: numberOf(value) }))} />
+                              </>
+                            ) : null}
+                            {unit === '' ? null : <span className="unit">{unit}</span>}
+                          </div>
+                        )}
+                        <IssueLines issues={[...at('value'), ...at('value_max'), ...at('unit')]} />
+                      </td>
+                      <td className="cell-src" data-label={t.colSource}>
+                        <TextInput aria-label={t.sourceLabel(name)} placeholder={t.sourcePlaceholder} value={text(source.name)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { source_name: value }))} />
+                        <TextInput aria-label={t.editionLabel(name)} placeholder={t.editionPlaceholder} value={text(source.edition)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { source_edition: value }))} />
+                        <IssueLines issues={at('source')} />
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
@@ -768,34 +865,37 @@ export function PreviewPanel({ draft }: { draft: CompanyTypeDraft | null }) {
         {measurement.map((test, i) => {
           const rows = Array.isArray(test.rows) ? (test.rows as Entry[]) : [];
           const columns = Array.isArray(test.columns) ? (test.columns as Entry[]) : [];
+          // Fix batch e22h (N12): inside the ficha's horizontal scroller (`.ficha-mt`), so a wide table scrolls in its box, never the page.
           return (
-            <table key={`m:${i}`} className="measurement-table" aria-label={text(test.label)}>
-              <thead>
-                <tr>
-                  <th scope="col">{text(test.row_header)}</th>
-                  {columns.map((column, c) => (
-                    <th key={c} scope="col" className="col-value">
-                      {text(column.label)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, r) => (
-                  <tr key={r}>
-                    <td className="cell-point">{text(row.label)}</td>
+            <div key={`m:${i}`} className="ficha-mt" data-preview-table="">
+              <table className="measurement-table" aria-label={text(test.label)}>
+                <thead>
+                  <tr>
+                    <th scope="col">{text(test.row_header)}</th>
                     {columns.map((column, c) => (
-                      <td key={c} className="cell-value">
-                        <div className="measurement-field">
-                          <span className="mf-value" />
-                          <span className="mf-unit">{text(row.unit) || text(column.unit)}</span>
-                        </div>
-                      </td>
+                      <th key={c} scope="col" className="col-value">
+                        {text(column.label)}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((row, r) => (
+                    <tr key={r}>
+                      <td className="cell-point">{text(row.label)}</td>
+                      {columns.map((column, c) => (
+                        <td key={c} className="cell-value">
+                          <div className="measurement-field">
+                            <span className="mf-value" />
+                            <span className="mf-unit">{text(row.unit) || text(column.unit)}</span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         })}
       </div>

@@ -13,6 +13,7 @@ import {
   type Op,
   type OpInput,
   type SyncPushResponse,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -172,7 +173,7 @@ describe('3.4-API-001 concurrent template edits converge', () => {
     const a2Blocks = op(DEVICE_A2, {
       kind: 'put',
       path: `template/${id}/blocks`,
-      value: setQuantity(base, COLUNA, 'disjuntor_mt', 1) as never,
+      value: setQuantity(base, COLUNA, 'disjuntor_mt', 1, EMPTY_DEFINITION_CONTEXT) as never,
       prev_op_id: null,
       batch_id: newId(),
     });

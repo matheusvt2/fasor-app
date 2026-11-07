@@ -1,5 +1,6 @@
 import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import { hiddenLocationIds } from './location-live.ts';
 import { siteNcCount } from './site-checklist.ts';
@@ -81,20 +82,20 @@ function over(blocks: readonly BlockRow[], suggestionsPending: number, held: Rea
  * passes blocks only (the Home and obra cards) counts the sheets alone, as before.
  */
 export function progress(
-  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>,
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'equipment_types'>>,
   pending?: readonly SuggestionRow[],
 ): Progress {
   const sheets =
-    pending === undefined ? over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length) : over(snapshot.blocks, ...scoped(snapshot.blocks, pending));
+    pending === undefined ? over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length) : over(snapshot.blocks, ...scoped(snapshot.blocks, pending, snapshotDefinitionContext(snapshot)));
   const { relatorio, locations } = snapshot;
   if (relatorio === undefined || locations === undefined) return sheets;
   return { ...sheets, nc_open: sheets.nc_open + siteNcCount({ relatorio, locations }) };
 }
 
 /** The pending rows waiting on a live block of `blocks` (`livePendingSuggestions`), and those blocks' ids. */
-function scoped(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] | undefined): [number, ReadonlySet<string>] {
+function scoped(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] | undefined, ctx: DefinitionContext): [number, ReadonlySet<string>] {
   if (pending === undefined) return [0, new Set()];
-  const own = livePendingSuggestions(blocks, pending);
+  const own = livePendingSuggestions(blocks, pending, [], ctx);
   return [own.length, blocksWithPendingSuggestions(own)];
 }
 
@@ -116,8 +117,8 @@ export function cabineLocationIds(locations: readonly (Pick<LocationRow, 'id' | 
 }
 
 /** The progress over exactly these blocks (a local's own, for "Equipamentos no local · 0 de 2"), with the same pending-suggestion rule as `progress`. */
-export function blocksProgress(blocks: readonly BlockRow[], pending?: readonly SuggestionRow[]): Progress {
-  return over(blocks, ...scoped(blocks, pending));
+export function blocksProgress(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] | undefined, ctx: DefinitionContext): Progress {
+  return over(blocks, ...scoped(blocks, pending, ctx));
 }
 
 /**
@@ -147,11 +148,15 @@ export function descendantLocationIds(locations: readonly Pick<LocationRow, 'id'
  * (`hiddenLocationIds`): a location that is removed, or under a removed one, is not drawn,
  * so what sits on it is out of every counter above it, and its own progress is empty.
  */
-export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>, locationId: string, pending?: readonly SuggestionRow[]): Progress {
+export function locationProgress(
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>,
+  locationId: string,
+  pending?: readonly SuggestionRow[],
+): Progress {
   const ids = descendantLocationIds(snapshot.locations, locationId);
   const hidden = hiddenLocationIds(snapshot.locations);
   const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id) && !hidden.has(block.location_id));
-  return over(blocks, ...scoped(blocks, pending));
+  return over(blocks, ...scoped(blocks, pending, snapshotDefinitionContext(snapshot)));
 }
 
 /**
@@ -164,9 +169,10 @@ export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'l
  * leaves them. The answer for an id equals `locationProgress(snapshot, id, pending)`.
  */
 export function locationProgressIndex(
-  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>,
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>,
   pending?: readonly SuggestionRow[],
 ): (locationId: string) => Progress {
+  const ctx = snapshotDefinitionContext(snapshot);
   const hidden = hiddenLocationIds(snapshot.locations);
   const blocksAt = new Map<string, BlockRow[]>();
   for (const block of snapshot.blocks) {
@@ -187,7 +193,7 @@ export function locationProgressIndex(
     let out = own.get(id);
     if (out === undefined) {
       const blocks = blocksAt.get(id) ?? [];
-      out = over(blocks, ...scoped(blocks, pending));
+      out = over(blocks, ...scoped(blocks, pending, ctx));
       own.set(id, out);
     }
     return out;
@@ -246,12 +252,14 @@ export function fichasCountText(p: Pick<Progress, 'sheets_handled' | 'sheets_tot
 export function relatorioCounter(
   blocks: readonly BlockRow[],
   suggestionRows: readonly SuggestionRow[] | undefined,
-  locations?: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'removed_at'>[] | undefined,
+  /** e22h: the type versions a company sheet's excused plate fields resolve through. */
+  ctx: DefinitionContext,
 ): { text: string; state: 'complete' | 'pending' } {
   const hidden = locations === undefined ? null : hiddenLocationIds(locations);
   const shown = hidden === null ? blocks : blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id));
   // `progress({ blocks, suggestions: [] }, pending)` without the copy: the same `over` and `scoped`.
-  const p = over(shown, ...scoped(shown, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows)));
+  const p = over(shown, ...scoped(shown, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows), ctx));
   return { text: fichasCountText(p), state: progressCounterState(p) };
 }
 

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   AUDIT_FINDING_KINDS,
   auditResponseSchema,
   auditRunningDetailsSchema,
@@ -127,12 +128,12 @@ async function relatorio(app: App): Promise<{ relatorioId: string; blockId: stri
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-10-06', service_end: '2026-10-07', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-10-06', service_end: '2026-10-07', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: companyA.userId, companyId: companyA.companyId },
   );
   relatorios.add(relatorioId);
   const coluna = drafts.map((draft) => draft.value as unknown as LocationRow).find((row) => row?.kind === 'coluna')!;
-  const pair = newEquipmentBlock({
+  const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: newId(),
     equipmentId: newId(),
     relatorioId,

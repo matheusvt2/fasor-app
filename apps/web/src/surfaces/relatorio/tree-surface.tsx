@@ -4,6 +4,7 @@ import { useParams } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
@@ -41,9 +42,11 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const total = useMemo(() => progress(snapshot, pending).sheets_total, [snapshot, pending]);
   const relatorio = snapshot.relatorio;
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
+  // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
+  const definitions = useDefinitionContext();
   const context = useMemo(
-    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor }),
-    [relatorioId, relatorio.project_id, relatorio.seed_version, editor],
+    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions }),
+    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions],
   );
   // `auto` leaves the width to decide (strip in portrait, rail from 1024 px); a press sets it.
   const [rail, setRail] = useState<'auto' | 'open' | 'closed'>('auto');

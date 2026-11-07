@@ -23,6 +23,7 @@ import {
   resolveSection8,
   section8Layout,
 } from './section-8.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * 7.3-UNIT: section 8's bullets (the I/O rows S8 manual, token of a removed photo, derived,
@@ -37,7 +38,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0802-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0803-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0804-7000-8000-'), now: T0 }), seq: i + 1 }));

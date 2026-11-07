@@ -1,5 +1,5 @@
-import { BASE_EQUIPMENT_BLOCK_TYPES, companyTypeIdOf, isCompanyBlockType, isEquipmentBlockType, typeVersionOf } from '../schemas/block-config.ts';
-import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, type DefinitionContext } from '../seed/definitions.ts';
+import { BASE_EQUIPMENT_BLOCK_TYPES, companyTypeIdOf, isCompanyBlockType, isEquipmentBlockType, sameTypeVersion, typeVersionIdOf, typeVersionOf } from '../schemas/block-config.ts';
+import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, typeVersionText, type DefinitionContext } from '../seed/definitions.ts';
 import type { MeasurementTest } from '../seed/measurement.ts';
 import type { BlockDefinition, TestDef } from '../seed/schema.ts';
 import {
@@ -860,7 +860,10 @@ function assertCompanyConfig(op: Op, definition: BlockDefinition, blockType: str
 /**
  * A `block/{id}` create of a company type: its config names a published version of the type that
  * a version row in `state` holds (on the server, the pushing company's rows only: the cross-tenant
- * guard), and its keys are that definition's.
+ * guard), and its keys are that definition's. e22h S2: it names that row by its id too
+ * (`type_version_id`), and the row of that id is of that type and that number: a block born on a
+ * publish the server refused (another device took the number) is refused with it, never bound to
+ * the other device's definition, and is resent beside its renumbered row.
  */
 function assertCompanyBlockCreate(op: Op, path: OpPath, ctx: () => DefinitionContext): void {
   if (path.family !== 'block' || op.kind !== 'create') return;
@@ -869,16 +872,18 @@ function assertCompanyBlockCreate(op: Op, path: OpPath, ctx: () => DefinitionCon
   const blockType = value.block_type;
   const config = value.config;
   if (typeof config !== 'object' || config === null || Array.isArray(config)) throw new SeedPathError(op.path, `block: ${blockType} carries no config`);
-  const definition = findDefinitionIn(ctx(), typeof value.seed_version === 'string' ? value.seed_version : '', blockType, typeVersionOf(config));
+  const typeVersion = typeVersionOf(config);
+  if (typeVersion !== undefined && typeVersionIdOf(typeVersion) === undefined) throw new SeedPathError(op.path, `block: ${blockType} names its version without the version row's id`);
+  const definition = findDefinitionIn(ctx(), typeof value.seed_version === 'string' ? value.seed_version : '', blockType, typeVersion);
   if (definition === null) {
-    throw new SeedPathError(op.path, `block: no published version ${String(typeVersionOf(config) ?? '(none)')} of ${blockType} in state`);
+    throw new SeedPathError(op.path, `block: no published version ${typeVersionText(typeVersion)} of ${blockType} in state`);
   }
   assertCompanyConfig(op, definition, blockType, config);
 }
 
 /**
  * A `block/{id}/config` put on a block of a company type, or one naming a company type: the
- * block keeps the `{block_type, type_version}` it was created with (checked only when either
+ * block keeps the `{block_type, type_version, type_version_id}` it was created with (checked only when either
  * side is a company type, so no earlier log changes outcome), and its keys are its definition's.
  */
 function assertConfigPut(block: BlockRow, op: Op, ctx: () => DefinitionContext): void {
@@ -886,7 +891,8 @@ function assertConfigPut(block: BlockRow, op: Op, ctx: () => DefinitionContext):
   const nextType = next !== null && typeof next === 'object' ? next.block_type : undefined;
   if (!isCompanyBlockType(block.block_type) && !isCompanyBlockType(nextType)) return;
   if (nextType !== block.block_type) throw new SeedPathError(op.path, `block/config: the type of block ${block.id} is "${block.block_type}" and never changes`);
-  if (typeVersionOf(op.value) !== typeVersionOf(block.config)) throw new SeedPathError(op.path, `block/config: block ${block.id} keeps type_version ${String(typeVersionOf(block.config))}`);
+  // e22h S2: the number and the version row's id, never the reference object's identity.
+  if (!sameTypeVersion(typeVersionOf(op.value), typeVersionOf(block.config))) throw new SeedPathError(op.path, `block/config: block ${block.id} keeps type_version ${typeVersionText(typeVersionOf(block.config))}`);
   const definition = findDefinitionIn(ctx(), block.seed_version, block.block_type, typeVersionOf(block.config));
   if (definition !== null) assertCompanyConfig(op, definition, block.block_type, op.value);
 }

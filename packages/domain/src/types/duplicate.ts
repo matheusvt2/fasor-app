@@ -13,9 +13,12 @@ import { type CompanyCriterion, type CompanyTypeDefinition, type CompanyTypeDraf
  * configuration fields; each criterion a test names (`criterion_key`, a measurement criterion's
  * `seeded`) is materialized from `SEEDED_CRITERIA` into the copy's own criteria table, with its
  * source, so the Critérios tab edits the copy's values; the TAG prefix and the noun come from the
- * kernel's tables. The oil rule is not carried: a company definition has none (a narrowing listed
- * in the PR), so a copy's oil items are answered as any other item. A copy of a company type copies
- * its published definition. The copy is a draft: nothing is published until "Publicar".
+ * kernel's tables. Fix batch e22h (S1, coordinator's decision: a copy keeps its source's judging
+ * behaviour): the criteria a test picks from the plate (`criterion_bands`, the board's NBR 5410
+ * voltage bands; `criterion_class_field`, the TC and TP accuracy class) and the oil rule are carried
+ * as the seed defines them, so a copy published untouched judges as its source; the Critérios tab
+ * shows them read-only (`plateCriterionLines`). A copy of a company type copies its published
+ * definition. The copy is a draft: nothing is published until "Publicar".
  */
 
 // authored (Story 14.6, listed for Bruno): the suffix of a copy's name, and each seeded type's noun
@@ -76,14 +79,9 @@ export function duplicateSeededType(seedVersion: string, blockType: EquipmentBlo
   const named = (key: string) => {
     if (!keys.includes(key)) keys.push(key);
   };
-  for (const test of seed.tests) {
-    named(test.criterion_key);
-    // A criterion the seed picks from the plate (the board's voltage bands, the TC and TP accuracy
-    // class) would override the copy's own row in `effectiveCriterion`, so the Critérios tab's edit
-    // would never judge a reading: the copy keeps the materialized row alone, as "Adicionar ensaio" does.
-    delete test.criterion_bands;
-    delete test.criterion_class_field;
-  }
+  // The bands and the class field stay on their test (e22h S1): `effectiveCriterion` judges a copy
+  // as it judges the seed, the materialized row standing where the seed's criterion stands.
+  for (const test of seed.tests) named(test.criterion_key);
   for (const test of seed.measurement_tests ?? []) {
     for (const criterion of test.criteria) if (criterion.type === 'absolute' && criterion.seeded !== undefined) named(criterion.seeded);
   }
@@ -98,6 +96,7 @@ export function duplicateSeededType(seedVersion: string, blockType: EquipmentBlo
     ...(seed.measurement_tests === undefined ? {} : { measurement_tests: seed.measurement_tests as CompanyTypeDefinition['measurement_tests'] }),
     ...(seed.config_fields === undefined ? {} : { config_fields: seed.config_fields }),
     criteria: keys.map(materialized),
+    ...(seed.oil_rule === undefined ? {} : { oil_rule: seed.oil_rule }),
   };
   return { derived_from: { seed_version: seedVersion, block_type: blockType }, draft };
 }
@@ -115,7 +114,12 @@ export function newEquipmentTypeRow(id: string, duplicate: TypeDuplicate): Equip
 
 /** The value of the `equipment_type_version/{id}` create that publishes a type's draft as its next version. */
 export function typeVersionRow(input: { id: string; type: Pick<EquipmentTypeRow, 'id' | 'latest_version'>; definition: CompanyTypeDefinition; publishedBy: string; publishedAt: string }): EquipmentTypeVersionRow {
-  return { id: input.id, type_id: input.type.id, version: input.type.latest_version + 1, definition: input.definition, published_by: input.publishedBy, published_at: input.publishedAt };
+  return { id: input.id, type_id: input.type.id, version: nextTypeVersion(input.type), definition: input.definition, published_by: input.publishedBy, published_at: input.publishedAt };
+}
+
+/** Fix batch e22h (N2): the number the type's next publish takes (its draft's version). */
+export function nextTypeVersion(type: Pick<EquipmentTypeRow, 'latest_version'>): number {
+  return type.latest_version + 1;
 }
 
 // --- the type's status words (`41-templates.html` § Tipos de equipamento) --------------------------
@@ -141,5 +145,5 @@ export function typeStatusText(type: Pick<EquipmentTypeRow, 'latest_version' | '
 export function openDraftText(type: Pick<EquipmentTypeRow, 'latest_version' | 'draft'>): string | null {
   if (type.latest_version === 0 || type.draft === null) return null;
   // authored (Story 14.6, from EXPERIENCE.md § Templates).
-  return `Rascunho da versão ${type.latest_version + 1} aberto`;
+  return `Rascunho da versão ${nextTypeVersion(type)} aberto`;
 }

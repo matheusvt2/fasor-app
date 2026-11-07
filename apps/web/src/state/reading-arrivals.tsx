@@ -107,7 +107,7 @@ export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest
   }
   const snapshot = relatorioSnapshotOf(state, relatorioId);
   const equipment = [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow);
-  const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pendingSuggestions(suggestionRowsOf(state, relatorioId)));
+  const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment, equipment_types: snapshot.equipment_types }, pendingSuggestions(suggestionRowsOf(state, relatorioId)));
   return blockId === null ? `/relatorio/${relatorioId}` : `/relatorio/${relatorioId}/ficha/${blockId}`;
 }
 

@@ -1,7 +1,7 @@
 import { fileFieldPath, sheetChecklistPath, sheetNameplatePath } from '../ops/path.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { OilRule } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
 import { isCellFilled } from './sheet-state.ts';
@@ -37,13 +37,17 @@ import { isCellFilled } from './sheet-state.ts';
 /** The subtype keys that name a dry unit (FR-11). */
 const DRY_SUBTYPES: ReadonlySet<string> = new Set(['epoxi', 'a_seco']);
 
-type RuleBlock = Pick<BlockRow, 'seed_version' | 'block_type'>;
+type RuleBlock = Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>;
 type StateBlock = Pick<BlockRow, 'seed_version' | 'block_type' | 'config' | 'sheet'>;
 
-/** The block's oil rule, or null for a type or seed version that has none. */
-export function oilRuleOf(block: Partial<RuleBlock>): OilRule | null {
+/**
+ * The block's oil rule, or null for a type or seed version that has none. e22h: read through the
+ * context, so a company type's version (`asBlockDefinition`) carries its own rule; a seeded type
+ * resolves as before, whatever the context holds.
+ */
+export function oilRuleOf(block: Partial<RuleBlock>, ctx: DefinitionContext): OilRule | null {
   if (block.seed_version === undefined || block.block_type === undefined) return null;
-  return findDefinition(block.seed_version, block.block_type)?.oil_rule ?? null;
+  return blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config })?.oil_rule ?? null;
 }
 
 function subtypeOf(config: unknown): string | null {
@@ -62,8 +66,8 @@ function oilStateOf(rule: OilRule, cell: Cell | null | undefined, config: unknow
 }
 
 /** True for an oil unit, false for a non-oil one, null when unknown or the block has no oil rule. */
-export function isOilUnit(block: StateBlock): boolean | null {
-  const rule = oilRuleOf(block);
+export function isOilUnit(block: StateBlock, ctx: DefinitionContext): boolean | null {
+  const rule = oilRuleOf(block, ctx);
   if (rule === null) return null;
   return oilStateOf(rule, block.sheet.nameplate[rule.field], block.config);
 }
@@ -71,21 +75,25 @@ export function isOilUnit(block: StateBlock): boolean | null {
 const NONE: ReadonlySet<string> = new Set();
 
 /** The checklist items a non-oil unit shows NA while their own result is not filled; none otherwise. */
-export function oilDerivedNaKeys(block: Partial<StateBlock>): ReadonlySet<string> {
-  const rule = oilRuleOf(block);
+export function oilDerivedNaKeys(block: Partial<StateBlock>, ctx: DefinitionContext): ReadonlySet<string> {
+  return oilDerivedNaKeysUnder(oilRuleOf(block, ctx), block);
+}
+
+/** `oilDerivedNaKeys` with the block's rule already in hand (a reader holding the block's definition). */
+export function oilDerivedNaKeysUnder(rule: OilRule | null, block: Partial<StateBlock>): ReadonlySet<string> {
   if (rule === null || block.sheet === undefined) return NONE;
   return oilStateOf(rule, block.sheet.nameplate[rule.field], block.config) === false ? new Set(rule.items) : NONE;
 }
 
 /** True when the block's rule names `itemKey` (the rule, not the config's NA defaults, decides it). */
-export function isOilItem(block: Partial<RuleBlock>, itemKey: string): boolean {
-  return oilRuleOf(block)?.items.includes(itemKey as OilRule['items'][number]) ?? false;
+export function isOilItem(block: Partial<RuleBlock>, itemKey: string, ctx: DefinitionContext): boolean {
+  return oilRuleOf(block, ctx)?.items.includes(itemKey as OilRule['items'][number]) ?? false;
 }
 
 /** An oil field of a non-oil unit: shown excused, never missing, printed "-". */
-export function isOilFieldExcused(block: StateBlock, fieldKey: string): boolean {
-  const rule = oilRuleOf(block);
-  return rule !== null && rule.fields.includes(fieldKey) && isOilUnit(block) === false;
+export function isOilFieldExcused(block: StateBlock, fieldKey: string, ctx: DefinitionContext): boolean {
+  const rule = oilRuleOf(block, ctx);
+  return rule !== null && rule.fields.includes(fieldKey) && isOilUnit(block, ctx) === false;
 }
 
 /** One put of the crossing batch. */
@@ -99,10 +107,16 @@ export interface OilCrossingPut {
  * batch: none unless the field is the rule's and the write crosses between oil and non-oil.
  * `next` is the value about to be stored (null clears the field). Read on the fresh block.
  */
-export function oilCrossingPuts(snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files'] }, blockId: string, fieldKey: string, next: unknown): OilCrossingPut[] {
+export function oilCrossingPuts(
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files']; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
+  blockId: string,
+  fieldKey: string,
+  next: unknown,
+): OilCrossingPut[] {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined) return [];
-  const rule = oilRuleOf(block);
+  // e22h: a company sheet's rule is its version's, from the snapshot.
+  const rule = oilRuleOf(block, snapshotDefinitionContext(snapshot));
   if (rule === null || rule.field !== fieldKey) return [];
   const before = oilStateOf(rule, block.sheet.nameplate[fieldKey], block.config);
   // Clearing the field ("anything to empty") never crosses, whatever the config subtype says.

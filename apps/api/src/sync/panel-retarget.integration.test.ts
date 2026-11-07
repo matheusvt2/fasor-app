@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   instantiateTemplate,
@@ -148,7 +149,7 @@ async function relatorio(app: App): Promise<{ relatorioId: string; projectId: st
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: companyA.userId, companyId: companyA.companyId },
   );
   const creation = [projectDraft, ...drafts].map(stamp);
@@ -204,7 +205,7 @@ async function panelPhoto(relatorioId: string, locationId: string): Promise<{ op
 
 /** The confirm batch: equipment + block on `coluna`, the photo re-targeted to its plate, one batch id. */
 function confirmBatch(relatorioId: string, projectId: string, coluna: LocationRow, photoId: string): { batch: Op[]; blockId: string } {
-  const pair = newEquipmentBlock({
+  const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: newId(),
     equipmentId: newId(),
     relatorioId,

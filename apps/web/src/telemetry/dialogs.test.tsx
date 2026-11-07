@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import 'fake-indexeddb/auto';
 import type { BlockRow, CellDecision, DecisionTextContext } from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -112,7 +113,7 @@ describe('dialog_open and dialog_cancel, opened and cancelled (R-V7)', () => {
     const onClose = vi.fn();
     const decision: CellDecision = { kind: 'cell', relatorio_id: RELATORIO, block_id: BLOCK, cells: [] };
     const entry = { relatorioId: RELATORIO, projectId: RELATORIO, decisions: [decision], blocks: [block], locations: [] } as unknown as HeldDecisions;
-    const context: DecisionTextContext = { blocks: [block], equipment: [{ id: EQUIPMENT, tag: 'TR-01' }], locations: [], users: [], viewerActorId: null, viewerDeviceId: null };
+    const context: DecisionTextContext = { definitions: EMPTY_DEFINITION_CONTEXT, blocks: [block], equipment: [{ id: EQUIPMENT, tag: 'TR-01' }], locations: [], users: [], viewerActorId: null, viewerDeviceId: null };
     render(<ConflictDialog entry={entry} decision={decision} context={context} actions={{} as DecisionActions} onClose={onClose} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Voltar sem decidir' }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());

@@ -14,6 +14,7 @@ import {
 } from '@app/domain';
 import { allLocationRows } from './home-store.ts';
 import type { AppDatabase } from './schema.ts';
+import { deviceDefinitionContext } from './type-store.ts';
 
 /*
  * Stories 10.2 and 10.3: the open decisions of every relatório this device holds, read from
@@ -99,6 +100,8 @@ export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
   for (const [projectId, rows] of byProject) if (integrityFindings({ equipment: rows }).length > 0) duplicated.add(projectId);
 
   const out: HeldDecisions[] = [];
+  // e22h B1: a company sheet's cells are named through its version (the device's type versions).
+  const definitions = await deviceDefinitionContext(db);
   for (const relatorio of relatorios) {
     const own = blocksOf.get(relatorio.id) ?? [];
     // A relatório with no conflict mark and no duplicate TAG in its project has no decision.
@@ -111,6 +114,7 @@ export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
       allLocationRows(db, relatorio.id),
     ]);
     const decisions = openDecisions({
+      definitions,
       relatorioId: relatorio.id,
       blocks: own,
       locations,

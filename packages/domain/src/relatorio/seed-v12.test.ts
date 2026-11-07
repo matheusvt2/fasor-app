@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
 import { conclusionFloor } from './conclusion.ts';
@@ -23,7 +23,7 @@ const cell = (value: unknown): Cell => ({ value: value as Cell['value'], source_
 const measured = (raw: string, unit: string | null) => ({ raw, unit, state: 'measured' as const });
 
 function sheet(type: EquipmentBlockType, seedVersion = 'v12'): BlockRow {
-  return newEquipmentBlock({
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: id(1),
     equipmentId: id(2),
     relatorioId: id(3),
@@ -70,23 +70,23 @@ const ratioOf = (block: BlockRow) => evaluateSheetReadings(block, getDefinition(
 describe('22.7-UNIT the oil rule with ÓLEO MINERAL (seed v12)', () => {
   it('an oil unit answers its oil items and TIPO DO ÓLEO; a dry one shows them NA and TIPO DO ÓLEO excused', () => {
     const oil = withNameplate(sheet('transformador_forca'), { tipo_de_isolacao: 'ÓLEO MINERAL' });
-    expect(isOilUnit(oil)).toBe(true);
-    expect(oilDerivedNaKeys(oil).size).toBe(0);
-    expect(isOilFieldExcused(oil, 'tipo_do_oleo')).toBe(false);
+    expect(isOilUnit(oil, EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(oilDerivedNaKeys(oil, EMPTY_DEFINITION_CONTEXT).size).toBe(0);
+    expect(isOilFieldExcused(oil, 'tipo_do_oleo', EMPTY_DEFINITION_CONTEXT)).toBe(false);
     const dry = withNameplate(sheet('transformador_forca'), { tipo_de_isolacao: 'EPÓXI' });
-    expect(isOilUnit(dry)).toBe(false);
-    expect([...oilDerivedNaKeys(dry)]).toEqual(getDefinition('v12', 'cabine_primaria', 'transformador_forca').oil_rule!.items);
-    expect(isOilFieldExcused(dry, 'tipo_do_oleo')).toBe(true);
-    expect(isOilFieldExcused(dry, 'vol_oleo')).toBe(true);
+    expect(isOilUnit(dry, EMPTY_DEFINITION_CONTEXT)).toBe(false);
+    expect([...oilDerivedNaKeys(dry, EMPTY_DEFINITION_CONTEXT)]).toEqual(getDefinition('v12', 'cabine_primaria', 'transformador_forca').oil_rule!.items);
+    expect(isOilFieldExcused(dry, 'tipo_do_oleo', EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(isOilFieldExcused(dry, 'vol_oleo', EMPTY_DEFINITION_CONTEXT)).toBe(true);
   });
 
   it('the TP and the TC: ÓLEO MINERAL is oil, VASAMENTO the one item a dry unit shows NA; v11 keeps ÓLEO', () => {
     for (const type of ['tp', 'tc'] as const) {
-      expect(isOilUnit(withNameplate(sheet(type), { tipo_de_isolacao: 'ÓLEO MINERAL' })), type).toBe(true);
-      expect([...oilDerivedNaKeys(withNameplate(sheet(type), { tipo_de_isolacao: 'Á SECO' }))], type).toEqual(['vasamento']);
+      expect(isOilUnit(withNameplate(sheet(type), { tipo_de_isolacao: 'ÓLEO MINERAL' }), EMPTY_DEFINITION_CONTEXT), type).toBe(true);
+      expect([...oilDerivedNaKeys(withNameplate(sheet(type), { tipo_de_isolacao: 'Á SECO' }), EMPTY_DEFINITION_CONTEXT)], type).toEqual(['vasamento']);
     }
-    expect(isOilUnit(withNameplate(sheet('transformador_forca', 'v11'), { tipo_de_isolacao: 'ÓLEO' }))).toBe(true);
-    expect(isOilUnit(withNameplate(sheet('transformador_forca', 'v11'), { tipo_de_isolacao: 'ÓLEO MINERAL' }))).toBe(false);
+    expect(isOilUnit(withNameplate(sheet('transformador_forca', 'v11'), { tipo_de_isolacao: 'ÓLEO' }), EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(isOilUnit(withNameplate(sheet('transformador_forca', 'v11'), { tipo_de_isolacao: 'ÓLEO MINERAL' }), EMPTY_DEFINITION_CONTEXT)).toBe(false);
   });
 });
 

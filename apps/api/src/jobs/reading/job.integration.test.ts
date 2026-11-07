@@ -3,6 +3,7 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   companyBlockType,
   companySubBlocksOf,
   emptySheet,
@@ -100,7 +101,7 @@ async function relatorio(seedVersion?: string): Promise<{ relatorioId: string; b
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId(), ...(seedVersion === undefined ? {} : { seedVersion }) }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: ACTOR, companyId },
   );
   await apply([companyDraft(`project/${projectId}`, { id: projectId, client_id: null, name: 'Obra leitura', site: 'Obra leitura', removed_at: null }), ...drafts]);
@@ -1383,7 +1384,7 @@ describe('14.6-INT a plate reading on a block of a company type', () => {
       ...host,
       id: newId(),
       block_type: blockType,
-      config: { block_type: blockType, sub_blocks: Object.fromEntries(companySubBlocksOf(DEFINITION_1).map((key) => [key, { enabled: true }])), na_defaults: [], type_version: 1 },
+      config: { block_type: blockType, sub_blocks: Object.fromEntries(companySubBlocksOf(DEFINITION_1).map((key) => [key, { enabled: true }])), na_defaults: [], type_version: 1, type_version_id: versionId },
       order_key: 'zz',
       sheet: emptySheet(),
     };

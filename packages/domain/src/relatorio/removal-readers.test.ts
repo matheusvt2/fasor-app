@@ -7,7 +7,7 @@ import { section9Layout } from '../print/section-9.ts';
 import { section11Instruments, section11Layout } from '../print/section-11.ts';
 import type { BlockRow, JsonValue, RegistryRow } from '../schemas/entities.ts';
 import { buildSnapshot, createSnapshotBuilder, serializeSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { findDefinition, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { templateFromRelatorio } from '../templates/from-relatorio.ts';
 import { atMinutes, opFactory, T0, TEST_COMPANY, TEST_PROJECT } from '../test-support.ts';
 import { nextSheet, sheetOrder } from './ficha.ts';
@@ -102,7 +102,7 @@ describe('14.2-UNIT the snapshot builders: one ancestor-liveness rule', () => {
     removeByPlan(f, painel);
     const ops = opFactory(T2);
     // A device that had not seen the removal: a new sheet in Coluna 1, and SEC-C01-3 moved from Painel 2 into Coluna 2.
-    const created = newEquipmentBlock({
+    const created = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: '019966b0-0156-7000-8000-000000000001',
       equipmentId: '019966b0-0156-7000-8000-000000000002',
       relatorioId: f.relatorioId,
@@ -125,7 +125,7 @@ describe('14.2-UNIT the snapshot builders: one ancestor-liveness rule', () => {
     expect(rows.blocks.find((row) => row.id === created.block.id)).toMatchObject({ removed_at: null, location_id: coluna1 });
     expect(rows.blocks.find((row) => row.id === moved)).toMatchObject({ removed_at: null, location_id: coluna2 });
     // A block naming a location this state never held (its create not pulled yet): kept, as before the rule.
-    const orphan = newEquipmentBlock({
+    const orphan = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: '019966b0-0156-7000-8000-000000000003',
       equipmentId: '019966b0-0156-7000-8000-000000000004',
       relatorioId: f.relatorioId,
@@ -213,9 +213,9 @@ describe('14.2-UNIT the tree, the counters and the targets without the removed l
     expect(moveTargets(raw.locations, sheet).map((target) => target.label)).toEqual(labels.slice(1));
     // A move into a coluna of the removed painel is refused on fresh rows: the location is gone.
     const move = { blocks: raw.blocks, locations: raw.locations, equipment: raw.equipment, blockId: sheet.id, rename: false };
-    expect(movePlan({ ...move, targetId: coluna1 })).toEqual({ kind: 'refused', reason: 'location-gone' });
-    expect(movePlan({ ...move, targetId: painel })).toEqual({ kind: 'refused', reason: 'location-gone' });
-    expect(movePlan({ ...move, targetId: locationId(f.state, 'Coluna 1', 'Painel 2') })).toMatchObject({ kind: 'move' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...move, targetId: coluna1 })).toEqual({ kind: 'refused', reason: 'location-gone' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...move, targetId: painel })).toEqual({ kind: 'refused', reason: 'location-gone' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...move, targetId: locationId(f.state, 'Coluna 1', 'Painel 2') })).toMatchObject({ kind: 'move' });
     // The palette opens on neither, and a panel label never lands in the removed painel.
     expect(paletteLocationFor(raw, coluna1, null)).toBeNull();
     expect(paletteLocationFor(raw, painel, null)).toBeNull();
@@ -390,7 +390,7 @@ describe('Epic 14 QA ledger (h): a live sheet stranded under a location removed 
     removeByPlan(f, painel, T1);
     // Device B, offline, had created a sheet in Coluna 1; it syncs after A, at T2.
     const ops = opFactory(T2);
-    const created = newEquipmentBlock({
+    const created = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: '019966b0-0157-7000-8000-000000000001',
       equipmentId: '019966b0-0157-7000-8000-000000000002',
       relatorioId: f.relatorioId,

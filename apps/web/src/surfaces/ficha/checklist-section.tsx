@@ -28,6 +28,7 @@ import {
   type RegistryRow,
   type RelatorioSnapshot,
   type SuggestionRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
@@ -117,7 +118,9 @@ export interface ChecklistBulk {
 /** The two bulk actions (UX-DR36), shared by the list head and the Sticky action bar's mirror. */
 export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, block: BlockRow, equipment: readonly EquipmentRow[]): ChecklistBulk {
   const t = copy.ficha.checklist;
-  const unset = checklistUnsetItems(block).length;
+  // e22h B1: a company sheet's checklist is its version's, from the snapshot.
+  const definitions = snapshotDefinitionContext(snapshot);
+  const unset = checklistUnsetItems(block, definitions).length;
   const source = repeatChecklistSource(snapshot, block.id);
   return {
     unset,
@@ -128,7 +131,7 @@ export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, blo
         .edit((blocks, by) => {
           const fresh = blocks.find((row) => row.id === block.id);
           if (fresh === undefined) return null;
-          const keys = checklistUnsetItems(fresh);
+          const keys = checklistUnsetItems(fresh, definitions);
           n = keys.length;
           return keys.map((key) => checklistResultOp(by, api.relatorioId, block.id, key, 'C'));
         })
@@ -143,7 +146,7 @@ export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, blo
           const from = repeatChecklistSource({ blocks: blocks.filter((row) => row.relatorio_id === api.relatorioId && row.removed_at === null) }, block.id);
           if (fresh === undefined || from === null) return null;
           tag = equipment.find((row) => row.id === from.equipment_id)?.tag ?? '';
-          const pattern = repeatChecklistPattern(from, fresh);
+          const pattern = repeatChecklistPattern(from, fresh, definitions);
           if (pattern.length === 0) api.announce(t.repeatNothing);
           return pattern.map((entry) => checklistResultOp(by, api.relatorioId, block.id, entry.itemKey, entry.value));
         })
@@ -315,13 +318,14 @@ export function sheetRowTarget(
   learned: readonly RegistryRow[] = NO_LEARNED,
 ): ChecklistRowTarget {
   const observationCell = block.sheet.checklist[item.key]?.observation;
+  const definitions = snapshotDefinitionContext(snapshot);
   return {
     entityId: block.id,
-    result: checklistResultOf(block, item.key),
+    result: checklistResultOf(block, item.key, definitions),
     // A `na_defaults` row (and, Story 14.11, an oil item of a non-oil unit on seed v6) shows NA
     // with no cell of its own (checklistResultOf's display default) -- the first tap on it must
     // still commit a real cell (spec Design Notes).
-    committed: checklistResultIsStored(block, item.key),
+    committed: checklistResultIsStored(block, item.key, definitions),
     observation: typeof observationCell?.value === 'string' ? observationCell.value : '',
     resultOp: (by, value) => checklistResultOp(by, block.relatorio_id, block.id, item.key, value),
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),

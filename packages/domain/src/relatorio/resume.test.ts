@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { calendarDateOfInstant } from '../format/datetime.ts';
 import { homeCards, type HomeCardsInput } from '../home/cards.ts';
@@ -22,7 +23,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0122-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0123-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0124-7000-8000-'), now: T0 }), seq: i + 1 }));
@@ -107,7 +108,7 @@ describe('12.2-UNIT calendarDateOfInstant', () => {
 describe('12.2-UNIT homeCards counter', () => {
   const snapshot = fresh();
   const relatorio: RelatorioRow = snapshot.relatorio;
-  const base: HomeCardsInput = {
+  const base: HomeCardsInput = { definitions: EMPTY_DEFINITION_CONTEXT,
     relatorios: [relatorio],
     summary: [],
     projects: [],

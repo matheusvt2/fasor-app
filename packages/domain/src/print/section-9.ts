@@ -381,11 +381,12 @@ const PAIR_VALUE_COLUMNS: readonly number[] = [1, 3, 5];
 
 /** Three label/value pairs per row. The TAG field with no cell of its own prints the block's TAG (E12-A2). */
 function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinition): SheetPart {
-  const prefill = nameplateTagPrefill({ blocks: ctx.snapshot.blocks, equipment: ctx.snapshot.equipment }, block.id);
+  // e22h B1: the snapshot's type versions too, so a company plate's TAG field reads its prefill.
+  const prefill = nameplateTagPrefill({ blocks: ctx.snapshot.blocks, equipment: ctx.snapshot.equipment, equipment_types: ctx.snapshot.equipment_types }, block.id);
   const pairs = definition.nameplate.map((field) => {
     const cell = block.sheet.nameplate[field.key];
     // Story 14.11 (seed v6): an oil field of a non-oil unit prints "-" whatever is stored.
-    const excused = isOilFieldExcused(block, field.key);
+    const excused = isOilFieldExcused(block, field.key, ctx.definitions);
     const value = excused ? DASH : cell === undefined ? (field.key === 'tag' && prefill !== null ? prefill : DASH) : storedValueText(field, cell.value);
     return [{ text: printLabel(field.label), bold: true, align: 'left' as const }, { text: value, align: 'left' as const }];
   });
@@ -401,13 +402,13 @@ function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinitio
 // --- VERIFICAÇÕES GERAIS ------------------------------------------------------------------------
 
 /** The seed's normalized columns (ÍTEM · C · NC · NA · OBSERVAÇÕES); "⟨n⟩. ⟨ITEM⟩", an X in the chosen box, the observation. */
-function checklistPart(block: BlockRow, definition: BlockDefinition, columns: readonly string[]): SheetPart | null {
+function checklistPart(block: BlockRow, definition: BlockDefinition, columns: readonly string[], definitions: DefinitionContext): SheetPart | null {
   if (definition.checklist === null) return null;
   const items = definition.checklist;
   const last = columns.length - 1;
   const rows: PrintRow[] = [bandRow(CHECKLIST_TITLE, columns.length), headerRow(columns.map(printLabel))];
   items.forEach((item, index) => {
-    const result = checklistResultOf(block, item.key);
+    const result = checklistResultOf(block, item.key, definitions);
     const observationCell = block.sheet.checklist[item.key]?.observation;
     const observation = isCellFilled(observationCell) && typeof observationCell!.value === 'string' ? observationCell!.value.trim() : '';
     rows.push({
@@ -1183,7 +1184,7 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const config = configPart(block, definition);
   if (config !== null) parts.push(config);
   // The walk splits items from the other photos by the same predicate.
-  const checklist = sheetChecklistPrinted(block, definition) && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
+  const checklist = sheetChecklistPrinted(block, definition) && seed !== null ? checklistPart(block, definition, seed.checklistColumns, ctx.definitions) : null;
   if (checklist !== null) parts.push(checklist);
   // Story 22.12: with a previous visit of another relatório, every reading table gets MANUT. ANTERIOR.
   const previous = previousReadingsOf(ctx, block, definition);

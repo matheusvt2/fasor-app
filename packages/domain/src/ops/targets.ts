@@ -131,6 +131,10 @@ export const REFERENCE_FIELDS: readonly ReferenceField[] = [
   { pointer: 'registry.certificate_file_id', reference: { entity: 'file', scope: 'company' } },
   { pointer: 'registry.sites[].id', exempt: 'a client site\'s own sub-id inside its registry row' },
   { pointer: 'template.id', exempt: OWN_ID },
+  {
+    pointer: 'template.blocks[].type_version_id',
+    exempt: 'e22h S2: the version row a template block was built at, read only through the company\'s own definition context; the instantiation takes the type\'s latest version and names that row',
+  },
   { pointer: 'user.id', exempt: OWN_ID },
   // Story 14.6 (contract 33): a published version names its type, which must be a type of the
   // company (`op_target_missing` otherwise; the AD-10 tenant guard of the publish); what a type

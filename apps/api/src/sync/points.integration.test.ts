@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   createPointOp,
@@ -121,7 +122,7 @@ describe('6.6-API-001 point fields through the sync route', () => {
       const { relatorioId, drafts } = instantiateTemplate(
         standardTemplate({ id: newId() }),
         { id: projectId },
-        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: company.userId, companyId: company.companyId },
       );
       const at = now();
@@ -213,7 +214,7 @@ describe('22.5-API-001 a point written from a derived entry through the sync rou
       const { relatorioId, drafts } = instantiateTemplate(
         standardTemplate({ id: newId() }),
         { id: projectId },
-        { service_start: '2026-11-06', service_end: '2026-11-06', existingEquipment: [], responsible_user_id: null },
+        { service_start: '2026-11-06', service_end: '2026-11-06', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: company.userId, companyId: company.companyId },
       );
       const at = now();

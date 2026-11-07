@@ -34,6 +34,7 @@ import {
   type RelatorioSnapshot,
   type SuggestionRow,
   type WordRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CropThumb } from '../../components/crop-thumb.tsx';
@@ -184,9 +185,11 @@ export function useNameplateSuggestions({
   const { showToast } = useToast();
   const rows = useMemo(() => suggestionRowsOf(state, api.relatorioId), [state, api.relatorioId]);
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);
-  const list = useMemo(() => nameplateSuggestions(block, pending), [block, pending]);
+  // e22h B1: a company sheet's plate is its version's, from the snapshot.
+  const definitions = snapshotDefinitionContext(snapshot);
+  const list = useMemo(() => nameplateSuggestions(block, pending, definitions), [block, pending, definitions]);
   const entries = useMemo(() => new Map(list.map((entry) => [entry.field.key, entry])), [list]);
-  const counts = useMemo(() => suggestionGroupCounts(block, pending, registry), [block, pending, registry]);
+  const counts = useMemo(() => suggestionGroupCounts(block, pending, registry, definitions), [block, pending, registry, definitions]);
   const createsEntry = (s: SuggestionRow) => hasCreateHint(s, registry);
 
   const confirmed = (text: string) => {
@@ -219,7 +222,7 @@ export function useNameplateSuggestions({
     let cleared = 0;
     return {
       drafts: (blocks: readonly BlockRow[], by: NonNullable<FichaApi['author']>, drafts: readonly OpDraft[]): OpDraft[] => {
-        const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, drafts);
+        const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files, equipment_types: snapshot.equipment_types }, drafts);
         cleared = built.cleared;
         return built.drafts;
       },
@@ -257,9 +260,9 @@ export function useNameplateSuggestions({
       .edit((blocks, by) => {
         // The freshest sheet decides: a field typed a moment ago is no longer a fill.
         const fresh = blocks.find((row) => row.id === block.id) ?? block;
-        const picked = confirmAllCandidates(fresh, pending, registry);
+        const picked = confirmAllCandidates(fresh, pending, registry, definitions);
         done = picked.length;
-        skipped = suggestionGroupCounts(fresh, pending, registry).verify;
+        skipped = suggestionGroupCounts(fresh, pending, registry, definitions).verify;
         ids = picked.map((s) => s.id);
         return picked.length === 0 ? null : oil.drafts(blocks, by, picked.flatMap((s) => confirmSuggestionOps(by, s)));
       })

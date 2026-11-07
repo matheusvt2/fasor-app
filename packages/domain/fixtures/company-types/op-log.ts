@@ -117,13 +117,14 @@ interface Step {
 
 const measured = (raw: string, unit: string) => ({ raw, unit, state: 'measured' as const });
 
-const blockRow = (id: string, block_type: string, type_version: number, equipment_id: string, order_key: string, sub_blocks: Record<string, { enabled: boolean }>) => ({
+// e22h S2: a company block names its version row by id beside the number (`type_version_id`).
+const blockRow = (id: string, block_type: string, type_version: number, type_version_id: string, equipment_id: string, order_key: string, sub_blocks: Record<string, { enabled: boolean }>) => ({
   id,
   relatorio_id: RELATORIO_ID,
   location_id: CABINE_ID,
   equipment_id,
   block_type,
-  config: { block_type, sub_blocks, na_defaults: [], type_version },
+  config: { block_type, sub_blocks, na_defaults: [], type_version, type_version_id },
   seed_version: SEED_VERSION,
   order_key,
   feeds_block_id: null,
@@ -227,9 +228,9 @@ const steps: Step[] = [
   { kind: 'create', scope: 'project', path: `equipment/${EQUIPMENT_2_ID}`, value: { id: EQUIPMENT_2_ID, project_id: PROJECT_ID, tag: 'NB-02', type: TYPE_1, last_nameplate: null, removed_at: null } },
   { kind: 'create', scope: 'project', path: `equipment/${EQUIPMENT_3_ID}`, value: { id: EQUIPMENT_3_ID, project_id: PROJECT_ID, tag: 'FA-01', type: TYPE_2, last_nameplate: null, removed_at: null } },
   // A block of each version.
-  { kind: 'create', scope: 'relatorio', path: `block/${BLOCK_1_ID}`, value: blockRow(BLOCK_1_ID, TYPE_1, 1, EQUIPMENT_1_ID, 'a0', NOBREAK_SUB_BLOCKS) },
-  { kind: 'create', scope: 'relatorio', path: `block/${BLOCK_2_ID}`, value: blockRow(BLOCK_2_ID, TYPE_1, 2, EQUIPMENT_2_ID, 'a1', NOBREAK_SUB_BLOCKS) },
-  { kind: 'create', scope: 'relatorio', path: `block/${BLOCK_3_ID}`, value: blockRow(BLOCK_3_ID, TYPE_2, 1, EQUIPMENT_3_ID, 'a2', FONTE_SUB_BLOCKS) },
+  { kind: 'create', scope: 'relatorio', path: `block/${BLOCK_1_ID}`, value: blockRow(BLOCK_1_ID, TYPE_1, 1, VERSION_1_ID, EQUIPMENT_1_ID, 'a0', NOBREAK_SUB_BLOCKS) },
+  { kind: 'create', scope: 'relatorio', path: `block/${BLOCK_2_ID}`, value: blockRow(BLOCK_2_ID, TYPE_1, 2, VERSION_2_ID, EQUIPMENT_2_ID, 'a1', NOBREAK_SUB_BLOCKS) },
+  { kind: 'create', scope: 'relatorio', path: `block/${BLOCK_3_ID}`, value: blockRow(BLOCK_3_ID, TYPE_2, 1, VERSION_3_ID, EQUIPMENT_3_ID, 'a2', FONTE_SUB_BLOCKS) },
   // Sheet writes through the resolved definitions.
   { kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_1_ID}/nameplate/modelo`, value: 'NB-3000' },
   { kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_1_ID}/checklist/limpeza_e_fixacao/result`, value: 'C' },

@@ -1,4 +1,4 @@
-import { quantityLabel } from '@app/domain';
+import { quantityLabel, EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../test-axe.ts';
@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PRESS_AND_HOLD_MS } from '../input/use-press-and-hold.ts';
 import { QuantityStepper, STEP_REPEAT_MS } from './quantity-stepper.tsx';
 
-const label = (n: number) => quantityLabel('chave_seccionadora', n);
+const label = (n: number) => quantityLabel('chave_seccionadora', n, EMPTY_DEFINITION_CONTEXT);
 
 /** A stepper whose commits land in state, like the composer's live row. */
 function Harness({ initial = 0, onCommit = vi.fn() }: { initial?: number; onCommit?: (n: number) => void }) {

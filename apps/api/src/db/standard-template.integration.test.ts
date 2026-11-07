@@ -1,4 +1,4 @@
-import { instantiateTemplate, SEED_VERSION, SEEDED_VOLTAGE_CLASSES, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, instantiateTemplate, SEED_VERSION, SEEDED_VOLTAGE_CLASSES, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
 import { and, eq, like, or, sql as raw } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -88,7 +88,7 @@ async function companyWithV1Template(label: string) {
   const { relatorioId, drafts } = instantiateTemplate(
     v1,
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: 'system:identity', companyId },
   );
   const relatorioCreate = drafts.find((draft) => draft.path === `relatorio/${relatorioId}`)!;

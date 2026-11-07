@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blockTypeLabel } from '../relatorio/tree.ts';
-import { SEED_VERSION } from '../seed/definitions.ts';
+import { SEED_VERSION, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import type { SyncCounts } from './counts.ts';
 import {
   decisionsCountText,
@@ -92,6 +92,7 @@ describe('pendingSheetRows', () => {
   const BLOCK_C = '019966b0-0000-7000-8000-000000000052';
   const EQUIPMENT = '019966b0-0000-7000-8000-000000000070';
   const context = {
+    definitions: EMPTY_DEFINITION_CONTEXT,
     blocks: [
       { id: BLOCK_A, equipment_id: EQUIPMENT, block_type: 'chave_seccionadora', seed_version: SEED_VERSION },
       { id: BLOCK_B, equipment_id: null, block_type: 'chave_seccionadora', seed_version: SEED_VERSION },

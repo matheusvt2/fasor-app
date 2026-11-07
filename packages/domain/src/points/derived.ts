@@ -11,7 +11,7 @@ import { siteLocals, siteObservationOf, sitePointTitle, siteResultOf } from '../
 import { locationTree, treeNodes, type TreeEquipmentNode } from '../relatorio/tree.ts';
 import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 
 /*
@@ -109,13 +109,13 @@ function rowPhotoIds(photos: ReturnType<typeof livePhotos>, owner: { blockId: st
 const base = { reason_key: '', reason_label: '', justification: null, item_key: null, test_key: null, location_id: null } as const;
 
 /** The derived entries of one tested equipment sheet, in order: its NC rows, its out tests, then its Reprovado. */
-function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node: TreeEquipmentNode, title: string, photos: ReturnType<typeof livePhotos>): DerivedPoint[] {
+function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node: TreeEquipmentNode, title: string, photos: ReturnType<typeof livePhotos>, ctx: DefinitionContext): DerivedPoint[] {
   if (definition === null) return [];
   const out: DerivedPoint[] = [];
   const common = { block_id: block.id, equipment_id: block.equipment_id, name: node.name, title };
   if (definition.checklist !== null && enabledSubBlocksOf(block).has('checklist')) {
     definition.checklist.forEach((item, index) => {
-      if (checklistResultOf(block, item.key) !== 'NC') return;
+      if (checklistResultOf(block, item.key, ctx) !== 'NC') return;
       const cell = block.sheet.checklist[item.key]?.observation;
       const observation = isCellFilled(cell) && typeof cell!.value === 'string' ? cell!.value.trim() : null;
       out.push({
@@ -217,7 +217,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
       });
       continue;
     }
-    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos));
+    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos, ctx));
   }
   return out;
 }

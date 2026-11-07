@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   instantiateTemplate,
@@ -105,7 +106,7 @@ describe('4.1-API relatório creation as one batch', () => {
       const { relatorioId, drafts } = instantiateTemplate(
         template,
         { id: projectId },
-        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: company.userId, companyId: company.companyId },
       );
       expect(drafts).toHaveLength(223);

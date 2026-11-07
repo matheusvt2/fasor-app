@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SkeletonNode, TemplateBlock } from '../schemas/block-config.ts';
 import { templateRowSchema, type TemplateRow } from '../schemas/entities.ts';
-import { naDefaultsFor } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, naDefaultsFor } from '../seed/definitions.ts';
 import { defaultBlockConfig, LOCKED_SUB_BLOCKS, standardTemplate, templateTotals } from '../seed/template.ts';
 import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
 import { opFactory } from '../test-support.ts';
@@ -139,22 +139,22 @@ describe('3.4-UNIT quantities per node', () => {
       ['entrada', 1],
       ['saida', 1],
     ]);
-    const plus = setQuantity(template, 'enel', 'para_raio', 3);
+    const plus = setQuantity(template, 'enel', 'para_raio', 3, EMPTY_DEFINITION_CONTEXT);
     expect(enelPr(plus)).toEqual([
       ['entrada', 1],
       ['saida', 2],
     ]);
-    const minusTwice = setQuantity({ ...template, blocks: plus }, 'enel', 'para_raio', 1);
+    const minusTwice = setQuantity({ ...template, blocks: plus }, 'enel', 'para_raio', 1, EMPTY_DEFINITION_CONTEXT);
     expect(enelPr(minusTwice)).toEqual([['entrada', 1]]);
-    expect(enelPr(setQuantity({ ...template, blocks: minusTwice }, 'enel', 'para_raio', 0))).toEqual([]);
+    expect(enelPr(setQuantity({ ...template, blocks: minusTwice }, 'enel', 'para_raio', 0, EMPTY_DEFINITION_CONTEXT))).toEqual([]);
     valid({ ...standard, blocks: minusTwice });
   });
 
   it('a type new to the node gets one entry from defaultBlockConfig, after the node\'s other blocks', () => {
     const template = frozen(withColunas(2));
-    let blocks = setQuantity(template, 'k1', 'chave_seccionadora', 1);
-    blocks = setQuantity({ ...template, blocks }, 'k2', 'tp', 2);
-    blocks = setQuantity({ ...template, blocks }, 'k1', 'disjuntor_mt', 1);
+    let blocks = setQuantity(template, 'k1', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'tp', 2, EMPTY_DEFINITION_CONTEXT);
+    blocks = setQuantity({ ...template, blocks }, 'k1', 'disjuntor_mt', 1, EMPTY_DEFINITION_CONTEXT);
     expect(blocks.map((b) => [b.skeleton_location_ref, b.block_type, b.quantity])).toEqual([
       ['k1', 'chave_seccionadora', 1],
       ['k1', 'disjuntor_mt', 1],
@@ -171,11 +171,11 @@ describe('3.4-UNIT quantities per node', () => {
 
   it('clamps to 0..99, and zero removes the type from the node', () => {
     const template = withColunas(1);
-    const blocks = setQuantity(template, 'k1', 'tc', 250);
+    const blocks = setQuantity(template, 'k1', 'tc', 250, EMPTY_DEFINITION_CONTEXT);
     expect(blocks.filter((b) => b.skeleton_location_ref === 'k1' && b.block_type === 'tc').reduce((n, b) => n + b.quantity, 0)).toBe(99);
-    expect(setQuantity({ ...template, blocks }, 'k1', 'tc', 0)).toEqual([]);
-    expect(setQuantity({ ...template, blocks }, 'k1', 'tc', -3)).toEqual([]);
-    expect(() => setQuantity(template, 'nowhere', 'tc', 1)).toThrow(/no node/);
+    expect(setQuantity({ ...template, blocks }, 'k1', 'tc', 0, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
+    expect(setQuantity({ ...template, blocks }, 'k1', 'tc', -3, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
+    expect(() => setQuantity(template, 'nowhere', 'tc', 1, EMPTY_DEFINITION_CONTEXT)).toThrow(/no node/);
   });
 
   it('parses a typed quantity: digits clamp to 99, anything else is refused', () => {
@@ -200,7 +200,7 @@ describe('3.4-UNIT quantities per node', () => {
     let blocks: TemplateBlock[] = [];
     for (let i = 1; i <= 17; i++) {
       for (const type of ['chave_seccionadora', 'disjuntor_mt', 'tp', 'tc'] as const) {
-        blocks = setQuantity({ ...template, blocks }, `k${i}`, type, 1);
+        blocks = setQuantity({ ...template, blocks }, `k${i}`, type, 1, EMPTY_DEFINITION_CONTEXT);
       }
     }
     expect(templateTotals({ ...template, blocks })).toEqual({
@@ -221,7 +221,7 @@ describe('3.4-UNIT quantities per node', () => {
 
   it('blocks placed directly on a cabine with no coluna count and show on the cabine', () => {
     const template = { ...emptyTemplate(ID, 'v1'), skeleton: addCabine([], 'c1', 'Cubículo Enel') };
-    const blocks = setQuantity(template, 'c1', 'cabos_entrada', 1);
+    const blocks = setQuantity(template, 'c1', 'cabos_entrada', 1, EMPTY_DEFINITION_CONTEXT);
     const view = composerView({ ...template, blocks });
     expect(view.cabines[0]).toMatchObject({ blockCount: 1, totalBlockCount: 1, colunas: [] });
     expect(view.cabines[0]!.quantities.cabos_entrada).toBe(1);
@@ -304,7 +304,7 @@ describe('3.4-UNIT composerView', () => {
     valid(template);
     expect(composerView(template).totals.tp).toBe(11);
     expect(withoutOrphans(template)).toEqual(standard.blocks);
-    expect(setQuantity(template, 'enel', 'tp', 1)).toEqual(standard.blocks);
+    expect(setQuantity(template, 'enel', 'tp', 1, EMPTY_DEFINITION_CONTEXT)).toEqual(standard.blocks);
     expect(removeNode(template, 'geradores').blocks.some((b) => b.skeleton_location_ref === 'gone')).toBe(false);
   });
 });
@@ -344,8 +344,8 @@ describe('3.5-UNIT sub-block defaults per equipment type', () => {
 
   it('a subtype sets the seed\'s NA list for it and removes no item; no subtype clears it', () => {
     const template = withColunas(2);
-    let blocks = setQuantity(template, 'k1', 'tp', 1);
-    blocks = setQuantity({ ...template, blocks }, 'k2', 'tp', 2);
+    let blocks = setQuantity(template, 'k1', 'tp', 1, EMPTY_DEFINITION_CONTEXT);
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'tp', 2, EMPTY_DEFINITION_CONTEXT);
     const config = typeConfigFor(blocks, 'tp')!;
     const dry = setTypeDefaults(blocks, 'tp', { ...config, subtype: 'a_seco', na_defaults: naDefaultsFor('v1', 'tp', 'a_seco') });
     for (const block of dry) {
@@ -364,19 +364,19 @@ describe('3.5-UNIT sub-block defaults per equipment type', () => {
 
   it('a new placement of a type the template already holds starts from that type\'s config, not the seed default', () => {
     const template = withColunas(2);
-    let blocks = setQuantity(template, 'k1', 'chave_seccionadora', 1);
+    let blocks = setQuantity(template, 'k1', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
     const config = typeConfigFor(blocks, 'chave_seccionadora')!;
     blocks = setTypeDefaults(blocks, 'chave_seccionadora', {
       subtype: 'manual',
       sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } },
       na_defaults: naDefaultsFor('v1', 'chave_seccionadora', 'manual'),
     });
-    blocks = setQuantity({ ...template, blocks }, 'k2', 'chave_seccionadora', 1);
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
     const [first, second] = secc(blocks);
     expect(second).toEqual({ ...first, skeleton_location_ref: 'k2' });
     expect(second!.sub_blocks.nameplate).toEqual({ enabled: false });
     // A type new to the whole template still starts from the seed default.
-    blocks = setQuantity({ ...template, blocks }, 'k2', 'tc', 1);
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'tc', 1, EMPTY_DEFINITION_CONTEXT);
     expect(blocks.find((b) => b.block_type === 'tc')).toEqual({
       ...defaultBlockConfig('v1', 'tc'),
       quantity: 1,
@@ -522,8 +522,8 @@ describe('14.2-UNIT skeleton edits: Local › Painel › Coluna', () => {
     skeleton = addColuna(skeleton, 'P2', 'p2c1', 'Coluna 1');
     skeleton = addCabine(skeleton, 'outro', 'Geradores');
     let row: TemplateRow = { ...emptyTemplate(ID, 'v3'), skeleton };
-    row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2) };
-    for (const ref of ['legado', 'p1c1', 'p1c2', 'p2c1']) row = { ...row, blocks: setQuantity(row, ref, 'chave_seccionadora', 1) };
+    row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2, EMPTY_DEFINITION_CONTEXT) };
+    for (const ref of ['legado', 'p1c1', 'p1c2', 'p2c1']) row = { ...row, blocks: setQuantity(row, ref, 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT) };
     return row;
   }
   const refs = (skeleton: readonly SkeletonNode[]) => skeleton.map((n) => n.ref);
@@ -600,15 +600,15 @@ describe('14.2-UNIT skeleton edits: Local › Painel › Coluna', () => {
 
   it('matrix "Template block on a painel ref": setQuantity throws for a painel, and a stored block on one is ignored like an orphan', () => {
     const row = composed();
-    expect(() => setQuantity(row, 'P1', 'chave_seccionadora', 1)).toThrow(/is a painel/);
-    expect(() => setQuantity(row, 'P1', 'chave_seccionadora', 1)).not.toThrow(TemplateTargetGoneError);
+    expect(() => setQuantity(row, 'P1', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT)).toThrow(/is a painel/);
+    expect(() => setQuantity(row, 'P1', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT)).not.toThrow(TemplateTargetGoneError);
     const stored: TemplateRow = { ...row, blocks: [...row.blocks, { ...row.blocks.at(-1)!, skeleton_location_ref: 'P1', quantity: 3 }] };
     valid(stored);
     expect(withoutOrphans(stored)).toEqual(row.blocks);
     expect(composerView(stored).blockCount).toBe(composerView(row).blockCount);
     expect(templateTotals(stored)).toEqual(templateTotals(row));
     // The composer's next blocks write drops it.
-    expect(setQuantity(stored, 'p1c1', 'chave_seccionadora', 2).some((b) => b.skeleton_location_ref === 'P1')).toBe(false);
+    expect(setQuantity(stored, 'p1c1', 'chave_seccionadora', 2, EMPTY_DEFINITION_CONTEXT).some((b) => b.skeleton_location_ref === 'P1')).toBe(false);
   });
 
   it('composerView gives each local its Função, its direct quantities, its legacy colunas and its painéis with their colunas, and counts the three levels', () => {

@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { sectionPosition } from '../relatorio/section-position.ts';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
@@ -120,7 +121,7 @@ describe('13.8-UNIT-006 section refs when the printed numbering differs from FO.
     const { drafts } = instantiateTemplate(
       standardTemplate({ id: '019966c1-000d-7000-8000-000000000001' }),
       { id: portoSeguroSmall.projectId },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: () => `019966c1-000c-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: portoSeguroSmall.userId, companyId: portoSeguroSmall.companyId },
     );
     const sections = drafts
@@ -493,11 +494,11 @@ describe('14.10-UNIT-001 auditInput sends the filled sheets first and counts the
   function productionSnapshot(): RelatorioSnapshot {
     const pairs: { block: BlockRow; equipment: EquipmentRow }[] = [];
     for (let n = 0; n < 74; n += 1) {
-      const pair = newEquipmentBlock({ blockId: sheetId(n), equipmentId: equipmentId(n), relatorioId: RELATORIO, projectId: base.relatorio.project_id, locationId: LOCAL, type: TYPES[n % TYPES.length]!, tag: `EQ-${n}`, seedVersion: 'v5', orderKey: `a${n.toString().padStart(3, '0')}` });
+      const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: sheetId(n), equipmentId: equipmentId(n), relatorioId: RELATORIO, projectId: base.relatorio.project_id, locationId: LOCAL, type: TYPES[n % TYPES.length]!, tag: `EQ-${n}`, seedVersion: 'v5', orderKey: `a${n.toString().padStart(3, '0')}` });
       pairs.push(pair);
     }
     // A chave seccionadora with one observation, last of its type.
-    const sec = newEquipmentBlock({ blockId: FILLED_SEC, equipmentId: equipmentId(900), relatorioId: RELATORIO, projectId: base.relatorio.project_id, locationId: LOCAL, type: 'chave_seccionadora', tag: 'SEC-ULTIMA', seedVersion: 'v5', orderKey: 'z0' });
+    const sec = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: FILLED_SEC, equipmentId: equipmentId(900), relatorioId: RELATORIO, projectId: base.relatorio.project_id, locationId: LOCAL, type: 'chave_seccionadora', tag: 'SEC-ULTIMA', seedVersion: 'v5', orderKey: 'z0' });
     pairs.push({ ...sec, block: { ...sec.block, sheet: { ...sec.block.sheet, observations: { value: 'Contatos com sinais de aquecimento', source_suggestion_id: null, op_id: '019966c1-0001-7000-8000-00000000c010' } } } });
     // The CTA, filled through the fold, printed in the last group ("Outros equipamentos").
     const { state, f } = ctaState();

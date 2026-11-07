@@ -309,7 +309,7 @@ async function run(): Promise<number> {
   for (const sample of samples) {
     const fields = fieldsOf(sample.expected);
     // Story 21.2: the transformer's vector-group field, asked for as the plate job asks for it.
-    const groupField = sample.expected.kind === 'plate' ? fields.find((field) => isVectorGroupField(sample.expected.block_type!, field.key)) : undefined;
+    const groupField = sample.expected.kind === 'plate' ? fields.find((field) => isVectorGroupField(sample.expected.block_type!, field)) : undefined;
     const groupKey = groupField?.key;
     const group = groupKey === undefined ? null : { sample: sample.name, expected: sample.expected.values[groupKey] ?? '-', read: new Map<string, string>() };
     if (group !== null) groups.push(group);

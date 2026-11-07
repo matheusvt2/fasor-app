@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptySheet, suggestionRowSchema, type BlockRow, type Cell, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { displayCellTarget, displayEnvTarget } from '../reading/target.ts';
 import { TEST_RELATORIO } from '../test-support.ts';
 import {
@@ -113,9 +113,9 @@ describe('9.1-UNIT the targets of a display suggestion', () => {
     const sheet = suggestion(cellPath('isolacao', 0, 0), n('147'));
     const gone = suggestion(cellPath('isolacao', 0, 0, OTHER), n('147'));
     const blocks = [chave(), { ...chave(), id: OTHER, removed_at: '2026-09-28T10:00:00.000Z' }];
-    expect(livePendingSuggestions(blocks, [env, sheet, gone])).toEqual([sheet]);
-    expect(livePendingSuggestions(blocks, [env, sheet, gone], [cabine()])).toEqual([env, sheet]);
-    expect(livePendingSuggestions(blocks, [env], [{ ...cabine(), removed_at: '2026-09-28T10:00:00.000Z' }])).toEqual([]);
+    expect(livePendingSuggestions(blocks, [env, sheet, gone], [], EMPTY_DEFINITION_CONTEXT)).toEqual([sheet]);
+    expect(livePendingSuggestions(blocks, [env, sheet, gone], [cabine()], EMPTY_DEFINITION_CONTEXT)).toEqual([env, sheet]);
+    expect(livePendingSuggestions(blocks, [env], [{ ...cabine(), removed_at: '2026-09-28T10:00:00.000Z' }], EMPTY_DEFINITION_CONTEXT)).toEqual([]);
     expect([...blocksWithPendingSuggestions([env, sheet])]).toEqual([BLOCK]);
   });
 });
@@ -133,7 +133,7 @@ describe('9.1-UNIT Measurement cell suggestions', () => {
       suggestion(cellPath('isolacao', 0, 0, OTHER), n('1')),
       suggestion(cellPath('isolacao', 3, 0), n('1'), { status: 'confirmed' }),
     ];
-    const entries = measurementSuggestions(block, rows);
+    const entries = measurementSuggestions(block, rows, EMPTY_DEFINITION_CONTEXT);
     expect(entries.map((e) => [e.address, (e.suggestion.value as { raw: string }).raw, e.view])).toEqual([
       [{ testKey: 'isolacao', row: 0, col: 0 }, '120', 'fill'],
       [{ testKey: 'isolacao', row: 1, col: 0 }, '147.0', 'none'],
@@ -151,12 +151,12 @@ describe('9.1-UNIT Measurement cell suggestions', () => {
     const replace = suggestion(cellPath('isolacao', 1, 0), n('147'));
     const closed = suggestion(cellPath('isolacao', 3, 0), n('150'));
     const rows = [fill, verify, replace, closed];
-    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto')).toEqual([fill]);
-    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_fechado')).toEqual([closed]);
-    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'nope')).toEqual([]);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [], EMPTY_DEFINITION_CONTEXT)).toEqual([fill]);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_fechado', [], EMPTY_DEFINITION_CONTEXT)).toEqual([closed]);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'nope', [], EMPTY_DEFINITION_CONTEXT)).toEqual([]);
     // Its verify count is the table's own too.
-    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto')).toBe(1);
-    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_fechado')).toBe(0);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto', [], EMPTY_DEFINITION_CONTEXT)).toBe(1);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_fechado', [], EMPTY_DEFINITION_CONTEXT)).toBe(0);
   });
 
   it('E9-Q1 "Confirmar todos" leaves out a cell that shows a dictated reading, in its count and its batch', () => {
@@ -165,12 +165,12 @@ describe('9.1-UNIT Measurement cell suggestions', () => {
     const other = suggestion(cellPath('isolacao', 1, 0), n('150'));
     const verify = suggestion(cellPath('isolacao', 2, 0), n('147'), { trust: 'verify' });
     const rows = [dictatedOver, other, verify];
-    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto')).toEqual([dictatedOver, other]);
-    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'isolacao', row: 0, col: 0 }])).toEqual([other]);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [], EMPTY_DEFINITION_CONTEXT)).toEqual([dictatedOver, other]);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'isolacao', row: 0, col: 0 }], EMPTY_DEFINITION_CONTEXT)).toEqual([other]);
     // Another test's address with the same row and column excludes nothing here.
-    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'resistencia_contato', row: 0, col: 0 }])).toEqual([dictatedOver, other]);
-    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'isolacao', row: 2, col: 0 }])).toBe(0);
-    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto')).toBe(1);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'resistencia_contato', row: 0, col: 0 }], EMPTY_DEFINITION_CONTEXT)).toEqual([dictatedOver, other]);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'isolacao', row: 2, col: 0 }], EMPTY_DEFINITION_CONTEXT)).toBe(0);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto', [], EMPTY_DEFINITION_CONTEXT)).toBe(1);
   });
 });
 

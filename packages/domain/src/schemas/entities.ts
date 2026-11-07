@@ -7,7 +7,7 @@ import { checkTemplateRow } from '../seed/template-rules.ts';
 import { equipmentBlockTypeSchema, funcaoSchema, itemKeySchema, nodeNameSchema, siteItemKeySchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
-import { companyTypeDefinitionSchema, companyTypeDraftSchema } from '../types/definition.ts';
+import { companyTypeDraftSchema, companyTypeVersionDefinitionSchema } from '../types/definition.ts';
 
 /*
  * Row schemas for every entity the op log materializes (AD-5, AD-10, AD-18).
@@ -296,15 +296,16 @@ export const equipmentTypeRowSchema = z.object({
 
 /**
  * Story 14.6: one published version of a company type, immutable by construction (its family is
- * create only): `version` is the type's `latest_version + 1` at publish, `definition` the strict
- * definition (`companyTypeDefinitionSchema`). A block and a template block name it by
+ * create only): `version` is the type's `latest_version + 1` at publish, `definition` the
+ * definition the strict schema (`companyTypeDefinitionSchema`) accepted at publish, read back with
+ * its tolerant structural shape (`companyTypeVersionDefinitionSchema`, fix batch e22h N3). A block and a template block name it by
  * `{block_type: type:{type_id}, type_version: version}`.
  */
 export const equipmentTypeVersionRowSchema = z.object({
   id: uuidV7Schema,
   type_id: uuidV7Schema,
   version: z.number().int().min(1),
-  definition: companyTypeDefinitionSchema,
+  definition: companyTypeVersionDefinitionSchema,
   published_by: actorIdSchema,
   published_at: isoTimestampSchema,
 });

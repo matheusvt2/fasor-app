@@ -8,7 +8,7 @@ import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, JsonValue, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { SEED_VERSIONS } from '../seed/definitions.ts';
+import { SEED_VERSIONS, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { readingSlotsOf } from './last-results.ts';
@@ -98,7 +98,7 @@ describe('22.3 the fitted tables of every seed version hold their longest seeded
       const selects = (fields: readonly FieldDef[]) => Object.fromEntries(fields.filter((f) => f.kind === 'select').map((f) => [f.key, widest(f.options!)]));
       const local = cabine({ se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null, ...selects(seed.cabine.se) } as never, env: { altitude_m: null, temperature_c: null, humidity_pct: null, ...selects(seed.cabine.env) } as never });
       const built = Object.values(seed.blocks).map((definition, n) => {
-        const one = newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: definition!.block_type as EquipmentBlockType, tag: `T${n}`, seedVersion: version, orderKey: `a${n}` });
+        const one = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: definition!.block_type as EquipmentBlockType, tag: `T${n}`, seedVersion: version, orderKey: `a${n}` });
         const block: BlockRow = structuredClone(one.block);
         for (const [key, value] of Object.entries(selects(definition!.nameplate))) block.sheet.nameplate[key] = cell(value);
         let config: JsonValue = block.config;
@@ -154,7 +154,7 @@ describe('e22g B1: the reading tables of every seed version hold every word whol
   function snapshotOf(version: string, previous: boolean, mixed: boolean): RelatorioSnapshot {
     const seed = SEED_VERSIONS[version]!.report_types.cabine_primaria;
     const built = Object.values(seed.blocks).map((definition, n) => {
-      const one = newEquipmentBlock({ blockId: id(3000 + n), equipmentId: id(4000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: definition!.block_type as EquipmentBlockType, tag: `T${n}`, seedVersion: version, orderKey: `a${n}` });
+      const one = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(3000 + n), equipmentId: id(4000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: definition!.block_type as EquipmentBlockType, tag: `T${n}`, seedVersion: version, orderKey: `a${n}` });
       const block: BlockRow = structuredClone(one.block);
       const put = (testKey: string, row: number, col: number, value: JsonValue) => {
         const test = (block.sheet.test[testKey] ??= { instrument: null, criterion_override: null, cells: {} } as never);

@@ -92,7 +92,7 @@ export const plateHandler: ReadingKindHandler = {
       async run({ providers, image, runId, newId }) {
         const ocr = await readOcr(providers, image, { mode: 'text' });
         // Story 21.2: a transformador de força's LIGAÇÃO SECUNDÁRIA is its vector group, asked for printed or drawn.
-        const groupField = fields.find((field) => isVectorGroupField(block.block_type, field.key));
+        const groupField = fields.find((field) => isVectorGroupField(block.block_type, field));
         const input: PlateStructuringInput = { image: { bytes: image.bytes, mime: image.mime }, ocr, fields: [...fields], ...(groupField === undefined ? {} : { vectorGroupKey: groupField.key }) };
         const build = (structuring: StructuringResult) =>
           buildReadingSuggestions({

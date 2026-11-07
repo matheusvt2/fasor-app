@@ -25,6 +25,7 @@ import {
   removeSection,
   resolveSectionIndex,
   renameNode,
+  recordedTypeVersions,
   isCompanyBlockType,
   isEquipmentBlockType,
   isSectionBlockType,
@@ -441,9 +442,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   );
   // Story 14.8 (AD-21 item 5): the version each company type's placements record.
   const naming = useMemo(() => {
-    const recorded = new Map<string, number>();
-    for (const block of liveBlocks) if (isCompanyBlockType(block.block_type) && block.type_version !== undefined && !recorded.has(block.block_type)) recorded.set(block.block_type, block.type_version);
-    return { definitions, seedVersion: row.seed_version, recorded };
+    return { definitions, seedVersion: row.seed_version, recorded: recordedTypeVersions(liveBlocks) };
   }, [definitions, liveBlocks, row.seed_version]);
   // Fix batch fxpw G2: the sections the rendered composition holds.
   const heldSections = useMemo(() => heldSectionTypes(liveBlocks), [liveBlocks]);

@@ -3,7 +3,7 @@ import { safeParsePath } from '../ops/path.ts';
 import { canonicalDecimal } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import type { BlockRow, Cell, LocationRow, SuggestionRow } from '../schemas/entities.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { isNameplateFieldExcused } from './dry-insulation.ts';
@@ -95,7 +95,9 @@ export function suggestionTarget(path: string): SuggestionTarget | null {
 export function livePendingSuggestions(
   blocks: readonly Pick<BlockRow, 'id' | 'removed_at' | 'config' | 'sheet' | 'seed_version' | 'block_type'>[],
   pending: readonly SuggestionRow[],
-  locations: readonly Pick<LocationRow, 'id' | 'kind' | 'removed_at'>[] = [],
+  locations: readonly Pick<LocationRow, 'id' | 'kind' | 'removed_at'>[],
+  /** e22h: a company block's excused fields are its version's (its oil rule). */
+  ctx: DefinitionContext,
 ): SuggestionRow[] {
   const live = new Map(blocks.filter((block) => block.removed_at === null).map((block) => [block.id, block]));
   const cabines = new Set(locations.filter((location) => location.removed_at === null && location.kind === 'cabine').map((location) => location.id));
@@ -107,7 +109,7 @@ export function livePendingSuggestions(
     const block = live.get(target.block_id);
     if (block === undefined) return false;
     const key = nameplateKeyOf(row, block.id);
-    return key === null || !isNameplateFieldExcused(block, key);
+    return key === null || !isNameplateFieldExcused(block, key, ctx);
   });
 }
 
@@ -127,7 +129,7 @@ export function suggestionFieldDef(
   block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>,
   s: Pick<SuggestionRow, 'target_path'>,
   /** Story 14.6: a company block's plate is its version's. */
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): FieldDef | null {
   const key = nameplateKeyOf(s, block.id);
   if (key === null) return null;

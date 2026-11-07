@@ -1,4 +1,5 @@
-import { SEEDED_CRITERIA } from '../seed/criteria.ts';
+import { accuracyClassDeviation } from '../relatorio/accuracy-class.ts';
+import { SEEDED_CRITERIA, formatCriterionValue } from '../seed/criteria.ts';
 import { equipmentTypesOf, findDefinition } from '../seed/definitions.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { plural } from '../text/plural.ts';
@@ -164,6 +165,11 @@ export function updateDraftItem(draft: CompanyTypeDraft | null, index: number, p
 export const NC_PHRASES_MAX = 4;
 export const NC_PHRASES_MIN = 3;
 
+/** Fix batch e22h (N2): whether an item holds as many NC phrases as it takes (no add input, the "full" note). */
+export function ncPhrasesFull(phrases: readonly unknown[]): boolean {
+  return phrases.length >= NC_PHRASES_MAX;
+}
+
 // --- moving and removing entries -----------------------------------------------------------------
 
 export type DraftListPart = 'nameplate' | 'checklist' | 'tests' | 'measurement_tests';
@@ -195,7 +201,7 @@ function pruneCriteria(draft: Draft): void {
   draft.criteria = listOf(draft, 'criteria').filter((criterion) => named.has(textOf(criterion.key)));
 }
 
-/** One entry removed; a removed field leaves no test naming it, a removed test leaves no criterion only it named. */
+/** One entry removed; a removed field or item leaves no test or oil rule naming it, a removed test leaves no criterion only it named. */
 export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): CompanyTypeDraft {
   const next = asDraft(draft);
   const list = listOf(next, part);
@@ -208,11 +214,29 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
     const key = textOf(removed.key);
     for (const test of listOf(next, 'tests')) {
       if (test.criterion_class_field === key) delete test.criterion_class_field;
+      // Review e22h finding 4: the voltage field takes the bands with it; the SELV/PELV field only its own band.
       const bands = test.criterion_bands as Entry | undefined;
-      if (bands !== undefined && (bands.field === key || bands.selv_field === key)) delete test.criterion_bands;
+      if (bands !== undefined && bands.field === key) delete test.criterion_bands;
+      else if (bands !== undefined && bands.selv_field === key) {
+        delete bands.selv_field;
+        delete bands.selv;
+        delete bands.selv_max_voltage;
+      }
       for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
         for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) if (row.winding === key) row.winding = null;
       }
+    }
+    // Fix batch e22h (S1): the oil rule a copy carries loses its field with it, or that excused field.
+    const rule = next.oil_rule as Entry | undefined;
+    if (rule !== undefined && rule.field === key) delete next.oil_rule;
+    else if (rule !== undefined && Array.isArray(rule.fields)) rule.fields = rule.fields.filter((field) => field !== key);
+  }
+  if (part === 'checklist') {
+    const rule = next.oil_rule as Entry | undefined;
+    if (rule !== undefined && Array.isArray(rule.items)) {
+      const items = (rule.items as unknown[]).filter((item) => item !== textOf(removed.key));
+      rule.items = items;
+      if (items.length === 0) delete next.oil_rule;
     }
   }
   if (part === 'tests' || part === 'measurement_tests') pruneCriteria(next);
@@ -488,4 +512,84 @@ export function updateDraftCriterion(
   }
   next.criteria = criteria;
   return back(next);
+}
+
+// --- a criterion the plate picks (fix batch e22h S1) ---------------------------------------------
+
+/** What the Critérios tab shows on a row a test picks from the plate, read-only (editing bands is a later story). */
+export interface PlateCriterionView {
+  /** "Escolhido pela placa: TENSÃO NOMINAL". */
+  lead: string;
+  /** One line per band or class rule ("até 500 V: >=0,5 MΩ · NBR 5410"). */
+  lines: string[];
+  /** Whether the row's own rule and value still judge a reading: never under bands, under a class while the plate names none. */
+  rowJudges: boolean;
+  /** What the row's own rule and value do. */
+  rowNote: string;
+}
+
+const fieldLabelIn = (draft: Draft, key: unknown): string => {
+  const field = listOf(draft, 'nameplate').find((entry) => entry.key === key);
+  const label = textOf(field?.label).trim();
+  return label === '' ? textOf(key) : label;
+};
+
+const decimal = (value: number): string => String(value).replace('.', ',');
+
+/** A band criterion as `formatCriterionValue` words it, with its source (">=0,5 MΩ · NBR 5410"). */
+function bandText(band: Entry): string {
+  const value = typeof band.value === 'number' ? band.value : 0;
+  const unit = typeof band.unit === 'string' ? band.unit : null;
+  const operator = band.operator === '>' ? '>' : '>=';
+  const source = band.source !== null && typeof band.source === 'object' ? textOf((band.source as Entry).name).trim() : '';
+  const criterion = formatCriterionValue({ operator, value, unit });
+  return source === '' ? criterion : `${criterion} · ${source}`;
+}
+
+// The protection classes in the order the line names them, each judged at `accuracyClassDeviation`.
+const PROTECTION_CLASS_ORDER = ['3P', '5P', '6P', '10P'] as const;
+
+/**
+ * The plate-picked view of the criteria row at `index`: the bands (`criterion_bands`, the
+ * Quadro elétrico's NBR 5410 voltage bands) or the accuracy class (`criterion_class_field`, the TC
+ * and TP) of the first test naming it that picks its criterion from the plate; null for a row no
+ * such test names. The row judges nothing under bands unless another test or table names it too.
+ */
+export function plateCriterionOf(draft: CompanyTypeDraft | null, index: number): PlateCriterionView | null {
+  const d = asDraft(draft);
+  const key = textOf(listOf(d, 'criteria')[index]?.key);
+  if (key === '') return null;
+  const naming = listOf(d, 'tests').filter((test) => test.criterion_key === key);
+  const picked = naming.find((test) => test.criterion_bands !== undefined || test.criterion_class_field !== undefined);
+  if (picked === undefined) return null;
+  const tables = listOf(d, 'measurement_tests').some((test) => ((Array.isArray(test.criteria) ? test.criteria : []) as Entry[]).some((criterion) => criterion.seeded === key));
+  const otherUse = tables || naming.some((test) => test.criterion_bands === undefined);
+  // authored: e22h S1, every sentence and line below.
+  if (picked.criterion_bands !== undefined && picked.criterion_bands !== null && typeof picked.criterion_bands === 'object') {
+    const bands = picked.criterion_bands as Entry;
+    const field = fieldLabelIn(d, bands.field);
+    const lines: string[] = [];
+    if (bands.selv !== null && typeof bands.selv === 'object') lines.push(`${fieldLabelIn(d, bands.selv_field)} SIM: ${bandText(bands.selv as Entry)}`);
+    const list = (Array.isArray(bands.bands) ? bands.bands : []) as Entry[];
+    for (const band of list) lines.push(`até ${decimal(typeof band.up_to === 'number' ? band.up_to : 0)} V: ${bandText(band)}`);
+    const last = list[list.length - 1];
+    if (last !== undefined && typeof last.up_to === 'number') lines.push(`acima de ${decimal(last.up_to)} V: critério não avaliado`);
+    return {
+      lead: `Escolhido pela placa: a faixa de tensão do campo ${field} julga cada leitura.`,
+      lines,
+      rowJudges: otherUse,
+      rowNote: otherUse ? 'Esta linha julga só as outras tabelas que a usam; a faixa da placa julga este ensaio.' : 'Esta linha não julga nenhuma leitura: a faixa da placa decide. Editar as faixas virá depois.',
+    };
+  }
+  const field = fieldLabelIn(d, picked.criterion_class_field);
+  const lines = [
+    'classe de medição (0,3 · 0,6 · 1,2…): ± o valor da classe, em %',
+    ...PROTECTION_CLASS_ORDER.map((cls) => `${cls}: ${formatCriterionValue({ operator: '±', value: accuracyClassDeviation(cls) ?? 0, unit: '%' })}`),
+  ];
+  return {
+    lead: `Escolhido pela placa: a classe de exatidão do campo ${field} julga cada leitura.`,
+    lines,
+    rowJudges: true,
+    rowNote: `Esta linha julga só enquanto a placa não informa a classe no campo ${field}.`,
+  };
 }

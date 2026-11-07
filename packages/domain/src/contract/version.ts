@@ -361,6 +361,13 @@
  * company does not hold is `op_target_missing` (`REFERENCE_FIELDS`). No seed version and no seed
  * file change: a row written before 33 parses to the same bytes, and a relatório holding only
  * seeded types snapshots byte-equal.
+ * Amended in place by e22h S2 (2026-11-07, before 33 was deployed): `BlockConfig` also gains
+ * `type_version_id` (the version row's uuidv7, beside `type_version` on a company type only;
+ * optional and never defaulted, a template block may omit it), and `applyOp` refuses as
+ * `SeedPathError` a company block create without it or naming a row that is not of its type and
+ * number, and a config put changing it; `equipment_types` keeps each block's own row when two
+ * share a number. A device whose publish was refused for its number renumbers it and the blocks
+ * naming its row on "Reenviar" (`resendRenumberedVersions`). MIN stays 33.
  */
 export const CONTRACT_VERSION = 33;
 

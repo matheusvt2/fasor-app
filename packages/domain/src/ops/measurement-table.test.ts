@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replaySmall } from '../../fixtures/replay-small/op-log.ts';
@@ -395,7 +396,7 @@ describe('two devices on one cell or value', () => {
     expect(block.sheet.test[E4]!.cells[String(rowOf(E4, 'td_3a'))]![String(colOf(E4, 'deixado'))]).toMatchObject({ value: { raw: '30' }, conflict: { value: { raw: '5' } } });
     // The same value from both: one plain cell, nothing to decide.
     expect(block.sheet.test[E1]!.cells['0']!['0']).toEqual({ value: { raw: '38', unit: 'µΩ', state: 'measured' }, source_suggestion_id: null, op_id: log[5]!.op_id });
-    const decisions = openDecisions({
+    const decisions = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT,
       relatorioId: TEST_RELATORIO,
       blocks: [block],
       locations: [ctaLocal()],
@@ -418,14 +419,14 @@ describe('two devices on one cell or value', () => {
       [metodo, 'E5 · Transferência', 'Método'],
     ]);
     // Each side reads as the sheet shows it: a number with its unit, a choice by its option's label, never its key.
-    const context = { blocks: [block], locations: [ctaLocal()], equipment: [ctaRows().equipment], users: [], viewerActorId: TEST_USER, viewerDeviceId: 'tablet-ana' };
+    const context = { definitions: EMPTY_DEFINITION_CONTEXT, blocks: [block], locations: [ctaLocal()], equipment: [ctaRows().equipment], users: [], viewerActorId: TEST_USER, viewerDeviceId: 'tablet-ana' };
     expect(cells.map((cell) => [conflictSideView(cell, cell.standing, context, block).value, conflictSideView(cell, cell.displaced, context, block).value])).toEqual([
       ['30 min', '5 min'],
       ['Botão de teste do controlador', 'Falta real por abertura do disjuntor'],
     ]);
-    expect(conflictValueText(cells[1]!, choice('nao_realizado'), block)).toBe('Não realizado');
+    expect(conflictValueText(cells[1]!, choice('nao_realizado'), block, EMPTY_DEFINITION_CONTEXT)).toBe('Não realizado');
     // Without the block there is no definition to read the option from: the stored key, as before.
-    expect(conflictValueText(cells[1]!, choice('botao_teste'))).toBe('botao_teste');
+    expect(conflictValueText(cells[1]!, choice('botao_teste'), undefined, EMPTY_DEFINITION_CONTEXT)).toBe('botao_teste');
   });
 });
 

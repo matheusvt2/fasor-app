@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { HOME_PAGE_SIZES, homePageSizeTarget, homeStatusTileTarget, newEquipmentBlock, type LocationRow, type RelatorioRow, type RelatorioStatus, type RelatorioSummary } from '@app/domain';
+import { HOME_PAGE_SIZES, homePageSizeTarget, homeStatusTileTarget, newEquipmentBlock, type LocationRow, type RelatorioRow, type RelatorioStatus, type RelatorioSummary, EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -285,7 +285,7 @@ describe('Home: relatório cards', () => {
       agrupar_por_tipo: false,
     };
     const sheet = (tag: string, orderKey: string) =>
-      newEquipmentBlock({
+      newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
         blockId: ids(),
         equipmentId: ids(),
         relatorioId: R_FIELD_HERE,
@@ -375,7 +375,7 @@ describe('Home: relatório cards', () => {
     await seedCompany(database);
     await database.entities.put(toRecord(`relatorio:${R_DRAFT}`, relatorio(R_DRAFT, 'rascunho', 'Oxigênio', null)));
     const sheet = (tag: string) =>
-      newEquipmentBlock({
+      newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
         blockId: ids(),
         equipmentId: ids(),
         relatorioId: R_DRAFT,

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { newEquipmentBlock, type BlockRemovalDecision, type BlockRow, type DecisionTextContext, type LocationRow } from '@app/domain';
+import { newEquipmentBlock, type BlockRemovalDecision, type BlockRow, type DecisionTextContext, type LocationRow, EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -70,7 +70,7 @@ async function seeded(): Promise<AppDatabase> {
     { ...base, id: COLUNA_5, parent_id: PAINEL, kind: 'coluna', name: 'Coluna 5', order_key: 'a0' },
     { ...base, id: COLUNA_6, parent_id: PAINEL, kind: 'coluna', name: 'Coluna 6', order_key: 'a1' },
   ];
-  const pair = newEquipmentBlock({ blockId: SHEET, equipmentId: EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
+  const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: SHEET, equipmentId: EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
   const marked: BlockRow = {
     ...pair.block,
     removed_at: T,
@@ -112,7 +112,7 @@ describe('14.2 second pass: "Manter a ficha" of a sheet removed with its locatio
     expect(snapshot.blocks.some((block) => block.id === SHEET)).toBe(false);
     expect(snapshot.locations.map((row) => row.id)).toEqual([LOCAL]);
 
-    const context: DecisionTextContext = { blocks: entry!.blocks, equipment: entry!.equipment, locations: entry!.locations, users: [], viewerActorId: USER, viewerDeviceId: 'tablet-1' };
+    const context: DecisionTextContext = { definitions: EMPTY_DEFINITION_CONTEXT, blocks: entry!.blocks, equipment: entry!.equipment, locations: entry!.locations, users: [], viewerActorId: USER, viewerDeviceId: 'tablet-1' };
     const { result } = renderHook(() => useDecisionActions(), { wrapper });
     await act(async () => {
       await result.current.keep(entry!, decision, context);

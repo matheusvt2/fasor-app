@@ -2,7 +2,7 @@ import { safeParsePath } from '../ops/path.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { displayCellTargetSchema } from '../reading/target.ts';
 import type { BlockRow, Cell, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { overRangeText } from './over-range.ts';
 import { evaluateSheetReadings, type CellAddress, type TestKey } from './readings.ts';
@@ -45,7 +45,7 @@ export function measurementSuggestions(
   block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'> & Partial<Pick<BlockRow, 'config'>>,
   pending: readonly SuggestionRow[],
   /** Story 14.6: a company block's tests are its version's. */
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): MeasurementSuggestion[] {
   const byCell = new Map<string, { address: CellAddress; suggestion: SuggestionRow }>();
   for (const row of pending) {
@@ -87,7 +87,7 @@ function tableFills(
   testKey: string,
   tableKey: string,
   exclude: readonly CellAddress[],
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): MeasurementSuggestion[] {
   const rows = tableRows(block, testKey, tableKey, ctx);
   if (rows === null) return [];
@@ -108,9 +108,10 @@ export function measurementConfirmAllCandidates(
   pending: readonly SuggestionRow[],
   testKey: string,
   tableKey: string,
-  exclude: readonly CellAddress[] = [],
+  exclude: readonly CellAddress[],
+  ctx: DefinitionContext,
 ): SuggestionRow[] {
-  return tableFills(block, pending, testKey, tableKey, exclude)
+  return tableFills(block, pending, testKey, tableKey, exclude, ctx)
     .filter((entry) => entry.suggestion.trust === 'suggested')
     .map((entry) => entry.suggestion);
 }
@@ -121,9 +122,10 @@ export function measurementTableVerifyCount(
   pending: readonly SuggestionRow[],
   testKey: string,
   tableKey: string,
-  exclude: readonly CellAddress[] = [],
+  exclude: readonly CellAddress[],
+  ctx: DefinitionContext,
 ): number {
-  return tableFills(block, pending, testKey, tableKey, exclude).filter((entry) => entry.suggestion.trust === 'verify').length;
+  return tableFills(block, pending, testKey, tableKey, exclude, ctx).filter((entry) => entry.suggestion.trust === 'verify').length;
 }
 
 export interface MismatchPart {

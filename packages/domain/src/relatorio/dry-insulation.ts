@@ -1,5 +1,5 @@
 import type { BlockRow, EquipmentRow } from '../schemas/entities.ts';
-import { blockDefinitionIn, findDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { BlockDefinition, SubtypeDef } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
@@ -59,18 +59,19 @@ function subtypeOf(block: Pick<BlockRow, 'config'>): string | null {
   return typeof subtype === 'string' ? subtype : null;
 }
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  return findDefinition(block.seed_version, block.block_type);
+/** e22h: through the context, so a company sheet reads its version's plate and rule. */
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>, ctx: DefinitionContext): BlockDefinition | null {
+  return blockDefinitionIn(ctx, block);
 }
 
 /** A dry unit: its config subtype is `epoxi` or `a_seco`, or its stored TIPO DE ISOLAÇÃO names one. */
-export function isDryBlock(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>): boolean {
-  if (oilRuleOf(block) !== null) return isOilUnit(block) === false;
+export function isDryBlock(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, ctx: DefinitionContext): boolean {
+  if (oilRuleOf(block, ctx) !== null) return isOilUnit(block, ctx) === false;
   const subtype = subtypeOf(block);
   if (subtype !== null && DRY_SUBTYPE_KEYS.has(subtype)) return true;
   const cell = block.sheet.nameplate[INSULATION_FIELD_KEY];
   if (!isCellFilled(cell)) return false;
-  return drySubtypeOfInsulation(definitionOf(block), cell!.value) !== null;
+  return drySubtypeOfInsulation(definitionOf(block, ctx), cell!.value) !== null;
 }
 
 /**
@@ -81,9 +82,9 @@ export function isDryBlock(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_vers
  * insulation is not dry, the block has a subtype or its type has no TIPO DE ISOLAÇÃO. The chip
  * shows while this is non-empty.
  */
-export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, options: { used: boolean }): string[] {
-  if (options.used || subtypeOf(block) !== null || oilRuleOf(block) !== null) return [];
-  const definition = definitionOf(block);
+export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, options: { used: boolean }, ctx: DefinitionContext): string[] {
+  if (options.used || subtypeOf(block) !== null || oilRuleOf(block, ctx) !== null) return [];
+  const definition = definitionOf(block, ctx);
   if (definition === null || definition.checklist === null) return [];
   const cell = block.sheet.nameplate[INSULATION_FIELD_KEY];
   if (!isCellFilled(cell)) return [];
@@ -99,11 +100,11 @@ export function oilNaChipItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_
  * (`isOilFieldExcused`). Never missing, printed "-" whatever is stored. False for a block with
  * no definition.
  */
-export function isNameplateFieldExcused(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, fieldKey: string): boolean {
-  const definition = definitionOf(block);
+export function isNameplateFieldExcused(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, fieldKey: string, ctx: DefinitionContext): boolean {
+  const definition = definitionOf(block, ctx);
   if (definition === null) return false;
-  if (definition.oil_rule !== undefined) return isOilFieldExcused(block, fieldKey);
-  return fieldKey === OIL_VOLUME_FIELD_KEY && isDryBlock(block);
+  if (definition.oil_rule !== undefined) return isOilFieldExcused(block, fieldKey, ctx);
+  return fieldKey === OIL_VOLUME_FIELD_KEY && isDryBlock(block, ctx);
 }
 
 /**
@@ -111,8 +112,8 @@ export function isNameplateFieldExcused(block: Pick<BlockRow, 'config' | 'sheet'
  * control. An excused field prints "-" whatever is stored, so it offers no N/A; every other
  * field of the plate does.
  */
-export function nameplateAcceptsNotApplicable(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, fieldKey: string): boolean {
-  return !isNameplateFieldExcused(block, fieldKey);
+export function nameplateAcceptsNotApplicable(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, fieldKey: string, ctx: DefinitionContext): boolean {
+  return !isNameplateFieldExcused(block, fieldKey, ctx);
 }
 
 /**
@@ -123,24 +124,25 @@ export function nameplateAcceptsNotApplicable(block: Pick<BlockRow, 'config' | '
  * `optional` (seed v6, the QGBT's SELV/PELV mark). Empty for an unknown block, one with no definition or a disabled nameplate.
  */
 export function nameplateMissingKeys(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   blockId: string,
 ): ReadonlySet<string> {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined || !enabledSubBlocksOf(block).has('nameplate')) return new Set();
   // Story 14.6: a company sheet's plate is its version's, from the snapshot.
-  const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
+  const ctx = snapshotDefinitionContext(snapshot);
+  const definition = blockDefinitionIn(ctx, block);
   if (definition === null) return new Set();
   const prefilled =
     snapshot.equipment === undefined
       ? null
-      : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment, ...(snapshot.equipment_types === undefined ? {} : { equipment_types: snapshot.equipment_types }) }, block.id);
+      : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment, equipment_types: snapshot.equipment_types }, block.id);
   const missing = new Set<string>();
   for (const field of definition.nameplate) {
     if (isCellFilled(block.sheet.nameplate[field.key])) continue;
     if (field.key === 'tag' && prefilled !== null) continue;
     // VOL. ÓLEO on a dry v1-v5 block; seed v6: the rule's oil fields on a non-oil unit (Story 14.11).
-    if (isNameplateFieldExcused(block, field.key)) continue;
+    if (isNameplateFieldExcused(block, field.key, ctx)) continue;
     // A field the seed marks optional (Story 14.9).
     if (field.optional === true) continue;
     missing.add(field.key);

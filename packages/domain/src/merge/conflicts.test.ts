@@ -6,7 +6,7 @@ import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
-import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { syncBadgeState, syncCounts } from '../sync/counts.ts';
 import { composeConclusion, conclusionTextState } from '../relatorio/conclusion.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
@@ -146,7 +146,7 @@ describe('10.2 the contradiction mark', () => {
     expect(row.sheet.checklist[ITEM]?.result?.conflict).toEqual({ op_id: e1.op_id, value: 'C', source_suggestion_id: null });
     expect(row.sheet.checklist[OTHER_ITEM]?.result).toMatchObject({ value: 'NC', op_id: e2.op_id, merge: { rule: 'nc_over_c' } });
     expect(row.sheet.checklist[OTHER_ITEM]?.result?.conflict).toBeUndefined();
-    const decisions = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined });
+    const decisions = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined });
     expect(decisions).toHaveLength(1);
     expect((decisions[0] as CellDecision).cells.map((cell) => cell.path)).toEqual([result]);
   });
@@ -158,7 +158,7 @@ describe('10.2 the contradiction mark', () => {
     const kv = (raw: string): JsonValue => ({ raw, unit: 'kV', state: 'measured' });
     const { create, eduardo, ana } = world();
     const row = fold([create, eduardo(path, kv('5')), ana(path, kv('10'))]);
-    const decision = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
+    const decision = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
     expect(decision.cells.map((cell) => [cell.path, cell.label])).toEqual([[path, 'T1 · Tensão (kV)']]);
   });
 
@@ -169,7 +169,7 @@ describe('10.2 the contradiction mark', () => {
     const a1 = ana(reading, measured('3300'));
     const a2 = ana(otherResult, 'C');
     const before = fold([create, e1, e2, a1, a2]);
-    const decision = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [before], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
+    const decision = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [before], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
     expect(applyPickOps({ id: ANA, companyId: TEST_COMPANY }, decision, {})).toBeNull();
     const [draft] = applyPickOps({ id: ANA, companyId: TEST_COMPANY }, decision, { [reading]: 'displaced' })!;
     expect(draft).toMatchObject({ kind: 'put', path: reading, value: measured('330'), meta: null, relatorio_id: TEST_RELATORIO });
@@ -337,7 +337,7 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
   const EDITED = 'Texto editado por Eduardo.';
   const author = { id: ANA, companyId: TEST_COMPANY };
   const decisionOf = (row: BlockRow) =>
-    openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
+    openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
   type Triple = { text: unknown; status: unknown; basis: unknown };
   const tripleOf = (drafts: readonly { path: string; value: unknown }[]): Triple => ({
     text: drafts.find((d) => d.path === at('text'))?.value,
@@ -436,7 +436,7 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
         expect(row.sheet.conclusion.text?.value).toBe(second[0]!.value);
         expect(row.sheet.conclusion.text_basis?.value).toBe(second[2]!.value);
         expect(row.sheet.conclusion.text_basis?.merge).toBeUndefined();
-        expect(openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined })).toEqual([]);
+        expect(openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined })).toEqual([]);
       }
     }
   });
@@ -642,7 +642,7 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
     const { create, e, a } = editAndConclude();
     const decision = decisionOf(fold([create, ...e, ...a]));
     const cell = decision.cells[0]!;
-    const context = { blocks: [], equipment, locations: [], users: [], viewerActorId: ANA, viewerDeviceId: A_DEVICE };
+    const context = { definitions: EMPTY_DEFINITION_CONTEXT, blocks: [], equipment, locations: [], users: [], viewerActorId: ANA, viewerDeviceId: A_DEVICE };
     expect(conflictSideView(cell, cell.standing, context).meta).toContain('Confirmado');
     expect(conflictSideView(cell, cell.displaced, context).meta).toContain('Editado');
   });
@@ -651,10 +651,10 @@ describe('contract 16: the conclusion text, its status and its basis are one dec
 describe('conflictValueText: the conclusion words', () => {
   it('words the pair and the conclusion text status (r8conc-consistency-2); the text itself stays as written', () => {
     const at = (field: string) => ({ path: `sheet/019966b0-0012-7000-8000-000000000001/conclusion/${field}` });
-    expect(conflictValueText(at('result'), 'aprovado')).toBe('Aprovado');
-    expect(conflictValueText(at('text_status'), 'confirmed')).toBe('Confirmado');
-    expect(conflictValueText(at('text_status'), 'edited')).toBe('Editado');
-    expect(conflictValueText(at('text'), 'Texto editado.')).toBe('Texto editado.');
+    expect(conflictValueText(at('result'), 'aprovado', undefined, EMPTY_DEFINITION_CONTEXT)).toBe('Aprovado');
+    expect(conflictValueText(at('text_status'), 'confirmed', undefined, EMPTY_DEFINITION_CONTEXT)).toBe('Confirmado');
+    expect(conflictValueText(at('text_status'), 'edited', undefined, EMPTY_DEFINITION_CONTEXT)).toBe('Editado');
+    expect(conflictValueText(at('text'), 'Texto editado.', undefined, EMPTY_DEFINITION_CONTEXT)).toBe('Texto editado.');
   });
 });
 
@@ -662,9 +662,9 @@ describe('conflictValueText: an "N.A" side (Story 16.4)', () => {
   it('reads "N/A" on a nameplate or cabine number, never the empty raw', () => {
     const plate = { path: 'sheet/019966b0-0012-7000-8000-000000000001/nameplate/potencia_nominal' };
     const cabine = { path: 'location/019966b0-0012-7000-8000-000000000002/se/primary_kv' };
-    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER)).toBe('N/A');
-    expect(conflictValueText(cabine, NOT_APPLICABLE_NUMBER)).toBe('N/A');
-    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER, { seed_version: SEED_VERSION, block_type: 'transformador_forca' })).toBe('N/A');
+    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER, undefined, EMPTY_DEFINITION_CONTEXT)).toBe('N/A');
+    expect(conflictValueText(cabine, NOT_APPLICABLE_NUMBER, undefined, EMPTY_DEFINITION_CONTEXT)).toBe('N/A');
+    expect(conflictValueText(plate, NOT_APPLICABLE_NUMBER, { seed_version: SEED_VERSION, block_type: 'transformador_forca' }, EMPTY_DEFINITION_CONTEXT)).toBe('N/A');
   });
 });
 
@@ -674,7 +674,7 @@ describe('openDecisions and its words', () => {
     { id: ANA, name: 'Ana Alves' },
   ];
   const equipmentRow = (id: string, tag: string): EquipmentRow => ({ id, project_id: PROJECT, tag, type: 'chave_seccionadora', last_nameplate: null, removed_at: null });
-  const context = (blocks: BlockRow[], equipment: EquipmentRow[]): DecisionTextContext => ({
+  const context = (blocks: BlockRow[], equipment: EquipmentRow[]): DecisionTextContext => ({ definitions: EMPTY_DEFINITION_CONTEXT,
     blocks,
     equipment,
     locations: [{ id: LOC, name: 'Coluna 12' }],
@@ -701,7 +701,7 @@ describe('openDecisions and its words', () => {
     expect(holdsConflictMarks(removed)).toBe(true);
     expect(holdsConflictMarks(blockRow())).toBe(false);
 
-    const cellOnly = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [conflicted], locations: [], equipment, opOf: (id) => facts.get(id), createOpOf: () => undefined });
+    const cellOnly = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [conflicted], locations: [], equipment, opOf: (id) => facts.get(id), createOpOf: () => undefined });
     const decision = cellOnly[0] as CellDecision;
     expect(decisionCount(cellOnly)).toBe(1);
     const words = context([conflicted], equipment);
@@ -714,7 +714,7 @@ describe('openDecisions and its words', () => {
     expect(conflictSideView(cell, cell.displaced, words)).toMatchObject({ who: 'A de Eduardo', initial: 'E', value: '330 MΩ' });
     expect(conflictSideView(cell, cell.displaced, words).meta).toMatch(/^Digitado · \d\d\/\d\d \d\d:\d\d$/);
 
-    const removalOnly = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [removed], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined });
+    const removalOnly = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [removed], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined });
     expect(removalOnly).toEqual([
       { kind: 'block_removal', relatorio_id: TEST_RELATORIO, block_id: BLOCK, equipment_id: EQUIPMENT, removed_by: EDUARDO, removed_at: removal.client_ts, edited_by: ANA, edited_at: edit.client_ts },
     ]);
@@ -735,7 +735,7 @@ describe('openDecisions and its words', () => {
     const removal = eduardo(removedAt, null, null, { seen_modified_at: null }, 'remove');
     const row = fold([create, e, a, removal]);
     expect(row.sheet.checklist[ITEM]?.result?.conflict).toBeDefined();
-    const decisions = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined });
+    const decisions = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined });
     expect(decisions.map((decision) => decision.kind)).toEqual(['block_removal']);
   });
 
@@ -772,7 +772,7 @@ describe('openDecisions and its words', () => {
     const equipment = [equipmentRow(EQUIPMENT, 'SEC-C05'), equipmentRow(EQUIPMENT_2, 'SEC-C09')];
 
     // Given last, listed first: the sheet of the removed coluna stands where its coluna stood, before Painel 2.
-    const decisions = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [later, gone], locations, equipment, opOf: () => undefined, createOpOf: () => undefined });
+    const decisions = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [later, gone], locations, equipment, opOf: () => undefined, createOpOf: () => undefined });
     expect(decisions.map((decision) => [decision.kind, decision.kind === 'block_removal' ? decision.block_id : null])).toEqual([
       ['block_removal', BLOCK],
       ['block_removal', BLOCK_2],
@@ -780,7 +780,7 @@ describe('openDecisions and its words', () => {
 
     const decision = decisions[0]!;
     if (decision.kind !== 'block_removal') throw new Error('expected a removal');
-    const words: DecisionTextContext = { blocks: [later, gone], equipment, locations, users, viewerActorId: ANA, viewerDeviceId: A_DEVICE };
+    const words: DecisionTextContext = { definitions: EMPTY_DEFINITION_CONTEXT, blocks: [later, gone], equipment, locations, users, viewerActorId: ANA, viewerDeviceId: A_DEVICE };
     expect(conflictViewTitle(BLOCK, words)).toBe('SEC-C05 · Chave seccionadora · Coluna 5');
     expect(removalCardLines(decision, gone, words).removed).toEqual(['SEC-C05', 'Coluna 5', 'Ficha removida']);
     expect(removalKeptText(decision, words)).toBe('SEC-C05 mantido na Coluna 5 com as suas alterações');
@@ -806,16 +806,16 @@ describe('openDecisions and its words', () => {
       key === entityKey('equipment', EQUIPMENT) ? first : key === entityKey('equipment', EQUIPMENT_2) ? second : undefined;
     const pushedE = { actor_id: EDUARDO, device_id: E_DEVICE, client_ts: '2026-09-21T11:55:00.000Z', seq: 9 };
     const pushedA = { actor_id: ANA, device_id: A_DEVICE, client_ts: '2026-09-21T11:40:00.000Z', seq: 4 };
-    const [decision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks, locations: [], equipment, opOf: () => undefined, createOpOf: creates(pushedE, pushedA) });
+    const [decision] = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks, locations: [], equipment, opOf: () => undefined, createOpOf: creates(pushedE, pushedA) });
     expect(decision).toMatchObject({ kind: 'duplicate_tag', tag: 'sec-c09', earlier_equipment_id: EQUIPMENT_2, later_equipment_id: EQUIPMENT, later_block_id: BLOCK });
     const unpushedA = { actor_id: ANA, device_id: A_DEVICE, client_ts: '2026-09-21T11:40:00.000Z' };
-    const [unpushed] = openDecisions({ relatorioId: TEST_RELATORIO, blocks, locations: [], equipment, opOf: () => undefined, createOpOf: creates(pushedE, unpushedA) });
+    const [unpushed] = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks, locations: [], equipment, opOf: () => undefined, createOpOf: creates(pushedE, unpushedA) });
     expect(unpushed).toMatchObject({ earlier_equipment_id: EQUIPMENT, later_equipment_id: EQUIPMENT_2 });
     const sameDevice = { ...pushedE, seq: 10 };
-    expect(openDecisions({ relatorioId: TEST_RELATORIO, blocks, locations: [], equipment, opOf: () => undefined, createOpOf: creates(pushedE, sameDevice) })).toEqual([]);
+    expect(openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks, locations: [], equipment, opOf: () => undefined, createOpOf: creates(pushedE, sameDevice) })).toEqual([]);
 
     const words = context(blocks, [equipmentRow(EQUIPMENT, 'SEC-C09'), equipmentRow(EQUIPMENT_2, 'SEC-C09')]);
-    const [named] = openDecisions({ relatorioId: TEST_RELATORIO, blocks, locations: [], equipment: [equipmentRow(EQUIPMENT, 'SEC-C09'), equipmentRow(EQUIPMENT_2, 'SEC-C09')], opOf: () => undefined, createOpOf: creates(pushedA, pushedE) });
+    const [named] = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks, locations: [], equipment: [equipmentRow(EQUIPMENT, 'SEC-C09'), equipmentRow(EQUIPMENT_2, 'SEC-C09')], opOf: () => undefined, createOpOf: creates(pushedA, pushedE) });
     if (named?.kind !== 'duplicate_tag') throw new Error('expected a TAG decision');
     expect(decisionText(named, words)).toBe('SEC-C09 foi criada em dois aparelhos');
     const taken = [equipmentRow(EQUIPMENT, 'SEC-C09'), equipmentRow(EQUIPMENT_2, 'SEC-C09'), equipmentRow('019966b0-0012-7000-8000-0000000000e1', 'SEC-C09-2')];
@@ -836,7 +836,7 @@ describe('10.3 a block added elsewhere', () => {
       expect.objectContaining({ op_id: created.op_id, over_op_id: null, block_id: BLOCK, rule: 'block_added', relatorio_id: TEST_RELATORIO }),
     ]);
     expect(pulledAdditions([created], [created], A_DEVICE)).toEqual([]);
-    const text = mergeInfoText(entries[0]!, {
+    const text = mergeInfoText(entries[0]!, { definitions: EMPTY_DEFINITION_CONTEXT,
       blocks: [blockRow()],
       equipment: [{ id: EQUIPMENT, tag: 'TP-C09' }],
       users: [{ id: EDUARDO, name: 'Eduardo Esteves' }],
@@ -859,13 +859,13 @@ describe('10.2 the badge and the Decisões rows (the X/S seam)', () => {
     const { create, eduardo, ana } = world();
     const conflicted = fold([create, eduardo(result, 'C'), ana(result, 'NA'), eduardo(reading, measured('1')), ana(reading, measured('2'))]);
     const equipment: EquipmentRow[] = [{ id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C12', type: 'chave_seccionadora', last_nameplate: null, removed_at: null }];
-    const cells = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [conflicted], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined });
+    const cells = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [conflicted], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined });
     const tag = { kind: 'duplicate_tag' as const, relatorio_id: TEST_RELATORIO, tag: 'SEC-C09', earlier_equipment_id: EQUIPMENT, later_equipment_id: EQUIPMENT_2, later_block_id: null, earlier: { actor_id: ANA, device_id: A_DEVICE, client_ts: '2026-09-21T11:40:00.000Z' }, later: { actor_id: EDUARDO, device_id: E_DEVICE, client_ts: '2026-09-21T11:55:00.000Z' } };
     const entries = [
       { relatorioId: 'r1', projectId: PROJECT, decisions: [...cells, tag], blocks: [conflicted], equipment, locations: [] },
       { relatorioId: 'r2', projectId: PROJECT, decisions: [{ ...tag, relatorio_id: 'r2' }], blocks: [], equipment, locations: [] },
     ];
-    const rows = syncDecisionRows(entries, { users: [], viewerActorId: ANA, viewerDeviceId: A_DEVICE });
+    const rows = syncDecisionRows(entries, { definitions: EMPTY_DEFINITION_CONTEXT, users: [], viewerActorId: ANA, viewerDeviceId: A_DEVICE });
     expect(rows).toEqual([
       { key: `r1:cell:${BLOCK}`, kind: 'cell', text: 'SEC-C12: 2 células em contradição' },
       { key: `r1:tag:${EQUIPMENT}:${EQUIPMENT_2}`, kind: 'duplicate_tag', text: 'SEC-C09 foi criada em dois aparelhos' },
@@ -932,8 +932,8 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
     expect(conflictOpIds([row]).sort()).toEqual([a.op_id, e.op_id].sort());
 
     // The Conflict view names each side's original author, as before "Aplicar".
-    const [decision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
-    const [beforeDecision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [before], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
+    const [decision] = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
+    const [beforeDecision] = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [before], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
     expect(decision!.cells[0]!.standing).toEqual(beforeDecision!.cells[0]!.standing);
     expect(decision!.cells[0]!.displaced).toEqual(beforeDecision!.cells[0]!.displaced);
     expect(decision!.cells[0]!.standing.actor_id).toBe(EDUARDO);
@@ -1004,7 +1004,7 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
     const cell = row.sheet.test[TEST]?.cells['0']?.['0'];
     expect(cell).toMatchObject({ value: measured('33'), op_id: third.op_id, conflict: { op_id: e.op_id, value: measured('330') } });
     expect(cell?.shown_op_id).toBeUndefined();
-    const [decision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
+    const [decision] = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
     expect(decision!.cells[0]!.displaced).toMatchObject({ op_id: e.op_id, actor_id: EDUARDO, device_id: E_DEVICE });
     expect(decision!.cells[0]!.standing).toMatchObject({ op_id: third.op_id, actor_id: ANA, device_id: 'phone-ana' });
   });

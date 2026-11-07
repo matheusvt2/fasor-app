@@ -11,7 +11,7 @@ import {
   measurementTestShape,
   relativeToLowestCriterionSchema,
 } from '../seed/measurement.ts';
-import { checklistItemSchema, checkSeedV6Definition, fieldDefSchema, testDefSchema } from '../seed/schema.ts';
+import { checklistItemSchema, checkSeedV6Definition, fieldDefSchema, testDefSchema, type OilRule } from '../seed/schema.ts';
 
 /*
  * Story 14.6 (contract 33; AD-21 note of 2026-11-06, item 2): the definition of a company
@@ -184,16 +184,18 @@ function criterionUses(definition: object | null | undefined, criterionKey: stri
 
 /**
  * Story 14.6 (review of batch e22t): the rules a row of a company type's criteria table may take,
- * in the order the Critérios tab offers them. `±` judges a deviation, so an insulation or contact
- * reading and a number cell, which it would fail whatever was measured, never take it (the ratio
- * test does); `pass_fail` passes a choice, so only a row whose cells are all choices takes it. A
- * row no test names takes every rule. The editor offers only these; the strict schema refuses the rest.
+ * in the order the Critérios tab offers them. Fix batch e22h (N1): `±` judges a deviation, so only
+ * a row every use of which is the ratio test's deviation takes it (an insulation or contact
+ * reading, a number cell or a choice cell would fail or never be judged); `pass_fail` judges no
+ * reading of any grammar (`applyAbsolute` skips a choice cell), so only a row no test names takes
+ * it. A row no test names takes every rule. The editor offers only these; the strict schema
+ * refuses the rest.
  */
 export function criterionRulesFor(definition: object | null | undefined, criterionKey: string): CompanyCriterionOperator[] {
   const uses = [...criterionUses(definition, criterionKey)];
   return COMPANY_CRITERION_OPERATORS.filter((operator) => {
-    if (operator === '±') return !uses.includes('reading') && !uses.includes('number_cell');
-    if (operator === 'pass_fail') return uses.every((use) => use === 'choice_cell');
+    if (operator === '±') return uses.every((use) => use === 'deviation');
+    if (operator === 'pass_fail') return uses.length === 0;
     return true;
   });
 }
@@ -207,6 +209,7 @@ function checkCompanyDefinition(
     measurement_tests?: readonly CompanyMeasurementTest[] | undefined;
     config_fields?: readonly z.infer<typeof configFieldSchema>[] | undefined;
     criteria: readonly CompanyCriterion[];
+    oil_rule?: OilRule | undefined;
   },
   ctx: z.RefinementCtx,
 ): void {
@@ -231,29 +234,81 @@ function checkCompanyDefinition(
   // A rule that would fail every reading it judges (`criterionRulesFor`).
   definition.criteria.forEach((criterion, c) => {
     if ((criterion.operator === '±' || criterion.operator === 'pass_fail') && !criterionRulesFor(definition, criterion.key).includes(criterion.operator)) {
-      issue(['criteria', c, 'operator'], criterion.operator === '±' ? '± judges a deviation, never a reading nor a number cell' : 'pass_fail judges a choice row only');
+      issue(['criteria', c, 'operator'], criterion.operator === '±' ? '± judges a deviation, never a reading nor a cell' : 'pass_fail judges no reading of any grammar');
     }
   });
   checkSeedV6Definition(definition, ctx);
   checkMeasurementDefinition({ sub_blocks: companySubBlocksOf(definition), measurement_tests: definition.measurement_tests, config_fields: definition.config_fields }, ctx);
 }
 
-/** A version's definition: strict (AD-21 item 2). */
-export const companyTypeDefinitionSchema = z
+/**
+ * Fix batch e22h (S1): a company type's oil rule, the seed's `oilRuleSchema` with the definition's
+ * own item keys (a copy carries its source's, which are seed keys).
+ */
+export const companyOilRuleSchema = z
   .object({
-    label: notBlank,
-    print_title: notBlank.optional(),
-    tag_prefix: z.string().regex(TAG_PREFIX_PATTERN),
-    noun: typeNounSchema,
-    nameplate: z.array(fieldDefSchema),
-    checklist: z.array(companyChecklistItemSchema).nullable(),
-    tests: z.array(testDefSchema),
-    measurement_tests: z.array(companyMeasurementTestSchema).min(1).optional(),
-    config_fields: z.array(configFieldSchema).min(1).optional(),
-    criteria: z.array(companyCriterionSchema),
+    field: key,
+    oil_values: z.array(z.string().min(1)).min(1),
+    items: z.array(key).min(1),
+    fields: z.array(key),
+    full_values: z.array(z.string().min(1)).min(1).optional(),
   })
-  .superRefine(checkCompanyDefinition);
+  .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
+    message: 'full_values and oil_values are disjoint',
+  });
+
+/** The keys of a version's definition, each part with its own shape (AD-21 item 2). */
+const companyTypeDefinitionShape = {
+  label: notBlank,
+  print_title: notBlank.optional(),
+  tag_prefix: z.string().regex(TAG_PREFIX_PATTERN),
+  noun: typeNounSchema,
+  nameplate: z.array(fieldDefSchema),
+  checklist: z.array(companyChecklistItemSchema).nullable(),
+  tests: z.array(testDefSchema),
+  measurement_tests: z.array(companyMeasurementTestSchema).min(1).optional(),
+  config_fields: z.array(configFieldSchema).min(1).optional(),
+  criteria: z.array(companyCriterionSchema),
+  /*
+   * Fix batch e22h (S1, coordinator's decision): a copy keeps its source's judging behaviour.
+   * The oil rule of a seeded source (`relatorio/oil-rule.ts`), with the seed's shape, checked by
+   * `checkSeedV6Definition` as for seeds; a test's `criterion_bands` and `criterion_class_field`
+   * already come with `testDefSchema`.
+   */
+  oil_rule: companyOilRuleSchema.optional(),
+};
+
+/** A version's definition: strict (AD-21 item 2), what `applyOp` checks on publish. */
+export const companyTypeDefinitionSchema = z.object(companyTypeDefinitionShape).superRefine(checkCompanyDefinition);
+
 export type CompanyTypeDefinition = z.infer<typeof companyTypeDefinitionSchema>;
+
+const jsonObject = z.record(z.string(), z.json());
+
+/**
+ * Fix batch e22h (N3): a published version as every reader parses it, never refused for a rule.
+ * Review e22h finding 5: structural only, with no refinement at any depth: the definition's
+ * top-level keys with their container types, each list item and the noun and oil rule any JSON
+ * object, kept as written. The nested schemas (`fieldDefSchema`, the item's three or four NC
+ * phrases, the criterion and measurement checks, the oil rule's refine) and the cross-part rules
+ * (`checkCompanyDefinition`) run only on publish: every row is created through
+ * `assertVersionCreate`'s strict check on both layers, and a rule added to the strict schema
+ * after a version was published judges only what is published after it, so history never
+ * unpublishes. Hence the cast: a stored row was strict when it was created.
+ */
+export const companyTypeVersionDefinitionSchema = z.object({
+  label: z.string(),
+  print_title: z.string().optional(),
+  tag_prefix: z.string(),
+  noun: jsonObject,
+  nameplate: z.array(jsonObject),
+  checklist: z.array(jsonObject).nullable(),
+  tests: z.array(jsonObject),
+  measurement_tests: z.array(jsonObject).optional(),
+  config_fields: z.array(jsonObject).optional(),
+  criteria: z.array(jsonObject),
+  oil_rule: jsonObject.optional(),
+}) as unknown as z.ZodType<CompanyTypeDefinition>;
 
 type DeepPartial<T> = T extends readonly (infer U)[] ? DeepPartial<U>[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
@@ -278,4 +333,6 @@ export const companyTypeDraftSchema = z.object({
   measurement_tests: looseItems.optional(),
   config_fields: looseItems.optional(),
   criteria: looseItems.optional(),
+  // Fix batch e22h (S1): the copy's oil rule, kept as written (the strict schema checks it).
+  oil_rule: z.record(z.string(), z.json()).optional(),
 }) as unknown as z.ZodType<CompanyTypeDraft>;

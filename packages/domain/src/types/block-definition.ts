@@ -11,12 +11,15 @@ import { companySubBlocksOf, type CompanyTypeDefinition } from './definition.ts'
  * (`library: true`: offered after the seeded types, printed in "Outros equipamentos"), its
  * sub-blocks are derived from its parts, it has no subtypes, and each test carries the row of the
  * type's own criteria table it names (`criterion`, `seeded_criterion`), which the readers take
- * before `SEEDED_CRITERIA`. A reader that switches on a seeded `block_type` (the transformer ratio,
- * the oil rule, the vector group) sees a `type:` key and takes its generic path.
+ * before `SEEDED_CRITERIA`. A reader that switches on a seeded `block_type` sees a `type:` key and
+ * takes its generic path; the oil rule and the vector-group field read a company type's own data
+ * (fix batch e22h S1 and N9: `oil_rule` passes through, `isVectorGroupField` reads the field).
  */
 
 /** What `asBlockDefinition` reads of a version row. */
 export interface VersionRowLike {
+  /** e22h S2: the version row's id, which a block's config names beside the number (`type_version_id`). */
+  id: string;
   type_id: string;
   version: number;
   definition: CompanyTypeDefinition;
@@ -80,11 +83,14 @@ export function asBlockDefinition(row: VersionRowLike): BlockDefinition {
     ...(definition.config_fields === undefined ? {} : { config_fields: definition.config_fields }),
     library: true,
     ...(definition.print_title === undefined ? {} : { print_title: definition.print_title }),
+    // Fix batch e22h (S1): the oil rule a copy carries from its seeded source (`relatorio/oil-rule.ts`).
+    ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }),
     criteria,
     tag_prefix: definition.tag_prefix,
     noun: definition.noun,
     type_id: row.type_id,
     type_version: row.version,
+    type_version_id: row.id,
   };
   deepFreeze(out);
   adapted.set(row, out);

@@ -21,6 +21,7 @@ import {
   type OpInput,
   type RegistryRow,
   type SyncPushResponse,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { and, eq, inArray, like, or, sql as raw } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -136,7 +137,7 @@ interface Sheet {
 async function disjuntorSheet(): Promise<Sheet> {
   const ids = { relatorio: newId(), project: newId(), local: newId(), block: newId(), equipment: newId() };
   for (const id of Object.values(ids)) written.entityIds.add(id);
-  const built = newEquipmentBlock({
+  const built = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: ids.block,
     equipmentId: ids.equipment,
     relatorioId: ids.relatorio,

@@ -5,7 +5,7 @@ import { resolveActionPlan, resolveSection8 } from '../print/section-8.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { cellAddressesOf } from '../relatorio/readings.ts';
-import { siteItems, findDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, siteItems, findDefinition } from '../seed/definitions.ts';
 import type { BlockRow, Cell, PointRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
@@ -27,7 +27,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-2205-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-2206-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-2207-7000-8000-'), now: T0 }), seq: i + 1 }));

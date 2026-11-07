@@ -26,6 +26,7 @@ import {
   type SheetProgress,
   type SheetStep,
   type UserRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useCallback, useState } from 'react';
 import type { NavigateFunction } from 'react-router';
@@ -169,7 +170,7 @@ export function useFichaActions({
         const text = conclusionTextOnConclude(fresh, definition, tag);
         const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh, definition) : null;
         return [
-          ...suggestedInstruments({ blocks, instruments, ...(snapshot.equipment_types === undefined ? {} : { equipment_types: snapshot.equipment_types }) }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
+          ...suggestedInstruments({ blocks, instruments, equipment_types: snapshot.equipment_types }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
           ...(pair !== null && pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),
           ...(pair !== null && pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(fresh)
             ? [conclusionOp(by, relatorioId, blockId, 'restriction', pair.restriction)]
@@ -288,7 +289,7 @@ export function useFichaActions({
 
   const moveTo = (targetId: string, rename: boolean) => {
     setMoveDialogOpen(false);
-    void commitMove(editor.edit, { relatorioId, projectId, blockId, targetId, rename })
+    void commitMove(editor.edit, { relatorioId, projectId, blockId, targetId, rename, definitions: snapshotDefinitionContext(snapshot) })
       .then(({ batch, plan }) => {
         if (batch === null || plan.kind !== 'move') {
           // Already there (another device moved it first): nothing to write, nothing to say.

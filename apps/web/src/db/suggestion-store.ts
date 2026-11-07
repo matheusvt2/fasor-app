@@ -24,6 +24,7 @@ import {
 import { commitBatchIf, type CommitDeps } from './commit.ts';
 import { readAllReadingCancelled } from './prefs.ts';
 import type { AppDatabase } from './schema.ts';
+import { deviceDefinitionContext } from './type-store.ts';
 
 /*
  * Story 8.1 (AD-12, "device-side comparison") and Story 8.2 (the sweep): after each pull,
@@ -124,8 +125,10 @@ async function sweepOne(db: AppDatabase, id: string, author: Author, deps: Commi
   if (block.removed_at !== null) return false;
   // An issued relatório is never moved back to Em revisão by a write nobody tapped.
   if (await issued(db, suggestion)) return false;
+  // e22h B1: a company sheet's plate and tables are its version's (the device's type versions).
+  const definitions = await deviceDefinitionContext(db);
   if (target.family === 'sheet/test/cell') {
-    const entry = measurementSuggestions(block, [suggestion])[0];
+    const entry = measurementSuggestions(block, [suggestion], definitions)[0];
     const cell = entry === undefined ? null : storedTestCell(block, entry.address);
     if (entry === undefined || entry.view !== 'none' || cell === null) return false;
     const address = entry.address;
@@ -134,7 +137,7 @@ async function sweepOne(db: AppDatabase, id: string, author: Author, deps: Commi
       return again === null ? undefined : storedTestCell(again, address)?.value;
     }, cell.value, author, deps);
   }
-  const field = suggestionFieldDef(block, suggestion);
+  const field = suggestionFieldDef(block, suggestion, definitions);
   const cell = block.sheet.nameplate[target.field_key];
   if (cell === undefined || suggestionView(cell, suggestion, field) !== 'none') return false;
   // The engineer's own value is written back as it is; only its provenance changes.
@@ -238,14 +241,17 @@ export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRow
     if (target?.kind === 'block') blockIds.add(target.block_id);
     else if (target?.kind === 'location') locationIds.add(target.location_id);
   }
-  const [blockRecords, locationRecords] = await Promise.all([
+  const [blockRecords, locationRecords, definitions] = await Promise.all([
     db.entities.bulkGet([...blockIds].map((id) => ['block', id] as ['block', string])),
     db.entities.bulkGet([...locationIds].map((id) => ['location', id] as ['location', string])),
+    // e22h: a company sheet's excused plate fields are its version's.
+    deviceDefinitionContext(db),
   ]);
   const live = livePendingSuggestions(
     blockRecords.flatMap((record) => (record === undefined ? [] : [record.row as BlockRow])),
     pending,
     locationRecords.flatMap((record) => (record === undefined ? [] : [record.row as LocationRow])),
+    definitions,
   );
   const photos = files
     .filter((record) => record.removed_at === null && (record.row as { removed_at?: unknown }).removed_at == null && (record.row as { kind?: unknown }).kind === 'photo')
