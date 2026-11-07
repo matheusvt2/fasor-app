@@ -2,8 +2,9 @@ import { photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
 import { conclusionFloor, effectiveConclusionPair } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
-import { evaluateSheetMeasurements, worstMeasurements } from '../relatorio/measurement-evaluation.ts';
-import { evaluateSheetReadings, worstReadings } from '../relatorio/readings.ts';
+import { worstMeasurements } from '../relatorio/measurement-evaluation.ts';
+import { worstReadings } from '../relatorio/readings.ts';
+import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteLocals, siteObservationOf, sitePointTitle, siteResultOf } from '../relatorio/site-checklist.ts';
@@ -127,7 +128,7 @@ function sheetEntries(block: BlockRow, node: TreeEquipmentNode, title: string, p
       });
     });
   }
-  const evaluations = evaluateSheetReadings(block, definition);
+  const evaluations = sheetReadings(block, definition);
   const titles = new Map(evaluations.map((test) => [test.testKey as string, test.title]));
   const readings = worstReadings(evaluations).filter((reading) => reading.verdict === 'out');
   for (const reading of readings) {
@@ -142,7 +143,7 @@ function sheetEntries(block: BlockRow, node: TreeEquipmentNode, title: string, p
       text: `${titles.get(reading.testKey) ?? reading.testKey}: ${value} em ${reading.where} (critério: ${reading.criterionText})`,
     });
   }
-  for (const reading of worstMeasurements(evaluateSheetMeasurements(block, definition))) {
+  for (const reading of worstMeasurements(sheetMeasurements(block, definition))) {
     out.push({
       ...base,
       ...common,
@@ -225,7 +226,9 @@ function pointSource(point: Pick<PointRow, 'origin' | 'equipment_id' | 'location
   const owner = point.equipment_id ?? point.location_id ?? null;
   if (owner === null) return null;
   if (point.origin === 'not_tested') return point.equipment_id === null ? null : `not_tested:${point.equipment_id}`;
-  if (point.origin === 'nc') return point.item_key == null ? null : `nc:${owner}:${point.item_key}`;
+  // e22f N4: a point that names a checklist item replaces that item's NC entry whatever its
+  // origin (an `nc` one, or a manual one carrying the item).
+  if (point.origin === 'nc' || point.origin === 'manual') return point.item_key == null ? null : `nc:${owner}:${point.item_key}`;
   if (point.origin === 'reading') return point.equipment_id === null || point.test_key == null ? null : `reading:${point.equipment_id}:${point.test_key}`;
   if (point.origin === 'reprovado') return point.equipment_id === null ? null : `reprovado:${point.equipment_id}`;
   return null;
@@ -277,25 +280,72 @@ export function resolvedOriginPoints(snapshot: DerivedSnapshot): Set<string> {
 }
 
 /**
+ * e22f N4: a point row written before contract 31. From contract 31 on, `newPointRow` writes
+ * `item_key` on every point (null when the point names no item), so a row without the key at all
+ * was created by an older client: the only kind that can be an NC row's point with no source.
+ */
+export function predatesItemSource(point: Pick<PointRow, 'item_key'>): boolean {
+  return !Object.prototype.hasOwnProperty.call(point, 'item_key');
+}
+
+/** The (manual point, NC entry) pairs of one owner: what "Possível duplicado" flags. */
+function duplicatePairs(snapshot: DerivedSnapshot): { pointId: string; entryKey: string }[] {
+  const entries = derivedPoints(snapshot).filter((entry) => entry.kind === 'nc');
+  if (entries.length === 0) return [];
+  const pairs: { pointId: string; entryKey: string }[] = [];
+  for (const point of snapshot.points) {
+    // e22f N4: only a manual point written before contract 31 (no `item_key` key): one written
+    // since names its item when it comes from an NC row, so it never pairs by its owner alone.
+    if (point.removed_at !== null || point.origin !== 'manual' || !predatesItemSource(point)) continue;
+    const owner = point.equipment_id ?? point.location_id ?? null;
+    if (owner === null) continue;
+    for (const entry of entries) if ((entry.equipment_id ?? entry.location_id) === owner) pairs.push({ pointId: point.id, entryKey: entry.key });
+  }
+  return pairs;
+}
+
+/**
  * Story 22.5: a manual point written before this story from an NC row (`origin` `manual`, no
  * source) does not suppress the NC entry of the same equipment or local; both are flagged
  * "Possível duplicado" on the Pontos screen and the engineer removes one. The manual points'
- * ids and the derived entries' keys, each paired with at least one of the other.
+ * ids and the derived entries' keys, each paired with at least one of the other. e22f N4: only
+ * the manual points written before contract 31 (`predatesItemSource`) pair.
  */
 export function possibleDuplicatePoints(snapshot: DerivedSnapshot): { pointIds: Set<string>; entryKeys: Set<string> } {
-  const entries = derivedPoints(snapshot).filter((entry) => entry.kind === 'nc');
-  const pointIds = new Set<string>();
-  const entryKeys = new Set<string>();
-  for (const point of snapshot.points) {
-    if (point.removed_at !== null || point.origin !== 'manual') continue;
-    const owner = point.equipment_id ?? point.location_id ?? null;
-    if (owner === null) continue;
-    const twins = entries.filter((entry) => (entry.equipment_id ?? entry.location_id) === owner);
-    if (twins.length === 0) continue;
-    pointIds.add(point.id);
-    for (const twin of twins) entryKeys.add(twin.key);
+  const pairs = duplicatePairs(snapshot);
+  return { pointIds: new Set(pairs.map((pair) => pair.pointId)), entryKeys: new Set(pairs.map((pair) => pair.entryKey)) };
+}
+
+/** e22f S2: how many (manual point, NC entry) pairs "Possível duplicado" flags; the pre-issue row's count. */
+export function possibleDuplicatePairs(snapshot: DerivedSnapshot): number {
+  return duplicatePairs(snapshot).length;
+}
+
+/** e22f S2: the pre-issue row: "1 par de pontos possivelmente duplicados", "3 pares de …". */
+export function possibleDuplicatesText(pairs: number): string {
+  // authored (e22f S2, open for Bruno).
+  return `${pairs} ${pairs === 1 ? 'par de pontos possivelmente duplicados' : 'pares de pontos possivelmente duplicados'}`;
+}
+
+/**
+ * e22f S4: the text "Criar ponto de atenção" on an NC row starts the point with: the row's
+ * derived entry text ("Item 3 (mufla): oxidação nos terminais" and the row's photo tokens), as
+ * "Editar" on that entry starts it (`derivedPointSeed`). `owner` is the sheet or the local. ''
+ * when the row's seed item is unknown.
+ */
+export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'relatorio'>, owner: { block: BlockRow } | { location: Parameters<typeof siteObservationOf>[0] & { id: string } }, itemKey: string): string {
+  const photos = livePhotos(snapshot);
+  if ('block' in owner) {
+    const definition = findDefinition(owner.block.seed_version, owner.block.block_type);
+    const index = definition?.checklist?.findIndex((item) => item.key === itemKey) ?? -1;
+    if (definition === null || index < 0) return '';
+    const cell = owner.block.sheet.checklist[itemKey]?.observation;
+    const observation = isCellFilled(cell) && typeof cell!.value === 'string' ? cell!.value.trim() : null;
+    return ncText(index + 1, definition.checklist![index]!.label, observation, rowPhotoIds(photos, { blockId: owner.block.id }, itemKey));
   }
-  return { pointIds, entryKeys };
+  const item = siteItems(snapshot.relatorio.seed_version).find((row) => row.key === itemKey);
+  if (item === undefined) return '';
+  return ncText(item.number, item.label, siteObservationOf(owner.location, itemKey), rowPhotoIds(photos, { locationId: owner.location.id }, itemKey));
 }
 
 export interface DerivedPointGroup {

@@ -541,6 +541,14 @@ body {
   opacity: 0.4;
 }
 
+/* e22f S6 (Stories 22.4 and 22.6): a conclusion or parecer segment looser than the floor or the
+   derived verdict is disabled; mirrors `.btn.is-disabled, .btn[aria-disabled="true"] { opacity: .4 }`
+   (components.css), the mock's only disabled look (DESIGN.md: "reduced opacity on the whole
+   control, never a lighter ink"). No mock draws a disabled segment. */
+.conclusion-pair .seg:disabled {
+  opacity: 0.4;
+}
+
 /* ---------- App bar ----------
    The mock's wordmark and avatar are `<button>`s (ink text via the `.frame button` reset);
    in the app they navigate, so they are links, and a link would otherwise take the UA's

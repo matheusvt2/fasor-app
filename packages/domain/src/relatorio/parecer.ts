@@ -7,8 +7,9 @@ import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { effectiveConclusionPair } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
-import { evaluateSheetMeasurements, measurementCells } from './measurement-evaluation.ts';
-import { evaluatedCells, evaluateSheetReadings, failedRatioRows, type FailedRatioRow } from './readings.ts';
+import { measurementCells } from './measurement-evaluation.ts';
+import { evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
+import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { sectionRefText } from './section-position.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { siteNcCount, siteNcItems } from './site-checklist.ts';
@@ -111,8 +112,8 @@ function outReading(block: BlockRow): boolean {
   if (block.not_tested !== null) return false;
   const definition = findDefinition(block.seed_version, block.block_type);
   if (definition === null) return false;
-  const plain = evaluateSheetReadings(block, definition).filter((test) => test.testKey !== 'relacao_transformacao');
-  return evaluatedCells(plain).some((cell) => cell.verdict === 'out') || measurementCells(evaluateSheetMeasurements(block, definition)).some((cell) => cell.verdict === 'out');
+  const plain = sheetReadings(block, definition).filter((test) => test.testKey !== 'relacao_transformacao');
+  return evaluatedCells(plain).some((cell) => cell.verdict === 'out') || measurementCells(sheetMeasurements(block, definition)).some((cell) => cell.verdict === 'out');
 }
 
 /**
@@ -122,7 +123,7 @@ function outReading(block: BlockRow): boolean {
 function failedRatioRowsOf(block: BlockRow): FailedRatioRow[] {
   const definition = findDefinition(block.seed_version, block.block_type);
   if (definition === null) return [];
-  return failedRatioRows(evaluateSheetReadings(block, definition));
+  return failedRatioRows(sheetReadings(block, definition));
 }
 
 /** The enabled checklist's NC items of a live sheet: their 1-based number and label. */
@@ -152,11 +153,14 @@ const VERDICT_RANK: Readonly<Record<ParecerVerdict, number>> = { apto: 1, apto_c
  * give. Não apto when any live sheet is effectively Reprovado (Story 22.4); Apto com
  * restrições when any sheet is Com restrições, any sheet is Não ensaiado (another reason), any
  * live local holds an NC site item, or any point of attention exists (section 8's entries,
- * the derived ones included); Apto otherwise. Always one: the "Parecer não preenchido" row
- * retires with it.
+ * the derived ones included); Apto otherwise. ~~Always one: the "Parecer não preenchido" row
+ * retires with it.~~ e22f S5 (integrated review): null while no sheet is concluded, so a
+ * relatório nothing was judged in never reads "Apto"; issuing then stays blocked by
+ * "Parecer não preenchido" until a sheet is concluded or the engineer taps a verdict.
  */
-export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict {
+export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict | null {
   const sheets = countedSheets(snapshot);
+  if (!sheets.some(({ block }) => sheetState(block) === 'concluida')) return null;
   if (sheets.some(({ block }) => reprovado(block))) return 'nao_apto';
   if (sheets.some(({ block }) => restricted(block))) return 'apto_com_restricoes';
   if (siteNcCount(snapshot) > 0 || pointsSummary(snapshot).total > 0) return 'apto_com_restricoes';
@@ -165,17 +169,21 @@ export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict {
 
 /** Story 22.6: whether a verdict is looser than the derived one, so Etapa 6 disables its segment. */
 export function parecerLooser(snapshot: RelatorioSnapshot, verdict: ParecerVerdict): boolean {
-  return VERDICT_RANK[verdict] < VERDICT_RANK[derivedParecer(snapshot)];
+  const derived = derivedParecer(snapshot);
+  return derived !== null && VERDICT_RANK[verdict] < VERDICT_RANK[derived];
 }
 
 /**
  * Story 22.6: the verdict every reader shows and section 10 prints: the stored one when it is
  * stricter than the derived one (the engineer chose it), else the derived one. A stored verdict
- * looser than what the fichas now give is never shown.
+ * looser than what the fichas now give is never shown. e22f S5: null while neither exists (no
+ * concluded sheet, no verdict tapped): "Parecer não preenchido" blocks issuing, section 10
+ * prints `[Parecer]`.
  */
-export function effectiveParecer(snapshot: RelatorioSnapshot): ParecerVerdict {
+export function effectiveParecer(snapshot: RelatorioSnapshot): ParecerVerdict | null {
   const derived = derivedParecer(snapshot);
   const stored = parecerOf(snapshot)?.verdict ?? null;
+  if (derived === null) return stored;
   return stored !== null && VERDICT_RANK[stored] > VERDICT_RANK[derived] ? stored : derived;
 }
 
@@ -186,7 +194,7 @@ export function effectiveParecer(snapshot: RelatorioSnapshot): ParecerVerdict {
  */
 export function parecerReasonText(snapshot: RelatorioSnapshot): string | null {
   const derived = derivedParecer(snapshot);
-  if (derived === 'apto') return null;
+  if (derived === null || derived === 'apto') return null;
   const counts = parecerCounts(snapshot);
   const points = pointsSummary(snapshot).total;
   // authored (Story 22.6, open for Bruno): the reason line of the disabled verdicts.
@@ -213,7 +221,7 @@ export interface ParecerCounts {
   notTested: { name: string; reason: string | null }[];
   /** Sheets neither concluded nor not tested. */
   open: number;
-  /** The TAGs of the tested sheets with a restriction, in tree order. */
+  /** The TAGs of the tested sheets with a restriction, in tree order; e22f N1: a Reprovado sheet is named under `reprovado` alone. */
   withRestriction: string[];
   /** 2026-10-14: the site items answered NC on the live locals (`siteNcCount`). */
   siteNc: number;
@@ -231,7 +239,7 @@ export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
   const sheets = countedSheets(snapshot);
   const concluded = sheets.filter(({ block }) => sheetState(block) === 'concluida').length;
   const notTested = sheets.filter(({ block }) => block.not_tested !== null).map(({ block, name }) => ({ name, reason: notTestedReason(block) }));
-  const withRestriction = sheets.filter(({ block }) => block.not_tested === null && restricted(block)).map(({ name }) => name);
+  const withRestriction = sheets.filter(({ block }) => block.not_tested === null && restricted(block) && !reprovado(block)).map(({ name }) => name);
   const reprovados = sheets.filter(({ block }) => reprovado(block)).map(({ name }) => name);
   const outReadings = sheets.filter(({ block }) => outReading(block)).map(({ name }) => name);
   return {
@@ -259,6 +267,26 @@ export interface ComposedParecer {
   basis: string;
 }
 
+// authored (e22f N1, open for Bruno): why a Reprovado sheet was reprovada, as its sentence names it.
+const REPROVADO_REASONS = { ratio: 'relação de transformação insatisfatória', reading: 'leituras fora do critério de aceitação', other: 'outro motivo' } as const;
+
+/**
+ * e22f N1: the Reprovado sentence, each sheet named once with the reason that reproved it (a
+ * failed ratio first, then a reading out of criterion, then any other: a defect reason, the
+ * engineer's own Reprovado): "1 ficha foi reprovada por relação de transformação
+ * insatisfatória (TR-1).", "3 fichas foram reprovadas: 1 por relação de transformação
+ * insatisfatória (TR-1) e 2 por leituras fora do critério de aceitação (PR-ENEL e DJ-01).";
+ * with no ratio or reading reason, the names alone, as Story 22.6 printed them.
+ */
+function reprovadoSentence(count: number, byReason: Record<keyof typeof REPROVADO_REASONS, string[]>): string {
+  // authored (Story 22.6, open for Bruno): the Reprovado sheets sentence.
+  const head = count === 1 ? '1 ficha foi reprovada' : `${count} fichas foram reprovadas`;
+  const groups = (Object.keys(REPROVADO_REASONS) as (keyof typeof REPROVADO_REASONS)[]).filter((key) => byReason[key].length > 0);
+  if (groups.length === 1 && groups[0] === 'other') return `${head} (${listPtBr(byReason.other)}).`;
+  if (groups.length === 1) return `${head} por ${REPROVADO_REASONS[groups[0]!]} (${listPtBr(byReason[groups[0]!])}).`;
+  return `${head}: ${listPtBr(groups.map((key) => `${byReason[key].length} por ${REPROVADO_REASONS[key]} (${listPtBr(byReason[key])})`))}.`;
+}
+
 /** "item 8 (contatos)", the checklist item as the summary groups it. */
 function ncItemName(item: { n: number; label: string }): string {
   return `item ${item.n} (${item.label.toLocaleLowerCase('pt-BR')})`;
@@ -274,7 +302,7 @@ function ncItemName(item: { n: number; label: string }): string {
  */
 export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   const sheets = countedSheets(snapshot);
-  const { total, concluded, notTested, open, withRestriction, reprovado: reprovados, outReadings } = parecerCounts(snapshot);
+  const { total, concluded, notTested, open, withRestriction, reprovado: reprovados } = parecerCounts(snapshot);
   const ncGroups = new Map<string, { n: number; label: string; sheets: number }>();
   for (const { block } of sheets) {
     if (block.not_tested !== null) continue;
@@ -287,7 +315,20 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   }
   const nc = [...ncGroups.values()].sort((a, b) => a.n - b.n || (a.label < b.label ? -1 : 1));
   // Story 17.5: the tested sheets with a ratio row INSATISFATÓRIO, by name in tree order.
-  const ratio = sheets.filter(({ block }) => block.not_tested === null && failedRatioRowsOf(block).length > 0).map(({ name }) => name);
+  const ratioSheets = sheets.filter(({ block }) => block.not_tested === null && failedRatioRowsOf(block).length > 0);
+  // e22f N1: a Reprovado sheet is named once, in the Reprovado sentence with its reason; the
+  // ratio and out-reading sentences name only the others.
+  const reprovadoSet = new Set(sheets.filter(({ block }) => reprovado(block)).map(({ block }) => block.id));
+  const ratio = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id)).map(({ name }) => name);
+  const outOthers = sheets.filter(({ block }) => !reprovadoSet.has(block.id) && outReading(block)).map(({ name }) => name);
+  const ratioIds = new Set(ratioSheets.map(({ block }) => block.id));
+  const byReason = { ratio: [] as string[], reading: [] as string[], other: [] as string[] };
+  for (const { block, name } of sheets) {
+    if (!reprovadoSet.has(block.id)) continue;
+    if (ratioIds.has(block.id)) byReason.ratio.push(name);
+    else if (outReading(block)) byReason.reading.push(name);
+    else byReason.other.push(name);
+  }
   const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
   const points = pointsSummary(snapshot).total;
 
@@ -304,10 +345,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     const pending = open > 0 ? `${open} ${open === 1 ? 'ainda não concluída' : 'ainda não concluídas'}` : null;
     const registered = total === 1 ? 'Foi registrada 1 ficha de ensaio' : `Foram registradas ${total} fichas de ensaio`;
     sentences.push(`${registered}: ${listPtBr([done, untested, pending].filter((part): part is string => part !== null))}.`);
-    if (reprovados.length > 0) {
-      // authored (Story 22.6, open for Bruno): the Reprovado sheets sentence.
-      sentences.push(`${reprovados.length === 1 ? '1 ficha foi reprovada' : `${reprovados.length} fichas foram reprovadas`} (${listPtBr(reprovados)}).`);
-    }
+    if (reprovados.length > 0) sentences.push(reprovadoSentence(reprovados.length, byReason));
     if (withRestriction.length > 0) {
       sentences.push(
         `${withRestriction.length === 1 ? '1 ficha apresentou' : `${withRestriction.length} fichas apresentaram`} restrições (${listPtBr(withRestriction)}).`,
@@ -320,9 +358,9 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
       // authored (Story 17.5, open for Bruno): the failed ratio sentence.
       sentences.push(`Relação de transformação insatisfatória em ${plural(ratio.length, 'ficha', 'fichas')} (${listPtBr(ratio)}).`);
     }
-    if (outReadings.length > 0) {
+    if (outOthers.length > 0) {
       // authored (Story 22.6, open for Bruno): the out-of-criterion readings sentence.
-      sentences.push(`Leituras fora do critério de aceitação em ${plural(outReadings.length, 'ficha', 'fichas')} (${listPtBr(outReadings)}).`);
+      sentences.push(`Leituras fora do critério de aceitação em ${plural(outOthers.length, 'ficha', 'fichas')} (${listPtBr(outOthers)}).`);
     }
   }
   if (site.length > 0) {
@@ -344,7 +382,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     // authored (Story 17.5, open for Bruno): the Critérios item of the failed ratios.
     ...(ratio.length > 0 ? [`relação de transformação insatisfatória (${ratio.join(', ')})`] : []),
     // authored (Story 22.6, open for Bruno): the Critérios item of the out-of-criterion readings.
-    ...(outReadings.length > 0 ? [`leituras fora do critério (${outReadings.join(', ')})`] : []),
+    ...(outOthers.length > 0 ? [`leituras fora do critério (${outOthers.join(', ')})`] : []),
     // authored: 2026-10-14, a Critérios item per NC site item (open for Bruno).
     ...site.map((item) => `verificações do local, item ${item.n} NC (${item.locals})`),
     ...(points > 0 ? [plural(points, 'ponto de atenção', 'pontos de atenção')] : []),
@@ -364,7 +402,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
       ...(site.length > 0 ? { site } : {}),
       ...(ratio.length > 0 ? { ratio } : {}),
       ...(reprovados.length > 0 ? { reprovado: reprovados } : {}),
-      ...(outReadings.length > 0 ? { outReadings } : {}),
+      ...(outOthers.length > 0 ? { outReadings: outOthers } : {}),
+      ...(byReason.ratio.length + byReason.reading.length > 0 ? { reprovadoBy: byReason } : {}),
     }),
   );
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };

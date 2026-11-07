@@ -66,6 +66,8 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
 
   // The project's equipment, live on its own: a TAG rename moves the prefilled nameplate TAG (Story 12.3).
   const progress = useMemo(() => sheetProgress({ ...snapshot, equipment }, blockId), [snapshot, equipment, blockId]);
+  // e22f N2: as "Concluir ficha" will leave the sheet (the floor filling an unset half).
+  const concludeProgress = useMemo(() => sheetProgress({ ...snapshot, equipment }, blockId, { floorFills: true }), [snapshot, equipment, blockId]);
   const next = useMemo(() => nextSheet(snapshot, blockId), [snapshot, blockId]);
   const cabine = useMemo(() => cabineOf(snapshot.locations, block.location_id), [snapshot.locations, block.location_id]);
   const cabineFirst = useMemo(() => isCabineFirstSheet(snapshot, blockId), [snapshot, blockId]);
@@ -92,5 +94,5 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
     [relatorioId, projectId, blockId, editor, saved],
   );
 
-  return { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api };
+  return { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api };
 }

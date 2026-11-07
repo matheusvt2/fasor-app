@@ -179,11 +179,15 @@ function plateValue(f: FieldDef): unknown {
 /** A sheet of `blockType` complete from the office: plate (never the TAG), checklist C, readings within criterion, the pair. */
 function completeSheet(scope: Scope, blockId: string, blockType: string): OpDraft[] {
   const definition = getDefinition(SEED_VERSION, 'cabine_primaria', blockType);
-  const reading = (testKey: string) => (testKey === 'isolacao' ? n('150', 'GΩ') : blockType === 'chave_seccionadora' ? n('100', 'µΩ') : n('100', null));
+  // e22f: the ratio's AT and BT columns read 100 kV and 100 V, so its captures type the calculated
+  // 1000 (Dd0, k = 1): within criterion. With 100 they were 90 % off, the Story 22.4 floor
+  // Reprovado · Com restrições, and the sheet was never "Ficha completa".
+  const reading = (testKey: string, col: number) =>
+    testKey === 'isolacao' ? n('150', 'GΩ') : blockType === 'chave_seccionadora' ? n('100', 'µΩ') : testKey === 'relacao_transformacao' && col >= 2 ? n('1000', null) : n('100', null);
   return [
     ...definition.nameplate.filter((f) => f.key !== 'tag').map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f))),
     ...(definition.checklist ?? []).map((item) => officeDraft(account, scope, `sheet/${blockId}/checklist/${item.key}/result`, 'C')),
-    ...definition.tests.flatMap((t) => cellAddressesOf(definition, t.key)).map((c) => officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, reading(c.testKey))),
+    ...definition.tests.flatMap((t) => cellAddressesOf(definition, t.key)).map((c) => officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, reading(c.testKey, c.col))),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];

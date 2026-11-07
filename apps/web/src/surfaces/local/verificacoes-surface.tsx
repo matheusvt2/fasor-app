@@ -6,6 +6,7 @@ import {
   itensMarcadosConformeText,
   locationChecklistPath,
   withPhotoTokens,
+  ncRowPointText,
   ncRowPointPositions,
   ncRowPointsText,
   numberPhotos,
@@ -121,9 +122,10 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     observationCap: textCapOf(locationChecklistPath(location.id, row.key, 'observation')),
     // No photo-read draft on a site item (the batch spec's open question O4).
     ncDraft: null,
-    // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item); it starts with the item's photos, the engineer types the rest.
+    // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item); e22f
+    // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({
-      text: withPhotoTokens(null, photoIds),
+      text: withPhotoTokens(ncRowPointText(snapshot, { location }, row.key), photoIds),
       equipmentId: null,
       origin: 'nc',
       locationId: location.id,
