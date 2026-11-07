@@ -138,7 +138,17 @@ Layout protection (Bruno likes the document): print changes only by the asked de
 
 - 2026-11-07, implementation: B1's trigger calibrated at 60 em (decision 1 narrowing); S5 test-only (decision 6); the
   pair rule of N1 (decision 1).
+- 2026-11-07, review loop (Edge Case Hunter 1, 3, 4, 5, 7): a voltage the winding's rating chose never shows the
+  "use 0,5 ou 1 kV" notice (an AT rated 601 V to 1000 V); a burden glued to the class ("25VA5P20"); an A or B after a
+  measurement class falls through to the class ("0,6A", "2,5B100"); "megohm" and "kilohm"; the R8LAY scroll retried
+  inside its poll. Verification gaps closed: N1 in `previous-visit.spec.ts`, the S2 measurement-test half.
 
 ## Auto Run Result
 
-See the PR body (gate table, self-review counts, "Patched, not re-reviewed").
+- Implemented by the orchestrator (opus, high). Review: Edge Case Hunter (8 findings: 5 patched, 3 notes) and
+  Verification Gap Reviewer (no unupdated assertion; 2 gaps closed, 3 known open), opus, one loop; Blind Hunter and
+  Intent Alignment skipped (token economy; the integrated epic review covers them).
+- Story gate on `08637dc0`: lint 0, static 0, test:unit 5514 of 5515 (the red, `template-composer-local.test.tsx`,
+  untouched, at load 11.8; 17 of 17 alone), test:api 892 passed / 6 skipped (goldens unchanged), touched specs 127 of 127,
+  `over-range.durability` on the matrix 3 of 3, R8LAY-E2E-001 `--repeat-each 10` 10 of 10.
+- Mutation: B1 with no steps, 28 red in `print-fit.test.ts`; S5 before the test fix, 2 and 6 red of 10.
