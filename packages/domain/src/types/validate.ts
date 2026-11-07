@@ -37,7 +37,23 @@ const PART_OF: Readonly<Record<string, TypeEditorPart>> = {
   measurement_tests: 'ensaios',
   config_fields: 'ensaios',
   criteria: 'criterios',
+  // Fix batch e22h (S1): the oil rule names nameplate fields (its items are on the checklist, `partOf`).
+  oil_rule: 'placa',
 };
+
+/** The tab of an issue at `path`: its head's, the oil rule's items on Verificações. */
+function partOf(path: readonly (string | number)[]): TypeEditorPart {
+  if (path[0] === 'oil_rule' && path[1] === 'items') return 'verificacoes';
+  return PART_OF[String(path[0])] ?? 'identificacao';
+}
+
+/** A nameplate field's label in the draft by its key, or null. */
+function fieldLabelOf(draft: Draft, key: unknown): string | null {
+  const fields = draft.nameplate;
+  if (!Array.isArray(fields) || typeof key !== 'string') return null;
+  const field: unknown = fields.find((entry) => entry !== null && typeof entry === 'object' && (entry as Record<string, unknown>).key === key);
+  return field === undefined ? null : textOf((field as Record<string, unknown>).label);
+}
 
 // authored (Story 14.6): the tab names as the summaries say them, the editor's own tab words.
 const PART_WORD: Readonly<Record<TypeEditorPart, string>> = {
@@ -71,7 +87,7 @@ function nameOf(item: Record<string, unknown> | null, noun: string, index: unkno
 /** The sentence and summary of one schema issue, by where it sits. */
 function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; summary: string } {
   const [head, index, sub, subIndex, leaf] = issue.path as (string | number | undefined)[];
-  const part = PART_OF[String(head)] ?? 'identificacao';
+  const part = partOf(issue.path as (string | number)[]);
   const word = PART_WORD[part];
   const plain = (message: string, what: string) => ({ message, summary: `${word} › ${what}` });
 
@@ -123,6 +139,20 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       const item = itemAt(draft, 'tests', index);
       const name = nameOf(item, 'ensaio', index);
       if (sub === 'criterion_key') return plain(`${name}: o critério do ensaio não está na aba Critérios.`, `${name} sem critério`);
+      // authored: e22h S1, a criterion the plate picks whose field changed.
+      if (sub === 'criterion_class_field') {
+        const field = fieldLabelOf(draft, item?.criterion_class_field) ?? 'da classe de exatidão';
+        return plain(`${name}: a classe de exatidão é lida do campo ${field} da placa; mantenha esse campo como uma lista.`, `${name} sem campo da classe`);
+      }
+      if (sub === 'criterion_bands') {
+        const bands = item?.criterion_bands;
+        const at = bands !== null && typeof bands === 'object' ? (bands as Record<string, unknown>)[subIndex === 'selv_field' ? 'selv_field' : 'field'] : undefined;
+        const field = fieldLabelOf(draft, at) ?? (subIndex === 'selv_field' ? 'SELV/PELV' : 'da tensão');
+        return subIndex === 'selv_field'
+          ? plain(`${name}: o critério SELV/PELV é escolhido pelo campo ${field} da placa; mantenha esse campo como uma lista com SIM.`, `${name} sem campo SELV/PELV`)
+          : plain(`${name}: o critério é escolhido pela tensão do campo ${field} da placa; mantenha esse campo como um número em V.`, `${name} sem campo da tensão`);
+      }
+      if (sub === 'tables' && leaf === 'voltage_rows') return plain(`${name}: a tensão de uma linha vem de um campo numérico da placa; mantenha esse campo como um número.`, `${name} sem campo da tensão`);
       if (sub === 'label') return plain(`Ensaio ${index + 1}: informe o título do ensaio.`, `ensaio ${index + 1} sem título`);
       return plain(`${name}: confira as tabelas do ensaio.`, name);
     }
@@ -142,6 +172,16 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
     }
     case 'config_fields':
       return plain('Confira os campos de configuração do ensaio.', 'configuração');
+    case 'oil_rule': {
+      // authored: e22h S1, the oil rule a copy carries (its field, values, items and fields).
+      const rule = draft.oil_rule;
+      const at = rule !== null && typeof rule === 'object' ? (rule as Record<string, unknown>).field : undefined;
+      const field = fieldLabelOf(draft, at) ?? 'do tipo de isolação';
+      if (index === 'items') return plain('A regra do óleo cita um item que não está na lista de verificação.', 'regra do óleo sem item');
+      if (index === 'fields') return plain('A regra do óleo cita um campo que não está na placa.', 'regra do óleo sem campo');
+      if (index === 'oil_values' || index === 'full_values') return plain(`A regra do óleo cita uma opção que o campo ${field} não tem; mantenha as opções desse campo.`, 'regra do óleo sem opção');
+      return plain(`A regra do óleo lê o campo ${field} da placa; mantenha esse campo como uma lista.`, 'regra do óleo sem campo');
+    }
     case 'criteria': {
       if (typeof index !== 'number') return plain('Dois critérios têm a mesma chave.', 'critérios repetidos');
       const item = itemAt(draft, 'criteria', index);
@@ -150,7 +190,8 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       if (sub === 'label') return plain(`Critério ${index + 1}: informe o nome do critério.`, `critério ${index + 1} sem nome`);
       // A rule that would fail every reading its tests judge (`criterionRulesFor`).
       if (sub === 'operator' && issue.message.startsWith('± judges')) return plain(`${name}: a regra ± vale para o desvio da relação de transformação; escolha outra regra.`, `${name} com regra ±`);
-      if (sub === 'operator' && issue.message.startsWith('pass_fail judges')) return plain(`${name}: "aprovado ou reprovado" vale para uma linha com opções; escolha outra regra.`, `${name} com aprovado ou reprovado`);
+      // authored: e22h N1, no grammar judges "aprovado ou reprovado" yet.
+      if (sub === 'operator' && issue.message.startsWith('pass_fail judges')) return plain(`${name}: nenhum ensaio julga "aprovado ou reprovado"; escolha outra regra.`, `${name} com aprovado ou reprovado`);
       if (sub === 'operator') return plain(`${name}: escolha a regra.`, `${name} sem regra`);
       if (sub === 'value') return plain(`${name}: informe o valor.`, `${name} sem valor`);
       if (sub === 'value_max') {
@@ -208,7 +249,7 @@ export function validateTypeDraft(draft: CompanyTypeDraft | null | undefined): T
     // row's source (`updateDraftCriterion` copies it), so a missing source is said once, on the
     // Critérios tab, where it is typed.
     if (head === 'measurement_tests' && path[2] === 'criteria' && path[4] === 'source' && seededCriterionAt(value, path[1], path[3])) continue;
-    const part = PART_OF[head] ?? 'identificacao';
+    const part = partOf(path);
     const { message, summary } = sentenceOf(issue, value);
     const at = `${JSON.stringify(path.slice(0, 2))}\u0000${message}`;
     if (seen.has(at)) continue;

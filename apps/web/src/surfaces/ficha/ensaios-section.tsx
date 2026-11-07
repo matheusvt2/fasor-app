@@ -324,6 +324,7 @@ function TestSection({
         api={api}
         block={block}
         blocks={blocks}
+        equipmentTypes={snapshot.equipment_types}
         testKey={test.testKey}
         instruments={instruments}
         serviceEnd={serviceEnd}

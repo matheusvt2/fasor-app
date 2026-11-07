@@ -3,6 +3,7 @@ import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFile
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   displayCellTarget,
   displayEnvTarget,
   instantiateTemplate,
@@ -90,7 +91,7 @@ async function relatorio(): Promise<Built> {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: ACTOR, companyId },
   );
   await apply([draft('create', 'company', null, `project/${projectId}`, { id: projectId, client_id: null, name: 'Obra visor', site: 'Obra visor', removed_at: null }), ...drafts]);

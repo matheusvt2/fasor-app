@@ -3,6 +3,7 @@ import {
   companyTypesHeading,
   duplicateCompanyType,
   duplicateSeededType,
+  latestVersionRow,
   libraryTypeListRows,
   libraryTypesHeading,
   newEquipmentTypeRow,
@@ -105,7 +106,7 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
           {company.map((row) => {
             const type = byId.get(row.id)!;
             const open = () => void navigate(`/templates/tipos/${row.id}`);
-            const latest = type.latest_version > 0 ? ctx.versions.get(`${type.id}@${type.latest_version}`) : undefined;
+            const latest = latestVersionRow(ctx, type.id);
             return (
               <li key={row.id} className={row.status === 'aposentado' ? 'registry-row tpl-row type-row is-archived' : 'registry-row tpl-row type-row'} data-type-id={row.id}>
                 {icon('i-layers')}
@@ -127,7 +128,7 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
                       {copy.types.edit}
                     </TextButton>
                   )}
-                  {latest === undefined ? null : (
+                  {latest === null ? null : (
                     <TextButton onPress={() => void duplicate(() => duplicateCompanyType(latest))}>
                       {icon('i-copy')}
                       {copy.types.duplicate}

@@ -21,6 +21,8 @@ import {
   type BlockRow,
   type FieldDef,
   type WordRow,
+  EMPTY_DEFINITION_CONTEXT,
+  type DefinitionContext,
 } from '@app/domain';
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CharCount, DateField, NotApplicableButton, RegistryPickerField } from '../../components/index.ts';
@@ -239,8 +241,11 @@ export interface FieldProps {
   /** The select's empty option. */
   selectEmpty: string;
   registries?: { manufacturer: readonly WordRow[]; voltage_class: readonly WordRow[] };
-  /** The relatório's blocks, for the registry chips' recents. */
-  blocks?: readonly BlockRow[];
+  /**
+   * The relatório's blocks, for the registry chips' recents, with the type versions a company
+   * sheet's plate resolves through (e22h B1: the pair travels together, never the blocks alone).
+   */
+  recents?: { readonly blocks: readonly BlockRow[]; readonly definitions: DefinitionContext };
   /** "Criar “…”" of a registry field: the new row's name, committed with the field. */
   onCreateWord?: (kind: 'manufacturer' | 'voltage_class', name: string) => void;
   /**
@@ -708,11 +713,12 @@ function SelectField({ field, value, commit, missing, label, selectEmpty, helper
   );
 }
 
-function WordField({ field, value, commit, missing, label, registries, blocks, onCreateWord, onRegisterWord, after }: FieldProps) {
+function WordField({ field, value, commit, missing, label, registries, recents: used, onCreateWord, onRegisterWord, after }: FieldProps) {
   const kind = field.kind as 'manufacturer' | 'voltage_class';
   const rows = registries?.[kind] ?? [];
   const current = typeof value === 'string' ? value : null;
-  const recents = nameplateWordRecents(current, blocks ?? [], kind, rows);
+  // Without blocks no definition is read, so the empty context answers as any would.
+  const recents = nameplateWordRecents(current, used?.blocks ?? [], kind, rows, undefined, used?.definitions ?? EMPTY_DEFINITION_CONTEXT);
   const selected = wordRowByName(current, rows)?.id ?? null;
   // A name just created lands in the registry and on the sheet through two live reads; until
   // both are here the Combobox sees no selected row and lets go of it (a null selection),

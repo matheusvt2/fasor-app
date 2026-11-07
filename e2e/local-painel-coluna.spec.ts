@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   cellAddressesOf,
   defaultBlockConfig,
   getDefinition,
@@ -444,7 +445,7 @@ async function pushPainelRelatorio(page: Page): Promise<{ relatorioId: string }>
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: projectId },
-    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   // Born Em campo, as a relatório being filled on site is (status flow 2026-10-10).

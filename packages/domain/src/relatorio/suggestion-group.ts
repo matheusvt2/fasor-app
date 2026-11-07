@@ -3,7 +3,7 @@ import { dateFieldText, parsePlateDateText } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
@@ -39,13 +39,13 @@ type GroupBlock = Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet' 
  * back once the unit reads oil again. Every reader of the group (its rows, the banner count
  * through `suggestionGroupCounts`, `confirmAllCandidates`) goes through this one filter.
  */
-export function nameplateSuggestions(block: GroupBlock, pending: readonly SuggestionRow[], ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): NameplateSuggestion[] {
+export function nameplateSuggestions(block: GroupBlock, pending: readonly SuggestionRow[], ctx: DefinitionContext): NameplateSuggestion[] {
   const byField = pendingByNameplateField(pending, block.id);
   const out: NameplateSuggestion[] = [];
   for (const field of nameplateFields(block, ctx)) {
     const suggestion = byField.get(field.key);
     if (suggestion === undefined) continue;
-    if (isNameplateFieldExcused(block, field.key)) continue;
+    if (isNameplateFieldExcused(block, field.key, ctx)) continue;
     out.push({ field, suggestion, view: suggestionView(block.sheet.nameplate[field.key], suggestion, field) });
   }
   return out;
@@ -87,7 +87,7 @@ export function unknownManufacturer(field: Pick<FieldDef, 'kind'>, value: unknow
  * (`hasCreateHint`: a new manufacturer takes its own "Criar ⟨nome⟩?" tap) are skipped.
  * Without `registry` any hint counts as a create.
  */
-export function confirmAllCandidates(block: GroupBlock, pending: readonly SuggestionRow[], registry: RegistryNames = [], ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): SuggestionRow[] {
+export function confirmAllCandidates(block: GroupBlock, pending: readonly SuggestionRow[], registry: RegistryNames = [], ctx: DefinitionContext): SuggestionRow[] {
   return nameplateSuggestions(block, pending, ctx)
     .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested' && !hasCreateHint(entry.suggestion, registry))
     .map((entry) => entry.suggestion);
@@ -101,7 +101,7 @@ export function suggestionGroupCounts(
   block: GroupBlock,
   pending: readonly SuggestionRow[],
   registry: RegistryNames = [],
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): { shown: number; fills: number; confirmable: number; verify: number; create: number } {
   const entries = nameplateSuggestions(block, pending, ctx);
   const fills = entries.filter((entry) => entry.view === 'fill');

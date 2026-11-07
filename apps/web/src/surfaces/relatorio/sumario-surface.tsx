@@ -46,6 +46,7 @@ import {
   type SumarioRowKey,
   type TemplateRow,
   type UserRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -60,6 +61,7 @@ import { RETURN_PARAM, RETURN_TO_EXPORT, useBackTarget } from '../../state/back-
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useStickyBarScrollPadding } from '../../components/toast.tsx';
@@ -272,9 +274,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // stops above it, as on the ficha (`--sticky-bar-covered`).
   useStickyBarScrollPadding();
   const { announcement } = editor;
+  // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
+  const definitions = useDefinitionContext();
   const treeContext = useMemo(
-    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor }),
-    [relatorioId, relatorio.project_id, relatorio.seed_version, editor],
+    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions }),
+    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions],
   );
 
   const { rows: actions, addSection, restore, moveBack } = useSumarioActions(
@@ -369,7 +373,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [countFocus, setCountFocus] = useState<{ target: CountTarget; n: number } | null>(null);
   function openCount(kind: SumarioCountKind): void {
     const tree = locationTree(snapshot, equipment, pending);
-    const target = firstCountedTarget(tree, snapshot.blocks, kind, pending);
+    const target = firstCountedTarget(tree, snapshot.blocks, kind, pending, snapshotDefinitionContext(snapshot));
     // A site target is a root the tree draws with its site row (the finder returns only those); else as with none.
     const drawn = target === null || target.kind === 'block' || tree.some((node) => node.id === target.locationId && node.site !== null);
     if (target === null || !drawn) {

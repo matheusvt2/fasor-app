@@ -11,7 +11,7 @@ import { PANEL_FIELDS, panelFields } from '../reading/panel.ts';
 import { BASE_EQUIPMENT_BLOCK_TYPES, blockConfigSchema, EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType, SUB_BLOCK_KEYS, type TemplateBlock } from '../schemas/block-config.ts';
 import { blockRowSchema, sheetSchema, templateRowSchema, type BlockRow, type JsonValue } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
-import { SEED_VERSION } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, SEED_VERSION } from '../seed/definitions.ts';
 import { defaultBlockConfig, standardTemplate, templateBlockTotal, templateTotals } from '../seed/template.ts';
 import { addCabine, addColuna, composerView, enabledSubBlocks, setQuantity, setTypeDefaults, typeConfigFor } from '../templates/compose.ts';
 import { templateFromRelatorio, templateSeedUpgrade } from '../templates/from-relatorio.ts';
@@ -37,31 +37,31 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
   it('paletteTypeGroups: one group with no heading before v5, a second under the library label on v5', () => {
     expect(LIBRARY_GROUP_LABEL).toBe('Outros equipamentos');
     for (const version of ['v1', 'v2', 'v3', 'v4']) {
-      expect(paletteTypeGroups(version), version).toEqual([{ key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] }]);
+      expect(paletteTypeGroups(version, EMPTY_DEFINITION_CONTEXT), version).toEqual([{ key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] }]);
     }
-    expect(paletteTypeGroups('v5')).toEqual([
+    expect(paletteTypeGroups('v5', EMPTY_DEFINITION_CONTEXT)).toEqual([
       { key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] },
       { key: 'library', label: 'Outros equipamentos', types: [CTA] },
     ]);
     // Story 14.9: seed v6 adds the Quadro elétrico after it (`quadro-eletrico.test.ts`).
-    expect(paletteTypeGroups(SEED_VERSION)[1]!.types[0]).toBe(CTA);
+    expect(paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT)[1]!.types[0]).toBe(CTA);
     // A version this bundle does not ship offers what every version holds.
-    expect(paletteTypeGroups('v99')).toEqual([{ key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] }]);
+    expect(paletteTypeGroups('v99', EMPTY_DEFINITION_CONTEXT)).toEqual([{ key: 'seeded', label: null, types: [...BASE_EQUIPMENT_BLOCK_TYPES] }]);
   });
 
   it('paletteItems: the field palette\'s rows, the library type last with its suggested TAG and what it holds', () => {
     const coluna = { kind: 'coluna' as const, name: 'Coluna 5' };
-    const v4 = paletteItems('v4', coluna, []);
+    const v4 = paletteItems('v4', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(v4.map((item) => item.type)).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES]);
     expect(v4.every((item) => !item.library && item.summary === null)).toBe(true);
-    const v5 = paletteItems('v5', coluna, []);
+    const v5 = paletteItems('v5', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(v5.map((item) => item.type)).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES, CTA]);
     expect(v5.slice(0, 8)).toEqual(v4);
     expect(v5[8]).toEqual({ type: CTA, label: 'Chave de transferência automática', tag: 'CTA-C05', library: true, summary: '17 itens · até 6 ensaios' });
     // Directly on a local, and with the TAG taken.
     const local = { kind: 'cabine' as const, name: 'Geradores' };
-    expect(paletteItems('v5', local, [])[8]!.tag).toBe('CTA-GERADORES');
-    expect(paletteItems('v5', local, [{ tag: 'CTA-GERADORES', removed_at: null }])[8]!.tag).toBe('CTA-GERADORES-2');
+    expect(paletteItems('v5', local, [], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-GERADORES');
+    expect(paletteItems('v5', local, [{ tag: 'CTA-GERADORES', removed_at: null }], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-GERADORES-2');
   });
 
   it('the TAG follows the existing rule with the prefix CTA; the type label and the summary are the seed\'s', () => {
@@ -73,9 +73,9 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
     expect(blockTypeLabel('v5', CTA)).toBe('Chave de transferência automática');
     // On a version that does not ship it the label falls back to the key, as for any unknown type.
     expect(blockTypeLabel('v4', CTA)).toBe(CTA);
-    expect(libraryTypeSummaryText('v5', CTA)).toBe('17 itens · até 6 ensaios');
-    expect(libraryTypeSummaryText('v4', CTA)).toBeNull();
-    expect(libraryTypeSummaryText('v5', 'tp')).toBeNull();
+    expect(libraryTypeSummaryText('v5', CTA, EMPTY_DEFINITION_CONTEXT)).toBe('17 itens · até 6 ensaios');
+    expect(libraryTypeSummaryText('v4', CTA, EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    expect(libraryTypeSummaryText('v5', 'tp', EMPTY_DEFINITION_CONTEXT)).toBeNull();
     expect(isEquipmentBlockType(CTA)).toBe(true);
   });
 
@@ -102,10 +102,10 @@ describe('derived words of the type', () => {
     expect(TOTALS_ORDER).toHaveLength(11);
     expect(TOTALS_ORDER[8]).toBe(CTA);
     const zero = Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((type) => [type, 0])) as Record<(typeof EQUIPMENT_BLOCK_TYPES)[number], number>;
-    expect(totalsText({ ...zero, [CTA]: 1 })).toBe('1 chave de transferência automática');
-    expect(totalsText({ ...zero, chave_seccionadora: 25, para_raio: 5, [CTA]: 2 })).toBe('25 seccionadoras · 5 para-raios · 2 chaves de transferência automática');
-    expect(totalsText({ ...zero, chave_seccionadora: 25 })).toBe('25 seccionadoras');
-    expect(quantityLabel(CTA, 1)).toBe('Chaves de transferência automática, 1');
+    expect(totalsText({ ...zero, [CTA]: 1 }, EMPTY_DEFINITION_CONTEXT)).toBe('1 chave de transferência automática');
+    expect(totalsText({ ...zero, chave_seccionadora: 25, para_raio: 5, [CTA]: 2 }, EMPTY_DEFINITION_CONTEXT)).toBe('25 seccionadoras · 5 para-raios · 2 chaves de transferência automática');
+    expect(totalsText({ ...zero, chave_seccionadora: 25 }, EMPTY_DEFINITION_CONTEXT)).toBe('25 seccionadoras');
+    expect(quantityLabel(CTA, 1, EMPTY_DEFINITION_CONTEXT)).toBe('Chaves de transferência automática, 1');
   });
 
   it('has a caption word that agrees in the feminine singular', () => {
@@ -154,17 +154,17 @@ describe('a template with the type', () => {
   const v5 = () => ({ ...emptyTemplate(TEMPLATE, 'v5'), skeleton });
 
   it('the Quantity stepper places it with its default config, the totals and the node name it', () => {
-    const blocks = setQuantity(v5(), 'c5', CTA, 1);
+    const blocks = setQuantity(v5(), 'c5', CTA, 1, EMPTY_DEFINITION_CONTEXT);
     expect(blocks.filter((block) => block.block_type === CTA)).toEqual([{ ...defaultBlockConfig('v5', CTA), quantity: 1, skeleton_location_ref: 'c5', section_text: null }]);
     const template = { ...v5(), blocks };
     expect(templateRowSchema.safeParse(template).success).toBe(true);
     expect(templateTotals(template)[CTA]).toBe(1);
     expect(templateBlockTotal(template)).toBe(1);
-    expect(totalsText(templateTotals(template))).toBe('1 chave de transferência automática');
+    expect(totalsText(templateTotals(template), EMPTY_DEFINITION_CONTEXT)).toBe('1 chave de transferência automática');
     const view = composerView(template);
     expect(view.totals[CTA]).toBe(1);
-    expect(setQuantity(template, 'c5', CTA, 3).find((block) => block.block_type === CTA)!.quantity).toBe(3);
-    expect(setQuantity(template, 'c5', CTA, 0).some((block) => block.block_type === CTA)).toBe(false);
+    expect(setQuantity(template, 'c5', CTA, 3, EMPTY_DEFINITION_CONTEXT).find((block) => block.block_type === CTA)!.quantity).toBe(3);
+    expect(setQuantity(template, 'c5', CTA, 0, EMPTY_DEFINITION_CONTEXT).some((block) => block.block_type === CTA)).toBe(false);
     // Its type defaults are one config for every placement, as for the eight.
     const config = typeConfigFor(blocks, CTA)!;
     const off = setTypeDefaults(blocks, CTA, { ...config, sub_blocks: { ...config.sub_blocks, [E6]: { enabled: false } } });
@@ -188,7 +188,7 @@ describe('a template with the type', () => {
       const parsed = templateRowSchema.safeParse({ ...emptyTemplate(TEMPLATE, version), skeleton, blocks: [entry] });
       expect(parsed.success, version).toBe(false);
       expect(parsed.error!.issues[0]!.message, version).toBe(`${CTA} is not a block type of seed_version "${version}"`);
-      expect(() => setQuantity({ ...emptyTemplate(TEMPLATE, version), skeleton }, 'c5', CTA, 1), version).toThrow(/is not in seed_version/);
+      expect(() => setQuantity({ ...emptyTemplate(TEMPLATE, version), skeleton }, 'c5', CTA, 1, EMPTY_DEFINITION_CONTEXT), version).toThrow(/is not in seed_version/);
     }
     const on = (options: Record<string, string>) => templateRowSchema.safeParse({ ...v5(), blocks: [{ ...entry, options }] });
     expect(on({ polos: '4', tensao: 'mt', neutro: 'chaveado', transicao: 'fechada', bypass: 'sim' }).success).toBe(true);
@@ -208,7 +208,7 @@ describe('a template with the type', () => {
     const { relatorioId, drafts } = instantiateTemplate(
       template,
       { id: TEST_PROJECT },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: idSequence('019966b0-0148-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
     );
     const ops = drafts.map((draft, index) => ({ ...makeOp({ ...draft, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0149-7000-8000-'), now: T0 }), seq: index + 1 }));
@@ -229,9 +229,9 @@ describe('a template with the type', () => {
     expect(saved.blocks.filter((block) => block.block_type === CTA)).toEqual([{ ...entry, skeleton_location_ref: saved.skeleton[0]!.ref }]);
     // The eight carry no `options` key into a relatório, as before.
     const tp = instantiateTemplate(
-      { ...v5(), blocks: setQuantity(v5(), 'c5', 'tp', 1) },
+      { ...v5(), blocks: setQuantity(v5(), 'c5', 'tp', 1, EMPTY_DEFINITION_CONTEXT) },
       { id: TEST_PROJECT },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: idSequence('019966b0-0148-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
     );
     const created = tp.drafts.find((draft) => parsePath(draft.path).family === 'block' && (draft.value as { block_type: string }).block_type === 'tp')!;

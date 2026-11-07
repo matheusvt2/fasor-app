@@ -1,4 +1,5 @@
 import {
+  blockDefinitionIn,
   blockFieldPath,
   buildSnapshot,
   companyBlockType,
@@ -10,6 +11,7 @@ import {
   replay,
   serializeSnapshot,
   sheetChecklistPath,
+  snapshotDefinitionContext,
   sheetNameplatePath,
   syncPullResponseSchema,
   type CompanyTypeDefinition,
@@ -33,6 +35,8 @@ import { toSnapshot } from './snapshot.ts';
  * the op); a version naming a type the company does not hold is `op_target_missing`; company B
  * never resolves company A's type (its block create is refused, its pull never carries A's rows);
  * two devices publishing the same number, the later one is refused and publishes the next.
+ * e22h S2: a block names its version row by id, so a refused publish never binds its block to the
+ * other device's version; e22h N5: a version's `published_by` is the pushing actor.
  */
 
 const h = routeHarness('tablet-company-types');
@@ -74,8 +78,15 @@ function versionValue(company: Company, id: string, typeId: string, version: num
 
 const subBlocks = Object.fromEntries(companySubBlocksOf(DEFINITION_1).map((key) => [key, { enabled: key !== 'ia_ip_display' }]));
 
-/** A block create of a company type on a fresh relatório of `company`. */
-async function companyBlockCreate(company: Company, typeId: string, typeVersion: number, relatorio?: Awaited<ReturnType<typeof h.seedRelatorio>>): Promise<{ op: Op; blockId: string; relatorioId: string }> {
+/** A block create of a company type on a fresh relatório of `company`, naming its version row by id (e22h S2). */
+async function companyBlockCreate(
+  company: Company,
+  typeId: string,
+  typeVersion: number,
+  versionId: string,
+  relatorio?: Awaited<ReturnType<typeof h.seedRelatorio>>,
+  options: { subBlocks?: Record<string, { enabled: boolean }>; deviceId?: string } = {},
+): Promise<{ op: Op; blockId: string; relatorioId: string }> {
   const seeded = relatorio ?? (await h.seedRelatorio(company));
   const blockId = newId();
   const equipmentId = seeded.blocks[0]!.equipmentId;
@@ -84,13 +95,14 @@ async function companyBlockCreate(company: Company, typeId: string, typeVersion:
     kind: 'create',
     path: `block/${blockId}`,
     relatorio_id: seeded.relatorioId,
+    ...(options.deviceId === undefined ? {} : { device_id: options.deviceId }),
     value: {
       id: blockId,
       relatorio_id: seeded.relatorioId,
       location_id: seeded.locationId,
       equipment_id: equipmentId,
       block_type: blockType,
-      config: { block_type: blockType, sub_blocks: subBlocks, na_defaults: [], type_version: typeVersion },
+      config: { block_type: blockType, sub_blocks: options.subBlocks ?? subBlocks, na_defaults: [], type_version: typeVersion, type_version_id: versionId },
       seed_version: 'v12',
       order_key: 'zz',
       feeds_block_id: null,
@@ -227,16 +239,16 @@ describe('Story 14.6: publishing through the route', () => {
 
 describe('Story 14.6: company blocks through the route', () => {
   it('a block naming a version the company holds applies; one naming no version row is refused op_invalid', async () => {
-    const { typeId } = await publishedType(companyA);
-    const good = await companyBlockCreate(companyA, typeId, 1);
+    const { typeId, versionId } = await publishedType(companyA);
+    const good = await companyBlockCreate(companyA, typeId, 1, versionId);
     expect((await h.push(companyA, [good.op])).rejected).toEqual([]);
-    const missing = await companyBlockCreate(companyA, typeId, 2);
+    const missing = await companyBlockCreate(companyA, typeId, 2, newId());
     expect((await h.push(companyA, [missing.op])).rejected).toEqual([{ op_id: missing.op.op_id, code: 'op_invalid' }]);
   });
 
   it('cross-tenant: company B never resolves company A\'s type, and its pull never carries A\'s rows', async () => {
     const { typeId, versionId } = await publishedType(companyA);
-    const theirs = await companyBlockCreate(companyB, typeId, 1);
+    const theirs = await companyBlockCreate(companyB, typeId, 1, versionId);
     expect((await h.push(companyB, [theirs.op])).rejected).toEqual([{ op_id: theirs.op.op_id, code: 'op_invalid' }]);
     // B's version naming A's type: the type is no type of B's.
     const forgedId = newId();
@@ -247,11 +259,11 @@ describe('Story 14.6: company blocks through the route', () => {
   });
 
   it('refuses a config put changing the block\'s type version, and a sheet write outside its definition; a write inside it applies', async () => {
-    const { typeId } = await publishedType(companyA);
-    const created = await companyBlockCreate(companyA, typeId, 1);
+    const { typeId, versionId } = await publishedType(companyA);
+    const created = await companyBlockCreate(companyA, typeId, 1, versionId);
     expect((await h.push(companyA, [created.op])).rejected).toEqual([]);
     const blockType = companyBlockType(typeId);
-    const config = h.clientOp(companyA, { kind: 'put', path: blockFieldPath(created.blockId, 'config'), relatorio_id: created.relatorioId, value: { block_type: blockType, sub_blocks: subBlocks, na_defaults: [], type_version: 2 } });
+    const config = h.clientOp(companyA, { kind: 'put', path: blockFieldPath(created.blockId, 'config'), relatorio_id: created.relatorioId, value: { block_type: blockType, sub_blocks: subBlocks, na_defaults: [], type_version: 2, type_version_id: versionId } });
     const outside = h.clientOp(companyA, { kind: 'put', path: sheetNameplatePath(created.blockId, 'potencia_nominal'), relatorio_id: created.relatorioId, value: '10 kVA' });
     const inside = h.clientOp(companyA, { kind: 'put', path: sheetChecklistPath(created.blockId, 'bornes', 'result'), relatorio_id: created.relatorioId, value: 'NC' });
     const result = await h.push(companyA, [config, outside, inside]);
@@ -260,6 +272,84 @@ describe('Story 14.6: company blocks through the route', () => {
       { op_id: outside.op_id, code: 'op_invalid' },
     ]);
     expect(result.applied.map((a) => a.op_id)).toEqual([inside.op_id]);
+  });
+});
+
+/** Device Y's own v2 of a type (e22h S2): an item device Z's v2 does not have. */
+const Y_DEFINITION: CompanyTypeDefinition = {
+  ...structuredClone(DEFINITION_1),
+  checklist: [...DEFINITION_1.checklist!, { key: 'alarme_remoto', label: 'Alarme remoto', nc_phrases: ['Sem sinal', 'Contato oxidado', 'Fiação solta'] }],
+};
+
+describe('e22h S2: a block names its company type version by the version row\'s id (two devices, through the route)', () => {
+  it('a refused publish never binds its block to the other device\'s version; renumbered, the block resolves its own row', async () => {
+    // T at v1 on both devices; device Z publishes v2 (row z).
+    const { typeId } = await publishedType(companyA);
+    const zId = newId();
+    const z = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(zId), device_id: DEVICE_X, value: versionValue(companyA, zId, typeId, 2, DEFINITION_2) });
+    expect((await h.push(companyA, [z])).rejected).toEqual([]);
+
+    // Device Y, not pulled: its own v2 (row y), a block B naming (2, y), a sheet write on an item only y has.
+    const yId = newId();
+    const y = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(yId), device_id: DEVICE_Y, value: versionValue(companyA, yId, typeId, 2, Y_DEFINITION) });
+    const relatorio = await h.seedRelatorio(companyA);
+    const ySubBlocks = Object.fromEntries(companySubBlocksOf(Y_DEFINITION).map((key) => [key, { enabled: key !== 'ia_ip_display' }]));
+    const b = await companyBlockCreate(companyA, typeId, 2, yId, relatorio, { subBlocks: ySubBlocks, deviceId: DEVICE_Y });
+    const write = h.clientOp(companyA, { kind: 'put', path: sheetChecklistPath(b.blockId, 'alarme_remoto', 'result'), relatorio_id: b.relatorioId, device_id: DEVICE_Y, value: 'NC' });
+    const first = await h.push(companyA, [y, b.op, write]);
+    expect(first.rejected.map((r) => r.op_id)).toEqual([y.op_id, b.op.op_id, write.op_id]);
+    expect(first.rejected.slice(0, 2).map((r) => r.code)).toEqual(['op_invalid', 'op_invalid']);
+    expect(await h.logged(y.op_id)).toBe(false);
+    expect(await h.logged(b.op.op_id)).toBe(false);
+    // Nothing binds B to z.
+    expect(await h.rowOf(companyA, 'block', b.blockId)).toBeUndefined();
+
+    // A block naming (2, y) is refused while z holds number 2, even with only z's keys.
+    const again = await companyBlockCreate(companyA, typeId, 2, yId, relatorio, { deviceId: DEVICE_Y });
+    expect((await h.push(companyA, [again.op])).rejected).toEqual([{ op_id: again.op.op_id, code: 'op_invalid' }]);
+
+    // After "Reenviar" renumbers (y at 3, B naming (3, y)): the same op ids apply, and B reads y's definition.
+    const renumbered = { ...y, value: { ...(y.value as object), version: 3 } } as Op;
+    const bConfig = (b.op.value as { config: object }).config;
+    const bAgain = { ...b.op, value: { ...(b.op.value as object), config: { ...bConfig, type_version: 3 } } } as Op;
+    const second = await h.push(companyA, [renumbered, bAgain, write]);
+    expect(second.rejected, JSON.stringify(second.rejected)).toEqual([]);
+    expect(second.applied.map((a) => a.op_id)).toEqual([y.op_id, b.op.op_id, write.op_id]);
+    expect(await h.rowOf(companyA, 'equipment_type', typeId)).toMatchObject({ latest_version: 3 });
+    const block = await h.rowOf<{ config: { type_version: number; type_version_id: string }; sheet: { checklist: Record<string, { result?: { value?: string } }> } }>(companyA, 'block', b.blockId);
+    expect(block?.config).toMatchObject({ type_version: 3, type_version_id: yId });
+    expect(block?.sheet.checklist.alarme_remoto?.result?.value).toBe('NC');
+    // The snapshot carries y's row for B, and B resolves y's definition from it (the item only y has).
+    const snapshot = await toSnapshot(h.db, asCompanyId(companyA.companyId), b.relatorioId);
+    expect(snapshot.equipment_types?.map((row) => row.id)).toContain(yId);
+    const snapshotBlock = snapshot.blocks.find((row) => row.id === b.blockId)!;
+    const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), snapshotBlock);
+    expect(definition?.type_version_id).toBe(yId);
+    expect(definition?.checklist?.map((item) => item.key)).toContain('alarme_remoto');
+  });
+
+  it('refuses a company block create that names its version by number alone (op_invalid)', async () => {
+    const { typeId, versionId } = await publishedType(companyA);
+    const created = await companyBlockCreate(companyA, typeId, 1, versionId);
+    const config = (created.op.value as { config: Record<string, unknown> }).config;
+    const byNumber: Record<string, unknown> = { ...config };
+    delete byNumber.type_version_id;
+    const bare = { ...created.op, value: { ...(created.op.value as object), config: byNumber } } as Op;
+    expect((await h.push(companyA, [bare])).rejected).toEqual([{ op_id: bare.op_id, code: 'op_invalid' }]);
+  });
+});
+
+describe('e22h N5: published_by is bound to the pushing actor', () => {
+  it('a version create naming a colleague as published_by is refused op_attribution and never logged; the own actor applies', async () => {
+    const { typeId } = await publishedType(companyA);
+    const forgedId = newId();
+    const forged = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(forgedId), value: { ...versionValue(companyA, forgedId, typeId, 2, DEFINITION_2), published_by: newId() } });
+    expect((await h.push(companyA, [forged])).rejected).toEqual([{ op_id: forged.op_id, code: 'op_attribution' }]);
+    expect(await h.logged(forged.op_id)).toBe(false);
+    expect(await h.rowOf(companyA, 'equipment_type', typeId)).toMatchObject({ latest_version: 1 });
+    const ownId = newId();
+    const mine = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(ownId), value: versionValue(companyA, ownId, typeId, 2, DEFINITION_2) });
+    expect((await h.push(companyA, [mine])).rejected).toEqual([]);
   });
 });
 

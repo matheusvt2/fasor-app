@@ -26,6 +26,7 @@ import {
   type SheetProgress,
   type SheetStep,
   type UserRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useCallback, useState } from 'react';
 import type { NavigateFunction } from 'react-router';
@@ -288,7 +289,7 @@ export function useFichaActions({
 
   const moveTo = (targetId: string, rename: boolean) => {
     setMoveDialogOpen(false);
-    void commitMove(editor.edit, { relatorioId, projectId, blockId, targetId, rename })
+    void commitMove(editor.edit, { relatorioId, projectId, blockId, targetId, rename, definitions: snapshotDefinitionContext(snapshot) })
       .then(({ batch, plan }) => {
         if (batch === null || plan.kind !== 'move') {
           // Already there (another device moved it first): nothing to write, nothing to say.

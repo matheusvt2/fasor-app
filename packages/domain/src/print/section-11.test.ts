@@ -7,7 +7,7 @@ import { sheetOrder } from '../relatorio/ficha.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import type { BlockRow, RegistryRow, RelatorioRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
@@ -31,7 +31,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0b04-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0b05-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0b06-7000-8000-'), now: T0 }), seq: i + 1 }));

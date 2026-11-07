@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, instantiateTemplate, makeOp, standardTemplate, type JsonValue, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, instantiateTemplate, makeOp, standardTemplate, type JsonValue, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../../apps/api/src/ids.ts';
 import { expect, timed, type SeedAccount } from './merged-fixtures.ts';
@@ -37,7 +37,7 @@ export async function pushNewRelatorio(
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId(), ...(options.seedVersion === undefined ? {} : { seedVersion: options.seedVersion }) }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   await pushDrafts(page, database, [project, ...drafts, ...(options.emCampo === true ? [emCampoDraft(account, relatorioId)] : [])]);
@@ -159,7 +159,7 @@ export function newRelatorioDrafts(account: Account, options: { seedVersion?: st
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId(), ...(options.seedVersion === undefined ? {} : { seedVersion: options.seedVersion }) }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const rows = (prefix: string) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);

@@ -7,7 +7,7 @@ import { normalizeReadingValue } from '../reading/value.ts';
 import { displayCellTarget } from '../reading/target.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { relatorioRowSchema, type BlockRow, type EntityRow, type EquipmentRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
@@ -89,7 +89,7 @@ function photo(id: string, options: { itemKey?: string | null; target?: JsonValu
 }
 
 function stateWith(type: EquipmentBlockType, seedVersion = 'v7', photos: FileRow[] = [], f: OpFactory = opFactory()): { state: EntityState; f: OpFactory } {
-  const { equipment, block } = newEquipmentBlock({ blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type, tag: 'DJ-1', seedVersion, orderKey: 'a0' });
+  const { equipment, block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type, tag: 'DJ-1', seedVersion, orderKey: 'a0' });
   const rows = new Map<EntityKey, EntityRow>([
     [entityKey('relatorio', TEST_RELATORIO), relatorio(seedVersion)],
     [entityKey('location', LOCAL), local()],
@@ -126,11 +126,11 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
       const { state, f } = stateWith('disjuntor_mt');
       const block = blockOf(put(state, f, plate('meio_de_extincao'), value).state);
       const full = value === 'Óleo' || value === 'Outro';
-      expect(isOilUnit(block), value).toBe(full);
-      expect(checklistResultOf(block, OIL_ITEM), value).toBe(full ? null : 'NA');
-      expect(oilDerivedNaKeys(block).has(OIL_ITEM), value).toBe(!full);
+      expect(isOilUnit(block, EMPTY_DEFINITION_CONTEXT), value).toBe(full);
+      expect(checklistResultOf(block, OIL_ITEM, EMPTY_DEFINITION_CONTEXT), value).toBe(full ? null : 'NA');
+      expect(oilDerivedNaKeys(block, EMPTY_DEFINITION_CONTEXT).has(OIL_ITEM), value).toBe(!full);
       expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo'), value).toBe(full);
-      expect(isOilFieldExcused(block, 'vol_oleo'), value).toBe(!full);
+      expect(isOilFieldExcused(block, 'vol_oleo', EMPTY_DEFINITION_CONTEXT), value).toBe(!full);
     }
   });
 
@@ -144,8 +144,8 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
       ]),
     );
     expect(block.sheet.nameplate.vol_oleo!.value).toEqual(num('45', 'L'));
-    expect(checklistResultOf(block, OIL_ITEM)).toBe('C');
-    expect(isOilFieldExcused(block, 'vol_oleo')).toBe(false);
+    expect(checklistResultOf(block, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBe('C');
+    expect(isOilFieldExcused(block, 'vol_oleo', EMPTY_DEFINITION_CONTEXT)).toBe(false);
   });
 
   it('Óleo to Outro and Outro to Óleo cross nothing', () => {
@@ -193,14 +193,14 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
           next = applyOp(next, op);
         }
         const after = blockOf(next);
-        expect(checklistResultOf(after, OIL_ITEM)).toBe('NA');
-        expect(isOilFieldExcused(after, 'vol_oleo')).toBe(true);
+        expect(checklistResultOf(after, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBe('NA');
+        expect(isOilFieldExcused(after, 'vol_oleo', EMPTY_DEFINITION_CONTEXT)).toBe(true);
         expect(filesOf(next).find((row) => row.id === PHOTO)!.item_key).toBeNull();
         let undone = next;
         for (const op of invertBatch(ops, before, { newId: idSequence('019966b0-0243-7000-8000-'), now: T0 })) undone = applyOp(undone, op);
         const restored = blockOf(undone);
         expect(restored.sheet.nameplate.meio_de_extincao!.value).toBe(from);
-        expect(checklistResultOf(restored, OIL_ITEM)).toBe('C');
+        expect(checklistResultOf(restored, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBe('C');
         expect(restored.sheet.nameplate.vol_oleo!.value).toEqual(num('45', 'L'));
         expect(filesOf(undone).find((row) => row.id === PHOTO)!.item_key).toBe(OIL_ITEM);
       }
@@ -214,7 +214,7 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
     const tapped = put(ar, f, item(OIL_ITEM), 'NA').state;
     expect(oilCrossingPuts({ blocks: [blockOf(tapped)], files: [] }, BLOCK, 'meio_de_extincao', 'Outro')).toEqual([{ path: item(OIL_ITEM), value: null }]);
     const outro = blockOf(put(ar, f, plate('meio_de_extincao'), 'Outro').state);
-    expect(checklistResultOf(outro, OIL_ITEM)).toBeNull();
+    expect(checklistResultOf(outro, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 
   it('v6 untouched: its five media, ÓLEO (PVO) and (GVO) oil, AR, SF6 and VÁCUO non-oil, and no Outro', () => {
@@ -228,8 +228,8 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
     ] as const) {
       const { state, f } = stateWith('disjuntor_mt', 'v6');
       const block = blockOf(put(state, f, plate('meio_de_extincao'), value).state);
-      expect(isOilUnit(block), value).toBe(oil);
-      expect(checklistResultOf(block, OIL_ITEM), value).toBe(oil ? null : 'NA');
+      expect(isOilUnit(block, EMPTY_DEFINITION_CONTEXT), value).toBe(oil);
+      expect(checklistResultOf(block, OIL_ITEM, EMPTY_DEFINITION_CONTEXT), value).toBe(oil ? null : 'NA');
     }
   });
 });
@@ -301,7 +301,7 @@ describe('matrix "Old spelling copied" and "Old spelling read"', () => {
 /** A Quadro elétrico block of `seedVersion` with the plate values and the insulation instrument's TENSÃO ENSAIO given. */
 function board(options: { seedVersion?: string; voltage?: JsonValue | null; selv?: string | null; testParameter?: string | null } = {}): BlockRow {
   const seedVersion = options.seedVersion ?? 'v7';
-  const { block } = newEquipmentBlock({ blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: 'quadro_eletrico', tag: 'QD-1', seedVersion, orderKey: 'a0' });
+  const { block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: 'quadro_eletrico', tag: 'QD-1', seedVersion, orderKey: 'a0' });
   const cell = (value: JsonValue) => ({ value, source_suggestion_id: null, op_id: 'x' });
   const nameplate: Record<string, unknown> = {};
   if (options.voltage !== undefined && options.voltage !== null) nameplate.tensao_nominal = cell(options.voltage);
@@ -324,14 +324,14 @@ describe('matrix "SELV help", "SELV notice" and "SELV no notice"', () => {
   it('the help sits on the v7 field only', () => {
     expect(field('v7', 'quadro_eletrico', 'circuito_selv_pelv').help).toBe('SELV e PELV: tensão até 120 V em corrente contínua ou 50 V em corrente alternada, conforme a NBR 5410');
     expect(field('v6', 'quadro_eletrico', 'circuito_selv_pelv').help).toBeUndefined();
-    expect(selvNoticeFieldOf(board())).toBe('circuito_selv_pelv');
-    expect(selvNoticeFieldOf(board({ seedVersion: 'v6' }))).toBeNull();
+    expect(selvNoticeFieldOf(board(), EMPTY_DEFINITION_CONTEXT)).toBe('circuito_selv_pelv');
+    expect(selvNoticeFieldOf(board({ seedVersion: 'v6' }), EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 
   it('SIM above 50 V shows the notice (380 V, 0,38 kV, 51 V); the SELV band still applies', () => {
     for (const voltage of [num('380', 'V'), num('0.38', 'kV'), num('51', 'V')]) {
       const block = board({ voltage, selv: 'SIM' });
-      expect(selvVoltageNoticeText(block), JSON.stringify(voltage)).toBe(SELV_VOLTAGE_NOTICE);
+      expect(selvVoltageNoticeText(block, EMPTY_DEFINITION_CONTEXT), JSON.stringify(voltage)).toBe(SELV_VOLTAGE_NOTICE);
       expect(bandCriterion(block, isolacao())!.value).toBe(0.25);
     }
     expect(SELV_VOLTAGE_NOTICE).toBe('Marcado SELV/PELV, mas a TENSÃO NOMINAL passa de 50 V: confira a marcação ou a tensão.');
@@ -347,8 +347,8 @@ describe('matrix "SELV help", "SELV notice" and "SELV no notice"', () => {
       board({ voltage: num('380', 'V') }),
       board({ seedVersion: 'v6', voltage: num('380', 'V'), selv: 'SIM' }),
     ];
-    for (const block of none) expect(() => selvVoltageNoticeText(block)).not.toThrow();
-    expect(none.map((block) => selvVoltageNoticeText(block))).toEqual(none.map(() => null));
+    for (const block of none) expect(() => selvVoltageNoticeText(block, EMPTY_DEFINITION_CONTEXT)).not.toThrow();
+    expect(none.map((block) => selvVoltageNoticeText(block, EMPTY_DEFINITION_CONTEXT))).toEqual(none.map(() => null));
   });
 });
 

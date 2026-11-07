@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { cabineOf, instantiateTemplate, SITE_ITEM_KEYS, standardTemplate, type BlockRow, type EntityState, type LocationRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, cabineOf, instantiateTemplate, SITE_ITEM_KEYS, standardTemplate, type BlockRow, type EntityState, type LocationRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -71,7 +71,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0149-7000-8000-000000000001' }),
     { id: PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts

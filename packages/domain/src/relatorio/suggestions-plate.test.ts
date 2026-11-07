@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { emptySheet, suggestionRowSchema, type BlockRow, type Cell, type SuggestionRow } from '../schemas/entities.ts';
 import { TEST_RELATORIO } from '../test-support.ts';
@@ -183,11 +184,11 @@ describe('8.5/8.6-UNIT the create hint and the typed unknown manufacturer', () =
     const serie = suggestion('n_serie', '240815-01', { trust: 'verify' });
     const at = suggestion('tensao_nominal_at', { raw: '15', unit: 'kV', state: 'measured' });
     const pending = [fab, tipo, serie, at];
-    expect(confirmAllCandidates(block, pending, registry).map((s) => s.id)).toEqual([tipo.id]);
-    expect(suggestionGroupCounts(block, pending, registry)).toEqual({ shown: 4, fills: 3, confirmable: 1, verify: 1, create: 1 });
+    expect(confirmAllCandidates(block, pending, registry, EMPTY_DEFINITION_CONTEXT).map((s) => s.id)).toEqual([tipo.id]);
+    expect(suggestionGroupCounts(block, pending, registry, EMPTY_DEFINITION_CONTEXT)).toEqual({ shown: 4, fills: 3, confirmable: 1, verify: 1, create: 1 });
     const known = [...registry, { name: 'Celtta', removed_at: null }];
-    expect(confirmAllCandidates(block, pending, known).map((s) => s.id)).toEqual([fab.id, tipo.id]);
-    expect(suggestionGroupCounts(block, pending, known)).toMatchObject({ confirmable: 2, create: 0 });
+    expect(confirmAllCandidates(block, pending, known, EMPTY_DEFINITION_CONTEXT).map((s) => s.id)).toEqual([fab.id, tipo.id]);
+    expect(suggestionGroupCounts(block, pending, known, EMPTY_DEFINITION_CONTEXT)).toMatchObject({ confirmable: 2, create: 0 });
   });
 
   it('flags a typed manufacturer the registry does not hold, and nothing else', () => {

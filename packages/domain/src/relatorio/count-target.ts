@@ -1,4 +1,5 @@
 import type { BlockRow, SuggestionRow } from '../schemas/entities.ts';
+import type { DefinitionContext } from '../seed/definitions.ts';
 import { ncCount } from './progress.ts';
 import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 import type { TreeLocationNode } from './tree.ts';
@@ -27,10 +28,12 @@ export function firstCountedTarget(
   tree: readonly TreeLocationNode[],
   blocks: readonly BlockRow[],
   kind: SumarioCountKind,
-  pending: readonly SuggestionRow[] = [],
+  pending: readonly SuggestionRow[],
+  /** e22h: the type versions a company sheet's excused plate fields resolve through. */
+  ctx: DefinitionContext,
 ): CountTarget | null {
   const byId = new Map(blocks.map((block) => [block.id, block]));
-  const held = blocksWithPendingSuggestions(livePendingSuggestions(blocks, pending));
+  const held = blocksWithPendingSuggestions(livePendingSuggestions(blocks, pending, [], ctx));
   const counts = (blockId: string, state: string): boolean => {
     if (kind === 'not_tested') return state === 'nao_ensaiada';
     // Fix batch fxpw G5: the header's concluded count, never a not-tested sheet (`Progress.sheets_concluded`).

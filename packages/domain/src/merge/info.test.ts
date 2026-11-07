@@ -3,7 +3,7 @@ import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
 import { emptySheet, type BlockRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { blockConfigWithOption, blockConfigWithSubBlock } from '../relatorio/measurement-evaluation.ts';
-import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
+import { getDefinition, SEED_VERSION, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import { syncCounts } from '../sync/counts.ts';
@@ -69,7 +69,7 @@ const photo: FileRow = {
   people_in_photo: false,
 };
 
-const context = (files: FileRow[] = [photo]): MergeInfoContext => ({
+const context = (files: FileRow[] = [photo]): MergeInfoContext => ({ definitions: EMPTY_DEFINITION_CONTEXT,
   blocks: [blockRow()],
   equipment: [{ id: EQUIPMENT, tag: 'SEC-C12' }],
   users: [

@@ -192,3 +192,12 @@
 
 /* The palette's equipment row: its "Editar padrões" icon button sits before the stepper. */
 .composer-palette .palette-item.is-stepper .icon-btn { flex: none; }
+/*
+ * authored: e22h S4. Below 768 px a company type's three or four text actions (Editar · Duplicar ·
+ * Aposentar · Descartar) take their own line under the row text and wrap among themselves, so the
+ * Tipos de equipamento list never scrolls the page sideways at 390 px (the mock's `flex: none`
+ * sized the line to its content).
+ */
+@media (max-width: 767.98px) {
+  [data-route="/templates"] .type-row .rr-actions { flex: 1 1 100%; min-width: 0; }
+}

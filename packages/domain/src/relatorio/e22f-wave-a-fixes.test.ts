@@ -6,7 +6,7 @@ import { derivedPoints, ncRowPointText, possibleDuplicatePairs, possibleDuplicat
 import { PARECER_MISSING_TITLE, section10Layout } from '../print/section-10.ts';
 import type { BlockRow, Cell, PointRow, Sheet } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, findDefinition, getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig, standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import {
@@ -42,7 +42,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-e22f-7000-8000-0000000000a1' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-e22f-7001-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-e22f-7002-8000-'), now: T0 }), seq: i + 1 }));

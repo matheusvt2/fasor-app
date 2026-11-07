@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { portoSeguro, SUBSOLO_FEEDER_CABLE_BLOCK_IDS, SUBSOLO_TRANSFORMER_BLOCK_IDS } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
@@ -49,7 +50,7 @@ interface SheetOptions {
 
 /** An equipment sheet `n` (block id(1000+n), equipment id(2000+n), TAG "T⟨n⟩") at `location`. */
 function sheet(n: number, location: number, type: EquipmentBlockType, orderKey: string, options: SheetOptions = {}): { block: BlockRow; equipment: EquipmentRow } {
-  const { block, equipment } = newEquipmentBlock({
+  const { block, equipment } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: id(1000 + n),
     equipmentId: id(2000 + n),
     relatorioId: RELATORIO,

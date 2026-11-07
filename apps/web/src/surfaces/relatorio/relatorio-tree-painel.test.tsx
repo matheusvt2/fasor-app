@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, newEquipmentBlock, standardTemplate, type BlockRow, type LocationRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, instantiateTemplate, newEquipmentBlock, standardTemplate, type BlockRow, type LocationRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -68,7 +68,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0144-7000-8000-000000000001' }),
     { id: PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts
@@ -93,7 +93,7 @@ async function seeded(options: { funcao?: string; paineis?: boolean } = {}): Pro
           { ...base, id: COLUNA_5, parent_id: PAINEL, kind: 'coluna', name: 'Coluna 5', order_key: 'a0' },
           { ...base, id: COLUNA_6, parent_id: PAINEL, kind: 'coluna', name: 'Coluna 6', order_key: 'a1' },
         ];
-  const pair = newEquipmentBlock({ blockId: SEC_C05, equipmentId: id(6), relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
+  const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: SEC_C05, equipmentId: id(6), relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
   await db.entities.bulkPut([
     ...sectionBlocksFor(RELATORIO).map((b) => toRecord(`block:${b.id}`, b)),
     ...locations.map((row) => toRecord(`location:${row.id}`, row)),
@@ -236,7 +236,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
 
   it('a block that sits on a painel is drawn under it, as it is counted: a block never vanishes', async () => {
     database = await seeded();
-    const stray = newEquipmentBlock({ blockId: id(0x21), equipmentId: id(0x22), relatorioId: RELATORIO, projectId: PROJECT, locationId: PAINEL_B, type: 'disjuntor_mt', tag: 'DJ-9', seedVersion: 'v1', orderKey: 'a0' });
+    const stray = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(0x21), equipmentId: id(0x22), relatorioId: RELATORIO, projectId: PROJECT, locationId: PAINEL_B, type: 'disjuntor_mt', tag: 'DJ-9', seedVersion: 'v1', orderKey: 'a0' });
     await database.entities.bulkPut([toRecord(`equipment:${stray.equipment.id}`, stray.equipment), toRecord(`block:${stray.block.id}`, stray.block)]);
     await openLocal();
     const painelB = row(PAINEL_B);

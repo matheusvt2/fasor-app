@@ -1,5 +1,7 @@
 import {
   definitionContext,
+  latestVersionRow,
+  nextTypeVersion,
   publishBlockedText,
   publishedText,
   publishVersionLabel,
@@ -45,7 +47,7 @@ import './type-editor.css';
  * Every change is one whole-draft `equipment_type/{id}/draft` put (the outbox coalesces them); the
  * edits are the kernel's (`types/draft-edit.ts`). A published type with no draft open edits a copy
  * of its latest version, which becomes the next version's draft on the first change. "Publicar" is
- * the one `equipment_type_version/{id}` create, numbered `latest_version + 1` (a later push of the
+ * the one `equipment_type_version/{id}` create, numbered `nextTypeVersion` (a later push of the
  * same number is refused by the server and its device publishes again as the next).
  */
 export function TypeEditorSurface() {
@@ -87,9 +89,9 @@ function TypeEditor({ type, ctx }: { type: EquipmentTypeRow; ctx: NonNullable<Re
   const [retiring, setRetiring] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  const latest = type.latest_version > 0 ? ctx.versions.get(`${type.id}@${type.latest_version}`) : undefined;
+  const latest = latestVersionRow(ctx, type.id);
   // The draft as the device holds it, else the latest published definition (edited as the next draft).
-  const stored: CompanyTypeDraft | null = type.draft ?? (latest === undefined ? null : (latest.definition as CompanyTypeDraft));
+  const stored: CompanyTypeDraft | null = type.draft ?? (latest === null ? null : (latest.definition as CompanyTypeDraft));
 
   // Edits made here and not yet read back from the device: the next edit builds on them, never on
   // a live row the commit has not reached yet. Once every write landed, the live row wins again
@@ -149,7 +151,7 @@ function TypeEditor({ type, ctx }: { type: EquipmentTypeRow; ctx: NonNullable<Re
   }
 
   const parts: Record<TypeEditorPart, React.ReactNode> = {
-    identificacao: <IdentityPanel draft={draft} issues={issues} edit={edit} nextVersion={type.latest_version + 1} />,
+    identificacao: <IdentityPanel draft={draft} issues={issues} edit={edit} nextVersion={nextTypeVersion(type)} />,
     placa: <NameplatePanel draft={draft} issues={issues} edit={edit} />,
     verificacoes: <ChecklistPanel draft={draft} issues={issues} edit={edit} />,
     ensaios: <TestsPanel draft={draft} issues={issues} edit={edit} />,
@@ -172,7 +174,13 @@ function TypeEditor({ type, ctx }: { type: EquipmentTypeRow; ctx: NonNullable<Re
         <Tabs
           aria-label={copy.typeEditor.tabsLabel}
           selectedId={tab}
-          onSelectionChange={(next) => setTab(next as TypeEditorPart | 'preview')}
+          onSelectionChange={(next) => {
+            // Fix batch e22h (B2): the field being typed in is left before its panel goes, so it
+            // commits (its unmount flushes it too, `useCommittedText`).
+            const active = document.activeElement;
+            if (active instanceof HTMLElement && active.closest('.tipo-content [role="tabpanel"]') !== null) active.blur();
+            setTab(next as TypeEditorPart | 'preview');
+          }}
           items={[
             ...tabs.map((entry) => ({ id: entry.part, label: entry.label, panel: parts[entry.part] })),
             { id: 'preview', label: copy.typeEditor.preview, panel: <PreviewPanel draft={draft} /> },

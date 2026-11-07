@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { replay } from '../ops/replay.ts';
@@ -47,7 +48,7 @@ interface Built {
 }
 
 function sheet(n: number, type: EquipmentBlockType, orderKey: string, seedVersion = 'v12'): Built {
-  return newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type, tag: `T${n}`, seedVersion, orderKey });
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type, tag: `T${n}`, seedVersion, orderKey });
 }
 
 function edit(built: Built, patch: (block: BlockRow) => void): Built {

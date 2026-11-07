@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   errorResponseSchema,
@@ -308,7 +309,7 @@ describe('20.12-INT the daily ceiling of audits', () => {
     const { relatorioId, drafts } = instantiateTemplate(
       standardTemplate({ id: newId() }),
       { id: projectId },
-      { service_start: '2026-11-04', service_end: '2026-11-04', existingEquipment: [], responsible_user_id: null },
+      { service_start: '2026-11-04', service_end: '2026-11-04', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId, actorId: companyA.userId, companyId: companyA.companyId },
     );
     written.relatorios.add(relatorioId);

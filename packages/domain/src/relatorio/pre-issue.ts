@@ -405,7 +405,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: 'not_tested', row: 'section_9', severity: 'info', text: naoEnsaiadasText(computed.not_tested), kind: 'not_tested' });
   }
   // Story 8.6 (FR-73): sheets holding suggestions nobody confirmed yet; they print without them.
-  const withSuggestions = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, context.pendingSuggestions ?? [])).size;
+  const withSuggestions = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, context.pendingSuggestions ?? [], [], snapshotDefinitionContext(snapshot))).size;
   if (withSuggestions > 0) {
     rows.push({ id: 'suggestions_pending', row: 'section_9', severity: 'pending', text: fichasComSugestoesText(withSuggestions), kind: 'suggestions_pending' });
   }

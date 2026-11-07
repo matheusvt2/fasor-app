@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SubBlockKey } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { cellAddressesOf, type TestKey } from './readings.ts';
 import {
@@ -95,13 +95,13 @@ describe('5.1-UNIT sheetProgress', () => {
 
   it('na_defaults items with no cell are answered NA (a display default, not a cell); a stored cell overrides them', () => {
     const b = block();
-    expect(checklistResultOf(b, 'motor')).toBe('NA');
-    expect(checklistResultOf(b, 'isoladores')).toBeNull();
+    expect(checklistResultOf(b, 'motor', EMPTY_DEFINITION_CONTEXT)).toBe('NA');
+    expect(checklistResultOf(b, 'isoladores', EMPTY_DEFINITION_CONTEXT)).toBeNull();
     const overridden = block({ checklist: { motor: { result: cell('C') } } });
-    expect(checklistResultOf(overridden, 'motor')).toBe('C');
+    expect(checklistResultOf(overridden, 'motor', EMPTY_DEFINITION_CONTEXT)).toBe('C');
     // A cleared cell (null) on a default item reads unset, not NA: the engineer cleared it.
     const cleared = block({ checklist: { motor: { result: cell(null) } } });
-    expect(checklistResultOf(cleared, 'motor')).toBeNull();
+    expect(checklistResultOf(cleared, 'motor', EMPTY_DEFINITION_CONTEXT)).toBeNull();
     expect(progressOf(cleared).steps.verificacoes.missing).toBe(SEC.checklist!.length - 1);
   });
 

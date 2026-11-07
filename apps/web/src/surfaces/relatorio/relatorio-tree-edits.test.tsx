@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   instantiateTemplate,
   newEquipmentBlock,
   standardTemplate,
@@ -85,7 +86,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0023-7000-8000-000000000001' }),
     { id: PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts
@@ -122,7 +123,7 @@ async function seeded(options: { status?: string; extraEquipment?: EquipmentRow[
   const cabine = (await db.entities.get(['location', CABINE]))!.row as LocationRow;
   const coluna: LocationRow = { id: COLUNA, relatorio_id: RELATORIO, parent_id: CABINE, kind: 'coluna', name: 'Coluna 1', order_key: 'a0', removed_at: null };
   const empty: LocationRow = { ...cabine, id: EMPTY_CABINE, name: 'Cabine Vazia', order_key: 'a5' } as LocationRow;
-  const pair = newEquipmentBlock({
+  const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: SEC_C01,
     equipmentId: id(4),
     relatorioId: RELATORIO,
@@ -221,7 +222,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     // A second live relatório of the same project on this device, whose live block holds SEC-C01's equipment.
     const OTHER = id(50);
     const relatorio = (await database.entities.get(['relatorio', RELATORIO]))!.row as { id: string };
-    const other = newEquipmentBlock({
+    const other = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: id(51),
       equipmentId: id(4),
       relatorioId: OTHER,

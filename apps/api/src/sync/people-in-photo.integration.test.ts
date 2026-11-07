@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   fileFieldPath,
@@ -115,7 +116,7 @@ describe('9.3-API-001 the people mark through the sync route', () => {
       const { relatorioId, drafts } = instantiateTemplate(
         standardTemplate({ id: newId() }),
         { id: projectId },
-        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: company.userId, companyId: company.companyId },
       );
       const stamp = (draft: OpDraft): Op => makeOp({ ...draft, device_id: DEVICE }, { newId, now: now() });

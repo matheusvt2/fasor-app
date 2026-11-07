@@ -7,7 +7,7 @@ import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { siteItems } from '../seed/definitions.ts';
+import { siteItems, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { TEST_PROJECT, T0 } from '../test-support.ts';
 import { documentPhotoOrder, sheetChecklistPrinted } from './photo-order.ts';
 import { newPointRow } from '../points/checks.ts';
@@ -51,7 +51,7 @@ interface Built {
 }
 
 function sheet(n: number, location: number, type: EquipmentBlockType, orderKey: string): Built {
-  return newEquipmentBlock({ blockId: block(n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag: `T${n}`, seedVersion: 'v1', orderKey });
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: block(n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type, tag: `T${n}`, seedVersion: 'v1', orderKey });
 }
 
 function snapshotOf(locations: LocationRow[], sheets: Built[], files: RelatorioSnapshot['files'], over: { seed?: string; scheme?: 'ordem_de_campo' | 'por_local_e_tipo' } = {}): RelatorioSnapshot {

@@ -147,6 +147,7 @@ function MeasurementTestSection({
               api={api}
               block={block}
               blocks={snapshot.blocks}
+              equipmentTypes={snapshot.equipment_types}
               testKey={test.testKey}
               instrumentOf={test.instrumentOf}
               instruments={instruments}

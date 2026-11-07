@@ -3,7 +3,7 @@ import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType, type Su
 import type { TemplateRow } from '../schemas/entities.ts';
 import { formatCriterionValue, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { EMPTY_DEFINITION_CONTEXT, findDefinitionIn, latestTypeVersion, siteItems, type DefinitionContext } from '../seed/definitions.ts';
+import { findDefinitionIn, latestTypeVersion, siteItems, type DefinitionContext } from '../seed/definitions.ts';
 import { funcaoLabel } from '../relatorio/local.ts';
 import { plural, relatoriosCount } from '../text/plural.ts';
 import { composerView, type ComposerCabine, type ComposerNode, type ComposerView } from './compose.ts';
@@ -77,7 +77,7 @@ const SEP = ' · ';
  * Story 14.8: a company type placed in the template follows the seeded ones, in label order,
  * named by its noun ("1 no-break") through the context; one the context cannot name is left out.
  */
-export function totalsText(totals: Readonly<Record<string, number>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string {
+export function totalsText(totals: Readonly<Record<string, number>>, ctx: DefinitionContext): string {
   const parts = TOTALS_ORDER.filter((type) => (totals[type] ?? 0) > 0).map((type) => plural(totals[type]!, NOUNS[type].one, NOUNS[type].many));
   for (const type of companyTypesOf(totals, ctx)) {
     const noun = companyDefinition(ctx, type)?.noun;
@@ -101,20 +101,18 @@ function companyTypesOf(totals: Readonly<Record<string, number>>, ctx: Definitio
 }
 
 /** Story 14.8: the types a node holds, in the totals' order: the seeded ones, then its company types by label. */
-export function nodeTypesOf(quantities: Readonly<Record<string, number>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): BlockTypeKey[] {
+export function nodeTypesOf(quantities: Readonly<Record<string, number>>, ctx: DefinitionContext): BlockTypeKey[] {
   return [...TOTALS_ORDER.filter((type) => (quantities[type] ?? 0) > 0), ...companyTypesOf(quantities, ctx)];
 }
 
 /**
  * The Quantity stepper's accessible name: "Seccionadoras, 25". Story 14.8: a company type's is its
- * plural noun with a capital ("No-breaks, 1"), else its label.
+ * label ("QGBT da empresa, 0"; e22h N13: a copy keeps its source's noun, so naming it by the noun
+ * gave the copy and its source one name), else its type key when the context cannot name it.
  */
-export function quantityLabel(type: BlockTypeKey, n: number, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string {
+export function quantityLabel(type: BlockTypeKey, n: number, ctx: DefinitionContext): string {
   if (!isCompanyBlockType(type)) return `${NOUNS[type].label}, ${n}`;
-  const definition = companyDefinition(ctx, type);
-  const noun = definition?.noun;
-  const word = noun === undefined ? (definition?.label ?? type) : `${noun.plural.charAt(0).toUpperCase()}${noun.plural.slice(1)}`;
-  return `${word}, ${n}`;
+  return `${companyDefinition(ctx, type)?.label ?? type}, ${n}`;
 }
 
 /**
@@ -192,13 +190,13 @@ export interface NodeSummary {
  * painéis, its colunas (those of its painéis and those directly under it) and every block
  * on it or under it; a painel its colunas and their blocks; a coluna its own.
  */
-export function nodeSummaryText(node: ComposerNode): NodeSummary {
+export function nodeSummaryText(node: ComposerNode, ctx: DefinitionContext): NodeSummary {
   if (node.kind === 'coluna') {
-    return { flag: plural(node.blockCount, 'bloco', 'blocos'), sum: totalsText(node.quantities) };
+    return { flag: plural(node.blockCount, 'bloco', 'blocos'), sum: totalsText(node.quantities, ctx) };
   }
   if (node.kind === 'painel') {
     const colunas = node.colunas.length > 0 ? plural(node.colunas.length, 'coluna', 'colunas') : 'sem colunas';
-    return { flag: [colunas, plural(node.totalBlockCount, 'bloco', 'blocos')].join(SEP), sum: totalsText(node.totals) };
+    return { flag: [colunas, plural(node.totalBlockCount, 'bloco', 'blocos')].join(SEP), sum: totalsText(node.totals, ctx) };
   }
   const parts: string[] = [];
   const colunaCount = node.colunas.length + node.paineis.reduce((n, painel) => n + painel.colunas.length, 0);
@@ -208,7 +206,7 @@ export function nodeSummaryText(node: ComposerNode): NodeSummary {
   else if (colunaCount === 0) parts.push('sem painéis');
   if (colunaCount > 0) parts.push(plural(colunaCount, 'coluna', 'colunas'));
   parts.push(plural(node.totalBlockCount, 'bloco', 'blocos'));
-  return { flag: parts.join(SEP), sum: totalsText(node.totals) };
+  return { flag: parts.join(SEP), sum: totalsText(node.totals, ctx) };
 }
 
 /**

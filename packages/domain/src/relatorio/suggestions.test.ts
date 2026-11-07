@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
 import { opSchema } from '../ops/op.ts';
@@ -192,9 +193,9 @@ describe('8.1-UNIT reading the rows', () => {
 
   it('resolves the field definition of a nameplate target', () => {
     const block = chave();
-    expect(suggestionFieldDef(block, suggestion('corrente_nominal', null))).toMatchObject({ kind: 'number', unit: 'A' });
-    expect(suggestionFieldDef(block, suggestion('nao_existe', null))).toBeNull();
-    expect(suggestionFieldDef(chave({}, OTHER_BLOCK), suggestion('fabricacao', null))).toBeNull();
+    expect(suggestionFieldDef(block, suggestion('corrente_nominal', null), EMPTY_DEFINITION_CONTEXT)).toMatchObject({ kind: 'number', unit: 'A' });
+    expect(suggestionFieldDef(block, suggestion('nao_existe', null), EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    expect(suggestionFieldDef(chave({}, OTHER_BLOCK), suggestion('fabricacao', null), EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 });
 
@@ -262,23 +263,23 @@ describe('8.1-UNIT the I/O matrix', () => {
     const replace = suggestion('tensao_de_placa', '15');
     const icc = suggestion('corrente_nominal', { raw: '16', unit: 'A', state: 'measured' }, { trust: 'verify' });
     const pending = [fab, serie, tipo, meio, corrente, acion, data, tag, verify, replace];
-    const picked = confirmAllCandidates(block, pending);
+    const picked = confirmAllCandidates(block, pending, [], EMPTY_DEFINITION_CONTEXT);
     expect(picked.map((s) => s.id)).toEqual([fab.id, serie.id, tag.id, tipo.id, meio.id, corrente.id, acion.id, data.id]);
     // A verify guess on an empty field is never picked; the newest on the field wins.
-    const withVerify = confirmAllCandidates(block, [...pending, icc]);
+    const withVerify = confirmAllCandidates(block, [...pending, icc], [], EMPTY_DEFINITION_CONTEXT);
     expect(withVerify.map((s) => s.id)).not.toContain(icc.id);
     expect(withVerify.map((s) => s.id)).not.toContain(corrente.id);
-    expect(suggestionGroupCounts(block, [...pending, icc])).toEqual({ shown: 10, fills: 8, confirmable: 7, verify: 1, create: 0 });
+    expect(suggestionGroupCounts(block, [...pending, icc], undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ shown: 10, fills: 8, confirmable: 7, verify: 1, create: 0 });
     // `identificacao` is filled with a different value: a replace, not a verify fill.
-    expect(nameplateSuggestions(block, pending).find((e) => e.field.key === 'identificacao')!.view).toBe('replace');
+    expect(nameplateSuggestions(block, pending, EMPTY_DEFINITION_CONTEXT).find((e) => e.field.key === 'identificacao')!.view).toBe('replace');
   });
 
   it('a filled field receiving an equal suggestion shows nothing (the device auto-confirms it)', () => {
     const block = chave({ fabricacao: cell('Schneider') });
     const equal = suggestion('fabricacao', 'SCHNEIDER');
-    expect(nameplateSuggestions(block, [equal])[0]!.view).toBe('none');
-    expect(suggestionGroupCounts(block, [equal])).toEqual({ shown: 0, fills: 0, confirmable: 0, verify: 0, create: 0 });
-    expect(confirmAllCandidates(block, [equal])).toEqual([]);
+    expect(nameplateSuggestions(block, [equal], EMPTY_DEFINITION_CONTEXT)[0]!.view).toBe('none');
+    expect(suggestionGroupCounts(block, [equal], undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ shown: 0, fills: 0, confirmable: 0, verify: 0, create: 0 });
+    expect(confirmAllCandidates(block, [equal], [], EMPTY_DEFINITION_CONTEXT)).toEqual([]);
   });
 });
 
@@ -289,7 +290,7 @@ describe('16.4-UNIT a plate reading on an "N/A" field', () => {
     const block = chave({ corrente_nominal: cell(NOT_APPLICABLE_NUMBER) });
     const reading = suggestion('corrente_nominal', measuredValue);
     expect(suggestionView(block.sheet.nameplate.corrente_nominal, reading, def('number'))).toBe('replace');
-    expect(nameplateSuggestions(block, [reading]).find((e) => e.field.key === 'corrente_nominal')!.view).toBe('replace');
+    expect(nameplateSuggestions(block, [reading], EMPTY_DEFINITION_CONTEXT).find((e) => e.field.key === 'corrente_nominal')!.view).toBe('replace');
     const [, put] = confirmSuggestionOps(AUTHOR, reading);
     expect(put).toMatchObject({ kind: 'put', path: reading.target_path, value: measuredValue });
   });
@@ -393,7 +394,7 @@ describe('8.1-UNIT progress over the device pending rows', () => {
     const removed = { ...concluded(OTHER_BLOCK), removed_at: '2026-09-26T11:00:00.000Z' };
     const stale = [suggestion('tipo', 'X', { target_path: `sheet/${OTHER_BLOCK}/nameplate/tipo` }), suggestion('tipo', 'Y', { target_path: `sheet/019966b0-0081-7000-8000-0000000000ef/nameplate/tipo` })];
     expect(progress({ blocks: [concluded(BLOCK), removed], suggestions: [] }, stale)).toMatchObject({ sheets_concluded: 1, suggestions_pending: 0 });
-    expect(livePendingSuggestions([concluded(BLOCK), removed], [...stale, pending[0]!]).map((row) => row.id)).toEqual([pending[0]!.id]);
+    expect(livePendingSuggestions([concluded(BLOCK), removed], [...stale, pending[0]!], [], EMPTY_DEFINITION_CONTEXT).map((row) => row.id)).toEqual([pending[0]!.id]);
     // A pending row of a block outside the location is not its own.
     const elsewhere = [suggestion('n_serie', 'SU1', { target_path: `sheet/019966b0-0081-7000-8000-0000000000ee/nameplate/n_serie` })];
     expect(locationProgress({ blocks, locations: [cabine] }, LOC, elsewhere)).toMatchObject({ sheets_concluded: 2, suggestions_pending: 0 });

@@ -3,6 +3,7 @@ import { formatDateOfInstant, formatServiceDates, formatShortDateTime, formatTim
 import type { Op } from '../ops/op.ts';
 import { relatorioCounter } from '../relatorio/progress.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
+import type { DefinitionContext } from '../seed/definitions.ts';
 import type { BlockRow, LocationRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, SuggestionRow, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusLabel, statusPillId, type StatusPillId } from '../status/table.ts';
 import { activeTemplates } from '../templates/list.ts';
@@ -106,6 +107,8 @@ export interface HomeCardsInput {
    * live photos against the summary's `progress`. Omitted (with `blocks`) means the bare word.
    */
   files?: readonly DownloadFileLike[];
+  /** e22h: the device's type versions, through which a company sheet's excused plate fields resolve in the counter. */
+  definitions: DefinitionContext;
 }
 
 // authored: the mock never draws a relatório without a client and a local, but a
@@ -261,6 +264,7 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       blocksByRelatorio.get(id) ?? [],
       input.suggestions === undefined ? undefined : (suggestionsByRelatorio.get(id) ?? []),
       input.locations === undefined ? undefined : (locationsByRelatorio.get(id) ?? []),
+      input.definitions,
     );
   };
 

@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   instantiateTemplate,
@@ -131,7 +132,7 @@ beforeAll(async () => {
   const built = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: company.userId, companyId: company.companyId },
   );
   relatorioId = built.relatorioId;
@@ -171,7 +172,7 @@ describe('11.2-API move a block through the sync route', () => {
     const coluna9 = locations.find((row) => row.name === 'Coluna 9')!;
     const block = locationBlocks(blocks, coluna5.id).find((row) => row.block_type === 'chave_seccionadora')!;
     const own = equipment.find((row) => row.id === block.equipment_id)!;
-    const plan = movePlan({ blocks, locations, equipment, blockId: block.id, targetId: coluna9.id, rename: true });
+    const plan = movePlan({ blocks, locations, equipment, blockId: block.id, targetId: coluna9.id, rename: true, definitions: EMPTY_DEFINITION_CONTEXT });
     expect(plan.kind).toBe('move');
     if (plan.kind !== 'move') return;
     expect(plan.rename).not.toBeNull();

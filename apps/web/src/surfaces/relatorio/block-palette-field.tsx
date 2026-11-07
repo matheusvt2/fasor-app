@@ -1,5 +1,4 @@
 import {
-  EMPTY_DEFINITION_CONTEXT,
   findDefinitionIn,
   LIBRARY_GROUP_LABEL,
   locationChoices,
@@ -78,8 +77,8 @@ export interface PaletteCreate {
 export interface FieldPaletteProps {
   target: PaletteTarget;
   seedVersion: string;
-  /** Story 14.8: the company's equipment types on this device (the tree's `useDefinitionContext`); none by default. */
-  definitions?: DefinitionContext;
+  /** Story 14.8: the company's equipment types on this device (the tree's `useDefinitionContext`). */
+  definitions: DefinitionContext;
   /** The relatório's live locations (the Local options) and blocks (where a taken TAG sits). */
   locations: readonly LocationRow[];
   blocks: readonly BlockRow[];
@@ -100,7 +99,7 @@ export interface FieldPaletteProps {
   onResume?: (photoId: string, target: PaletteTarget) => void;
 }
 
-export function FieldPalette({ target, seedVersion, definitions = EMPTY_DEFINITION_CONTEXT, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
+export function FieldPalette({ target, seedVersion, definitions, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
   const cameraSubId = useId();

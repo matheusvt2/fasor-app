@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   displayCellTarget,
@@ -120,7 +121,7 @@ async function relatorio(): Promise<{ relatorioId: string; transformer: BlockRow
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: companyA.userId, companyId: companyA.companyId },
   );
   written.relatorioIds.add(relatorioId);

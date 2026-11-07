@@ -36,6 +36,7 @@ import {
   type OpDraft,
   type RelatorioSnapshot,
   type WordRow,
+  snapshotDefinitionContext,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
@@ -153,15 +154,18 @@ export function NameplateSection({
 
   const empty = nameplateIsEmpty(block);
   const own = block.equipment_id === null ? undefined : equipment.find((row) => row.id === block.equipment_id);
-  const same = empty && !readOnly ? suggestNameplateCopy({ blocks: snapshot.blocks, equipment }, block.id) : null;
+  // e22h B1: every reader below gets the snapshot's type versions, so a company plate resolves its version's fields.
+  const definitions = snapshotDefinitionContext(snapshot);
+  const plateRows = { blocks: snapshot.blocks, equipment, equipment_types: snapshot.equipment_types };
+  const same = empty && !readOnly ? suggestNameplateCopy(plateRows, block.id) : null;
   const lastVisit = empty && !readOnly && own?.last_nameplate != null ? lastNameplateCopy(own, definition) : [];
-  const tagPrefill = nameplateTagPrefill({ blocks: snapshot.blocks, equipment }, block.id);
-  const missingKeys = nameplateMissingKeys({ blocks: snapshot.blocks, equipment }, block.id);
-  const oilNaItems = readOnly ? [] : oilNaChipItems(block, { used: oilNaTapped || oilNaUsed !== false });
+  const tagPrefill = nameplateTagPrefill(plateRows, block.id);
+  const missingKeys = nameplateMissingKeys(plateRows, block.id);
+  const oilNaItems = readOnly ? [] : oilNaChipItems(block, { used: oilNaTapped || oilNaUsed !== false }, definitions);
 
   /** Story 14.11: the nameplate drafts with the oil crossing they bring (fresh blocks, the sheet's photos). */
   const crossed = (blocks: readonly BlockRow[], by: NonNullable<FichaApi['author']>, drafts: readonly OpDraft[]) =>
-    withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, drafts).drafts;
+    withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files, equipment_types: snapshot.equipment_types }, drafts).drafts;
 
   function copyFrom(fields: readonly { fieldKey: string; value: unknown }[], toast: (n: number) => string): void {
     if (fields.length === 0) return;
@@ -179,7 +183,7 @@ export function NameplateSection({
     let cleared = 0;
     return api
       .edit((blocks, by) => {
-        const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files }, [nameplateOp(by, api.relatorioId, block.id, fieldKey, next)]);
+        const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files, equipment_types: snapshot.equipment_types }, [nameplateOp(by, api.relatorioId, block.id, fieldKey, next)]);
         cleared = built.cleared;
         return built.drafts;
       })
@@ -187,10 +191,10 @@ export function NameplateSection({
         if (batch !== null && cleared > 0) api.undoable(oilItemsClearedText(cleared), batch);
       });
   }
-  const oilField = oilRuleOf(block)?.field ?? null;
+  const oilField = oilRuleOf(block, definitions)?.field ?? null;
   // Story 14.14 (seed v7): the SELV notice under its field, derived by the kernel.
-  const selvField = selvNoticeFieldOf(block);
-  const selvNotice = selvField === null ? null : selvVoltageNoticeText(block);
+  const selvField = selvNoticeFieldOf(block, definitions);
+  const selvNotice = selvField === null ? null : selvVoltageNoticeText(block, definitions);
 
   function copySame(): void {
     if (same === null) return;
@@ -330,7 +334,7 @@ export function NameplateSection({
       .edit((blocks, by) => {
         const fresh = blocks.find((row) => row.id === block.id);
         if (fresh === undefined) return null;
-        const items = oilNaChipItems(fresh, { used: false });
+        const items = oilNaChipItems(fresh, { used: false }, definitions);
         marked = items.length;
         return items.length === 0 ? null : items.map((itemKey) => checklistResultOp(by, api.relatorioId, block.id, itemKey, 'NA'));
       })
@@ -425,9 +429,9 @@ export function NameplateSection({
               invalidText={t.invalidNumber}
               selectEmpty={t.selectEmpty}
               registries={registries}
-              acceptsNotApplicable={nameplateAcceptsNotApplicable(block, field.key)}
+              acceptsNotApplicable={nameplateAcceptsNotApplicable(block, field.key, definitions)}
               maxLength={textCapOf(sheetNameplatePath(block.id, field.key)) ?? undefined}
-              blocks={snapshot.blocks}
+              recents={{ blocks: snapshot.blocks, definitions }}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               onRegisterWord={registerWord}
               commit={(next) => {

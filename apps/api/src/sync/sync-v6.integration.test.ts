@@ -25,6 +25,7 @@ import {
   type OpInput,
   type SyncPullResponse,
   type SyncPushResponse,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -173,7 +174,7 @@ function blockCreates(ids: { relatorio: string; project: string; local: string }
   const equipment = newId();
   written.entityIds.add(block);
   written.entityIds.add(equipment);
-  const built = newEquipmentBlock({
+  const built = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: block,
     equipmentId: equipment,
     relatorioId: ids.relatorio,
@@ -351,7 +352,7 @@ describe('Stories 14.9 and 14.11 (contract 21): seed v6 through POST /api/sync/o
     const server = (await rowOfEntity('block', tr.id)) as BlockRow;
     const pure = replay([...t.log, ...setup, ...batch].map((o, i) => ({ ...o, seq: i + 1 })));
     expect(canonicalJson(server as never)).toBe(canonicalJson(pure.get(entityKey('block', tr.id)) as never));
-    expect(checklistResultOf(server, 'termometro')).toBe('NA');
+    expect(checklistResultOf(server, 'termometro', EMPTY_DEFINITION_CONTEXT)).toBe('NA');
     expect(server.sheet.nameplate.vol_oleo?.value ?? null).toBeNull();
     const untied = (await rowOfEntity('file', photoRow.id)) as FileRow & { item_key: string | null };
     expect(untied).toMatchObject({ block_id: tr.id, item_key: null, removed_at: null });

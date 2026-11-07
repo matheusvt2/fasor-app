@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { getDefinition, instantiateTemplate, standardTemplate, type OpDraft, type PointRow, type TemplateRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, instantiateTemplate, standardTemplate, type OpDraft, type PointRow, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
@@ -211,7 +211,7 @@ test('@p1 F-03 "Restaurar texto do template" brings back the template\'s own sec
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const company = (path: string, value: unknown): OpDraft => ({ ...officeDraft(account, { projectId }, path, value, 'create'), scope: 'company', project_id: null });

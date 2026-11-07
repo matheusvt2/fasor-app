@@ -8,7 +8,7 @@ import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-s
 import { instantiateTemplate } from './instantiate.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { blockingRows, cabineIncompletaText, cabineSemEquipamentoText, preIssue, preIssueRowsFor } from './pre-issue.ts';
-import { SEED_VERSION, siteItems } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, SEED_VERSION, siteItems } from '../seed/definitions.ts';
 
 /** The site items a new relatório owes per local: its seed version's (21 on v9, Story 15.3). */
 const SITE_COUNT = siteItems(SEED_VERSION).length;
@@ -21,7 +21,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: TEMPLATE_ID }),
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0052-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0053-7000-8000-'), now: T0 }), seq: i + 1 }));

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { locationTree, newEquipmentBlock, treeNodes, type LocationRow, type TreeEquipmentNode } from '@app/domain';
+import { locationTree, newEquipmentBlock, treeNodes, type LocationRow, type TreeEquipmentNode, EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { removeLocationOps, removeSheetOps, restoreLocationOps, restoreSheetOps, restoreStrandedSheetOps } from './tree-actions.ts';
 
@@ -15,7 +15,7 @@ const projectId = id(101);
 const coluna: LocationRow = { id: id(1), relatorio_id: relatorioId, parent_id: null, kind: 'coluna', name: 'Coluna 5', order_key: 'a0', removed_at: null };
 
 const pair = (n: number, tag: string, orderKey: string) =>
-  newEquipmentBlock({ blockId: id(10 + n), equipmentId: id(20 + n), relatorioId, projectId, locationId: coluna.id, type: 'chave_seccionadora', tag, seedVersion: 'v1', orderKey });
+  newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(10 + n), equipmentId: id(20 + n), relatorioId, projectId, locationId: coluna.id, type: 'chave_seccionadora', tag, seedVersion: 'v1', orderKey });
 
 describe('4.5 restoreSheetOps', () => {
   it('restores the block and its equipment in one batch even when a live row took its TAG, and the tree then marks the duplicate', () => {

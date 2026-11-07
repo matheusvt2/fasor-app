@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replay } from '../ops/replay.ts';
@@ -111,35 +112,35 @@ describe('14.10-UNIT relatorioCounter: the Sumário rule on every list counter (
   });
 
   it('a concluded sheet holding a pending suggestion is not counted', () => {
-    expect(relatorioCounter(twelve(), [])).toEqual({ text: '3 de 12 fichas', state: 'pending' });
-    expect(relatorioCounter(twelve(), [suggestion(bid(1))])).toEqual({ text: '2 de 12 fichas', state: 'pending' });
+    expect(relatorioCounter(twelve(), [], undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ text: '3 de 12 fichas', state: 'pending' });
+    expect(relatorioCounter(twelve(), [suggestion(bid(1))], undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ text: '2 de 12 fichas', state: 'pending' });
   });
 
   it('a não ensaiada sheet holding one is not counted either', () => {
-    expect(relatorioCounter(twelve(), [suggestion(bid(3))]).text).toBe('2 de 12 fichas');
+    expect(relatorioCounter(twelve(), [suggestion(bid(3))], undefined, EMPTY_DEFINITION_CONTEXT).text).toBe('2 de 12 fichas');
   });
 
   it('a pending row on a removed block is ignored and the sheets count as before', () => {
     const blocks = [...twelve(), sheet(40, { ...concluded, removed_at: at })];
-    expect(relatorioCounter(blocks, [suggestion(bid(40))]).text).toBe('3 de 12 fichas');
+    expect(relatorioCounter(blocks, [suggestion(bid(40))], undefined, EMPTY_DEFINITION_CONTEXT).text).toBe('3 de 12 fichas');
   });
 
   it('confirmed and discarded rows hold nothing', () => {
-    expect(relatorioCounter(twelve(), [suggestion(bid(1), 'confirmed'), suggestion(bid(2), 'discarded')]).text).toBe('3 de 12 fichas');
+    expect(relatorioCounter(twelve(), [suggestion(bid(1), 'confirmed'), suggestion(bid(2), 'discarded')], undefined, EMPTY_DEFINITION_CONTEXT).text).toBe('3 de 12 fichas');
   });
 
   it("another relatório's suggestion never holds a sheet of this one", () => {
-    expect(relatorioCounter(twelve(), [suggestion(bid(77), 'pending', OTHER_REL)]).text).toBe('3 de 12 fichas');
+    expect(relatorioCounter(twelve(), [suggestion(bid(77), 'pending', OTHER_REL)], undefined, EMPTY_DEFINITION_CONTEXT).text).toBe('3 de 12 fichas');
   });
 
   it('rows not read yet (undefined) count the sheets alone', () => {
-    expect(relatorioCounter(twelve(), undefined)).toEqual({ text: '3 de 12 fichas', state: 'pending' });
+    expect(relatorioCounter(twelve(), undefined, undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ text: '3 de 12 fichas', state: 'pending' });
   });
 
   it('every sheet concluded is complete; one of them held is pending', () => {
     const all = [sheet(1, concluded), sheet(2, concluded), sheet(3, notTested)];
-    expect(relatorioCounter(all, [])).toEqual({ text: '3 de 3 fichas', state: 'complete' });
-    expect(relatorioCounter(all, [suggestion(bid(2))])).toEqual({ text: '2 de 3 fichas', state: 'pending' });
+    expect(relatorioCounter(all, [], undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ text: '3 de 3 fichas', state: 'complete' });
+    expect(relatorioCounter(all, [suggestion(bid(2))], undefined, EMPTY_DEFINITION_CONTEXT)).toEqual({ text: '2 de 3 fichas', state: 'pending' });
   });
 
   describe('a sheet on a hidden location is out, as the snapshot leaves it out of the Sumário (review)', () => {
@@ -150,19 +151,19 @@ describe('14.10-UNIT relatorioCounter: the Sumário rule on every list counter (
     const on = (n: number, location: number | null, over: Partial<BlockRow> = {}) => sheet(n, { location_id: location === null ? null : lid(location), ...over });
 
     it('a concluded sheet on a removed location is not counted, nor its total', () => {
-      expect(relatorioCounter([on(1, 5, concluded), on(2, 4, concluded)], [], locations).text).toBe('1 de 1 fichas');
+      expect(relatorioCounter([on(1, 5, concluded), on(2, 4, concluded)], [], locations, EMPTY_DEFINITION_CONTEXT).text).toBe('1 de 1 fichas');
     });
 
     it('a sheet under a removed painel (its coluna live but hidden) is out too', () => {
-      expect(relatorioCounter([on(1, 1, concluded), on(2, 3, concluded), on(3, 2)], [], locations).text).toBe('1 de 1 fichas');
+      expect(relatorioCounter([on(1, 1, concluded), on(2, 3, concluded), on(3, 2)], [], locations, EMPTY_DEFINITION_CONTEXT).text).toBe('1 de 1 fichas');
     });
 
     it('a block with no location is kept', () => {
-      expect(relatorioCounter([on(1, null, concluded), on(2, 4)], [], locations)).toEqual({ text: '1 de 1 fichas', state: 'complete' });
+      expect(relatorioCounter([on(1, null, concluded), on(2, 4)], [], locations, EMPTY_DEFINITION_CONTEXT)).toEqual({ text: '1 de 1 fichas', state: 'complete' });
     });
 
     it('locations not read yet (undefined) keep every live block', () => {
-      expect(relatorioCounter([on(1, 5, concluded), on(2, 4, concluded)], [], undefined).text).toBe('2 de 2 fichas');
+      expect(relatorioCounter([on(1, 5, concluded), on(2, 4, concluded)], [], undefined, EMPTY_DEFINITION_CONTEXT).text).toBe('2 de 2 fichas');
     });
 
     it("agrees with the Sumário's snapshot over the Porto Seguro fixture with a location removed and a held sheet", () => {
@@ -180,15 +181,15 @@ describe('14.10-UNIT relatorioCounter: the Sumário rule on every list counter (
       state.set(entityKey('suggestion', held.id), held);
       const rows = suggestionRowsOf(state, portoSeguro.relatorioId);
       const sumario = fichasCountText(progress(buildSnapshot(state, portoSeguro.relatorioId), pendingSuggestions(rows)));
-      const home = relatorioCounter(rowsOf<BlockRow>('block').filter((b) => b.removed_at === null), rows, rowsOf<LocationRow>('location')).text;
+      const home = relatorioCounter(rowsOf<BlockRow>('block').filter((b) => b.removed_at === null), rows, rowsOf<LocationRow>('location'), EMPTY_DEFINITION_CONTEXT).text;
       expect(home).toBe(sumario);
-      expect(home).not.toBe(relatorioCounter(rowsOf<BlockRow>('block').filter((b) => b.removed_at === null), rows).text);
+      expect(home).not.toBe(relatorioCounter(rowsOf<BlockRow>('block').filter((b) => b.removed_at === null), rows, undefined, EMPTY_DEFINITION_CONTEXT).text);
     });
   });
 
   it("agrees with the Sumário's count over the same rows", () => {
     const blocks = twelve();
     const rows = [suggestion(bid(1)), suggestion(bid(2), 'confirmed'), suggestion(bid(3), 'discarded')];
-    expect(relatorioCounter(blocks, rows).text).toBe(fichasCountText(progress({ blocks, suggestions: [] }, pendingSuggestions(rows))));
+    expect(relatorioCounter(blocks, rows, undefined, EMPTY_DEFINITION_CONTEXT).text).toBe(fichasCountText(progress({ blocks, suggestions: [] }, pendingSuggestions(rows))));
   });
 });

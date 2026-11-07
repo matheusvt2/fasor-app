@@ -9,6 +9,7 @@ import {
   newRelatorioEquipmentReady,
   outboxBlockId,
   prunableOutboxRow,
+  resendRenumberedVersions,
   resendRestampOrder,
   restampOp,
   splitEntityKey,
@@ -29,9 +30,10 @@ import {
   type ProjectRow,
   type RelatorioSummary,
   type UserRow,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { byClientTsThenOpId, opOf, toRecord } from './commit.ts';
-import { allTypeVersionState } from './type-store.ts';
+import { allTypeVersionState, deviceDefinitionContext, equipmentTypeRows } from './type-store.ts';
 import {
   COMPANY_STREAM,
   DEVICE_ID_PREF,
@@ -184,12 +186,19 @@ export async function writeSyncState(db: AppDatabase, row: SyncStateRow): Promis
  * the `op_target_missing` rows that depend on a create stamped again here, in commit order), and
  * a value instant read from the same clock moves by `clockErrorMs`, the error the device learned
  * since (`clockOffsetMs()`), not to the resend time. Every other dead row keeps its stamps.
+ * e22h S2: first, a company type version this device published at a number another device took
+ * moves to the next free one, and the dead blocks naming that version row follow it
+ * (`resendRenumberedVersions`, over the dead rows in commit order and the type rows as this device
+ * holds them now); the restamp then reads the renumbered values.
  */
 export async function resendDead(db: AppDatabase, now: Date, clockErrorMs = 0): Promise<number> {
   return db.transaction('rw', db.outbox, db.remote_ops, db.entities, async () => {
-    const dead = await db.outbox.where('status').equals('dead').toArray();
+    const dead = (await db.outbox.where('status').equals('dead').toArray()).sort(byClientTsThenOpId);
     const refs = new Set<string>();
-    const misdated = resendRestampOrder(dead.map((row) => ({ op: opOf(row), code: row.error_code ?? null })));
+    const { types } = await equipmentTypeRows(db);
+    const renumbered = new Map(resendRenumberedVersions(dead.map(opOf), types).map((op) => [op.op_id, op]));
+    for (const op of renumbered.values()) await db.outbox.update(op.op_id, { value: op.value });
+    const misdated = resendRestampOrder(dead.map((row) => ({ op: renumbered.get(row.op_id) ?? opOf(row), code: row.error_code ?? null })));
     for (const [i, op] of misdated.entries()) {
       const again = restampOp(op, new Date(now.getTime() + i), clockErrorMs);
       await db.outbox.update(op.op_id, { client_ts: again.client_ts, value: again.value, ...(again.meta === undefined ? {} : { meta: again.meta }) });
@@ -433,7 +442,7 @@ export async function resolveMergePairs(
 
 /** The rows the words of the merge entries are read from (`mergeInfoText`). */
 export async function mergeTextContext(db: AppDatabase, merges: readonly MergeInfo[]): Promise<MergeInfoContext> {
-  if (merges.length === 0) return { blocks: [], equipment: [], users: [], files: [], locations: [] };
+  if (merges.length === 0) return { blocks: [], equipment: [], users: [], files: [], locations: [], definitions: EMPTY_DEFINITION_CONTEXT };
   const blockIds = [...new Set(merges.flatMap((m) => (m.block_id === null ? [] : [m.block_id])))];
   const relatorioIds = [...new Set(merges.flatMap((m) => (m.relatorio_id === null ? [] : [m.relatorio_id])))];
   const blockRecords = await db.entities.bulkGet(blockIds.map((id) => ['block', id] as ['block', string]));
@@ -445,7 +454,8 @@ export async function mergeTextContext(db: AppDatabase, merges: readonly MergeIn
   const files = inRelatorios.filter((record) => record.entity === 'file').map((record) => record.row as FileRow);
   // Story 10.3: a `block_added` entry names the location its block sits in.
   const locations = inRelatorios.filter((record) => record.entity === 'location').map((record) => record.row as LocationRow);
-  return { blocks, equipment, users: await localUsers(db), files, locations };
+  // e22h B1: a company sheet is named by its version's label (the device's type versions).
+  return { blocks, equipment, users: await localUsers(db), files, locations, definitions: await deviceDefinitionContext(db) };
 }
 
 // --- Story 10.4: the rows of the full Sync status surface -------------------------------
@@ -458,13 +468,13 @@ export async function pendingSheetContext(db: AppDatabase, outbox: readonly Outb
     const id = outboxBlockId(row.path);
     if (id !== null) blockIds.add(id);
   }
-  if (blockIds.size === 0) return { blocks: [], equipment: [], users: [] };
+  if (blockIds.size === 0) return { blocks: [], equipment: [], users: [], definitions: EMPTY_DEFINITION_CONTEXT };
   const blockRecords = await db.entities.bulkGet([...blockIds].map((id) => ['block', id] as ['block', string]));
   const blocks = blockRecords.flatMap((record) => (record === undefined ? [] : [record.row as BlockRow]));
   const equipmentIds = [...new Set(blocks.flatMap((block) => (block.equipment_id === null ? [] : [block.equipment_id])))];
   const equipmentRecords = await db.entities.bulkGet(equipmentIds.map((id) => ['equipment', id] as ['equipment', string]));
   const equipment = equipmentRecords.flatMap((record) => (record === undefined ? [] : [record.row as EquipmentRow]));
-  return { blocks, equipment, users: await localUsers(db) };
+  return { blocks, equipment, users: await localUsers(db), definitions: await deviceDefinitionContext(db) };
 }
 
 /**

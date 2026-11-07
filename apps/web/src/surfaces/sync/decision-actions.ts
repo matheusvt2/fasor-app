@@ -20,6 +20,7 @@ import type { HeldDecisions } from '../../db/decision-store.ts';
 import { allLocationRows, blockRowsOf, equipmentRows, projectBlockRows } from '../../db/home-store.ts';
 import { relatorioVisibility } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
@@ -41,8 +42,11 @@ export function useDecisionTextContext(entry: HeldDecisions | null): DecisionTex
   const viewerActorId = session.user?.id ?? null;
   const viewerDeviceId = sync.deviceId;
   const userNames = sync.userNames;
+  // e22h B1: a company sheet's cells and name are read through its version.
+  const definitions = useDefinitionContext();
   return useMemo(
     () => ({
+      definitions,
       blocks: entry?.blocks ?? [],
       equipment: entry?.equipment ?? [],
       locations: entry?.locations ?? [],
@@ -50,7 +54,7 @@ export function useDecisionTextContext(entry: HeldDecisions | null): DecisionTex
       viewerActorId,
       viewerDeviceId,
     }),
-    [entry, userNames, viewerActorId, viewerDeviceId],
+    [entry, userNames, viewerActorId, viewerDeviceId, definitions],
   );
 }
 

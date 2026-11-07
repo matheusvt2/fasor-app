@@ -16,6 +16,7 @@ import {
   type LayoutSection,
   type LocationRow,
   type RelatorioSnapshot,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
@@ -297,7 +298,7 @@ describe('14.2-UNIT section 9 in the DOCX: a painel is a band over its sheets', 
     const painel: LocationRow = { id: id(2), relatorio_id: relatorioId, parent_id: id(1), kind: 'painel', name: 'Painel de média tensão', order_key: 'a0', removed_at: null };
     const colunas: LocationRow[] = [1, 2, 3].map((n) => ({ id: id(10 + n), relatorio_id: relatorioId, parent_id: id(2), kind: 'coluna', name: `Coluna ${n}`, order_key: `a${n}`, removed_at: null }));
     const sheet = (n: number, location: string, type: EquipmentBlockType, tag: string) =>
-      newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId, projectId: base.relatorio.project_id, locationId: location, type, tag, seedVersion: base.relatorio.seed_version, orderKey: `a${n}` });
+      newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId, projectId: base.relatorio.project_id, locationId: location, type, tag, seedVersion: base.relatorio.seed_version, orderKey: `a${n}` });
     const sheets = [
       sheet(1, id(1), 'transformador_forca', 'TR-1'),
       sheet(2, id(1), 'transformador_forca', 'TR-2'),

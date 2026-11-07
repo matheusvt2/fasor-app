@@ -4,7 +4,7 @@ import { conflictValueText } from '../merge/conflicts.ts';
 import { parseOverRangePtBr } from '../parse/pt-br-number.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { composeConclusion, conclusionFloor, effectiveConclusionPair } from './conclusion.ts';
 import { instrumentRangeFor, instrumentRangeOf } from './instrument-pick.ts';
@@ -151,21 +151,21 @@ describe('22.10-UNIT the registry range (instrumentRangeOf, instrumentRangeFor)'
 
   it('a sheet test reads the range of the instrument picked on it, live from the registry', () => {
     const picked = block('para_raio', test('isolacao', [], INSTRUMENT));
-    expect(instrumentRangeFor(picked, [row], 'isolacao')).toEqual({ raw: '2', unit: 'TΩ' });
-    expect(instrumentRangeFor(picked, [], 'isolacao')).toBeNull();
-    expect(instrumentRangeFor(block('para_raio'), [row], 'isolacao')).toBeNull();
+    expect(instrumentRangeFor(picked, [row], 'isolacao', EMPTY_DEFINITION_CONTEXT)).toEqual({ raw: '2', unit: 'TΩ' });
+    expect(instrumentRangeFor(picked, [], 'isolacao', EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    expect(instrumentRangeFor(block('para_raio'), [row], 'isolacao', EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 
   it('a measurement test reads the range of its instrument_of kind (the CTA\'s E2 picker offers meggers: range_isolacao)', () => {
     const cta = ctaBlock();
     const pick = test(E2, [], INSTRUMENT).test[E2]!;
     const picked: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E2]: { ...(cta.sheet.test[E2] ?? { cells: {} }), instrument: pick.instrument } } } };
-    expect(instrumentRangeFor(picked, [row], E2)).toEqual({ raw: '2', unit: 'TΩ' });
+    expect(instrumentRangeFor(picked, [row], E2, EMPTY_DEFINITION_CONTEXT)).toEqual({ raw: '2', unit: 'TΩ' });
     // E1 (contact resistance, the micro-ohmmeter's kind) picked with the same instrument reads its other range.
     const e1 = test(E1, [], INSTRUMENT).test[E1]!;
     const onE1: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E1]: { ...(cta.sheet.test[E1] ?? { cells: {} }), instrument: e1.instrument } } } };
-    expect(instrumentRangeFor(onE1, [row], E1)).toEqual({ raw: '2000', unit: 'µΩ' });
-    expect(instrumentRangeFor(cta, [row], E2)).toBeNull();
+    expect(instrumentRangeFor(onE1, [row], E1, EMPTY_DEFINITION_CONTEXT)).toEqual({ raw: '2000', unit: 'µΩ' });
+    expect(instrumentRangeFor(cta, [row], E2, EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 });
 
@@ -259,7 +259,7 @@ describe('22.10-UNIT the seeded evaluation of a stored limit', () => {
   });
 
   it('the conflict view names a limit "> 2 TΩ"', () => {
-    expect(conflictValueText({ path: `sheet/${ID}/test/isolacao/cell/0/1` }, { raw: '2', unit: 'TΩ', state: 'over_range' })).toBe('> 2 TΩ');
+    expect(conflictValueText({ path: `sheet/${ID}/test/isolacao/cell/0/1` }, { raw: '2', unit: 'TΩ', state: 'over_range' }, undefined, EMPTY_DEFINITION_CONTEXT)).toBe('> 2 TΩ');
   });
 });
 

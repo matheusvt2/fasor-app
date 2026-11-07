@@ -42,13 +42,12 @@ import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { instrumentRangeFor } from '../relatorio/instrument-pick.ts';
 import { composeParecer, derivedParecer } from '../relatorio/parecer.ts';
 import { preIssue } from '../relatorio/pre-issue.ts';
-import { effectiveCriterion } from '../relatorio/reading-evaluation.ts';
 import { sheetProgress, shownSheetSteps } from '../relatorio/sheet-progress.ts';
 import { suggestTag, tagPrefixOf } from '../relatorio/tag.ts';
 import { blockTypeLabelIn, locationTree, newEquipmentBlock, paletteItems, paletteTypeGroups, treeNodes } from '../relatorio/tree.ts';
 import { learnedOptionCandidates } from '../registry/nc-phrase-row.ts';
 import { blockConfigSchema, companyBlockType, EQUIPMENT_BLOCK_TYPES, isCompanyBlockType, templateBlockSchema, typeVersionOf } from '../schemas/block-config.ts';
-import { emptySheet, photoFileRowSchema, type BlockRow, type Cell, type EntityRow, type EquipmentTypeRow, type EquipmentTypeVersionRow, type TemplateRow } from '../schemas/entities.ts';
+import { photoFileRowSchema, type BlockRow, type Cell, type EntityRow, type EquipmentTypeRow, type EquipmentTypeVersionRow, type TemplateRow } from '../schemas/entities.ts';
 import { buildSnapshot, serializeSnapshot } from '../schemas/snapshot.ts';
 import { compareCriterion, formatCriterionValue } from '../seed/criteria.ts';
 import {
@@ -154,6 +153,13 @@ describe('Story 14.6: schemas', () => {
     const config = { block_type: TYPE_1, sub_blocks: { tensoes_medidas: { enabled: true } }, na_defaults: ['bornes'], type_version: 2 };
     expect(blockConfigSchema.parse(config)).toEqual(config);
     expect(typeVersionOf(config)).toBe(2);
+    // e22h S2: the version row's id goes beside the number, on a company type only, and must be a uuidv7.
+    const named = { ...config, type_version_id: VERSION_2_ID };
+    expect(blockConfigSchema.parse(named)).toEqual(named);
+    expect(typeVersionOf(named)).toEqual({ version: 2, id: VERSION_2_ID });
+    expect(blockConfigSchema.safeParse({ ...named, type_version: undefined }).success).toBe(false);
+    expect(blockConfigSchema.safeParse({ ...named, type_version_id: 'not-a-uuid' }).success).toBe(false);
+    expect(blockConfigSchema.safeParse({ block_type: 'tp', sub_blocks: {}, na_defaults: [], type_version_id: VERSION_2_ID }).success).toBe(false);
     expect(blockConfigSchema.safeParse({ ...config, type_version: undefined }).success).toBe(false);
     expect(blockConfigSchema.safeParse({ ...config, type_version: 0 }).success).toBe(false);
     expect(blockConfigSchema.safeParse({ ...config, subtype: 'manual' }).success).toBe(false);
@@ -355,7 +361,7 @@ describe('Story 14.6: company blocks in the fold', () => {
       location_id: CABINE_ID,
       equipment_id: EQUIPMENT_1_ID,
       block_type: TYPE_1,
-      config: { block_type: TYPE_1, sub_blocks: sub, na_defaults: [], type_version: 1, ...config },
+      config: { block_type: TYPE_1, sub_blocks: sub, na_defaults: [], type_version: 1, type_version_id: VERSION_1_ID, ...config },
       seed_version: SEED_VERSION,
       order_key: 'a0',
       feeds_block_id: null,
@@ -388,8 +394,14 @@ describe('Story 14.6: company blocks in the fold', () => {
 
   it('refuses a config put changing a company block\'s type or version; a seeded block is unaffected', () => {
     const state = fold([blockCreate({})], published);
-    const config = { block_type: TYPE_1, sub_blocks: sub, na_defaults: [], type_version: 1 };
+    const config = { block_type: TYPE_1, sub_blocks: sub, na_defaults: [], type_version: 1, type_version_id: VERSION_1_ID };
     expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, type_version: 2 })], state)).toThrow(SeedPathError);
+    // e22h S2: the version row's id is kept too, compared by value (never dropped, never swapped).
+    expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, type_version_id: VERSION_2_ID })], state)).toThrow(SeedPathError);
+    const withoutId: Record<string, unknown> = { ...config };
+    delete withoutId.type_version_id;
+    expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, withoutId)], state)).toThrow(SeedPathError);
+    expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, structuredClone(config))], state)).not.toThrow();
     expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, block_type: 'tp' })], state)).toThrow(SeedPathError);
     // A test the type leaves switchable switches off; a measurement test without `switchable` is always on, as on a seeded type.
     expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, sub_blocks: { ...sub, [DEFINITION_1.tests[0]!.key]: { enabled: false } } })], state)).not.toThrow();
@@ -458,7 +470,7 @@ describe('Story 14.6: the resolver context', () => {
     expect(offered.slice(equipmentTypesOf(SEED_VERSION).length)).toEqual([TYPE_1]);
     const groups = paletteTypeGroups(SEED_VERSION, ctx);
     expect(groups.at(-1)!.types.at(-1)).toBe(TYPE_1);
-    expect(paletteTypeGroups(SEED_VERSION)).toEqual(paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT));
+    expect(paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT)).toEqual(paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT));
     const item = paletteItems(SEED_VERSION, { kind: 'cabine', name: 'Cubículo Enel' }, [], ctx).find((row) => row.type === TYPE_1)!;
     expect(item).toMatchObject({ typeVersion: 2, label: 'No-break de comando 125 Vcc', tag: 'NB-ENEL', library: true });
     expect(blockTypeLabelIn(ctx, SEED_VERSION, TYPE_1, 1)).toBe('No-break de comando');
@@ -477,6 +489,7 @@ describe('Story 14.6: the resolver context', () => {
       sub_blocks: { nameplate: { enabled: true }, checklist: { enabled: true }, observations: { enabled: true }, conclusion: { enabled: true } },
       na_defaults: [],
       type_version: 1,
+      type_version_id: VERSION_3_ID,
     });
     expect(defaultBlockConfigIn(ctx, SEED_VERSION, 'tp')).toEqual(defaultBlockConfig(SEED_VERSION, 'tp'));
   });
@@ -572,9 +585,9 @@ describe('Story 14.6: templates, totals and the NC learner', () => {
     );
     const blocks = drafts.filter((draft) => draft.path.startsWith('block/')).map((draft) => draft.value as unknown as BlockRow).filter((block) => isCompanyBlockType(block.block_type));
     expect(blocks.map((block) => [block.block_type, typeVersionOf(block.config)])).toEqual([
-      [TYPE_1, 2],
-      [TYPE_1, 2],
-      [TYPE_2, 1],
+      [TYPE_1, { version: 2, id: VERSION_2_ID }],
+      [TYPE_1, { version: 2, id: VERSION_2_ID }],
+      [TYPE_2, { version: 1, id: VERSION_3_ID }],
     ]);
     const tags = drafts.filter((draft) => draft.path.startsWith('equipment/')).map((draft) => (draft.value as { tag: string }).tag);
     expect(tags).toEqual(['NB-CABINE', 'NB-CABINE-2', 'FA-CABINE', 'TP-CABINE']);
@@ -605,25 +618,7 @@ const versionCreateOf = (id: string, typeId: string, version: number, definition
   value: { id, type_id: typeId, version, definition, published_by: USER_ID, published_at: T(1) } as Op['value'],
 });
 
-describe('Story 14.6 review: "Duplicar" drops the plate-picked criteria', () => {
-  it('a copy of a banded (quadro elétrico) or class-field (TC, TP) type judges by its own criteria row', () => {
-    // The Inspeção de QGBT, the other banded board, has no test on v12: nothing to drop.
-    expect(getDefinition('v12', 'cabine_primaria', 'inspecao_qgbt').tests).toEqual([]);
-    for (const type of ['quadro_eletrico', 'tc', 'tp'] as const) {
-      const seeded = getDefinition('v12', 'cabine_primaria', type).tests;
-      expect(seeded.some((test) => test.criterion_bands !== undefined || test.criterion_class_field !== undefined), type).toBe(true);
-      const copy = duplicateSeededType('v12', type).draft;
-      expect(copy.tests.every((test) => test.criterion_bands === undefined && test.criterion_class_field === undefined), type).toBe(true);
-      expect(validateTypeDraft(copy), type).toEqual([]);
-      // The Critérios tab's edit is what judges: the copy's row, never the seed's band or class.
-      const banded = copy.tests.find((test) => seeded.some((s) => s.key === test.key && (s.criterion_bands !== undefined || s.criterion_class_field !== undefined)))!;
-      const edited = { ...copy, criteria: copy.criteria.map((criterion) => (criterion.key === banded.criterion_key ? { ...criterion, value: 7 } : criterion)) };
-      const definition = asBlockDefinition({ type_id: TYPE_1_ID, version: 1, definition: edited });
-      const test = definition.tests.find((candidate) => candidate.key === banded.key)!;
-      expect(effectiveCriterion({ sheet: emptySheet() }, test), type).toMatchObject({ key: banded.criterion_key, value: 7 });
-    }
-  });
-});
+// Fix batch e22h (S1): "Duplicar" now carries the plate-picked criteria; `e22h-copies.test.ts` proves a copy judges as its source.
 
 describe('Story 14.6 review: the rules a criterion may take (criterionRulesFor)', () => {
   const ratio = duplicateSeededType('v12', 'tc').draft;
@@ -648,12 +643,12 @@ describe('Story 14.6 review: the rules a criterion may take (criterionRulesFor)'
     ],
   });
 
-  it('an insulation or contact reading and a number row take neither ± nor pass_fail; the ratio takes ±; a choice row takes pass_fail', () => {
+  it('an insulation or contact reading, a number row and a choice row take neither ± nor pass_fail (e22h N1); the ratio takes ±', () => {
     const comparisons = ['>', '<', '>=', '<=', 'between'];
     expect(criterionRulesFor(DEFINITION_1, 'isolacao')).toEqual(comparisons);
     expect(criterionRulesFor(DEFINITION_1, 'tensao_saida')).toEqual(comparisons);
     expect(criterionRulesFor(ratio, ratioKey)).toEqual([...comparisons, '±']);
-    expect(criterionRulesFor(choiceTable(DEFINITION_1), 'tensao_saida')).toEqual([...comparisons, '±', 'pass_fail']);
+    expect(criterionRulesFor(choiceTable(DEFINITION_1), 'tensao_saida')).toEqual(comparisons);
     // A row no test names, and a loose draft the editor holds, take what their uses allow.
     expect(criterionRulesFor(DEFINITION_1, 'sem_uso')).toEqual([...comparisons, '±', 'pass_fail']);
     expect(criterionRulesFor({ tests: [{ key: 'resistencia_contato', criterion_key: 'x' }] }, 'x')).toEqual(comparisons);
@@ -671,11 +666,11 @@ describe('Story 14.6 review: the rules a criterion may take (criterionRulesFor)'
       },
     ]);
     expect(validateTypeDraft(withRule(DEFINITION_1, 'tensao_saida', '±')).map((issue) => issue.message)).toEqual(['Tensão de saída: a regra ± vale para o desvio da relação de transformação; escolha outra regra.']);
-    expect(validateTypeDraft(withRule(DEFINITION_1, 'tensao_saida', 'pass_fail')).map((issue) => issue.message)).toEqual(['Tensão de saída: "aprovado ou reprovado" vale para uma linha com opções; escolha outra regra.']);
+    expect(validateTypeDraft(withRule(DEFINITION_1, 'tensao_saida', 'pass_fail')).map((issue) => issue.message)).toEqual(['Tensão de saída: nenhum ensaio julga "aprovado ou reprovado"; escolha outra regra.']);
     expect(validateTypeDraft(withRule(ratio, ratioKey, 'pass_fail')).map((issue) => issue.path)).toEqual([['criteria', ratio.criteria.findIndex((criterion) => criterion.key === ratioKey), 'operator']]);
-    // The boundary that publishes: ± on the ratio, pass_fail on a choice row.
+    // The boundary that publishes: ± on the ratio; pass_fail on a choice row no longer does (e22h N1).
     expect(validateTypeDraft(withRule(ratio, ratioKey, '±'))).toEqual([]);
-    expect(validateTypeDraft(withRule(choiceTable(DEFINITION_1), 'tensao_saida', 'pass_fail'))).toEqual([]);
+    expect(validateTypeDraft(withRule(choiceTable(DEFINITION_1), 'tensao_saida', 'pass_fail'))).toHaveLength(1);
     expect(companyTypeDefinitionSchema.safeParse(plusMinus).success).toBe(false);
     const state = fold([typeCreate(TYPE_1_ID)]);
     expect(() => applyOp(state, versionCreateOf(VERSION_1_ID, TYPE_1_ID, 1, plusMinus))).toThrow(/regra ±/);
@@ -788,7 +783,7 @@ describe('Story 14.6 review: the next visit, photos, parecer and pre-issue over 
     const row = { id: INSTRUMENT, range_isolacao: { raw: '2', unit: 'TΩ' }, range_resistencia_contato: null };
     expect(instrumentRangeFor(picked, [row], testKey, snapshotDefinitionContext(fixtureSnapshot))).toEqual({ raw: '2', unit: 'TΩ' });
     // Without the context a company block resolves no definition, so no range.
-    expect(instrumentRangeFor(picked, [row], testKey)).toBeNull();
+    expect(instrumentRangeFor(picked, [row], testKey, EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 });
 
@@ -814,7 +809,7 @@ describe('Story 14.6 review: blocks born at a version', () => {
         typeVersion: version,
         definitions: ctx,
       });
-      expect(typeVersionOf(block.config)).toBe(version);
+      expect(typeVersionOf(block.config)).toEqual({ version, id: version === 1 ? VERSION_1_ID : VERSION_2_ID });
       expect(Object.keys((block.config as { sub_blocks: object }).sub_blocks)).toEqual(definition.sub_blocks);
       expect(equipment.tag.startsWith('NB-')).toBe(true);
       expect(fold([op('create', 'relatorio', `block/${blockId}`, block)], both).get(entityKey('block', blockId))).toMatchObject({ block_type: TYPE_1 });

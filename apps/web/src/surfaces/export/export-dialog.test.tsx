@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { act, cleanup, configure, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -1117,7 +1117,7 @@ describe('F43 (UX pass 2026-10-22): the Export dialog speaks the Sumário positi
     const { drafts } = instantiateTemplate(
       standardTemplate({ id: '019966c1-004a-7000-8000-000000000001' }),
       { id: portoSeguroSmall.projectId },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: () => `019966c1-004b-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: USER, companyId: COMPANY },
     );
     const sections = drafts

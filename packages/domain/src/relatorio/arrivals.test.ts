@@ -9,6 +9,7 @@ import { arrivalServed, arrivalToAnnounce, fichaArrivalScreen, isCaptionSuggesti
 import { cabineOf, type CabineLocation } from './cabine.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import { firstInTree } from './tree.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what a reading arrival announces given the
@@ -104,7 +105,7 @@ describe('fichaArrivalScreen (review fixes 2026-10-08, DC-4): the cabine\'s env 
     const { relatorioId, drafts } = instantiateTemplate(
       standardTemplate({ id: '019966b0-0091-7000-8000-000000000001' }),
       { id: TEST_PROJECT },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: idSequence('019966b0-0092-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
     );
     const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0093-7000-8000-'), now: T0 }), seq: i + 1 }));

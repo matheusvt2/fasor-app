@@ -12,6 +12,7 @@ import {
   type SubBlockKey,
   type Subtype,
   type TemplateBlock,
+  type TypeVersionRef,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
 import { getDefinition, getDefinitionIn, naDefaultsFor, SEED_VERSION, type DefinitionContext } from './definitions.ts';
@@ -81,16 +82,18 @@ export function defaultBlockConfig(
 /**
  * Story 14.6 (AD-21 note of 2026-11-06, item 3): the default config of a block type through a
  * definition context. A seeded or section type's is `defaultBlockConfig`'s; a company type's names
- * the published version it is placed at (`type_version`, the palette's latest), every sub-block of
+ * the published version it is placed at (`type_version`, the palette's latest, and e22h S2 that
+ * version row's id, `type_version_id`), every sub-block of
  * that version's definition on but `ia_ip_display`, and no subtype, role or NA default (a company
  * type has none). Throws when the context holds no such version.
  */
-export function defaultBlockConfigIn(ctx: DefinitionContext, seedVersion: string, blockType: BlockConfig['block_type'], typeVersion?: number, options: BlockConfigOptions = {}): BlockConfig {
+export function defaultBlockConfigIn(ctx: DefinitionContext, seedVersion: string, blockType: BlockConfig['block_type'], typeVersion?: TypeVersionRef, options: BlockConfigOptions = {}): BlockConfig {
   if (!isCompanyBlockType(blockType)) return defaultBlockConfig(seedVersion, blockType, options);
   const definition = getDefinitionIn(ctx, seedVersion, blockType, typeVersion);
   const sub_blocks: Record<string, SubBlockConfig> = {};
   for (const key of definition.sub_blocks) sub_blocks[key] = { enabled: !(DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key) };
-  return { block_type: blockType, sub_blocks, na_defaults: [], type_version: definition.type_version! };
+  // e22h S2: the config names the version row it resolved, so the block stays bound to that definition.
+  return { block_type: blockType, sub_blocks, na_defaults: [], type_version: definition.type_version!, type_version_id: definition.type_version_id! };
 }
 
 // --- the standard template's composition -----------------------------------

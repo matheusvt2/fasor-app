@@ -1,3 +1,4 @@
+import { isCompanyBlockType } from '../schemas/block-config.ts';
 /*
  * Story 21.1 (Bruno, 2026-11-05; Matheus: "Considere todos"): the 47 three-phase vector groups
  * of a transformer's turns-ratio test, transcribed from Megger TTR100 Tabla 5-2 as the research
@@ -266,9 +267,16 @@ export const VECTOR_GROUP_FIELD = 'ligacao_secundaria';
 /** Story 21.2: the block type whose LIGAÇÃO SECUNDÁRIA holds a vector group (TP and TC keep it as free text). */
 export const VECTOR_GROUP_BLOCK_TYPE = 'transformador_forca';
 
-/** Story 21.2: whether a nameplate field of a block type is the vector group (the transformador de força's LIGAÇÃO SECUNDÁRIA). */
-export function isVectorGroupField(blockType: string, key: string): boolean {
-  return blockType === VECTOR_GROUP_BLOCK_TYPE && key === VECTOR_GROUP_FIELD;
+/**
+ * Story 21.2: whether a nameplate field of a block type is the vector group (the transformador de
+ * força's LIGAÇÃO SECUNDÁRIA). Fix batch e22h (N9): a company type's field is by its data, so a
+ * copy of the transformador de força keeps it: the `ligacao_secundaria` select whose options are
+ * the vector-group codes (`isVectorGroupOptions`). A seeded type answers by its block type, as before.
+ */
+export function isVectorGroupField(blockType: string, field: { key: string; kind?: string | undefined; options?: readonly string[] | undefined }): boolean {
+  if (field.key !== VECTOR_GROUP_FIELD) return false;
+  if (isCompanyBlockType(blockType)) return field.kind === 'select' && isVectorGroupOptions(field.options);
+  return blockType === VECTOR_GROUP_BLOCK_TYPE;
 }
 
 /** Whether a select's options are exactly the vector-group codes (the v11 LIGAÇÃO SECUNDÁRIA). */

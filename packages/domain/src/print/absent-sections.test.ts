@@ -13,6 +13,7 @@ import { composerSectionsWarning } from '../templates/text.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { absentSectionsSentence, parecerAbsentTexts } from './absent-sections.ts';
 import { layoutSpec, printedSections, printsSection } from './layout.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * p020 P-1 (v0.2.0 production check): a template, and so a relatório, without section 8 or
@@ -28,7 +29,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: TEMPLATE_ID }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0202-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0203-7000-8000-'), now: T0 }), seq: i + 1 }));

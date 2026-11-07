@@ -24,6 +24,7 @@ import {
   type OpInput,
   type SyncPullResponse,
   type SyncPushResponse,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -188,7 +189,7 @@ function localCreate(relatorioId: string, id: string): Op {
 function ctaCreates(ids: { relatorio: string; project: string; local: string; block: string; equipment: string }, blockSeedVersion = 'v5'): { equipment: Op; block: Op; row: BlockRow } {
   written.entityIds.add(ids.block);
   written.entityIds.add(ids.equipment);
-  const built = newEquipmentBlock({
+  const built = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: ids.block,
     equipmentId: ids.equipment,
     relatorioId: ids.relatorio,

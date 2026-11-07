@@ -7,7 +7,7 @@ import { groupForPrint } from '../print/group-for-print.ts';
 import { section9Layout, type PrintSheet, type PrintTable, type SheetPart } from '../print/section-9.ts';
 import { relatorioRowSchema, type BlockRow, type EntityRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { quantityLabel, subBlockSummaryText, TOTALS_ORDER, totalsText } from '../templates/text.ts';
 import { opFactory, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
@@ -68,7 +68,7 @@ const relatorio = (seedVersion: string) =>
   });
 
 function stateWith(options: { withCta?: boolean } = {}, f: OpFactory = opFactory()): { state: EntityState; f: OpFactory } {
-  const qd = newEquipmentBlock({ blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: QD, tag: 'QD-SUBESTACAO', seedVersion: 'v6', orderKey: 'a1' });
+  const qd = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: QD, tag: 'QD-SUBESTACAO', seedVersion: 'v6', orderKey: 'a1' });
   const rows = new Map<EntityKey, EntityRow>([
     [entityKey('relatorio', TEST_RELATORIO), relatorio('v6')],
     [entityKey('location', LOCAL), local()],
@@ -76,7 +76,7 @@ function stateWith(options: { withCta?: boolean } = {}, f: OpFactory = opFactory
   ]);
   let state: EntityState = rows;
   if (options.withCta === true) {
-    const cta = newEquipmentBlock({ blockId: CTA_BLOCK, equipmentId: CTA_EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: CTA, tag: 'CTA-SUBESTACAO', seedVersion: 'v6', orderKey: 'a0' });
+    const cta = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: CTA_BLOCK, equipmentId: CTA_EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: CTA, tag: 'CTA-SUBESTACAO', seedVersion: 'v6', orderKey: 'a0' });
     rows.set(entityKey('equipment', CTA_EQUIPMENT), cta.equipment);
     state = applyOp(state, f.op({ kind: 'create', path: blockPath(CTA_BLOCK), value: cta.block as unknown as JsonValue }));
   }
@@ -108,15 +108,15 @@ const test = () => definition().tests[0]!;
 
 describe('the type in the palettes, its TAG and its words', () => {
   it('v6 offers it under "Outros equipamentos" after the CTA; v5 does not', () => {
-    expect(paletteTypeGroups('v6')[1]).toEqual({ key: 'library', label: LIBRARY_GROUP_LABEL, types: [CTA, QD] });
-    expect(paletteTypeGroups('v5')[1]!.types).toEqual([CTA]);
+    expect(paletteTypeGroups('v6', EMPTY_DEFINITION_CONTEXT)[1]).toEqual({ key: 'library', label: LIBRARY_GROUP_LABEL, types: [CTA, QD] });
+    expect(paletteTypeGroups('v5', EMPTY_DEFINITION_CONTEXT)[1]!.types).toEqual([CTA]);
     const coluna = { kind: 'coluna' as const, name: 'Coluna 5' };
-    const items = paletteItems('v6', coluna, []);
+    const items = paletteItems('v6', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(items.map((entry) => entry.type).slice(-2)).toEqual([CTA, QD]);
     expect(items.at(-1)).toEqual({ type: QD, label: 'Quadro elétrico (QGBT/QD)', tag: 'QD-C05', library: true, summary: '17 itens · até 1 ensaio' });
-    expect(paletteItems('v5', coluna, []).some((entry) => entry.type === QD)).toBe(false);
-    expect(libraryTypeSummaryText('v6', QD)).toBe('17 itens · até 1 ensaio');
-    expect(libraryTypeSummaryText('v5', QD)).toBeNull();
+    expect(paletteItems('v5', coluna, [], EMPTY_DEFINITION_CONTEXT).some((entry) => entry.type === QD)).toBe(false);
+    expect(libraryTypeSummaryText('v6', QD, EMPTY_DEFINITION_CONTEXT)).toBe('17 itens · até 1 ensaio');
+    expect(libraryTypeSummaryText('v5', QD, EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 
   it('the TAG prefix is QD by the existing rule, on a coluna and on a local', () => {
@@ -129,9 +129,9 @@ describe('the type in the palettes, its TAG and its words', () => {
     expect(TOTALS_ORDER.at(-2)).toBe(QD);
     expect(TOTALS_ORDER.at(-1)).toBe('inspecao_qgbt');
     const zero = Object.fromEntries(TOTALS_ORDER.map((type) => [type, 0])) as Record<(typeof TOTALS_ORDER)[number], number>;
-    expect(totalsText({ ...zero, [QD]: 1 })).toBe('1 quadro elétrico');
-    expect(totalsText({ ...zero, [CTA]: 1, [QD]: 3 })).toBe('1 chave de transferência automática · 3 quadros elétricos');
-    expect(quantityLabel(QD, 2)).toBe('Quadros elétricos, 2');
+    expect(totalsText({ ...zero, [QD]: 1 }, EMPTY_DEFINITION_CONTEXT)).toBe('1 quadro elétrico');
+    expect(totalsText({ ...zero, [CTA]: 1, [QD]: 3 }, EMPTY_DEFINITION_CONTEXT)).toBe('1 chave de transferência automática · 3 quadros elétricos');
+    expect(quantityLabel(QD, 2, EMPTY_DEFINITION_CONTEXT)).toBe('Quadros elétricos, 2');
     expect(CAPTION_EQUIPMENT_WORDS[QD]).toEqual({ name: 'quadro elétrico', gender: 'm', number: 'singular' });
   });
 
@@ -153,7 +153,7 @@ describe('the type in the palettes, its TAG and its words', () => {
   it('matrix "QGBT on an old seed": a block create of the type on v1 to v5 is refused by the fold', () => {
     for (const seedVersion of ['v1', 'v4', 'v5']) {
       const f = opFactory();
-      const { block } = newEquipmentBlock({ blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: QD, tag: 'QD-1', seedVersion: 'v6', orderKey: 'a0' });
+      const { block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: EQUIPMENT, relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: LOCAL, type: QD, tag: 'QD-1', seedVersion: 'v6', orderKey: 'a0' });
       const state: EntityState = new Map<EntityKey, EntityRow>([
         [entityKey('relatorio', TEST_RELATORIO), relatorio(seedVersion)],
         [entityKey('location', LOCAL), local()],

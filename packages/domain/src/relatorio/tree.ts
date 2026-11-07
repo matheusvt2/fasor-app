@@ -1,10 +1,9 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
-import { isCompanyBlockType, isEquipmentBlockType, isEquipmentKind, typeVersionOf, type BlockTypeKey } from '../schemas/block-config.ts';
+import { isCompanyBlockType, isEquipmentBlockType, isEquipmentKind, typeVersionOf, type BlockTypeKey, type TypeVersionRef } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import {
-  EMPTY_DEFINITION_CONTEXT,
   equipmentTypesOf,
   findDefinition,
   findDefinitionIn,
@@ -238,7 +237,7 @@ export function blockTypeLabel(seedVersion: string, blockType: string): string {
  * of the version given (AD-21 item 7: the label belongs to the version), else of its latest one in
  * the context; the type itself when no version resolves.
  */
-export function blockTypeLabelIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): string {
+export function blockTypeLabelIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: TypeVersionRef): string {
   if (!isCompanyBlockType(blockType)) return blockTypeLabel(seedVersion, blockType);
   const version = typeVersion ?? latestTypeVersion(ctx, blockType.slice('type:'.length)) ?? undefined;
   return findDefinitionIn(ctx, seedVersion, blockType, version)?.label ?? blockType;
@@ -584,7 +583,7 @@ function buildLocationTree(
       railMeta: texts.railMeta,
       counterText: progressCounterText(counts),
       counterState: progressCounterState(counts),
-      ownCounterText: location.kind === 'cabine' && own.length > 0 ? progressCounterText(blocksProgress(own, pending)) : null,
+      ownCounterText: location.kind === 'cabine' && own.length > 0 ? progressCounterText(blocksProgress(own, pending, definitions)) : null,
       position,
       siblings,
       agruparPorTipo: location.kind === 'cabine' ? location.agrupar_por_tipo : null,
@@ -790,7 +789,7 @@ export interface PaletteTypeGroup {
  * group also offers the published, non-retired company types, after the seeded library types, in
  * label order (`offeredTypes`). Without one (the default) the groups are exactly as before.
  */
-export function paletteTypeGroups(seedVersion: string, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): PaletteTypeGroup[] {
+export function paletteTypeGroups(seedVersion: string, ctx: DefinitionContext): PaletteTypeGroup[] {
   const types = equipmentTypesOf(seedVersion);
   const library: BlockTypeKey[] = types.filter((type) => isLibraryType(seedVersion, type));
   const company = offeredTypes(ctx, seedVersion).filter((type) => isCompanyBlockType(type));
@@ -816,7 +815,7 @@ export interface PaletteItem {
  * The field palette's rows for a location: every type the seed version ships (the eight, then
  * its library types), each with its suggested TAG (`suggestTag`, the instantiation's scheme).
  */
-export function paletteItems(seedVersion: string, location: TagLocation, equipment: readonly TagEquipment[], ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): PaletteItem[] {
+export function paletteItems(seedVersion: string, location: TagLocation, equipment: readonly TagEquipment[], ctx: DefinitionContext): PaletteItem[] {
   return paletteTypeGroups(seedVersion, ctx).flatMap((group) =>
     group.types.map((type): PaletteItem => {
       // Story 14.6: a company type is placed at its latest published version, named by that version.
@@ -839,7 +838,7 @@ export function paletteItems(seedVersion: string, location: TagLocation, equipme
  * (`40-relatorio-overview.html`): its checklist's item count and how many measurement tests
  * it can hold ("até": some are switched off on the sheet). Null for a type that is not one.
  */
-export function libraryTypeSummaryText(seedVersion: string, blockType: string, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT, typeVersion?: number): string | null {
+export function libraryTypeSummaryText(seedVersion: string, blockType: string, ctx: DefinitionContext, typeVersion?: TypeVersionRef): string | null {
   const definition = findDefinitionIn(ctx, seedVersion, blockType, typeVersion);
   if (definition === null || definition.library !== true) return null;
   const tests = definition.tests.length + (definition.measurement_tests?.length ?? 0);
@@ -866,9 +865,10 @@ export interface NewEquipmentBlockInput {
   /**
    * Story 14.6: a company type's block is born at a published version (the palette's latest,
    * `PaletteItem.typeVersion`), whose definition the context resolves for its default config.
+   * e22h S2: or the version row a "Duplicar" source names (`typeVersionOf(source.config)`).
    */
-  typeVersion?: number;
-  definitions?: DefinitionContext;
+  typeVersion?: TypeVersionRef;
+  definitions: DefinitionContext;
 }
 
 /**
@@ -893,7 +893,7 @@ export function newEquipmentBlock(input: NewEquipmentBlockInput): { equipment: E
     block_type: input.type,
     config:
       input.config === undefined
-        ? (defaultBlockConfigIn(input.definitions ?? EMPTY_DEFINITION_CONTEXT, input.seedVersion, input.type, input.typeVersion) as unknown as JsonValue)
+        ? (defaultBlockConfigIn(input.definitions, input.seedVersion, input.type, input.typeVersion) as unknown as JsonValue)
         : structuredClone(input.config),
     seed_version: input.seedVersion,
     order_key: input.orderKey,

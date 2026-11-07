@@ -20,6 +20,7 @@ import { Button, LoadingNote, StatusPill } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { allLocationRows, blockRowsOf, clientRows, projectRow, relatoriosOfProject, suggestionRowsOfRelatorio, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 import '../relatorio/relatorio.css';
@@ -51,6 +52,8 @@ export function ProjectSurface() {
   // counters (Story 14.10 part 10: a sheet holding a pending suggestion, or on a hidden location
   // (the location rows read with the removed ones), is not concluded, the Sumário's rule,
   // `relatorioCounter`).
+  // e22h: the counter reads a company sheet's excused plate fields through its version.
+  const definitions = useDefinitionContext();
   const sheetsByRelatorio = useLiveQuery(
     async () => {
       if (db === null) return NO_SHEETS;
@@ -172,7 +175,7 @@ export function ProjectSurface() {
               <ul className="relatorio-list" aria-label={t.listLabel}>
                 {ordered.map((row) => {
                   const sheets = sheetsByRelatorio[row.id];
-                  const counter = relatorioCounter(sheets?.blocks ?? [], sheets?.suggestions, sheets?.locations);
+                  const counter = relatorioCounter(sheets?.blocks ?? [], sheets?.suggestions, sheets?.locations, definitions);
                   return (
                     <li key={row.id} data-relatorio={row.id}>
                       <Link className="relatorio-row" to={`/relatorio/${row.id}`}>

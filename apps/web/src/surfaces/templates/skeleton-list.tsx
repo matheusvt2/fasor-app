@@ -229,7 +229,9 @@ function LocalCard({ cabine, ...props }: CardProps & { cabine: ComposerCabine })
   const toggleLabelId = useId();
   const toggleId = useId();
   const expandId = useId();
-  const summary = nodeSummaryText(cabine);
+  // e22h: a company type's totals are named through its version.
+  const { definitions } = useTypeNaming();
+  const summary = nodeSummaryText(cabine, definitions);
   const isCurrent = currentRef === cabine.ref;
   const open = expand.isOpen(cabine.ref);
   const menu = nodeMenu(cabine, reorder, props);
@@ -322,7 +324,8 @@ function PainelCard({ painel, local, ...props }: CardProps & { painel: ComposerP
     onMove: (to) => onMove(painel, to),
   });
   const expandId = useId();
-  const summary = nodeSummaryText(painel);
+  const { definitions } = useTypeNaming();
+  const summary = nodeSummaryText(painel, definitions);
   const open = expand.isOpen(painel.ref);
   const menu = nodeMenu(painel, reorder, props);
   const empty = painel.colunas.length === 0;
@@ -397,6 +400,7 @@ function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: Comp
   const headButton = useRef<HTMLButtonElement>(null);
   const isOpen = currentRef === coluna.ref;
   const menu = nodeMenu(coluna, reorder, props);
+  const { definitions } = useTypeNaming();
   const className = ['column-row', isOpen && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
   return (
     <li className={className} {...reorder.rowProps}>
@@ -417,7 +421,7 @@ function ColunaRow({ coluna, controlName, ...props }: CardProps & { coluna: Comp
             {copy.composer.levelColuna}
           </span>
           <span className="col-name">{coluna.name}</span>
-          <span className="col-sum">{nodeSummaryText(coluna).sum}</span>
+          <span className="col-sum">{nodeSummaryText(coluna, definitions).sum}</span>
         </button>
         <OverflowMenu name={controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
       </div>

@@ -75,4 +75,13 @@ describe('14.5 FichaHeader library pill', () => {
     library.unmount();
     expect(header(null).container.querySelector('.lib-pill')).toBeNull();
   });
+
+  it('e22h N11: says "Tipo da empresa" on the sheet of a company type, never "Tipo da biblioteca"', () => {
+    const company = render(
+      <FichaHeader typeName="QGBT da empresa" tag="QG-ENEL" locationText="Subsolo" filledBy={null} concludedBy={null} progress={progress} shown={[]} menu={[]} onRename={null} library company />,
+    );
+    const pill = company.container.querySelector('.sheet-title .lib-pill');
+    expect(pill).toHaveTextContent('Tipo da empresa');
+    expect(company.container).not.toHaveTextContent('Tipo da biblioteca');
+  });
 });

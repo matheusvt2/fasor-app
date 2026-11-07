@@ -4,12 +4,15 @@ import {
   companyTypeIdOf,
   EQUIPMENT_BLOCK_TYPES,
   equipmentBlockTypeSchema,
+  typeVersionIdOf,
+  typeVersionNumber,
   typeVersionOf,
   type BlockTypeKey,
   type EquipmentBlockType,
   type ItemKey,
   type SiteItemKey,
   type Subtype,
+  type TypeVersionRef,
 } from '../schemas/block-config.ts';
 import type { EquipmentTypeRow, EquipmentTypeVersionRow } from '../schemas/entities.ts';
 import { asBlockDefinition } from '../types/block-definition.ts';
@@ -283,26 +286,33 @@ export function naDefaultsFor(seedVersion: string, blockType: string, subtype: S
  * `applyOp` from the rows in its state (`definitionContextOf`), a reader over a snapshot from
  * `snapshot.equipment_types` (`snapshotDefinitionContext`), the device from a live query on its
  * version rows, the api from the company's rows.
+ *
+ * e22h S2: `versions` keeps one row per number (the smaller id when a device briefly holds two:
+ * its own publish the server will refuse beside the one it pulled); `byId` keeps every row, so a
+ * block naming its version row's id (`type_version_id`) resolves that row and no other.
  */
 export interface DefinitionContext {
   readonly versions: ReadonlyMap<string, EquipmentTypeVersionRow>;
+  readonly byId: ReadonlyMap<string, EquipmentTypeVersionRow>;
   readonly types: ReadonlyMap<string, EquipmentTypeRow>;
 }
 
 /** The context that holds no company type: every lookup resolves the seeded types only. */
-export const EMPTY_DEFINITION_CONTEXT: DefinitionContext = Object.freeze({ versions: new Map(), types: new Map() });
+export const EMPTY_DEFINITION_CONTEXT: DefinitionContext = Object.freeze({ versions: new Map(), byId: new Map(), types: new Map() });
 
 const versionKey = (typeId: string, version: number) => `${typeId}@${version}`;
 
 function buildContext(rows: readonly EquipmentTypeVersionRow[], types: readonly EquipmentTypeRow[]): DefinitionContext {
   const versions = new Map<string, EquipmentTypeVersionRow>();
+  const byId = new Map<string, EquipmentTypeVersionRow>();
   for (const row of rows) {
+    byId.set(row.id, row);
     const at = versionKey(row.type_id, row.version);
     const known = versions.get(at);
     // One row per number: the smaller id when a device briefly holds two (its own publish the server will refuse).
     if (known === undefined || row.id < known.id) versions.set(at, row);
   }
-  return { versions, types: new Map(types.map((row) => [row.id, row])) };
+  return { versions, byId, types: new Map(types.map((row) => [row.id, row])) };
 }
 
 const NO_TYPES: readonly EquipmentTypeRow[] = Object.freeze([]);
@@ -351,24 +361,42 @@ export function snapshotDefinitionContext(snapshot: { equipment_types?: readonly
 }
 
 /**
+ * e22h S2: the version row a reference names in the context: a number, the one row of that number
+ * (`versions`); a `{version, id}`, the row of that id (`byId`) when it is of `typeId` and of that
+ * number, else none (a refused publish's row the device renumbered, or another company's).
+ */
+export function versionRowIn(ctx: DefinitionContext, typeId: string, typeVersion: TypeVersionRef): EquipmentTypeVersionRow | null {
+  if (typeof typeVersion === 'number') return ctx.versions.get(versionKey(typeId, typeVersion)) ?? null;
+  const row = ctx.byId.get(typeVersion.id);
+  return row !== undefined && row.type_id === typeId && row.version === typeVersion.version ? row : null;
+}
+
+/**
  * The definition of a block type: a seeded one as `findDefinition` gives it (the context
  * ignored), a company one as the published version `typeVersion` of its type in the context
- * (`asBlockDefinition`). Null for a section block, an unknown seeded type or seed version, a
- * company type without a version, or a version the context does not hold.
+ * (`asBlockDefinition`; e22h S2: by its row id when the reference carries one, `versionRowIn`).
+ * Null for a section block, an unknown seeded type or seed version, a company type without a
+ * version, or a version the context does not hold.
  */
-export function findDefinitionIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): BlockDefinition | null {
+export function findDefinitionIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: TypeVersionRef): BlockDefinition | null {
   const typeId = companyTypeIdOf(blockType);
   if (typeId === null) return findDefinition(seedVersion, blockType);
   if (typeVersion === undefined) return null;
-  const row = ctx.versions.get(versionKey(typeId, typeVersion));
-  return row === undefined ? null : asBlockDefinition(row);
+  const row = versionRowIn(ctx, typeId, typeVersion);
+  return row === null ? null : asBlockDefinition(row);
+}
+
+/** e22h S2: a type version reference as a message names it ("2", "2 (row {id})", "(none)"). */
+export function typeVersionText(typeVersion: TypeVersionRef | undefined): string {
+  const id = typeVersionIdOf(typeVersion);
+  return `${typeVersionNumber(typeVersion) ?? '(none)'}${id === undefined ? '' : ` (row ${id})`}`;
 }
 
 /** `findDefinitionIn`, throwing (naming what is missing) where it answers null. */
-export function getDefinitionIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): BlockDefinition {
+export function getDefinitionIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: TypeVersionRef): BlockDefinition {
   if (companyTypeIdOf(blockType) === null) return getDefinition(seedVersion, 'cabine_primaria', blockType);
   const definition = findDefinitionIn(ctx, seedVersion, blockType, typeVersion);
-  if (definition === null) throw new Error(`getDefinitionIn: no published version ${typeVersion ?? '(none)'} of "${blockType}" in the context`);
+  if (definition === null) throw new Error(`getDefinitionIn: no published version ${typeVersionText(typeVersion)} of "${blockType}" in the context`);
   return definition;
 }
 
@@ -387,7 +415,7 @@ export function latestTypeVersion(ctx: DefinitionContext, typeId: string): numbe
 }
 
 /** Story 14.5 beside the context: whether a type is a library type (a company type always is, once a version resolves). */
-export function isLibraryTypeIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): boolean {
+export function isLibraryTypeIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: TypeVersionRef): boolean {
   if (companyTypeIdOf(blockType) === null) return isLibraryType(seedVersion, blockType);
   return findDefinitionIn(ctx, seedVersion, blockType, typeVersion)?.library === true;
 }

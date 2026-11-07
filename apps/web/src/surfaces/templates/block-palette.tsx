@@ -1,6 +1,6 @@
 import {
   isCompanyBlockType,
-  latestTypeVersion,
+  latestCompanyTypeVersion,
   libraryTypeSummaryText,
   paletteTypeGroups,
   SECTION_BLOCK_TYPES,
@@ -87,7 +87,7 @@ export function BlockPaletteContent({
   const definitions = naming.definitions;
   /** A library row's line: what it holds, then (a company type) the version the template records and the newer one. */
   const paletteMeta = (type: BlockTypeKey): string | null => {
-    const version = isCompanyBlockType(type) ? (latestTypeVersion(definitions, type.slice('type:'.length)) ?? undefined) : undefined;
+    const version = latestCompanyTypeVersion(definitions, type);
     const parts = [libraryTypeSummaryText(seedVersion, type, definitions, version), naming.versionTextOf(type)].filter((part): part is string => part !== null && part !== '');
     return parts.length === 0 ? null : parts.join(' · ');
   };

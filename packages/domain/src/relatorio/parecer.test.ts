@@ -3,7 +3,7 @@ import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import type { BlockRow, Cell, RelatorioParecer, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, siteItems } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, findDefinition, siteItems } from '../seed/definitions.ts';
 import { cellAddressesOf } from './readings.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
@@ -38,7 +38,7 @@ function withSheets(n: number): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: TEMPLATE_ID }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0072-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0073-7000-8000-'), now: T0 }), seq: i + 1 }));
@@ -139,7 +139,7 @@ describe('22.6-UNIT derivedParecer, effectiveParecer and the reason line (amends
     expect(composed.text).toContain(`Foram registradas 3 fichas de ensaio: 1 concluída, 1 não ensaiada (${tagOf(snapshot, 1)}, por impossibilidade de desligamento) e 1 ainda não concluída.`);
     expect(composed.criteriaItems.slice(0, 3)).toEqual(['3 fichas', '1 concluída', `1 não ensaiada (${tagOf(snapshot, 1)})`]);
     // The remaining-work counter (Home card, Project row) still counts the not-tested sheet as handled.
-    expect(relatorioCounter(snapshot.blocks, []).text).toBe('2 de 3 fichas');
+    expect(relatorioCounter(snapshot.blocks, [], undefined, EMPTY_DEFINITION_CONTEXT).text).toBe('2 de 3 fichas');
   });
 });
 

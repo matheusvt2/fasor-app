@@ -1,4 +1,4 @@
-import { emptyTemplate, instantiateTemplate, SEED_VERSION, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, emptyTemplate, instantiateTemplate, SEED_VERSION, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import { and, eq, like } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -133,7 +133,7 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
       const made = instantiateTemplate(
         archived,
         { id: projectId },
-        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: 'system:identity', companyId },
       );
       await applyServer(companyId, [
@@ -194,7 +194,7 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
       const born = instantiateTemplate(
         movedRow,
         { id: projectId },
-        { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+        { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: 'system:identity', companyId },
       );
       expect(born.drafts.find((draft) => draft.path === `relatorio/${born.relatorioId}`)!.value).toMatchObject({ seed_version: SEED_VERSION });

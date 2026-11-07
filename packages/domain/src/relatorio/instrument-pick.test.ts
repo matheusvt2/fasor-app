@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
@@ -94,9 +95,9 @@ describe('5.7-UNIT remembering the last instrument per test type', () => {
       blockWith({ isolacao: { cells: {}, instrument: cellOf('C', '019966b0-0000-7000-8000-000000000009') } }, true),
       blockWith({ resistencia_contato: { cells: {}, instrument: cellOf('D', '019966b0-0000-7000-8000-000000000005') } }),
     ];
-    expect(lastInstrumentIdFor(blocks, 'isolacao')).toBe('B');
-    expect(lastInstrumentIdFor(blocks, 'resistencia_contato')).toBe('D');
-    expect(lastInstrumentIdFor(blocks, 'relacao_transformacao')).toBeNull();
+    expect(lastInstrumentIdFor(blocks, 'isolacao', EMPTY_DEFINITION_CONTEXT)).toBe('B');
+    expect(lastInstrumentIdFor(blocks, 'resistencia_contato', EMPTY_DEFINITION_CONTEXT)).toBe('D');
+    expect(lastInstrumentIdFor(blocks, 'relacao_transformacao', EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 
   it('orders the list: the last used first, then by code; removed rows out', () => {
@@ -192,8 +193,8 @@ describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
     const pickedCta: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E2]: { cells: {}, instrument: picked(Y, 9) } } } };
     const fresh = sec(3);
     const after = { blocks: [used, pickedCta, fresh], instruments };
-    expect(lastInstrumentIdFor(after.blocks, 'isolacao')).toBe(Y);
-    expect(lastInstrumentIdFor(after.blocks, 'resistencia_contato')).toBe(Y);
+    expect(lastInstrumentIdFor(after.blocks, 'isolacao', EMPTY_DEFINITION_CONTEXT)).toBe(Y);
+    expect(lastInstrumentIdFor(after.blocks, 'resistencia_contato', EMPTY_DEFINITION_CONTEXT)).toBe(Y);
     expect(suggestedInstrument(after, pickedCta.id, E2)).toBeNull();
     expect(suggestedInstrument(after, pickedCta.id, E3)?.instrument_id).toBe(Y);
     expect(suggestedInstrument(after, fresh.id, 'isolacao')).toEqual(instrumentHeaderOf(instruments[1]!, 'isolacao'));

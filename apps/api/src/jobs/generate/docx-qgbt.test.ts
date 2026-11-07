@@ -23,6 +23,7 @@ import {
   type JsonValue,
   type LocationRow,
   type RelatorioSnapshot,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { describe, expect, it } from 'vitest';
@@ -77,7 +78,7 @@ function snapshotOf(volts: string): RelatorioSnapshot {
     agrupar_por_tipo: true,
   };
   const make = (blockId: string, equipmentId: string, type: EquipmentBlockType, tag: string, orderKey: string) =>
-    newEquipmentBlock({ blockId, equipmentId, relatorioId: relatorio.id, projectId: relatorio.project_id, locationId: LOCAL, type, tag, seedVersion: 'v6', orderKey });
+    newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId, equipmentId, relatorioId: relatorio.id, projectId: relatorio.project_id, locationId: LOCAL, type, tag, seedVersion: 'v6', orderKey });
   const qd = make(QD_BLOCK, id(2001), QD, QD_TAG, 'a1');
   const tr = make(TR_BLOCK, id(2002), 'transformador_forca', 'TR-1', 'a0');
 

@@ -12,6 +12,7 @@ import {
   standardTemplate,
   type SkeletonNode,
   type TemplateRow,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -105,8 +106,8 @@ function composed(): TemplateRow {
   skeleton = addPainel(skeleton, 'loc', 'P2', 'Painel B');
   skeleton = addCabine(skeleton, 'ger', 'Geradores');
   let row: TemplateRow = { ...emptyTemplate(ID, 'v3'), skeleton };
-  row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2) };
-  for (const n of [1, 2, 3]) row = { ...row, blocks: setQuantity(row, `c${n}`, 'chave_seccionadora', 1) };
+  row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2, EMPTY_DEFINITION_CONTEXT) };
+  for (const n of [1, 2, 3]) row = { ...row, blocks: setQuantity(row, `c${n}`, 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT) };
   return row;
 }
 

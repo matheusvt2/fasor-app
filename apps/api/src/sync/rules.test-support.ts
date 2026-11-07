@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   instantiateTemplate,
@@ -157,7 +158,7 @@ export function routeHarness(deviceId: string) {
     const { relatorioId, drafts } = instantiateTemplate(
       standardTemplate({ id: newId() }),
       { id: projectId },
-      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null },
+      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId, actorId: company.userId, companyId: company.companyId },
     );
     const batchId = newId();

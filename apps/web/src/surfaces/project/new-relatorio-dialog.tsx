@@ -7,6 +7,8 @@ import {
   newRelatorioEquipmentReason,
   newRelatorioReason,
   newRelatorioSubject,
+  omittedPlacementsOf,
+  omittedPlacementsText,
   pickableTemplates,
   templateBlocksText,
   templateBlockTotal,
@@ -28,6 +30,7 @@ import { equipmentRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { equipmentReadyFor } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -76,6 +79,10 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
   const inFlight = useRef(false);
 
   const template = pickable.find((row) => row.id === templateId) ?? null;
+  // e22h N4: a company type of the template no version of which has reached this device is left
+  // out of the relatório; the dialog names it before "Criar relatório" (and again on create).
+  const definitions = useDefinitionContext();
+  const omittedText = useMemo(() => (template === null ? null : omittedPlacementsText(omittedPlacementsOf(template, definitions))), [template, definitions]);
   // Epic 4 retro item 17: offline, a device that holds too little of the obra's equipment
   // says so beside the button instead of minting a second row for every TAG. Online, Criar
   // pulls the obra's equipment first and asks again.
@@ -107,13 +114,16 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
       const existingEquipment = await equipmentRows(db, project.id);
       // Story 14.8 (AD-21 item 5): each company block of the template takes its type's latest published version.
       const definitions = await deviceDefinitionContext(db);
-      const { relatorioId, drafts } = instantiateTemplate(
+      const { relatorioId, drafts, omitted } = instantiateTemplate(
         template,
         project,
         { service_start: start, service_end: end, existingEquipment, responsible_user_id: defaultResponsibleId(user), definitions },
         { newId, actorId: user.id, companyId: user.companyId },
       );
       await commitBatch(db, drafts, { newId, now });
+      // e22h N4: what the relatório was born without, said where the user lands.
+      const left = omittedPlacementsText(omitted);
+      if (left !== null) showToast(left);
       onClose();
       // EXPERIENCE.md › Form dialog: "on create it opens Relatório setup" (Q1), at Etapa 1,
       // whose band heading takes the focus.
@@ -177,6 +187,11 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
         <span className="helper" id={helperId}>
           {templateHelperText(template === null ? null : templateBlockTotal(template))}
         </span>
+        {omittedText === null ? null : (
+          <span className="helper" data-tone="amber" role="status">
+            {omittedText} {t.omittedHint}
+          </span>
+        )}
       </div>
 
       <div className="field-pair">

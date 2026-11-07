@@ -34,11 +34,40 @@ export async function duplicateLibraryType(page: Page, type: EquipmentBlockType)
   return new URL(page.url()).pathname.split('/')[3]!;
 }
 
-/** Selects one tab of the editor by the start of its label ("Critérios" matches "Critérios (2) · 1 aviso"). */
+/**
+ * Selects one tab of the editor by the start of its label ("Critérios" matches "Critérios (2) · 1
+ * aviso"): the tab strip at 768 px and up, the phone's tab menu below (e22h: the flow runs at 390).
+ */
 export async function editorTab(page: Page, word: string): Promise<void> {
-  const tab = page.getByRole('tab', { name: new RegExp(`^${word}`) });
+  const name = new RegExp(`^${word}`);
+  const trigger = page.locator('.tabs-phone .tab-select-trigger');
+  if (await trigger.isVisible()) {
+    await trigger.click();
+    await page.locator('.overflow-menu [role^="menuitem"]').filter({ hasText: name }).click();
+    await expect(trigger).toHaveText(name);
+    return;
+  }
+  const tab = page.getByRole('tab', { name });
   await tab.click();
   await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+
+/** The tab labels as the editor shows them: the strip's at 768 px and up; below, the phone menu's (opened and closed). */
+export async function editorTabLabels(page: Page): Promise<string[]> {
+  const trigger = page.locator('.tabs-phone .tab-select-trigger');
+  if (!(await trigger.isVisible())) return page.getByRole('tab').allTextContents();
+  await trigger.click();
+  const items = page.locator('.overflow-menu [role^="menuitem"]');
+  await expect(items.first()).toBeVisible();
+  const labels = await items.allTextContents();
+  await page.keyboard.press('Escape');
+  await expect(items).toHaveCount(0);
+  return labels;
+}
+
+/** e22h S4 and N12: the page does not scroll sideways (the root's scroll width within its client width). */
+export async function scrollsSideways(page: Page): Promise<boolean> {
+  return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 }
 
 /** Types into an input of the editor and leaves it with Tab, as a person does (the blur writes the draft). */

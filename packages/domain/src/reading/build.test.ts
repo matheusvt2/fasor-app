@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ocrReadResultSchema, structuringOutputSchema, type StructuringOutput } from '../contract/ocr.ts';
 import type { WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
-import { getDefinition, SEED_VERSION } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { confirmAllCandidates } from '../relatorio/suggestion-group.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { buildReadingSuggestions, DIAGRAM_READ_NOTE, plateSuggestionNoteText, vectorGroupReadOf, type BuildReadingSuggestionsInput } from './build.ts';
@@ -299,8 +299,8 @@ describe('21.2-UNIT the vector group from the plate', () => {
     expect(row.source.bbox).toEqual(FULL_IMAGE_BBOX);
     expect(plateSuggestionNoteText(row)).toBe('Lido do diagrama — confira');
     const sheet = { id: BLOCK, seed_version: 'v11', block_type: 'transformador_forca', sheet: { nameplate: {}, checklist: {}, test: {} } as unknown as BlockRow['sheet'], config: defaultBlockConfig('v11', 'transformador_forca') };
-    expect(confirmAllCandidates(sheet as never, [row])).toEqual([]);
-    expect(confirmAllCandidates(sheet as never, read('v11', 'Dyn1', ['t2']).rows)).toHaveLength(1);
+    expect(confirmAllCandidates(sheet as never, [row], [], EMPTY_DEFINITION_CONTEXT)).toEqual([]);
+    expect(confirmAllCandidates(sheet as never, read('v11', 'Dyn1', ['t2']).rows, [], EMPTY_DEFINITION_CONTEXT)).toHaveLength(1);
   });
 
   it('v11: the cited runs decide: the same group printed is suggested ("(Dyn1)" too); another group printed is verify with its citations and box, no note; no group printed is the diagram read', () => {

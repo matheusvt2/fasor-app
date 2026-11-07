@@ -154,7 +154,7 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
     // and to verify when the cited runs print another group (`groupReadOf`, the one rule).
     let diagram = false;
     let otherGroup = false;
-    if (isVectorGroupField(input.block.block_type, field.key)) {
+    if (isVectorGroupField(input.block.block_type, field)) {
       const group = groupReadOf(normalized.value, ordered);
       if (group !== null) {
         normalized = { ok: true, value: group.code, verify: normalized.verify };

@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { toIso } from '../clock.ts';
 import { applyOp, splitEntityKey, targetsOf, type EntityKey, type EntityState } from '../ops/apply.ts';
 import { makeOp, opSchema, type Op } from '../ops/op.ts';
@@ -41,7 +42,7 @@ export function removalFixture(): RemovalFixture {
   skeleton = addCabine(skeleton, 'ger', 'Geradores');
   let template = { ...emptyTemplate('019966b0-0150-7000-8000-000000000001', 'v3'), skeleton };
   const place = (ref: string, type: Parameters<typeof setQuantity>[2], n: number) => {
-    template = { ...template, blocks: setQuantity(template, ref, type, n) };
+    template = { ...template, blocks: setQuantity(template, ref, type, n, EMPTY_DEFINITION_CONTEXT) };
   };
   place('se', 'transformador_forca', 2);
   place('leg', 'disjuntor_mt', 1);
@@ -53,7 +54,7 @@ export function removalFixture(): RemovalFixture {
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0151-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const newId = idSequence('019966b0-0152-7000-8000-');

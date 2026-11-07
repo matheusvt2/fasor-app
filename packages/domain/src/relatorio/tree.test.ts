@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import type { BlockRow, Cell, EquipmentRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -70,7 +71,7 @@ const coluna = (n: number, name: string, parent: number, order_key: string): Loc
 });
 
 function sheet(n: number, location: number, tag: string, order_key: string, type: BlockRow['block_type'] = 'chave_seccionadora'): { block: BlockRow; equipment: EquipmentRow } {
-  return newEquipmentBlock({
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: id(1000 + n),
     equipmentId: id(2000 + n),
     relatorioId: TEST_RELATORIO,
@@ -302,7 +303,7 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
   });
 
   it('newEquipmentBlock builds the equipment and block rows a palette tap creates, on the seed version given', () => {
-    const { equipment, block } = newEquipmentBlock({
+    const { equipment, block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
       blockId: id(4001),
       equipmentId: id(4002),
       relatorioId: TEST_RELATORIO,
@@ -340,7 +341,7 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
 
   it('paletteItems suggests each type TAG for the location; locationChoices labels live locations by path in tree order', () => {
     const snapshot = relatorio();
-    const items = paletteItems('v1', { kind: 'coluna', name: 'Coluna 5' }, snapshot.equipment);
+    const items = paletteItems('v1', { kind: 'coluna', name: 'Coluna 5' }, snapshot.equipment, EMPTY_DEFINITION_CONTEXT);
     expect(items).toHaveLength(8);
     expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SEC-C05-2', library: false, summary: null });
     expect(items.find((i) => i.type === 'para_raio')!.tag).toBe('PR-C05');

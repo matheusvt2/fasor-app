@@ -1,6 +1,6 @@
 import type { BlockRow, EquipmentRow, JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
@@ -25,7 +25,7 @@ import { normalizeDateValue } from '../format/datetime.ts';
 const MANUFACTURER_KIND = 'manufacturer';
 
 /** A block's definition; Story 14.6: a company type's through the context (the caller's snapshot's). */
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): BlockDefinition | null {
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>, ctx: DefinitionContext): BlockDefinition | null {
   return blockDefinitionIn(ctx, block);
 }
 

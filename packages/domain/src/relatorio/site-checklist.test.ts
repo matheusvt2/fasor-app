@@ -13,7 +13,7 @@ import { resolveActionPlan, resolveSection8 } from '../print/section-8.ts';
 import { numberPhotos } from '../photos/numbering.ts';
 import { emptySheet, relatorioRowSchema, type BlockRow, type FileRow, type LocationRow, type PointRow, type RelatorioRow } from '../schemas/entities.ts';
 import { buildSnapshot, createSnapshotBuilder, serializeSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { siteItems } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, siteItems } from '../seed/definitions.ts';
 
 /** The v4 site list (19 keys); seed v9 appends two more (Story 15.3). */
 const SITE_ITEM_KEYS = siteItems('v4').map((item) => item.key);
@@ -657,7 +657,7 @@ describe('2026-10-14 (Bruno): an NC site item counts as an NC (N1, N2, N3)', () 
     expect(progress(snapshot).nc_open).toBe(3);
     // The Home and obra cards pass blocks only: unchanged.
     expect(progress({ blocks: snapshot.blocks, suggestions: [] }).nc_open).toBe(1);
-    expect(blocksProgress(snapshot.blocks).nc_open).toBe(1);
+    expect(blocksProgress(snapshot.blocks, undefined, EMPTY_DEFINITION_CONTEXT).nc_open).toBe(1);
     expect(siteNcOf(snapshot, SUBSOLO)).toBe(2);
     expect(siteNcOf(snapshot, ENEL)).toBe(0);
     expect(siteNcOf(snapshot, PAINEL)).toBe(0);
@@ -728,16 +728,16 @@ describe('2026-10-14 (Bruno): an NC site item counts as an NC (N1, N2, N3)', () 
     const f = opFactory();
     // Cubículo Enel (first in tree order) holds the NC sheet; 1° Subsolo the site NCs: the sheet comes first.
     const sheetFirst = snapshotOf(n1(f));
-    expect(firstCountedTarget(locationTree(sheetFirst), sheetFirst.blocks, 'nc_open')).toEqual({ kind: 'block', blockId: BLOCK });
+    expect(firstCountedTarget(locationTree(sheetFirst), sheetFirst.blocks, 'nc_open', [], EMPTY_DEFINITION_CONTEXT)).toEqual({ kind: 'block', blockId: BLOCK });
     // A site NC on Cubículo Enel itself: its site row comes before its own equipment.
     const siteFirst = snapshotOf(fold(n1(f), ncOn(ENEL, [EPI], f)));
-    expect(firstCountedTarget(locationTree(siteFirst), siteFirst.blocks, 'nc_open')).toEqual({ kind: 'site', locationId: ENEL });
+    expect(firstCountedTarget(locationTree(siteFirst), siteFirst.blocks, 'nc_open', [], EMPTY_DEFINITION_CONTEXT)).toEqual({ kind: 'site', locationId: ENEL });
     const enelNode = locationTree(siteFirst).find((node) => node.id === ENEL)!;
     expect(enelNode.site?.nc).toBe(1);
     // Site NCs only: the local holding them. The other counts never reach a site row.
     const siteOnly = snapshotOf(fold(baseState(), ncOn(SUBSOLO, [EPI], f)));
-    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'nc_open')).toEqual({ kind: 'site', locationId: SUBSOLO });
-    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'not_tested')).toBeNull();
-    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'concluded')).toBeNull();
+    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'nc_open', [], EMPTY_DEFINITION_CONTEXT)).toEqual({ kind: 'site', locationId: SUBSOLO });
+    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'not_tested', [], EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    expect(firstCountedTarget(locationTree(siteOnly), siteOnly.blocks, 'concluded', [], EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
 });

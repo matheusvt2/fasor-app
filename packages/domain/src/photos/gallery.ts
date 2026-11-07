@@ -97,13 +97,14 @@ export function photoItemLine(photo: PhotoPlace, snapshot: Pick<RelatorioSnapsho
   const block = snapshot.blocks.find((row) => row.id === photo.block_id);
   if (block === undefined) return null;
   // Story 14.6: a company sheet's checklist comes from the snapshot's type versions.
-  const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
+  const definitions = snapshotDefinitionContext(snapshot);
+  const definition = blockDefinitionIn(definitions, block);
   if (definition === null) return null;
   const checklist: readonly { key: string; label: string }[] | null = definition.checklist;
   const index = checklist?.findIndex((item) => item.key === photo.item_key) ?? -1;
   if (checklist === null || index < 0) return null;
   const head = `Item ${index + 1}${SEP}${screenLabel(checklist[index]!.label)}`;
-  const result = checklistResultOf(block, photo.item_key);
+  const result = checklistResultOf(block, photo.item_key, definitions);
   return { head, result, nc: result === 'NC', text: result === null ? head : `${head}${SEP}${result}` };
 }
 

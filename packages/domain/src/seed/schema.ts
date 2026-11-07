@@ -275,8 +275,10 @@ export type OilRule = Omit<z.infer<typeof oilRuleSchema>, 'items'> & { items: st
 
 /**
  * Seed v6: what the oil rule and the band criterion name exists on the definition. Story 14.6:
- * exported, so a company type's definition (`companyTypeDefinitionSchema`, which has no oil rule)
- * meets the same reference checks on its tests.
+ * exported, so a company type's definition (`companyTypeDefinitionSchema`) meets the same
+ * reference checks on its tests and, fix batch e22h (S1), on the oil rule a copy carries. Each
+ * issue names its path (`oil_rule`, `tests.{i}.criterion_class_field`, `tests.{i}.criterion_bands`,
+ * `tests.{i}.tables`), so `validateTypeDraft` says it in pt-BR beside its part.
  */
 export function checkSeedV6Definition(
   definition: {
@@ -288,37 +290,38 @@ export function checkSeedV6Definition(
   ctx: z.RefinementCtx,
 ): void {
   const field = (key: string) => definition.nameplate.find((candidate) => candidate.key === key);
+  const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
   const rule = definition.oil_rule;
   if (rule !== undefined) {
     const select = field(rule.field);
-    if (select === undefined || select.kind !== 'select') ctx.addIssue({ code: 'custom', message: `oil_rule.field "${rule.field}" is not a select of the nameplate` });
-    else if (!rule.oil_values.every((value) => select.options!.includes(value))) ctx.addIssue({ code: 'custom', message: 'an oil value is not an option of its field' });
-    else if (!(rule.full_values ?? []).every((value) => select.options!.includes(value))) ctx.addIssue({ code: 'custom', message: 'a full value is not an option of its field' });
+    if (select === undefined || select.kind !== 'select') issue(['oil_rule', 'field'], `oil_rule.field "${rule.field}" is not a select of the nameplate`);
+    else if (!rule.oil_values.every((value) => select.options!.includes(value))) issue(['oil_rule', 'oil_values'], 'an oil value is not an option of its field');
+    else if (!(rule.full_values ?? []).every((value) => select.options!.includes(value))) issue(['oil_rule', 'full_values'], 'a full value is not an option of its field');
     const items = new Set((definition.checklist ?? []).map((item) => item.key));
-    if (!rule.items.every((key) => items.has(key))) ctx.addIssue({ code: 'custom', message: 'an oil item is not on the checklist' });
-    if (!rule.fields.every((key) => field(key) !== undefined)) ctx.addIssue({ code: 'custom', message: 'an oil field is not on the nameplate' });
+    if (!rule.items.every((key) => items.has(key))) issue(['oil_rule', 'items'], 'an oil item is not on the checklist');
+    if (!rule.fields.every((key) => field(key) !== undefined)) issue(['oil_rule', 'fields'], 'an oil field is not on the nameplate');
   }
   // Seed v12 (Stories 22.8 and 22.9): a row's winding is a number field, a class field a select.
-  for (const test of definition.tests) {
+  definition.tests.forEach((test, t) => {
     if (test.criterion_class_field !== undefined && field(test.criterion_class_field)?.kind !== 'select') {
-      ctx.addIssue({ code: 'custom', message: `criterion_class_field "${test.criterion_class_field}" is not a select of the nameplate` });
+      issue(['tests', t, 'criterion_class_field'], `criterion_class_field "${test.criterion_class_field}" is not a select of the nameplate`);
     }
-    for (const table of test.tables) {
+    test.tables.forEach((table, b) => {
       for (const entry of table.voltage_rows ?? []) {
-        if (entry.winding !== null && field(entry.winding)?.kind !== 'number') ctx.addIssue({ code: 'custom', message: `voltage_rows winding "${entry.winding}" is not a number field of the nameplate` });
+        if (entry.winding !== null && field(entry.winding)?.kind !== 'number') issue(['tests', t, 'tables', b, 'voltage_rows'], `voltage_rows winding "${entry.winding}" is not a number field of the nameplate`);
       }
-    }
-  }
-  for (const test of definition.tests) {
+    });
+  });
+  definition.tests.forEach((test, t) => {
     const bands = test.criterion_bands;
-    if (bands === undefined) continue;
+    if (bands === undefined) return;
     const voltage = field(bands.field);
-    if (voltage === undefined || voltage.kind !== 'number' || voltage.unit !== 'V') ctx.addIssue({ code: 'custom', message: `criterion_bands.field "${bands.field}" is not a number field in V` });
+    if (voltage === undefined || voltage.kind !== 'number' || voltage.unit !== 'V') issue(['tests', t, 'criterion_bands', 'field'], `criterion_bands.field "${bands.field}" is not a number field in V`);
     if (bands.selv_field !== undefined) {
       const selv = field(bands.selv_field);
-      if (selv === undefined || selv.kind !== 'select' || !selv.options!.includes(SELV_YES)) ctx.addIssue({ code: 'custom', message: `criterion_bands.selv_field "${bands.selv_field}" is not a SIM/NÃO select` });
+      if (selv === undefined || selv.kind !== 'select' || !selv.options!.includes(SELV_YES)) issue(['tests', t, 'criterion_bands', 'selv_field'], `criterion_bands.selv_field "${bands.selv_field}" is not a SIM/NÃO select`);
     }
-  }
+  });
 }
 
 /** The option of a SELV/PELV select that picks the SELV criterion. */
@@ -385,6 +388,8 @@ export type BlockDefinition = Omit<SeedBlockDefinition, 'block_type' | 'checklis
   /** The company type's id and the published version this definition is. */
   type_id?: string;
   type_version?: number;
+  /** e22h S2: the id of the version row this definition is (what a block's config names beside `type_version`). */
+  type_version_id?: string;
 };
 
 /** `CARACTERÍSTICAS DA SE` and `AMBIENTE DE ENSAIO`: the cabine's own fields (AD-6). */

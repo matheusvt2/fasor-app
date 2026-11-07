@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { cabineOf } from './cabine.ts';
 import { nextSheet, previousCabineEnv, sheetOrder } from './ficha.ts';
@@ -68,7 +69,7 @@ const painel = (n: number, name: string, parent: number, order_key: string): Loc
 const coluna = (n: number, name: string, parent: number, order_key: string): LocationRow => ({ id: id(n), relatorio_id: TEST_RELATORIO, parent_id: id(parent), kind: 'coluna', name, order_key, removed_at: null });
 
 function sheet(n: number, location: number, tag: string, order_key: string, type: BlockRow['block_type']): { block: BlockRow; equipment: EquipmentRow } {
-  return newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type: type as never, tag, seedVersion: 'v1', orderKey: order_key });
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: id(location), type: type as never, tag, seedVersion: 'v1', orderKey: order_key });
 }
 
 const LOCAL = 1;
@@ -404,16 +405,16 @@ describe('14.2-UNIT the palette, the choices and the move', () => {
 
   it('movePlan refuses a painel target (not-a-block-location) and moves to a coluna of a painel or to the local itself', () => {
     const input = { blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment, blockId: id(1003), rename: false };
-    expect(movePlan({ ...input, targetId: id(PNL_MT) })).toEqual({ kind: 'refused', reason: 'not-a-block-location' });
-    expect(movePlan({ ...input, targetId: id(PNL_VAZIO) })).toEqual({ kind: 'refused', reason: 'not-a-block-location' });
-    expect(movePlan({ ...input, targetId: id(MT_C6) })).toMatchObject({ kind: 'move', targetId: id(MT_C6), text: 'DJ-LEGADO movida para a Coluna 6' });
-    expect(movePlan({ ...input, targetId: id(LOCAL) })).toMatchObject({ kind: 'move', targetId: id(LOCAL), text: 'DJ-LEGADO movida para Cabine de transformação' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...input, targetId: id(PNL_MT) })).toEqual({ kind: 'refused', reason: 'not-a-block-location' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...input, targetId: id(PNL_VAZIO) })).toEqual({ kind: 'refused', reason: 'not-a-block-location' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...input, targetId: id(MT_C6) })).toMatchObject({ kind: 'move', targetId: id(MT_C6), text: 'DJ-LEGADO movida para a Coluna 6' });
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...input, targetId: id(LOCAL) })).toMatchObject({ kind: 'move', targetId: id(LOCAL), text: 'DJ-LEGADO movida para Cabine de transformação' });
   });
 
   it('duplicateTagSuggestion and paletteItems never name a painel', () => {
     expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(PNL_MT), tag: 'SEC-X' }, snapshot.locations, snapshot.equipment)).toBe('SEC-X');
     expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(MT_C5), tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SEC-C05-3');
-    const items = paletteItems('v1', { kind: 'cabine', name: 'Cabine de transformação' }, snapshot.equipment);
+    const items = paletteItems('v1', { kind: 'cabine', name: 'Cabine de transformação' }, snapshot.equipment, EMPTY_DEFINITION_CONTEXT);
     expect(items.find((item) => item.type === 'transformador_forca')!.tag).toBe('TR-3');
     expect(items.find((item) => item.type === 'disjuntor_mt')!.tag).toBe('DJ-TRANSFORMACAO');
   });
@@ -440,8 +441,8 @@ describe('14.2-UNIT the palette, the choices and the move', () => {
       // The palette never opens on the painel itself: its coluna is the block's place and the only name in the TAG.
       if (row.kind === 'painel') throw new Error('the palette target is a painel');
       expect(row).toMatchObject({ kind: 'coluna', name: 'Coluna 5', parent_id: id(painelRef) });
-      const tag = paletteItems('v1', { kind: row.kind, name: row.name }, equipment).find((item) => item.type === 'chave_seccionadora')!.tag;
-      const pair = newEquipmentBlock({ blockId: id(8000 + n), equipmentId: id(8100 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: row.id, type: 'chave_seccionadora', tag, seedVersion: 'v1', orderKey: 'a0' });
+      const tag = paletteItems('v1', { kind: row.kind, name: row.name }, equipment, EMPTY_DEFINITION_CONTEXT).find((item) => item.type === 'chave_seccionadora')!.tag;
+      const pair = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(8000 + n), equipmentId: id(8100 + n), relatorioId: TEST_RELATORIO, projectId: TEST_PROJECT, locationId: row.id, type: 'chave_seccionadora', tag, seedVersion: 'v1', orderKey: 'a0' });
       blocks.push(pair.block);
       equipment.push(pair.equipment);
       return tag;
@@ -613,11 +614,11 @@ describe('14.2-UNIT the readers of a cabine reach through its painéis', () => {
     skeleton = addColuna(skeleton, 'pnl', 'col', 'Coluna 1');
     skeleton = addCabine(skeleton, 'vazio', 'Geradores');
     const base = { ...emptyTemplate(id(7001), 'v3'), skeleton };
-    const template = { ...base, blocks: setQuantity(base, 'col', 'chave_seccionadora', 1) };
+    const template = { ...base, blocks: setQuantity(base, 'col', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT) };
     const { relatorioId, drafts } = instantiateTemplate(
       template,
       { id: TEST_PROJECT },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId: idSequence('019966b0-0143-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
     );
     const ops = drafts.map((draft, i) => ({ ...makeOp({ ...draft, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0144-7000-8000-'), now: T0 }), seq: i + 1 }));

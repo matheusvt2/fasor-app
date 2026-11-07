@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, instantiateTemplate, SERVER_DEVICE_ID, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
 import { EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -75,7 +75,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-000d-7000-8000-000000000001' }),
     { id: portoSeguroSmall.projectId },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts

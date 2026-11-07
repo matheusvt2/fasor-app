@@ -7,7 +7,7 @@ import { blockConfigSchema, EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } fro
 import { blockRowSchema, type BlockRow, type EquipmentRow, type LocationRow, type RelatorioRow, type TemplateRow } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate, templateTotals } from '../seed/template.ts';
-import { SEED_VERSION } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, SEED_VERSION } from '../seed/definitions.ts';
 import { addCabine, addColuna, addPainel, setQuantity, setSectionText, setTypeDefaults, typeConfigFor } from '../templates/compose.ts';
 import { templateFromRelatorio } from '../templates/from-relatorio.ts';
 import { emptyTemplate } from '../templates/list.ts';
@@ -18,7 +18,7 @@ import { integrityFindings } from './integrity.ts';
 const TEMPLATE_ID = '019966b0-0043-7000-8000-000000000001';
 const deps = () => ({ newId: idSequence('019966b0-0044-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY });
 const project = { id: TEST_PROJECT };
-const inputs = { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null };
+const inputs = { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT };
 
 function drafts(template: TemplateRow = standardTemplate({ id: TEMPLATE_ID })) {
   return instantiateTemplate(template, project, inputs, deps());
@@ -348,8 +348,8 @@ describe('14.2-UNIT instantiateTemplate: Local › Painel › Coluna', () => {
     skeleton = addPainel(skeleton, 'outro', 'B', 'Painel B');
     skeleton = addColuna(skeleton, 'B', 'B/c5', 'Coluna 5');
     let row: TemplateRow = { ...emptyTemplate(TEMPLATE_ID, 'v3'), skeleton };
-    row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2) };
-    for (const ref of ['P1/c1', 'P1/c2', 'P1/c3', 'A/c5', 'B/c5']) row = { ...row, blocks: setQuantity(row, ref, 'chave_seccionadora', 1) };
+    row = { ...row, blocks: setQuantity(row, 'loc', 'transformador_forca', 2, EMPTY_DEFINITION_CONTEXT) };
+    for (const ref of ['P1/c1', 'P1/c2', 'P1/c3', 'A/c5', 'B/c5']) row = { ...row, blocks: setQuantity(row, ref, 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT) };
     return row;
   }
   const { relatorioId, drafts: all } = drafts(template());

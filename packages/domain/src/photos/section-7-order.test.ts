@@ -21,6 +21,7 @@ import {
   photoMovedText,
   section7Key,
 } from './order.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * 21.3-UNIT (Story 21.3, spec I/O matrix): section 7 in the order of the work. A "Geral" photo
@@ -33,7 +34,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0213-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: '2026-11-05', service_end: '2026-11-05', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-11-05', service_end: '2026-11-05', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0214-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0215-7000-8000-'), now: T0 }), seq: i + 1 }));

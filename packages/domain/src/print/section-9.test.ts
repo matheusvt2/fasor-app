@@ -12,7 +12,7 @@ import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType, Role, SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, EquipmentRow, LocationRow, SuggestionRow, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { getDefinition, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec, tocLines } from './layout.ts';
 import { section9Layout, wordsWiderThanColumns, type LayoutSectionSheets, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
@@ -59,7 +59,7 @@ interface Built {
 
 /** An equipment sheet `n` (block id(1000+n), equipment id(2000+n)) at `location`, the default config of its type, `tag` its TAG. */
 function sheet(n: number, location: number, type: EquipmentBlockType, orderKey: string, tag = `T${n}`): Built {
-  return newEquipmentBlock({
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: id(1000 + n),
     equipmentId: id(2000 + n),
     relatorioId: RELATORIO,
@@ -1084,7 +1084,7 @@ describe('14.4 section9Layout: VERIFICAÇÕES DO LOCAL, once per local, right af
 describe('Stories 15.3 and 15.6 (seed v9): what a v9 relatório prints, a v8 one as before', () => {
   /** Sheet `n` like `sheet`, on `version` (block and relatório). */
   function sheetOn(version: string, n: number, type: EquipmentBlockType, tag = `T${n}`): Built {
-    return newEquipmentBlock({ blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type, tag, seedVersion: version, orderKey: 'a0' });
+    return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1000 + n), equipmentId: id(2000 + n), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type, tag, seedVersion: version, orderKey: 'a0' });
   }
   const on = (snapshot: RelatorioSnapshot, version: string): RelatorioSnapshot => ({ ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: version } });
   const printedOf = (version: string, built: Built) => sheetOf(layoutOf(on(snapshotOf([cabine(1, 'Cabine A', 'a0')], [built]), version)), block(1));
@@ -1334,7 +1334,7 @@ describe('Stories 22.2 and 22.3: one N/A, the unit once, whole words and distinc
 
   it('22.2 and 22.3 reach every seed version: a v5 and a v11 transformer print no paragraph and keep their rows up to CONCLUSÃO', () => {
     for (const version of ['v5', 'v11']) {
-      const built = newEquipmentBlock({ blockId: id(1001), equipmentId: id(2001), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: 'transformador_forca', tag: 'TR-1', seedVersion: version, orderKey: 'a0' });
+      const built = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(1001), equipmentId: id(2001), relatorioId: RELATORIO, projectId: TEST_PROJECT, locationId: id(1), type: 'transformador_forca', tag: 'TR-1', seedVersion: version, orderKey: 'a0' });
       const printed = sheetOf(layoutOf({ ...snapshotOf([cabine(1, 'Cabine A', 'a0')], [built]), relatorio: { ...small.relatorio, seed_version: version } }), block(1));
       expect(printed.parts.some((p) => p.kind === 'paragraph'), version).toBe(false);
       const at = printed.parts.findIndex((p) => partName(p) === 'CONCLUSÃO');

@@ -32,6 +32,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { readHomePageSize, readLastSheet, writeHomePageSize } from '../../db/prefs.ts';
 import { localFileRows, outboxRows, syncStateRows } from '../../db/sync-store.ts';
 import type { OutboxRow, SyncStateRow } from '../../db/schema.ts';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -131,8 +132,11 @@ export function HomeSurface() {
     [states],
   );
 
+  // e22h: the counter reads a company sheet's excused plate fields through its version.
+  const definitions = useDefinitionContext();
   const base = useMemo(
     () => ({
+      definitions,
       relatorios,
       summary: sync.summaryRelatorios,
       projects,
@@ -149,7 +153,7 @@ export function HomeSurface() {
       serverAnswers: sync.serverAnswers === true,
       now: now(),
     }),
-    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, suggestions, locations, files, sync.online, sync.unreachable, sync.serverAnswers],
+    [definitions, relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, suggestions, locations, files, sync.online, sync.unreachable, sync.serverAnswers],
   );
 
   // The board counts every relatório the device knows of, whatever the tile filter says;

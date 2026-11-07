@@ -22,6 +22,7 @@ export function FichaHeader({
   menu,
   notTested = false,
   library = false,
+  company = false,
   onRename,
   savedAt = null,
 }: {
@@ -38,6 +39,8 @@ export function FichaHeader({
   notTested?: boolean;
   /** Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the sheet of a library type says so beside its TAG. */
   library?: boolean;
+  /** e22h N11: the sheet of a company type (`type:{id}`) says "Tipo da empresa" in the same pill instead. */
+  company?: boolean;
   onRename: (() => void) | null;
   /** Story 13.4 (INP-4): the instant the last save landed, null before the first save of this session. */
   savedAt?: string | null;
@@ -59,12 +62,12 @@ export function FichaHeader({
               </svg>
             </button>
           )}
-          {library ? (
+          {library || company ? (
             <span className="lib-pill">
               <svg className="ico ico-sm" aria-hidden="true">
                 <use href="/sprite.svg#i-book" />
               </svg>
-              {t.libraryPill}
+              {company ? t.companyPill : t.libraryPill}
             </span>
           ) : null}
           {notTested ? <span className="not-tested-chip">{t.notTestedChip}</span> : null}

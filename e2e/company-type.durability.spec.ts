@@ -81,15 +81,22 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 }
 
 /** The company block of a relatório, its TAG and the version its config names, as the device holds them. */
-async function companyBlockOf(page: Page, database: string, relatorioId: string, typeId: string): Promise<{ blockId: string; tag: string; typeVersion: number | undefined; locationId: string | null }> {
-  let found: { blockId: string; tag: string; typeVersion: number | undefined; locationId: string | null } | undefined;
+async function companyBlockOf(
+  page: Page,
+  database: string,
+  relatorioId: string,
+  typeId: string,
+): Promise<{ blockId: string; tag: string; typeVersion: number | undefined; typeVersionId: string | undefined; locationId: string | null }> {
+  let found: { blockId: string; tag: string; typeVersion: number | undefined; typeVersionId: string | undefined; locationId: string | null } | undefined;
   await expect
     .poll(async () => {
       const records = await readStore<EntityRecord<BlockRow | EquipmentRow>>(page, database, 'entities');
       const block = records.find((record) => record.entity === 'block' && (record.row as BlockRow).relatorio_id === relatorioId && (record.row as BlockRow).block_type === `type:${typeId}`)?.row as BlockRow | undefined;
       if (block === undefined) return false;
       const tag = (records.find((record) => record.entity === 'equipment' && record.id === block.equipment_id)?.row as EquipmentRow | undefined)?.tag ?? '';
-      found = { blockId: block.id, tag, typeVersion: (block.config as { type_version?: number }).type_version, locationId: block.location_id };
+      const config = block.config as { type_version?: number; type_version_id?: string };
+      // e22h S2: the config names the version row by id beside the number.
+      found = { blockId: block.id, tag, typeVersion: config.type_version, typeVersionId: config.type_version_id, locationId: block.location_id };
       return true;
     })
     .toBe(true);
@@ -167,11 +174,11 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await palette(page).getByRole('group', { name: 'Transformadores, 0' }).getByRole('button', { name: 'Mais um' }).click();
   const companyStepper = palette(page).locator('.palette-item.is-stepper', { hasText: NAME_V1 });
   await expect(companyStepper.locator('.pi-meta')).not.toContainText('versão');
-  await palette(page).getByRole('group', { name: 'No-breaks, 0' }).getByRole('button', { name: 'Mais um' }).click();
+  await palette(page).getByRole('group', { name: `${NAME_V1}, 0` }).getByRole('button', { name: 'Mais um' }).click();
   // Placed, the palette row says the version the template records (AD-21 item 5).
   await expect(companyStepper.locator('.pi-meta')).toContainText('versão 1');
   const direct = localCard(page, LOCAL).locator(':scope > .block-expand > .loc-direct');
-  await expect(direct.getByRole('group', { name: 'No-breaks, 1' })).toBeVisible();
+  await expect(direct.getByRole('group', { name: `${NAME_V1}, 1` })).toBeVisible();
   await expect(direct.locator(`.qty-row[data-type="type:${typeId}"] .qty-name`)).toHaveText(`${NAME_V1} · versão 1`);
   await expect(page.locator('.composer-meta')).toHaveText('1 trafo · 1 no-break');
   await expect
@@ -305,6 +312,9 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   const r2 = await createRelatorio(page, { template: NEW_TEMPLATE });
   const r2Block = await companyBlockOf(page, database, r2, typeId);
   expect(r2Block.typeVersion).toBe(2);
+  // e22h S2: each block names its own version row; v1 and v2 are two rows.
+  expect(r2Block.typeVersionId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(r2Block.typeVersionId).not.toBe(r1Block.typeVersionId);
   await openSheet(page, r2, r2Block.blockId);
   await expect(sheetTitle(page)).toContainText(NAME_V2);
   await openSheet(page, r1, r1Block.blockId);
@@ -327,18 +337,19 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   const before = new Set((await outbox()).map((row) => row.path));
   await companyRow.click();
   await expect(fieldPalette).toBeHidden();
-  let added: { value: { block_type?: string; config?: { type_version?: number } }; tag: string } | undefined;
+  let added: { value: { block_type?: string; config?: { type_version?: number; type_version_id?: string } }; tag: string } | undefined;
   await expect
     .poll(async () => {
       const fresh = (await outbox()).filter((row) => !before.has(row.path));
       const block = fresh.find((row) => row.path.startsWith('block/') && (row.value as { block_type?: string }).block_type === `type:${typeId}`);
       const equipment = fresh.find((row) => row.path.startsWith('equipment/'));
       if (block === undefined || equipment === undefined) return false;
-      added = { value: block.value as { block_type?: string; config?: { type_version?: number } }, tag: (equipment.value as { tag: string }).tag };
+      added = { value: block.value as { block_type?: string; config?: { type_version?: number; type_version_id?: string } }, tag: (equipment.value as { tag: string }).tag };
       return true;
     })
     .toBe(true);
   expect(added!.value.config?.type_version).toBe(2);
+  expect(added!.value.config?.type_version_id).toBe(r2Block.typeVersionId);
   expect(added!.tag).toMatch(/^NB-/);
   if (viewport !== null) await page.setViewportSize(viewport);
 

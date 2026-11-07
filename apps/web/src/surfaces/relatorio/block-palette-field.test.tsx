@@ -1,4 +1,4 @@
-import { newEquipmentBlock, type EquipmentRow, type LocationRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, newEquipmentBlock, type EquipmentRow, type LocationRow } from '@app/domain';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -29,12 +29,12 @@ const cabine: LocationRow = {
 };
 const col5: LocationRow = { id: id(2), relatorio_id: RELATORIO, parent_id: id(1), kind: 'coluna', name: 'Coluna 5', order_key: 'a0', removed_at: null };
 const col9: LocationRow = { id: id(3), relatorio_id: RELATORIO, parent_id: id(1), kind: 'coluna', name: 'Coluna 9', order_key: 'a1', removed_at: null };
-const sec05 = newEquipmentBlock({ blockId: id(10), equipmentId: id(11), relatorioId: RELATORIO, projectId: PROJECT, locationId: id(2), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
+const sec05 = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(10), equipmentId: id(11), relatorioId: RELATORIO, projectId: PROJECT, locationId: id(2), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
 const removed: EquipmentRow = { id: id(12), project_id: PROJECT, tag: 'SEC-C09', type: 'chave_seccionadora', last_nameplate: null, removed_at: '2026-09-07T10:00:00.000Z' };
 
 function renderPalette(onCreate = vi.fn(), onClose = vi.fn()) {
   render(
-    <FieldPalette
+    <FieldPalette definitions={EMPTY_DEFINITION_CONTEXT}
       target={{ locationId: col9.id, anchorBlockId: null }}
       seedVersion="v1"
       locations={[cabine, col5, col9]}
@@ -50,7 +50,7 @@ function renderPalette(onCreate = vi.fn(), onClose = vi.fn()) {
 describe('14.5 FieldPalette: the library type after the eight', () => {
   const renderOn = (seedVersion: string, onCreate = vi.fn()) => {
     render(
-      <FieldPalette target={{ locationId: col9.id, anchorBlockId: null }} seedVersion={seedVersion} locations={[cabine, col5, col9]} blocks={[]} equipment={[]} onCreate={onCreate} onClose={vi.fn()} />,
+      <FieldPalette definitions={EMPTY_DEFINITION_CONTEXT} target={{ locationId: col9.id, anchorBlockId: null }} seedVersion={seedVersion} locations={[cabine, col5, col9]} blocks={[]} equipment={[]} onCreate={onCreate} onClose={vi.fn()} />,
     );
     return onCreate;
   };
@@ -151,7 +151,7 @@ describe('4.5 FieldPalette', () => {
 
   it('E11-Q6: with the camera row, the heading answers it with "Ou"', () => {
     render(
-      <FieldPalette
+      <FieldPalette definitions={EMPTY_DEFINITION_CONTEXT}
         target={{ locationId: col9.id, anchorBlockId: null }}
         seedVersion="v1"
         locations={[cabine, col5, col9]}

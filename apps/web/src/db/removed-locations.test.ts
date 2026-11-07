@@ -11,6 +11,7 @@ import {
   treeNodes,
   type EquipmentRow,
   type LocationRow,
+  EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { describe, expect, it } from 'vitest';
@@ -64,8 +65,8 @@ async function seeded(): Promise<AppDatabase> {
     { ...base, id: PAINEL_B, parent_id: LOCAL, kind: 'painel', name: 'Painel B', order_key: 'a1', removed_at: null },
     { ...base, id: COLUNA_B1, parent_id: PAINEL_B, kind: 'coluna', name: 'Coluna 1', order_key: 'a0', removed_at: null },
   ];
-  const stray = newEquipmentBlock({ blockId: STRAY, equipmentId: STRAY_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
-  const gone = newEquipmentBlock({ blockId: GONE, equipmentId: GONE_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_6, type: 'disjuntor_mt', tag: 'DJ-C06', seedVersion: 'v1', orderKey: 'a0' });
+  const stray = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: STRAY, equipmentId: STRAY_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_5, type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
+  const gone = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: GONE, equipmentId: GONE_EQUIPMENT, relatorioId: RELATORIO, projectId: PROJECT, locationId: COLUNA_6, type: 'disjuntor_mt', tag: 'DJ-C06', seedVersion: 'v1', orderKey: 'a0' });
   await db.entities.bulkPut([
     ...locations.map((row) => toRecord(`location:${row.id}`, row)),
     toRecord(`equipment:${stray.equipment.id}`, stray.equipment),

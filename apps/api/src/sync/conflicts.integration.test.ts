@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   canonicalJson,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
@@ -183,7 +184,7 @@ beforeAll(async () => {
   const built = instantiateTemplate(
     template,
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: company.userId, companyId: company.companyId },
   );
   relatorioId = built.relatorioId;
@@ -334,7 +335,7 @@ describe('10.3-API-002 one TAG created on two devices', () => {
   it('is listed by the kernel from the pulled rows and log (later = higher seq); "Manter as duas" suffixes the later one', async () => {
     const created = (device: string, suffix: string) => {
       const ids = { equipment: newId(), block: newId() };
-      const { equipment, block } = newEquipmentBlock({
+      const { equipment, block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
         equipmentId: ids.equipment,
         blockId: ids.block,
         projectId,
@@ -364,7 +365,7 @@ describe('10.3-API-002 one TAG created on two devices', () => {
     const facts = (op: Op | undefined): OpFacts | undefined => (op === undefined ? undefined : { actor_id: op.actor_id, device_id: op.device_id, client_ts: op.client_ts, seq: op.seq });
     const equipment = await Promise.all([first.ids.equipment, second.ids.equipment].map((id) => serverRow<EquipmentRow>('equipment', id)));
     const allBlocks = await Promise.all([first.ids.block, second.ids.block].map((id) => serverRow<BlockRow>('block', id)));
-    const decisions = openDecisions({
+    const decisions = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT,
       relatorioId,
       blocks: allBlocks,
       locations: [],
@@ -385,7 +386,7 @@ describe('10.3-API-002 one TAG created on two devices', () => {
     const renamed = await serverRow<EquipmentRow>('equipment', second.ids.equipment);
     expect(renamed.tag).toBe('SEC-C99-2');
     expect(
-      openDecisions({
+      openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT,
         relatorioId,
         blocks: allBlocks,
         locations: [],

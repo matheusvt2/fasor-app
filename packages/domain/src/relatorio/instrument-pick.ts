@@ -4,7 +4,7 @@ import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '..
 import { instrumentRegistryRowText, type InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { TestKey } from './readings.ts';
 import { isOverRangeRaw, normalizeOhmUnit, type InstrumentRange } from './over-range.ts';
@@ -94,7 +94,7 @@ export function instrumentRangeFor(
   block: Pick<BlockRow, 'sheet' | 'seed_version' | 'block_type' | 'config'>,
   instruments: readonly Pick<InstrumentRow, 'id' | 'range_isolacao' | 'range_resistencia_contato'>[],
   testKey: string,
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): InstrumentRange | null {
   // Story 14.6: a company block resolves through the context (`blockDefinitionIn`).
   const definition = blockDefinitionIn(ctx, block);
@@ -184,7 +184,7 @@ export function lastInstrumentIdFor(
   blocks: readonly (Pick<BlockRow, 'sheet' | 'removed_at'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>>)[],
   testKey: TestKey,
   /** Story 14.6: a company block's measurement tests are its version's. */
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): string | null {
   let best: { opId: string; id: string } | null = null;
   for (const block of blocks) {

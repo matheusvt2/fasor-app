@@ -3,7 +3,7 @@ import { mergePolicy } from '../merge/policy.ts';
 import { parsePath } from '../ops/path.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type JsonValue, type Sheet } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { opFactory } from '../test-support.ts';
 import {
@@ -110,14 +110,14 @@ const unused = { used: false };
 
 describe('oilNaChipItems', () => {
   it.each(TRANSFORMERS)('offers the eight oil items, in checklist order, on %s with a stored EPÓXI or Á SECO and no subtype', (type) => {
-    expect(oilNaChipItems(block(type, insulated('EPÓXI')), unused)).toEqual(OIL);
-    expect(oilNaChipItems(block(type, insulated('Á SECO')), unused)).toEqual(OIL);
+    expect(oilNaChipItems(block(type, insulated('EPÓXI')), unused, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL);
+    expect(oilNaChipItems(block(type, insulated('Á SECO')), unused, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL);
   });
 
   it('whatever wrote the insulation: a confirmed cell and a copied one offer the same', () => {
     const confirmed = block('tp', { nameplate: { [INSULATION_FIELD_KEY]: { ...cell('EPÓXI'), source_suggestion_id: OP } } });
-    expect(oilNaChipItems(confirmed, unused)).toEqual(OIL);
-    expect(oilNaChipItems(block('tp', insulated('EPÓXI')), unused)).toEqual(OIL);
+    expect(oilNaChipItems(confirmed, unused, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL);
+    expect(oilNaChipItems(block('tp', insulated('EPÓXI')), unused, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL);
   });
 
   it.each(TRANSFORMERS)('never counts an answered item on %s (C, NC or NA), but counts a cleared one', (type) => {
@@ -133,46 +133,46 @@ describe('oilNaChipItems', () => {
         },
       }),
     );
-    expect(oilNaChipItems(b, unused)).toEqual(OIL.filter((key) => !['valvula_de_alivio', 'elemento_secante', 'termometro'].includes(key)));
+    expect(oilNaChipItems(b, unused, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL.filter((key) => !['valvula_de_alivio', 'elemento_secante', 'termometro'].includes(key)));
   });
 
   it('offers nothing once every oil item is answered', () => {
     const b = block('transformador_forca', insulated('EPÓXI', { checklist: Object.fromEntries(OIL.map((key) => [key, { result: cell('C') }])) }));
-    expect(oilNaChipItems(b, unused)).toEqual([]);
+    expect(oilNaChipItems(b, unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
   });
 
   it('offers nothing once used on this block (the device flag)', () => {
-    expect(oilNaChipItems(block('tc', insulated('Á SECO')), { used: true })).toEqual([]);
+    expect(oilNaChipItems(block('tc', insulated('Á SECO')), { used: true }, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
   });
 
   it.each(TRANSFORMERS)('offers nothing on %s whose stored insulation is not dry, empty or cleared', (type) => {
-    expect(oilNaChipItems(block(type), unused)).toEqual([]);
-    for (const value of [null, '', 'ÓLEO MINERAL']) expect(oilNaChipItems(block(type, insulated(value)), unused)).toEqual([]);
+    expect(oilNaChipItems(block(type), unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
+    for (const value of [null, '', 'ÓLEO MINERAL']) expect(oilNaChipItems(block(type, insulated(value)), unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
   });
 
   it.each(TRANSFORMERS)('offers nothing on %s with a subtype (its na_defaults already display NA)', (type) => {
-    expect(oilNaChipItems(block(type, insulated('EPÓXI'), { subtype: 'epoxi' }), unused)).toEqual([]);
-    expect(oilNaChipItems(block(type, insulated('EPÓXI'), { subtype: 'a_seco' }), unused)).toEqual([]);
+    expect(oilNaChipItems(block(type, insulated('EPÓXI'), { subtype: 'epoxi' }), unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
+    expect(oilNaChipItems(block(type, insulated('EPÓXI'), { subtype: 'a_seco' }), unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
   });
 
   it('a config claiming the checklist off still offers: the checklist is a locked sub-block', () => {
-    expect(oilNaChipItems(block('transformador_forca', insulated('EPÓXI'), { checklistOff: true }), unused)).toEqual(OIL);
+    expect(oilNaChipItems(block('transformador_forca', insulated('EPÓXI'), { checklistOff: true }), unused, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL);
   });
 
   it('offers nothing on a block type without TIPO DE ISOLAÇÃO', () => {
-    expect(oilNaChipItems(block('disjuntor_mt', insulated('EPÓXI')), unused)).toEqual([]);
-    expect(oilNaChipItems(block('chave_seccionadora', insulated('Á SECO')), unused)).toEqual([]);
+    expect(oilNaChipItems(block('disjuntor_mt', insulated('EPÓXI')), unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
+    expect(oilNaChipItems(block('chave_seccionadora', insulated('Á SECO')), unused, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
   });
 });
 
 describe('isDryBlock', () => {
   it('reads the dry subtype or the stored insulation', () => {
-    expect(isDryBlock(block('tp'))).toBe(false);
-    expect(isDryBlock(block('tp', {}, { subtype: 'epoxi' }))).toBe(true);
-    expect(isDryBlock(block('tc', {}, { subtype: 'a_seco' }))).toBe(true);
-    expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell('Á SECO') } }))).toBe(true);
-    expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell(null) } }))).toBe(false);
-    expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell('OUTRO') } }))).toBe(false);
+    expect(isDryBlock(block('tp'), EMPTY_DEFINITION_CONTEXT)).toBe(false);
+    expect(isDryBlock(block('tp', {}, { subtype: 'epoxi' }), EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(isDryBlock(block('tc', {}, { subtype: 'a_seco' }), EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell('Á SECO') } }), EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell(null) } }), EMPTY_DEFINITION_CONTEXT)).toBe(false);
+    expect(isDryBlock(block('transformador_forca', { nameplate: { [INSULATION_FIELD_KEY]: cell('OUTRO') } }), EMPTY_DEFINITION_CONTEXT)).toBe(false);
   });
 });
 
@@ -254,8 +254,8 @@ describe('Story 15.3 (seed v9): a dry transformer, TP or TC', () => {
       const definition = getDefinition('v9', 'cabine_primaria', type);
       for (const subtype of definition.subtypes) expect(subtype.na_defaults, `${type} ${subtype.key}`).toEqual(OIL.filter((key) => key !== 'indicador_nivel_de_oleo'));
       const dry = { ...block(type, { nameplate: { tipo_de_isolacao: cell('Á SECO') } }), seed_version: 'v9', config: defaultBlockConfig('v9', type) } as BlockRow;
-      expect(isDryBlock(dry), type).toBe(true);
-      expect(oilNaChipItems(dry, { used: false }), type).toEqual([]);
+      expect(isDryBlock(dry, EMPTY_DEFINITION_CONTEXT), type).toBe(true);
+      expect(oilNaChipItems(dry, { used: false }, EMPTY_DEFINITION_CONTEXT), type).toEqual([]);
       expect(nameplateMissingKeys({ blocks: [dry] }, dry.id).has('vol_oleo'), type).toBe(false);
     }
   });
@@ -266,8 +266,8 @@ describe('Story 15.7 (seed v10): a dry TC', () => {
     const definition = getDefinition('v10', 'cabine_primaria', 'tc');
     for (const subtype of definition.subtypes) expect(subtype.na_defaults, subtype.key).toEqual(['vasamento']);
     const dry = { ...block('tc', { nameplate: { tipo_de_isolacao: cell('Á SECO') } }), seed_version: 'v10', config: defaultBlockConfig('v10', 'tc') } as BlockRow;
-    expect(isDryBlock(dry)).toBe(true);
-    expect(oilNaChipItems(dry, { used: false })).toEqual([]);
+    expect(isDryBlock(dry, EMPTY_DEFINITION_CONTEXT)).toBe(true);
+    expect(oilNaChipItems(dry, { used: false }, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
     expect(nameplateMissingKeys({ blocks: [dry] }, dry.id).has('vol_oleo')).toBe(false);
   });
 });

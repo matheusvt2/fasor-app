@@ -12,6 +12,7 @@ import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-s
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { pointLinkGroups, pointLinkKey, pointLinkOptions, pointLinkValues, POINT_LINK_GENERAL_KEY } from './link.ts';
 import { pointTitle } from './summary.ts';
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 
 /*
  * Story 20.4: the options of the point editor's "Equipamento ou local" picker, the option a
@@ -23,7 +24,7 @@ function fresh(seedVersion?: string): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0201-7000-8000-000000000001', ...(seedVersion === undefined ? {} : { seedVersion }) }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0202-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0203-7000-8000-'), now: T0 }), seq: i + 1 }));

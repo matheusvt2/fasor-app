@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
 import { materializeEntity } from '../ops/materialize.ts';
@@ -29,7 +30,7 @@ const d1Blocks = f.op({ scope: 'company', path: `template/${ID}/blocks`, value: 
 const d2Blocks = f.op({
   scope: 'company',
   path: `template/${ID}/blocks`,
-  value: setQuantity(base, COLUNA, 'disjuntor_mt', 1),
+  value: setQuantity(base, COLUNA, 'disjuntor_mt', 1, EMPTY_DEFINITION_CONTEXT),
   device_id: 'device-2',
 });
 const d1 = [d1Skeleton, d1Blocks];

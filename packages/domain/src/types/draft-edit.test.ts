@@ -224,11 +224,11 @@ describe('14.7-UNIT the type list and the editor text', () => {
     expect(suggestedTagHelperText('')).toBe('letras maiúsculas e números, até 6');
   });
 
-  it('14.8: the composer names a company type by its noun and says its versions', () => {
+  it('14.8: the composer names a company type by its noun and says its versions; e22h N13: its stepper by its label', () => {
     const v2: EquipmentTypeVersionRow = { ...version, id: '019a5f00-0000-7000-8000-0000000000b2', version: 2, definition: { ...version.definition, noun: { singular: 'no-break', plural: 'no-breaks', gender: 'm' } } };
     const ctx = definitionContext([version, v2], [{ ...published, latest_version: 2 }]);
     const type = companyBlockType(TYPE_ID);
-    expect(quantityLabel(type, 3, ctx)).toBe('No-breaks, 3');
+    expect(quantityLabel(type, 3, ctx)).toBe('No-break, 3');
     expect(totalsText({ transformador_forca: 1, [type]: 2 } as never, ctx)).toBe('1 trafo · 2 no-breaks');
     expect(templateTypeVersionText(ctx, type, 1)).toBe('versão 1 · versão 2 publicada');
     expect(templateTypeVersionText(ctx, type, 2)).toBe('versão 2');

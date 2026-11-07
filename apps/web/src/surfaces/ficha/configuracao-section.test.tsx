@@ -1,4 +1,4 @@
-import { blockConfigWithOption, getDefinition, newEquipmentBlock, type BlockRow, type JsonValue, type OpDraft } from '@app/domain';
+import { blockConfigWithOption, getDefinition, newEquipmentBlock, type BlockRow, type JsonValue, type OpDraft, EMPTY_DEFINITION_CONTEXT } from '@app/domain';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +22,7 @@ const CTA = 'chave_transferencia_automatica';
 const DEFINITION = getDefinition('v5', 'cabine_primaria', CTA);
 
 function cta(options: Record<string, string> = {}): BlockRow {
-  const { block } = newEquipmentBlock({ blockId: BLOCK, equipmentId: id(22), relatorioId: RELATORIO, projectId: id(25), locationId: id(23), type: CTA, tag: 'CTA-GER', seedVersion: 'v5', orderKey: 'a0' });
+  const { block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: id(22), relatorioId: RELATORIO, projectId: id(25), locationId: id(23), type: CTA, tag: 'CTA-GER', seedVersion: 'v5', orderKey: 'a0' });
   let config = block.config as JsonValue;
   for (const [key, value] of Object.entries(options)) config = blockConfigWithOption(config, key, value);
   return { ...block, config: config as BlockRow['config'] };

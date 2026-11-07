@@ -14,7 +14,7 @@ import {
   type TemplateBlock,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
-import { EMPTY_DEFINITION_CONTEXT, findDefinition, latestTypeVersion, SEED_VERSION, type DefinitionContext } from '../seed/definitions.ts';
+import { findDefinition, latestTypeVersion, SEED_VERSION, type DefinitionContext } from '../seed/definitions.ts';
 import { defaultBlockConfig, defaultBlockConfigIn, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, zeroTotals, type TypeTotals } from '../seed/template.ts';
 
 /*
@@ -298,7 +298,7 @@ export function setQuantity(
   type: BlockTypeKey,
   n: number,
   /** Story 14.6: the company's type versions, for a company type new to the template (placed at its latest version). */
-  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+  ctx: DefinitionContext,
 ): TemplateBlock[] {
   // Story 14.2: a painel only groups colunas. Placing a block on one is a caller's bug, not a
   // target another device removed, so it surfaces instead of being swallowed.

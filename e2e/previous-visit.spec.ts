@@ -1,4 +1,4 @@
-import { cellAddressesOf, formatDateOfInstant, getDefinition, instantiateTemplate, SEED_VERSION, standardTemplate, type EquipmentRow, type LastResults } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, cellAddressesOf, formatDateOfInstant, getDefinition, instantiateTemplate, SEED_VERSION, standardTemplate, type EquipmentRow, type LastResults } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -80,7 +80,7 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   const b = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: a.projectId },
-    { service_start: '2026-11-02', service_end: '2026-11-03', existingEquipment: equipment, responsible_user_id: null },
+    { service_start: '2026-11-02', service_end: '2026-11-03', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const trB = blockRows(b.drafts).find((row) => row.equipment_id === equipmentId)!;

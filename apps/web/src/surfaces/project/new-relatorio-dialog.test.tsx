@@ -115,6 +115,47 @@ function SetupProbe() {
   return <p data-testid="setup-route">{params.get('etapa')}</p>;
 }
 
+describe('e22h N4: a company type no version of which reached the device', () => {
+  const TYPE_ID = '019a5d00-0000-7000-8000-0000000000e1';
+  const withCompanyBlock = (): TemplateRow => {
+    const base = template();
+    const cabine = base.skeleton.find((node) => node.kind === 'cabine')!;
+    return {
+      ...base,
+      blocks: [...base.blocks, { block_type: `type:${TYPE_ID}`, sub_blocks: {}, na_defaults: [], type_version: 1, quantity: 2, skeleton_location_ref: cabine.ref, section_text: null }],
+    };
+  };
+  const omitted = 'Fica de fora deste relatório: No-break de comando (2 equipamentos), cuja versão publicada ainda não chegou a este aparelho.';
+
+  it('names it before Criar, and Criar says it again and leaves it out of the batch', async () => {
+    database = await freshDb();
+    const row = withCompanyBlock();
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, row));
+    // The type row has arrived (its draft names it), its published version has not.
+    await database.entities.put(
+      toRecord(`equipment_type:${TYPE_ID}`, { id: TYPE_ID, derived_from: null, draft: { label: 'No-break de comando' }, retired_at: null, removed_at: null, latest_version: 1 }),
+    );
+    renderDialog([row]);
+    const notice = await within(dialog()).findByText(`${omitted} Sincronize o aparelho antes de criar o relatório.`);
+    expect(notice).toHaveClass('helper');
+    expect(notice).toHaveAttribute('data-tone', 'amber');
+    expect(notice).toHaveAttribute('role', 'status');
+    await userEvent.click(create());
+    expect(await screen.findByTestId('setup-route')).toHaveTextContent('1');
+    expect(await screen.findByText(omitted)).toBeInTheDocument();
+    const outbox = await database.outbox.toArray();
+    expect(outbox).toHaveLength(223);
+    expect(outbox.some((op) => (op.value as { block_type?: unknown } | null)?.block_type === `type:${TYPE_ID}`)).toBe(false);
+  });
+
+  it('says nothing for a template with no company block', async () => {
+    database = await freshDb();
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
+    renderDialog();
+    expect(within(dialog()).queryByRole('status')).toBeNull();
+  });
+});
+
 describe('4.1 NewRelatorioDialog', () => {
   it('preselects the one type and the only pickable template, and both dates open on today (12.2), so Criar is ready', async () => {
     database = await freshDb();

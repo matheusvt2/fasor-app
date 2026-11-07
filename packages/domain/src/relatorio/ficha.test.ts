@@ -1,3 +1,4 @@
+import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { describe, expect, it } from 'vitest';
 import type { BlockRow, Cell, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
@@ -56,7 +57,7 @@ const coluna = (n: number, name: string, parent: number, order_key: string): Loc
 });
 
 function sheet(n: number, location: number, tag: string, order_key: string): { block: BlockRow; equipment: EquipmentRow } {
-  return newEquipmentBlock({
+  return newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: id(1000 + n),
     equipmentId: id(2000 + n),
     relatorioId: TEST_RELATORIO,
@@ -142,7 +143,7 @@ describe('5.4-UNIT the checklist', () => {
   it('bulk C targets the unset rows only (NC and NA defaults untouched)', () => {
     const [block] = relatorio().blocks;
     const b = { ...block!, sheet: { ...block!.sheet, checklist: { contatos: { result: cell('NC') }, isoladores: { result: cell('C') } } } };
-    const unset = checklistUnsetItems(b);
+    const unset = checklistUnsetItems(b, EMPTY_DEFINITION_CONTEXT);
     expect(unset).not.toContain('contatos');
     expect(unset).not.toContain('isoladores');
     expect(unset).not.toContain('motor');
@@ -160,7 +161,7 @@ describe('5.4-UNIT the checklist', () => {
     const newer = concluded(b!, '2026-09-06T11:00:00.000Z', { contatos: { result: cell('NC'), observation: cell('oxidação') }, isoladores: { result: cell('C') } });
     const snapshot = { blocks: [older, newer, c!, target!] };
     expect(repeatChecklistSource(snapshot, target!.id)?.id).toBe(newer.id);
-    const pattern = repeatChecklistPattern(newer, target!);
+    const pattern = repeatChecklistPattern(newer, target!, EMPTY_DEFINITION_CONTEXT);
     expect(pattern).toContainEqual({ itemKey: 'contatos', value: 'NC' });
     expect(pattern).toContainEqual({ itemKey: 'isoladores', value: 'C' });
     // Both sheets show NA on their `na_defaults`: nothing to write there.
@@ -171,7 +172,7 @@ describe('5.4-UNIT the checklist', () => {
     // The target already answered `contatos` (differently from the source): "Repetir"
     // must leave it as is, the same rule as "Marcar os restantes como Conforme".
     const answeredTarget = { ...target!, sheet: { ...target!.sheet, checklist: { contatos: { result: cell('C') } } } };
-    const patternOverAnswered = repeatChecklistPattern(newer, answeredTarget);
+    const patternOverAnswered = repeatChecklistPattern(newer, answeredTarget, EMPTY_DEFINITION_CONTEXT);
     expect(patternOverAnswered.some((entry) => entry.itemKey === 'contatos')).toBe(false);
     expect(patternOverAnswered).toContainEqual({ itemKey: 'isoladores', value: 'C' });
 
@@ -181,7 +182,7 @@ describe('5.4-UNIT the checklist', () => {
     // an explicit cell (review finding, 2026-09-24: the old value-comparison rule and the
     // new null-check rule only diverge on this exact case).
     const sourceWithExplicitMotor = { ...newer, sheet: { ...newer.sheet, checklist: { ...newer.sheet.checklist, motor: { result: cell('C') } } } };
-    const patternOverNaDefault = repeatChecklistPattern(sourceWithExplicitMotor, target!);
+    const patternOverNaDefault = repeatChecklistPattern(sourceWithExplicitMotor, target!, EMPTY_DEFINITION_CONTEXT);
     expect(patternOverNaDefault.some((entry) => entry.itemKey === 'motor')).toBe(false);
   });
 
@@ -264,8 +265,8 @@ describe('5.3-UNIT nameplate registry chips', () => {
     const r = relatorio();
     const withMaker = (row: BlockRow, name: string, op: number): BlockRow => ({ ...row, sheet: { ...row.sheet, nameplate: { fabricacao: cell(name, op) } } });
     const blocks = [withMaker(r.blocks[0]!, 'WEG', 1), withMaker(r.blocks[1]!, 'Schneider', 2)];
-    expect(nameplateWordRecents('Zeta', blocks, 'manufacturer', rows)).toEqual([id(5006), id(5003), id(5005), id(5001), id(5002)]);
-    expect(nameplateWordRecents(null, [], 'manufacturer', rows)).toHaveLength(5);
-    expect(nameplateWordRecents(null, [], 'manufacturer', rows)).not.toContain(id(5007));
+    expect(nameplateWordRecents('Zeta', blocks, 'manufacturer', rows, undefined, EMPTY_DEFINITION_CONTEXT)).toEqual([id(5006), id(5003), id(5005), id(5001), id(5002)]);
+    expect(nameplateWordRecents(null, [], 'manufacturer', rows, undefined, EMPTY_DEFINITION_CONTEXT)).toHaveLength(5);
+    expect(nameplateWordRecents(null, [], 'manufacturer', rows, undefined, EMPTY_DEFINITION_CONTEXT)).not.toContain(id(5007));
   });
 });
