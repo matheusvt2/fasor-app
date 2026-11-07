@@ -181,10 +181,12 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   expect(response.status()).toBe(200);
   const tables = extractStructure(Buffer.from(await response.body())).tables;
   // The seccionadora's paired insulation table (the other seccionadoras of the local print "-").
-  const insulation = tables.find((table) => table[0]?.[0] === 'SECCIONADORA CONTATO ABERTO' && table.some((row) => row[0] === 'T1' && row[3] !== '-'));
+  // Seed v12 (Story 22.8, e22s): each half prints its row's TENSÃO (kV) right after the connections;
+  // a row with a reading prints the instrument's 10 kV, a row with none "-".
+  const insulation = tables.find((table) => table[0]?.[0] === 'SECCIONADORA CONTATO ABERTO' && table.some((row) => row[0] === 'T1' && row[4] !== '-'));
   expect(insulation).toBeDefined();
-  expect(insulation!.find((row) => row[0] === 'T1')).toEqual(['T1', 'T2', 'MASSA', '> 2 TΩ', 'FASE A', 'MASSA', '', '-']);
-  expect(insulation!.find((row) => row[0] === 'T3')?.[3]).toBe('150 GΩ');
+  expect(insulation!.find((row) => row[0] === 'T1')).toEqual(['T1', 'T2', 'MASSA', '10', '> 2 TΩ', 'FASE A', 'MASSA', '', '-', '-']);
+  expect(insulation!.find((row) => row[0] === 'T3')?.[4]).toBe('150 GΩ');
   const contactTable = tables.find((table) => table.some((row) => row.includes('VALORES (µΩ)')) && table.some((row) => row[0] === 'T1-T2' && row[3] !== '-'));
   expect(contactTable?.find((row) => row[0] === 'T1-T2')).toEqual(['T1-T2', 'FASE A', 'MASSA', '> 2.000']);
 });
