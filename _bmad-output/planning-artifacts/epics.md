@@ -6053,6 +6053,8 @@ So that an oil unit is not filed as dry and a TP is not judged on a power transf
 - The `source-deltas.md` row.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
 
+*(2026-11-07, built as batch e22s with 22.8, 22.9 and 22.11, PR #269 merged as `b811ace9`; seed v12, contract 32, minimum 32; v1 to v11 keep their bytes. Narrowings: an old "ÓLEO" reads as ÓLEO MINERAL through `option_aliases`; TIPO DO ÓLEO is excused and prints "-" on a non-oil unit; the TP checklist is the TC's v10 list. Fix batch e22g (PR #273, `1742c21f`): every reading table that still overflows at 60 em prints one font step smaller, no column dropped. Authored for Bruno: "Os ensaios não foram realizados devido a defeito constatado no equipamento.")*
+
 ### Story 22.8: The test voltage per row of the insulation table (seed v12)
 
 **Dev model:** opus · **Effort:** high · a TENSÃO column per row on the v12 insulation tables (transformador de força, TP, TC, seccionadora, disjuntor, para-raio, and the cabine where seeded), its options and defaults, a notice when a row's voltage exceeds the winding's rating, the print column
@@ -6094,6 +6096,8 @@ So that a BT row is not printed at the 10 kV of the high-voltage rows.
 - The touched durability specs on the matrix projects.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-07, built in batch e22s, PR #269 merged as `b811ace9`. Narrowings: below 768 px the voltage select stands over the row's reading cell and the column is hidden; the notice fires only above 1 kV on a winding rated up to 1000 V. Fix batch e22g (PR #273, `1742c21f`), from Bruno's test base: the transformer's two high-voltage rows default by TENSÃO NOMINAL AT (601 to 5000 V gives 2,5 kV, above 5000 V gives 5 kV); a rating of 600 V or less, or none, keeps the instrument's voltage; a rating-chosen voltage shows no notice. Authored for Bruno: "Tensão de ensaio acima do suportado pelo enrolamento {Linha} ({tensão}): use 0,5 ou 1 kV.")*
 
 ### Story 22.9: The TC and TP ratio criterion follows the accuracy class (seed v12)
 
@@ -6139,6 +6143,8 @@ So that a good instrument transformer is not printed INSATISFATÓRIO at 0,7 %.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-07, built in batch e22s, PR #269 merged as `b811ace9`. Narrowing: ACEITÁVEL prints "±1,2 %", the existing format. Fix batch e22g (PR #273, `1742c21f`), from Bruno's test base: TC 5P judged at ±1 %, TP 3P and 6P added, old and new class notations parsed ("10B100" gives 10P), `parseAccuracyClass` keyed on the EXATIDÃO field. Open: no e2e judges 5P or picks 3P/6P. Authored for Bruno: "Informe a EXATIDÃO na placa: sem a classe, a relação é julgada a ±0,5 %.")*
+
 ### Story 22.10: A reading above the instrument's limit (contract 32)
 
 **Dev model:** opus · **Effort:** high · a new reading cell state `over_range` with the instrument's limit, entered by a "> limite" control or by typing ">", "OL" or "0L"; judged against the criterion (a > 400 MΩ criterion is met by > 2 TΩ); prints "> 2 TΩ"; shares contract 32 with 22.7
@@ -6181,6 +6187,8 @@ So that the reading is honest and judged, not typed as a guessed number.
 - The touched durability specs on the matrix projects.
 - `docs/kbs/log.md`.
 
+*(2026-11-07, built as batch e22r with 22.12, PR #268 merged as `538062a4`; notes under contract 32. Narrowings: a limit below a > criterion is judged out; the ratio test and compared values refuse "> limite". Fix batch e22g (PR #273, `1742c21f`): range units normalized, over-range refused on the nameplate and `sheet/test/value` paths with api tests, the out-of-range wording "acima de X (limite do instrumento)". Open: N2, N4 and N5 have kernel tests only. Authored for Bruno: "> limite", the two refusal sentences and the unrecognized-unit messages in PR #273.)*
+
 ### Story 22.11: A short QGBT inspection sheet (seed v12)
 
 **Dev model:** opus · **Effort:** medium · a v12 library type "Inspeção de QGBT" with a short nameplate, a visual checklist, photos and conclusion, no tests, printed in the QGBT/QD's group; offered in the palette and the template
@@ -6216,6 +6224,8 @@ So that those photos and findings belong to a sheet and the scope lists them.
 - A Playwright spec from the palette to the DOCX.
 - The touched durability specs on the matrix projects.
 - `docs/kbs/log.md`.
+
+*(2026-11-07, built in batch e22s, PR #269 merged as `b811ace9`. Narrowing: "section 3 counts it" is not built, since section 3 is fixed text with no equipment list; the inspection counts in the template totals and prints in section 9. Fix batch e22g (PR #273, `1742c21f`): title "INSPEÇÃO DE QGBT". Authored for Bruno: the type label, nouns and caption word in PR #269.)*
 
 ### Story 22.12: The previous visit's value beside each reading (contract 32)
 
@@ -6257,6 +6267,8 @@ So that the relatório makes the comparison its section 2 promises.
 - The spine's AD-25 amended.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-07, built in batch e22r, PR #268 merged as `538062a4`. Narrowings: MANUT. ANTERIOR is the table's last column, not inside the VALORES group; several captures print joined " · "; re-issuing an older relatório after a newer one makes the older the top entry (`deferred-work.md`, e22r). Fix batch e22g (PR #273, `1742c21f`): MANUT. ANTERIOR printed per table (a side-by-side pair decides together), no unit carried past an over-range row, the "Anterior" line in the neutral helper tone.)*
 
 ### Wave C: Stories 14.6, 14.7 and 14.8, the office's own types
 
