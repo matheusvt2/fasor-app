@@ -113,7 +113,8 @@ test('@p0 17.5-E2E-001 22.4-E2E 22.6-E2E a transformer ratio row INSATISFATÓRIO
   // Read-only: no Confirmar, Editar or Substituir.
   await expect(summary.getByRole('button')).toHaveCount(0);
   await expect(summary.locator('.generated-text')).toContainText(/1 ficha foi reprovada por relação de transformação insatisfatória \(.+\)\./);
-  await expect(summary.locator('.generated-text')).toContainText(/Relação de transformação insatisfatória em 1 ficha \(.+\)\./);
+  // e22f N1: the Reprovado sheet is named once, with its reason; no separate ratio sentence repeats it.
+  await expect(summary.locator('.generated-text')).not.toContainText('Relação de transformação insatisfatória em');
   await expect(summary.locator('.criteria-line')).toContainText(/relação de transformação insatisfatória \(.+\)/);
   // No verdict op was written: the derived one stands.
   expect((await outbox(page)).filter((row) => row.path === 'relatorio/setup/parecer')).toEqual([]);
