@@ -142,6 +142,10 @@ overrides (they win over the workflow text):
   story gate". The coordinator runs the full `@p0`, `test:e2e:full` and the matrix once per wave on the integrated
   main. A failure called a flake still needs its failing state explained and a passing isolated run on the same
   commit.
+- (2026-11-07, Epic 22 wave C gate) Before the integrated gate on the main checkout, the coordinator runs
+  `podman compose restart api web`: the api's route tests and every e2e hit the live `api:3000` container, which does
+  not reload `packages/domain`. The wave C gate went red (12 api, 6 full, 3 matrix) only because that container ran
+  pre-merge code; after a restart the reds passed.
 - (2026-10-08, load rules) At most two batch stacks are up at a time. No Playwright run outside the host lock, not
   even one targeted spec. The coordinator stops the main checkout's stack (`podman compose stop`) while batches run.
 - (2026-10-08, this macOS host) `docker` is not on PATH: use `podman compose`, and run the tools container with
