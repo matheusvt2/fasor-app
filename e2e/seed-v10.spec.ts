@@ -1,4 +1,4 @@
-import { getDefinition, initialOrderKey, newEquipmentBlock, oilNaChipText, SEED_VERSION, SEED_VERSIONS, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { getDefinition, initialOrderKey, newEquipmentBlock, oilNaChipText, SEED_VERSIONS, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -36,8 +36,10 @@ interface OutboxRow {
   value: unknown;
 }
 
-const TC = getDefinition(SEED_VERSION, 'cabine_primaria', 'tc');
-const TP = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp');
+/** The version this spec pins: seed v12 (Story 22.7) moved the TP onto the TC's list, so the v10 sheets are read from v10 itself. */
+const SEED = 'v10';
+const TC = getDefinition(SEED, 'cabine_primaria', 'tc');
+const TP = getDefinition(SEED, 'cabine_primaria', 'tp');
 const ENEL = 'Cubículo Enel';
 /** The job's own time: flush, queue pick-up, two LibreOffice passes. */
 const JOB_TIMEOUT = 150_000;
@@ -59,14 +61,11 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 
 test('@p0 15.7-E2E-001 v10 TC sheet: its own seven items in order, VASAMENTO NA on Á SECO with no chip, the ratio test kept; the TP keeps the transformer list', async ({ page }) => {
   test.setTimeout(180_000);
-  // Seed v11 (Story 21.1) keeps v10's TC and TP: the current seed's sheets are v10's.
-  expect(Object.keys(SEED_VERSIONS)).toContain('v10');
-  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'tc')).toEqual(getDefinition('v10', 'cabine_primaria', 'tc'));
-  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'tp')).toEqual(getDefinition('v10', 'cabine_primaria', 'tp'));
+  expect(Object.keys(SEED_VERSIONS)).toContain(SEED);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED });
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
   const sheetOf = (type: string) => built.sheets.find((sheet) => sheet.blockType === type)!;
 
@@ -124,7 +123,7 @@ function sectionXml(document: string, n: number): string {
  * plus one TC there with every checklist item answered C, Em campo: generated in seconds.
  */
 function smallRelatorioWithTc(): { relatorioId: string; tcId: string; drafts: OpDraft[] } {
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED });
   const locations = built.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('location/')).map((draft) => draft.value as unknown as LocationRow);
   const enel = locations.find((location) => location.kind === 'cabine' && location.name === ENEL)!;
   const drafts = built.drafts.filter((draft) => {
@@ -142,7 +141,7 @@ function smallRelatorioWithTc(): { relatorioId: string; tcId: string; drafts: Op
     locationId: enel.id,
     type: 'tc',
     tag: 'TC-01',
-    seedVersion: SEED_VERSION,
+    seedVersion: SEED,
     orderKey: initialOrderKey(0),
   });
   return {

@@ -2,7 +2,7 @@
 title: 'e22s: Stories 22.7 to 22.9 and 22.11, seed v12 (contract 32)'
 type: 'feature'
 created: '2026-11-06'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b883c5875f9d4dcdab67f2d6c8596ad1f44014e2'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -145,3 +145,14 @@ deferred: []
 - `pnpm exec vitest run --project @app/domain <files>` while iterating, then `pnpm test:unit` -- green.
 - `podman compose restart api`, then `pnpm test:api` -- green.
 - Under `lockf -t 20000 /tmp/fasor-verify.lock` (nohup, polled log): `pnpm exec tsx scripts/e2e.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` -- green; the touched durability specs also on the matrix projects.
+
+## Auto Run Result
+
+Status: done.
+
+- **Summary:** seed v12 (derived from v11, `V11_HASH` and `V12_HASH` pinned) with ÓLEO MINERAL (aliasing ÓLEO), TIPO DO ÓLEO (A, B), DESLOCAMENTO ANGULAR, the TP on the TC's v10 list, the "Defeito no equipamento" reason flagged `defect`, a per-row TENSÃO (kV) column appended to every insulation table (defaults, a notice above 1 kV on a winding up to 1000 V, printed after the connection columns), EXATIDÃO as a class select on TC and TP with the ratio criterion from the class (5P/10P ± 3 %, none ± 0,5 %), and the `inspecao_qgbt` library type. Contract 32, minimum 32. Prompt `bedrock-structuring-5`, two plate fixtures (oil transformer, TC class).
+- **Files:** kernel `seed/v12.ts`, `seed/schema.ts`, `seed/definitions.ts`, `seed/select-option.ts`, `seed/test-voltages.ts`, `relatorio/row-voltage.ts`, `relatorio/accuracy-class.ts`, `relatorio/reading-evaluation.ts`/`reading-cells.ts`, `print/section-9.ts`, `print/group-for-print.ts`, `reading/build.ts`, `merge/conflicts.ts`, `contract/version.ts` and the per-type maps; api `providers/bedrock.ts`, `kinds/plate.ts`, `scripts/bedrock-eval.ts`, fixtures; web `ensaios-section.tsx`, `ficha.css`, `copy/pt-br.ts`; e2e `seed-v12.spec.ts`, `qgbt-inspecao.spec.ts` (new) and seven adjusted specs (`seed-v10.spec.ts` pinned to v10 after the gate); docs `source-deltas.md`, `kernel-and-seed.md`, `log.md`, `nc-chip-phrases.md`, `deferred-work.md` (heading e22s). No Porto Seguro fixture or golden change.
+- **Review:** 11 findings (Edge Case Hunter, Verification Gap): 8 patched (medium 3, low 5), 3 rejected (1 false, 2 low), none deferred. Follow-up review: false (no high patched; the three medium patches are each covered by a new test).
+- **Verification (story gate on f634ab34, lock wait 1009 s, load 5.23 at start, 5.87 at end, batch e22f's stack up beside):** lint 0 errors (26 warnings in untouched specs), static clean, test:api 887 passed 6 skipped, test:unit 5345/5345, e2e over the 69 seed-sensitive specs on both desktop projects 417 passed, 3 failed, 3 skipped (R8DRY-E2E-001 and 14.2-E2E-001, both red on main in the wave A gate with the same message, owned by e22f; 15.7-E2E-001 compared the current seed's TC with v10's, fixed by pinning the spec to v10 and re-run below), durability matrix (oil-dry, dry-transformer, ficha) 30 passed, 3 failed (R8DRY-E2E-001 on the three projects, red on main).
+- **Re-run after the v10 pin** (lock wait 615 s): lint 0 errors, static clean, `e2e/seed-v10.spec.ts` 2/2.
+- **Residual risks:** section 3 does not count the QGBT inspection (no equipment list exists there; deferred-work row); ACEITÁVEL prints "±1,2 %" (existing format, not the AC's "± 1,2 %"); the TC's synthetic "10B100" no longer fills EXATIDÃO on v12; the paid eval of `bedrock-structuring-5` is the coordinator's.
