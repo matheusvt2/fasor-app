@@ -225,7 +225,9 @@ function ruleIssue(rule: ValueRule, value: unknown, where: string): string | nul
     }
     case 'number_value': {
       if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-      const { raw, unit } = value as { raw?: unknown; unit?: unknown };
+      const { raw, unit, state } = value as { raw?: unknown; unit?: unknown; state?: unknown };
+      // Story 22.10 (review fix): only a test cell takes a reading above the instrument's limit.
+      if (state === 'over_range') return `${where}.state over_range is a test cell's alone`;
       const cap = TEXT_CAPS.short;
       if (typeof raw === 'string' && raw.length > cap) return `${where}.raw holds ${raw.length} characters, over ${cap}`;
       if (typeof unit === 'string' && unit.length > cap) return `${where}.unit holds ${unit.length} characters, over ${cap}`;

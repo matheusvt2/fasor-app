@@ -155,6 +155,18 @@ describe('22.10-UNIT the registry range (instrumentRangeOf, instrumentRangeFor)'
     expect(instrumentRangeFor(picked, [], 'isolacao')).toBeNull();
     expect(instrumentRangeFor(block('para_raio'), [row], 'isolacao')).toBeNull();
   });
+
+  it('a measurement test reads the range of its instrument_of kind (the CTA\'s E2 picker offers meggers: range_isolacao)', () => {
+    const cta = ctaBlock();
+    const pick = test(E2, [], INSTRUMENT).test[E2]!;
+    const picked: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E2]: { ...(cta.sheet.test[E2] ?? { cells: {} }), instrument: pick.instrument } } } };
+    expect(instrumentRangeFor(picked, [row], E2)).toEqual({ raw: '2', unit: 'TΩ' });
+    // E1 (contact resistance, the micro-ohmmeter's kind) picked with the same instrument reads its other range.
+    const e1 = test(E1, [], INSTRUMENT).test[E1]!;
+    const onE1: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E1]: { ...(cta.sheet.test[E1] ?? { cells: {} }), instrument: e1.instrument } } } };
+    expect(instrumentRangeFor(onE1, [row], E1)).toEqual({ raw: '2000', unit: 'µΩ' });
+    expect(instrumentRangeFor(cta, [row], E2)).toBeNull();
+  });
 });
 
 describe('22.10-UNIT the input parse of a cell (parseMeasurementReadingPtBr)', () => {

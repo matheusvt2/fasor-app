@@ -284,6 +284,14 @@ describe('22.12-UNIT MANUT. ANTERIOR in section 9', () => {
     expect(alone[1]).not.toContain('MANUT. ANTERIOR');
   });
 
+  it('an entry none of whose keys this sheet\'s definition holds prints no column', () => {
+    const now = sheet(1, 'cabos_saida', { isolacao: { '0/1': measured('5.1', 'GΩ') } });
+    const renamed: LastResults = { ...ENTRY_A, readings: { 'isolacao|isolacao:FASE Z/MASSA/BLIND./|1 MINUTO': measured('1', 'GΩ') } };
+    const grid = texts(tableStarting(sheetsOf(snapshotOf([withLast(now, renamed)]))[0]!, 'PONTO DE ENSAIO/CONEXÃO'));
+    expect(grid.flat()).not.toContain('MANUT. ANTERIOR');
+    expect(grid[0]).toEqual(['PONTO DE ENSAIO/CONEXÃO', 'VALORES (GΩ)', 'QUALIDADE ISOLAÇÃO']);
+  });
+
   it('the seccionadora\'s paired tables get the column on both halves', () => {
     const sec = sheet(1, 'chave_seccionadora', { isolacao: { '0/0': measured('173', 'GΩ'), '3/0': measured('720', 'GΩ') } });
     const entry: LastResults = { ...ENTRY_A, block_type: 'chave_seccionadora', readings: { 'isolacao|contato_aberto:T1/T2/MASSA|VALORES': measured('150', 'GΩ'), 'isolacao|contato_fechado:FASE A/MASSA/|VALORES': over('2', 'TΩ') } };

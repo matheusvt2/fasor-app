@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncContext } from '../../state/sync.tsx';
 import { ToastProvider } from '../../state/toast.tsx';
+import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { makeSyncState } from '../../test/sync-state.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { MeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, type SheetCellExtras } from './measurement-field.tsx';
@@ -140,6 +141,22 @@ describe('Story 22.10: a reading above the instrument\'s limit', () => {
     await userEvent.type(input, '3T');
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
     expect(written()).toEqual([{ raw: '3', unit: 'TΩ', state: 'over_range' }]);
+  });
+
+  it('"> limite" with no limit, then the field left holding only ">": the text is dropped, nothing committed, no refusal reported', async () => {
+    vi.mocked(trackInputRefused).mockClear();
+    render(wrap(NO_RANGE, <MeasurementField api={api} cell={insulation()} label="Fase A" presentation="table" missing={false} onRun={() => false} />));
+    const input = screen.getByRole('textbox', { name: 'Fase A' });
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Fase A' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: '> limite' }));
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(input).toHaveValue('> ');
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(input).toHaveValue('');
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(written()).toEqual([]);
+    expect(vi.mocked(trackInputRefused)).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Instrumento sem limite cadastrado/)).toBeNull();
   });
 
   it('a ratio cell refuses "OL" with the authored refusal, and its Overflow offers no "> limite"', async () => {

@@ -2,7 +2,7 @@
 title: 'e22r: Stories 22.10 and 22.12, readings above range and the previous visit value (contract 32)'
 type: 'feature'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'd7a77dea9cc7d4bed9af260d69a35c793cdc0feb'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -110,6 +110,25 @@ deferred: []
 - Given an obra whose TR-1 was issued in revision 1 of relatório A with 4,9 GΩ on an insulation row, when relatório B of that obra opens TR-1's sheet, then the row shows "Anterior: 4,9 GΩ (rev. 1, dd/mm/aaaa)" and the cell stays empty in the store.
 - Given B generates, when section 9 prints TR-1, then its insulation table has MANUT. ANTERIOR with "4,9 GΩ" on that row, and an equipment with no previous visit prints no such column.
 - Given a revision is issued, when the job commits, then each equipment of the snapshot with readings holds `last_results` of that revision, company B never pulls company A's projection, and replaying the op log gives the same rows byte for byte.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-06 — Review pass
+- layers: Edge Case Hunter and Verification Gap ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 10 findings — high 0, medium 3, low 4, false 0, maybe-false 3
+- findings:
+  - `[medium]` `[patch]` VG: the dictated cell's over-range write has no test — added a `dictation-surfaces.test.tsx` case (OL with and without a range).
+  - `[medium]` `[patch]` VG: `instrumentRangeFor`'s measurement-test branch never runs — added a CTA case to `over-range.test.ts`.
+  - `[medium]` `[patch]` EC: "> limite" with no range leaves "> " that commits as invalid on blur — the field clears a lone ">" on blur.
+  - `[maybe-false]` `[defer]` EC: re-issuing an older relatório X after a newer Y makes X the top entry with Y as its prior (X shows Y's later values as "previous"; Z then sees X) — unverified medium; settled by ordering the chain by the visit's service date; `deferred-work.md` e22r.
+  - `[maybe-false]` `[reject]` EC: two issues racing between freeze and commit lose a prior — the generate queue runs with concurrency 1 (`job.ts` header), so a later job freezes after the earlier commit; would be low.
+  - `[low]` `[reject]` EC: a unitless over-range-allowed cell commits `unit: null` and the server refuses it — latent, every seeded and measurement number column carries a unit; the fix adds guards.
+  - `[low]` `[patch]` EC: an entry whose keys match nothing prints a column of dashes — no column when no key matches (`last-results.test.ts`).
+  - `[maybe-false]` `[reject]` EC: `focusAfterMenu` may not focus when another overflow menu is open — no surface keeps two menus open; would be low.
+  - `[low]` `[patch]` EC: `over_range` is accepted on any AD-11 number path (nameplate, cabine) by a crafted op — the `number_value` rule refuses the state, with a boundary test.
+  - `[low]` `[patch]` EC: the AC "no previous visit prints no such column" read against an entry with no match — same root cause and fix as the dashes row.
 
 ## Design Notes
 

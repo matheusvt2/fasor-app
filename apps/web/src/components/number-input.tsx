@@ -114,6 +114,12 @@ export interface NumberInputState {
    * usual): the "> limite" action with no instrument limit starts the text with "> ".
    */
   typeText: (next: string) => void;
+  /**
+   * Story 22.10 (review fix): drops the typed text and shows the stored value again, clean and
+   * valid, so the blur that follows commits nothing and reports no refusal (a "> " left by
+   * "> limite" with no limit typed after it).
+   */
+  discard: () => void;
 }
 
 const rawOf = (parsed: ParsedNumber | null | 'invalid'): string | null =>
@@ -236,6 +242,16 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
       current.current = next;
       setInvalid(false);
       setText(next);
+    },
+    discard: () => {
+      const shown = latest.current.storedText;
+      dirty.current = false;
+      echoKept.current = false;
+      reportedOnEnter.current = null;
+      movedWhileFocused.current = false;
+      current.current = shown;
+      setInvalid(false);
+      setText(shown);
     },
     inputProps: {
       ref: element,

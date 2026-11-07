@@ -804,7 +804,10 @@ export function withPreviousColumn(printed: PrintTable, texts: readonly string[]
 function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefinition): PreviousReadings {
   const equipment = block.equipment_id === null ? undefined : ctx.equipment.get(block.equipment_id);
   const entry = previousResultsFor(equipment, block, ctx.snapshot.relatorio.id);
-  return entry === null ? null : previousReadingsByAddress(entry, definition);
+  if (entry === null) return null;
+  // An entry none of whose keys this definition holds (every row renamed by a later seed) is no previous visit to print.
+  const readings = previousReadingsByAddress(entry, definition);
+  return readings.size === 0 ? null : readings;
 }
 
 function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<SubBlockKey>, previous: PreviousReadings): SheetPart[] {

@@ -13,7 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
-import { DictatedMeasurementField } from './measurement-field.tsx';
+import { DictatedMeasurementField, SheetCellExtrasProvider } from './measurement-field.tsx';
 import { SheetObservationDictationProvider, useSheetObservationDictation, useTableDictation } from './sheet-observation-dictation.tsx';
 
 /*
@@ -128,6 +128,37 @@ describe('9.4-UNIT DictatedMeasurementField', () => {
     await userEvent.type(input, '210{Enter}');
     expect(commits).toEqual([[expect.objectContaining({ path: CELL_PATH, value: { raw: '210', unit: 'GΩ', state: 'measured' } })]]);
     expect(onRun).toHaveBeenCalledWith({ testKey: 'isolacao', row: 3, col: 0 }, 'next');
+  });
+
+  it('Story 22.10: "OL" typed over the dictated reading takes the picked instrument\'s limit, written as over range', async () => {
+    const { api, commits } = fichaApi();
+    render(
+      <SheetCellExtrasProvider value={{ rangeOf: () => ({ raw: '2', unit: 'TΩ' }), previousOf: () => null }}>
+        <DictatedMeasurementField api={api} cell={faseA()} label="Fase A, Valores" reading={{ raw: '147', unit: 'GΩ' }} onDone={vi.fn()} onRun={() => true} />
+        <button type="button">fora</button>
+      </SheetCellExtrasProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Fase A, Valores' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'OL');
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(commits).toEqual([[expect.objectContaining({ path: CELL_PATH, value: { raw: '2', unit: 'TΩ', state: 'over_range' } })]]);
+  });
+
+  it('Story 22.10: "OL" with no instrument limit is refused with the no-limit text and writes nothing', async () => {
+    const { api, commits } = fichaApi();
+    render(
+      <SheetCellExtrasProvider value={{ rangeOf: () => null, previousOf: () => null }}>
+        <DictatedMeasurementField api={api} cell={faseA()} label="Fase A, Valores" reading={{ raw: '147', unit: 'GΩ' }} onDone={vi.fn()} onRun={() => true} />
+        <button type="button">fora</button>
+      </SheetCellExtrasProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Fase A, Valores' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'OL');
+    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    expect(commits).toEqual([]);
+    expect(screen.getByText('Instrumento sem limite cadastrado: digite > e o limite (ex.: > 2 GΩ)')).toBeInTheDocument();
   });
 
   it('an emptied field drops the dictation and writes nothing', async () => {

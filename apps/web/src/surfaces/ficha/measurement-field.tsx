@@ -256,6 +256,16 @@ export function MeasurementField<Address extends FieldAddress>({
     focusAfterMenu((number.inputProps.ref as RefObject<HTMLInputElement | null>).current);
   };
 
+  // Story 22.10 (review fix): leaving the field holding only the ">" that "> limite" put there
+  // drops it: nothing is committed and no refusal is reported.
+  const inputProps: typeof number.inputProps = {
+    ...number.inputProps,
+    onBlur: (event) => {
+      if (limitHint && number.text.trim() === '>') number.discard();
+      number.inputProps.onBlur?.(event);
+    },
+  };
+
   const markRestricted = () => {
     void api
       .edit((blocks, by) => {
@@ -315,7 +325,7 @@ export function MeasurementField<Address extends FieldAddress>({
         <input
           data-telemetry="ficha.measurement"
           className="mf-value"
-          {...number.inputProps}
+          {...inputProps}
           aria-label={label}
           aria-invalid={number.invalid || undefined}
           aria-describedby={describedBy}
