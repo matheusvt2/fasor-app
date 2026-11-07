@@ -1,4 +1,6 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
+  findDefinitionIn,
   LIBRARY_GROUP_LABEL,
   locationChoices,
   locationPathText,
@@ -6,8 +8,10 @@ import {
   suggestTag,
   tagVerdict,
   takesBlocks,
+  type BlockDefinition,
+  type DefinitionContext,
   type BlockRow,
-  type EquipmentBlockType,
+  type BlockTypeKey,
   type EquipmentRow,
   type LocationRow,
   type PaletteItem,
@@ -61,10 +65,12 @@ export interface PanelPhotoInput {
 
 /** One creation the palette asks for: `tag` null means the suggestion, computed again when written. */
 export interface PaletteCreate {
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
   locationId: string;
   anchorBlockId: string | null;
   tag: string | null;
+  /** Story 14.8: the published version a company type's block is born at (the palette's latest). */
+  typeVersion?: number;
   /** Story 9.2: the photo that becomes the new block's plate. */
   photo?: PanelPhotoInput;
 }
@@ -72,6 +78,8 @@ export interface PaletteCreate {
 export interface FieldPaletteProps {
   target: PaletteTarget;
   seedVersion: string;
+  /** Story 14.8: the company's equipment types on this device (the tree's `useDefinitionContext`); none by default. */
+  definitions?: DefinitionContext;
   /** The relatório's live locations (the Local options) and blocks (where a taken TAG sits). */
   locations: readonly LocationRow[];
   blocks: readonly BlockRow[];
@@ -92,7 +100,7 @@ export interface FieldPaletteProps {
   onResume?: (photoId: string, target: PaletteTarget) => void;
 }
 
-export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
+export function FieldPalette({ target, seedVersion, definitions = EMPTY_DEFINITION_CONTEXT, locations, blocks, equipment, onCreate, onClose, onPhotograph, onAttach, awaiting = [], onResume }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
   const cameraSubId = useId();
@@ -113,14 +121,15 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
   }, []);
   // A painel takes no block: the palette opens on a local or a coluna only (kernel `paletteLocationFor`).
   const location = locations.filter(takesBlocks).find((row) => row.id === target.locationId) ?? null;
-  const [openType, setOpenType] = useState<EquipmentBlockType | null>(null);
+  const [openType, setOpenType] = useState<BlockTypeKey | null>(null);
+  // Story 14.8: the company's published, non-retired types follow the library types (AD-21 item 6).
   if (location === null) return null;
-  const items = paletteItems(seedVersion, location, equipment);
+  const items = paletteItems(seedVersion, location, equipment, definitions);
   const seeded = items.filter((item) => !item.library);
   const library = items.filter((item) => item.library);
   const typeRow = (item: PaletteItem) => (
     <div key={item.type} className="palette-type" data-block-type={item.type}>
-      <button type="button" className="palette-item pf-field" onClick={() => onCreate({ type: item.type, locationId: location.id, anchorBlockId: target.anchorBlockId, tag: null })}>
+      <button type="button" className="palette-item pf-field" onClick={() => onCreate({ type: item.type, locationId: location.id, anchorBlockId: target.anchorBlockId, tag: null, ...(item.typeVersion === undefined ? {} : { typeVersion: item.typeVersion }) })}>
         <ItemBody item={item} />
       </button>
       <OfficeType
@@ -132,6 +141,7 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
         blocks={blocks}
         equipment={equipment}
         onCreate={onCreate}
+        definition={item.typeVersion === undefined ? null : findDefinitionIn(definitions, seedVersion, item.type, item.typeVersion)}
       />
     </div>
   );
@@ -241,6 +251,8 @@ interface OfficeTypeProps {
   blocks: readonly BlockRow[];
   equipment: readonly EquipmentRow[];
   onCreate: (input: PaletteCreate) => void;
+  /** Story 14.8: a company type's definition, whose TAG prefix the suggestion takes; null on a seeded type. */
+  definition: BlockDefinition | null;
 }
 
 /**
@@ -248,7 +260,7 @@ interface OfficeTypeProps {
  * prefilled with the suggestion and "Local" with the location the palette was opened on.
  * Changing the Local suggests again, unless the TAG was typed by hand.
  */
-function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipment, onCreate }: OfficeTypeProps) {
+function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipment, onCreate, definition }: OfficeTypeProps) {
   const t = copy.sumario.palette;
   const confirmId = useId();
   const localId = useId();
@@ -263,11 +275,11 @@ function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipme
     setLocationId(id);
     // `locationChoices` offers only locations that take blocks (never a painel).
     const next = locations.filter(takesBlocks).find((row) => row.id === id);
-    if (!edited && next !== undefined) setTag(suggestTag(item.type, { kind: next.kind, name: next.name }, equipment));
+    if (!edited && next !== undefined) setTag(suggestTag(item.type, { kind: next.kind, name: next.name }, equipment, definition));
   };
   const confirm = () => {
     if (verdict !== null) return;
-    onCreate({ type: item.type, locationId, anchorBlockId: locationId === target.locationId ? target.anchorBlockId : null, tag: tag.trim() });
+    onCreate({ type: item.type, locationId, anchorBlockId: locationId === target.locationId ? target.anchorBlockId : null, tag: tag.trim(), ...(item.typeVersion === undefined ? {} : { typeVersion: item.typeVersion }) });
   };
 
   return (

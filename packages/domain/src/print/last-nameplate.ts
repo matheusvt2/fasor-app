@@ -1,7 +1,6 @@
 import type { JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition } from '../seed/definitions.ts';
-import type { BlockDefinition } from '../seed/schema.ts';
+import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { enabledSubBlocksOf, isCellFilled, isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import type { EquipmentRow } from '../schemas/entities.ts';
 
@@ -22,9 +21,6 @@ export interface LastNameplateEntry {
   value: LastNameplateValue;
 }
 
-function definitionOf(seedVersion: string, blockType: string): BlockDefinition | null {
-  return findDefinition(seedVersion, blockType);
-}
 
 /**
  * One entry per live equipment block whose definition has an enabled nameplate and whose plate holds
@@ -32,11 +28,13 @@ function definitionOf(seedVersion: string, blockType: string): BlockDefinition |
  */
 export function lastNameplates(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string }): LastNameplateEntry[] {
   const out: LastNameplateEntry[] = [];
+  // Story 14.6: a company sheet's plate fields come from the snapshot's type versions.
+  const ctx = snapshotDefinitionContext(snapshot);
   for (const block of snapshot.blocks) {
     if (block.removed_at !== null || block.equipment_id === null || !isEquipmentBlock(block)) continue;
     // A disabled nameplate does not print; its stale cells are not the last visit's plate.
     if (!enabledSubBlocksOf(block).has('nameplate')) continue;
-    const definition = definitionOf(block.seed_version, block.block_type);
+    const definition = blockDefinitionIn(ctx, block);
     if (definition === null || definition.nameplate.length === 0) continue;
     const fields: Record<string, JsonValue> = {};
     for (const field of definition.nameplate) {

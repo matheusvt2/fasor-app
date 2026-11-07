@@ -170,6 +170,8 @@ export interface BuildDisplaySuggestionsInput {
   /** The width and height of the image the OCR received. */
   image: { width: number; height: number };
   newId: NewId;
+  /** Story 14.6: the target block's tests as the job resolved them (a company type's from its version); its seed's when absent. */
+  tests?: readonly TestDef[];
 }
 
 export interface BuiltDisplaySuggestions {
@@ -341,7 +343,7 @@ export function buildDisplaySuggestions(input: BuildDisplaySuggestionsInput): Bu
 
   const target = input.target;
   const block = input.block;
-  const test = block === null ? null : testOf(block, target.table_key);
+  const test = block === null ? null : input.tests !== undefined ? (input.tests.find((candidate) => candidate.key === target.table_key) ?? null) : testOf(block, target.table_key);
   if (block === null || test === null) {
     values.forEach((value, index) => dropped.push({ key: dropKey(index, value), reason: 'no_cell' }));
     return { rows, dropped };

@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { canonicalJson } from '../text/hash.ts';
 import { entityKey, splitEntityKey, type EntityState } from '../ops/apply.ts';
 import { hiddenLocationIds, pointsOnLiveLocals } from '../relatorio/location-live.ts';
+import { companyTypeIdOf, typeVersionOf } from './block-config.ts';
 import {
   blockRowSchema,
   equipmentRowSchema,
+  equipmentTypeVersionRowSchema,
   locationRowSchema,
   otherFileRowSchema,
   photoFileRowSchema,
@@ -18,6 +20,7 @@ import {
   type BlockRow,
   type Entity,
   type EntityRow,
+  type EquipmentTypeVersionRow,
   type EntityRowOf,
   type LocationRow,
   type ProjectRow,
@@ -63,9 +66,45 @@ export const relatorioSnapshotSchema = z.object({
    * left out. Defaulted, so a snapshot serialized before the field existed still parses.
    */
   actors: z.array(userRowSchema).default([]),
+  /**
+   * Story 14.6 (contract 33; AD-15 note of 2026-11-06): every company type version a live block
+   * of the relatório references (`{block_type: type:{type_id}, config.type_version}`), ordered by
+   * `type_id` then `version`, a retired type's included, so the renderer and every kernel reader
+   * resolve a company definition from the snapshot alone (`definitionContext`). Optional and never
+   * defaulted: absent when no block references a company type, so the snapshot of a relatório
+   * holding only seeded types is byte-equal to before.
+   */
+  equipment_types: z.array(equipmentTypeVersionRowSchema).optional(),
 });
 
 export type RelatorioSnapshot = z.infer<typeof relatorioSnapshotSchema>;
+
+const VERSION_KEY_PREFIX = 'equipment_type_version:';
+
+/**
+ * Story 14.6: the version rows of `state` the live blocks name, ordered by `type_id` then
+ * `version`; one row per `{type_id, version}` (the smaller id when a device briefly holds two, its
+ * own publish the server will refuse beside the one it pulled). Empty when no block names one.
+ */
+function referencedVersions(blocks: readonly BlockRow[], state: EntityState): EquipmentTypeVersionRow[] {
+  const wanted = new Set<string>();
+  for (const block of blocks) {
+    const typeId = companyTypeIdOf(block.block_type);
+    const version = typeVersionOf(block.config);
+    if (typeId !== null && version !== undefined) wanted.add(`${typeId}@${version}`);
+  }
+  if (wanted.size === 0) return [];
+  const found = new Map<string, EquipmentTypeVersionRow>();
+  for (const [key, row] of state) {
+    if (!key.startsWith(VERSION_KEY_PREFIX)) continue;
+    const version = row as EquipmentTypeVersionRow;
+    const at = `${version.type_id}@${version.version}`;
+    if (!wanted.has(at)) continue;
+    const known = found.get(at);
+    if (known === undefined || version.id < known.id) found.set(at, version);
+  }
+  return [...found.values()].sort((a, b) => (a.type_id < b.type_id ? -1 : a.type_id > b.type_id ? 1 : a.version - b.version));
+}
 
 function byOrderKeyThenId(a: { id: string; order_key?: string | null }, b: { id: string; order_key?: string | null }): number {
   const ka = a.order_key ?? '';
@@ -182,6 +221,7 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   const responsible = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
 
   const actors = actorRows(blocks, state);
+  const equipmentTypes = referencedVersions(blocks, state);
 
   return relatorioSnapshotSchema.parse({
     relatorio,
@@ -197,6 +237,8 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
     suggestions,
     responsible,
     actors,
+    // Story 14.6: only when a block names a company type, so a seeded-only snapshot keeps its bytes.
+    ...(equipmentTypes.length === 0 ? {} : { equipment_types: equipmentTypes }),
   });
 }
 
@@ -318,6 +360,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
     const responsibleId = relatorioRaw.setup.responsible_user_id;
     const responsibleRaw = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
     const actorRaws = actorRows(liveBlocks, state);
+    const versionRaws = referencedVersions(liveBlocks, state);
 
     const prev = previous.get(relatorioId);
     const next: RelatorioSnapshot = {
@@ -361,8 +404,13 @@ export function createSnapshotBuilder(): SnapshotBuilder {
         actorRaws.map((row) => parsed('user', userRowSchema, row)),
         prev?.actors,
       ),
+      // Story 14.6: as `buildSnapshot`, only when a block names a company type.
+      ...(versionRaws.length === 0
+        ? {}
+        : { equipment_types: same(versionRaws.map((row) => parsed('equipment_type_version', equipmentTypeVersionRowSchema, row)), prev?.equipment_types) }),
     };
-    if (prev !== undefined && (Object.keys(next) as (keyof RelatorioSnapshot)[]).every((key) => next[key] === prev[key])) return prev;
+    const sameKeys = prev !== undefined && ('equipment_types' in next) === ('equipment_types' in prev);
+    if (prev !== undefined && sameKeys && (Object.keys(next) as (keyof RelatorioSnapshot)[]).every((key) => next[key] === prev[key])) return prev;
     previous.set(relatorioId, next);
     return next;
   };

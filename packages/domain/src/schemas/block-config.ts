@@ -58,11 +58,52 @@ export type EquipmentBlockType = z.infer<typeof equipmentBlockTypeSchema>;
 export const sectionBlockTypeSchema = z.enum(SECTION_BLOCK_TYPES);
 export type SectionBlockType = z.infer<typeof sectionBlockTypeSchema>;
 
-export const blockTypeSchema = z.enum([...EQUIPMENT_BLOCK_TYPES, ...SECTION_BLOCK_TYPES]);
-export type BlockType = z.infer<typeof blockTypeSchema>;
+/*
+ * Story 14.6 (contract 33, AD-21 note of 2026-11-06): a company equipment type is data, not a
+ * seed key. A block of one names it as `type:{uuidv7}`, the id of its `equipment_type` row; the
+ * prefix holds a `:`, which no seed key does, so the two never collide. The seeded types keep
+ * their closed enum and resolve exactly as before; `blockTypeSchema` opens to a union of the two.
+ */
 
+/** The prefix of a company type's block type. */
+export const COMPANY_TYPE_PREFIX = 'type:';
+
+/** The block type of a company equipment type: `type:` and its type id. */
+export type CompanyBlockType = `type:${string}`;
+
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** True for a company type's block type (`type:` and a uuidv7). */
+export function isCompanyBlockType(value: unknown): value is CompanyBlockType {
+  return typeof value === 'string' && value.startsWith(COMPANY_TYPE_PREFIX) && UUID_V7.test(value.slice(COMPANY_TYPE_PREFIX.length));
+}
+
+/** The block type a block of company type `typeId` carries. */
+export function companyBlockType(typeId: string): CompanyBlockType {
+  return `${COMPANY_TYPE_PREFIX}${typeId}`;
+}
+
+/** The type id a company block type names, or null for any other block type. */
+export function companyTypeIdOf(blockType: unknown): string | null {
+  return isCompanyBlockType(blockType) ? blockType.slice(COMPANY_TYPE_PREFIX.length) : null;
+}
+
+export const companyBlockTypeSchema = z.custom<CompanyBlockType>((value) => isCompanyBlockType(value), { message: 'not a company block type (type:{uuidv7})' });
+
+/** The type of an equipment sheet: a seeded equipment type or a company type. */
+export type BlockTypeKey = EquipmentBlockType | CompanyBlockType;
+
+export const blockTypeSchema = z.union([z.enum([...EQUIPMENT_BLOCK_TYPES, ...SECTION_BLOCK_TYPES]), companyBlockTypeSchema]);
+export type BlockType = EquipmentBlockType | SectionBlockType | CompanyBlockType;
+
+/** A seeded equipment type (the closed enum). A company type is not one: see `isEquipmentKind`. */
 export function isEquipmentBlockType(value: string): value is EquipmentBlockType {
   return (EQUIPMENT_BLOCK_TYPES as readonly string[]).includes(value);
+}
+
+/** Story 14.6: the type of an equipment sheet, a seeded equipment type or a company type. */
+export function isEquipmentKind(value: string): value is BlockTypeKey {
+  return isEquipmentBlockType(value) || isCompanyBlockType(value);
 }
 
 export function isSectionBlockType(value: string): value is SectionBlockType {
@@ -256,25 +297,74 @@ export const subBlockConfigSchema = z.object({
 });
 export type SubBlockConfig = z.infer<typeof subBlockConfigSchema>;
 
+/** A key of a company type's definition (field, item, test, criterion, config): `[a-z0-9_]+`. */
+const definitionKeySchema = z.string().regex(/^[a-z0-9_]+$/);
+
+const SUB_BLOCK_KEY_SET: ReadonlySet<string> = new Set(SUB_BLOCK_KEYS);
+const ITEM_KEY_SET: ReadonlySet<string> = new Set(ITEM_KEYS);
+
+/**
+ * Story 14.6: the keys a config may hold depend on its type. A seeded or section type keeps the
+ * closed enums (`SUB_BLOCK_KEYS`, `ITEM_KEYS`) and never carries `type_version`; a company type
+ * carries `type_version` (the published version the block or template places), no subtype and no
+ * role, and its `sub_blocks` and `na_defaults` keys are its definition's, which `applyOp` checks
+ * against the resolved definition (the schema has no definition to read).
+ */
+function checkConfigKeys(config: { block_type: string; subtype?: unknown; role?: unknown; sub_blocks: Record<string, unknown>; na_defaults: readonly string[]; type_version?: number | undefined }, ctx: z.RefinementCtx): void {
+  if (isCompanyBlockType(config.block_type)) {
+    if (config.type_version === undefined) ctx.addIssue({ code: 'custom', path: ['type_version'], message: 'a company type names its version' });
+    if (config.subtype !== undefined) ctx.addIssue({ code: 'custom', path: ['subtype'], message: 'a company type has no subtype' });
+    if (config.role !== undefined) ctx.addIssue({ code: 'custom', path: ['role'], message: 'a company type has no role' });
+    return;
+  }
+  if (config.type_version !== undefined) ctx.addIssue({ code: 'custom', path: ['type_version'], message: 'only a company type names a version' });
+  for (const key of Object.keys(config.sub_blocks)) {
+    if (!SUB_BLOCK_KEY_SET.has(key)) ctx.addIssue({ code: 'custom', path: ['sub_blocks', key], message: `"${key}" is not a sub-block key` });
+  }
+  config.na_defaults.forEach((key, i) => {
+    if (!ITEM_KEY_SET.has(key)) ctx.addIssue({ code: 'custom', path: ['na_defaults', i], message: `"${key}" is not an item key` });
+  });
+}
+
 /** AD-21 `BlockConfig`. Section blocks carry `sub_blocks: {}` and no subtype or role. */
-export const blockConfigSchema = z.object({
-  block_type: blockTypeSchema,
-  subtype: subtypeSchema.optional(),
-  role: roleSchema.optional(),
-  sub_blocks: z.partialRecord(subBlockKeySchema, subBlockConfigSchema),
-  /** Each item once: a repeat would pre-mark nothing new and only hide a writer's bug. */
-  na_defaults: z.array(itemKeySchema).refine((keys) => new Set(keys).size === keys.length, { message: 'na_defaults repeats an item' }),
-  /**
-   * Story 14.5 (contract 19): the block's own configuration, one option key per config field of
-   * its definition (`config_fields`: the CTA's tensão, polos, neutro, transição, bypass). It is
-   * structure, written whole with the config (`block/{id}/config`), and shapes the sheet: which
-   * rows a measurement test shows and which criterion applies. Optional and never defaulted:
-   * a config written before the key existed parses to the same bytes, and a field with no
-   * entry reads its definition's default (`configOptionsOf`).
-   */
-  options: z.record(z.string(), z.string()).optional(),
-});
+export const blockConfigSchema = z
+  .object({
+    block_type: blockTypeSchema,
+    subtype: subtypeSchema.optional(),
+    role: roleSchema.optional(),
+    /** Story 14.6: keyed by `SUB_BLOCK_KEYS` on a seeded type, by the definition's keys on a company type (`checkConfigKeys`). */
+    sub_blocks: z.record(definitionKeySchema, subBlockConfigSchema),
+    /** Each item once: a repeat would pre-mark nothing new and only hide a writer's bug. */
+    na_defaults: z.array(definitionKeySchema).refine((keys) => new Set(keys).size === keys.length, { message: 'na_defaults repeats an item' }),
+    /**
+     * Story 14.5 (contract 19): the block's own configuration, one option key per config field of
+     * its definition (`config_fields`: the CTA's tensão, polos, neutro, transição, bypass). It is
+     * structure, written whole with the config (`block/{id}/config`), and shapes the sheet: which
+     * rows a measurement test shows and which criterion applies. Optional and never defaulted:
+     * a config written before the key existed parses to the same bytes, and a field with no
+     * entry reads its definition's default (`configOptionsOf`).
+     */
+    options: z.record(z.string(), z.string()).optional(),
+    /**
+     * Story 14.6 (contract 33): the published version of the company type the block (or template
+     * block) places, required exactly on a company type (`checkConfigKeys`). Optional and never
+     * defaulted, so every config written before the key existed parses to the same bytes.
+     */
+    type_version: z.number().int().min(1).optional(),
+  })
+  .superRefine(checkConfigKeys);
 export type BlockConfig = z.infer<typeof blockConfigSchema>;
+
+/**
+ * Story 14.6: the company type version a stored config names (`type_version`), or undefined when it
+ * names none (a seeded or section type, or a config that is not an object). Read from a row's
+ * config, which the row schema keeps as JSON.
+ */
+export function typeVersionOf(config: unknown): number | undefined {
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) return undefined;
+  const version = (config as { type_version?: unknown }).type_version;
+  return typeof version === 'number' && Number.isInteger(version) && version >= 1 ? version : undefined;
+}
 
 /** UX-DR30: the Quantity stepper counts 0 to 99 of one type at one node; a Template block holds 1 to 99. */
 export const MAX_QUANTITY = 99;

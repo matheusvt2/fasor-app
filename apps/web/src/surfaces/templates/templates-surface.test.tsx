@@ -147,7 +147,9 @@ describe('Templates: empty state', () => {
     expect(screen.getByRole('button', { name: 'Criar template padrão' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Novo template' })).toBeVisible();
     expect(container.querySelector('.screen[data-route="/templates"] > .tpl-content')).not.toBeNull();
-    expect(screen.queryByRole('list')).toBeNull();
+    // Story 14.7: no template list; the type lists below the templates are the only ones.
+    expect(screen.queryByRole('list', { name: 'Templates ativos' })).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Templates arquivados' })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 

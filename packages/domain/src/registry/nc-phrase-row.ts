@@ -1,5 +1,6 @@
 import type { OpPath } from '../ops/path.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
+import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { NC_PHRASE_MAX_LENGTH, type BlockRow, type RegistryRow } from '../schemas/entities.ts';
 import { findDefinition, SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
@@ -170,9 +171,14 @@ export function learnedOptionCandidates(
 ): LearnedOptions {
   const result: LearnedOptions = { ncPhrases: [], manufacturers: [] };
   if (block.removed_at !== null) return result;
+  // Story 14.6 (AD-21 note of 2026-11-06, item 8): `nc_phrase` keeps its closed seeded
+  // `block_type`, and a company type's NC chips come from its definition only, so nothing is
+  // learned from a company-type sheet (its manufacturers included: the server holds no
+  // definition context in this post-pass; listed in the PR).
+  if (isCompanyBlockType(block.block_type)) return result;
   const definition = findDefinition(block.seed_version, block.block_type);
   if (definition === null) return result;
-  const blockType = definition.block_type;
+  const blockType = definition.block_type as EquipmentBlockType;
   const phraseRows = registryRows.filter(isNcPhraseRow);
 
   for (const item of definition.checklist ?? []) {

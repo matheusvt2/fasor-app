@@ -548,6 +548,143 @@ export const copy = {
       inspecao_qgbt: 'Inspeção de QGBT',
     },
   },
+  // Story 14.7 (`41-templates.html` § Tipos de equipamento): the list's static words. Every
+  // heading with a count, status pill, row line and toast with a name is the kernel's
+  // (`companyTypesHeading`, `libraryTypesHeading`, `typeStatusText`, `companyTypeSecondaryText`,
+  // `libraryTypeListRows`, `typeDuplicatedText`, `retireTypeTitle`, `retireTypeBody`).
+  types: {
+    heading: 'Tipos de equipamento',
+    // The product's name is the caller's (the PRODUTO constant).
+    note: (product: string) =>
+      `Um tipo de equipamento define a ficha: placa, verificações, ensaios e critérios. Os tipos da biblioteca vêm com o ${product} e não mudam; para ajustar um, duplique e edite a cópia. Publicar congela uma versão: relatórios já criados mantêm a versão que usaram.`,
+    libraryNote: 'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. O tipo da biblioteca continua nas paletas.',
+    edit: 'Editar',
+    duplicate: 'Duplicar',
+    retire: 'Aposentar',
+    reactivate: 'Reativar',
+    discard: 'Descartar rascunho',
+    editRow: (name: string) => `Editar tipo ${name}`,
+    viewRow: (name: string) => `Ver tipo ${name}`,
+    // authored (Story 14.7, from the mock's toasts).
+    retired: 'Tipo aposentado · fora das paletas',
+    reactivated: 'Tipo reativado · volta para as paletas',
+    discarded: 'Rascunho descartado',
+    undo: 'Desfazer',
+    cancel: 'Cancelar',
+    // authored (Story 14.7): no company type yet.
+    empty: 'Nenhum tipo da empresa. Duplique um tipo da biblioteca para começar.',
+  },
+  // Story 14.7 (`43-tipo-equipamento.html`): the type editor's static words. Tab labels with
+  // their counts, the head line, the publish label and reason, every row line and every issue
+  // sentence are the kernel's (`typeEditorTabs`, `typeEditorMetaText`, `publishVersionLabel`,
+  // `publishBlockedText`, `fieldSummaryText`, `itemSummaryText`, `testSummaryText`,
+  // `validateTypeDraft`, `suggestedTagHelperText`, `FIELD_KIND_WORDS`, `CRITERION_RULE_WORDS`,
+  // `TEST_GRAMMAR_WORDS`).
+  typeEditor: {
+    title: 'Tipo de equipamento',
+    tabsLabel: 'Partes do tipo',
+    preview: 'Pré-visualização',
+    autosaveBanner: (next: number) => `Cada alteração fica salva no rascunho. Os relatórios só veem a versão ${next} depois de "Publicar"; os já criados continuam na versão que usaram.`,
+    // authored (Story 14.7): the head of a type that is not on this device.
+    missing: 'Este tipo não está neste aparelho.',
+    // Identificação
+    nameLabel: 'Nome do tipo',
+    nameHelper: 'Aparece nas paletas, no título da ficha e na seção 9 impressa. Mudar o nome publica com a próxima versão.',
+    prefixLabel: 'Prefixo da TAG',
+    printGroupLabel: 'Grupo na impressão',
+    printGroupValue: 'Outros equipamentos, depois de Transformadores',
+    // authored (Story 14.7): the optional print title, not drawn in the mock.
+    printTitleLabel: 'Título impresso (opcional)',
+    printTitleHelper: 'Sai no título da ficha na seção 9; em branco, o nome do tipo.',
+    singularLabel: 'Nome no singular',
+    pluralLabel: 'Nome no plural',
+    genderLabel: 'Gênero',
+    masculine: 'Masculino (o)',
+    feminine: 'Feminino (a)',
+    genderHelper: 'Usado nas frases compostas: "O no-break NB-01 encontra-se apto para operação."',
+    // Placa
+    nameplateHeading: 'Campos da placa',
+    nameplateNote: 'Na ordem da ficha. Tipos: Texto · Número (com unidade) · Data · Lista (com opções) · Fabricante · Classe de tensão.',
+    nameplateList: 'Campos da placa',
+    addField: 'Adicionar campo',
+    fieldLabel: 'Rótulo',
+    fieldKind: 'Tipo do campo',
+    // authored (Story 14.7): the unit input of a number field, not drawn in the mock.
+    fieldUnit: 'Unidade',
+    fieldOptions: 'Opções, na ordem da lista',
+    unitNotForList: 'Unidade não se aplica a uma lista.',
+    // authored (Story 14.7): the add-chip's input and its accessible names.
+    newOption: 'Opção',
+    newOptionLabel: 'Nova opção',
+    removeOption: (option: string) => `Remover opção ${option}`,
+    editFieldLabel: (name: string) => `Editar campo ${name}`,
+    // Verificações
+    checklistHeading: 'Itens de verificação',
+    checklistNote: 'Cada item é marcado C · NC · NA na ficha. As frases de NC (3 a 4) viram atalhos quando o técnico marca NC.',
+    checklistList: 'Itens de verificação',
+    addItem: 'Adicionar item',
+    itemText: 'Texto do item',
+    itemPhrases: 'Frases de NC (3 a 4)',
+    phrasesFull: 'Limite de 4 frases atingido: remova uma para trocar.',
+    newPhrase: 'Frase',
+    newPhraseLabel: 'Nova frase de NC',
+    removePhrase: (phrase: string) => `Remover frase ${phrase}`,
+    itemHint: 'Lembrete na ficha (opcional, não sai na impressão)',
+    editItemLabel: (n: number) => `Editar item ${n}`,
+    itemMore: (n: number) => `item ${n}`,
+    // Ensaios
+    testsHeading: 'Ensaios',
+    testsNote: 'Cada ensaio vem de um formato pronto. O critério de cada linha fica na aba Critérios, com a fonte.',
+    testsList: 'Ensaios',
+    addTest: 'Adicionar ensaio',
+    testTitle: 'Título do ensaio',
+    editTestLabel: (name: string) => `Editar ensaio ${name}`,
+    rowsTable: 'Linhas da tabela de medições',
+    rowColumn: 'Linha',
+    // authored (Story 14.7): the unit column of a measurement row.
+    rowUnit: 'Unidade',
+    rowCriterion: 'Critério',
+    addRow: 'Adicionar linha',
+    removeRow: (name: string) => `Remover linha ${name}`,
+    optionalLabel: 'Opcional na ficha',
+    optionalSub: 'O técnico pode desligar este ensaio quando não for possível fazê-lo',
+    // authored (Story 14.7): a seeded format's table is the format's own.
+    seededTableNote: 'As tabelas deste formato são as da biblioteca; o critério fica na aba Critérios.',
+    grammarTitle: 'Adicionar ensaio',
+    grammarGroup: 'Formato do ensaio',
+    add: 'Adicionar',
+    // Critérios
+    criteriaHeading: 'Critérios de aceitação deste tipo',
+    criteriaNote: 'Os valores padrão que a ficha usa para sugerir Conforme ou Fora do limite. Todo critério precisa de uma fonte, que sai na legenda da tabela impressa. Mudar um valor vale a partir da versão publicada.',
+    criteriaRules: 'Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · ± · aprovado ou reprovado.',
+    colCriterion: 'Critério',
+    colRule: 'Regra',
+    colValue: 'Valor',
+    colSource: 'Fonte',
+    // authored (Story 14.7): the inputs' accessible names and the second bound of "entre".
+    valueLabel: (name: string) => `Valor de ${name}`,
+    valueMaxLabel: (name: string) => `Valor máximo de ${name}`,
+    ruleLabel: (name: string) => `Regra de ${name}`,
+    sourceLabel: (name: string) => `Fonte de ${name}`,
+    editionLabel: (name: string) => `Edição da fonte de ${name}`,
+    and: 'e',
+    sourcePlaceholder: 'Nome da norma, manual ou documento',
+    editionPlaceholder: 'Edição (opcional)',
+    noCriteria: 'Nenhum critério: adicione um ensaio para ter critérios.',
+    // Pré-visualização
+    previewNote: 'Como a ficha aparece no campo com o rascunho atual. Nada aqui é salvo.',
+    previewLabel: (tag: string) => `Pré-visualização da ficha ${tag}`,
+    choose: 'Escolher',
+    // the bar
+    back: 'Voltar aos tipos',
+    retire: 'Aposentar',
+    reactivate: 'Reativar',
+    // authored (Story 14.7): the reason while there is no draft to publish.
+    nothingToPublish: 'Nada a publicar: edite o tipo para abrir o rascunho da próxima versão.',
+    moveUp: 'Subir',
+    moveDown: 'Descer',
+    remove: 'Remover',
+  },
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision
   // number is the kernel's (`idleReason`, `generatingText`, `generatingReason`,
   // `readyTitle`, `readyToast`, `nextEditNote`, `revisionRowSegments`); only the static

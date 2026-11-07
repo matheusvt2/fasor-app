@@ -9,7 +9,7 @@ import { artLabel } from '../print/document-control.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, findSeed, getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
+import { blockDefinitionIn, findSeed, getSeed, sectionText, snapshotDefinitionContext, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { rejectedText } from '../sync/counts.ts';
 import { isOptionalSectionVariable, resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
@@ -214,12 +214,13 @@ export function conclusionStaleText(names: readonly string[]): string {
  */
 function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
   const tags = new Map(snapshot.equipment.map((row) => [row.id, row.tag]));
+  const ctx = snapshotDefinitionContext(snapshot);
   const stale = new Set<string>();
   for (const block of snapshot.blocks) {
     // The cheap checks first; the composition runs only for a concluded sheet with a printable text.
     if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block) !== 'concluida') continue;
-    if (!enabledSubBlocksOf(block).has('conclusion') || conclusionTextForPrint(block) === null) continue;
-    const definition = findDefinition(block.seed_version, block.block_type);
+    const definition = blockDefinitionIn(ctx, block);
+    if (!enabledSubBlocksOf(block).has('conclusion') || conclusionTextForPrint(block, definition) === null) continue;
     if (definition === null) continue;
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
     if (conclusionTextState(block, composeConclusion(block, definition, tag)) === 'stale') stale.add(block.id);
@@ -234,7 +235,7 @@ function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
   for (const block of snapshot.blocks) {
     if (!stale.has(block.id)) continue;
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
-    names.push(tag !== '' ? tag : (findDefinition(block.seed_version, block.block_type)?.label ?? block.block_type));
+    names.push(tag !== '' ? tag : (blockDefinitionIn(ctx, block)?.label ?? block.block_type));
   }
   return names;
 }
@@ -409,13 +410,14 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: 'suggestions_pending', row: 'section_9', severity: 'pending', text: fichasComSugestoesText(withSuggestions), kind: 'suggestions_pending' });
   }
   // Story 7.5: a concluded sheet whose conclusion text is not confirmed prints without it.
+  const definitions = snapshotDefinitionContext(snapshot);
   const unconfirmed = snapshot.blocks.filter(
     (block) =>
       block.removed_at === null &&
       isEquipmentBlock(block) &&
       sheetState(block) === 'concluida' &&
       enabledSubBlocksOf(block).has('conclusion') &&
-      conclusionTextForPrint(block) === null,
+      conclusionTextForPrint(block, blockDefinitionIn(definitions, block)) === null,
   ).length;
   if (unconfirmed > 0) {
     rows.push({ id: 'conclusion_unconfirmed', row: 'section_9', severity: 'pending', text: conclusionUnconfirmedText(unconfirmed), kind: 'conclusion_unconfirmed' });

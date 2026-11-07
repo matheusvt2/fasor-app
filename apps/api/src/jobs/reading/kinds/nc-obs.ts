@@ -1,6 +1,6 @@
-import { buildProseSuggestion, getDefinition, ncObsReadingTargetSchema, ncObsSkipReason, sheetChecklistPath } from '@app/domain';
+import { buildProseSuggestion, ncObsReadingTargetSchema, ncObsSkipReason, sheetChecklistPath } from '@app/domain';
 import { PermanentReadingError } from '../providers/errors.ts';
-import { targetBlock } from './shared.ts';
+import { readingDefinitionOf, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
 
 /*
@@ -23,12 +23,10 @@ export const ncObsHandler: ReadingKindHandler = {
     if (!parsed.success) throw new PermanentReadingError('the photo has no nc_obs reading target');
     const target = parsed.data;
     const block = await targetBlock(db, companyId, relatorioId, target);
-    let checklist;
-    try {
-      checklist = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).checklist;
-    } catch (error) {
-      throw new PermanentReadingError('the target block has no definition', { cause: error });
-    }
+    // Story 14.6: a company type's checklist is its version's (the company's own rows).
+    const definition = await readingDefinitionOf(db, companyId, block);
+    if (definition === null) throw new PermanentReadingError('the target block has no definition');
+    const checklist = definition.checklist;
     const item = checklist?.find((entry) => entry.key === target.item_key);
     if (item === undefined) throw new PermanentReadingError('the target checklist item is not on the block');
 

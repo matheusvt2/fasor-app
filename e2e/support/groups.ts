@@ -82,6 +82,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'cta.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice to read the Chave de transferência automática under "Outros equipamentos" in section 9 of the DOCX',
   },
+  // Story 14.8: 14.8-E2E-001 generates the DOCX its company type is read from under "Outros equipamentos".
+  {
+    file: 'company-type.durability.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read a company equipment type under "Outros equipamentos" in section 9 of the DOCX',
+  },
   // Story 14.9: 14.9-E2E-001 generates the DOCX its "Outros equipamentos" group and QGBT tables are read from.
   {
     file: 'qgbt.spec.ts',

@@ -1,7 +1,7 @@
-import { BASE_EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType } from '../schemas/block-config.ts';
-import { findDefinition, siteItems } from '../seed/definitions.ts';
+import { BASE_EQUIPMENT_BLOCK_TYPES, companyTypeIdOf, isCompanyBlockType, isEquipmentBlockType, typeVersionOf } from '../schemas/block-config.ts';
+import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, type DefinitionContext } from '../seed/definitions.ts';
 import type { MeasurementTest } from '../seed/measurement.ts';
-import type { TestDef } from '../seed/schema.ts';
+import type { BlockDefinition, TestDef } from '../seed/schema.ts';
 import {
   blockRowSchema,
   cellSchema,
@@ -10,11 +10,17 @@ import {
   type Cell,
   type Entity,
   type EntityRow,
+  type EquipmentTypeRow,
+  type EquipmentTypeVersionRow,
   type FileRow,
   type LocationRow,
   type RelatorioRow,
   type Sheet,
 } from '../schemas/entities.ts';
+import { lockedSubBlocksOf } from '../seed/template.ts';
+import { canonicalJson } from '../text/hash.ts';
+import { companyTypeDefinitionSchema } from '../types/definition.ts';
+import { validateTypeDraft } from '../types/validate.ts';
 import { SERVER_DEVICE_ID, uuidV7Schema } from '../ids.ts';
 import { mergeCell } from '../merge/policy.ts';
 import { readingKindPutStatus } from '../reading/retarget.ts';
@@ -109,12 +115,27 @@ function carriedLibraryType(op: Op, path: OpPath): string | null {
 }
 
 /**
+ * Story 14.6: the type a `equipment_type_version/{id}` create publishes, when its value names one
+ * by an id of the kernel's shape (any other value is the row schema's to refuse, `op_invalid`).
+ */
+function carriedTypeId(op: Op, path: OpPath): string | null {
+  if (path.family !== 'equipment_type_version' || op.kind !== 'create') return null;
+  const value = op.value as { type_id?: unknown } | null;
+  const typeId = value !== null && typeof value === 'object' ? value.type_id : null;
+  return typeof typeId === 'string' && uuidV7Schema.safeParse(typeId).success ? typeId : null;
+}
+
+/**
  * The rows an op may read or write: its target, plus the block a photo op carries, the
  * location a block op places its block on (read only, for `LocationKindError`) and, Story
  * 14.3, the relatório of a site checklist put (read only, for the seed check of
  * `assertSiteItem`; named when the op carries `relatorio_id`, as every relatório-scope op does).
  * Story 14.5: the relatório of a block create of a type only some seed versions ship (read
  * only, for `assertBlockType`); a create of one of the eight names nothing more than before.
+ * Story 14.6: the type row of a published version's create, which its fold writes too
+ * (`latest_version`, the draft it published). The version rows a company block's fold resolves
+ * are not named here (a sheet op does not say its block's type): each layer adds them to the
+ * state it folds in (`definitionTypeIdsOf`).
  */
 export function targetsOf(op: Op): ResolvedRef[] {
   const path = parsePath(op.path);
@@ -125,7 +146,62 @@ export function targetsOf(op: Op): ResolvedRef[] {
   if (locationId) refs.push(ref('location', locationId));
   if (path.family === 'location/checklist' && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
   if (carriedLibraryType(op, path) !== null && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
+  const typeId = carriedTypeId(op, path);
+  if (typeId !== null) refs.push(ref('equipment_type', typeId));
   return refs;
+}
+
+/**
+ * Story 14.6 (AD-21 note of 2026-11-06, item 4): the company types whose published versions the
+ * fold of `op` resolves, given the rows `targetsOf(op)` names (`state`): the type a `block/{id}`
+ * create names, and the type of the block a `block/{id}/config` put or a `sheet/*` write lands on
+ * (and the type a config put names); no other op reads a definition. Each layer loads that type's version rows into the state it
+ * folds in (the api the pushing company's only: the AD-10 tenant guard), so `applyOp` reads them
+ * through `definitionContextOf`. Empty for every op that touches no company type, which is every
+ * op of a relatório holding only seeded types.
+ */
+export function definitionTypeIdsOf(op: Op, state: EntityState): string[] {
+  let path: OpPath;
+  try {
+    path = parsePath(op.path);
+  } catch {
+    return [];
+  }
+  const ids = new Set<string>();
+  const add = (blockType: unknown) => {
+    const typeId = companyTypeIdOf(blockType);
+    if (typeId !== null) ids.add(typeId);
+  };
+  if (path.family === 'block' && op.kind === 'create') {
+    add((op.value as { block_type?: unknown } | null)?.block_type);
+  } else if ((path.family === 'block/field' && path.field === 'config') || path.family.startsWith('sheet/')) {
+    const blockId = 'block_id' in path ? path.block_id : (path as { id: string }).id;
+    const block = state.get(entityKey('block', blockId)) as BlockRow | undefined;
+    if (block !== undefined) add(block.block_type);
+    if (path.family === 'block/field' && op.value !== null && typeof op.value === 'object') add((op.value as { block_type?: unknown }).block_type);
+  }
+  return [...ids];
+}
+
+/**
+ * Story 14.6: `touched` (the rows `targetsOf(op)` names) with the version rows of `source` the
+ * fold of `op` resolves (`definitionTypeIdsOf`) added beside them, at keys `touched` does not
+ * hold; `touched` itself when the op meets no company type. The one way a layer that folds over a
+ * larger state (the kernel's `replay`, the device's `materializeEntity` context) adds them.
+ */
+export function withDefinitionRows(touched: EntityState, op: Op, source: EntityState): EntityState {
+  if (source.size === 0) return touched;
+  const typeIds = definitionTypeIdsOf(op, touched);
+  if (typeIds.length === 0) return touched;
+  const wanted = new Set(typeIds);
+  let out: Map<EntityKey, EntityRow> | null = null;
+  for (const [key, row] of source) {
+    if (!key.startsWith('equipment_type_version:') || touched.has(key)) continue;
+    if (!wanted.has((row as EquipmentTypeVersionRow).type_id)) continue;
+    out ??= new Map(touched);
+    out.set(key, row);
+  }
+  return out ?? touched;
 }
 
 /** Story 14.3: the families whose value is a cell folded through `mergeCell`: every `sheet/*` one and a local's site checklist. */
@@ -372,7 +448,7 @@ function assertBlockType(state: EntityState, op: Op, path: OpPath): void {
  * none). `sheet/test` on a measurement test writes its instrument only, and only when the
  * test offers a picker (`instrument_of`); there is no criterion override.
  */
-function assertSeedPath(block: BlockRow, path: OpPath): void {
+function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionContext): void {
   if (
     path.family !== 'sheet/nameplate' &&
     path.family !== 'sheet/checklist' &&
@@ -382,7 +458,10 @@ function assertSeedPath(block: BlockRow, path: OpPath): void {
   ) {
     return;
   }
-  const definition = findDefinition(block.seed_version, block.block_type);
+  // Story 14.6: a company block's definition is its published version, through the context.
+  const definition = isCompanyBlockType(block.block_type)
+    ? findDefinitionIn(ctx(), block.seed_version, block.block_type, typeVersionOf(block.config))
+    : findDefinition(block.seed_version, block.block_type);
   if (definition === null) {
     throw new SeedPathError(
       formatPath(path),
@@ -528,8 +607,8 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
  * through `cellSchema` and the attribution columns through `attributionSchema`. Throws the
  * same `ZodError` the whole-row parse threw for a value that is not a JSON value.
  */
-function writeSheet(block: BlockRow, op: Op, path: OpPath): BlockRow {
-  assertSeedPath(block, path);
+function writeSheet(block: BlockRow, op: Op, path: OpPath, ctx: () => DefinitionContext): BlockRow {
+  assertSeedPath(block, path, ctx);
   const cell = cellSchema.parse(cellOf(block, op, path));
   const next = attributed(putSheet(block, path, cell), op);
   attributionSchema.parse(next);
@@ -597,6 +676,8 @@ function createRow(entity: Entity, id: string, op: Op): EntityRow {
   // The row is keyed by its path id: a value naming another id would materialize a row whose
   // JSON id differs from its key.
   if (row.id !== id) throw new SeedPathError(op.path, `the created row's id "${row.id}" is not the path id`);
+  // Story 14.6: a type is born unpublished; `latest_version` is the reducer's, never the value's.
+  if (entity === 'equipment_type') return { ...(row as EquipmentTypeRow), latest_version: 0 };
   if (entity === 'block') {
     // The derived columns are the reducer's: a created row never brings its own.
     const block = withoutRemovalMarks(row as BlockRow);
@@ -617,7 +698,7 @@ function readingKindStatus(file: FileRow, field: string, value: unknown): Record
 }
 
 /** Applies a put or remove to its target row; returns the row unchanged when the op does not apply. */
-function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
+function writeRow(row: EntityRow, op: Op, path: OpPath, ctx: () => DefinitionContext): EntityRow {
   const value = op.kind === 'remove' ? op.client_ts : op.value;
   const r = row as Record<string, unknown>;
   switch (path.family) {
@@ -685,7 +766,7 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'sheet/test/value':
     case 'sheet/conclusion':
     case 'sheet/observations':
-      return writeSheet(row as BlockRow, op, path);
+      return writeSheet(row as BlockRow, op, path, ctx);
     case 'block/field': {
       if (path.field === 'removed_at') return writeRemovedAt(row as BlockRow, op, value as string | null);
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;
@@ -703,6 +784,111 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
       return field ? ({ ...r, [field]: value } as EntityRow) : row;
     }
   }
+}
+
+// --- Story 14.6: company equipment types (AD-3 note of 2026-11-06) --------------------------------
+
+/**
+ * A published version's create: its definition passes the strict schema (the kernel's first pt-BR
+ * sentence when it does not: `validateTypeDraft`), and, with its type row in `state` (the row
+ * `targetsOf` names), the type is not removed and the version is the type's `latest_version + 1`:
+ * two users publishing at once, the later push is refused and its device keeps its draft, which it
+ * publishes again as the next number. A type row that is not in `state` is not judged here, as a
+ * relatório row in `assertSiteItem` is not: the device rebuilds a version row from its own create
+ * alone; the server holds the row whenever the company does, and refuses a version naming a type
+ * the company does not hold before the fold (`REFERENCE_FIELDS`, `op_target_missing`).
+ */
+function assertVersionCreate(state: EntityState, op: Op): void {
+  const value = op.value as { type_id?: unknown; version?: unknown; definition?: unknown } | null;
+  if (value === null || typeof value !== 'object') return;
+  if (!companyTypeDefinitionSchema.safeParse(value.definition).success) {
+    const first = validateTypeDraft(value.definition as never)[0];
+    throw new SeedPathError(op.path, `equipment_type_version: the definition does not publish: ${first?.message ?? 'invalid'}`);
+  }
+  if (typeof value.type_id !== 'string') return;
+  const type = state.get(entityKey('equipment_type', value.type_id)) as EquipmentTypeRow | undefined;
+  if (type === undefined) return;
+  if (type.removed_at !== null) throw new SeedPathError(op.path, `equipment_type_version: type ${type.id} is removed`);
+  if (value.version !== type.latest_version + 1) {
+    throw new SeedPathError(op.path, `equipment_type_version: version ${String(value.version)} of type ${type.id} is not its latest_version + 1 (${type.latest_version + 1})`);
+  }
+}
+
+/**
+ * The type row after one of its versions is published: its `latest_version`, and its draft
+ * cleared when it is the definition just published (deep-equal); a draft edited after the publish
+ * differs and stays open as the next version's.
+ */
+function publishedType(type: EquipmentTypeRow, version: EquipmentTypeVersionRow): EquipmentTypeRow {
+  const published = type.draft !== null && canonicalJson(type.draft) === canonicalJson(version.definition);
+  return { ...type, latest_version: version.version, ...(published ? { draft: null } : {}) };
+}
+
+/**
+ * An `equipment_type/{id}/{field}` put: a draft or retirement put on a removed type is refused,
+ * and so is a `removed_at` put ("Descartar rascunho") on a type with a published version; a put
+ * on a type that is not in `state` too (the server answers it `op_target_missing` first).
+ */
+function assertTypePut(type: EquipmentTypeRow | undefined, op: Op, path: OpPath & { family: 'equipment_type/field' }): void {
+  if (type === undefined) throw new SeedPathError(op.path, `equipment_type/field: type ${path.id} is not in state`);
+  if (path.field === 'removed_at') {
+    if (type.latest_version > 0) throw new SeedPathError(op.path, `equipment_type/field: type ${type.id} has a published version and is never discarded`);
+    return;
+  }
+  if (type.removed_at !== null) throw new SeedPathError(op.path, `equipment_type/field: type ${type.id} is removed`);
+}
+
+/** A company block's config: it names its own type, and its sub-block and NA keys are the definition's. */
+function assertCompanyConfig(op: Op, definition: BlockDefinition, blockType: string, config: unknown): void {
+  const c = config as { block_type?: unknown; sub_blocks?: unknown; na_defaults?: unknown };
+  if (c.block_type !== blockType) throw new SeedPathError(op.path, `block: the config names "${String(c.block_type)}", not the block's type "${blockType}"`);
+  const subBlocks = new Set(definition.sub_blocks);
+  const entries = typeof c.sub_blocks === 'object' && c.sub_blocks !== null ? (c.sub_blocks as Record<string, { enabled?: unknown } | undefined>) : {};
+  for (const key of Object.keys(entries)) {
+    if (!subBlocks.has(key)) throw new SeedPathError(op.path, `block: "${key}" is not a sub-block of ${blockType}`);
+  }
+  // A test the type does not make switchable (and the checklist and conclusion) is never switched off.
+  for (const key of lockedSubBlocksOf(definition)) {
+    if (entries[key]?.enabled === false) throw new SeedPathError(op.path, `block: "${key}" of ${blockType} is always on`);
+  }
+  const items = new Set<string>((definition.checklist ?? []).map((item) => item.key));
+  for (const key of Array.isArray(c.na_defaults) ? (c.na_defaults as unknown[]) : []) {
+    if (typeof key !== 'string' || !items.has(key)) throw new SeedPathError(op.path, `block: "${String(key)}" is not an item of ${blockType}`);
+  }
+}
+
+/**
+ * A `block/{id}` create of a company type: its config names a published version of the type that
+ * a version row in `state` holds (on the server, the pushing company's rows only: the cross-tenant
+ * guard), and its keys are that definition's.
+ */
+function assertCompanyBlockCreate(op: Op, path: OpPath, ctx: () => DefinitionContext): void {
+  if (path.family !== 'block' || op.kind !== 'create') return;
+  const value = op.value as { block_type?: unknown; config?: unknown; seed_version?: unknown } | null;
+  if (value === null || typeof value !== 'object' || !isCompanyBlockType(value.block_type)) return;
+  const blockType = value.block_type;
+  const config = value.config;
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) throw new SeedPathError(op.path, `block: ${blockType} carries no config`);
+  const definition = findDefinitionIn(ctx(), typeof value.seed_version === 'string' ? value.seed_version : '', blockType, typeVersionOf(config));
+  if (definition === null) {
+    throw new SeedPathError(op.path, `block: no published version ${String(typeVersionOf(config) ?? '(none)')} of ${blockType} in state`);
+  }
+  assertCompanyConfig(op, definition, blockType, config);
+}
+
+/**
+ * A `block/{id}/config` put on a block of a company type, or one naming a company type: the
+ * block keeps the `{block_type, type_version}` it was created with (checked only when either
+ * side is a company type, so no earlier log changes outcome), and its keys are its definition's.
+ */
+function assertConfigPut(block: BlockRow, op: Op, ctx: () => DefinitionContext): void {
+  const next = op.value as { block_type?: unknown } | null;
+  const nextType = next !== null && typeof next === 'object' ? next.block_type : undefined;
+  if (!isCompanyBlockType(block.block_type) && !isCompanyBlockType(nextType)) return;
+  if (nextType !== block.block_type) throw new SeedPathError(op.path, `block/config: the type of block ${block.id} is "${block.block_type}" and never changes`);
+  if (typeVersionOf(op.value) !== typeVersionOf(block.config)) throw new SeedPathError(op.path, `block/config: block ${block.id} keeps type_version ${String(typeVersionOf(block.config))}`);
+  const definition = findDefinitionIn(ctx(), block.seed_version, block.block_type, typeVersionOf(block.config));
+  if (definition !== null) assertCompanyConfig(op, definition, block.block_type, op.value);
 }
 
 /** The `sheet/*` families: `writeSheet` validates what they write, so the row is not parsed again. */
@@ -725,18 +911,33 @@ export function applyOp(state: EntityState, op: Op): EntityState {
   const target = targetRef(op, path);
   const next = new Map(state);
   const current = state.get(target.key);
+  // Story 14.6: the context of the version rows in the state, built only when a company type is met.
+  let ctx: DefinitionContext | null = null;
+  const context = (): DefinitionContext => (ctx ??= definitionContextOf(state));
 
   if (op.kind === 'create') {
     if (current) return next;
     assertBlockLocation(state, op, path);
     assertBlockType(state, op, path);
-    next.set(target.key, createRow(target.entity, target.id, op));
+    assertCompanyBlockCreate(op, path, context);
+    if (path.family === 'equipment_type_version') assertVersionCreate(state, op);
+    const created = createRow(target.entity, target.id, op);
+    next.set(target.key, created);
+    if (path.family === 'equipment_type_version') {
+      // The one fold that writes a row beside its target: the type's latest version and its draft.
+      const version = created as EquipmentTypeVersionRow;
+      const typeKey = entityKey('equipment_type', version.type_id);
+      const type = state.get(typeKey) as EquipmentTypeRow | undefined;
+      if (type !== undefined) next.set(typeKey, entityRowSchemas.equipment_type.parse(publishedType(type, version)));
+    }
   } else {
+    if (path.family === 'equipment_type/field') assertTypePut(current as EquipmentTypeRow | undefined, op, path);
     if (!current) return next;
     if (target.entity === 'location') assertLocationKind(current as LocationRow, op, path);
     if (path.family === 'location/checklist') assertSiteItem(state, current as LocationRow, op, path);
     assertBlockLocation(state, op, path);
-    const written = writeRow(current, op, path);
+    if (path.family === 'block/field' && path.field === 'config') assertConfigPut(current as BlockRow, op, context);
+    const written = writeRow(current, op, path, context);
     if (written === current) return next;
     next.set(target.key, isSheetFamily(path.family) ? written : entityRowSchemas[target.entity].parse(written));
   }

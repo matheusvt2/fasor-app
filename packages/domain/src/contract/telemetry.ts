@@ -293,6 +293,8 @@ const SCREEN_ROUTES: readonly (readonly [RegExp, Screen])[] = [
   [new RegExp(`^/relatorio/${ID}/pontos$`), 'points'],
   [/^\/templates$/, 'templates'],
   [new RegExp(`^/templates/${ID}$`), 'composer'],
+  // Story 14.7: the type editor belongs to Templates (no screen of its own in the event contract).
+  [new RegExp(`^/templates/tipos/${ID}$`), 'templates'],
   [/^\/cadastros$/, 'cadastros'],
   [/^\/sync$/, 'sync'],
   [/^\/account$/, 'account'],

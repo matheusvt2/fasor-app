@@ -1,4 +1,4 @@
-import { blockConfigSchema, isEquipmentBlockType, SUB_BLOCK_KEYS, type SubBlockKey } from '../schemas/block-config.ts';
+import { blockConfigSchema, isCompanyBlockType, isEquipmentKind, SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { SEED_VERSION } from '../seed/definitions.ts';
 import { enabledSubBlocks } from '../templates/compose.ts';
@@ -44,10 +44,10 @@ export function isCellFilled(cell: Cell | null | undefined): boolean {
  * it changes, and a sheet put keeps the block's `config` object), so the parsed config's
  * enabled sub-blocks are kept per `config` object and a block's state per block object.
  */
-const enabledByConfig = new WeakMap<object, Map<string, ReadonlySet<SubBlockKey>>>();
+const enabledByConfig = new WeakMap<object, Map<string, ReadonlySet<string>>>();
 const stateByBlock = new WeakMap<BlockRow, SheetState>();
 
-function parseEnabled(config: unknown, seedVersion: string): ReadonlySet<SubBlockKey> {
+function parseEnabled(config: unknown, seedVersion: string): ReadonlySet<string> {
   const parsed = blockConfigSchema.safeParse(config);
   if (!parsed.success) return new Set(SUB_BLOCK_KEYS);
   return new Set(enabledSubBlocks(parsed.data, seedVersion));
@@ -58,7 +58,7 @@ function parseEnabled(config: unknown, seedVersion: string): ReadonlySet<SubBloc
  * Epic 14 QA Q-12: the type's locked tests are read at the block's own `seed_version` (the
  * current one for a caller that hands no block row, which carries one at run time).
  */
-export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'> & Partial<Pick<BlockRow, 'seed_version'>>): ReadonlySet<SubBlockKey> {
+export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'> & Partial<Pick<BlockRow, 'seed_version'>>): ReadonlySet<string> {
   const config = block.config;
   const seedVersion = typeof block.seed_version === 'string' ? block.seed_version : SEED_VERSION;
   if (typeof config !== 'object' || config === null) return parseEnabled(config, seedVersion);
@@ -84,9 +84,11 @@ export function enabledCells(block: BlockRow): Cell[] {
   if (enabled.has('checklist')) {
     for (const item of Object.values(s.checklist)) for (const c of [item.result, item.observation]) if (c) cells.push(c);
   }
+  const own = companySubBlockKeys(block.config);
   for (const [key, test] of Object.entries(s.test)) {
-    // A test keyed by a sub-block name follows its switch; any other key is always read.
-    if ((SUB_BLOCK_KEYS as readonly string[]).includes(key) && !enabled.has(key as SubBlockKey)) continue;
+    // A test keyed by a sub-block name follows its switch (Story 14.6: a company type's are its
+    // config's keys); any other key is always read.
+    if (((SUB_BLOCK_KEYS as readonly string[]).includes(key) || own.has(key)) && !enabled.has(key)) continue;
     for (const c of [test.instrument, test.criterion_override]) if (c) cells.push(c);
     for (const row of Object.values(test.cells)) cells.push(...Object.values(row));
     // Story 14.5: a measurement test's values outside its table.
@@ -109,7 +111,17 @@ export function sheetState(block: BlockRow): SheetState {
   return state;
 }
 
-/** True for a block that is an equipment sheet (a section block has no sheet state). */
+/** Story 14.6: the sub-block keys a company block's config holds (its definition's), none on any other block. */
+export function companySubBlockKeys(config: unknown): ReadonlySet<string> {
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) return NO_KEYS;
+  const { block_type, sub_blocks } = config as { block_type?: unknown; sub_blocks?: unknown };
+  if (!isCompanyBlockType(block_type) || typeof sub_blocks !== 'object' || sub_blocks === null) return NO_KEYS;
+  return new Set(Object.keys(sub_blocks));
+}
+
+const NO_KEYS: ReadonlySet<string> = new Set();
+
+/** True for a block that is an equipment sheet (a section block has no sheet state); Story 14.6: a company type's block is one. */
 export function isEquipmentBlock(block: Pick<BlockRow, 'block_type' | 'equipment_id'>): boolean {
-  return block.equipment_id !== null || isEquipmentBlockType(block.block_type);
+  return block.equipment_id !== null || isEquipmentKind(block.block_type);
 }

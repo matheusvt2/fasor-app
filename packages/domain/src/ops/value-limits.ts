@@ -183,6 +183,11 @@ const VALUE_RULES = {
   'audit_run/field': SERVER_ONLY,
   'sheet/test/value': { kind: 'value', rule: plainCell },
   'relatorio/removed_at': { kind: 'value', rule: schema },
+  // Story 14.6 (contract 33): a type's draft and a version's definition are structured values
+  // (every string at most long, the whole bounded by `VALUE_MAX_BYTES`); the rest is the row schema's.
+  equipment_type: { kind: 'row', fields: { draft: structured }, otherwise: schema },
+  'equipment_type/field': { kind: 'fields', fields: { draft: structured }, otherwise: schema },
+  equipment_type_version: { kind: 'row', fields: { definition: structured }, otherwise: schema },
 } as const satisfies Record<PathFamily, FamilyValueRule>;
 
 /** The rule of every path family (read by the guard test). */

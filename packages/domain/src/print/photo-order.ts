@@ -2,7 +2,8 @@ import { compareSection7, isGeralPhoto, livePhotos, type SnapshotPhoto } from '.
 import { enabledSubBlocksOf } from '../relatorio/sheet-state.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, findSeed } from '../seed/definitions.ts';
+import { blockDefinitionIn, findDefinition, findSeed, snapshotDefinitionContext } from '../seed/definitions.ts';
+import type { BlockDefinition } from '../seed/schema.ts';
 import { groupForPrint } from './group-for-print.ts';
 
 /*
@@ -25,7 +26,7 @@ import { groupForPrint } from './group-for-print.ts';
  */
 
 /** What the walk reads: `groupForPrint`'s snapshot and the files. */
-export type NumberingSnapshot = Pick<RelatorioSnapshot, 'files' | 'relatorio' | 'locations' | 'blocks' | 'equipment'>;
+export type NumberingSnapshot = Pick<RelatorioSnapshot, 'files' | 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'equipment_types'>;
 
 /** One sheet's photos by where section 9 prints them, each group in capture order. */
 export interface SheetPhotoGroups {
@@ -53,8 +54,11 @@ export interface DocumentPhotoOrder {
  * after it): the sub-block is on, the block's seed version and definition resolve, and the
  * definition carries a checklist. The one predicate section 9 (`sheetOf`) and the walk read.
  */
-export function sheetChecklistPrinted(block: Pick<BlockRow, 'config' | 'seed_version' | 'block_type'>): boolean {
-  const definition = findDefinition(block.seed_version, block.block_type);
+export function sheetChecklistPrinted(
+  block: Pick<BlockRow, 'config' | 'seed_version' | 'block_type'>,
+  // Story 14.6: the block's definition, resolved by the caller (a company type's through the snapshot's context).
+  definition: BlockDefinition | null = findDefinition(block.seed_version, block.block_type),
+): boolean {
   return definition !== null && definition.checklist !== null && enabledSubBlocksOf(block).has('checklist') && findSeed(block.seed_version) !== null;
 }
 
@@ -88,6 +92,7 @@ export function documentPhotoOrder(snapshot: NumberingSnapshot): DocumentPhotoOr
     else if ((photo.location_id ?? null) !== null) push(byLocal, photo.location_id!, photo);
   }
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
+  const ctx = snapshotDefinitionContext(snapshot);
   const cabines = new Set(snapshot.locations.filter((location) => location.kind === 'cabine').map((location) => location.id));
   const siteList = findSeed(snapshot.relatorio.seed_version)?.site_checklist ?? null;
   const siteKeys = siteList === null ? null : new Set<string>(siteList.groups.flatMap((group) => group.items.map((item) => item.key)));
@@ -105,8 +110,9 @@ export function documentPhotoOrder(snapshot: NumberingSnapshot): DocumentPhotoOr
     for (const blockId of subsection.blockIds) {
       const block = blocks.get(blockId);
       // A block whose definition does not resolve prints no photo (`sheetOf`): its photos close the order.
-      if (block === undefined || sheets.has(blockId) || findDefinition(block.seed_version, block.block_type) === null) continue;
-      const groups = groupsOf(byBlock.get(blockId) ?? [], sheetChecklistPrinted(block));
+      const definition = block === undefined ? null : blockDefinitionIn(ctx, block);
+      if (block === undefined || sheets.has(blockId) || definition === null) continue;
+      const groups = groupsOf(byBlock.get(blockId) ?? [], sheetChecklistPrinted(block, definition));
       sheets.set(blockId, groups);
       order.push(...groups.plate, ...groups.items, ...groups.other);
     }

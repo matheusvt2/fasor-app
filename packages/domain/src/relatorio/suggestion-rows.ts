@@ -3,7 +3,7 @@ import { safeParsePath } from '../ops/path.ts';
 import { canonicalDecimal } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import type { BlockRow, Cell, LocationRow, SuggestionRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { isNameplateFieldExcused } from './dry-insulation.ts';
@@ -123,14 +123,15 @@ export function blocksWithPendingSuggestions(pending: readonly SuggestionRow[]):
 }
 
 /** The field definition a nameplate suggestion targets on `block`, or null (another target, an unknown key). */
-export function suggestionFieldDef(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type'>, s: Pick<SuggestionRow, 'target_path'>): FieldDef | null {
+export function suggestionFieldDef(
+  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>,
+  s: Pick<SuggestionRow, 'target_path'>,
+  /** Story 14.6: a company block's plate is its version's. */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+): FieldDef | null {
   const key = nameplateKeyOf(s, block.id);
   if (key === null) return null;
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).nameplate.find((field) => field.key === key) ?? null;
-  } catch {
-    return null;
-  }
+  return blockDefinitionIn(ctx, block)?.nameplate.find((field) => field.key === key) ?? null;
 }
 
 // --- comparing ------------------------------------------------------------------------------

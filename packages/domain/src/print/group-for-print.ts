@@ -1,6 +1,6 @@
 import { headNounAgreement } from '../photos/caption.ts';
 import { LIBRARY_GROUP_LABEL, locationTree, saysColuna, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
-import { roleSchema, type Role } from '../schemas/block-config.ts';
+import { isCompanyBlockType, roleSchema, type Role } from '../schemas/block-config.ts';
 import type { BlockRow, RelatorioRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isLibraryType, siteChecklistOf } from '../seed/definitions.ts';
@@ -326,8 +326,9 @@ function byType(
   const outros: TreeEquipmentNode[] = [];
   for (const node of nodes) {
     // Story 14.5: a library type of the block's own seed version prints in "Outros equipamentos".
+    // Story 14.6 (AD-15 note of 2026-11-06): so does every block of a company type.
     const row = blocks.get(node.blockId);
-    if (row !== undefined && isLibraryType(row.seed_version, node.blockType)) {
+    if (isCompanyBlockType(node.blockType) || (row !== undefined && isLibraryType(row.seed_version, node.blockType))) {
       outros.push(node);
       continue;
     }

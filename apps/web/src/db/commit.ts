@@ -4,6 +4,7 @@ import {
   applyOp,
   byClientTsThenOpId,
   clearedMarks,
+  definitionTypeIdsOf,
   inRelatorioStream,
   invertBatch,
   makeOp,
@@ -28,6 +29,7 @@ import {
 } from '@app/domain';
 import { blockRowsOf, relatoriosOfProject } from './home-store.ts';
 import { PHOTO_SEQ_PREF, targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
+import { typeVersionState } from './type-store.ts';
 import { newId as mintId } from '../ids.ts';
 import { deviceId } from './device-id.ts';
 import { publishStatusChanges, type CommittedStatusChange } from './status-changes.ts';
@@ -72,6 +74,8 @@ async function applyOne(db: AppDatabase, input: Op): Promise<Op> {
   records.forEach((record, i) => {
     if (record) state.set(refs[i]!.key, record.row);
   });
+  // Story 14.6: a company block's op folds with its type's published versions beside its rows.
+  for (const [key, row] of await typeVersionState(db, definitionTypeIdsOf(input, state))) if (!state.has(key)) state.set(key, row);
   const op = stampSeen(input, state);
   const prev_value = readPath(state, op);
   const next = applyOp(state, op);

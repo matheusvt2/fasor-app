@@ -1,6 +1,7 @@
 import {
   applyOp,
   attributionIssue,
+  definitionTypeIdsOf,
   clientReadingKindPutAllowed,
   entityKey,
   FILE_SERVER_FIELDS,
@@ -454,6 +455,14 @@ async function mergeTarget(
   return match === undefined ? null : { kind, from: path.id, into: match };
 }
 
+/** Story 14.6: every published version row of one company type the company holds. */
+async function typeVersionRows(tx: Tx, companyId: CompanyId, typeId: string): Promise<{ id: string; row: EntityRow }[]> {
+  return tx
+    .select({ id: entities.id, row: entities.row })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'equipment_type_version'), sql`${entities.row}->>'type_id' = ${typeId}`));
+}
+
 /** Inserts one op into the log; `undefined` when its `op_id` is already there (a dedupe hit). */
 async function insertOp(tx: Tx, companyId: CompanyId, op: Op, receivedAt: string): Promise<number | undefined> {
   const inserted = await tx
@@ -520,6 +529,12 @@ async function applyOneIn(
     );
   const state = new Map<EntityKey, EntityRow>();
   for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
+  // Story 14.6 (AD-21 note of 2026-11-06, item 4): the published versions of the company types
+  // the fold resolves (a company block's create, config or sheet op), of this company only: a
+  // block naming another company's type finds no version row and is refused (AD-10).
+  for (const typeId of definitionTypeIdsOf(op, state)) {
+    for (const version of await typeVersionRows(tx, companyId, typeId)) state.set(entityKey('equipment_type_version', version.id), version.row);
+  }
 
   // Stories 20.7 to 20.10: after the redirect and before the op is logged, a client op meets the
   // rules that read server state (`rules.ts`). A refused op writes nothing; one the log already

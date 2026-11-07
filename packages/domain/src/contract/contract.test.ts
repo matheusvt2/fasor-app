@@ -99,9 +99,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 32 and refuses version 31 (Stories 22.7 to 22.9 and 22.11: a version-31 bundle cannot resolve seed v12 nor parse an inspecao_qgbt block or the defeito_no_equipamento reason; Stories 22.10 and 22.12: it reads an over-range cell as invalid and cannot parse an equipment/{id}/last_results put)', () => {
-    expect(CONTRACT_VERSION).toBe(32);
-    expect(MIN_CONTRACT_VERSION).toBe(32);
+  it('speaks version 33 and refuses version 32 (Story 14.6: a version-32 bundle cannot parse the equipment_type families, a type: block or a snapshot carrying equipment_types)', () => {
+    expect(CONTRACT_VERSION).toBe(33);
+    expect(MIN_CONTRACT_VERSION).toBe(33);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

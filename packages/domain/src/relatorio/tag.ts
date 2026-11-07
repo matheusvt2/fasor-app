@@ -1,4 +1,4 @@
-import { type EquipmentBlockType } from '../schemas/block-config.ts';
+import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { EquipmentRow } from '../schemas/entities.ts';
 
 /*
@@ -26,6 +26,17 @@ export const TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
   // Story 22.11 (seed v12): the Inspeção de QGBT, "QGBT-C05".
   inspecao_qgbt: 'QGBT',
 };
+
+/**
+ * Story 14.6 (AD-21 item 4): the TAG prefix of a block type: a seeded type's `TAG_PREFIX`, a
+ * company type's its definition's (`tag_prefix`, which only a resolved definition carries).
+ */
+export function tagPrefixOf(type: BlockTypeKey, definition?: { tag_prefix?: string | undefined } | null): string {
+  if (!isCompanyBlockType(type)) return TAG_PREFIX[type];
+  const prefix = definition?.tag_prefix;
+  if (prefix === undefined) throw new Error(`tagPrefixOf: the company block type "${type}" needs its definition`);
+  return prefix;
+}
 
 /** What `suggestTag` needs of the location a block is placed on. */
 export interface TagLocation {
@@ -82,14 +93,21 @@ export function isTagTaken(tag: string, equipment: readonly TagEquipment[]): boo
  * (removed rows never count): `PREFIX-CODE`, then `PREFIX-CODE-2`, `-3`, ...; a
  * transformer is `TR-n` with the smallest free n across the project.
  */
-export function suggestTag(type: EquipmentBlockType, location: TagLocation, existingEquipment: readonly TagEquipment[]): string {
+export function suggestTag(
+  type: BlockTypeKey,
+  location: TagLocation,
+  existingEquipment: readonly TagEquipment[],
+  /** Story 14.6: a company type's definition, which carries its prefix (`tagPrefixOf`). */
+  definition?: { tag_prefix?: string | undefined } | null,
+): string {
+  const prefix = tagPrefixOf(type, definition);
   if (type === 'transformador_forca') {
     for (let n = 1; ; n++) {
-      const tag = `${TAG_PREFIX[type]}-${n}`;
+      const tag = `${prefix}-${n}`;
       if (!isTagTaken(tag, existingEquipment)) return tag;
     }
   }
-  const base = `${TAG_PREFIX[type]}-${locationCode(location)}`;
+  const base = `${prefix}-${locationCode(location)}`;
   if (!isTagTaken(base, existingEquipment)) return base;
   for (let n = 2; ; n++) {
     const tag = `${base}-${n}`;

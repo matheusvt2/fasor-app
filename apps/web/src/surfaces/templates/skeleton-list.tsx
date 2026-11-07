@@ -4,16 +4,14 @@ import {
   localSubText,
   nodeSummaryText,
   painelInLocalText,
-  quantityLabel,
   skeletonHeading,
-  TOTALS_ORDER,
   type ComposerBlockNode,
   type ComposerCabine,
   type ComposerColuna,
   type ComposerNode,
   type ComposerPainel,
   type ComposerView,
-  type EquipmentBlockType,
+  type BlockTypeKey,
 } from '@app/domain';
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
@@ -22,6 +20,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { restoreFocus } from '../../input/focus-restore.ts';
 import { DragHandle, PositionBox } from './reorder-controls.tsx';
 import { useReorder } from './use-reorder.ts';
+import { useTypeNaming } from './type-naming.tsx';
 
 export interface SkeletonListProps {
   view: ComposerView;
@@ -36,7 +35,7 @@ export interface SkeletonListProps {
   /** "Renomear" of a painel or a coluna; "Função e nome" of a local. */
   onRename: (node: ComposerNode) => void;
   onRemove: (node: ComposerNode) => void;
-  onSetQuantity: (ref: string, type: EquipmentBlockType, n: number) => Promise<void>;
+  onSetQuantity: (ref: string, type: BlockTypeKey, n: number) => Promise<void>;
   /** The foot's "Adicionar local": opens the Função dialog. */
   onAddLocal: () => void;
   /**
@@ -158,17 +157,22 @@ interface QtyGridProps {
  * focus, the focus goes to the node's head instead of falling to the page.
  */
 function QtyGrid({ node, onSetQuantity, head }: QtyGridProps) {
-  const types = TOTALS_ORDER.filter((type) => node.quantities[type] > 0);
+  // Story 14.8: a company type placed here follows the seeded ones, named by its version.
+  const naming = useTypeNaming();
+  const types = naming.typesOf(node.quantities);
   if (types.length === 0) return null;
   return (
     <div className="qty-grid">
       {types.map((type) => (
         // Story 15.2 (`42-template-composer.html`, Bruno's answer 6): every equipment line is a card on the Block card look.
         <div className="qty-row eq-card" key={type} data-type={type}>
-          <span className="qty-name">{copy.composer.equipmentNames[type]}</span>
+          <span className="qty-name">
+            {naming.nameOf(type)}
+            {naming.versionTextOf(type) === null ? null : <span className="qty-meta"> · {naming.versionTextOf(type)}</span>}
+          </span>
           <QuantityStepper
-            value={node.quantities[type]}
-            label={(n) => quantityLabel(type, n)}
+            value={node.quantities[type] ?? 0}
+            label={(n) => naming.quantityLabelOf(type, n)}
             onCommit={async (n) => {
               const row = document.activeElement?.closest('.qty-row') ?? null;
               const leaving = n === 0 && row !== null && (row as HTMLElement).dataset.type === type;

@@ -1,7 +1,9 @@
 import type { NewId } from '../ids.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { initialOrderKey } from '../ops/order-key.ts';
-import { isEquipmentBlockType, isSectionBlockType, type TemplateBlock } from '../schemas/block-config.ts';
+import { companyTypeIdOf, isCompanyBlockType, isEquipmentKind, isSectionBlockType, type TemplateBlock } from '../schemas/block-config.ts';
+import { findDefinitionIn, latestTypeVersion, type DefinitionContext } from '../seed/definitions.ts';
+import { defaultBlockConfigIn, lockedSubBlocksOf } from '../seed/template.ts';
 import {
   emptySheet,
   type BlockRow,
@@ -90,6 +92,12 @@ export interface InstantiateInputs {
   existingEquipment: readonly PriorEquipment[];
   /** The responsável técnico of the new relatório (Q2): the signed-in user when they carry a registration, else null. */
   responsible_user_id: string | null;
+  /**
+   * Story 14.6 (AD-21 item 5): the company's published type versions (and type rows), through
+   * which each company block of the template takes its type's latest version, a retired type's
+   * included. Absent: a template with no company block, as every template before 14.6.
+   */
+  definitions?: DefinitionContext;
 }
 
 export interface InstantiateDeps {
@@ -101,6 +109,35 @@ export interface InstantiateDeps {
 export interface Instantiated {
   relatorioId: string;
   drafts: OpDraft[];
+}
+
+/**
+ * Story 14.6 (AD-21 item 5): the config a relatório block of a company type is born with: the
+ * type's latest published version in the context (a retired type's included), else the version
+ * the template records; its definition's sub-blocks, each keeping the template's switch where the
+ * template holds one and the test is not locked, and the template's NA defaults and options that
+ * the version still has. Null when no version of the type resolves (the block is left out: the
+ * fold would refuse it).
+ */
+function companyBlockConfigOf(block: TemplateBlock, seedVersion: string, ctx: DefinitionContext | undefined): JsonValue | null {
+  const typeId = companyTypeIdOf(block.block_type);
+  if (typeId === null || ctx === undefined) return null;
+  const version = latestTypeVersion(ctx, typeId) ?? block.type_version;
+  const definition = findDefinitionIn(ctx, seedVersion, block.block_type, version);
+  if (definition === null) return null;
+  const config = defaultBlockConfigIn(ctx, seedVersion, block.block_type, version);
+  const locked = lockedSubBlocksOf(definition);
+  for (const [key, entry] of Object.entries(block.sub_blocks)) {
+    if (config.sub_blocks[key] !== undefined && !locked.includes(key)) config.sub_blocks[key] = structuredClone(entry);
+  }
+  const items = new Set<string>((definition.checklist ?? []).map((item) => item.key));
+  const fields = new Map((definition.config_fields ?? []).map((field) => [field.key, field]));
+  const options = Object.fromEntries(Object.entries(block.options ?? {}).filter(([key, value]) => fields.get(key)?.options.some((option) => option.key === value) === true));
+  return {
+    ...config,
+    na_defaults: block.na_defaults.filter((key) => items.has(key)),
+    ...(Object.keys(options).length === 0 ? {} : { options }),
+  } as JsonValue;
 }
 
 /** The `BlockConfig` a relatório block copies from a template block (AD-21), plus the section's own text. */
@@ -267,11 +304,16 @@ export function instantiateTemplate(
     const locationId = locationIdOf.get(node.ref)!;
     const location = { kind: node.kind, name: node.name };
     for (const block of liveBlocks) {
-      if (!isEquipmentBlockType(block.block_type) || block.skeleton_location_ref !== node.ref) continue;
+      if (!isEquipmentKind(block.block_type) || block.skeleton_location_ref !== node.ref) continue;
+      // Story 14.6: a company block takes its type's latest version; one no version resolves is left out.
+      const company = isCompanyBlockType(block.block_type);
+      const config = company ? companyBlockConfigOf(block, seedVersion, inputs.definitions) : blockConfigOf(block);
+      if (config === null) continue;
+      const definition = company ? findDefinitionIn(inputs.definitions!, seedVersion, block.block_type, (config as { type_version?: number }).type_version) : null;
       for (let i = 0; i < block.quantity; i++) {
         const n = blockCount.get(locationId) ?? 0;
         blockCount.set(locationId, n + 1);
-        const base = normalizeTag(suggestTag(block.block_type, location, produced));
+        const base = normalizeTag(suggestTag(block.block_type, location, produced, definition));
         const match = prior.find((row) => !bound.has(row.id) && row.type === block.block_type && normalizeTag(row.tag) === base);
         let equipmentId: string;
         if (match !== undefined) {
@@ -280,7 +322,7 @@ export function instantiateTemplate(
           produced.push({ tag: match.tag, removed_at: null });
         } else {
           equipmentId = deps.newId();
-          const tag = suggestTag(block.block_type, location, taken);
+          const tag = suggestTag(block.block_type, location, taken, definition);
           const equipmentRow: EquipmentRow = { id: equipmentId, project_id: project.id, tag, type: block.block_type, last_nameplate: null, removed_at: null };
           produced.push(equipmentRow);
           taken.push(equipmentRow);
@@ -291,7 +333,7 @@ export function instantiateTemplate(
           location_id: locationId,
           equipment_id: equipmentId,
           block_type: block.block_type,
-          config: blockConfigOf(block),
+          config: structuredClone(config),
           order_key: initialOrderKey(n),
         });
         drafts.push({ ...relatorioScope, kind: 'create', path: `block/${blockId}`, value: row as unknown as JsonValue });

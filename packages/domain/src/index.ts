@@ -36,6 +36,11 @@ export * from './seed/criteria.ts';
 export * from './seed/schema.ts';
 export * from './seed/measurement.ts';
 export * from './seed/definitions.ts';
+// Story 14.6 (contract 33): company equipment types, their definition, validation, copies and adapter.
+export * from './types/definition.ts';
+export * from './types/validate.ts';
+export * from './types/block-definition.ts';
+export * from './types/duplicate.ts';
 export * from './seed/defect-reason.ts';
 export * from './seed/template.ts';
 export * from './seed/voltage-classes.ts';
@@ -148,3 +153,7 @@ export * from './text/hash.ts';
 export * from './audit/index.ts';
 // Story 14.12: last, as it reads the seed, the sheet and the screen labels (module order).
 export * from './registry/nc-phrase-row.ts';
+// Story 14.7: the type list's and the editor's derived text, and the editor's draft edits. Last:
+// `types/list.ts` reads `relatorio/tree.ts`, which must finish loading in its own order first.
+export * from './types/list.ts';
+export * from './types/draft-edit.ts';

@@ -36,7 +36,7 @@ describe('1.4-UNIT-005 schema references', () => {
   const upper = ENTITIES.filter((e) => !ENTITY_SCOPE[e].includes('relatorio'));
 
   it('covers the company and project scope entities', () => {
-    expect(upper.sort()).toEqual(['equipment', 'project', 'registry', 'template', 'user']);
+    expect(upper.sort()).toEqual(['equipment', 'equipment_type', 'equipment_type_version', 'project', 'registry', 'template', 'user']);
   });
 
   it.each(upper)('%s never references a relatorio-scope row', (entity: Entity) => {

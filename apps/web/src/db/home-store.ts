@@ -8,6 +8,7 @@ import {
   type EntityRow,
   type EntityState,
   type EquipmentRow,
+  type EquipmentTypeVersionRow,
   type FileRow,
   type InstrumentRow,
   type NcPhraseRow,
@@ -320,6 +321,13 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
   // the Sumário's pending counts read (`suggestionRowsOf`); `buildSnapshot` keeps only the
   // ones a cell references.
   for (const row of parsedOf<SuggestionRow>('suggestion')) put('suggestion', row);
+  // Story 14.6 (AD-15 note of 2026-11-06): the company's published type versions, of which the
+  // snapshot keeps those a live block references (`equipment_types`), so every surface reading
+  // the snapshot resolves a company sheet. Immutable rows; each keeps its identity by its stamp.
+  for (const record of await db.entities.where('entity').equals('equipment_type_version').toArray()) {
+    const row = parse<EquipmentTypeVersionRow>(record);
+    if (row !== null) put('equipment_type_version', row);
+  }
   const at = databaseKey(db, relatorioId);
   parsedRows.set(at, kept);
   // A live-query run that finds every row as it was (a write elsewhere woke it) returns the

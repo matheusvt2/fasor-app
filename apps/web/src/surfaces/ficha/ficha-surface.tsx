@@ -1,5 +1,7 @@
 import {
-  getDefinition,
+  getDefinitionIn,
+  snapshotDefinitionContext,
+  typeVersionOf,
   isEquipmentBlock,
   locationPathText,
   pendingSuggestions,
@@ -80,11 +82,12 @@ function Ficha({ relatorioId, blockId, state: live }: { relatorioId: string; blo
   const definition = useMemo<BlockDefinition | null>(() => {
     if (block === null) return null;
     try {
-      return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
+      // Story 14.6: a company sheet's definition is its version's, from the snapshot.
+      return getDefinitionIn(snapshotDefinitionContext(snapshot), block.seed_version, block.block_type, typeVersionOf(block.config));
     } catch {
       return null;
     }
-  }, [block]);
+  }, [block, snapshot]);
   if (block === null || definition === null) {
     return (
       <div className="content">

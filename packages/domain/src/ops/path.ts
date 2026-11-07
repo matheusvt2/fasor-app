@@ -62,6 +62,12 @@ export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'resu
  * Story 14.10 lane B (contract 20): `coverage`, the sheets the run sent of the ones printed.
  */
 export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version', 'started_at', 'finished_at', 'coverage'] as const;
+/**
+ * Story 14.6 (contract 33): the fields an `equipment_type/{id}/{field}` put writes: the draft
+ * (written whole on every editor change), "Aposentar"/"Reativar" and "Descartar rascunho".
+ * `derived_from` is fixed at create and `latest_version` is derived (`applyOp`), so neither is here.
+ */
+export const EQUIPMENT_TYPE_FIELDS = ['draft', 'retired_at', 'removed_at'] as const;
 
 /**
  * Keys a `{field}` segment may never name: identity, ownership and derived values are set
@@ -184,6 +190,10 @@ export const opPathSchema = z.discriminatedUnion('family', [
   }),
   // Fix batch fxrm (2026-10-29, contract 28): the tombstone of the op's own relatório.
   z.object({ family: z.literal('relatorio/removed_at') }),
+  // Story 14.6 (contract 33): company equipment types and their immutable published versions.
+  z.object({ family: z.literal('equipment_type'), id: uuidV7Schema }),
+  z.object({ family: z.literal('equipment_type/field'), id: uuidV7Schema, field: z.enum(EQUIPMENT_TYPE_FIELDS) }),
+  z.object({ family: z.literal('equipment_type_version'), id: uuidV7Schema }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -376,6 +386,14 @@ export const FAMILIES: readonly FamilyDef[] = [
     serverOnly: true,
     segments: [lit('equipment'), id(), lit('last_results')],
   },
+  // Story 14.6 (contract 33; AD-3 note of 2026-11-06): a company equipment type, scope company.
+  // `equipment_type/{id}` is its create; `equipment_type/{id}/{draft|retired_at|removed_at}` its
+  // puts; `equipment_type_version/{id}` the one create of a published version ("Publicar"), with
+  // no put or remove family, so a published version cannot change by construction. The version
+  // create's fold also writes its type row (`latest_version`, and the draft it published).
+  { family: 'equipment_type', entity: 'equipment_type', create: true, segments: [lit('equipment_type'), id()] },
+  { family: 'equipment_type/field', entity: 'equipment_type', segments: [lit('equipment_type'), id(), en(EQUIPMENT_TYPE_FIELDS)] },
+  { family: 'equipment_type_version', entity: 'equipment_type_version', create: true, segments: [lit('equipment_type_version'), id()] },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));
@@ -592,3 +610,7 @@ export const registryFieldPath = (kind: RegistryKind, id: string, field: string)
 export const templatePath = (id: string): string => formatPath({ family: 'template', id });
 export const templateFieldPath = (id: string, field: string): string => formatPath({ family: 'template/field', id, field });
 export const userFieldPath = (id: string, field: string): string => formatPath({ family: 'user/field', id, field });
+/** Story 14.6: a company equipment type's create, its puts and the create of one published version. */
+export const equipmentTypePath = (id: string): string => formatPath({ family: 'equipment_type', id });
+export const equipmentTypeFieldPath = (id: string, field: (typeof EQUIPMENT_TYPE_FIELDS)[number]): string => formatPath({ family: 'equipment_type/field', id, field });
+export const equipmentTypeVersionPath = (id: string): string => formatPath({ family: 'equipment_type_version', id });

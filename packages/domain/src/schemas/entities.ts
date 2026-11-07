@@ -7,6 +7,7 @@ import { checkTemplateRow } from '../seed/template-rules.ts';
 import { equipmentBlockTypeSchema, funcaoSchema, itemKeySchema, nodeNameSchema, siteItemKeySchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
+import { companyTypeDefinitionSchema, companyTypeDraftSchema } from '../types/definition.ts';
 
 /*
  * Row schemas for every entity the op log materializes (AD-5, AD-10, AD-18).
@@ -267,6 +268,46 @@ export const templateRowSchema = z
     removed_at: nullableIso,
   })
   .superRefine(checkTemplateRow);
+
+/**
+ * Story 14.6 (contract 33; AD-3 and AD-21 notes of 2026-11-06): a company equipment type, the
+ * office's own data beside the seeded types. `derived_from` says what it was copied from (a seeded
+ * type, or a published version of another company type; display only); `draft` is the whole
+ * working definition, loose (`companyTypeDraftSchema`), written whole on every editor change, or
+ * null when no draft is open. "Aposentar" sets `retired_at`, "Descartar rascunho" `removed_at`
+ * (valid only before the first publish). `latest_version` is derived: 0 until the first publish,
+ * materialized by `applyOp` from the version creates and never emitted (a create's own value is
+ * overwritten), like AD-18's columns.
+ */
+export const equipmentTypeDerivedFromSchema = z.union([
+  z.object({ seed_version: z.string().min(1), block_type: equipmentBlockTypeSchema }),
+  z.object({ type_id: uuidV7Schema, version: z.number().int().min(1) }),
+]);
+export type EquipmentTypeDerivedFrom = z.infer<typeof equipmentTypeDerivedFromSchema>;
+
+export const equipmentTypeRowSchema = z.object({
+  id: uuidV7Schema,
+  derived_from: equipmentTypeDerivedFromSchema.nullable(),
+  draft: companyTypeDraftSchema.nullable(),
+  retired_at: nullableIso,
+  removed_at: nullableIso,
+  latest_version: z.number().int().nonnegative().default(0),
+});
+
+/**
+ * Story 14.6: one published version of a company type, immutable by construction (its family is
+ * create only): `version` is the type's `latest_version + 1` at publish, `definition` the strict
+ * definition (`companyTypeDefinitionSchema`). A block and a template block name it by
+ * `{block_type: type:{type_id}, type_version: version}`.
+ */
+export const equipmentTypeVersionRowSchema = z.object({
+  id: uuidV7Schema,
+  type_id: uuidV7Schema,
+  version: z.number().int().min(1),
+  definition: companyTypeDefinitionSchema,
+  published_by: actorIdSchema,
+  published_at: isoTimestampSchema,
+});
 
 /**
  * A company user as the op log knows it. The row is born by the server-only
@@ -781,6 +822,9 @@ export const entityRowSchemas = {
   generation_job: generationJobRowSchema,
   revision: revisionRowSchema,
   audit_run: auditRunRowSchema,
+  // Appended (Story 14.6, contract 33): company equipment types and their published versions.
+  equipment_type: equipmentTypeRowSchema,
+  equipment_type_version: equipmentTypeVersionRowSchema,
 } as const;
 
 export type Entity = keyof typeof entityRowSchemas;
@@ -802,6 +846,8 @@ export type UserRow = EntityRowOf<'user'>;
 export type GenerationJobRow = EntityRowOf<'generation_job'>;
 export type RevisionRow = EntityRowOf<'revision'>;
 export type AuditRunRow = EntityRowOf<'audit_run'>;
+export type EquipmentTypeRow = EntityRowOf<'equipment_type'>;
+export type EquipmentTypeVersionRow = EntityRowOf<'equipment_type_version'>;
 export type EntityRow = EntityRowOf<Entity>;
 
 export const scopeSchema = z.enum(['company', 'project', 'relatorio']);
@@ -827,6 +873,8 @@ export const ENTITY_SCOPE: Readonly<Record<Entity, readonly Scope[]>> = {
   revision: ['relatorio'],
   audit_run: ['relatorio'],
   file: ['company', 'relatorio'],
+  equipment_type: ['company'],
+  equipment_type_version: ['company'],
 };
 
 function keysOf(schema: z.ZodType): string[] {

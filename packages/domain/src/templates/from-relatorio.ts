@@ -1,7 +1,7 @@
 import { sortByOrderKey } from '../ops/order-key.ts';
 import {
   blockConfigSchema,
-  isEquipmentBlockType,
+  isEquipmentKind,
   isSectionBlockType,
   MAX_QUANTITY,
   type BlockConfig,
@@ -38,7 +38,7 @@ function equipmentConfigOf(block: BlockRow, seedVersion: string): BlockConfig {
     typeof config === 'object' && config !== null && !Array.isArray(config) ? { ...config, block_type: block.block_type } : null,
   );
   if (parsed.success) {
-    const { block_type, subtype, role, sub_blocks, na_defaults, options } = parsed.data;
+    const { block_type, subtype, role, sub_blocks, na_defaults, options, type_version } = parsed.data;
     return {
       block_type,
       ...(subtype === undefined ? {} : { subtype }),
@@ -47,6 +47,8 @@ function equipmentConfigOf(block: BlockRow, seedVersion: string): BlockConfig {
       na_defaults: [...na_defaults],
       // Story 14.5: the block's own configuration (the CTA's tensão, polos, ...) goes with it.
       ...(options === undefined ? {} : { options: { ...options } }),
+      // Story 14.6: a company block's template entry records the version it was placed at.
+      ...(type_version === undefined ? {} : { type_version }),
     };
   }
   return defaultBlockConfig(block.seed_version || seedVersion, block.block_type as BlockConfig['block_type']);
@@ -161,7 +163,8 @@ export function templateFromRelatorio(
     if (node.kind === 'painel') continue;
     let run: { entry: TemplateBlock; config: BlockConfig } | null = null;
     for (const block of locationBlocks(snapshot.blocks, node.ref)) {
-      if (!isEquipmentBlockType(block.block_type)) continue;
+      // Story 14.6: a company type's sheet is carried too, at the version it holds.
+      if (!isEquipmentKind(block.block_type)) continue;
       const config = equipmentConfigOf(block, seedVersion);
       if (run !== null && run.entry.quantity < MAX_QUANTITY && sameConfig(run.config, config)) {
         run.entry.quantity += 1;
