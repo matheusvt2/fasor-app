@@ -17,6 +17,7 @@ import {
   type RelatorioRow,
   type TemplateRow,
 } from '@app/domain';
+import { deviceDefinitionContext } from '../../db/type-store.ts';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, Combobox, DateField, FormDialog } from '../../components/index.ts';
@@ -104,10 +105,12 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
         return;
       }
       const existingEquipment = await equipmentRows(db, project.id);
+      // Story 14.8 (AD-21 item 5): each company block of the template takes its type's latest published version.
+      const definitions = await deviceDefinitionContext(db);
       const { relatorioId, drafts } = instantiateTemplate(
         template,
         project,
-        { service_start: start, service_end: end, existingEquipment, responsible_user_id: defaultResponsibleId(user) },
+        { service_start: start, service_end: end, existingEquipment, responsible_user_id: defaultResponsibleId(user), definitions },
         { newId, actorId: user.id, companyId: user.companyId },
       );
       await commitBatch(db, drafts, { newId, now });

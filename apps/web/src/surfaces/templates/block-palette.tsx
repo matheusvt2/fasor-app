@@ -1,19 +1,19 @@
 import {
-  isEquipmentBlockType,
+  isCompanyBlockType,
+  latestTypeVersion,
   libraryTypeSummaryText,
   paletteTypeGroups,
-  quantityLabel,
   SECTION_BLOCK_TYPES,
   sectionNumber,
   type ComposerBlockNode,
   type BlockTypeKey,
-  type EquipmentBlockType,
   type SectionBlockType,
 } from '@app/domain';
 import { Fragment, useCallback, useId, type Ref } from 'react';
 import { QuantityStepper } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
+import { useTypeNaming } from './type-naming.tsx';
 
 /** "1 Objetivo": the section's FO.SERV-03 number and its title, as the mock writes both. */
 export function sectionName(type: SectionBlockType): string {
@@ -83,6 +83,14 @@ export function BlockPaletteContent({
   onEditDefaults,
 }: BlockPaletteProps) {
   const reasonId = useId();
+  const naming = useTypeNaming();
+  const definitions = naming.definitions;
+  /** A library row's line: what it holds, then (a company type) the version the template records and the newer one. */
+  const paletteMeta = (type: BlockTypeKey): string | null => {
+    const version = isCompanyBlockType(type) ? (latestTypeVersion(definitions, type.slice('type:'.length)) ?? undefined) : undefined;
+    const parts = [libraryTypeSummaryText(seedVersion, type, definitions, version), naming.versionTextOf(type)].filter((part): part is string => part !== null && part !== '');
+    return parts.length === 0 ? null : parts.join(' · ');
+  };
   const drawer = onClose !== undefined;
   const moreBelow = useMoreBelowCue(drawer);
   // The mock swaps `.pal-now` and `.pal-none` with CSS `:has()`; here one of them is rendered. A polite region: the target is said when it changes.
@@ -151,21 +159,22 @@ export function BlockPaletteContent({
 
         <p className="palette-group">{copy.composer.paletteEquipment}</p>
         {drawer ? null : target}
-        {paletteTypeGroups(seedVersion).map((group) => (
+        {paletteTypeGroups(seedVersion, naming.definitions).map((group) => (
           <Fragment key={group.key}>
             {group.label === null ? null : <p className="palette-group palette-library">{group.label}</p>}
-            {/* Story 14.6: the composer offers the seeded types here; company types are Story 14.8's. */}
-            {group.types.filter(isEquipmentBlockType).map((type) => (
+            {/* Story 14.8: the published, non-retired company types follow the library types (AD-21 item 6). */}
+            {group.types.map((type) => (
               <PaletteEquipmentRow
                 // A new node is a new stepper: no count carries over from the previous one.
                 key={`${current?.ref ?? ''}:${type}`}
                 type={type}
-                meta={group.key === 'library' ? libraryTypeSummaryText(seedVersion, type) : null}
-                value={current === null ? 0 : current.quantities[type]}
+                meta={group.key === 'library' ? paletteMeta(type) : null}
+                value={current === null ? 0 : (current.quantities[type] ?? 0)}
                 isDisabled={current === null}
                 disabledReasonId={reasonId}
                 onCommit={(n) => onSetQuantity(type, n)}
-                {...(placedTypes.has(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
+                // A company type's defaults are its own editor's (Templates › Tipos de equipamento).
+                {...(placedTypes.has(type) && !isCompanyBlockType(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
               />
             ))}
           </Fragment>
@@ -208,7 +217,7 @@ function useMoreBelowCue(enabled: boolean): (element: HTMLDivElement | null) => 
 }
 
 export interface PaletteEquipmentRowProps {
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
   /** Story 14.5: what a library type holds (`.pi-meta`, the kernel's `libraryTypeSummaryText`); null on the eight. */
   meta?: string | null;
   value: number;
@@ -224,7 +233,8 @@ export interface PaletteEquipmentRowProps {
  * the "Editar padrões" icon button that opens its sub-block defaults (Story 3.5).
  */
 export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disabledReasonId, onCommit, onEditDefaults }: PaletteEquipmentRowProps) {
-  const name = copy.composer.equipmentNames[type];
+  const naming = useTypeNaming();
+  const name = naming.nameOf(type);
   return (
     <div className="palette-item is-stepper">
       <svg className="ico" aria-hidden="true">
@@ -243,7 +253,7 @@ export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disa
       )}
       <QuantityStepper
         value={value}
-        label={(n) => quantityLabel(type, n)}
+        label={(n) => naming.quantityLabelOf(type, n)}
         onCommit={onCommit}
         isDisabled={isDisabled}
         disabledReasonId={disabledReasonId}

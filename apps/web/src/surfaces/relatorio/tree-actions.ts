@@ -4,7 +4,11 @@ import {
   blockCreatedText,
   blockMovedText,
   equipmentFreedByRemoval,
+  findDefinitionIn,
+  isCompanyBlockType,
   isEquipmentBlockType,
+  typeVersionOf,
+  type DefinitionContext,
   locationBlocks,
   localUpdatedText,
   locationControlName,
@@ -41,6 +45,7 @@ import {
   type TreeEquipmentNode,
   type TreeLocationNode,
 } from '@app/domain';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { now } from '../../clock.ts';
@@ -85,6 +90,8 @@ export interface TreeContext {
   /** The relatório's seed version: new blocks are born on it. */
   seedVersion: string;
   editor: RelatorioEditor;
+  /** Story 14.8: the company's equipment types on this device, for a block of a company type the palette creates. */
+  definitions?: DefinitionContext;
 }
 
 /** What the actions need of the tree they act on. */
@@ -164,6 +171,9 @@ export function locationChevron(root: HTMLElement | null, locationId: string): H
 
 export function useTreeActions(context: TreeContext, host: TreeHost): TreeActions {
   const { relatorioId, projectId, seedVersion, editor } = context;
+  // Story 14.8: the device's company types (a live query), unless the caller hands its own.
+  const deviceDefinitions = useDefinitionContext();
+  const definitions = context.definitions ?? deviceDefinitions;
   const { edit, announce, undoable, settle } = editor;
   const db = useSession().database;
   const { showToast } = useToast();
@@ -303,12 +313,12 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
 
   /** One equipment + block pair, as the palette or "Duplicar" asks for it; `copyFrom` names the block whose config is copied. */
   const createPair = useCallback(
-    (input: { type: string; locationId: string; anchorBlockId: string | null; tag: string | null; copyFrom?: string; photo?: PanelPhotoInput }) => {
+    (input: { type: string; locationId: string; anchorBlockId: string | null; tag: string | null; copyFrom?: string; photo?: PanelPhotoInput; typeVersion?: number }) => {
       const out: { refusal: string | null; created: { tag: string; blockId: string; location: { kind: 'cabine' | 'coluna'; name: string } } | null } = { refusal: null, created: null };
       void edit((blocks, by, fresh) => {
         const location = fresh.locations.find((row) => row.id === input.locationId);
         // A painel takes no block (the kernel's fold refuses one): the palette never opens on it.
-        if (location === undefined || location.kind === 'painel' || !isEquipmentBlockType(input.type)) {
+        if (location === undefined || location.kind === 'painel' || (!isEquipmentBlockType(input.type) && !isCompanyBlockType(input.type))) {
           out.refusal = t.locationGone;
           return null;
         }
@@ -317,7 +327,14 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           out.refusal = t.gone;
           return null;
         }
-        const tag = input.tag ?? suggestTag(input.type, { kind: location.kind, name: location.name }, fresh.equipment);
+        // Story 14.8: a company block is born at the version the palette offered (a copy keeps its source's).
+        const typeVersion = source === undefined ? input.typeVersion : typeVersionOf(source.config);
+        const definition = isCompanyBlockType(input.type) ? findDefinitionIn(definitions, seedVersion, input.type, typeVersion) : null;
+        if (isCompanyBlockType(input.type) && definition === null) {
+          out.refusal = t.locationGone;
+          return null;
+        }
+        const tag = input.tag ?? suggestTag(input.type, { kind: location.kind, name: location.name }, fresh.equipment, definition);
         const verdict = tagVerdict(tag, fresh.equipment);
         if (verdict !== null) {
           out.refusal = verdict.reason === 'empty' ? copy.sumario.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
@@ -335,6 +352,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           orderKey: newBlockOrderKey(blocks, location.id, input.anchorBlockId),
           // "Duplicar" copies the structure (sub-blocks, subtype), never the data (EXPERIENCE.md › Block Model).
           ...(source === undefined ? {} : { config: source.config }),
+          ...(typeVersion === undefined ? {} : { typeVersion, definitions }),
         });
         out.created = { tag: pair.equipment.tag, blockId: pair.block.id, location: { kind: location.kind, name: location.name } };
         // Story 9.2: "Fotografar equipamento" re-targets its photo to the new block's plate, and
@@ -372,7 +390,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         })
         .catch(() => undefined);
     },
-    [edit, relatorioId, projectId, seedVersion, showToast, t.locationGone, t.gone, host, undoable, settle],
+    [edit, relatorioId, projectId, seedVersion, definitions, showToast, t.locationGone, t.gone, host, undoable, settle],
   );
 
   const createBlock = useCallback((input: PaletteCreate) => createPair(input), [createPair]);

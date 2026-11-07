@@ -25,6 +25,7 @@ import {
   removeSection,
   resolveSectionIndex,
   renameNode,
+  isCompanyBlockType,
   isEquipmentBlockType,
   isSectionBlockType,
   SECTION_BLOCK_TYPES,
@@ -72,6 +73,8 @@ import { SectionTextDialog } from './section-text-dialog.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
 import { putTemplateOp, type TemplateField } from './template-ops.ts';
 import { TypeDefaultsDialog } from './type-defaults-dialog.tsx';
+import { TypeNamingContext } from './type-naming.tsx';
+import { useDefinitionContext } from '../../state/definition-context.ts';
 import './templates.css';
 
 /**
@@ -132,6 +135,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   // written, an undo of a whole-field removal would put the old `blocks`/`skeleton` back
   // over that edit, so the toast goes away instead; leaving the composer takes it away too.
   const edits = useUndoableEdits();
+  // Story 14.8: the company's equipment types, offered in the palette and named in the quantities.
+  const definitions = useDefinitionContext();
   const view = useMemo(() => composerView(row), [row]);
   const [currentRef, setCurrentRef] = useState<string | null>(null);
   // The palette's target is a local or a coluna, never a painel (it takes no block).
@@ -345,7 +350,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
   /** Rejects when nothing was written (the node is gone), so the stepper puts its count back. */
   function onSetQuantity(ref: string, type: BlockTypeKey, n: number): Promise<void> {
-    return edit((fresh) => [['blocks', setQuantity(fresh, ref, type, n)]]).then((batch) => {
+    return edit((fresh) => [['blocks', setQuantity(fresh, ref, type, n, definitions)]]).then((batch) => {
       if (batch === null) throw new TemplateTargetGoneError(`quantity not written: node "${ref}" is gone`);
     });
   }
@@ -426,9 +431,20 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const liveBlocks = useMemo(() => withoutOrphans(row), [row]);
   const placedTypes = useMemo(
     // Story 14.5: the types the template's seed version ships (the library type only from v5).
-    () => new Set(equipmentTypesOf(row.seed_version).filter((type) => typeConfigFor(liveBlocks, type) !== null)),
+    () =>
+      new Set<BlockTypeKey>([
+        ...equipmentTypesOf(row.seed_version).filter((type) => typeConfigFor(liveBlocks, type) !== null),
+        // Story 14.8: the company types the template places (their defaults are their editor's).
+        ...liveBlocks.flatMap((block) => (isCompanyBlockType(block.block_type) ? [block.block_type] : [])),
+      ]),
     [liveBlocks, row.seed_version],
   );
+  // Story 14.8 (AD-21 item 5): the version each company type's placements record.
+  const naming = useMemo(() => {
+    const recorded = new Map<string, number>();
+    for (const block of liveBlocks) if (isCompanyBlockType(block.block_type) && block.type_version !== undefined && !recorded.has(block.block_type)) recorded.set(block.block_type, block.type_version);
+    return { definitions, seedVersion: row.seed_version, recorded };
+  }, [definitions, liveBlocks, row.seed_version]);
   // Fix batch fxpw G2: the sections the rendered composition holds.
   const heldSections = useMemo(() => heldSectionTypes(liveBlocks), [liveBlocks]);
   const editingConfig = editingType === null ? null : typeConfigFor(liveBlocks, editingType);
@@ -518,7 +534,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   };
 
   return (
-    <>
+    <TypeNamingContext.Provider value={naming}>
       <div className="composer-layout">
         {/* Side by side from 1024 px; below, CSS hides it and "Blocos" opens the drawer or sheet. */}
         <aside className="block-palette composer-palette" aria-label={copy.composer.paletteLabel}>
@@ -556,7 +572,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
                 {copy.composer.paletteTitle}
               </Button>
             </span>
-            <p className="composer-meta">{totalsText(view.totals)}</p>
+            <p className="composer-meta">{totalsText(view.totals, definitions)}</p>
           </div>
           <p className="section-note">{copy.composer.autosaveNote}</p>
 
@@ -669,7 +685,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
           onSubmit={onSubmitLocal}
         />
       )}
-    </>
+    </TypeNamingContext.Provider>
   );
 }
 

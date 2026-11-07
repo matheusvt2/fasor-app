@@ -1,5 +1,7 @@
 import {
-  blockTypeLabel,
+  blockTypeLabelIn,
+  snapshotDefinitionContext,
+  typeVersionOf,
   cabineOf,
   enabledSubBlocksOf,
   isCabineFirstSheet,
@@ -56,7 +58,10 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
 
   const own = block.equipment_id === null ? undefined : equipment.find((row) => row.id === block.equipment_id);
   const tag = own?.tag ?? '';
-  const typeName = isEquipmentBlockType(block.block_type) ? copy.composer.equipmentNames[block.block_type] : blockTypeLabel(block.seed_version, block.block_type);
+  // Story 14.8: a company sheet is named by the label of the version it was created on (AD-21 item 7).
+  const typeName = isEquipmentBlockType(block.block_type)
+    ? copy.composer.equipmentNames[block.block_type]
+    : blockTypeLabelIn(snapshotDefinitionContext(snapshot), block.seed_version, block.block_type, typeVersionOf(block.config));
   usePageTitle(tag === '' ? typeName : tag);
 
   // The rail and "você parou aqui" follow the sheet open now.

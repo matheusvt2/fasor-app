@@ -1,0 +1,483 @@
+import { SEEDED_CRITERIA } from '../seed/criteria.ts';
+import { equipmentTypesOf, findDefinition } from '../seed/definitions.ts';
+import type { EquipmentBlockType } from '../schemas/block-config.ts';
+import { plural } from '../text/plural.ts';
+import { COMPANY_CRITERION_OPERATORS, criterionTypeOf, type CompanyCriterionOperator, type CompanyTypeDraft } from './definition.ts';
+
+/*
+ * Story 14.7 (`43-tipo-equipamento.html`; AD-21 note of 2026-11-06, items 2 and 9): the edits the
+ * type editor makes to a draft, each a pure function from the draft to the next one, which the
+ * editor writes whole as one `equipment_type/{id}/draft` put (the outbox coalesces them). A draft
+ * is loose (`companyTypeDraftSchema`): an edit never refuses an incomplete value, it leaves it for
+ * `validateTypeDraft` to name. What an edit keeps consistent beside the part it changes is here
+ * too, so the editor never decides it: a new key is unique in its list, a field's unit and options
+ * follow its kind, a test's criterion is a row of the type's criteria table (added with the test,
+ * dropped with the last test naming it), a measurement row carries its own criterion row (its
+ * label and unit follow the row's), and a criterion's source is copied onto every measurement
+ * criterion that names it.
+ */
+
+type Entry = Record<string, unknown>;
+type Draft = Record<string, unknown>;
+
+const asDraft = (draft: CompanyTypeDraft | null | undefined): Draft => (draft !== null && typeof draft === 'object' ? (structuredClone(draft) as Draft) : {});
+const back = (draft: Draft): CompanyTypeDraft => draft as CompanyTypeDraft;
+const listOf = (draft: Draft, part: string): Entry[] => (Array.isArray(draft[part]) ? (draft[part] as Entry[]) : []);
+const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+/** `base`, else `base_2`, `base_3`…: a key no entry of `taken` holds. */
+export function uniqueKey(base: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  const clean = base.replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'item';
+  if (!used.has(clean)) return clean;
+  for (let n = 2; ; n += 1) if (!used.has(`${clean}_${n}`)) return `${clean}_${n}`;
+}
+
+const keysOf = (list: readonly Entry[]): string[] => list.map((entry) => textOf(entry.key));
+
+// --- Identificação -----------------------------------------------------------------------------
+
+/** The type's name, its print title (blank clears it), or its TAG prefix (uppercased as typed). */
+export function setDraftText(draft: CompanyTypeDraft | null, key: 'label' | 'print_title' | 'tag_prefix', value: string): CompanyTypeDraft {
+  const next = asDraft(draft);
+  if (key === 'print_title' && value.trim() === '') delete next.print_title;
+  else next[key] = key === 'tag_prefix' ? value.toUpperCase() : value;
+  return back(next);
+}
+
+/** The noun's singular, plural or gender. */
+export function setDraftNoun(draft: CompanyTypeDraft | null, patch: { singular?: string; plural?: string; gender?: 'm' | 'f' }): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const noun = next.noun !== null && typeof next.noun === 'object' ? (next.noun as Entry) : {};
+  next.noun = { ...noun, ...patch };
+  return back(next);
+}
+
+// --- Placa -------------------------------------------------------------------------------------
+
+/** The six AD-11 field kinds, in the mock's order. */
+export const FIELD_KINDS = ['text', 'number', 'date', 'select', 'manufacturer', 'voltage_class'] as const;
+export type DraftFieldKind = (typeof FIELD_KINDS)[number];
+
+// authored (Story 14.7, from `43-tipo-equipamento.html`): the kinds as the editor names them.
+export const FIELD_KIND_WORDS: Readonly<Record<DraftFieldKind, string>> = {
+  text: 'Texto',
+  number: 'Número',
+  date: 'Data',
+  select: 'Lista',
+  manufacturer: 'Fabricante',
+  voltage_class: 'Classe de tensão',
+};
+
+/** A field's row line: "Número · VA", "Número · sem unidade", "Lista · 3 opções", "Fabricante · lista de Cadastros". */
+export function fieldSummaryText(field: Entry): string {
+  const kind = field.kind as DraftFieldKind | undefined;
+  // authored (Story 14.7, from `43-tipo-equipamento.html`).
+  if (kind === undefined || !(kind in FIELD_KIND_WORDS)) return 'Sem tipo';
+  const word = FIELD_KIND_WORDS[kind];
+  const unit = textOf(field.unit).trim();
+  if (kind === 'number') return `${word} · ${unit === '' ? 'sem unidade' : unit}`;
+  if (kind === 'voltage_class') return unit === '' ? word : `${word} · ${unit}`;
+  if (kind === 'select') return `${word} · ${plural(Array.isArray(field.options) ? field.options.length : 0, 'opção', 'opções')}`;
+  if (kind === 'manufacturer') return `${word} · lista de Cadastros`;
+  return word;
+}
+
+/** A new text field at the end of the nameplate ("Campo 3"), and its index. */
+export function addDraftField(draft: CompanyTypeDraft | null): { draft: CompanyTypeDraft; index: number } {
+  const next = asDraft(draft);
+  const fields = listOf(next, 'nameplate');
+  // authored (Story 14.7): a new field's label until the office names it.
+  const label = `Campo ${fields.length + 1}`;
+  fields.push({ key: uniqueKey(`campo_${fields.length + 1}`, keysOf(fields)), label, kind: 'text' });
+  next.nameplate = fields;
+  return { draft: back(next), index: fields.length - 1 };
+}
+
+/** A field's label, kind, unit (blank removes it) or options; a kind change keeps only what the new kind carries. */
+export function updateDraftField(draft: CompanyTypeDraft | null, index: number, patch: { label?: string; kind?: DraftFieldKind; unit?: string; options?: string[] }): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const fields = listOf(next, 'nameplate');
+  const field = fields[index];
+  if (field === undefined) return back(next);
+  if (patch.label !== undefined) field.label = patch.label;
+  if (patch.kind !== undefined && patch.kind !== field.kind) {
+    field.kind = patch.kind;
+    delete field.option_aliases;
+    if (patch.kind === 'select') field.options = Array.isArray(field.options) ? field.options : [];
+    else delete field.options;
+    if (patch.kind !== 'number' && patch.kind !== 'voltage_class') delete field.unit;
+  }
+  if (patch.unit !== undefined) {
+    if (patch.unit.trim() === '') delete field.unit;
+    else field.unit = patch.unit;
+  }
+  if (patch.options !== undefined) {
+    field.options = patch.options;
+    delete field.option_aliases;
+  }
+  next.nameplate = fields;
+  return back(next);
+}
+
+// --- Verificações --------------------------------------------------------------------------------
+
+/** An item's row line: "3 frases de NC · lembrete na ficha". */
+export function itemSummaryText(item: Entry): string {
+  const phrases = Array.isArray(item.nc_phrases) ? item.nc_phrases.length : 0;
+  // authored (Story 14.7, from `43-tipo-equipamento.html`).
+  const parts = [plural(phrases, 'frase de NC', 'frases de NC')];
+  if (textOf(item.hint).trim() !== '') parts.push('lembrete na ficha');
+  return parts.join(' · ');
+}
+
+/** A new item at the end of the checklist (no text, no phrase yet), and its index; a type without a checklist gets one. */
+export function addDraftItem(draft: CompanyTypeDraft | null): { draft: CompanyTypeDraft; index: number } {
+  const next = asDraft(draft);
+  const items = listOf(next, 'checklist');
+  items.push({ key: uniqueKey(`item_${items.length + 1}`, keysOf(items)), label: '', nc_phrases: [] });
+  next.checklist = items;
+  return { draft: back(next), index: items.length - 1 };
+}
+
+/** An item's text, NC phrases or reminder (blank removes it). */
+export function updateDraftItem(draft: CompanyTypeDraft | null, index: number, patch: { label?: string; nc_phrases?: string[]; hint?: string }): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const items = listOf(next, 'checklist');
+  const item = items[index];
+  if (item === undefined) return back(next);
+  if (patch.label !== undefined) item.label = patch.label;
+  if (patch.nc_phrases !== undefined) item.nc_phrases = patch.nc_phrases;
+  if (patch.hint !== undefined) {
+    if (patch.hint.trim() === '') delete item.hint;
+    else item.hint = patch.hint;
+  }
+  next.checklist = items;
+  return back(next);
+}
+
+/** The most NC phrases an item takes, and the fewest. */
+export const NC_PHRASES_MAX = 4;
+export const NC_PHRASES_MIN = 3;
+
+// --- moving and removing entries -----------------------------------------------------------------
+
+export type DraftListPart = 'nameplate' | 'checklist' | 'tests' | 'measurement_tests';
+
+/** One entry of a list moved from `from` to `to` (clamped); the same draft when either is out of range. */
+export function moveDraftEntry(draft: CompanyTypeDraft | null, part: DraftListPart, from: number, to: number): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const list = listOf(next, part);
+  if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return back(next);
+  const [entry] = list.splice(from, 1);
+  list.splice(to, 0, entry!);
+  next[part] = list;
+  return back(next);
+}
+
+/** The criterion keys the draft's tests name: a seeded-grammar test's `criterion_key`, a measurement criterion's `seeded`. */
+function namedCriteria(draft: Draft): Set<string> {
+  const out = new Set<string>();
+  for (const test of listOf(draft, 'tests')) if (typeof test.criterion_key === 'string') out.add(test.criterion_key);
+  for (const test of listOf(draft, 'measurement_tests')) {
+    for (const criterion of (Array.isArray(test.criteria) ? test.criteria : []) as Entry[]) if (typeof criterion.seeded === 'string') out.add(criterion.seeded);
+  }
+  return out;
+}
+
+/** The criteria rows no test names any more are dropped (they were added with a test). */
+function pruneCriteria(draft: Draft): void {
+  const named = namedCriteria(draft);
+  draft.criteria = listOf(draft, 'criteria').filter((criterion) => named.has(textOf(criterion.key)));
+}
+
+/** One entry removed; a removed field leaves no test naming it, a removed test leaves no criterion only it named. */
+export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const list = listOf(next, part);
+  const [removed] = list.splice(index, 1);
+  if (removed === undefined) return back(next);
+  next[part] = list;
+  if (part === 'nameplate') {
+    const key = textOf(removed.key);
+    for (const test of listOf(next, 'tests')) {
+      if (test.criterion_class_field === key) delete test.criterion_class_field;
+      const bands = test.criterion_bands as Entry | undefined;
+      if (bands !== undefined && (bands.field === key || bands.selv_field === key)) delete test.criterion_bands;
+      for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
+        for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) if (row.winding === key) row.winding = null;
+      }
+    }
+  }
+  if (part === 'tests' || part === 'measurement_tests') pruneCriteria(next);
+  return back(next);
+}
+
+// --- Ensaios -------------------------------------------------------------------------------------
+
+/** The formats "Adicionar ensaio" offers: the three seeded grammars a company test takes, and the measurement table. */
+export const TEST_GRAMMARS = ['isolacao', 'resistencia_contato', 'relacao_transformacao', 'medicoes'] as const;
+export type TestGrammar = (typeof TEST_GRAMMARS)[number];
+
+// authored (Story 14.7, from `43-tipo-equipamento.html`): each format's name and line in the picker.
+export const TEST_GRAMMAR_WORDS: Readonly<Record<TestGrammar, { label: string; hint: string }>> = {
+  isolacao: { label: 'Isolação', hint: 'Tabela por fase e ponto de medição, um critério mínimo' },
+  resistencia_contato: { label: 'Resistência de contato', hint: 'Um valor por polo, critério máximo' },
+  relacao_transformacao: { label: 'Relação de transformação', hint: 'Por TAP e fase, desvio em %' },
+  medicoes: { label: 'Tabela de medições', hint: 'Linhas com nome, colunas com unidade ou opções, um critério por linha' },
+};
+
+/** The picker's line for a seeded grammar the type already holds ("… · já usado neste tipo"): a type holds one test per grammar. */
+export function grammarHintText(draft: CompanyTypeDraft | null, grammar: TestGrammar): string {
+  const words = TEST_GRAMMAR_WORDS[grammar];
+  // authored (Story 14.7, from `43-tipo-equipamento.html`).
+  return grammarTaken(draft, grammar) ? `${words.hint} · já usado neste tipo` : words.hint;
+}
+
+/** Whether the type already holds a test of this seeded grammar (a type takes one of each; any number of measurement tables). */
+export function grammarTaken(draft: CompanyTypeDraft | null, grammar: TestGrammar): boolean {
+  if (grammar === 'medicoes') return false;
+  return listOf(asDraft(draft), 'tests').some((test) => test.key === grammar);
+}
+
+/** Where a seeded grammar's table is copied from: the first seeded type of the version holding it, in this order. */
+const GRAMMAR_SOURCES: Readonly<Record<Exclude<TestGrammar, 'medicoes'>, readonly EquipmentBlockType[]>> = {
+  isolacao: ['cabos_entrada', 'cabos_saida', 'para_raio', 'chave_seccionadora'],
+  resistencia_contato: ['disjuntor_mt', 'chave_seccionadora'],
+  relacao_transformacao: ['tc', 'tp', 'transformador_forca'],
+};
+
+/** A seeded criterion as a row of the type's criteria table. */
+function seededCriterionRow(key: string): Entry | null {
+  const seeded = SEEDED_CRITERIA.find((criterion) => criterion.key === key);
+  if (seeded === undefined) return null;
+  return { key: seeded.key, label: seeded.label, operator: seeded.operator, value: seeded.value, unit: seeded.unit, type: seeded.type, source: { name: seeded.source.name, edition: seeded.source.edition } };
+}
+
+/** The key of a new measurement row's criterion, unique in the criteria table. */
+const rowCriterionKey = (testKey: string, rowKey: string, criteria: readonly Entry[]) => uniqueKey(`${testKey}_${rowKey}`, keysOf(criteria));
+
+/** A measurement row's own criterion: a row of the criteria table and the absolute criterion of the test that names it. */
+function rowCriterion(testKey: string, row: Entry, criteria: Entry[]): Entry {
+  const key = rowCriterionKey(testKey, textOf(row.key), criteria);
+  const unit = textOf(row.unit).trim();
+  criteria.push({ key, label: textOf(row.label), operator: '>=', value: 0, unit: unit === '' ? null : unit, type: 'absolute_min', source: { name: '', edition: null } });
+  return { type: 'absolute', seeded: key, rows: [textOf(row.key)], source: { name: '', edition: null } };
+}
+
+/**
+ * "Adicionar ensaio": a seeded grammar copies its table from the first seeded type of the version
+ * holding it (its plate-bound criterion rules dropped: a company type picks no criterion from its
+ * plate) and adds its seeded criterion to the criteria table; the measurement table starts with
+ * one row "Linha 1" in one number column "Valor medido" and the row's own criterion. Null when the
+ * grammar is taken or the version ships no table of it.
+ */
+export function addDraftTest(draft: CompanyTypeDraft | null, grammar: TestGrammar, seedVersion: string): { draft: CompanyTypeDraft; part: 'tests' | 'measurement_tests'; index: number } | null {
+  const next = asDraft(draft);
+  const criteria = listOf(next, 'criteria');
+  if (grammar === 'medicoes') {
+    const tests = listOf(next, 'measurement_tests');
+    const taken = [...keysOf(tests), ...keysOf(listOf(next, 'tests'))];
+    const key = uniqueKey(`medicao_${tests.length + 1}`, taken);
+    // authored (Story 14.7): a new measurement table's title, row header, column and first row.
+    const row: Entry = { key: 'linha_1', label: 'Linha 1', kind: 'number' };
+    tests.push({ key, label: 'Tabela de medições', row_header: 'Medição', columns: [{ key: 'valor', label: 'Valor medido', kind: 'number' }], rows: [row], criteria: [rowCriterion(key, row, criteria)] });
+    next.measurement_tests = tests;
+    next.criteria = criteria;
+    return { draft: back(next), part: 'measurement_tests', index: tests.length - 1 };
+  }
+  if (grammarTaken(draft, grammar)) return null;
+  const sources = [...GRAMMAR_SOURCES[grammar], ...equipmentTypesOf(seedVersion)];
+  let test: Entry | null = null;
+  for (const type of sources) {
+    const found = findDefinition(seedVersion, type)?.tests.find((candidate) => candidate.key === grammar);
+    if (found !== undefined) {
+      test = structuredClone(found) as unknown as Entry;
+      break;
+    }
+  }
+  if (test === null) return null;
+  delete test.criterion;
+  delete test.criterion_bands;
+  delete test.criterion_class_field;
+  for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
+    for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) row.winding = null;
+  }
+  const criterionKey = textOf(test.criterion_key);
+  if (!keysOf(criteria).includes(criterionKey)) {
+    const row = seededCriterionRow(criterionKey);
+    if (row !== null) criteria.push(row);
+  }
+  const tests = listOf(next, 'tests');
+  tests.push(test);
+  next.tests = tests;
+  next.criteria = criteria;
+  return { draft: back(next), part: 'tests', index: tests.length - 1 };
+}
+
+/** A test's title, or whether a measurement test may be switched off on the sheet. */
+export function updateDraftTest(draft: CompanyTypeDraft | null, part: 'tests' | 'measurement_tests', index: number, patch: { label?: string; switchable?: boolean }): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const test = listOf(next, part)[index];
+  if (test === undefined) return back(next);
+  if (patch.label !== undefined) test.label = patch.label;
+  if (patch.switchable !== undefined && part === 'measurement_tests') {
+    // authored (Story 14.7): the sheet's line while a company test is switched off.
+    if (patch.switchable) test.switchable = test.switchable ?? { off_note: 'Desligado — marque NA quando o ensaio não puder ser feito.' };
+    else delete test.switchable;
+  }
+  return back(next);
+}
+
+/** A test's row line: "Isolação (tabela por fase) · critério: Isolamento mínimo"; "Tabela de medições · 3 linhas · 1 coluna". */
+export function testSummaryText(draft: CompanyTypeDraft | null, part: 'tests' | 'measurement_tests', index: number): string {
+  const d = asDraft(draft);
+  const test = listOf(d, part)[index];
+  if (test === undefined) return '';
+  // authored (Story 14.7, from `43-tipo-equipamento.html`).
+  if (part === 'measurement_tests') {
+    const rows = Array.isArray(test.rows) ? test.rows.length : 0;
+    const columns = Array.isArray(test.columns) ? test.columns.length : 0;
+    return `${TEST_GRAMMAR_WORDS.medicoes.label} · ${plural(rows, 'linha', 'linhas')} · ${plural(columns, 'coluna', 'colunas')}`;
+  }
+  const grammar = TEST_GRAMMAR_WORDS[test.key as Exclude<TestGrammar, 'medicoes'>]?.label ?? textOf(test.key);
+  const criterion = listOf(d, 'criteria').find((row) => row.key === test.criterion_key);
+  const criterionLabel = criterion === undefined ? null : textOf(criterion.label).trim();
+  return criterionLabel === null || criterionLabel === '' ? grammar : `${grammar} · critério: ${criterionLabel}`;
+}
+
+/** A new row at the end of a measurement table, with its own criterion. */
+export function addDraftMeasurementRow(draft: CompanyTypeDraft | null, testIndex: number): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const test = listOf(next, 'measurement_tests')[testIndex];
+  if (test === undefined) return back(next);
+  const rows = (Array.isArray(test.rows) ? test.rows : []) as Entry[];
+  const criteria = listOf(next, 'criteria');
+  // authored (Story 14.7): a new row's name until the office names it.
+  const row: Entry = { key: uniqueKey(`linha_${rows.length + 1}`, keysOf(rows)), label: `Linha ${rows.length + 1}`, kind: 'number' };
+  rows.push(row);
+  test.rows = rows;
+  test.criteria = [...((Array.isArray(test.criteria) ? test.criteria : []) as Entry[]), rowCriterion(textOf(test.key), row, criteria)];
+  next.criteria = criteria;
+  return back(next);
+}
+
+/** The measurement criteria of a test that judge exactly one row (the row's own criterion). */
+function rowCriteriaOf(test: Entry, rowKey: string): Entry[] {
+  return ((Array.isArray(test.criteria) ? test.criteria : []) as Entry[]).filter(
+    (criterion) => criterion.type === 'absolute' && typeof criterion.seeded === 'string' && Array.isArray(criterion.rows) && criterion.rows.length === 1 && criterion.rows[0] === rowKey,
+  );
+}
+
+/** A measurement row's name or unit (blank removes it); the row's own criterion follows both. */
+export function updateDraftMeasurementRow(draft: CompanyTypeDraft | null, testIndex: number, rowIndex: number, patch: { label?: string; unit?: string }): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const test = listOf(next, 'measurement_tests')[testIndex];
+  const rows = (test !== undefined && Array.isArray(test.rows) ? test.rows : []) as Entry[];
+  const row = rows[rowIndex];
+  if (test === undefined || row === undefined) return back(next);
+  const own = new Set(rowCriteriaOf(test, textOf(row.key)).map((criterion) => textOf(criterion.seeded)));
+  const criteria = listOf(next, 'criteria').filter((criterion) => own.has(textOf(criterion.key)));
+  if (patch.label !== undefined) {
+    row.label = patch.label;
+    for (const criterion of criteria) criterion.label = patch.label;
+  }
+  if (patch.unit !== undefined) {
+    const unit = patch.unit.trim();
+    if (unit === '') delete row.unit;
+    else row.unit = patch.unit;
+    if (row.kind === undefined) row.kind = 'number';
+    for (const criterion of criteria) criterion.unit = unit === '' ? null : patch.unit;
+  }
+  return back(next);
+}
+
+/** A measurement row removed with its own criterion; the last row stays (a table has one). */
+export function removeDraftMeasurementRow(draft: CompanyTypeDraft | null, testIndex: number, rowIndex: number): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const test = listOf(next, 'measurement_tests')[testIndex];
+  const rows = (test !== undefined && Array.isArray(test.rows) ? test.rows : []) as Entry[];
+  const row = rows[rowIndex];
+  if (test === undefined || row === undefined || rows.length <= 1) return back(next);
+  const own = new Set(rowCriteriaOf(test, textOf(row.key)));
+  rows.splice(rowIndex, 1);
+  test.rows = rows;
+  const rest = ((Array.isArray(test.criteria) ? test.criteria : []) as Entry[]).filter((criterion) => !own.has(criterion));
+  // A table keeps one criterion: a row's own goes only while another remains.
+  test.criteria = rest.length > 0 ? rest : [...own];
+  pruneCriteria(next);
+  return back(next);
+}
+
+// --- Critérios -----------------------------------------------------------------------------------
+
+// authored (Story 14.7, from `43-tipo-equipamento.html`): the rules as the Critérios tab names them.
+export const CRITERION_RULE_WORDS: Readonly<Record<CompanyCriterionOperator, string>> = {
+  '>': 'maior que',
+  '<': 'menor que',
+  '>=': 'maior ou igual a',
+  '<=': 'menor ou igual a',
+  between: 'entre',
+  '±': '±',
+  pass_fail: 'aprovado ou reprovado',
+};
+
+/** The rules in the order the Critérios tab offers them. */
+export const CRITERION_RULES: readonly CompanyCriterionOperator[] = COMPANY_CRITERION_OPERATORS;
+
+/** The tests a criterion is used by, by title ("Resistência de isolamento", "Tensões medidas"); null when none. */
+export function criterionUsedByText(draft: CompanyTypeDraft | null, index: number): string | null {
+  const d = asDraft(draft);
+  const key = textOf(listOf(d, 'criteria')[index]?.key);
+  const titles: string[] = [];
+  for (const test of listOf(d, 'tests')) if (test.criterion_key === key) titles.push(textOf(test.label));
+  for (const test of listOf(d, 'measurement_tests')) {
+    if (((Array.isArray(test.criteria) ? test.criteria : []) as Entry[]).some((criterion) => criterion.seeded === key)) titles.push(textOf(test.label));
+  }
+  const named = titles.filter((title) => title.trim() !== '');
+  return named.length === 0 ? null : named.join(', ');
+}
+
+/**
+ * A criterion's name, rule, value, maximum or source. A rule change sets the criterion's type and
+ * gives `entre` a maximum (the value, until typed) or takes it away; a source change is copied onto
+ * every measurement criterion that names the row, so the type carries one source per criterion.
+ */
+export function updateDraftCriterion(
+  draft: CompanyTypeDraft | null,
+  index: number,
+  patch: { label?: string; operator?: CompanyCriterionOperator; value?: number | null; value_max?: number | null; source_name?: string; source_edition?: string },
+): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const criteria = listOf(next, 'criteria');
+  const criterion = criteria[index];
+  if (criterion === undefined) return back(next);
+  if (patch.label !== undefined) criterion.label = patch.label;
+  if (patch.operator !== undefined) {
+    criterion.operator = patch.operator;
+    criterion.type = criterionTypeOf(patch.operator);
+    if (patch.operator === 'between') criterion.value_max = typeof criterion.value_max === 'number' ? criterion.value_max : typeof criterion.value === 'number' ? criterion.value : 0;
+    else delete criterion.value_max;
+  }
+  // A cleared number leaves the key out, so the schema names it ("informe o valor").
+  if (patch.value !== undefined) {
+    if (patch.value === null) delete criterion.value;
+    else criterion.value = patch.value;
+  }
+  if (patch.value_max !== undefined && criterion.operator === 'between') {
+    if (patch.value_max === null) delete criterion.value_max;
+    else criterion.value_max = patch.value_max;
+  }
+  if (patch.source_name !== undefined || patch.source_edition !== undefined) {
+    const source = criterion.source !== null && typeof criterion.source === 'object' ? (criterion.source as Entry) : { name: '', edition: null };
+    const edition = patch.source_edition === undefined ? (source.edition ?? null) : patch.source_edition.trim() === '' ? null : patch.source_edition;
+    criterion.source = { name: patch.source_name ?? textOf(source.name), edition };
+    for (const test of listOf(next, 'measurement_tests')) {
+      for (const named of (Array.isArray(test.criteria) ? test.criteria : []) as Entry[]) {
+        if (named.type === 'absolute' && named.seeded === criterion.key) named.source = structuredClone(criterion.source);
+      }
+    }
+  }
+  next.criteria = criteria;
+  return back(next);
+}

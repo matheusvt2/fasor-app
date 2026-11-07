@@ -1,9 +1,9 @@
 import { headerText, readingLabelText } from '../relatorio/readings.ts';
-import type { EquipmentBlockType, SubBlockKey } from '../schemas/block-config.ts';
+import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType, type SubBlockKey } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
 import { formatCriterionValue, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { siteItems } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, findDefinitionIn, latestTypeVersion, siteItems, type DefinitionContext } from '../seed/definitions.ts';
 import { funcaoLabel } from '../relatorio/local.ts';
 import { plural, relatoriosCount } from '../text/plural.ts';
 import { composerView, type ComposerCabine, type ComposerNode, type ComposerView } from './compose.ts';
@@ -74,17 +74,47 @@ const SEP = ' · ';
 /**
  * The per-type totals, "25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos ·
  * 4 cabos de entrada · 9 cabos de saída · 5 para-raios": zeros omitted, singular at one.
+ * Story 14.8: a company type placed in the template follows the seeded ones, in label order,
+ * named by its noun ("1 no-break") through the context; one the context cannot name is left out.
  */
-export function totalsText(totals: Readonly<Record<EquipmentBlockType, number>>): string {
-  const parts = TOTALS_ORDER.filter((type) => totals[type] > 0).map((type) =>
-    plural(totals[type], NOUNS[type].one, NOUNS[type].many),
-  );
+export function totalsText(totals: Readonly<Record<string, number>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string {
+  const parts = TOTALS_ORDER.filter((type) => (totals[type] ?? 0) > 0).map((type) => plural(totals[type]!, NOUNS[type].one, NOUNS[type].many));
+  for (const type of companyTypesOf(totals, ctx)) {
+    const noun = companyDefinition(ctx, type)?.noun;
+    if (noun !== undefined) parts.push(plural(totals[type]!, noun.singular, noun.plural));
+  }
   return parts.length === 0 ? NO_EQUIPMENT : parts.join(SEP);
 }
 
-/** The Quantity stepper's accessible name: "Seccionadoras, 25". */
-export function quantityLabel(type: EquipmentBlockType, n: number): string {
-  return `${NOUNS[type].label}, ${n}`;
+/** A company type's definition at its latest version in the context; null when none resolves. */
+function companyDefinition(ctx: DefinitionContext, type: string): BlockDefinition | null {
+  const version = latestTypeVersion(ctx, type.slice('type:'.length)) ?? undefined;
+  return findDefinitionIn(ctx, '', type, version);
+}
+
+/** The company types counted above zero, in label order (pt-BR) of their latest version. */
+function companyTypesOf(totals: Readonly<Record<string, number>>, ctx: DefinitionContext): BlockTypeKey[] {
+  const labelOf = (type: string) => companyDefinition(ctx, type)?.label ?? type;
+  return Object.keys(totals)
+    .filter((type): type is BlockTypeKey => isCompanyBlockType(type) && (totals[type] ?? 0) > 0)
+    .sort((a, b) => labelOf(a).localeCompare(labelOf(b), 'pt-BR') || (a < b ? -1 : 1));
+}
+
+/** Story 14.8: the types a node holds, in the totals' order: the seeded ones, then its company types by label. */
+export function nodeTypesOf(quantities: Readonly<Record<string, number>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): BlockTypeKey[] {
+  return [...TOTALS_ORDER.filter((type) => (quantities[type] ?? 0) > 0), ...companyTypesOf(quantities, ctx)];
+}
+
+/**
+ * The Quantity stepper's accessible name: "Seccionadoras, 25". Story 14.8: a company type's is its
+ * plural noun with a capital ("No-breaks, 1"), else its label.
+ */
+export function quantityLabel(type: BlockTypeKey, n: number, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string {
+  if (!isCompanyBlockType(type)) return `${NOUNS[type].label}, ${n}`;
+  const definition = companyDefinition(ctx, type);
+  const noun = definition?.noun;
+  const word = noun === undefined ? (definition?.label ?? type) : `${noun.plural.charAt(0).toUpperCase()}${noun.plural.slice(1)}`;
+  return `${word}, ${n}`;
 }
 
 /**

@@ -34,6 +34,7 @@ import { TreeSurface } from './surfaces/relatorio/tree-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 import { TemplateComposerSurface } from './surfaces/templates/template-composer.tsx';
+import { TypeEditorSurface } from './surfaces/templates/type-editor.tsx';
 import { TemplatesSurface } from './surfaces/templates/templates-surface.tsx';
 import { GallerySurface } from './surfaces/photos/gallery-surface.tsx';
 
@@ -146,6 +147,12 @@ export const appRoutes: RouteObject[] = [
             path: '/templates/:id',
             element: <TemplateComposerSurface />,
             handle: { title: copy.composer.title, back: '/templates' },
+          },
+          // Story 14.7: the editor of one company equipment type, reached only from Templates.
+          {
+            path: '/templates/tipos/:id',
+            element: <TypeEditorSurface />,
+            handle: { title: copy.typeEditor.title, back: '/templates' },
           },
           // Story 4.1 and 4.3: the Project, the Sumário and the two routes the Sumário
           // opens (batch C's setup page and section text keep these paths).

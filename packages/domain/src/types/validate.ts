@@ -164,6 +164,29 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
   }
 }
 
+/** Whether the measurement criterion at `[test, criterion]` names a row of the criteria table (`seeded`) whose source it mirrors. */
+function seededCriterionAt(draft: Draft, test: unknown, criterion: unknown): boolean {
+  const item = itemAt(draft, 'measurement_tests', test);
+  const list = item === null ? undefined : item.criteria;
+  if (!Array.isArray(list) || typeof criterion !== 'number') return false;
+  const entry: unknown = list[criterion];
+  if (entry === null || typeof entry !== 'object') return false;
+  const seeded = (entry as Record<string, unknown>).seeded;
+  if (typeof seeded !== 'string') return false;
+  // Left to the Critérios tab only while that row's own source is missing too, so a draft this
+  // skips an issue of always has another and never publishes (the editor and `applyOp` agree).
+  const criteria = draft.criteria;
+  return (
+    Array.isArray(criteria) &&
+    criteria.some((row) => {
+      if (row === null || typeof row !== 'object' || (row as Record<string, unknown>).key !== seeded) return false;
+      const source = (row as Record<string, unknown>).source;
+      const name = source !== null && typeof source === 'object' ? (source as Record<string, unknown>).name : undefined;
+      return typeof name !== 'string' || name.trim() === '';
+    })
+  );
+}
+
 /**
  * The draft's issues, in the order of the editor's tabs and then of the draft; none when the draft
  * publishes as it is. One issue per place: a field missing several things is named once, by the
@@ -178,6 +201,10 @@ export function validateTypeDraft(draft: CompanyTypeDraft | null | undefined): T
   for (const issue of parsed.error.issues) {
     const path = issue.path.filter((segment): segment is string | number => typeof segment === 'string' || typeof segment === 'number');
     const head = String(path[0] ?? '');
+    // Story 14.7: a measurement criterion that names a row of the criteria table carries that
+    // row's source (`updateDraftCriterion` copies it), so a missing source is said once, on the
+    // Critérios tab, where it is typed.
+    if (head === 'measurement_tests' && path[2] === 'criteria' && path[4] === 'source' && seededCriterionAt(value, path[1], path[3])) continue;
     const part = PART_OF[head] ?? 'identificacao';
     const { message, summary } = sentenceOf(issue, value);
     const at = `${JSON.stringify(path.slice(0, 2))}\u0000${message}`;

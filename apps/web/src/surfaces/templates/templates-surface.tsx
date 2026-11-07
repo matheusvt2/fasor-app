@@ -29,6 +29,7 @@ import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { createTemplateOp, putTemplateOp, removeTemplateOp } from './template-ops.ts';
+import { TypeListSection } from './type-list.tsx';
 import './templates.css';
 
 const NO_SUMMARIES: RelatorioSummary[] = [];
@@ -287,6 +288,9 @@ export function TemplatesSurface() {
                 </ul>
               </section>
             ) : null}
+
+            {/* Story 14.7: the company's equipment types and the library's, the only way into the type editor. */}
+            <TypeListSection commit={(drafts) => commit(drafts)} edits={edits} />
           </>
         )}
       </div>

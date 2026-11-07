@@ -29,6 +29,14 @@
 [data-route="/templates"] .tpl-row div.rr-text { cursor: default; }
 /* authored: a `<button class="rr-text">` resets the UA button look so it reads as the row text. */
 [data-route="/templates"] .tpl-row button.rr-text { text-align: left; }
+/* Story 14.7 (`41-templates.html`, 2026-11-06): "Tipos de equipamento", verbatim. */
+[data-route="/templates"] .status-pill[data-status="publicado"] { color: var(--conforme); }
+[data-route="/templates"] .status-pill[data-status="aposentado"] { color: var(--ink-secondary); }
+[data-route="/templates"] .type-row .rr-primary { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+[data-route="/templates"] .type-row .rr-lib { cursor: default; }
+[data-route="/templates"] .type-sub { margin-top: var(--sp-5); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: var(--sp-2); }
+/* The mock's inline `style="margin-top: var(--sp-3)"` on the library note. */
+[data-route="/templates"] .type-lib-note { margin-top: var(--sp-3); }
 
 /* ---------- 42-template-composer.html ---------- */
 [data-route="/templates/:id"] .skeleton-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -101,6 +109,8 @@
 [data-route="/templates/:id"] .qty-grid { gap: var(--sp-2) var(--sp-3); }
 [data-route="/templates/:id"] .qty-row.eq-card { min-height: var(--touch-field); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3); background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
 [data-route="/templates/:id"] .qty-row.eq-card .qty-name { font-weight: 600; }
+/* authored (Story 14.8): a company type's version line beside its name in a quantity row ("versão 1 · versão 2 publicada"), in the meta ink. */
+[data-route="/templates/:id"] .qty-row .qty-meta { font-weight: 400; color: var(--ink-secondary); font-size: var(--t-meta-size); }
 [data-route="/templates/:id"] .qty-row.eq-card .qty-tag { font-weight: 400; }
 
 /* ---------- composer parts the mock does not draw (authored, from the mock's own rules) ---------- */

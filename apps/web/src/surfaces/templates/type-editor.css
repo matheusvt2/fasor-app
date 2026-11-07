@@ -1,0 +1,48 @@
+/*
+ * Story 14.7: page-only layout of the type editor, copied from the mock's own
+ * `<style data-screen="tipo-equipamento">` block (`43-tipo-equipamento.html`, 2026-11-06), the
+ * same pattern as `templates.css`. The mock scopes it to its prototype route
+ * `/templates/tipos/no-break-comando`; the app renders it on `/templates/tipos/:id`, so
+ * `[data-route="/templates/tipos/:id"]` stands for it. The `.frame-*` variants live in `app.css`
+ * (AGENTS.md "Mock container selectors"); these are the base declarations only, verbatim.
+ */
+[data-route="/templates/tipos/:id"] .tipo-head { padding: var(--sp-5) var(--gutter-tablet) var(--sp-3); background: var(--surface-raised); display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/tipos/:id"] .tipo-title { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+[data-route="/templates/tipos/:id"] .tipo-title h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/templates/tipos/:id"] .tipo-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/templates/tipos/:id"] .status-pill[data-status="publicado"] { color: var(--conforme); }
+[data-route="/templates/tipos/:id"] .tipo-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; flex: 1; display: flex; flex-direction: column; gap: var(--sp-5); }
+[data-route="/templates/tipos/:id"] .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+[data-route="/templates/tipos/:id"] .field-grid .span-2 { grid-column: 1 / -1; }
+[data-route="/templates/tipos/:id"] .registry-row { padding-left: var(--sp-3); padding-right: var(--sp-2); }
+[data-route="/templates/tipos/:id"] .registry-row .rr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+[data-route="/templates/tipos/:id"] .def-edit { padding: var(--sp-4) var(--sp-3); background: var(--focus-fill); border-bottom: 1px solid var(--border-hairline); display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/templates/tipos/:id"] .def-add { margin-top: var(--sp-2); }
+/* The row open below (mirrors the Cadastros selected row) and the add-chip in primary (mirrors the chips-recent "Outro…" chip). */
+[data-route="/templates/tipos/:id"] .registry-row.is-open { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); font-weight: 600; }
+[data-route="/templates/tipos/:id"] .registry-row.is-open .rr-secondary { font-weight: 400; }
+[data-route="/templates/tipos/:id"] .chip.chip-add { color: var(--primary); border-color: var(--primary); }
+[data-route="/templates/tipos/:id"] .data-table .input { min-height: var(--touch-min); }
+[data-route="/templates/tipos/:id"] .data-table td.cell-src .helper { display: block; margin-top: var(--sp-1); }
+[data-route="/templates/tipos/:id"] .preview-frame { border: 1px solid var(--border-strong); border-radius: var(--r-lg); background: var(--surface-base); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/templates/tipos/:id"] .grammar-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/tipos/:id"] .grammar-list .option-row { flex-wrap: wrap; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+[data-route="/templates/tipos/:id"] .grammar-list .og-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+[data-route="/templates/tipos/:id"] .grammar-list .og-hint { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* The grammar picker is portaled to the end of <body>, outside the route: its rules apply under `.grammar-dialog` too. */
+.grammar-dialog .grammar-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.grammar-dialog .grammar-list .option-row { flex-wrap: wrap; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.grammar-dialog .grammar-list .og-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.grammar-dialog .grammar-list .og-hint { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* The mock's inline styles: the field grid under the banner, the helper on a criterion's name, "Adicionar linha" at the start, the rules note. */
+[data-route="/templates/tipos/:id"] .banner + .field-grid { margin-top: var(--sp-4); }
+[data-route="/templates/tipos/:id"] .data-table td .helper.used-by { display: block; }
+[data-route="/templates/tipos/:id"] .def-edit .add-row { align-self: flex-start; }
+[data-route="/templates/tipos/:id"] .rules-note { margin-top: var(--sp-3); }
+/* authored: a `<button class="rr-text">` resets the UA button look so it reads as the row text. */
+[data-route="/templates/tipos/:id"] .registry-row button.rr-text { cursor: pointer; }
+/* authored: the add input beside the add-chip, and the two bounds of "entre" side by side. */
+[data-route="/templates/tipos/:id"] .chip-row .chip-input { min-width: 160px; flex: 1 1 160px; max-width: 320px; }
+[data-route="/templates/tipos/:id"] .value-pair { display: flex; align-items: center; gap: var(--sp-2); }
+[data-route="/templates/tipos/:id"] .value-pair .input { min-width: 0; flex: 1 1 0; }
+[data-route="/templates/tipos/:id"] .value-pair .unit { color: var(--ink-secondary); white-space: nowrap; }
