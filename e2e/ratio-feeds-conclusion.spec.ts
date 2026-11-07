@@ -112,7 +112,7 @@ test('@p0 17.5-E2E-001 22.4-E2E 22.6-E2E a transformer ratio row INSATISFATÓRIO
   const summary = page.locator('.suggestion-field.is-generated');
   // Read-only: no Confirmar, Editar or Substituir.
   await expect(summary.getByRole('button')).toHaveCount(0);
-  await expect(summary.locator('.generated-text')).toContainText(/1 ficha foi reprovada \(.+\)\./);
+  await expect(summary.locator('.generated-text')).toContainText(/1 ficha foi reprovada por relação de transformação insatisfatória \(.+\)\./);
   await expect(summary.locator('.generated-text')).toContainText(/Relação de transformação insatisfatória em 1 ficha \(.+\)\./);
   await expect(summary.locator('.criteria-line')).toContainText(/relação de transformação insatisfatória \(.+\)/);
   // No verdict op was written: the derived one stands.

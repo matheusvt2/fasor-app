@@ -56,6 +56,23 @@ describe('e22f S7 benchmark: the Etapa 6 parecer reads on the 94-sheet Porto Seg
         one.push(performance.now() - t);
       }
       console.log(`E22F-BENCH seed=${seed} cold_median_ms=${median(cold).toFixed(1)} one_block_changed_median_ms=${median(one).toFixed(1)}`);
+      // Where a warm render spends its time, per reader (the rows unchanged).
+      const parts: Record<string, () => unknown> = {
+        effectiveParecer: () => effectiveParecer(base),
+        parecerReasonText: () => parecerReasonText(base),
+        composeParecer: () => composeParecer(base),
+        parecerLooser: () => parecerLooser(base, 'apto'),
+      };
+      const split = Object.entries(parts).map(([key, run]) => {
+        const times: number[] = [];
+        for (let i = 0; i < 5; i++) {
+          const t = performance.now();
+          run();
+          times.push(performance.now() - t);
+        }
+        return `${key}=${median(times).toFixed(1)}`;
+      });
+      console.log(`E22F-BENCH-SPLIT seed=${seed} ${split.join(' ')}`);
     });
   }
 });

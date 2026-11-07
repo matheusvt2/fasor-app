@@ -535,7 +535,8 @@ test('@p0 12.4-E2E-001an NC item observation becomes the suggested sheet observa
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByText('Obrigatória com restrições')).toHaveCount(0);
   await expect(suggested.getByRole('button', { name: 'Confirmar' })).toHaveAttribute('data-missing-field', '');
-  expect(await stepMissing(page, 'Conclusão')).toBe(1);
+  // e22f N2: the step counts the stored pair, so wait for the suggestion's commit (the radiogroups showed the floor before it).
+  await expect.poll(() => stepMissing(page, 'Conclusão')).toBe(1);
   expect((await outbox(page)).some((row) => row.path === `sheet/${sheet.blockId}/observations`)).toBe(false);
 
   // A focus and a blur without typing write nothing.

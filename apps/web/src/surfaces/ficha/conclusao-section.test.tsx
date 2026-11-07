@@ -160,3 +160,44 @@ describe('Story 20.9: OBSERVAÇÕES stops at the kernel cap', () => {
     expect(String(op.value)).toHaveLength(TEXT_CAPS.long);
   });
 });
+
+describe('e22f S1: "Confirmar" under "Conclusão ajustada pela ficha"', () => {
+  /** A sheet concluded Aprovado · Sem restrições with its text confirmed (or edited), then a reading corrected out (0,3 GΩ against >400 MΩ). */
+  const adjusted = (status: 'confirmed' | 'edited') => {
+    const within = block({ test: readings('147'), conclusion: pair });
+    const composed = composeConclusion(within, SEC, 'SEC-C05');
+    const text = status === 'confirmed' ? composed.text : 'Texto do engenheiro.';
+    return block({ test: readings('0.3'), conclusion: { ...pair, text: cell(text), text_status: cell(status), text_basis: cell(composed.basis) } });
+  };
+  const confirmAdjusted = () => document.querySelector<HTMLButtonElement>('.conclusion-hint[role="status"] button')!;
+
+  it('a confirmed text the floor made stale is recomposed in the same batch as the effective pair', async () => {
+    cleanup();
+    const shown = adjusted('confirmed');
+    const builds = renderSection(shown);
+    expect(confirmAdjusted().closest('.conclusion-hint')).toHaveTextContent('Conclusão ajustada pela ficha');
+    await userEvent.click(confirmAdjusted());
+    const ops = builds.at(-1)!([shown], AUTHOR, fresh) ?? [];
+    const now = composeConclusion(shown, SEC, 'SEC-C05');
+    expect(now.text).toContain('Recomenda-se a correção');
+    expect(ops.map((op) => [op.path.split('/').slice(-1)[0], op.value])).toEqual([
+      ['result', 'reprovado'],
+      ['restriction', 'com_restricoes'],
+      ['text', now.text],
+      ['text_status', 'confirmed'],
+      ['text_basis', now.basis],
+    ]);
+  });
+
+  it("an edited text is the engineer's: only the pair is written", async () => {
+    cleanup();
+    const shown = adjusted('edited');
+    const builds = renderSection(shown);
+    await userEvent.click(confirmAdjusted());
+    const ops = builds.at(-1)!([shown], AUTHOR, fresh) ?? [];
+    expect(ops.map((op) => [op.path.split('/').slice(-1)[0], op.value])).toEqual([
+      ['result', 'reprovado'],
+      ['restriction', 'com_restricoes'],
+    ]);
+  });
+});

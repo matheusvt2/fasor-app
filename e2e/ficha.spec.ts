@@ -1050,17 +1050,14 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   const lastOf = async (field: string) => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/${field}`).at(-1)?.value;
   await expect.poll(() => lastOf('result')).toBe('reprovado');
   await expect.poll(() => lastOf('restriction')).toBe('com_restricoes');
-  // e22f S1: the confirmed text the floor made stale is recomposed in the same batch (it now
-  // recommends the correction), so the stricter pair never keeps the looser pair's paragraph.
-  await expect.poll(async () => (await textOps()).at(-1)).not.toBe(replacedText);
-  const adjustedText = (await textOps()).at(-1)!;
-  expect(adjustedText).toContain('Recomenda-se a correção');
-  const adjustedBatch = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`)).slice(-5);
-  expect(adjustedBatch.map((row) => row.path.split('/').at(-1))).toEqual(['result', 'restriction', 'text', 'text_status', 'text_basis']);
+  // e22f S1: the text was already replaced ("Substituir" above), so it is current: the adjusted
+  // note's Confirmar writes the pair alone and leaves the text as it is (a stale confirmed text is
+  // recomposed with the pair: `conclusao-section.test.tsx`, e22f S1).
+  const adjustedText = replacedText;
+  const adjustedBatch = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`)).slice(-2);
+  expect(adjustedBatch.map((row) => row.path.split('/').at(-1))).toEqual(['result', 'restriction']);
   expect(new Set(adjustedBatch.map((row) => row.batch_id)).size).toBe(1);
-  expect(adjustedBatch[3]!.value).toBe('confirmed');
-  await expect(page.locator('.suggestion-field.is-generated .suggestion-alt')).toHaveCount(0);
-  await expect(text).toContainText(adjustedText);
+  expect((await textOps()).at(-1)).toBe(replacedText);
 
   // "Editar": stored as edited at once, typed, blurred; the edited text survives a reload.
   await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
