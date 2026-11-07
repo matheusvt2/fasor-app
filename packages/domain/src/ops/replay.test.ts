@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { companyTypes, VERSION_1_ID, VERSION_2_ID, VERSION_3_ID } from '../../fixtures/company-types/op-log.ts';
 import { CABINE_ID, deadOpIds, opLog, replaySmall } from '../../fixtures/replay-small/op-log.ts';
 import type { LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, relatorioSnapshotSchema, serializeSnapshot } from '../schemas/snapshot.ts';
@@ -42,5 +43,21 @@ describe('1.4-INT-001 replay byte-equality (kernel reference)', () => {
     const a = serializeSnapshot(buildSnapshot(replay(shuffled, { deadOpIds }), replaySmall.relatorioId));
     const b = serializeSnapshot(buildSnapshot(replay(opLog, { deadOpIds }), replaySmall.relatorioId));
     expect(a).toBe(b);
+  });
+});
+
+describe('Story 14.6: the AD-3 log with company types (kernel reference)', () => {
+  it('replays a type, its second version, a retired type and a block of each version into a snapshot naming the three versions', () => {
+    const snapshot = buildSnapshot(replay(companyTypes.log), companyTypes.relatorioId);
+    expect(snapshot.equipment_types?.map((row) => row.id)).toEqual([VERSION_1_ID, VERSION_2_ID, VERSION_3_ID]);
+    expect(snapshot.blocks).toHaveLength(3);
+    // The canonical text parses back to the same bytes, `equipment_types` included.
+    const text = serializeSnapshot(snapshot);
+    expect(serializeSnapshot(relatorioSnapshotSchema.parse(JSON.parse(text)))).toBe(text);
+  });
+
+  it('is independent of the array order when seq is present', () => {
+    const shuffled = [...companyTypes.log].reverse();
+    expect(serializeSnapshot(buildSnapshot(replay(shuffled), companyTypes.relatorioId))).toBe(serializeSnapshot(buildSnapshot(replay(companyTypes.log), companyTypes.relatorioId)));
   });
 });
