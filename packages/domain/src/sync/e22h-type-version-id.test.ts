@@ -173,9 +173,11 @@ describe('e22h S2: a company block names its version row', () => {
 
 describe('e22h S2: "Reenviar" renumbers a refused publish and the blocks naming it', () => {
   const typeRow = (latest: number, removed = false): Pick<EquipmentTypeRow, 'id' | 'latest_version' | 'removed_at'> => ({ id: TYPE_ID, latest_version: latest, removed_at: removed ? T(2) : null });
+  /** The device beside its dead rows: its type rows, its live outbox ops and the version rows it holds. */
+  const device = (types: Pick<EquipmentTypeRow, 'id' | 'latest_version' | 'removed_at'>[], live: Op[] = [], versions: { id: string; version: number }[] = []) => ({ types, live, versions });
 
   it('equal: a version already the next free number moves nothing', () => {
-    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 3), blockCreate(configOf(3, Y_ID))], [typeRow(2)])).toEqual([]);
+    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 3), blockCreate(configOf(3, Y_ID))], device([typeRow(2)]))).toEqual([]);
   });
 
   it('one ahead: v2 refused while the type is at 2 moves to 3, with its block create and config put', () => {
@@ -184,7 +186,7 @@ describe('e22h S2: "Reenviar" renumbers a refused publish and the blocks naming 
     const put = op('put', 'relatorio', `block/${BLOCK_ID}/config`, configOf(2, Y_ID, Y_DEFINITION));
     const other = blockCreate(configOf(2, Z_ID), id(12));
     const sheet = itemPut(BLOCK_ID, 'alarme_remoto');
-    const out = resendRenumberedVersions([version, block, put, other, sheet], [typeRow(2)]);
+    const out = resendRenumberedVersions([version, block, put, other, sheet], device([typeRow(2)]));
     expect(out.map((o) => o.op_id)).toEqual([version.op_id, block.op_id, put.op_id]);
     expect((out[0]!.value as { version: number }).version).toBe(3);
     expect(typeVersionOf((out[1]!.value as { config: unknown }).config)).toEqual({ version: 3, id: Y_ID });
@@ -199,7 +201,7 @@ describe('e22h S2: "Reenviar" renumbers a refused publish and the blocks naming 
 
   it('two of one type: consecutive numbers in commit order', () => {
     const second = id(20);
-    const out = resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 2), versionCreate(second, TYPE_ID, 3), blockCreate(configOf(3, second))], [typeRow(2)]);
+    const out = resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 2), versionCreate(second, TYPE_ID, 3), blockCreate(configOf(3, second))], device([typeRow(2)]));
     expect(out.map((o) => (o.path.startsWith('equipment_type_version/') ? (o.value as { version: number }).version : typeVersionOf((o.value as { config: unknown }).config)))).toEqual([3, 4, { version: 4, id: second }]);
   });
 
@@ -208,10 +210,54 @@ describe('e22h S2: "Reenviar" renumbers a refused publish and the blocks naming 
     const valid = versionCreate(Y_ID, TYPE_ID, 2);
     const bad = { ...valid, value: { ...(valid.value as object), definition: { ...DEFINITION_1, criteria: [{ ...DEFINITION_1.criteria[0]!, source: { name: '', edition: null } }] } } } as Op;
     const good = versionCreate(id(21), TYPE_ID, 2);
-    const out = resendRenumberedVersions([bad, good], [typeRow(2)]);
+    const out = resendRenumberedVersions([bad, good], device([typeRow(2)]));
     expect(out.map((o) => [o.op_id, (o.value as { version: number }).version])).toEqual([[good.op_id, 3]]);
-    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 2)], [])).toEqual([]);
-    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 2)], [typeRow(2, true)])).toEqual([]);
+    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 2)], device([]))).toEqual([]);
+    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 2)], device([typeRow(2, true)]))).toEqual([]);
+  });
+
+  it('finding 1: a live block create and config put naming the renumbered row follow it; a live sheet put and a block on Z stay', () => {
+    const version = versionCreate(Y_ID, TYPE_ID, 2, Y_DEFINITION);
+    const block = blockCreate(configOf(2, Y_ID, Y_DEFINITION));
+    const put = op('put', 'relatorio', `block/${BLOCK_ID}/config`, configOf(2, Y_ID, Y_DEFINITION));
+    const other = blockCreate(configOf(2, Z_ID), id(12));
+    const sheet = itemPut(BLOCK_ID, 'alarme_remoto');
+    const out = resendRenumberedVersions([version], device([typeRow(2)], [block, put, other, sheet], [{ id: Z_ID, version: 2 }]));
+    expect(out.map((o) => o.op_id)).toEqual([version.op_id, block.op_id, put.op_id]);
+    expect(typeVersionOf((out[1]!.value as { config: unknown }).config)).toEqual({ version: 3, id: Y_ID });
+    expect(typeVersionOf(out[2]!.value)).toEqual({ version: 3, id: Y_ID });
+    expect(out[1]!.client_ts).toBe(block.client_ts);
+  });
+
+  it('finding 1, after the fact: a dead or live block naming a row the device holds at another number moves to that number', () => {
+    // An earlier "Reenviar" moved y to 3 and the server took it; the block create came back dead naming (2, y).
+    const dead = blockCreate(configOf(2, Y_ID, Y_DEFINITION));
+    const live = op('put', 'relatorio', `block/${BLOCK_ID}/config`, configOf(2, Y_ID, Y_DEFINITION));
+    const held = [{ id: Z_ID, version: 2 }, { id: Y_ID, version: 3 }];
+    const out = resendRenumberedVersions([dead], device([typeRow(3)], [live], held));
+    expect(out.map((o) => o.op_id)).toEqual([dead.op_id, live.op_id]);
+    expect(typeVersionOf((out[0]!.value as { config: unknown }).config)).toEqual({ version: 3, id: Y_ID });
+    expect(typeVersionOf(out[1]!.value)).toEqual({ version: 3, id: Y_ID });
+    // The boundaries: a block naming the number the row is held at, a row the device does not hold, a seeded block naming no row.
+    const onZ = blockCreate(configOf(2, Z_ID), id(13));
+    const unheld = blockCreate(configOf(2, id(30)), id(14));
+    const seeded = blockCreate(configOf(2, undefined), id(15));
+    expect(resendRenumberedVersions([onZ, unheld, seeded], device([typeRow(3)], [], held))).toEqual([]);
+  });
+
+  it('finding 2: the next free number is past this device\'s own live creates of the type, and a dead create with blocks still moves', () => {
+    // The device's live v3 of the type did not fold (the type row still at 1): the dead v2 takes 4, never 3.
+    const liveV3 = versionCreate(id(22), TYPE_ID, 3);
+    const version = versionCreate(Y_ID, TYPE_ID, 2, Y_DEFINITION);
+    const block = blockCreate(configOf(2, Y_ID, Y_DEFINITION));
+    const out = resendRenumberedVersions([version, block], device([typeRow(1)], [liveV3]));
+    expect(out.map((o) => (o.path.startsWith('equipment_type_version/') ? (o.value as { version: number }).version : typeVersionOf((o.value as { config: unknown }).config)))).toEqual([4, { version: 4, id: Y_ID }]);
+    // The type's latest_version wins when it is higher; a live create of another type counts for nothing.
+    expect((resendRenumberedVersions([version], device([typeRow(5)], [liveV3]))[0]!.value as { version: number }).version).toBe(6);
+    const otherType = versionCreate(id(23), OTHER_TYPE_ID, 7);
+    expect((resendRenumberedVersions([version], device([typeRow(2)], [otherType]))[0]!.value as { version: number }).version).toBe(3);
+    // Equal to the next free number past a live create: nothing moves.
+    expect(resendRenumberedVersions([versionCreate(Y_ID, TYPE_ID, 4)], device([typeRow(1)], [liveV3]))).toEqual([]);
   });
 });
 

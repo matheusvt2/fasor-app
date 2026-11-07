@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { calendarDateOfInstant, SEED_VERSION, standardTemplate, type ClientRow, type EquipmentRow, type ProjectRow, type TemplateRow } from '@app/domain';
+import { calendarDateOfInstant, EMPTY_DEFINITION_CONTEXT, omittedPlacementsOf, omittedPlacementsText, SEED_VERSION, standardTemplate, type ClientRow, type EquipmentRow, type ProjectRow, type TemplateRow } from '@app/domain';
 import { configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -12,6 +12,7 @@ import type { SessionState } from '../../state/session.tsx';
 import type { SyncState } from '../../state/sync.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { copy } from '../../copy/pt-br.ts';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 
 /*
@@ -146,6 +147,18 @@ describe('e22h N4: a company type no version of which reached the device', () =>
     const outbox = await database.outbox.toArray();
     expect(outbox).toHaveLength(223);
     expect(outbox.some((op) => (op.value as { block_type?: unknown } | null)?.block_type === `type:${TYPE_ID}`)).toBe(false);
+  });
+
+  it('review e22h gap 10: a type the device holds nothing of (no type row, no version) shows the kernel\'s sentence and the hint', async () => {
+    database = await freshDb();
+    const row = withCompanyBlock();
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, row));
+    renderDialog([row]);
+    const sentence = omittedPlacementsText(omittedPlacementsOf(row, EMPTY_DEFINITION_CONTEXT));
+    expect(sentence).not.toBeNull();
+    const notice = await within(dialog()).findByRole('status');
+    expect(notice).toHaveTextContent(`${sentence!} ${copy.newRelatorio.omittedHint}`);
+    expect(notice).toHaveAttribute('data-tone', 'amber');
   });
 
   it('says nothing for a template with no company block', async () => {

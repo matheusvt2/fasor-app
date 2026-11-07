@@ -181,7 +181,7 @@ export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations'
 
 /** The Placa step's missing fields: the plate's own and, on the cabine's first sheet, the cabine's. */
 function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled: ReadonlySet<string>): { plate: number; cabine: number } {
-  const plate = enabled.has('nameplate') ? nameplateMissingKeys(snapshot, block.id).size : 0;
+  const plate = enabled.has('nameplate') ? nameplateMissingKeys({ blocks: snapshot.blocks, equipment: snapshot.equipment, equipment_types: snapshot.equipment_types }, block.id).size : 0;
   let cabineMissing = 0;
   const { relatorio, locations, equipment } = snapshot;
   if (relatorio !== undefined && locations !== undefined && equipment !== undefined && isCabineFirstSheet({ blocks: snapshot.blocks, locations, equipment }, block.id)) {

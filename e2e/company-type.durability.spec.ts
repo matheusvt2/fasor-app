@@ -9,13 +9,14 @@ import {
   SEED_VERSION,
   type BlockRow,
   type EquipmentRow,
+  type EquipmentTypeVersionRow,
   type LocationRow,
   type MeasurementTest,
 } from '@app/domain';
 import type { Page, Route } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { newId } from '../apps/api/src/ids.ts';
-import { duplicateLibraryType, editorTab, openTypeList, publishButton, typeInto } from './support/company-type.ts';
+import { duplicateLibraryType, editorTab, openTypeList, publishButton, typeInto, typeRows } from './support/company-type.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { signInForDurability, waitForShellCache } from './support/durability.ts';
@@ -317,6 +318,11 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   // e22h S2: each block names its own version row; v1 and v2 are two rows.
   expect(r2Block.typeVersionId).toMatch(/^[0-9a-f-]{36}$/);
   expect(r2Block.typeVersionId).not.toBe(r1Block.typeVersionId);
+  // Review e22h gap 9: each names the store's own row at its number, not only some UUID.
+  const { versions } = await typeRows<unknown, EquipmentTypeVersionRow>(page, database, typeId);
+  expect(versions.map((row) => row.version)).toEqual([1, 2]);
+  expect(r2Block.typeVersionId).toBe(versions.find((row) => row.version === 2)!.id);
+  expect(r1Block.typeVersionId).toBe(versions.find((row) => row.version === 1)!.id);
   await openSheet(page, r2, r2Block.blockId);
   await expect(sheetTitle(page)).toContainText(NAME_V2);
   await openSheet(page, r1, r1Block.blockId);

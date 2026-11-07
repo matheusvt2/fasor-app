@@ -215,7 +215,7 @@ function instrumentKindOf(definition: BlockDefinition, testKey: string): { kind:
 }
 
 /** What the suggestion reads: `Pick<RelatorioSnapshot, 'blocks' | 'instruments'>`, read-only. */
-export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: readonly RelatorioSnapshot[K][number][] } & { readonly equipment_types?: RelatorioSnapshot['equipment_types'] };
+export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: readonly RelatorioSnapshot[K][number][] } & { readonly equipment_types: RelatorioSnapshot['equipment_types'] };
 
 /**
  * Story 12.3 (J-07, D-4; `source-deltas.md` row 51): the instrument a test sub-block

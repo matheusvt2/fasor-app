@@ -277,8 +277,8 @@ describe('Story 14.14 (contract 22): seed v7 through POST /api/sync/ops', () => 
     expect(before.sheet.nameplate.vol_oleo!.value).toEqual(num('45', 'L'));
     const photoRow = (await rowOfEntity('file', (photo.value as { id: string }).id)) as FileRow;
     // Outro to Óleo crosses nothing; Outro to Ar clears the item, VOL. ÓLEO and the photo tie.
-    expect(oilCrossingPuts({ blocks: [before], files: [photoRow] as never }, dj.id, 'meio_de_extincao', 'Óleo')).toEqual([]);
-    const crossing = oilCrossingPuts({ blocks: [before], files: [photoRow] as never }, dj.id, 'meio_de_extincao', 'Ar');
+    expect(oilCrossingPuts({ blocks: [before], files: [photoRow] as never, equipment_types: undefined }, dj.id, 'meio_de_extincao', 'Óleo')).toEqual([]);
+    const crossing = oilCrossingPuts({ blocks: [before], files: [photoRow] as never, equipment_types: undefined }, dj.id, 'meio_de_extincao', 'Ar');
     expect(crossing.map((entry) => entry.path)).toEqual([sheetChecklistPath(dj.id, OIL_ITEM, 'result'), sheetNameplatePath(dj.id, 'vol_oleo'), fileFieldPath(photoRow.id, 'item_key')]);
     const prev = (path: string) => {
       const parsed = path.split('/');

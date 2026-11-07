@@ -91,4 +91,41 @@ describe('e22h S2: "Reenviar" renumbers a refused publish, and its block resends
     expect(definition?.checklist?.map((item) => item.key)).toContain('alarme_remoto');
     db.close();
   });
+
+  it('review e22h finding 1: a block create still sent when its version create came back dead follows the renumber', async () => {
+    const db = await freshDb();
+    const company = companyTypes.log.filter((op) => op.scope === 'company');
+    const upToV1 = company.findIndex((op) => op.path === `equipment_type_version/${VERSION_1_ID}`);
+    const scaffold = companyTypes.log.filter((op) => (op.scope !== 'company' || op.path.startsWith('project/')) && !op.path.startsWith('block/') && !op.path.startsWith('sheet/'));
+    await applyPulled(db, [...company.slice(0, upToV1 + 1), ...scaffold]);
+    const versionBase = company[upToV1]!;
+    const blockBase = companyTypes.log.find((op) => op.path === `block/${BLOCK_1_ID}`)!;
+    const publish = own(1, versionBase, `equipment_type_version/${OWN_VERSION_ID}`, 'create', { ...(versionBase.value as object), id: OWN_VERSION_ID, version: 2, definition: OWN_DEFINITION });
+    const subBlocks = Object.fromEntries(companySubBlocksOf(OWN_DEFINITION).map((key) => [key, { enabled: key !== 'ia_ip_display' }]));
+    const place = own(2, blockBase, `block/${BLOCK_1_ID}`, 'create', {
+      ...(blockBase.value as object),
+      config: { block_type: TYPE_1, sub_blocks: subBlocks, na_defaults: [], type_version: 2, type_version_id: OWN_VERSION_ID },
+    });
+    const fill = own(3, blockBase, `sheet/${BLOCK_1_ID}/checklist/alarme_remoto/result`, 'put', 'NC');
+    await commitOps(db, [publish, place, fill]);
+
+    // The push answered only the version create (refused); the block create and its fill are still in flight.
+    await applyPulled(db, company.slice(upToV1 + 1));
+    await db.outbox.update(place.op_id, { status: 'sent' });
+    await markDead(db, [{ op_id: publish.op_id, code: 'op_invalid' }]);
+
+    expect(await resendDead(db, new Date('2026-11-07T12:00:00.000Z'))).toBe(1);
+    const rows = await db.outbox.bulkGet([publish.op_id, place.op_id, fill.op_id]);
+    expect(rows.map((row) => row?.status)).toEqual(['pending', 'sent', 'pending']);
+    expect((rows[0]!.value as { version: number }).version).toBe(3);
+    // Before the fix the sent block create kept naming (2, own row) and was refused for good.
+    expect(typeVersionOf((rows[1]!.value as { config: unknown }).config)).toEqual({ version: 3, id: OWN_VERSION_ID });
+    expect(rows[1]!.client_ts).toBe(place.client_ts);
+    const block = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
+    expect(typeVersionOf(block.config)).toEqual({ version: 3, id: OWN_VERSION_ID });
+    expect(block.sheet.checklist).toHaveProperty('alarme_remoto');
+    const definition = blockDefinitionIn(snapshotDefinitionContext(await toSnapshot(db, RELATORIO_ID)), block);
+    expect(definition?.type_version_id).toBe(OWN_VERSION_ID);
+    db.close();
+  });
 });

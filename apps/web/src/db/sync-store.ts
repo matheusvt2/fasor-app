@@ -189,15 +189,20 @@ export async function writeSyncState(db: AppDatabase, row: SyncStateRow): Promis
  * e22h S2: first, a company type version this device published at a number another device took
  * moves to the next free one, and the dead blocks naming that version row follow it
  * (`resendRenumberedVersions`, over the dead rows in commit order and the type rows as this device
- * holds them now); the restamp then reads the renumbered values.
+ * holds them now); the restamp then reads the renumbered values. Review e22h: the live (pending
+ * and sent) blocks naming such a row follow it too, and so does any block naming a version row
+ * this device holds at another number; those live rows keep their status and are re-materialized.
  */
 export async function resendDead(db: AppDatabase, now: Date, clockErrorMs = 0): Promise<number> {
   return db.transaction('rw', db.outbox, db.remote_ops, db.entities, async () => {
     const dead = (await db.outbox.where('status').equals('dead').toArray()).sort(byClientTsThenOpId);
     const refs = new Set<string>();
-    const { types } = await equipmentTypeRows(db);
-    const renumbered = new Map(resendRenumberedVersions(dead.map(opOf), types).map((op) => [op.op_id, op]));
+    const { types, versions } = await equipmentTypeRows(db);
+    const live = (await db.outbox.where('status').anyOf(['pending', 'sent']).toArray()).sort(byClientTsThenOpId);
+    const renumbered = new Map(resendRenumberedVersions(dead.map(opOf), { types, live: live.map(opOf), versions }).map((op) => [op.op_id, op]));
     for (const op of renumbered.values()) await db.outbox.update(op.op_id, { value: op.value });
+    // e22h review finding 1: a live block create or config put that followed a renumbered row is rewritten in place and re-materialized.
+    for (const row of live) if (renumbered.has(row.op_id)) for (const key of row.targets) refs.add(key);
     const misdated = resendRestampOrder(dead.map((row) => ({ op: renumbered.get(row.op_id) ?? opOf(row), code: row.error_code ?? null })));
     for (const [i, op] of misdated.entries()) {
       const again = restampOp(op, new Date(now.getTime() + i), clockErrorMs);

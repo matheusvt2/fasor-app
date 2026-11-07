@@ -184,14 +184,14 @@ describe('matrix "Band criterion", "No criterion" and "SELV/PELV": the criterion
     expect(voltsOf(NOT_APPLICABLE_NUMBER)).toBeNull();
     expect(value(board(NOT_APPLICABLE_NUMBER as unknown as JsonValue))).toBeNull();
     // Filled all the same: the plate does not ask for it again.
-    expect(nameplateMissingKeys({ blocks: [board(NOT_APPLICABLE_NUMBER as unknown as JsonValue)] }, BLOCK).has('tensao_nominal')).toBe(false);
+    expect(nameplateMissingKeys({ blocks: [board(NOT_APPLICABLE_NUMBER as unknown as JsonValue)], equipment_types: undefined }, BLOCK).has('tensao_nominal')).toBe(false);
   });
 
   it('a board marked SIM is judged >= 0,25 MΩ whatever its voltage; NÃO or empty reads the voltage bands, and an empty mark is never missing', () => {
     for (const volts of [null, num('380', 'V'), num('13800', 'V')]) expect(value(board(volts, 'SIM'))?.value, JSON.stringify(volts)).toBe(0.25);
     expect(value(board(num('380', 'V'), 'NÃO'))?.value).toBe(0.5);
     expect(value(board(num('690', 'V'), 'NÃO'))?.value).toBe(1);
-    const missing = nameplateMissingKeys({ blocks: [board(num('380', 'V'))] }, BLOCK);
+    const missing = nameplateMissingKeys({ blocks: [board(num('380', 'V'))], equipment_types: undefined }, BLOCK);
     expect(missing.has('circuito_selv_pelv')).toBe(false);
     expect([...missing]).toEqual(['identificacao', 'fabricante', 'n_serie', 'tipo', 'tipo_de_isolacao', 'data_de_fabricacao', 'corrente_de_curto', 'ip']);
   });

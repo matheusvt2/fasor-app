@@ -1,6 +1,7 @@
 import {
   companyBlockType,
   definitionContext,
+  formatCriterionValue,
   getDefinition,
   initialOrderKey,
   newEquipmentBlock,
@@ -63,6 +64,8 @@ const NAME = 'QGBT da empresa';
 const LOCAL = 'Geradores';
 const TAGS = ['QGE-01', 'QGE-02', 'QGE-03'] as const;
 const ROWS = ['Fase A', 'Fase B', 'Fase C', 'Neutro'];
+/** The 380 V band of the source's insulation test (NBR 5410, up to 500 V), as the kernel words it. */
+const BAND_380 = formatCriterionValue(DEFINITION.tests.find((test) => test.key === 'isolacao')!.criterion_bands!.bands.find((band) => band.up_to >= 380)!);
 const POINT_TEXT = 'Barramento com sinais de aquecimento';
 
 const measured = (raw: string, unit: string | null) => ({ raw, unit, state: 'measured' });
@@ -209,11 +212,14 @@ test('@p0 14.8-E2E-002 a company sheet of a duplicated library type: plate sugge
 
   // --- a reading typed and judged: FASE C under the criterion at 380 V ---
   await goToStep(page, 'Ensaios', 'ensaios');
-  const readings = ['850', '1200', '0,4', '900'];
+  // Review e22h gap 6: FASE B at 50 MΩ is within the copy's 0,5 MΩ band and would be out under the test's own "> 400 MΩ".
+  await expect(page.locator('section[data-test-key="isolacao"] .mt-criterion').first()).toHaveText(`Aceitável ${BAND_380}`);
+  const readings = ['850', '50', '0,4', '900'];
   for (const [i, row] of ROWS.entries()) await typeReading(page, row, readings[i]!);
   await expect(cellBox(page, 2).locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
-  await expect(cellBox(page, 2).locator('.mf-helper[role="status"]')).toContainText('Abaixo do aceitável');
+  await expect(cellBox(page, 2).locator('.mf-helper[role="status"]')).toContainText(`Abaixo do aceitável (${BAND_380})`);
   for (const row of [0, 1, 3]) await expect(cellBox(page, row).locator('.measurement-field')).not.toHaveAttribute('data-state', 'out-of-limit');
+  await expect.poll(() => written(page, `sheet/${first}/test/isolacao/cell/1/1`)).toEqual([measured('50', 'MΩ')]);
   await expect.poll(() => written(page, `sheet/${first}/test/isolacao/cell/2/1`)).toEqual([measured('0.4', 'MΩ')]);
 
   // --- the suggested conclusion, confirmed ---

@@ -68,7 +68,7 @@ export function nameplateCopyFields(source: Pick<BlockRow, 'sheet'>, definition:
 
 /** "Igual à ⟨TAG⟩?": the plate to copy onto `blockId`, or null when none applies. */
 export function suggestNameplateCopy(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly EquipmentRow[]; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly EquipmentRow[]; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   blockId: string,
 ): { sourceBlockId: string; tag: string } | null {
   const target = snapshot.blocks.find((row) => row.id === blockId);
@@ -138,7 +138,7 @@ const TAG_KEY = 'tag';
  * TAG.
  */
 export function nameplateTagPrefill(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[]; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[]; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   blockId: string,
 ): string | null {
   const block = snapshot.blocks.find((row) => row.id === blockId);

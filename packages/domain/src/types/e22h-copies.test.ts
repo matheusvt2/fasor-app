@@ -8,7 +8,7 @@ import { isVectorGroupField } from '../relatorio/vector-group.ts';
 import { companyBlockType } from '../schemas/block-config.ts';
 import { emptySheet, equipmentTypeVersionRowSchema, type BlockRow, type Cell, type EntityRow, type EquipmentTypeVersionRow } from '../schemas/entities.ts';
 import { compareCriterion } from '../seed/criteria.ts';
-import { definitionContext, equipmentTypesOf, getDefinition, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, definitionContext, definitionContextOf, equipmentTypesOf, getDefinition, versionRowIn, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { asBlockDefinition } from './block-definition.ts';
 import { companyTypeDefinitionSchema, criterionRulesFor, type CompanyTypeDefinition } from './definition.ts';
@@ -30,13 +30,42 @@ const USER = USER_ID;
 const cell = (value: unknown): Cell => ({ value: value as Cell['value'], source_suggestion_id: null, op_id: OP });
 const measured = (raw: string, unit: string | null) => cell({ raw, unit, state: 'measured' });
 
-/** The copy of a seeded type published untouched as version 1: its version row and its definition as every reader takes it. */
+/**
+ * The copy of a seeded type published untouched as version 1: its version row and its definition
+ * as every reader takes it, through the real path (review e22h, verification gap 6): the row parsed
+ * by the tolerant row schema inside the op, the `equipment_type_version` create folded by
+ * `applyOp` (its strict check), and the definition resolved from the folded state by the block's
+ * own `{version, id}` reference. A strip of the bands, the class field or the oil rule anywhere on
+ * that path turns the judging tests below red.
+ */
 function publishedCopy(blockType: 'quadro_eletrico' | 'tc' | 'tp' | 'transformador_forca'): { row: EquipmentTypeVersionRow; definition: BlockDefinition; ctx: DefinitionContext } {
   const draft = duplicateSeededType(SEED, blockType).draft;
   expect(validateTypeDraft(draft), blockType).toEqual([]);
-  const row: EquipmentTypeVersionRow = { id: VERSION_1_ID, type_id: TYPE_1_ID, version: 1, definition: draft, published_by: USER, published_at: '2026-11-07T12:00:00.000Z' };
-  const type = { ...newEquipmentTypeRow(TYPE_1_ID, { derived_from: { seed_version: SEED, block_type: blockType }, draft }), draft: null, latest_version: 1 };
-  return { row, definition: asBlockDefinition(row), ctx: definitionContext([row], [type]) };
+  const stored = equipmentTypeVersionRowSchema.parse({ id: VERSION_1_ID, type_id: TYPE_1_ID, version: 1, definition: draft, published_by: USER, published_at: '2026-11-07T12:00:00.000Z' });
+  const type = newEquipmentTypeRow(TYPE_1_ID, { derived_from: { seed_version: SEED, block_type: blockType }, draft });
+  const publish = opSchema.parse({
+    op_id: OP,
+    kind: 'create',
+    scope: 'company',
+    company_id: COMPANY_ID,
+    project_id: null,
+    relatorio_id: null,
+    path: `equipment_type_version/${VERSION_1_ID}`,
+    value: stored,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: USER,
+    device_id: DEVICE_ID,
+    client_ts: '2026-11-07T12:00:00.000Z',
+  });
+  const state = applyOp(new Map<EntityKey, EntityRow>([[entityKey('equipment_type', TYPE_1_ID), type]]), publish);
+  const ctx = definitionContextOf(state);
+  const row = versionRowIn(ctx, TYPE_1_ID, { version: 1, id: VERSION_1_ID });
+  const definition = blockDefinitionIn(ctx, blockOf(companyBlockType(TYPE_1_ID), {}));
+  expect(row, blockType).not.toBeNull();
+  expect(definition, blockType).not.toBeNull();
+  return { row: row!, definition: definition!, ctx };
 }
 
 /** A block of `blockType` with `plate` on its nameplate and `cells` (row/col) on test `testKey`. */
@@ -192,6 +221,28 @@ describe('e22h S1: a broken plate reference is said in pt-BR, and removing its f
     expect(withoutItem.oil_rule?.items ?? []).not.toContain(rule.items[0]);
     for (const draft of [withoutField, withoutItem]) expect(validateTypeDraft(draft)).toEqual([]);
   });
+
+  it('review e22h finding 4: removing only the SELV/PELV field keeps the voltage bands; removing the voltage field drops them', () => {
+    const quadro = duplicateSeededType(SEED, 'quadro_eletrico').draft;
+    const bandsOf = (draft: CompanyTypeDefinition) => draft.tests.find((test) => test.key === 'isolacao')!.criterion_bands;
+    const source = bandsOf(quadro)!;
+    const selvField = quadro.nameplate.findIndex((field) => field.key === source.selv_field);
+    const withoutSelv = removeDraftEntry(quadro, 'nameplate', selvField) as CompanyTypeDefinition;
+    expect(bandsOf(withoutSelv)).toEqual({ field: source.field, bands: source.bands });
+    expect(validateTypeDraft(withoutSelv)).toEqual([]);
+    // It still judges by the band: 0,8 MΩ at 380 V is within (>=0,5 MΩ), never out at the test's own "> 400 MΩ".
+    const row: EquipmentTypeVersionRow = { id: VERSION_1_ID, type_id: TYPE_1_ID, version: 1, definition: withoutSelv, published_by: USER, published_at: '2026-11-07T12:00:00.000Z' };
+    const definition = asBlockDefinition(row);
+    const block = blockOf(companyBlockType(TYPE_1_ID), { tensao_nominal: { raw: '380', unit: 'V', state: 'measured' } }, 'isolacao', { '0/1': measured('0.8', 'MΩ') });
+    const evaluation = evaluateTest(block, definition, definition.tests.find((test) => test.key === 'isolacao')!);
+    expect(evaluatedCells([evaluation]).filter((c) => c.state === 'measured').map((c) => c.verdict)).toEqual(['within']);
+    expect(effectiveCriterion(block, definition.tests.find((test) => test.key === 'isolacao')!)?.value).toBe(0.5);
+    // The voltage field takes the whole bands with it.
+    const voltage = quadro.nameplate.findIndex((field) => field.key === source.field);
+    const withoutVoltage = removeDraftEntry(quadro, 'nameplate', voltage) as CompanyTypeDefinition;
+    expect(bandsOf(withoutVoltage)).toBeUndefined();
+    expect(validateTypeDraft(withoutVoltage)).toEqual([]);
+  });
 });
 
 describe('e22h N1: pass_fail only on a row no test names, ± only on the ratio deviation', () => {
@@ -247,8 +298,8 @@ describe('e22h N3: a published version is read with its structural shape', () =>
     const ctx = definitionContext([parsed.data!]);
     expect(ctx.versions.size).toBe(1);
     expect(asBlockDefinition(parsed.data!).label).toBe(tc.label);
-    // A structural break is still refused (a test without its tables).
-    expect(equipmentTypeVersionRowSchema.safeParse({ ...stored, definition: { ...tc, tests: [{ key: 'isolacao' }] } }).success).toBe(false);
+    // A structural break is still refused (the tests not a list); review e22h finding 5: a nested shape is not checked here.
+    expect(equipmentTypeVersionRowSchema.safeParse({ ...stored, definition: { ...tc, tests: 'isolacao' } }).success).toBe(false);
     // The fold's version create keeps the strict check.
     const state = new Map<EntityKey, EntityRow>();
     const type = newEquipmentTypeRow(TYPE_1_ID, { derived_from: { seed_version: SEED, block_type: 'tc' }, draft: tc });
@@ -271,6 +322,27 @@ describe('e22h N3: a published version is read with its structural shape', () =>
       client_ts: '2026-11-07T12:00:00.000Z',
     });
     expect(() => applyOp(state, op)).toThrow(/does not publish/);
+  });
+
+  it('review e22h finding 5: no nested refinement runs on read: two NC phrases on an item, a between without value_max', () => {
+    const tc = duplicateSeededType(SEED, 'tc').draft;
+    const item = tc.checklist![0]!;
+    const criterion = tc.criteria[0]!;
+    const loose = {
+      ...tc,
+      checklist: [{ ...item, nc_phrases: item.nc_phrases.slice(0, 2) }, ...tc.checklist!.slice(1)],
+      criteria: [{ ...criterion, operator: 'between', type: 'absolute_min' }, ...tc.criteria.slice(1)],
+    } as CompanyTypeDefinition;
+    expect(companyTypeDefinitionSchema.safeParse(loose).success).toBe(false);
+    const parsed = equipmentTypeVersionRowSchema.safeParse({ id: VERSION_1_ID, type_id: TYPE_1_ID, version: 1, definition: loose, published_by: USER, published_at: '2026-11-07T12:00:00.000Z' });
+    expect(parsed.success).toBe(true);
+    // Kept as written, and it resolves for a block naming it.
+    expect(parsed.data!.definition.checklist![0]!.nc_phrases).toEqual(item.nc_phrases.slice(0, 2));
+    expect((parsed.data!.definition.criteria[0] as { value_max?: number }).value_max).toBeUndefined();
+    const ctx = definitionContext([parsed.data!]);
+    const definition = blockDefinitionIn(ctx, blockOf(companyBlockType(TYPE_1_ID), {}));
+    expect(definition?.label).toBe(tc.label);
+    expect(definition?.checklist?.[0]?.nc_phrases).toEqual(item.nc_phrases.slice(0, 2));
   });
 });
 

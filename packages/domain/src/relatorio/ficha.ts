@@ -43,7 +43,7 @@ export function sheetOrder(snapshot: Pick<RelatorioSnapshot, 'locations' | 'bloc
  * "N sugestões por confirmar" leads; null when none does.
  */
 export function firstSheetWithPendingSuggestions(
-  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>,
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & { readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   pending: readonly SuggestionRow[],
 ): string | null {
   const held = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, pending, [], snapshotDefinitionContext(snapshot)));

@@ -382,7 +382,7 @@ const PAIR_VALUE_COLUMNS: readonly number[] = [1, 3, 5];
 /** Three label/value pairs per row. The TAG field with no cell of its own prints the block's TAG (E12-A2). */
 function nameplatePart(ctx: Context, block: BlockRow, definition: BlockDefinition): SheetPart {
   // e22h B1: the snapshot's type versions too, so a company plate's TAG field reads its prefill.
-  const prefill = nameplateTagPrefill(ctx.snapshot, block.id);
+  const prefill = nameplateTagPrefill({ blocks: ctx.snapshot.blocks, equipment: ctx.snapshot.equipment, equipment_types: ctx.snapshot.equipment_types }, block.id);
   const pairs = definition.nameplate.map((field) => {
     const cell = block.sheet.nameplate[field.key];
     // Story 14.11 (seed v6): an oil field of a non-oil unit prints "-" whatever is stored.

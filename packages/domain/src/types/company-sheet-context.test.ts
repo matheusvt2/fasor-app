@@ -181,6 +181,6 @@ describe('e22h: the oil rule of a company type, through the context', () => {
     const block = unit(oil, { [oilItem]: 'C' });
     const puts = oilCrossingPuts({ blocks: [block], files: [], ...types }, block.id, rule.field, dry);
     expect(puts).toContainEqual({ path: sheetChecklistPath(block.id, oilItem, 'result'), value: null });
-    expect(oilCrossingPuts({ blocks: [block], files: [] }, block.id, rule.field, dry)).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [block], files: [], equipment_types: undefined }, block.id, rule.field, dry)).toEqual([]);
   });
 });

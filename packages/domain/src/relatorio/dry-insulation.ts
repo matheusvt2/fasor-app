@@ -124,7 +124,7 @@ export function nameplateAcceptsNotApplicable(block: Pick<BlockRow, 'config' | '
  * `optional` (seed v6, the QGBT's SELV/PELV mark). Empty for an unknown block, one with no definition or a disabled nameplate.
  */
 export function nameplateMissingKeys(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   blockId: string,
 ): ReadonlySet<string> {
   const block = snapshot.blocks.find((row) => row.id === blockId);
@@ -136,7 +136,7 @@ export function nameplateMissingKeys(
   const prefilled =
     snapshot.equipment === undefined
       ? null
-      : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment, ...(snapshot.equipment_types === undefined ? {} : { equipment_types: snapshot.equipment_types }) }, block.id);
+      : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment, equipment_types: snapshot.equipment_types }, block.id);
   const missing = new Set<string>();
   for (const field of definition.nameplate) {
     if (isCellFilled(block.sheet.nameplate[field.key])) continue;

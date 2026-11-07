@@ -329,7 +329,7 @@ describe('Stories 14.9 and 14.11 (contract 21): seed v6 through POST /api/sync/o
     expect((await pushOk(setup)).rejected).toEqual([]);
     const before = (await rowOfEntity('block', tr.id)) as BlockRow;
     const photoRow = (await rowOfEntity('file', (photo.value as { id: string }).id)) as FileRow;
-    const crossing = oilCrossingPuts({ blocks: [before], files: [photoRow] as never }, tr.id, 'tipo_de_isolacao', 'Á SECO');
+    const crossing = oilCrossingPuts({ blocks: [before], files: [photoRow] as never, equipment_types: undefined }, tr.id, 'tipo_de_isolacao', 'Á SECO');
     expect(crossing.map((entry) => entry.path)).toEqual([
       sheetChecklistPath(tr.id, 'termometro', 'result'),
       sheetChecklistPath(tr.id, 'termometro', 'observation'),

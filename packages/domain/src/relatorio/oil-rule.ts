@@ -108,7 +108,7 @@ export interface OilCrossingPut {
  * `next` is the value about to be stored (null clears the field). Read on the fresh block.
  */
 export function oilCrossingPuts(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files']; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files']; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   blockId: string,
   fieldKey: string,
   next: unknown,

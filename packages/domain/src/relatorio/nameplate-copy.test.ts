@@ -49,7 +49,7 @@ describe('5.3-UNIT suggestNameplateCopy (FR-34)', () => {
     const older = block(1, { fabricacao: 'Celtta', n_serie: 'A1' }, { last_modified_at: '2026-09-06T10:00:00.000Z' });
     const newer = block(2, { fabricacao: 'ABB' }, { last_modified_at: '2026-09-06T11:00:00.000Z' });
     const target = block(3);
-    const snapshot = { blocks: [older, newer, target], equipment: [equipment(1), equipment(2), equipment(3)] };
+    const snapshot = { blocks: [older, newer, target], equipment: [equipment(1), equipment(2), equipment(3)], equipment_types: undefined };
     expect(suggestNameplateCopy(snapshot, target.id)).toEqual({ sourceBlockId: newer.id, tag: 'SEC-C02' });
   });
 
@@ -57,13 +57,13 @@ describe('5.3-UNIT suggestNameplateCopy (FR-34)', () => {
     const celtta = block(1, { fabricacao: 'Celtta' }, { last_modified_at: '2026-09-06T10:00:00.000Z' });
     const abb = block(2, { fabricacao: 'ABB' }, { last_modified_at: '2026-09-06T11:00:00.000Z' });
     const own = block(3, { fabricacao: ' celtta ' });
-    expect(suggestNameplateCopy({ blocks: [celtta, abb, own], equipment: [equipment(1), equipment(2), equipment(3)] }, own.id)?.sourceBlockId).toBe(celtta.id);
+    expect(suggestNameplateCopy({ blocks: [celtta, abb, own], equipment: [equipment(1), equipment(2), equipment(3)], equipment_types: undefined }, own.id)?.sourceBlockId).toBe(celtta.id);
     const fromLast = block(4);
     const lastNameplate = { relatorio_id: OTHER_REL, revision_number: 1, issued_at: '2026-03-01T10:00:00.000Z', seed_version: 'v1', block_type: 'chave_seccionadora', fields: { fabricacao: 'Celtta' } };
-    const snapshot = { blocks: [celtta, abb, fromLast], equipment: [equipment(1), equipment(2), equipment(4, { last_nameplate: lastNameplate })] };
+    const snapshot = { blocks: [celtta, abb, fromLast], equipment: [equipment(1), equipment(2), equipment(4, { last_nameplate: lastNameplate })], equipment_types: undefined };
     expect(suggestNameplateCopy(snapshot, fromLast.id)?.sourceBlockId).toBe(celtta.id);
     const nobody = block(5, { fabricacao: 'Siemens' });
-    expect(suggestNameplateCopy({ blocks: [celtta, abb, nobody], equipment: [] }, nobody.id)).toBeNull();
+    expect(suggestNameplateCopy({ blocks: [celtta, abb, nobody], equipment: [], equipment_types: undefined }, nobody.id)).toBeNull();
   });
 
   it('is absent with no other live same-type block holding a manufacturer', () => {
@@ -72,8 +72,8 @@ describe('5.3-UNIT suggestNameplateCopy (FR-34)', () => {
     const removed = block(3, { fabricacao: 'ABB' }, { removed_at: '2026-09-06T10:00:00.000Z' });
     const noManufacturer = block(4, { n_serie: 'X' });
     const elsewhere = block(5, { fabricacao: 'ABB' }, { relatorio_id: OTHER_REL });
-    expect(suggestNameplateCopy({ blocks: [target, otherType, removed, noManufacturer, elsewhere], equipment: [] }, target.id)).toBeNull();
-    expect(suggestNameplateCopy({ blocks: [], equipment: [] }, target.id)).toBeNull();
+    expect(suggestNameplateCopy({ blocks: [target, otherType, removed, noManufacturer, elsewhere], equipment: [], equipment_types: undefined }, target.id)).toBeNull();
+    expect(suggestNameplateCopy({ blocks: [], equipment: [], equipment_types: undefined }, target.id)).toBeNull();
   });
 
   it('copies the filled fields the target definition carries, in its order', () => {
@@ -163,15 +163,15 @@ describe('12.3-UNIT per-unit fields and the TAG prefill (D-3, J-09)', () => {
 
   it('prefills the nameplate TAG from the block TAG while the cell is absent; a typed or cleared cell stops following', () => {
     const target = block(1, {}, { seed_version: 'v2' });
-    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: 'SEC-2' })] }, target.id)).toBe('SEC-2');
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: 'SEC-2' })], equipment_types: undefined }, target.id)).toBe('SEC-2');
     // Renaming the block TAG moves an untouched nameplate TAG with it.
-    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: 'SEC-3' })] }, target.id)).toBe('SEC-3');
-    expect(nameplateTagPrefill({ blocks: [block(1, { tag: 'OUTRA' })], equipment: [equipment(1)] }, id(1))).toBeNull();
-    expect(nameplateTagPrefill({ blocks: [block(1, { tag: null })], equipment: [equipment(1)] }, id(1))).toBeNull();
-    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: '  ' })] }, target.id)).toBeNull();
-    expect(nameplateTagPrefill({ blocks: [target], equipment: [] }, target.id)).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: 'SEC-3' })], equipment_types: undefined }, target.id)).toBe('SEC-3');
+    expect(nameplateTagPrefill({ blocks: [block(1, { tag: 'OUTRA' })], equipment: [equipment(1)], equipment_types: undefined }, id(1))).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [block(1, { tag: null })], equipment: [equipment(1)], equipment_types: undefined }, id(1))).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: '  ' })], equipment_types: undefined }, target.id)).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [], equipment_types: undefined }, target.id)).toBeNull();
     // The para-raio's plate has no TAG field.
     const paraRaio = block(2, {}, { block_type: 'para_raio', config: defaultBlockConfig('v2', 'para_raio'), seed_version: 'v2' });
-    expect(nameplateTagPrefill({ blocks: [paraRaio], equipment: [equipment(2)] }, paraRaio.id)).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [paraRaio], equipment: [equipment(2)], equipment_types: undefined }, paraRaio.id)).toBeNull();
   });
 });

@@ -1,7 +1,9 @@
-import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
+import { companyBlockType } from '../schemas/block-config.ts';
+import { definitionContext, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
+import { duplicateSeededType } from '../types/duplicate.ts';
 import { describe, expect, it } from 'vitest';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
-import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type Cell, type EquipmentTypeVersionRow } from '../schemas/entities.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import {
   suggestedInstrument,
@@ -172,7 +174,7 @@ describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
   it('Story 14.5: a measurement test with a picker is suggested through its instrument_of, with no test parameter', () => {
     const used = sec(1, { isolacao: picked(X, 1), resistencia_contato: picked(Y, 2) });
     const cta = ctaBlock();
-    const snapshot = { blocks: [used, cta], instruments };
+    const snapshot = { blocks: [used, cta], instruments, equipment_types: undefined };
     expect(measurementInstrumentHeaderOf(instruments[0]!)).toEqual({ ...instrumentHeaderOf(instruments[0]!, 'isolacao'), test_parameter: null });
     expect(suggestedInstrument(snapshot, cta.id, E1)).toEqual(measurementInstrumentHeaderOf(instruments[1]!));
     // The megôhmetro's registry default (5 kV) is not carried: the criterion of E2 states its own test voltage.
@@ -187,12 +189,12 @@ describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
     ]);
     // Switched off, already picked, or concluded: none.
     const off: BlockRow = { ...cta, config: blockConfigWithSubBlock(cta.config, E1, false) };
-    expect(suggestedInstrument({ blocks: [used, off], instruments }, off.id, E1)).toBeNull();
-    expect(suggestedInstruments({ blocks: [used, { ...cta, concluded_by: { actor_id: 'u', at: '2026-09-06T12:00:00.000Z' } }], instruments }, cta.id)).toEqual([]);
+    expect(suggestedInstrument({ blocks: [used, off], instruments, equipment_types: undefined }, off.id, E1)).toBeNull();
+    expect(suggestedInstruments({ blocks: [used, { ...cta, concluded_by: { actor_id: 'u', at: '2026-09-06T12:00:00.000Z' } }], instruments, equipment_types: undefined }, cta.id)).toEqual([]);
     // A pick on E2 is the last one used for isolação: E3 of the same sheet and a seccionadora follow it.
     const pickedCta: BlockRow = { ...cta, sheet: { ...cta.sheet, test: { ...cta.sheet.test, [E2]: { cells: {}, instrument: picked(Y, 9) } } } };
     const fresh = sec(3);
-    const after = { blocks: [used, pickedCta, fresh], instruments };
+    const after = { blocks: [used, pickedCta, fresh], instruments, equipment_types: undefined };
     expect(lastInstrumentIdFor(after.blocks, 'isolacao', EMPTY_DEFINITION_CONTEXT)).toBe(Y);
     expect(lastInstrumentIdFor(after.blocks, 'resistencia_contato', EMPTY_DEFINITION_CONTEXT)).toBe(Y);
     expect(suggestedInstrument(after, pickedCta.id, E2)).toBeNull();
@@ -204,7 +206,7 @@ describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
     const earlier = sec(1, { isolacao: picked(Y, 1) });
     const later = sec(2, { isolacao: picked(X, 2), resistencia_contato: picked(Y, 3) });
     const target = sec(3);
-    const snapshot = { blocks: [earlier, later, target], instruments };
+    const snapshot = { blocks: [earlier, later, target], instruments, equipment_types: undefined };
     expect(suggestedInstrument(snapshot, target.id, 'isolacao')).toEqual(instrumentHeaderOf(instruments[0]!, 'isolacao'));
     expect(suggestedInstrument(snapshot, target.id, 'resistencia_contato')?.instrument_id).toBe(Y);
     // "Concluir ficha" writes one per enabled test that has a suggestion, in the definition's order.
@@ -218,24 +220,49 @@ describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
     const used = sec(1, { isolacao: picked(X, 1) });
     // The cell is filled: the picker shows what is stored.
     const filled = sec(2, { isolacao: picked(Y, 2) });
-    expect(suggestedInstrument({ blocks: [used, filled], instruments }, filled.id, 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used, filled], instruments, equipment_types: undefined }, filled.id, 'isolacao')).toBeNull();
     // No prior use for this test kind.
     const target = sec(3);
-    expect(suggestedInstrument({ blocks: [used, target], instruments }, target.id, 'resistencia_contato')).toBeNull();
-    expect(suggestedInstrument({ blocks: [target], instruments }, target.id, 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used, target], instruments, equipment_types: undefined }, target.id, 'resistencia_contato')).toBeNull();
+    expect(suggestedInstrument({ blocks: [target], instruments, equipment_types: undefined }, target.id, 'isolacao')).toBeNull();
     // X was removed from the registry.
     const removed = [{ ...instruments[0]!, removed_at: '2026-09-06T12:00:00.000Z' }, instruments[1]!];
-    expect(suggestedInstrument({ blocks: [used, target], instruments: removed }, target.id, 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used, target], instruments: removed, equipment_types: undefined }, target.id, 'isolacao')).toBeNull();
     // A use on a removed block does not count.
-    expect(suggestedInstrument({ blocks: [{ ...used, removed_at: '2026-09-06T12:00:00.000Z' }, target], instruments }, target.id, 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [{ ...used, removed_at: '2026-09-06T12:00:00.000Z' }, target], instruments, equipment_types: undefined }, target.id, 'isolacao')).toBeNull();
     // Nothing would confirm it on a sheet not tested or already concluded.
     const notTested = sec(4, {}, { not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } });
     const concluded = sec(5, {}, { concluded_by: { actor_id: 'u1', at: '2026-09-06T12:00:00.000Z' } });
-    expect(suggestedInstrument({ blocks: [used, notTested], instruments }, notTested.id, 'isolacao')).toBeNull();
-    expect(suggestedInstrument({ blocks: [used, concluded], instruments }, concluded.id, 'isolacao')).toBeNull();
-    expect(suggestedInstruments({ blocks: [used, notTested], instruments }, notTested.id)).toEqual([]);
+    expect(suggestedInstrument({ blocks: [used, notTested], instruments, equipment_types: undefined }, notTested.id, 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used, concluded], instruments, equipment_types: undefined }, concluded.id, 'isolacao')).toBeNull();
+    expect(suggestedInstruments({ blocks: [used, notTested], instruments, equipment_types: undefined }, notTested.id)).toEqual([]);
     // A test the block type does not have.
-    expect(suggestedInstrument({ blocks: [used, target], instruments }, target.id, 'relacao_transformacao')).toBeNull();
-    expect(suggestedInstrument({ blocks: [used], instruments }, 'nope', 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used, target], instruments, equipment_types: undefined }, target.id, 'relacao_transformacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used], instruments, equipment_types: undefined }, 'nope', 'isolacao')).toBeNull();
+  });
+});
+
+describe('review e22h gap 11 (N6): lastInstrumentIdFor reads a company block\'s measurement tests from the context', () => {
+  const TYPE_ID = '019a5d00-0000-7000-8000-0000000000c1';
+  const VERSION_ID = '019a5d00-0000-7000-8000-0000000000c2';
+  const draft = duplicateSeededType('v12', 'chave_transferencia_automatica').draft;
+  const row: EquipmentTypeVersionRow = { id: VERSION_ID, type_id: TYPE_ID, version: 1, definition: draft, published_by: '019a5d00-0000-7000-8000-0000000000c3', published_at: '2026-11-07T12:00:00.000Z' };
+  const megohm = instrument({ id: '019a5d00-0000-7000-8000-0000000000c4' });
+  const companyBlock = (): BlockRow => {
+    const sheet = emptySheet();
+    // The CTA copy's main-insulation table names the megôhmetro (`instrument_of: 'isolacao'`).
+    (sheet.test as Record<string, unknown>)[E2] = { instrument: { value: measurementInstrumentHeaderOf(megohm), source_suggestion_id: null, op_id: '019a5d00-0000-7000-8000-0000000000c5' } as unknown as Cell };
+    const blockType = companyBlockType(TYPE_ID);
+    return { id: '019a5d00-0000-7000-8000-0000000000c6', block_type: blockType, seed_version: 'v12', config: { block_type: blockType, sub_blocks: {}, na_defaults: [], type_version: 1, type_version_id: VERSION_ID }, sheet, removed_at: null } as unknown as BlockRow;
+  };
+
+  it('finds the company block\'s pick for isolação through its version, and nothing with the empty context', () => {
+    expect(draft.measurement_tests?.find((test) => test.key === E2)?.instrument_of).toBe('isolacao');
+    const ctx = definitionContext([row]);
+    expect(lastInstrumentIdFor([companyBlock()], 'isolacao', ctx)).toBe(megohm.id);
+    expect(lastInstrumentIdFor([companyBlock()], 'isolacao', EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    // Another kind finds nothing on it, and a removed block is skipped.
+    expect(lastInstrumentIdFor([companyBlock()], 'resistencia_contato', ctx)).toBeNull();
+    expect(lastInstrumentIdFor([{ ...companyBlock(), removed_at: '2026-11-07T12:00:00.000Z' }], 'isolacao', ctx)).toBeNull();
   });
 });

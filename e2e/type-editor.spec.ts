@@ -49,7 +49,7 @@ import { syncNow } from './support/sync.ts';
  * phone's tab menu). 14.7-E2E-002 (768): a copy discarded from the list and brought back by
  * "Desfazer", and nothing scrolls sideways on the list or the editor. e22h: 14.7-E2E-003 (S4,
  * N12) the list with a published row and the preview of a measurement table at 390; 14.7-E2E-004
- * (B2) a text typed and a tab tapped before any blur is in the draft; 14.7-E2E-005 (S1) the
+ * (B2) a text typed and a tab tapped, or the editor left, before any blur is in the draft; 14.7-E2E-005 (S1) the
  * Critérios tab of a Quadro elétrico copy shows the plate-picked bands read-only.
  */
 
@@ -385,6 +385,16 @@ test('@p0 14.7-E2E-004 (e22h B2): a text typed and a tab tapped before any blur 
   await page.getByRole('tab', { name: /^Placa/ }).click();
   await editorTab(page, 'Identificação');
   expect((await drafts(typeId)).length).toBe(count);
+
+  // The unmount half (review e22h gap 8): typed with real keystrokes, then the editor is left (back to the list) before any blur.
+  const renamed = page.getByRole('textbox', { name: 'Nome do tipo' });
+  await renamed.click();
+  await renamed.press('ControlOrMeta+a');
+  await renamed.pressSequentially('QGBT deixado');
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 2, name: 'Tipos de equipamento' })).toBeVisible();
+  expected = setDraftText(expected, 'label', 'QGBT deixado');
+  await expect.poll(async () => (await drafts(typeId)).at(-1)).toEqual(expected);
   // The stored type row holds the draft too (the outbox's last write landed).
   await expect.poll(async () => (await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, typeId)).type?.draft).toEqual(expected);
 });

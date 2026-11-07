@@ -193,7 +193,7 @@ describe('matrix "Dry from start", "Oil", "Empty value", "Stored value vs subtyp
         expect(OIL.every((key) => block.sheet.checklist[key] === undefined && !checklistResultIsStored(block, key, EMPTY_DEFINITION_CONTEXT))).toBe(true);
         expect(results(block, ['limpeza', 'aterramento'])).toEqual([null, null]);
         expect(sheetProgress({ blocks: [block] }, BLOCK).steps.verificacoes.missing, type).toBe(15 - 8);
-        expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo'), type).toBe(false);
+        expect(nameplateMissingKeys({ blocks: [block], equipment_types: undefined }, BLOCK).has('vol_oleo'), type).toBe(false);
         expect(isOilFieldExcused(block, 'vol_oleo', EMPTY_DEFINITION_CONTEXT)).toBe(true);
         expect(isDryBlock(block, EMPTY_DEFINITION_CONTEXT)).toBe(true);
         // No chip on v6: the items already show NA.
@@ -219,7 +219,7 @@ describe('matrix "Dry from start", "Oil", "Empty value", "Stored value vs subtyp
           expect(accepts(dry, key), `${type} ${key}`).toBe(false);
         }
         for (const key of plateKeys.filter((k) => !oilFields.includes(k))) expect(accepts(dry, key), `${type} ${key}`).toBe(true);
-        expect(nameplateMissingKeys({ blocks: [dry] }, BLOCK).has('vol_oleo'), type).toBe(false);
+        expect(nameplateMissingKeys({ blocks: [dry], equipment_types: undefined }, BLOCK).has('vol_oleo'), type).toBe(false);
       }
       // Oil and unknown: every field accepts N/A.
       const oil = blockOf(put(state, f, plate('tipo_de_isolacao'), 'ÓLEO').state);
@@ -249,7 +249,7 @@ describe('matrix "Dry from start", "Oil", "Empty value", "Stored value vs subtyp
       const block = blockOf(put(state, f, plate('meio_de_extincao'), value).state);
       expect(checklistResultOf(block, 'oleo_isolante_indicador_de_nivel', EMPTY_DEFINITION_CONTEXT), value).toBe('NA');
       expect(checklistResultOf(block, 'camara_de_extincao', EMPTY_DEFINITION_CONTEXT), value).toBeNull();
-      expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo'), value).toBe(false);
+      expect(nameplateMissingKeys({ blocks: [block], equipment_types: undefined }, BLOCK).has('vol_oleo'), value).toBe(false);
     }
   });
 
@@ -263,7 +263,7 @@ describe('matrix "Dry from start", "Oil", "Empty value", "Stored value vs subtyp
       const { state, f } = stateWith(type);
       const block = blockOf(put(state, f, plate(field), value).state);
       expect(results(block, items), `${type} ${value}`).toEqual(items.map(() => null));
-      expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo'), `${type} ${value}`).toBe(true);
+      expect(nameplateMissingKeys({ blocks: [block], equipment_types: undefined }, BLOCK).has('vol_oleo'), `${type} ${value}`).toBe(true);
       expect(isDryBlock(block, EMPTY_DEFINITION_CONTEXT)).toBe(false);
     }
   });
@@ -271,17 +271,17 @@ describe('matrix "Dry from start", "Oil", "Empty value", "Stored value vs subtyp
   it('with nothing stored and no subtype no rule applies, as an oil unit today; a dry subtype still shows its oil items NA', () => {
     const empty = blockOf(stateWith('transformador_forca').state);
     expect(results(empty, OIL)).toEqual(OIL.map(() => null));
-    expect(nameplateMissingKeys({ blocks: [empty] }, BLOCK).has('vol_oleo')).toBe(true);
+    expect(nameplateMissingKeys({ blocks: [empty], equipment_types: undefined }, BLOCK).has('vol_oleo')).toBe(true);
     const subtype = blockOf(stateWith('transformador_forca', { subtype: 'epoxi' }).state);
     expect(results(subtype, OIL)).toEqual(OIL.map(() => 'NA'));
-    expect(nameplateMissingKeys({ blocks: [subtype] }, BLOCK).has('vol_oleo')).toBe(false);
+    expect(nameplateMissingKeys({ blocks: [subtype], equipment_types: undefined }, BLOCK).has('vol_oleo')).toBe(false);
   });
 
   it('a dry subtype with a stored ÓLEO: the stored value wins, the oil items are not NA', () => {
     const { state, f } = stateWith('tc', { subtype: 'a_seco' });
     const block = blockOf(put(state, f, plate('tipo_de_isolacao'), 'ÓLEO').state);
     expect(results(block, OIL)).toEqual(OIL.map(() => null));
-    expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo')).toBe(true);
+    expect(nameplateMissingKeys({ blocks: [block], equipment_types: undefined }, BLOCK).has('vol_oleo')).toBe(true);
   });
 });
 
@@ -306,7 +306,7 @@ describe('matrix "Cleared on dry" and "Answered on dry"', () => {
     const block = blockOf(put(state, f, plate('tipo_de_isolacao'), 'EPÓXI').state);
     expect(results(block, OIL)).toEqual(OIL.map(() => null));
     expect(oilNaChipItems(block, { used: false }, EMPTY_DEFINITION_CONTEXT)).toEqual(OIL);
-    expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo')).toBe(false);
+    expect(nameplateMissingKeys({ blocks: [block], equipment_types: undefined }, BLOCK).has('vol_oleo')).toBe(false);
   });
 });
 
@@ -327,7 +327,7 @@ describe('matrix "Crossing" and "No crossing"', () => {
 
   it('ÓLEO to Á SECO clears the oil items holding a value, VOL. ÓLEO and the tie of every live photo on an oil item', () => {
     const { state } = oilUnit();
-    const snapshot = { blocks: [blockOf(state)], files: filesOf(state) };
+    const snapshot = { blocks: [blockOf(state)], files: filesOf(state), equipment_types: undefined };
     const crossing = oilCrossingPuts(snapshot, BLOCK, 'tipo_de_isolacao', 'Á SECO');
     expect(crossing).toEqual([
       { path: item('valvula_de_alivio'), value: null },
@@ -342,18 +342,18 @@ describe('matrix "Crossing" and "No crossing"', () => {
     expect(oilItemsClearedText(1)).toBe('1 item de óleo apagado');
     // Á SECO to ÓLEO (non-oil to oil) clears what a dry unit held: a C tapped on an oil item.
     const dry = put(state, opFactory(T0, idSequence('019966b0-0212-7000-8000-')), plate('tipo_de_isolacao'), 'Á SECO').state;
-    expect(oilCrossingPuts({ blocks: [blockOf(dry)], files: [] }, BLOCK, 'tipo_de_isolacao', 'ÓLEO').map((entry) => entry.path)).toContain(item('valvula_de_alivio'));
+    expect(oilCrossingPuts({ blocks: [blockOf(dry)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'ÓLEO').map((entry) => entry.path)).toContain(item('valvula_de_alivio'));
   });
 
   it('no crossing: EPÓXI to Á SECO, empty to anything, anything to empty, another field, a type or seed with no rule', () => {
     const { state, f } = stateWith('transformador_forca', { photos: [photo(PHOTO_OIL, 'termometro')] });
-    const empty = { blocks: [blockOf(state)], files: filesOf(state) };
+    const empty = { blocks: [blockOf(state)], files: filesOf(state), equipment_types: undefined };
     for (const value of ['ÓLEO', 'EPÓXI']) expect(oilCrossingPuts(empty, BLOCK, 'tipo_de_isolacao', value), value).toEqual([]);
     const epoxi = puts(state, f, [
       [plate('tipo_de_isolacao'), 'EPÓXI'],
       [item('termometro'), 'C'],
     ]);
-    const snapshot = { blocks: [blockOf(epoxi)], files: filesOf(epoxi) };
+    const snapshot = { blocks: [blockOf(epoxi)], files: filesOf(epoxi), equipment_types: undefined };
     expect(oilCrossingPuts(snapshot, BLOCK, 'tipo_de_isolacao', 'Á SECO')).toEqual([]);
     expect(oilCrossingPuts(snapshot, BLOCK, 'tipo_de_isolacao', null)).toEqual([]);
     expect(oilCrossingPuts(snapshot, BLOCK, 'tipo', 'ÓLEO')).toEqual([]);
@@ -363,14 +363,14 @@ describe('matrix "Crossing" and "No crossing"', () => {
       [plate('tipo_de_isolacao'), 'ÓLEO'],
       [item('termometro'), 'C'],
     ]);
-    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', null)).toEqual([]);
-    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', '  ')).toEqual([]);
-    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [] }, BLOCK, 'tipo_de_isolacao', 'EPÓXI')).toEqual([{ path: item('termometro'), value: null }]);
+    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', null)).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', '  ')).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(oil)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'EPÓXI')).toEqual([{ path: item('termometro'), value: null }]);
     // The seccionadora's medium carries no rule; v5 neither.
     const sec = stateWith('chave_seccionadora');
-    expect(oilCrossingPuts({ blocks: [blockOf(put(sec.state, sec.f, plate('meio_de_extincao'), 'AR').state)], files: [] }, BLOCK, 'meio_de_extincao', 'SF6')).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(put(sec.state, sec.f, plate('meio_de_extincao'), 'AR').state)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', 'SF6')).toEqual([]);
     const v5 = stateWith('transformador_forca', { seedVersion: 'v5' });
-    expect(oilCrossingPuts({ blocks: [blockOf(put(v5.state, v5.f, plate('tipo_de_isolacao'), 'EPÓXI').state)], files: [] }, BLOCK, 'tipo_de_isolacao', 'Á SECO')).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(put(v5.state, v5.f, plate('tipo_de_isolacao'), 'EPÓXI').state)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'Á SECO')).toEqual([]);
   });
 
   it('the disjuntor: VÁCUO to ÓLEO (GVO) and back crosses on its one oil item', () => {
@@ -380,15 +380,15 @@ describe('matrix "Crossing" and "No crossing"', () => {
       [item('oleo_isolante_indicador_de_nivel'), 'NA'],
       [item('camara_de_extincao'), 'C'],
     ]);
-    expect(oilCrossingPuts({ blocks: [blockOf(vacuo)], files: [] }, BLOCK, 'meio_de_extincao', 'ÓLEO (GVO)')).toEqual([{ path: item('oleo_isolante_indicador_de_nivel'), value: null }]);
-    expect(oilCrossingPuts({ blocks: [blockOf(vacuo)], files: [] }, BLOCK, 'meio_de_extincao', 'SF6')).toEqual([]);
-    expect(oilCrossingPuts({ blocks: [blockOf(vacuo)], files: [] }, BLOCK, 'meio_de_extincao', 'ÓLEO (PVO)')).toHaveLength(1);
+    expect(oilCrossingPuts({ blocks: [blockOf(vacuo)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', 'ÓLEO (GVO)')).toEqual([{ path: item('oleo_isolante_indicador_de_nivel'), value: null }]);
+    expect(oilCrossingPuts({ blocks: [blockOf(vacuo)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', 'SF6')).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(vacuo)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', 'ÓLEO (PVO)')).toHaveLength(1);
   });
 
   it('the batch folds through the existing families: the item NA, VOL. ÓLEO empty, the photo kept untied; its undo restores all three', () => {
     const { state, f } = oilUnit();
     const batch = '019966b0-0213-7000-8000-000000000001';
-    const crossing: OilCrossingPut[] = oilCrossingPuts({ blocks: [blockOf(state)], files: filesOf(state) }, BLOCK, 'tipo_de_isolacao', 'Á SECO');
+    const crossing: OilCrossingPut[] = oilCrossingPuts({ blocks: [blockOf(state)], files: filesOf(state), equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'Á SECO');
     const ops: Op[] = [];
     const before = new Map<string, unknown>();
     let next = state;
@@ -435,7 +435,7 @@ describe('matrix "Crossing" and "No crossing"', () => {
     const b = opFactory(T0, idSequence('019966b0-0216-7000-8000-'));
     const batch = '019966b0-0215-7000-8000-0000000000ff';
     // Device A: Á SECO to ÓLEO, which clears the C (both from the same heads).
-    const crossing = oilCrossingPuts({ blocks: [blockOf(base)], files: [] }, BLOCK, 'tipo_de_isolacao', 'ÓLEO');
+    const crossing = oilCrossingPuts({ blocks: [blockOf(base)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'ÓLEO');
     expect(crossing).toEqual([{ path: item('termometro'), value: null }]);
     const fromA = [
       a.op({ path: plate('tipo_de_isolacao'), value: 'ÓLEO', prev_op_id: plateHead.op_id, batch_id: batch, device_id: 'tablet-a' }),
@@ -542,7 +542,7 @@ describe('Story 15.3 (seed v9): the transformers ask about the oil level once, s
     const { state, f } = stateWith('transformador_forca', { seedVersion: 'v9' });
     const oil = oilOf('v9', 'transformador_forca');
     const answered = puts(state, f, [[plate('tipo_de_isolacao'), 'ÓLEO'], ...oil.map((key): [string, unknown] => [item(key), 'C']), [item('limpeza'), 'C']]);
-    const crossing = oilCrossingPuts({ blocks: [blockOf(answered)], files: [] }, BLOCK, 'tipo_de_isolacao', 'Á SECO');
+    const crossing = oilCrossingPuts({ blocks: [blockOf(answered)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'Á SECO');
     expect(crossing.map((entry) => entry.path)).toEqual(oil.map((key) => item(key)));
     expect(oilCrossingClearedCount(crossing, { files: [] })).toBe(7);
     const dry = puts(state, f, [[plate('tipo_de_isolacao'), 'Á SECO']]);

@@ -281,14 +281,34 @@ const companyTypeDefinitionShape = {
 /** A version's definition: strict (AD-21 item 2), what `applyOp` checks on publish. */
 export const companyTypeDefinitionSchema = z.object(companyTypeDefinitionShape).superRefine(checkCompanyDefinition);
 
-/**
- * Fix batch e22h (N3): a published version as every reader parses it, the definition's structural
- * shape at contract 33 with none of the cross-part rules (`checkCompanyDefinition`) and unknown
- * keys stripped, never refused. A rule added to the strict schema after a version was published
- * judges only what is published after it (`assertVersionCreate`), so history never unpublishes.
- */
-export const companyTypeVersionDefinitionSchema = z.object(companyTypeDefinitionShape);
 export type CompanyTypeDefinition = z.infer<typeof companyTypeDefinitionSchema>;
+
+const jsonObject = z.record(z.string(), z.json());
+
+/**
+ * Fix batch e22h (N3): a published version as every reader parses it, never refused for a rule.
+ * Review e22h finding 5: structural only, with no refinement at any depth: the definition's
+ * top-level keys with their container types, each list item and the noun and oil rule any JSON
+ * object, kept as written. The nested schemas (`fieldDefSchema`, the item's three or four NC
+ * phrases, the criterion and measurement checks, the oil rule's refine) and the cross-part rules
+ * (`checkCompanyDefinition`) run only on publish: every row is created through
+ * `assertVersionCreate`'s strict check on both layers, and a rule added to the strict schema
+ * after a version was published judges only what is published after it, so history never
+ * unpublishes. Hence the cast: a stored row was strict when it was created.
+ */
+export const companyTypeVersionDefinitionSchema = z.object({
+  label: z.string(),
+  print_title: z.string().optional(),
+  tag_prefix: z.string(),
+  noun: jsonObject,
+  nameplate: z.array(jsonObject),
+  checklist: z.array(jsonObject).nullable(),
+  tests: z.array(jsonObject),
+  measurement_tests: z.array(jsonObject).optional(),
+  config_fields: z.array(jsonObject).optional(),
+  criteria: z.array(jsonObject),
+  oil_rule: jsonObject.optional(),
+}) as unknown as z.ZodType<CompanyTypeDefinition>;
 
 type DeepPartial<T> = T extends readonly (infer U)[] ? DeepPartial<U>[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 

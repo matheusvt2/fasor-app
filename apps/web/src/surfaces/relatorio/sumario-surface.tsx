@@ -387,7 +387,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   /** "N sugestões por confirmar": the first sheet holding one, section 9 when none does. */
   const navigate = useNavigate();
   function openSuggestions(): void {
-    const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pending);
+    const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment, equipment_types: snapshot.equipment_types }, pending);
     if (blockId === null) openSection9();
     else void navigate(`/relatorio/${relatorioId}/ficha/${blockId}`);
   }

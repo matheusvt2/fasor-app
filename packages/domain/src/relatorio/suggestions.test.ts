@@ -403,7 +403,8 @@ describe('8.1-UNIT progress over the device pending rows', () => {
 
 describe('8.1-UNIT the Sumário count leads to the first sheet holding a pending suggestion', () => {
   it('picks the first in tree order, and none without a pending row', () => {
-    const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+    const built = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+    const snapshot = { ...built, equipment_types: built.equipment_types };
     const order = sheetOrder(snapshot).map((node) => node.blockId);
     const at = (i: number, status: SuggestionRow['status'] = 'pending') => suggestion('fabricacao', 'x', { target_path: `sheet/${order[i]}/nameplate/fabricacao`, status });
     expect(firstSheetWithPendingSuggestions(snapshot, [at(10), at(3)])).toBe(order[3]);

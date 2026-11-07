@@ -170,7 +170,7 @@ export function useFichaActions({
         const text = conclusionTextOnConclude(fresh, definition, tag);
         const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh, definition) : null;
         return [
-          ...suggestedInstruments({ blocks, instruments, ...(snapshot.equipment_types === undefined ? {} : { equipment_types: snapshot.equipment_types }) }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
+          ...suggestedInstruments({ blocks, instruments, equipment_types: snapshot.equipment_types }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
           ...(pair !== null && pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),
           ...(pair !== null && pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(fresh)
             ? [conclusionOp(by, relatorioId, blockId, 'restriction', pair.restriction)]

@@ -179,33 +179,33 @@ describe('isDryBlock', () => {
 describe('nameplateMissingKeys', () => {
   it.each(TRANSFORMERS)('leaves VOL. ÓLEO out on %s whose stored insulation is dry', (type) => {
     const b = block(type, { nameplate: plate(type, [OIL_VOLUME_FIELD_KEY], { [INSULATION_FIELD_KEY]: 'EPÓXI' }) });
-    expect([...nameplateMissingKeys({ blocks: [b] }, ID)]).toEqual([]);
+    expect([...nameplateMissingKeys({ blocks: [b], equipment_types: undefined }, ID)]).toEqual([]);
   });
 
   it.each(TRANSFORMERS)('leaves VOL. ÓLEO out on %s whose subtype is dry, insulation empty', (type) => {
     const b = block(type, { nameplate: plate(type, [OIL_VOLUME_FIELD_KEY, INSULATION_FIELD_KEY]) }, { subtype: 'a_seco' });
-    expect([...nameplateMissingKeys({ blocks: [b] }, ID)]).toEqual([INSULATION_FIELD_KEY]);
+    expect([...nameplateMissingKeys({ blocks: [b], equipment_types: undefined }, ID)]).toEqual([INSULATION_FIELD_KEY]);
   });
 
   it.each(TRANSFORMERS)('counts VOL. ÓLEO as before on %s without either', (type) => {
     const b = block(type, { nameplate: plate(type, [OIL_VOLUME_FIELD_KEY, INSULATION_FIELD_KEY]) });
-    expect([...nameplateMissingKeys({ blocks: [b] }, ID)]).toEqual([INSULATION_FIELD_KEY, OIL_VOLUME_FIELD_KEY]);
+    expect([...nameplateMissingKeys({ blocks: [b], equipment_types: undefined }, ID)]).toEqual([INSULATION_FIELD_KEY, OIL_VOLUME_FIELD_KEY]);
     const other = block(type, { nameplate: plate(type, [OIL_VOLUME_FIELD_KEY], { [INSULATION_FIELD_KEY]: 'ÓLEO' }) });
-    expect([...nameplateMissingKeys({ blocks: [other] }, ID)]).toEqual([OIL_VOLUME_FIELD_KEY]);
+    expect([...nameplateMissingKeys({ blocks: [other], equipment_types: undefined }, ID)]).toEqual([OIL_VOLUME_FIELD_KEY]);
   });
 
   it('keeps the TAG prefill rule (Story 12.3)', () => {
     const b = block('disjuntor_mt', { nameplate: plate('disjuntor_mt', ['tag']) });
-    expect([...nameplateMissingKeys({ blocks: [b] }, ID)]).toEqual(['tag']);
-    expect([...nameplateMissingKeys({ blocks: [b], equipment: [{ id: EQ, tag: 'DJ-01' }] }, ID)]).toEqual([]);
-    expect([...nameplateMissingKeys({ blocks: [b], equipment: [{ id: EQ, tag: '' }] }, ID)]).toEqual(['tag']);
+    expect([...nameplateMissingKeys({ blocks: [b], equipment_types: undefined }, ID)]).toEqual(['tag']);
+    expect([...nameplateMissingKeys({ blocks: [b], equipment: [{ id: EQ, tag: 'DJ-01' }], equipment_types: undefined }, ID)]).toEqual([]);
+    expect([...nameplateMissingKeys({ blocks: [b], equipment: [{ id: EQ, tag: '' }], equipment_types: undefined }, ID)]).toEqual(['tag']);
   });
 
   it('is empty for an unknown block and a disabled nameplate', () => {
-    expect(nameplateMissingKeys({ blocks: [] }, ID).size).toBe(0);
+    expect(nameplateMissingKeys({ blocks: [], equipment_types: undefined }, ID).size).toBe(0);
     const b = block('tp');
     (b.config as { sub_blocks: Record<string, unknown> }).sub_blocks.nameplate = { enabled: false };
-    expect(nameplateMissingKeys({ blocks: [b] }, ID).size).toBe(0);
+    expect(nameplateMissingKeys({ blocks: [b], equipment_types: undefined }, ID).size).toBe(0);
   });
 
   it('agrees with the Placa count of sheetProgress', () => {
@@ -256,7 +256,7 @@ describe('Story 15.3 (seed v9): a dry transformer, TP or TC', () => {
       const dry = { ...block(type, { nameplate: { tipo_de_isolacao: cell('Á SECO') } }), seed_version: 'v9', config: defaultBlockConfig('v9', type) } as BlockRow;
       expect(isDryBlock(dry, EMPTY_DEFINITION_CONTEXT), type).toBe(true);
       expect(oilNaChipItems(dry, { used: false }, EMPTY_DEFINITION_CONTEXT), type).toEqual([]);
-      expect(nameplateMissingKeys({ blocks: [dry] }, dry.id).has('vol_oleo'), type).toBe(false);
+      expect(nameplateMissingKeys({ blocks: [dry], equipment_types: undefined }, dry.id).has('vol_oleo'), type).toBe(false);
     }
   });
 });
@@ -268,6 +268,6 @@ describe('Story 15.7 (seed v10): a dry TC', () => {
     const dry = { ...block('tc', { nameplate: { tipo_de_isolacao: cell('Á SECO') } }), seed_version: 'v10', config: defaultBlockConfig('v10', 'tc') } as BlockRow;
     expect(isDryBlock(dry, EMPTY_DEFINITION_CONTEXT)).toBe(true);
     expect(oilNaChipItems(dry, { used: false }, EMPTY_DEFINITION_CONTEXT)).toEqual([]);
-    expect(nameplateMissingKeys({ blocks: [dry] }, dry.id).has('vol_oleo')).toBe(false);
+    expect(nameplateMissingKeys({ blocks: [dry], equipment_types: undefined }, dry.id).has('vol_oleo')).toBe(false);
   });
 });

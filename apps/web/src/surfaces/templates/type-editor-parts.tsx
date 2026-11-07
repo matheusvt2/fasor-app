@@ -39,7 +39,7 @@ import {
   type TestGrammar,
   type TypeDraftIssue,
 } from '@app/domain';
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button, Chip, FormDialog, OverflowMenu, SegmentedControl, TextButton, Toggle, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 
@@ -204,18 +204,39 @@ function SelectField<Value extends string>({ label, value, options, onChange, hi
 }
 
 /**
+ * Review e22h finding 3: the pending adds of the chip lists inside a `RowList`'s open editor. The
+ * rows are keyed by their index, so after a row menu's Subir, Descer or Remover the editor's index
+ * names another entry (or the next nameplate field): every row menu action of the list first
+ * cancels the word typed and not yet added, so the unmount add never writes it there.
+ */
+const PendingChipAdds = createContext<Set<() => void> | null>(null);
+
+/**
  * Chips of a list of words (select options, NC phrases), each removed by a tap, and the add input
  * with the add-chip; `full` (the kernel's `ncPhrasesFull`) hides the input. Fix batch e22h (B2): a
- * word typed and not yet added is added when the input goes (a tab change unmounts the panel).
+ * word typed and not yet added is added when the input goes (a tab change unmounts the panel),
+ * unless a row menu of its list acted first (`PendingChipAdds`).
  */
 function ChipList({ words, onChange, full = false, addLabel, addWord, removeLabel }: { words: readonly string[]; onChange: (words: string[]) => void; full?: boolean; addLabel: string; addWord: string; removeLabel: (word: string) => string }) {
   const [typed, setTyped] = useState('');
   const latest = useRef({ typed: '', words, onChange, full });
+  const pending = useContext(PendingChipAdds);
   useEffect(() => {
     latest.current.words = words;
     latest.current.onChange = onChange;
     latest.current.full = full;
   });
+  useEffect(() => {
+    if (pending === null) return;
+    const cancel = () => {
+      latest.current.typed = '';
+      setTyped('');
+    };
+    pending.add(cancel);
+    return () => {
+      pending.delete(cancel);
+    };
+  }, [pending]);
   const add = () => {
     const word = latest.current.typed.trim();
     if (word === '' || latest.current.full) return;
@@ -344,6 +365,15 @@ interface ListRow {
 
 /** `.registry-list` of rows, one open below itself (`.registry-row.is-open` + `.def-edit`). */
 function RowList({ label, rows, open, setOpen }: { label: string; rows: readonly ListRow[]; open: string | null; setOpen: (key: string | null) => void }) {
+  const [pending] = useState(() => new Set<() => void>());
+  const guarded = (actions: readonly OverflowMenuAction[]): OverflowMenuAction[] =>
+    actions.map((action) => ({
+      ...action,
+      onAction: () => {
+        for (const cancel of [...pending]) cancel();
+        action.onAction();
+      },
+    }));
   return (
     <ul className="registry-list" aria-label={label}>
       {rows.flatMap((row) => {
@@ -355,13 +385,13 @@ function RowList({ label, rows, open, setOpen }: { label: string; rows: readonly
               <span className="rr-secondary">{row.secondary}</span>
               {isOpen ? null : <IssueLines issues={row.issues} />}
             </button>
-            <OverflowMenu name={row.name} items={row.menu.items} destructiveItems={row.menu.destructiveItems} />
+            <OverflowMenu name={row.name} items={guarded(row.menu.items)} destructiveItems={guarded(row.menu.destructiveItems)} />
           </li>,
         ];
         if (isOpen) {
           out.push(
             <li key={`${row.key}:edit`} className="def-edit" aria-label={row.editLabel}>
-              {row.editor}
+              <PendingChipAdds.Provider value={pending}>{row.editor}</PendingChipAdds.Provider>
               <IssueLines issues={row.issues} />
             </li>,
           );

@@ -214,8 +214,14 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
     const key = textOf(removed.key);
     for (const test of listOf(next, 'tests')) {
       if (test.criterion_class_field === key) delete test.criterion_class_field;
+      // Review e22h finding 4: the voltage field takes the bands with it; the SELV/PELV field only its own band.
       const bands = test.criterion_bands as Entry | undefined;
-      if (bands !== undefined && (bands.field === key || bands.selv_field === key)) delete test.criterion_bands;
+      if (bands !== undefined && bands.field === key) delete test.criterion_bands;
+      else if (bands !== undefined && bands.selv_field === key) {
+        delete bands.selv_field;
+        delete bands.selv;
+        delete bands.selv_max_voltage;
+      }
       for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
         for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) if (row.winding === key) row.winding = null;
       }

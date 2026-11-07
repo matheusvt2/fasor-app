@@ -129,7 +129,7 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
       expect(isOilUnit(block, EMPTY_DEFINITION_CONTEXT), value).toBe(full);
       expect(checklistResultOf(block, OIL_ITEM, EMPTY_DEFINITION_CONTEXT), value).toBe(full ? null : 'NA');
       expect(oilDerivedNaKeys(block, EMPTY_DEFINITION_CONTEXT).has(OIL_ITEM), value).toBe(!full);
-      expect(nameplateMissingKeys({ blocks: [block] }, BLOCK).has('vol_oleo'), value).toBe(full);
+      expect(nameplateMissingKeys({ blocks: [block], equipment_types: undefined }, BLOCK).has('vol_oleo'), value).toBe(full);
       expect(isOilFieldExcused(block, 'vol_oleo', EMPTY_DEFINITION_CONTEXT), value).toBe(!full);
     }
   });
@@ -159,7 +159,7 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
         [item(OIL_ITEM), 'NC'],
         [plate('vol_oleo'), num('45', 'L')],
       ]);
-      expect(oilCrossingPuts({ blocks: [blockOf(filled)], files: [] }, BLOCK, 'meio_de_extincao', to), `${from} → ${to}`).toEqual([]);
+      expect(oilCrossingPuts({ blocks: [blockOf(filled)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', to), `${from} → ${to}`).toEqual([]);
     }
   });
 
@@ -174,7 +174,7 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
           [item(OIL_ITEM, 'observation'), 'nível baixo'],
           [plate('vol_oleo'), num('45', 'L')],
         ]);
-        const crossing = oilCrossingPuts({ blocks: [blockOf(filled)], files: filesOf(filled) }, BLOCK, 'meio_de_extincao', to);
+        const crossing = oilCrossingPuts({ blocks: [blockOf(filled)], files: filesOf(filled), equipment_types: undefined }, BLOCK, 'meio_de_extincao', to);
         expect(crossing, `${from} → ${to}`).toEqual([
           { path: item(OIL_ITEM), value: null },
           { path: item(OIL_ITEM, 'observation'), value: null },
@@ -210,9 +210,9 @@ describe('matrix "Media on v7", "Outro", "Óleo ↔ Outro", "To non-oil", "Non-o
   it('Ar to Outro crosses: what a non-oil unit held on the oil item is cleared, and the item returns unanswered', () => {
     const { state, f } = stateWith('disjuntor_mt');
     const ar = puts(state, f, [[plate('meio_de_extincao'), 'Ar']]);
-    expect(oilCrossingPuts({ blocks: [blockOf(ar)], files: [] }, BLOCK, 'meio_de_extincao', 'Outro')).toEqual([]);
+    expect(oilCrossingPuts({ blocks: [blockOf(ar)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', 'Outro')).toEqual([]);
     const tapped = put(ar, f, item(OIL_ITEM), 'NA').state;
-    expect(oilCrossingPuts({ blocks: [blockOf(tapped)], files: [] }, BLOCK, 'meio_de_extincao', 'Outro')).toEqual([{ path: item(OIL_ITEM), value: null }]);
+    expect(oilCrossingPuts({ blocks: [blockOf(tapped)], files: [], equipment_types: undefined }, BLOCK, 'meio_de_extincao', 'Outro')).toEqual([{ path: item(OIL_ITEM), value: null }]);
     const outro = blockOf(put(ar, f, plate('meio_de_extincao'), 'Outro').state);
     expect(checklistResultOf(outro, OIL_ITEM, EMPTY_DEFINITION_CONTEXT)).toBeNull();
   });
