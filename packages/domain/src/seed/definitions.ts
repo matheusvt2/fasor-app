@@ -1,12 +1,18 @@
 import {
   BASE_EQUIPMENT_BLOCK_TYPES,
+  companyBlockType,
+  companyTypeIdOf,
   EQUIPMENT_BLOCK_TYPES,
   equipmentBlockTypeSchema,
+  typeVersionOf,
+  type BlockTypeKey,
   type EquipmentBlockType,
   type ItemKey,
   type SiteItemKey,
   type Subtype,
 } from '../schemas/block-config.ts';
+import type { EquipmentTypeRow, EquipmentTypeVersionRow } from '../schemas/entities.ts';
+import { asBlockDefinition } from '../types/block-definition.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
 import {
   dateSchema,
@@ -258,13 +264,151 @@ export function siteItems(seedVersion: string): readonly SiteItem[] {
   return frozen;
 }
 
-/** FR-11: the item keys a subtype pre-marks NA, or none without a subtype. */
+/** FR-11: the item keys a subtype pre-marks NA, or none without a subtype (a company type has none). */
 export function naDefaultsFor(seedVersion: string, blockType: string, subtype: Subtype | undefined): ItemKey[] {
   if (subtype === undefined) return [];
   const definition = getDefinition(seedVersion, 'cabine_primaria', blockType);
   const found = definition.subtypes.find((s) => s.key === subtype);
   if (found === undefined) throw new Error(`naDefaultsFor: ${blockType} has no subtype "${subtype}"`);
   return [...found.na_defaults];
+}
+
+// --- Story 14.6: the resolver context (AD-21 note of 2026-11-06, item 4) -------------------------
+
+/**
+ * The company's published type versions (keyed `{type_id}@{version}`) and, where the caller has
+ * them, its type rows (by id: retirement, the latest version, the open draft). A seeded type
+ * resolves exactly as before and ignores the context; a company type (`type:{id}`) resolves only
+ * through it. Built by the pure `definitionContext(rows)` from the version rows a layer holds:
+ * `applyOp` from the rows in its state (`definitionContextOf`), a reader over a snapshot from
+ * `snapshot.equipment_types` (`snapshotDefinitionContext`), the device from a live query on its
+ * version rows, the api from the company's rows.
+ */
+export interface DefinitionContext {
+  readonly versions: ReadonlyMap<string, EquipmentTypeVersionRow>;
+  readonly types: ReadonlyMap<string, EquipmentTypeRow>;
+}
+
+/** The context that holds no company type: every lookup resolves the seeded types only. */
+export const EMPTY_DEFINITION_CONTEXT: DefinitionContext = Object.freeze({ versions: new Map(), types: new Map() });
+
+const versionKey = (typeId: string, version: number) => `${typeId}@${version}`;
+
+function buildContext(rows: readonly EquipmentTypeVersionRow[], types: readonly EquipmentTypeRow[]): DefinitionContext {
+  const versions = new Map<string, EquipmentTypeVersionRow>();
+  for (const row of rows) {
+    const at = versionKey(row.type_id, row.version);
+    const known = versions.get(at);
+    // One row per number: the smaller id when a device briefly holds two (its own publish the server will refuse).
+    if (known === undefined || row.id < known.id) versions.set(at, row);
+  }
+  return { versions, types: new Map(types.map((row) => [row.id, row])) };
+}
+
+const NO_TYPES: readonly EquipmentTypeRow[] = Object.freeze([]);
+const contextByRows = new WeakMap<readonly EquipmentTypeVersionRow[], WeakMap<readonly EquipmentTypeRow[], DefinitionContext>>();
+
+/**
+ * The context of a list of version rows (and type rows, for palettes and retirement), memoized by
+ * the lists' identity: the same arrays give the same context object.
+ */
+export function definitionContext(rows: readonly EquipmentTypeVersionRow[] | null | undefined, types: readonly EquipmentTypeRow[] = NO_TYPES): DefinitionContext {
+  if ((rows === null || rows === undefined || rows.length === 0) && types.length === 0) return EMPTY_DEFINITION_CONTEXT;
+  const versions = rows ?? [];
+  let byTypes = contextByRows.get(versions);
+  if (byTypes === undefined) {
+    byTypes = new WeakMap();
+    contextByRows.set(versions, byTypes);
+  }
+  let ctx = byTypes.get(types);
+  if (ctx === undefined) {
+    ctx = buildContext(versions, types);
+    byTypes.set(types, ctx);
+  }
+  return ctx;
+}
+
+const contextByState = new WeakMap<object, DefinitionContext>();
+
+/** The context of the version and type rows an entity state holds (`applyOp`'s, on both layers). */
+export function definitionContextOf(state: ReadonlyMap<string, unknown>): DefinitionContext {
+  const known = contextByState.get(state);
+  if (known !== undefined) return known;
+  const rows: EquipmentTypeVersionRow[] = [];
+  const types: EquipmentTypeRow[] = [];
+  for (const [key, row] of state) {
+    if (key.startsWith('equipment_type_version:')) rows.push(row as EquipmentTypeVersionRow);
+    else if (key.startsWith('equipment_type:')) types.push(row as EquipmentTypeRow);
+  }
+  const ctx = rows.length === 0 && types.length === 0 ? EMPTY_DEFINITION_CONTEXT : buildContext(rows, types);
+  contextByState.set(state, ctx);
+  return ctx;
+}
+
+/** The context a snapshot carries (`equipment_types`): what every reader over a snapshot resolves through. */
+export function snapshotDefinitionContext(snapshot: { equipment_types?: readonly EquipmentTypeVersionRow[] | undefined }): DefinitionContext {
+  return definitionContext(snapshot.equipment_types);
+}
+
+/**
+ * The definition of a block type: a seeded one as `findDefinition` gives it (the context
+ * ignored), a company one as the published version `typeVersion` of its type in the context
+ * (`asBlockDefinition`). Null for a section block, an unknown seeded type or seed version, a
+ * company type without a version, or a version the context does not hold.
+ */
+export function findDefinitionIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): BlockDefinition | null {
+  const typeId = companyTypeIdOf(blockType);
+  if (typeId === null) return findDefinition(seedVersion, blockType);
+  if (typeVersion === undefined) return null;
+  const row = ctx.versions.get(versionKey(typeId, typeVersion));
+  return row === undefined ? null : asBlockDefinition(row);
+}
+
+/** `findDefinitionIn`, throwing (naming what is missing) where it answers null. */
+export function getDefinitionIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): BlockDefinition {
+  if (companyTypeIdOf(blockType) === null) return getDefinition(seedVersion, 'cabine_primaria', blockType);
+  const definition = findDefinitionIn(ctx, seedVersion, blockType, typeVersion);
+  if (definition === null) throw new Error(`getDefinitionIn: no published version ${typeVersion ?? '(none)'} of "${blockType}" in the context`);
+  return definition;
+}
+
+/** The definition of a block (or a template block) through the context: its type, its seed version and the version its config names. */
+export function blockDefinitionIn(ctx: DefinitionContext, block: { seed_version: string; block_type: string; config?: unknown }): BlockDefinition | null {
+  return findDefinitionIn(ctx, block.seed_version, block.block_type, typeVersionOf(block.config));
+}
+
+/** The latest published version of a company type in the context: the type row's when known, else the highest version row; null when none. */
+export function latestTypeVersion(ctx: DefinitionContext, typeId: string): number | null {
+  const type = ctx.types.get(typeId);
+  if (type !== undefined && type.latest_version > 0 && ctx.versions.has(versionKey(typeId, type.latest_version))) return type.latest_version;
+  let latest: number | null = null;
+  for (const row of ctx.versions.values()) if (row.type_id === typeId && (latest === null || row.version > latest)) latest = row.version;
+  return latest;
+}
+
+/** Story 14.5 beside the context: whether a type is a library type (a company type always is, once a version resolves). */
+export function isLibraryTypeIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): boolean {
+  if (companyTypeIdOf(blockType) === null) return isLibraryType(seedVersion, blockType);
+  return findDefinitionIn(ctx, seedVersion, blockType, typeVersion)?.library === true;
+}
+
+/**
+ * AD-21 item 6: the types a palette offers on a seed version: the seeded ones (`equipmentTypesOf`),
+ * then the company types of the context that are published (a version resolves), neither retired
+ * nor removed, in label order of their latest version (pt-BR). A company type whose type row the
+ * context does not hold is not offered (its retirement cannot be read).
+ */
+export function offeredTypes(ctx: DefinitionContext, seedVersion: string): BlockTypeKey[] {
+  const company: { type: BlockTypeKey; label: string }[] = [];
+  for (const type of ctx.types.values()) {
+    if (type.retired_at !== null || type.removed_at !== null) continue;
+    const latest = latestTypeVersion(ctx, type.id);
+    if (latest === null) continue;
+    const definition = findDefinitionIn(ctx, seedVersion, companyBlockType(type.id), latest);
+    if (definition !== null) company.push({ type: definition.block_type, label: definition.label });
+  }
+  company.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR') || (a.type < b.type ? -1 : a.type > b.type ? 1 : 0));
+  return [...equipmentTypesOf(seedVersion), ...company.map((entry) => entry.type)];
 }
 
 /**

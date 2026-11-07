@@ -26,9 +26,14 @@ export const criterionSeedSchema = z.object({
   key: z.string().min(1),
   /** The test sub-block this criterion governs, e.g. "Ensaio de isolação". */
   label: z.string().min(1),
-  /** `>`, `<`, `>=`, `<=`, or `±` for a symmetric deviation (Code Map, `compareCriterion`). */
+  /**
+   * `>`, `<`, `>=`, `<=`, or `±` for a symmetric deviation (Code Map, `compareCriterion`). Story
+   * 14.6: a company type's criterion may also say `between` (with `value_max`) or `pass_fail`.
+   */
   operator: z.string().min(1),
   value: z.number(),
+  /** Story 14.6: the upper bound of a `between` criterion (a company type's only; no seeded one has it). */
+  value_max: z.number().optional(),
   unit: z.string().nullable(),
   type: criterionTypeSchema,
   source: z.object({ name: z.string().min(1), edition: z.string().nullable() }),
@@ -105,13 +110,18 @@ export interface MeasuredValue {
  * AGENTS.md "derived text goes in `packages/domain`": the Critérios de aceitação table's
  * `.cell-crit` text, e.g. `>400 MΩ` or `±0,5 %` (pt-BR decimal comma, a space before the unit).
  */
-export function formatCriterionValue(criterion: CriterionSeed): string {
+export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit'>): string {
   const value = String(criterion.value).replace('.', ',');
-  return criterion.unit === null ? `${criterion.operator}${value}` : `${criterion.operator}${value} ${criterion.unit}`;
+  const withUnit = (text: string) => (criterion.unit === null ? text : `${text} ${criterion.unit}`);
+  // authored (Story 14.6): a company type's two operators the seeds never use, as the editor's mock words them.
+  if (criterion.operator === 'between' && criterion.value_max !== undefined) return withUnit(`entre ${value} e ${String(criterion.value_max).replace('.', ',')}`);
+  if (criterion.operator === 'pass_fail') return 'aprovado ou reprovado';
+  return withUnit(`${criterion.operator}${value}`);
 }
 
 /**
- * True when a measured value satisfies a seeded criterion. `>`/`<`/`>=`/`<=` scale the
+ * True when a measured value satisfies a seeded criterion (Story 14.6: or a company type's, which
+ * adds `between`, both bounds inclusive and scaled as `>=`/`<=`, and `pass_fail`). `>`/`<`/`>=`/`<=` scale the
  * measured value into the criterion's unit first, through the Ω table, when both units are
  * known Ω units and differ (e.g. 147 GΩ compares against `>400 MΩ` as 147000 MΩ > 400 MΩ).
  * `±` never scales — it checks `|measured.value| <= criterion.value` directly, the shape a
@@ -121,10 +131,12 @@ export function formatCriterionValue(criterion: CriterionSeed): string {
  * is outside `OHM_SCALE`), this throws instead of silently comparing raw, unscaled numbers
  * under two different units — a comparison that would be meaningless, not merely imprecise.
  */
-export function compareCriterion(measured: MeasuredValue, criterion: CriterionSeed): boolean {
+export function compareCriterion(measured: MeasuredValue, criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit'>): boolean {
   if (criterion.operator === '±') {
     return Math.abs(measured.value) <= criterion.value;
   }
+  // Story 14.6: a pass/fail reading is a verdict, 1 for aprovado and 0 for reprovado; no unit to scale.
+  if (criterion.operator === 'pass_fail') return measured.value === 1;
 
   let value = measured.value;
   if (measured.unit !== criterion.unit) {
@@ -143,6 +155,10 @@ export function compareCriterion(measured: MeasuredValue, criterion: CriterionSe
       return value >= criterion.value;
     case '<=':
       return value <= criterion.value;
+    // Story 14.6: both bounds inclusive ("entre 198 e 242 Vca" passes 198 and 242).
+    case 'between':
+      if (criterion.value_max === undefined) throw new Error('compareCriterion: between names no value_max');
+      return value >= criterion.value && value <= criterion.value_max;
     default:
       throw new Error(`compareCriterion: unknown operator "${criterion.operator}"`);
   }

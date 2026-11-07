@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { isSectionBlockType, type SkeletonNode, type SubBlockKey, type TemplateBlock } from '../schemas/block-config.ts';
+import { isCompanyBlockType, isSectionBlockType, type SkeletonNode, type TemplateBlock } from '../schemas/block-config.ts';
 import { findDefinition, SEED_VERSIONS } from './definitions.ts';
 import { LOCKED_SUB_BLOCKS } from './template.ts';
 
@@ -66,6 +66,10 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
       issue(at('skeleton_location_ref'), `${block.block_type} must sit on a node of the skeleton`);
     }
     if (!knownVersion) return;
+    // Story 14.6: a company type's block names a published version (`type_version`, required by
+    // `blockConfigSchema`), which the schema has no context to read: its keys are the version's,
+    // and the instantiation takes the type's latest version (`instantiateTemplate`).
+    if (isCompanyBlockType(block.block_type)) return;
 
     // Story 14.5: a type the row's seed version does not ship (the Chave de transferência
     // automática before v5) is an issue of the row, never a throw out of the schema.
@@ -77,9 +81,9 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
     if (block.subtype !== undefined && !definition.subtypes.some((s) => s.key === block.subtype)) {
       issue(at('subtype'), `${block.block_type} has no subtype "${block.subtype}"`);
     }
-    for (const [key, config] of Object.entries(block.sub_blocks) as [SubBlockKey, { enabled: boolean }][]) {
+    for (const [key, config] of Object.entries(block.sub_blocks) as [string, { enabled: boolean }][]) {
       if (!definition.sub_blocks.includes(key)) issue(['blocks', i, 'sub_blocks', key], `${block.block_type} has no sub-block "${key}"`);
-      else if (LOCKED_SUB_BLOCKS.includes(key) && !config.enabled) {
+      else if ((LOCKED_SUB_BLOCKS as readonly string[]).includes(key) && !config.enabled) {
         issue(['blocks', i, 'sub_blocks', key], `"${key}" is always on`);
       }
     }
@@ -88,7 +92,7 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
         issue(['blocks', i, 'sub_blocks', key], `"${key}" is always on and must be present`);
       }
     }
-    const items = new Set((definition.checklist ?? []).map((item) => item.key));
+    const items = new Set<string>((definition.checklist ?? []).map((item) => item.key));
     block.na_defaults.forEach((key, j) => {
       if (!items.has(key)) issue(['blocks', i, 'na_defaults', j], `"${key}" is not an item of ${block.block_type}`);
     });

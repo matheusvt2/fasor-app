@@ -9,7 +9,8 @@ import type { BlockRow } from '../schemas/entities.ts';
  *
  * AD-15's family set: `relatorio/setup`, `location`, `block`, `sheet`, `file` (photo),
  * `point`, `equipment`. System ops and the `suggestion`, `relatorio/status`,
- * `registry`, `template` and `user` families never count.
+ * `registry`, `template` and `user` families never count, nor (Story 14.6) the company
+ * equipment type families `equipment_type`, `equipment_type/field` and `equipment_type_version`.
  */
 
 /**
@@ -84,6 +85,10 @@ const FAMILY_DECISIONS = {
   audit_run: never('server-only: the emission audit run row'),
   'audit_run/field': never('server-only: the audit job writing its own fields; a finding is information, never an op'),
   'relatorio/removed_at': never('the tombstone of the whole relatório (fix batch fxrm): it removes the relatório, it edits none of its content'),
+  // Story 14.6 (contract 33; AD-3 note of 2026-11-06): company equipment types, like templates.
+  equipment_type: never('a company equipment type is company scope; a relatório keeps the version its blocks were created with'),
+  'equipment_type/field': never('a type draft, its retirement or its discard is company scope; no relatório reads a draft'),
+  equipment_type_version: never('publishing a type version is company scope; a relatório keeps the version its blocks reference'),
 } as const satisfies Record<PathFamily, FamilyDecision>;
 
 const DECIDED = Object.entries(FAMILY_DECISIONS) as ReadonlyArray<[PathFamily, FamilyDecision]>;

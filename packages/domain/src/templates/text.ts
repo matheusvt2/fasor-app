@@ -357,14 +357,15 @@ export function defaultColunaName(n: number): string {
  * kV") has no seed value (the instrument carries it), so neither is written. Null for a
  * sub-block with nothing to count (IA/IP, observations, conclusion).
  */
-export function subBlockSummaryText(definition: BlockDefinition, key: SubBlockKey): string | null {
+export function subBlockSummaryText(definition: BlockDefinition, key: SubBlockKey | string): string | null {
   if (key === 'nameplate') return plural(definition.nameplate.length, 'campo', 'campos');
   if (key === 'checklist') return definition.checklist === null ? null : `${plural(definition.checklist.length, 'item', 'itens')} C · NC · NA`;
   const test = definition.tests.find((t) => t.key === key);
   if (test === undefined) return null;
   const rows = test.tables.flatMap((table) => table.rows.map((row) => readingLabelText(row[0] ?? '')).filter((label) => label !== ''));
   const captured = [...new Set(test.tables.flatMap((table) => table.value_columns.filter((c) => c.role === 'capture').map((c) => headerText(c.label))))];
-  const criterion = SEEDED_CRITERIA.find((c) => c.key === test.criterion_key);
+  // Story 14.6: a company type's test carries its own criterion, taken first.
+  const criterion = test.criterion ?? SEEDED_CRITERIA.find((c) => c.key === test.criterion_key);
   const bands = test.criterion_bands;
   // Story 14.9: a criterion picked from the plate names each band and its voltage, then the source.
   // authored: "até ⟨n⟩ V".

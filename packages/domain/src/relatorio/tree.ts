@@ -1,10 +1,22 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
-import { isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
+import { isCompanyBlockType, isEquipmentBlockType, isEquipmentKind, typeVersionOf, type BlockTypeKey } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { equipmentTypesOf, findDefinition, findSeed, isLibraryType, siteItems } from '../seed/definitions.ts';
-import { defaultBlockConfig } from '../seed/template.ts';
+import {
+  EMPTY_DEFINITION_CONTEXT,
+  equipmentTypesOf,
+  findDefinition,
+  findDefinitionIn,
+  findSeed,
+  isLibraryType,
+  latestTypeVersion,
+  offeredTypes,
+  siteItems,
+  snapshotDefinitionContext,
+  type DefinitionContext,
+} from '../seed/definitions.ts';
+import { defaultBlockConfigIn } from '../seed/template.ts';
 import { defaultCabineName, defaultColunaName, defaultPainelName } from '../templates/text.ts';
 import { plural } from '../text/plural.ts';
 import { integrityFindings } from './integrity.ts';
@@ -219,6 +231,17 @@ export type TreeNode = TreeLocationNode | TreeEquipmentNode;
 export function blockTypeLabel(seedVersion: string, blockType: string): string {
   if (!isEquipmentBlockType(blockType)) return blockType;
   return findDefinition(seedVersion, blockType)?.label ?? blockType;
+}
+
+/**
+ * Story 14.6: `blockTypeLabel` through a definition context: a company type is named by the label
+ * of the version given (AD-21 item 7: the label belongs to the version), else of its latest one in
+ * the context; the type itself when no version resolves.
+ */
+export function blockTypeLabelIn(ctx: DefinitionContext, seedVersion: string, blockType: string, typeVersion?: number): string {
+  if (!isCompanyBlockType(blockType)) return blockTypeLabel(seedVersion, blockType);
+  const version = typeVersion ?? latestTypeVersion(ctx, blockType.slice('type:'.length)) ?? undefined;
+  return findDefinitionIn(ctx, seedVersion, blockType, version)?.label ?? blockType;
 }
 
 /** Why a sheet was not tested, as the seed words it (or the typed text of "Outro"); null when it was tested. */
@@ -449,18 +472,18 @@ function memoized<T>(keys: readonly object[], compute: () => T): T {
  * live blocks) could miss across relatórios.
  */
 export function locationTree(
-  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'equipment_types'>>,
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[] = snapshot.equipment,
   /** Story 8.1: the device's pending suggestion rows; a block holding one is not concluded in the counters. */
   pending?: readonly SuggestionRow[],
 ): TreeLocationNode[] {
-  return memoized([snapshot.blocks, snapshot.locations, snapshot.equipment, equipment, snapshot.relatorio ?? NONE, pending ?? NONE], () =>
+  return memoized([snapshot.blocks, snapshot.locations, snapshot.equipment, equipment, snapshot.relatorio ?? NONE, pending ?? NONE, snapshot.equipment_types ?? NONE], () =>
     buildLocationTree(snapshot, equipment, pending),
   );
 }
 
 function buildLocationTree(
-  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'equipment_types'>>,
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[],
   pending: readonly SuggestionRow[] | undefined,
 ): TreeLocationNode[] {
@@ -474,6 +497,8 @@ function buildLocationTree(
   const blocksAt = liveBlocksByLocation(snapshot.blocks);
   const childrenOf = childrenByParent(locations);
   const progressOf = locationProgressIndex(snapshot, pending);
+  // Story 14.6: a company sheet is named by its version's label, from the snapshot.
+  const definitions = snapshotDefinitionContext(snapshot);
 
   // Story 14.3: the locals holding a site checklist (none without the relatório row, or on a seed with no site list).
   const siteList = relatorio === undefined ? [] : siteItems(relatorio.seed_version);
@@ -502,7 +527,7 @@ function buildLocationTree(
     const word = sheetStateLabel(state);
     const reason = notTestedReasonText(block);
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
-    const typeLabel = blockTypeLabel(block.seed_version, block.block_type);
+    const typeLabel = blockTypeLabelIn(definitions, block.seed_version, block.block_type, typeVersionOf(block.config));
     const nc = ncCount(block);
     return {
       kind: 'equipment',
@@ -664,11 +689,15 @@ export function duplicateTagSuggestion(
   block: { blockType: string; locationId: string; tag: string },
   locations: readonly Pick<LocationRow, 'id' | 'kind' | 'name'>[],
   equipment: readonly TagEquipment[],
+  /** Story 14.6: the block's definition, for a company type's TAG prefix. */
+  definition?: { tag_prefix?: string | undefined } | null,
 ): string {
   const location = locations.find((row) => row.id === block.locationId);
   // A painel takes no block, so nothing is suggested for one (`TagLocation` never names it).
-  if (location === undefined || location.kind === 'painel' || !isEquipmentBlockType(block.blockType)) return block.tag;
-  return suggestTag(block.blockType, { kind: location.kind, name: location.name }, equipment);
+  if (location === undefined || location.kind === 'painel' || !isEquipmentKind(block.blockType)) return block.tag;
+  // Story 14.6: a company type's prefix is its definition's; without one, its own TAG.
+  if (isCompanyBlockType(block.blockType) && definition?.tag_prefix === undefined) return block.tag;
+  return suggestTag(block.blockType, { kind: location.kind, name: location.name }, equipment, definition);
 }
 
 /**
@@ -753,20 +782,28 @@ export interface PaletteTypeGroup {
   key: 'seeded' | 'library';
   /** The group's heading, or null for the eight. */
   label: string | null;
-  types: EquipmentBlockType[];
+  types: BlockTypeKey[];
 }
 
-export function paletteTypeGroups(seedVersion: string): PaletteTypeGroup[] {
+/**
+ * Story 14.6 (AD-21 item 6): with a definition context holding the company's types, the library
+ * group also offers the published, non-retired company types, after the seeded library types, in
+ * label order (`offeredTypes`). Without one (the default) the groups are exactly as before.
+ */
+export function paletteTypeGroups(seedVersion: string, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): PaletteTypeGroup[] {
   const types = equipmentTypesOf(seedVersion);
-  const library = types.filter((type) => isLibraryType(seedVersion, type));
+  const library: BlockTypeKey[] = types.filter((type) => isLibraryType(seedVersion, type));
+  const company = offeredTypes(ctx, seedVersion).filter((type) => isCompanyBlockType(type));
   const groups: PaletteTypeGroup[] = [{ key: 'seeded', label: null, types: types.filter((type) => !library.includes(type)) }];
-  if (library.length > 0) groups.push({ key: 'library', label: LIBRARY_GROUP_LABEL, types: library });
+  if (library.length + company.length > 0) groups.push({ key: 'library', label: LIBRARY_GROUP_LABEL, types: [...library, ...company] });
   return groups;
 }
 
 /** One equipment type of the field palette: its seed name and the TAG it would be born with here. */
 export interface PaletteItem {
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
+  /** Story 14.6: the published version a company type's block is placed at (its latest); absent on a seeded type. */
+  typeVersion?: number;
   label: string;
   tag: string;
   /** Story 14.5: a library type, drawn after the eight under `LIBRARY_GROUP_LABEL`. */
@@ -779,15 +816,21 @@ export interface PaletteItem {
  * The field palette's rows for a location: every type the seed version ships (the eight, then
  * its library types), each with its suggested TAG (`suggestTag`, the instantiation's scheme).
  */
-export function paletteItems(seedVersion: string, location: TagLocation, equipment: readonly TagEquipment[]): PaletteItem[] {
-  return paletteTypeGroups(seedVersion).flatMap((group) =>
-    group.types.map((type) => ({
-      type,
-      label: blockTypeLabel(seedVersion, type),
-      tag: suggestTag(type, { kind: location.kind, name: location.name }, equipment),
-      library: group.key === 'library',
-      summary: group.key === 'library' ? libraryTypeSummaryText(seedVersion, type) : null,
-    })),
+export function paletteItems(seedVersion: string, location: TagLocation, equipment: readonly TagEquipment[], ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): PaletteItem[] {
+  return paletteTypeGroups(seedVersion, ctx).flatMap((group) =>
+    group.types.map((type): PaletteItem => {
+      // Story 14.6: a company type is placed at its latest published version, named by that version.
+      const typeVersion = isCompanyBlockType(type) ? (latestTypeVersion(ctx, type.slice('type:'.length)) ?? undefined) : undefined;
+      const definition = isCompanyBlockType(type) ? findDefinitionIn(ctx, seedVersion, type, typeVersion) : null;
+      return {
+        type,
+        ...(typeVersion === undefined ? {} : { typeVersion }),
+        label: blockTypeLabelIn(ctx, seedVersion, type, typeVersion),
+        tag: suggestTag(type, { kind: location.kind, name: location.name }, equipment, definition),
+        library: group.key === 'library',
+        summary: group.key === 'library' ? libraryTypeSummaryText(seedVersion, type, ctx, typeVersion) : null,
+      };
+    }),
   );
 }
 
@@ -796,8 +839,8 @@ export function paletteItems(seedVersion: string, location: TagLocation, equipme
  * (`40-relatorio-overview.html`): its checklist's item count and how many measurement tests
  * it can hold ("até": some are switched off on the sheet). Null for a type that is not one.
  */
-export function libraryTypeSummaryText(seedVersion: string, blockType: string): string | null {
-  const definition = findDefinition(seedVersion, blockType);
+export function libraryTypeSummaryText(seedVersion: string, blockType: string, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT, typeVersion?: number): string | null {
+  const definition = findDefinitionIn(ctx, seedVersion, blockType, typeVersion);
   if (definition === null || definition.library !== true) return null;
   const tests = definition.tests.length + (definition.measurement_tests?.length ?? 0);
   const parts = [
@@ -813,13 +856,19 @@ export interface NewEquipmentBlockInput {
   relatorioId: string;
   projectId: string;
   locationId: string;
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
   tag: string;
   /** The relatório's seed version: the block is born on it. */
   seedVersion: string;
   orderKey: string;
   /** The config to copy ("Duplicar"); the seed's default for the type otherwise. */
   config?: JsonValue;
+  /**
+   * Story 14.6: a company type's block is born at a published version (the palette's latest,
+   * `PaletteItem.typeVersion`), whose definition the context resolves for its default config.
+   */
+  typeVersion?: number;
+  definitions?: DefinitionContext;
 }
 
 /**
@@ -842,7 +891,10 @@ export function newEquipmentBlock(input: NewEquipmentBlockInput): { equipment: E
     location_id: input.locationId,
     equipment_id: input.equipmentId,
     block_type: input.type,
-    config: input.config === undefined ? (defaultBlockConfig(input.seedVersion, input.type) as unknown as JsonValue) : structuredClone(input.config),
+    config:
+      input.config === undefined
+        ? (defaultBlockConfigIn(input.definitions ?? EMPTY_DEFINITION_CONTEXT, input.seedVersion, input.type, input.typeVersion) as unknown as JsonValue)
+        : structuredClone(input.config),
     seed_version: input.seedVersion,
     order_key: input.orderKey,
     feeds_block_id: null,

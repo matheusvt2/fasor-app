@@ -195,7 +195,30 @@ export const measurementCriterionSchema = z.discriminatedUnion('type', [
   equalsColumnCriterionSchema,
   choicePassCriterionSchema,
 ]);
-export type MeasurementCriterion = z.infer<typeof measurementCriterionSchema>;
+type SeedMeasurementCriterion = z.infer<typeof measurementCriterionSchema>;
+
+/** The limit a company type's criteria row gives an absolute criterion (`asBlockDefinition`), shaped as the seeded criteria are. */
+export interface SeededLimit {
+  key: string;
+  label: string;
+  operator: string;
+  value: number;
+  value_max?: number;
+  unit: string | null;
+  type: string;
+  source: { name: string; edition: string | null };
+  usedBy: string;
+}
+
+/**
+ * A measurement criterion as every reader takes it. Story 14.6: on a company type, an absolute
+ * criterion's `seeded` names a row of the type's own criteria table (any key, not only the seeded
+ * `isolacao`), and `asBlockDefinition` carries that row as `seeded_criterion`, which the readers
+ * take before `SEEDED_CRITERIA`.
+ */
+export type MeasurementCriterion =
+  | (Omit<Extract<SeedMeasurementCriterion, { type: 'absolute' }>, 'seeded'> & { seeded?: string; seeded_criterion?: SeededLimit })
+  | Exclude<SeedMeasurementCriterion, { type: 'absolute' }>;
 
 /** The seeded test kinds whose registry instruments a measurement test's picker offers. */
 export const instrumentOfSchema = z.enum(['isolacao', 'resistencia_contato']);
@@ -266,7 +289,9 @@ export const measurementTestSchema = z
       }
     });
   });
-export type MeasurementTest = z.infer<typeof measurementTestSchema>;
+type SeedMeasurementTest = z.infer<typeof measurementTestSchema>;
+/** A measurement test as every reader takes it. Story 14.6: a company type's test key is its own string. */
+export type MeasurementTest = Omit<SeedMeasurementTest, 'key' | 'criteria'> & { key: string; criteria: MeasurementCriterion[] };
 export type MeasurementTestKey = MeasurementTest['key'];
 
 /**
@@ -290,7 +315,7 @@ export type ConfigField = z.infer<typeof configFieldSchema>;
  * and its options, test keys are unique and each is one of the definition's sub-blocks.
  */
 export function checkMeasurementDefinition(
-  definition: { sub_blocks: readonly string[]; measurement_tests?: readonly MeasurementTest[] | undefined; config_fields?: readonly ConfigField[] | undefined },
+  definition: { sub_blocks: readonly string[]; measurement_tests?: readonly { key: string; rows: readonly { when?: WhenConfig | undefined }[]; criteria: readonly { when?: WhenConfig | undefined }[] }[] | undefined; config_fields?: readonly ConfigField[] | undefined },
   ctx: z.RefinementCtx,
 ): void {
   const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });

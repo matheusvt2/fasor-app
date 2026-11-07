@@ -7,9 +7,11 @@ import {
   subBlockKeySchema,
   subtypeSchema,
   type BaseEquipmentBlockType,
+  type BlockTypeKey,
   type EquipmentBlockType,
 } from '../schemas/block-config.ts';
-import { checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema } from './measurement.ts';
+import type { CriterionSeed } from './criteria.ts';
+import { checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 
 /*
  * The shape of one seed version (AD-21). Seed data is code, validated once at module
@@ -79,6 +81,11 @@ export const checklistItemSchema = z.object({
    */
   hint: z.string().min(1).optional(),
 });
+/**
+ * A checklist item as every reader takes it. Story 14.6: on a company type's definition the key is
+ * the definition's own `[a-z0-9_]+` string (`asBlockDefinition`); it stays typed as the seeds'
+ * `ItemKey` so the seed files keep their types unchanged, and no reader indexes a table by it.
+ */
 export type ChecklistItem = z.infer<typeof checklistItemSchema>;
 
 /**
@@ -227,7 +234,12 @@ export const testDefSchema = z.object({
    */
   criterion_class_field: seedKey.optional(),
 });
-export type TestDef = z.infer<typeof testDefSchema>;
+/**
+ * A test as every reader takes it. Story 14.6: on a company type's definition (`asBlockDefinition`)
+ * the test carries `criterion`, the row of the type's own criteria table its `criterion_key` names,
+ * which the readers take before `SEEDED_CRITERIA`; a seeded test never carries one.
+ */
+export type TestDef = z.infer<typeof testDefSchema> & { criterion?: CriterionSeed };
 
 /** FR-11: a subtype pre-marks these items NA; they stay on the list and editable. */
 export const subtypeDefSchema = z.object({
@@ -259,13 +271,17 @@ export const oilRuleSchema = z
   .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
     message: 'full_values and oil_values are disjoint',
   });
-export type OilRule = z.infer<typeof oilRuleSchema>;
+export type OilRule = Omit<z.infer<typeof oilRuleSchema>, 'items'> & { items: string[] };
 
-/** Seed v6: what the oil rule and the band criterion name exists on the definition. */
-function checkSeedV6Definition(
+/**
+ * Seed v6: what the oil rule and the band criterion name exists on the definition. Story 14.6:
+ * exported, so a company type's definition (`companyTypeDefinitionSchema`, which has no oil rule)
+ * meets the same reference checks on its tests.
+ */
+export function checkSeedV6Definition(
   definition: {
     nameplate: readonly FieldDef[];
-    checklist: readonly ChecklistItem[] | null;
+    checklist: readonly { key: string }[] | null;
     tests: readonly TestDef[];
     oil_rule?: OilRule | undefined;
   },
@@ -341,7 +357,35 @@ export const blockDefinitionSchema = z
   })
   .superRefine(checkMeasurementDefinition)
   .superRefine(checkSeedV6Definition);
-export type BlockDefinition = z.infer<typeof blockDefinitionSchema>;
+
+/** A seeded definition as `blockDefinitionSchema` parses it: the closed enums of the seeds. */
+export type SeedBlockDefinition = z.infer<typeof blockDefinitionSchema>;
+
+/**
+ * Story 14.6 (AD-21 note of 2026-11-06, item 2): the one definition type every reader takes, a
+ * seeded type's or a company type's (`asBlockDefinition`). Its keys widen to `string` and its
+ * `block_type` to `BlockTypeKey`, so a seeded definition is one of these as it is; the seeds keep
+ * parsing with `blockDefinitionSchema` and its closed enums, byte-equal under the hash pins. The
+ * last five keys exist only on a company type's definition. A company type's checklist item keys
+ * are its own strings, typed as `ChecklistItem` (see there).
+ */
+export type BlockDefinition = Omit<SeedBlockDefinition, 'block_type' | 'checklist' | 'tests' | 'sub_blocks' | 'measurement_tests' | 'oil_rule'> & {
+  block_type: BlockTypeKey;
+  checklist: ChecklistItem[] | null;
+  tests: TestDef[];
+  sub_blocks: string[];
+  measurement_tests?: MeasurementTest[];
+  oil_rule?: OilRule;
+  /** A company type's own criteria table, which its tests name (absent on a seeded type). */
+  criteria?: CriterionSeed[];
+  /** A company type's TAG prefix (a seeded type's is `TAG_PREFIX`). */
+  tag_prefix?: string;
+  /** A company type's noun, for the composed texts (a seeded type's are the kernel's tables). */
+  noun?: { singular: string; plural: string; gender: 'm' | 'f' };
+  /** The company type's id and the published version this definition is. */
+  type_id?: string;
+  type_version?: number;
+};
 
 /** `CARACTERÍSTICAS DA SE` and `AMBIENTE DE ENSAIO`: the cabine's own fields (AD-6). */
 export const cabineDefinitionSchema = z.object({

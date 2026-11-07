@@ -71,6 +71,11 @@ export const ATTRIBUTED_FIELDS: readonly AttributedField[] = [
   { pointer: 'registry.removed_at', instant: 'bounded' },
   { pointer: 'template.archived_at', instant: 'bounded' },
   { pointer: 'template.removed_at', instant: 'bounded' },
+  // Story 14.6 (contract 33): a company equipment type's retirement and discard, and who published a version, when.
+  { pointer: 'equipment_type.retired_at', instant: 'bounded' },
+  { pointer: 'equipment_type.removed_at', instant: 'bounded' },
+  { pointer: 'equipment_type_version.published_by', actor: 'op' },
+  { pointer: 'equipment_type_version.published_at', instant: 'bounded' },
 
   // Project scope.
   { pointer: 'equipment.last_nameplate.issued_at', instant: 'future', reason: 'the issue instant of an earlier visit\'s plate (AD-25), which may predate every relatório of the obra' },

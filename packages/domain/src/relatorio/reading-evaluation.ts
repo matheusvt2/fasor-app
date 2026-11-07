@@ -39,6 +39,9 @@ import { VECTOR_GROUP_EMPTY_TEXT, VECTOR_GROUP_MISSING_TEXT, VECTOR_GROUP_UNRECO
 // --- the evaluation ------------------------------------------------------------------------
 
 function criterionOf(test: TestDef): CriterionSeed {
+  // Story 14.6: a company type's test carries its own criterion (the row of its type's criteria
+  // table, `asBlockDefinition`), taken before the seeded one of the same key.
+  if (test.criterion !== undefined) return test.criterion;
   const found = SEEDED_CRITERIA.find((criterion) => criterion.key === test.criterion_key);
   if (found === undefined) throw new Error(`readings: unknown criterion "${test.criterion_key}"`);
   return found;

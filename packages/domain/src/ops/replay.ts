@@ -1,4 +1,4 @@
-import { applyOp, targetsOf, type EntityKey, type EntityState } from './apply.ts';
+import { applyOp, targetsOf, withDefinitionRows, type EntityKey, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
 import type { EntityRow } from '../schemas/entities.ts';
 
@@ -31,6 +31,8 @@ export function orderLog(log: readonly Op[]): Op[] {
 /**
  * The reference materializer: folds `applyOp` over a log in `seq` order. The
  * Dexie and Drizzle layers must produce the same state from the same log.
+ * Story 14.6: a company block's op folds with its type's published versions beside its rows
+ * (`withDefinitionRows`), which a version create always precedes in `seq`.
  */
 export function replay(log: readonly Op[], options: ReplayOptions = {}): EntityState {
   const dead = new Set(options.deadOpIds ?? []);
@@ -42,8 +44,9 @@ export function replay(log: readonly Op[], options: ReplayOptions = {}): EntityS
       const row = state.get(ref.key);
       if (row) touched.set(ref.key, row);
     }
-    const next = applyOp(touched, op);
-    for (const [key, row] of next) if (row !== touched.get(key)) state.set(key, row);
+    const withContext = withDefinitionRows(touched, op, state);
+    const next = applyOp(withContext, op);
+    for (const [key, row] of next) if (row !== withContext.get(key)) state.set(key, row);
   }
   return state;
 }

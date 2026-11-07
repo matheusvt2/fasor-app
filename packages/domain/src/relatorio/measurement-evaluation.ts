@@ -322,6 +322,8 @@ function numberText(value: number): string {
 interface Limit {
   operator: string;
   value: number;
+  /** Story 14.6: the upper bound of a company criterion's `between`. */
+  value_max?: number;
   unit: string | null;
   /** The limit alone, for the helper text ("≥ 100 MΩ", ">400 MΩ"). */
   text: string;
@@ -330,8 +332,10 @@ interface Limit {
 /** The limit of an absolute criterion: its own, or the seeded criterion's it names. Null when it names none. */
 function limitOf(criterion: Extract<MeasurementCriterion, { type: 'absolute' }>): Limit | null {
   if (criterion.seeded !== undefined) {
-    const seeded = SEEDED_CRITERIA.find((candidate) => candidate.key === criterion.seeded);
-    return seeded === undefined ? null : { operator: seeded.operator, value: seeded.value, unit: seeded.unit, text: formatCriterionValue(seeded) };
+    // Story 14.6: a company type's criterion carries the row of its type's criteria table it names, taken first.
+    const seeded = criterion.seeded_criterion ?? SEEDED_CRITERIA.find((candidate) => candidate.key === criterion.seeded);
+    if (seeded === undefined) return null;
+    return { operator: seeded.operator, value: seeded.value, ...(seeded.value_max === undefined ? {} : { value_max: seeded.value_max }), unit: seeded.unit, text: formatCriterionValue(seeded) };
   }
   if (criterion.operator === undefined || criterion.value === undefined || criterion.unit === undefined) return null;
   const sign = OPERATOR_SIGN[criterion.operator] ?? criterion.operator;
@@ -362,6 +366,18 @@ function withinLimit(value: number, unit: string | null, limit: Limit): { within
     case '<=':
       within = scaled <= limit.value;
       break;
+    // Story 14.6: a company criterion's `between` (both bounds inclusive), `±` (a deviation) and `pass_fail` (1 passes).
+    case 'between': {
+      if (limit.value_max === undefined) return null;
+      within = scaled >= limit.value && scaled <= limit.value_max;
+      const bound = scaled < limit.value ? limit.value : limit.value_max;
+      return { within, excess: within || bound === 0 ? 0 : Math.abs(scaled - bound) / Math.abs(bound) };
+    }
+    case '±':
+      within = Math.abs(scaled) <= limit.value;
+      return { within, excess: within || limit.value === 0 ? 0 : (Math.abs(scaled) - limit.value) / Math.abs(limit.value) };
+    case 'pass_fail':
+      return { within: scaled === 1, excess: scaled === 1 ? 0 : 1 };
     default:
       return null;
   }
@@ -398,8 +414,12 @@ function mark(cell: EvaluatedMeasurementCell, within: boolean, criterion: Measur
 function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'absolute' }>): void {
   const limit = limitOf(criterion);
   if (limit === null) return;
-  // authored: the seeded tables' own helper wording (`reading-evaluation.ts`).
-  const helper = limit.operator.startsWith('>') ? `Abaixo do aceitável (${limit.text})` : `Acima do aceitável (${limit.text})`;
+  // authored: the seeded tables' own helper wording (`reading-evaluation.ts`); Story 14.6: "Fora do aceitável" for a company criterion with two sides.
+  const helper = limit.operator.startsWith('>')
+    ? `Abaixo do aceitável (${limit.text})`
+    : limit.operator.startsWith('<')
+      ? `Acima do aceitável (${limit.text})`
+      : `Fora do aceitável (${limit.text})`;
   for (const row of rows) {
     if (criterion.rows !== undefined && !criterion.rows.includes(row.key)) continue;
     for (const cell of row.cells) {

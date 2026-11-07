@@ -11,7 +11,8 @@ import { siteLocals, siteObservationOf, sitePointTitle, siteResultOf } from '../
 import { locationTree, treeNodes, type TreeEquipmentNode } from '../relatorio/tree.ts';
 import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, getSeed, siteItems } from '../seed/definitions.ts';
+import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
+import type { BlockDefinition } from '../seed/schema.ts';
 
 /*
  * Story 6.6 (FR-31, E3-A9 bullet 4): every equipment sheet marked Não ensaiado lists
@@ -68,7 +69,7 @@ export interface DerivedPoint {
 const SEP = ' · ';
 
 type TreeSnapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>;
-type DerivedSnapshot = TreeSnapshot & Pick<RelatorioSnapshot, 'points' | 'relatorio' | 'files'>;
+type DerivedSnapshot = TreeSnapshot & Pick<RelatorioSnapshot, 'points' | 'relatorio' | 'files' | 'equipment_types'>;
 
 /** The seed's label and justification of a sheet's Não ensaiado reason; null when it was tested. */
 function reasonOf(block: Pick<BlockRow, 'not_tested' | 'seed_version'>): { key: string; label: string; justification: string | null } | null {
@@ -108,8 +109,7 @@ function rowPhotoIds(photos: ReturnType<typeof livePhotos>, owner: { blockId: st
 const base = { reason_key: '', reason_label: '', justification: null, item_key: null, test_key: null, location_id: null } as const;
 
 /** The derived entries of one tested equipment sheet, in order: its NC rows, its out tests, then its Reprovado. */
-function sheetEntries(block: BlockRow, node: TreeEquipmentNode, title: string, photos: ReturnType<typeof livePhotos>): DerivedPoint[] {
-  const definition = findDefinition(block.seed_version, block.block_type);
+function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node: TreeEquipmentNode, title: string, photos: ReturnType<typeof livePhotos>): DerivedPoint[] {
   if (definition === null) return [];
   const out: DerivedPoint[] = [];
   const common = { block_id: block.id, equipment_id: block.equipment_id, name: node.name, title };
@@ -154,7 +154,7 @@ function sheetEntries(block: BlockRow, node: TreeEquipmentNode, title: string, p
     });
   }
   // A Reprovado the floor does not explain: the engineer's own choice.
-  if (effectiveConclusionPair(block).result === 'reprovado' && conclusionFloor(block)?.pair.result !== 'reprovado') {
+  if (effectiveConclusionPair(block, definition).result === 'reprovado' && conclusionFloor(block, definition)?.pair.result !== 'reprovado') {
     const observation = isCellFilled(block.sheet.observations) && typeof block.sheet.observations!.value === 'string' ? block.sheet.observations!.value.trim() : '';
     out.push({
       ...base,
@@ -174,6 +174,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
   const locals = new Map(siteLocals(snapshot).map((location) => [location.id, location]));
   const items = locals.size === 0 ? [] : siteItems(snapshot.relatorio.seed_version);
   const photos = livePhotos(snapshot);
+  const ctx = snapshotDefinitionContext(snapshot);
   const out: DerivedPoint[] = [];
   for (const node of treeNodes(locationTree(snapshot))) {
     if (node.kind !== 'equipment') {
@@ -216,7 +217,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
       });
       continue;
     }
-    out.push(...sheetEntries(block, node, title, photos));
+    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos));
   }
   return out;
 }
@@ -333,10 +334,10 @@ export function possibleDuplicatesText(pairs: number): string {
  * "Editar" on that entry starts it (`derivedPointSeed`). `owner` is the sheet or the local. ''
  * when the row's seed item is unknown.
  */
-export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'relatorio'>, owner: { block: BlockRow } | { location: Parameters<typeof siteObservationOf>[0] & { id: string } }, itemKey: string): string {
+export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'relatorio' | 'equipment_types'>, owner: { block: BlockRow } | { location: Parameters<typeof siteObservationOf>[0] & { id: string } }, itemKey: string): string {
   const photos = livePhotos(snapshot);
   if ('block' in owner) {
-    const definition = findDefinition(owner.block.seed_version, owner.block.block_type);
+    const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), owner.block);
     const index = definition?.checklist?.findIndex((item) => item.key === itemKey) ?? -1;
     if (definition === null || index < 0) return '';
     const cell = owner.block.sheet.checklist[itemKey]?.observation;

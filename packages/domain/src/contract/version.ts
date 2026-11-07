@@ -315,8 +315,27 @@
  * field: the seed schema gains optional keys only (a column's `voltage` role and `options`, a
  * table's `voltage_rows`, a test's `criterion_class_field`), so v1 to v11 parse to the bytes they
  * shipped with and a row written before 32 parses to the same bytes.
+ *
+ * 33 (2026-11-07, Story 14.6, batch e22t; AD-3, AD-15 and AD-21 notes of 2026-11-06): company
+ * equipment types. Three company-scope families are appended: `equipment_type/{id}` (create), the
+ * row `{id, derived_from, draft, retired_at, removed_at}` with the derived `latest_version`;
+ * `equipment_type/{id}/{draft|retired_at|removed_at}` (put); and the create-only
+ * `equipment_type_version/{id}`, `{id, type_id, version, definition, published_by, published_at}`,
+ * whose fold also sets its type's `latest_version` and clears the draft it published.
+ * `blockTypeSchema` opens to a union of the closed enum and `type:{uuidv7}`, and `BlockConfig`
+ * gains `type_version` (optional and never defaulted, required exactly on a company type); a
+ * company type's `sub_blocks` and `na_defaults` keys are its definition's. `RelatorioSnapshot`
+ * gains the optional `equipment_types` (absent when no block names a company type). `applyOp`
+ * refuses, as `SeedPathError` (`op_invalid`): a version that is not its type's `latest_version + 1`
+ * (two devices publishing at once), a definition the strict schema refuses, a version create or a
+ * draft or retirement put on a removed type, a discard of a published type, a block create naming
+ * no version row in state (the cross-tenant guard), a config put changing a company block's type
+ * or version, and a sheet write outside the resolved definition. A version naming a type the
+ * company does not hold is `op_target_missing` (`REFERENCE_FIELDS`). No seed version and no seed
+ * file change: a row written before 33 parses to the same bytes, and a relatório holding only
+ * seeded types snapshots byte-equal.
  */
-export const CONTRACT_VERSION = 32;
+export const CONTRACT_VERSION = 33;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -504,8 +523,15 @@ export const CONTRACT_VERSION = 32;
  * whole (`invalid_response`), the precedent of versions 20, 23, 28, 30 and 31; and on a v12 sheet
  * it would judge a TC or TP ratio at ± 0,5 % where the server's kernel judges it by its class, and
  * print no TENSÃO column. The version-31 bundle updates too.
+ *
+ * 33 (2026-11-07, Story 14.6, batch e22t): a version-32 (or older) bundle cannot parse the three
+ * `equipment_type` families a company stream carries once a type is created (its `opSchema`
+ * refuses the path, so the pulled page fails whole, `invalid_response`, the precedent of versions
+ * 20, 23, 28, 30, 31 and 32), nor a block create of a `type:{uuidv7}` type nor a snapshot carrying
+ * `equipment_types`; it would show a company block as an unknown section and print nothing of it.
+ * Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 32;
+export const MIN_CONTRACT_VERSION = 33;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

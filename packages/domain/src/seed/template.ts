@@ -1,8 +1,10 @@
 import {
   EQUIPMENT_BLOCK_TYPES,
   SECTION_BLOCK_TYPES,
+  isCompanyBlockType,
   isEquipmentBlockType,
   type BlockConfig,
+  type CompanyBlockType,
   type EquipmentBlockType,
   type Role,
   type SkeletonNode,
@@ -12,7 +14,7 @@ import {
   type TemplateBlock,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
-import { getDefinition, naDefaultsFor, SEED_VERSION } from './definitions.ts';
+import { getDefinition, getDefinitionIn, naDefaultsFor, SEED_VERSION, type DefinitionContext } from './definitions.ts';
 import type { BlockDefinition } from './schema.ts';
 
 /*
@@ -40,8 +42,8 @@ export const LOCKED_SUB_BLOCKS: readonly SubBlockKey[] = ['checklist', 'conclusi
  * `switchable` (the CTA's E4 and E5), which no config can switch off (`evaluateSheetMeasurements`
  * reads them as always on). The template's type dialog shows these as "Sempre", never a switch.
  */
-export function lockedSubBlocksOf(definition: Pick<BlockDefinition, 'sub_blocks' | 'measurement_tests'>): SubBlockKey[] {
-  const always = new Set<SubBlockKey>(LOCKED_SUB_BLOCKS);
+export function lockedSubBlocksOf(definition: Pick<BlockDefinition, 'sub_blocks' | 'measurement_tests'>): string[] {
+  const always = new Set<string>(LOCKED_SUB_BLOCKS);
   for (const test of definition.measurement_tests ?? []) if (test.switchable === undefined) always.add(test.key);
   return definition.sub_blocks.filter((key) => always.has(key));
 }
@@ -61,10 +63,10 @@ export function defaultBlockConfig(
   blockType: BlockConfig['block_type'],
   options: BlockConfigOptions = {},
 ): BlockConfig {
-  const sub_blocks: Partial<Record<SubBlockKey, SubBlockConfig>> = {};
+  const sub_blocks: Record<string, SubBlockConfig> = {};
   if (isEquipmentBlockType(blockType)) {
     for (const key of getDefinition(seedVersion, 'cabine_primaria', blockType).sub_blocks) {
-      sub_blocks[key] = { enabled: !DEFAULT_OFF_SUB_BLOCKS.includes(key) };
+      sub_blocks[key] = { enabled: !(DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key) };
     }
   }
   return {
@@ -74,6 +76,21 @@ export function defaultBlockConfig(
     sub_blocks,
     na_defaults: isEquipmentBlockType(blockType) ? naDefaultsFor(seedVersion, blockType, options.subtype) : [],
   };
+}
+
+/**
+ * Story 14.6 (AD-21 note of 2026-11-06, item 3): the default config of a block type through a
+ * definition context. A seeded or section type's is `defaultBlockConfig`'s; a company type's names
+ * the published version it is placed at (`type_version`, the palette's latest), every sub-block of
+ * that version's definition on but `ia_ip_display`, and no subtype, role or NA default (a company
+ * type has none). Throws when the context holds no such version.
+ */
+export function defaultBlockConfigIn(ctx: DefinitionContext, seedVersion: string, blockType: BlockConfig['block_type'], typeVersion?: number, options: BlockConfigOptions = {}): BlockConfig {
+  if (!isCompanyBlockType(blockType)) return defaultBlockConfig(seedVersion, blockType, options);
+  const definition = getDefinitionIn(ctx, seedVersion, blockType, typeVersion);
+  const sub_blocks: Record<string, SubBlockConfig> = {};
+  for (const key of definition.sub_blocks) sub_blocks[key] = { enabled: !(DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key) };
+  return { block_type: blockType, sub_blocks, na_defaults: [], type_version: definition.type_version! };
 }
 
 // --- the standard template's composition -----------------------------------
@@ -248,8 +265,14 @@ export function standardTemplate({ id, seedVersion = SEED_VERSION }: StandardTem
   };
 }
 
+/**
+ * Per-type counts: every seeded equipment type (zero when none), and (Story 14.6) a company type
+ * under its `type:` key, present only where one is placed.
+ */
+export type TypeTotals = Record<EquipmentBlockType, number> & { [type: CompanyBlockType]: number };
+
 /** Zero of every equipment block type, in `EQUIPMENT_BLOCK_TYPES` order. */
-export function zeroTotals(): Record<EquipmentBlockType, number> {
+export function zeroTotals(): TypeTotals {
   return Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((type) => [type, 0])) as Record<EquipmentBlockType, number>;
 }
 
@@ -258,14 +281,15 @@ export function zeroTotals(): Record<EquipmentBlockType, number> {
  * whose node is gone from the skeleton (an orphan two devices folded into, Story 3.4), or
  * is a painel (Story 14.2), is not counted: it is not part of the composition any reader shows or instantiates.
  */
-export function templateTotals(template: Pick<TemplateRow, 'blocks' | 'skeleton'>): Record<EquipmentBlockType, number> {
+export function templateTotals(template: Pick<TemplateRow, 'blocks' | 'skeleton'>): TypeTotals {
   // Story 14.2: a painel takes no block, so a block naming one counts like an orphan.
   const nodes = new Set(template.skeleton.filter((node) => node.kind !== 'painel').map((node) => node.ref));
   const totals = zeroTotals();
   for (const block of template.blocks) {
-    if (!isEquipmentBlockType(block.block_type)) continue;
+    // Story 14.6: a company type's blocks count under its own key.
+    if (!isEquipmentBlockType(block.block_type) && !isCompanyBlockType(block.block_type)) continue;
     if (block.skeleton_location_ref === null || !nodes.has(block.skeleton_location_ref)) continue;
-    totals[block.block_type] += block.quantity;
+    totals[block.block_type] = (totals[block.block_type] ?? 0) + block.quantity;
   }
   return totals;
 }

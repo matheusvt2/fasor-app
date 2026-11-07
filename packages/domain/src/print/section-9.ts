@@ -22,10 +22,9 @@ import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
-import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition, findSeed, getSeed } from '../seed/definitions.ts';
+import { blockDefinitionIn, findSeed, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { withCaptionOrdinals } from './caption-ordinal.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
@@ -295,6 +294,8 @@ interface Context {
   numbers: ReadonlyMap<string, number>;
   /** Stories 17.1 and 17.4: the one walk the numbers come from; its groups are what prints where. */
   photos: DocumentPhotoOrder;
+  /** Story 14.6: the company type versions the snapshot carries, which a company sheet resolves through. */
+  definitions: DefinitionContext;
 }
 
 function contextOf(snapshot: RelatorioSnapshot): Context {
@@ -305,11 +306,13 @@ function contextOf(snapshot: RelatorioSnapshot): Context {
     tags: new Map(snapshot.equipment.map((row) => [row.id, row.tag])),
     numbers: new Map(photos.order.map((photo, i) => [photo.id, i + 1])),
     photos,
+    definitions: snapshotDefinitionContext(snapshot),
   };
 }
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  return findDefinition(block.seed_version, block.block_type);
+/** A sheet's definition: a seeded type's from its seed version, a company type's from the snapshot (Story 14.6). */
+function definitionOf(ctx: Context, block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>): BlockDefinition | null {
+  return blockDefinitionIn(ctx.definitions, block);
 }
 
 /** What a sheet reads of its seed version beyond its block definition: the cabine's fields and the checklist's columns. */
@@ -325,9 +328,10 @@ function sheetSeedOf(seedVersion: string): { cabine: CabineDefinition; checklist
 // --- the title ---------------------------------------------------------------------------------
 
 /** Type, role and TAG: "CHAVE SECCIONADORA DE ENTRADA SEC-C01", "CABOS DE ALIMENTAÇÃO CB-TR1"; the TAG as stored. */
-function sheetTitle(block: BlockRow, tag: string): string {
+function sheetTitle(definition: BlockDefinition | null, block: BlockRow, tag: string): string {
   // Story 14.9: a type may print its own title (the QGBT's `QGBT/QD's`) instead of its label.
-  const label = definitionOf(block)?.print_title ?? blockTypeLabel(block.seed_version, block.block_type);
+  // Story 14.6: a company type prints its version's `print_title`, or else its version's label.
+  const label = definition?.print_title ?? definition?.label ?? blockTypeLabel(block.seed_version, block.block_type);
   const role = blockRoleOf(block);
   let type = label;
   if (role === 'alimentacao') type = block.block_type === 'cabos_saida' ? CABOS_DE_ALIMENTACAO : `${label} ${ROLE_WORDS.alimentacao}`;
@@ -621,7 +625,7 @@ function readingText(cell: EvaluatedCell, column: ColumnDef, headerUnit: string 
 }
 
 /** A `print` column's cell: "-", but ABSORÇÃO and POLARIZAÇÃO print what `ia_ip_display` stored. */
-function printColumnText(block: BlockRow, testKey: TestKey, row: number, col: number, column: ColumnDef, enabled: ReadonlySet<SubBlockKey>): string {
+function printColumnText(block: BlockRow, testKey: TestKey, row: number, col: number, column: ColumnDef, enabled: ReadonlySet<string>): string {
   if (!IA_IP_COLUMNS.has(column.label) || !enabled.has('ia_ip_display')) return DASH;
   const value = block.sheet.test[testKey]?.cells[String(row)]?.[String(col)]?.value;
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return DASH;
@@ -637,7 +641,7 @@ function valueText(
   evaluated: EvaluatedTable,
   col: number,
   column: ColumnDef,
-  enabled: ReadonlySet<SubBlockKey>,
+  enabled: ReadonlySet<string>,
   headerUnit: string | null,
 ): string {
   switch (column.role) {
@@ -780,7 +784,7 @@ export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'row
 }
 
 /** One measurement table: its title band, its header, then one row per connection with every value column. */
-function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDef, evaluated: EvaluatedTable, enabled: ReadonlySet<SubBlockKey>): PrintTable {
+function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDef, evaluated: EvaluatedTable, enabled: ReadonlySet<string>): PrintTable {
   const width = definition.connection_columns.length + definition.value_columns.length;
   const rows: PrintRow[] = [];
   if (definition.title !== undefined) rows.push(bandRow(printLabel(definition.title), width));
@@ -813,7 +817,7 @@ function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
   return { columns: fittedColumns(rows, left.columns.length + right.columns.length), rows };
 }
 
-function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<SubBlockKey>): SheetPart[] {
+function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>): SheetPart[] {
   const test = definition.tests.find((candidate) => candidate.key === evaluation.testKey);
   if (test === undefined) return [];
   const tables = test.tables.map((tableDef, i) => measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled));
@@ -1024,11 +1028,11 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const block = ctx.blocks.get(blockId);
   if (block === undefined) return null;
   const tag = block.equipment_id === null ? '' : (ctx.tags.get(block.equipment_id) ?? '');
-  const definition = definitionOf(block);
+  const definition = definitionOf(ctx, block);
   const seed = sheetSeedOf(block.seed_version);
   const enabled = enabledSubBlocksOf(block);
   const parts: SheetPart[] = [];
-  const sheet = (): PrintSheet => ({ blockId, title: sheetTitle(block, tag), parts: keptTogether(parts) });
+  const sheet = (): PrintSheet => ({ blockId, title: sheetTitle(definition, block, tag), parts: keptTogether(parts) });
   if (cabine !== null && seed !== null) parts.push(...cabineParts(cabine, seed.cabine, siteAltitudeValue(ctx.snapshot.relatorio.setup)));
   const nameplate = definition !== null && enabled.has('nameplate') && definition.nameplate.length > 0;
   if (nameplate) parts.push(nameplatePart(ctx, block, definition));
@@ -1045,7 +1049,7 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const config = configPart(block, definition);
   if (config !== null) parts.push(config);
   // The walk splits items from the other photos by the same predicate.
-  const checklist = sheetChecklistPrinted(block) && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
+  const checklist = sheetChecklistPrinted(block, definition) && seed !== null ? checklistPart(block, definition, seed.checklistColumns) : null;
   if (checklist !== null) parts.push(checklist);
   for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled));
   parts.push(...measurementParts(block, definition));

@@ -82,7 +82,7 @@ export function createProjectOf(op: Op, path: OpPath): string | null {
 export type ReferenceScope = 'relatorio' | 'obra' | 'company';
 
 /** The entities a value may name by id. */
-export type ReferencedEntity = 'location' | 'block' | 'equipment' | 'file' | 'registry' | 'template' | 'suggestion';
+export type ReferencedEntity = 'location' | 'block' | 'equipment' | 'file' | 'registry' | 'template' | 'suggestion' | 'equipment_type';
 
 export type ReferenceField =
   /** A row the value names, which must exist and belong to `scope` (a registry row of `kind`). */
@@ -132,6 +132,13 @@ export const REFERENCE_FIELDS: readonly ReferenceField[] = [
   { pointer: 'registry.sites[].id', exempt: 'a client site\'s own sub-id inside its registry row' },
   { pointer: 'template.id', exempt: OWN_ID },
   { pointer: 'user.id', exempt: OWN_ID },
+  // Story 14.6 (contract 33): a published version names its type, which must be a type of the
+  // company (`op_target_missing` otherwise; the AD-10 tenant guard of the publish); what a type
+  // was copied from is display only.
+  { pointer: 'equipment_type.id', exempt: OWN_ID },
+  { pointer: 'equipment_type.derived_from.type_id', exempt: 'display only: the company type a type was copied from (AD-21 item 1); no reader follows it' },
+  { pointer: 'equipment_type_version.id', exempt: OWN_ID },
+  { pointer: 'equipment_type_version.type_id', reference: { entity: 'equipment_type', scope: 'company' } },
 
   // Project scope.
   { pointer: 'equipment.id', exempt: OWN_ID },

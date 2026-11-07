@@ -36,6 +36,11 @@ export * from './seed/criteria.ts';
 export * from './seed/schema.ts';
 export * from './seed/measurement.ts';
 export * from './seed/definitions.ts';
+// Story 14.6 (contract 33): company equipment types, their definition, validation, copies and adapter.
+export * from './types/definition.ts';
+export * from './types/validate.ts';
+export * from './types/block-definition.ts';
+export * from './types/duplicate.ts';
 export * from './seed/defect-reason.ts';
 export * from './seed/template.ts';
 export * from './seed/voltage-classes.ts';

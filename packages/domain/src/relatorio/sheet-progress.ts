@@ -1,7 +1,6 @@
-import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
@@ -56,25 +55,17 @@ export type SheetStep = 'placa' | 'verificacoes' | 'ensaios' | 'conclusao';
 /** The four steps in their stepper order. */
 export const SHEET_STEPS: readonly SheetStep[] = ['placa', 'verificacoes', 'ensaios', 'conclusao'];
 
-/** The sub-blocks each step fills (`placaMissing`, `verificacoesMissing`, `ensaiosCounts`, `conclusaoMissing`); Ensaios is every test. */
-const STEP_SUB_BLOCKS: Readonly<Record<SheetStep, readonly SubBlockKey[]>> = {
-  placa: ['nameplate'],
-  verificacoes: ['checklist'],
-  ensaios: [
-    'isolacao',
-    'ia_ip_display',
-    'resistencia_contato',
-    'relacao_transformacao',
-    // Story 14.5: the measurement tests of the Chave de transferência automática.
-    'cta_resistencia_contato',
-    'cta_isolamento_principal',
-    'cta_isolamento_controle',
-    'cta_ajustes_controlador',
-    'cta_transferencia',
-    'cta_termografia',
-  ],
-  conclusao: ['conclusion'],
-};
+/**
+ * The sub-blocks each step fills (`placaMissing`, `verificacoesMissing`, `ensaiosCounts`, `conclusaoMissing`); Ensaios is every test:
+ * every sub-block but the four parts below (Story 14.6: a company type's test keys are its own, so they are not listed by name).
+ */
+const STEP_PARTS: Readonly<Record<Exclude<SheetStep, 'ensaios'>, string>> = { placa: 'nameplate', verificacoes: 'checklist', conclusao: 'conclusion' };
+const NOT_A_TEST: ReadonlySet<string> = new Set(['nameplate', 'checklist', 'observations', 'conclusion']);
+
+function stepShown(step: SheetStep, enabled: ReadonlySet<string>): boolean {
+  if (step === 'ensaios') return [...enabled].some((key) => !NOT_A_TEST.has(key));
+  return enabled.has(STEP_PARTS[step]);
+}
 
 /**
  * E12-A7 (batch D low a): the steps a sheet shows, in stepper order: those whose sub-block
@@ -85,7 +76,7 @@ const STEP_SUB_BLOCKS: Readonly<Record<SheetStep, readonly SubBlockKey[]>> = {
  */
 export function shownSheetSteps(block: Pick<BlockRow, 'config'>, options: { cabineFirst?: boolean } = {}): SheetStep[] {
   const enabled = enabledSubBlocksOf(block);
-  return SHEET_STEPS.filter((step) => STEP_SUB_BLOCKS[step].some((key) => enabled.has(key)) || (step === 'placa' && options.cabineFirst === true));
+  return SHEET_STEPS.filter((step) => stepShown(step, enabled) || (step === 'placa' && options.cabineFirst === true));
 }
 
 /** One step's counts: what is missing, and (Ensaios only) the readings out of their criterion. */
@@ -167,7 +158,7 @@ export function checklistResultIsStored(block: ResultBlock, itemKey: string): bo
 }
 
 /** What `sheetProgress` reads: the blocks, and the rest of the snapshot when the caller has it. */
-export type SheetProgressSnapshot = Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'equipment'>>;
+export type SheetProgressSnapshot = Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'equipment' | 'equipment_types'>>;
 
 /** The cabine block is expanded and counted on its cabine's first sheet (`firstInTree`). */
 export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>, blockId: string): boolean {
@@ -177,7 +168,7 @@ export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations'
 }
 
 /** The Placa step's missing fields: the plate's own and, on the cabine's first sheet, the cabine's. */
-function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled: ReadonlySet<SubBlockKey>): { plate: number; cabine: number } {
+function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled: ReadonlySet<string>): { plate: number; cabine: number } {
   const plate = enabled.has('nameplate') ? nameplateMissingKeys(snapshot, block.id).size : 0;
   let cabineMissing = 0;
   const { relatorio, locations, equipment } = snapshot;
@@ -188,7 +179,7 @@ function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, enabled:
   return { plate, cabine: cabineMissing };
 }
 
-function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
+function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>): number {
   if (!enabled.has('checklist') || definition.checklist === null) return 0;
   let missing = 0;
   for (const item of definition.checklist) {
@@ -199,7 +190,7 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
   return missing;
 }
 
-function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): SheetStepProgress {
+function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>): SheetStepProgress {
   const evaluations = sheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
   const measurements = measurementCounts(sheetMeasurements(block, definition));
@@ -215,12 +206,12 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   };
 }
 
-function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>, floorFills: boolean): { missing: number; observation: number } {
+function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>, floorFills: boolean): { missing: number; observation: number } {
   if (!enabled.has('conclusion')) return { missing: 0, observation: 0 };
   // ~~Story 22.4: the effective pair, so a floor fills an unset half~~ e22f N2: the chosen pair
   // (a stored half, made stricter by the floor); with `floorFills`, what "Concluir ficha" will
   // write, the effective pair (the floor fills an unset half in the conclude batch).
-  const { result, restriction } = floorFills ? effectiveConclusionPair(block) : chosenConclusionPair(block);
+  const { result, restriction } = floorFills ? effectiveConclusionPair(block, definition) : chosenConclusionPair(block, definition);
   let missing = 0;
   let observation = 0;
   if (result === null) missing += 1;
@@ -238,7 +229,8 @@ function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>, fl
  */
 export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, options: { floorFills?: boolean } = {}): SheetProgress {
   const block = snapshot.blocks.find((row) => row.id === blockId);
-  const definition = block === undefined ? null : findDefinition(block.seed_version, block.block_type);
+  // Story 14.6: a company sheet's definition comes from the snapshot's type versions.
+  const definition = block === undefined ? null : blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
   const steps: Record<SheetStep, SheetStepProgress> = {
     placa: { missing: 0, outOfLimit: 0 },
     verificacoes: { missing: 0, outOfLimit: 0 },
@@ -257,7 +249,7 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, 
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
     steps.ensaios = ensaiosCounts(block, definition, enabled);
-    const conclusao = conclusaoMissing(block, enabled, options.floorFills === true);
+    const conclusao = conclusaoMissing(block, definition, enabled, options.floorFills === true);
     steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;

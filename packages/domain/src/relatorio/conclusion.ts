@@ -1,5 +1,5 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
-import type { EquipmentBlockType } from '../schemas/block-config.ts';
+import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
 import { findDefinition } from '../seed/definitions.ts';
@@ -35,7 +35,16 @@ export interface ConclusionPair {
   restriction: ConclusionRestriction;
 }
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
+/**
+ * Story 14.6: the definition a reader passes, or a seeded block's own. A company block resolves only
+ * through a definition context, so its definition always comes from the caller (`blockDefinitionIn`);
+ * a reader that forgets it fails loudly here instead of judging the sheet with no definition.
+ */
+type DefinitionArg = BlockDefinition | null | undefined;
+
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>, definition: DefinitionArg = undefined): BlockDefinition | null {
+  if (definition !== undefined) return definition;
+  if (isCompanyBlockType(block.block_type)) throw new Error(`conclusion: the company block type "${block.block_type}" needs its definition`);
   return findDefinition(block.seed_version, block.block_type);
 }
 
@@ -116,21 +125,26 @@ function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
  * The rule is the kernel's, never the seed's (beyond the `defect` flag): a v5 relatório gets it
  * as a v11 one does.
  */
-export function conclusionFloor(block: BlockRow): ConclusionFloor | null {
-  // e22f S7: once per block row (rows are immutable), every reader of the effective pair shares it.
-  if (FLOORS.has(block)) return FLOORS.get(block)!;
-  const floor = computeFloor(block);
-  FLOORS.set(block, floor);
+export function conclusionFloor(block: BlockRow, given: DefinitionArg = undefined): ConclusionFloor | null {
+  const definition = block.not_tested !== null ? null : definitionOf(block, given);
+  // e22f S7: once per block row (rows are immutable) and definition, every reader of the effective pair shares it.
+  let byDefinition = FLOORS.get(block);
+  if (byDefinition === undefined) {
+    byDefinition = new Map();
+    FLOORS.set(block, byDefinition);
+  }
+  if (byDefinition.has(definition)) return byDefinition.get(definition)!;
+  const floor = computeFloor(block, definition);
+  byDefinition.set(definition, floor);
   return floor;
 }
 
-const FLOORS = new WeakMap<BlockRow, ConclusionFloor | null>();
+const FLOORS = new WeakMap<BlockRow, Map<BlockDefinition | null, ConclusionFloor | null>>();
 
-function computeFloor(block: BlockRow): ConclusionFloor | null {
+function computeFloor(block: BlockRow, definition: BlockDefinition | null): ConclusionFloor | null {
   if (block.not_tested !== null) {
     return isDefectReason(block.seed_version, block.not_tested.reason) ? { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['defect'] } : null;
   }
-  const definition = definitionOf(block);
   if (definition === null) return null;
   const evaluations = sheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
@@ -183,8 +197,8 @@ export interface EffectiveConclusionPair {
  * pair alone: a stored pair looser than a later floor is never shown as the conclusion. A sheet
  * marked Não ensaiado ignores its stored pair: only a defect reason's floor gives it one.
  */
-export function effectiveConclusionPair(block: BlockRow): EffectiveConclusionPair {
-  const floor = conclusionFloor(block)?.pair ?? null;
+export function effectiveConclusionPair(block: BlockRow, definition: DefinitionArg = undefined): EffectiveConclusionPair {
+  const floor = conclusionFloor(block, definition)?.pair ?? null;
   // A sheet marked not tested prints no conclusion: a pair stored before the mark is ignored,
   // and only a defect reason's floor applies (review of batch e22c).
   const tested = block.not_tested === null;
@@ -202,9 +216,9 @@ export function effectiveConclusionPair(block: BlockRow): EffectiveConclusionPai
  * sheet is concluded, the floor alone sets no mark and fills no step. A sheet marked Não
  * ensaiado chooses nothing.
  */
-export function chosenConclusionPair(block: BlockRow): EffectiveConclusionPair {
+export function chosenConclusionPair(block: BlockRow, definition: DefinitionArg = undefined): EffectiveConclusionPair {
   if (block.not_tested !== null) return { result: null, restriction: null };
-  const effective = effectiveConclusionPair(block);
+  const effective = effectiveConclusionPair(block, definition);
   return {
     result: conclusionResultOf(block) === null ? null : effective.result,
     restriction: conclusionRestrictionOf(block) === null ? null : effective.restriction,
@@ -218,8 +232,8 @@ export function chosenConclusionPair(block: BlockRow): EffectiveConclusionPair {
  * after the conclude prints no mark, as its header counts it missing). A sheet marked Não
  * ensaiado prints its effective pair (a defect reason's floor alone).
  */
-export function printedConclusionPair(block: BlockRow): EffectiveConclusionPair {
-  return block.not_tested !== null ? effectiveConclusionPair(block) : chosenConclusionPair(block);
+export function printedConclusionPair(block: BlockRow, definition: DefinitionArg = undefined): EffectiveConclusionPair {
+  return block.not_tested !== null ? effectiveConclusionPair(block, definition) : chosenConclusionPair(block, definition);
 }
 
 /**
@@ -227,17 +241,17 @@ export function printedConclusionPair(block: BlockRow): EffectiveConclusionPair 
  * out of criterion after "Concluir ficha"): the ficha shows "Conclusão ajustada pela ficha"
  * with a Confirmar that writes the effective pair.
  */
-export function conclusionAdjusted(block: BlockRow): boolean {
+export function conclusionAdjusted(block: BlockRow, definition: DefinitionArg = undefined): boolean {
   const result = conclusionResultOf(block);
   const restriction = conclusionRestrictionOf(block);
   if (result === null || restriction === null) return false;
-  const effective = effectiveConclusionPair(block);
+  const effective = effectiveConclusionPair(block, definition);
   return effective.result !== result || effective.restriction !== restriction;
 }
 
 /** Story 22.4: whether a segment is looser than the floor, so the radiogroups disable it (a stricter one stays choosable). */
-export function isLooserThanFloor(block: BlockRow, value: ConclusionResult | ConclusionRestriction): boolean {
-  const floor = conclusionFloor(block)?.pair ?? null;
+export function isLooserThanFloor(block: BlockRow, value: ConclusionResult | ConclusionRestriction, definition: DefinitionArg = undefined): boolean {
+  const floor = conclusionFloor(block, definition)?.pair ?? null;
   if (floor === null) return false;
   if (value === 'aprovado' || value === 'reprovado') return RESULT_RANK[value] < RESULT_RANK[floor.result];
   return RESTRICTION_RANK[value] < RESTRICTION_RANK[floor.restriction];
@@ -261,8 +275,8 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
  * exige no mínimo Reprovado · Com restrições: leitura fora do critério." Null while no
  * segment is disabled (no floor, or the Aprovado · Sem restrições floor).
  */
-export function conclusionFloorReasonText(block: BlockRow): string | null {
-  const floor = conclusionFloor(block);
+export function conclusionFloorReasonText(block: BlockRow, definition: DefinitionArg = undefined): string | null {
+  const floor = conclusionFloor(block, definition);
   if (floor === null || floor.reasons.length === 0) return null;
   // authored (Story 22.4, open for Bruno): the reason line of the disabled segments.
   return `A ficha exige no mínimo ${RESULT_WORDS[floor.pair.result]} · ${RESTRICTION_WORDS[floor.pair.restriction]}: ${listPtBr(floor.reasons.map((reason) => FLOOR_REASON_WORDS[reason]))}.`;
@@ -273,10 +287,10 @@ export function conclusionFloorReasonText(block: BlockRow): string | null {
  * floor, Reprovado included). Null on a sheet marked not tested, once any segment is set, or
  * while there is no floor.
  */
-export function conclusionSuggestion(block: BlockRow): ConclusionPair | null {
+export function conclusionSuggestion(block: BlockRow, definition: DefinitionArg = undefined): ConclusionPair | null {
   if (block.not_tested !== null) return null;
   if (isCellFilled(block.sheet.conclusion.result) || isCellFilled(block.sheet.conclusion.restriction)) return null;
-  return conclusionFloor(block)?.pair ?? null;
+  return conclusionFloor(block, definition)?.pair ?? null;
 }
 
 /** The suggestion row's words: "Aprovado · Sem restrições?". */
@@ -304,8 +318,8 @@ export function suggestedSheetObservation(block: BlockRow, definition: BlockDefi
 }
 
 /** Com restrições makes the sheet observation required (Story 5.8 AC 2); Story 22.4: the effective restriction, the floor's included. */
-export function observationRequired(block: BlockRow): boolean {
-  return effectiveConclusionPair(block).restriction === 'com_restricoes';
+export function observationRequired(block: BlockRow, definition: DefinitionArg = undefined): boolean {
+  return effectiveConclusionPair(block, definition).restriction === 'com_restricoes';
 }
 
 // --- the composed paragraph -----------------------------------------------------------
@@ -392,8 +406,15 @@ function measurementClause(reading: WorstMeasurement): string {
  * "todos os itens verificados conformes", only with a C row), a clause saying what was not
  * recorded (E5-Q4) and, when restricted or failed, the recommendation. No network, no model.
  */
+/** The subject of the paragraph: a seeded type's from `NOUNS`, a company type's from its noun and gender ("O no-break"). */
+function nounOf(definition: BlockDefinition): { noun: string; plural: boolean } {
+  if (definition.noun !== undefined) return { noun: `${definition.noun.gender === 'f' ? 'A' : 'O'} ${definition.noun.singular}`, plural: false };
+  // A company type always carries its noun (`asBlockDefinition`); a seeded one is keyed by its type.
+  return NOUNS[definition.block_type as EquipmentBlockType];
+}
+
 export function composeConclusion(block: BlockRow, definition: BlockDefinition, equipmentTag: string): ComposedConclusion {
-  const noun = NOUNS[definition.block_type];
+  const noun = nounOf(definition);
   // The maker: FABRICAÇÃO on the eight, Fabricante on the Chave de transferência automática.
   const fabricacao = identityPart(block, definition, ['fabricacao', 'fabricante']);
   const tensao = identityPart(block, definition, VOLTAGE_KEYS);
@@ -430,7 +451,7 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
     ncs.length === 0 ? 'todos os itens verificados conformes' : listPtBr(ncs.map((item) => `${item.observation ?? item.label.toLocaleLowerCase('pt-BR')} (item ${item.n}, NC)`));
 
   // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
-  const { result, restriction } = effectiveConclusionPair(block);
+  const { result, restriction } = effectiveConclusionPair(block, definition);
   const recommend = restriction === 'com_restricoes' || result === 'reprovado';
   const verb = noun.plural ? 'apresentaram' : 'apresentou';
   // authored (OQ-3 placeholder): the sentence states only what exists.
@@ -516,8 +537,8 @@ export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pi
  * (`sheet-progress.ts`): a result and a restriction are both set. Story 22.4: the effective
  * pair, so a floor completes an unset half.
  */
-export function conclusionPairComplete(block: BlockRow): boolean {
-  const pair = effectiveConclusionPair(block);
+export function conclusionPairComplete(block: BlockRow, definition: DefinitionArg = undefined): boolean {
+  const pair = effectiveConclusionPair(block, definition);
   return pair.result !== null && pair.restriction !== null;
 }
 
@@ -526,8 +547,8 @@ export function conclusionPairComplete(block: BlockRow): boolean {
  * unconfirmed or the pair it concludes is incomplete (E5-A4: a result or a restriction
  * cleared after the confirm leaves the confirmed text unprintable until the pair is set again).
  */
-export function conclusionTextForPrint(block: BlockRow): string | null {
-  if (conclusionTextStatusOf(block) === null || !conclusionPairComplete(block)) return null;
+export function conclusionTextForPrint(block: BlockRow, definition: DefinitionArg = undefined): string | null {
+  if (conclusionTextStatusOf(block) === null || !conclusionPairComplete(block, definition)) return null;
   const text = storedText(block, 'text');
   return text === null || text.trim() === '' ? null : text;
 }
@@ -557,7 +578,7 @@ export function conclusionAdjustWrites(
   definition: BlockDefinition,
   equipmentTag: string,
 ): { result: ConclusionResult | null; restriction: ConclusionRestriction | null; text: { text: string; basis: string } | null } | null {
-  const pair = effectiveConclusionPair(block);
+  const pair = effectiveConclusionPair(block, definition);
   const result = pair.result !== null && pair.result !== conclusionResultOf(block) ? pair.result : null;
   const restriction = pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(block) ? pair.restriction : null;
   const composed = composeConclusion(block, definition, equipmentTag);
@@ -575,15 +596,15 @@ export function conclusionAdjustWrites(
  */
 export function printedConclusionText(block: BlockRow, definition: BlockDefinition, equipmentTag: string): string | null {
   // e22f N2: the pair section 9 marks, so an open sheet whose pair only the floor sets prints no paragraph either.
-  const printed = printedConclusionPair(block);
+  const printed = printedConclusionPair(block, definition);
   if (printed.result === null || printed.restriction === null) return null;
   const status = conclusionTextStatusOf(block);
   if (status === null) return null;
-  if (status === 'edited') return conclusionTextForPrint(block);
+  if (status === 'edited') return conclusionTextForPrint(block, definition);
   const composed = composeConclusion(block, definition, equipmentTag);
   const state = conclusionTextState(block, composed);
-  if (state === 'confirmed') return conclusionTextForPrint(block);
-  return state === 'stale' && conclusionAdjusted(block) ? composed.text : null;
+  if (state === 'confirmed') return conclusionTextForPrint(block, definition);
+  return state === 'stale' && conclusionAdjusted(block, definition) ? composed.text : null;
 }
 
 /** The stored conclusion text, or null. */
@@ -608,7 +629,7 @@ export function conclusionStoredText(block: Pick<BlockRow, 'sheet'>): string | n
 export function conclusionTextOnConclude(block: BlockRow, definition: BlockDefinition, equipmentTag: string): { text: string; basis: string } | null {
   if (block.not_tested !== null) return null;
   if (!enabledSubBlocksOf(block).has('conclusion')) return null;
-  if (!conclusionPairComplete(block) || conclusionTextStatusOf(block) !== null) return null;
+  if (!conclusionPairComplete(block, definition) || conclusionTextStatusOf(block) !== null) return null;
   const composed = composeConclusion(block, definition, equipmentTag);
   return { text: composed.text, basis: composed.basis };
 }

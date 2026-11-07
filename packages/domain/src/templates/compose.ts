@@ -1,10 +1,14 @@
 import {
   EQUIPMENT_BLOCK_TYPES,
+  companyTypeIdOf,
+  isCompanyBlockType,
   isEquipmentBlockType,
+  isEquipmentKind,
   isSectionBlockType,
   MAX_QUANTITY,
   SUB_BLOCK_KEYS,
   type BlockConfig,
+  type BlockTypeKey,
   type EquipmentBlockType,
   type SectionBlockType,
   type SkeletonNode,
@@ -12,8 +16,8 @@ import {
   type TemplateBlock,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
-import { findDefinition, SEED_VERSION } from '../seed/definitions.ts';
-import { defaultBlockConfig, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, zeroTotals } from '../seed/template.ts';
+import { EMPTY_DEFINITION_CONTEXT, findDefinition, latestTypeVersion, SEED_VERSION, type DefinitionContext } from '../seed/definitions.ts';
+import { defaultBlockConfig, defaultBlockConfigIn, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, zeroTotals, type TypeTotals } from '../seed/template.ts';
 
 /*
  * Story 3.4: the Template composer's edits, as pure functions over the two fields a
@@ -290,7 +294,14 @@ export function removeNode(template: Composition, ref: string): Composition {
  * (`typeConfigFor`) or, for a type the template does not hold yet, `defaultBlockConfig`.
  * The node is a cabine (the local itself) or a coluna; a painel throws.
  */
-export function setQuantity(template: SeededComposition, ref: string, type: EquipmentBlockType, n: number): TemplateBlock[] {
+export function setQuantity(
+  template: SeededComposition,
+  ref: string,
+  type: BlockTypeKey,
+  n: number,
+  /** Story 14.6: the company's type versions, for a company type new to the template (placed at its latest version). */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+): TemplateBlock[] {
   // Story 14.2: a painel only groups colunas. Placing a block on one is a caller's bug, not a
   // target another device removed, so it surfaces instead of being swallowed.
   if (nodeOf(template.skeleton, ref).kind === 'painel') throw new Error(`"${ref}" is a painel: a painel takes no block`);
@@ -308,7 +319,9 @@ export function setQuantity(template: SeededComposition, ref: string, type: Equi
     }
     // A type already placed elsewhere keeps its one per-type config (Story 3.5); a type new to
     // the whole template starts from the seed's default.
-    const config = typeConfigFor(blocks, type) ?? typeConfigOf(defaultBlockConfig(template.seed_version, type));
+    const typeId = companyTypeIdOf(type);
+    const version = typeId === null ? undefined : (latestTypeVersion(ctx, typeId) ?? undefined);
+    const config = typeConfigFor(blocks, type) ?? typeConfigOf(defaultBlockConfigIn(ctx, template.seed_version, type, version));
     const entry: TemplateBlock = {
       block_type: type,
       ...config,
@@ -343,17 +356,19 @@ export function setQuantity(template: SeededComposition, ref: string, type: Equi
  * shared by every placement of that type in a template, the model the seed's own
  * standard template follows (one subtype per type, `SUBTYPE_OF` in `seed/template.ts`).
  */
-export type TypeConfig = Pick<BlockConfig, 'subtype' | 'sub_blocks' | 'na_defaults'>;
+export type TypeConfig = Pick<BlockConfig, 'subtype' | 'sub_blocks' | 'na_defaults' | 'type_version'>;
 
 function typeConfigOf(config: TypeConfig): TypeConfig {
   const sub_blocks: BlockConfig['sub_blocks'] = {};
-  for (const [key, value] of Object.entries(config.sub_blocks) as [SubBlockKey, NonNullable<BlockConfig['sub_blocks'][SubBlockKey]>][]) {
+  for (const [key, value] of Object.entries(config.sub_blocks)) {
     sub_blocks[key] = structuredClone(value);
   }
   return {
     ...(config.subtype === undefined ? {} : { subtype: config.subtype }),
     sub_blocks,
     na_defaults: [...config.na_defaults],
+    // Story 14.6: a company type's placements record the version they place.
+    ...(config.type_version === undefined ? {} : { type_version: config.type_version }),
   };
 }
 
@@ -373,7 +388,14 @@ function typeConfigOf(config: TypeConfig): TypeConfig {
  * makes such a test switchable changes no sheet born on an earlier one; a version that does
  * not ship the type reads the current one.
  */
-export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_blocks'>, seedVersion: string = SEED_VERSION): SubBlockKey[] {
+export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_blocks'>, seedVersion: string = SEED_VERSION): string[] {
+  // Story 14.6: a company type's sub-blocks are its config's, written whole from its definition
+  // (`defaultBlockConfigIn`; `applyOp` keeps a locked one on), each on unless switched off, plus the locked two.
+  if (isCompanyBlockType(config.block_type)) {
+    const out = Object.keys(config.sub_blocks).filter((key) => (LOCKED_SUB_BLOCKS as readonly string[]).includes(key) || config.sub_blocks[key]?.enabled !== false);
+    for (const key of LOCKED_SUB_BLOCKS) if (!out.includes(key)) out.push(key);
+    return out;
+  }
   if (!isEquipmentBlockType(config.block_type)) return [];
   const definition = findDefinition(seedVersion, config.block_type) ?? findDefinition(SEED_VERSION, config.block_type);
   const always = definition === null ? [] : lockedSubBlocksOf(definition);
@@ -385,7 +407,7 @@ export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_b
 }
 
 /** The config of one equipment type in a composition (its first entry's), or null when the type is not placed. */
-export function typeConfigFor(blocks: readonly TemplateBlock[], type: EquipmentBlockType): TypeConfig | null {
+export function typeConfigFor(blocks: readonly TemplateBlock[], type: BlockTypeKey): TypeConfig | null {
   const entry = blocks.find((block) => block.block_type === type);
   return entry === undefined ? null : typeConfigOf(entry);
 }
@@ -394,7 +416,7 @@ export function typeConfigFor(blocks: readonly TemplateBlock[], type: EquipmentB
  * Sets the subtype, sub-blocks and NA defaults of every placement of one equipment type
  * at once (one `blocks` put, one undo). Quantities, refs and roles stay as they are.
  */
-export function setTypeDefaults(blocks: readonly TemplateBlock[], type: EquipmentBlockType, config: TypeConfig): TemplateBlock[] {
+export function setTypeDefaults(blocks: readonly TemplateBlock[], type: BlockTypeKey, config: TypeConfig): TemplateBlock[] {
   return blocks.map((block) => {
     if (block.block_type !== type) return block;
     const next: TemplateBlock = { ...block, ...typeConfigOf(config) };
@@ -538,8 +560,8 @@ export interface ComposerColuna extends ComposerNodeBase {
   kind: 'coluna';
   /** Its painel, or its cabine for a coluna directly under one. */
   parent_ref: string;
-  /** The equipment placed on this coluna, per type. */
-  quantities: Record<EquipmentBlockType, number>;
+  /** The equipment placed on this coluna, per type (Story 14.6: a company type under its `type:` key). */
+  quantities: TypeTotals;
   /** How many equipment blocks sit on this coluna. */
   blockCount: number;
 }
@@ -551,7 +573,7 @@ export interface ComposerPainel extends ComposerNodeBase {
   parent_ref: string;
   colunas: ComposerColuna[];
   /** The blocks of its colunas, per type, and their sum. */
-  totals: Record<EquipmentBlockType, number>;
+  totals: TypeTotals;
   totalBlockCount: number;
 }
 
@@ -561,14 +583,14 @@ export interface ComposerCabine extends ComposerNodeBase {
   /** The local's Função as stored (a reserved key or a typed name); null when it holds none. */
   funcao: string | null;
   /** The equipment placed directly on the local, per type ("Equipamentos no local"). */
-  quantities: Record<EquipmentBlockType, number>;
+  quantities: TypeTotals;
   /** How many equipment blocks sit directly on the local. */
   blockCount: number;
   /** The colunas directly under the cabine: the shape every template had before the painel level. */
   colunas: ComposerColuna[];
   paineis: ComposerPainel[];
   /** The cabine's own blocks plus those of every coluna under it (directly or in a painel), per type, and their sum. */
-  totals: Record<EquipmentBlockType, number>;
+  totals: TypeTotals;
   totalBlockCount: number;
 }
 
@@ -595,7 +617,7 @@ export interface ComposerSection extends SectionRef {
 export interface ComposerView {
   cabines: ComposerCabine[];
   sections: ComposerSection[];
-  totals: Record<EquipmentBlockType, number>;
+  totals: TypeTotals;
   cabineCount: number;
   /** Story 14.2: every painel of the skeleton. */
   painelCount: number;
@@ -605,8 +627,9 @@ export interface ComposerView {
   blockCount: number;
 }
 
-function sum(totals: Record<EquipmentBlockType, number>): number {
-  return EQUIPMENT_BLOCK_TYPES.reduce((acc, type) => acc + totals[type], 0);
+function sum(totals: TypeTotals): number {
+  // Story 14.6: every type counted, a company type's included.
+  return Object.values(totals).reduce((acc: number, count) => acc + (count ?? 0), 0);
 }
 
 /**
@@ -617,18 +640,22 @@ function sum(totals: Record<EquipmentBlockType, number>): number {
  * painel, counts nowhere.
  */
 export function composerView(template: Composition): ComposerView {
-  const perNode = new Map<string, Record<EquipmentBlockType, number>>();
+  const perNode = new Map<string, TypeTotals>();
   for (const node of template.skeleton) if (node.kind !== 'painel') perNode.set(node.ref, zeroTotals());
   for (const block of template.blocks) {
-    if (!isEquipmentBlockType(block.block_type) || block.skeleton_location_ref === null) continue;
+    if (!isEquipmentKind(block.block_type) || block.skeleton_location_ref === null) continue;
     const quantities = perNode.get(block.skeleton_location_ref);
-    if (quantities !== undefined) quantities[block.block_type] += block.quantity;
+    if (quantities !== undefined) quantities[block.block_type] = (quantities[block.block_type] ?? 0) + block.quantity;
   }
 
-  const add = (into: Record<EquipmentBlockType, number>, from: Record<EquipmentBlockType, number>) => {
+  const add = (into: TypeTotals, from: TypeTotals) => {
     for (const type of EQUIPMENT_BLOCK_TYPES) into[type] += from[type];
+    // Story 14.6: a company type's count, under its own key, in placement order.
+    for (const [type, count] of Object.entries(from)) {
+      if (isCompanyBlockType(type)) into[type] = (into[type] ?? 0) + (count ?? 0);
+    }
   };
-  const colunasView = (parentRef: string, into: Record<EquipmentBlockType, number>[]): ComposerColuna[] => {
+  const colunasView = (parentRef: string, into: TypeTotals[]): ComposerColuna[] => {
     const nodes = colunasOf(template.skeleton, parentRef);
     return nodes.map((coluna, j): ComposerColuna => {
       const quantities = perNode.get(coluna.ref)!;

@@ -9,7 +9,7 @@ import { siteLocalOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { locationTree } from '../relatorio/tree.ts';
 import type { RevisionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition, siteItems } from '../seed/definitions.ts';
+import { blockDefinitionIn, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import type { CaptionWord } from './caption.ts';
 import { legendasSugeridasText } from './captions.ts';
@@ -83,7 +83,7 @@ export function photoSiteLocal(photo: Pick<PhotoPlace, 'block_id' | 'location_id
  * mínima de 2 h) · NC". That needs the snapshot's relatório and locations; a caller passing
  * blocks alone resolves sheet items only.
  */
-export function photoItemLine(photo: PhotoPlace, snapshot: Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations'>>): PhotoItemLine | null {
+export function photoItemLine(photo: PhotoPlace, snapshot: Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'equipment_types'>>): PhotoItemLine | null {
   if (photo.item_key === null) return null;
   if (photo.block_id === null) {
     const local = photoSiteLocal(photo, snapshot);
@@ -96,12 +96,10 @@ export function photoItemLine(photo: PhotoPlace, snapshot: Pick<RelatorioSnapsho
   }
   const block = snapshot.blocks.find((row) => row.id === photo.block_id);
   if (block === undefined) return null;
-  let checklist: readonly { key: string; label: string }[] | null;
-  try {
-    checklist = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).checklist;
-  } catch {
-    return null;
-  }
+  // Story 14.6: a company sheet's checklist comes from the snapshot's type versions.
+  const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
+  if (definition === null) return null;
+  const checklist: readonly { key: string; label: string }[] | null = definition.checklist;
   const index = checklist?.findIndex((item) => item.key === photo.item_key) ?? -1;
   if (checklist === null || index < 0) return null;
   const head = `Item ${index + 1}${SEP}${screenLabel(checklist[index]!.label)}`;
