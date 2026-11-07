@@ -62,7 +62,8 @@ interface FixtureValue {
 /**
  * e22s (seed v12): the fixture's values the reading keeps for `type` on the current seed: a key its
  * nameplate holds (the Inspeção de QGBT replays the Quadro elétrico's plate, four of its keys), and
- * an EXATIDÃO select only when the kernel reads a class it offers ("10B100" reads 10, no TC class).
+ * an EXATIDÃO select only when the kernel reads a class it offers (e22g: the TC's "10B100", the old NBR
+ * protection notation, reads 10P, one of its classes).
  */
 function keptValues(type: string, values: readonly FixtureValue[]): FixtureValue[] {
   const fields = getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate;

@@ -106,6 +106,8 @@ export interface WorstReading {
   /** Where: the row's connection ("T1–T2") or, on a table with several captures, the column. */
   where: string;
   verdict: ReadingVerdict | null;
+  /** e22g (review N2): set when the worst reading is a limit the instrument passed ("> 2 TΩ"). */
+  overRange?: true;
 }
 
 function whereOf(table: EvaluatedTable, row: EvaluatedRow, cell: EvaluatedCell): string {
@@ -147,7 +149,15 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
             worst = {
               out,
               score,
-              reading: { testKey: test.testKey, criterionText: test.criterionText, sourceName: test.sourceName, valueText, where: whereOf(table, row, cell), verdict: cell.verdict },
+              reading: {
+                testKey: test.testKey,
+                criterionText: test.criterionText,
+                sourceName: test.sourceName,
+                valueText,
+                where: whereOf(table, row, cell),
+                verdict: cell.verdict,
+                ...(cell.state === 'over_range' ? { overRange: true as const } : {}),
+              },
             };
           }
         }

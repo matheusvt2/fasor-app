@@ -2,7 +2,9 @@ import {
   calibrationValidUntil,
   criarText,
   formatCalendarDate,
+  instrumentRangeHelperText,
   instrumentManufacturerRecents,
+  normalizeOhmUnit,
   registryFieldPath,
   registryPath,
   textCapOf,
@@ -411,12 +413,14 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
             helper={t.rangeHelper}
             value={instrument?.range_isolacao ?? null}
             onCommit={(v) => commitField('range_isolacao' satisfies RangeField, v)}
+            ohmUnit
           />
           <TestDefaultField
             label={t.rangeLabel(t.testResistenciaContato)}
             helper={t.rangeHelper}
             value={instrument?.range_resistencia_contato ?? null}
             onCommit={(v) => commitField('range_resistencia_contato' satisfies RangeField, v)}
+            ohmUnit
           />
         </div>
       </div>
@@ -564,9 +568,15 @@ interface TestDefaultFieldProps {
   helper: string;
   value: { raw: string | null; unit: string | null } | null;
   onCommit: (value: { raw: string | null; unit: string | null } | null) => void | Promise<void>;
+  /**
+   * e22g (review S1): an instrument limit, whose unit is a unit of the Ω table: committed as the
+   * table's key (`normalizeOhmUnit`: "uΩ", "μΩ" and "micro ohm" as µΩ, "T" and "TOhm" as TΩ), and
+   * the stored pair the cells cannot read shows its helper (`instrumentRangeHelperText`).
+   */
+  ohmUnit?: boolean;
 }
 
-function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldProps) {
+function TestDefaultField({ label, helper, value, onCommit, ohmUnit = false }: TestDefaultFieldProps) {
   const [raw, setRaw] = useState(value?.raw ?? '');
   const [unit, setUnit] = useState(value?.unit ?? '');
   const committer = useFieldCommit<{ raw: string | null; unit: string | null } | null>({ commit: onCommit });
@@ -579,10 +589,15 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
     () => committer.pending,
   );
 
+  /** The unit as committed: an Ω-table key where it reads as one, else as typed. */
+  const committedUnit = (typed: string) => (ohmUnit ? (normalizeOhmUnit(typed) ?? typed) : typed);
   function commitNext(nextRaw: string, nextUnit: string): void {
-    const next = nextRaw === '' && nextUnit === '' ? null : { raw: nextRaw === '' ? null : nextRaw, unit: nextUnit === '' ? null : nextUnit };
+    const unitText = committedUnit(nextUnit);
+    const next = nextRaw === '' && unitText === '' ? null : { raw: nextRaw === '' ? null : nextRaw, unit: unitText === '' ? null : unitText };
     committer.change(next);
   }
+  // The pair as stored, or as typed while it is being edited, read as the cells read it.
+  const unreadable = ohmUnit ? instrumentRangeHelperText({ raw, unit: committedUnit(unit) }) : null;
 
   return (
     <div className="field">
@@ -619,13 +634,17 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
           onBlur={() => {
             live.onBlur();
             committer.blur();
+            // The field shows the unit as committed once it is left ("uΩ" becomes "µΩ").
+            if (ohmUnit) setUnit((typed) => committedUnit(typed));
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') committer.enter();
           }}
         />
       </div>
-      <span className="helper">{helper}</span>
+      <span className="helper" {...(unreadable === null ? {} : { 'data-tone': 'red' })}>
+        {unreadable ?? helper}
+      </span>
       <CharCount length={raw.length} cap={INSTRUMENT_FIELD_CAP} />
       <CharCount length={unit.length} cap={INSTRUMENT_FIELD_CAP} />
     </div>

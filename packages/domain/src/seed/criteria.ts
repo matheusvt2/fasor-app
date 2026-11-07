@@ -84,6 +84,9 @@ const OHM_SCALE: Readonly<Record<string, number>> = {
   TΩ: 1e12,
 };
 
+/** The units of the Ω scale table, smallest first ("µΩ" with U+00B5, the micro sign). */
+export const OHM_UNITS: readonly string[] = Object.keys(OHM_SCALE);
+
 /**
  * A value in `from` expressed in `to`, through the same Ω table `compareCriterion` scales
  * with; the value itself when the units are equal, null when they cannot be compared. Not

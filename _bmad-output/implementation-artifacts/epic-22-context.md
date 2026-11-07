@@ -84,10 +84,11 @@ The text of each, with its DoR, ACs and DoD, is in `epics.md` § Epic 22 (14.6 t
 - **TP checklist.** It is the TC's v10 list.
 - **Oil.** An oil unit marks no item NA until Bruno names a dry-only one.
 - **TIPO DO ÓLEO** is a select of A and B.
-- **Insulation rows.** The options are 0,5, 1, 2,5, 5 and 10 kV, low-voltage rows default to 1 kV, and the criterion stays > 400 MΩ.
+- **Insulation rows.** The options are 0,5, 1, 2,5, 5 and 10 kV, low-voltage rows default to 1 kV, and the criterion stays > 400 MΩ. *(2026-11-07, batch e22g, from Bruno's test base rev03 (2026-11-07), TR-OL-02 and TR-SE-02: the transformer's two high-voltage rows default by the plate's TENSÃO NOMINAL AT, 2,5 kV from 601 V to 5000 V and 5 kV above; with the rating empty, unreadable or at most 600 V they take the instrument's TENSÃO ENSAIO as before; SECUNDÁRIO/MASSA keeps 1 kV.)*
 - **Accuracy classes.**
-  - TC: 0,3, 0,6, 1,2, 3, 5P and 10P; the protection classes are judged at ± 3 %.
-  - TP: 0,3, 0,6 and 1,2.
+  - TC: 0,3, 0,6, 1,2, 3, 5P and 10P; ~~the protection classes are judged at ± 3 %~~ *(2026-11-07, batch e22g, from Bruno's test base rev03 (2026-11-07), TC-03: 5P at ± 1 % (IEC 61869-2, ratio error at rated current), 10P at ± 3 %, the class 3 kept)*.
+  - TP: 0,3, 0,6 and 1,2. *(2026-11-07, batch e22g, from Bruno's test base rev03 (2026-11-07), TP-03: plus 3P at ± 3 % and 6P at ± 6 % (IEC 61869-3, "CONFERIR NA NORMA"); seed v12 changed in place, not yet deployed.)*
+  - *(2026-11-07, batch e22g: the class reader takes the old NBR notation, "0,6C25", "10B100", "0,3P75", and the IEC one, "25VA 5P20", "12,5VA 0,3", "10P20", onto the select's options, keyed on the EXATIDÃO field, review S6.)*
 - **Over-range.** "OL" takes the instrument registry's top of range. A ± criterion refuses the state.
 - **Caption ordinal.** The suffix is " (2)", " (3)".
 - **Conclusion floor.** Its sources are listed in Story 22.4. The effective pair is the stricter of the floor and the stored pair.
@@ -179,7 +180,7 @@ Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `
 - The transformer ratio criterion (TR-OL-04, TR-SE-04) and the contact criterion (DJ-03, SC-03) match `seed/criteria.ts`.
 - The low-voltage insulation row's 1 kV default (Story 22.8) matches TR-OL-02 and TR-SE-02. Pendência P02 leaves Fasor's 0,5 kV practice open.
 
-**Differs from a coordinator's reading listed for Bruno; the base is taken as his answer.** The wave B fix batch takes these three:
+**Differs from a coordinator's reading listed for Bruno; the base is taken as his answer.** The wave B fix batch takes these three *(2026-11-07, taken by batch e22g; see Coordinator's readings above)*:
 - TC-03: the 5P class has its own tolerance in the base. Story 22.9 judges 5P and 10P alike (`relatorio/accuracy-class.ts` `PROTECTION_CLASSES`).
 - TP-03: the TP's classes include 3P and 6P with their tolerances. Seed v12 `TP_CLASSES` offers only the three measurement classes.
 - TR-OL-02 and TR-SE-02: the high-voltage insulation rows take a default by winding voltage. Seed v12 leaves them with no default (`default_kv: null`).

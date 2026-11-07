@@ -8,7 +8,7 @@ import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { lastResultsSchema, type BlockRow, type Cell, type EquipmentRow, type LastResults, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition, getDefinition } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import {
   blockReadings,
@@ -300,6 +300,23 @@ describe('22.12-UNIT MANUT. ANTERIOR in section 9', () => {
     expect(grid[1]).toEqual(['LINHA', 'TERRA', 'GUARD', 'VALORES (GΩ)', 'MANUT. ANTERIOR', 'LINHA', 'TERRA', 'GUARD', 'VALORES (GΩ)', 'MANUT. ANTERIOR']);
     expect(grid[2]).toEqual(['T1', 'T2', 'MASSA', '173', '150 GΩ', 'FASE A', 'MASSA', '', '720', '> 2 TΩ']);
     expect(grid[3]!.at(4)).toBe('-');
+  });
+
+  it('e22g N1: MANUT. ANTERIOR is decided per table: a visit with contact readings only prints no column on the insulation tables; a pair decides together', () => {
+    const sec = sheet(1, 'chave_seccionadora', { isolacao: { '0/0': measured('173', 'GΩ') } });
+    const slots = readingSlotsOf(findDefinition('v1', 'chave_seccionadora')!);
+    const contactKey = slots.find((slot) => slot.testKey === 'resistencia_contato')!.key;
+    const contactOnly: LastResults = { ...ENTRY_A, block_type: 'chave_seccionadora', readings: { [contactKey]: measured('48', 'µΩ') } };
+    const printed = sheetsOf(snapshotOf([withLast(sec, contactOnly)]))[0]!;
+    expect(texts(tableStarting(printed, 'SECCIONADORA CONTATO ABERTO')).flat()).not.toContain('MANUT. ANTERIOR');
+    const contactTable = printed.parts.flatMap((part) => (part.kind === 'table' ? [part.table] : [])).find((table) => texts(table).flat().includes('MANUT. ANTERIOR'));
+    expect(contactTable, 'the contact resistance table keeps its column').toBeDefined();
+    expect(texts(contactTable!).flat()).toContain('48 µΩ');
+    // One half of the pair holds a previous value: both halves take the column, so the pair still prints as one table.
+    const openOnly: LastResults = { ...ENTRY_A, block_type: 'chave_seccionadora', readings: { 'isolacao|contato_aberto:T1/T2/MASSA|VALORES': measured('150', 'GΩ') } };
+    const pair = texts(tableStarting(sheetsOf(snapshotOf([withLast(sec, openOnly)]))[0]!, 'SECCIONADORA CONTATO ABERTO'));
+    expect(pair[1]).toEqual(['LINHA', 'TERRA', 'GUARD', 'VALORES (GΩ)', 'MANUT. ANTERIOR', 'LINHA', 'TERRA', 'GUARD', 'VALORES (GΩ)', 'MANUT. ANTERIOR']);
+    expect(pair.slice(2).map((row) => row.at(-1))).toEqual(pair.slice(2).map(() => '-'));
   });
 
   it('Story 22.10: an over-range cell under a header that names its one unit prints bare "> 2"', () => {

@@ -12,7 +12,7 @@ import {
   type BlockRow,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
-import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { extractStructure, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -36,7 +36,7 @@ import { syncNowAndReturn } from './support/sync.ts';
  * notice, and the sheet still concludes; set to 0,5 kV the store holds {raw '0.5', unit 'kV'}.
  * The TC with EXATIDÃO 1,2 judges a 0,84 % ratio Satisfatório at ±1,2 %, and with no class the
  * helper asks for it. A para-raio is marked Não ensaiado for "Defeito no equipamento". The DOCX
- * prints the TENSÃO (kV) column (10, 10, 0,5), ACEITÁVEL ±1,2 %, DESLOCAMENTO ANGULAR and the
+ * prints the TENSÃO (kV) column (5, 5, 0,5 since e22g: the 13,8 kV plate sets the high-voltage rows), ACEITÁVEL ±1,2 %, DESLOCAMENTO ANGULAR and the
  * defect's justification. It generates through the one queue and LibreOffice of the api, so the
  * file is in the serial group. Each test resets this worker's own Empresa B (E6-Q7).
  */
@@ -160,7 +160,7 @@ test('@p0 22.7-E2E-001 a new relatório is on v12: the transformer offers ÓLEO 
   await expect(checked(page, 'vasamento')).toHaveAttribute('data-value', 'na');
 });
 
-test('@p0 22.8/22.9-E2E-002 the per-row voltage (10, 10, 1; the notice at 10 kV on 220 V; 0,5 stored), the TC judged by its class 1,2, a Não ensaiado for a defect; the DOCX prints TENSÃO (kV), ±1,2 %, DESLOCAMENTO ANGULAR and the justification', async ({ page }) => {
+test('@p0 22.8/22.9-E2E-002 the per-row voltage (5, 5, 1 from the 13,8 kV plate; the notice at 10 kV on 220 V; 0,5 stored), the TC judged by its class 1,2, a Não ensaiado for a defect; the DOCX prints TENSÃO (kV), ±1,2 %, DESLOCAMENTO ANGULAR and the justification', async ({ page }) => {
   test.setTimeout(480_000);
   const { relatorioId, sheetOf } = await seedRelatorio(page, (id, sheetOf) => {
     const scope = { relatorioId: id };
@@ -184,12 +184,18 @@ test('@p0 22.8/22.9-E2E-002 the per-row voltage (10, 10, 1; the notice at 10 kV 
   const tc = sheetOf('tc');
   const para = sheetOf('para_raio');
 
-  // --- the transformer: 10, 10 and 1 kV; each row changeable ---
+  // --- the transformer: 5, 5 and 1 kV; each row changeable ---
+  // e22g (Bruno's test base rev03, 2026-11-07): the high-voltage rows start from the 13,8 kV TENSÃO NOMINAL AT (above
+  // 5000 V: 5 kV), whatever the 10 kV megger; SECUNDÁRIO/MASSA keeps 1 kV.
   await openSheet(page, relatorioId, tf.blockId);
   await syncNowAndReturn(page);
   await goToStep(page, 'Ensaios', 'ensaios');
   await expect(page.locator('.ficha-mt').first().locator('thead th[data-voltage-column]')).toHaveText('Tensão (kV)');
-  for (const [index, expected] of ['10', '10', '1'].entries()) await expect(voltageSelect(page, index), String(index)).toHaveValue(expected);
+  for (const [index, expected] of ['5', '5', '1'].entries()) await expect(voltageSelect(page, index), String(index)).toHaveValue(expected);
+  // e22g (review N7): the two PRIMÁRIO rows are named apart.
+  await expect(voltageSelect(page, 0)).toHaveAccessibleName('Primário/Massa, Tensão (kV)');
+  await expect(voltageSelect(page, 1)).toHaveAccessibleName('Primário/Secundário, Tensão (kV)');
+  await expect(voltageSelect(page, 2)).toHaveAccessibleName('Secundário, Tensão (kV)');
   expect((await voltageSelect(page, 2).locator('option').allTextContents()).slice(1)).toEqual([...TEST_VOLTAGE_OPTIONS_KV]);
   for (const index of [0, 1, 2]) await expect(notice(page, index)).toHaveCount(0);
   const cellPath = `sheet/${tf.blockId}/test/isolacao/cell/2/${VOLTAGE_COL}`;
@@ -274,7 +280,14 @@ test('@p0 22.8/22.9-E2E-002 the per-row voltage (10, 10, 1; the notice at 10 kV 
   const header = voltageTable.find((cells) => cells.includes('TENSÃO (kV)'))!;
   expect(header.slice(0, 4)).toEqual(['LINHA', 'TERRA', 'GUARD', 'TENSÃO (kV)']);
   const rows = voltageTable.filter((cells) => ['PRIMÁRIO', 'SECUNDÁRIO'].includes(cells[0] ?? ''));
-  expect(rows.map((cells) => cells[3])).toEqual(['10', '10', '0,5']);
+  expect(rows.map((cells) => cells[3])).toEqual(['5', '5', '0,5']);
+  // e22g (review B1): the v12 transformer insulation table, too wide at 9 pt, prints one step smaller (8,5 to 7 pt), so
+  // TENSÃO (kV) and every other word stay whole; its runs carry the size, the sheet text style keeps 9 pt.
+  const documentXml = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
+  const sized = /<w:r>(?:(?!<\/w:r>).)*?<w:sz w:val="(\d+)"\/>(?:(?!<\/w:r>).)*?<w:t[^>]*>TENSÃO \(kV\)<\/w:t>/s.exec(documentXml);
+  expect(sized, 'a sized TENSÃO (kV) run').not.toBeNull();
+  expect(Number(sized![1])).toBeGreaterThanOrEqual(14);
+  expect(Number(sized![1])).toBeLessThan(18);
   const text = JSON.stringify(structure);
   expect(text).toContain(classCriterion('1,2'));
   // The transformer's group select prints its new label; the TP and TC keep LIGAÇÃO SECUNDÁRIA as text.

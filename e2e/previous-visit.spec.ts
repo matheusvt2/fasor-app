@@ -105,6 +105,20 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   const helper = cell.locator('.mf-helper[data-previous]');
   await expect(helper).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${formatDateOfInstant(last.issued_at)})`);
   await expect(helper).not.toHaveAttribute('role');
+  // e22g (review S3): the line is drawn in the field helper's neutral colour, never the out-of-limit one.
+  const tone = await helper.evaluate((el) => {
+    const probe = (token: string) => {
+      const span = document.createElement('span');
+      span.style.color = `var(${token})`;
+      el.parentElement!.appendChild(span);
+      const colour = getComputedStyle(span).color;
+      span.remove();
+      return colour;
+    };
+    return { actual: getComputedStyle(el).color, neutral: probe('--ink-secondary'), outOfLimit: probe('--fora-do-limite') };
+  });
+  expect(tone.actual).toBe(tone.neutral);
+  expect(tone.actual).not.toBe(tone.outOfLimit);
   await expect(cell.locator('input.mf-value')).toHaveValue('');
   // The other rows of the table have no previous value, so no line.
   await expect(page.locator('section[data-test-key="isolacao"] .mf-helper[data-previous]')).toHaveCount(1);
@@ -121,4 +135,6 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   expect(withPrevious[0]![2]!.at(-1)).toBe('4,9 GΩ');
   expect(withPrevious[0]!.slice(3).map((row) => row.at(-1))).toEqual(withPrevious[0]!.slice(3).map(() => '-'));
   for (const table of insulation.filter((one) => one !== withPrevious[0])) expect(table.flat()).not.toContain('MANUT. ANTERIOR');
+  // e22g (review N1): decided per table, so the transformer's own ratio table, with nothing from that visit, has no column of "-".
+  expect(tables.filter((table) => table.flat().includes('MANUT. ANTERIOR'))).toEqual([withPrevious[0]]);
 });

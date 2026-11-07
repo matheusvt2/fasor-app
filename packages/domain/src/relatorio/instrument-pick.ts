@@ -8,7 +8,7 @@ import type { SubBlockKey } from '../schemas/block-config.ts';
 import { findDefinition, getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { TestKey } from './readings.ts';
-import { isOverRangeRaw, type InstrumentRange } from './over-range.ts';
+import { isOverRangeRaw, normalizeOhmUnit, type InstrumentRange } from './over-range.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
@@ -70,6 +70,9 @@ export type RangeTestKey = (typeof RANGE_TEST_KEYS)[number];
  * kind `testKey`, typed in Cadastros as the test defaults are ("2" and "TΩ", "2.000" and "µΩ"):
  * the raw read the pt-BR way into a positive dot-decimal, the unit trimmed (null when blank);
  * null when unset, not a positive number, or for a kind with no range (relação de transformação).
+ * e22g (review S1): the unit read as a key of the Ω table (`normalizeOhmUnit`: "uΩ", "μΩ" and
+ * "micro ohm" are µΩ, "T" and "TOhm" TΩ), so a limit registered before the commit normalised it
+ * reads too; one it cannot read stays as typed, and the cell then says its unit is unreadable.
  */
 export function instrumentRangeOf(row: Pick<InstrumentRow, 'range_isolacao' | 'range_resistencia_contato'>, testKey: TestKey): InstrumentRange | null {
   if (testKey !== 'isolacao' && testKey !== 'resistencia_contato') return null;
@@ -79,7 +82,7 @@ export function instrumentRangeOf(row: Pick<InstrumentRow, 'range_isolacao' | 'r
   const raw = parsed === null ? null : canonicalDecimal(parsed);
   if (raw === null || !isOverRangeRaw(raw)) return null;
   const unit = stored?.unit?.trim() ?? '';
-  return { raw, unit: unit === '' ? null : unit };
+  return { raw, unit: unit === '' ? null : (normalizeOhmUnit(unit) ?? unit) };
 }
 
 /**

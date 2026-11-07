@@ -110,16 +110,22 @@ function columnWidths(weights: readonly number[]): number[] {
   return widths;
 }
 
-/** A cell's text, one paragraph per line, in the sheet text style. */
-function cellParagraphs(cell: PrintCell, keepNext: boolean): Paragraph[] {
+/**
+ * A cell's text, one paragraph per line, in the sheet text style; e22g (review B1): at the
+ * table's own smaller size when the kernel gave it one (`PrintTable.textHalfPoints`), else with
+ * no size of its own, exactly as before.
+ */
+function cellParagraphs(cell: PrintCell, keepNext: boolean, size: number | undefined): Paragraph[] {
   const align = cell.align === 'center' || cell.align === 'right' ? { alignment: ALIGN[cell.align] } : {};
+  const run = (line: string) =>
+    size === undefined ? new TextRun(cell.bold === true ? { text: line, bold: true } : line) : new TextRun({ text: line, size, ...(cell.bold === true ? { bold: true } : {}) });
   return cell.text.split('\n').map(
     (line) =>
       new Paragraph({
         style: SHEET_TEXT,
         ...align,
         ...(keepNext ? { keepNext: true } : {}),
-        children: line === '' ? [] : [new TextRun(cell.bold === true ? { text: line, bold: true } : line)],
+        children: line === '' ? [] : [run(line)],
       }),
   );
 }
@@ -130,7 +136,7 @@ function cellParagraphs(cell: PrintCell, keepNext: boolean): Paragraph[] {
  * (`keepNext`). A leading band or header row of a table kept whole repeats at the top of the
  * next page when the table, taller than a page, has to split (`tableHeader`).
  */
-function drawRow(row: PrintRow, widths: readonly number[], options: { keepNext: boolean; tableHeader: boolean }): TableRow {
+function drawRow(row: PrintRow, widths: readonly number[], options: { keepNext: boolean; tableHeader: boolean; size?: number }): TableRow {
   const keepNext = options.keepNext || row.header === true || row.band === true || row.group === true;
   let at = 0;
   return new TableRow({
@@ -144,7 +150,7 @@ function drawRow(row: PrintRow, widths: readonly number[], options: { keepNext: 
         width: { size: width, type: WidthType.DXA },
         ...(span > 1 ? { columnSpan: span } : {}),
         ...(row.group === true ? { shading: groupShading } : cell.shade === true ? { shading } : {}),
-        children: cellParagraphs(cell, keepNext),
+        children: cellParagraphs(cell, keepNext, options.size),
       });
     }),
   });
@@ -179,7 +185,9 @@ function drawTable(printed: PrintTable, withNext = false): Table {
     layout: TableLayoutType.FIXED,
     borders: ruledTable,
     margins: CELL_MARGINS,
-    rows: printed.rows.map((row, i) => drawRow(row, widths, { keepNext: (kept && i < last) || (withNext && i === last), tableHeader: i < header })),
+    rows: printed.rows.map((row, i) =>
+      drawRow(row, widths, { keepNext: (kept && i < last) || (withNext && i === last), tableHeader: i < header, ...(printed.textHalfPoints === undefined ? {} : { size: printed.textHalfPoints }) }),
+    ),
   });
 }
 

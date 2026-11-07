@@ -122,6 +122,13 @@ export interface PrintTable {
    * never splits while it fits on a page.
    */
   keepRows?: true;
+  /**
+   * e22g (review B1): a reading table whose longest words do not fit the page at the sheet's
+   * 9 pt prints at this size, in half-points (17 to 14: 8,5 pt to 7 pt), the largest at which
+   * every word stays whole (`fittedColumns`). Absent on every table that fits at 9 pt: the
+   * renderer then prints it exactly as before.
+   */
+  textHalfPoints?: number;
 }
 
 export interface PrintPhoto {
@@ -688,14 +695,47 @@ const CELL_ALLOWANCE_EM = 0.9;
  * It only decides whether the short texts fit whole; the renderer spreads the weights.
  */
 const CONTENT_WIDTH_EM = 58;
+/**
+ * e22g (review B1): the width a reading table's longest words may take together and still print
+ * whole at 9 pt, in the same ems. `emWidth` and `CELL_ALLOWANCE_EM` measure on the safe side: the
+ * transformer's insulation table of seeds v1 to v11 measures 59,8 em here (three SECUNDÁRIO and
+ * POLARIZAÇÃO) and printed every word whole on the wave A PDF (`e22q/tr1-058.png`), so the step
+ * down starts above 60 em, never on a table Bruno has already seen print whole.
+ */
+export const READING_FIT_WIDTH_EM = 60;
+
+/** The sheet's table text, 9 pt, in the renderer's half-points (`SHEET_TEXT`). */
+export const SHEET_TEXT_HALF_POINTS = 18;
+/**
+ * e22g (review B1): the smaller sizes a reading table steps down to, in half-points (8,5 pt to
+ * the floor of 7 pt), when its longest words do not fit the page at 9 pt.
+ */
+export const TABLE_TEXT_STEPS_HALF_POINTS: readonly number[] = [17, 16, 15, 14];
+
+/** A table's text size as a share of the 9 pt base: the factor its words' widths take. */
+const textScale = (halfPoints: number | undefined) => (halfPoints ?? SHEET_TEXT_HALF_POINTS) / SHEET_TEXT_HALF_POINTS;
+
+/** A reading table's fitted columns, and its smaller text size when it needed one. */
+interface FittedTable {
+  columns: number[];
+  textHalfPoints?: number;
+}
 
 /**
  * Column weights from what each column holds in its own cells (a cell spanning several
  * columns is left out): every column gets at least its longest word, so nothing breaks
  * inside a word ("POLARIZAÇÃO", "SECUNDÁRIO"), and a short text stays on one line while
  * the row still fits the page; what is left is shared out by what each column still asks.
+ *
+ * e22g (review B1, the coordinator's decision of 2026-11-07): when the columns' longest words
+ * together are wider than `READING_FIT_WIDTH_EM` at 9 pt (a v12 insulation table with its TENSÃO
+ * column, a table with MANUT. ANTERIOR), the table steps down to the largest of
+ * `TABLE_TEXT_STEPS_HALF_POINTS` at which every word fits whole, the floor of 7 pt when none
+ * does, and carries that size for the renderer. Every table that fits at 9 pt comes back
+ * exactly as before, with no size: the margins stay the same points whatever the size, so
+ * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number): number[] {
+function fittedColumns(rows: readonly PrintRow[], count: number): FittedTable {
   const least = new Array<number>(count).fill(0);
   const whole = new Array<number>(count).fill(0);
   for (const row of rows) {
@@ -711,14 +751,25 @@ function fittedColumns(rows: readonly PrintRow[], count: number): number[] {
       col += span;
     }
   }
-  const minimum = least.map((em) => Math.max(em, 1.5) + CELL_ALLOWANCE_EM);
-  const preferred = whole.map((em, col) => Math.max(em + CELL_ALLOWANCE_EM, minimum[col]!));
   const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
-  if (sum(preferred) <= CONTENT_WIDTH_EM) return preferred;
-  const room = CONTENT_WIDTH_EM - sum(minimum);
-  const asked = sum(preferred) - sum(minimum);
-  if (room <= 0 || asked <= 0) return minimum;
-  return minimum.map((em, col) => em + (room * (preferred[col]! - em)) / asked);
+  /** The columns at one text size, in ems of the 9 pt text; `fits` when every longest word does. */
+  const at = (scale: number) => {
+    const minimum = least.map((em) => Math.max(em, 1.5) * scale + CELL_ALLOWANCE_EM);
+    const preferred = whole.map((em, col) => Math.max(em * scale + CELL_ALLOWANCE_EM, minimum[col]!));
+    const fits = sum(minimum) <= READING_FIT_WIDTH_EM;
+    if (sum(preferred) <= CONTENT_WIDTH_EM) return { fits, columns: preferred };
+    const room = CONTENT_WIDTH_EM - sum(minimum);
+    const asked = sum(preferred) - sum(minimum);
+    if (room <= 0 || asked <= 0) return { fits, columns: minimum };
+    return { fits, columns: minimum.map((em, col) => em + (room * (preferred[col]! - em)) / asked) };
+  };
+  const base = at(1);
+  if (base.fits) return { columns: base.columns };
+  for (const halfPoints of TABLE_TEXT_STEPS_HALF_POINTS) {
+    const step = at(textScale(halfPoints));
+    if (step.fits || halfPoints === TABLE_TEXT_STEPS_HALF_POINTS[TABLE_TEXT_STEPS_HALF_POINTS.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
+  }
+  return { columns: base.columns };
 }
 
 /** Each column's longest word in ems, over the cells that sit in it alone (a cell spanning several columns is left out). */
@@ -769,17 +820,20 @@ export function widenToFit(base: readonly number[], rows: readonly PrintRow[], v
 /**
  * Story 22.3: the words of a printed table wider than their column (margins included), as
  * `{ col, word }`; empty when every word fits. The measure `widenToFit` sizes by, for tests and checks.
+ * e22g: a table printed smaller (`textHalfPoints`) has its words measured at that size, and a
+ * reading table is measured against `READING_FIT_WIDTH_EM` (`pageEm`), the width its fit decides by.
  */
-export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'rows'>): { col: number; word: string }[] {
+export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'rows' | 'textHalfPoints'>, pageEm: number = CONTENT_WIDTH_EM): { col: number; word: string }[] {
   const total = printed.columns.reduce((sum, weight) => sum + weight, 0);
+  const scale = textScale(printed.textHalfPoints);
   const out: { col: number; word: string }[] = [];
   for (const row of printed.rows) {
     let col = 0;
     for (const cell of row.cells) {
       const span = cell.span ?? 1;
       if (span === 1 && col < printed.columns.length) {
-        const width = (printed.columns[col]! / total) * CONTENT_WIDTH_EM;
-        for (const word of cell.text.split(/\s+/)) if (emWidth(word, cell.bold === true) + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
+        const width = (printed.columns[col]! / total) * pageEm;
+        for (const word of cell.text.split(/\s+/)) if (emWidth(word, cell.bold === true) * scale + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
       }
       col += span;
     }
@@ -807,7 +861,7 @@ function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDe
       ],
     });
   });
-  return { columns: fittedColumns(rows, width), rows };
+  return { ...fittedColumns(rows, width), rows };
 }
 
 /** A titled table with one header row and no column groups: the shape FO.SERV-03 prints side by side (contato aberto · fechado). */
@@ -818,7 +872,7 @@ function simpleTitled(definition: TableDef): boolean {
 /** Two tables of the same shape drawn as one, side by side, row by row, its columns fitted over the joined rows. */
 function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
   const rows = left.rows.map((row, i) => ({ ...row, cells: [...row.cells, ...right.rows[i]!.cells] }));
-  return { columns: fittedColumns(rows, left.columns.length + right.columns.length), rows };
+  return { ...fittedColumns(rows, left.columns.length + right.columns.length), rows };
 }
 
 // --- MANUT. ANTERIOR (Story 22.12) ----------------------------------------------------------------
@@ -848,7 +902,10 @@ export function withPreviousColumn(printed: PrintTable, texts: readonly string[]
     data += 1;
     return { ...row, cells: [...row.cells, valueCell(text)] };
   });
-  return { ...printed, columns: fittedColumns(rows, width + 1), rows };
+  // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
+  const kept: PrintTable = { ...printed };
+  delete kept.textHalfPoints;
+  return { ...kept, ...fittedColumns(rows, width + 1), rows };
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -864,24 +921,29 @@ function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefi
 function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<SubBlockKey>, previous: PreviousReadings): SheetPart[] {
   const test = definition.tests.find((candidate) => candidate.key === evaluation.testKey);
   if (test === undefined) return [];
-  let offset = 0;
-  const tables = test.tables.map((tableDef, i) => {
-    const printed = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled);
-    const start = offset;
-    offset += tableDef.rows.length;
-    if (previous === null) return printed;
-    // Story 22.12: each row's previous captures, in column order.
-    const captures = tableDef.value_columns.flatMap((column, col) => (column.role === 'capture' ? [col] : []));
-    return withPreviousColumn(
-      printed,
-      tableDef.rows.map((_, r) => previousRowText(previous, captures.map((col) => ({ testKey: test.key, row: start + r, col })))),
-    );
-  });
   // FO.SERV-03 prints the seccionadora's and the disjuntor's contato aberto and contato
   // fechado tables side by side (`extract-fo-serv-03.md` §2, modelos 3 and 4).
   const [first, second] = test.tables;
-  const paired =
-    tables.length === 2 && first !== undefined && second !== undefined && simpleTitled(first) && simpleTitled(second) && first.rows.length === second.rows.length && tables[0]!.columns.length === tables[1]!.columns.length;
+  const pairShape = test.tables.length === 2 && first !== undefined && second !== undefined && simpleTitled(first) && simpleTitled(second) && first.rows.length === second.rows.length;
+  // Story 22.12: each row's previous captures, in column order; '-' for a row with none.
+  let offset = 0;
+  const previousTexts = test.tables.map((tableDef) => {
+    const start = offset;
+    offset += tableDef.rows.length;
+    if (previous === null) return null;
+    const captures = tableDef.value_columns.flatMap((column, col) => (column.role === 'capture' ? [col] : []));
+    return tableDef.rows.map((_, r) => previousRowText(previous, captures.map((col) => ({ testKey: test.key, row: start + r, col }))));
+  });
+  // e22g (review N1): MANUT. ANTERIOR is decided per table, printed only where a row of that
+  // table has a previous value; the two halves of a side-by-side pair decide together, so the
+  // pair still prints as one.
+  const holds = previousTexts.map((texts) => texts !== null && texts.some((text) => text !== DASH));
+  const tables = test.tables.map((tableDef, i) => {
+    const printed = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled);
+    const texts = previousTexts[i];
+    return texts !== null && texts !== undefined && (holds[i] || (pairShape && holds.some(Boolean))) ? withPreviousColumn(printed, texts) : printed;
+  });
+  const paired = pairShape && tables[0]!.columns.length === tables[1]!.columns.length;
   // Story 22.3: the instrument header and every table but the last keep with the next, so a test never parts from its header.
   const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart => (i < all.length - 1 ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one }));
   return [{ ...instrumentPart(block, test, evaluation), keepWithNext: true }, ...printed];
@@ -984,7 +1046,7 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
     if (group.text === '') continue;
     rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: test.columns.length, align: 'center' }] });
   }
-  const printed: PrintTable = { columns: fittedColumns(rows, width), rows };
+  const printed: PrintTable = { ...fittedColumns(rows, width), rows };
   if (previous === null) return { kind: 'table', table: printed };
   // Story 22.12: each shown row's previous number cells, in column order (the reference and group rows take none).
   const texts = test.rows.map((row) =>
@@ -993,6 +1055,8 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
       row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null).map((cell) => cell.address),
     ),
   );
+  // e22g (review N1): no column of "-" on a table none of whose rows has a previous value.
+  if (texts.every((text) => text === DASH)) return { kind: 'table', table: printed };
   return { kind: 'table', table: withPreviousColumn(printed, texts) };
 }
 

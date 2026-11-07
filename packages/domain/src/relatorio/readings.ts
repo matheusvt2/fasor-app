@@ -15,6 +15,7 @@ export {
   ratioFormulaHelperText,
   ratioGroupOf,
   readingLabelText,
+  readingRowLabel,
   type RatioGroupResolution,
   type CellAddress,
   type EvaluatedCell,

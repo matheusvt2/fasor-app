@@ -165,7 +165,8 @@ describe('22.11-UNIT the Inspeção de QGBT prints after the full Quadro elétri
     expect(groupForPrint(snapshot, 'por_local_e_tipo').subsections.find((subsection) => subsection.kind === 'outros')!.blockIds).toEqual([id(1005), id(1009)]);
     const printed = sheetOf(layoutOf(snapshot), id(1005));
     const all = JSON.stringify(tables(printed).map(texts));
-    expect(printed.title, JSON.stringify(printed.title)).toContain("QGBT/QD's");
+    // e22g (review N3): the inspection prints its own title.
+    expect(printed.title, JSON.stringify(printed.title)).toBe('INSPEÇÃO DE QGBT T5');
     expect(all).not.toContain('ENSAIO DE ISOLAÇÃO');
     expect(all).toContain('LIMPEZA INTERNA E EXTERNA');
     expect(all).toContain('CORRENTE NOMINAL');
