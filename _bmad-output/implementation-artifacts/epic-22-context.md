@@ -219,6 +219,17 @@ Matheus, 2026-11-06: "pode seguir ate o final, tem minha aprovacao".
 - `test:e2e:matrix`: 145 of 162 passed, 16 skipped, 1 failed: @p0 21.3-E2E-005 (`photo-order.durability.spec.ts`) on android, a one-shot read of the gallery order after a move. Alone under the lock on the same commit, 8 of 8 in four runs; ledger row for the next carry-over batch.
 - Verdict: green, with the one load red explained.
 
+### Deploy (coordinator, 2026-11-07)
+
+Waves A, B and C went out together on Matheus's standing approval ("pode seguir ate o final").
+
+**Paid plate eval first** (Matheus's AWS login, `fasor-admin`; prompt `bedrock-structuring-5`; Textract, Haiku 4.5 and Nova Pro):
+- Synthetic set: 32 of 33 on both models. The seed v12 oil plate reads 7 of 7 on both (TIPO TRICAST, TIPO DO ÓLEO B, no TIPO DE ISOLAÇÃO). The vector group table is unchanged. The one miss is the seccionadora panel, 1 of 2 on both.
+- Real set (six plates in the ignored `docs/media/real-plates-2026-11-06/`): 5 of 6 on both. Haiku matches the 2026-11-06 baseline exactly. Nova Pro reads "Dd0 (diagram)" on tf3, where Haiku gives no group: a wrong group on the escalation model, recorded on the R-5 row of `deferred-work.md` (owner E21-A2).
+- Not measured: the class reading ("0,6C25" to EXATIDÃO 0,6) is in neither set.
+
+**Deploy of `ae3d37e0`** (`infra/bin/deploy`, no lock): build, push, migrate, roll, stable, health `{status, db, queue, storage, libreoffice}` all up, tag recorded. Production smoke 8 of 8 (54.7 s); telemetry 6 `session_start` on `ae3d37e0`, 0 `ux_event_sink_failed`; test company cleaned up. A GitHub release waits for Matheus's word.
+
 ## Bruno's test base against Epic 22 (coordinator, 2026-11-07)
 
 Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `docs/kbs/project/test-base.md`). The values stay in that file; rows are cited by ID. Read against main b811ace9 and PR #268.
