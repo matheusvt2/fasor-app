@@ -112,7 +112,7 @@ export function sheetState(block: BlockRow): SheetState {
 }
 
 /** Story 14.6: the sub-block keys a company block's config holds (its definition's), none on any other block. */
-function companySubBlockKeys(config: unknown): ReadonlySet<string> {
+export function companySubBlockKeys(config: unknown): ReadonlySet<string> {
   if (typeof config !== 'object' || config === null || Array.isArray(config)) return NO_KEYS;
   const { block_type, sub_blocks } = config as { block_type?: unknown; sub_blocks?: unknown };
   if (!isCompanyBlockType(block_type) || typeof sub_blocks !== 'object' || sub_blocks === null) return NO_KEYS;

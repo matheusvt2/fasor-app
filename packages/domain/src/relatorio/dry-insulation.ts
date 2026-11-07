@@ -1,5 +1,6 @@
 import type { BlockRow, EquipmentRow } from '../schemas/entities.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, findDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
+import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { BlockDefinition, SubtypeDef } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
 import { nameplateTagPrefill } from './nameplate-copy.ts';
@@ -122,14 +123,18 @@ export function nameplateAcceptsNotApplicable(block: Pick<BlockRow, 'config' | '
  * `optional` (seed v6, the QGBT's SELV/PELV mark). Empty for an unknown block, one with no definition or a disabled nameplate.
  */
 export function nameplateMissingKeys(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment?: readonly Pick<EquipmentRow, 'id' | 'tag'>[] | undefined; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
   blockId: string,
 ): ReadonlySet<string> {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined || !enabledSubBlocksOf(block).has('nameplate')) return new Set();
-  const definition = definitionOf(block);
+  // Story 14.6: a company sheet's plate is its version's, from the snapshot.
+  const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
   if (definition === null) return new Set();
-  const prefilled = snapshot.equipment === undefined ? null : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment }, block.id);
+  const prefilled =
+    snapshot.equipment === undefined
+      ? null
+      : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment, ...(snapshot.equipment_types === undefined ? {} : { equipment_types: snapshot.equipment_types }) }, block.id);
   const missing = new Set<string>();
   for (const field of definition.nameplate) {
     if (isCellFilled(block.sheet.nameplate[field.key])) continue;

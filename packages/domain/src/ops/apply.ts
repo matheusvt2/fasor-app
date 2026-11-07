@@ -155,7 +155,7 @@ export function targetsOf(op: Op): ResolvedRef[] {
  * Story 14.6 (AD-21 note of 2026-11-06, item 4): the company types whose published versions the
  * fold of `op` resolves, given the rows `targetsOf(op)` names (`state`): the type a `block/{id}`
  * create names, and the type of the block a `block/{id}/config` put or a `sheet/*` write lands on
- * (and the type a config put names). Each layer loads that type's version rows into the state it
+ * (and the type a config put names); no other op reads a definition. Each layer loads that type's version rows into the state it
  * folds in (the api the pushing company's only: the AD-10 tenant guard), so `applyOp` reads them
  * through `definitionContextOf`. Empty for every op that touches no company type, which is every
  * op of a relatório holding only seeded types.
@@ -174,11 +174,11 @@ export function definitionTypeIdsOf(op: Op, state: EntityState): string[] {
   };
   if (path.family === 'block' && op.kind === 'create') {
     add((op.value as { block_type?: unknown } | null)?.block_type);
-  } else if (path.family === 'block/field' || path.family.startsWith('sheet/')) {
+  } else if ((path.family === 'block/field' && path.field === 'config') || path.family.startsWith('sheet/')) {
     const blockId = 'block_id' in path ? path.block_id : (path as { id: string }).id;
     const block = state.get(entityKey('block', blockId)) as BlockRow | undefined;
     if (block !== undefined) add(block.block_type);
-    if (path.family === 'block/field' && path.field === 'config' && op.value !== null && typeof op.value === 'object') add((op.value as { block_type?: unknown }).block_type);
+    if (path.family === 'block/field' && op.value !== null && typeof op.value === 'object') add((op.value as { block_type?: unknown }).block_type);
   }
   return [...ids];
 }

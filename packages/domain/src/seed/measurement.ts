@@ -138,28 +138,34 @@ const criterionText = z.string().min(1);
  * `rows` and `columns`; or `seeded`, the firm's own seeded criterion of that key
  * (`SEEDED_CRITERIA`), whose value and wording are read from there and never repeated here.
  */
-export const absoluteCriterionSchema = z
-  .object({
-    type: z.literal('absolute'),
-    operator: z.enum(['>', '>=', '<', '<=']).optional(),
-    value: z.number().optional(),
-    unit: z.string().min(1).nullable().optional(),
-    seeded: z.enum(['isolacao']).optional(),
-    rows: z.array(seedKey).min(1).optional(),
-    columns: z.array(seedKey).min(1).optional(),
-    text: criterionText.optional(),
-    ...criterionBase,
-  })
-  .superRefine((criterion, ctx) => {
-    const own = criterion.operator !== undefined || criterion.value !== undefined || criterion.unit !== undefined || criterion.text !== undefined;
-    if (criterion.seeded !== undefined) {
-      if (own) ctx.addIssue({ code: 'custom', path: ['seeded'], message: 'a seeded criterion carries no limit or text of its own' });
-      return;
-    }
-    if (criterion.operator === undefined || criterion.value === undefined || criterion.unit === undefined || criterion.text === undefined) {
-      ctx.addIssue({ code: 'custom', path: ['operator'], message: 'an absolute criterion names its operator, value, unit and text, or a seeded criterion' });
-    }
-  });
+export const absoluteCriterionShape = {
+  type: z.literal('absolute'),
+  operator: z.enum(['>', '>=', '<', '<=']).optional(),
+  value: z.number().optional(),
+  unit: z.string().min(1).nullable().optional(),
+  seeded: z.enum(['isolacao']).optional(),
+  rows: z.array(seedKey).min(1).optional(),
+  columns: z.array(seedKey).min(1).optional(),
+  text: criterionText.optional(),
+  ...criterionBase,
+};
+
+/** The rule of an absolute criterion: its own limit and text, or a seeded criterion and nothing else (Story 14.6: the company variant shares it). */
+export function checkAbsoluteCriterion(
+  criterion: { operator?: string | undefined; value?: number | undefined; unit?: string | null | undefined; seeded?: string | undefined; text?: string | undefined },
+  ctx: z.RefinementCtx,
+): void {
+  const own = criterion.operator !== undefined || criterion.value !== undefined || criterion.unit !== undefined || criterion.text !== undefined;
+  if (criterion.seeded !== undefined) {
+    if (own) ctx.addIssue({ code: 'custom', path: ['seeded'], message: 'a seeded criterion carries no limit or text of its own' });
+    return;
+  }
+  if (criterion.operator === undefined || criterion.value === undefined || criterion.unit === undefined || criterion.text === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['operator'], message: 'an absolute criterion names its operator, value, unit and text, or a seeded criterion' });
+  }
+}
+
+export const absoluteCriterionSchema = z.object(absoluteCriterionShape).superRefine(checkAbsoluteCriterion);
 
 /** A limit relative to the lowest measured cell of the same column: at most `max_percent` above it. */
 export const relativeToLowestCriterionSchema = z.object({
@@ -232,63 +238,77 @@ const unique = (keys: readonly string[]): boolean => new Set(keys).size === keys
  * `off_note` shown while off; a test without it is always on. `skip_when` names the value
  * that says the test was not run: its table is then neither required nor printed.
  */
-export const measurementTestSchema = z
-  .object({
-    key: subBlockKeySchema,
-    label,
-    instrument_of: instrumentOfSchema.optional(),
-    switchable: z.object({ off_note: z.string().min(1) }).optional(),
-    row_header: label,
-    columns: z.array(measurementColumnSchema).min(1),
-    rows: z.array(measurementRowSchema).min(1),
-    values: z.array(measurementValueSchema).min(1).optional(),
-    skip_when: whenValueSchema.optional(),
-    criteria: z.array(measurementCriterionSchema).min(1),
-  })
-  .superRefine((test, ctx) => {
-    const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
-    const columns = new Map(test.columns.map((column) => [column.key, column]));
-    const rows = new Set(test.rows.map((row) => row.key));
-    const values = new Map((test.values ?? []).map((value) => [value.key, value]));
-    if (!unique(test.columns.map((column) => column.key))) issue(['columns'], 'a column key repeats');
-    if (!unique(test.rows.map((row) => row.key))) issue(['rows'], 'a row key repeats');
-    if (!unique((test.values ?? []).map((value) => value.key))) issue(['values'], 'a value key repeats');
+export const measurementTestShape = {
+  key: subBlockKeySchema,
+  label,
+  instrument_of: instrumentOfSchema.optional(),
+  switchable: z.object({ off_note: z.string().min(1) }).optional(),
+  row_header: label,
+  columns: z.array(measurementColumnSchema).min(1),
+  rows: z.array(measurementRowSchema).min(1),
+  values: z.array(measurementValueSchema).min(1).optional(),
+  skip_when: whenValueSchema.optional(),
+  criteria: z.array(measurementCriterionSchema).min(1),
+};
 
-    test.rows.forEach((row, r) => {
-      for (const column of Object.keys(row.fixed ?? {})) if (!columns.has(column)) issue(['rows', r, 'fixed', column], `"${column}" is not a column`);
-    });
+/** What `checkMeasurementTest` reads of a test: the seed's shape, its key and criteria any (Story 14.6: the company variant shares the rule). */
+type MeasurementTestLike = Omit<z.infer<z.ZodObject<typeof measurementTestShape>>, 'key' | 'criteria'> & {
+  key: string;
+  criteria: readonly (
+    | { type: 'absolute'; rows?: readonly string[] | undefined; columns?: readonly string[] | undefined }
+    | { type: 'relative_to_lowest' }
+    | { type: 'equals_column'; column: string; reference: string }
+    | { type: 'choice_pass'; column: string; pass: readonly string[] }
+  )[];
+};
 
-    const optionOf = (when: WhenValue, path: (string | number)[]) => {
-      const target = values.get(when.value);
-      if (target === undefined) issue(path, `"${when.value}" is not a value of the test`);
-      else if (!(target.options ?? []).some((option) => option.key === when.equals)) issue(path, `"${when.equals}" is not an option of "${when.value}"`);
-    };
-    (test.values ?? []).forEach((value, v) => {
-      if (value.when === undefined) return;
-      if (value.when.value === value.key) issue(['values', v, 'when'], 'a value cannot depend on itself');
-      else optionOf(value.when, ['values', v, 'when']);
-    });
-    if (test.skip_when !== undefined) optionOf(test.skip_when, ['skip_when']);
+/** The cross-part rules of one measurement test: unique keys, and every row, column, value and option a part names exists. */
+export function checkMeasurementTest(test: MeasurementTestLike, ctx: z.RefinementCtx): void {
+  const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+  const columns = new Map(test.columns.map((column) => [column.key, column]));
+  const rows = new Set(test.rows.map((row) => row.key));
+  const values = new Map((test.values ?? []).map((value) => [value.key, value]));
+  if (!unique(test.columns.map((column) => column.key))) issue(['columns'], 'a column key repeats');
+  if (!unique(test.rows.map((row) => row.key))) issue(['rows'], 'a row key repeats');
+  if (!unique((test.values ?? []).map((value) => value.key))) issue(['values'], 'a value key repeats');
 
-    test.criteria.forEach((criterion, c) => {
-      const at = (key: string) => ['criteria', c, key];
-      if (criterion.type === 'absolute') {
-        for (const row of criterion.rows ?? []) if (!rows.has(row)) issue(at('rows'), `"${row}" is not a row`);
-        for (const column of criterion.columns ?? []) if (!columns.has(column)) issue(at('columns'), `"${column}" is not a column`);
-      } else if (criterion.type === 'equals_column') {
-        if (!columns.has(criterion.column)) issue(at('column'), `"${criterion.column}" is not a column`);
-        if (!columns.has(criterion.reference)) issue(at('reference'), `"${criterion.reference}" is not a column`);
-        if (criterion.column === criterion.reference) issue(at('reference'), 'a column cannot equal itself');
-      } else if (criterion.type === 'choice_pass') {
-        const column = columns.get(criterion.column);
-        if (column === undefined) issue(at('column'), `"${criterion.column}" is not a column`);
-        else {
-          const known = new Set((column.options ?? []).map((option) => option.key));
-          for (const key of criterion.pass) if (!known.has(key)) issue(at('pass'), `"${key}" is not an option of "${criterion.column}"`);
-        }
-      }
-    });
+  test.rows.forEach((row, r) => {
+    for (const column of Object.keys(row.fixed ?? {})) if (!columns.has(column)) issue(['rows', r, 'fixed', column], `"${column}" is not a column`);
   });
+
+  const optionOf = (when: WhenValue, path: (string | number)[]) => {
+    const target = values.get(when.value);
+    if (target === undefined) issue(path, `"${when.value}" is not a value of the test`);
+    else if (!(target.options ?? []).some((option) => option.key === when.equals)) issue(path, `"${when.equals}" is not an option of "${when.value}"`);
+  };
+  (test.values ?? []).forEach((value, v) => {
+    if (value.when === undefined) return;
+    if (value.when.value === value.key) issue(['values', v, 'when'], 'a value cannot depend on itself');
+    else optionOf(value.when, ['values', v, 'when']);
+  });
+  if (test.skip_when !== undefined) optionOf(test.skip_when, ['skip_when']);
+
+  test.criteria.forEach((criterion, c) => {
+    const at = (key: string) => ['criteria', c, key];
+    if (criterion.type === 'absolute') {
+      for (const row of criterion.rows ?? []) if (!rows.has(row)) issue(at('rows'), `"${row}" is not a row`);
+      for (const column of criterion.columns ?? []) if (!columns.has(column)) issue(at('columns'), `"${column}" is not a column`);
+    } else if (criterion.type === 'equals_column') {
+      if (!columns.has(criterion.column)) issue(at('column'), `"${criterion.column}" is not a column`);
+      if (!columns.has(criterion.reference)) issue(at('reference'), `"${criterion.reference}" is not a column`);
+      if (criterion.column === criterion.reference) issue(at('reference'), 'a column cannot equal itself');
+    } else if (criterion.type === 'choice_pass') {
+      const column = columns.get(criterion.column);
+      if (column === undefined) issue(at('column'), `"${criterion.column}" is not a column`);
+      else {
+        const known = new Set((column.options ?? []).map((option) => option.key));
+        for (const key of criterion.pass) if (!known.has(key)) issue(at('pass'), `"${key}" is not an option of "${criterion.column}"`);
+      }
+    }
+  });
+}
+
+export const measurementTestSchema = z.object(measurementTestShape).superRefine(checkMeasurementTest);
 type SeedMeasurementTest = z.infer<typeof measurementTestSchema>;
 /** A measurement test as every reader takes it. Story 14.6: a company type's test key is its own string. */
 export type MeasurementTest = Omit<SeedMeasurementTest, 'key' | 'criteria'> & { key: string; criteria: MeasurementCriterion[] };

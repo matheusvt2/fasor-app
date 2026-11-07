@@ -50,6 +50,12 @@ const EXTRA_PATHS = [
   `sheet/${BLOCK}/test/cta_transferencia/value/metodo`,
   // Fix batch fxrm (contract 28): a relatório's tombstone.
   'relatorio/removed_at',
+  // Story 14.6 (contract 33): a company equipment type, its puts and a published version.
+  `equipment_type/${ID}`,
+  `equipment_type/${ID}/draft`,
+  `equipment_type/${ID}/retired_at`,
+  `equipment_type/${ID}/removed_at`,
+  `equipment_type_version/${ID}`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -65,9 +71,9 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    // Fix batch fxrm (contract 28): `relatorio/removed_at`, appended last.
-    expect(FAMILIES.length).toBe(46);
-    expect(FAMILIES.at(-1)!.family).toBe('relatorio/removed_at');
+    // Fix batch fxrm (contract 28): `relatorio/removed_at`; Story 14.6 (contract 33): the three equipment type families, appended last.
+    expect(FAMILIES.length).toBe(49);
+    expect(FAMILIES.slice(-4).map((f) => f.family)).toEqual(['relatorio/removed_at', 'equipment_type', 'equipment_type/field', 'equipment_type_version']);
   });
 
   it('returns typed segments', () => {
@@ -257,6 +263,10 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
       builders.sheetTestValuePath(ID, 'cta_transferencia', 'metodo'),
       { family: 'sheet/test/value', block_id: ID, test_key: 'cta_transferencia', value_key: 'metodo' },
     ],
+    [builders.equipmentTypePath(ID), { family: 'equipment_type', id: ID }],
+    [builders.equipmentTypeFieldPath(ID, 'draft'), { family: 'equipment_type/field', id: ID, field: 'draft' }],
+    [builders.equipmentTypeFieldPath(ID, 'retired_at'), { family: 'equipment_type/field', id: ID, field: 'retired_at' }],
+    [builders.equipmentTypeVersionPath(ID), { family: 'equipment_type_version', id: ID }],
   ];
 
   it.each(cases)('%s parses back to its family and segments', (path, expected) => {

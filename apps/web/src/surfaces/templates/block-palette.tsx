@@ -1,10 +1,12 @@
 import {
+  isEquipmentBlockType,
   libraryTypeSummaryText,
   paletteTypeGroups,
   quantityLabel,
   SECTION_BLOCK_TYPES,
   sectionNumber,
   type ComposerBlockNode,
+  type BlockTypeKey,
   type EquipmentBlockType,
   type SectionBlockType,
 } from '@app/domain';
@@ -33,7 +35,7 @@ export interface BlockPaletteProps {
   heldSections: ReadonlySet<SectionBlockType>;
   /** A tap on a held section's row: nothing is added (the composer says so). */
   onSectionHeld: (type: SectionBlockType) => void;
-  onSetQuantity: (type: EquipmentBlockType, n: number) => Promise<void>;
+  onSetQuantity: (type: BlockTypeKey, n: number) => Promise<void>;
   /** The section a "Adicionar abaixo" is waiting to place the next tapped section under. */
   insertBelow: string | null;
   /** The first section item, so "Adicionar abaixo" can move the focus into the palette. */
@@ -42,9 +44,9 @@ export interface BlockPaletteProps {
   onClose?: () => void;
   headingId?: string;
   /** The equipment types the template places somewhere: only those have defaults to edit. */
-  placedTypes: ReadonlySet<EquipmentBlockType>;
+  placedTypes: ReadonlySet<BlockTypeKey>;
   /** Opens the sub-block defaults of a type (Story 3.5). */
-  onEditDefaults: (type: EquipmentBlockType) => void;
+  onEditDefaults: (type: BlockTypeKey) => void;
 }
 
 /**
@@ -152,7 +154,8 @@ export function BlockPaletteContent({
         {paletteTypeGroups(seedVersion).map((group) => (
           <Fragment key={group.key}>
             {group.label === null ? null : <p className="palette-group palette-library">{group.label}</p>}
-            {group.types.map((type) => (
+            {/* Story 14.6: the composer offers the seeded types here; company types are Story 14.8's. */}
+            {group.types.filter(isEquipmentBlockType).map((type) => (
               <PaletteEquipmentRow
                 // A new node is a new stepper: no count carries over from the previous one.
                 key={`${current?.ref ?? ''}:${type}`}

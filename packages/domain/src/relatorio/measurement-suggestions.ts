@@ -2,7 +2,7 @@ import { safeParsePath } from '../ops/path.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { displayCellTargetSchema } from '../reading/target.ts';
 import type { BlockRow, Cell, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { evaluateSheetReadings, type CellAddress, type TestKey } from './readings.ts';
 import { screenLabel } from './screen-label.ts';
@@ -32,19 +32,20 @@ export interface MeasurementSuggestion {
   view: 'fill' | 'replace' | 'none';
 }
 
-function testOrder(block: Pick<BlockRow, 'seed_version' | 'block_type'>): readonly string[] {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests.map((test) => test.key);
-  } catch {
-    return [];
-  }
+function testOrder(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, ctx: DefinitionContext): readonly string[] {
+  return blockDefinitionIn(ctx, block)?.tests.map((test) => test.key) ?? [];
 }
 
 /**
  * The pending suggestion each Measurement cell of `block` shows (the newest per cell, as on
  * the nameplate), with its view, in reading order (test, row, column).
  */
-export function measurementSuggestions(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): MeasurementSuggestion[] {
+export function measurementSuggestions(
+  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'> & Partial<Pick<BlockRow, 'config'>>,
+  pending: readonly SuggestionRow[],
+  /** Story 14.6: a company block's tests are its version's. */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+): MeasurementSuggestion[] {
   const byCell = new Map<string, { address: CellAddress; suggestion: SuggestionRow }>();
   for (const row of pending) {
     if (row.status !== 'pending') continue;
@@ -55,7 +56,7 @@ export function measurementSuggestions(block: Pick<BlockRow, 'id' | 'seed_versio
     const held = byCell.get(key);
     if (held === undefined || row.id > held.suggestion.id) byCell.set(key, { address, suggestion: row });
   }
-  const order = testOrder(block);
+  const order = testOrder(block, ctx);
   const rank = (key: string) => (order.indexOf(key) === -1 ? order.length : order.indexOf(key));
   return [...byCell.values()]
     .sort((a, b) => rank(a.address.testKey) - rank(b.address.testKey) || a.address.row - b.address.row || a.address.col - b.address.col)
@@ -63,9 +64,9 @@ export function measurementSuggestions(block: Pick<BlockRow, 'id' | 'seed_versio
 }
 
 /** The rows of one table of a test, across the test's tables (the op path's rows), or null. */
-function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type'>, testKey: string, tableKey: string): { from: number; to: number } | null {
+function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, testKey: string, tableKey: string, ctx: DefinitionContext): { from: number; to: number } | null {
   try {
-    const test = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests.find((t) => t.key === testKey);
+    const test = blockDefinitionIn(ctx, block)?.tests.find((t) => t.key === testKey);
     if (test === undefined) return null;
     let offset = 0;
     for (const table of test.tables) {
@@ -85,11 +86,12 @@ function tableFills(
   testKey: string,
   tableKey: string,
   exclude: readonly CellAddress[],
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
 ): MeasurementSuggestion[] {
-  const rows = tableRows(block, testKey, tableKey);
+  const rows = tableRows(block, testKey, tableKey, ctx);
   if (rows === null) return [];
   const excluded = (address: CellAddress) => exclude.some((cell) => cell.testKey === address.testKey && cell.row === address.row && cell.col === address.col);
-  return measurementSuggestions(block, pending).filter(
+  return measurementSuggestions(block, pending, ctx).filter(
     (entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to && entry.view === 'fill' && !excluded(entry.address),
   );
 }

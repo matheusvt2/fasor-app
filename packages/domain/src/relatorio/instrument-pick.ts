@@ -4,8 +4,7 @@ import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { instrumentRegistryRowText, type InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import type { SubBlockKey } from '../schemas/block-config.ts';
-import { findDefinition, getDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { TestKey } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
@@ -136,13 +135,16 @@ export function instrumentOptionOf(row: InstrumentRow, serviceEnd: string | null
  * for isolação), read from the definition of a block that says its type and seed version.
  */
 export function lastInstrumentIdFor(
-  blocks: readonly (Pick<BlockRow, 'sheet' | 'removed_at'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type'>>)[],
+  blocks: readonly (Pick<BlockRow, 'sheet' | 'removed_at'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>>)[],
   testKey: TestKey,
+  /** Story 14.6: a company block's measurement tests are its version's. */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
 ): string | null {
   let best: { opId: string; id: string } | null = null;
   for (const block of blocks) {
     if (block.removed_at !== null) continue;
-    const definition = block.seed_version === undefined || block.block_type === undefined ? null : findDefinition(block.seed_version, block.block_type);
+    const definition =
+      block.seed_version === undefined || block.block_type === undefined ? null : blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
     const keys: string[] = [testKey, ...(definition?.measurement_tests ?? []).filter((test) => test.instrument_of === testKey).map((test) => test.key)];
     for (const key of keys) {
       const cell = block.sheet.test[key]?.instrument;
@@ -167,7 +169,7 @@ function instrumentKindOf(definition: BlockDefinition, testKey: string): { kind:
 }
 
 /** What the suggestion reads: `Pick<RelatorioSnapshot, 'blocks' | 'instruments'>`, read-only. */
-export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: readonly RelatorioSnapshot[K][number][] };
+export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: readonly RelatorioSnapshot[K][number][] } & { readonly equipment_types?: RelatorioSnapshot['equipment_types'] };
 
 /**
  * Story 12.3 (J-07, D-4; `source-deltas.md` row 51): the instrument a test sub-block
@@ -184,11 +186,12 @@ export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: rea
 export function suggestedInstrument(snapshot: InstrumentSnapshot, blockId: string, testKey: string): InstrumentHeader | null {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined || block.removed_at !== null || block.not_tested !== null || block.concluded_by !== null) return null;
-  const definition = definitionOf(block);
+  const ctx = snapshotDefinitionContext(snapshot);
+  const definition = blockDefinitionIn(ctx, block);
   const of = definition === null ? null : instrumentKindOf(definition, testKey);
-  if (of === null || !enabledSubBlocksOf(block).has(testKey as SubBlockKey)) return null;
+  if (of === null || !enabledSubBlocksOf(block).has(testKey)) return null;
   if (isCellFilled(block.sheet.test[testKey]?.instrument)) return null;
-  const lastId = lastInstrumentIdFor(snapshot.blocks, of.kind);
+  const lastId = lastInstrumentIdFor(snapshot.blocks, of.kind, ctx);
   const row = lastId === null ? undefined : snapshot.instruments.find((candidate) => candidate.id === lastId && candidate.removed_at === null);
   if (row === undefined) return null;
   return of.measurement ? measurementInstrumentHeaderOf(row) : instrumentHeaderOf(row, of.kind);
@@ -200,7 +203,7 @@ export function suggestedInstrument(snapshot: InstrumentSnapshot, blockId: strin
  */
 export function suggestedInstruments(snapshot: InstrumentSnapshot, blockId: string): { testKey: string; header: InstrumentHeader }[] {
   const block = snapshot.blocks.find((row) => row.id === blockId);
-  const definition = block === undefined ? null : definitionOf(block);
+  const definition = block === undefined ? null : blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
   if (definition === null) return [];
   return [...definition.tests, ...(definition.measurement_tests ?? [])].flatMap((test) => {
     const header = suggestedInstrument(snapshot, blockId, test.key);
@@ -208,13 +211,6 @@ export function suggestedInstruments(snapshot: InstrumentSnapshot, blockId: stri
   });
 }
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
-}
 
 /** What `instrumentPickerOrder` ranks by besides the last one used (F-27). */
 export interface InstrumentPickerContext {

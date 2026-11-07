@@ -1,11 +1,11 @@
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { storedInstrumentHeader, type InstrumentHeader } from '../relatorio/instrument-pick.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
-import { enabledSubBlocksOf } from '../relatorio/sheet-state.ts';
-import { SUB_BLOCK_KEYS, type SubBlockKey } from '../schemas/block-config.ts';
+import { companySubBlockKeys, enabledSubBlocksOf } from '../relatorio/sheet-state.ts';
+import { SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 
 /*
@@ -48,26 +48,29 @@ export interface LayoutSectionCertificates {
   certificates: LayoutCertificate[];
 }
 
-type Section11Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'instruments' | 'blocks' | 'locations' | 'equipment'>;
+type Section11Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'instruments' | 'blocks' | 'locations' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>;
 
 function present(value: string | null | undefined): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
 
 /** The block's test keys in the definition's order, then any other stored key. */
-function testKeysOf(block: BlockRow): string[] {
-  const definition = findDefinition(block.seed_version, block.block_type);
+function testKeysOf(block: BlockRow, ctx: DefinitionContext): string[] {
+  // Story 14.6: a company sheet's tests are its version's.
+  const definition = blockDefinitionIn(ctx, block);
   // Story 14.5: a measurement test with a picker holds an instrument header like a seeded test.
   const defined: string[] = [...(definition?.tests.map((test) => test.key) ?? []), ...(definition?.measurement_tests?.map((test) => test.key) ?? [])];
   return [...defined, ...Object.keys(block.sheet.test).filter((key) => !defined.includes(key))];
 }
 
 /** The instrument headers a live, tested sheet copied into its enabled tests, in test order. */
-function sheetHeaders(block: BlockRow): InstrumentHeader[] {
+function sheetHeaders(block: BlockRow, ctx: DefinitionContext): InstrumentHeader[] {
   if (block.removed_at !== null || block.not_tested !== null) return [];
   const enabled = enabledSubBlocksOf(block);
-  return testKeysOf(block).flatMap((key) => {
-    if ((SUB_BLOCK_KEYS as readonly string[]).includes(key) && !enabled.has(key as SubBlockKey)) return [];
+  const own = companySubBlockKeys(block.config);
+  return testKeysOf(block, ctx).flatMap((key) => {
+    // A test keyed by a sub-block name follows its switch (Story 14.6: a company type's are its config's keys).
+    if (((SUB_BLOCK_KEYS as readonly string[]).includes(key) || own.has(key)) && !enabled.has(key)) return [];
     const header = storedInstrumentHeader(block.sheet.test[key]?.instrument?.value);
     return header === null ? [] : [header];
   });
@@ -90,10 +93,11 @@ export function section11Instruments(snapshot: Section11Snapshot): Section11Inst
 
   const headers = new Map<string, InstrumentHeader[]>();
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
+  const ctx = snapshotDefinitionContext(snapshot);
   for (const node of sheetOrder(snapshot)) {
     const block = blocks.get(node.blockId);
     if (block === undefined) continue;
-    for (const header of sheetHeaders(block)) {
+    for (const header of sheetHeaders(block, ctx)) {
       add(header.instrument_id);
       headers.set(header.instrument_id, [...(headers.get(header.instrument_id) ?? []), header]);
     }

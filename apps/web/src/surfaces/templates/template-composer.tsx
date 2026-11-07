@@ -25,6 +25,7 @@ import {
   removeSection,
   resolveSectionIndex,
   renameNode,
+  isEquipmentBlockType,
   isSectionBlockType,
   SECTION_BLOCK_TYPES,
   setAgruparPorTipo,
@@ -44,7 +45,7 @@ import {
   type ComposerNode,
   type ComposerPainel,
   type ComposerSection,
-  type EquipmentBlockType,
+  type BlockTypeKey,
   type OpDraft,
   type SectionBlockType,
   type TemplateRow,
@@ -142,7 +143,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const [renaming, setRenaming] = useState<ComposerNode | null>(null);
   // Story 14.2: the Função dialog, adding a local or editing one ("Função e nome").
   const [localDialog, setLocalDialog] = useState<{ mode: 'add' } | { mode: 'edit'; node: ComposerCabine } | null>(null);
-  const [editingType, setEditingType] = useState<EquipmentBlockType | null>(null);
+  const [editingType, setEditingType] = useState<BlockTypeKey | null>(null);
   const [editingText, setEditingText] = useState<ComposerSection | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const firstSection = useRef<HTMLButtonElement>(null);
@@ -343,7 +344,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   }
 
   /** Rejects when nothing was written (the node is gone), so the stepper puts its count back. */
-  function onSetQuantity(ref: string, type: EquipmentBlockType, n: number): Promise<void> {
+  function onSetQuantity(ref: string, type: BlockTypeKey, n: number): Promise<void> {
     return edit((fresh) => [['blocks', setQuantity(fresh, ref, type, n)]]).then((batch) => {
       if (batch === null) throw new TemplateTargetGoneError(`quantity not written: node "${ref}" is gone`);
     });
@@ -438,7 +439,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   }, [editingType, editingConfig]);
 
   /** One change to a type's defaults, applied to its config as the freshest row holds it. */
-  function onEditTypeDefaults(type: EquipmentBlockType, update: (current: TypeConfig) => TypeConfig): void {
+  function onEditTypeDefaults(type: BlockTypeKey, update: (current: TypeConfig) => TypeConfig): void {
     void edit((fresh) => {
       const blocks = withoutOrphans(fresh);
       const config = typeConfigFor(blocks, type);
@@ -511,7 +512,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     onAddSection,
     heldSections,
     onSectionHeld,
-    onSetQuantity: (type: EquipmentBlockType, n: number) =>
+    onSetQuantity: (type: BlockTypeKey, n: number) =>
       current === null ? Promise.resolve() : onSetQuantity(current.ref, type, n),
     insertBelow: insertBelow === null ? null : sectionName(insertBelow.block_type),
   };
@@ -619,7 +620,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
         />
       )}
 
-      {editingType === null || editingConfig === null ? null : (
+      {editingType === null || editingConfig === null || !isEquipmentBlockType(editingType) ? null : (
         <TypeDefaultsDialog
           type={editingType}
           seedVersion={row.seed_version}

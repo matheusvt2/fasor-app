@@ -955,7 +955,7 @@ function observationsPart(block: BlockRow): SheetPart | null {
 function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string): SheetPart[] {
   // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair);
   // e22f N2: of the chosen pair while the sheet is open, so the floor alone prints no mark.
-  const printed = printedConclusionPair(block);
+  const printed = printedConclusionPair(block, definition);
   const chosen = new Set<string>([printed.result, printed.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
   // e22f S1: a confirmed text the floor made stale prints the text composed now.
   const text = printedConclusionText(block, definition, tag);

@@ -18,6 +18,7 @@ import { copy } from '../../copy/pt-br.ts';
 const NO_SUBTYPE = 'sem_subtipo';
 
 export interface TypeDefaultsDialogProps {
+  /** A seeded type (Story 14.6: a company type's defaults are its own editor's, Story 14.7). */
   type: EquipmentBlockType;
   seedVersion: string;
   /** The type's one config in the template, as this device holds it now. */
@@ -45,7 +46,7 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
   // The kernel says which sub-blocks no config switches off.
   const lockedKeys = lockedSubBlocksOf(definition);
 
-  const setEnabled = (key: SubBlockKey, enabled: boolean) =>
+  const setEnabled = (key: string, enabled: boolean) =>
     onChange((current) => ({ ...current, sub_blocks: { ...current.sub_blocks, [key]: { ...current.sub_blocks[key], enabled } } }));
 
   const setSubtype = (value: string) =>
@@ -84,7 +85,7 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
       <div>
         <p className="table-title">{copy.composer.subBlocksTitle}</p>
         {definition.sub_blocks.map((key) => {
-          const label = copy.composer.subBlockLabels[key];
+          const label = copy.composer.subBlockLabels[key as SubBlockKey];
           const locked = lockedKeys.includes(key);
           const toggleId = `${rowIdPrefix}-${key}`;
           const summary = subBlockSummaryText(definition, key);

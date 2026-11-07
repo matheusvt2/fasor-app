@@ -1,6 +1,6 @@
 import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition, getSeed } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, getSeed, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
 import {
@@ -126,8 +126,8 @@ export function appendObservation(current: string | null, note: string): string 
 // --- the checklist ------------------------------------------------------------------------
 
 /** The items "Marcar os restantes como Conforme" sets: the unset ones (NC rows and NA defaults stay as they are). */
-export function checklistUnsetItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>): string[] {
-  const definition = definitionOf(block);
+export function checklistUnsetItems(block: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string[] {
+  const definition = definitionOf(block, ctx);
   if (definition === null || definition.checklist === null) return [];
   return definition.checklist.filter((item) => checklistResultOf(block, item.key) === null).map((item) => item.key);
 }
@@ -161,8 +161,9 @@ export function repeatChecklistSource(snapshot: Pick<RelatorioSnapshot, 'blocks'
 export function repeatChecklistPattern(
   source: Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, 'seed_version' | 'block_type'>>,
   target: Pick<BlockRow, 'config' | 'sheet' | 'seed_version' | 'block_type'>,
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
 ): { itemKey: string; value: 'C' | 'NC' | 'NA' }[] {
-  const definition = definitionOf(target);
+  const definition = definitionOf(target, ctx);
   if (definition === null || definition.checklist === null) return [];
   const out: { itemKey: string; value: 'C' | 'NC' | 'NA' }[] = [];
   for (const item of definition.checklist) {
@@ -243,16 +244,17 @@ export function insertPhrase(text: string, phrase: string, caret: number = text.
  */
 export function nameplateWordRecents(
   current: string | null,
-  blocks: readonly Pick<BlockRow, 'seed_version' | 'block_type' | 'sheet' | 'removed_at'>[],
+  blocks: readonly Pick<BlockRow, 'seed_version' | 'block_type' | 'sheet' | 'removed_at' | 'config'>[],
   kind: 'manufacturer' | 'voltage_class',
   rows: readonly WordRow[],
   limit = 5,
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
 ): string[] {
   const live = rows.filter((row) => row.removed_at === null);
   const used: { name: string; opId: string }[] = [];
   for (const block of blocks) {
     if (block.removed_at !== null) continue;
-    const definition = definitionOf(block);
+    const definition = definitionOf(block, ctx);
     if (definition === null) continue;
     for (const field of definition.nameplate) {
       if (field.kind !== kind) continue;
@@ -304,10 +306,7 @@ export function fieldValueText(field: Pick<FieldDef, 'kind'>, value: unknown): s
   return typeof value === 'string' ? value : String(value);
 }
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
+/** A block's definition; Story 14.6: a company type's through the context the caller passes. */
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>, ctx: DefinitionContext): BlockDefinition | null {
+  return blockDefinitionIn(ctx, block);
 }

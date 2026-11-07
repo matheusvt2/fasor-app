@@ -1,7 +1,6 @@
 import {
   betterReading,
   buildReadingSuggestions,
-  getDefinition,
   isVectorGroupField,
   plateReadingTargetSchema,
   registryRowSchema,
@@ -16,7 +15,7 @@ import { entities } from '../../../db/schema.ts';
 import { log } from '../../../log.ts';
 import type { PlateStructuringInput } from '../providers/bedrock.ts';
 import { PermanentReadingError } from '../providers/errors.ts';
-import { readOcr, targetBlock } from './shared.ts';
+import { readingDefinitionOf, readOcr, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
 
 /*
@@ -82,12 +81,10 @@ export const plateHandler: ReadingKindHandler = {
     const target = plateReadingTargetSchema.safeParse(photo.reading_target);
     if (!target.success) throw new PermanentReadingError('the photo has no plate reading target');
     const block = await targetBlock(db, companyId, relatorioId, target.data);
-    let fields;
-    try {
-      fields = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).nameplate;
-    } catch (error) {
-      throw new PermanentReadingError('the target block has no nameplate definition', { cause: error });
-    }
+    // Story 14.6: a company type's plate is its version's (the company's own rows).
+    const definition = await readingDefinitionOf(db, companyId, block);
+    if (definition === null) throw new PermanentReadingError('the target block has no nameplate definition');
+    const fields = definition.nameplate;
     const registry = await liveRegistry(db, companyId);
 
     return {
@@ -103,6 +100,7 @@ export const plateHandler: ReadingKindHandler = {
             photoId: photo.id,
             runId,
             block,
+            definition,
             ocr,
             image,
             output: structuring.output,

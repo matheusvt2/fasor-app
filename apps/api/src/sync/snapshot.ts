@@ -42,6 +42,9 @@ export async function toSnapshot(db: Reader, companyId: CompanyId, relatorioId: 
           // the responsible (cover, document control) and the sheets' actors (the section 9
           // attribution line). `buildSnapshot` keeps only the rows it names.
           eq(entities.entity, 'user'),
+          // Story 14.6 (AD-15 note of 2026-11-06): the company's published type versions, of
+          // which `buildSnapshot` keeps those a live block references (`equipment_types`).
+          eq(entities.entity, 'equipment_type_version'),
         ),
       ),
     );

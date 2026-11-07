@@ -1,7 +1,7 @@
 import { formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { displayCellTargetSchema } from '../reading/target.ts';
 import type { BlockRow, JsonValue } from '../schemas/entities.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
 import { SELV_YES, type TestDef } from '../seed/schema.ts';
 import { storedInstrumentHeader } from './instrument-pick.ts';
 import { pickedBand, voltsOf } from './reading-evaluation.ts';
@@ -96,8 +96,12 @@ export const SELV_VOLTAGE_NOTICE = 'Marcado SELV/PELV, mas a TENSÃO NOMINAL pas
  * TENSÃO NOMINAL is above the seed's `selv_max_voltage`; null otherwise (NÃO, empty mark, empty
  * or unparsable voltage, a seed without the ceiling).
  */
-export function selvVoltageNoticeText(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'sheet'>): string | null {
-  const definition = findDefinition(block.seed_version, block.block_type);
+export function selvVoltageNoticeText(
+  block: Pick<BlockRow, 'seed_version' | 'block_type' | 'sheet'> & Partial<Pick<BlockRow, 'config'>>,
+  /** Story 14.6: a company block's bands are its version's. */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+): string | null {
+  const definition = blockDefinitionIn(ctx, block);
   if (definition === null) return null;
   for (const test of definition.tests) {
     const bands = test.criterion_bands;
@@ -111,8 +115,8 @@ export function selvVoltageNoticeText(block: Pick<BlockRow, 'seed_version' | 'bl
 }
 
 /** The nameplate field the SELV notice shows under, or null when the block's definition has none. */
-export function selvNoticeFieldOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): string | null {
-  const definition = findDefinition(block.seed_version, block.block_type);
+export function selvNoticeFieldOf(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): string | null {
+  const definition = blockDefinitionIn(ctx, block);
   const bands = definition?.tests.find((test) => test.criterion_bands?.selv_max_voltage !== undefined)?.criterion_bands;
   return bands?.selv_field ?? null;
 }

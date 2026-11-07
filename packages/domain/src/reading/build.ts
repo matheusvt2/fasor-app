@@ -51,6 +51,11 @@ export interface BuildReadingSuggestionsInput {
   promptVersion: string;
   registry: ReadingRegistry;
   newId: NewId;
+  /**
+   * Story 14.6: the block's definition as the job resolved it (a company type's from the company's
+   * version rows); the block's seeded definition when absent.
+   */
+  definition?: BlockDefinition | null;
 }
 
 export interface BuiltReadingSuggestions {
@@ -104,7 +109,7 @@ function dropReasonOf(field: FieldDef | undefined, structured: StructuringValue,
 }
 
 export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): BuiltReadingSuggestions {
-  const definition = definitionOf(input.block);
+  const definition = input.definition !== undefined ? input.definition : definitionOf(input.block);
   const fields = definition?.nameplate ?? [];
   const fieldKeys = new Set(fields.map((field) => field.key));
   const tokens = new Map<string, OcrToken>(input.ocr.tokens.map((token) => [token.id, token]));

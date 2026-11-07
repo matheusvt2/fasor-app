@@ -1,6 +1,6 @@
-import { buildDisplaySuggestions, displayReadingTargetSchema, getDefinition, isDisplayCellTarget, locationRowSchema, type BlockRow, type LocationRow } from '@app/domain';
+import { buildDisplaySuggestions, displayReadingTargetSchema, isDisplayCellTarget, locationRowSchema, type BlockRow, type LocationRow, type TestDef } from '@app/domain';
 import { PermanentReadingError } from '../providers/errors.ts';
-import { entityRecord, readOcr, targetBlock } from './shared.ts';
+import { entityRecord, readingDefinitionOf, readOcr, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
 
 /*
@@ -40,14 +40,13 @@ export const displayHandler: ReadingKindHandler = {
     let block: BlockRow | null = null;
     let location: Cabine | null = null;
     let fixture: { block_type: string | null; table_key: string | null };
+    let tests: readonly TestDef[] | undefined;
     if (isDisplayCellTarget(target)) {
       block = await targetBlock(db, companyId, relatorioId, target);
-      let tests;
-      try {
-        tests = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests;
-      } catch (error) {
-        throw new PermanentReadingError('the target block has no definition', { cause: error });
-      }
+      // Story 14.6: a company type's tests are its version's (the company's own rows).
+      const definition = await readingDefinitionOf(db, companyId, block);
+      if (definition === null) throw new PermanentReadingError('the target block has no definition');
+      tests = definition.tests;
       if (!tests.some((test) => test.key === target.table_key)) throw new PermanentReadingError('the target test is not on the block');
       fixture = { block_type: block.block_type, table_key: target.table_key };
     } else {
@@ -64,7 +63,7 @@ export const displayHandler: ReadingKindHandler = {
       fixture,
       async run({ providers, image, runId, newId }) {
         const ocr = await readOcr(providers, image, { mode: 'display' });
-        const built = buildDisplaySuggestions({ relatorioId, photoId: photo.id, runId, target, block, location, ocr, image, newId });
+        const built = buildDisplaySuggestions({ relatorioId, photoId: photo.id, runId, target, block, location, ocr, image, newId, ...(tests === undefined ? {} : { tests }) });
         return { ocr, structuring: null, rows: built.rows, dropped: built.dropped };
       },
     };

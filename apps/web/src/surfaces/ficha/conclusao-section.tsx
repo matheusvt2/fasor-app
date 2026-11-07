@@ -207,13 +207,13 @@ export function ConclusaoSection({
   // Story 22.4: the effective pair (the floor's included) is what the radiogroups show. A sheet
   // marked not tested (read-only, Story 5.9) keeps showing the pair stored before the mark, which
   // no longer counts anywhere (`effectiveConclusionPair` ignores it).
-  const effective = effectiveConclusionPair(block);
+  const effective = effectiveConclusionPair(block, definition);
   const result = readOnly ? conclusionResultOf(block) : effective.result;
   const restriction = readOnly ? conclusionRestrictionOf(block) : effective.restriction;
-  const suggestion = conclusionSuggestion(block);
-  const floorReason = conclusionFloorReasonText(block);
-  const adjusted = conclusionAdjusted(block);
-  const looser = (value: ConclusionResult | ConclusionRestriction) => !readOnly && isLooserThanFloor(block, value);
+  const suggestion = conclusionSuggestion(block, definition);
+  const floorReason = conclusionFloorReasonText(block, definition);
+  const adjusted = conclusionAdjusted(block, definition);
+  const looser = (value: ConclusionResult | ConclusionRestriction) => !readOnly && isLooserThanFloor(block, value, definition);
   const composed = useMemo(() => composeConclusion(block, definition, tag), [block, definition, tag]);
   const textState = conclusionTextState(block, composed);
   const storedText = conclusionStoredText(block);
@@ -243,8 +243,8 @@ export function ConclusaoSection({
     observation.set(appendObservation(observationSuggested ? suggestedObservation : observation.text, text));
   };
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
-  const required = observationRequired(block) && observation.text.trim() === '' && !observationSuggested;
-  const observationMissing = observationRequired(block) && result !== null && restriction !== null;
+  const required = observationRequired(block, definition) && observation.text.trim() === '' && !observationSuggested;
+  const observationMissing = observationRequired(block, definition) && result !== null && restriction !== null;
 
   const edit = (build: Parameters<FichaApi['edit']>[0]) => void api.edit(build).catch(() => undefined);
 

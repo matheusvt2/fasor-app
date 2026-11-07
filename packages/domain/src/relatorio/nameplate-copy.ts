@@ -1,5 +1,6 @@
 import type { BlockRow, EquipmentRow, JsonValue } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
@@ -23,12 +24,9 @@ import { normalizeDateValue } from '../format/datetime.ts';
 /** The nameplate field kind that names the manufacturer (`FABRICAÇÃO`). */
 const MANUFACTURER_KIND = 'manufacturer';
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
+/** A block's definition; Story 14.6: a company type's through the context (the caller's snapshot's). */
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config'>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): BlockDefinition | null {
+  return blockDefinitionIn(ctx, block);
 }
 
 function manufacturerKey(definition: BlockDefinition): string | null {
@@ -70,12 +68,12 @@ export function nameplateCopyFields(source: Pick<BlockRow, 'sheet'>, definition:
 
 /** "Igual à ⟨TAG⟩?": the plate to copy onto `blockId`, or null when none applies. */
 export function suggestNameplateCopy(
-  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly EquipmentRow[] },
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly EquipmentRow[]; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
   blockId: string,
 ): { sourceBlockId: string; tag: string } | null {
   const target = snapshot.blocks.find((row) => row.id === blockId);
   if (target === undefined || target.removed_at !== null) return null;
-  const definition = definitionOf(target);
+  const definition = definitionOf(target, snapshotDefinitionContext(snapshot));
   if (definition === null || definition.nameplate.length === 0) return null;
   const key = manufacturerKey(definition);
   if (key === null) return null;
@@ -139,10 +137,13 @@ const TAG_KEY = 'tag';
  * block). Null when the definition has no TAG field, the cell exists, or the block has no
  * TAG.
  */
-export function nameplateTagPrefill(snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[] }, blockId: string): string | null {
+export function nameplateTagPrefill(
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[]; readonly equipment_types?: RelatorioSnapshot['equipment_types'] },
+  blockId: string,
+): string | null {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   if (block === undefined || block.removed_at !== null || block.equipment_id === null) return null;
-  const definition = definitionOf(block);
+  const definition = definitionOf(block, snapshotDefinitionContext(snapshot));
   if (definition === null || !definition.nameplate.some((field) => field.key === TAG_KEY)) return null;
   if (block.sheet.nameplate[TAG_KEY] !== undefined) return null;
   const tag = snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '';

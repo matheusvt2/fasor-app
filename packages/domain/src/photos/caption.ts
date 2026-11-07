@@ -5,7 +5,7 @@ import { cabineOf } from '../relatorio/cabine.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import type { SheetStep } from '../relatorio/sheet-progress.ts';
 import { siteLocalOf } from '../relatorio/site-checklist.ts';
-import { getDefinition, siteItems } from '../seed/definitions.ts';
+import { blockDefinitionIn, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { SeedWord } from '../seed/schema.ts';
 
 /*
@@ -88,22 +88,19 @@ export interface CaptionParts {
   local: CaptionWord | null;
 }
 
-function definitionOf(block: BlockRow) {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
+/** A block's definition; Story 14.6: a company type's from the snapshot's type versions. */
+function definitionOf(block: BlockRow, snapshot: Pick<RelatorioSnapshot, 'equipment_types'>) {
+  return blockDefinitionIn(snapshotDefinitionContext(snapshot), block);
 }
 
-function activityOf(photo: { item_key: string | null }, block: BlockRow, meta: ContextCaptionMeta): CaptionWord | null {
+function activityOf(photo: { item_key: string | null }, block: BlockRow, meta: ContextCaptionMeta, snapshot: Pick<RelatorioSnapshot, 'equipment_types'>): CaptionWord | null {
   if (photo.item_key !== null) {
-    const label = definitionOf(block)?.checklist?.find((item) => item.key === photo.item_key)?.label ?? null;
+    const label = definitionOf(block, snapshot)?.checklist?.find((item) => item.key === photo.item_key)?.label ?? null;
     if (label === null) return null;
     return { name: `verificação de ${itemNoun(label)}`, gender: 'f', number: 'singular' };
   }
   if (meta.step !== 'ensaios') return null;
-  const key = meta.testKey ?? definitionOf(block)?.tests[0]?.key ?? null;
+  const key = meta.testKey ?? definitionOf(block, snapshot)?.tests[0]?.key ?? null;
   const name = key === null ? undefined : TEST_ACTIVITY[key];
   if (name === undefined) return null;
   const seeded = meta.words.atividades.find((word) => sameName(word.name, name));
@@ -171,9 +168,19 @@ function localOf(block: BlockRow, snapshot: RelatorioSnapshot, meta: ContextCapt
  * The Equipamento part: the block type's noun phrase and the equipment's TAG when this
  * device holds one ("chave seccionadora SEC-C01", E6-Q5); a blank TAG is left out.
  */
+/**
+ * Story 14.6: the noun phrase of a block's type: a seeded type's from `CAPTION_EQUIPMENT_WORDS`, a
+ * company type's its version's noun, singular, with its gender (from the snapshot's type versions).
+ */
+function equipmentWordOf(block: Pick<BlockRow, 'block_type' | 'seed_version' | 'config'>, snapshot: Pick<RelatorioSnapshot, 'equipment_types'>): CaptionWord | null {
+  if (isEquipmentBlockType(block.block_type)) return CAPTION_EQUIPMENT_WORDS[block.block_type];
+  const noun = blockDefinitionIn(snapshotDefinitionContext(snapshot), block)?.noun;
+  return noun === undefined ? null : { name: noun.singular, gender: noun.gender, number: 'singular' };
+}
+
 function equipmentOf(block: BlockRow, snapshot: RelatorioSnapshot): CaptionWord | null {
-  if (!isEquipmentBlockType(block.block_type)) return null;
-  const word = CAPTION_EQUIPMENT_WORDS[block.block_type];
+  const word = equipmentWordOf(block, snapshot);
+  if (word === null) return null;
   const tag = block.equipment_id === null ? '' : ((snapshot.equipment ?? []).find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
   return tag === '' ? word : { ...word, name: `${word.name} ${tag}` };
 }
@@ -191,7 +198,7 @@ export function contextCaptionParts(
   const block = photo.block_id === null ? undefined : snapshot.blocks.find((row) => row.id === photo.block_id);
   if (block === undefined) return { atividade: null, equipamento: null, local: null };
   return {
-    atividade: activityOf(photo, block, meta),
+    atividade: activityOf(photo, block, meta, snapshot),
     equipamento: equipmentOf(block, snapshot),
     local: localOf(block, snapshot, meta),
   };
@@ -388,16 +395,17 @@ export function captionChipOptions(prefill: string | null, recents: readonly str
  * Story 6.5: the Equipamento words the composer offers: the photo's own sheet first, then
  * every equipment type the relatório's live blocks hold, in block order, each once.
  */
-export function equipmentChipOptions(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blockId: string | null): CaptionWord[] {
+export function equipmentChipOptions(snapshot: Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>, blockId: string | null): CaptionWord[] {
   const out: CaptionWord[] = [];
-  const add = (blockType: string) => {
-    if (!isEquipmentBlockType(blockType)) return;
-    const word = CAPTION_EQUIPMENT_WORDS[blockType];
+  const add = (block: BlockRow) => {
+    // Story 14.6: a company type offers its version's noun.
+    const word = equipmentWordOf(block, snapshot);
+    if (word === null) return;
     if (!out.some((known) => known.name === word.name)) out.push(word);
   };
   const own = blockId === null ? undefined : snapshot.blocks.find((row) => row.id === blockId);
-  if (own !== undefined) add(own.block_type);
-  for (const block of snapshot.blocks) if (block.removed_at === null) add(block.block_type);
+  if (own !== undefined) add(own);
+  for (const block of snapshot.blocks) if (block.removed_at === null) add(block);
   return out;
 }
 

@@ -15,7 +15,7 @@ export async function toSnapshot(db: AppDatabase, relatorioId: string): Promise<
     if (!relatorio) throw new Error(`relatorio ${relatorioId} is not on this device`);
     const row = relatorio.row as RelatorioRow;
     const projectId = row.project_id;
-    const [scoped, project, equipment, registry, users] = await Promise.all([
+    const [scoped, project, equipment, registry, users, versions] = await Promise.all([
       db.entities.where('relatorio_id').equals(relatorioId).toArray(),
       db.entities.get(['project', projectId]),
       db.entities.where('project_id').equals(projectId).toArray(),
@@ -24,6 +24,9 @@ export async function toSnapshot(db: AppDatabase, relatorioId: string): Promise<
       // them: the responsible (cover, document control) and the sheets' actors (the section 9
       // attribution line). `buildSnapshot` keeps only the rows it names.
       db.entities.where('entity').equals('user').toArray(),
+      // Story 14.6 (AD-15 note of 2026-11-06): the company's published type versions, as the
+      // server's `toSnapshot` reads them; `buildSnapshot` keeps those a live block references.
+      db.entities.where('entity').equals('equipment_type_version').toArray(),
     ]);
     const state = new Map<EntityKey, EntityRow>();
     const add = (record: EntityRecord | undefined) => {
@@ -31,7 +34,7 @@ export async function toSnapshot(db: AppDatabase, relatorioId: string): Promise<
     };
     add(relatorio);
     add(project);
-    for (const list of [scoped, equipment, registry, users]) list.forEach(add);
+    for (const list of [scoped, equipment, registry, users, versions]) list.forEach(add);
     return buildSnapshot(state, relatorioId);
   });
 }

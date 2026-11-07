@@ -1,5 +1,16 @@
-import { blockRowSchema, type BlockRow, type OcrReadOptions, type OcrReadResult } from '@app/domain';
-import { and, eq } from 'drizzle-orm';
+import {
+  blockDefinitionIn,
+  blockRowSchema,
+  companyTypeIdOf,
+  definitionContext,
+  equipmentTypeVersionRowSchema,
+  type BlockDefinition,
+  type BlockRow,
+  type EquipmentTypeVersionRow,
+  type OcrReadOptions,
+  type OcrReadResult,
+} from '@app/domain';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../../db/client.ts';
 import type { CompanyId } from '../../../db/repositories/company-id.ts';
 import { entities } from '../../../db/schema.ts';
@@ -42,6 +53,26 @@ export async function targetBlock(db: Db, companyId: CompanyId, relatorioId: str
     throw new PermanentReadingError('the target block is not the photo relatorio block it names');
   }
   return block;
+}
+
+/**
+ * Story 14.6: the definition of the block a reading targets: a seeded type's from its seed, a
+ * company type's from the published versions of its type the company holds (AD-10: the payload's
+ * company only); null when none resolves, which every kind answers as it answers an unknown type.
+ */
+export async function readingDefinitionOf(db: Db, companyId: CompanyId, block: BlockRow): Promise<BlockDefinition | null> {
+  const typeId = companyTypeIdOf(block.block_type);
+  if (typeId === null) return blockDefinitionIn(definitionContext([]), block);
+  const records = await db
+    .select({ row: entities.row })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'equipment_type_version'), sql`${entities.row}->>'type_id' = ${typeId}`));
+  const rows: EquipmentTypeVersionRow[] = [];
+  for (const record of records) {
+    const parsed = equipmentTypeVersionRowSchema.safeParse(record.row);
+    if (parsed.success) rows.push(parsed.data);
+  }
+  return blockDefinitionIn(definitionContext(rows), block);
 }
 
 /**

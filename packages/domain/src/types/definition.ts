@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { criterionTypeSchema, type CriterionType } from '../seed/criteria.ts';
 import {
-  absoluteCriterionSchema,
+  absoluteCriterionShape,
+  checkAbsoluteCriterion,
   checkMeasurementDefinition,
+  checkMeasurementTest,
   choicePassCriterionSchema,
   configFieldSchema,
   equalsColumnCriterionSchema,
-  measurementTestSchema,
+  measurementTestShape,
   relativeToLowestCriterionSchema,
 } from '../seed/measurement.ts';
 import { checklistItemSchema, checkSeedV6Definition, fieldDefSchema, testDefSchema } from '../seed/schema.ts';
@@ -93,7 +95,7 @@ export const companyChecklistItemSchema = checklistItemSchema.extend({ key });
 export type CompanyChecklistItem = z.infer<typeof companyChecklistItemSchema>;
 
 /** A measurement absolute criterion of a company type: `seeded` names a row of the type's own criteria table. */
-const companyAbsoluteCriterionSchema = absoluteCriterionSchema.extend({ seeded: key.optional() });
+const companyAbsoluteCriterionSchema = z.object({ ...absoluteCriterionShape, seeded: key.optional() }).superRefine(checkAbsoluteCriterion);
 
 export const companyMeasurementCriterionSchema = z.discriminatedUnion('type', [
   companyAbsoluteCriterionSchema,
@@ -103,10 +105,9 @@ export const companyMeasurementCriterionSchema = z.discriminatedUnion('type', [
 ]);
 
 /** A measurement test of a company type: Story 14.5's grammar with a free key. */
-export const companyMeasurementTestSchema = measurementTestSchema.extend({
-  key,
-  criteria: z.array(companyMeasurementCriterionSchema).min(1),
-});
+export const companyMeasurementTestSchema = z
+  .object({ ...measurementTestShape, key, criteria: z.array(companyMeasurementCriterionSchema).min(1) })
+  .superRefine(checkMeasurementTest);
 export type CompanyMeasurementTest = z.infer<typeof companyMeasurementTestSchema>;
 
 /** The sub-block names a measurement test of a company type may not take (they are the sheet's own parts). */

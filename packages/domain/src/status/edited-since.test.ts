@@ -458,7 +458,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
     }
   });
 
-  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2), `location/checklist` (Story 14.3) and `sheet/test/value` (Story 14.5), and the never-edit `relatorio/removed_at` (fix batch fxrm): the twenty-three edit families and the twenty-three that never are', () => {
+  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2), `location/checklist` (Story 14.3) and `sheet/test/value` (Story 14.5), and the never-edit `relatorio/removed_at` (fix batch fxrm): the twenty-three edit families and the twenty-six that never are, the three equipment type families of Story 14.6 included', () => {
     expect([...EDITED_SINCE_FAMILIES].sort()).toEqual(
       [
         'block',
@@ -487,11 +487,15 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
       ].sort(),
     );
     expect(EDITED_SINCE_FAMILIES.size).toBe(23);
-    expect(NEVER_EDIT_FAMILIES.size).toBe(23);
+    // Story 14.6 (contract 33): the three equipment type families never count, as `template` never does.
+    expect(NEVER_EDIT_FAMILIES.size).toBe(26);
     expect([...NEVER_EDIT_FAMILIES.keys()].sort()).toEqual(
       [
         'audit_run',
         'audit_run/field',
+        'equipment_type',
+        'equipment_type/field',
+        'equipment_type_version',
         'equipment/last_nameplate',
         'file/server',
         'generation_job',

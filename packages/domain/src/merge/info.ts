@@ -6,7 +6,7 @@ import { safeParsePath, type OpPath } from '../ops/path.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
 import type { BlockRow, Cell, EquipmentRow, FileRow, LocationRow } from '../schemas/entities.ts';
-import { findDefinition, SEED_VERSION, siteItems } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, findDefinitionIn, SEED_VERSION, siteItems, type DefinitionContext } from '../seed/definitions.ts';
 import { canonicalJson } from '../text/hash.ts';
 import { isEmptyValue } from './policy.ts';
 import type { MergeRule } from './rules.ts';
@@ -182,7 +182,7 @@ export function pulledAdditions(previous: readonly Pick<Op, 'op_id'>[], pulled: 
 
 /** What the words of an entry are read from: the device's own rows. */
 export interface MergeInfoContext {
-  blocks: readonly (Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version'> & { location_id?: string | null })[];
+  blocks: readonly (Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version'> & { location_id?: string | null; config?: BlockRow['config'] })[];
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[];
   users: readonly { id: string; name: string }[];
   files: readonly FileRow[];
@@ -193,13 +193,15 @@ export interface MergeInfoContext {
   locations?: readonly { id: string; name: string }[];
   /** Story 14.3: the relatórios, for a site item's number under its own seed version; the current seed's numbering when omitted. */
   relatorios?: readonly { id: string; seed_version: string }[];
+  /** Story 14.6: the company's type versions, through which a company block's items and name resolve. */
+  definitions?: DefinitionContext;
 }
 
 /** The block as the sheet names it: its equipment's TAG, else its type's name. authored: "Relatório" off any block. */
-export function blockName(blockId: string | null, context: Pick<MergeInfoContext, 'blocks' | 'equipment'>): string {
+export function blockName(blockId: string | null, context: Pick<MergeInfoContext, 'blocks' | 'equipment' | 'definitions'>): string {
   const block = blockId === null ? undefined : context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return 'Relatório';
-  return equipmentBlockName(block, context.equipment);
+  return equipmentBlockName(block, context.equipment, context.definitions);
 }
 
 /**
@@ -208,18 +210,20 @@ export function blockName(blockId: string | null, context: Pick<MergeInfoContext
  * (`decisionBlockName`), which differ only in what they say for a block this device lacks.
  */
 export function equipmentBlockName(
-  block: Pick<BlockRow, 'equipment_id' | 'seed_version' | 'block_type'>,
+  block: Pick<BlockRow, 'equipment_id' | 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>,
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[],
+  /** Story 14.6: a company type is named by its version's label. */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
 ): string {
   const tag = block.equipment_id === null ? '' : (equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
-  return tag === '' ? blockTypeLabel(block.seed_version, block.block_type) : tag;
+  return tag === '' ? (blockDefinitionIn(ctx, block)?.label ?? blockTypeLabel(block.seed_version, block.block_type)) : tag;
 }
 
 /** The checklist item's number as the sheet shows it (1-based, the definition's order), or null. */
 function itemNumber(blockId: string | null, itemKey: string, context: MergeInfoContext): number | null {
   const block = blockId === null ? undefined : context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return null;
-  const index = findDefinition(block.seed_version, block.block_type)?.checklist?.findIndex((item) => item.key === itemKey) ?? -1;
+  const index = blockDefinitionIn(context.definitions ?? EMPTY_DEFINITION_CONTEXT, block)?.checklist?.findIndex((item) => item.key === itemKey) ?? -1;
   return index < 0 ? null : index + 1;
 }
 
@@ -370,7 +374,9 @@ function configDifferences(standing: unknown, overridden: unknown, blockId: stri
   const a = record(standing);
   const b = record(overridden);
   const blockType = typeof a.block_type === 'string' ? a.block_type : typeof b.block_type === 'string' ? b.block_type : (block?.block_type ?? '');
-  const definition = findDefinition(block?.seed_version ?? SEED_VERSION, blockType);
+  // Story 14.6: a company block's config names its version; the context resolves it.
+  const typeVersion = typeof a.type_version === 'number' ? a.type_version : typeof b.type_version === 'number' ? b.type_version : undefined;
+  const definition = findDefinitionIn(context.definitions ?? EMPTY_DEFINITION_CONTEXT, block?.seed_version ?? SEED_VERSION, blockType, typeVersion);
   const out: string[] = [];
   const push = (label: string) => {
     if (!out.includes(label)) out.push(label);

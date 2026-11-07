@@ -9,10 +9,8 @@ import {
   SUB_BLOCK_KEYS,
   type BlockConfig,
   type BlockTypeKey,
-  type EquipmentBlockType,
   type SectionBlockType,
   type SkeletonNode,
-  type SubBlockKey,
   type TemplateBlock,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';

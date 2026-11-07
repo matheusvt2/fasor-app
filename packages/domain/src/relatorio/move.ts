@@ -1,4 +1,4 @@
-import { isEquipmentBlockType } from '../schemas/block-config.ts';
+import { isEquipmentBlockType, isEquipmentKind } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { liveLocationIds } from './location-live.ts';
 import { blockTypeLabel, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
@@ -100,7 +100,8 @@ export function movePlan(input: {
   rename: boolean;
 }): MovePlan {
   const block = input.blocks.find((row) => row.id === input.blockId && row.removed_at === null);
-  if (block === undefined || block.location_id === null || !isEquipmentBlockType(block.block_type)) return { kind: 'refused', reason: 'gone' };
+  // Story 14.6: a company type's sheet moves as any other; its TAG is never renamed by the move (no prefix without its definition).
+  if (block === undefined || block.location_id === null || !isEquipmentKind(block.block_type)) return { kind: 'refused', reason: 'gone' };
   // Live by the tree's rule: a target removed, or under a removed location, is gone.
   const target = liveLocationIds(input.locations).has(input.targetId) ? input.locations.find((row) => row.id === input.targetId) : undefined;
   if (target === undefined) return { kind: 'refused', reason: 'location-gone' };

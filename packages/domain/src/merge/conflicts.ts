@@ -16,7 +16,7 @@ import { equipmentBlockName } from './info.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { relatorioOpEnvelope, type Author } from '../relatorio/ops.ts';
 import type { BlockRow, Cell, EquipmentRow, JsonValue, LocationRow } from '../schemas/entities.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { SyncDecisionRow } from '../sync/status.ts';
 import { plural } from '../text/plural.ts';
@@ -124,12 +124,15 @@ export interface OpenDecisionsInput {
   opOf: (opId: string) => OpFacts | undefined;
   /** The create op of one entity (`equipment:{id}`), from the same log. */
   createOpOf: (key: EntityKey) => OpFacts | undefined;
+  /** Story 14.6: the company's type versions, through which a company block's cells are named. */
+  definitions?: DefinitionContext;
 }
 
 // --- listing -----------------------------------------------------------------------------
 
-function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  return findDefinition(block.seed_version, block.block_type);
+/** A block's definition; Story 14.6: a company type's through the context (the device's type versions). */
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): BlockDefinition | null {
+  return blockDefinitionIn(ctx, block);
 }
 
 /** One side of a contradiction, named by the op whose value it shows (E10-Q2: `shown_op_id`, after the undo of "Aplicar"). */
@@ -256,8 +259,8 @@ function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | n
 }
 
 /** Every cell of a block holding a `conflict`, in the sheet's order, with its section and name. */
-function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = []): CellConflict[] {
-  const definition = definitionOf(block);
+function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = [], ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): CellConflict[] {
+  const definition = definitionOf(block, ctx);
   const out: CellConflict[] = [];
   const push = (path: OpPath, cell: Cell | undefined, section: string, label: string) => {
     if (cell?.conflict === undefined) return;
@@ -368,7 +371,7 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   for (const block of sorted) {
     // A removed block's cells are not decided: its sheet is out of the tree (and a put on it
     // would mark a removal conflict); its removal decision, if any, comes first.
-    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment) : [];
+    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment, input.definitions) : [];
     if (conflicts.length > 0) cells.push({ kind: 'cell', relatorio_id: input.relatorioId, block_id: block.id, cells: conflicts });
     const mark = block.removal_conflict;
     if (mark !== undefined && block.removed_at !== null) {
@@ -647,16 +650,22 @@ const CONCLUSION_WORDS: Readonly<Record<string, string>> = {
  * Story 14.5: a measurement test's cell or value as its sheet shows it, a choice by its option's
  * label ("Botão de teste", never the stored key); null for any other path or a seeded test.
  */
-function measurementValueText(path: string, value: unknown, block: Pick<BlockRow, 'seed_version' | 'block_type'>): string | null {
+function measurementValueText(path: string, value: unknown, block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, ctx: DefinitionContext): string | null {
   const parsed = safeParsePath(path);
   if (parsed === null) return null;
-  if (parsed.family === 'sheet/test/cell') return measurementStoredText(definitionOf(block), parsed.test_key, { row: parsed.row, col: parsed.col }, value);
-  if (parsed.family === 'sheet/test/value') return measurementStoredText(definitionOf(block), parsed.test_key, { valueKey: parsed.value_key }, value);
+  if (parsed.family === 'sheet/test/cell') return measurementStoredText(definitionOf(block, ctx), parsed.test_key, { row: parsed.row, col: parsed.col }, value);
+  if (parsed.family === 'sheet/test/value') return measurementStoredText(definitionOf(block, ctx), parsed.test_key, { valueKey: parsed.value_key }, value);
   return null;
 }
 
 /** A side's value as the sheet displays it ("3.300 MΩ", "Conforme", "Aprovado", a choice's label, "N/A"); "—" when empty. */
-export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unknown, block?: Pick<BlockRow, 'seed_version' | 'block_type'>): string {
+export function conflictValueText(
+  cell: Pick<CellConflict, 'path'>,
+  value: unknown,
+  block?: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>,
+  /** Story 14.6: the company's type versions, for a company block's fields. */
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };
@@ -664,7 +673,7 @@ export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unkno
     if (number.state === 'not_measured') return '-';
     // Story 16.4: read before the measurement path, which would print the empty raw.
     if (number.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
-    const measurement = block === undefined ? null : measurementValueText(cell.path, value, block);
+    const measurement = block === undefined ? null : measurementValueText(cell.path, value, block, ctx);
     if (measurement !== null) return measurement;
     const unit = typeof number.unit === 'string' && number.unit !== '' ? ` ${number.unit}` : '';
     return `${formatDecimalGroupedPtBr(number.raw)}${unit}`;
@@ -674,7 +683,7 @@ export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unkno
     if (cell.path.includes('/conclusion/')) return CONCLUSION_WORDS[value] ?? value;
     if (cell.path.includes('/nameplate/') && block !== undefined) {
       const key = cell.path.split('/').at(-1)!;
-      const field = definitionOf(block)?.nameplate.find((row) => row.key === key);
+      const field = definitionOf(block, ctx)?.nameplate.find((row) => row.key === key);
       if (field !== undefined) return fieldValueText(field, value) || '—';
     }
     return value.trim() === '' ? '—' : value;

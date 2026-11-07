@@ -17,6 +17,7 @@ import {
   type BlockRow,
   type DownloadTotals,
   type EntityKey,
+  type EntityRow,
   type EquipmentRow,
   type FileRow,
   type LocationRow,
@@ -30,6 +31,7 @@ import {
   type UserRow,
 } from '@app/domain';
 import { byClientTsThenOpId, opOf, toRecord } from './commit.ts';
+import { allTypeVersionState } from './type-store.ts';
 import {
   COMPANY_STREAM,
   DEVICE_ID_PREF,
@@ -126,7 +128,15 @@ const bySeq = (a: RemoteOpRow, b: RemoteOpRow) => a.seq - b.seq;
  */
 export async function rematerialize(db: AppDatabase, keys: readonly string[]): Promise<void> {
   const run = async () => {
-    for (const key of keys) {
+    // Story 14.6: a company block's ops fold with its type's published versions (this device's,
+    // which the company stream brings before any relatório stream, AD-24), on the block and on
+    // every other row its ops name (its location). They are read once, kept current as this run
+    // rewrites a version row (the version keys go first), and read beside an op only when it
+    // meets a company type (`withDefinitionRows`).
+    const held: { context: Map<EntityKey, EntityRow> | null } = { context: null };
+    const contextFor = async () => (held.context ??= await allTypeVersionState(db));
+    const ordered = [...keys.filter((key) => key.startsWith('equipment_type_version:')), ...keys.filter((key) => !key.startsWith('equipment_type_version:'))];
+    for (const key of ordered) {
       const ref = splitEntityKey(key as EntityKey);
       const [remote, local] = await Promise.all([
         db.remote_ops.where('targets').equals(key).toArray(),
@@ -142,9 +152,14 @@ export async function rematerialize(db: AppDatabase, keys: readonly string[]): P
         ref,
         remote.sort(bySeq),
         live.filter((_, i) => pulled[i] === undefined).map(opOf),
+        await contextFor(),
       );
       if (row === null) await db.entities.delete([ref.entity, ref.id]);
       else await db.entities.put(toRecord(key as EntityKey, row));
+      if (ref.entity === 'equipment_type_version' && held.context !== null) {
+        if (row === null) held.context.delete(key as EntityKey);
+        else held.context.set(key as EntityKey, row);
+      }
     }
   };
   // Dexie reuses the ambient transaction when there is one; otherwise this opens its own.

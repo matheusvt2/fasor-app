@@ -7,7 +7,7 @@ import {
   tagVerdict,
   takesBlocks,
   type BlockRow,
-  type EquipmentBlockType,
+  type BlockTypeKey,
   type EquipmentRow,
   type LocationRow,
   type PaletteItem,
@@ -61,7 +61,7 @@ export interface PanelPhotoInput {
 
 /** One creation the palette asks for: `tag` null means the suggestion, computed again when written. */
 export interface PaletteCreate {
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
   locationId: string;
   anchorBlockId: string | null;
   tag: string | null;
@@ -113,7 +113,7 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
   }, []);
   // A painel takes no block: the palette opens on a local or a coluna only (kernel `paletteLocationFor`).
   const location = locations.filter(takesBlocks).find((row) => row.id === target.locationId) ?? null;
-  const [openType, setOpenType] = useState<EquipmentBlockType | null>(null);
+  const [openType, setOpenType] = useState<BlockTypeKey | null>(null);
   if (location === null) return null;
   const items = paletteItems(seedVersion, location, equipment);
   const seeded = items.filter((item) => !item.library);

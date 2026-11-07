@@ -87,7 +87,7 @@ export function duplicateSeededType(seedVersion: string, blockType: EquipmentBlo
     noun: seededTypeNoun(blockType),
     nameplate: seed.nameplate,
     checklist: seed.checklist,
-    tests: seed.tests.map(({ criterion: _criterion, ...test }) => test),
+    tests: seed.tests,
     ...(seed.measurement_tests === undefined ? {} : { measurement_tests: seed.measurement_tests as CompanyTypeDefinition['measurement_tests'] }),
     ...(seed.config_fields === undefined ? {} : { config_fields: seed.config_fields }),
     criteria: keys.map(materialized),

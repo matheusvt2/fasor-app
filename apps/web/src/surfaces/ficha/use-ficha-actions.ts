@@ -152,7 +152,12 @@ export function useFichaActions({
         const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
         if (fresh === undefined || fresh.concluded_by !== null || fresh.not_tested !== null) return null;
         // e22f N2: as the conclude leaves the sheet, the floor filling an unset half.
-        const freshProgress = sheetProgress({ blocks, locations: rows.locations, equipment: rows.equipment, relatorio }, blockId, { floorFills: true });
+        // Story 14.6: a company sheet's definition comes from the snapshot's type versions (immutable rows).
+        const freshProgress = sheetProgress(
+          { blocks, locations: rows.locations, equipment: rows.equipment, relatorio, ...(snapshot.equipment_types === undefined ? {} : { equipment_types: snapshot.equipment_types }) },
+          blockId,
+          { floorFills: true },
+        );
         if (!freshProgress.complete) {
           // e21g D7: the kernel's landing (the LIGAÇÃO SECUNDÁRIA field when the group is all Ensaios misses).
           firstMissing = sheetJumpTarget(freshProgress) ?? { step: 'placa', fieldKey: null };
@@ -162,7 +167,7 @@ export function useFichaActions({
         // (`useProjectEquipment`, the same source as Story 5.8's "Confirmar"), '' when none.
         const tag = fresh.equipment_id === null ? '' : (rows.equipment.find((row) => row.id === fresh.equipment_id)?.tag ?? '');
         const text = conclusionTextOnConclude(fresh, definition, tag);
-        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh) : null;
+        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh, definition) : null;
         return [
           ...suggestedInstruments({ blocks, instruments }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
           ...(pair !== null && pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),

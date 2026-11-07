@@ -1,5 +1,4 @@
 import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
-import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, JsonValue } from '../schemas/entities.ts';
 import { formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type {
@@ -88,7 +87,7 @@ export function blockConfigWithOption(config: unknown, fieldKey: string, optionK
  * The block's config with one sub-block switched: the value of the `block/{id}/config` put a
  * measurement test's switch writes (`sub_blocks[key].enabled`). Every other key is kept.
  */
-export function blockConfigWithSubBlock(config: unknown, key: SubBlockKey, enabled: boolean): JsonValue {
+export function blockConfigWithSubBlock(config: unknown, key: string, enabled: boolean): JsonValue {
   const base = record(config);
   const subBlocks = record(base.sub_blocks);
   return { ...base, sub_blocks: { ...subBlocks, [key]: { ...record(subBlocks[key]), enabled } } } as JsonValue;
