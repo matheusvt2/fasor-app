@@ -108,9 +108,21 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   const isoValue = panel.getByRole('textbox', { name: 'Limite de medição (Isolação) — Valor' });
   await isoValue.scrollIntoViewIfNeeded();
   await isoValue.fill('2');
-  await panel.getByRole('textbox', { name: 'Limite de medição (Isolação) — Unidade' }).fill('TΩ');
+  // e22g (review S1): the units as a keyboard types them, "T" and "uΩ", are committed as the Ω table's TΩ and µΩ; a unit
+  // the cells cannot read shows Cadastros' helper until it is corrected.
+  const isoUnit = panel.getByRole('textbox', { name: 'Limite de medição (Isolação) — Unidade' });
+  await isoUnit.fill('T');
+  await isoUnit.blur();
+  await expect(isoUnit).toHaveValue('TΩ');
   await panel.getByRole('textbox', { name: 'Limite de medição (Resistência de contato) — Valor' }).fill('2.000');
-  await panel.getByRole('textbox', { name: 'Limite de medição (Resistência de contato) — Unidade' }).fill('µΩ');
+  const contactUnit = panel.getByRole('textbox', { name: 'Limite de medição (Resistência de contato) — Unidade' });
+  const unreadable = panel.getByText('Unidade não reconhecida: use µΩ, mΩ, Ω, kΩ, MΩ, GΩ ou TΩ (ex.: 2 e TΩ).');
+  await contactUnit.fill('ohm?');
+  await expect(unreadable).toBeVisible();
+  await contactUnit.fill('uΩ');
+  await expect(unreadable).toHaveCount(0);
+  await contactUnit.blur();
+  await expect(contactUnit).toHaveValue('µΩ');
   await panel.getByRole('button', { name: 'Fechar edição' }).click();
   await expect.poll(async () => (await written(page, `registry/instrument/${megId}/range_isolacao`)).at(-1)).toEqual({ raw: '2', unit: 'TΩ' });
   await expect.poll(async () => (await written(page, `registry/instrument/${megId}/range_resistencia_contato`)).at(-1)).toEqual({ raw: '2.000', unit: 'µΩ' });
@@ -133,8 +145,10 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   await expect(cellBox(page, 'isolacao:0:0').locator('.mf-helper')).toHaveCount(0);
   // A second reading in GΩ, so the printed VALORES carries no single unit and the limit prints with its own.
   await expect(cellInput(page, 'T3, Valor')).toBeFocused();
-  // The slot follows the row above (Story 5.5 AC 2, TΩ here): the suffix sets GΩ.
-  await page.keyboard.type('150G');
+  // e22g (review S2): the slot never follows a row above the limit (the instrument's TΩ): it shows the column's GΩ, so
+  // the plain "150" typed after "OL" is stored in GΩ, not 1000 times off.
+  await expect(cellBox(page, 'isolacao:1:0').locator('.unit-cycle')).toHaveAccessibleName('gigaohms, toque para alternar');
+  await page.keyboard.type('150');
   await page.keyboard.press('Enter');
   await expect.poll(() => written(page, `sheet/${chave.blockId}/test/isolacao/cell/1/0`)).toEqual([{ raw: '150', unit: 'GΩ', state: 'measured' }]);
 

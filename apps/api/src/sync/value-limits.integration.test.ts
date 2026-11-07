@@ -252,6 +252,19 @@ describe('e20f: an open-shaped value is bounded whole', () => {
     expect(after?.config).toEqual(before!.config);
   });
 
+  it('e22g (review S4): a nameplate number put in the over_range state is refused op_value_invalid and never logged; the same number measured applies', async () => {
+    const { relatorioId, blocks } = await h.seedRelatorio(companyA);
+    const sheet = blocks.find((candidate) => findDefinition(SEED_VERSION, candidate.blockType)?.nameplate.some((f) => f.kind === 'number'))!;
+    const field = findDefinition(SEED_VERSION, sheet.blockType)!.nameplate.find((f) => f.kind === 'number')!.key;
+    const cell = (state: string) => h.clientOp(companyA, { kind: 'put', path: `sheet/${sheet.id}/nameplate/${field}`, relatorio_id: relatorioId, value: { raw: '13.8', unit: 'kV', state } });
+    const over = cell('over_range');
+    expect((await h.push(companyA, [over])).rejected).toEqual([{ op_id: over.op_id, code: 'op_value_invalid' }]);
+    expect(await h.logged(over.op_id)).toBe(false);
+    expect((await h.rowOf<NameplateRowLike>(companyA, 'block', sheet.id))?.sheet.nameplate[field]).toBeUndefined();
+    expect((await h.push(companyA, [cell('measured')])).rejected).toEqual([]);
+    expect((await h.rowOf<NameplateRowLike>(companyA, 'block', sheet.id))?.sheet.nameplate[field]?.value).toEqual({ raw: '13.8', unit: 'kV', state: 'measured' });
+  });
+
   it('a nameplate cell at exactly the byte and count caps applies; one item or one byte more is refused', async () => {
     const { relatorioId, blocks } = await h.seedRelatorio(companyA);
     const { block, field } = nameplateOf(blocks);

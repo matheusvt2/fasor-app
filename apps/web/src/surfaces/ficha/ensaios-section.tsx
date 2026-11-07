@@ -8,6 +8,7 @@ import {
   readingAddressKey,
   measurementRunEnterKeyHint,
   measurementCellName,
+  readingRowLabel,
   measurementRunTarget,
   runEnterKeyHint,
   runTarget,
@@ -371,14 +372,16 @@ function MeasurementTable({
   // The cell the dictated reading is drawn on (held only while that cell is empty).
   const dictatedCell = dictated?.address ?? null;
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
+  // e22g (review N7): the row's name, its second connection joined where another row starts the same (the transformer's two PRIMÁRIO rows).
+  const rowName = (row: EvaluatedRow) => screenLabel(readingRowLabel(table.rows, row));
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
-      <ReadOnlyMeasurementField cell={cell} label={measurementCellName(screenLabel(row.label), screenLabel(cell.column))} />
+      <ReadOnlyMeasurementField cell={cell} label={measurementCellName(rowName(row), screenLabel(cell.column))} />
     ) : sameAddress(dictatedCell, cell.address) && dictated !== null ? (
       <DictatedMeasurementField
         api={api}
         cell={cell}
-        label={measurementCellName(screenLabel(row.label), screenLabel(cell.column))}
+        label={measurementCellName(rowName(row), screenLabel(cell.column))}
         reading={dictated}
         onDone={() => setDictated(null)}
         onRun={onRun}
@@ -388,7 +391,7 @@ function MeasurementTable({
         model={display}
         api={api}
         cell={cell}
-        label={measurementCellName(screenLabel(row.label), screenLabel(cell.column))}
+        label={measurementCellName(rowName(row), screenLabel(cell.column))}
         presentation={presentation}
         missing={sameAddress(firstMissing, cell.address)}
         onRun={onRun}
@@ -460,7 +463,7 @@ function MeasurementTable({
                 ))}
                 {voltageColumn === null || row.voltage === null ? null : (
                   <td className="cell-voltage">
-                    <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(screenLabel(row.label), voltageColumn.header)} readOnly={readOnly} />
+                    <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} />
                   </td>
                 )}
                 {table.columns.map((column) => {
@@ -490,7 +493,7 @@ function MeasurementTable({
                           <span className="field-label" aria-hidden="true">
                             {voltageColumn.header}
                           </span>
-                          <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(screenLabel(row.label), voltageColumn.header)} readOnly={readOnly} stacked />
+                          <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} stacked />
                         </div>
                       ) : null}
                       {cell === undefined ? null : field(row, cell, 'table')}

@@ -12,9 +12,16 @@ import { testParameterVolts } from './test-voltage.ts';
  * row of a v12 insulation table carries its own test voltage, a `voltage` column of its table
  * (`seed/v12.ts`), typed through the existing cell put (`sheet/{b}/test/{t}/cell/{row}/{col}`,
  * `{raw, unit: 'kV', state: 'measured'}`). A row's effective voltage is the typed cell, else the
- * row's seeded default (the transformer's SECUNDÁRIO/MASSA starts at 1 kV), else the instrument
- * header's TENSÃO ENSAIO when it is one of the options, else none ("-"). It is never missing and
- * never judged: the criterion stays the test's for every row.
+ * row's seeded default (the transformer's SECUNDÁRIO/MASSA starts at 1 kV), else the default its
+ * winding's rating gives (`ratingDefaultKv`), else the instrument header's TENSÃO ENSAIO when it
+ * is one of the options, else none ("-"). It is never missing and never judged: the criterion
+ * stays the test's for every row.
+ *
+ * 2026-11-07, e22g (Bruno's test base rev03, his answer to the coordinator's reading of Story
+ * 22.8): a row with no seeded default whose winding is rated above 600 V starts at 2,5 kV up to
+ * 5000 V and at 5 kV above (the transformer's PRIMÁRIO/MASSA and PRIMÁRIO/SECUNDÁRIO from TENSÃO
+ * NOMINAL AT); a rating at most 600 V, empty or unreadable gives no default, and the instrument's
+ * TENSÃO ENSAIO applies as before. The SECUNDÁRIO/MASSA row keeps its seeded 1 kV.
  *
  * The notice (OQ-1, Bruno's words read over the DoR's 500 V band, listed in the PR): a row whose
  * winding (`voltage_rows[].winding`, a nameplate number field) is rated at most 1000 V warns when
@@ -127,6 +134,23 @@ export function rowVoltageNotice(block: Pick<BlockRow, 'sheet'>, winding: string
   return `Tensão de ensaio acima do suportado pelo enrolamento ${readingLabelText(linha)} (${ratingText(cell)}): use 0,5 ou 1 kV.`;
 }
 
+/** The rating, in V, above which a winding's rows start at 2,5 kV (e22g, Bruno's test base rev03). */
+const RATING_BAND_LOW_V = 600;
+/** The rating, in V, above which they start at 5 kV. */
+const RATING_BAND_HIGH_V = 5000;
+
+/**
+ * e22g: the default test voltage, in kV (dot-decimal), the winding `winding` names gives its row:
+ * "2.5" for a rating above 600 V up to 5000 V, "5" above 5000 V; null with no winding, a rating at
+ * most 600 V, or one empty or unparsable (the instrument's TENSÃO ENSAIO then applies).
+ */
+export function ratingDefaultKv(block: Pick<BlockRow, 'sheet'>, winding: string | null): string | null {
+  if (winding === null) return null;
+  const rated = ratedVolts(block.sheet.nameplate[winding]?.value);
+  if (rated === null || rated <= RATING_BAND_LOW_V) return null;
+  return rated <= RATING_BAND_HIGH_V ? '2.5' : '5';
+}
+
 /**
  * The test voltage of `row` (counted across the test's tables, the cell put's `row`): null when
  * its table has no voltage column (every table of v1 to v11); else the effective voltage, its
@@ -139,7 +163,7 @@ export function rowTestVoltage(block: Pick<BlockRow, 'sheet'>, test: TestDef, ro
   if (col === -1) return null;
   const seeded = home.table.voltage_rows?.[home.r] ?? { default_kv: null, winding: null };
   const typed = typedKv(block.sheet.test[test.key]?.cells[String(row)]?.[String(col)]?.value);
-  const fallback = seeded.default_kv ?? instrumentKv(block, test);
+  const fallback = seeded.default_kv ?? ratingDefaultKv(block, seeded.winding) ?? instrumentKv(block, test);
   const kv = typed ?? fallback;
   const source: RowVoltageSource | null = typed !== null ? 'typed' : fallback !== null ? 'default' : null;
   const linha = home.table.rows[home.r]?.[0] ?? '';

@@ -6,7 +6,7 @@ import {
   numberEchoText,
   overRangeDisplay,
   overRangeEchoText,
-  overRangeNoRangeText,
+  overRangeMissingLimitText,
   parseMeasurementReadingPtBr,
   rangeInUnits,
   refusedMeasurementKind,
@@ -103,11 +103,15 @@ function focusAfterMenu(input: HTMLInputElement | null): void {
   requestAnimationFrame(tick);
 }
 
-/** Story 22.12: the previous visit's line under a cell, neutral (the outlier tone, never amber nor a live region). */
+/**
+ * Story 22.12: the previous visit's line under a cell, never a live region. e22g (review S3): in
+ * the neutral tone of a field helper (`app.css` mirrors `.helper`), not the out-of-limit colour
+ * every `.mf-helper` tone of `components.css` draws in.
+ */
 function PreviousLine({ text }: { text: string | null }) {
   if (text === null) return null;
   return (
-    <div className="mf-helper" data-tone="outlier" data-previous="">
+    <div className="mf-helper" data-tone="previous" data-previous="">
       {text}
     </div>
   );
@@ -280,7 +284,7 @@ export function MeasurementField<Address extends FieldAddress>({
   };
 
   const outlier = cell.outlier ?? null;
-  const hint = limitHint && !number.invalid && number.text.trim().startsWith('>') ? overRangeNoRangeText(slotUnit ?? cell.units[0] ?? null) : null;
+  const hint = limitHint && !number.invalid && number.text.trim().startsWith('>') ? overRangeMissingLimitText(range, cell.units, slotUnit) : null;
   const describedBy =
     [number.echo === null ? null : echoId, number.invalid || hint !== null || (!number.focused && (cell.helperText !== null || outlier !== null)) ? helperId : null].filter(Boolean).join(' ') ||
     undefined;

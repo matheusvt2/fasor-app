@@ -21,7 +21,7 @@ import {
   OVER_RANGE_ALLOWED,
   OVER_RANGE_COMPARED_REFUSAL,
   overRangeDisplay,
-  overRangeNoRangeText,
+  overRangeMissingLimitText,
   overRangeVerdict,
   rangeInUnits,
   type InstrumentRange,
@@ -831,7 +831,8 @@ export function overRangeRefusal(text: string, cell: ReadingCellInput, defaultUn
   if (over === null) return null;
   if (cell.overRange !== undefined && !cell.overRange.allowed) return cell.overRange.refusal === '' ? null : cell.overRange.refusal;
   if (over === 'invalid' || over.kind === 'limit') return null;
-  return rangeInUnits(range, cell.units, defaultUnit) === null ? overRangeNoRangeText(defaultUnit ?? cell.units[0] ?? null) : null;
+  // e22g (review S1): a limit set in a unit the cell cannot read says so, not "sem limite cadastrado".
+  return rangeInUnits(range, cell.units, defaultUnit) === null ? overRangeMissingLimitText(range, cell.units, defaultUnit) : null;
 }
 
 /**

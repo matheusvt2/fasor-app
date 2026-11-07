@@ -902,7 +902,9 @@ export function withPreviousColumn(printed: PrintTable, texts: readonly string[]
     data += 1;
     return { ...row, cells: [...row.cells, valueCell(text)] };
   });
-  const { textHalfPoints: _unfitted, ...kept } = printed;
+  // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
+  const kept: PrintTable = { ...printed };
+  delete kept.textHalfPoints;
   return { ...kept, ...fittedColumns(rows, width + 1), rows };
 }
 

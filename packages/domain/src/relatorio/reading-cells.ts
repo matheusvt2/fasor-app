@@ -218,6 +218,19 @@ export function measurementCellName(rowLabel: string, column: string): string {
   return rowLabel.trim() === '' ? column : `${rowLabel}, ${column}`;
 }
 
+/**
+ * e22g (review N7): the label a row's cells are named by: its first connection ("Primário"), and
+ * where another row of the same table starts with the same one, the second joined to it
+ * ("Primário/Massa", "Primário/Secundário"), so the transformer's two PRIMÁRIO rows never share
+ * an accessible name. A label no other row repeats stays as it is.
+ */
+export function readingRowLabel(rows: readonly { label: string; connection: readonly string[] }[], row: { label: string; connection: readonly string[] }): string {
+  if (row.label.trim() === '') return row.label;
+  const second = row.connection[1]?.trim() ?? '';
+  const repeated = rows.some((other) => other !== row && other.label === row.label);
+  return repeated && second !== '' ? `${row.label}/${second}` : row.label;
+}
+
 /** The Measurement table's column headers where FO.SERV-03's own label reads badly on screen (`60-ficha.html`). */
 const HEADER_TEXT: Readonly<Record<string, string>> = {
   VALORES: 'Valor',

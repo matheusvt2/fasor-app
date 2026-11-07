@@ -1932,7 +1932,8 @@ describe('seed v11 (Story 21.1): v10 with the transformador de força\'s vector 
 const V11_HASH = 'abf0ca496d8883659a1fc2379212e7363c35e55eb2aa9e676c1b28d58d46eb33';
 
 /** v12 as it ships (Stories 22.7 to 22.9 and 22.11); a change to it after the deploy is a new version. */
-const V12_HASH = '2b855b38fae446757e098fd882f0c8a6e23ce332de72789a4067c9f75f98c2e1';
+// e22g (2026-11-07, before v12's first deploy): Bruno's test base rev03 (the TP's 3P and 6P) and review N3 (the inspection's title).
+const V12_HASH = '62b2d734e2e706be6a1f5add592260ccce2cbe2dffe439d1b9755a7fe66e0649';
 
 describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, the TP on the TC list, the defect reason, a voltage per insulation row, the accuracy class and the Inspeção de QGBT', () => {
   const v11 = getSeed('v11', 'cabine_primaria');
@@ -1999,7 +2000,8 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
     tp.subtypes = structuredClone(v11.blocks.tp.subtypes);
     expect(tp.oil_rule!.items).toEqual(['vasamento']);
     tp.oil_rule!.items = [...v11.blocks.tp.oil_rule!.items];
-    expect(tp.nameplate.at(-1)).toEqual({ key: 'exatidao', label: 'EXATIDÃO', kind: 'select', options: ['0,3', '0,6', '1,2'] });
+    // e22g (Bruno's test base rev03, 2026-11-07): the TP gains 3P and 6P.
+    expect(tp.nameplate.at(-1)).toEqual({ key: 'exatidao', label: 'EXATIDÃO', kind: 'select', options: ['0,3', '0,6', '1,2', '3P', '6P'] });
     tp.nameplate.pop();
     // Story 22.9: the TC's EXATIDÃO select.
     const tc = blocks.tc!;
@@ -2072,19 +2074,20 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
 
   it('EXATIDÃO is a select on the TC and the TP, both ratio tests read it; the transformer has no class field', () => {
     expect(field('v12', 'tc', 'exatidao')!.options).toEqual(['0,3', '0,6', '1,2', '3', '5P', '10P']);
-    expect(field('v12', 'tp', 'exatidao')!.options).toEqual(['0,3', '0,6', '1,2']);
+    expect(field('v12', 'tp', 'exatidao')!.options).toEqual(['0,3', '0,6', '1,2', '3P', '6P']);
     expect(field('v11', 'tc', 'exatidao')!.kind).toBe('text');
     expect(field('v11', 'tp', 'exatidao')).toBeUndefined();
     for (const type of ['tc', 'tp']) expect(at('v12', type).tests.find((one) => one.key === 'relacao_transformacao')!.criterion_class_field, type).toBe('exatidao');
     expect(at('v12', 'transformador_forca').tests.find((one) => one.key === 'relacao_transformacao')!.criterion_class_field).toBeUndefined();
   });
 
-  it("the Inspeção de QGBT: four fields, the quadro's ten visual items, no tests, observations and conclusion, printed as the QGBT/QD's", () => {
+  it('the Inspeção de QGBT: four fields, the quadro\'s ten visual items, no tests, observations and conclusion, printed as INSPEÇÃO DE QGBT (e22g N3)', () => {
     const qgbt = at('v12', 'inspecao_qgbt');
     const quadro = at('v12', 'quadro_eletrico');
     expect(qgbt.label).toBe('Inspeção de QGBT');
     expect(isLibraryType('v12', 'inspecao_qgbt')).toBe(true);
-    expect(qgbt.print_title).toBe("QGBT/QD's");
+    expect(qgbt.print_title).toBe('INSPEÇÃO DE QGBT');
+    expect(quadro.print_title).toBe("QGBT/QD's");
     expect(qgbt.nameplate.map((one) => one.label)).toEqual(['IDENTIFICAÇÃO', 'FABRICANTE', 'TENSÃO NOMINAL', 'CORRENTE NOMINAL']);
     for (const key of ['identificacao', 'fabricante', 'tensao_nominal']) expect(qgbt.nameplate.find((one) => one.key === key), key).toEqual(quadro.nameplate.find((one) => one.key === key));
     expect(qgbt.nameplate.find((one) => one.key === 'corrente_nominal')).toEqual({ key: 'corrente_nominal', label: 'CORRENTE NOMINAL', kind: 'number', unit: 'A' });

@@ -3074,9 +3074,11 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Story 22.10)
   summary: A display-reading suggestion typed over (`read-display.tsx` `SuggestedCell`, `parseReadingPtBr`) still refuses ">"/"OL": only the Measurement field and the dictated cell take a limit. A plate or display reading never proposes one (the spec's Never). The instrument limit's unit is kept as typed in Cadastros: "TΩ" or "µΩ" works, a bare "T" finds no unit and "OL" then says there is no limit.
   evidence: `apps/web/src/surfaces/ficha/read-display.tsx` line 210; `relatorio/instrument-pick.ts` `instrumentRangeOf`.
+  state: the unit half resolved (2026-11-07, fix batch e22g, review S1): `normalizeOhmUnit` reads "T", "TOhm", "uΩ", "μΩ" and the spelled prefixes as the Ω table's keys, on read and on Cadastros' commit; a unit it cannot read makes "OL" say so, and Cadastros shows a helper. The display-reading half stays as written.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Story 22.12)
   summary: MANUT. ANTERIOR is decided per sheet: when its equipment has a previous value from another relatório, every reading table of the sheet gets the column, a test with nothing from that visit printing "-" on each row. The merge after e22s re-runs `section-9.test.ts`, `last-results.test.ts` and `previous-visit.spec.ts` on a v12 relatório (e22s owns the insulation table's columns; `withPreviousColumn` appends after them).
   evidence: `packages/domain/src/print/section-9.ts` `withPreviousColumn`, `previousReadingsOf`.
+  state: resolved (2026-11-07, fix batch e22g, review N1): MANUT. ANTERIOR is decided per table, the two halves of a side-by-side pair together.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Review Triage Log, Edge Case Hunter, unverified medium)
   summary: Re-issuing an older relatório X after a newer relatório Y of the same equipment was issued makes X the top `last_results` entry with Y as its prior: X's sheet and MANUT. ANTERIOR would show Y's later values as "previous", and a later relatório Z would read X's older values. The chain is ordered by issue, not by the visit's service date. Settled by ordering the chain by the visit's service date in `lastResults`.
   evidence: `packages/domain/src/print/last-results.ts` `lastResults`, `previousResultsFor`.
@@ -3109,7 +3111,7 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
   summary: The TC's default fake plate prints EXATIDÃO "10B100" (an ANSI class); on v12 the parser reads "10", not an option of the select, so the plate reading drops that field (`invalid_shape`) where v11 stored the text.
   evidence: `apps/api/src/jobs/reading/fixtures/92d3a9fb2cdc8ae0cf174211fe614107cb03edd31093dd126be275d53d7e2ecb.json`.
   class: decision
-  state: open (owner: the Epic 22 wave B integrated review)
+  state: resolved (2026-11-07, fix batch e22g, Bruno's test base rev03 item 8c): "10B100" is the old NBR protection notation and now reads as "10P", an option of the v12 TC select.
 
 ## Deferred from: Epic 22 fix batch e22f (2026-11-06)
 
@@ -3122,3 +3124,11 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N7)
   summary: Section 10 replaces the fixed reference "nos itens 8 e 9" only when it sits whole inside one rich run; a template's own Conclusão text that styles part of the phrase (a bold "8 e 9") keeps the literal numbers. Owner: the next batch touching `print/section-10.ts`, joining the runs before the replacement.
   evidence: `packages/domain/src/print/section-10.ts` `positioned`; review N7.
+
+## Deferred from: Epic 22 fix batch e22g (2026-11-07)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22g-wave-b-fixes.md` (review S5; the E21-A4 P-3 row above, "a test red under load in two gates")
+  summary: R8LAY-E2E-001's "title row top -33" red, measured: two runs of `--repeat-each 10` under the host lock (load 4.6 to 13) went red 2 and 6 times, every red at the same -33,03 px. The timeline logged every scroll, focus, key and resize: the page kept its scroll through every `setViewportSize`, blur and focus, in all 20 runs, so neither the review's settle-window hypothesis nor its helper-line one holds. The red is decided at 1280, before any resize: the Enter run's last `primary.focus()` ("Próxima ficha" in the Sticky action bar) scrolls the page by the same 399 px from wherever it stands, and it stands 200 px apart depending on whether the focus scroll of the last capture (a 19 px helper line appearing as the focus moves) ran first. The test now puts the title row 120 px under the viewport's top and waits for two still frames before its "a focus that arrives now" check; `--repeat-each 10` went 10 of 10. The app side the review suggested (`useFocusedClearOfStickyBar` ignoring a viewport resize) was not taken: no resize scrolled in 20 runs, so nothing proves it. Open: whether the Enter run's end should focus the Sticky action bar's primary with `preventScroll` (the bar is always on screen), which would make the page's place after a run deterministic; a UX question for Matheus.
+  evidence: `.scratch-e22g/r8lay-run1.log`, `r8lay-run2.log` (the batch worktree, ignored); `e2e/review-layout-interaction-2026-10-08.spec.ts` `expectTableWhole`; `apps/web/src/surfaces/ficha/ensaios-section.tsx` (the run's `primary?.focus()`).
+  class: decision
+  state: open (owner: Matheus)

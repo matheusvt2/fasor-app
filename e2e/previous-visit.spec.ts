@@ -105,6 +105,20 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   const helper = cell.locator('.mf-helper[data-previous]');
   await expect(helper).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${formatDateOfInstant(last.issued_at)})`);
   await expect(helper).not.toHaveAttribute('role');
+  // e22g (review S3): the line is drawn in the field helper's neutral colour, never the out-of-limit one.
+  const tone = await helper.evaluate((el) => {
+    const probe = (token: string) => {
+      const span = document.createElement('span');
+      span.style.color = `var(${token})`;
+      el.parentElement!.appendChild(span);
+      const colour = getComputedStyle(span).color;
+      span.remove();
+      return colour;
+    };
+    return { actual: getComputedStyle(el).color, neutral: probe('--ink-secondary'), outOfLimit: probe('--fora-do-limite') };
+  });
+  expect(tone.actual).toBe(tone.neutral);
+  expect(tone.actual).not.toBe(tone.outOfLimit);
   await expect(cell.locator('input.mf-value')).toHaveValue('');
   // The other rows of the table have no previous value, so no line.
   await expect(page.locator('section[data-test-key="isolacao"] .mf-helper[data-previous]')).toHaveCount(1);
