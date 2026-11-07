@@ -2,9 +2,9 @@
 title: 'e22f: Epic 22 wave A fixes, the floor''s gate reds and the integrated review'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'b883c587'
-review_loop_iteration: 0
+review_loop_iteration: 1
 followup_review_recommended: false
 dev_model: opus
 dev_effort: high
@@ -110,4 +110,18 @@ layout change.
 
 ## Spec Change Log
 
+- 2026-11-06, review loop (edge-case E-4, E-5): S5 narrowed to "no Apto without a judged sheet" (a stricter derived
+  verdict stands as a floor); `printedConclusionPair` is the chosen pair on a concluded sheet too (a pair cleared
+  after the conclude prints no mark, as its header counts it missing); the per-snapshot memo of task 10 not taken.
+
 ## Auto Run Result
+
+- Implemented by the orchestrator (opus, high). Review: Edge Case Hunter and Verification Gap Reviewer (opus), one
+  loop; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- Story gate on 7b968ac7 + test-only fixes (head of the PR): lint 0, static 0, test:api 883 passed / 6 skipped,
+  test:unit 5318 of 5319 (the one red was a forbidden word in a new test fixture, fixed; tooling 137/137 and the
+  touched domain files re-run green), touched specs 259 of 260 on desktop-chrome and durability-desktop-chrome (the
+  red, `ratio-feeds-conclusion.spec.ts` Critérios assertion, fixed and green alone 1/1), matrix (dry-transformer on
+  the three durability projects) 15/15.
+- S7 benchmark, back to back on one load (2.8): main v1 37.3 ms cold / 27.5 ms one sheet changed, v11 25.5 / 26.0;
+  this branch v1 12.6 / 6.6, v11 7.6 / 3.3.
