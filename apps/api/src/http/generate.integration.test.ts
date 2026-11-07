@@ -431,6 +431,54 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     180_000,
   );
 
+  it('Story 22.12: the issue wrote each measured equipment\'s last_results in its batch, on the project stream, and company B never pulls it', async () => {
+    const pullProject = async (company: Company) => authed(company, `/api/sync/projects/${SMALL_FIXTURE_PROJECT_ID}?since=0`);
+    const res = await pullProject(companyA);
+    expect(res.status, await res.clone().text()).toBe(200);
+    const projected = ((await res.json()) as { ops: Op[] }).ops.filter((op) => op.path.endsWith('/last_results'));
+    expect(projected.length).toBeGreaterThan(0);
+    for (const op of projected) {
+      expect(op).toMatchObject({ kind: 'put', scope: 'project', actor_id: 'system:generate', device_id: SERVER_DEVICE_ID });
+      expect(op.value).toMatchObject({ relatorio_id: RELATORIO_ID, revision_number: 1, prior: null });
+      const readings = (op.value as { readings: Record<string, { state: string }> }).readings;
+      expect(Object.keys(readings).length).toBeGreaterThan(0);
+      for (const reading of Object.values(readings)) expect(['measured', 'over_range']).toContain(reading.state);
+    }
+    // The seccionadora of the fixture: its insulation readings keyed by table and connection.
+    const chave = projected.find((op) => op.path === `equipment/${EQUIPMENT_CHAVE_ID}/last_results`);
+    expect(Object.keys((chave?.value as { readings: Record<string, unknown> }).readings).some((key) => key.startsWith('isolacao|contato_aberto:T1/T2/'))).toBe(true);
+    // Another company's pull of the obra is refused (E4 retro item 17); its own stream never holds the projection.
+    expect((await pullProject(companyB)).status).toBe(404);
+    const own = await authed(companyB, '/api/sync/company?since=0');
+    expect(((await own.json()) as { ops: Op[] }).ops.some((op) => op.path.endsWith('/last_results'))).toBe(false);
+  });
+
+  it('Story 22.10: a test cell put in over_range with a raw that is no positive decimal is refused alone (op_value_invalid); a well-formed one is a valid value', async () => {
+    const cellPut = (value: unknown) =>
+      makeOp(
+        {
+          kind: 'put',
+          scope: 'relatorio',
+          company_id: companyA.companyId,
+          project_id: null,
+          relatorio_id: RELATORIO_ID,
+          path: `sheet/${BLOCK_CHAVE_ID}/test/isolacao/cell/0/0`,
+          value: value as Op['value'],
+          prev_op_id: null,
+          batch_id: null,
+          meta: null,
+          actor_id: companyA.userId,
+          device_id: 'tablet-generate-a',
+        },
+        { newId, now: now() },
+      );
+    const bad = [cellPut({ raw: '0', unit: 'GΩ', state: 'over_range' }), cellPut({ raw: '2,5', unit: 'GΩ', state: 'over_range' }), cellPut({ raw: '2', unit: null, state: 'over_range' })];
+    const pushed = await authed(companyA, '/api/sync/ops', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops: bad }) });
+    const answer = syncPushResponseSchema.parse(await pushed.json());
+    expect(answer.applied).toEqual([]);
+    expect(answer.rejected.map((r) => r.code)).toEqual(['op_value_invalid', 'op_value_invalid', 'op_value_invalid']);
+  });
+
   it('serves the DOCX with the download headers, and its ÍNDICE pages equal the PDF outline', async () => {
     const res = await authed(companyA, `/api/revisions/${firstRevision.id}/docx`);
     expect(res.status).toBe(200);

@@ -6,6 +6,7 @@ import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
+import { overRangeText } from '../relatorio/over-range.ts';
 import { evaluateTest } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
@@ -664,6 +665,8 @@ export function conflictValueText(cell: Pick<CellConflict, 'path'>, value: unkno
     if (number.state === 'not_measured') return '-';
     // Story 16.4: read before the measurement path, which would print the empty raw.
     if (number.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
+    // Story 22.10: a reading above the instrument's limit, "> 2 TΩ".
+    if (number.state === 'over_range') return overRangeText(number.raw, typeof number.unit === 'string' ? number.unit : null);
     const measurement = block === undefined ? null : measurementValueText(cell.path, value, block);
     if (measurement !== null) return measurement;
     const unit = typeof number.unit === 'string' && number.unit !== '' ? ` ${number.unit}` : '';

@@ -50,6 +50,8 @@ const EXTRA_PATHS = [
   `sheet/${BLOCK}/test/cta_transferencia/value/metodo`,
   // Fix batch fxrm (contract 28): a relatório's tombstone.
   'relatorio/removed_at',
+  // Story 22.12 (contract 32): the readings of the last issued revision of an equipment.
+  `equipment/${ID}/last_results`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -65,9 +67,10 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    // Fix batch fxrm (contract 28): `relatorio/removed_at`, appended last.
-    expect(FAMILIES.length).toBe(46);
-    expect(FAMILIES.at(-1)!.family).toBe('relatorio/removed_at');
+    // Fix batch fxrm (contract 28): `relatorio/removed_at`; Story 22.12 (contract 32): `equipment/last_results`, appended last.
+    expect(FAMILIES.length).toBe(47);
+    expect(FAMILIES.at(-2)!.family).toBe('relatorio/removed_at');
+    expect(FAMILIES.at(-1)!.family).toBe('equipment/last_results');
   });
 
   it('returns typed segments', () => {
@@ -137,6 +140,7 @@ describe('1.4-UNIT-001 path round trip', () => {
       `file/${ID}/reading_status`,
       `suggestion/${ID}`,
       `equipment/${ID}/last_nameplate`,
+      `equipment/${ID}/last_results`,
       `generation_job/${ID}`,
       `generation_job/${ID}/status`,
       `revision/${ID}`,

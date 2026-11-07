@@ -303,6 +303,31 @@
  * stored one counts only when stricter), the summary is always the composed one and a summary
  * typed before prints as "Observações do responsável"; "Parecer não preenchido" retires.
  *
+ * 32 (2026-11-06, Story 22.10, batch e22r): a reading above the instrument's limit. AD-11's
+ * number value gains the state `over_range` (`numberValueSchema`), stored by a test cell put as
+ * `{raw: limit, unit, state: 'over_range'}`: typed "OL" or "0L" (the picked instrument's limit
+ * for the test, read live from the registry and stored by value), "> 2 TΩ" or the cell's "> limite"
+ * action. The kernel judges it (`relatorio/over-range.ts`: a `>` criterion within iff the limit
+ * reaches it, a `<` one out) and every reader shows "> 2" and prints "> 2 TΩ"; a relação de
+ * transformação cell and a cell a relative or equals criterion compares refuse it at input and
+ * read a stored one as invalid. An instrument row gains the optional `range_isolacao` and
+ * `range_resistencia_contato` (AR-18's test-default shape, absent and null both meaning unset), so
+ * `registry/instrument/{id}/range_*` are new put paths. A test cell value in `over_range` whose
+ * `raw` is no positive plain decimal or whose `unit` is no short text is refused
+ * (`op_value_invalid`, `ops/value-limits.ts`). No plate or display reading proposes the state. A
+ * row written before 32 parses to the same bytes.
+ *
+ * 32 (2026-11-06, Story 22.12, batch e22r): the previous visit's value beside each reading. An
+ * equipment row gains the optional `last_results` (`lastResultsSchema`, absent and null both
+ * meaning none), written only by the issue job through the new server-only family
+ * `equipment/{id}/last_results` (AD-25's second projection, `print/last-results.ts`) in the batch
+ * that writes the revision: the measured and over-range captures of the issued revision keyed by
+ * test, row and column, and `prior`, the entry of the visit before when the same relatório is
+ * issued again. A sheet of another relatório of the obra shows "Anterior: …" under each capture
+ * cell and its section 9 prints a MANUT. ANTERIOR column; no value is ever copied into a cell. A
+ * row written before 32 parses to the same bytes, and a relatório whose equipment has no previous
+ * value prints as before.
+ *
  * 32 (2026-11-06, Stories 22.7 to 22.9 and 22.11, batch e22s): seed v12, v11 with ÓLEO MINERAL
  * in TIPO DE ISOLAÇÃO (an earlier ÓLEO read as it) on the transformador de força, the TP and the
  * TC; the transformador de força's TIPO DO ÓLEO and its LIGAÇÃO SECUNDÁRIA relabelled DESLOCAMENTO
@@ -495,6 +520,20 @@ export const CONTRACT_VERSION = 32;
  * parecer looser than the fichas' and no derived NC or out-reading point, where the server's
  * documents print the effective pair, the derived verdict and every derived entry. The
  * version-30 bundle updates too.
+ *
+ * 32 (2026-11-06, Story 22.10): a version-31 (or older) bundle's kernel reads a test cell in the
+ * `over_range` state as invalid (no verdict, the raw "2" shown where the server's documents print
+ * "> 2 TΩ" and judge the row), so its Sumário, conclusion floor and parecer would disagree with
+ * the server's, and its instrument row schema would strip `range_isolacao` and
+ * `range_resistencia_contato`. A relatório stream carries such a cell as soon as any device types
+ * "OL", so the version-31 bundle updates too.
+ *
+ * 32 (2026-11-06, Story 22.12): a version-31 (or older) bundle's `opSchema` refuses an
+ * `equipment/{id}/last_results` put (an unknown path family), so a pulled project page carrying
+ * one fails whole (`invalid_response`), the precedent of versions 20, 23, 28, 30 and 31; and its
+ * equipment row schema would strip `last_results`, so its sheets would show no "Anterior" line
+ * where the server's documents print MANUT. ANTERIOR. A project stream carries the put from the
+ * first issue after the deploy on, so the version-31 bundle updates too.
  *
  * 32 (2026-11-06, Stories 22.7 to 22.9 and 22.11, batch e22s): a version-31 (or older) bundle
  * cannot resolve seed v12, which a template the server moves to v12 and every relatório created

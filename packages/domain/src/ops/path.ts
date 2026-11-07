@@ -135,6 +135,8 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('equipment'), id: uuidV7Schema }),
   z.object({ family: z.literal('equipment/field'), id: uuidV7Schema, field: z.enum(EQUIPMENT_FIELDS) }),
   z.object({ family: z.literal('equipment/last_nameplate'), id: uuidV7Schema }),
+  // Story 22.12 (contract 32): AD-25's second projection, the readings of the last issued revision.
+  z.object({ family: z.literal('equipment/last_results'), id: uuidV7Schema }),
   z.object({ family: z.literal('file'), id: uuidV7Schema }),
   z.object({ family: z.literal('file/field'), id: uuidV7Schema, field: z.enum(FILE_FIELDS) }),
   z.object({ family: z.literal('file/server'), id: uuidV7Schema, field: z.enum(FILE_SERVER_FIELDS) }),
@@ -365,6 +367,15 @@ export const FAMILIES: readonly FamilyDef[] = [
   // server-only: the server's one-shot cleanup (`apps/api/src/db/tombstone-cli.ts`, actor
   // `system:cleanup`) writes it today, and a device may later, once the product offers it.
   { family: 'relatorio/removed_at', entity: 'relatorio', implicitRelatorio: true, segments: [lit('relatorio'), lit('removed_at')] },
+  // Story 22.12 (2026-11-06, contract 32): AD-25's second projection, the readings of the last
+  // issued revision of an equipment, written only by the issue job beside `last_nameplate`.
+  // Appended last, so every older family keeps its place.
+  {
+    family: 'equipment/last_results',
+    entity: 'equipment',
+    serverOnly: true,
+    segments: [lit('equipment'), id(), lit('last_results')],
+  },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));

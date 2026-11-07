@@ -1724,6 +1724,10 @@ export const copy = {
       // (AR-18 extends the mock's single "Isolação" row to the other two test types).
       testDefaultLabel: (testName: string) => `Padrão de ensaio — ${testName}`,
       testDefaultHelper: 'Preenche a ficha ao escolher o instrumento; o aceitável vem do critério, não daqui',
+      // authored (Story 22.10, open for Bruno): the top of the instrument's range for one test
+      // type, "Limite de medição (Isolação)"; the helper is worded never to repeat a label.
+      rangeLabel: (testName: string) => `Limite de medição (${testName})`,
+      rangeHelper: 'Gravado na ficha quando o visor mostra OL (ex.: 2 e TΩ)',
       testIsolacao: 'Isolação',
       testResistenciaContato: 'Resistência de contato',
       testRelacaoTransformacao: 'Relação de transformação',

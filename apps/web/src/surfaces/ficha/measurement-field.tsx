@@ -4,17 +4,23 @@ import {
   measurementReadingRefusal,
   nextUnit,
   numberEchoText,
+  overRangeDisplay,
+  overRangeEchoText,
+  overRangeNoRangeText,
   parseMeasurementReadingPtBr,
+  rangeInUnits,
   refusedMeasurementKind,
   suggestionAnnouncement,
   suggestionValueText,
   type CellAddress,
   type EvaluatedCell,
+  type InstrumentRange,
+  type OverRangeAllowance,
 } from '@app/domain';
 import { createContext, useContext, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { OverflowMenu, TextButton } from '../../components/index.ts';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
-import { useNumberInput } from '../../components/number-input.tsx';
+import { overRangeStoredRaw, useNumberInput } from '../../components/number-input.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
@@ -56,7 +62,56 @@ export type FieldCell<Address extends FieldAddress = FieldAddress> = Pick<Evalua
   outlier?: EvaluatedCell['outlier'];
   /** Epic 14 QA Q-3: the kernel's message for a zero or negative reading on a cell that takes only a positive one; absent or null elsewhere. */
   positiveOnlyText?: string | null;
+  /** Story 22.10: whether the cell takes a reading above the instrument's limit (the kernel's evaluation); absent: it does not. */
+  overRange?: OverRangeAllowance;
 };
+
+/**
+ * Story 22.10 and 22.12: what a cell reads of its sheet beyond its evaluation, computed by the
+ * kernel once per sheet in the Ensaios step: the limit "OL" takes on a test (the picked
+ * instrument's range, `instrumentRangeFor`) and the "Anterior: …" line of a cell
+ * (`previousHelpers`, by `readingAddressKey`). Outside the step a cell has neither.
+ */
+export interface SheetCellExtras {
+  rangeOf: (testKey: string) => InstrumentRange | null;
+  previousOf: (address: FieldAddress) => string | null;
+}
+
+const NO_EXTRAS: SheetCellExtras = { rangeOf: () => null, previousOf: () => null };
+const SheetCellExtrasContext = createContext<SheetCellExtras>(NO_EXTRAS);
+export const SheetCellExtrasProvider = SheetCellExtrasContext.Provider;
+
+/**
+ * Story 22.10: gives `input` the focus, the caret at its end, once the Overflow menu that ran the
+ * action has closed and React Aria has handed the focus back to its trigger (two frames after the
+ * menu left the page), so the input never takes the focus only to lose it to that restore.
+ */
+function focusAfterMenu(input: HTMLInputElement | null): void {
+  if (input === null) return;
+  let frames = 0;
+  let closedFor = 0;
+  const tick = () => {
+    if (!input.isConnected) return;
+    if (document.querySelector('.overflow-menu') === null) closedFor += 1;
+    if (closedFor >= 2) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      return;
+    }
+    if (++frames < 60) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+/** Story 22.12: the previous visit's line under a cell, neutral (the outlier tone, never amber nor a live region). */
+function PreviousLine({ text }: { text: string | null }) {
+  if (text === null) return null;
+  return (
+    <div className="mf-helper" data-tone="outlier" data-previous="">
+      {text}
+    </div>
+  );
+}
 
 /** A dictated reading's value is a number cell (`suggestionValueText`). */
 const NUMBER_FIELD = { kind: 'number' } as const;
@@ -114,6 +169,18 @@ export function MeasurementField<Address extends FieldAddress>({
     if (unitChoice !== null) setUnitChoice(null);
   }
   const slotUnit = unitChoice ?? cell.unit;
+  // Story 22.10 and 22.12: the picked instrument's limit for this test and the previous visit's line.
+  const extras = useContext(SheetCellExtrasContext);
+  const range = extras.rangeOf(address.testKey);
+  const previous = extras.previousOf(address);
+  // Story 22.10: "> limite" with no instrument limit put "> " in the input: the no-limit text is
+  // its helper until the field is left or a value is stored.
+  const [limitHint, setLimitHint] = useState(false);
+  const hintKey = useRef(storedKey);
+  if (hintKey.current !== storedKey) {
+    hintKey.current = storedKey;
+    if (limitHint) setLimitHint(false);
+  }
 
   const write = (value: Parameters<typeof testCellOp>[6]) => {
     if (api.author === null) return undefined;
@@ -124,22 +191,26 @@ export function MeasurementField<Address extends FieldAddress>({
     // "Não medido" keeps the input empty and prints its "-" as the placeholder, so a value
     // typed over it is not read as "-5".
     storedText: cell.state === 'empty' || cell.state === 'not_measured' ? '' : cell.displayText,
-    storedRaw: cell.state === 'measured' ? cell.raw : null,
+    storedRaw: cell.state === 'measured' ? cell.raw : cell.state === 'over_range' ? overRangeStoredRaw(cell.raw) : null,
     // Epic 14 QA Q-3: the kernel refuses a zero or negative reading where the criterion compares with the lowest.
-    parse: (text) => parseMeasurementReadingPtBr(text, cell, slotUnit),
+    // Story 22.10: "OL" takes the instrument's limit, "> 2 TΩ" the typed one, where the kernel allows it.
+    parse: (text) => parseMeasurementReadingPtBr(text, cell, slotUnit, range),
     commit: (value) => {
-      const result = write(value === null ? null : { raw: value.raw, unit: value.unit, state: 'measured' });
+      const result = write(value === null ? null : { raw: value.raw, unit: value.unit, state: value.state === 'over_range' ? 'over_range' : 'measured' });
       if (value !== null && value.unit !== cell.unit) setUnitChoice(value.unit);
       return result;
     },
-    echo: (value) => numberEchoText(value.raw, value.unit),
-    format: (value) => formatDecimalGroupedPtBr(value.raw),
+    echo: (value) => (value.state === 'over_range' ? overRangeEchoText(value.raw, value.unit) : numberEchoText(value.raw, value.unit)),
+    format: (value) => (value.state === 'over_range' ? overRangeDisplay(value.raw) : formatDecimalGroupedPtBr(value.raw)),
+    onFocusChange: (focused) => {
+      if (!focused) setLimitHint(false);
+    },
     draft: { surface: DRAFT_SURFACE, entityId: api.blockId, field: `test-${address.testKey}-${address.row}-${address.col}${presentation === 'card' ? '-card' : ''}` },
     onEnter: (event) => {
       if (onRun(address, 'next')) event.preventDefault();
     },
     // Story 18.4: a refusal on blur or Enter is an `input_refused` with the kernel's reason.
-    onRefuse: (text) => trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, slotUnit)),
+    onRefuse: (text) => trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, slotUnit, range)),
     onKey: (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter' && event.shiftKey) {
         event.preventDefault();
@@ -164,8 +235,35 @@ export function MeasurementField<Address extends FieldAddress>({
     setUnitChoice(unit);
     const parsed = number.parsed;
     // Through the input, so the text is clean afterwards and Enter does not commit the
-    // same value a second time (E10-Q1).
-    if (parsed !== null && parsed !== 'invalid') number.commitValue({ raw: parsed.raw, unit });
+    // same value a second time (E10-Q1). Story 22.10: a limit stays a limit, in the new unit.
+    if (parsed !== null && parsed !== 'invalid') number.commitValue(parsed.state === 'over_range' ? { raw: parsed.raw, unit, state: 'over_range' } : { raw: parsed.raw, unit });
+  };
+
+  /**
+   * Story 22.10: the Overflow's "> limite". With the instrument's limit in the cell's units it is
+   * written at once; with none, "> " goes into the input with the focus and the no-limit text
+   * under it, for the limit to be typed.
+   */
+  const chooseLimit = () => {
+    const limit = rangeInUnits(range, cell.units, slotUnit);
+    if (limit !== null) {
+      void write({ raw: limit.raw, unit: limit.unit, state: 'over_range' });
+      if (limit.unit !== cell.unit) setUnitChoice(limit.unit);
+      return;
+    }
+    number.typeText('> ');
+    setLimitHint(true);
+    focusAfterMenu((number.inputProps.ref as RefObject<HTMLInputElement | null>).current);
+  };
+
+  // Story 22.10 (review fix): leaving the field holding only the ">" that "> limite" put there
+  // drops it: nothing is committed and no refusal is reported.
+  const inputProps: typeof number.inputProps = {
+    ...number.inputProps,
+    onBlur: (event) => {
+      if (limitHint && number.text.trim() === '>') number.discard();
+      number.inputProps.onBlur?.(event);
+    },
   };
 
   const markRestricted = () => {
@@ -182,7 +280,15 @@ export function MeasurementField<Address extends FieldAddress>({
   };
 
   const outlier = cell.outlier ?? null;
-  const describedBy = [number.echo === null ? null : echoId, number.invalid || (!number.focused && (cell.helperText !== null || outlier !== null)) ? helperId : null].filter(Boolean).join(' ') || undefined;
+  const hint = limitHint && !number.invalid && number.text.trim().startsWith('>') ? overRangeNoRangeText(slotUnit ?? cell.units[0] ?? null) : null;
+  const describedBy =
+    [number.echo === null ? null : echoId, number.invalid || hint !== null || (!number.focused && (cell.helperText !== null || outlier !== null)) ? helperId : null].filter(Boolean).join(' ') ||
+    undefined;
+  const overflowItems = [
+    { id: 'not-measured', label: t.notMeasured, onAction: () => void write({ raw: '', unit: slotUnit, state: 'not_measured' }) },
+    // Story 22.10: offered only where the kernel allows a reading above the limit (never on a ratio or a compared cell).
+    ...(cell.overRange?.allowed === true ? [{ id: 'over-range', label: t.overRange, onAction: chooseLimit }] : []),
+  ];
   const keepFocus = (event: { preventDefault: () => void }) => {
     if (number.focused) event.preventDefault();
   };
@@ -219,7 +325,7 @@ export function MeasurementField<Address extends FieldAddress>({
         <input
           data-telemetry="ficha.measurement"
           className="mf-value"
-          {...number.inputProps}
+          {...inputProps}
           aria-label={label}
           aria-invalid={number.invalid || undefined}
           aria-describedby={describedBy}
@@ -246,10 +352,7 @@ export function MeasurementField<Address extends FieldAddress>({
             {shownUnit}
           </span>
         )}
-        <OverflowMenu
-          name={label}
-          items={[{ id: 'not-measured', label: t.notMeasured, onAction: () => void write({ raw: '', unit: slotUnit, state: 'not_measured' }) }]}
-        />
+        <OverflowMenu name={label} items={overflowItems} />
         {confirmedCrop}
       </div>
       {number.echo === null ? null : (
@@ -277,7 +380,11 @@ export function MeasurementField<Address extends FieldAddress>({
       ) : null}
       {number.invalid ? (
         <span className="helper" id={helperId}>
-          {measurementReadingRefusal(number.text, cell, slotUnit) ?? t.invalid}
+          {measurementReadingRefusal(number.text, cell, slotUnit, range) ?? t.invalid}
+        </span>
+      ) : hint !== null ? (
+        <span className="helper" id={helperId}>
+          {hint}
         </span>
       ) : null}
       {!number.focused && !number.invalid && cell.helperText !== null && out ? (
@@ -297,6 +404,7 @@ export function MeasurementField<Address extends FieldAddress>({
           {outlier.text}
         </div>
       ) : null}
+      <PreviousLine text={previous} />
       {after}
     </div>
   );
@@ -338,11 +446,14 @@ export function DictatedMeasurementField({
   /** While a value is being written, a second blur or tap writes nothing. */
   const written = useRef(false);
   const valueText = suggestionValueText(NUMBER_FIELD, { raw: reading.raw, unit: reading.unit, state: 'measured' });
+  // Story 22.10: a limit typed over the dictated reading ("OL", "> 2 TΩ") is written as one.
+  const range = useContext(SheetCellExtrasContext).rangeOf(address.testKey);
 
-  const write = (value: { raw: string; unit: string | null }) => {
+  const write = (value: { raw: string; unit: string | null; state?: 'over_range' }) => {
     if (api.author === null || written.current) return;
     written.current = true;
-    void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, address.testKey, address.row, address.col, { raw: value.raw, unit: value.unit, state: 'measured' })]).then(onDone, () => {
+    const state = value.state === 'over_range' ? 'over_range' : 'measured';
+    void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, address.testKey, address.row, address.col, { raw: value.raw, unit: value.unit, state })]).then(onDone, () => {
       written.current = false;
     });
   };
@@ -351,10 +462,10 @@ export function DictatedMeasurementField({
   const commitTyped = (): boolean => {
     if (written.current) return true;
     if (text === initial) return false;
-    const parsed = parseMeasurementReadingPtBr(text, cell, reading.unit);
+    const parsed = parseMeasurementReadingPtBr(text, cell, reading.unit, range);
     if (parsed === 'invalid') {
-      setInvalid(measurementReadingRefusal(text, cell, reading.unit) ?? t.invalid);
-      trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, reading.unit));
+      setInvalid(measurementReadingRefusal(text, cell, reading.unit, range) ?? t.invalid);
+      trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, reading.unit, range));
       return false;
     }
     if (parsed === null) {
@@ -443,6 +554,8 @@ export function DictatedMeasurementField({
  */
 export function ReadOnlyMeasurementField({ cell, label }: { cell: FieldCell; label: string }) {
   const t = ui.measurementField;
+  // Story 22.12: the previous visit's line shows on a read-only sheet too ("> 2" is the kernel's own text of a limit).
+  const previous = useContext(SheetCellExtrasContext).previousOf(cell.address);
   const empty = cell.state === 'empty';
   const text = empty ? (cell.fallback?.text ?? cell.displayText) : cell.displayText;
   return (
@@ -457,6 +570,7 @@ export function ReadOnlyMeasurementField({ cell, label }: { cell: FieldCell; lab
       </div>
       {cell.helperText === null ? null : <div className="mf-helper">{cell.helperText}</div>}
       {cell.outlier === null || cell.outlier === undefined ? null : <div className="outlier-helper">{cell.outlier.text}</div>}
+      <PreviousLine text={previous} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { displayCellTargetSchema } from '../reading/target.ts';
 import type { BlockRow, Cell, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
+import { overRangeText } from './over-range.ts';
 import { evaluateSheetReadings, type CellAddress, type TestKey } from './readings.ts';
 import { screenLabel } from './screen-label.ts';
 import { isCellFilled } from './sheet-state.ts';
@@ -133,6 +134,8 @@ function numberText(value: unknown): string {
   const number = numberShape(value);
   if (number === null) return typeof value === 'string' ? value : '';
   if (number.state === 'not_measured') return '-';
+  // Story 22.10: a typed reading above the instrument's limit, "> 2 TΩ".
+  if (number.state === 'over_range') return overRangeText(number.raw, number.unit);
   const shown = formatDecimalGroupedPtBr(number.raw);
   return number.unit === null ? shown : `${shown} ${number.unit}`;
 }

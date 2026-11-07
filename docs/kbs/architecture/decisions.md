@@ -34,7 +34,7 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | 22 | Status table has one home in the kernel | [kernel](/architecture/kernel-and-seed.md) |
 | 23 | Mockup CSS is the design system; React Aria behavior | [ui](/architecture/ui-system.md) |
 | 24 | Sync cycle, rebase, rejection semantics | [sync](/architecture/sync.md) |
-| 25 | Equipment is project scope; last_nameplate projection | [data](/architecture/data-model.md) |
+| 25 | Equipment is project scope; last_nameplate projection; last_results, the second projection (2026-11-06, Story 22.12) | [data](/architecture/data-model.md) |
 | 26 | Section 8: photo tokens, derived untested entries | [rendering](/architecture/rendering.md) |
 | 27 | Containers, AWS, Terraform | [infra](/architecture/infra-aws.md) |
 | 28 | Usage events outside the op log (device queue, `POST /api/telemetry`, CloudWatch group) | [ops](/architecture/ops-and-local-first.md), [infra](/architecture/infra-aws.md) |

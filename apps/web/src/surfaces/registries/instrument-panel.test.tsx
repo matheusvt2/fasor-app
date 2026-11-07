@@ -241,3 +241,43 @@ describe('R8LAY DH-3 a stored manufacturer Fabricantes does not hold', () => {
     expect(document.querySelector('.word-unregistered')).toBeNull();
   });
 });
+
+describe('Story 22.10: the top of the instrument\'s range per test type', () => {
+  it('shows "Limite de medição (Isolação)" and "(Resistência de contato)", seeded from the row', () => {
+    renderPanel(false);
+    expect(screen.getByRole('textbox', { name: 'Limite de medição (Isolação) — Valor' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Limite de medição (Resistência de contato) — Unidade' })).toHaveValue('');
+    cleanup();
+    render(
+      <ToastProvider>
+        <InstrumentPanel instrumentId={instrument.id} instrument={{ ...instrument, range_isolacao: { raw: '2', unit: 'TΩ' } }} referenced={false} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    expect(screen.getByRole('textbox', { name: 'Limite de medição (Isolação) — Valor' })).toHaveValue('2');
+    expect(screen.getByRole('textbox', { name: 'Limite de medição (Isolação) — Unidade' })).toHaveValue('TΩ');
+    expect(screen.getAllByText('Gravado na ficha quando o visor mostra OL (ex.: 2 e TΩ)')).toHaveLength(2);
+  });
+
+  it('a typed range is committed as the test defaults are: one registry/instrument/{id}/range_isolacao put', async () => {
+    const user = userEvent.setup();
+    const name = '0a000000-0000-7000-8000-0000000000d5';
+    await openDatabase(name).delete();
+    session.database = openDatabase(name);
+    vi.mocked(commitBatch).mockClear();
+    const { unmount } = render(
+      <ToastProvider>
+        <InstrumentPanel instrumentId={instrument.id} instrument={instrument} referenced={false} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('textbox', { name: 'Limite de medição (Isolação) — Valor' }));
+    await user.keyboard('2');
+    await user.click(screen.getByRole('textbox', { name: 'Limite de medição (Isolação) — Unidade' }));
+    await user.keyboard('TΩ');
+    await user.tab();
+    await waitFor(() => expect(vi.mocked(commitBatch).mock.calls.flatMap((call) => call[1]).some((op) => op.path === `registry/instrument/${instrument.id}/range_isolacao`)).toBe(true));
+    const puts = vi.mocked(commitBatch).mock.calls.flatMap((call) => call[1]).filter((op) => op.path === `registry/instrument/${instrument.id}/range_isolacao`);
+    expect(puts.at(-1)).toMatchObject({ kind: 'put', value: { raw: '2', unit: 'TΩ' } });
+    unmount();
+    session.database.close();
+  });
+});

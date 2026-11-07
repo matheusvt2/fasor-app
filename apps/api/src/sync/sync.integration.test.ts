@@ -1089,11 +1089,12 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 32 (Stories 22.7 to 22.9 and 22.11; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-31 pull is refused with 426 contract_outdated on every stream, a version-32 pull is answered', async () => {
+  it('contract 32 (Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-31 pull is refused with 426 contract_outdated on every stream, a version-32 pull is answered', async () => {
     expect(CONTRACT_VERSION).toBe(32);
     expect(MIN_CONTRACT_VERSION).toBe(32);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
       // 31 cannot resolve seed v12 nor parse an `inspecao_qgbt` block or the `defeito_no_equipamento` reason (Stories 22.7 to 22.9 and 22.11);
+      // it reads an over-range cell as invalid and cannot parse an `equipment/{id}/last_results` put (Stories 22.10 and 22.12);
       // 30 cannot parse a point of origin nc, reading or reprovado, and shows a stored conclusion pair looser than the floor (Stories 22.4 to 22.6);
       // 29 cannot resolve seed v11 and computes a v9/v10 non-Dyn1 transformer with √3 (Stories 21.1 and 21.2);
       // 29 cannot parse a `file/{id}/order_key` put (Story 21.3);

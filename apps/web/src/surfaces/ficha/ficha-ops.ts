@@ -114,7 +114,8 @@ export function createWordOp(author: Author, kind: 'manufacturer' | 'voltage_cla
 
 /**
  * `sheet/{blockId}/test/{testKey}/cell/{row}/{col}` put (Stories 5.5-5.6): `{raw, unit,
- * state}` (AR-10), null to clear. The address is the fixture's (`relatorio/readings.ts`).
+ * state}` (AR-10), null to clear. The address is the fixture's (`relatorio/readings.ts`). Story 22.10:
+ * `over_range` is a reading above the instrument's limit, `raw` that limit.
  */
 export function testCellOp(
   author: Author,
@@ -123,7 +124,7 @@ export function testCellOp(
   testKey: string,
   row: number,
   col: number,
-  value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' } | null,
+  value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' | 'over_range' } | null,
 ): OpDraft {
   return put(author, relatorioId, sheetTestCellPath(blockId, testKey, row, col), value);
 }

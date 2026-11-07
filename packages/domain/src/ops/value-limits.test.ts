@@ -197,6 +197,15 @@ describe('opValueIssue: types and ranges (Story 20.9)', () => {
     expect(issue(put(`location/${LOCATION}/env/temperature_c`, { raw: '25', unit: chars(201), state: 'measured' }))).not.toBeNull();
   });
 
+  it('Story 22.10: a number value of the SE or the environment never takes over_range (only a test cell does); its other states stand', () => {
+    expect(issue(put(`location/${LOCATION}/se/primary_kv`, { raw: '13.8', unit: 'kV', state: 'over_range' }))).not.toBeNull();
+    expect(issue(put(`location/${LOCATION}/env/humidity_pct`, { raw: '80', unit: '%', state: 'over_range' }))).not.toBeNull();
+    expect(issue(put(`location/${LOCATION}/env/altitude_m`, { raw: '900', unit: 'm', state: 'over_range' }))).not.toBeNull();
+    expect(issue(put(`location/${LOCATION}/env/humidity_pct`, { raw: '80', unit: '%', state: 'measured' }))).toBeNull();
+    expect(issue(put(`location/${LOCATION}/se/primary_kv`, { raw: '', unit: null, state: 'not_measured' }))).toBeNull();
+    expect(issue(put(`sheet/${BLOCK}/test/isolacao/cell/0/1`, { raw: '2', unit: 'TΩ', state: 'over_range' }))).toBeNull();
+  });
+
   it('a seed-defined cell (a nameplate, a test cell, a test value) takes any shape whose strings are short', () => {
     expect(issue(put(`sheet/${BLOCK}/nameplate/potencia`, { raw: '1500', unit: 'kVA', state: 'measured' }))).toBeNull();
     expect(issue(put(`sheet/${BLOCK}/test/isolacao/cell/0/1`, { raw: chars(201), unit: null, state: 'measured' }))).not.toBeNull();
