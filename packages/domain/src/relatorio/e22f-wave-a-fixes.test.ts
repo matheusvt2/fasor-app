@@ -231,7 +231,7 @@ describe('e22f S2 and N4: possible duplicates', () => {
   });
 
   it('a manual point written since (item_key null) is not flagged; one carrying the item suppresses its entry', () => {
-    const fresh31 = newPointRow({ id: '019966b0-e22f-7003-8000-000000000004', relatorioId: base.relatorio.id, text: 'Vara de manobra sem laudo', equipmentId: trafo.equipment_id, origin: 'manual', action: null }, []);
+    const fresh31 = newPointRow({ id: '019966b0-e22f-7003-8000-000000000004', relatorioId: base.relatorio.id, text: 'Vara de manobra sem certificado', equipmentId: trafo.equipment_id, origin: 'manual', action: null }, []);
     const later = { ...withNc, points: [fresh31] };
     expect(possibleDuplicatePairs(later)).toBe(0);
     expect(preIssue(later).some((r) => r.kind === 'points_possible_duplicate')).toBe(false);
