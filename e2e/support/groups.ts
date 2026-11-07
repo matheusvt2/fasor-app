@@ -176,6 +176,16 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'point-relink-print.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice to read section 8\'s Local/TAG of three relinked points from the DOCX and the PDF',
   },
+  // Story 22.10: 22.10-E2E-001 generates the DOCX its over-range readings are read from.
+  {
+    file: 'over-range.spec.ts',
+    why: 'Story 22.10: generates a revision through the shared queue and LibreOffice to read the over-range readings ("> 2 TΩ") of section 9 from the DOCX',
+  },
+  // Story 22.12: 22.12-E2E-001 issues relatório A and then B of the same obra.
+  {
+    file: 'previous-visit.spec.ts',
+    why: 'Story 22.12: issues two revisions through the shared queue and LibreOffice (relatório A, whose issue writes last_results, then B of the same obra) to read MANUT. ANTERIOR from the DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

@@ -7,6 +7,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
 import { evaluateSheetMeasurements, measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
+import { isReadingValue } from './over-range.ts';
 import { evaluatedCells, evaluateSheetReadings, failedRatioRows, worstReadings, type TestKey, type WorstReading } from './readings.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
@@ -137,13 +138,13 @@ export function conclusionFloor(block: BlockRow): ConclusionFloor | null {
   if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
   if (tableCells.some((cell) => cell.toCheck)) return null;
-  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
+  const measured = cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)) || tableCells.some((cell) => isReadingValue(cell.state));
   if (!measured && !anyAnswered(block)) return null;
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
   // NOMINAL, or above 1000 V) is never a pass. e21g D6: nor a v11 ratio table waiting for its
   // vector group while its plate can be filled (the `ensaiosCounts` rule).
   const unjudged =
-    evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'measured')) ||
+    evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && isReadingValue(cell.state))) ||
     (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing)));
   if (unjudged) return null;
   return { pair: { result: 'aprovado', restriction: 'sem_restricoes' }, reasons: [] };
@@ -373,7 +374,7 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   // E5-Q4: "within the criteria" only when a capture was judged; "conformes" only with a C row.
   const judged = outClauses.length > 0 || cells.some((cell) => cell.role === 'capture' && cell.verdict !== null) || tableCells.some((cell) => cell.verdict !== null);
   // A capture measured but never judged (a TTR row with no VAL CALCULADO) is still a measurement.
-  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') || tableCells.some((cell) => cell.state === 'measured');
+  const measured = cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)) || tableCells.some((cell) => isReadingValue(cell.state));
   // authored (OQ-3 placeholder): measured, no criterion applied.
   const unjudged = 'valores medidos sem comparação com o critério de aceitação';
   // Epic 14 QA Q-3: a zero or negative reading to check is never "within the criteria".

@@ -4,6 +4,7 @@ import type { CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
 import { screenAcronym } from './screen-label.ts';
 import { isCellFilled } from './sheet-state.ts';
+import type { OverRangeAllowance } from './over-range.ts';
 import { DEFAULT_VECTOR_GROUP_CODE, parseVectorGroup, VECTOR_GROUP_FIELD, vectorGroupByCode, type VectorGroup } from './vector-group.ts';
 
 /*
@@ -35,7 +36,8 @@ export interface CellAddress {
   col: number;
 }
 
-export type ReadingState = 'empty' | 'measured' | 'not_measured' | 'invalid';
+/** Story 22.10: `over_range` is a reading above the instrument's limit, `raw` that limit (`over-range.ts`). */
+export type ReadingState = 'empty' | 'measured' | 'not_measured' | 'over_range' | 'invalid';
 export type ReadingVerdict = 'within' | 'out';
 export type ReadingSource = 'typed' | 'nameplate' | 'derived';
 
@@ -68,8 +70,14 @@ export interface EvaluatedCell {
   unit: string | null;
   /** The units the unit slot may take: the insulation family (a tap-cycle) or the one fixed unit. */
   units: readonly string[];
-  /** The stored reading as the cell shows it: "3.300", "-" (not measured), "—" (empty). */
+  /** The stored reading as the cell shows it: "3.300", "> 2" (over range), "-" (not measured), "—" (empty). */
   displayText: string;
+  /**
+   * Story 22.10: whether the cell takes a reading above the instrument's limit ("OL", "> 2 TΩ",
+   * the "> limite" action), and the refusal it shows when not (every relação de transformação
+   * cell, capture or input).
+   */
+  overRange: OverRangeAllowance;
   source: ReadingSource | null;
   /** A ratio input left untyped reads the nameplate: its value in the column's unit, as the cell's placeholder. */
   fallback: { raw: string; text: string } | null;
@@ -313,6 +321,8 @@ export function readStored(cell: Cell | undefined): StoredReading | null {
   if (v.state === 'empty') return null;
   if (v.state === 'not_measured') return { state: 'not_measured', raw: '', unit };
   if (v.state === 'measured' && DECIMAL.test(raw)) return { state: 'measured', raw, unit };
+  // Story 22.10: a limit the instrument passed is a positive plain decimal (`over-range.ts` `isOverRangeRaw`).
+  if (v.state === 'over_range' && DECIMAL.test(raw) && !raw.startsWith('-') && Number(raw) > 0) return { state: 'over_range', raw, unit };
   return { state: 'invalid', raw, unit };
 }
 

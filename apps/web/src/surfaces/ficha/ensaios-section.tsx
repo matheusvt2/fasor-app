@@ -2,7 +2,10 @@ import {
   evaluateSheetMeasurements,
   evaluateSheetReadings,
   evaluatedCells,
+  instrumentRangeFor,
   measurementCells,
+  previousHelpers,
+  readingAddressKey,
   measurementRunEnterKeyHint,
   measurementCellName,
   measurementRunTarget,
@@ -32,7 +35,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, UnitTapGuardProvider, type FieldAddress, type RunDirection } from './measurement-field.tsx';
+import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
 import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
@@ -151,26 +154,41 @@ export function EnsaiosSection({
   // DB-2: the kernel says which unit taps only put a cell into editing (a concluded sheet's measured cells).
   const unitTapGuard = useCallback((cell: Pick<EvaluatedCell, 'state'>) => unitTapNeedsEdit(block, cell), [block]);
 
+  // Story 22.10: the limit "OL" takes, from the instrument picked on each test (read live from the
+  // registry); Story 22.12: the previous visit's "Anterior: …" line of each cell, from the sheet's
+  // equipment row (`nameplate-section.tsx` finds it the same way). Both are the kernel's.
+  const own = block.equipment_id === null ? undefined : snapshot.equipment.find((row) => row.id === block.equipment_id);
+  const previous = useMemo(() => previousHelpers(own, block, definition, snapshot.relatorio.id), [own, block, definition, snapshot.relatorio.id]);
+  const extras = useMemo<SheetCellExtras>(
+    () => ({
+      rangeOf: (testKey) => instrumentRangeFor(block, instruments, testKey),
+      previousOf: (address) => previous.get(readingAddressKey(address)) ?? null,
+    }),
+    [block, instruments, previous],
+  );
+
   return (
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>
-      <UnitTapGuardProvider value={unitTapGuard}>
-        {evaluations.map((test) => (
-          <TestSection
-            key={test.testKey}
-            api={api}
-            snapshot={snapshot}
-            block={block}
-            definition={definition}
-            test={test}
-            instruments={instruments}
-            firstMissing={firstMissing}
-            onRun={onRun}
-            display={display}
-            targetFor={targetFor}
-          />
-        ))}
-        <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
-      </UnitTapGuardProvider>
+      <SheetCellExtrasProvider value={extras}>
+        <UnitTapGuardProvider value={unitTapGuard}>
+          {evaluations.map((test) => (
+            <TestSection
+              key={test.testKey}
+              api={api}
+              snapshot={snapshot}
+              block={block}
+              definition={definition}
+              test={test}
+              instruments={instruments}
+              firstMissing={firstMissing}
+              onRun={onRun}
+              display={display}
+              targetFor={targetFor}
+            />
+          ))}
+          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
+        </UnitTapGuardProvider>
+      </SheetCellExtrasProvider>
       {display.viewer}
     </div>
   );

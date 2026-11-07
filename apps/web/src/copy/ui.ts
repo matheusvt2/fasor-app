@@ -98,6 +98,8 @@ export const ui = {
     calcSpoken: 'calculado',
     // FR-27: the cell Overflow's one item.
     notMeasured: 'Não medido',
+    // Story 22.10 (Bruno's item, the epic's wording): the Overflow item that records a reading above the instrument's limit.
+    overRange: '> limite',
     // `key-equipment-sheet.html` `.mf-helper`'s text button.
     markRestricted: 'Marcar Com restrições',
     // authored: a typed text that is no number (kept typed, not committed).

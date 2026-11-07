@@ -40,8 +40,8 @@ describe('1.4-UNIT-005 schema references', () => {
   });
 
   it.each(upper)('%s never references a relatorio-scope row', (entity: Entity) => {
-    // AD-25: `last_nameplate` is a server projection of an issued revision; its relatorio_id is provenance, not a reference.
-    const skip = entity === 'equipment' ? ['last_nameplate'] : [];
+    // AD-25: `last_nameplate` and (Story 22.12) `last_results` are server projections of an issued revision; their relatorio_id is provenance, not a reference.
+    const skip = entity === 'equipment' ? ['last_nameplate', 'last_results'] : [];
     const refs = referenceKeys(entityRowSchemas[entity], [], skip).map((p) => p.split('.').at(-1)!);
     expect(refs.filter((k) => RELATORIO_ROW_REFERENCES.has(k))).toEqual([]);
   });

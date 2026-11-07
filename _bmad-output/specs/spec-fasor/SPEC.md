@@ -171,7 +171,7 @@ A pain and a mandate. An electrical maintenance engineer at Fasor Engenharia spe
 - An instrument integration: no Bluetooth, pairing or device SDK.
 - A signing tool: no digital signature, ICP-Brasil or ART filing; the document prints ready to sign.
 - A collaboration tool: no real-time co-editing, roles, sharing, reviewer surface, client portal or acknowledgement.
-- A comparison tool: no comparison with the previous report and no equipment history screen.
+- ~~A comparison tool: no comparison with the previous report and no equipment history screen.~~ *(2026-11-06, Story 22.12, batch e22r, Matheus "Manutenção anterior": the previous visit's value shows beside each reading and prints as MANUT. ANTERIOR, `source-deltas.md`; still no equipment history screen and no previous value copied into a cell.)*
 - A decision-maker: no verdict auto-set, no failing value turned into Reprovado, no AI output written unconfirmed, no vision proposing which checklist rows are NC.
 - A native application.
 - A priority scale, suggested deadlines, owners and an action-plan table on points of attention: data-model fields only, dated post-MVP for NR-10 10.7.11.

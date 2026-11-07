@@ -2,7 +2,8 @@
 title: 'e22r: Stories 22.10 and 22.12, readings above range and the previous visit value (contract 32)'
 type: 'feature'
 created: '2026-11-06'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'd7a77dea9cc7d4bed9af260d69a35c793cdc0feb'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

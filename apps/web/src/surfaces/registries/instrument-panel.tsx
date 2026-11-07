@@ -52,6 +52,8 @@ export interface InstrumentPanelProps {
 }
 
 type TestDefaultField = 'test_isolacao' | 'test_resistencia_contato' | 'test_relacao_transformacao';
+/** Story 22.10: the top of the instrument's range per test type, what "OL" typed on a sheet stores. */
+type RangeField = 'range_isolacao' | 'range_resistencia_contato';
 
 function defaultRow(id: string): InstrumentRow {
   return {
@@ -403,6 +405,18 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
             helper={t.testDefaultHelper}
             value={instrument?.test_relacao_transformacao ?? null}
             onCommit={(v) => commitField('test_relacao_transformacao' satisfies TestDefaultField, v)}
+          />
+          <TestDefaultField
+            label={t.rangeLabel(t.testIsolacao)}
+            helper={t.rangeHelper}
+            value={instrument?.range_isolacao ?? null}
+            onCommit={(v) => commitField('range_isolacao' satisfies RangeField, v)}
+          />
+          <TestDefaultField
+            label={t.rangeLabel(t.testResistenciaContato)}
+            helper={t.rangeHelper}
+            value={instrument?.range_resistencia_contato ?? null}
+            onCommit={(v) => commitField('range_resistencia_contato' satisfies RangeField, v)}
           />
         </div>
       </div>

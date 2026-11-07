@@ -99,9 +99,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 31 and refuses version 30 (Stories 22.4 to 22.6: a version-30 bundle cannot parse a point of origin nc, reading or reprovado and would show a stored conclusion pair looser than the floor)', () => {
-    expect(CONTRACT_VERSION).toBe(31);
-    expect(MIN_CONTRACT_VERSION).toBe(31);
+  it('speaks version 32 and refuses version 31 (Stories 22.10 and 22.12: a version-31 bundle reads an over-range cell as invalid and cannot parse an equipment/{id}/last_results put)', () => {
+    expect(CONTRACT_VERSION).toBe(32);
+    expect(MIN_CONTRACT_VERSION).toBe(32);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

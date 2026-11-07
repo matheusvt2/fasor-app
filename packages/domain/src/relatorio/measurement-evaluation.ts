@@ -1,4 +1,4 @@
-import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseOverRangePtBr, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
 import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, JsonValue } from '../schemas/entities.ts';
 import { formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
@@ -16,6 +16,17 @@ import type {
   WhenConfig,
 } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import {
+  isReadingValue,
+  OVER_RANGE_ALLOWED,
+  OVER_RANGE_COMPARED_REFUSAL,
+  overRangeDisplay,
+  overRangeNoRangeText,
+  overRangeVerdict,
+  rangeInUnits,
+  type InstrumentRange,
+  type OverRangeAllowance,
+} from './over-range.ts';
 import { readStored, type ReadingState, type ReadingVerdict } from './reading-cells.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 
@@ -139,8 +150,14 @@ export interface EvaluatedMeasurementCell {
   units: readonly string[];
   /** A choice's options; none on a number. */
   options: readonly MeasurementOption[];
-  /** The value as the cell shows it: "3.300", "Ligado", "-" (not measured), "—" (empty), the fixed text. */
+  /** The value as the cell shows it: "3.300", "> 2.000" (over range), "Ligado", "-" (not measured), "—" (empty), the fixed text. */
   displayText: string;
+  /**
+   * Story 22.10: whether a number cell takes a reading above the instrument's limit, and the
+   * refusal when not (a cell a `relative_to_lowest` or `equals_column` criterion in force
+   * compares with others). A choice or a fixed cell never takes one.
+   */
+  overRange: OverRangeAllowance;
   verdict: ReadingVerdict | null;
   /** Why the cell is out of criterion ("62 % acima do menor do lado (39 µΩ) — critério ≤ 50 %"), else null. */
   helperText: string | null;
@@ -290,6 +307,7 @@ function read(cell: Cell | undefined, kind: MeasurementKind, options: readonly M
 function displayOf(stored: Stored | null, kind: MeasurementKind, options: readonly MeasurementOption[]): string {
   if (stored === null) return EMPTY;
   if (stored.state === 'not_measured') return NOT_MEASURED;
+  if (stored.state === 'over_range') return overRangeDisplay(stored.raw);
   if (stored.state === 'invalid') return stored.raw;
   if (kind === 'choice') return options.find((option) => option.key === stored.raw)?.label ?? EMPTY;
   return formatDecimalGroupedPtBr(stored.raw);
@@ -368,6 +386,34 @@ function withinLimit(value: number, unit: string | null, limit: Limit): { within
   return { within, excess: within || limit.value === 0 ? 0 : Math.abs(scaled - limit.value) / Math.abs(limit.value) };
 }
 
+/** Story 22.10: a limit the instrument passed against an absolute limit (`overRangeVerdict`), with the distance an out one stands from it. */
+function overRangeAnswer(value: number, unit: string | null, limit: Limit): { within: boolean; excess: number } | null {
+  const verdict = overRangeVerdict(value, unit, limit);
+  const scaled = scaleToUnit(value, unit, limit.unit);
+  if (verdict === null || scaled === null) return null;
+  const within = verdict === 'within';
+  return { within, excess: within || limit.value === 0 ? 0 : Math.abs(scaled - limit.value) / Math.abs(limit.value) };
+}
+
+/**
+ * Story 22.10: each cell's `overRange`. A number cell takes a reading above the limit unless a
+ * criterion in force compares it with other cells (`relative_to_lowest`, every number column;
+ * `equals_column`, its column and its reference); a stored limit on a cell that refuses one (an
+ * op written by hand or an old path) reads `invalid`, shown "> 2" and judged by nothing.
+ */
+function markOverRange(rows: readonly EvaluatedMeasurementRow[], criteria: readonly MeasurementCriterion[]): void {
+  const relative = criteria.some((criterion) => criterion.type === 'relative_to_lowest');
+  const compared = new Set(criteria.flatMap((criterion) => (criterion.type === 'equals_column' ? [criterion.column, criterion.reference] : [])));
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.kind !== 'number' || cell.fixed !== null) continue;
+      if (!relative && !compared.has(cell.columnKey)) continue;
+      cell.overRange = { allowed: false, refusal: OVER_RANGE_COMPARED_REFUSAL };
+      if (cell.state === 'over_range') cell.state = 'invalid';
+    }
+  }
+}
+
 /** A percentage clear of float noise (61,538461538). */
 function roundPct(value: number): number {
   return Math.round(value * 1e9) / 1e9;
@@ -403,9 +449,9 @@ function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
   for (const row of rows) {
     if (criterion.rows !== undefined && !criterion.rows.includes(row.key)) continue;
     for (const cell of row.cells) {
-      if (cell.kind !== 'number' || !judged(cell)) continue;
+      if (cell.kind !== 'number' || cell.fixed !== null || !isReadingValue(cell.state)) continue;
       if (criterion.columns !== undefined && !criterion.columns.includes(cell.columnKey)) continue;
-      const answer = withinLimit(Number(cell.raw), cell.unit, limit);
+      const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
       if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess);
     }
   }
@@ -566,6 +612,8 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
         units: fixed === null ? unitsOf(defaultUnit) : [],
         options,
         displayText: fixed ?? displayOf(value, kind, options),
+        // Never shown: no number field draws a choice or a fixed cell (`markOverRange` narrows the number cells).
+        overRange: kind === 'number' && fixed === null ? OVER_RANGE_ALLOWED : { allowed: false, refusal: '' },
         verdict: null,
         helperText: null,
         criterionText: null,
@@ -612,7 +660,7 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
       shown,
       state,
       raw: held?.raw ?? '',
-      displayText: value.kind === 'number' && state === 'measured' ? withUnit(text, unit) : text,
+      displayText: value.kind === 'number' && isReadingValue(state) ? withUnit(text, unit) : text,
       missing: shown && value.optional !== true && state === 'empty',
     };
   });
@@ -676,6 +724,7 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
   const skipped = skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals;
   const live = enabled && !skipped;
   const criteria = test.criteria.filter((criterion) => holds(criterion.when, config));
+  markOverRange(rows, criteria);
 
   let reference: MeasurementReference | null = null;
   if (live) {
@@ -737,27 +786,62 @@ export function evaluateSheetMeasurements(block: Pick<BlockRow, 'config' | 'shee
   return tests.map((test, index) => evaluate(block, test, index + 1, config));
 }
 
+/** Story 22.10: a typed reading of a cell, a limit the instrument passed carrying `state: 'over_range'`. */
+export type ParsedCellReading = ParsedReading & { state?: 'over_range' };
+
+/** What the cell parse reads of a cell: its units, the positive-only message and (Story 22.10) whether it takes a limit. */
+export interface ReadingCellInput {
+  units: readonly string[];
+  positiveOnlyText?: string | null;
+  /** Absent: the cell takes no reading above the limit (a caller that never offers one). */
+  overRange?: OverRangeAllowance;
+}
+
 /**
  * Epic 14 QA Q-3: a typed reading of a measurement cell, read as `parseReadingPtBr` reads it,
  * and refused (`'invalid'`) at or below zero on a cell that takes only a positive reading
- * (`positiveOnlyText`), so nothing is committed for it.
+ * (`positiveOnlyText`), so nothing is committed for it. Story 22.10: THE input parse of every
+ * number cell, seeded or measurement: "OL" or "0L" takes `range` (the picked instrument's limit
+ * for the test, `instrumentRangeFor`) in the cell's units, "> 2 TΩ" the typed limit, both as
+ * `state: 'over_range'`; refused (`'invalid'`) on a cell whose `overRange` refuses it, for an
+ * "OL" with no limit to take, and for a malformed limit ("> 0", "> abc").
  */
-export function parseMeasurementReadingPtBr(
-  text: string,
-  cell: { units: readonly string[]; positiveOnlyText?: string | null },
-  defaultUnit: string | null,
-): ParsedReading | null | 'invalid' {
+export function parseMeasurementReadingPtBr(text: string, cell: ReadingCellInput, defaultUnit: string | null, range: InstrumentRange | null = null): ParsedCellReading | null | 'invalid' {
+  const over = parseOverRangePtBr(text, { units: cell.units, defaultUnit });
+  if (over !== null) {
+    if (cell.overRange?.allowed !== true || over === 'invalid') return 'invalid';
+    if (over.kind === 'limit') return { raw: over.raw, unit: over.unit, state: 'over_range' };
+    const limit = rangeInUnits(range, cell.units, defaultUnit);
+    return limit === null ? 'invalid' : { raw: limit.raw, unit: limit.unit, state: 'over_range' };
+  }
   const parsed = parseReadingPtBr(text, { units: cell.units, defaultUnit });
   if (parsed === null || parsed === 'invalid') return parsed;
   return (cell.positiveOnlyText ?? null) !== null && !(Number(parsed.raw) > 0) ? 'invalid' : parsed;
 }
 
 /**
+ * Story 22.10: why a typed over-range text is refused: the cell's own refusal when it takes no
+ * limit (a ratio cell, a compared cell), the no-limit text for an "OL" with no instrument limit
+ * in the cell's units (the example in `defaultUnit`); null for a text that is no over-range
+ * syntax, a limit that parses, or a malformed one (the field's generic message).
+ */
+export function overRangeRefusal(text: string, cell: ReadingCellInput, defaultUnit: string | null, range: InstrumentRange | null = null): string | null {
+  const over = parseOverRangePtBr(text, { units: cell.units, defaultUnit });
+  if (over === null) return null;
+  if (cell.overRange !== undefined && !cell.overRange.allowed) return cell.overRange.refusal === '' ? null : cell.overRange.refusal;
+  if (over === 'invalid' || over.kind === 'limit') return null;
+  return rangeInUnits(range, cell.units, defaultUnit) === null ? overRangeNoRangeText(defaultUnit ?? cell.units[0] ?? null) : null;
+}
+
+/**
  * Epic 14 QA Q-3: why a typed reading is refused when it is a number at or below zero on a
  * positive-only cell (the cell's `positiveOnlyText`, "-5" included); null for any other text,
- * where the field shows its generic "not a number" message.
+ * where the field shows its generic "not a number" message. Story 22.10: an over-range text
+ * refused says why first (`overRangeRefusal`).
  */
-export function measurementReadingRefusal(text: string, cell: { units: readonly string[]; positiveOnlyText?: string | null }, defaultUnit: string | null): string | null {
+export function measurementReadingRefusal(text: string, cell: ReadingCellInput, defaultUnit: string | null, range: InstrumentRange | null = null): string | null {
+  const over = overRangeRefusal(text, cell, defaultUnit, range);
+  if (over !== null) return over;
   const message = cell.positiveOnlyText ?? null;
   if (message === null) return null;
   const trimmed = text.trim();
@@ -973,5 +1057,5 @@ export function measurementStoredText(
   const stored = read({ value } as Cell, kind, options);
   if (stored === null || stored.state === 'invalid') return null;
   const text = displayOf(stored, kind, options);
-  return kind === 'number' && stored.state === 'measured' ? withUnit(text, stored.unit ?? unit) : text;
+  return kind === 'number' && isReadingValue(stored.state) ? withUnit(text, stored.unit ?? unit) : text;
 }

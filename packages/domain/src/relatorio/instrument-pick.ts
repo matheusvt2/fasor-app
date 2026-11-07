@@ -1,6 +1,6 @@
 import { calibrationStatusOf, calibrationValidUntil } from '../checks/calibration.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
-import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { instrumentRegistryRowText, type InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -8,6 +8,7 @@ import type { SubBlockKey } from '../schemas/block-config.ts';
 import { findDefinition, getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { TestKey } from './readings.ts';
+import { isOverRangeRaw, type InstrumentRange } from './over-range.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
@@ -58,6 +59,42 @@ export function instrumentHeaderOf(row: InstrumentRow, testKey: TestKey): Instru
     ...measurementInstrumentHeaderOf(row),
     test_parameter: raw === null || raw.trim() === '' ? null : [formatDecimalGroupedPtBr(raw), parameter?.unit ?? null].filter((part) => part !== null && part !== '').join(' '),
   };
+}
+
+/** Story 22.10: the test types whose registry row carries a top of range (`range_isolacao`, `range_resistencia_contato`). */
+export const RANGE_TEST_KEYS = ['isolacao', 'resistencia_contato'] as const satisfies readonly TestKey[];
+export type RangeTestKey = (typeof RANGE_TEST_KEYS)[number];
+
+/**
+ * Story 22.10 (AR-18's pattern, one value per test type): the top of `row`'s range for the test
+ * kind `testKey`, typed in Cadastros as the test defaults are ("2" and "TΩ", "2.000" and "µΩ"):
+ * the raw read the pt-BR way into a positive dot-decimal, the unit trimmed (null when blank);
+ * null when unset, not a positive number, or for a kind with no range (relação de transformação).
+ */
+export function instrumentRangeOf(row: Pick<InstrumentRow, 'range_isolacao' | 'range_resistencia_contato'>, testKey: TestKey): InstrumentRange | null {
+  if (testKey !== 'isolacao' && testKey !== 'resistencia_contato') return null;
+  const stored = row[`range_${testKey}`];
+  const typed = stored?.raw?.trim() ?? '';
+  const parsed = typed === '' || typed.startsWith('-') ? null : parseDecimalPtBr(typed);
+  const raw = parsed === null ? null : canonicalDecimal(parsed);
+  if (raw === null || !isOverRangeRaw(raw)) return null;
+  const unit = stored?.unit?.trim() ?? '';
+  return { raw, unit: unit === '' ? null : unit };
+}
+
+/**
+ * Story 22.10: the limit "OL" takes on a test of the block, read live from the registry at entry
+ * (stored by value in the cell): the range of the instrument picked on that test, for the kind a
+ * seeded test is or a measurement test's `instrument_of` names; null with no pick, a pick the
+ * registry no longer holds, or no range for the kind.
+ */
+export function instrumentRangeFor(block: Pick<BlockRow, 'sheet' | 'seed_version' | 'block_type'>, instruments: readonly Pick<InstrumentRow, 'id' | 'range_isolacao' | 'range_resistencia_contato'>[], testKey: string): InstrumentRange | null {
+  const definition = definitionOf(block);
+  const of = definition === null ? null : instrumentKindOf(definition, testKey);
+  const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
+  if (of === null || header === null) return null;
+  const row = instruments.find((candidate) => candidate.id === header.instrument_id);
+  return row === undefined ? null : instrumentRangeOf(row, of.kind);
 }
 
 /** A stored instrument cell's header, or null when the cell holds none. */

@@ -4,6 +4,7 @@ import {
   confirmedCellsLaterEdited,
   DOCX_MIME,
   lastNameplates,
+  lastResults,
   layoutSpec,
   livePhotos,
   nextRevisionNumber,
@@ -47,7 +48,8 @@ import { watermarkPng } from './watermark.ts';
  * two (at most three) passes so the printed TOC pages equal the PDF outline, stores both
  * files, and only then applies ONE server batch: the two `file` creates, the `revision`
  * create with the number allocated in that same transaction, the `last_nameplate` puts of
- * the issued plates (Story 7.5, AD-25), and the job's `status` and `result`. A throw
+ * the issued plates (Story 7.5, AD-25), the `last_results` puts of the issued readings (Story 22.12),
+ * and the job's `status` and `result`. A throw
  * anywhere leaves only `status: failed` and `error` behind: no revision number is consumed
  * and no `file` row exists (objects already written to S3 are orphans under immutable,
  * never referenced keys).
@@ -55,7 +57,7 @@ import { watermarkPng } from './watermark.ts';
  * Story 7.5: a `preview` job is the identical render with the layout's `draft` (RASCUNHO
  * behind every page, no revision number) and stores only its PDF, as a `file` of kind
  * `preview` the relatório's `preview_file_id` names; it changes no status, allocates no
- * number and writes no `last_nameplate`.
+ * number and writes no `last_nameplate` nor `last_results`.
  */
 
 export const GENERATE_ACTOR = 'system:generate';
@@ -494,11 +496,16 @@ async function commitRevision(
   const lastNameplateOps: Op[] = lastNameplates(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now }).map((entry) =>
     generateOp(payload, now, deps.newId, { kind: 'put', scope: 'project', projectId, path: `equipment/${entry.equipmentId}/last_nameplate`, value: entry.value }),
   );
+  // Story 22.12: the issued readings, the same way, so the next relatório shows "Anterior" and prints MANUT. ANTERIOR.
+  const lastResultsOps: Op[] = lastResults(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now }).map((entry) =>
+    generateOp(payload, now, deps.newId, { kind: 'put', scope: 'project', projectId, path: `equipment/${entry.equipmentId}/last_results`, value: entry.value }),
+  );
   const batch: Op[] = [
     fileCreate(outputs.docxId, 'docx', outputs.docx, DOCX_MIME),
     fileCreate(outputs.pdfId, 'pdf', outputs.pdf, PDF_MIME),
     generateOp(payload, now, deps.newId, { kind: 'create', path: `revision/${revisionId}`, value: revision }),
     ...lastNameplateOps,
+    ...lastResultsOps,
     jobPut(payload, now, deps.newId, 'status', 'done'),
     jobPut(payload, now, deps.newId, 'result', outputs.result),
   ];

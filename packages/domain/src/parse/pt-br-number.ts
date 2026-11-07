@@ -145,6 +145,30 @@ export function parseReadingPtBr(input: string, options: ParseReadingOptions): P
   return raw === null ? 'invalid' : { raw: canonicalDecimal(raw), unit: options.defaultUnit };
 }
 
+/** Story 22.10: what `parseOverRangePtBr` reads from a typed reading above the instrument's limit. */
+export type ParsedOverRange = { kind: 'limit'; raw: string; unit: string | null } | { kind: 'ol' };
+
+// "OL" or "0L" (a zero for the letter O, as some displays draw it), any case, whitespace anywhere.
+const OL_SPELLING = /^[O0]L$/;
+
+/**
+ * Story 22.10 (AR-10: the one parse home): a typed reading above the instrument's limit. "OL"
+ * or "0L" in any case (whitespace anywhere) answers `{kind: 'ol'}`, the instrument's own limit
+ * to be filled in by the caller; ">" followed by a reading read by `parseReadingPtBr`'s rules
+ * (the insulation suffix, the milliohm refusal E5-Q7, no sign) answers `{kind: 'limit'}` with
+ * that raw and unit, the limit above zero. `'invalid'` for ">" with nothing, zero, a negative
+ * or no number after it ("> 147 mΩ" included); null when the text is no over-range syntax at
+ * all (a plain reading, which `parseReadingPtBr` reads).
+ */
+export function parseOverRangePtBr(input: string, options: ParseReadingOptions): ParsedOverRange | null | 'invalid' {
+  const text = input.trim();
+  if (OL_SPELLING.test(text.replace(/\s+/g, '').toUpperCase())) return { kind: 'ol' };
+  if (!text.startsWith('>')) return null;
+  const parsed = parseReadingPtBr(text.slice(1), options);
+  if (parsed === null || parsed === 'invalid' || !(Number(parsed.raw) > 0)) return 'invalid';
+  return { kind: 'limit', raw: parsed.raw, unit: parsed.unit };
+}
+
 /**
  * A reading's `raw` in one spelling, so the same value always compares and prints the
  * same: no redundant leading zeros, no trailing fraction zeros ("0.500" -> "0.5",
