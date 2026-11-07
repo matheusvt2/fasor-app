@@ -379,7 +379,9 @@ describe('Story 14.6: company blocks in the fold', () => {
     const config = { block_type: TYPE_1, sub_blocks: sub, na_defaults: [], type_version: 1 };
     expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, type_version: 2 })], state)).toThrow(SeedPathError);
     expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, block_type: 'tp' })], state)).toThrow(SeedPathError);
-    expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, sub_blocks: { ...sub, tensoes_medidas: { enabled: false } } })], state)).not.toThrow();
+    // A test the type leaves switchable switches off; a measurement test without `switchable` is always on, as on a seeded type.
+    expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, sub_blocks: { ...sub, [DEFINITION_1.tests[0]!.key]: { enabled: false } } })], state)).not.toThrow();
+    expect(() => fold([op('put', 'relatorio', `block/${BLOCK_1_ID}/config`, { ...config, sub_blocks: { ...sub, tensoes_medidas: { enabled: false } } })], state)).toThrow(/always on/);
     // A seeded block's config put that names a company type is refused too (either side checked).
     const seeded = replay(replaySmall.log.slice(0, replaySmall.log.findIndex((o) => o.path.startsWith('block/')) + 1));
     const seededBlock = [...seeded.entries()].find(([key]) => key.startsWith('block:'))!;

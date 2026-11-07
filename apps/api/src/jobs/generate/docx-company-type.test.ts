@@ -30,14 +30,13 @@ async function render() {
 
 describe('Story 14.6: company types in section 9 of the DOCX', () => {
   it('prints every company sheet under "Outros equipamentos", each titled by the version its block references', async () => {
-    const { snapshot, structure, section } = await render();
+    const { snapshot, section } = await render();
     expect(snapshot.equipment_types?.length).toBe(3);
     expect(section).toContain('9.1 Outros equipamentos da Cabine principal');
-    const titles = structure.tables.map((table) => table[0]?.[0] ?? '');
-    // v1 keeps its label; v2 prints its print title; the retired type's v1 still prints.
-    expect(titles).toContain('NO-BREAK DE COMANDO NB-01');
-    expect(titles).toContain('NO-BREAK DE COMANDO NB-02');
-    expect(titles).toContain('FONTE AUXILIAR FA-01');
+    // The sheet title bars (paragraphs, as `docx.test.ts` reads them), in tree order: v1 keeps its
+    // label, v2 prints its print title, and the retired type's v1 still prints.
+    const titles = section.filter((p) => /^(NO-BREAK DE COMANDO|FONTE AUXILIAR) [A-Z]+-\d+$/.test(p));
+    expect(titles).toEqual(['NO-BREAK DE COMANDO NB-01', 'NO-BREAK DE COMANDO NB-02', 'FONTE AUXILIAR FA-01']);
   });
 
   it('draws a company sheet with the seeded grammars: its plate, its checklist and its measurement table', async () => {
