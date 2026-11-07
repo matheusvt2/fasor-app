@@ -98,8 +98,8 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
 
 describe('derived words of the type', () => {
   it('names it in the template totals after the eight, singular at one, and in the stepper label', () => {
-    // Story 14.9: the Quadro elétrico of seed v6 follows it.
-    expect(TOTALS_ORDER).toHaveLength(10);
+    // Story 14.9: the Quadro elétrico of seed v6 follows it; Story 22.11 the Inspeção de QGBT of seed v12.
+    expect(TOTALS_ORDER).toHaveLength(11);
     expect(TOTALS_ORDER[8]).toBe(CTA);
     const zero = Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((type) => [type, 0])) as Record<(typeof EQUIPMENT_BLOCK_TYPES)[number], number>;
     expect(totalsText({ ...zero, [CTA]: 1 })).toBe('1 chave de transferência automática');

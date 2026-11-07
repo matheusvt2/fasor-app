@@ -516,7 +516,9 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   await expect(page.locator('.ficha-mt').first().locator('.mt-criterion')).toHaveText('Aceitável >400 MΩ');
   await page.locator('.ficha-mt').first().locator('details.mt-source summary').click();
   await expect(page.locator('.ficha-mt').first().locator('details.mt-source p')).toHaveText('aceitável na ficha');
-  await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', 'Valor']);
+  // Seed v12 (Story 22.8): the per-row TENSÃO select sits right after the connection columns.
+  const voltage = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').tests[0]!.tables[0]!.value_columns.some((column) => column.role === 'voltage') ? ['Tensão (kV)'] : [];
+  await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', ...voltage, 'Valor']);
 
   // "3.300" is three thousand three hundred, echoed before any comparison.
   const t1 = cellInput(page, 'T1, Valor');
@@ -689,7 +691,8 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
 
 test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL CALCULADO until the group is chosen, then U1 / U2 = 36,32, its own terminal pairs and SATISFATÓRIO', async ({ page }) => {
   test.setTimeout(150_000);
-  expect(SEED_VERSION).toBe('v11');
+  // A new relatório's seed (v11, and v12 since e22s) computes the ratio by its vector group.
+  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').tests.find((t) => t.key === 'relacao_transformacao')!.tables[0]!.ratio_factor).toBe('vector_group');
   const { blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
   const ttr = page.locator('table.ficha-ttr');
   const row = ttr.locator('tbody tr').first();
@@ -748,8 +751,8 @@ async function openCompleteTransformer(page: Page, width: number): Promise<{ rel
   await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
-  expect(SEED_VERSION).toBe('v11');
+  // e22s: pinned to v11, the seed this walk was written on (v12 adds TIPO DO ÓLEO and the TENSÃO column).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v11' });
   const scope = { relatorioId: built.relatorioId };
   const sheet = built.sheets.find((s) => s.blockType === 'transformador_forca')!;
   const TF = getDefinition('v11', 'cabine_primaria', 'transformador_forca');

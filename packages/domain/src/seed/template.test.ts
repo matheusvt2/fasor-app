@@ -106,6 +106,7 @@ describe('standardTemplate', () => {
       chave_transferencia_automatica: 0,
       // Nor the second one (Story 14.9).
       quadro_eletrico: 0,
+      inspecao_qgbt: 0,
     });
     expect(templateBlockTotal(template)).toBe(94);
     // A block whose node left the skeleton is not counted, in the total either.

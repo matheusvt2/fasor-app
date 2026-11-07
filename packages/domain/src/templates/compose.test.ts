@@ -214,6 +214,7 @@ describe('3.4-UNIT quantities per node', () => {
       transformador_forca: 0,
       chave_transferencia_automatica: 0,
       quadro_eletrico: 0,
+      inspecao_qgbt: 0,
     });
     valid({ ...template, blocks });
   });

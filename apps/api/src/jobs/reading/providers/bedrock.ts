@@ -74,7 +74,8 @@ export {
 // 2 (review 2026-10-08, AIR-1/AIR-V1): dates as precise as printed, never an invented month; pt-BR separators spelled out.
 // 3 (Story 21.2): the transformer's vector group, printed or read from the drawn HV and LV diagrams, one of the 47 codes.
 // 4 (e21f): a drawn diagram is described in the tool's `vector_diagram` facts and composed by the kernel (`composeVectorGroup`), never by the model.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-4';
+// 5 (Stories 22.7 and 22.9): TIPO is the maker's designation, never the oil; the oil class and the oil insulation; EXATIDÃO as printed.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-5';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -202,12 +203,39 @@ export function vectorGroupPrompt(key: string): string {
   ].join('\n');
 }
 
+/**
+ * Stories 22.7 and 22.9 (seed v12): the lines that say what a v12 field holds, for the fields the
+ * request carries: the transformer's TIPO (the maker's designation, never the oil), its TIPO DO
+ * ÓLEO (the oil class letter) and its TIPO DE ISOLAÇÃO (oil when the plate names insulating oil),
+ * and an EXATIDÃO select's class, sent as printed for the kernel to read (`parseAccuracyClass`).
+ * Empty for a request with none of them, so every other plate's prompt is as before.
+ */
+export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
+  const field = (key: string) => fields.find((candidate) => candidate.key === key);
+  const notes: string[] = [];
+  const oil = field('tipo_do_oleo');
+  if (oil !== undefined) {
+    if (field('tipo') !== undefined) notes.push('The field tipo is the manufacturer\'s type or model designation (for example "TRICAST"), never the insulating oil.');
+    notes.push(`The field tipo_do_oleo is the class letter of the insulating oil: "Tipo óleo isolante B" is tipo_do_oleo = B; give one of: ${oil.options?.join(' | ') ?? 'A | B'}.`);
+    const insulation = field('tipo_de_isolacao');
+    const oilOption = insulation?.options?.find((option) => /óleo/i.test(option));
+    if (oilOption !== undefined) notes.push(`The field tipo_de_isolacao is ${oilOption} when the plate names an insulating oil ("óleo isolante", "óleo mineral"); leave it out when the plate prints no insulation word.`);
+  }
+  const exatidao = field('exatidao');
+  if (exatidao?.kind === 'select') {
+    notes.push('The field exatidao is the accuracy class exactly as printed, burden included (for example "0,6C25" or "10P20"): give it as text, not forced to one of its options.');
+  }
+  return notes;
+}
+
 /** The structuring request's text: the fields, then the OCR words as `t<n>: text` lines, never their boxes. */
 export function structuringPrompt(input: Pick<PlateStructuringInput, 'ocr' | 'fields' | 'vectorGroupKey'>): string {
   const words = input.ocr.tokens.length === 0 ? '(no words)' : input.ocr.tokens.map((token) => `${token.id}: ${token.text}`).join('\n');
   const key = vectorGroupKeyOf(input);
   const group = key !== undefined ? `\n\n${vectorGroupPrompt(key)}` : '';
-  return `Fields:\n${input.fields.map(fieldLine).join('\n')}${group}\n\nOCR words:\n${words}`;
+  const notes = plateFieldNotes(input.fields);
+  const fieldNotes = notes.length === 0 ? '' : `\n\n${notes.join('\n')}`;
+  return `Fields:\n${input.fields.map(fieldLine).join('\n')}${fieldNotes}${group}\n\nOCR words:\n${words}`;
 }
 
 const PROSE_SYSTEM = [

@@ -81,6 +81,8 @@ export * from './relatorio/nameplate-copy.ts';
 export * from './relatorio/dry-insulation.ts';
 export * from './relatorio/oil-rule.ts';
 export * from './relatorio/test-voltage.ts';
+export * from './relatorio/row-voltage.ts';
+export * from './relatorio/accuracy-class.ts';
 export * from './relatorio/ficha.ts';
 export * from './relatorio/readings.ts';
 export * from './relatorio/vector-group.ts';

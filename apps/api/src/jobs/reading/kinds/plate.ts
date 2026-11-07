@@ -73,6 +73,9 @@ export const plateHandler: ReadingKindHandler = {
     { block_type: 'chave_transferencia_automatica', sha256: '05598e686249d191e2c9e899b149d562c9c6057e237cc7fb61a086035b6df293' },
     // images/plate-quadro-eletrico.png (Story 14.9, seed v6)
     { block_type: 'quadro_eletrico', sha256: '7cfec77ab40680cdca0936b9b1a47ae530decd1bf3b6c25f21990383aed2d561' },
+    // Story 22.11 (seed v12): the Inspeção de QGBT replays the Quadro elétrico's plate; its four
+    // fields are keys of that plate's answer, and the others drop `unknown_key`.
+    { block_type: 'inspecao_qgbt', sha256: '7cfec77ab40680cdca0936b9b1a47ae530decd1bf3b6c25f21990383aed2d561' },
   ],
 
   async prepare({ db, companyId, relatorioId, photo }) {

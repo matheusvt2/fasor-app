@@ -1,0 +1,200 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TC",
+        "bbox": [
+          70,
+          70,
+          125,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "TC-02",
+        "bbox": [
+          640,
+          156,
+          723,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          290,
+          234,
+          319
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "Velquor",
+        "bbox": [
+          640,
+          294,
+          753,
+          320
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "Nº",
+        "bbox": [
+          72,
+          432,
+          101,
+          452
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          427,
+          185,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "TC-305290",
+        "bbox": [
+          640,
+          432,
+          796,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "RELAÇÃO",
+        "bbox": [
+          72,
+          566,
+          192,
+          595
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "100-5",
+        "bbox": [
+          642,
+          570,
+          722,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "A",
+        "bbox": [
+          732,
+          571,
+          752,
+          590
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "EXATIDÃO",
+        "bbox": [
+          72,
+          704,
+          200,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "0,6C25",
+        "bbox": [
+          641,
+          708,
+          740,
+          732
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TC-02",
+        "ocr_token_ids": [
+          "t2"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Velquor",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "TC-305290",
+        "ocr_token_ids": [
+          "t7"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "relacao",
+        "value": "100-5 A",
+        "ocr_token_ids": [
+          "t9",
+          "t10"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "exatidao",
+        "value": "0,6C25",
+        "ocr_token_ids": [
+          "t12"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

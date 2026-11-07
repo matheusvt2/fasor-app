@@ -544,6 +544,8 @@ export const copy = {
       chave_transferencia_automatica: 'Chave de transferência automática',
       // Story 14.9 (seed v6): the second library type, the seed's label (Bruno 2026-10-20 answer 5).
       quadro_eletrico: 'Quadro elétrico (QGBT/QD)',
+      // Story 22.11 (seed v12): the third library type, the seed's label. authored (Story 22.11, listed for Bruno)
+      inspecao_qgbt: 'Inspeção de QGBT',
     },
   },
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision

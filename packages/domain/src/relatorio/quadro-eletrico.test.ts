@@ -125,8 +125,9 @@ describe('the type in the palettes, its TAG and its words', () => {
     expect(suggestTag(QD, { kind: 'cabine', name: 'Subestação' }, [{ tag: 'QD-SUBESTACAO', removed_at: null }])).toBe('QD-SUBESTACAO-2');
   });
 
-  it('the template totals name it last, the stepper label, the caption word and the conclusion noun (masculine)', () => {
-    expect(TOTALS_ORDER.at(-1)).toBe(QD);
+  it('the template totals name it after the CTA (the Inspeção de QGBT of seed v12 last), the stepper label, the caption word and the conclusion noun (masculine)', () => {
+    expect(TOTALS_ORDER.at(-2)).toBe(QD);
+    expect(TOTALS_ORDER.at(-1)).toBe('inspecao_qgbt');
     const zero = Object.fromEntries(TOTALS_ORDER.map((type) => [type, 0])) as Record<(typeof TOTALS_ORDER)[number], number>;
     expect(totalsText({ ...zero, [QD]: 1 })).toBe('1 quadro elétrico');
     expect(totalsText({ ...zero, [CTA]: 1, [QD]: 3 })).toBe('1 chave de transferência automática · 3 quadros elétricos');

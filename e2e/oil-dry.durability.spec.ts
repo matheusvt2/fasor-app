@@ -25,6 +25,8 @@ const checked = (page: Page, key: string): Locator => row(page, key).locator('[r
 const select = (page: Page, key: string): Locator => page.locator(`#ficha-nameplate [data-field-key="${key}"] select`);
 /** The transformer's oil items on the current seed, from the kernel (seven on v9, Story 15.3). */
 const OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.items;
+/** Story 22.7 (seed v12): the oil value of TIPO DE ISOLAÇÃO is the kernel's (ÓLEO MINERAL since v12). */
+const OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.oil_values[0]!;
 /** The checklist number of RELÉ DE GÁS on the current seed (8 on v1 to v8, 7 on v9), read from the kernel. */
 const RELE_DE_GAS_NUMBER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').checklist!.findIndex((item) => item.key === 'rele_de_gas_funcionamento') + 1;
 
@@ -84,7 +86,7 @@ test('@p0 14.11-E2E-003 two devices, one crossing Á SECO to ÓLEO (with a reloa
     // Both offline. A: Á SECO to ÓLEO, which clears the C in its own batch. B: another oil item NC.
     await context.setOffline(true);
     await otherContext.setOffline(true);
-    await select(page, 'tipo_de_isolacao').selectOption('ÓLEO');
+    await select(page, 'tipo_de_isolacao').selectOption(OIL_VALUE);
     await expect(page.getByTestId('toast')).toContainText('1 item de óleo apagado');
     await expect.poll(() => shown(page)).toEqual(OIL.map(() => ''));
     await row(other, 'rele_de_gas_funcionamento').getByRole('radio', { name: 'Não conforme', exact: true }).click();
@@ -102,7 +104,7 @@ test('@p0 14.11-E2E-003 two devices, one crossing Á SECO to ÓLEO (with a reloa
     }
     await page.reload();
     await sheetIsDrawn(page);
-    await expect(select(page, 'tipo_de_isolacao')).toHaveValue('ÓLEO');
+    await expect(select(page, 'tipo_de_isolacao')).toHaveValue(OIL_VALUE);
     await expect.poll(() => shown(page)).toEqual(OIL.map(() => ''));
     const pending = await readStore<{ path: string; value: unknown }>(page, database, 'outbox');
     expect(pending.filter((op) => op.path === `sheet/${sheet.blockId}/checklist/termometro/result`).map((op) => op.value)).toEqual([null]);
@@ -121,7 +123,7 @@ test('@p0 14.11-E2E-003 two devices, one crossing Á SECO to ÓLEO (with a reloa
     const converged = OIL.map((key) => (key === 'rele_de_gas_funcionamento' ? 'nc' : ''));
     await expect.poll(() => shown(page), { timeout: 30_000 }).toEqual(converged);
     await expect.poll(() => shown(other), { timeout: 30_000 }).toEqual(converged);
-    await expect(select(other, 'tipo_de_isolacao')).toHaveValue('ÓLEO');
+    await expect(select(other, 'tipo_de_isolacao')).toHaveValue(OIL_VALUE);
 
     // The stored cells, marks included, are the same on both devices and on the server.
     const cells = async (target: Page, name: string) =>

@@ -102,6 +102,16 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'seed-v11.spec.ts',
     why: 'generates a revision through the shared queue and LibreOffice before a v10 transformer\'s vector group is edited, to read the Export dialog\'s banner',
   },
+  // Stories 22.7 to 22.9: 22.8/22.9-E2E-002 generates the DOCX the TENSÃO column, the class criterion and the defect justification are read from.
+  {
+    file: 'seed-v12.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read the seed v12 TENSÃO (kV) column, ACEITÁVEL by accuracy class and the defect reason in the DOCX',
+  },
+  // Story 22.11: 22.11-E2E-001 generates the DOCX the Inspeção de QGBT is read from.
+  {
+    file: 'qgbt-inspecao.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read the Inspeção de QGBT under "Outros equipamentos" in section 9 of the DOCX',
+  },
   // Test-speed batch (2026-09-27): the specs that time a tap against a render (`humanTap`,
   // `touchPressAcross`, `tapCounter` in `taps.ts`). They measure the device, and the device
   // is the one thing the per-worker pairs cannot separate: beside two other browsers the

@@ -182,6 +182,20 @@ photo of their own bytes, as `job.integration.test.ts` and `bedrock-eval.ts` sen
 | `plate-transformador-dyn1.png` | `03b3fc52...json` | identificacao `TR-02`; fabricacao `Varnelo`; n_serie `TF-330918`; potencia_nominal `{raw: 300, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}` (prints `13,8 kV`); tensao_nominal_bt `{raw: 380, unit: V}`; ligacao_secundaria `Dyn1`, citing its printed word: `suggested` |
 | `plate-transformador-yyn0.png` | `2a69ba08...json` | identificacao `TR-03`; fabricacao `Varnelo`; tensao_nominal_at and _bt as above; LIGAÇÃO SECUNDÁRIA prints no value and the plate draws the HV star (H1 H2 H3) and the LV star with its neutral (X1 X2 X3, X0); no ligacao_secundaria value (e21f): the answer carries `vector_diagram` (`hv_shape` star, `hv_neutral` false, `lv_shape` star, `lv_neutral` true, `x1_hours` 0, citing the seven terminal labels `t19`-`t25`), which the provider composes into `Yyn0` (`composeVectorGroup`, `providers/vector-diagram.ts`); no cited run prints the group, so the kernel makes it `verify`, citing no token over the whole image ("Lido do diagrama — confira") |
 
+## The two seed v12 plates (Stories 22.7 and 22.9)
+
+Two 1200 x 900 PNGs in `images/`, made by `make-plate-fixtures.ts transformador_forca_oleo
+tc_classe` on the seed v12 definitions. Like the v11 plates they are no block type's default:
+their fixtures replay only for a photo of their own bytes (`job.integration.test.ts`; the oil
+plate is in `bedrock-eval.ts`'s synthetic set). The Inspeção de QGBT (seed v12) has no plate of
+its own: its default is the Quadro elétrico's (`kinds/plate.ts`), whose answer gives four of its
+keys and drops the others `unknown_key`.
+
+| Image | Fixture | Values |
+|---|---|---|
+| `plate-transformador-oleo.png` | `cbbc7884...json` | identificacao `TR-04`; fabricacao `Varnelo`; tipo `TRICAST` (printed "TIPO TRICAST"); tipo_do_oleo `B`, citing "Tipo óleo isolante B"; potencia_nominal `{raw: 500, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}`; tensao_nominal_bt `{raw: 220, unit: V}`. No insulation word is printed and no tipo_de_isolacao value is given: the kernel composes TIPO DE ISOLAÇÃO `ÓLEO MINERAL` in `verify`, citing the oil words (`reading/build.ts`) |
+| `plate-tc-classe.png` | `c1b740d6...json` | identificacao `TC-02`; fabricacao `Velquor`; n_serie `TC-305290`; relacao `100-5 A`; exatidao `0,6C25` as printed, which the kernel reads as the class `0,6` (`parseAccuracyClass`) |
+
 ## The error and timeout images
 
 `images/plate-error.png` and `images/plate-timeout.png` are 64 x 48 single-colour PNGs made
