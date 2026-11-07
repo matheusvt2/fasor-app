@@ -1,4 +1,4 @@
-import { parseAccuracyClass } from '../relatorio/accuracy-class.ts';
+import { ACCURACY_CLASS_FIELD, parseAccuracyClass } from '../relatorio/accuracy-class.ts';
 import { isVectorGroupOptions, parseVectorGroup } from '../relatorio/vector-group.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import type { FieldDef } from './schema.ts';
@@ -15,15 +15,13 @@ import type { FieldDef } from './schema.ts';
  *
  * Story 22.9 (seed v12): a select whose options are accuracy classes (the TC's and TP's EXATIDÃO)
  * reads its value through `parseAccuracyClass`, so a v11 text "0,6C25" or "0.6" lands as "0,6".
+ * e22g (review S6): the rule is keyed on the field (`ACCURACY_CLASS_FIELD`), never on the shape of
+ * its options, so a select whose options happen to be bare numbers (an office's "NÚMERO DE FASES"
+ * with 1, 2 and 3, wave C) never reads "3F" as "3" through the class parser.
  */
 
-/** True when every option is an accuracy class as the parser writes it (the v12 EXATIDÃO selects). */
-function isAccuracyClassOptions(options: readonly string[]): boolean {
-  return options.length > 0 && options.every((option) => parseAccuracyClass(option) === option);
-}
-
 /** The select's option `value` reads as: the option itself, else the option or alias matched ignoring case and accents, else null. */
-export function selectOptionFor(field: Pick<FieldDef, 'options' | 'option_aliases'>, value: unknown): string | null {
+export function selectOptionFor(field: Pick<FieldDef, 'options' | 'option_aliases'> & { key?: string }, value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const options = field.options ?? [];
   if (options.includes(value)) return value;
@@ -38,7 +36,7 @@ export function selectOptionFor(field: Pick<FieldDef, 'options' | 'option_aliase
     const group = parseVectorGroup(value);
     if (group !== null && options.includes(group.code)) return group.code;
   }
-  if (isAccuracyClassOptions(options)) {
+  if (field.key === ACCURACY_CLASS_FIELD) {
     const cls = parseAccuracyClass(value);
     if (cls !== null && options.includes(cls)) return cls;
   }

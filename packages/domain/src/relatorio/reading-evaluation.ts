@@ -316,12 +316,14 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   });
 
   // The units an empty cell shows: the previous row's, else the column's (Story 5.5 AC 2).
+  // e22g S2: a row above the instrument's limit is skipped, its unit the limit's (the top of
+  // range, "2 TΩ"), not a reading's: the last measured row's unit carries, else the column's.
   for (const { col } of typed) {
     let previous: string | null = null;
     rows.forEach((row, r) => {
       const cell = row.cells.find((c) => c.address.col === col)!;
       if (cell.state === 'empty' && r > 0 && cell.units.length > 1 && previous !== null) cell.unit = previous;
-      previous = cell.unit;
+      if (cell.state !== 'over_range') previous = cell.unit;
     });
   }
 

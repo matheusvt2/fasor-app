@@ -142,8 +142,30 @@ async function expectTableWhole(page: Page, mt: Locator, where: string, minWidth
   }
   expect(await splitWordsOfTable(mt), `${where}: words split`).toEqual([]);
   await expectNoOverflow(page, `${where} [${geometry.columns}]`);
-  // A focus that arrives now (the field may still hold it from the previous size, where focus() would not scroll).
+  // e22g (review S5, R8LAY-E2E-001): the page starts the focus from one known place, the title row
+  // 120 px under the viewport's top, held for two frames. Measured over 20 runs (`--repeat-each
+  // 10`, twice): the page kept its scroll through every resize, blur and focus, and a red came from
+  // where the 1280 Enter run left it (the run's last focus scroll lands 200 px apart, with or
+  // without the focus scroll of the last capture before it), so the title's place was the run's,
+  // not this focus's. From here a focus that scrolls the title out of view still fails.
   await last.blur();
+  await mt.evaluate((el) => {
+    const title = el.querySelector<HTMLElement>(':scope > .mt-title-row')!;
+    window.scrollBy({ top: title.getBoundingClientRect().top - 120, behavior: 'instant' });
+  });
+  await expect
+    .poll(() =>
+      mt.evaluate(
+        (el) =>
+          new Promise<boolean>((resolve) => {
+            const title = el.querySelector<HTMLElement>(':scope > .mt-title-row')!;
+            const first = title.getBoundingClientRect().top;
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve(Math.abs(title.getBoundingClientRect().top - first) < 0.5 && Math.abs(first - 120) < 1)));
+          }),
+      ),
+    )
+    .toBe(true);
+  // A focus that arrives now (the field may still hold it from the previous size, where focus() would not scroll).
   await last.focus();
   await expect(last).toBeFocused();
   const after = await mt.evaluate((el, input) => {

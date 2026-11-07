@@ -633,7 +633,8 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
       const cell = row.cells[col]!;
       if (cell.fixed !== null || cell.kind !== 'number') return;
       if (cell.state === 'empty' && at > 0 && cell.units.length > 1 && previous !== null && cell.units.includes(previous)) cell.unit = previous;
-      previous = cell.unit;
+      // e22g S2: a limit's unit (the instrument's top of range) never carries to the next row.
+      if (cell.state !== 'over_range') previous = cell.unit;
     });
   });
   return rows;

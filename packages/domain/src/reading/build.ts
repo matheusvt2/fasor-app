@@ -1,7 +1,7 @@
 import type { OcrReadResult, OcrToken, StructuringOutput, StructuringValue } from '../contract/ocr.ts';
 import type { NewId } from '../ids.ts';
 import { sheetNameplatePath } from '../ops/path.ts';
-import { parseAccuracyClass } from '../relatorio/accuracy-class.ts';
+import { ACCURACY_CLASS_FIELD, parseAccuracyClass } from '../relatorio/accuracy-class.ts';
 import { isCellFilled } from '../relatorio/sheet-state.ts';
 import { isVectorGroupField, parseVectorGroup } from '../relatorio/vector-group.ts';
 import { suggestionRowSchema, type BlockRow, type SuggestionRow } from '../schemas/entities.ts';
@@ -67,8 +67,6 @@ function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): Blo
   }
 }
 
-/** Story 22.9 (seed v12): the field whose select holds an accuracy class (the TC's and the TP's EXATIDÃO). */
-const ACCURACY_CLASS_FIELD = 'exatidao';
 /** Story 22.7 (seed v12): the transformer's oil class and the insulation it implies. */
 const OIL_CLASS_FIELD = 'tipo_do_oleo';
 
