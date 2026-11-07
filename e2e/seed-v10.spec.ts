@@ -1,4 +1,4 @@
-import { getDefinition, initialOrderKey, newEquipmentBlock, oilNaChipText, SEED_VERSIONS, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, initialOrderKey, newEquipmentBlock, oilNaChipText, SEED_VERSIONS, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -135,6 +135,7 @@ function smallRelatorioWithTc(): { relatorioId: string; tcId: string; drafts: Op
   const scope = { relatorioId: built.relatorioId };
   const { equipment, block } = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: built.relatorioId,
     projectId: built.projectId,

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   getDefinition,
+  EMPTY_DEFINITION_CONTEXT,
   paletteItems,
   screenLabel,
   SEED_VERSION,
@@ -388,7 +389,7 @@ test('@p0 14.9-E2E-002 at 768 then 390: offline, the field palette lists the Qua
   const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   const rows = fieldPalette.locator('.pf-field');
   await expect(rows.locator('.pi-text > span:first-child')).toHaveText(typeLabels(SEED_VERSION));
-  const item = paletteItems(SEED_VERSION, { kind: 'cabine', name: 'Geradores' }, []).find((entry) => entry.type === QD)!;
+  const item = paletteItems(SEED_VERSION, { kind: 'cabine', name: 'Geradores' }, [], EMPTY_DEFINITION_CONTEXT).find((entry) => entry.type === QD)!;
   const qdRow = typeRows(fieldPalette, [QD]);
   const meta = (await qdRow.locator('.pi-meta').innerText()).trim();
   expect(meta).toMatch(new RegExp(`^${item.summary} · ${item.tag}(-\\d+)?$`));

@@ -1,4 +1,4 @@
-import { getDefinition, initialOrderKey, newEquipmentBlock, SEED_VERSION, type MeasurementTest } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, initialOrderKey, newEquipmentBlock, SEED_VERSION, type MeasurementTest } from '@app/domain';
 import type { Page, Route } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { signInForDurability, waitForShellCache } from './support/durability.ts';
@@ -56,6 +56,7 @@ test('@p0 14.5-E2E-003 a CTA reading and an E5 option written offline survive a 
   const geradores = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string; kind?: string }).name === 'Geradores')!.value as { id: string };
   const { equipment, block } = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: built.relatorioId,
     projectId: built.projectId,

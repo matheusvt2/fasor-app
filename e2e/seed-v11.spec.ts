@@ -1,4 +1,4 @@
-import { getDefinition, initialOrderKey, newEquipmentBlock, vectorGroupByCode, vectorGroupCaptureLabel, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, initialOrderKey, newEquipmentBlock, vectorGroupByCode, vectorGroupCaptureLabel, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -63,6 +63,7 @@ function smallV10RelatorioWithTransformer(): { relatorioId: string; blockId: str
   const scope = { relatorioId: built.relatorioId };
   const { equipment, block } = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: built.relatorioId,
     projectId: built.projectId,

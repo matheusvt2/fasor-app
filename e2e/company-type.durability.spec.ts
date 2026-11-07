@@ -1,4 +1,5 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   blockTypeLabel,
   duplicateSeededType,
   getDefinition,
@@ -132,6 +133,7 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   const geradores = r0.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === 'Geradores')!.value as { id: string };
   const r0Pair = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: r0.relatorioId,
     projectId: r0.projectId,

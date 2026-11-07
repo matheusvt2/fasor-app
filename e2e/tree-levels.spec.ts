@@ -83,10 +83,10 @@ function levelsRelatorio(): Built {
   skeleton = addColuna(skeleton, 'tl-painel', 'tl-c2', 'Coluna 2');
   // The standard template's section blocks stay; its equipment, placed on refs this skeleton does not hold, is dropped by `setQuantity`.
   const base = { ...standardTemplate({ id: newId() }), skeleton };
-  let blocks = setQuantity(base, 'tl-local', 'transformador_forca', 1);
-  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'chave_seccionadora', 1);
-  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'disjuntor_mt', 1);
-  blocks = setQuantity({ ...base, blocks }, 'tl-c2', 'chave_seccionadora', 1);
+  let blocks = setQuantity(base, 'tl-local', 'transformador_forca', 1, EMPTY_DEFINITION_CONTEXT);
+  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
+  blocks = setQuantity({ ...base, blocks }, 'tl-c1', 'disjuntor_mt', 1, EMPTY_DEFINITION_CONTEXT);
+  blocks = setQuantity({ ...base, blocks }, 'tl-c2', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT);
   const { relatorioId, drafts } = instantiateTemplate(
     { ...base, blocks },
     { id: projectId },

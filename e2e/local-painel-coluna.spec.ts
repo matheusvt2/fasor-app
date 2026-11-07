@@ -1279,6 +1279,7 @@ test('@p1 14.2-E2E-006 Epic 14 QA ledger (h): a sheet another device created in 
   // A second device that had not seen the removal pushes a sheet it created on Geradores.
   const created = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId,
     projectId,

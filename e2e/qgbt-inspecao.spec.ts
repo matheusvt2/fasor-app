@@ -1,4 +1,4 @@
-import { getDefinition, initialOrderKey, newEquipmentBlock, screenLabel, SEED_VERSION, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, initialOrderKey, newEquipmentBlock, screenLabel, SEED_VERSION, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -75,6 +75,7 @@ function relatorioWithPainel(): { relatorioId: string; colunaId: string; drafts:
   const coluna = { id: colunaId, relatorio_id: built.relatorioId, parent_id: painelId, kind: 'coluna', name: 'Coluna 1', order_key: initialOrderKey(0), removed_at: null };
   const { equipment, block } = newEquipmentBlock({
     blockId: newId(),
+    definitions: EMPTY_DEFINITION_CONTEXT,
     equipmentId: newId(),
     relatorioId: built.relatorioId,
     projectId: built.projectId,
