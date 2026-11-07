@@ -76,7 +76,7 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
   const plain = (message: string, what: string) => ({ message, summary: `${word} › ${what}` });
 
   // authored (Story 14.6): every sentence below, listed for Bruno in the PR.
-  if (index === undefined && issue.code === 'invalid_type' && head !== 'label' && head !== 'tag_prefix' && head !== 'print_title') {
+  if (index === undefined && issue.code === 'invalid_type' && head !== 'label' && head !== 'tag_prefix' && head !== 'print_title' && head !== 'noun') {
     // A whole part is missing (a draft written by hand, never one "Duplicar" made).
     return plain(`Preencha a aba ${word}.`, 'aba vazia');
   }
