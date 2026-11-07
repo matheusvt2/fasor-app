@@ -506,15 +506,15 @@ describe('7.1 section9Layout: the I/O matrix', () => {
       }
     });
 
-    it('Story 22.4: a stored half cleared on a sheet with a floor reads the floor, so the pair stays complete, marked, and the edited text prints', () => {
+    it('~~Story 22.4: a stored half cleared on a sheet with a floor reads the floor~~ e22f N2: a stored half cleared prints no mark (the floor alone is not a conclusion), so the pair is incomplete and the edited text does not print', () => {
       const built = withText('edited', basis, (b) => {
         delete b.sheet.conclusion.restriction;
         return b;
       });
       const { rows } = conclusionOf(built);
-      expect(rows).toHaveLength(3);
-      // The NC row's floor is Com restrições.
-      expect(rows[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
+      expect(rows).toHaveLength(2);
+      // The NC row's floor (Com restrições) still shows on the screen; the document marks only what was chosen.
+      expect(rows[1]).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', '']);
     });
 
     // p020 P-3: a stored text equal to the composed one is never stale, so it prints.

@@ -223,6 +223,9 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('.poa-link-value')).toHaveText(`${chave.tag} · Chave seccionadora · Cubículo Enel`);
   await expect(textArea(dialog).locator('.photo-ref')).toHaveText('Imagem 1');
+  // e22f S4: it starts with the row's derived entry text, as "Editar" on that entry does.
+  const entryText = `Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}) não conforme`;
+  await expect(textArea(dialog)).toContainText(entryText);
   await textArea(dialog).click();
   await page.keyboard.press('Home');
   await page.keyboard.type('Contato com sinais de aquecimento ');
@@ -235,7 +238,7 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
   // Story 22.5: the point replaces the row's derived NC entry (its origin and item).
   expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
-  expect(point.text).toBe(`Contato com sinais de aquecimento ${photoToken(photoId)}`);
+  expect(point.text).toBe(`Contato com sinais de aquecimento ${entryText} ${photoToken(photoId)}`);
 
   // The Points surface titles it by the equipment; the row's derived entry is gone (replaced).
   await page.goto(`/relatorio/${relatorioId}/pontos`);
@@ -423,6 +426,8 @@ test('@p0 6.6-E2E-010 E6-Q2: a point typed and not yet saved when the tab dies i
   await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
   const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
   await expect(textArea(dialog)).toBeFocused();
+  // e22f S4: the dialog starts with the NC entry's text; this walk types its own text in its place.
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('Sem aterramento');
   // The tab goes away before the autosave's idle commit.
   await page.evaluate(() => {
@@ -469,6 +474,8 @@ test('@p0 6.6-E2E-013 E6-R1: a point typed and reloaded with no hide event first
   await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
   const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
   await expect(textArea(dialog)).toBeFocused();
+  // e22f S4: the dialog starts with the NC entry's text; this walk types its own text in its place.
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('Terminal sem identificação');
   // Written while typing, about 300 ms after the last key: no hide event was needed.
   await expect
@@ -495,6 +502,8 @@ test('@p0 6.6-E2E-014 E6-R1: the draft written while typing is dropped once the 
   await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
   const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
   await expect(textArea(dialog)).toBeFocused();
+  // e22f S4: the dialog starts with the NC entry's text; this walk types its own text in its place.
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('Isolador trincado');
   const pointDrafts = async () => (await readStore<{ surface: string; value: { text?: string } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point');
   // The typing-time draft is there first...
@@ -1171,6 +1180,8 @@ test('@p0 20.4-E2E-006 a pick in a new point\'s editor goes into its create: fro
   const dialogPicker = linkPicker(dialog);
   await expect(dialogPicker).toContainText(chaveOption(chave));
   await textArea(dialog).click();
+  // e22f S4: the dialog starts with the NC entry's text; this walk types its own text in its place.
+  await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('Contato com folga');
   await dialogPicker.click();
   const dialogOption = linkList(page).getByRole('group', { name: 'Cubículo Enel' }).getByRole('option').filter({ hasNotText: chave.tag + ' ·' }).nth(1);

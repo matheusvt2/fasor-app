@@ -3060,3 +3060,15 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22p-print-and-attach.md` (Story 22.2)
   summary: The spec names `_bmad-output/planning-artifacts/source-deltas.md`; the file is `_bmad-output/specs/spec-fasor/source-deltas.md`, where the 2026-11-06 FR-68 row was already written by the planning PR: it was marked built rather than duplicated, and the AD-18 attribution row amended beside it.
   evidence: `source-deltas.md` rows FR-68 (2026-11-06) and FR-32/AD-18.
+
+## Deferred from: Epic 22 fix batch e22f (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N5)
+  summary: The palette's "Fotografar equipamento" result dialog offers only "Fotografar de novo": an office user who attached a file there has no "Anexar arquivo" to redo it. Outside Story 22.1's opener list. Owner: the next batch touching `panel-capture.tsx`.
+  evidence: `apps/web/src/surfaces/relatorio/panel-capture.tsx` result dialog; `epic-22-wave-a-integrated-review-2026-11-06.md` N5.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N6)
+  summary: The file input's `cancel` event needs Chromium 113, Safari 16.4 or Firefox 91; where it never fires, a cancelled palette pick keeps `shotRef` set until the next open and the focus is not returned. Nothing visible stays open. Low risk; owner: the next batch touching `attach-file.tsx`, with a focus-return fallback on the window's next `focus`.
+  evidence: `apps/web/src/surfaces/ficha/attach-file.tsx:93`; review N6.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N7)
+  summary: Section 10 replaces the fixed reference "nos itens 8 e 9" only when it sits whole inside one rich run; a template's own Conclusão text that styles part of the phrase (a bold "8 e 9") keeps the literal numbers. Owner: the next batch touching `print/section-10.ts`, joining the runs before the replacement.
+  evidence: `packages/domain/src/print/section-10.ts` `positioned`; review N7.

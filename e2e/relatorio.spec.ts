@@ -288,10 +288,10 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão');
   // Story 7.4: the parecer is the one row that stops "Gerar relatório" (row 10, in red); the
   // foot says so, and the preview (Story 7.5) is live.
-  // Story 22.6: the verdict is derived (Apto here) and nothing blocks.
-  await expect(rows.nth(11).locator('.sum-status')).toHaveText('Apto');
-  await expect(page.locator('.sum-status.is-blocking')).toHaveCount(0);
-  await expect(page.getByText('Nada impede gerar.', { exact: false }).first()).toBeVisible();
+  // ~~Story 22.6: the verdict is derived (Apto here) and nothing blocks.~~ e22f S5: nothing is
+  // judged on this new relatório and no verdict was tapped, so row 10 blocks again (Story 7.4).
+  await expect(rows.nth(11).locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
+  await expect(page.getByText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pré-visualizar' })).not.toHaveAttribute('aria-disabled', 'true');
   // Every row is at least 56 px tall (v0.9 `.sum-row { min-height: var(--touch-field) }`, Story 12.5; was 64 in v0.8).
   for (const i of [0, 2, 5, 12]) {

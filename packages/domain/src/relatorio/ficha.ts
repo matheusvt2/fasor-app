@@ -207,6 +207,19 @@ export function recentChecklistObservations(
 }
 
 /**
+ * e22f N3 (integrated review of Epic 22 wave A): a checklist row set back from NC to C clears
+ * its observation in the same batch only while that observation is still the NC phrase a chip
+ * wrote, unedited: exactly one of the row's chips (`ncChipPhrases`: the seed's phrases, the
+ * learned ones, the recents). Kept otherwise (an edited or typed text is the engineer's, and
+ * as a C row's observation it still sets the floor's "observação registrada").
+ */
+export function clearsNcObservation(from: string | null, to: string | null, observation: string, chips: readonly string[]): boolean {
+  if (from !== 'NC' || to !== 'C') return false;
+  const text = observation.trim();
+  return text !== '' && chips.some((phrase) => phrase.trim() === text);
+}
+
+/**
  * A chip's phrase inserted at the caret of an observation, without repeating a phrase the
  * text already holds. Returns the new text and where the caret goes.
  */

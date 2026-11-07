@@ -49,8 +49,8 @@ describe('4.3-UNIT preIssue', () => {
       ['site_checklist_unanswered', `Verificações do local sem resposta: ${CABINES.slice(0, -1).map((name) => `${name} (${SITE_COUNT} itens)`).join(', ')} e Geradores (${SITE_COUNT} itens)`],
     ]);
     expect(preIssueRowsFor(rows, 'section_11').map((r) => [r.kind, r.text])).toEqual([['setup_missing', 'Nenhum instrumento em Dados do relatório']]);
-    // Story 22.6: nothing blocks ("Parecer não preenchido" retired).
-    expect(blockingRows(rows)).toEqual([]);
+    // e22f S5: nothing judged and no verdict tapped, so only the parecer blocks (Story 7.5's row, back).
+    expect(blockingRows(rows).map((r) => r.kind)).toEqual(['parecer_missing']);
     expect(rows.every((r) => r.id !== '')).toBe(true);
   });
 
@@ -108,7 +108,7 @@ describe('4.3-UNIT preIssue', () => {
     expect(cabineIncompletaText(' Cubículo Enel ', 'faltam 2 campos')).toBe('Cubículo Enel: faltam 2 campos');
     const complete = { ...withOne, locations: withOne.locations.map((l) => (l.id === enel.id ? { ...almost, env: { ...almost.env, humidity_pct: n('65', '%') } } : l)) };
     expect(preIssue(complete).some((r) => r.id === `cabine_incompleta:${enel.id}`)).toBe(false);
-    expect(blockingRows(preIssue(withOne))).toEqual([]);
+    expect(blockingRows(preIssue(withOne)).map((r) => r.kind)).toEqual(['parecer_missing']);
   });
 
   it('Q9 and Story 14.2: says "Local" before a bare name, and never before a name that already says Cabine or Local, whatever its case or accents', () => {
