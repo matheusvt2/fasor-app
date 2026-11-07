@@ -58,12 +58,13 @@ describe('p020 P-1b printsSection, the one rule', () => {
     expect(printsSection(legacy, 10)).toBe(true);
   });
 
-  it('Story 22.6: no row blocks, with section 10 or without it (the parecer_missing row retired)', () => {
+  it('e22f S5 (amends Story 22.6): a fresh relatório (nothing judged, no verdict) blocks on "Parecer não preenchido" only while section 10 prints', () => {
     const snapshot = fresh();
     const blocking = (s: RelatorioSnapshot) => preIssue(s, undefined, { now: NOW }).filter((row) => row.severity === 'blocking');
-    expect(blocking(snapshot)).toEqual([]);
+    expect(blocking(snapshot).map((row) => row.kind)).toEqual(['parecer_missing']);
     expect(blocking(without(snapshot, ['section_10']))).toEqual([]);
-    expect(blocking(without(snapshot, [...TEXT_SECTIONS, 'section_7', 'section_9']))).toEqual([]);
+    // A legacy snapshot (no live section block) prints the seed's eleven, section 10 included.
+    expect(blocking(without(snapshot, [...TEXT_SECTIONS, 'section_7', 'section_9'])).map((row) => row.kind)).toEqual(['parecer_missing']);
   });
 
   it('nothing printed changes: the layout of a relatório without 8 and 10 prints only its own sections', () => {

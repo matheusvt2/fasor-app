@@ -743,10 +743,10 @@ describe('sheetProgress counts the measurement tests in the Ensaios step', () =>
     // One pole out of the relative limit and one setting left different from the project.
     expect(progress.steps.ensaios).toEqual({ missing: 0, outOfLimit: 2 });
     expect(stepMayCollapse(progress, 'ensaios')).toBe(false);
-    // Story 22.4: the out readings set the floor Reprovado · Com restrições, so the pair is filled
-    // and only the observation Com restrições requires is missing.
-    expect(progress.steps.conclusao).toEqual({ missing: 1, outOfLimit: 0, observation: 1 });
-    expect(sheetSummaryText(progress, shownSheetSteps(block))).toBe('Placa, verificações e leituras prontas · faltam as observações');
+    // ~~Story 22.4: the out readings set the floor Reprovado · Com restrições, so the pair is filled~~
+    // e22f N2: the floor (Reprovado · Com restrições) fills no step: the pair is missing until stored.
+    expect(progress.steps.conclusao).toEqual({ missing: 2, outOfLimit: 0 });
+    expect(sheetSummaryText(progress, shownSheetSteps(block))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
     expect(sheetState(block)).toBe('em_preenchimento');
     // With the pair set (Com restrições asks for the sheet observation) nothing is missing.
     let done = applyOp(filled, f.op({ path: sheetConclusionPath(CTA_BLOCK, 'result'), value: 'aprovado' }));

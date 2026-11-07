@@ -147,12 +147,12 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_7).toBe('Nenhuma foto');
     // Story 6.6: row 8 counts its entries; a new relatório has none.
     expect(meta.section_8).toBe('Nenhum ponto de atenção');
-    // Story 22.6: row 10 names the derived verdict (never missing); row 11 the instruments not chosen yet.
-    expect(meta.section_10).toBe('Apto');
+    // e22f S5: nothing judged and no verdict tapped, so row 10 names what stops it (Story 7.4, back); row 11 the instruments not chosen yet.
+    expect(meta.section_10).toBe('Parecer não preenchido');
     expect(meta.section_11).toBe('Nenhum instrumento em Dados do relatório');
-    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual([]);
-    expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_1', 'section_9', 'section_11']);
-    expect(generateReason(rows)).toBe('Nada impede gerar.');
+    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual(['section_10']);
+    expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_1', 'section_9', 'section_10', 'section_11']);
+    expect(generateReason(rows)).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
   });
 
   it('E4 retro item 22: an edited section reads "texto editado"; the template text alone reads "texto do template"', () => {
@@ -548,8 +548,8 @@ describe('2026-10-10 status flow: Controle do documento meta and the next-step s
   });
 
   it('decision 5: generateReason is the blocking sentence alone, whatever the status', () => {
-    // Story 22.6: nothing blocks any more.
-    expect(generateReason(rowsOf(fresh()))).toBe('Nada impede gerar.');
+    // e22f S5: a fresh relatório (nothing judged, no verdict) blocks on the parecer again.
+    expect(generateReason(rowsOf(fresh()))).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
     expect(generateReason.length).toBeLessThanOrEqual(3);
   });
 

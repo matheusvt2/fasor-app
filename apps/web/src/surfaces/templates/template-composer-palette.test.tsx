@@ -138,7 +138,9 @@ describe('3.4 composer: quantities per node', () => {
     const groups = [...palette().querySelectorAll('.palette-group')].map((group) => group.textContent);
     expect(groups.indexOf('Outros equipamentos')).toBeGreaterThan(groups.indexOf('Equipamentos'));
     const rows = [...palette().querySelectorAll<HTMLElement>('.palette-item.is-stepper')];
-    expect(rows).toHaveLength(10);
+    // Story 22.11 (seed v12): the Inspeção de QGBT is the third library type.
+    expect(rows).toHaveLength(11);
+    expect(rows[10]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Inspeção de QGBT');
     // The library types are the last rows, after the heading, and say what they hold.
     const heading = within(palette()).getByText('Outros equipamentos');
     expect(rows[7]!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

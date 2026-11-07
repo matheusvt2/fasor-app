@@ -3,6 +3,7 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { replay } from '../ops/replay.ts';
 import { ctaBlock, CTA_EQUIPMENT, E2 } from '../relatorio/measurement-test-support.ts';
+import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
 import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { lastResultsSchema, type BlockRow, type Cell, type EquipmentRow, type LastResults, type LocationRow } from '../schemas/entities.ts';
@@ -336,5 +337,44 @@ describe('22.12-UNIT MANUT. ANTERIOR in section 9', () => {
     expect(porto.equipment.every((row) => (row.last_results ?? null) === null)).toBe(true);
     const all = sheetsOf(porto).flatMap((printed) => printed.parts.flatMap((part) => (part.kind === 'table' ? part.table.rows.flatMap((row) => row.cells.map((c) => c.text)) : [])));
     expect(all).not.toContain('MANUT. ANTERIOR');
+  });
+});
+
+describe('22.12-UNIT and 22.10-UNIT on seed v12 (after e22s: the TENSÃO column per insulation row)', () => {
+  it('the keys a v5 or v11 relatório issued are found again on v12; the TENSÃO column is no capture and carries no key', () => {
+    for (const type of ['transformador_forca', 'cabos_saida', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'para_raio'] as const) {
+      const v12 = new Set(readingSlotsOf(getDefinition('v12', 'cabine_primaria', type)).map((slot) => slot.key));
+      for (const version of ['v5', 'v11'] as const) {
+        const older = readingSlotsOf(getDefinition(version, 'cabine_primaria', type)).filter((slot) => slot.testKey === 'isolacao' || slot.testKey === 'resistencia_contato');
+        for (const slot of older) expect(v12.has(slot.key), `${version} ${type} ${slot.key}`).toBe(true);
+      }
+      expect([...v12].some((key) => key.includes('TENSÃO'))).toBe(false);
+    }
+  });
+
+  it('a v12 cabos de saída with a v5 visit prints MANUT. ANTERIOR last, after the TENSÃO and value columns, and its over-range reading "> 2 TΩ"', () => {
+    // Col 5 is v12's TENSÃO, appended after the five value columns; row 1 (FASE B) is typed at 5 kV.
+    const now = sheet(1, 'cabos_saida', { isolacao: { '0/1': measured('5.1', 'GΩ'), '1/1': over('2', 'TΩ'), '1/5': measured('5', 'kV') } }, 'v12');
+    const printed = sheetsOf(snapshotOf([withLast(now, { ...ENTRY_A, seed_version: 'v5' })]))[0]!;
+    const grid = texts(tableStarting(printed, 'PONTO DE ENSAIO/CONEXÃO'));
+    const header = grid[1]!;
+    expect(header.at(-1)).toBe('MANUT. ANTERIOR');
+    const tensao = header.findIndex((text) => text.startsWith('TENSÃO'));
+    expect(tensao).toBeGreaterThan(-1);
+    // The over-range row is a reading row: it prints its test voltage (`voltageText`).
+    expect(grid[3]![tensao]).toBe('5');
+    const minute = header.indexOf('1 MINUTO');
+    expect(minute).toBeGreaterThan(-1);
+    expect(grid.slice(2, 4).map((row) => row[minute])).toEqual(['5,1 GΩ', '> 2 TΩ']);
+    expect(grid.slice(2).map((row) => row.at(-1))).toEqual(['4,9 GΩ', '> 2 TΩ', '-', '-']);
+  });
+
+  it('a v12 transformer: an over-range insulation capture is within > 400 MΩ, and its ratio captures refuse the state', () => {
+    const tr = sheet(3, 'transformador_forca', { isolacao: { '0/1': over('2', 'TΩ') } }, 'v12');
+    const cells = evaluatedCells(evaluateSheetReadings(tr.block, getDefinition('v12', 'cabine_primaria', 'transformador_forca')));
+    const insulation = cells.find((c) => c.address.testKey === 'isolacao' && c.address.row === 0 && c.address.col === 1)!;
+    expect(insulation).toMatchObject({ state: 'over_range', verdict: 'within', overRange: { allowed: true } });
+    const ratio = cells.find((c) => c.address.testKey === 'relacao_transformacao' && c.role === 'capture')!;
+    expect(ratio.overRange.allowed).toBe(false);
   });
 });

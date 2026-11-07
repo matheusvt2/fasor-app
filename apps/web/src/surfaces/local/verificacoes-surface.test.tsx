@@ -398,6 +398,29 @@ describe('14.3 "Verificações do local": the surface', () => {
     expect(screen.getByTestId('banner')).toHaveTextContent('');
   });
 
+  for (const [observation, cleared] of [
+    ['Luminária de emergência inoperante', true],
+    ['Luminária de emergência inoperante no corredor', false],
+  ] as const) {
+    it(`e22f N3: an NC item set back to C ${cleared ? 'clears its unedited chip phrase in the same batch' : 'keeps an edited observation'} ("${observation}")`, async () => {
+      database = await seeded({ checklist: { [EMERGENCIA]: { result: 'NC', observation } } });
+      await database.outbox.clear();
+      renderAt(LOCAL);
+      await screen.findByRole('heading', { level: 2, name: /^Verificações do local — / });
+      await userEvent.click(seg(EMERGENCIA, 'Conforme'));
+      await waitFor(async () => expect((await outbox()).some((op) => op.path === resultPath(EMERGENCIA) && op.value === 'C')).toBe(true));
+      const ops = await outbox();
+      const result = ops.find((op) => op.path === resultPath(EMERGENCIA))!;
+      const writes = ops.filter((op) => op.path === observationPath(EMERGENCIA));
+      if (cleared) {
+        expect(writes.map((op) => op.value)).toEqual([null]);
+        expect(writes[0]!.batch).toBe(result.batch);
+      } else {
+        expect(writes).toEqual([]);
+      }
+    });
+  }
+
   it('"Criar ponto de atenção" on an NC item with a photo seeds a point of this local with the photo\'s token; the row then names its point', async () => {
     database = await seeded({ checklist: { [EMERGENCIA]: { result: 'NC', observation: 'Luminária de emergência inoperante' } } });
     await commitPhotoCapture(
@@ -442,8 +465,10 @@ describe('14.3 "Verificações do local": the surface', () => {
     await waitFor(async () => expect((await outbox()).some((op) => op.kind === 'create' && op.path.startsWith('point/'))).toBe(true));
     const create = (await outbox()).find((op) => op.kind === 'create' && op.path.startsWith('point/'))!;
     const point = create.value as unknown as PointRow;
-    // Story 22.5: written from the NC item (origin nc, its item), starting with the item's photo.
-    expect(point).toMatchObject({ relatorio_id: RELATORIO, location_id: LOCAL, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, text: `[[foto:${PHOTO}]]` });
+    // Story 22.5: written from the NC item (origin nc, its item); e22f S4: starting with the item's
+    // derived entry text (its NC phrase) and its photo, as "Editar" on the entry starts it.
+    expect(point).toMatchObject({ relatorio_id: RELATORIO, location_id: LOCAL, equipment_id: null, origin: 'nc', item_key: EMERGENCIA });
+    expect(point.text).toMatch(new RegExp(`^Item \\d+ \\(.+\\): Luminária de emergência inoperante \\[\\[foto:${PHOTO}\\]\\]$`));
     await waitFor(() => expect(rowOf(EMERGENCIA).querySelector('.nc-point-ref')).toHaveTextContent('Ponto de atenção 1'));
     // The dialog hands the focus back to the button that opened it, still the same element of the row.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

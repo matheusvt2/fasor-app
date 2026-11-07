@@ -3,6 +3,7 @@ import {
   composeConclusion,
   conclusionAdjusted,
   conclusionBasisMatches,
+  conclusionAdjustWrites,
   conclusionFloorReasonText,
   conclusionRestrictionOf,
   conclusionResultOf,
@@ -263,17 +264,29 @@ export function ConclusaoSection({
   const setResult = (value: ConclusionResult | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'result', value)]);
   const setRestriction = (value: ConclusionRestriction | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', value)]);
 
-  /** Story 22.4: "Confirmar" under the adjusted note writes the effective pair of the fresh block, one batch. */
+  /**
+   * Story 22.4: "Confirmar" under the adjusted note writes the effective pair of the fresh block,
+   * one batch. e22f S1: with it, a confirmed (never an edited) text the floor made stale is
+   * replaced by the text composed now (`conclusionAdjustWrites`).
+   */
   const confirmAdjusted = () =>
     edit((blocks, by) => {
       const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
       if (fresh === undefined) return null;
-      const pair = effectiveConclusionPair(fresh);
-      const ops = [
-        ...(pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, api.relatorioId, api.blockId, 'result', pair.result)] : []),
-        ...(pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(fresh) ? [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', pair.restriction)] : []),
+      const writes = conclusionAdjustWrites(fresh, definition, tag);
+      if (writes === null) return null;
+      return [
+        ...(writes.result === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'result', writes.result)]),
+        ...(writes.restriction === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', writes.restriction)]),
+        ...(writes.text === null
+          ? []
+          : [
+              // Contract 16: the composed text, flagged for the merge.
+              conclusionOp(by, api.relatorioId, api.blockId, 'text', writes.text.text, { composed: true }),
+              conclusionOp(by, api.relatorioId, api.blockId, 'text_status', 'confirmed'),
+              conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', writes.text.basis),
+            ]),
       ];
-      return ops.length === 0 ? null : ops;
     });
 
   const applySuggestion = () => {

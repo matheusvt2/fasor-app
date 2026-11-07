@@ -327,6 +327,19 @@
  * cell and its section 9 prints a MANUT. ANTERIOR column; no value is ever copied into a cell. A
  * row written before 32 parses to the same bytes, and a relatório whose equipment has no previous
  * value prints as before.
+ *
+ * 32 (2026-11-06, Stories 22.7 to 22.9 and 22.11, batch e22s): seed v12, v11 with ÓLEO MINERAL
+ * in TIPO DE ISOLAÇÃO (an earlier ÓLEO read as it) on the transformador de força, the TP and the
+ * TC; the transformador de força's TIPO DO ÓLEO and its LIGAÇÃO SECUNDÁRIA relabelled DESLOCAMENTO
+ * ANGULAR; the TP on the TC's checklist; the Não ensaiado reason `defeito_no_equipamento`, the
+ * first flagged `defect`; a TENSÃO (kV) column per row on every insulation table, typed through
+ * the existing `sheet/{b}/test/{t}/cell/{row}/{col}` put at the column's index (appended after the
+ * value columns, so every v11 index stands); EXATIDÃO a select of accuracy classes on the TC and a
+ * new field on the TP, the ratio criterion following the class (`relatorio/accuracy-class.ts`);
+ * and a library block type, `inspecao_qgbt` (Inspeção de QGBT). No new op family and no new row
+ * field: the seed schema gains optional keys only (a column's `voltage` role and `options`, a
+ * table's `voltage_rows`, a test's `criterion_class_field`), so v1 to v11 parse to the bytes they
+ * shipped with and a row written before 32 parses to the same bytes.
  */
 export const CONTRACT_VERSION = 32;
 
@@ -521,6 +534,15 @@ export const CONTRACT_VERSION = 32;
  * equipment row schema would strip `last_results`, so its sheets would show no "Anterior" line
  * where the server's documents print MANUT. ANTERIOR. A project stream carries the put from the
  * first issue after the deploy on, so the version-31 bundle updates too.
+ *
+ * 32 (2026-11-06, Stories 22.7 to 22.9 and 22.11, batch e22s): a version-31 (or older) bundle
+ * cannot resolve seed v12, which a template the server moves to v12 and every relatório created
+ * on it carry; its `opSchema` refuses a block create of type `inspecao_qgbt` (the
+ * `equipmentBlockTypeSchema` enum) and a `block/{id}/not_tested` value naming the reason
+ * `defeito_no_equipamento` (`NOT_TESTED_REASON_KEYS`), so a pulled page carrying either fails
+ * whole (`invalid_response`), the precedent of versions 20, 23, 28, 30 and 31; and on a v12 sheet
+ * it would judge a TC or TP ratio at ± 0,5 % where the server's kernel judges it by its class, and
+ * print no TENSÃO column. The version-31 bundle updates too.
  */
 export const MIN_CONTRACT_VERSION = 32;
 

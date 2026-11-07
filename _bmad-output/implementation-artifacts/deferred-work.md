@@ -3077,3 +3077,48 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Story 22.12)
   summary: MANUT. ANTERIOR is decided per sheet: when its equipment has a previous value from another relatório, every reading table of the sheet gets the column, a test with nothing from that visit printing "-" on each row. The merge after e22s re-runs `section-9.test.ts`, `last-results.test.ts` and `previous-visit.spec.ts` on a v12 relatório (e22s owns the insulation table's columns; `withPreviousColumn` appends after them).
   evidence: `packages/domain/src/print/section-9.ts` `withPreviousColumn`, `previousReadingsOf`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22r-readings-over-range-previous.md` (Review Triage Log, Edge Case Hunter, unverified medium)
+  summary: Re-issuing an older relatório X after a newer relatório Y of the same equipment was issued makes X the top `last_results` entry with Y as its prior: X's sheet and MANUT. ANTERIOR would show Y's later values as "previous", and a later relatório Z would read X's older values. The chain is ordered by issue, not by the visit's service date. Settled by ordering the chain by the visit's service date in `lastResults`.
+  evidence: `packages/domain/src/print/last-results.ts` `lastResults`, `previousResultsFor`.
+  class: defect
+  state: open (owner: the Epic 22 wave B integrated review)
+
+## Deferred from: Epic 22 batch e22s (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.11)
+  summary: "Section 3 counts it": section 3 (LIMITE DE ESCOPO) is seeded boilerplate with no equipment list or count in any seed version, so there is nothing for the Inspeção de QGBT to be counted in; the batch counts it where totals exist (`templates/text.ts` `TOTALS_ORDER`, the composer's totals) and prints it in section 9. A section 3 equipment list is a new feature. Owner: Matheus or Bruno.
+  evidence: `packages/domain/src/seed/sections-v1.ts` `SECTION_3`; `relatorio/section-variables.ts` `section3Blocks`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
+  summary: The DoR and the AC write ACEITÁVEL as "± 1,2 %"; the kernel's one criterion format (`formatCriterionValue`) prints "±1,2 %" with no space, as v1 to v11 print "±0,5 %". Kept, so older documents print byte-identical. Owner: Bruno, if the spaced form is wanted on every seed.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.8, OQ-1)
+  summary: The notice follows Bruno's "0,5 ou 1 kV na BT": a winding rated at most 1000 V warns only above 1 kV, not above the DoR's 0,5 kV band (under which the 1 kV default would warn on every 220 V transformer). A two-level secondary ("380/220 V") is rated by its higher side.
+  evidence: `packages/domain/src/relatorio/row-voltage.ts` `rowVoltageNotice`.
+  class: decision
+  state: open (owner: Bruno, relayed by Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Stories 22.7 and 22.9)
+  summary: The paid eval of the `bedrock-structuring-5` prompt (the oil plate in the synthetic set, the class reading) runs on Matheus's word before the wave B deploy, outside `verify`; this batch ran the fake-provider plumbing tests only.
+  evidence: `apps/api/src/scripts/bedrock-eval.ts`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
+  summary: The TC's default fake plate prints EXATIDÃO "10B100" (an ANSI class); on v12 the parser reads "10", not an option of the select, so the plate reading drops that field (`invalid_shape`) where v11 stored the text.
+  evidence: `apps/api/src/jobs/reading/fixtures/92d3a9fb2cdc8ae0cf174211fe614107cb03edd31093dd126be275d53d7e2ecb.json`.
+  class: decision
+  state: open (owner: the Epic 22 wave B integrated review)
+
+## Deferred from: Epic 22 fix batch e22f (2026-11-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N5)
+  summary: The palette's "Fotografar equipamento" result dialog offers only "Fotografar de novo": an office user who attached a file there has no "Anexar arquivo" to redo it. Outside Story 22.1's opener list. Owner: the next batch touching `panel-capture.tsx`.
+  evidence: `apps/web/src/surfaces/relatorio/panel-capture.tsx` result dialog; `epic-22-wave-a-integrated-review-2026-11-06.md` N5.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N6)
+  summary: The file input's `cancel` event needs Chromium 113, Safari 16.4 or Firefox 91; where it never fires, a cancelled palette pick keeps `shotRef` set until the next open and the focus is not returned. Nothing visible stays open. Low risk; owner: the next batch touching `attach-file.tsx`, with a focus-return fallback on the window's next `focus`.
+  evidence: `apps/web/src/surfaces/ficha/attach-file.tsx:93`; review N6.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N7)
+  summary: Section 10 replaces the fixed reference "nos itens 8 e 9" only when it sits whole inside one rich run; a template's own Conclusão text that styles part of the phrase (a bold "8 e 9") keeps the literal numbers. Owner: the next batch touching `print/section-10.ts`, joining the runs before the replacement.
+  evidence: `packages/domain/src/print/section-10.ts` `positioned`; review N7.

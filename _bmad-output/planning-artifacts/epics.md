@@ -5726,6 +5726,8 @@ So that the reading by AI fills the fields as if I had shot it, without a camera
 - The touched durability specs on the matrix projects. WebKit is skipped where it cannot store a photo Blob, as the `camera-app.durability.spec.ts` precedent does.
 - `docs/kbs/log.md`.
 
+*(2026-11-06, built as batch e22p with 22.2 and 22.3, PR #266 merged as `eb61c5b4`; no contract or seed change. Narrowings: no client size message exists on the import path, so an oversized file is re-encoded to the 2560 px original cap like any import; the HEIC e2e answers the `heic-to` chunk with a stand-in, so the real decoder is not exercised end to end; "Anexar arquivo" carries no telemetry name, since a new event name is a contract change. Authored for Bruno: "Anexar arquivo".)*
+
 ### Story 22.2: The printed ficha without internal lines, one N/A and the unit once
 
 **Dev model:** opus · **Effort:** medium · print only plus one kernel normalizer: drop the attribution, the "CRITÉRIO: …" line, the criteria line under the conclusion and the item line under section 9 photos; text fields print one "N/A"; a reading table prints its unit in the header or in the cells, never both
@@ -5775,6 +5777,8 @@ So that internal bookkeeping does not read as part of the technical report.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-06, built in batch e22p, PR #266 merged as `eb61c5b4`. No narrowing. The Porto Seguro golden lost the unit in 397 cells whose header already shows it.)*
+
 ### Story 22.3: A ficha never splits from its conclusion, columns fit their words, and repeated captions differ
 
 **Dev model:** opus · **Effort:** high · keep-together from a sheet's title bar to the end of CONCLUSÃO, fitted pair columns in DADOS DO EQUIPAMENTO, CONFIGURAÇÃO, the cabine tables and the instrument header, and an ordinal on captions repeated inside one sheet's photo block or section 7
@@ -5822,6 +5826,8 @@ So that the relatório reads like a finished document.
 - Kernel tests for the caption ordinal.
 - The golden regeneration reviewed in the PR.
 - `docs/kbs/log.md`.
+
+*(2026-11-06, built in batch e22p, PR #266 merged as `eb61c5b4`. Narrowings: keep-together is set at the joints between parts (keep-with-next), not as one chain from the title bar to CONCLUSÃO, which would break inside a table on a two-page ficha; AC1 holds because every ficha starts a page (Story 20.6). Label columns keep their weights, so a long bold label such as "IDENTIFICAÇÃO" may still wrap. Authored for Bruno: the ordinal " (2)", " (3)" before the closing period.)*
 
 ### Story 22.4: The ficha's conclusion follows Bruno's rules (contract 31)
 
@@ -5878,6 +5884,8 @@ So that no ficha with an NC, an observation or a failed test prints as approved 
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-06, built as batch e22c with 22.5 and 22.6, PR #267 merged as `b883c587`; contract 31, minimum 31; point origins `nc`, `reading` and `reprovado`. Narrowings: `suggestedSheetObservation` is unchanged, so a floor's out-of-criterion reason does not pre-fill the observation; the defect reason is keyed on the seed flag only, and Story 22.7 ships the reason in seed v12. Open for Bruno: whether a sheet with no stored pair prints its floor marks; whether a Reprovado floor carries Com restrições; whether a kept observation on a C row floors Com restrições.)*
+
 ### Story 22.5: Every NC and every reprovação is a point of attention by itself
 
 **Dev model:** opus · **Effort:** high · new derived point kinds (NC checklist row, out-of-criterion test, Reprovado sheet) beside Não ensaiado, their suppression by a point written from the same source, the Pontos screen and section 8's print; shares contract 31 with 22.4
@@ -5929,6 +5937,8 @@ So that the client sees every problem in the section meant for it.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-06, built in batch e22c, PR #267 merged as `b883c587`. Narrowings (`deferred-work.md`): the e2e walk of a local's NC as a derived entry is not written, the kernel tests cover it; the derived entry of a sheet with no equipment is never suppressed. Open: "Possível duplicado" pairs any manual point of an equipment with its NC entries.)*
+
 ### Story 22.6: The CONCLUSÃO of the relatório is derived from the fichas
 
 **Dev model:** opus · **Effort:** high · the parecer verdict derived (any Reprovado gives Não apto, any restriction gives Apto com restrições), stricter only; the summary always kernel-composed, its free edit removed; the third fixed bullet only under Apto and Apto com restrições; the section references follow the printed positions; amends FR-71 and NFR-10
@@ -5979,6 +5989,8 @@ So that the relatório's conclusion never contradicts its own tests.
 - The touched durability specs on the matrix projects.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-06, built in batch e22c, PR #267 merged as `b883c587`. Narrowing (`deferred-work.md`): the "blocking" severity UI stays, though no rule emits it any more. Open: a stricter parecer, once tapped, stays stored after the fichas clear.)*
 
 ### Story 22.7: Seed v12: oil transformers, the deslocamento angular, the TP's checklist and the defect reason (contract 32)
 

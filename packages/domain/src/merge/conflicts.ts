@@ -303,12 +303,16 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
     for (const row of rows) {
       const cols = Object.keys(stored.cells[String(row)] ?? {}).map(Number).sort((a, b) => a - b);
       for (const col of cols) {
-        const evaluated = evaluation?.tables.flatMap((table) => table.rows).find((r) => r.row === row);
+        const home = evaluation?.tables.find((table) => table.rows.some((r) => r.row === row));
+        const evaluated = home?.rows.find((r) => r.row === row);
         const cell = evaluated?.cells.find((c) => c.address.col === col);
+        // Story 22.8 (seed v12): the row's TENSÃO cell is named by the row and the voltage column's header.
+        const voltageHeader = home?.voltageColumn?.col === col ? home.voltageColumn.header : null;
+        const column = cell?.column ?? voltageHeader;
         const label =
-          evaluated === undefined || cell === undefined
+          evaluated === undefined || column === null || column === undefined
             ? (measurementCellLabel(definition, key, row, col) ?? `Linha ${row + 1} · coluna ${col + 1}`)
-            : [evaluated.label, cell.column].filter((part) => part !== '').join(' · ');
+            : [evaluated.label, column].filter((part) => part !== '').join(' · ');
         push({ family: 'sheet/test/cell', block_id: blockId, test_key: key, row, col }, stored.cells[String(row)]?.[String(col)], title, label);
       }
     }

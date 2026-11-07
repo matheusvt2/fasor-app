@@ -3,7 +3,9 @@ import type { BlockRow } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
 import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type TableDef, type TestDef } from '../seed/schema.ts';
 import { listPtBr } from '../text/plural.ts';
+import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
 import { OVER_RANGE_ALLOWED, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
+import { rowTestVoltage, voltageColumnOf } from './row-voltage.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import {
   convertRatioUnit,
@@ -101,8 +103,12 @@ export function pickedBand(block: Pick<BlockRow, 'sheet'>, test: TestDef): BandC
  * of the seeded criterion, and null when none applies: every reader then gives no verdict.
  */
 export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
-  const seed = test.criterion_bands === undefined ? criterionOf(test) : bandCriterion(block, test);
-  if (seed === null) return null;
+  const banded = test.criterion_bands === undefined ? criterionOf(test) : bandCriterion(block, test);
+  if (banded === null) return null;
+  // Story 22.9 (seed v12): a test naming a class field is judged at its class's deviation; the
+  // seeded criterion stands while the field names no class. A well-formed override still wins.
+  const deviation = test.criterion_class_field === undefined ? null : accuracyClassDeviation(classOf(block, test));
+  const seed = deviation === null ? banded : { ...banded, value: deviation };
   const value = block.sheet.test[test.key]?.criterion_override?.value;
   if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return seed;
   const override = value as { raw?: unknown; unit?: unknown };
@@ -111,6 +117,12 @@ export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef
   const number = Number(override.raw);
   if (!Number.isFinite(number) || number < 0 || scaleToUnit(number, override.unit, seed.unit) === null) return seed;
   return { ...seed, value: number, unit: override.unit };
+}
+
+/** Story 22.9: the accuracy class the test's class field names on the plate, or null (no field, empty, unparsable). */
+function classOf(block: Pick<BlockRow, 'sheet'>, test: TestDef): string | null {
+  if (test.criterion_class_field === undefined) return null;
+  return parseAccuracyClass(block.sheet.nameplate[test.criterion_class_field]?.value);
 }
 
 // authored (Story 14.9): what a test reads when no criterion applies (the QGBT with no TENSÃO NOMINAL, or above 1000 V).
@@ -183,13 +195,14 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   const columns: VisibleColumn[] = [];
   const derived = table.value_columns.flatMap((c, i) => (c.role === 'derived' ? [i] : []));
   table.value_columns.forEach((column, col) => {
-    if (column.role === 'print') return;
+    // Story 22.8: the voltage column is the table's `voltageColumn`, never a value column.
+    if (column.role === 'print' || column.role === 'voltage') return;
     const label = labelOf(column, col);
     columns.push({
       col,
       label,
       header: column.role === 'input' ? inputHeaderText(column.label, column.unit) : headerText(label),
-      role: column.role,
+      role: column.role as VisibleColumn['role'],
       unit: column.unit,
       derivedKind: column.role !== 'derived' ? null : col === derived[derived.length - 1] && derived.length > 1 ? 'condicao' : 'calculated',
     });
@@ -299,7 +312,7 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     }
     // F42: a typed connection the seed leaves blank (TAP Nº) reads the plate's TAP ATUAL as typed.
     const shown = connection.map((text) => (table.connection_typed && text.trim() === '' ? (nameplateTap(block) ?? '') : readingLabelText(text)));
-    return { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao };
+    return { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row) };
   });
 
   // The units an empty cell shows: the previous row's, else the column's (Story 5.5 AC 2).
@@ -326,7 +339,16 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     groupHelper: resolution === null ? null : groupMissing ? VECTOR_GROUP_MISSING_TEXT : resolution.assumed ? (resolution.blank ? VECTOR_GROUP_EMPTY_TEXT : VECTOR_GROUP_UNRECOGNIZED_TEXT) : null,
     vectorGroup: group?.code ?? null,
     groupMissing,
+    voltageColumn: voltageColumnView(table),
   };
+}
+
+/** Story 22.8: a table's voltage column as the sheet draws it, or null (no voltage column). */
+function voltageColumnView(table: TableDef): EvaluatedTable['voltageColumn'] {
+  const col = voltageColumnOf(table);
+  const column = col === -1 ? undefined : table.value_columns[col];
+  if (column === undefined) return null;
+  return { col, header: inputHeaderText(column.label, column.unit), options: column.options ?? [], unit: column.unit ?? 'kV' };
 }
 
 /**
@@ -388,6 +410,7 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
     criterionText: criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(criterion),
     sourceName: sourceNameOf(test, criterion),
     tables,
+    classHelper: test.criterion_class_field !== undefined && classOf(block, test) === null ? ACCURACY_CLASS_HELPER : null,
   };
 }
 

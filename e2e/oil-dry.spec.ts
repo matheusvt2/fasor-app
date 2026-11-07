@@ -42,6 +42,11 @@ interface EntityRecord<T> {
 }
 
 const OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.items;
+/** Story 22.7 (seed v12): the oil value of TIPO DE ISOLAÇÃO is the kernel's (ÓLEO MINERAL since v12), never a literal. */
+const OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.oil_values[0]!;
+const TIPOS_DE_ISOLACAO = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').nameplate.find((f) => f.key === 'tipo_de_isolacao')!.options!;
+/** The TP's own oil items (seed v12: VASAMENTO alone, the TC's list). */
+const TP_OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').oil_rule!.items;
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const entities = <T,>(page: Page) => readStore<EntityRecord<T>>(page, database, 'entities');
 const toast = (page: Page) => page.getByTestId('toast');
@@ -111,7 +116,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   test.setTimeout(240_000);
   const { relatorioId, sheet } = await openSheet(page, 'transformador_forca');
   const blockId = sheet.blockId;
-  await expect(select(page, 'tipo_de_isolacao').locator('option')).toContainText(['EPÓXI', 'Á SECO', 'ÓLEO']);
+  await expect(select(page, 'tipo_de_isolacao').locator('option')).toContainText(TIPOS_DE_ISOLACAO);
 
   // Á SECO: the oil items (the current seed's, seven on v9) read NA with no tap, VOL. ÓLEO is not missing, no chip.
   await pick(page, 'tipo_de_isolacao', 'Á SECO');
@@ -126,7 +131,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   expect((await outbox(page)).filter((op) => op.path.includes('/checklist/'))).toEqual([]);
 
   // ÓLEO: they are back, unanswered and counted, and VOL. ÓLEO is missing.
-  await pick(page, 'tipo_de_isolacao', 'ÓLEO');
+  await pick(page, 'tipo_de_isolacao', OIL_VALUE);
   for (const key of OIL) await expect(checked(page, key), key).toHaveCount(0);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(1);
   await expect(naControl(page, 'Vol. óleo')).toHaveCount(1);
@@ -169,7 +174,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
 
   // "Desfazer" restores all three.
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(select(page, 'tipo_de_isolacao')).toHaveValue('ÓLEO');
+  await expect(select(page, 'tipo_de_isolacao')).toHaveValue(OIL_VALUE);
   await expect(checked(page, 'termometro')).toHaveAttribute('data-value', 'c');
   await expect(volume).toHaveValue('320');
   await expect(row(page, 'termometro').locator('.photo-list .photo-row')).toHaveCount(1);
@@ -178,7 +183,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   // A reload and a sync keep it; the server folded the same rows.
   await page.reload();
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-  await expect(select(page, 'tipo_de_isolacao')).toHaveValue('ÓLEO');
+  await expect(select(page, 'tipo_de_isolacao')).toHaveValue(OIL_VALUE);
   await expect(checked(page, 'termometro')).toHaveAttribute('data-value', 'c');
   await syncNowAndReturn(page);
   await expect
@@ -186,7 +191,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
       const server = (await serverRow(account.companyId, 'block', blockId)) as BlockRow | undefined;
       return { insulation: server?.sheet.nameplate.tipo_de_isolacao?.value, termometro: server?.sheet.checklist.termometro?.result?.value, volume: server?.sheet.nameplate.vol_oleo?.value };
     }, { timeout: 30_000 })
-    .toEqual({ insulation: 'ÓLEO', termometro: 'C', volume: measured('320', 'L') });
+    .toEqual({ insulation: OIL_VALUE, termometro: 'C', volume: measured('320', 'L') });
   expect(await serverRow(account.companyId, 'file', photo.id)).toMatchObject({ item_key: 'termometro', block_id: blockId });
   expect((await blockOf(page, blockId)).sheet.checklist.termometro?.result?.value).toBe('C');
 });
@@ -231,11 +236,11 @@ test('@p0 14.11-E2E-002 the disjuntor\'s medium: a non-oil medium marks its oil 
   expect(seccionadora.filter((option) => media.includes(option))).toEqual([]);
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockOfType('tp').id}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-  await expect(select(page, 'tipo_de_isolacao').locator('option', { hasText: 'ÓLEO' })).toHaveCount(1);
+  await expect(select(page, 'tipo_de_isolacao').locator('option', { hasText: OIL_VALUE })).toHaveCount(1);
   await pick(page, 'tipo_de_isolacao', 'EPÓXI');
-  for (const key of OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
-  await pick(page, 'tipo_de_isolacao', 'ÓLEO');
-  for (const key of OIL) await expect(checked(page, key), key).toHaveCount(0);
+  for (const key of TP_OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
+  await pick(page, 'tipo_de_isolacao', OIL_VALUE);
+  for (const key of TP_OIL) await expect(checked(page, key), key).toHaveCount(0);
 });
 
 test('@p0 14.11-E2E-004 fix batch fxpw G10: a pending VOL. ÓLEO suggestion leaves the sheet and its banner while the insulation excuses the field, and comes back on ÓLEO, still pending', async ({ page }) => {
@@ -264,7 +269,7 @@ test('@p0 14.11-E2E-004 fix batch fxpw G10: a pending VOL. ÓLEO suggestion leav
   expect(await status()).toBe('pending');
 
   // ÓLEO brings it back.
-  await pick(page, 'tipo_de_isolacao', 'ÓLEO');
+  await pick(page, 'tipo_de_isolacao', OIL_VALUE);
   await expect(suggestionRow.first()).toBeVisible();
   await expect(banner).toContainText('Sugestões prontas — 1 campo para confirmar');
 

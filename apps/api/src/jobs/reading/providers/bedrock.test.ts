@@ -33,6 +33,7 @@ import {
   bedrockClientSource,
   bedrockProseProvider,
   bedrockStructuringProvider,
+  plateFieldNotes,
   structuringPrompt,
   usdFor,
   type PlateStructuringInput,
@@ -254,8 +255,8 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 });
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
-  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 4', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-4');
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 5', async () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-5');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -271,7 +272,7 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-4');
+    expect(result.prompt_version).toBe('bedrock-structuring-5');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
@@ -286,6 +287,32 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     expect(structuringPrompt(plateInput)).not.toContain('vector group');
     // A key the fields do not hold asks for nothing.
     expect(structuringPrompt({ ...plateInput, vectorGroupKey: 'nao_existe' })).not.toContain('vector group');
+  });
+});
+
+describe('22.7 and 22.9 (seed v12): the structuring prompt says what TIPO, TIPO DO ÓLEO, TIPO DE ISOLAÇÃO and EXATIDÃO hold', () => {
+  const definition = (type: string) => getDefinition('v12', 'cabine_primaria', type);
+  const fieldsOf = (type: string) => definition(type).nameplate;
+
+  it('a v12 transformer gets the TIPO, oil class and oil insulation lines between its fields and the OCR words', () => {
+    const text = structuringPrompt({ ...plateInput, fields: fieldsOf('transformador_forca') });
+    expect(text).toContain("The field tipo is the manufacturer's type or model designation (for example \"TRICAST\"), never the insulating oil.");
+    expect(text).toContain('"Tipo óleo isolante B" is tipo_do_oleo = B; give one of: A | B.');
+    expect(text).toContain('The field tipo_de_isolacao is ÓLEO MINERAL when the plate names an insulating oil');
+    expect(text.indexOf('Fields:')).toBeLessThan(text.indexOf('tipo_do_oleo = B'));
+    expect(text.indexOf('tipo_do_oleo = B')).toBeLessThan(text.indexOf('OCR words:'));
+    expect(text).not.toContain('The field exatidao');
+  });
+
+  it('a v12 TC and TP ask for EXATIDÃO as printed; a v11 TC and transformer, and the plate input, get none of the lines', () => {
+    for (const type of ['tc', 'tp']) {
+      const text = structuringPrompt({ ...plateInput, fields: fieldsOf(type) });
+      expect(text, type).toContain('The field exatidao is the accuracy class exactly as printed, burden included (for example "0,6C25" or "10P20"): give it as text, not forced to one of its options.');
+      expect(text, type).not.toContain('tipo_do_oleo');
+    }
+    expect(plateFieldNotes(getDefinition('v11', 'cabine_primaria', 'tc').nameplate)).toEqual([]);
+    expect(plateFieldNotes(getDefinition('v11', 'cabine_primaria', 'transformador_forca').nameplate)).toEqual([]);
+    expect(plateFieldNotes(getDefinition('v11', 'cabine_primaria', 'para_raio').nameplate)).toEqual([]);
   });
 });
 
@@ -459,7 +486,7 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
     expect(result.output.values).toHaveLength(others.length + 1);
     expect(Object.keys(result.output)).toEqual(['values']);
-    expect(result.prompt_version).toBe('bedrock-structuring-4');
+    expect(result.prompt_version).toBe('bedrock-structuring-5');
   });
 
   it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {

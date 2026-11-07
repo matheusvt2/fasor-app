@@ -113,7 +113,9 @@ Block types: `tp`, `tc`, `transformador_forca`.
 
 ## TC (seed v10)
 
-Block types: `tc`.
+Block types: `tc`, and `tp` from seed v12.
+
+*(2026-11-06, Story 22.7, seed `v12` in `packages/domain/src/seed/v12.ts`: the TP takes this list too (the coordinator's reading, open for Bruno), VASAMENTO its one oil item. A TP on seeds `v1` to `v11` keeps the shared list above.)*
 
 *(2026-10-28, Story 15.7.)* Bruno's list (his spreadsheet of 2026-10-15, answer 8 of 2026-10-27), "VASAMENTO" spelled as the spreadsheet spells it; it is the TC's only oil item, marked NA on an EPÓXI or Á SECO unit. Rows 3, 4 and 5 reuse the phrases the other sheets offer on the same key; the phrases of rows 1, 2, 6 and 7 are authored, pending Bruno's review.
 
@@ -164,7 +166,9 @@ Block types: `chave_transferencia_automatica`.
 
 ## Quadros elétricos, QGBT/QD (draft for seed `v6`, Story 14.9)
 
-Block types: `quadro_eletrico`.
+Block types: `quadro_eletrico`, and `inspecao_qgbt` from seed v12.
+
+*(2026-11-06, Story 22.11, seed `v12`: the Inspeção de QGBT asks ten of these items, the ones judged by eye, with the same phrases and hints: 1, 2, 7, 9, 11, 12, 13, 15, 16 and 17 (the coordinator's reading, open for Bruno).)*
 
 *(2026-10-15, draft, authored for Bruno's review: the 17 items of the "Quadros Elétricos" sheet of the original form (`docs/context/FO.SERV-03 Relatórios-Complemento.xlsx`, git-ignored), labels verbatim. ~~The type is not seeded yet; the block type key and the item keys are proposed and settled in the Story 14.9 spec, and `scripts/nc-chip-phrases.test.ts` checks these rows once the type ships.~~ Item 17 is printed as a second "16" in the original (open question 1 of Story 14.9).)* *(2026-10-20, Story 14.9 as built: the list ships with seed `v6` only, in `packages/domain/src/seed/v6.ts`, item keys as proposed; `scripts/nc-chip-phrases.test.ts` checks these rows. Items 8 and 16 carry their hints on the sheet only.)* *(2026-10-20, Bruno, via Matheus: accepted as drafted, and the second 16 is numbered 17. A phrase typed by hand on an NC row becomes a chip of the company's next sheets with Story 14.12; it is not a seeded row of this table.)*
 

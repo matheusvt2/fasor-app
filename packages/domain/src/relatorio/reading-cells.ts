@@ -2,6 +2,7 @@ import { canonicalDecimal, INSULATION_UNITS, parseDecimalPtBr } from '../parse/p
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
+import type { RowTestVoltage } from './row-voltage.ts';
 import { screenAcronym } from './screen-label.ts';
 import { isCellFilled } from './sheet-state.ts';
 import type { OverRangeAllowance } from './over-range.ts';
@@ -109,6 +110,22 @@ export interface EvaluatedRow {
    * (UX pass 2026-10-22, F42).
    */
   condicao: 'SATISFATÓRIO' | 'INSATISFATÓRIO' | null;
+  /**
+   * Story 22.8 (seed v12): the row's test voltage (`rowTestVoltage`), never missing and never
+   * judged; null on a table with no voltage column (every table of v1 to v11).
+   */
+  voltage: RowTestVoltage | null;
+}
+
+/** Story 22.8 (seed v12): a table's voltage column as the sheet draws it, right after the connection columns. */
+export interface VoltageColumn {
+  /** Its index in the table's `value_columns` (the cell put's `col`). */
+  col: number;
+  /** The screen header, "Tensão (kV)". */
+  header: string;
+  /** The select's options, pt-BR ("0,5", "1", "2,5", "5", "10"). */
+  options: readonly string[];
+  unit: string;
 }
 
 export interface EvaluatedTable {
@@ -143,6 +160,8 @@ export interface EvaluatedTable {
   vectorGroup: string | null;
   /** Story 21.1: a v11 ratio table with no group: no VAL CALCULADO, and each row counts one missing in Ensaios. */
   groupMissing: boolean;
+  /** Story 22.8: the voltage column, never in `columns`; null on a table without one (v1 to v11). */
+  voltageColumn: VoltageColumn | null;
 }
 
 export interface TestEvaluation {
@@ -156,6 +175,11 @@ export interface TestEvaluation {
   /** The criterion's source ("aceitável na ficha"). */
   sourceName: string;
   tables: EvaluatedTable[];
+  /**
+   * Story 22.9 (seed v12): `ACCURACY_CLASS_HELPER` on a ratio test judged by an accuracy class
+   * while its EXATIDÃO names none (the seeded ± 0,5 % then stands); null otherwise.
+   */
+  classHelper: string | null;
 }
 
 // --- text helpers ------------------------------------------------------------------------

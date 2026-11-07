@@ -6,12 +6,8 @@ import { notTestedPointText } from '../points/derived.ts';
 import { wordRegistryRowText, type WordRow } from '../registry/word-row.ts';
 import type { CabineLocation } from '../relatorio/cabine.ts';
 import {
-  composeConclusion,
-  conclusionPairComplete,
-  conclusionTextForPrint,
-  conclusionTextState,
-  conclusionTextStatusOf,
-  effectiveConclusionPair,
+  printedConclusionPair,
+  printedConclusionText,
   type ConclusionRestriction,
   type ConclusionResult,
 } from '../relatorio/conclusion.ts';
@@ -546,22 +542,72 @@ function groupRun(values: readonly ColumnDef[], a: number, b: number): boolean {
   return true;
 }
 
+// --- the voltage column (Story 22.8, seed v12) -----------------------------------------------
+
+/**
+ * Story 22.8: the per-row test voltage of a v12 insulation table. It is stored after the other
+ * value columns (`seed/v12.ts`) and prints right after the connection columns, never in its
+ * storage position: its header, its cells and the value columns that print after it. A table
+ * without one (every table of v1 to v11) prints as before. The one place the column's print
+ * lives, so a later column beside it (e22r) has one helper to extend.
+ */
+interface PrintedVoltage {
+  /** The column's index in `value_columns`. */
+  col: number;
+  /** "TENSÃO (kV)". */
+  header: string;
+}
+
+function printedVoltageOf(definition: TableDef): PrintedVoltage | null {
+  const col = definition.value_columns.findIndex((column) => column.role === 'voltage');
+  if (col === -1) return null;
+  const column = definition.value_columns[col]!;
+  return { col, header: withUnitHeader(printLabel(column.label), column.unit) };
+}
+
+/** A header with its unit: "TENSÃO (kV)". */
+function withUnitHeader(label: string, unit: string | null): string {
+  return unit === null ? label : `${label} (${unit})`;
+}
+
+/** The value columns that print after the connection (and voltage) columns, in storage order, the voltage column left out. */
+function printedValueColumns(definition: TableDef): { col: number; column: ColumnDef }[] {
+  return definition.value_columns.flatMap((column, col) => (column.role === 'voltage' ? [] : [{ col, column }]));
+}
+
+/**
+ * A row's voltage cell: the effective voltage ("10", "1", "0,5"), "-" when none applies or the row
+ * holds no measured capture (a row not tested prints no test voltage). Story 22.10: a capture
+ * above the instrument's limit is a reading too, so its row prints its voltage.
+ */
+function voltageText(row: EvaluatedRow): string {
+  if (row.voltage === null || row.voltage.kv === null) return DASH;
+  return row.cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)) ? row.voltage.text : DASH;
+}
+
 /** One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD). */
 function measurementHeader(definition: TableDef, evaluated: EvaluatedTable): PrintRow[] {
   const values = definition.value_columns;
+  const voltage = printedVoltageOf(definition);
+  const printed = printedValueColumns(definition);
   // Story 21.1: a column prints the evaluated label, which on a ratio table's captures is its vector group's pair.
   const columnLabel = (column: ColumnDef, col: number) =>
     column.label === VALORES ? valoresHeader([col], evaluated, values) : printLabel(evaluated.columns.find((visible) => visible.col === col)?.label ?? column.label);
-  const bottom = headerRow([...definition.connection_columns.map(printLabel), ...values.map(columnLabel)]);
+  const bottom = headerRow([
+    ...definition.connection_columns.map(printLabel),
+    ...(voltage === null ? [] : [voltage.header]),
+    ...printed.map(({ column, col }) => columnLabel(column, col)),
+  ]);
   if (definition.connection_group === undefined && !values.some((column) => column.group !== undefined)) return [bottom];
   const top: PrintCell[] = [];
   if (definition.connection_group !== undefined) top.push(headerCell(printLabel(definition.connection_group), definition.connection_columns.length));
   else for (let i = 0; i < definition.connection_columns.length; i++) top.push(headerCell(''));
-  for (let i = 0; i < values.length; ) {
-    const group = values[i]!.group;
+  if (voltage !== null) top.push(headerCell(''));
+  for (let i = 0; i < printed.length; ) {
+    const group = printed[i]!.column.group;
     let end = i + 1;
-    if (group !== undefined) while (end < values.length && values[end]!.group === group) end++;
-    const cols = Array.from({ length: end - i }, (_, k) => i + k);
+    if (group !== undefined) while (end < printed.length && printed[end]!.column.group === group) end++;
+    const cols = printed.slice(i, end).map(({ col }) => col);
     top.push(headerCell(group === undefined ? '' : group === VALORES ? valoresHeader(cols, evaluated, values) : printLabel(group), end - i));
     i = end;
   }
@@ -612,6 +658,8 @@ function valueText(
       return evaluated.columns.find((visible) => visible.col === col)?.derivedKind === 'condicao' ? (row.condicao ?? DASH) : (row.calculated?.text ?? DASH);
     case 'print':
       return printColumnText(block, testKey, row.row, col, column, enabled);
+    case 'voltage':
+      return voltageText(row);
   }
 }
 
@@ -746,13 +794,16 @@ function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDe
   if (definition.title !== undefined) rows.push(bandRow(printLabel(definition.title), width));
   rows.push(...measurementHeader(definition, evaluated));
   const units = headerUnits(definition, evaluated);
+  const voltage = printedVoltageOf(definition);
+  const printed = printedValueColumns(definition);
   definition.rows.forEach((connection, r) => {
     const row = evaluated.rows[r]!;
     rows.push({
       cells: [
         // F42: a typed connection the seed leaves blank prints the evaluated one (the plate's TAP ATUAL), "-" when none.
         ...connection.map((text, i) => valueCell(definition.connection_typed && text.trim() === '' ? row.connection[i] || DASH : printLabel(text))),
-        ...definition.value_columns.map((column, col) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled, units[col] ?? null))),
+        ...(voltage === null ? [] : [valueCell(voltageText(row))]),
+        ...printed.map(({ column, col }) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled, units[col] ?? null))),
       ],
     });
   });
@@ -968,13 +1019,12 @@ function observationsPart(block: BlockRow): SheetPart | null {
  * line no longer prints under it (the screen still shows it).
  */
 function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string): SheetPart[] {
-  // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair).
-  const effective = effectiveConclusionPair(block);
-  const chosen = new Set<string>([effective.result, effective.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
-  const composed = composeConclusion(block, definition, tag);
-  const status = conclusionTextStatusOf(block);
-  const printable = conclusionPairComplete(block) && (status === 'edited' || (status === 'confirmed' && conclusionTextState(block, composed) === 'confirmed'));
-  const text = printable ? conclusionTextForPrint(block) : null;
+  // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair);
+  // e22f N2: of the chosen pair while the sheet is open, so the floor alone prints no mark.
+  const printed = printedConclusionPair(block);
+  const chosen = new Set<string>([printed.result, printed.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
+  // e22f S1: a confirmed text the floor made stale prints the text composed now.
+  const text = printedConclusionText(block, definition, tag);
   const rows: PrintRow[] = [
     bandRow(CONCLUSION_TITLE, CONCLUSION_BOXES.length * 2),
     { cells: CONCLUSION_BOXES.flatMap(({ value, label }) => [{ text: printLabel(label), bold: true, align: 'left' as const }, valueCell(chosen.has(value) ? MARK : '')]) },

@@ -2542,7 +2542,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2619,7 +2619,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2696,7 +2696,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2773,7 +2773,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["VERIFICAÇÕES GERAIS"],
@@ -2850,7 +2850,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -3046,7 +3046,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -3296,7 +3296,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -3546,7 +3546,7 @@
     ],
     [
       ["CONCLUSÃO"],
-      ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
+      ["APROVADO","","REPROVADO","","SEM RESTRIÇÕES","","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
       ["CARACTERÍSTICAS DA SE"],
@@ -4567,7 +4567,7 @@
       ["APROVADO","X","REPROVADO","","SEM RESTRIÇÕES","X","COM RESTRIÇÕES (VER OBSERVAÇÕES)",""]
     ],
     [
-      ["Não apto\nForam registradas 94 fichas de ensaio: 3 não ensaiadas (SEC-C1, por solicitação do cliente; DJ-TIE-1, por solicitação do cliente; SEC-C17, por solicitação do cliente) e 91 ainda não concluídas. 18 fichas foram reprovadas (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, TP-C16, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB, SEC-GER3, TC-GER1 e TC-GER2). 18 fichas apresentaram restrições (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, TP-C16, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB, SEC-GER3, TC-GER1 e TC-GER2). Relação de transformação insatisfatória em 3 fichas (TP-C16, TC-GER1 e TC-GER2). Leituras fora do critério de aceitação em 15 fichas (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB e SEC-GER3). Foram registrados 25 pontos de atenção na seção 8."]
+      ["Não apto\nForam registradas 94 fichas de ensaio: 3 não ensaiadas (SEC-C1, por solicitação do cliente; DJ-TIE-1, por solicitação do cliente; SEC-C17, por solicitação do cliente) e 91 ainda não concluídas. 18 fichas foram reprovadas: 3 por relação de transformação insatisfatória (TP-C16, TC-GER1 e TC-GER2) e 15 por leituras fora do critério de aceitação (CE-ENEL, PR-ENEL-ENT, SEC-ENEL-ENT, SEC-ENEL-SAI, DJ-ENEL, PR-ENEL-SAI, CE-OXI, SEC-OXI, PR-OXI, CE-COBA, PR-COBA, CE-COBB, PR-COBB, DJ-COBB e SEC-GER3). Foram registrados 25 pontos de atenção na seção 8."]
     ]
   ],
   "header": [

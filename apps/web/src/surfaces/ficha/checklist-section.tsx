@@ -11,6 +11,8 @@ import {
   itensMarcadosConformeText,
   ncChipPhrases,
   withPhotoTokens,
+  ncRowPointText,
+  clearsNcObservation,
   ncRowPointPositions,
   ncRowPointsText,
   recentChecklistObservations,
@@ -325,9 +327,10 @@ export function sheetRowTarget(
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
     observationCap: textCapOf(sheetChecklistPath(block.id, item.key, 'observation')),
     ncDraft: ncDraftFor(block, item.key, pending),
-    // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item); it starts with the item's photos, the engineer types the rest.
+    // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item); e22f
+    // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({
-      text: withPhotoTokens(null, photoIds),
+      text: withPhotoTokens(ncRowPointText(snapshot, { block }, item.key), photoIds),
       equipmentId: block.equipment_id,
       origin: 'nc',
       itemKey: item.key,
@@ -428,7 +431,10 @@ export function ChecklistRow({
   };
 
   const choose = (value: TriStateValue | null) => {
-    void api.edit((_blocks, by) => [target.resultOp(by, value)]).catch(() => undefined);
+    // e22f N3: NC back to C clears the observation in the same batch while it is still the
+    // chip's NC phrase, unedited (nothing typed since, `typed.text` the stored text).
+    const clear = typed.text === stored && clearsNcObservation(result, value, stored, chips);
+    void api.edit((_blocks, by) => [target.resultOp(by, value), ...(clear ? [target.observationOp(by, null)] : [])]).catch(() => undefined);
   };
 
   /** "Usar": the dictated text appended at the end, as a chip inserts. */

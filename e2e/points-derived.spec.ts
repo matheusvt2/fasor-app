@@ -161,7 +161,9 @@ test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entr
     const dj = all.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
     const [first] = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt'), 'isolacao');
     // A point written from the NC row before Story 22.5: origin manual, the same equipment.
+    // e22f N4: as a client older than contract 31 wrote it, with no `item_key` key at all.
     const old = newPointRow({ id: newId(), relatorioId: scope.relatorioId, text: 'Terminais oxidados', equipmentId: null, origin: 'manual', action: 'Limpar' }, []);
+    delete (old as Partial<typeof old>).item_key;
     return [
       officeDraft(account, scope, `point/${old.id}`, { ...old, equipment_id: equipment.get(chave.blockId) ?? null }, 'create'),
       officeDraft(account, scope, `sheet/${chave.blockId}/checklist/${FIRST_ITEM.key}/result`, 'NC'),
@@ -180,6 +182,17 @@ test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entr
   await expect(manual.locator('[data-flag]')).toHaveText('Possível duplicado');
   const ncCard = auto.filter({ hasText: 'oxidação nos terminais' });
   await expect(ncCard.locator('[data-flag]')).toHaveText('Possível duplicado');
+
+  // e22f S2: the Export dialog names the pair (pending, "Gerar relatório" not blocked by it) and
+  // its "Ver pontos" opens the Pontos screen; nothing was removed on its own.
+  await page.goto(`/relatorio/${relatorioId}?exportar=1`);
+  const exportDialog = page.getByRole('dialog');
+  const duplicateRow = exportDialog.locator('.precheck li').filter({ hasText: '1 par de pontos possivelmente duplicados' });
+  await expect(duplicateRow).toBeVisible({ timeout: 30_000 });
+  await duplicateRow.getByRole('button', { name: 'Ver pontos' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/pontos`));
+  await expect(auto).toHaveCount(2);
+  await expect(cards(page).filter({ hasText: 'Terminais oxidados' }).locator('[data-flag]')).toHaveText('Possível duplicado');
 
   // (c) "Editar" on the out-insulation entry: the point is stored as origin reading with its test, and the entry goes.
   const readingCard = auto.filter({ has: page.locator('.not-tested-chip', { hasText: 'Fora do critério' }) });

@@ -544,6 +544,8 @@ export const copy = {
       chave_transferencia_automatica: 'Chave de transferência automática',
       // Story 14.9 (seed v6): the second library type, the seed's label (Bruno 2026-10-20 answer 5).
       quadro_eletrico: 'Quadro elétrico (QGBT/QD)',
+      // Story 22.11 (seed v12): the third library type, the seed's label. authored (Story 22.11, listed for Bruno)
+      inspecao_qgbt: 'Inspeção de QGBT',
     },
   },
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision
@@ -584,6 +586,8 @@ export const copy = {
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
     seeInSumario: 'Ver no sumário',
+    // authored (e22f S2, open for Bruno): the way from the possible duplicates' row to the Pontos screen.
+    seePoints: 'Ver pontos',
     // authored: the Sync status surface's own word for resending rejected changes.
     resend: 'Reenviar',
     docControlLabel: 'Controle do documento',
@@ -1090,10 +1094,11 @@ export const copy = {
     // (Story 11.9 builds the priority and Story 11.10 the action-plan table).
     // F43 (UX pass 2026-10-22): `section` is the kernel's `sectionRefText` ("seção 4" by its Sumário position).
     // authored (F43, coordinator review): with section 8 absent, the first and last sentences say the points do not print.
+    // authored (e22f N8, open for Bruno): Story 22.5, the derived entries follow from the fichas (was: "Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo.").
     sectionNote: (m: Mention) =>
       m.prints
-        ? `A ordem aqui é a ordem da ${m.ref} do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a ${m.ref} imprime, depois dos pontos, a tabela do plano de ação.`
-        : `Os pontos de atenção não saem no documento: o relatório não tem a ${m.ref}. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo.`,
+        ? `A ordem aqui é a ordem da ${m.ref} do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Itens não conformes, ensaios fora do critério, fichas reprovadas e equipamentos marcados como Não ensaiado entram sozinhos ao final, conforme as fichas; Editar grava um ponto que substitui o automático, e um ponto criado de um item não conforme já traz o texto, a foto e o equipamento. A prioridade (P0 a P4) sugere o prazo; a ${m.ref} imprime, depois dos pontos, a tabela do plano de ação.`
+        : `Os pontos de atenção não saem no documento: o relatório não tem a ${m.ref}. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Itens não conformes, ensaios fora do critério, fichas reprovadas e equipamentos marcados como Não ensaiado entram sozinhos ao final, conforme as fichas; Editar grava um ponto que substitui o automático, e um ponto criado de um item não conforme já traz o texto, a foto e o equipamento. A prioridade (P0 a P4) sugere o prazo.`,
     // Story 6.6 AC, verbatim.
     empty: 'Nenhum ponto de atenção.',
     create: 'Criar',
@@ -1551,7 +1556,10 @@ export const copy = {
     etapa6Title: 'Etapa 6 — Conclusão e parecer',
     // F43: `caption` is the kernel's `sectionsCaption` ("Seção 6"), `section` its `sectionRefText`.
     etapa6Note: (caption: string) => `${caption} · caixa de parecer antes dos itens fixos`,
-    parecerNote: 'O app conta fichas, restrições e não ensaiados e sugere; o parecer é escolha sua. Sem parecer, a emissão fica bloqueada em Gerar relatório.',
+    // ~~'O app conta fichas, restrições e não ensaiados e sugere; o parecer é escolha sua. Sem parecer, a emissão fica bloqueada em Gerar relatório.'~~
+    // authored (e22f S3, open for Bruno): Story 22.6, the parecer follows from the fichas.
+    parecerNote:
+      'O parecer segue das fichas: uma ficha reprovada dá Não apto; restrições, não ensaiados, itens não conformes e pontos de atenção dão Apto com restrições. Você pode escolher um parecer mais rigoroso, nunca um mais brando. Sem ficha concluída nem parecer escolhido, a emissão fica bloqueada em Gerar relatório.',
     parecerLabel: 'Parecer',
     parecerSummaryLabel: 'Resumo do parecer',
     parecerHelper: 'Montado no aparelho a partir das contagens do relatório — não é um veredito. Nada é impresso até você confirmar.',

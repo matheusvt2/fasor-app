@@ -28,12 +28,13 @@ export type BaseEquipmentBlockType = (typeof BASE_EQUIPMENT_BLOCK_TYPES)[number]
 /**
  * Every equipment block type any seed version ships: the eight, then (seed v5, Story 14.5,
  * contract 19) the Chave de transferência automática, then (seed v6, Story 14.9, contract 21)
- * the Quadro elétrico (QGBT/QD). A closed, append-only list; which of
+ * the Quadro elétrico (QGBT/QD), then (seed v12, Story 22.11, contract 32) the Inspeção de
+ * QGBT. A closed, append-only list; which of
  * them a relatório or a template offers is its seed version's (`equipmentTypesOf`): a type
  * its version does not ship has no definition there (`getDefinition` throws, `findDefinition`
  * answers null) and the fold refuses a block of it.
  */
-export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica', 'quadro_eletrico'] as const;
+export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica', 'quadro_eletrico', 'inspecao_qgbt'] as const;
 
 /**
  * The FO.SERV-03 sections a Template carries as blocks. Sections 7 (photos) and 9

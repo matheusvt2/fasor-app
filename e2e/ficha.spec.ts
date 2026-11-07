@@ -516,7 +516,9 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   await expect(page.locator('.ficha-mt').first().locator('.mt-criterion')).toHaveText('Aceitável >400 MΩ');
   await page.locator('.ficha-mt').first().locator('details.mt-source summary').click();
   await expect(page.locator('.ficha-mt').first().locator('details.mt-source p')).toHaveText('aceitável na ficha');
-  await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', 'Valor']);
+  // Seed v12 (Story 22.8): the per-row TENSÃO select sits right after the connection columns.
+  const voltage = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').tests[0]!.tables[0]!.value_columns.some((column) => column.role === 'voltage') ? ['Tensão (kV)'] : [];
+  await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', ...voltage, 'Valor']);
 
   // "3.300" is three thousand three hundred, echoed before any comparison.
   const t1 = cellInput(page, 'T1, Valor');
@@ -689,7 +691,8 @@ test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, i
 
 test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL CALCULADO until the group is chosen, then U1 / U2 = 36,32, its own terminal pairs and SATISFATÓRIO', async ({ page }) => {
   test.setTimeout(150_000);
-  expect(SEED_VERSION).toBe('v11');
+  // A new relatório's seed (v11, and v12 since e22s) computes the ratio by its vector group.
+  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').tests.find((t) => t.key === 'relacao_transformacao')!.tables[0]!.ratio_factor).toBe('vector_group');
   const { blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
   const ttr = page.locator('table.ficha-ttr');
   const row = ttr.locator('tbody tr').first();
@@ -748,8 +751,8 @@ async function openCompleteTransformer(page: Page, width: number): Promise<{ rel
   await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
-  expect(SEED_VERSION).toBe('v11');
+  // e22s: pinned to v11, the seed this walk was written on (v12 adds TIPO DO ÓLEO and the TENSÃO column).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v11' });
   const scope = { relatorioId: built.relatorioId };
   const sheet = built.sheets.find((s) => s.blockType === 'transformador_forca')!;
   const TF = getDefinition('v11', 'cabine_primaria', 'transformador_forca');
@@ -1039,6 +1042,9 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toBeDisabled();
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toBeDisabled();
+  // e22f S6: a disabled segment reads disabled (the mock's only disabled look, opacity .4); an enabled one does not.
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveCSS('opacity', '0.4');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveCSS('opacity', '1');
   await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
   const adjusted = page.locator('.conclusion-control .conclusion-hint[role="status"]');
   await expect(adjusted).toContainText('Conclusão ajustada pela ficha');
@@ -1047,6 +1053,14 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   const lastOf = async (field: string) => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/${field}`).at(-1)?.value;
   await expect.poll(() => lastOf('result')).toBe('reprovado');
   await expect.poll(() => lastOf('restriction')).toBe('com_restricoes');
+  // e22f S1: the text was already replaced ("Substituir" above), so it is current: the adjusted
+  // note's Confirmar writes the pair alone and leaves the text as it is (a stale confirmed text is
+  // recomposed with the pair: `conclusao-section.test.tsx`, e22f S1).
+  const adjustedText = replacedText;
+  const adjustedBatch = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`)).slice(-2);
+  expect(adjustedBatch.map((row) => row.path.split('/').at(-1))).toEqual(['result', 'restriction']);
+  expect(new Set(adjustedBatch.map((row) => row.batch_id)).size).toBe(1);
+  expect((await textOps()).at(-1)).toBe(replacedText);
 
   // "Editar": stored as edited at once, typed, blurred; the edited text survives a reload.
   await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
@@ -1056,10 +1070,10 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' Texto revisado.');
   await editor.blur();
-  await expect.poll(async () => (await textOps()).at(-1)).toBe(`${replacedText} Texto revisado.`);
+  await expect.poll(async () => (await textOps()).at(-1)).toBe(`${adjustedText} Texto revisado.`);
   await page.reload();
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(`${replacedText} Texto revisado.`);
+  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(`${adjustedText} Texto revisado.`);
 
   // Com restrições: the observation is required, then written; "Concluir ficha" concludes.
   await expect(page.getByText('Obrigatória com restrições')).toBeVisible();

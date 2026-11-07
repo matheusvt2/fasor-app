@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentTypesOf, getDefinition, initialOrderKey, isLibraryType, newEquipmentBlock, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentTypesOf, getDefinition, initialOrderKey, isLibraryType, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -59,6 +59,22 @@ interface FixtureValue {
   value: unknown;
 }
 
+/**
+ * e22s (seed v12): the fixture's values the reading keeps for `type` on the current seed: a key its
+ * nameplate holds (the Inspeção de QGBT replays the Quadro elétrico's plate, four of its keys), and
+ * an EXATIDÃO select only when the kernel reads a class it offers ("10B100" reads 10, no TC class).
+ */
+function keptValues(type: string, values: readonly FixtureValue[]): FixtureValue[] {
+  const fields = getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate;
+  return values.filter((value) => {
+    const field = fields.find((candidate) => candidate.key === value.key);
+    if (field === undefined) return false;
+    if (field.key !== 'exatidao' || field.kind !== 'select') return true;
+    const cls = parseAccuracyClass(value.value);
+    return cls !== null && field.options!.includes(cls);
+  });
+}
+
 /** The structured values of the fixture named after the committed image's sha256. */
 function fixtureValues(image: Buffer): FixtureValue[] {
   const sha = createHash('sha256').update(image).digest('hex');
@@ -76,7 +92,7 @@ const section = (page: Page) => page.locator('#ficha-nameplate');
 /** "Fotografar placa" on the open sheet of `type`: the committed plate goes through the system picker, the real job reads it, and its suggestions arrive without a manual sync. */
 async function readPlateThroughTheTile(page: Page, type: string, image: string, blockId: string): Promise<void> {
   const bytes = readFileSync(image);
-  const values = fixtureValues(bytes);
+  const values = keptValues(type, fixtureValues(bytes));
 
   // No camera on this device: the tile opens the system picker, which gets the plate.
   const chooser = page.waitForEvent('filechooser');
@@ -134,6 +150,8 @@ for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
 const LIBRARY_PLATES: Record<string, string> = {
   chave_transferencia_automatica: resolve(FIXTURES, 'images/plate-chave-transferencia-automatica.png'),
   quadro_eletrico: resolve(FIXTURES, 'images/plate-quadro-eletrico.png'),
+  // Story 22.11 (seed v12): the Inspeção de QGBT replays the Quadro elétrico's plate (`kinds/plate.ts`).
+  inspecao_qgbt: resolve(FIXTURES, 'images/plate-quadro-eletrico.png'),
 };
 const LIBRARY_TYPES = equipmentTypesOf(SEED_VERSION).filter((type) => isLibraryType(SEED_VERSION, type));
 

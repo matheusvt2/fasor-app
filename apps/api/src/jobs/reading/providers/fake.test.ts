@@ -209,10 +209,18 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     chave_transferencia_automatica: 'plate-chave-transferencia-automatica.png',
     // Story 14.9: the library type of seed v6.
     quadro_eletrico: 'plate-quadro-eletrico.png',
+    // Story 22.11: the library type of seed v12 replays the Quadro elétrico's plate.
+    inspecao_qgbt: 'plate-quadro-eletrico.png',
   };
+  /**
+   * e22s: the synthetic plates were laid out on seed v11 (v12 adds TIPO DO ÓLEO and the TP's EXATIDÃO,
+   * and reads EXATIDÃO as a class), so their answers are checked against the v11 nameplates; the v12
+   * plates of Stories 22.7 and 22.9 are `job.integration.test.ts`'s and `build-v12.test.ts`'s.
+   */
+  const PLATE_SEED = 'v11';
 
-  it('the plate defaults are exactly the eight nameplate types, and no cable type', () => {
-    expect(nameplateTypes).toHaveLength(8);
+  it('the plate defaults are exactly the nine nameplate types, and no cable type', () => {
+    expect(nameplateTypes).toHaveLength(9);
     expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypes].sort());
     for (const cable of ['cabos_entrada', 'cabos_saida']) {
       expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
@@ -236,7 +244,7 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
       expect(scaled.tokens.every(({ bbox: [x0, y0, x1, y1] }) => x0 >= 0 && y0 >= 0 && x0 < x1 && y0 < y1 && x1 <= 1000 && y1 <= 700)).toBe(true);
       expect(own.tokens.every(({ bbox: [x0, y0, x1, y1] }) => x0 >= 0 && y0 >= 0 && x1 <= own.image.width && y1 <= own.image.height)).toBe(true);
 
-      const fields = new Map(getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate.map((field) => [field.key, field]));
+      const fields = new Map(getDefinition(PLATE_SEED, 'cabine_primaria', type).nameplate.map((field) => [field.key, field]));
       const { output } = await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, plate(type)).structure({ image: jpeg, ocr: scaled, fields: [] });
       expect(output.values.length).toBeGreaterThan(0);
       // Every nameplate key but the tag (never printed on a plate), the oil volume (the model leaves it

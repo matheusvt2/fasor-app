@@ -1089,11 +1089,12 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 32 (Stories 22.10 and 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-31 pull is refused with 426 contract_outdated on every stream, a version-32 pull is answered', async () => {
+  it('contract 32 (Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-31 pull is refused with 426 contract_outdated on every stream, a version-32 pull is answered', async () => {
     expect(CONTRACT_VERSION).toBe(32);
     expect(MIN_CONTRACT_VERSION).toBe(32);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
-      // 31 reads an over-range cell as invalid and cannot parse an `equipment/{id}/last_results` put (Stories 22.10 and 22.12);
+      // 31 cannot resolve seed v12 nor parse an `inspecao_qgbt` block or the `defeito_no_equipamento` reason (Stories 22.7 to 22.9 and 22.11);
+      // it reads an over-range cell as invalid and cannot parse an `equipment/{id}/last_results` put (Stories 22.10 and 22.12);
       // 30 cannot parse a point of origin nc, reading or reprovado, and shows a stored conclusion pair looser than the floor (Stories 22.4 to 22.6);
       // 29 cannot resolve seed v11 and computes a v9/v10 non-Dyn1 transformer with √3 (Stories 21.1 and 21.2);
       // 29 cannot parse a `file/{id}/order_key` put (Story 21.3);
@@ -1724,6 +1725,34 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     const page = await pullOk(companyA, `/api/sync/relatorios/${v11.relatorio}?since=0`);
     expect((page.ops as Op[]).filter((o) => o.op_id === group.op_id).map((o) => [o.path, o.value])).toEqual([[sheetNameplatePath(transformer, 'ligacao_secundaria'), 'Yyn0']]);
     const old = await pull(companyA, `/api/sync/relatorios/${v11.relatorio}?since=0`, '29');
+    expect(old.status).toBe(426);
+    expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+  });
+
+  it('Stories 22.8 and 22.11 (seed v12, contract 32): an inspecao_qgbt create on a v12 coluna and a voltage cell put on a v12 transformer are applied and carried; a v11 transformer refuses the column; a version-31 pull is 426', async () => {
+    const v12 = await site('v12');
+    const qgbt = newId();
+    const transformer = newId();
+    const onV12 = (created: Op, locationId: string | null): Op => ({ ...created, value: { ...(created.value as Record<string, unknown>), seed_version: 'v12', location_id: locationId } as Op['value'] });
+    const inspection = onV12(blockCreate(idsA, v12.relatorio, qgbt, 'inspecao_qgbt'), v12.coluna);
+    const trafo = onV12(blockCreate(idsA, v12.relatorio, transformer, 'transformador_forca'), null);
+    expect((await pushOk(companyA, [inspection, trafo])).rejected).toEqual([]);
+    expect(((await rowOf('block', qgbt)) as unknown as BlockRow).block_type).toBe('inspecao_qgbt');
+    // The TENSÃO column is the sixth of the v12 insulation table (index 5, after the five v11 columns).
+    const voltage = put(v12.relatorio, `sheet/${transformer}/test/isolacao/cell/2/5`, { raw: '0.5', unit: 'kV', state: 'measured' }, { meta: SAW_EMPTY });
+    const result = await pushOk(companyA, [voltage]);
+    expect(result.rejected).toEqual([]);
+    expect(((await rowOf('block', transformer)) as unknown as BlockRow).sheet.test.isolacao?.cells['2']?.['5']).toMatchObject({ value: { raw: '0.5', unit: 'kV', state: 'measured' }, op_id: voltage.op_id });
+    const page = await pullOk(companyA, `/api/sync/relatorios/${v12.relatorio}?since=0`);
+    expect((page.ops as Op[]).map((o) => o.op_id)).toEqual(expect.arrayContaining([inspection.op_id, voltage.op_id]));
+    // A v11 transformer's insulation table has five columns: index 5 is outside it.
+    const v11 = await site('v11');
+    const oldTransformer = newId();
+    const created = blockCreate(idsA, v11.relatorio, oldTransformer, 'transformador_forca');
+    expect((await pushOk(companyA, [{ ...created, value: { ...(created.value as Record<string, unknown>), seed_version: 'v11' } as Op['value'] }])).rejected).toEqual([]);
+    const outside = put(v11.relatorio, `sheet/${oldTransformer}/test/isolacao/cell/2/5`, { raw: '0.5', unit: 'kV', state: 'measured' }, { meta: SAW_EMPTY });
+    expect((await pushOk(companyA, [outside])).rejected.map((r) => r.op_id)).toEqual([outside.op_id]);
+    const old = await pull(companyA, `/api/sync/relatorios/${v12.relatorio}?since=0`, '31');
     expect(old.status).toBe(426);
     expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
   });

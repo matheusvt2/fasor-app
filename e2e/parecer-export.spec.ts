@@ -52,7 +52,7 @@ async function openFixtureSumario(page: Page): Promise<void> {
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
 }
 
-test('@p0 7.4-E2E-001 22.6-E2E a new relatório: row 10 reads the derived verdict and nothing blocks; Etapa 6 offers only stricter verdicts, one tap is one op, the summary is the composed one (no Confirmar, Editar or Substituir), and the back link reopens the dialog', async ({
+test('@p0 7.4-E2E-001 22.6-E2E e22f a new relatório: nothing judged, so no verdict and "Parecer não preenchido" blocks; Etapa 6 checks no segment and shows no box, one tap is one op, the summary is the composed one (no Confirmar, Editar or Substituir), and the back link reopens the dialog unblocked', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -62,17 +62,19 @@ test('@p0 7.4-E2E-001 22.6-E2E a new relatório: row 10 reads the derived verdic
   await createProjectFromHome(page);
   const relatorioId = await createRelatorio(page);
 
-  // Story 22.6: 94 empty sheets, no point: the derived verdict is Apto, and no row blocks.
+  // ~~Story 22.6: 94 empty sheets, no point: the derived verdict is Apto, and no row blocks.~~
+  // e22f S5: 94 empty sheets, none concluded, no point: nothing is judged, so there is no verdict
+  // ("Apto" needs a judged sheet) and row 10 blocks, as before Story 22.6.
   const row10 = sumario(page).getByRole('listitem').nth(11);
-  await expect(row10.locator('.sum-status')).toHaveText('Apto');
-  await expect(sumario(page).locator('.sum-status.is-blocking')).toHaveCount(0);
+  await expect(row10.locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
   // Status flow 2026-10-10 (M6, decision 5): the status's next step, under the status pill.
   // Story 14.3: this relatório is born on seed v4, so the sentence names the site checklist too.
   await expect(page.getByTestId('status-next-step')).toHaveText(/^Rascunho: falta .+ em Dados do relatório\. Preencher uma ficha ou as verificações do local passa o relatório a Em campo\.$/);
   await footButton(page).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}\\?exportar=1$`));
-  await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
-  await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(dialog(page).locator('.precheck li.is-blocking .pc-block')).toHaveText('Parecer não preenchido');
+  await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(generateButton(page)).toHaveAccessibleDescription('Preencha o parecer (linha 10 do sumário) para emitir a revisão 1. O rascunho pode ser visto antes.');
   // The document control summary, read-only: a dl whose revision row promises Rev. 1.
   await expect(dialog(page).locator('dl.doc-control dt').nth(1)).toHaveText('Revisão do documento');
   await expect(dialog(page).locator('dl.doc-control dd').nth(1)).toHaveText('Rev. 1');
@@ -83,13 +85,18 @@ test('@p0 7.4-E2E-001 22.6-E2E a new relatório: row 10 reads the derived verdic
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6&volta=exportar`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
 
-  // The derived Apto is shown, every verdict choosable (none looser), no reason line.
+  // e22f S5: no verdict: no segment checked, every verdict choosable (none looser), no reason line, no box yet.
   const group = page.getByRole('radiogroup', { name: 'Parecer' });
-  await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toHaveAttribute('aria-checked', 'true');
-  for (const name of ['Apto', 'Apto com restrições', 'Não apto']) await expect(group.getByRole('radio', { name, exact: true })).toBeEnabled();
+  for (const name of ['Apto', 'Apto com restrições', 'Não apto']) {
+    await expect(group.getByRole('radio', { name, exact: true })).toBeEnabled();
+    await expect(group.getByRole('radio', { name, exact: true })).toHaveAttribute('aria-checked', 'false');
+  }
+  await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toHaveAttribute('tabindex', '0');
   await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveCount(0);
   const box = page.locator('.parecer-box');
-  await expect(box.locator('.pb-verdict')).toHaveText('Apto');
+  await expect(box).toHaveCount(0);
+  // e22f S3: the note says the parecer follows from the fichas.
+  await expect(page.locator('#setup-parecer .section-note').first()).toContainText('O parecer segue das fichas');
 
   // A stricter verdict: one tap, one op carrying the whole parecer.
   await group.getByRole('radio', { name: 'Apto com restrições', exact: true }).click();

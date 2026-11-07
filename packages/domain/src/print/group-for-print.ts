@@ -288,6 +288,22 @@ function transformerPairs(
 }
 
 /**
+ * Story 22.11 (seed v12): the "Outros equipamentos" of a run with the Inspeção de QGBT sheets
+ * after the run's full Quadro elétrico sheets. An inspection that sits before the run's last
+ * quadro moves to just after it, the moved ones and every other sheet keeping their tree
+ * order; a run with no quadro, or no inspection before its last quadro, is unchanged.
+ */
+function afterFullQuadros(outros: readonly TreeEquipmentNode[]): TreeEquipmentNode[] {
+  const last = outros.findLastIndex((node) => node.blockType === 'quadro_eletrico');
+  if (last === -1) return [...outros];
+  const moved = outros.filter((node, i) => i < last && node.blockType === 'inspecao_qgbt');
+  if (moved.length === 0) return [...outros];
+  const kept = outros.filter((node) => !moved.includes(node));
+  const at = kept.findLastIndex((node) => node.blockType === 'quadro_eletrico');
+  return [...kept.slice(0, at + 1), ...moved, ...kept.slice(at + 1)];
+}
+
+/**
  * One run of a flagged cabine (all of its sheets, its direct run, or one coluna of a painel)
  * split into the fixed type groups, an empty group skipped. The direct run's titles carry the
  * cabine's name (`base.title`), FO.SERV-03's own; a coluna's run names the coluna, the painel
@@ -343,7 +359,7 @@ function byType(
     disjuntores: disjuntores.map((node) => node.blockId),
     tps_tcs: tpTcPairs(tpsTcs),
     transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
-    outros: outros.map((node) => node.blockId),
+    outros: afterFullQuadros(outros).map((node) => node.blockId),
   };
   const titleOf = (words: string): string => {
     if (painel === null) return `${words} ${ofCabine(base.title)}`;
