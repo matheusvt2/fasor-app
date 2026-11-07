@@ -14,9 +14,12 @@ import { byClientTsThenOpId, orderLog } from './replay.ts';
  * published versions of its type, which no op of the block names. The caller passes the version
  * rows it holds as `context` (the device's Dexie version rows: immutable, and pulled with the
  * company stream before any relatório stream, AD-24), read beside the fold's own rows and never
- * returned. A local op the fold refuses (`SeedPathError`: a publish another device's version
- * already took the number of, a block naming a version this device dropped) is left out, as the
- * server will refuse it too; a pulled op the fold refuses still throws, as before.
+ * returned. Every local op the fold refuses with a `SeedPathError`, whatever the rule (a publish
+ * whose number another device's version already took, a block naming a version this device does
+ * not hold, a sheet write outside its block's definition, a site item or a block type its seed
+ * version does not offer, on a seeded block as on a company one), is left out of the row: the op
+ * stays in the outbox, the server refuses it too and it goes dead. A pulled op the fold refuses
+ * still throws, as before; any other error, local or pulled, throws.
  */
 
 export interface MaterializeRef {

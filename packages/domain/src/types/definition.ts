@@ -147,6 +147,57 @@ export function companySubBlocksOf(definition: PartsOf): string[] {
 
 const repeats = (keys: readonly string[]): string[] => keys.filter((k, i) => keys.indexOf(k) !== i);
 
+type Loose = Record<string, unknown>;
+const looseList = (value: unknown): Loose[] => (Array.isArray(value) ? value.filter((entry): entry is Loose => entry !== null && typeof entry === 'object' && !Array.isArray(entry)) : []);
+
+/**
+ * What judges by a row of the criteria table: an insulation or contact test naming it
+ * (`criterion_key`, a reading), the ratio test naming it (a deviation), and each cell of a
+ * measurement table an absolute criterion naming it (`seeded`) covers, a number or a choice by its
+ * row's kind, else its column's (a fixed cell judges nothing).
+ */
+type CriterionUse = 'reading' | 'deviation' | 'number_cell' | 'choice_cell';
+
+function criterionUses(definition: object | null | undefined, criterionKey: string): Set<CriterionUse> {
+  const uses = new Set<CriterionUse>();
+  const d = (definition ?? {}) as Loose;
+  for (const test of looseList(d.tests)) {
+    if (test.criterion_key === criterionKey) uses.add(test.key === 'relacao_transformacao' ? 'deviation' : 'reading');
+  }
+  for (const test of looseList(d.measurement_tests)) {
+    const rows = looseList(test.rows);
+    const columns = looseList(test.columns);
+    for (const criterion of looseList(test.criteria)) {
+      if (criterion.type !== 'absolute' || criterion.seeded !== criterionKey) continue;
+      const named = (list: Loose[], keys: unknown) => (Array.isArray(keys) ? list.filter((entry) => keys.includes(entry.key)) : list);
+      for (const row of named(rows, criterion.rows)) {
+        const fixed = row.fixed !== null && typeof row.fixed === 'object' ? (row.fixed as Loose) : {};
+        for (const column of named(columns, criterion.columns)) {
+          if (typeof column.key === 'string' && column.key in fixed) continue;
+          uses.add((row.kind ?? column.kind) === 'choice' ? 'choice_cell' : 'number_cell');
+        }
+      }
+    }
+  }
+  return uses;
+}
+
+/**
+ * Story 14.6 (review of batch e22t): the rules a row of a company type's criteria table may take,
+ * in the order the Critérios tab offers them. `±` judges a deviation, so an insulation or contact
+ * reading and a number cell, which it would fail whatever was measured, never take it (the ratio
+ * test does); `pass_fail` passes a choice, so only a row whose cells are all choices takes it. A
+ * row no test names takes every rule. The editor offers only these; the strict schema refuses the rest.
+ */
+export function criterionRulesFor(definition: object | null | undefined, criterionKey: string): CompanyCriterionOperator[] {
+  const uses = [...criterionUses(definition, criterionKey)];
+  return COMPANY_CRITERION_OPERATORS.filter((operator) => {
+    if (operator === '±') return !uses.includes('reading') && !uses.includes('number_cell');
+    if (operator === 'pass_fail') return uses.every((use) => use === 'choice_cell');
+    return true;
+  });
+}
+
 /** The cross-part rules of a definition: unique keys, and every criterion a test names exists. */
 function checkCompanyDefinition(
   definition: {
@@ -176,6 +227,12 @@ function checkCompanyDefinition(
         issue(['measurement_tests', t, 'criteria', c, 'seeded'], `"${criterion.seeded}" is not a criterion of the type`);
       }
     });
+  });
+  // A rule that would fail every reading it judges (`criterionRulesFor`).
+  definition.criteria.forEach((criterion, c) => {
+    if ((criterion.operator === '±' || criterion.operator === 'pass_fail') && !criterionRulesFor(definition, criterion.key).includes(criterion.operator)) {
+      issue(['criteria', c, 'operator'], criterion.operator === '±' ? '± judges a deviation, never a reading nor a number cell' : 'pass_fail judges a choice row only');
+    }
   });
   checkSeedV6Definition(definition, ctx);
   checkMeasurementDefinition({ sub_blocks: companySubBlocksOf(definition), measurement_tests: definition.measurement_tests, config_fields: definition.config_fields }, ctx);

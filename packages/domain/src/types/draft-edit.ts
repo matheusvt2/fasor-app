@@ -201,7 +201,9 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
   const list = listOf(next, part);
   const [removed] = list.splice(index, 1);
   if (removed === undefined) return back(next);
-  next[part] = list;
+  // A type without measurement tables has no `measurement_tests` (the strict schema takes one or more, never an empty list).
+  if (part === 'measurement_tests' && list.length === 0) delete next.measurement_tests;
+  else next[part] = list;
   if (part === 'nameplate') {
     const key = textOf(removed.key);
     for (const test of listOf(next, 'tests')) {

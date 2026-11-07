@@ -2,7 +2,7 @@
 title: 'e22t: Stories 14.6 to 14.8, company equipment types (contract 33)'
 type: 'feature'
 created: '2026-11-07'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b811ace93d5ddc75062421de7c21afab6deea5a6'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-09-21/ARCHITECTURE-SPINE.md'
 warnings: ['batched', 'oversized', 'multiple-goals']
 batched_why: 'Epic 22 wave C plan: 14.7 and 14.8 build only on 14.6 ops and resolver; one spec, one review, one gate. Built by two implementation subagents in series: part A (14.6, opus max), part B (14.7 and 14.8, opus high).'
-deferred: []
+deferred:
+  - summary: >-
+      A block names its company type version by number, so a device whose published vN+1 was refused (another device published vN+1 first) may bind blocks it created at that number to the other device's definition.
+    evidence: |-
+      Edge Case Hunter (apply.ts:810, definitions.ts buildContext) and Verification Gap (findDefinitionIn keys versionKey(typeId, typeVersion)); not demonstrated: needs a two-device run where device Y creates and fills a block at its own refused vN+1 before pulling. If true, medium: sheet writes outside the winning definition are refused and the sheet is judged under the winner's criteria.
+    location: >-
+      packages/domain/src/seed/definitions.ts findDefinitionIn; packages/domain/src/ops/apply.ts version create
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -123,3 +130,31 @@ All inside the tools container (`podman compose --profile tools run --rm --user 
 Machine facts (this host): `podman compose`, never docker; the stack is `fasor-e22t` (`.env`, `compose.local.yml` in the worktree), images `localhost/app-api-e22t` and `localhost/app-tools-e22t` exist: never build, `podman untag` or `podman rmi`. One Vitest file: `pnpm exec vitest run --project @app/web <file>` (or the domain/api project). Host lock: `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'` started with nohup in the background, output to `.scratch-e22t/<name>.log`, never a foreground wait over 60 s; never let full test output into context (tail the log). `podman compose restart api` after a change under `packages/domain` or `apps/api`, before test:api and e2e. Before any Vitest or Playwright run, if `/private/tmp/claude-502/-Users-matheusvilella-Documents-estudos-fasor-app/4b366af1-2a1f-4c68-adfe-40511ad7328a/scratchpad/wave-b-gate/gate.running` exists, do not run: keep implementing and check again later. Never `pkill` by pattern; never `podman compose down -v`. Commit WIP on branch `e22t-company-types` at milestones (messages end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`), no emoji.
 
 Split of work: implementer A builds part A only (14.6) and the web plumbing, ends with lint, static, test:unit and test:api green, commits, and reports. Implementer B starts from A's commit and builds part B (14.7, 14.8) and its e2e. Each records in its report: narrowings, authored pt-BR strings, open questions.
+
+## Spec Change Log
+
+(none: no bad_spec loopback)
+
+## Review Triage Log
+
+### 2026-11-07 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them). Diff: `git diff origin/main` after the merge of e22r (ddf34a75), 121 files.
+- verdicts: 17 findings — high 0, medium 11, low 4, false 0, maybe-false 2
+- findings:
+  - `medium` `patch` ECH-1 `use-ficha-actions.ts:172` Concluir ficha writes no instrument header on a company sheet (no context to `suggestedInstruments`) — confirmed at the line; sent to implementer B.
+  - `medium` `patch` ECH-2 `types/duplicate.ts:90` Duplicar keeps `criterion_bands` / `criterion_class_field`, so Critérios edits are ignored — confirmed; strip on copy (implementer A).
+  - `low` `patch` ECH-3 `types/draft-edit.ts:204` removing the last measurement test leaves `[]` and a wrong issue — direct correction (A).
+  - `medium` `patch` ECH-4 `±` / `pass_fail` offered on grammars where they fail every reading — kernel issue plus `criterionRulesFor` (A), editor offers only those (B).
+  - `low` `patch` ECH-5 `type-editor-parts.tsx:672` cleared value then pass_fail hides the input while its issue shows — default value (B).
+  - `medium` `patch` ECH-6 `templates/compose.ts:394` `checklist: null` still enables a checklist step — confirmed (A).
+  - `maybe-false` `defer` ECH-7 and VG-other-1, two rows of one root (: a block names its version by number) a device whose vN+1 was refused may bind its blocks to the other device's vN+1 — would need a two-device run with a block created at the refused version; if true medium; deferred, open question in the PR.
+  - `low` `reject` ECH-8 `tree-actions.ts:334` an unresolved version reads "location gone" — rare (version rows arrive in the company stream before any relatório stream, AD-24) and the fix adds a new refusal string.
+  - `medium` `patch` VG-1 template on v1 instantiated at a v2 that drops a key — test (A).
+  - `medium` `patch` VG-2 reading jobs on a company block untested — api integration test (A).
+  - `medium` `patch` VG-3 seeded-only snapshot in a state with unreferenced versions — byte-equal tests on both adapters (A).
+  - `medium` `patch` VG-4 `print/last-results.ts:139` still `findDefinition` (arrived with the e22r merge) — migrate and test with `lastNameplates` (A).
+  - `medium` `patch` VG-5 photos on company sheets unexercised — caption, item line, order tests (A).
+  - `medium` `patch` VG-6 parecer and pre-issue over company sheets — tests (A).
+  - `medium` `patch` VG-7 field palette / Duplicar create of a company block — kernel test (A) and an e2e step reading the outbox (B).
+  - `low` `patch` VG-other-2 `ops/materialize.ts:40` drops every local `SeedPathError` op, not only the version conflict — comment corrected and a seeded test (A).
+  - `medium` `patch` MERGE (orchestrator, not a layer finding, not in the 17) `relatorio/instrument-pick.ts:91` the e22r merge left `definitionOf` undefined (static red) — fixed by the orchestrator: `instrumentRangeFor` takes the context; caller `ensaios-section.tsx:171` passes it (B); test (A).

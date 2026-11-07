@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { buildSnapshot, definitionContext, replay, serializeSnapshot, type EquipmentTypeRow, type Op } from '@app/domain';
 import { BLOCK_1_ID, companyTypes, DEFINITION_2, RELATORIO_ID, TYPE_1_ID, TYPE_2_ID, VERSION_1_ID, VERSION_2_ID } from '@app/domain/fixtures/company-types';
+import { replaySmall } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
 import { commitOps } from './commit.ts';
 import { relatorioState } from './home-store.ts';
@@ -85,6 +86,20 @@ describe('Story 14.6: company types on the Dexie layer', () => {
     expect(await db.entities.get(['equipment_type_version', ownId])).toBeUndefined();
     expect(((await db.entities.get(['equipment_type', TYPE_1_ID]))!.row as EquipmentTypeRow).latest_version).toBe(2);
     expect((await db.entities.get(['equipment_type_version', VERSION_2_ID]))?.row).toBeDefined();
+    db.close();
+  });
+
+  it('keeps a seeded-only relatório byte-equal beside the company\'s type versions: no equipment_types', async () => {
+    const db = await freshDb();
+    await applyPulled(db, companyTypes.log.filter((op) => op.scope === 'company'));
+    const dead = new Set(replaySmall.deadOpIds);
+    await commitOps(db, replaySmall.log.filter((op) => !dead.has(op.op_id)));
+    const snapshot = await toSnapshot(db, replaySmall.relatorioId);
+    expect('equipment_types' in snapshot).toBe(false);
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(buildSnapshot(replay(replaySmall.log, { deadOpIds: dead }), replaySmall.relatorioId)));
+    // The surfaces' state reads the version rows too, and names none for this relatório.
+    const state = await relatorioState(db, replaySmall.relatorioId);
+    expect('equipment_types' in relatorioSnapshotOf(state!, replaySmall.relatorioId)).toBe(false);
     db.close();
   });
 

@@ -148,6 +148,9 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       const name = nameOf(item, 'critério', index);
       if (sub === 'source') return { message: 'Informe a fonte do critério.', summary: `${word} › ${name} sem fonte` };
       if (sub === 'label') return plain(`Critério ${index + 1}: informe o nome do critério.`, `critério ${index + 1} sem nome`);
+      // A rule that would fail every reading its tests judge (`criterionRulesFor`).
+      if (sub === 'operator' && issue.message.startsWith('± judges')) return plain(`${name}: a regra ± vale para o desvio da relação de transformação; escolha outra regra.`, `${name} com regra ±`);
+      if (sub === 'operator' && issue.message.startsWith('pass_fail judges')) return plain(`${name}: "aprovado ou reprovado" vale para uma linha com opções; escolha outra regra.`, `${name} com aprovado ou reprovado`);
       if (sub === 'operator') return plain(`${name}: escolha a regra.`, `${name} sem regra`);
       if (sub === 'value') return plain(`${name}: informe o valor.`, `${name} sem valor`);
       if (sub === 'value_max') {

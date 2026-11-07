@@ -6,7 +6,7 @@ import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts'
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import type { BlockRow, EquipmentRow, LastResults } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 
 /*
@@ -133,10 +133,12 @@ function strip(entry: LastResults): PreviousResults {
 export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string }): LastResultsEntry[] {
   const out: LastResultsEntry[] = [];
   const done = new Set<string>();
+  // Story 14.6: a company sheet's definition is the version its block references (the snapshot's `equipment_types`).
+  const ctx = snapshotDefinitionContext(snapshot);
   for (const block of snapshot.blocks) {
     if (block.removed_at !== null || block.equipment_id === null || !isEquipmentBlock(block) || block.not_tested !== null) continue;
     if (done.has(block.equipment_id)) continue;
-    const definition = findDefinition(block.seed_version, block.block_type);
+    const definition = blockDefinitionIn(ctx, block);
     if (definition === null) continue;
     const readings = blockReadings(block, definition);
     if (Object.keys(readings).length === 0) continue;

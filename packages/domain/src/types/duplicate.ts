@@ -76,7 +76,14 @@ export function duplicateSeededType(seedVersion: string, blockType: EquipmentBlo
   const named = (key: string) => {
     if (!keys.includes(key)) keys.push(key);
   };
-  for (const test of seed.tests) named(test.criterion_key);
+  for (const test of seed.tests) {
+    named(test.criterion_key);
+    // A criterion the seed picks from the plate (the board's voltage bands, the TC and TP accuracy
+    // class) would override the copy's own row in `effectiveCriterion`, so the Critérios tab's edit
+    // would never judge a reading: the copy keeps the materialized row alone, as "Adicionar ensaio" does.
+    delete test.criterion_bands;
+    delete test.criterion_class_field;
+  }
   for (const test of seed.measurement_tests ?? []) {
     for (const criterion of test.criteria) if (criterion.type === 'absolute' && criterion.seeded !== undefined) named(criterion.seeded);
   }

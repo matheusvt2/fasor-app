@@ -3,6 +3,9 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  companyBlockType,
+  companySubBlocksOf,
+  emptySheet,
   instantiateTemplate,
   makeOp,
   objectKey,
@@ -18,6 +21,7 @@ import {
   type OpDraft,
   type SuggestionRow,
 } from '@app/domain';
+import { DEFINITION_1 } from '@app/domain/fixtures/company-types';
 import { AccessDeniedException as BedrockAccessDeniedException, ThrottlingException as BedrockThrottlingException } from '@aws-sdk/client-bedrock-runtime';
 import { AccessDeniedException, type Block } from '@aws-sdk/client-textract';
 import { and, asc, desc, eq } from 'drizzle-orm';
@@ -1360,5 +1364,55 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(rows[0]!.error).toContain('ProviderRefusedError');
     expect(rows[0]!.error).toContain('AccessDeniedException');
     expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+  }, 60_000);
+});
+
+describe('14.6-INT a plate reading on a block of a company type', () => {
+  it('suggests the fields of the version the block references, and drops a key that version lacks', async () => {
+    // The company's own type, published as v1 (`fixtures/company-types`, the no-break's plate: FABRICANTE, MODELO, TENSÃO DE SAÍDA).
+    const typeId = newId();
+    const versionId = newId();
+    await apply([
+      companyDraft(`equipment_type/${typeId}`, { id: typeId, derived_from: null, draft: null, retired_at: null, removed_at: null, latest_version: 0 }),
+      companyDraft(`equipment_type_version/${versionId}`, { id: versionId, type_id: typeId, version: 1, definition: DEFINITION_1, published_by: ACTOR, published_at: new Date(Date.now() - 1000).toISOString() }),
+    ]);
+    const { relatorioId, blocks } = await relatorio();
+    const host = blocks.find((b) => b.equipment_id !== null)!;
+    const blockType = companyBlockType(typeId);
+    const block: BlockRow = {
+      ...host,
+      id: newId(),
+      block_type: blockType,
+      config: { block_type: blockType, sub_blocks: Object.fromEntries(companySubBlocksOf(DEFINITION_1).map((key) => [key, { enabled: true }])), na_defaults: [], type_version: 1 },
+      order_key: 'zz',
+      sheet: emptySheet(),
+    };
+    await apply([{ kind: 'create', scope: 'relatorio', company_id: companyId, project_id: null, relatorio_id: relatorioId, path: `block/${block.id}`, value: block as never, prev_op_id: null, batch_id: null, meta: null, actor_id: ACTOR }]);
+    const bytes = await solidPng(40, 90, 160);
+    fixture(bytes, {
+      ocr: {
+        image: { width: 200, height: 100 },
+        tokens: [
+          { id: 't0', text: 'MODELO', bbox: [5, 5, 60, 20], confidence: 0.99 },
+          { id: 't1', text: 'NB-3000', bbox: [100, 5, 160, 20], confidence: 0.99 },
+          { id: 't2', text: 'POTÊNCIA', bbox: [5, 40, 60, 55], confidence: 0.99 },
+          { id: 't3', text: '10', bbox: [100, 40, 120, 55], confidence: 0.99 },
+        ],
+        preprocessing_applied: false,
+      },
+      structuring: {
+        values: [
+          { key: 'modelo', value: 'NB-3000', ocr_token_ids: ['t1'], confidence: 0.9 },
+          // A seeded plate's key the version does not hold: dropped, never a suggestion.
+          { key: 'potencia_nominal', value: '10 kVA', ocr_token_ids: ['t3'], confidence: 0.9 },
+        ],
+      },
+    });
+    const id = await photo(relatorioId, block, bytes, 'image/png');
+    await runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+    expect(await status(id)).toBe('done');
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine.map((s) => s.target_path)).toEqual([`sheet/${block.id}/nameplate/modelo`]);
+    expect(DEFINITION_1.nameplate.map((field) => field.key)).toContain('modelo');
   }, 60_000);
 });

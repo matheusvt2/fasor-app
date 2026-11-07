@@ -11,6 +11,8 @@ import {
   DEFINITION_3,
   DEVICE_ID,
   EQUIPMENT_1_ID,
+  EQUIPMENT_2_ID,
+  EQUIPMENT_3_ID,
   OPEN_DRAFT,
   PROJECT_ID,
   RELATORIO_ID,
@@ -26,18 +28,27 @@ import {
 import { replaySmall } from '../../fixtures/replay-small/op-log.ts';
 import { applyOp, definitionTypeIdsOf, entityKey, SeedPathError, splitEntityKey, targetsOf, type EntityKey, type EntityState } from '../ops/apply.ts';
 import { materializeEntity } from '../ops/materialize.ts';
-import { opSchema, type Op } from '../ops/op.ts';
+import { makeOp, opSchema, type Op } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
+import { contextCaption } from '../photos/caption.ts';
+import { photoItemLine } from '../photos/gallery.ts';
 import { groupForPrint } from '../print/group-for-print.ts';
+import { lastNameplates } from '../print/last-nameplate.ts';
+import { lastResults } from '../print/last-results.ts';
+import { documentPhotoOrder } from '../print/photo-order.ts';
 import { section9Layout } from '../print/section-9.ts';
 import { composeConclusion, effectiveConclusionPair } from '../relatorio/conclusion.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
-import { sheetProgress } from '../relatorio/sheet-progress.ts';
+import { instrumentRangeFor } from '../relatorio/instrument-pick.ts';
+import { composeParecer, derivedParecer } from '../relatorio/parecer.ts';
+import { preIssue } from '../relatorio/pre-issue.ts';
+import { effectiveCriterion } from '../relatorio/reading-evaluation.ts';
+import { sheetProgress, shownSheetSteps } from '../relatorio/sheet-progress.ts';
 import { suggestTag, tagPrefixOf } from '../relatorio/tag.ts';
-import { blockTypeLabelIn, locationTree, paletteItems, paletteTypeGroups, treeNodes } from '../relatorio/tree.ts';
+import { blockTypeLabelIn, locationTree, newEquipmentBlock, paletteItems, paletteTypeGroups, treeNodes } from '../relatorio/tree.ts';
 import { learnedOptionCandidates } from '../registry/nc-phrase-row.ts';
 import { blockConfigSchema, companyBlockType, EQUIPMENT_BLOCK_TYPES, isCompanyBlockType, templateBlockSchema, typeVersionOf } from '../schemas/block-config.ts';
-import type { BlockRow, EntityRow, EquipmentTypeRow, EquipmentTypeVersionRow, TemplateRow } from '../schemas/entities.ts';
+import { emptySheet, photoFileRowSchema, type BlockRow, type Cell, type EntityRow, type EquipmentTypeRow, type EquipmentTypeVersionRow, type TemplateRow } from '../schemas/entities.ts';
 import { buildSnapshot, serializeSnapshot } from '../schemas/snapshot.ts';
 import { compareCriterion, formatCriterionValue } from '../seed/criteria.ts';
 import {
@@ -52,11 +63,12 @@ import {
   latestTypeVersion,
   offeredTypes,
   SEED_VERSION,
+  snapshotDefinitionContext,
 } from '../seed/definitions.ts';
 import { defaultBlockConfig, defaultBlockConfigIn, standardTemplate, templateTotals } from '../seed/template.ts';
-import { composerView, setQuantity } from '../templates/compose.ts';
+import { composerView, enabledSubBlocks, setQuantity } from '../templates/compose.ts';
 import { asBlockDefinition } from './block-definition.ts';
-import { companyTypeDefinitionSchema, companyTypeDraftSchema, companySubBlocksOf } from './definition.ts';
+import { companyTypeDefinitionSchema, companyTypeDraftSchema, companySubBlocksOf, criterionRulesFor, type CompanyTypeDefinition } from './definition.ts';
 import { duplicateCompanyType, duplicateSeededType, newEquipmentTypeRow, openDraftText, typeStatusText, typeVersionRow } from './duplicate.ts';
 import { publishBlockedText, typeDraftIssueCount, validateTypeDraft } from './validate.ts';
 
@@ -581,5 +593,292 @@ describe('Story 14.6: the fixture', () => {
     expect([BLOCK_1_ID, BLOCK_2_ID, BLOCK_3_ID].every((id) => fixtureState.has(entityKey('block', id)))).toBe(true);
     expect(validateTypeDraft(DEFINITION_2)).toEqual([]);
     expect(validateTypeDraft(DEFINITION_3)).toEqual([]);
+  });
+});
+
+// --- review of batch e22t -----------------------------------------------------------------------
+
+const cellOf = (value: unknown): Cell => ({ value: value as Cell['value'], source_suggestion_id: null, op_id: opId() });
+/** A version create of `definition` built valid and then given it: `opSchema` would refuse a definition the strict schema refuses. */
+const versionCreateOf = (id: string, typeId: string, version: number, definition: unknown): Op => ({
+  ...versionCreate(id, typeId, version),
+  value: { id, type_id: typeId, version, definition, published_by: USER_ID, published_at: T(1) } as Op['value'],
+});
+
+describe('Story 14.6 review: "Duplicar" drops the plate-picked criteria', () => {
+  it('a copy of a banded (quadro elétrico) or class-field (TC, TP) type judges by its own criteria row', () => {
+    // The Inspeção de QGBT, the other banded board, has no test on v12: nothing to drop.
+    expect(getDefinition('v12', 'cabine_primaria', 'inspecao_qgbt').tests).toEqual([]);
+    for (const type of ['quadro_eletrico', 'tc', 'tp'] as const) {
+      const seeded = getDefinition('v12', 'cabine_primaria', type).tests;
+      expect(seeded.some((test) => test.criterion_bands !== undefined || test.criterion_class_field !== undefined), type).toBe(true);
+      const copy = duplicateSeededType('v12', type).draft;
+      expect(copy.tests.every((test) => test.criterion_bands === undefined && test.criterion_class_field === undefined), type).toBe(true);
+      expect(validateTypeDraft(copy), type).toEqual([]);
+      // The Critérios tab's edit is what judges: the copy's row, never the seed's band or class.
+      const banded = copy.tests.find((test) => seeded.some((s) => s.key === test.key && (s.criterion_bands !== undefined || s.criterion_class_field !== undefined)))!;
+      const edited = { ...copy, criteria: copy.criteria.map((criterion) => (criterion.key === banded.criterion_key ? { ...criterion, value: 7 } : criterion)) };
+      const definition = asBlockDefinition({ type_id: TYPE_1_ID, version: 1, definition: edited });
+      const test = definition.tests.find((candidate) => candidate.key === banded.key)!;
+      expect(effectiveCriterion({ sheet: emptySheet() }, test), type).toMatchObject({ key: banded.criterion_key, value: 7 });
+    }
+  });
+});
+
+describe('Story 14.6 review: the rules a criterion may take (criterionRulesFor)', () => {
+  const ratio = duplicateSeededType('v12', 'tc').draft;
+  const ratioKey = ratio.tests.find((test) => test.key === 'relacao_transformacao')!.criterion_key;
+  const withRule = (definition: CompanyTypeDefinition, key: string, operator: '±' | 'pass_fail'): CompanyTypeDefinition => ({
+    ...definition,
+    criteria: definition.criteria.map((criterion) => {
+      if (criterion.key !== key) return criterion;
+      const next: CompanyTypeDefinition['criteria'][number] = { ...criterion, operator, type: operator === '±' ? 'deviation_between' : 'pass_fail', value: 1 };
+      delete next.value_max;
+      return next;
+    }),
+  });
+  const choiceTable = (definition: CompanyTypeDefinition): CompanyTypeDefinition => ({
+    ...definition,
+    measurement_tests: [
+      {
+        ...definition.measurement_tests![0]!,
+        rows: [{ key: 'estado', label: 'Estado do banco', kind: 'choice', options: [{ key: 'bom', label: 'Bom' }, { key: 'ruim', label: 'Ruim' }] }],
+        criteria: [{ type: 'absolute', seeded: 'tensao_saida', rows: ['estado'], source: { name: 'Manual do fabricante', edition: null } }],
+      },
+    ],
+  });
+
+  it('an insulation or contact reading and a number row take neither ± nor pass_fail; the ratio takes ±; a choice row takes pass_fail', () => {
+    const comparisons = ['>', '<', '>=', '<=', 'between'];
+    expect(criterionRulesFor(DEFINITION_1, 'isolacao')).toEqual(comparisons);
+    expect(criterionRulesFor(DEFINITION_1, 'tensao_saida')).toEqual(comparisons);
+    expect(criterionRulesFor(ratio, ratioKey)).toEqual([...comparisons, '±']);
+    expect(criterionRulesFor(choiceTable(DEFINITION_1), 'tensao_saida')).toEqual([...comparisons, '±', 'pass_fail']);
+    // A row no test names, and a loose draft the editor holds, take what their uses allow.
+    expect(criterionRulesFor(DEFINITION_1, 'sem_uso')).toEqual([...comparisons, '±', 'pass_fail']);
+    expect(criterionRulesFor({ tests: [{ key: 'resistencia_contato', criterion_key: 'x' }] }, 'x')).toEqual(comparisons);
+    expect(criterionRulesFor(null, 'x')).toEqual([...comparisons, '±', 'pass_fail']);
+  });
+
+  it('refuses each pairing at its boundary, in pt-BR, and the fold refuses the version', () => {
+    const plusMinus = withRule(DEFINITION_1, 'isolacao', '±');
+    expect(validateTypeDraft(plusMinus)).toEqual([
+      {
+        path: ['criteria', 0, 'operator'],
+        part: 'criterios',
+        message: 'Isolamento mínimo: a regra ± vale para o desvio da relação de transformação; escolha outra regra.',
+        summary: 'Critérios › Isolamento mínimo com regra ±',
+      },
+    ]);
+    expect(validateTypeDraft(withRule(DEFINITION_1, 'tensao_saida', '±')).map((issue) => issue.message)).toEqual(['Tensão de saída: a regra ± vale para o desvio da relação de transformação; escolha outra regra.']);
+    expect(validateTypeDraft(withRule(DEFINITION_1, 'tensao_saida', 'pass_fail')).map((issue) => issue.message)).toEqual(['Tensão de saída: "aprovado ou reprovado" vale para uma linha com opções; escolha outra regra.']);
+    expect(validateTypeDraft(withRule(ratio, ratioKey, 'pass_fail')).map((issue) => issue.path)).toEqual([['criteria', ratio.criteria.findIndex((criterion) => criterion.key === ratioKey), 'operator']]);
+    // The boundary that publishes: ± on the ratio, pass_fail on a choice row.
+    expect(validateTypeDraft(withRule(ratio, ratioKey, '±'))).toEqual([]);
+    expect(validateTypeDraft(withRule(choiceTable(DEFINITION_1), 'tensao_saida', 'pass_fail'))).toEqual([]);
+    expect(companyTypeDefinitionSchema.safeParse(plusMinus).success).toBe(false);
+    const state = fold([typeCreate(TYPE_1_ID)]);
+    expect(() => applyOp(state, versionCreateOf(VERSION_1_ID, TYPE_1_ID, 1, plusMinus))).toThrow(/regra ±/);
+  });
+});
+
+describe('Story 14.6 review: a company type without a checklist has no Verificações', () => {
+  it('keeps the locked checklist only when the definition has one; the conclusion always', () => {
+    const noChecklist: CompanyTypeDefinition = { ...DEFINITION_3, checklist: null };
+    const config = { block_type: TYPE_2, sub_blocks: Object.fromEntries(companySubBlocksOf(noChecklist).map((key) => [key, { enabled: true }])), na_defaults: [], type_version: 1 };
+    expect(enabledSubBlocks(config)).toEqual(['nameplate', 'observations', 'conclusion']);
+    expect(shownSheetSteps({ config })).toEqual(['placa', 'conclusao']);
+    // With a checklist the locked part stays in, even switched off in the config.
+    expect(enabledSubBlocks({ ...config, sub_blocks: { ...config.sub_blocks, checklist: { enabled: false } } })).toContain('checklist');
+    expect(enabledSubBlocks({ ...config, sub_blocks: { nameplate: { enabled: true } } })).toEqual(['nameplate', 'conclusion']);
+  });
+});
+
+describe('Story 14.6 review: the next visit, photos, parecer and pre-issue over company sheets', () => {
+  it('lastResults and lastNameplates carry a company sheet\'s readings and plate by its version', () => {
+    const issued = { revisionNumber: 1, issuedAt: T(50) };
+    expect(lastResults(fixtureSnapshot, issued)).toEqual([
+      {
+        equipmentId: EQUIPMENT_1_ID,
+        value: {
+          relatorio_id: RELATORIO_ID,
+          revision_number: 1,
+          issued_at: T(50),
+          seed_version: SEED_VERSION,
+          block_type: TYPE_1,
+          readings: { 'tensoes_medidas|saida|valor': { raw: '125', unit: 'Vcc', state: 'measured' }, 'tensoes_medidas|flutuacao|valor': { raw: '131', unit: 'Vcc', state: 'measured' } },
+          prior: null,
+        },
+      },
+    ]);
+    expect(lastNameplates(fixtureSnapshot, issued).map((entry) => [entry.equipmentId, entry.value.block_type, entry.value.fields])).toEqual([
+      [EQUIPMENT_1_ID, TYPE_1, { modelo: 'NB-3000' }],
+      [EQUIPMENT_2_ID, TYPE_1, { tensao_de_saida: { raw: '125', unit: 'Vcc', state: 'measured' } }],
+    ]);
+  });
+
+  it('an item photo and a test photo: the caption names the noun, the item line and the document order follow the checklist', () => {
+    const ITEM_PHOTO = '019a5c00-0000-7000-8000-0000000000e1';
+    const TEST_PHOTO = '019a5c00-0000-7000-8000-0000000000e2';
+    const photo = (id: string, itemKey: string | null, seq: number) =>
+      photoFileRowSchema.parse({
+        id,
+        company_id: COMPANY_ID,
+        relatorio_id: RELATORIO_ID,
+        kind: 'photo',
+        sha256: 'c'.repeat(64),
+        mime: 'image/jpeg',
+        size: 1000,
+        uploaded_at: null,
+        variants: null,
+        removed_at: null,
+        captured_at: T(40 + seq),
+        tz_offset: -180,
+        coords: null,
+        local_seq: seq,
+        block_id: BLOCK_1_ID,
+        item_key: itemKey,
+        caption: null,
+        reading_kind: null,
+        reading_target: null,
+        reading_status: 'none',
+      });
+    const state = new Map(fixtureState);
+    state.set(entityKey('file', ITEM_PHOTO), photo(ITEM_PHOTO, 'bornes', 1));
+    state.set(entityKey('file', TEST_PHOTO), photo(TEST_PHOTO, null, 2));
+    const snapshot = buildSnapshot(state, RELATORIO_ID);
+    const meta = { step: 'verificacoes' as const, testKey: null, words: { atividades: [], locais: [] }, registry: [] };
+    expect(contextCaption({ block_id: BLOCK_1_ID, item_key: 'bornes' }, snapshot, meta)).toBe('Detalhe da verificação de bornes e conexões das baterias realizada no no-break NB-01 da Cabine principal');
+    expect(contextCaption({ block_id: BLOCK_1_ID, item_key: null }, snapshot, { ...meta, step: 'ensaios' })).toBe('Detalhe dos ensaios de resistência de isolação realizados no no-break NB-01 da Cabine principal');
+    expect(photoItemLine({ block_id: BLOCK_1_ID, item_key: 'bornes' }, snapshot)).toEqual({ head: 'Item 2 · Bornes e conexões das baterias', result: 'NC', nc: true, text: 'Item 2 · Bornes e conexões das baterias · NC' });
+    const order = documentPhotoOrder(snapshot);
+    expect(order.sheets.get(BLOCK_1_ID)).toMatchObject({ plate: [], items: [{ id: ITEM_PHOTO }], other: [{ id: TEST_PHOTO }] });
+    expect(order.order.map((row) => row.id)).toEqual([ITEM_PHOTO, TEST_PHOTO]);
+  });
+
+  it('the parecer: a company sheet reprovado by its own criteria gives Não apto, named by its TAG', () => {
+    expect(derivedParecer(fixtureSnapshot)).toBe('nao_apto');
+    expect(composeParecer(fixtureSnapshot).text).toContain('1 ficha foi reprovada por leituras fora do critério de aceitação (NB-01).');
+  });
+
+  it('a pre-issue row names a company sheet without a TAG by its version\'s label', () => {
+    const block = fixtureSnapshot.blocks.find((row) => row.id === BLOCK_3_ID)!;
+    const stale: BlockRow = {
+      ...block,
+      concluded_by: { actor_id: USER_ID, at: T(51) },
+      sheet: {
+        ...block.sheet,
+        conclusion: { result: cellOf('aprovado'), restriction: cellOf('sem_restricoes'), text: cellOf('Texto composto antes da mudança'), text_status: cellOf('confirmed'), text_basis: cellOf('deadbeef') },
+      },
+    };
+    const snapshot = {
+      ...fixtureSnapshot,
+      blocks: fixtureSnapshot.blocks.map((row) => (row.id === BLOCK_3_ID ? stale : row)),
+      equipment: fixtureSnapshot.equipment.map((row) => (row.id === EQUIPMENT_3_ID ? { ...row, tag: '' } : row)),
+    };
+    const rows = preIssue(snapshot, undefined, { now: new Date(T(55)) }).filter((row) => row.kind === 'conclusion_stale');
+    expect(rows.map((row) => row.text)).toEqual(['Texto de conclusão desatualizado: Fonte auxiliar']);
+  });
+
+  it('instrumentRangeFor reads the range picked on a company sheet\'s test through the context', () => {
+    const INSTRUMENT = '019a5c00-0000-7000-8000-0000000000d1';
+    const testKey = DEFINITION_1.tests[0]!.key;
+    const block = fixtureSnapshot.blocks.find((row) => row.id === BLOCK_1_ID)!;
+    const picked: BlockRow = { ...block, sheet: { ...block.sheet, test: { ...block.sheet.test, [testKey]: { ...(block.sheet.test[testKey] ?? { cells: {} }), instrument: cellOf({ instrument_id: INSTRUMENT, code: '2E' }) } } } };
+    const row = { id: INSTRUMENT, range_isolacao: { raw: '2', unit: 'TΩ' }, range_resistencia_contato: null };
+    expect(instrumentRangeFor(picked, [row], testKey, snapshotDefinitionContext(fixtureSnapshot))).toEqual({ raw: '2', unit: 'TΩ' });
+    // Without the context a company block resolves no definition, so no range.
+    expect(instrumentRangeFor(picked, [row], testKey)).toBeNull();
+  });
+});
+
+describe('Story 14.6 review: blocks born at a version', () => {
+  const both = fold([typeCreate(TYPE_1_ID), versionCreate(VERSION_1_ID, TYPE_1_ID, 1), versionCreate(VERSION_2_ID, TYPE_1_ID, 2, DEFINITION_2)]);
+  const ctx = definitionContextOf(both);
+
+  it('newEquipmentBlock at v1 and v2: the config names the version, the TAG takes the type\'s prefix, and the create folds', () => {
+    const location = { kind: 'cabine' as const, name: 'Cabine principal' };
+    for (const version of [1, 2]) {
+      const definition = getDefinitionIn(ctx, SEED_VERSION, TYPE_1, version);
+      const blockId = `019a5c00-0000-7000-8000-0000000000c${version}`;
+      const { equipment, block } = newEquipmentBlock({
+        blockId,
+        equipmentId: `019a5c00-0000-7000-8000-0000000000b${version}`,
+        relatorioId: RELATORIO_ID,
+        projectId: PROJECT_ID,
+        locationId: CABINE_ID,
+        type: TYPE_1,
+        tag: suggestTag(TYPE_1, location, [], definition),
+        seedVersion: SEED_VERSION,
+        orderKey: `b${version}`,
+        typeVersion: version,
+        definitions: ctx,
+      });
+      expect(typeVersionOf(block.config)).toBe(version);
+      expect(Object.keys((block.config as { sub_blocks: object }).sub_blocks)).toEqual(definition.sub_blocks);
+      expect(equipment.tag.startsWith('NB-')).toBe(true);
+      expect(fold([op('create', 'relatorio', `block/${blockId}`, block)], both).get(entityKey('block', blockId))).toMatchObject({ block_type: TYPE_1 });
+    }
+  });
+
+  it('a template built on v1 instantiates at a v2 that drops a test and an item: the keys are gone and the creates fold', () => {
+    const DROPPED: CompanyTypeDefinition = {
+      ...structuredClone(DEFINITION_1),
+      tests: [],
+      checklist: DEFINITION_1.checklist!.filter((item) => item.key !== 'bornes'),
+      criteria: DEFINITION_1.criteria.filter((criterion) => criterion.key !== 'isolacao'),
+    };
+    expect(validateTypeDraft(DROPPED)).toEqual([]);
+    const v1 = fold([typeCreate(TYPE_1_ID), versionCreate(VERSION_1_ID, TYPE_1_ID, 1)]);
+    const testKey = DEFINITION_1.tests[0]!.key;
+    const v1Config = defaultBlockConfigIn(definitionContextOf(v1), SEED_VERSION, TYPE_1, 1);
+    expect(v1Config.sub_blocks).toHaveProperty(testKey);
+    const template: TemplateRow = {
+      id: '019a5c00-0000-7000-8000-0000000000f1',
+      name: 'No-break na v1',
+      version: 1,
+      seed_version: SEED_VERSION,
+      skeleton: [{ ref: 'cab', kind: 'cabine', parent_ref: null, name: 'Cabine', agrupar_por_tipo: false }],
+      blocks: [{ ...v1Config, sub_blocks: { ...v1Config.sub_blocks, [testKey]: { enabled: false } }, na_defaults: ['bornes'], quantity: 1, skeleton_location_ref: 'cab', section_text: null }],
+      archived_at: null,
+      removed_at: null,
+    };
+    const v2 = fold([versionCreate(VERSION_2_ID, TYPE_1_ID, 2, DROPPED)], v1);
+    const { drafts } = instantiateTemplate(
+      template,
+      { id: PROJECT_ID },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: definitionContextOf(v2) },
+      { newId: opId, actorId: USER_ID, companyId: COMPANY_ID },
+    );
+    const created = drafts.find((draft) => draft.path.startsWith('block/') && (draft.value as { block_type?: unknown }).block_type === TYPE_1)!.value as unknown as BlockRow;
+    const config = created.config as { sub_blocks: Record<string, unknown>; na_defaults: string[]; type_version: number };
+    expect(config.type_version).toBe(2);
+    expect(config.sub_blocks).not.toHaveProperty(testKey);
+    expect(Object.keys(config.sub_blocks)).toEqual(companySubBlocksOf(DROPPED));
+    expect(config.na_defaults).toEqual([]);
+    const ops = drafts.map((draft) => makeOp({ ...draft, device_id: DEVICE_ID }, { newId: opId, now: new Date(T(30)) }));
+    expect(fold(ops, v2).get(entityKey('block', created.id))).toMatchObject({ block_type: TYPE_1, config: { type_version: 2 } });
+  });
+});
+
+describe('Story 14.6 review: snapshots and the device fold', () => {
+  it('a seeded-only relatório beside unreferenced type versions has no equipment_types and keeps its bytes', () => {
+    const seeded = replay(replaySmall.log, { deadOpIds: replaySmall.deadOpIds });
+    const types = [...fixtureState].filter(([key]) => key.startsWith('equipment_type'));
+    expect(types).toHaveLength(5);
+    const snapshot = buildSnapshot(new Map([...seeded, ...types]), replaySmall.relatorioId);
+    expect('equipment_types' in snapshot).toBe(false);
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(buildSnapshot(seeded, replaySmall.relatorioId)));
+  });
+
+  it('leaves out a local op any seed-path rule refuses, on a seeded block too; a pulled one still throws', () => {
+    const create = { ...replaySmall.log.find((o) => o.path.startsWith('block/') && o.kind === 'create')!, seq: 1 };
+    const blockId = (create.value as { id: string }).id;
+    const ref = { entity: 'block' as const, id: blockId };
+    const outside = op('put', 'relatorio', `sheet/${blockId}/nameplate/campo_inexistente`, 'X', { company_id: create.company_id, relatorio_id: create.relatorio_id });
+    const alone = materializeEntity(ref, [create], []);
+    expect(alone).not.toBeNull();
+    expect(materializeEntity(ref, [create], [outside])).toEqual(alone);
+    expect(() => materializeEntity(ref, [create, { ...outside, seq: 2 }], [])).toThrow(SeedPathError);
   });
 });

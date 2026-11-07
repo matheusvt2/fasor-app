@@ -117,6 +117,19 @@ describe('14.7-UNIT draft edits', () => {
     expect(validateTypeDraft(removed)).toEqual([]);
   });
 
+  it('removing the last measurement table removes the part: the draft publishes as before it was added', () => {
+    const base = duplicateSeededType(SEED_VERSION, 'cabos_saida').draft;
+    expect(base).not.toHaveProperty('measurement_tests');
+    const table = addDraftTest(base, 'medicoes', SEED_VERSION)!;
+    const removed = removeDraftEntry(table.draft, 'measurement_tests', table.index);
+    expect(removed).not.toHaveProperty('measurement_tests');
+    expect(removed).toEqual(base);
+    expect(validateTypeDraft(removed)).toEqual([]);
+    // With two tables, removing one keeps the other.
+    const two = addDraftTest(table.draft, 'medicoes', SEED_VERSION)!;
+    expect(removeDraftEntry(two.draft, 'measurement_tests', 0).measurement_tests).toHaveLength(1);
+  });
+
   it('Ensaios: a seeded grammar copies its table and criterion once; a measurement table carries a criterion per row', () => {
     const base = duplicateSeededType(SEED_VERSION, 'cabos_saida').draft;
     expect(grammarTaken(base, 'isolacao')).toBe(true);

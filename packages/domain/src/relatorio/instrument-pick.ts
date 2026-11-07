@@ -87,8 +87,14 @@ export function instrumentRangeOf(row: Pick<InstrumentRow, 'range_isolacao' | 'r
  * seeded test is or a measurement test's `instrument_of` names; null with no pick, a pick the
  * registry no longer holds, or no range for the kind.
  */
-export function instrumentRangeFor(block: Pick<BlockRow, 'sheet' | 'seed_version' | 'block_type'>, instruments: readonly Pick<InstrumentRow, 'id' | 'range_isolacao' | 'range_resistencia_contato'>[], testKey: string): InstrumentRange | null {
-  const definition = definitionOf(block);
+export function instrumentRangeFor(
+  block: Pick<BlockRow, 'sheet' | 'seed_version' | 'block_type' | 'config'>,
+  instruments: readonly Pick<InstrumentRow, 'id' | 'range_isolacao' | 'range_resistencia_contato'>[],
+  testKey: string,
+  ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT,
+): InstrumentRange | null {
+  // Story 14.6: a company block resolves through the context (`blockDefinitionIn`).
+  const definition = blockDefinitionIn(ctx, block);
   const of = definition === null ? null : instrumentKindOf(definition, testKey);
   const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
   if (of === null || header === null) return null;

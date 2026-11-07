@@ -388,10 +388,13 @@ function typeConfigOf(config: TypeConfig): TypeConfig {
  */
 export function enabledSubBlocks(config: Pick<BlockConfig, 'block_type' | 'sub_blocks'>, seedVersion: string = SEED_VERSION): string[] {
   // Story 14.6: a company type's sub-blocks are its config's, written whole from its definition
-  // (`defaultBlockConfigIn`; `applyOp` keeps a locked one on), each on unless switched off, plus the locked two.
+  // (`defaultBlockConfigIn`; `applyOp` keeps a locked one on), each on unless switched off. A
+  // locked part is in only when the definition has it, as `lockedSubBlocksOf` says on the seeded
+  // path: the conclusion always (every company definition has one, `companySubBlocksOf`), the
+  // checklist only when the config holds it (a type with `checklist: null` has no Verificações).
   if (isCompanyBlockType(config.block_type)) {
     const out = Object.keys(config.sub_blocks).filter((key) => (LOCKED_SUB_BLOCKS as readonly string[]).includes(key) || config.sub_blocks[key]?.enabled !== false);
-    for (const key of LOCKED_SUB_BLOCKS) if (!out.includes(key)) out.push(key);
+    if (!out.includes('conclusion')) out.push('conclusion');
     return out;
   }
   if (!isEquipmentBlockType(config.block_type)) return [];
