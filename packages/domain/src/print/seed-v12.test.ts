@@ -99,7 +99,8 @@ describe('22.8-UNIT the TENSÃO column prints right after the connection columns
     expect(rows[1]).toEqual(['LINHA', 'TERRA', 'GUARD', 'TENSÃO (kV)', '30 SEGUNDOS', '1 MINUTO', 'ESTAB./10MIN', 'ABSORÇÃO', 'POLARIZAÇÃO']);
     expect(rows.slice(2).map((row) => row.slice(0, 6))).toEqual([
       ['PRIMÁRIO', 'MASSA', 'SECUNDÁRIO', '10', '-', '1,2'],
-      ['PRIMÁRIO', 'SECUNDÁRIO', 'MASSA', '10', '-', '-'],
+      // A row with no measured reading prints no test voltage, its default (10) not applied.
+      ['PRIMÁRIO', 'SECUNDÁRIO', 'MASSA', '-', '-', '-'],
       ['SECUNDÁRIO', 'MASSA', 'PRIMÁRIO', '0,5', '-', '0,9'],
     ]);
     expect(rows.slice(2).every((row) => row.length === 9)).toBe(true);
@@ -114,11 +115,13 @@ describe('22.8-UNIT the TENSÃO column prints right after the connection columns
   });
 
   it('the seccionadora prints the column in both contato tables, side by side as before', () => {
-    const chave = edit(sheet(3, 'chave_seccionadora', 'a0'), (block) => setTest(block, 'isolacao', {}, { ...MEGGER, test_parameter: '5 kV' }));
+    const chave = edit(sheet(3, 'chave_seccionadora', 'a0'), (block) => setTest(block, 'isolacao', { '0/0': measured('12', 'GΩ'), '3/0': measured('15', 'GΩ') }, { ...MEGGER, test_parameter: '5 kV' }));
     const printed = sheetOf(layoutOf(snapshotOf([cabine(1)], [chave])), id(1003));
     const rows = texts(tableWith(printed, 'SECCIONADORA CONTATO ABERTO'));
     expect(rows[1]).toEqual(['LINHA', 'TERRA', 'GUARD', 'TENSÃO (kV)', 'VALORES (GΩ)', 'LINHA', 'TERRA', 'GUARD', 'TENSÃO (kV)', 'VALORES (GΩ)']);
-    expect(rows[2]).toEqual(['T1', 'T2', 'MASSA', '5', '-', 'FASE A', 'MASSA', '', '5', '-']);
+    expect(rows[2]).toEqual(['T1', 'T2', 'MASSA', '5', '12', 'FASE A', 'MASSA', '', '5', '15']);
+    // The rows with no reading print no test voltage.
+    expect(rows[3]).toEqual(['T3', 'T4', 'MASSA', '-', '-', 'FASE B', 'MASSA', '', '-', '-']);
   });
 
   it('a v11 transformer prints as today: no TENSÃO column, eight columns', () => {

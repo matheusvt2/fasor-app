@@ -574,9 +574,13 @@ function printedValueColumns(definition: TableDef): { col: number; column: Colum
   return definition.value_columns.flatMap((column, col) => (column.role === 'voltage' ? [] : [{ col, column }]));
 }
 
-/** A row's voltage cell: the effective voltage ("10", "1", "0,5"), "-" when none applies. */
+/**
+ * A row's voltage cell: the effective voltage ("10", "1", "0,5"), "-" when none applies or the row
+ * holds no measured capture (a row not tested prints no test voltage).
+ */
 function voltageText(row: EvaluatedRow): string {
-  return row.voltage === null || row.voltage.kv === null ? DASH : row.voltage.text;
+  if (row.voltage === null || row.voltage.kv === null) return DASH;
+  return row.cells.some((cell) => cell.role === 'capture' && cell.state === 'measured') ? row.voltage.text : DASH;
 }
 
 /** One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD). */

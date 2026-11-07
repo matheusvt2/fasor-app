@@ -2,7 +2,7 @@
 title: 'e22s: Stories 22.7 to 22.9 and 22.11, seed v12 (contract 32)'
 type: 'feature'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b883c5875f9d4dcdab67f2d6c8596ad1f44014e2'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -111,6 +111,24 @@ deferred: []
 - Given a new relatório, when it is created after this change, then its `seed_version` is v12, and a relatório already on v5 or v11 keeps its seed and prints as before.
 - Given a v12 transformer with a 10 kV megger, when the operator changes SECUNDÁRIO/MASSA from 1 to 0,5 kV, then the store holds that cell `{raw '0.5', unit 'kV'}` at the voltage column's index and the DOCX row prints "0,5".
 - Given a v12 painel, when "Inspeção de QGBT" is added from the palette, then its TAG reads QGBT-…, and the DOCX prints it under "Outros equipamentos" after the full QGBT sheets with its photo, and section 3 counts it.
+
+## Review Triage Log
+
+### 2026-11-06 — Review pass
+- layers: Edge Case Hunter, Verification Gap (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 11 findings — high 0, medium 3, low 5, false 1, maybe-false 0 (plus 2 duplicates kept as rows)
+- findings:
+  - `[medium]` `[patch]` VG: the < 768 px stacked voltage select has no test — 390 px step added to `e2e/seed-v12.spec.ts` asserting the stacked control, the hidden header and the stored cell.
+  - `[low]` `[patch]` VG other: a conflicting voltage cell gets the generic "Linha · coluna" label (`merge/conflicts.ts`) — labelled with the row and the voltage header.
+  - `[low]` `[reject]` VG other: `plate-every-type.spec.ts` expects EXATIDÃO through the kernel's own `parseAccuracyClass` — the parser is pinned independently by `build-v12.test.ts` and the 22.9 job test; context, not a gap.
+  - `[low]` `[patch]` ECH 1 (same as VG other 1) — same fix.
+  - `[medium]` `[patch]` ECH 2: a v1-v11 EXATIDÃO text copied onto the v12 select is lost — `selectOptionFor` maps it through `parseAccuracyClass`.
+  - `[low]` `[reject]` ECH 3: the class helper names ± 0,5 % while a `criterion_override` is set — no surface writes an override (`effectiveCriterion` doc), so no user meets it.
+  - `[medium]` `[patch]` ECH 4: ÓLEO MINERAL composed from a `tipo_do_oleo` that is not an option — compose only from a normalized option.
+  - `[low]` `[patch]` ECH 5: composition skipped when the model's own `tipo_de_isolacao` is dropped — compose when no valid insulation row was kept.
+  - `[low]` `[patch]` ECH 6: the empty option on a defaulted row writes a no-op null put — write skipped.
+  - `[low]` `[patch]` ECH 7: an untested v12 row prints its default voltage — prints "-" without a measured capture.
+  - `[false]` `[reject]` ECH 8: native `<select>` instead of a React Aria select — the sheet's nameplate and measurement selects are native `<select className="input">` (`ficha-fields.tsx`, `measurement-test-section.tsx`); the voltage select follows that precedent.
 
 ## Design Notes
 

@@ -562,6 +562,8 @@ function RowVoltageField({
   const write = (option: string) => {
     const value = option === '' ? null : rowVoltageCell(option);
     if ((option !== '' && value === null) || api.author === null) return;
+    // The empty option on a row whose voltage is its default (nothing typed) has nothing to clear.
+    if (value === null && voltage.source !== 'typed') return;
     void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, testKey, row.row, voltage.col, value)]).catch(() => undefined);
   };
   return (

@@ -1,3 +1,4 @@
+import { parseAccuracyClass } from '../relatorio/accuracy-class.ts';
 import { isVectorGroupOptions, parseVectorGroup } from '../relatorio/vector-group.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import type { FieldDef } from './schema.ts';
@@ -11,7 +12,15 @@ import type { FieldDef } from './schema.ts';
  * Story 21.1 (seed v11): a select whose options are the vector-group codes (the transformer's
  * LIGAÇÃO SECUNDÁRIA) reads its value through `parseVectorGroup`, so a v10 "DYN1" or "Y/yn0"
  * lands on a v11 select as "Dyn1" or "Yyn0".
+ *
+ * Story 22.9 (seed v12): a select whose options are accuracy classes (the TC's and TP's EXATIDÃO)
+ * reads its value through `parseAccuracyClass`, so a v11 text "0,6C25" or "0.6" lands as "0,6".
  */
+
+/** True when every option is an accuracy class as the parser writes it (the v12 EXATIDÃO selects). */
+function isAccuracyClassOptions(options: readonly string[]): boolean {
+  return options.length > 0 && options.every((option) => parseAccuracyClass(option) === option);
+}
 
 /** The select's option `value` reads as: the option itself, else the option or alias matched ignoring case and accents, else null. */
 export function selectOptionFor(field: Pick<FieldDef, 'options' | 'option_aliases'>, value: unknown): string | null {
@@ -28,6 +37,10 @@ export function selectOptionFor(field: Pick<FieldDef, 'options' | 'option_aliase
   if (isVectorGroupOptions(options)) {
     const group = parseVectorGroup(value);
     if (group !== null && options.includes(group.code)) return group.code;
+  }
+  if (isAccuracyClassOptions(options)) {
+    const cls = parseAccuracyClass(value);
+    if (cls !== null && options.includes(cls)) return cls;
   }
   return null;
 }

@@ -62,6 +62,19 @@ describe('22.7 plumbing: the oil class composes the oil insulation (seed v12)', 
     expect(v11.dropped).toEqual([{ key: 'tipo_do_oleo', reason: 'unknown_key' }]);
   });
 
+  it('a TIPO DO ÓLEO that is not one of its options is dropped and composes nothing', () => {
+    const { rows, dropped } = buildReadingSuggestions(input('transformador_forca', 'v12', words, values([value('tipo_do_oleo', 'C', ['t5'])])));
+    expect(rows).toEqual([]);
+    expect(dropped).toEqual([{ key: 'tipo_do_oleo', reason: 'invalid_shape' }]);
+  });
+
+  it("a model's TIPO DE ISOLAÇÃO the job drops gives way to the composed ÓLEO MINERAL, its drop reported", () => {
+    const read = values([value('tipo_de_isolacao', 'ÓLEO VEGETAL', ['t0']), value('tipo_do_oleo', 'B', ['t2', 't3', 't4', 't5'])]);
+    const { rows, dropped } = buildReadingSuggestions(input('transformador_forca', 'v12', words, read));
+    expect(rowOf(rows, 'tipo_de_isolacao')).toMatchObject({ value: 'ÓLEO MINERAL', trust: 'verify', source: { ocr_token_ids: ['t2', 't3', 't4', 't5'] } });
+    expect(dropped).toEqual([{ key: 'tipo_de_isolacao', reason: 'invalid_shape' }]);
+  });
+
   it('an older ÓLEO read on v12 is stored as ÓLEO MINERAL', () => {
     const { rows } = buildReadingSuggestions(input('transformador_forca', 'v12', ['ÓLEO'], values([value('tipo_de_isolacao', 'ÓLEO', ['t0'])])));
     expect(rowOf(rows, 'tipo_de_isolacao')).toMatchObject({ value: 'ÓLEO MINERAL' });

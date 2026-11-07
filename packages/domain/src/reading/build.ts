@@ -77,16 +77,30 @@ const OIL_CLASS_FIELD = 'tipo_do_oleo';
  * that prints the oil's class ("Tipo óleo isolante B") and no insulation names an oil unit, so a
  * TIPO DE ISOLAÇÃO the model left out reads as the oil value of the definition's oil rule, citing
  * the oil class's words, to verify. Only a definition whose oil rule is on TIPO DE ISOLAÇÃO and
- * lists TIPO DO ÓLEO (the v12 transformador de força) composes it; null otherwise.
+ * lists TIPO DO ÓLEO (the v12 transformador de força) composes it, only from a TIPO DO ÓLEO the job
+ * keeps (cited, one of its options) and only when no TIPO DE ISOLAÇÃO of the model's is kept; null
+ * otherwise. A model's TIPO DE ISOLAÇÃO that is dropped is reported as dropped by the caller.
  */
-function composedInsulation(definition: BlockDefinition | null, byKey: ReadonlyMap<string, StructuringValue>): StructuringValue | null {
+function composedInsulation(definition: BlockDefinition | null, byKey: ReadonlyMap<string, StructuringValue>, tokens: ReadonlyMap<string, OcrToken>): StructuringValue | null {
   const rule = definition?.oil_rule;
-  if (rule === undefined || !rule.fields.includes(OIL_CLASS_FIELD) || byKey.has(rule.field)) return null;
+  if (rule === undefined || !rule.fields.includes(OIL_CLASS_FIELD)) return null;
+  const fieldOf = (key: string) => definition!.nameplate.find((candidate) => candidate.key === key);
+  const own = byKey.get(rule.field);
+  if (own !== undefined && dropReasonOf(fieldOf(rule.field), own, tokens) === null) return null;
   const oil = byKey.get(OIL_CLASS_FIELD);
+  if (oil === undefined || dropReasonOf(fieldOf(OIL_CLASS_FIELD), oil, tokens) !== null) return null;
   const value = rule.oil_values[0];
-  const field = definition!.nameplate.find((candidate) => candidate.key === rule.field);
-  if (oil === undefined || value === undefined || field?.options?.includes(value) !== true) return null;
+  if (value === undefined || fieldOf(rule.field)?.options?.includes(value) !== true) return null;
   return { key: rule.field, value, ocr_token_ids: [...oil.ocr_token_ids], confidence: oil.confidence };
+}
+
+/** Why the job would drop this structured value of `field` (its citation, then its shape), or null when it keeps it. */
+function dropReasonOf(field: FieldDef | undefined, structured: StructuringValue, tokens: ReadonlyMap<string, OcrToken>): ReadingDropReason | null {
+  if (field === undefined) return 'unknown_key';
+  const ordered = citedInOrder(structured.ocr_token_ids, tokens);
+  if (ordered === null) return 'unknown_token';
+  const normalized = normalizeReadingValue(field, structured.value, ordered);
+  return normalized.ok ? null : normalized.reason;
 }
 
 export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): BuiltReadingSuggestions {
@@ -100,8 +114,14 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
     if (!fieldKeys.has(value.key)) dropped.push({ key: value.key, reason: 'unknown_key' });
     else byKey.set(value.key, value);
   }
-  const composed = composedInsulation(definition, byKey);
-  if (composed !== null) byKey.set(composed.key, composed);
+  const composed = composedInsulation(definition, byKey, tokens);
+  if (composed !== null) {
+    // A TIPO DE ISOLAÇÃO of the model's the job would drop is reported, and the composed one takes its place.
+    const own = byKey.get(composed.key);
+    const reason = own === undefined ? null : dropReasonOf(fields.find((field) => field.key === composed.key), own, tokens);
+    if (reason !== null) dropped.push({ key: composed.key, reason });
+    byKey.set(composed.key, composed);
+  }
 
   const rows: SuggestionRow[] = [];
   for (const field of fields) {

@@ -192,9 +192,25 @@ test('@p0 22.8/22.9-E2E-002 the per-row voltage (10, 10, 1; the notice at 10 kV 
   for (const [index, expected] of ['10', '10', '1'].entries()) await expect(voltageSelect(page, index), String(index)).toHaveValue(expected);
   expect((await voltageSelect(page, 2).locator('option').allTextContents()).slice(1)).toEqual([...TEST_VOLTAGE_OPTIONS_KV]);
   for (const index of [0, 1, 2]) await expect(notice(page, index)).toHaveCount(0);
+  const cellPath = `sheet/${tf.blockId}/test/isolacao/cell/2/${VOLTAGE_COL}`;
+
+  // At 390 px the column is hidden and each row's select stands over its reading: SECUNDÁRIO/MASSA reads its default 1; 0,5 is stored.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const stacked = page.locator('.ficha-cell[data-row-voltage-stacked="2"] select');
+  await expect(page.locator('.ficha-mt').first().locator('thead th[data-voltage-column]')).toBeHidden();
+  await expect(voltageSelect(page, 2)).toBeHidden();
+  await expect(stacked).toBeVisible();
+  await expect(stacked).toHaveValue('1');
+  await stacked.selectOption('0,5');
+  await expect.poll(async () => lastWritten(page, cellPath)).toEqual({ raw: '0.5', unit: 'kV', state: 'measured' });
+  await expect
+    .poll(async () => (await entities<BlockRow>(page)).find((record) => record.entity === 'block' && record.id === tf.blockId)!.row.sheet.test.isolacao?.cells['2']?.[String(VOLTAGE_COL)]?.value)
+    .toEqual({ raw: '0.5', unit: 'kV', state: 'measured' });
+  await expect(stacked).toHaveValue('0,5');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(voltageSelect(page, 2)).toHaveValue('0,5');
 
   // SECUNDÁRIO/MASSA at 10 kV on a 220 V secondary: the notice names the winding and 0,5 ou 1 kV; it never blocks.
-  const cellPath = `sheet/${tf.blockId}/test/isolacao/cell/2/${VOLTAGE_COL}`;
   await voltageSelect(page, 2).selectOption('10');
   await expect.poll(async () => lastWritten(page, cellPath)).toEqual(rowVoltageCell('10'));
   await expect(notice(page, 2)).toHaveText('Tensão de ensaio acima do suportado pelo enrolamento Secundário (220 V): use 0,5 ou 1 kV.');
