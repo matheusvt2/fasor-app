@@ -230,6 +230,8 @@ Waves A, B and C went out together on Matheus's standing approval ("pode seguir 
 
 **Deploy of `ae3d37e0`** (`infra/bin/deploy`, no lock): build, push, migrate, roll, stable, health `{status, db, queue, storage, libreoffice}` all up, tag recorded. Production smoke 8 of 8 (54.7 s); telemetry 6 `session_start` on `ae3d37e0`, 0 `ux_event_sink_failed`; test company cleaned up. A GitHub release waits for Matheus's word.
 
+**Release and production check** (2026-11-07, Matheus's word): GitHub release v0.7.0 on `ae3d37e0`. Signed in as Bruno (he typed the password), the coordinator opened his revisão 3 relatório (seed v5) read only and previewed it (38 pages, no revision generated). The new rules show: parecer Não apto derived from the fichas, 9 derived points, 8 possible duplicate pairs, 6 outdated sheet conclusion texts. Before a revisão 4, Bruno has to remove the duplicates (his 2 manual points are repeated by derived ones) and refresh the outdated texts; the TR-1 oil/epoxy contradiction stays on seed v5 until he edits the field. Three print defects went to `deferred-work.md` (owner the first Epic 23 fix batch).
+
 ## Bruno's test base against Epic 22 (coordinator, 2026-11-07)
 
 Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `docs/kbs/project/test-base.md`). The values stay in that file; rows are cited by ID. Read against main b811ace9 and PR #268.

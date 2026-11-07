@@ -3156,3 +3156,23 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
   evidence: the gate log `matrix.log` of 2026-11-07; `e2e/photo-order.durability.spec.ts:105-110` and `:158`.
   class: test-hardening
   state: open (owner: the next carry-over batch)
+
+## Deferred from: the production check of Bruno's relatório after the deploy of `ae3d37e0` (2026-11-07)
+
+Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revisão 3, signed in with Bruno's account on Matheus's word, read only, no revision generated). The client text is not copied here.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-context.md` § Deploy (production check, 2026-11-07)
+  summary: The derived "Equipamento reprovado" point of section 9 prints the sheet's OBSERVAÇÕES with its line breaks lost: the bullet and the table cell read "Item 1: <text> Item 3: <text> Item 12: <text> <free sentence>", one run of text with no separator between the item lines.
+  evidence: `packages/domain/src/print/section-8.ts:161` (`reprovado` label) and the derived point's text built from the observation (`packages/domain/src/points/derived.ts`). The ficha's own OBSERVAÇÕES box prints the same lines one per line.
+  class: defect
+  state: open (owner: the first Epic 23 fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-context.md` § Deploy (production check, 2026-11-07)
+  summary: A sheet's derived conclusion text doubles the punctuation when an NC item's observation ends with a period: "<observation>. (item 9, NC)".
+  evidence: `packages/domain/src/relatorio/conclusion.ts:458` puts `item.observation` before " (item N, NC)" as typed, final period included.
+  class: defect
+  state: open (owner: the first Epic 23 fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-context.md` § Deploy (production check, 2026-11-07)
+  summary: A manual point whose text ends with a period before its photo prints differently in the two places of section 9: the bullet reads "<text>, conforme Imagem 13." while the table's "Ponto de atenção" cell reads "<text>.Imagem 13" with no space (another point in the same table reads "<text>. Imagem 12").
+  evidence: `packages/domain/src/print/section-8.ts:100-110` (the bullet's "conforme Imagem N" rule for a token after a period) against the table cell's own token resolution in the same file.
+  class: defect
+  state: open (owner: the first Epic 23 fix batch)
