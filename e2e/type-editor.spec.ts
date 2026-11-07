@@ -52,6 +52,7 @@ interface OutboxRow {
   path: string;
   kind: string;
   value: unknown;
+  status: string;
 }
 
 const CTA = 'chave_transferencia_automatica' as const;
@@ -171,16 +172,16 @@ test('@p0 14.7-E2E-001 at 1280: a library CTA is duplicated, edited in every tab
   const rowCriterion = expected.criteria!.at(-1)!;
   const rowName = rowCriterion.label!;
   await expect(page.locator(`tr[data-criterion-key="${rowCriterion.key}"] [data-type-issue]`)).toHaveText(['Informe a fonte do critério.']);
-  await typeInto(page.getByRole('textbox', { name: `Valor de ${seeded.label}` }), '500');
+  await typeInto(page.getByRole('textbox', { name: `Valor de ${seeded.label}`, exact: true }), '500');
   expected = updateDraftCriterion(expected, 0, { value: 500 });
   const rowIndex = expected.criteria!.length - 1;
   await page.getByRole('combobox', { name: `Regra de ${rowName}` }).selectOption({ label: 'entre' });
   expected = updateDraftCriterion(expected, rowIndex, { operator: 'between' });
-  await typeInto(page.getByRole('textbox', { name: `Valor de ${rowName}` }), '120');
+  await typeInto(page.getByRole('textbox', { name: `Valor de ${rowName}`, exact: true }), '120');
   expected = updateDraftCriterion(expected, rowIndex, { value: 120 });
   await typeInto(page.getByRole('textbox', { name: `Valor máximo de ${rowName}` }), '130');
   expected = updateDraftCriterion(expected, rowIndex, { value_max: 130 });
-  await typeInto(page.getByRole('textbox', { name: `Fonte de ${rowName}` }), 'Manual do fabricante');
+  await typeInto(page.getByRole('textbox', { name: `Fonte de ${rowName}`, exact: true }), 'Manual do fabricante');
   expected = updateDraftCriterion(expected, rowIndex, { source_name: 'Manual do fabricante' });
   await expect.poll(async () => (await drafts(typeId)).at(-1)).toEqual(expected);
   expect(validateTypeDraft(expected)).toEqual([]);
@@ -193,7 +194,7 @@ test('@p0 14.7-E2E-001 at 1280: a library CTA is duplicated, edited in every tab
   const preview = page.locator('.preview-frame');
   await expect(preview.locator('h2')).toHaveText('NB-01 · No-break de comando');
   await expect(preview.locator('li.checklist-row').first()).toContainText(itemText);
-  await preview.locator('li.checklist-row').first().getByRole('radio', { name: 'Conforme' }).click();
+  await preview.locator('li.checklist-row').first().getByRole('radio', { name: 'Conforme', exact: true }).click();
   await expect(preview.getByRole('table', { name: 'Tabela de medições' }).locator('td.cell-point')).toHaveText(['Tensão de saída']);
   expect((await outbox()).length).toBe(before);
 
@@ -245,7 +246,10 @@ test('@p0 14.7-E2E-001 at 1280: a library CTA is duplicated, edited in every tab
 
   // --- the sync lands every op; the device keeps the type ---
   await syncNow(page);
-  await expect.poll(async () => (await outbox()).filter((op) => op.path.startsWith('equipment_type')).length).toBe(0);
+  // Every op of the type was accepted: none is still waiting and none was refused.
+  await expect.poll(async () => [...new Set((await outbox()).filter((op) => op.path.startsWith('equipment_type')).map((op) => op.status))]).toEqual(['acked']);
+  // "Sincronizar agora" leaves the tab on Sync status: back to the list, reloaded from the device store.
+  await openTypeList(page);
   await page.reload();
   await expect(companyRow(page, typeId).locator('.status-pill')).toHaveText('Publicado · versão 2', { timeout: 30_000 });
 });

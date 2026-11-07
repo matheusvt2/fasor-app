@@ -59,7 +59,7 @@ describe('14.7-UNIT draft edits', () => {
   it('uniqueKey answers the base, else the first free numbered key', () => {
     expect(uniqueKey('campo_1', [])).toBe('campo_1');
     expect(uniqueKey('campo_1', ['campo_1'])).toBe('campo_1_2');
-    expect(uniqueKey('Linha Á', ['linha'])).toBe('linha_2');
+    expect(uniqueKey('Linha Á', ['linha_a'])).toBe('linha_a_2');
   });
 
   it('Identificação: the name, the print title (blank removes it), the TAG prefix uppercased, the noun', () => {

@@ -28,7 +28,11 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value : 
 /** `base`, else `base_2`, `base_3`…: a key no entry of `taken` holds. */
 export function uniqueKey(base: string, taken: Iterable<string>): string {
   const used = new Set(taken);
-  const clean = base.replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'item';
+  const clean = base
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'item';
   if (!used.has(clean)) return clean;
   for (let n = 2; ; n += 1) if (!used.has(`${clean}_${n}`)) return `${clean}_${n}`;
 }

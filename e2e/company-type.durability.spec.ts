@@ -48,6 +48,7 @@ interface EntityRecord<T> {
 interface OutboxRow {
   path: string;
   value: unknown;
+  status: string;
 }
 
 const CTA = 'chave_transferencia_automatica' as const;
@@ -151,7 +152,7 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await page.getByRole('list', { name: 'Itens de verificação' }).locator('li.registry-row').first().locator('button.rr-text').click();
   await typeInto(page.getByRole('textbox', { name: 'Texto do item' }), ITEM_TEXT);
   await editorTab(page, 'Critérios');
-  await typeInto(page.getByRole('textbox', { name: `Valor de ${ISOLATION.label}` }), '500');
+  await typeInto(page.getByRole('textbox', { name: `Valor de ${ISOLATION.label}`, exact: true }), '500');
   await expect.poll(async () => ((await written(`equipment_type/${typeId}/draft`)).at(-1) as { criteria?: { key: string; value: number }[] } | undefined)?.criteria?.find((c) => c.key === 'isolacao')?.value).toBe(500);
   await publishButton(page).click();
   await expect(toast(page)).toHaveText(publishedText(1));
@@ -164,8 +165,10 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await expect(localCard(page, LOCAL)).toHaveCount(1);
   await palette(page).getByRole('group', { name: 'Transformadores, 0' }).getByRole('button', { name: 'Mais um' }).click();
   const companyStepper = palette(page).locator('.palette-item.is-stepper', { hasText: NAME_V1 });
-  await expect(companyStepper.locator('.pi-meta')).toContainText('versão');
+  await expect(companyStepper.locator('.pi-meta')).not.toContainText('versão');
   await palette(page).getByRole('group', { name: 'No-breaks, 0' }).getByRole('button', { name: 'Mais um' }).click();
+  // Placed, the palette row says the version the template records (AD-21 item 5).
+  await expect(companyStepper.locator('.pi-meta')).toContainText('versão 1');
   const direct = localCard(page, LOCAL).locator(':scope > .block-expand > .loc-direct');
   await expect(direct.getByRole('group', { name: 'No-breaks, 1' })).toBeVisible();
   await expect(direct.locator(`.qty-row[data-type="type:${typeId}"] .qty-name`)).toHaveText(`${NAME_V1} · versão 1`);
@@ -209,12 +212,16 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   // --- the company sheet, filled offline: the edited item marked C, a reading below the new minimum ---
   await openSheet(page, r1, r1Block.blockId);
   await expect(sheetTitle(page)).toContainText(NAME_V1);
-  await expect(page.locator(`.lib-test[data-test-key="${E2}"] .mt-criterion`).first()).toContainText('500');
   await context.setOffline(true);
+  // In MT the CTA's E2 is judged by the type's insulation criterion, the one edited to 500 MΩ (in BT by its own).
+  const configuracao = page.locator('section[data-section="configuracao"]');
+  await configuracao.getByRole('radiogroup', { name: 'Tensão' }).getByRole('radio', { name: 'MT', exact: true }).click();
+  await expect(configuracao.getByRole('radiogroup', { name: 'Tensão' }).getByRole('radio', { name: 'MT', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator(`.lib-test[data-test-key="${E2}"] .mt-criterion`).first()).toContainText('500 MΩ');
   const item = page.locator('#ficha-step-verificacoes li.checklist-row').first();
   await expect(item).toContainText(ITEM_TEXT);
-  await item.getByRole('radio', { name: 'Conforme' }).click();
-  await expect(item.getByRole('radio', { name: 'Conforme' })).toHaveAttribute('aria-checked', 'true');
+  await item.getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect(item.getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
   const firstItemKey = DEFINITION.checklist![0]!.key;
   await expect.poll(() => written(`sheet/${r1Block.blockId}/checklist/${firstItemKey}/result`)).toEqual(['C']);
   const input = cellInput(page);
@@ -236,7 +243,7 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await page.reload();
   await expect(sheetTitle(page)).toContainText(NAME_V1, { timeout: 30_000 });
   await expect(cellInput(page)).toHaveValue('450');
-  await expect(page.locator('#ficha-step-verificacoes li.checklist-row').first().getByRole('radio', { name: 'Conforme' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#ficha-step-verificacoes li.checklist-row').first().getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
   expect(await written(cellPath)).toEqual([{ raw: '450', unit: 'MΩ', state: 'measured' }]);
 
   // --- back online: sync, generate, read the DOCX ---
@@ -245,7 +252,7 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await page.goto(`/relatorio/${r1}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await syncNowAndReturn(page);
-  await expect.poll(async () => (await outbox()).filter((row) => row.path.startsWith(`sheet/${r1Block.blockId}`)).length).toBe(0);
+  await expect.poll(async () => [...new Set((await outbox()).filter((row) => row.path.startsWith(`sheet/${r1Block.blockId}`)).map((row) => row.status))]).toEqual(['acked']);
   await setParecer(page, r1);
   const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();

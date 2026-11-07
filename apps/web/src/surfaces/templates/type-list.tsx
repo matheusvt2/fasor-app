@@ -24,6 +24,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
+import { useToast } from '../../state/toast.tsx';
 import type { UndoableEdits } from '../../state/use-undoable-edits.ts';
 import { newId } from '../../ids.ts';
 import { createTypeOp, putTypeStampOp } from './type-ops.ts';
@@ -52,6 +53,7 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
   const user = session.user;
   const navigate = useNavigate();
   const ctx = useDefinitionContext();
+  const { showToast } = useToast();
   const headingId = useId();
   const companyId = useId();
   const libraryId = useId();
@@ -70,7 +72,8 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
     try {
       const row = newEquipmentTypeRow(newId(), make());
       if ((await commit([createTypeOp(user, row)])) === null) return;
-      edits.notify(typeDuplicatedText(row.draft?.label ?? ''));
+      // Said by the shell's toast, not the list's queue: the editor it opens keeps it on screen.
+      showToast(typeDuplicatedText(row.draft?.label ?? ''));
       void navigate(`/templates/tipos/${row.id}`);
     } finally {
       inFlight.current = false;
