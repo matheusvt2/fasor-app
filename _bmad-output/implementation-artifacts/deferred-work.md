@@ -3150,3 +3150,8 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
   evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`; `packages/domain/src/seed/v6.ts` bands.
   class: decision
   state: open (owner: Bruno, via Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-context.md` § Wave gates, the pre-deploy gate on `7ba788cf` (2026-11-07)
+  summary: `e2e/photo-order.durability.spec.ts` @p0 21.3-E2E-005 went red once on durability-android-chrome in the matrix at load 4.5: after `movePhoto(page, plain, 'Subir', 2, 4)` the photo's badge read "2", yet `tileIds(page)` still returned the gallery's earlier DOM order (`plain` third). The helper waits on the status line and the badge, then `tileIds` reads the tiles once, so under load the read can land before the reordered list renders. Run alone under the lock on the same commit it passed 8 of 8 (four runs). Proposed fix: read the order with `expect.poll(() => tileIds(page)).toEqual(moved)` at every assertion after a move.
+  evidence: the gate log `matrix.log` of 2026-11-07; `e2e/photo-order.durability.spec.ts:105-110` and `:158`.
+  class: test-hardening
+  state: open (owner: the next carry-over batch)

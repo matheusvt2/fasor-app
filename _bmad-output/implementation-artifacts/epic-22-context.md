@@ -196,6 +196,29 @@ Matheus, 2026-11-06: "pode seguir ate o final, tem minha aprovacao".
 - Open: N2, N4 and N5 have kernel tests only; no e2e judges 5P or picks 3P/6P.
 - Deploy: waves A and B deploy together after `test:e2e:full` on the integrated main and the paid plate eval, both waiting on Matheus's `aws login`.
 
+### Wave C (coordinator, 2026-11-07)
+
+**Merges.**
+- PR #274 (e22t, Stories 14.6 to 14.8, contract 33, MIN 33) merged as 1fdea0d7, after the cross-batch rule: main 8d8edd41 (e22g #273 and the wave B records #275) merged into the branch as fed1ff19. Conflicts in `relatorio/parecer.ts` (e22g's defect bucket and e22t's per-sheet definition both kept) and `docs/kbs/log.md`. Story gate on fed1ff19: lint and static green, test:api 905, test:unit 5600 of 5601 (`template-composer-local.test.tsx` red under load, green alone), 44 touched specs 263 passed and 3 skipped, both batches' touched durability specs on the matrix 54 passed and 6 skipped.
+
+**Integrated gate on 1fdea0d7.** lint 0, static 0, test:unit 5601 of 5601, test:api 12 red, `test:e2e:full` 602 of 612 with 6 red, the matrix 143 of 162 with 3 red. Every red came from the main checkout's api container, up 5 hours on code from before #273 and #274 (`op_path_unknown` on company type ops, contract 33 refused): the route tests and the e2e hit the live `api:3000`. After `podman compose restart api`, test:api 905 passed and 6 skipped, the six red specs 19 of 19, `company-type.durability` on the matrix 3 of 3. The playbook now restarts the api and web before an integrated gate.
+
+**Integrated review** (`epic-22-wave-c-integrated-review-2026-11-07.md`, two passes per § 9, stack `fasor-e22w`): not accepted.
+- B1: web call sites handed a company block to kernel helpers without the definition context ("Marcar os restantes" disabled on 17 open items; plate and display suggestions, Repetir, the SELV notice and conflict values empty).
+- B2: text typed in the type editor was lost on a tab change.
+- S1: a copy of a seeded type dropped the plate-picked criteria (a Quadro elétrico copy judged at > 400 MΩ, the relatório Não apto). S2: a block named its version by number (the deferred medium, confirmed by reading). S3: test gaps that let B1 and B2 through. S4: the type list scrolled sideways at 390 px.
+- N1 to N13.
+
+**Fix batch e22h** (branch `e22h-wave-c-fixes`, port base 64): B1, B2, S1 to S4, N1 to N6, N11 to N13; N7, N10 and the composer test flake went to `deferred-work.md` (N10 is a decision for Bruno, "≥" or ">=" in printed bands). Coordinator decisions: a copy keeps its source's judging behaviour; a block names its version row by id (contract 33 amended in place, not deployed).
+- PR #276 merged as 7ba788cf, on an unmoved main. Story gate on 0dcd6b47 with the api restarted inside the lock: lint and static green, test:api 908 passed and 6 skipped, test:unit 5649 of 5649, 52 touched specs 305 passed and 3 skipped, 9 durability specs on the matrix 62 passed and 6 skipped. Mutation runs: with the B2 fix reverted 14.7-E2E-004 went red; with S2 resolving by number alone the api test went red.
+- Known open (low): a refused older publish, renumbered, can become the latest version; a renumbered publish sent before a pending manual republish needs a second Reenviar; no e2e on a company sheet for "Ler visor", the post-pull banner or the SELV notice.
+
+**Pre-deploy gate on 7ba788cf** (api and web restarted first; lock wait 0 s, load 3.0 to 7.5, 61 min):
+- lint 0 (25 s), static 0 (33 s), test:api 908 passed and 6 skipped (347 s), test:unit 5649 of 5649 (207 s).
+- `test:e2e:full`: 614 of 618 passed, 4 skipped, 0 failed, 0 flaky (2445 s).
+- `test:e2e:matrix`: 145 of 162 passed, 16 skipped, 1 failed: @p0 21.3-E2E-005 (`photo-order.durability.spec.ts`) on android, a one-shot read of the gallery order after a move. Alone under the lock on the same commit, 8 of 8 in four runs; ledger row for the next carry-over batch.
+- Verdict: green, with the one load red explained.
+
 ## Bruno's test base against Epic 22 (coordinator, 2026-11-07)
 
 Bruno sent `docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx` (gitignored; map in `docs/kbs/project/test-base.md`). The values stay in that file; rows are cited by ID. Read against main b811ace9 and PR #268.
