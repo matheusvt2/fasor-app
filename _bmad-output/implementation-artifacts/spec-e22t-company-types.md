@@ -2,10 +2,10 @@
 title: 'e22t: Stories 14.6 to 14.8, company equipment types (contract 33)'
 type: 'feature'
 created: '2026-11-07'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b811ace93d5ddc75062421de7c21afab6deea5a6'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: max
 context:
@@ -158,3 +158,14 @@ Split of work: implementer A builds part A only (14.6) and the web plumbing, end
   - `medium` `patch` VG-7 field palette / Duplicar create of a company block — kernel test (A) and an e2e step reading the outbox (B).
   - `low` `patch` VG-other-2 `ops/materialize.ts:40` drops every local `SeedPathError` op, not only the version conflict — comment corrected and a seeded test (A).
   - `medium` `patch` MERGE (orchestrator, not a layer finding, not in the 17) `relatorio/instrument-pick.ts:91` the e22r merge left `definitionOf` undefined (static red) — fixed by the orchestrator: `instrumentRangeFor` takes the context; caller `ensaios-section.tsx:171` passes it (B); test (A).
+
+## Auto Run Result
+
+Status: done (gate on af5827fc).
+
+- Summary: Story 14.6 (company equipment types in the kernel: three company-scope families, the fold and its refusals, the resolver context, `asBlockDefinition`, seven criterion rules, `validateTypeDraft`, Duplicar, `equipment_types` on the snapshot, print under "Outros equipamentos", contract 33 / MIN 33) by implementer A; Stories 14.7 (Tipos de equipamento list and the type editor) and 14.8 (palettes, sheet, document, the CTA-duplicate end to end) by implementer B; origin/main 538062a4 (e22r, contract 32) merged as ddf34a75.
+- Files: kernel mainly `packages/domain/src/types/`, `seed/definitions.ts`, `ops/{path,apply,targets,materialize}.ts`, `schemas/{block-config,entities,snapshot}.ts`, `contract/version.ts`; api `sync/apply.ts`, `sync/snapshot.ts`, `jobs/reading/kinds/shared.ts`; web `db/type-store.ts`, `state/definition-context.ts`, `surfaces/templates/type-{list,editor,editor-parts,ops,naming}.tsx`; e2e `type-editor.spec.ts`, `company-type.durability.spec.ts`, `support/company-type.ts`.
+- Review: 17 layer findings; 15 patched (11 medium, 4 low), 1 deferred (ECH-7 / VG-other-1, version bound by number after a publish conflict, medium unverified), 1 rejected (ECH-8, low and rare). Plus one merge fix by the orchestrator (`instrumentRangeFor`).
+- Follow-up review recommended: true. Patched mediums: 11, no high. Unverified risk: the patches to criterion rules per grammar (`criterionRulesFor`, the strict-schema pairing refusals) and Duplicar dropping bands and accuracy-class fields were not re-reviewed; the integrated review reads them first.
+- Verification (host lock, LOCKED_AFTER 786 s, load 5.71 at start, 4.62 at end, e22r stack idle): lint 0 (34 s), static 0 (40 s), test:api 902 passed 6 skipped (390 s), test:unit 5530 of 5531 (382 s; the red `setup-surface.test.tsx` "committing an exclusion edit" at load 10.95, a known E21 load red, then 52 of 52 alone at load 4.67), touched e2e 199 of 202 passed, 3 skipped, 0 failed on desktop-chrome and durability-desktop-chrome (36 specs, 977 s), 8 durability specs on android-chrome and webkit 54 of 60 passed, 6 skipped, 0 failed (280 s).
+- Residual risks: the deferred version-binding race; the narrowings listed in the PR body.
