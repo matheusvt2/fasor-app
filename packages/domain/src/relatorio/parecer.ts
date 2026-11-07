@@ -154,17 +154,18 @@ const VERDICT_RANK: Readonly<Record<ParecerVerdict, number>> = { apto: 1, apto_c
  * restrições when any sheet is Com restrições, any sheet is Não ensaiado (another reason), any
  * live local holds an NC site item, or any point of attention exists (section 8's entries,
  * the derived ones included); Apto otherwise. ~~Always one: the "Parecer não preenchido" row
- * retires with it.~~ e22f S5 (integrated review): null while no sheet is concluded, so a
- * relatório nothing was judged in never reads "Apto"; issuing then stays blocked by
- * "Parecer não preenchido" until a sheet is concluded or the engineer taps a verdict.
+ * retires with it.~~ e22f S5 (integrated review): "Apto" needs a judged sheet: while no sheet is
+ * concluded and nothing gives a stricter verdict, there is none (null), so a relatório nothing
+ * was judged in never reads "Apto", and issuing stays blocked by "Parecer não preenchido" until a
+ * sheet is concluded or the engineer taps a verdict. A stricter verdict stands without a
+ * concluded sheet: it is a floor (an NC site item, a point, a defect, a reading out).
  */
 export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict | null {
   const sheets = countedSheets(snapshot);
-  if (!sheets.some(({ block }) => sheetState(block) === 'concluida')) return null;
   if (sheets.some(({ block }) => reprovado(block))) return 'nao_apto';
   if (sheets.some(({ block }) => restricted(block))) return 'apto_com_restricoes';
   if (siteNcCount(snapshot) > 0 || pointsSummary(snapshot).total > 0) return 'apto_com_restricoes';
-  return 'apto';
+  return sheets.some(({ block }) => sheetState(block) === 'concluida') ? 'apto' : null;
 }
 
 /** Story 22.6: whether a verdict is looser than the derived one, so Etapa 6 disables its segment. */
@@ -176,8 +177,8 @@ export function parecerLooser(snapshot: RelatorioSnapshot, verdict: ParecerVerdi
 /**
  * Story 22.6: the verdict every reader shows and section 10 prints: the stored one when it is
  * stricter than the derived one (the engineer chose it), else the derived one. A stored verdict
- * looser than what the fichas now give is never shown. e22f S5: null while neither exists (no
- * concluded sheet, no verdict tapped): "Parecer não preenchido" blocks issuing, section 10
+ * looser than what the fichas now give is never shown. e22f S5: null while neither exists
+ * (nothing judged, no verdict tapped): "Parecer não preenchido" blocks issuing, section 10
  * prints `[Parecer]`.
  */
 export function effectiveParecer(snapshot: RelatorioSnapshot): ParecerVerdict | null {

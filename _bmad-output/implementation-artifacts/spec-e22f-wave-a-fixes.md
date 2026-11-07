@@ -63,10 +63,11 @@ itself (token economy, the investigation already holds the code map).
    - `sheetProgress` counts the conclusion step from the chosen pair; `{ floorFills: true }` counts it from the
      effective pair. "Concluir ficha", its jump and the primary's "Concluir e avançar" use `floorFills` (Story 22.4
      AC1 still concludes with no pair chosen); the line, the stepper and the Sumário use the default.
-   - `printedConclusionPair(block)`: the effective pair once concluded, the chosen pair before.
+   - `printedConclusionPair(block)`: the chosen pair (a Não ensaiado sheet its effective pair), so the screen's
+     count and the document agree; the conclude batch writes the floor, so a concluded sheet prints it.
    - AC: Given an open sheet, every row C and no pair chosen, When the header renders, Then "Verificações prontas"
      and the conclusion counts as missing, while the radiogroups still show the floor and the reason line.
-     Given that sheet in a draft, Then section 9 prints no X. Given it concluded, Then section 9 prints the floor.
+     Given that sheet in a draft, Then section 9 prints no X. Given it concluded (the floor written), Then the floor.
 3. **S1.** `conclusionAdjustWrites(block, definition, tag)`: the effective pair's halves that differ from the stored
    ones, and, when `text_status` is `confirmed` and the text is stale, the composed text and basis. The adjusted
    note's Confirmar writes them in one batch; an edited text is never written (it then reads stale, "Substituir").
@@ -82,12 +83,14 @@ itself (token economy, the investigation already holds the code map).
 6. **S3 / N8.** New Etapa 6 note and Pontos intro note (authored, listed in the PR).
 7. **S4.** `ncRowPointText(snapshot, owner, itemKey)` composes the row's entry text (photo tokens included); the
    NC row's "Criar ponto de atenção" seeds it (sheet and local rows).
-8. **S5.** `derivedParecer` returns null while no sheet is concluded; `effectiveParecer` null with no stored verdict
+8. **S5.** `derivedParecer` returns null when it would be Apto and no sheet is concluded ("Apto" needs a judged
+   sheet; a stricter derived verdict is a floor and stands, review finding E-4); `effectiveParecer` null with no stored verdict
    either: `parecer_missing` blocks again (pre-wave text and reason), section 10 prints `[Parecer]`, Etapa 6 checks
    no segment and hides the box, the Sumário row names the pre-issue row.
 9. **S6.** `.conclusion-pair .seg:disabled { opacity: .4 }` in `app.css`, mirroring `.btn.is-disabled`.
-10. **S7.** `sheet-evaluation.ts` memo; `conclusionFloor` memoized per block; `derivedParecer`/`parecerCounts`/
-    `pointsSummary` reads memoized per snapshot. Kernel test counts `evaluateSheetReadings` calls; the benchmark
+10. **S7.** `sheet-evaluation.ts` memo; `conclusionFloor` memoized per block. ~~`derivedParecer`/`parecerCounts`/
+    `pointsSummary` reads memoized per snapshot.~~ (2026-11-06, implementation: not taken; a snapshot object is not
+    guaranteed immutable in tests and callers, and the per-block memos already bring one evaluation per sheet.) Kernel test counts `evaluateSheetReadings` calls; the benchmark
     `parecer-bench.test.ts` logs before/after.
 11. **N1.** The summary lists a Reprovado sheet once: "N fichas foram reprovadas: 3 por relação de transformação
     insatisfatória (...) e 15 por leituras fora do critério de aceitação (...)" (authored); the restriction, ratio and
@@ -98,9 +101,12 @@ itself (token economy, the investigation already holds the code map).
 
 ## Golden
 
-The Porto Seguro fixture has no concluded sheet and no stored parecer: `pre-issue.golden.json` regains its pre-wave
-`parecer_missing` row, and the skeleton golden's section 10 box title goes back to `[Parecer]` (the composed summary
-stays, N1-deduplicated). No section 9, photo, order, numbering or size change.
+~~The Porto Seguro fixture has no concluded sheet and no stored parecer: `pre-issue.golden.json` regains its pre-wave
+`parecer_missing` row, and the skeleton golden's section 10 box title goes back to `[Parecer]`.~~ (2026-11-06, after
+the S5 refinement: the fixture's open sheets give Não apto, a floor, so no `parecer_missing` row and no title change.)
+The skeleton golden changes in two places: the section 10 summary (N1, each Reprovado sheet named once) and the X
+marks of the sheets with no stored pair (N2, back to the pre-wave blank boxes). No photo, order, numbering, size or
+layout change.
 
 ## Spec Change Log
 

@@ -89,7 +89,11 @@ describe('e22f N2 (12.5-E2E-001): the floor is a floor, not a conclusion', () =>
     expect(sheetProgress(snapshot, sec.id, { floorFills: true }).steps.conclusao.missing).toBe(0);
     // A draft prints no mark the floor alone sets; once concluded, the floor's.
     expect(printedConclusionPair(block)).toEqual({ result: null, restriction: null });
-    expect(printedConclusionPair({ ...block, concluded_by: CONCLUDED })).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    // Concluded, the conclude batch has written the floor: it prints.
+    const written = withConclusion({ ...block, concluded_by: CONCLUDED }, { result: cell('aprovado'), restriction: cell('sem_restricoes') });
+    expect(printedConclusionPair(written)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    // A pair cleared after the conclude: no mark, as the header counts it missing.
+    expect(printedConclusionPair({ ...block, concluded_by: CONCLUDED })).toEqual({ result: null, restriction: null });
   });
 
   it('a stored half counts and prints, made stricter by the floor; the unset half stays missing', () => {
@@ -161,7 +165,16 @@ describe('e22f S1: the floor tightens a concluded sheet with a confirmed text', 
 });
 
 describe('e22f S5: nothing judged, no derived verdict', () => {
-  it('no concluded sheet and no verdict tapped: no verdict, "Parecer não preenchido" blocks, section 10 prints [Parecer]; one concluded sheet derives it', () => {
+  it('a stricter verdict stands without a concluded sheet (a floor): an open sheet with a reading out gives Não apto', () => {
+    const empty = fresh();
+    const sec = firstOf(empty, 'chave_seccionadora');
+    const out = edit(empty, sec.id, (b) => insulation(allC(b), '300'));
+    expect(derivedParecer(out)).toBe('nao_apto');
+    expect(parecerLooser(out, 'apto')).toBe(true);
+    expect(blockingRows(preIssue(out))).toEqual([]);
+  });
+
+  it('no concluded sheet, nothing stricter and no verdict tapped: no verdict, "Parecer não preenchido" blocks, section 10 prints [Parecer]; one concluded sheet derives Apto', () => {
     const empty = fresh();
     expect(derivedParecer(empty)).toBeNull();
     expect(effectiveParecer(empty)).toBeNull();
@@ -176,7 +189,7 @@ describe('e22f S5: nothing judged, no derived verdict', () => {
     // One sheet concluded: the fichas give the verdict.
     const sec = firstOf(empty, 'chave_seccionadora');
     const judged = edit(empty, sec.id, (b) => ({ ...withConclusion(insulation(allC(b), '147', 'GΩ'), { result: cell('aprovado'), restriction: cell('sem_restricoes') }), concluded_by: CONCLUDED }));
-    expect(derivedParecer(judged)).not.toBeNull();
+    expect(derivedParecer(judged)).toBe('apto');
     expect(blockingRows(preIssue(judged))).toEqual([]);
   });
 });

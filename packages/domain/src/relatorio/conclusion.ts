@@ -212,13 +212,14 @@ export function chosenConclusionPair(block: BlockRow): EffectiveConclusionPair {
 }
 
 /**
- * e22f N2: the X marks section 9 prints: the effective pair once the sheet is concluded (the
- * conclude batch writes the floor, Story 22.4), the chosen pair before, so an open sheet's draft
- * never prints a mark only the floor sets. A sheet marked Não ensaiado prints its effective pair
- * (a defect reason's floor alone).
+ * e22f N2: the X marks section 9 prints: the chosen pair, the one the sheet's progress counts,
+ * so a draft never prints a mark only the floor sets and the screen and the document agree (the
+ * conclude batch writes the floor, Story 22.4, so a concluded sheet prints it; a pair cleared
+ * after the conclude prints no mark, as its header counts it missing). A sheet marked Não
+ * ensaiado prints its effective pair (a defect reason's floor alone).
  */
 export function printedConclusionPair(block: BlockRow): EffectiveConclusionPair {
-  return block.concluded_by !== null || block.not_tested !== null ? effectiveConclusionPair(block) : chosenConclusionPair(block);
+  return block.not_tested !== null ? effectiveConclusionPair(block) : chosenConclusionPair(block);
 }
 
 /**
