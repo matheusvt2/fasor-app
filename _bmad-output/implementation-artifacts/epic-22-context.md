@@ -141,4 +141,30 @@ There are two lanes per wave, so at most two batch stacks are up at a time. Each
 
 ## Wave gates
 
-(Filled as each wave closes.)
+### Wave A (coordinator, 2026-11-06)
+
+Matheus, 2026-11-06: "pode seguir ate o final, tem minha aprovacao".
+
+**Merges.**
+- PR #266 (e22p, 22.1 to 22.3) merged first as eb61c5b4. No contract or seed change.
+- PR #267 (e22c, 22.4 to 22.6, contract 31, MIN 31) merged second as b883c587, after the cross-batch rule: main eb61c5b4 merged into the branch as 045a58ae. On that head, lint, static, test:unit (5292), test:api (883) and both batches' touched specs (39 specs, 279 of 279 on desktop-chrome and durability-desktop-chrome) passed, plus the touched durability specs on the matrix (41 passed, 1 skipped). The head 7f7c775d adds only the spec's run record.
+
+**Integrated gate on b883c587.**
+- Under the host lock, wait 0 s. Load 4.10 at the start and 5.65 at the end. Only the main stack was up; the integrated reviewer ran its code-read pass without a stack.
+- lint 0 (17 s), static 0 (32 s), test:api 883 passed and 6 skipped (331 s), test:unit 5292 of 5292 (221 s).
+- `test:e2e:full`: 595 of 602 passed, 4 skipped, 3 failed (2576 s). All three reds follow from 22.4's conclusion floor, not from load:
+  - @p0 R8DRY-E2E-001 (`dry-transformer.durability.spec.ts`) and @p0 14.2-E2E-001 (`local-painel-coluna.spec.ts`): after "Confirmar todos" and the readings, the sheet says "Placa, verificações e leituras prontas · faltam as observações" where the spec expects "Ficha completa".
+  - @p0 12.5-E2E-001 (`v09-visual.spec.ts`): an open sheet's summary reads "Verificações e conclusão prontas · …" where the spec expects "Verificações prontas" (the floor fills the conclusion of an open sheet, e22c open question 1).
+  - None was in e22c's touched list: they assert the progress line, not the conclusion row.
+- `test:e2e:matrix`: 137 of 156 passed, 16 skipped (the WebKit Blob skips), 3 failed: R8DRY-E2E-001 on all three projects (589 s).
+- Verdict: red. The three specs go to the wave A fix batch, which decides for each whether the floor or the assertion is wrong (Story 22.4's first AC: every row C and readings within criterion conclude Aprovado · Sem restrições).
+
+**Integrated review** (`epic-22-wave-a-integrated-review-2026-11-06.md`, two passes per § 9):
+- Code read first, without a stack; the behavior pass started after the gate, on its own stack `fasor-e22q` (port base 62).
+- Behavior pass: every walkable AC of 22.1 to 22.6 passed at 390, 768 and 1280 px, with three dialogs. The PDF drops the four lines, prints the unit once, normalizes N/A, keeps a ficha with its conclusion, prints the caption ordinals, the section 8 entries and the section 10 verdict. Photo grouping, order, numbering and sizes are unchanged beyond the ordinal.
+- Old seeds: the readers gave identical results on the Porto Seguro snapshot as stored (v1), rewritten to v5 and to v11. A contract 30 client is refused with 426.
+- Second pass: 7 should-fix (S1 to S7), 9 notes (N1 to N9), no blocker.
+
+**Fix batch e22f** (branch `e22f-wave-a-fixes`, port base 63), launched 2026-11-06 with the three gate reds, S1 to S7, N1, N3, N4 and N8; N5 to N7 deferred; N2 by the coordinator's reading (an unconcluded sheet prints no floor marks; the conclusion step counts ready only from a stored pair). Coordinator readings on the review's open questions, open to Bruno: the adjust "Confirmar" replaces a conclusion text still unedited (S1); possible duplicates get a non-blocking pre-issue row (S2); a point created from an NC row starts with the entry's text (S4); a relatório with no judged sheet has no derived verdict and stays blocked (S5).
+- PR #270 (e22f) merged as 06df24b4, on an unmoved main. Story gate on 7b968ac7: lint and static green, test:api 883, test:unit 5319 after one fix of its own test, touched specs 259 of 260 then the red fixed and green alone, `dry-transformer.durability.spec.ts` 15 of 15 on the matrix; the three integrated-gate reds green. Findings: the R8DRY and 14.2 reds were fixtures typing an out-of-criterion ratio (kernel right, fixtures moved within criterion); 12.5 and N2 fixed (the conclusion step and the printed marks count only a stored pair); S1 to S4, S6, S7 (37/28 ms to 13/7 ms), N1, N3, N4, N8 fixed; S5 narrowed (no Apto without a concluded sheet; a stricter derived verdict still stands); N5 to N7 deferred. Golden: 9 lines (8 sheets' marks back to their pre-wave state, the N1 summary). Open for Matheus: whether an open sheet's floor counts in the parecer before any sheet is concluded; N3 clears on NC to C only, not NC to NA. e22f must deploy with wave A (a contract 31 client without it flags false duplicates).
+- Deploy: wave A deploys together with wave B after wave B's integrated gate (one `test:e2e:full` on the integrated main instead of two); the AWS session expired on 2026-11-07 and waits for Matheus's `aws login`.
