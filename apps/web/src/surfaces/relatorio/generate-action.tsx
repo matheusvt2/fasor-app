@@ -56,6 +56,8 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
         isOpen={open}
         onOpenChange={setOpen}
         onEditInSetup={(etapa) => void navigate(`/relatorio/${relatorioId}/setup?etapa=${etapa}${etapa === 6 ? '&volta=exportar' : ''}`)}
+        // e22f S2: the possible duplicates' "Ver pontos" opens the Pontos screen (Sumário row 8's).
+        onSeePoints={() => void navigate(`/relatorio/${relatorioId}/pontos`)}
         onSeeInSumario={(rows) => {
           setOpen(false);
           onSeeInSumario(rows);

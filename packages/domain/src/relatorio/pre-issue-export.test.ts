@@ -70,26 +70,27 @@ function instrument(overrides: Partial<InstrumentRow>): InstrumentRow {
 
 const kinds = (rows: readonly PreIssueRow[]) => rows.map((row) => [row.kind, row.row, row.severity, row.text]);
 
-describe('22.6-UNIT preIssue: nothing blocks (amends 7.5, "Parecer não preenchido" retires)', () => {
-  it('no row blocks with no verdict stored, with one set, with section 10 removed or on a legacy snapshot', () => {
+describe('22.6-UNIT preIssue (e22f S5: "Parecer não preenchido" blocks again while nothing is judged and no verdict was tapped)', () => {
+  it('a fresh relatório (no concluded sheet, no verdict) blocks on section 10; not with one set, with section 10 removed; a legacy snapshot prints section 10 and blocks', () => {
     const snapshot = fresh();
-    expect(blockingRows(preIssue(snapshot, undefined, { now: NOW }))).toEqual([]);
+    expect(kinds(blockingRows(preIssue(snapshot, undefined, { now: NOW })))).toEqual([['parecer_missing', 'section_10', 'blocking', 'Parecer não preenchido']]);
     expect(blockingRows(preIssue(withSetup(snapshot, { parecer: PARECER }), undefined, { now: NOW }))).toEqual([]);
-    expect(preIssue(snapshot, undefined, { now: NOW, rejected: 3 }).filter((r) => r.severity === 'blocking')).toEqual([]);
+    expect(preIssue(snapshot, undefined, { now: NOW, rejected: 3 }).filter((r) => r.severity === 'blocking').map((r) => r.kind)).toEqual(['parecer_missing']);
     const removed = snapshot.blocks.map((b) => (b.block_type === 'section_10' ? { ...b, removed_at: AT } : b));
     expect(blockingRows(preIssue({ ...snapshot, blocks: removed }, undefined, { now: NOW }))).toEqual([]);
     const legacy = snapshot.blocks.filter((b) => isEquipmentBlock(b) || b.location_id !== null);
     expect(legacy.some((b) => b.block_type.startsWith('section_'))).toBe(false);
-    expect(blockingRows(preIssue({ ...snapshot, blocks: legacy }, undefined, { now: NOW }))).toEqual([]);
+    expect(blockingRows(preIssue({ ...snapshot, blocks: legacy }, undefined, { now: NOW })).map((r) => r.kind)).toEqual(['parecer_missing']);
   });
 
-  it('the Sumário row 10 names the effective verdict: the derived one, or a stricter one set', () => {
+  it('the Sumário row 10 names the effective verdict (the derived one, or a stricter one set), or the blocking row while there is none', () => {
     const snapshot = fresh();
     const row10 = (s: RelatorioSnapshot) => {
       const computed = progress(s);
       return sumarioRows(s, preIssue(s, computed, { now: NOW }), computed).find((r) => r.rowKey === 'section_10')!;
     };
-    expect(row10(snapshot)).toMatchObject({ kind: 'setup', meta: 'Apto', blocking: false });
+    expect(row10(snapshot)).toMatchObject({ kind: 'setup', meta: 'Parecer não preenchido', blocking: true });
+    expect(row10(withSetup(snapshot, { parecer: PARECER }))).toMatchObject({ meta: 'Apto', blocking: false });
     expect(row10(withSetup(snapshot, { parecer: { ...PARECER, verdict: 'apto_com_restricoes' } }))).toMatchObject({ meta: 'Apto com restrições', blocking: false });
   });
 });
@@ -387,11 +388,11 @@ describe('7.5-UNIT exportPrecheck and the blocked reason', () => {
     const snapshot = fresh();
     const rows = preIssue(snapshot, undefined, { now: NOW, rejected: 1 });
     const precheck = exportPrecheck(rows);
-    expect(precheck.blocking).toEqual([]);
+    expect(precheck.blocking.map((r) => r.kind)).toEqual(['parecer_missing']);
     // F-03: the empty sheets are one of the dialog's own lines.
     expect(precheck.explicit.map((r) => r.kind)).toEqual(['sheets_empty', 'rejected']);
-    expect(precheck.summarizedCount).toBe(rows.length - 2);
-    expect(precheck.countText).toBe(`${rows.length - 2} avisos`);
+    expect(precheck.summarizedCount).toBe(rows.length - 3);
+    expect(precheck.countText).toBe(`${rows.length - 3} avisos`);
     expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countText).toBe('1 aviso');
     expect(exportPrecheck([]).countText).toBe('');
     // XC-4 (review 2026-10-08): the sentence after the count agrees with it.

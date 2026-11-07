@@ -16,6 +16,8 @@ import { isOptionalSectionVariable, resolveSectionText, SECTION_VARIABLE_LABELS 
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
+import { possibleDuplicatePairs, possibleDuplicatesText } from '../points/derived.ts';
+import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
@@ -23,6 +25,7 @@ import { composeConclusion, conclusionTextForPrint, conclusionTextState } from '
 import { sheetOrder } from './ficha.ts';
 import { relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
+import { effectiveParecer } from './parecer.ts';
 import { cabineLocationIds, emptySheetCount, fichasVaziasText, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
 import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
@@ -36,10 +39,11 @@ import { sectionBlocks } from './sumario.ts';
  * render (Epic 4 context: "never two implementations that could disagree"). Every rule
  * yields typed rows addressed to a Sumário row (`row`), with a severity and a `kind`, so
  * a later epic appends its family by pushing rows here and the Sumário draws them without
- * changing. Story 7.5 closes the list: ~~exactly one row may be `blocking`, "Parecer não
- * preenchido" (section 10)~~ (Story 22.6, 2026-11-06: the verdict is derived from the fichas,
- * so it is never missing and no row blocks); everything warns and the document prints its
- * consequence. The `blocking` severity stays for a later rule.
+ * changing. Story 7.5 closes the list: exactly one row may be `blocking`, "Parecer não
+ * preenchido" (section 10) ~~(Story 22.6, 2026-11-06: the verdict is derived from the fichas,
+ * so it is never missing and no row blocks)~~ (e22f S5: only while no sheet is concluded and
+ * no verdict was tapped, `effectiveParecer` null); everything else warns and the document
+ * prints its consequence.
  * The `sync` rows (rejected ops, the other devices' last send) are what no Sumário row can
  * say: only the Export dialog draws them.
  */
@@ -66,6 +70,8 @@ export type PreIssueKind =
   | 'points_sem_acao'
   | 'point_photo_removed'
   | 'points_sem_prazo'
+  | 'points_possible_duplicate'
+  | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
   | 'suggestions_pending'
@@ -279,6 +285,9 @@ export function lastSendText(name: string, at: string): string {
   return `Último envio de ${name}: ${formatShortDateTime(at)}`;
 }
 
+/** The one blocking row's text (`73-exportar.html` `#exportar-pc-parecer`). */
+export const PARECER_MISSING_TEXT = 'Parecer não preenchido';
+
 /**
  * The live section blocks whose text prints a variable with no value as `[Label]`, each with
  * those variables once, in order of first appearance (Story 7.5's `section_variables` rows
@@ -366,6 +375,13 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
   for (const { point, position } of pointsWithRemovedPhotos(snapshot)) {
     rows.push({ id: `point_photo_removed:${point.id}`, row: 'section_8', severity: 'pending', text: pointPhotoRemovedText(position), kind: 'point_photo_removed' });
+  }
+  // e22f S2: a manual point written from an NC row before contract 31 prints beside the NC's
+  // derived entry ("Possível duplicado" on the Pontos screen); pending, never blocking, and
+  // nothing is removed on its own: the engineer removes one of each pair.
+  const duplicates = possibleDuplicatePairs(snapshot);
+  if (duplicates > 0) {
+    rows.push({ id: 'points_possible_duplicate', row: 'section_8', severity: 'pending', text: possibleDuplicatesText(duplicates), kind: 'points_possible_duplicate' });
   }
   // Story 11.10 (FR-52): live points with no deadline print "—" in the action-plan table;
   // information only, never pending or blocking.
@@ -455,8 +471,14 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
   // ~~Epic 14 QA Q-4: one row naming the locals whose NC site items outnumber their points of
   // attention~~ Story 22.5: retired, every NC site item is a point of attention by itself.
-  // ~~Story 7.4/7.5: the one blocking row, "Parecer não preenchido"~~ Story 22.6: retired, the
-  // verdict is derived from the fichas (`derivedParecer`) and always exists.
+  // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`
+  // block, or no live section block at all (the legacy snapshot prints the seed's eleven,
+  // `print/layout.ts` `printedSections`). p020 P-1b: through the one rule, `printsSection`.
+  // ~~Story 22.6: retired, the verdict is derived from the fichas~~ e22f S5: back while no
+  // verdict exists, derived (a concluded sheet) or tapped (`effectiveParecer` null).
+  if (printsSection(snapshot, 10) && effectiveParecer(snapshot) === null) {
+    rows.push({ id: 'parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind: 'parecer_missing' });
+  }
 
   // Section 11: the setup's instruments, the calibration of each instrument section 11
   // prints (E7-A4: its own list, `section11Instruments`, so the rows name exactly what the
@@ -525,10 +547,19 @@ export function blockingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
  * server does not hold, the sync lines and (E7-A4, 2026-09-28) a sheet certificate number that differs from the
  * registry's, since the document then prints a certificate the sheet did not name.
  */
-const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['sheets_empty', 'photos_pending_upload', 'photos_upload_error', 'cert_number_mismatch', 'rejected', 'last_send']);
+const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
+  'sheets_empty',
+  'photos_pending_upload',
+  'photos_upload_error',
+  'cert_number_mismatch',
+  // e22f S2: the Export dialog names the possible duplicates with a way to the Pontos screen.
+  'points_possible_duplicate',
+  'rejected',
+  'last_send',
+]);
 
 export interface ExportPrecheck {
-  /** The rows that stop "Gerar relatório" (none since Story 22.6 retired "Parecer não preenchido"). */
+  /** The rows that stop "Gerar relatório" (only "Parecer não preenchido", e22f S5). */
   blocking: PreIssueRow[];
   /** The rows the dialog draws one per line. */
   explicit: PreIssueRow[];
@@ -573,10 +604,21 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
 }
 
 /**
+ * The reason beside a blocked "Gerar relatório" (`73-exportar.html`
+ * `#exportar-gen-blocked-reason`): "Preencha o parecer (linha 10 do sumário) para emitir a
+ * revisão 3. O rascunho pode ser visto antes." `line` is section 10's Sumário number; the
+ * parenthesis is left out when the relatório has no such row. e22f S5: restored with its row.
+ */
+export function parecerMissingReason(number: number, line: number | null): string {
+  const where = line === null ? '' : ` (linha ${line} do sumário)`;
+  return `Preencha o parecer${where} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
+}
+
+/**
  * F-03 (review 2026-10-06, D1): what issuing a revision prints blank, counted for the
  * confirmation "Gerar relatório" asks for before it issues. `emptySheets` are the live sheets
  * nothing was typed on; `blankFields` the distinct relatório data a section text or a cover row
- * prints as a `[Label]` placeholder ("[Empresa executora]", "[Responsável]"). Nothing blocks issuing (Story 22.6); these ask.
+ * prints as a `[Label]` placeholder ("[Empresa executora]", "[Responsável]"). Only the parecer blocks issuing; these ask.
  */
 export interface IssueConfirmation {
   emptySheets: number;

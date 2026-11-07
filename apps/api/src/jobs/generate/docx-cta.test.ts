@@ -418,8 +418,11 @@ describe('14.5-UNIT section 9 in the DOCX: a Chave de transferência automática
     // The group, the sheet and its other parts are untouched.
     expect(ascending(order(section, [OUTROS, CTA_TITLE]))).toBe(true);
     expect(ascending(order(sheet, [CTA_TITLE, 'DADOS DO EQUIPAMENTO', 'CONFIGURAÇÃO', 'VERIFICAÇÕES GERAIS', 'E2 · ISOLAMENTO PRINCIPAL', 'E3 · ISOLAMENTO DO CONTROLE', 'E4 · AJUSTES DO CONTROLADOR', 'E5 · TRANSFERÊNCIA', 'CONCLUSÃO']))).toBe(true);
-    // The values changed under the confirmed conclusion text (two tests left it), so it is stale and does not print (AR-11).
-    expect(titled('CONCLUSÃO').at(-1)).toHaveLength(2);
+    // The values changed under the confirmed conclusion text (two tests left it), so it is stale:
+    // ~~it does not print (AR-11)~~ e22f S1: on a sheet the floor adjusted (its stored pair looser
+    // than the effective one), the confirmed suggestion prints as composed now, so the stricter
+    // pair never prints without its paragraph; the stale text itself never prints.
+    expect(titled('CONCLUSÃO').at(-1)).toHaveLength(3);
     expect(section).not.toContain(CONCLUSION_TEXT);
   }, 60_000);
 

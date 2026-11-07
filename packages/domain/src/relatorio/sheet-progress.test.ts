@@ -420,9 +420,10 @@ describe('p020 P-4 the header names the Observações Com restrições requires'
 
   it('the pair alone, or the pair and the observation', () => {
     expect(sheetSummaryText(owing({ missing: 1, outOfLimit: 0 }))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
-    // Story 22.4: on this sheet the floor (Aprovado · Sem restrições) fills the unset half.
-    expect(progressOf(ready({ result: cell('aprovado') })).steps.conclusao).toEqual({ missing: 0, outOfLimit: 0 });
-    expect(progressOf(ready({ restriction: cell('com_restricoes') })).steps.conclusao).toEqual({ missing: 1, outOfLimit: 0, observation: 1 });
+    // ~~Story 22.4: on this sheet the floor (Aprovado · Sem restrições) fills the unset half.~~
+    // e22f N2: the floor fills no step; the unset half is missing (the conclude gate's `floorFills` fills it).
+    expect(progressOf(ready({ result: cell('aprovado') })).steps.conclusao).toEqual({ missing: 1, outOfLimit: 0 });
+    expect(progressOf(ready({ restriction: cell('com_restricoes') })).steps.conclusao).toEqual({ missing: 2, outOfLimit: 0, observation: 1 });
     const both = owing({ missing: 2, outOfLimit: 0, observation: 1 });
     expect(sheetSummaryText(both)).toBe('Placa, verificações e leituras prontas · falta a conclusão e as observações');
     // After a count the verb follows the count, as before.

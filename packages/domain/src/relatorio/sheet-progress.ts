@@ -6,11 +6,12 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
-import { effectiveConclusionPair } from './conclusion.ts';
+import { chosenConclusionPair, effectiveConclusionPair } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
-import { evaluateSheetMeasurements, measurementCounts } from './measurement-evaluation.ts';
+import { measurementCounts } from './measurement-evaluation.ts';
 import { isOilItem, oilDerivedNaKeys } from './oil-rule.ts';
-import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
+import { evaluatedCells } from './readings.ts';
+import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { firstInTree } from './tree.ts';
 import { VECTOR_GROUP_FIELD } from './vector-group.ts';
@@ -42,7 +43,9 @@ import { VECTOR_GROUP_FIELD } from './vector-group.ts';
  *   a test switched off, or one its own value says was not run, requires nothing.
  * - `conclusao`: 1 while the result is unset, 1 while the restriction is unset, and 1 while
  *   the restriction is Com restrições and the sheet observation is empty (Story 5.8 AC 2).
- *   Story 22.4: of the effective pair (`effectiveConclusionPair`), so a floor counts as set.
+ *   ~~Story 22.4: of the effective pair (`effectiveConclusionPair`), so a floor counts as set.~~
+ *   e22f N2: of the chosen pair (`chosenConclusionPair`): a floor alone fills no step; the
+ *   `floorFills` option reads the effective pair for the conclude gate.
  *   The conclusion text never counts: an unconfirmed text does not block "Concluir ficha".
  * A disabled sub-block counts nothing (AR-17). A pending suggestion is a row, never a
  * cell, so an unconfirmed suggestion is empty here by construction.
@@ -197,9 +200,9 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
 }
 
 function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): SheetStepProgress {
-  const evaluations = evaluateSheetReadings(block, definition);
+  const evaluations = sheetReadings(block, definition);
   const cells = evaluatedCells(evaluations);
-  const measurements = measurementCounts(evaluateSheetMeasurements(block, definition));
+  const measurements = measurementCounts(sheetMeasurements(block, definition));
   // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
   // only while the plate that holds LIGAÇÃO SECUNDÁRIA can be filled (its sub-block enabled).
   const groupMissing = !enabled.has('nameplate')
@@ -212,10 +215,12 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   };
 }
 
-function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): { missing: number; observation: number } {
+function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>, floorFills: boolean): { missing: number; observation: number } {
   if (!enabled.has('conclusion')) return { missing: 0, observation: 0 };
-  // Story 22.4: the effective pair, so a floor fills an unset half ("Concluir ficha" writes it).
-  const { result, restriction } = effectiveConclusionPair(block);
+  // ~~Story 22.4: the effective pair, so a floor fills an unset half~~ e22f N2: the chosen pair
+  // (a stored half, made stricter by the floor); with `floorFills`, what "Concluir ficha" will
+  // write, the effective pair (the floor fills an unset half in the conclude batch).
+  const { result, restriction } = floorFills ? effectiveConclusionPair(block) : chosenConclusionPair(block);
   let missing = 0;
   let observation = 0;
   if (result === null) missing += 1;
@@ -225,7 +230,13 @@ function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): {
 }
 
 /** One sheet's progress; every step empty-handed (0) for a block that is not an equipment sheet. */
-export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string): SheetProgress {
+/**
+ * e22f N2: `floorFills` counts the conclusion step as "Concluir ficha" will leave it, the floor
+ * filling an unset half (`effectiveConclusionPair`): the conclude gate, its jump and the
+ * primary's "Concluir e avançar" read it. Without it (the header line, the stepper, the
+ * Sumário) the step is ready only from a pair the engineer stored.
+ */
+export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, options: { floorFills?: boolean } = {}): SheetProgress {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   const definition = block === undefined ? null : findDefinition(block.seed_version, block.block_type);
   const steps: Record<SheetStep, SheetStepProgress> = {
@@ -246,7 +257,7 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string):
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
     steps.ensaios = ensaiosCounts(block, definition, enabled);
-    const conclusao = conclusaoMissing(block, enabled);
+    const conclusao = conclusaoMissing(block, enabled, options.floorFills === true);
     steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;

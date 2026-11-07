@@ -1039,6 +1039,9 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toBeDisabled();
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toBeDisabled();
+  // e22f S6: a disabled segment reads disabled (the mock's only disabled look, opacity .4); an enabled one does not.
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveCSS('opacity', '0.4');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveCSS('opacity', '1');
   await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
   const adjusted = page.locator('.conclusion-control .conclusion-hint[role="status"]');
   await expect(adjusted).toContainText('Conclusão ajustada pela ficha');
@@ -1047,6 +1050,14 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   const lastOf = async (field: string) => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/${field}`).at(-1)?.value;
   await expect.poll(() => lastOf('result')).toBe('reprovado');
   await expect.poll(() => lastOf('restriction')).toBe('com_restricoes');
+  // e22f S1: the text was already replaced ("Substituir" above), so it is current: the adjusted
+  // note's Confirmar writes the pair alone and leaves the text as it is (a stale confirmed text is
+  // recomposed with the pair: `conclusao-section.test.tsx`, e22f S1).
+  const adjustedText = replacedText;
+  const adjustedBatch = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`)).slice(-2);
+  expect(adjustedBatch.map((row) => row.path.split('/').at(-1))).toEqual(['result', 'restriction']);
+  expect(new Set(adjustedBatch.map((row) => row.batch_id)).size).toBe(1);
+  expect((await textOps()).at(-1)).toBe(replacedText);
 
   // "Editar": stored as edited at once, typed, blurred; the edited text survives a reload.
   await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
@@ -1056,10 +1067,10 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' Texto revisado.');
   await editor.blur();
-  await expect.poll(async () => (await textOps()).at(-1)).toBe(`${replacedText} Texto revisado.`);
+  await expect.poll(async () => (await textOps()).at(-1)).toBe(`${adjustedText} Texto revisado.`);
   await page.reload();
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(`${replacedText} Texto revisado.`);
+  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(`${adjustedText} Texto revisado.`);
 
   // Com restrições: the observation is required, then written; "Concluir ficha" concludes.
   await expect(page.getByText('Obrigatória com restrições')).toBeVisible();
