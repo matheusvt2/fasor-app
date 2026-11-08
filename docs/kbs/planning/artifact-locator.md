@@ -11,7 +11,7 @@ All under `_bmad-output/` unless stated.
 
 - `specs/spec-fasor/`: `SPEC.md` (build contract, CAP-1..25, constraints, non-goals, assumptions), `glossary.md`, `delivery-slice.md`, `source-deltas.md` (overrides).
 - `planning-artifacts/architecture/architecture-fasor-2026-09-21/ARCHITECTURE-SPINE.md`: AD-1..27, stack, structural seed, capability map, deferred. Summaries: [architecture](/architecture/index.md).
-- `planning-artifacts/epics.md`: epics and stories ([epics-map](/planning/epics-map.md)). `sprint-change-proposal-2026-09-24.md`: Epic 12 reorder.
+- `planning-artifacts/epics.md`: epics and stories ([epics-map](/planning/epics-map.md)). `sprint-change-proposal-2026-09-24.md`: Epic 12 reorder. `sprint-change-proposal-2026-11-08.md`: Epic 23 (Bruno's test base as the product's criteria), with its open items for Bruno and Matheus.
 - `planning-artifacts/prds/prd-fasor-2026-09-19/`: `prd.md` (outdated in places), `addendum.md` (section 9 holds the seed content of the eight block types, decoded from FO.SERV-03 in gitignored `docs/context/`).
 - `planning-artifacts/ux-designs/ux-fasor-2026-09-18/`: `EXPERIENCE.md`, `DESIGN.md`, `mockups/`, `imports/extract-fo-serv-03.md` (structural extraction), reviews and reconcile notes. See [ux](/ux/index.md).
 - `planning-artifacts/briefs/`, `research/`: early inputs.

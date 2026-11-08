@@ -89,3 +89,21 @@ The detail is in `_bmad-output/implementation-artifacts/epic-22-context.md` § "
 - uses the previous visit's value to judge Aprovado com restrições. Story 22.12 only shows that value.
 
 The base's "Aplica-se quando" column, its procedure text and its recommendations are candidate scope for after wave C. Company equipment types (Stories 14.6 to 14.8) are the natural carrier.
+
+## Epic 23 (planned 2026-11-08)
+
+Matheus decided groups A to N on 2026-11-08 (`docs/context/epic-23/decisoes-epic-23.md` § 5, gitignored). The base becomes the product's criteria on seed v13, for new relatórios only, with every older relatório printing byte-identical. The pieces:
+
+- versioned NETA tables with edition and status per row;
+- the optional manufacturer's value, which absorbs Story 14.13;
+- temperature correction;
+- three levels per reading, with the previous visit judging;
+- the instrument-limit rule;
+- applicability from the nameplate, with an override;
+- "Como ensaiar" on screen only;
+- decision I's wave 1 tests;
+- a Malha de aterramento type.
+
+The stories are `epics.md` § Epic 23 (23.1 to 23.21). The batch plan is `_bmad-output/implementation-artifacts/epic-23-context.md`, the plan and its open items for Bruno (B-1 to B-11) and Matheus (M-1 to M-6) are in `_bmad-output/planning-artifacts/sprint-change-proposal-2026-11-08.md`, and the overrides are the `source-deltas.md` rows of 2026-11-08.
+
+The base's procedure and recommendation texts enter the product only after Matheus's decision M-1, on a waiver like R-023 or through a private load path (Story 23.12). Values reach the seed only through the story that names their row.

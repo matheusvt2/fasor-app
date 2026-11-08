@@ -3866,6 +3866,8 @@ So that the lists grow with the work we actually do, without a release and witho
 
 ### Story 14.13: The manufacturer's criterion on an equipment test
 
+*(2026-11-08, Matheus, decision G of `docs/context/epic-23/decisoes-epic-23.md` § 5: absorbed by Story 23.3, "The manufacturer's value on each test, optional". Its Definition of Ready and open questions 1 to 3 are answered there: CTA measurement tests per row stay out, no reference field, a looser value allowed with the default shown beside it. This story closes when 23.3 is done; its text below is kept as the record.)*
+
 *(Added 2026-10-21 by the coordinator, from Bruno's answer 10 of 2026-10-21 relayed by Matheus: yes to a manufacturer criterion. Bruno said on 2026-10-15 that the manufacturer's value is preferred where one exists (E14-A10, the CTA criteria). Backlog; it does not wait for the wave-3 gate, since it changes no type definition.)*
 
 **Dev model:** opus · **Effort:** high · one optional per-sheet criterion on each test over the existing `criterion_override` path, its source in the kernel, a sheet control, the criterion line in section 9, a contract decision
@@ -6279,6 +6281,1067 @@ So that the relatório makes the comparison its section 2 promises.
 ### Wave C: Stories 14.6, 14.7 and 14.8, the office's own types
 
 *(2026-11-06, Matheus, "Cadastro e padrões": Stories 14.6, 14.7 and 14.8 leave the backlog and close Epic 22 as wave C. The E14-A12 gate (two or three real jobs on the library types) is lifted. Bruno's "ainda não dá para cadastrar equipamentos e editar informações padrões" is their scope, read as equipment types and their defaults (checklist items, nameplate fields and options, default values, criteria); this is the coordinator's reading, open to Matheus. Their text, Definitions of Ready and Done stay under Epic 14. Their DoRs still hold: `bmad-architecture` settles the AD-21, AD-3 and AD-15 amendments before 14.6, and `bmad-ux` draws the editor frames before 14.7. Story 14.7 also opens the Critérios tab to edits on a company type, closing `deferred-work.md` line 2012.)*
+
+## Epic 23: Bruno's test base as the product's criteria: tables as data, three levels, tests chosen by the nameplate, field help, new tests and the ground grid (seed v13; Bruno and Matheus, 2026-11-08)
+
+Bruno sent his "Base de Ensaios MT" on 2026-11-07 (rev03) and rev08 on 2026-11-08, with its JSON. In his words: "Fiz esses documentos, veja se respondem as perguntas, o que faltar ainda, eu respondo." He meant it as the source the app reads. The technician fills in the equipment's characteristics, and the app picks the tests and judges them.
+
+The base and its readings are gitignored, pt-BR and absent on other machines:
+- the base: `docs/context/Fasor_Base_Ensaios_MT_rev08.json` and its `.xlsx`; map in `docs/kbs/project/test-base.md`;
+- the decisions: `docs/context/epic-23/decisoes-epic-23.md`; § 5 holds Matheus's decisions of 2026-11-08 and is the binding part;
+- what is still open with Bruno: `docs/context/epic-23/respostas-bruno-rev08-2026-11-08.md`;
+- the comparison with seed v12, with `file:line` evidence: `docs/context/epic-23/divergencias-base-x-produto.md`;
+- the public sources: `docs/context/epic-23/literatura-criterios.md`.
+
+This epic cites the base by row ID ("Base rev08 TR-OL-02") and by table name, never by its values, procedures or recommendations. NETA, IEEE, IEC and NBR standards are cited as standards. The plan is `sprint-change-proposal-2026-11-08.md`; the overridden records are the fourteen `source-deltas.md` rows of 2026-11-08.
+
+**Matheus's decisions (2026-11-08, § 5 of the decisions file), by group:**
+- **A. Insulation.** NETA tables as versioned seed data with edition and status per row: 100.1 for equipment, 100.5 for windings by voltage and medium. Cables keep the 400 MΩ minimum, plus the comparison between phases and with the previous visit.
+- **B. Temperature.** Correct, and judge by the corrected value: 20 °C for insulation, 75 °C for winding resistance. The temperature field sits on the equipment, with the ambient as fallback. The relatório prints the measured value, the temperature and the corrected value.
+- **C. Three levels.** A reading in a restriction band takes the sheet to Aprovado · Com restrições and derives a point. The previous value judges. Vague terms stay out until Bruno gives numbers.
+- **D. Voltage per row.** Up to 600 V, 1 kV; from 601 to 5000 V, 2,5 kV; above, 5 kV. TC and TP secondaries at 1 kV. The arrester by its own rule (PR-02). The high-voltage notice stays.
+- **E. Classes.** 0,3S and 0,6S; the notation 5P20 and 10P20; polarity OK or Invertida, with Invertida failing; the TC's function with the faturamento notice; the printed note "verificação de relação (não substitui ensaio de exatidão)".
+- **F. Instrument limit.** The base's rule: an over-range reading is Aprovado with Bruno's standard observation, and the IP is "não aplicável". PR #268's rule stays as the guard for an instrument whose limit is below the criterion.
+- **G. Manufacturer.** One optional manufacturer's value per test. Empty, the table applies; filled, it prevails. It absorbs Story 14.13. Capacitance, tolerance and times are nameplate fields.
+- **H. Oil.** "Natureza do líquido" (mineral, natural ester or vegetable, synthetic ester, silicone) and "Tipo (ANP)" (A, B or não informado), the second for a mineral liquid only. Vegetable oil changes only the power factor.
+- **I. Scope.** Wave 1 is this epic: winding resistance, the judged IP, oil sampling, polarity, HH fuses, thermography on the eight types and the Malha de aterramento type. Wave 2 comes later: breaker timing, coils, vacuum and SF6; PR-04; switchgear; capacitors. Out until Bruno asks: tan δ (TR-SE-07 included), TC excitation, arrester leakage, VLF.
+- **J. Applicability.** Automatic, with a revert: unmet, the test is NA with the reason visible, and the technician can revert it. Obrigatório and Opcional become the initial state.
+- **K. Nameplate.** The list as proposed, with the arrester's intact disconnector and the capacitor's tolerance. The TTR gets one row per tap, with the current tap and the extremes pre-marked.
+- **L. Contact.** The manufacturer's value, else 250 µΩ for breaker and switch. A deviation over the lowest pole beyond NETA's limit restricts.
+- **M. Field help.** "Como ensaiar" on screen only, never printed. The recommendation becomes the derived point's initial text.
+- **N. TTR in Yd.** Stays with Bruno (question 12). The product keeps √3/2.
+- **Method.** "Epic 23. Planejar e já construir, em lotes paralelos." What depends on Bruno stays marked as pending: vague terms, TTR, oil A/B, TP insulation, high-voltage notice, contact against the previous visit.
+
+**Rules every story keeps:**
+- **Seed v13, new relatórios only (AD-21).** Seed v13 derives from v12 (`V12_HASH` pinned). Every new behaviour is reached through a v13 definition key, so a v1 to v12 definition gives today's result in every reader. No relatório migrates its seed.
+- **The printed layout of every older relatório stays byte-identical.** Bruno likes the current relatório, and the document and photo grouping are protected. Story 23.2 takes the layout-lock goldens after fix batch e23f merges. Every later story keeps them, and the Porto Seguro goldens, unchanged. A v13 sheet prints only the delta its story names.
+- **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` computes every criterion, correction, level, applicability, NA reason, derived text and verdict, once. `apps/web` renders from IndexedDB and writes ops only. `applyOp` is the only reducer.
+- **Strings (AGENTS.md "Where a new user-facing string goes").**
+  - Derived text goes in `packages/domain`: the NA reason, the restriction sentence, the corrected value, the instrument-limit note, the derived point's text.
+  - Static surface copy goes in `apps/web/src/copy/pt-br.ts`.
+  - Component chrome goes in `apps/web/src/copy/ui.ts`.
+  - Seeded test content (labels, help, recommendations) lives in the seed.
+- **The base reaches the seed only through these stories.** The seed takes a table, a threshold or a field from the base only where a story names its row. Values labelled PADRÃO FASOR keep that status on their row. Bruno's procedure and recommendation texts wait for Matheus's decision M-1 (Story 23.12).
+- **Not guessed.** An item that depends on an open answer of Bruno's is a DoR blocker or an out-of-scope note in its story. The list is in `sprint-change-proposal-2026-11-08.md` § 6, B-1 to B-11.
+- **Out of this epic:**
+  - decision I's wave 2 and the "until Bruno asks" tests;
+  - the cable shield (CB-04), the TC and TP ohmic resistance (TC-04, TP-04) and the intrinsic protections (TR-OL-10, TR-SE-06), which are not in wave 1;
+  - the switchgear (CM) and capacitor bank (CP) types and their fields, the capacitor tolerance of decision K included.
+
+**Waves and gates** (detail in `implementation-artifacts/epic-23-context.md`):
+- **Wave 0.** Story 23.1, the frames, drawn by the coordinator with `bmad-ux` while fix batch e23f runs.
+- **Wave 1** starts from main after e23f merges and Matheus approves 23.1.
+  - e23a: 23.2, 23.3, 23.4. It owns seed v13 and the layout lock, and takes contract 34.
+  - e23b: 23.7, 23.8, 23.9. It is stacked on e23a's first commit and takes contract 35.
+- **Wave 2.**
+  - e23v: 23.5, 23.6, 23.14. Contract 36.
+  - e23h: 23.10, 23.11. Contract 37.
+- **Wave 3.**
+  - e23t: 23.15, 23.16, 23.17, 23.19. Contract 38.
+  - e23e: 23.13, 23.18, 23.20, 23.21. Contract 39.
+- **Wave 4.** e23x: 23.12, on Matheus's decision M-1.
+- Contract numbers are reserved in merge order. A batch whose spec finds no fold change takes none, and the coordinator renumbers the later batches before they launch.
+- The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Epic 23 deploys once, after wave 3's gate and its review (Matheus's M-2). Seed v13 freezes at that deploy.
+
+### Story 23.1: The Epic 23 sheet frames in the mocks
+
+**Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code; dated amendments to DESIGN.md and EXPERIENCE.md
+
+As Matheus approving what the field will see,
+I want each new control of Epic 23 drawn on the sheet before it is built,
+So that the batches build from frames, not from a guess (E14-A4).
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- `mockups/prototype/screens/60-ficha.html` draws the test sub-blocks with the instrument header, the reading cells and the criterion helper.
+- Nothing draws a manufacturer's value, a restricted reading, a test made NA by the nameplate with its override, "Como ensaiar", per-tap TTR rows, a temperature-corrected value or a choice result (polarity, oil sampling).
+- Story 14.13's DoR (1) asked for the manufacturer's control and was never drawn.
+
+*(Definition of Ready, met 2026-11-08: the decisions of Epic 23 and this story's frame list. The look follows `DESIGN.md`, and no new colour token is drawn unless a frame shows the need and names it, per `MOCK-GUIDE.md`.)*
+
+**Acceptance Criteria:**
+
+**Given** `60-ficha.html` and the type editor frames of Story 14.7
+**When** they are redrawn
+**Then** they show, at 390, 768 and 1280 px, light and dark, with no emoji and no Fasor branding:
+- the optional "Valor do fabricante" of a test (authored label), set and empty;
+- a restricted reading cell and its helper sentence;
+- a test made NA by the nameplate, with its reason and the "Aplicar este ensaio" revert (authored);
+- the "Como ensaiar" sheet opened offline from a test (an overlay, its eight headings);
+- the transformer's TTR with one row per tap, the current tap and the extremes marked;
+- an insulation table with its TEMPERATURA and a corrected column;
+- a choice result row (OK or Invertida; COLETADO or NÃO COLETADO);
+- the editor's "Como ensaiar" and recommendation fields on a company type
+
+**Given** the print of a v13 sheet
+**When** the frame of the printed table is drawn (`key-*.html` style)
+**Then** it shows the corrected column and the TEMPERATURA line within the 60 em fit rule (e22g), and nothing else changes from v12's printed sheet (Matheus's M-5)
+
+**Given** the approved frames
+**When** the PR merges
+**Then** `DESIGN.md` and `EXPERIENCE.md` carry dated amendments (strike-through, never a rewrite), and `MOCK-GUIDE.md` and `index.html` list the frames
+
+**Definition of Done, in addition:**
+- Matheus approves the frames in the browser at 390, 768 and 1280 px, with one dialog open.
+- No app code changes.
+- `docs/kbs/log.md`.
+
+### Story 23.2: Seed v13 opens, the older layouts are locked, and insulation is judged by the NETA tables (contract 34)
+
+**Dev model:** opus · **Effort:** high · seed v13 derived from v12; the layout-lock goldens of a v5, a v11 and a v12 relatório taken after e23f; the criteria tables as seed data with source, edition and status per row; the insulation criterion picked from them by voltage and medium on v13; the instrument header and the criterion helper name the table
+
+As Bruno testing a dry transformer of 13,8 kV,
+I want its windings judged by the minimum of their own voltage class and medium,
+So that the relatório follows the standard he signs against, not one number for every equipment.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- `seed/criteria.ts` holds one insulation criterion, > 400 MΩ, source "aceitável na ficha", for every type.
+- v6 picks a band by a nameplate value only for the Quadro elétrico (`criterion_bands`, `relatorio/reading-evaluation.ts` `bandCriterion`).
+- v12 picks the ratio criterion by class (`criterion_class_field`).
+- `SEED_VERSION` is `'v12'` (`seed/definitions.ts:63`), and the contract is 33 with minimum 33 (`contract/version.ts:372` and `:582`).
+- The only DOCX golden is the Porto Seguro skeleton on v1 (`apps/api/src/jobs/generate/golden/porto-seguro-skeleton.json`).
+
+*(Definition of Ready, met 2026-11-08 by decision A:)*
+- **Seed v13** derives from v12, with `V12_HASH` pinned. This batch owns `seed/v13.ts`. Its first commit holds only v13 = v12 (a new version, same content) and the layout lock, and is pushed at once for e23b to stack on.
+- **The layout lock.** Fixture-backed goldens of the generated `document.xml` (and the PDF text) for synthetic relatórios on v5, v11 and v12, each with at least one sheet of every seeded type it offers.
+  - They are taken on main after e23f merges, before any other Epic 23 change.
+  - The data is synthetic; nothing comes from a client.
+- **The tables.** The seed gains criteria tables taken from Base rev08 `NETA_100_1` and `NETA_100_5`. Every row carries its limits, its source (standard and edition) and its validation status from the base. No value is typed outside the seed module (NFR-14).
+- **Which tests use them on v13:**
+  - The transformer's windings take 100.5 (rev08 TR-OL-02, TR-SE-02). Each row is keyed by the winding its row tests (`voltage_rows.winding`), on its rated voltage, and the column is picked by the oil rule (oil or dry, `relatorio/oil-rule.ts`).
+  - The TC takes 100.5 by its primary voltage and its TIPO DE ISOLAÇÃO (rev08 TC-02).
+  - The disjuntor, the seccionadora and the para-raio take 100.1 by voltage class (rev08 DJ-02, SC-02, PR-02).
+  - The cables keep > 400 MΩ (rev08 CB-02). Their comparisons are Story 23.6's.
+- **Fallback.** With the rating missing or unreadable, the row is judged by v12's criterion, and the helper asks for the rating (authored).
+- **Out of scope:**
+  - TP-02: the v13 TP keeps > 400 MΩ until Bruno answers whether the TP needs an insulation field (open item B-4).
+  - Temperature correction (23.5), restriction bands (23.6), the instrument-limit note (23.4).
+- **Print.** A v13 instrument header's ACEITÁVEL shows the row's picked minimum; a table whose rows pick different minimums prints each row's on the row (authored layout, from Story 23.1's frame). The criterion's source prints only where v12 prints it (Story 22.2).
+- **Contract 34**, with this batch's `criterion_override` change in Story 23.3 and the `MIN_CONTRACT_VERSION` decision in the PR.
+
+**Acceptance Criteria:**
+
+**Given** main after e23f merged
+**When** the layout-lock goldens are generated
+**Then** the v5, v11 and v12 fixtures' DOCX and PDF text are pinned, and every later Epic 23 PR must keep them byte-equal with the Porto Seguro goldens
+
+**Given** a new relatório on v13 with a dry transformer whose AT is 13 800 V and BT 380 V
+**When** the insulation rows evaluate
+**Then** the AT rows are judged by Table 100.5's dry column for the AT voltage, the BT row by the row for 380 V, and each row's helper names the table and its edition
+
+**Given** the same transformer with TIPO DE ISOLAÇÃO ÓLEO MINERAL
+**When** it evaluates
+**Then** the oil column applies
+
+**Given** a v13 disjuntor of class 15 kV
+**When** its insulation evaluates
+**Then** Table 100.1's row for its class applies
+
+**Given** a v13 TP, and a v13 cable
+**When** they evaluate
+**Then** both are judged at > 400 MΩ as on v12
+
+**Given** a v12 and a v5 relatório
+**When** they evaluate and print
+**Then** every verdict is as before, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- `seed.test.ts` pins v13's difference from v12 and every shipped hash.
+- A seed test checks that every table row carries a source, an edition and one of the four statuses.
+- Kernel tests on each table at the boundaries (a voltage at a row's upper bound, one volt above it, a missing rating).
+- Section 9 print tests on a v13 sheet.
+- A Playwright spec on a v13 relatório through the DOCX.
+- The touched durability specs on the matrix projects.
+- The spine gains a dated note under AD-21 (a criterion picked from a seed table carries edition and status).
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 23.3: The manufacturer's value on each test, optional (absorbs Story 14.13; contract 34)
+
+**Dev model:** opus · **Effort:** high · one optional "Valor do fabricante" per test of a sheet over the existing `criterion_override` path; the kernel names its source as the manufacturer's; empty, the table or seeded criterion applies; screen control from Story 23.1; print of the manufacturer's value in ACEITÁVEL
+
+As Bruno testing a breaker whose manual gives its contact resistance,
+I want to type that value on the test,
+So that the reading is judged by the manufacturer, as the base's rule 1 says.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- `sheet.test.{key}.criterion_override` exists (`schemas/entities.ts:516`).
+- It is written only through `sheet/{block_id}/test/{test_key}/criterion_override` (`ops/path.ts:46`) and applied by `effectiveCriterion` (`relatorio/reading-evaluation.ts:108`), which keeps the seed's operator and source.
+- No surface writes it. Story 14.13 describes this and is in the backlog.
+
+*(Definition of Ready, met 2026-11-08 by decision G. It answers Story 14.13's DoR and open questions:)*
+- **The control.** Story 23.1's frame, on every test of a v13 sheet and on the seeded grammars of v12 and older too, since it is the existing kernel path and its print is unchanged while empty.
+- **The source.** The kernel reports "Fabricante" (authored) as the source of a filled value. The value shape gains what the source needs, settled in the spec with contract 34.
+- **14.13's open question 1** (CTA measurement tests per row): out, as its default. A later story.
+- **Open question 2** (a reference to the manual): no reference field, as its default. Listed for Bruno.
+- **Open question 3** (looser than the default): allowed, with the default shown beside it, as its default.
+- **Print.** ACEITÁVEL prints the manufacturer's value, followed by " (fabricante)" (authored, listed for Bruno). A sheet without one prints exactly as before.
+- **The plate is not this value.** A capacitance, a tolerance or an operating time is a nameplate field (decision G). The breaker's manufacturer times are Story 23.7's.
+
+**Acceptance Criteria:**
+
+**Given** a v13 disjuntor sheet
+**When** the technician types a manufacturer's value of 80 µΩ on the contact test
+**Then** one op through `applyOp` stores it, every reading of that test on that sheet is judged by < 80 µΩ, the helper names "Fabricante", and clearing it brings the default back
+
+**Given** a manufacturer's value on a v13 transformer's insulation
+**When** the rows evaluate
+**Then** it replaces the table's minimum on every row of that test, and the table's own minimum shows beside it as a reminder
+
+**Given** a value the kernel cannot read (malformed, negative, a unit that does not convert)
+**When** it is typed
+**Then** it is refused with an inline message (authored), never ignored
+
+**Given** two devices set different manufacturer's values on one test
+**When** they sync
+**Then** the existing "Critério" conflict of `merge/conflicts.ts` asks for the single-cell choice (AD-3)
+
+**Given** generation
+**When** a sheet carries a manufacturer's value
+**Then** ACEITÁVEL prints it with its source, under both section 9 schemes, and the layout-lock and Porto Seguro goldens hold
+
+**Definition of Done, in addition:**
+- The contract 34 note.
+- Kernel tests on each grammar, the band test, the clear and the refusal.
+- An api integration test of a refused value through the sync route.
+- A Playwright spec that sets the value offline, reloads, syncs and checks the DOCX.
+- The touched durability specs on the matrix projects.
+- Story 14.13 closes with a dated line.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 23.4: A reading above the instrument's limit under the table criteria
+
+**Dev model:** opus · **Effort:** medium · on v13 an over-range insulation reading whose limit meets the picked criterion is within, with Bruno's standard observation as a kernel note printed under the table; the IP is "não aplicável" when the 1-minute reading is over range; PR #268's rule stays as the guard
+
+As Bruno whose megger reads over its range on a healthy winding,
+I want the reading approved with the standard note,
+So that a table minimum of tens of GΩ never fails a winding the instrument cannot measure higher.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** Story 22.10 stores `over_range` with the limit from the instrument registry (`range_isolacao`). A `>` criterion is within only when the limit reaches it; a limit below it is out (PR #268). No note is printed.
+
+*(Definition of Ready, met 2026-11-08 by decision F; Base rev08 `limite_instrumento` on every insulation row, table INSTRUMENTOS_FASOR:)*
+- **The rule on v13.**
+  - Limit at or above the picked criterion: within. The test carries the standard observation of the row's `limite_instrumento`.
+  - Limit below it: out, as PR #268 built.
+  - A `<` or `±` criterion: as Story 22.10.
+- **The note** is derived by the kernel and prints under the test's table. It is not OBSERVAÇÕES, because an observation would raise the floor (Story 22.4). This placement is the coordinator's reading, B-9. Its text is the base's, taken by decision F, and is listed in the PR.
+- **The limit** stays the picked instrument's registry value. The base's INSTRUMENTOS_FASOR is Fasor's own megger, and no limit is seeded.
+- **The IP.** "não aplicável" when the 1-minute reading of its row is `over_range` (rev08 TR-OL-03 and TR-SE-03 `nao_aplicavel_se`). It shows as N/A on v13 and needs no value. The IP's judging is Story 23.16's.
+
+**Acceptance Criteria:**
+
+**Given** a v13 dry transformer whose table minimum is above 5 GΩ, and an instrument whose registry limit is 2 TΩ
+**When** the technician types "OL"
+**Then** the row is within, the note shows under the table on screen and in print, and the conclusion floor stays Sem restrições
+
+**Given** an instrument whose limit is 1 GΩ against a 5 GΩ minimum
+**When** "OL" is typed
+**Then** the row is out, as on v12
+
+**Given** a v12 sheet
+**When** it evaluates and prints
+**Then** nothing changes, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel boundary tests: a limit equal to the criterion, one unit below it, a missing limit.
+- A section 9 print test.
+- A Playwright spec through the DOCX.
+- `docs/kbs/log.md`.
+
+### Story 23.5: Temperature correction: insulation at 20 °C, winding resistance at 75 °C
+
+**Dev model:** opus · **Effort:** high · kernel correction functions from the base's CORRECAO_TEMPERATURA table; on v13 insulation rows judged by the value corrected to 20 °C where the row says so; the temperature from the equipment field (Story 23.7), else the cabine's ambient; the screen shows the corrected value; print adds the temperature and a corrected column; the 75 °C function ready for Story 23.15
+
+As Bruno testing a transformer at 35 °C,
+I want the reading corrected to the reference temperature before it is judged,
+So that a warm winding is not approved, or failed, on a raw number.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- The only temperature is the cabine's AMBIENTE DE ENSAIO TEMPERATURA (`seed/v1.ts:596`).
+- No reading is corrected.
+- `SPEC.md` Non-goals list "temperature correction to 20 °C".
+
+*(Definition of Ready, met 2026-11-08 by decision B; Base rev08 table CORRECAO_TEMPERATURA (NETA MTS-2023 Table 100.14.1; IEC 60076-1 / NBR 5356-1):)*
+- **Which rows.** Only the rows whose base row names a correction: rev08 TR-OL-02, TR-SE-02, DJ-02 and SC-02 at 20 °C; TR-OL-05 and TR-SE-05 at 75 °C, wired by Story 23.15.
+  - The TC, TP, arrester and cable rows name none, and none is applied.
+  - Cables and rotating machines are not corrected by default (literature file).
+- **The temperature.**
+  - The transformer: its oil temperature (oil unit) or winding temperature (dry unit). Both are v13 nameplate fields of Story 23.7.
+  - Every other type, and a transformer with the field empty: the cabine's TEMPERATURA.
+  - With neither, no correction: the raw value is judged and the helper says so (authored).
+- **The 75 °C function** needs the winding material (Cu or Al, Story 23.7). It is built and tested here and wired by 23.15.
+- **Screen.** The cell shows the measured value. The helper shows "a 20 °C: …" (derived text in the kernel). The judged value is the corrected one.
+- **Print (v13 only).** The table's header line gains TEMPERATURA (the value used, and from where), and a corrected column follows the values, as Story 23.1's frame shows (Matheus's M-5). The 60 em fit rule holds.
+- **Over range.** An `over_range` reading is not corrected: Story 23.4 rules it.
+
+**Acceptance Criteria:**
+
+**Given** a v13 oil transformer with an oil temperature of 40 °C and an AT reading of 2 GΩ
+**When** the row evaluates
+**Then** the corrected value is computed by the table's factor, the corrected value is judged, the helper shows it, and the print carries TEMPERATURA 40 °C and the corrected column
+
+**Given** the same sheet with the field empty and the cabine at 25 °C
+**When** it evaluates
+**Then** 25 °C is used and the print names the ambient as the source
+
+**Given** no temperature anywhere
+**When** it evaluates
+**Then** the raw value is judged and the helper asks for the temperature
+
+**Given** a v13 cable or TC
+**When** it evaluates
+**Then** no correction applies
+
+**Given** a v12 relatório
+**When** it evaluates and prints
+**Then** nothing changes, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel tests on each factor at its table bounds (20 °C gives a factor of 1, a fractional temperature, a temperature outside the table).
+- Tests of the 75 °C function for Cu and Al.
+- Section 9 print tests at the 60 em fit.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- The `SPEC.md` Non-goals line struck through with its date.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 23.6: Three levels per reading, the comparisons between phases and units, and the previous visit's value judges
+
+**Dev model:** opus · **Effort:** max · `ReadingVerdict` gains `restricted` on v13 definitions; the bands the base states in numbers (rev08 TR-OL-02 history, TR-OL-05 and TR-SE-05 bands, CB-02 between phases and history, PR-02 against the largest unit and its disconnector prerequisite); a restricted reading raises the floor to Com restrições and derives a point; `last_results` judges when both visits are corrected; vague terms excluded
+
+As Bruno reading a cable whose phase B is far below A and C,
+I want that reading to restrict the sheet, even inside the minimum,
+So that the relatório flags what the standard calls an investigation case.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- `ReadingVerdict = 'within' | 'out'` (`relatorio/reading-cells.ts:42`).
+- Story 22.4's floor raises Com restrições only for an NC row or an observation (`relatorio/conclusion.ts`).
+- Derived points come from NC rows, out-of-criterion readings and Reprovado sheets (`points/derived.ts`, origins at `schemas/entities.ts:689`).
+- `last_results` (`print/last-results.ts`) is shown as "Anterior: …" and printed as MANUT. ANTERIOR, never judged (Story 22.12).
+
+*(Definition of Ready, met 2026-11-08 by decision C, with these readings:)*
+- **The level.** `restricted` exists only where a v13 test definition carries a restriction rule. Any other definition yields `within` or `out` as today.
+- **Which rules.** Only those the base gives in numbers:
+  - rev08 TR-OL-02 `historico` (drop against the previous visit);
+  - TR-OL-05 (`aprovado_max` and `restricao_max`) and TR-SE-05 (`aprovado_max` with its history rule), wired by Story 23.15;
+  - CB-02 `comparativo` (between phases and against the previous visit);
+  - PR-02 `comparativo` (against the largest unit of the set) and its `prerequisito`: a disconnector not intact (the Story 23.7 field) is Reprovado;
+  - the contact rule of DJ-03 and SC-03 (Story 23.14) and the IP's history (Story 23.16) use this level.
+- **Vague terms make no band** (open item B-1): "ligeiramente acima", "muito acima", "queda acentuada".
+- **The previous value judges** only when the matching `last_results` entry and the current reading are both corrected on v13. Otherwise it is shown as Story 22.12 shows it. This needs `last_results` to carry the corrected value: a projection shape note in the PR, and the spine's AD-25 gains a dated note.
+- **Contact against the previous visit:** out (open item B-6).
+- **Effects.**
+  - A restricted reading raises the conclusion floor to Aprovado · Com restrições.
+  - It derives one point of attention per test (authored text: "Ensaio {teste}: valor dentro do critério, com restrição ({motivo})", listed for Bruno). A stored point written from it carries a new origin, `restricao`: an op enum change, contract 36.
+  - The parecer follows the floor (Story 22.6).
+- **Print (v13).** CONDIÇÕES prints SATISFATÓRIO for a restricted row, since it is within its criterion. The restriction prints in the conclusion and in section 8. This is the coordinator's reading, B-8.
+
+**Acceptance Criteria:**
+
+**Given** a v13 cable with phases at 5 GΩ, 5 GΩ and 1,5 GΩ, all above 400 MΩ
+**When** the sheet evaluates
+**Then** phase B is restricted under CB-02's comparison, the floor is Aprovado · Com restrições, one derived point names the test and the phase, and the parecer is Apto com restrições
+
+**Given** a v13 transformer whose previous visit's corrected AT reading dropped past TR-OL-02's history rule
+**When** the row evaluates
+**Then** it is restricted, and the helper names the previous revision and its value
+
+**Given** the previous visit was on v12 (no corrected value)
+**When** the row evaluates
+**Then** the previous value is shown as on v12 and not judged
+
+**Given** a v13 arrester with its disconnector marked not intact
+**When** the sheet evaluates
+**Then** the floor is Reprovado
+
+**Given** a stored point written from a restricted derived point
+**When** it syncs
+**Then** it carries `origin: 'restricao'`, the derived entry is suppressed, and an older client is refused with 426
+
+**Given** a v12 and a v5 relatório
+**When** they evaluate and print
+**Then** nothing changes, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel boundary tests on every rule: equal to the bound, one step past it, a missing previous value, a previous value on another seed, an over-range row in a comparison.
+- An api integration test of the new origin through the sync route.
+- Projection tests of the corrected `last_results`, with a cross-tenant check.
+- A Playwright spec over two relatórios of one obra through the DOCX.
+- The touched durability specs on the matrix projects.
+- The spine's AD-25 note.
+- The `source-deltas.md` row.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 23.7: Seed v13 nameplate fields (decision K; contract 35)
+
+**Dev model:** opus · **Effort:** high · the v13 nameplate fields of decision K on the transformer, disjuntor, seccionadora, TC, TP, para-raio and cables; the TP's "115/√3" and the TC's "200-5"; the plate structuring told what each new field is (prompt version bump, paid eval before the deploy)
+
+As Bruno filling a v13 sheet,
+I want the characteristics the tests depend on to be fields of the plate,
+So that the app can pick the tests, the voltages and the corrections from them.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- v12's nameplates are Stories 22.7 to 22.9's.
+- TAP ATUAL is text (`seed/v1.ts:44`).
+- There is no tap list, winding material, equipment temperature, switch type, arrester MCOV or cable plate.
+
+*(Definition of Ready, met 2026-11-08 by decision K; Base rev08 Características sheet. Each field cites its base key; kinds follow AD-11:)*
+- **Transformador de força:**
+  - TAPS (a list of tap voltages, the plate's whole list) and TAP ATUAL as a number of that list (`taps_V`, `tap_atual_V`);
+  - MATERIAL DO ENROLAMENTO, Cu or Al (`material_enrolamento`);
+  - TEMPERATURA DO ÓLEO on an oil unit and TEMPERATURA DO ENROLAMENTO on a dry one, each excused on the other (`temperatura_oleo_C`, `temperatura_enrolamento_C`);
+  - IMPEDÂNCIA (%) (`impedancia_pct`);
+  - CLASSE TÉRMICA on a dry unit (`classe_termica`).
+- **Disjuntor MT:** MONTAGEM, TENSÃO DE COMANDO, ACIONAMENTO, CONTADOR DE OPERAÇÕES, and the manufacturer's opening and closing times (`tipo_montagem`, `tensao_comando_V`, `acionamento`, `contador_operacoes`, `tempo_abertura_fab_ms`, `tempo_fechamento_fab_ms`). The times are plate fields for wave 2's timing test (decision G) and judge nothing in this epic.
+- **Chave seccionadora:** TIPO DE SECCIONADORA (`tipo_seccionadora`, its options from the base), CORRENTE DO FUSÍVEL (`fusivel_corrente_A`), and "Motorizado" added to ACIONAMENTO.
+- **TP:** the NBR 6855 group (`grupo_ligacao_tp`). The secondary voltage accepts "115/√3" (parsed in `parse/`, stored as typed).
+- **TC:** RELAÇÃO accepts "200-5" as "200/5". The TC's function is Story 23.18's.
+- **Para-raio:** MCOV (kV), INVÓLUCRO, and DESLIGADOR ÍNTEGRO, SIM or NÃO (`mcov_kV`, `involucro`, `desligador_integro`; the base makes the last required).
+- **Cabos:** CLASSE U0/U, ISOLAÇÃO, SEÇÃO (mm²), COMPRIMENTO (m), TERMINAÇÃO, CONDIÇÃO (`classe_cabo`, `isolacao_cabo`, `secao_mm2`, `comprimento_m`, `tipo_terminacao`, `condicao_cabo`).
+- **Kept as the product has them:** kV on the AT, a date instead of a year, and "Ar" and "Outro" in the extinction medium.
+- **Not here:** the liquid fields (Story 23.17); the capacitor's fields (the type is out of this epic).
+- **Print.** The DADOS DO EQUIPAMENTO table of a v13 sheet prints the new fields in seed order, with Story 22.3's widened columns. An empty optional field prints "-" as today.
+- **The plate reading.** The Bedrock prompt names each new field. This is a prompt version bump. The synthetic eval set gains one plate per type that carries the new fields. The paid eval runs on Matheus's login before the deploy (E21-A4).
+- **Contract 35**, shared with Story 23.9. This batch is stacked on e23a's first commit (seed v13 and the layout lock) and merges after e23a.
+
+**Acceptance Criteria:**
+
+**Given** a new v13 relatório with a transformador de força
+**When** its nameplate renders
+**Then** it shows TAPS, a numeric TAP ATUAL picked from them, MATERIAL DO ENROLAMENTO, the temperature field its insulation calls for, IMPEDÂNCIA and, on a dry unit, CLASSE TÉRMICA
+
+**Given** a v13 para-raio
+**When** DESLIGADOR ÍNTEGRO is left empty
+**Then** the nameplate counts it as missing in the sheet's progress, as a required field
+
+**Given** a v13 TP whose secondary is typed "115/√3", and a TC whose ratio is typed "200-5"
+**When** they are read by the ratio test
+**Then** both parse to their nominal values, and the ratio's VAL CALCULADO is computed
+
+**Given** a fake plate fixture of each type with the new fields
+**When** the reading completes
+**Then** each field is suggested, as `verify` where the plate's wording is ambiguous
+
+**Given** a v12 relatório
+**When** it renders and prints
+**Then** nothing changes, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Seed tests per type.
+- Parser tests for "115/√3" and "200-5".
+- Plate fixtures and the reading tests.
+- The prompt version and the paid eval recorded before the deploy (outside `verify`).
+- A Playwright spec on each type's nameplate.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 23.8: The TTR has one row per tap of the plate
+
+**Dev model:** opus · **Effort:** high · on v13 the transformer's ratio table takes one row per tap of TAPS, the current tap and the extremes pre-marked as to be measured, each row's VAL CALCULADO from its tap voltage and the vector group; cell addressing and the api's target checks over plate-derived rows
+
+As Bruno testing a transformer with five taps,
+I want the TTR to list every tap and ask at least for the current one and the extremes,
+So that the relatório shows the ratio across the changer, as the base asks.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- `TRANSFORMADOR_RATIO` has one default row whose TAP Nº is typed (`seed/v1.ts:480`), and rows are added by hand ("Adicionar linha").
+- V PRIMÁRIO falls back to the plate's nominal voltage (`relatorio/reading-cells.ts`).
+- The factor follows the vector group (Story 21.1).
+
+*(Definition of Ready, met 2026-11-08 by decision K's TTR clause; Base rev08 TR-OL-04 and TR-SE-04 (all taps, at least the current tap and the extremes):)*
+- **The rows.** On v13, with TAPS filled, the table shows one row per tap, in plate order, TAP Nº and V PRIMÁRIO taken from it.
+  - Pre-marked to measure: the current tap and the two extremes. The others start as "not measured" and can be filled.
+  - With TAPS empty, the table behaves as v12's (one typed row).
+- **A tap list edited** after readings exist keeps every reading on its tap value. A row whose tap left the list stays, marked as not on the plate (authored), and is never dropped.
+- **Addressing.** Rows stay `sheet/{b}/test/relacao_transformacao/cell/{row}/{col}` with the row keyed by its tap position. The spec settles whether a key or an index is stored, and the api's target check (Story 20.10) accepts exactly the rows the plate gives.
+- **The factor** stays Story 21.1's for every group. The Yd case keeps √3/2 until Bruno names his instrument (open item B-2, decision N).
+- **Missing measures.** A pre-marked row without a reading counts as missing in Ensaios. An unmarked one does not.
+
+**Acceptance Criteria:**
+
+**Given** a v13 transformer whose TAPS lists five voltages and whose TAP ATUAL is the third
+**When** its TTR opens
+**Then** five rows show in plate order, rows 1, 3 and 5 are marked to measure, and each row's VAL CALCULADO follows its own tap voltage
+
+**Given** readings on rows 1, 3 and 5 only
+**When** the progress is computed
+**Then** the test is complete
+
+**Given** TAPS edited to drop a tap that holds a reading
+**When** the table renders
+**Then** that row and its reading stay, flagged
+
+**Given** a v12 transformer
+**When** its TTR renders and prints
+**Then** it is unchanged, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel tests of the rows, the marks, the factor per tap and an edited list.
+- An api integration test of a cell on a plate-derived row through the sync route, plus one refused out of range.
+- Section 9 print tests.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- `docs/kbs/log.md`.
+
+### Story 23.9: A test applies from the nameplate: automatic NA with its reason, and the technician's override (contract 35)
+
+**Dev model:** opus · **Effort:** max · v13 tests carry an applicability condition over nameplate fields, evaluated in the kernel; unmet, the test shows NA with its reason and counts nothing missing; one stored per-test override ("Aplicar este ensaio") reverts it; the base's Obrigatório and Opcional as the initial state; a new op field (contract 35)
+
+As Bruno filling a seccionadora without fuses,
+I want the fuse test to step aside by itself and tell me why,
+So that I neither fill a test that does not apply nor lose one that does.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- A test leaves a sheet only through the template's sub-block switch (FR-11, `BlockConfig.sub_blocks`).
+- A switched-off sub-block is omitted from the document.
+- `TEST_FIELDS` are `instrument` and `criterion_override` (`ops/path.ts:46`).
+- Nothing reads the nameplate to pick a test.
+
+*(Definition of Ready, met 2026-11-08 by decision J:)*
+- **The condition.** A v13 test definition may carry `applies_when`: a small closed grammar over nameplate fields (equals one of, is filled, a number above or below a bound), with the reason text the kernel composes from it ("Não se aplica: TIPO DE SECCIONADORA sem fusíveis", derived, authored).
+  - The tests of Stories 23.15 to 23.21 attach their conditions from their base rows' "Aplica-se quando".
+  - The existing v13 tests (insulation, contact, ratio) carry none: "Sempre".
+- **The state.** Unmet, the test shows NA with the reason on screen. Its cells are not editable until it is applied, it counts nothing missing in the sheet's progress, and it does not reach the conclusion floor.
+  - A condition over an empty field is unmet only when the base's row says the test needs that value. Otherwise the test applies (the conservative reading).
+- **The override.** "Aplicar este ensaio" (authored) writes `sheet/{b}/test/{k}/applicability` = `applied`. Clearing it returns to the kernel's reading.
+  - The override is one cell, and two devices conflict as one cell does (`merge/conflicts.ts`).
+  - The kernel never overrides a stored choice.
+- **Initial state.** The base's Opcional tests start switched off in the v13 standard template (`sub_blocks`), and its Obrigatório tests start on. The template switch still removes a test entirely (FR-11).
+- **Print (v13).** A test NA by applicability is omitted from section 9, like a switched-off sub-block (FR-11). A test applied by override prints as any test. Open to Bruno through the PR.
+- **Contract 35.** A new value of `TEST_FIELDS`, with an api integration test and the minimum decision in the PR.
+
+**Acceptance Criteria:**
+
+**Given** a v13 test whose condition names TIPO DE SECCIONADORA (a fixture definition until Story 23.19 seeds the fuse test)
+**When** the plate says it has no fuses
+**Then** the test shows NA with the composed reason, the sheet's progress counts nothing missing for it, and it is absent from the DOCX
+
+**Given** that test
+**When** the technician taps "Aplicar este ensaio"
+**Then** one op stores `applied`, the cells open, the test counts as any test and prints, and a reload keeps it
+
+**Given** the plate changed so the condition is met
+**When** the sheet renders
+**Then** the test applies with no override needed, and the stored override stays harmless
+
+**Given** two devices, one applying and one not
+**When** they sync
+**Then** the single-cell conflict asks
+
+**Given** a v12 sheet
+**When** it renders
+**Then** no test is made NA by the nameplate, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel tests of the grammar (each operator, an empty field, an unknown field refused at seed load).
+- `applyOp` and api integration tests of the new field through the sync route, including a refused value.
+- A Playwright spec on the override offline, through reload, sync and the DOCX.
+- The touched durability specs on the matrix projects (the op fold changes).
+- The spine gains a dated note under AD-3 (the field) and AD-21 (the condition is definition data).
+- The `source-deltas.md` row.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 23.10: "Como ensaiar" on each test: on screen only, offline, editable in the type editor (contract 37)
+
+**Dev model:** opus · **Effort:** high · an optional `help` block per test definition (objective, instrument, voltage, connections, procedure, criterion, standard, NR-10 prerequisite); a "Como ensaiar" action on each test that opens it offline (Story 23.1's frame); the type editor edits it on a company type and "Duplicar" carries it; never printed
+
+As a technician on site without signal,
+I want to open how a test is done from the test itself,
+So that I connect and run it right without leaving the sheet.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- A test definition has a label, a criterion and tables (`seed/schema.ts:218`); there is no help text.
+- The type editor (`apps/web/src/surfaces/templates/type-editor.tsx`, Story 14.7) edits fields, items, tests and criteria.
+
+*(Definition of Ready, met 2026-11-08 by decision M ("só na tela, sem sair no relatório"):)*
+- **The content shape.** Eight optional headings per test, each a plain text, read from the definition: `help` on a seeded v13 test definition, and the same key on a company type's test.
+- **The action.** The action shows only where a test has help. On v13 seeded tests none has any until Story 23.12 (Matheus's M-1), so this story ships the mechanism, the editor and company-type content.
+- **Offline.** The content is definition data already on the device, so it opens with no network.
+- **The editor.**
+  - The type editor gains the eight headings per test of a company type.
+  - "Duplicar" of a seeded type copies its help.
+  - The company type version schema gains the optional key: contract 37, with a refused oversized text (Story 20.9 caps).
+- **Never printed.** No section of the document reads `help`. A golden test proves it.
+- **Bruno's confirmation of the button** (question 35) is listed, not awaited (B-7).
+
+**Acceptance Criteria:**
+
+**Given** a company type whose test has help typed in the editor and published
+**When** a sheet of that type opens offline and the technician taps "Como ensaiar"
+**Then** the overlay shows the eight headings that have text, with focus managed as Story 23.1's frame says, and closes back to the test
+
+**Given** a seeded v13 test with no help
+**When** the sheet renders
+**Then** no "Como ensaiar" action shows
+
+**Given** "Duplicar" of a seeded type whose test has help (a fixture until Story 23.12)
+**When** the copy is published
+**Then** its test carries the same help
+
+**Given** a relatório with help on every test
+**When** it generates
+**Then** the DOCX carries none of it, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel and schema tests.
+- An api integration test of a company type version with help through the sync route, plus one refused over the cap.
+- A Playwright spec offline at 390 and 1280 px, keyboard included.
+- The touched durability specs on the matrix projects.
+- `docs/kbs/log.md`.
+
+### Story 23.11: The test's recommendation is the initial text of its derived point (contract 37)
+
+**Dev model:** opus · **Effort:** medium · an optional `recommendation` per test definition; a derived point of an out-of-criterion test or a Reprovado sheet starts with its test's recommendation, the generic kernel text staying the fallback; editable in the type editor; shares contract 37 with Story 23.10
+
+As Bruno reviewing the points of a failed test,
+I want each point to start with the recommendation the base gives for that test,
+So that I edit a fitting text instead of writing one from the generic sentence.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** derived points compose a generic text per origin (`points/derived.ts`). Fix batch e23f is changing how a derived point prints its observation lines, in that file and in `print/section-8.ts`.
+
+*(Definition of Ready, met 2026-11-08 by decision M:)*
+- **Which points.** The derived point of a test with an out-of-criterion reading (origin `reading`) and of a Reprovado sheet whose reason is that test (origin `reprovado`) take the test's recommendation, followed by the existing composed reference to the sheet and the row.
+- **Not these points.** A restricted point (Story 23.6) keeps its own composed text, because the base's column is "se reprovado". An NC point keeps its NC phrase.
+- **Fallback.** Without a recommendation, the generic text, exactly as today.
+- **Where the text comes from.**
+  - On seeded v13 tests none exists until Story 23.12 (M-1).
+  - A company type's test takes it from the type editor, the same version schema change as Story 23.10.
+- **Start.** From main after e23f merges (`points/derived.ts`), and after e23v (Story 23.6) in merge order, so this batch merges main before its PR.
+- **Bruno's confirmation** (question 36) is listed, not awaited (B-7).
+
+**Acceptance Criteria:**
+
+**Given** a company type's test with a recommendation, and a reading out of its criterion
+**When** section 8 derives the point
+**Then** the point's text starts with the recommendation, and writing it as a stored point keeps that text
+
+**Given** a seeded v13 test with no recommendation
+**When** its point derives
+**Then** the text is the generic one, byte-equal to v12's
+
+**Given** a v12 relatório
+**When** it prints
+**Then** section 8 is unchanged, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel tests for each origin.
+- A Playwright spec from the editor to the DOCX.
+- `docs/kbs/log.md`.
+
+### Story 23.12: The base's help and recommendation texts in the seed
+
+**Dev model:** opus · **Effort:** medium · fills the `help` and `recommendation` keys of every v13 seeded test from Bruno's base rows, by the path Matheus chooses (M-1); a test per row that the text is present; no code path changes
+
+As Bruno,
+I want the seeded tests to carry his procedure and his recommendation,
+So that every technician sees the same way to test and every failure starts with his advice.
+
+**Today:** Stories 23.10 and 23.11 ship the mechanism with no seeded text.
+
+*(Definition of Ready, **blocked on Matheus (M-1)**. The base's procedure and recommendation texts (columns "Procedimento" and "Recomendação padrão se reprovado" of every rev08 row) are client material. AGENTS.md forbids copying client material from `docs/context/` into tracked files, and its only waiver is R-023, the Porto Seguro fixture. Matheus decides one of these:)*
+- **(a)** A waiver like R-023 for these texts, recorded in AGENTS.md "Decisions of record", after which they enter seed v13 (or v14 if v13 has been deployed).
+- **(b)** A private load path: an import script that reads the gitignored JSON and writes the texts as company data (a company type copy, or a company help table). Then nothing enters the repository, and a seeded type shows help only for companies that imported it.
+
+The texts are Bruno's, and the wording is not edited by the build.
+
+**Acceptance Criteria:**
+
+**Given** Matheus's decision recorded under this story
+**When** the texts are loaded by that path
+**Then** every v13 test that has a base row shows "Como ensaiar" with its headings, and its derived failure point starts with the recommendation
+
+**Given** the generated document
+**When** a relatório with every test filled generates
+**Then** no help text prints, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- The decision recorded with its date.
+- A test that each wave 1 row's text is present.
+- If (a): `seed.test.ts` pins.
+- If (b): the import is idempotent and tenant-scoped, with an api test.
+- `docs/kbs/project/test-base.md` and `docs/kbs/log.md`.
+
+### Story 23.13: Test-voltage defaults on every insulation row (decision D)
+
+**Dev model:** opus · **Effort:** medium · on v13 every insulation row of the disjuntor, seccionadora, TC, TP, para-raio and cables starts at its default by winding or class voltage; TC and TP secondaries at 1 kV; the para-raio by its MCOV rule; the high-voltage notice unchanged
+
+As Bruno testing a 15 kV breaker,
+I want its insulation rows to start at the voltage the standard asks for,
+So that I change a voltage only when I really used another.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** `relatorio/row-voltage.ts` `rowTestVoltage` defaults the transformer's rows (LV 1 kV, HV by the AT rating, e22g). Every other row takes the instrument's TENSÃO ENSAIO.
+
+*(Definition of Ready, met 2026-11-08 by decision D; Base rev08 DJ-02, SC-02, TC-02, TP-02, PR-02, CB-02:)*
+- **The defaults.** By the row's winding or class voltage, as decision D states: up to 600 V, 1 kV; from 601 to 5000 V, 2,5 kV; above, 5 kV.
+  - TC and TP secondaries: 1 kV.
+  - The para-raio: PR-02's `tensao_ensaio` rule over MCOV (Story 23.7's field).
+  - The cable: by its U0/U class (Story 23.7), from CB-02.
+- **A typed voltage** still wins (Story 22.8), and the defaults never judge.
+- **The notice** stays as built (Story 22.8, OQ-1) until Bruno answers question 11 (open item B-5).
+
+**Acceptance Criteria:**
+
+**Given** a v13 disjuntor of class 15 kV, a v13 TC, a v13 para-raio with its MCOV, and a v13 cable 8,7/15 kV
+**When** their insulation tables render
+**Then** each row starts at its decision D default, and print shows them in the TENSÃO column
+
+**Given** a v12 disjuntor
+**When** it renders
+**Then** its rows take the instrument's voltage as before
+
+**Definition of Done, in addition:**
+- Kernel tests per type at each band edge (600 V, 601 V, 5000 V, 5001 V).
+- A Playwright spec through the DOCX.
+- `docs/kbs/log.md`.
+
+### Story 23.14: Contact resistance: the manufacturer's value, else the default, with the pole deviation as restriction (decision L)
+
+**Dev model:** opus · **Effort:** medium · on v13 the disjuntor's and the seccionadora's contact test is judged by the manufacturer's value (Story 23.3) when given, else 250 µΩ (PADRÃO FASOR, as its status); a pole whose deviation over the lowest pole passes the row's limit is restricted (Story 23.6)
+
+As Bruno measuring a vacuum breaker,
+I want an uneven pole flagged even under the default limit,
+So that a contact starting to degrade shows up before it fails.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** `seed/criteria.ts` contact < 250 µΩ "aceitável na ficha"; no comparison between poles.
+
+*(Definition of Ready, met 2026-11-08 by decision L; Base rev08 DJ-03 and SC-03:)*
+- **The criterion.** The manufacturer's value when filled, else 250 µΩ, its row status PADRÃO FASOR.
+- **The restriction.** The rows' `desvio_max_pct_menor_polo`, NETA's comparison over the lowest pole, gives `restricted` (Story 23.6).
+- **Out of scope:**
+  - the vague terms of DJ-03 and SC-03 (open item B-1);
+  - a rule against the previous visit (open item B-6).
+
+**Acceptance Criteria:**
+
+**Given** a v13 disjuntor with poles at 40, 42 and 70 µΩ and no manufacturer's value
+**When** it evaluates
+**Then** all three are within 250 µΩ, the 70 µΩ pole is restricted by the pole rule, and the floor is Com restrições
+
+**Given** a manufacturer's value of 60 µΩ on the same sheet
+**When** it evaluates
+**Then** the 70 µΩ pole is out, and the floor is Reprovado
+
+**Given** a v12 disjuntor
+**When** it evaluates
+**Then** nothing changes
+
+**Definition of Done, in addition:**
+- Kernel boundary tests (exactly at the deviation limit, one step past it, a pole over range).
+- A Playwright spec.
+- `docs/kbs/log.md`.
+
+### Story 23.15: Winding resistance on the transformer
+
+**Dev model:** opus · **Effort:** high · a new v13 test on the transformador de força: per phase, AT on the marked taps and BT, corrected to 75 °C by material (Story 23.5), judged by the deviation between phases with three levels (rev08 TR-OL-05 for oil, TR-SE-05 for dry) and the previous visit's rule; a new sub-block key and the measurement grammar's "deviation between phases" criterion; contract 38
+
+As Bruno,
+I want to record the winding resistance per phase and see whether the phases agree,
+So that a loose connection or a damaged winding shows in the relatório.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- The transformer's tests are isolação and relação de transformação.
+- `testDefSchema.key` is a closed enum of three (`seed/schema.ts:218`).
+- The measurement grammar (`seed/measurement.ts`) has four criteria: an absolute limit, a limit relative to the lowest of the column, equality between two columns, and a choice that passes.
+
+*(Definition of Ready, met 2026-11-08 by decision I, wave 1:)*
+- **The test** is a measurement test on v13, its sub-block key appended to `SUB_BLOCK_KEYS`.
+  - Rows per phase for AT on the TTR's marked taps (Story 23.8), and for BT. The columns and units are as the base's `pontos_medicao` say.
+  - Its criterion is a new grammar criterion, "deviation between phases %", with the oil row's two bands and the dry row's one band, taken from rev08 TR-OL-05 and TR-SE-05.
+- **Reprovado on a dry unit** only on an open circuit (an over-range reading), as TR-SE-05 says. Its other ground, "valor incompatível", is vague and out (B-1).
+- **Correction.** The values are corrected to 75 °C (Story 23.5) with MATERIAL DO ENROLAMENTO. With the material empty, there is no correction and the helper asks for it.
+- **History.** The rows' `historico` rule restricts (Story 23.6).
+- **Applicability.** "Sempre", Obrigatório: on in the v13 standard template.
+- **Print.** A new table in the transformer's section 9 sheet, after the TTR, as Story 23.1's frame shows.
+- **Contract 38**, with the new sub-block key and an api integration test.
+
+**Acceptance Criteria:**
+
+**Given** a v13 oil transformer with copper windings at 30 °C
+**When** the AT phases are typed on the current tap
+**Then** each is corrected to 75 °C, the deviation between phases is computed, and a deviation in the restriction band restricts while one above it fails
+
+**Given** a v13 dry transformer with a phase over range
+**When** it evaluates
+**Then** the floor is Reprovado
+
+**Given** a v12 transformer
+**When** it renders and prints
+**Then** it has no such test, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Seed and grammar tests.
+- Kernel boundary tests on both bands.
+- An api integration test of the new sub-block key.
+- Section 9 print tests at the 60 em fit.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- Every spec asserting the sub-block list read from the kernel (E14-A3).
+- `docs/kbs/log.md`.
+
+### Story 23.16: The polarization index judged
+
+**Dev model:** opus · **Effort:** medium · on v13 the transformer's IP (and its DAR where the row lists it) is a captured value, typed or read from the display, judged by rev08 TR-OL-03 and TR-SE-03 (minimum and classification table IP_CLASSIFICACAO, NETA MTS-2023 7.2, IEEE 43) with the previous visit restricting; "não aplicável" over range (Story 23.4)
+
+As Bruno reading the IP from his megger,
+I want the IP judged on the sheet,
+So that a wet or aged insulation shows even when the 1-minute value passes.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- The 2026-09-21 delta: the app computes no index.
+- The `ia_ip_display` sub-block (IA and IP read from the display) is off for Fasor and judges nothing.
+
+*(Definition of Ready, met 2026-11-08 by decision I, wave 1 ("IP julgado"):)*
+- **The value.** On v13 the IP per insulation row is a captured column, on by default for the transformer: typed, or filled by "Ler visor" as a Suggestion.
+  - The DAR is captured where TR-OL-03 lists it and judged only if the row gives it a criterion.
+  - The app still computes no index from timed readings.
+- **Judged by** the row's `min` and the IP_CLASSIFICACAO table: its result column maps to within, restricted or out (the mapping is listed in the PR for Bruno), and the history rule restricts (Story 23.6).
+- **Over range.** With the 1-minute reading over range, the IP is "não aplicável" (Story 23.4).
+- **Out of scope:** the vague "queda acentuada" (B-1).
+- **Applicability.** TR-OL-03 is Opcional, starting off on the oil unit; TR-SE-03 is Obrigatório, starting on the dry unit.
+
+**Acceptance Criteria:**
+
+**Given** a v13 dry transformer
+**When** an IP below the minimum is typed
+**Then** the row is out and the floor is Reprovado; an IP in the table's restricted class restricts
+
+**Given** the 1-minute reading over range
+**When** the IP cell renders
+**Then** it shows N/A as "não aplicável", needs no value, and prints so
+
+**Given** a v12 transformer with `ia_ip_display` on
+**When** it evaluates
+**Then** nothing is judged, as before
+
+**Definition of Done, in addition:**
+- Kernel tests at each class bound.
+- A display-reading fixture test.
+- A Playwright spec through the DOCX.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 23.17: The insulating liquid and oil sampling (decision H)
+
+**Dev model:** opus · **Effort:** high · v13 "Natureza do líquido" and "Tipo (ANP)" on the transformer, the oil rule over every liquid, the plate structuring told about both (paid eval); a new oil-sampling test, COLETADO or NÃO COLETADO, on the transformer and on a disjuntor with oil (rev08 TR-OL-07, DJ-07), applied from the nameplate (Story 23.9)
+
+As Bruno at a silicone-filled transformer,
+I want to record the liquid it holds and whether a sample was taken,
+So that the relatório names the liquid right and says what goes to the laboratory.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** v12 has TIPO DE ISOLAÇÃO with ÓLEO MINERAL and TIPO DO ÓLEO A or B (Story 22.7). There is no sampling test.
+
+*(Definition of Ready, met 2026-11-08 by decision H, with these readings:)*
+- **The fields.**
+  - "Natureza do líquido": mineral, éster natural (vegetal), éster sintético, silicone.
+  - "Tipo (ANP)": A, B, não informado, shown for a mineral liquid only. It replaces v12's TIPO DO ÓLEO on v13.
+  - Both are excused on a dry unit.
+- **TIPO DE ISOLAÇÃO.** Its oil option reads "ÓLEO ISOLANTE" on v13, and the liquid names what it is. v12's "ÓLEO MINERAL" stays an alias. This is the coordinator's reading, Matheus's M-4: it holds unless he corrects it before wave 3.
+- **The oil rule** (`relatorio/oil-rule.ts`) treats every liquid as oil.
+- **Tipo (ANP)** judges nothing until Bruno answers on A and B (open item B-3).
+- **Vegetable oil** changes only the power factor, and tan δ is out of this epic, so no criterion differs by liquid here.
+- **The sampling test** is a choice result: COLETADO or NÃO COLETADO, from the base's `resultados_possiveis`. It is not a verdict on the oil.
+  - It applies to the transformer when the liquid is oil (TR-OL-07), and to the disjuntor when MEIO DE EXTINÇÃO is oil (DJ-07), through Story 23.9.
+  - NÃO COLETADO asks for a reason (authored) and does not raise the floor.
+- **The plate reading** names both fields. This is a prompt version bump, with one silicone and one type-B plate in the synthetic set, and the paid eval before the deploy.
+
+**Acceptance Criteria:**
+
+**Given** a v13 transformer with TIPO DE ISOLAÇÃO ÓLEO ISOLANTE and Natureza do líquido silicone
+**When** the sheet renders
+**Then** the oil items are answerable, Tipo (ANP) is hidden, and the sampling test applies
+
+**Given** an EPÓXI unit
+**When** it renders
+**Then** both liquid fields are excused and print "-", and the sampling test is NA with its reason
+
+**Given** a v13 disjuntor with MEIO DE EXTINÇÃO oil
+**When** it renders
+**Then** its sampling test applies
+
+**Given** a fake plate printing "Tipo óleo isolante B"
+**When** the reading completes
+**Then** Natureza do líquido is suggested mineral and Tipo (ANP) B
+
+**Given** a v12 relatório
+**When** it renders and prints
+**Then** nothing changes
+
+**Definition of Done, in addition:**
+- Seed and oil-rule tests per liquid.
+- Plate fixtures and the paid eval recorded before the deploy.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 23.18: TC and TP: polarity, the TC's function and the S classes (decision E)
+
+**Dev model:** opus · **Effort:** high · on v13 a polarity result per TC and TP (OK or Invertida, Invertida failing); the TC's FUNÇÃO (medição, proteção, faturamento) with the faturamento notice; the TC classes 0,3S and 0,6S and the notation 5P20 and 10P20; the printed note under the ratio test; the plate structuring told about the function
+
+As Bruno testing a billing TC,
+I want the sheet to remind me it needs the concessionaire's authorization and to record its polarity,
+So that the relatório says what was verified and does not pass for an accuracy test.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** v12's TC classes and parser are Story 22.9's and fix batch e22g's (`relatorio/accuracy-class.ts`). There is no polarity, no function field and no printed note.
+
+*(Definition of Ready, met 2026-11-08 by decision E; Base rev08 TC-02, TC-03, TP-03:)*
+- **Polarity.** A choice column on each ratio row, OK or Invertida, judged by a new grammar criterion "a choice that fails": Invertida is out, so the floor is Reprovado and a derived point follows.
+- **FUNÇÃO DO TC** is a select of medição, proteção, faturamento. Faturamento shows a screen-only notice (authored, from TC-02's "Aplica-se quando"). It never blocks.
+- **Classes.** The TC's EXATIDÃO adds 0,3S and 0,6S, judged as 0,3 and 0,6 at rated current (rev08 TC-03 `nota`). 5P20 and 10P20 are the options' printed names, and the parser keeps every notation of e22g. The class 3 stays.
+- **The printed note** "verificação de relação (não substitui ensaio de exatidão)" goes under the ratio test of a v13 TC and TP (decision E).
+- **The plate reading** names FUNÇÃO and the S classes. This is a prompt version bump, and the paid eval runs before the deploy.
+
+**Acceptance Criteria:**
+
+**Given** a v13 TC
+**When** a ratio row's polarity is set to Invertida
+**Then** the row is out, the floor is Reprovado, and the derived point names the polarity
+
+**Given** FUNÇÃO faturamento
+**When** the insulation test renders
+**Then** the notice shows, and the test can still be filled
+
+**Given** EXATIDÃO 0,3S and a ratio error of 0,25 %
+**When** it evaluates
+**Then** it is within, and ACEITÁVEL prints "± 0,3 %"
+
+**Given** a v13 TC sheet
+**When** it prints
+**Then** the note prints under the ratio test, and a v12 TC prints as before
+
+**Definition of Done, in addition:**
+- Grammar, class-parser and kernel tests.
+- Plate fixtures and the paid eval.
+- A Playwright spec through the DOCX.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
+
+### Story 23.19: HH fuse resistance on the seccionadora
+
+**Dev model:** opus · **Effort:** medium · a new v13 test on the seccionadora: the resistance of each fuse, judged by the deviation between phases (rev08 SC-04), applied only when TIPO DE SECCIONADORA has fuses (Story 23.9 over Story 23.7's field); reuses Story 23.15's "deviation between phases" criterion
+
+As Bruno at a load-break switch with fuses,
+I want to record each fuse's resistance,
+So that a damaged fuse shows before it fails in service.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):** the seccionadora has insulation and contact tests only.
+
+*(Definition of Ready, met 2026-11-08 by decision I, wave 1; Base rev08 SC-04:)*
+- **The test** is a measurement test: one row per fuse (phase), in the unit of the base row, judged by its deviation band.
+- **Applicability.** Its condition is SC-04's "Aplica-se quando", over TIPO DE SECCIONADORA, and it is Obrigatório when it applies.
+- **The criterion** is the one Story 23.15 adds. This batch owns both, and 23.15 lands first.
+- **Print.** A table after the contact test.
+
+**Acceptance Criteria:**
+
+**Given** a v13 seccionadora whose type has fuses
+**When** the fuses are typed with one far from the others
+**Then** that row fails by SC-04's band, and the floor is Reprovado
+
+**Given** a type without fuses
+**When** the sheet renders
+**Then** the test is NA with its reason, and absent from the DOCX
+
+**Definition of Done, in addition:**
+- Kernel tests.
+- A Playwright spec through the DOCX.
+- `docs/kbs/log.md`.
+
+### Story 23.20: Thermography on the eight types
+
+**Dev model:** opus · **Effort:** high · a new v13 test on each of the eight seeded types: ΔT between similar components and over ambient per point, judged by the base's TERMOGRAFIA_NETA_100_18 table (NETA MTS-2023 Table 100.18) into its classes; applied when the equipment is in load (Story 23.9 over a test value); thermal photos attach as display shots do
+
+As Bruno with a thermal camera on an energized cabine,
+I want each equipment's hot spots judged by the NETA classes,
+So that the relatório tells a possible deficiency from an urgent one.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- Only the Chave de transferência automática has a thermography test (`cta_termografia`, `seed/v5.ts:346`).
+- `SPEC.md` Non-goals list dedicated thermography sheets.
+
+*(Definition of Ready, met 2026-11-08 by decision I, wave 1; Base rev08 GE-01:)*
+- **The test** is a measurement test, the same on the eight types: rows per point (authored labels following GE-01's `pontos_medicao`), with columns ΔT between similar components and ΔT over ambient.
+  - Judged by the table's classes, mapped to within, restricted or out. The mapping and the per-class action text are listed in the PR for Bruno.
+  - The table's lowest class is approved with no observation, as GE-01 says (B-7 asks Bruno to confirm against NETA's "possível deficiência").
+- **Applicability.** A test value "Equipamento em carga" (SIM or NÃO): NÃO makes the test NA with its reason, through Story 23.9's grammar over a test value. The spec settles whether the grammar reads a test value or a nameplate field.
+- **Photos.** The thermal images attach to the test as display shots do and print under it (Story 16.3).
+- **Print.** A table per sheet after its last test.
+
+**Acceptance Criteria:**
+
+**Given** a v13 para-raio in load
+**When** a point with a ΔT in the table's serious class is typed
+**Then** it fails, the floor is Reprovado, and the derived point names the point
+
+**Given** a point in the table's lowest class
+**When** it evaluates
+**Then** it is within, with no restriction
+
+**Given** "Equipamento em carga" NÃO
+**When** the sheet renders
+**Then** the test is NA with its reason
+
+**Given** each of the eight types on v13
+**When** the palette adds it
+**Then** its sheet carries the test; and a v12 sheet carries none
+
+**Definition of Done, in addition:**
+- Seed tests on the eight types.
+- Kernel tests at each class bound.
+- A Playwright spec on two types through the DOCX with a thermal photo.
+- The touched durability specs on the matrix projects.
+- Every spec asserting the sub-block list read from the kernel (E14-A3).
+- The `SPEC.md` Non-goals line.
+- `docs/kbs/log.md`.
+
+### Story 23.21: A new type: Malha de aterramento
+
+**Dev model:** opus · **Effort:** high · a v13 library type `malha_aterramento` with its nameplate (design value, measurement method, soil condition), the grid resistance (rev08 AT-01: at most the design value, else the base's default) and the continuity and equipotentialization test (rev08 AT-02), photos and conclusion; added at a local, printed under "Outros equipamentos"; a new closed-enum type (contract 39)
+
+As Bruno measuring the substation's grounding,
+I want a sheet for the ground grid,
+So that its resistance and its continuity are in the relatório with a verdict.
+
+**Today (verified 2026-11-08 on main `fb09ee55`):**
+- `EQUIPMENT_BLOCK_TYPES` holds the eight types plus three library types (`schemas/block-config.ts:38`).
+- There is no grounding sheet, and `SPEC.md` Non-goals exclude one as a seeded type.
+
+*(Definition of Ready, met 2026-11-08 by decision I, wave 1; Base rev08 AT-01, AT-02 and the AT fields of Características:)*
+- **The type.** `malha_aterramento`, TAG prefix MA (authored).
+  - Nameplate: VALOR DE PROJETO (Ω), MÉTODO DE MEDIÇÃO and CONDIÇÃO DO SOLO, their options from the base.
+  - Checklist: none, unless Bruno sends one.
+  - CONCLUSÃO and photos.
+- **AT-01.** A measurement test judged at most the design value. With the design value empty, the base's default applies, its status as the row's. Nothing varies by concessionária: rev08 P08 closed that, and the concessionaire registry stays a non-goal.
+- **AT-02.** A measurement test of each bonding point against its maximum. The point rows follow AT-02's `pontos_medicao` as authored labels, and the technician can add a row.
+- **Where.** The type is added at a local, as the library types are, and printed under "Outros equipamentos" after the run's library types (`print/group-for-print.ts`). This is the coordinator's reading, Matheus's M-6.
+- **Contract 39**, for the appended type.
+
+**Acceptance Criteria:**
+
+**Given** a v13 relatório
+**When** the engineer adds "Malha de aterramento" at a local and types a resistance above its design value
+**Then** the sheet is Reprovado by floor, the parecer follows, and the DOCX prints the sheet under "Outros equipamentos"
+
+**Given** the design value left empty
+**When** the resistance evaluates
+**Then** the base's default applies, and the helper says so
+
+**Given** a v12 relatório
+**When** the palette opens
+**Then** the type is not offered
+
+**Definition of Done, in addition:**
+- Seed, composer and palette tests.
+- An api integration test of the new type through the sync route.
+- A Playwright spec from the palette to the DOCX.
+- The touched durability specs on the matrix projects.
+- Every spec asserting the type list read from the kernel (E14-A3).
+- The `SPEC.md` Non-goals line.
+- The `source-deltas.md` row.
+- `docs/kbs/log.md`.
 
 ## Backlog: deferred stories
 
