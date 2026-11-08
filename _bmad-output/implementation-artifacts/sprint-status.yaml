@@ -263,7 +263,7 @@ development_status:
 
   epic-23: backlog  # added 2026-11-08 (Bruno's test base rev08; Matheus's decisions A to N of docs/context/epic-23/decisoes-epic-23.md section 5): seed v13 for new relatorios only, older layouts byte-identical; waves 0 (23.1), 1 (e23a, e23b), 2 (e23v, e23h), 3 (e23t, e23e), 4 (e23x); contracts 34 to 39 reserved; starts after fix batch e23f merges; sprint-change-proposal-2026-11-08.md, epic-23-context.md
   epic-23-retrospective: optional
-  23-1-the-epic-23-sheet-frames-in-the-mocks: ready-for-dev  # added 2026-11-08; wave 0, coordinator with bmad-ux during e23f; Matheus approves the frames
+  23-1-the-epic-23-sheet-frames-in-the-mocks: review  # added 2026-11-08; wave 0, coordinator with bmad-ux during e23f; Matheus approves the frames; 2026-11-08 frames merged (docs/e23-frames), approval in the browser pending
   23-2-seed-v13-older-layouts-locked-insulation-by-neta-tables: ready-for-dev  # added 2026-11-08 (decision A); wave 1, e23a, first; contract 34; layout lock taken after e23f merges; TP-02 out until Bruno B-4
   23-3-the-manufacturers-value-on-each-test: backlog  # added 2026-11-08 (decision G, absorbs 14.13); wave 1, e23a, after 23.2; contract 34; DoR: 23.1 frames approved
   23-4-a-reading-above-the-instruments-limit-under-the-table-criteria: ready-for-dev  # added 2026-11-08 (decision F); wave 1, e23a, after 23.2; note placement is the coordinator's reading (B-9)
