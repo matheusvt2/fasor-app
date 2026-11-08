@@ -4,7 +4,7 @@ type: 'bugfix'
 created: '2026-11-08'
 status: 'in-progress'
 baseline_revision: 'fb09ee55'
-review_loop_iteration: 0
+review_loop_iteration: 1
 followup_review_recommended: false
 dev_model: opus
 dev_effort: high
@@ -13,7 +13,7 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/spec-e22g-wave-b-fixes.md'
 warnings: ['batched']
 batched_reason: 'Six small ledger rows Matheus approved on 2026-11-08 as one fix batch: three print defects in section 8 and the conclusion text, two test-hardening carry-overs and the R8LAY decision; one gate, one PR.'
-deferred: []
+deferred: ['stored confirmed texts keep the doubled period (decision, Matheus)', 'glued references the editor never writes (bullet lead-in, after a token, the removed word)', 'an NC observation with line breaks splits the section 9 conclusion paragraph (pre-existing)']
 ---
 
 # e23f: print defects, test hardening and the R8LAY run-end focus
@@ -100,5 +100,20 @@ schema change. Dev model opus, effort high; the orchestrator implements it itsel
   with `--repeat-each` on the durability projects.
 
 ## Spec Change Log
+
+- 2026-11-08, implementation: the composer red is not a timeout (no red under 10 busy loops, three runs) but one-shot DOM
+  reads after the announcer, which speaks when the commit resolves while the live query redraws on its own schedule; an
+  experiment delaying the live query 150 ms turned 3 of 17 red on the old file and 0 on the hardened one (three runs).
+  The measurement tests' run and the readings' run end through one `endRun` in `ensaios-section.tsx`.
+- 2026-11-08, review loop (Edge Case Hunter 1, 2, 3, 5, 6; Verification Gap 2, 3, 4, 5, 7, 8, 9): `focusRunEnd` never
+  reveals a primary inside a sticky bar (a fractional box edge on a tablet's pixel ratio no longer reads as off screen)
+  and calls `scrollIntoView?.`; `GLUED_BEFORE_REF` adds closing quotes, "%" and "°"; `withoutFinalPeriod` strips
+  trailing periods and spaces, then gives "etc" back its one period ("etc..." -> "etc."); `lineRuns` splits CRLF and
+  CR too; tests pin a pre-fix confirmed text staying confirmed and printing as stored, the cell's 9 pt on every line,
+  a manual point typed on several lines through the kernel, a whitespace-only observation, the fallback both ways;
+  the last one-shot composer read waits; 23f-E2E-001 is `@p0`. Known open, not patched: Edge Case Hunter 4 (the removed
+  word glued; ledger row), 7 (an NC observation with line breaks splits the section 9 conclusion paragraph,
+  pre-existing; noted in the PR), 8 (the conflict dialog shows the recomposed text; only texts stored before the fix);
+  a token glued to the word after it (ledger row).
 
 ## Auto Run Result

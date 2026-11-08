@@ -3180,12 +3180,17 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
 ## Deferred from: Epic 23 fix batch e23f (2026-11-08)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23f-fixes.md` (decision 3)
-  summary: A conclusion text confirmed before e23f keeps "<observation>. (item N, NC)" in print: section 9 prints the stored text the engineer confirmed, and the fix moved only the composition (the basis hashes the NC rows, not the text, so the stored text stays confirmed). Bruno's relatório of the 2026-11-07 production check prints it until its engineer edits the text. Whether a confirmed text equal to the old composition should be recomposed on print is a product decision; e23f did not take it (it would rewrite confirmed texts).
+  summary: A conclusion text confirmed before e23f keeps "<observation>. (item N, NC)" in print: section 9 prints the stored text the engineer confirmed, and the fix moved only the composition (the basis hashes the NC rows, not the text, so the stored text stays confirmed). Bruno's relatório of the 2026-11-07 production check prints it until its engineer edits the text. Whether a confirmed text equal to the old composition should be recomposed on print is a product decision; e23f did not take it (it would rewrite confirmed texts). Related (e23f review, Edge Case Hunter 8): a conflict between two such confirmed texts shows the recomposed text in the dialog (`merge/conflicts.ts`), while the stored one prints.
   evidence: `packages/domain/src/relatorio/conclusion.ts` `printedConclusionText`, `conclusionTextState`.
   class: decision
-  state: open (owner: Matheus)
+  state: ~~open (owner: Matheus)~~ closed (2026-11-08, Matheus: kept as stored): a confirmed text is the technician's and does not change by itself; reopening the conclusion offers the regenerated text, as with any outdated conclusion. No code change.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23f-fixes.md` (decision 4, seen while fixing (c))
   summary: Two glued photo references e23f left as they are, both only reachable when the text is typed or pasted without the editor's spacing (F-09 spaces every chip it inserts): the bullet's lead-in path appends the label with no space after a lead-in word glued to the token ("ver[[foto]]" prints "verImagem 1", `resolveBulletPhotoTokens` `leadsIn`), and a word glued after a token prints "Imagem 1texto" in the bullet and the cell; a removed photo's word glues the same way ("Porta.imagem removida"). Low; owner: the next batch touching `print/section-8.ts`.
   evidence: `packages/domain/src/print/section-8.ts` `resolveBulletPhotoTokens`, `resolvePhotoTokens`; `e23f-print-fixes.test.ts` pins today's output of the removed word.
   class: defect
   state: open (owner: the next batch touching `print/section-8.ts`)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23f-fixes.md` (review loop, Edge Case Hunter 7; pre-existing)
+  summary: An NC row's observation typed with line breaks reaches the conclusion's NC clause with them, and section 9 prints the conclusion text line by line (`cellParagraphs` splits each `\n` into a paragraph), so the sentence breaks in the middle. Pre-existing (the clause always took the observation as typed); outside e23f's three deltas. Fix candidate: the clause joins the observation's lines with "; ".
+  evidence: `packages/domain/src/relatorio/conclusion.ts` `ncClauseText`; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`.
+  class: defect
+  state: open (owner: the next batch touching `relatorio/conclusion.ts`)
