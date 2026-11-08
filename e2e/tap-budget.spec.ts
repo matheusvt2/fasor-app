@@ -114,9 +114,20 @@ async function readings(page: Page, c: TapCounter): Promise<void> {
 
 /** The suggested conclusion pair confirmed with one tap. */
 async function confirmPair(page: Page, c: TapCounter): Promise<void> {
-  await c.tap('Confirmar the suggestion', page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' }), () =>
-    expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
-  );
+  const confirm = page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' });
+  // e23f (R8LAY, Matheus 2026-11-08): the readings run now ends on the primary without scrolling
+  // the page, so the suggestion can sit half under the Sticky action bar (J3 at 768 px: the
+  // button 865-913 px, the bar from 892 px). The person scrolls it into view before tapping, as
+  // anyone would; a scroll is not a tap and the budget counts taps. Without it Playwright pressed
+  // the button's centre 1 px above the bar, and the stepper's current mark (+1 px when Conclusão
+  // became current on that focus) moved the bar under the release, so the click was lost.
+  await confirm.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await c.tap('Confirmar the suggestion', confirm, async () => {
+    // The radios draw the effective pair, the floor included, so they read checked before any
+    // write; the suggestion row leaving says the pair was stored (e23f).
+    await expect(page.getByRole('group', { name: 'Sugestão' })).toHaveCount(0, { timeout: EFFECT_MS });
+    await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS });
+  });
 }
 
 async function conclude(page: Page, c: TapCounter, nextBlockId: string): Promise<void> {

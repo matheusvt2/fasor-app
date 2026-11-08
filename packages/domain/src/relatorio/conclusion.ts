@@ -345,6 +345,22 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
 // authored: the recommendation that follows a restricted or failed result.
 const RECOMMENDATION = 'Recomenda-se a correção dos pontos indicados antes da próxima manutenção.';
 
+/**
+ * e23f (the production check of 2026-11-07): an NC observation as the clause before "(item N,
+ * NC)" reads it, without its final period(s), so "acúmulo de poeira." never prints "poeira. (item
+ * 9, NC)". "etc." keeps its period (section 8's `SENTENCE_END` rule); "!" and "?" stay.
+ */
+function withoutFinalPeriod(observation: string): string {
+  const stripped = observation.replace(/[\s.]+$/, '');
+  return /\betc$/i.test(stripped) ? `${stripped}.` : stripped;
+}
+
+/** What an NC row says before "(item N, NC)": its observation without the final period, else (or when that leaves nothing) its label. */
+function ncClauseText(item: { label: string; observation: string | null }): string {
+  const said = item.observation === null ? '' : withoutFinalPeriod(item.observation);
+  return said === '' ? item.label.toLocaleLowerCase('pt-BR') : said;
+}
+
 const TEST_WORDS: Readonly<Record<TestKey, { phrase: string; symbol: string }>> = {
   isolacao: { phrase: 'resistência de isolação mínima de', symbol: 'R_iso' },
   resistencia_contato: { phrase: 'resistência de contato máxima de', symbol: 'R_cont' },
@@ -455,7 +471,9 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const conformes = anyConforme(block, definition);
   const checked = ncs.length > 0 || conformes;
   const checklist =
-    ncs.length === 0 ? 'todos os itens verificados conformes' : listPtBr(ncs.map((item) => `${item.observation ?? item.label.toLocaleLowerCase('pt-BR')} (item ${item.n}, NC)`));
+    ncs.length === 0
+      ? 'todos os itens verificados conformes'
+      : listPtBr(ncs.map((item) => `${ncClauseText(item)} (item ${item.n}, NC)`));
 
   // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
   const { result, restriction } = effectiveConclusionPair(block, definition);

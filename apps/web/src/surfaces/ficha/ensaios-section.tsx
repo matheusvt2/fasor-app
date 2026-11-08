@@ -37,6 +37,7 @@ import { WholeWords } from '../../components/whole-words.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
+import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
@@ -132,15 +133,18 @@ export function EnsaiosSection({
     if (scroller !== null && scroller !== undefined) scroller.scrollLeft = scroller.scrollWidth;
   };
 
+  /** e23f (R8LAY, Matheus 2026-11-08): both runs end on the primary through here, without scrolling the page (`focusRunEnd`). */
+  const endRun = (): boolean => {
+    const primary = document.getElementById(primaryId);
+    if (primary === null) return false;
+    focusRunEnd(primary);
+    return true;
+  };
+
   const onRun = (from: CellAddress, direction: RunDirection): boolean => {
     const target = runTarget(evaluations, from, direction);
     if (target === null) return false;
-    let moved: boolean;
-    if (target === 'end') {
-      const primary = document.getElementById(primaryId);
-      moved = primary !== null;
-      primary?.focus();
-    } else moved = focusCell(target);
+    const moved = target === 'end' ? endRun() : focusCell(target);
     if (moved && direction === 'next') revealRatioEnd(from);
     return moved;
   };
@@ -149,10 +153,7 @@ export function EnsaiosSection({
   const onMeasurementRun = (from: MeasurementAddress, direction: RunDirection): boolean => {
     const target = measurementRunTarget(measurements, from, direction);
     if (target === null) return false;
-    if (target !== 'end') return focusCell(target);
-    const primary = document.getElementById(primaryId);
-    primary?.focus();
-    return primary !== null;
+    return target === 'end' ? endRun() : focusCell(target);
   };
 
   // DB-2: the kernel says which unit taps only put a cell into editing (a concluded sheet's measured cells).

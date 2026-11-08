@@ -65,6 +65,24 @@ export function firstFocusable(root: HTMLElement): HTMLElement | null {
 /** The Sticky action bar's primary button of the sheet (`ficha-surface.tsx`), where an Enter run ends. */
 export const SHEET_PRIMARY_ID = 'ficha-primary';
 
+/**
+ * e23f (R8LAY, Matheus 2026-11-08): where an Enter run ends, on the Sticky action bar's primary.
+ * The focus arrives with `preventScroll`, so the page stays where the run left it: the bar is
+ * sticky on the sheet (`ficha.css`), the primary on screen, and the browser's own reveal of a
+ * focused sticky element scrolled the page by the bar's distance to its static place (399 px at
+ * 1280 in R8LAY-E2E-001). Where the primary is not inside the viewport (the bar is static below
+ * 480 px of height), it is brought into view, so the focus is never off screen.
+ */
+export function focusRunEnd(primary: HTMLElement): void {
+  primary.focus({ preventScroll: true });
+  // Never on a sticky bar: its reveal is the jump this avoids (and a fractional box edge on a
+  // tablet's pixel ratio must not read as off screen).
+  const bar = primary.closest<HTMLElement>('.sticky-action-bar');
+  if (bar !== null && getComputedStyle(bar).position === 'sticky') return;
+  const box = primary.getBoundingClientRect();
+  if (box.top < 0 || box.bottom > window.innerHeight) primary.scrollIntoView?.({ block: 'nearest' });
+}
+
 /** True while `focusNextMissingField` hands the focus on (read by the sheet's step tracking). */
 let enterRunMoving = false;
 
@@ -102,7 +120,8 @@ export function focusNextMissingField(from: HTMLElement, primaryId: string = SHE
   if (target === null) return false;
   enterRunMoving = true;
   try {
-    target.focus();
+    if (next === undefined) focusRunEnd(target);
+    else target.focus();
   } finally {
     enterRunMoving = false;
   }

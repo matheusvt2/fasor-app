@@ -1,7 +1,7 @@
-import { cellAddressesOf, getDefinition, newPointRow, SEED_VERSION, type OpDraft, type PointRow } from '@app/domain';
+import { cellAddressesOf, getDefinition, newPointRow, photoToken, SEED_VERSION, type OpDraft, type PointRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { extractStructure, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -225,4 +225,106 @@ test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entr
   await expect(resolved.locator('[data-flag]')).toHaveText('Origem resolvida', { timeout: 30_000 });
   // The manual point is no longer a possible duplicate: its NC entry is gone.
   await expect(manual.locator('[data-flag]')).toHaveCount(0);
+});
+
+/** A "Geral" photo row written on the office device (no bytes: the DOCX prints its placeholder and it keeps its number). */
+function geralPhotoDraft(scope: Scope): { draft: OpDraft; id: string } {
+  const id = newId();
+  const value = {
+    id,
+    company_id: account.companyId,
+    relatorio_id: scope.relatorioId,
+    kind: 'photo',
+    sha256: 'e'.repeat(64),
+    mime: 'image/jpeg',
+    size: 1000,
+    uploaded_at: null,
+    variants: null,
+    removed_at: null,
+    captured_at: '2026-11-07T12:00:00.000Z',
+    tz_offset: -180,
+    coords: null,
+    local_seq: 1,
+    block_id: null,
+    item_key: null,
+    caption: null,
+    reading_kind: null,
+    reading_target: null,
+    reading_status: 'none',
+    people_in_photo: false,
+  };
+  return { draft: officeDraft(account, scope, `file/${id}`, value, 'create'), id };
+}
+
+test('@p0 23f-E2E-001 the production check of 2026-11-07: a Reprovado sheet\'s observation lines print as line breaks in section 8, an NC observation ending in a period is not doubled in the conclusion, and the action plan spaces "Imagem N" after a period', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const OBSERVATION = ['Item 1: acúmulo de poeira.', 'Item 3: isolador trincado', 'Equipamento sem condições de operação'];
+  let photoId = '';
+  const { relatorioId, sheets } = await setUp(page, (scope, all) => {
+    const chave = enelChaves(all)[0]!;
+    const photo = geralPhotoDraft(scope);
+    photoId = photo.id;
+    return [
+      photo.draft,
+      ...pointDrafts(scope, [{ text: `Porta danificada.${photoToken(photo.id)}`, action: 'Trocar a porta' }]).drafts,
+      officeDraft(account, scope, `sheet/${chave.blockId}/checklist/${FIRST_ITEM.key}/result`, 'NC'),
+      officeDraft(account, scope, `sheet/${chave.blockId}/checklist/${FIRST_ITEM.key}/observation`, 'acúmulo de poeira.'),
+      officeDraft(account, scope, `sheet/${chave.blockId}/observations`, OBSERVATION.join('\n')),
+      officeDraft(account, scope, `sheet/${chave.blockId}/conclusion/result`, 'reprovado'),
+      officeDraft(account, scope, `sheet/${chave.blockId}/conclusion/restriction`, 'com_restricoes'),
+    ];
+  });
+  expect(photoId).not.toBe('');
+  const chave = enelChaves(sheets)[0]!;
+  const lastValue = async (path: string) =>
+    (await readStore<{ path: string; value: unknown; client_ts: string }>(page, database, 'outbox')).filter((row) => row.path === path).sort((a, b) => (a.client_ts < b.client_ts ? -1 : 1)).at(-1)?.value;
+
+  // (b) The sheet's composed conclusion reads the NC observation without its period, and the engineer confirms it.
+  await page.goto(`/relatorio/${relatorioId}/ficha/${chave.blockId}`);
+  const generated = page.locator('.ficha-conc-text .suggestion-field.is-generated');
+  await expect(generated.locator('.generated-text')).toContainText('acúmulo de poeira (item 1, NC)', { timeout: 30_000 });
+  await expect(generated.locator('.generated-text')).not.toContainText('poeira. (item');
+  await generated.getByRole('button', { name: 'Confirmar' }).click();
+  await expect.poll(() => lastValue(`sheet/${chave.blockId}/conclusion/text_status`)).toBe('confirmed');
+  expect(String(await lastValue(`sheet/${chave.blockId}/conclusion/text`))).toContain('acúmulo de poeira (item 1, NC)');
+
+  // The revision, through the api's queue and LibreOffice.
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  await dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' }).click();
+  await confirmIssue(dialog);
+  await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: 150_000 });
+  await escapeDialog(page, dialog);
+  const revision = (await readStore<{ entity: string; row: { id: string; number: number } }>(page, database, 'entities')).find((record) => record.entity === 'revision' && record.row.number === 1)!;
+  const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
+  expect(response.status()).toBe(200);
+  const docx = Buffer.from(await response.body());
+  const xml = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
+  const { paragraphs, tables } = extractStructure(docx);
+
+  // (a) No text run holds a line feed; the Reprovado bullet and its action-plan cell carry the lines as breaks.
+  expect([...xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].filter((m) => m[1]!.includes('\n')).map((m) => m[1])).toEqual([]);
+  const withReprovado = [...xml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((m) => m[0]).filter((p) => p.includes('Equipamento reprovado: '));
+  // The bullet (numbered) and the cell.
+  expect(withReprovado).toHaveLength(2);
+  expect(withReprovado.filter((p) => p.includes('<w:numPr>'))).toHaveLength(1);
+  for (const paragraph of withReprovado) {
+    expect(paragraph.match(/<w:br\/>/g)).toHaveLength(2);
+    for (const line of OBSERVATION) expect(paragraph).toContain(line);
+  }
+  expect(paragraphs.filter((p) => p.startsWith('Equipamento reprovado: ') && p.endsWith(`.\n${OBSERVATION[1]}\n${OBSERVATION[2]}.`))).toHaveLength(2);
+
+  // (c) The bullet's clause, and the action plan's cell spaced after the period.
+  expect(paragraphs).toContain('Porta danificada, conforme Imagem 1. Trocar a porta');
+  const cells = tables.flat(2);
+  expect(cells).toContain('Porta danificada. Imagem 1');
+  expect(cells.some((text) => text.includes('danificada.Imagem'))).toBe(false);
+
+  // (b) In print: the sheet's confirmed conclusion, one period.
+  expect(paragraphs.some((p) => p.includes('acúmulo de poeira (item 1, NC)'))).toBe(true);
+  expect(paragraphs.some((p) => p.includes('poeira. (item'))).toBe(false);
 });
