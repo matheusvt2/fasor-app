@@ -351,9 +351,8 @@ const RECOMMENDATION = 'Recomenda-se a correção dos pontos indicados antes da 
  * 9, NC)". "etc." keeps its period (section 8's `SENTENCE_END` rule); "!" and "?" stay.
  */
 function withoutFinalPeriod(observation: string): string {
-  const trimmed = observation.trim();
-  if (/\betc\.$/i.test(trimmed)) return trimmed;
-  return trimmed.replace(/\.+$/, '').trimEnd();
+  const stripped = observation.replace(/[\s.]+$/, '');
+  return /\betc$/i.test(stripped) ? `${stripped}.` : stripped;
 }
 
 /** What an NC row says before "(item N, NC)": its observation without the final period, else (or when that leaves nothing) its label. */

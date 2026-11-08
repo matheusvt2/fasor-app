@@ -75,8 +75,12 @@ export const SHEET_PRIMARY_ID = 'ficha-primary';
  */
 export function focusRunEnd(primary: HTMLElement): void {
   primary.focus({ preventScroll: true });
+  // Never on a sticky bar: its reveal is the jump this avoids (and a fractional box edge on a
+  // tablet's pixel ratio must not read as off screen).
+  const bar = primary.closest<HTMLElement>('.sticky-action-bar');
+  if (bar !== null && getComputedStyle(bar).position === 'sticky') return;
   const box = primary.getBoundingClientRect();
-  if (box.top < 0 || box.bottom > window.innerHeight) primary.scrollIntoView({ block: 'nearest' });
+  if (box.top < 0 || box.bottom > window.innerHeight) primary.scrollIntoView?.({ block: 'nearest' });
 }
 
 /** True while `focusNextMissingField` hands the focus on (read by the sheet's step tracking). */

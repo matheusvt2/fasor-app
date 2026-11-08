@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
-import { focusNextMissingField, ReadOnlyField, SheetField } from './ficha-fields.tsx';
+import { focusNextMissingField, focusRunEnd, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 
 /*
  * Review fixes 2026-09-30 on the sheet's typed fields:
@@ -693,5 +693,45 @@ describe('Story 18.4: a refused number or date is an input_refused with its name
       ['ficha.date', 'not_a_date'],
       ['ficha.date', 'out_of_range'],
     ]);
+  });
+});
+
+describe('e23f focusRunEnd (R8LAY, Matheus 2026-11-08)', () => {
+  /** The Sticky action bar with its primary, the bar `position` given, the primary's box at `top`..`bottom`. */
+  function barWith(position: string, top: number, bottom: number): { primary: HTMLButtonElement; scroll: ReturnType<typeof vi.fn> } {
+    const bar = document.createElement('div');
+    bar.className = 'sticky-action-bar';
+    bar.style.position = position;
+    const primary = document.createElement('button');
+    primary.type = 'button';
+    primary.id = 'ficha-primary';
+    bar.append(primary);
+    document.body.append(bar);
+    primary.getBoundingClientRect = () => ({ top, bottom, left: 0, right: 200, width: 200, height: bottom - top, x: 0, y: top, toJSON: () => ({}) });
+    const scroll = vi.fn();
+    primary.scrollIntoView = scroll;
+    return { primary, scroll };
+  }
+  afterEach(() => document.querySelectorAll('.sticky-action-bar').forEach((bar) => bar.remove()));
+
+  it('focuses the primary with preventScroll and never reveals a sticky bar, even a fraction past the viewport', () => {
+    const { primary, scroll } = barWith('sticky', window.innerHeight - 56, window.innerHeight + 0.4);
+    const focus = vi.spyOn(primary, 'focus');
+    focusRunEnd(primary);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(primary).toHaveFocus();
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('brings a static bar\'s primary into view only when it is outside the viewport', () => {
+    const below = barWith('static', window.innerHeight + 300, window.innerHeight + 356);
+    focusRunEnd(below.primary);
+    expect(below.primary).toHaveFocus();
+    expect(below.scroll).toHaveBeenCalledWith({ block: 'nearest' });
+    document.querySelectorAll('.sticky-action-bar').forEach((bar) => bar.remove());
+    const inView = barWith('static', 100, 156);
+    focusRunEnd(inView.primary);
+    expect(inView.primary).toHaveFocus();
+    expect(inView.scroll).not.toHaveBeenCalled();
   });
 });

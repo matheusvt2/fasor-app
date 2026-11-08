@@ -256,7 +256,7 @@ function geralPhotoDraft(scope: Scope): { draft: OpDraft; id: string } {
   return { draft: officeDraft(account, scope, `file/${id}`, value, 'create'), id };
 }
 
-test('@p1 23f-E2E-001 the production check of 2026-11-07: a Reprovado sheet\'s observation lines print as line breaks in section 8, an NC observation ending in a period is not doubled in the conclusion, and the action plan spaces "Imagem N" after a period', async ({
+test('@p0 23f-E2E-001 the production check of 2026-11-07: a Reprovado sheet\'s observation lines print as line breaks in section 8, an NC observation ending in a period is not doubled in the conclusion, and the action plan spaces "Imagem N" after a period', async ({
   page,
 }) => {
   test.setTimeout(300_000);

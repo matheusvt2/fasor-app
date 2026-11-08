@@ -65,7 +65,7 @@ function row(cells: readonly string[], widths: readonly number[], header: boolea
  * run (which LibreOffice prints as a space). A text with no line break is the one run it was.
  */
 export function lineRuns(value: string, first: (line: string) => TextRun, next: (line: string) => TextRun): TextRun[] {
-  return value.split('\n').map((line, i) => (i === 0 ? first(line) : next(line)));
+  return value.split(/\r\n?|\n/).map((line, i) => (i === 0 ? first(line) : next(line)));
 }
 
 const cellsOf = (plan: ActionPlanRow): string[] => [plan.number, plan.point, plan.local, plan.priority, plan.deadline, plan.action, plan.owner, plan.images];

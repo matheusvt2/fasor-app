@@ -133,16 +133,18 @@ export function EnsaiosSection({
     if (scroller !== null && scroller !== undefined) scroller.scrollLeft = scroller.scrollWidth;
   };
 
+  /** e23f (R8LAY, Matheus 2026-11-08): both runs end on the primary through here, without scrolling the page (`focusRunEnd`). */
+  const endRun = (): boolean => {
+    const primary = document.getElementById(primaryId);
+    if (primary === null) return false;
+    focusRunEnd(primary);
+    return true;
+  };
+
   const onRun = (from: CellAddress, direction: RunDirection): boolean => {
     const target = runTarget(evaluations, from, direction);
     if (target === null) return false;
-    let moved: boolean;
-    if (target === 'end') {
-      const primary = document.getElementById(primaryId);
-      moved = primary !== null;
-      // e23f (R8LAY, Matheus 2026-11-08): the run ends on the primary without scrolling the page.
-      if (primary !== null) focusRunEnd(primary);
-    } else moved = focusCell(target);
+    const moved = target === 'end' ? endRun() : focusCell(target);
     if (moved && direction === 'next') revealRatioEnd(from);
     return moved;
   };
@@ -151,10 +153,7 @@ export function EnsaiosSection({
   const onMeasurementRun = (from: MeasurementAddress, direction: RunDirection): boolean => {
     const target = measurementRunTarget(measurements, from, direction);
     if (target === null) return false;
-    if (target !== 'end') return focusCell(target);
-    const primary = document.getElementById(primaryId);
-    if (primary !== null) focusRunEnd(primary);
-    return primary !== null;
+    return target === 'end' ? endRun() : focusCell(target);
   };
 
   // DB-2: the kernel says which unit taps only put a cell into editing (a concluded sheet's measured cells).

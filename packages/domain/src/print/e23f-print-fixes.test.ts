@@ -3,7 +3,7 @@ import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import { newPointRow } from '../points/checks.ts';
 import { photoToken } from '../points/refs.ts';
-import { composeConclusion } from '../relatorio/conclusion.ts';
+import { composeConclusion, conclusionTextState, printedConclusionText } from '../relatorio/conclusion.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
@@ -93,11 +93,30 @@ describe('e23f (b) the conclusion\'s NC clause and a final period', () => {
   it('keeps an observation with no final period, "etc." and the label of an item with no observation as they were', () => {
     expect(textOf('acúmulo de poeira')).toBe(`A seccionadora SEC-C05 apresentou acúmulo de poeira (item ${contatos}, NC), sem valores medidos registrados. ${RECOMMENDATION}`);
     expect(textOf('poeira, sujeira etc.')).toContain(`poeira, sujeira etc. (item ${contatos}, NC)`);
+    // Review loop (Edge Case Hunter 5): "etc." followed by more periods keeps exactly its own.
+    expect(textOf('poeira, sujeira etc...')).toContain(`poeira, sujeira etc. (item ${contatos}, NC)`);
+    expect(textOf('poeira. .')).toContain(`apresentou poeira (item ${contatos}, NC)`);
     expect(textOf('Verificar contatos?')).toContain(`Verificar contatos? (item ${contatos}, NC)`);
     const label = SEC.checklist!.find((item) => item.key === 'contatos')!.label.toLocaleLowerCase('pt-BR');
     expect(textOf(null)).toContain(`apresentou ${label} (item ${contatos}, NC)`);
     // An observation that is only a period says the label.
     expect(textOf('.')).toContain(`apresentou ${label} (item ${contatos}, NC)`);
+    expect(textOf('   ')).toContain(`apresentou ${label} (item ${contatos}, NC)`);
+  });
+
+  it('a text confirmed before the fix ("poeira. (item N, NC)") stays confirmed and prints as stored', () => {
+    const base = block('acúmulo de poeira.');
+    const paired: BlockRow = { ...base, sheet: { ...base.sheet, conclusion: { ...base.sheet.conclusion, result: cell('aprovado'), restriction: cell('com_restricoes') } } };
+    const now = composeConclusion(paired, SEC, 'SEC-C05');
+    // The text as composed before e23f, confirmed under the basis that is still the current one.
+    const old = now.text.replace('acúmulo de poeira (item', 'acúmulo de poeira. (item');
+    expect(old).not.toBe(now.text);
+    const stored: BlockRow = {
+      ...paired,
+      sheet: { ...paired.sheet, conclusion: { ...paired.sheet.conclusion, text: cell(old), text_status: cell('confirmed'), text_basis: cell(now.basis) } },
+    };
+    expect(conclusionTextState(stored, composeConclusion(stored, SEC, 'SEC-C05'))).toBe('confirmed');
+    expect(printedConclusionText(stored, SEC, 'SEC-C05')).toBe(old);
   });
 
   it('leaves the basis as it was, so a stored confirmed text stays confirmed', () => {
@@ -119,6 +138,11 @@ describe('e23f (c) the action-plan cell spaces a photo reference as the bullet d
     expect(resolvePhotoTokens(`Fase 3${ref}`, numbering)).toBe('Fase 3 Imagem 1');
     expect(resolvePhotoTokens(`Ver detalhe:${ref}`, numbering)).toBe('Ver detalhe: Imagem 1');
     expect(resolvePhotoTokens(`(detalhe)${ref}`, numbering)).toBe('(detalhe) Imagem 1');
+    // Review loop (Edge Case Hunter 3): a closing quote, "%" and "°".
+    expect(resolvePhotoTokens(`"Porta"${ref}`, numbering)).toBe('"Porta" Imagem 1');
+    expect(resolvePhotoTokens(`\u201cPorta\u201d${ref}`, numbering)).toBe('\u201cPorta\u201d Imagem 1');
+    expect(resolvePhotoTokens(`Carga de 80%${ref}`, numbering)).toBe('Carga de 80% Imagem 1');
+    expect(resolvePhotoTokens(`Fase a 90°${ref}`, numbering)).toBe('Fase a 90° Imagem 1');
   });
 
   it('leaves a spaced token, a token after an opening bracket and a token at the start as they were', () => {
@@ -137,5 +161,15 @@ describe('e23f (c) the action-plan cell spaces a photo reference as the bullet d
     const snapshot = { relatorio: { id: OP }, locations: [], blocks: [], equipment: [], points: [point], files: [] } as unknown as RelatorioSnapshot;
     expect(resolveActionPlan(snapshot, numbering)[0]).toMatchObject({ point: 'Porta danificada. Imagem 1', images: '1' });
     expect(resolveSection8(snapshot, numbering)[0]!.text).toBe('Porta danificada, conforme Imagem 1.');
+  });
+
+  it('a manual point typed on several lines keeps its lines in the bullet and the cells (the renderer prints them, defect (a))', () => {
+    const point = newPointRow(
+      { id: '019966b0-0e23-7000-8000-000000000021', relatorioId: OP, text: `Linha 1\nLinha 2.${ref}`, equipmentId: null, origin: 'manual', action: 'Ação A\nAção B' },
+      [],
+    );
+    const snapshot = { relatorio: { id: OP }, locations: [], blocks: [], equipment: [], points: [point], files: [] } as unknown as RelatorioSnapshot;
+    expect(resolveActionPlan(snapshot, numbering)[0]).toMatchObject({ point: 'Linha 1\nLinha 2. Imagem 1', action: 'Ação A\nAção B' });
+    expect(resolveSection8(snapshot, numbering)[0]!.text).toBe('Linha 1\nLinha 2, conforme Imagem 1. Ação A\nAção B');
   });
 });

@@ -76,10 +76,10 @@ function cell(value: string | null | undefined): string {
 /**
  * e23f (the production check of 2026-11-07): what a reference glued to the text before it takes
  * first, so the action-plan cell reads "Porta danificada. Imagem 13", never "danificada.Imagem 13":
- * a letter, a digit, a closing bracket or a sentence mark before the token, as the point editor
+ * a letter, a digit, a closing bracket or quote, "%", "°" or a sentence mark before the token, as the point editor
  * spaces a chip it inserts (F-09, `spacingAt`).
  */
-const GLUED_BEFORE_REF = /[\p{L}\p{N}.,;:!?)\]]$/u;
+const GLUED_BEFORE_REF = /[\p{L}\p{N}.,;:!?)\]%°"\u201d\u2019\u00bb]$/u;
 
 /** A text with each photo token replaced by "Imagem N" (spaced from a word or mark glued before it), or `REMOVED_PHOTO_REF_TEXT` for a photo the numbering lacks. */
 export function resolvePhotoTokens(text: string, numbering: ReadonlyMap<string, number>): string {

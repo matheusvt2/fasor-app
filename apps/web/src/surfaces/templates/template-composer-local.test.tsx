@@ -392,9 +392,11 @@ describe('14.2 composer: the three levels', () => {
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 18 adicionada'));
     expect((await skeletonOf()).find((n) => n.name === 'Coluna 18')).toMatchObject({ kind: 'coluna', parent_ref: 'subsolo-1' });
     const enel = await card(/^Local Cubículo Enel/);
-    expect(enel.querySelector(':scope > .block-body .loc-flag')).toHaveTextContent('sem painéis · 9 blocos');
-    expect(within(enel).queryByRole('button', { name: 'Adicionar coluna' })).toBeNull();
-    expect(within(enel).getByRole('button', { name: 'Adicionar painel' })).toBeVisible();
+    await waitFor(() => {
+      expect(enel.querySelector(':scope > .block-body .loc-flag')).toHaveTextContent('sem painéis · 9 blocos');
+      expect(within(enel).queryByRole('button', { name: 'Adicionar coluna' })).toBeNull();
+      expect(within(enel).getByRole('button', { name: 'Adicionar painel' })).toBeVisible();
+    });
   });
 });
 

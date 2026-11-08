@@ -35,11 +35,12 @@ describe('e23f (a) section 8 line breaks in the DOCX', () => {
     const points = pointsOf(broken);
     expect(points.bullets.length).toBeGreaterThan(0);
     points.bullets.push(LINES.join('\n'));
-    points.table.push({ ...points.table[0]!, number: String(points.table.length + 1), point: LINES.join('\n') });
+    // The cell's text as an imported text might carry it (Edge Case Hunter 6): CRLF breaks too.
+    points.table.push({ ...points.table[0]!, number: String(points.table.length + 1), point: LINES.join('\r\n') });
     const xml = await documentXml(broken);
 
     // No line feed inside any text run of the document.
-    expect([...xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].filter((m) => m[1]!.includes('\n'))).toEqual([]);
+    expect([...xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].filter((m) => /[\r\n]/.test(m[1]!))).toEqual([]);
     const bullet = paragraphWith(xml, 'TR-E23F');
     expect(bullet).toContain('<w:numPr>');
     expect(bullet.match(/<w:br\/>/g)).toHaveLength(2);
@@ -50,6 +51,8 @@ describe('e23f (a) section 8 line breaks in the DOCX', () => {
     expect(cell).not.toContain('<w:numPr>');
     expect(cell.match(/<w:br\/>/g)).toHaveLength(2);
     for (const line of LINES) expect(cell).toContain(line);
+    // Every line of the cell keeps the table's 9 pt (Verification Gap 4).
+    expect(cell.match(/<w:sz w:val="18"\/>/g)).toHaveLength(3);
   });
 
   it('keeps each bullet of a section 8 with no line break one run with no break, as before', async () => {
