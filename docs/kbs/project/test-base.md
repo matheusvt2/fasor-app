@@ -3,8 +3,8 @@ type: Source Map
 title: Bruno's test base (Base de Ensaios MT, rev03)
 description: Map of Bruno's spreadsheet of tests, field characteristics and acceptance criteria per medium-voltage equipment type, and how each part relates to the product. Open before planning tests, criteria, equipment types or field help.
 tags: [domain, seed, criteria, equipment-types, source]
-timestamp: 2026-11-07T00:00:00Z
-sources: [docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx]
+timestamp: 2026-11-08T00:00:00Z
+sources: [docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx, docs/context/Fasor_Base_Ensaios_MT_rev08.xlsx, docs/context/Fasor_Base_Ensaios_MT_rev08.json]
 ---
 # Bruno's test base (rev03)
 
@@ -19,7 +19,17 @@ sources: [docs/context/Fasor_Base_Ensaios_MT_rev03.xlsx]
 - the standard behind each criterion;
 - the default recommendation when a test fails.
 
-Bruno meant it as the source the app reads. The technician fills in the equipment's characteristics, and the app picks the tests and judges them. Its LEIA-ME says a JSON with the same content goes with it. That JSON has not been received yet (2026-11-07).
+Bruno meant it as the source the app reads. The technician fills in the equipment's characteristics, and the app picks the tests and judges them. Its LEIA-ME says a JSON with the same content goes with it. ~~That JSON has not been received yet (2026-11-07).~~
+
+*(2026-11-08: Bruno sent revision rev08, dated 2026-11-07 inside the file, as `docs/context/Fasor_Base_Ensaios_MT_rev08.xlsx` plus the promised `docs/context/Fasor_Base_Ensaios_MT_rev08.json`, also gitignored. The JSON carries the same 44 tests as the workbook: same IDs, with the per-row `regra` objects and the reference tables in machine-readable form. rev08 is now the current base; rev03 is kept beside it for comparison. In short, rev08:*
+- *closes every pending point: the Pendências sheet is empty and each decision is folded into its test row;*
+- *adds two tests (TR-SE-07, PR-04) and two reference tables (`FP_OLEO_NETA_100_3`, `INSTRUMENTOS_FASOR`, the reading limit of Fasor's insulation tester);*
+- *gives every insulation rule a `limite_instrumento` object with a standard observation;*
+- *makes a new arrester field a prerequisite of PR-02;*
+- *adds capacitor tolerance fields and more TC accuracy classes;*
+- *cites ANSI/NETA MTS-2023 throughout.*
+
+*The mapping of rev08 against the 37 questions sent to Bruno on 2026-11-07, with what is still open, is `docs/context/epic-23/respostas-bruno-rev08-2026-11-08.md` (gitignored, pt-BR).)*
 
 **Policy.** The base is client material, so never copy its values, procedures or recommendations into tracked files: cite the path and the row ID. The product's seed takes a value only through a story, as FO.SERV-03 content did through `prd-fasor-2026-09-19/addendum.md` § 9.
 
@@ -28,11 +38,11 @@ Bruno meant it as the source the app reads. The technician fills in the equipmen
 | Sheet | Shape | Product counterpart |
 | --- | --- | --- |
 | LEIA-ME | Purpose, validation-status legend, five general software rules | The rules map to [kernel-and-seed](/architecture/kernel-and-seed.md) (see "Rules" below). |
-| Ensaios | 42 rows, one per test. 19 columns: ID, equipment, test, mandatory, "Aplica-se quando", objective, instrument, voltage or current, points, procedure, quantity, unit, three verdict columns, standard, validation status, recommendation, and a JSON "Regra (software)". | A seed `TestDef` plus `seed/criteria.ts`. The procedure and recommendation have no counterpart yet. |
+| Ensaios | 42 rows, one per test *(2026-11-08, rev08: 44)*. 19 columns: ID, equipment, test, mandatory, "Aplica-se quando", objective, instrument, voltage or current, points, procedure, quantity, unit, three verdict columns, standard, validation status, recommendation, and a JSON "Regra (software)". | A seed `TestDef` plus `seed/criteria.ts`. The procedure and recommendation have no counterpart yet. |
 | Características | Common fields plus per-type fields, each with key, app label, kind (text, number, list, yes/no), options or unit, mandatory flag and what it feeds. | Nameplate `FieldDef`s of a definition. Some fields drive test choice or criteria. |
 | Tabelas de referência | Insulation minimums by voltage (equipment and windings, oil vs dry), polarization index classes, cable VLF voltages, thermography ΔT actions, breaker pole simultaneity, temperature-correction and TTR formulas. | Partly in the kernel: the TTR group formula is `relatorio/vector-group.ts`. The rest is not built. |
 | Normas | 22 standards with edition and status. | None. Citations exist only in the definition sources. |
-| Pendências | 10 open points (P01 to P14) that need Fasor's decision before the base backs relatórios with ART. | Open decisions; route them to Matheus and Bruno. |
+| Pendências | 10 open points (P01 to P14) that need Fasor's decision before the base backs relatórios with ART. *(2026-11-08, rev08: empty; a "Decisão do Bruno" column was added and every decision now lives in its test row.)* | Open decisions; route them to Matheus and Bruno. |
 
 **Equipment IDs in the base:**
 
