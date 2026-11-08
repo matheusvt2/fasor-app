@@ -143,7 +143,7 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
 - **Deploy:** only on Matheus's word.
 - **Record:** PR, merge sha, story gate, findings, narrowings, and what it leaves for Epic 23.
 - **Record (2026-11-08).**
-  - PR #E23F_PR, merged as `E23F_MERGE`. Story gate on `95db1228` (main `66d1e466` merged in), under the lock, wait 0 s,
+  - PR #283 (a merge commit on main; its sha is on the PR). Story gate on `95db1228` (main `66d1e466` merged in), under the lock, wait 0 s,
     load 4.38 at the start and 6.80 at the end:
     - lint 0, static 0, test:api 910 passed / 6 skipped (goldens unchanged), test:unit 5660 of 5660;
     - the composer file five runs 17 of 17; 23 touched specs 158 of 159;
