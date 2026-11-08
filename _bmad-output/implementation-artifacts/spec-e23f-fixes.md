@@ -2,7 +2,7 @@
 title: 'e23f: three print defects, two load-hardened tests and the R8LAY run-end focus'
 type: 'bugfix'
 created: '2026-11-08'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'fb09ee55'
 review_loop_iteration: 1
 followup_review_recommended: false
@@ -117,3 +117,21 @@ schema change. Dev model opus, effort high; the orchestrator implements it itsel
   a token glued to the word after it (ledger row).
 
 ## Auto Run Result
+
+- Implemented by the orchestrator (opus, high). Review: Edge Case Hunter (8 findings: 5 patched, 3 known open) and
+  Verification Gap Reviewer (9: 7 patched, 2 accepted as guards), opus, one loop; Blind Hunter and Intent Alignment
+  skipped (token economy; the integrated epic review covers them).
+- Story gate on `95db1228` under the host lock (wait 0 s, load 4.38 at the start, 6.80 at the end): lint 0, static 0,
+  test:api 910 passed / 6 skipped (goldens unchanged), test:unit 5660 of 5660, `template-composer-local` five runs
+  17 of 17, 23 touched specs 158 of 159, R8LAY-E2E-001 `--repeat-each 10` 10 of 10, `photo-order.durability` on the
+  three matrix projects `--repeat-each 3` 12 passed / 6 skipped (WebKit cannot store a photo Blob).
+- The one red, `tap-budget.spec.ts` 5.1-E2E-001, was red alone 3 of 3: not load. Measured: at 768 px the readings run now
+  leaves the page where it was (R8LAY), J3's suggestion "Confirmar" sat half under the Sticky action bar (button
+  865-913 px, bar from 892 px), Playwright pressed its centre 1 px above the bar, the stepper's current mark grew the bar
+  1 px on that focus and the release landed on the bar (the click went to `ficha-main`, nothing written; the radios read
+  checked from the floor's effective pair). Green with the plain `focus()` (the old scroll). Test fix: the person scrolls
+  the suggestion into view before the tap (no tap added), and the tap's effect also waits for the suggestion row to go.
+  Final head `3acaaf51`: lint 0, static 0, `tap-budget.spec.ts` green, 5.1-E2E-001 `--repeat-each 3` 3 of 3.
+- Mutation: `focusRunEnd` with a plain `focus()` turns R8LAY-E2E-001 red ("the run's end scrolled the page from 4133").
+  The kernel and api tests were red before the fixes. The delayed live-query experiment turned the old composer file
+  3 of 17 red and the hardened one 0 (three runs).

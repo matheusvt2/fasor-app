@@ -128,7 +128,8 @@ Each is marked in its story's DoR. The B and M numbers are those of `sprint-chan
 
 ## Fix batch e23f
 
-*(Placeholder; the coordinator fills this section when e23f's PR merges.)*
+~~*(Placeholder; the coordinator fills this section when e23f's PR merges.)*~~ *(2026-11-08, filled by the e23f
+orchestrator on the coordinator's word; the record is the list at the end of this section.)*
 
 - **Branch** `e23f-fixes`, worktree `.claude/worktrees/e23f`, port base 65, from main `fb09ee55`. It runs in parallel with this planning.
 - **Scope.**
@@ -141,6 +142,26 @@ Each is marked in its story's DoR. The B and M numbers are those of `sprint-chan
   - Stories 23.6, 23.9 and 23.11 touch e23f's files.
 - **Deploy:** only on Matheus's word.
 - **Record:** PR, merge sha, story gate, findings, narrowings, and what it leaves for Epic 23.
+- **Record (2026-11-08).**
+  - PR #E23F_PR, merged as `E23F_MERGE`. Story gate on `95db1228` (main `66d1e466` merged in), under the lock, wait 0 s,
+    load 4.38 at the start and 6.80 at the end:
+    - lint 0, static 0, test:api 910 passed / 6 skipped (goldens unchanged), test:unit 5660 of 5660;
+    - the composer file five runs 17 of 17; 23 touched specs 158 of 159;
+    - R8LAY-E2E-001 10 of 10; `photo-order.durability` on the matrix 12 passed / 6 skipped.
+    - The one red, the tap budget's 5.1-E2E-001, was e23f's own (below); fixed on `3acaaf51` (lint, static, the spec 3 of 3).
+  - Main `0937f846` (#282, docs only) merged before the merge; the gate stays valid.
+  - Changes: section 8 bullets and action-plan cells print line breaks as `<w:br/>` (`lineRuns`); the NC clause drops the
+    observation's final period (`ncClauseText`); the action-plan cell spaces "Imagem N" (`GLUED_BEFORE_REF`); the
+    readings', measurement tests' and plate runs end on the primary with `preventScroll` (`focusRunEnd`); the composer and
+    photo-order tests wait on the rendered state.
+  - Narrowings: the line-break fix serves every section 8 bullet and cell, so a point typed on several lines prints its
+    lines too; "an Enter run" includes the plate run's end.
+  - Finding (for Story 23.2's layout lock): with no scroll at the run's end, a control can sit half under the Sticky
+    action bar, and the stepper's current mark grows the bar 1 px when the focus enters a step. The tap budget spec
+    lost its tap there; the test now scrolls the suggestion into view (no tap added).
+  - Left for Epic 23: three `deferred-work.md` rows (§ "Epic 23 fix batch e23f"): glued references the editor never
+    writes, an NC observation with line breaks splitting the section 9 conclusion paragraph, and the confirmed texts
+    row, closed 2026-11-08 (Matheus: kept as stored).
 
 ## Batch plan
 
