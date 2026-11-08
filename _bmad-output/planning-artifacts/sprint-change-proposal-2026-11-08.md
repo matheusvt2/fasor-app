@@ -204,6 +204,17 @@ None of these is guessed. Each one is a DoR blocker or an out-of-scope note in i
 | M-5 | The print of a temperature-corrected reading on v13. The coordinator's reading: the TEMPERATURA in the table's header line, and a CORRIGIDO column after the values, within the 60 em fit rule (e22g). | 23.5 | The reading is taken; Story 23.1 draws it for his approval. |
 | M-6 | Where the Malha de aterramento sits in the tree. The coordinator's reading: at a local, like the library types, printed under "Outros equipamentos". | 23.21 | The reading is taken. |
 
+## Matheus's decisions on the open items (2026-11-08)
+
+| Item | Decision |
+| --- | --- |
+| M-1 | (b), the private load path: the office imports Bruno's JSON through the app; the texts are company data and never enter the repository. Story 23.12 is that import. |
+| M-2 | One deploy after wave 3, with seed v13 frozen, on Matheus's word. |
+| M-3 | No separate `bmad-architecture` run; the dated AD notes go in the build PRs, as planned. |
+| M-4 | The coordinator's reading is taken: on v13 the TIPO DE ISOLAÇÃO oil option reads "ÓLEO ISOLANTE" beside "Natureza do líquido"; older relatórios keep "ÓLEO MINERAL". |
+| M-5 | The coordinator's reading is taken; Story 23.1 draws it for his approval. |
+| M-6 | The coordinator's reading is taken: at a local, printed under "Outros equipamentos". |
+
 ## Checklist record
 
 | Item | Status | Note |
