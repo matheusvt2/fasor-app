@@ -9,7 +9,7 @@ import { CONTENT_WIDTH_TWIPS, text } from '../docx.ts';
  * sentence). Story 11.10 (FR-52): directly after the last bullet, the action-plan table
  * (`resolveActionPlan`): a header row with the eight column titles, repeated on every page,
  * then one row per bullet (a body row may split across pages; the header never does), hairline-ruled like the document's
- * other tables. Every printed string is the layout's; this module only decides widths,
+ * other tables. Every printed string is the layout's; this module only decides widths, line breaks (e23f),
  * borders and sizes.
  */
 
@@ -44,10 +44,28 @@ function row(cells: readonly string[], widths: readonly number[], header: boolea
           borders,
           margins: CELL_MARGINS,
           width: { size: widths[i]!, type: WidthType.DXA },
-          children: [new Paragraph({ children: [new TextRun({ text: value, bold: header, size: TABLE_TEXT_SIZE })] })],
+          children: [
+            new Paragraph({
+              children: lineRuns(
+                value,
+                (line) => new TextRun({ text: line, bold: header, size: TABLE_TEXT_SIZE }),
+                (line) => new TextRun({ text: line, bold: header, size: TABLE_TEXT_SIZE, break: 1 }),
+              ),
+            }),
+          ],
         }),
     ),
   });
+}
+
+/**
+ * e23f (the production check of 2026-11-07, defect (a)): a text's runs, a line break of the
+ * kernel's text (a Reprovado sheet's OBSERVAÇÕES, a point typed on several lines) printed as a
+ * break (`<w:br/>`) before the next line, inside the same paragraph, never as a line feed in a
+ * run (which LibreOffice prints as a space). A text with no line break is the one run it was.
+ */
+export function lineRuns(value: string, first: (line: string) => TextRun, next: (line: string) => TextRun): TextRun[] {
+  return value.split('\n').map((line, i) => (i === 0 ? first(line) : next(line)));
 }
 
 const cellsOf = (plan: ActionPlanRow): string[] => [plan.number, plan.point, plan.local, plan.priority, plan.deadline, plan.action, plan.owner, plan.images];
@@ -64,6 +82,8 @@ export function actionPlanTable(rows: readonly ActionPlanRow[]): Table {
 }
 
 export function section8Children(section: LayoutSectionPoints): (Paragraph | Table)[] {
-  const bullets = section.bullets.map((bullet) => new Paragraph({ children: [text(bullet)], bullet: { level: 0 }, spacing: { after: 80 } }));
+  const bullets = section.bullets.map(
+    (bullet) => new Paragraph({ children: lineRuns(bullet, (line) => text(line), (line) => new TextRun({ text: line, break: 1 })), bullet: { level: 0 }, spacing: { after: 80 } }),
+  );
   return [...bullets, actionPlanTable(section.table)];
 }

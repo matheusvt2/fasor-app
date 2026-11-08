@@ -73,15 +73,27 @@ function cell(value: string | null | undefined): string {
   return trimmed === '' ? ACTION_PLAN_NONE : trimmed;
 }
 
-/** A text with each photo token replaced by "Imagem N", or `REMOVED_PHOTO_REF_TEXT` for a photo the numbering lacks. */
+/**
+ * e23f (the production check of 2026-11-07): what a reference glued to the text before it takes
+ * first, so the action-plan cell reads "Porta danificada. Imagem 13", never "danificada.Imagem 13":
+ * a letter, a digit, a closing bracket or a sentence mark before the token, as the point editor
+ * spaces a chip it inserts (F-09, `spacingAt`).
+ */
+const GLUED_BEFORE_REF = /[\p{L}\p{N}.,;:!?)\]]$/u;
+
+/** A text with each photo token replaced by "Imagem N" (spaced from a word or mark glued before it), or `REMOVED_PHOTO_REF_TEXT` for a photo the numbering lacks. */
 export function resolvePhotoTokens(text: string, numbering: ReadonlyMap<string, number>): string {
-  return pointTextTokens(text)
-    .map((token) => {
-      if (token.kind === 'text') return token.text;
-      const n = numbering.get(token.id);
-      return n === undefined ? REMOVED_PHOTO_REF_TEXT : photoRefLabel(n);
-    })
-    .join('');
+  let out = '';
+  for (const token of pointTextTokens(text)) {
+    if (token.kind === 'text') {
+      out += token.text;
+      continue;
+    }
+    const n = numbering.get(token.id);
+    if (n === undefined) out += REMOVED_PHOTO_REF_TEXT;
+    else out += `${GLUED_BEFORE_REF.test(out) ? ' ' : ''}${photoRefLabel(n)}`;
+  }
+  return out;
 }
 
 /** Words after which a photo reference reads naturally as it is ("Ver Imagem 2", "em Imagem 3"). */
