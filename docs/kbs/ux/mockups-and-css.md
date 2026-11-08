@@ -3,7 +3,7 @@ type: UX Rule
 title: Mockups and CSS translation
 description: Build screens from the mockups with their class names; how bezel-scoped selectors translate to the app.
 tags: [ux, css, mockups]
-timestamp: 2026-10-22T00:00:00Z
+timestamp: 2026-11-08T00:00:00Z
 sources: [AGENTS.md, _bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09-18/mockups/MOCK-GUIDE.md]
 ---
 # Mockups and CSS translation
@@ -15,4 +15,5 @@ sources: [AGENTS.md, _bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09
 - ARIA state lives on the element the mock CSS styles. If a valid ARIA shape cannot carry the mock attribute (`role="radio"` and `aria-pressed`), `app.css` mirrors the declarations for the attribute it does carry. No invented look.
 - A new `.frame-*` rule gets its translation in the same change that first renders it; the real-browser pass checks 390, 768 and 1280 px plus a dialog.
 - Tree levels (2026-10-22, Story 15.1): the Sumário section 9, the rail and the composer skeleton share one vocabulary (local title band, painel sub-band, coluna group header, the `.level-kicker` word, every sheet an `.eq-card` with TAG and type label as its title and `.nc-badge`, the Verificações do local as the first card of its local, "Adicionar …" last; Bruno's answers 5 and 6 of 2026-10-22); the class table is `MOCK-GUIDE.md` › Epic 15, the rule `DESIGN.md` and `EXPERIENCE.md` › Relatório tree (2026-10-22 amendments).
+- Epic 23 frames (2026-11-08, Story 23.1): the seed v13 sheet controls (manufacturer's value, restricted reading, temperature line and corrected column, tap rows, choice results, the test not applicable by the nameplate, "Como ensaiar") are drawn in `prototype/screens/60-ficha.html` (`#/ficha/TR1`, `SEC-C05`, `TP-C16`), the editor fields in `43-tipo-equipamento.html`, and the v13 printed insulation table (M-5) in `key-print-section-9-v13.html`; page CSS on existing tokens, no new color token; the frame table is `MOCK-GUIDE.md` § 2026-11-08, the rules `DESIGN.md` and `EXPERIENCE.md` › Sheet (2026-11-08 rows).
 - Behavior and components: [ui-system](/architecture/ui-system.md).

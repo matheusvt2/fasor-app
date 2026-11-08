@@ -1,0 +1,96 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Ensaio de isolação impresso, seed v13</title>
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<style>/* Governs: Story 23.1 (2026-11-08), the print frame of Matheus's M-5 (sprint-change-proposal-2026-11-08.md § Matheus's decisions):
+   on a seed v13 sheet the insulation test's header line gains TEMPERATURA (the value used and where it came from) and the reading table
+   gains a CORRIGIDO column after the values, within the 60 em fit rule (e22g, packages/domain/src/print/section-9.ts READING_FIT_WIDTH_EM).
+   Nothing else changes from v12's printed sheet. Built by Story 23.5. Table style from key-print-section-9.html and the v12 print tests
+   (packages/domain/src/print/seed-v12.test.ts 22.8-UNIT). Page-only: the printed A4 page is paper, black on white in every theme.
+   The base text is 9 pt = 10 px here; a table the fit rule steps down prints smaller in the same proportion. Sample values invented. */
+.print-page { box-sizing: border-box; width: 794px; padding: 30px 48px 22px; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; }
+.print-page * { box-sizing: border-box; }
+.pp-body { display: flex; flex-direction: column; gap: 7px; }
+.pp-sheet { margin: 0; padding: 4px 8px; background: #BFBFBF; border: 1px solid #000; font-size: 10.5px; font-weight: 700; text-align: center; }
+.pt { width: 100%; border-collapse: collapse; }
+.pt th, .pt td { border: 1px solid #000; padding: 2px 5px; vertical-align: middle; text-align: center; font-weight: 400; }
+.pt .pt-title th { background: #BFBFBF; font-weight: 700; }
+.pt .pt-cols th { background: #E7E7E7; font-weight: 700; }
+.pt-meas td:nth-child(-n+3) { text-align: left; }
+.pt-85 { font-size: 9.4px; }   /* 8,5 pt: v12's table, one step down (62,4 em at 9 pt) */
+.pt-75 { font-size: 8.3px; }   /* 7,5 pt: v13's table, three steps down (69,3 em at 9 pt) */
+/* Mock-only marks, never printed: omitted parts and the M-5 delta */
+.pp-omit-line { margin: 0; padding: 3px 6px; border: 1px dashed #8A9099; background: repeating-linear-gradient(135deg, #F4F5F6 0 6px, #EBEDEF 6px 12px); color: #5B616B; font-style: italic; text-align: center; font-size: 9px; }
+.pt .is-delta { outline: 2px dashed #1F5FA8; outline-offset: -3px; }
+.mock-row.is-print { gap: var(--sp-6); }
+.mock-note { font-size: 13px; color: var(--ink-secondary); max-width: 794px; margin: var(--sp-2) 0 0; }
+.mock-legend { display: inline-block; width: 22px; height: 12px; outline: 2px dashed #1F5FA8; outline-offset: -3px; vertical-align: -1px; margin-right: 6px; }
+.src-table { width: 794px; border-collapse: collapse; font-size: 13px; background: var(--surface-raised); color: var(--ink-primary); }
+.src-table th, .src-table td { border: 1px solid var(--border-strong); padding: 6px 10px; text-align: left; vertical-align: top; }
+.src-table th { background: var(--surface-base); font-weight: 600; }
+</style></head>
+<body class="mock-page">
+<h1 class="mock-title">Ensaio de isolação impresso — a ficha v13 do transformador (M-5)</h1>
+<p class="mock-sub">Story 23.1 (2026-11-08) para o Matheus aprovar. Numa ficha de seed v13, o cabeçalho do ensaio ganha a coluna TEMPERATURA (o valor usado e de onde veio) e a tabela de leituras ganha a coluna CORRIGIDO depois dos valores, com a leitura de 1 minuto corrigida a 20 °C. Nada mais muda em relação à ficha v12 impressa; toda ficha v1 a v12 continua imprimindo como hoje. A regra de 60 em vale: a tabela v12 já imprime a 8,5 pt, a v13 desce para 7,5 pt (o piso é 7 pt). Valores de exemplo. <span class="mock-legend" aria-hidden="true"></span>contorno tracejado azul = o que muda (só no mock, não imprime).</p>
+
+<div class="mock-row is-print">
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha v12 — como imprime hoje</b><span class="sep">·</span>A4 retrato, trecho do TRANSFORMADOR DE FORÇA TR1<span class="sep">·</span>9 colunas, 62,4 em a 9 pt, impressa a 8,5 pt</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">TRANSFORMADOR DE FORÇA TR1</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO e VERIFICAÇÕES GERAIS, como hoje</p>
+<table class="pt"><thead><tr class="pt-title"><th colspan="6">ENSAIO DE ISOLAÇÃO</th></tr>
+<tr class="pt-cols"><th>INSTRUM./FABRIC.</th><th>TIPO</th><th>Nº SÉRIE</th><th>RBC</th><th>TENSÃO ENSAIO</th><th>ACEITÁVEL</th></tr></thead>
+<tbody><tr><td>Fabricante B</td><td>MOD-10</td><td>000123</td><td>00000/26</td><td>10 kV</td><td>&gt; 1,0 GΩ</td></tr></tbody></table>
+<table class="pt pt-meas pt-85"><thead>
+<tr class="pt-cols"><th colspan="3">PONTO DE ENSAIO/CONEXÃO</th><th></th><th colspan="3">VALORES (GΩ)</th><th colspan="2">QUALIDADE ISOLAÇÃO</th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>TENSÃO (kV)</th><th>30 SEGUNDOS</th><th>1 MINUTO</th><th>ESTAB./10MIN</th><th>ABSORÇÃO</th><th>POLARIZAÇÃO</th></tr></thead>
+<tbody>
+<tr><td>PRIMÁRIO</td><td>MASSA</td><td>SECUNDÁRIO</td><td>10</td><td>-</td><td>2,0</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>PRIMÁRIO</td><td>SECUNDÁRIO</td><td>MASSA</td><td>10</td><td>-</td><td>2,6</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>SECUNDÁRIO</td><td>MASSA</td><td>PRIMÁRIO</td><td>1</td><td>-</td><td>1,9</td><td>-</td><td>-</td><td>-</td></tr>
+</tbody></table>
+<p class="pp-omit-line">Trecho omitido no mock: ENSAIO DE RELAÇÃO DE TRANSFORMAÇÃO, OBSERVAÇÕES, CONCLUSÃO e fotos, como hoje</p>
+  </div></div>
+</div>
+
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha v13 — TEMPERATURA e CORRIGIDO</b><span class="sep">·</span>A4 retrato, o mesmo trecho<span class="sep">·</span>10 colunas, 69,3 em a 9 pt, impressa a 7,5 pt<span class="sep">·</span>Story 23.5, M-5</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">TRANSFORMADOR DE FORÇA TR1</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO (campos da placa v13, Story 23.7) e VERIFICAÇÕES GERAIS</p>
+<table class="pt"><thead><tr class="pt-title"><th colspan="7">ENSAIO DE ISOLAÇÃO</th></tr>
+<tr class="pt-cols"><th>INSTRUM./FABRIC.</th><th>TIPO</th><th>Nº SÉRIE</th><th>RBC</th><th>TENSÃO ENSAIO</th><th class="is-delta">TEMPERATURA</th><th>ACEITÁVEL</th></tr></thead>
+<tbody><tr><td>Fabricante B</td><td>MOD-10</td><td>000123</td><td>00000/26</td><td>10 kV</td><td class="is-delta">40 °C (ÓLEO)</td><td>&gt; 1,0 GΩ</td></tr></tbody></table>
+<table class="pt pt-meas pt-75"><thead>
+<tr class="pt-cols"><th colspan="3">PONTO DE ENSAIO/CONEXÃO</th><th></th><th colspan="3">VALORES (GΩ)</th><th class="is-delta">CORRIGIDO (GΩ)</th><th colspan="2">QUALIDADE ISOLAÇÃO</th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>TENSÃO (kV)</th><th>30 SEGUNDOS</th><th>1 MINUTO</th><th>ESTAB./10MIN</th><th class="is-delta">1 MIN A 20 °C</th><th>ABSORÇÃO</th><th>POLARIZAÇÃO</th></tr></thead>
+<tbody>
+<tr><td>PRIMÁRIO</td><td>MASSA</td><td>SECUNDÁRIO</td><td>10</td><td>-</td><td>2,0</td><td>-</td><td class="is-delta">7,9</td><td>-</td><td>-</td></tr>
+<tr><td>PRIMÁRIO</td><td>SECUNDÁRIO</td><td>MASSA</td><td>10</td><td>-</td><td>2,6</td><td>-</td><td class="is-delta">10,3</td><td>-</td><td>-</td></tr>
+<tr><td>SECUNDÁRIO</td><td>MASSA</td><td>PRIMÁRIO</td><td>1</td><td>-</td><td>1,9</td><td>-</td><td class="is-delta">7,5</td><td>-</td><td>-</td></tr>
+</tbody></table>
+<p class="pp-omit-line">Trecho omitido no mock: ENSAIO DE RELAÇÃO DE TRANSFORMAÇÃO (linhas por tap, Story 23.8), OBSERVAÇÕES, CONCLUSÃO e fotos</p>
+  </div></div>
+</div>
+</div>
+
+<div class="mock-row">
+<div class="mock-item" style="width: 794px">
+  <p class="mock-caption"><b>TEMPERATURA — de onde vem o valor</b><span class="sep">·</span>a célula do cabeçalho e a coluna CORRIGIDO em cada caso<span class="sep">·</span>Story 23.5</p>
+  <table class="src-table">
+    <thead><tr><th scope="col">Ficha v13</th><th scope="col">TEMPERATURA imprime</th><th scope="col">CORRIGIDO imprime</th></tr></thead>
+    <tbody>
+      <tr><td>Transformador a óleo com TEMPERATURA DO ÓLEO na placa</td><td>40 °C (ÓLEO)</td><td>o valor de 1 minuto a 20 °C</td></tr>
+      <tr><td>Transformador a seco com TEMPERATURA DO ENROLAMENTO na placa</td><td>32 °C (ENROLAMENTO)</td><td>o valor de 1 minuto a 20 °C</td></tr>
+      <tr><td>Campo da placa vazio, ou disjuntor e seccionadora (só o ambiente)</td><td>25 °C (AMBIENTE)</td><td>o valor de 1 minuto a 20 °C</td></tr>
+      <tr><td>Sem temperatura em lugar nenhum</td><td>-</td><td>- (a leitura é julgada sem correção; a tela pede a temperatura)</td></tr>
+      <tr><td>Leitura acima do limite do instrumento (Story 23.4)</td><td>como acima</td><td>não se corrige; o que a célula imprime fica com a Story 23.4 (pergunta aberta)</td></tr>
+      <tr><td>Ensaio que não pede correção (cabos, TC, TP, para-raio)</td><td colspan="2">nenhuma das duas: a tabela imprime como na v12</td></tr>
+    </tbody>
+  </table>
+  <p class="mock-note">A leitura com restrição (Story 23.6) imprime como as outras: a restrição aparece na conclusão e na seção 8, não na tabela. O valor do fabricante (Story 23.3) imprime em ACEITÁVEL seguido de " (fabricante)"; ele não aparece neste quadro porque é a outra história.</p>
+</div>
+</div>
+</body></html>

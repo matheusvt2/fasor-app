@@ -40,6 +40,13 @@
 [data-route="/templates/tipos/no-break-comando"] .grammar-list .option-row { flex-wrap: wrap; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
 [data-route="/templates/tipos/no-break-comando"] .grammar-list .og-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 [data-route="/templates/tipos/no-break-comando"] .grammar-list .og-hint { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* Story 23.1 (2026-11-08, Epic 23; Stories 23.10 and 23.11): the open test gains "Como ensaiar" (eight optional texts, shown on the sheet
+   only, offline, never printed) and "Recomendação se reprovado" (the initial text of the derived point). Observation fields in the field grid;
+   a hairline group head. Layout only, existing tokens. Copy authored; the no-break texts are invented example data. */
+[data-route="/templates/tipos/no-break-comando"] .tipo-help { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-4); border-top: 1px solid var(--border-hairline); }
+[data-route="/templates/tipos/no-break-comando"] .tipo-help-head { display: flex; flex-direction: column; gap: 2px; }
+[data-route="/templates/tipos/no-break-comando"] .tipo-help-head h3 { font-size: var(--t-body-size); font-weight: 600; line-height: var(--t-body-lh); }
+[data-route="/templates/tipos/no-break-comando"] .tipo-help .observation-field { min-height: 72px; }
 </style>
 <section class="screen" data-route="/templates/tipos/no-break-comando" data-title="Tipo de equipamento" data-shell="app" data-rail="false">
 
@@ -190,6 +197,21 @@
               </tbody>
             </table>
             <button class="btn btn-text" style="align-self: flex-start" data-toast="Linha nova no fim da tabela"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar linha</button>
+            <!-- Story 23.1 (2026-11-08): Como ensaiar (Story 23.10) and the recommendation (Story 23.11) of this test -->
+            <div class="tipo-help" role="group" aria-labelledby="tipo-h-como">
+              <div class="tipo-help-head"><h3 id="tipo-h-como">Como ensaiar</h3><span class="helper">Aparece no botão “Como ensaiar” deste ensaio na ficha, também sem conexão. Não sai no relatório. Todos os campos são opcionais; só os preenchidos aparecem.</span></div>
+              <div class="field-grid">
+                <div class="field"><span class="field-label">Objetivo</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Objetivo">Conferir as tensões de entrada, de saída e de flutuação do no-break.</div></div>
+                <div class="field"><span class="field-label">Instrumento</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Instrumento">Multímetro com certificado de calibração válido.</div></div>
+                <div class="field"><span class="field-label">Tensão de ensaio</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Tensão de ensaio"><span class="placeholder">Opcional</span></div></div>
+                <div class="field"><span class="field-label">Ligações</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Ligações">Pontas nos bornes de entrada, de saída e do banco de baterias.</div></div>
+                <div class="field span-2"><span class="field-label">Procedimento</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Procedimento">Texto de exemplo: os passos do ensaio, na ordem em que são feitos em campo.</div></div>
+                <div class="field"><span class="field-label">Critério</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Critério"><span class="placeholder">Opcional</span></div></div>
+                <div class="field"><span class="field-label">Norma</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Norma"><span class="placeholder">Opcional</span></div></div>
+                <div class="field span-2"><span class="field-label">Pré-requisito (NR-10)</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Pré-requisito (NR-10)">Painel aberto só com a equipe autorizada e os EPI da tarefa.</div></div>
+              </div>
+            </div>
+            <div class="field"><span class="field-label">Recomendação se reprovado</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Recomendação se reprovado">Verificar o carregador e o banco de baterias antes de uma nova medição.</div><span class="helper">Texto inicial do ponto de atenção quando um valor deste ensaio fica fora do critério. Vazio, vale o texto padrão.</span></div>
             <div class="toggle-row"><span><span class="toggle-label">Opcional na ficha</span><br><span class="toggle-sub">O técnico pode desligar este ensaio quando não for possível fazê-lo</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Opcional na ficha"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
           </li>
         </ul>
