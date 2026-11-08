@@ -279,9 +279,13 @@ describe('R8LAY DB-7 the plate and cabine fields\' Enter run', () => {
     // The blur of the move commits the date no second time.
     expect(commits.data_fabricacao).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('textbox', { name: /tap/i })).toHaveFocus();
+    // e23f (R8LAY, Matheus 2026-11-08): the run ends on the primary without scrolling the page.
+    const primaryFocus = vi.spyOn(screen.getByRole('button', { name: 'Próxima ficha' }), 'focus');
     await userEvent.keyboard('3{Enter}');
     expect(commits.tap_atual).toHaveBeenCalledWith('3');
     expect(screen.getByRole('button', { name: 'Próxima ficha' })).toHaveFocus();
+    expect(primaryFocus).toHaveBeenCalledTimes(1);
+    expect(primaryFocus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
   it('an invalid number or date commits nothing and keeps the focus with its helper', async () => {

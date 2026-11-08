@@ -37,6 +37,7 @@ import { WholeWords } from '../../components/whole-words.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
+import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
@@ -139,7 +140,8 @@ export function EnsaiosSection({
     if (target === 'end') {
       const primary = document.getElementById(primaryId);
       moved = primary !== null;
-      primary?.focus();
+      // e23f (R8LAY, Matheus 2026-11-08): the run ends on the primary without scrolling the page.
+      if (primary !== null) focusRunEnd(primary);
     } else moved = focusCell(target);
     if (moved && direction === 'next') revealRatioEnd(from);
     return moved;
@@ -151,7 +153,7 @@ export function EnsaiosSection({
     if (target === null) return false;
     if (target !== 'end') return focusCell(target);
     const primary = document.getElementById(primaryId);
-    primary?.focus();
+    if (primary !== null) focusRunEnd(primary);
     return primary !== null;
   };
 

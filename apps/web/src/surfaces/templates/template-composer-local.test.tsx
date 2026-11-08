@@ -62,6 +62,11 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 // (PR #179, e16c, Epic 16 wave B, e17a) with a 5 s wait and the app's 15 s test budget. Every
 // wait ends on its condition, so an idle run is as fast as before; the wide bounds only stop
 // a loaded machine from failing a test that would pass. No wait in this file sets its own.
+// e23f (the e22h ledger row, red under load in two Epic 22 gates): the announcer speaks when the
+// edit's commit resolves (one frame later), while the cards redraw when the composer's live query
+// delivers the new row, on its own schedule; so no DOM read after an announcement is a one-shot
+// `expect`: each one waits on the rendered state (`waitFor`). The stored row and the outbox are
+// read once, the commit having resolved before the announcement.
 configure({ asyncUtilTimeout: 30_000 });
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -226,10 +231,14 @@ describe('14.2 composer: the three levels', () => {
     await user.click(within(painelB).getByRole('button', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     await waitFor(() => expect(within(painelB).queryByRole('note')).toBeNull());
-    const colunas = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
-    expect(names(colunas, '.col-name')).toEqual(['Coluna 1']);
-    expect(colunas.querySelector(':scope > li')).toHaveClass('is-open');
-    expect(screen.getByRole('complementary', { name: 'Paleta de blocos' }).querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 1 · Painel B');
+    await waitFor(() => {
+      const colunas = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
+      expect(names(colunas, '.col-name')).toEqual(['Coluna 1']);
+      expect(colunas.querySelector(':scope > li')).toHaveClass('is-open');
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('complementary', { name: 'Paleta de blocos' }).querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 1 · Painel B'),
+    );
     expect((await skeletonOf()).map((n) => [n.kind, n.name])).toEqual([
       ['cabine', 'Cabine de transformação'],
       ['painel', 'Painel de média tensão'],
@@ -252,7 +261,7 @@ describe('14.2 composer: the three levels', () => {
     await user.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 2 adicionado'));
-    expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1', 'Painel 2']);
+    await waitFor(() => expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1', 'Painel 2']));
     // The painel menu adds a coluna too.
     await user.click(screen.getByRole('button', { name: 'Mais opções de Painel 2 em Geradores' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Renomear', 'Subir', 'Adicionar coluna', 'Remover']);
@@ -275,11 +284,13 @@ describe('14.2 composer: the three levels', () => {
     await user.click(screen.getByRole('button', { name: 'Mais opções de Painel B em Cabine de transformação' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
-    expect(painelB).toHaveClass('is-open');
-    const added = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
-    expect(names(added, '.col-name')).toEqual(['Coluna 1']);
-    // The new coluna is the palette's target, and it is drawn open.
-    expect(added.querySelector(':scope > li.column-row')).toHaveClass('is-open');
+    await waitFor(() => {
+      expect(painelB).toHaveClass('is-open');
+      const added = within(painelB).getByRole('list', { name: 'Colunas de Painel B em Cabine de transformação' });
+      expect(names(added, '.col-name')).toEqual(['Coluna 1']);
+      // The new coluna is the palette's target, and it is drawn open.
+      expect(added.querySelector(':scope > li.column-row')).toHaveClass('is-open');
+    });
 
     // A collapsed local: its Overflow adds a painel, and the card opens on it.
     const geradores = await card(/^Local Geradores/);
@@ -288,8 +299,10 @@ describe('14.2 composer: the three levels', () => {
     await user.click(screen.getByRole('button', { name: 'Mais opções de Geradores' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Adicionar painel' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Painel 1 adicionado'));
-    expect(geradores).toHaveClass('is-open');
-    expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1']);
+    await waitFor(() => {
+      expect(geradores).toHaveClass('is-open');
+      expect(names(within(geradores).getByRole('list', { name: 'Painéis de Geradores' }), '.block-name')).toEqual(['Painel 1']);
+    });
   });
 
   it('names the drag handle, Position box and Overflow of a painel with its local, so the first painel of two locals never reads alike (coordinator review 2026-10-13)', async () => {
@@ -327,15 +340,17 @@ describe('14.2 composer: the three levels', () => {
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 1 adicionada'));
     await waitFor(() => expect(within(painelB).queryByRole('note')).toBeNull());
     // The painel has a coluna now: the control is drawn as the text button, and it still holds the focus.
-    const after = within(painelB).getByRole('button', { name: 'Adicionar coluna' });
-    expect(after).toHaveClass('btn', 'btn-text');
-    expect(after).not.toHaveClass('btn-secondary');
-    expect(after).toHaveFocus();
+    await waitFor(() => {
+      const after = within(painelB).getByRole('button', { name: 'Adicionar coluna' });
+      expect(after).toHaveClass('btn', 'btn-text');
+      expect(after).not.toHaveClass('btn-secondary');
+      expect(after).toHaveFocus();
+    });
     expect(document.body).not.toHaveFocus();
     // A second coluna from the same control, without looking for it again.
     await user.keyboard('{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 2 adicionada'));
-    expect(within(painelB).getByRole('button', { name: 'Adicionar coluna' })).toHaveFocus();
+    await waitFor(() => expect(within(painelB).getByRole('button', { name: 'Adicionar coluna' })).toHaveFocus());
   });
 
   it('a pointer tap on the chevron of a local or painel card toggles it; the chevron stays out of the accessibility tree and of the tab order (coordinator review 2026-10-13)', async () => {
@@ -476,7 +491,7 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Local Sala dos geradores atualizado'));
     const local = await card(/^Local Sala dos geradores/);
-    expect(local.querySelector(':scope > .block-body .block-sub')).toHaveTextContent('Função: distribuição · Agrupar por tipo: desativado');
+    await waitFor(() => expect(local.querySelector(':scope > .block-body .block-sub')).toHaveTextContent('Função: distribuição · Agrupar por tipo: desativado'));
     expect((await skeletonOf()).find((n) => n.ref === 'ger')).toEqual({ ref: 'ger', kind: 'cabine', parent_ref: null, name: 'Sala dos geradores', agrupar_por_tipo: false, funcao: 'distribuicao' });
     const ops = await outbox();
     expect(ops.map((op) => op.path)).toEqual([`template/${ID}/skeleton`]);
@@ -515,6 +530,8 @@ describe('14.2 composer: rename, reorder and remove at each level', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Salvar' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Local Subestação Norte atualizado'));
     expect((await skeletonOf()).find((n) => n.ref === 'loc')).toMatchObject({ name: 'Subestação Norte', funcao: 'primaria' });
+    // The dialog opens filled from the drawn row: the card says the stored Função first.
+    await waitFor(() => expect(firstLocal().querySelector('.block-sub')).toHaveTextContent('Função: primária'));
 
     // The Função changes elsewhere; the user changes the name alone.
     dialog = await open('Subestação Norte');

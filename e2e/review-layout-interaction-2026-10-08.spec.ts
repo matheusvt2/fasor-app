@@ -233,7 +233,32 @@ test('@p0 R8LAY-E2E-001 DC-1 the transformer TTR at 768, 1024 (rail open) and 12
   await ttr.scrollIntoViewIfNeeded();
   const inputs = ttr.locator('table.ficha-ttr input.mf-value');
   await expect(inputs).toHaveCount(5);
-  await typeInto(inputs, ['13,8', '380', '34,512', '39,48', '34,51']);
+  await typeInto(inputs, ['13,8', '380', '34,512', '39,48']);
+  // e23f (R8LAY, Matheus 2026-11-08): the Enter on the last capture ends the run on the Sticky
+  // action bar's primary with `preventScroll`: the page does not move (it moved 399 px at 1280
+  // before, e22g S5), and the focus is visible, inside the viewport.
+  const last = inputs.nth(4);
+  await last.click();
+  await last.fill('34,51');
+  const before = await page.evaluate(() => window.scrollY);
+  await last.press('Enter');
+  const primary = page.locator('.sticky-action-bar #ficha-primary');
+  await expect(primary).toBeFocused();
+  const end = await primary.evaluate(
+    (el) =>
+      new Promise<{ scrollY: number; top: number; bottom: number; innerHeight: number; focusVisible: boolean }>((resolve) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const box = el.getBoundingClientRect();
+            resolve({ scrollY: window.scrollY, top: box.top, bottom: box.bottom, innerHeight: window.innerHeight, focusVisible: el.matches(':focus-visible') });
+          }),
+        ),
+      ),
+  );
+  expect(end.scrollY, `the run's end scrolled the page from ${before}`).toBe(before);
+  expect(end.top, 'the primary above the viewport').toBeGreaterThanOrEqual(0);
+  expect(end.bottom, 'the primary below the viewport').toBeLessThanOrEqual(end.innerHeight);
+  expect(end.focusVisible, 'the primary\'s focus is not drawn').toBe(true);
   const expected = [
     [0, { raw: '13.8', unit: 'kV', state: 'measured' }],
     [1, { raw: '380', unit: 'V', state: 'measured' }],
