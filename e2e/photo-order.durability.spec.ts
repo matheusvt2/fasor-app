@@ -58,7 +58,11 @@ async function photoRows(device: Device): Promise<PhotoRecord[]> {
   return records.filter((record) => record.entity === 'file' && record.row.kind === 'photo' && record.row.removed_at === null).map((record) => record.row);
 }
 
-/** The gallery tiles' photo ids in DOM order. */
+/**
+ * The gallery tiles' photo ids in DOM order. e23f (the 7ba788cf matrix red of 21.3-E2E-005):
+ * read only through `expect.poll`, never once: the status line and the badge of a move can be
+ * drawn before the reordered list is, so a single read under load saw the earlier order.
+ */
 async function tileIds(page: Page): Promise<string[]> {
   return page.locator('[data-route="/relatorio/:id/fotos"] .gallery-item').evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.photoId ?? ''));
 }
@@ -123,7 +127,7 @@ async function anaWithThreePhotos(page: Page, context: BrowserContext, seed: Wor
   for (const [i, time] of ['08:00:00', '08:10:00', '08:20:00'].entries()) {
     dated.push(await importGeral(ana, await exifJpeg(page, { dateTimeOriginal: `2026:09:06 ${time}`, offset: '-03:00', lat: -23.55, lng: -46.63 }, `foto-${i + 1}.jpg`)));
   }
-  expect(await tileIds(page)).toEqual(dated);
+  await expect.poll(() => tileIds(page)).toEqual(dated);
   return { ana, relatorioId: built.relatorioId, dated };
 }
 
@@ -148,14 +152,14 @@ test('@p0 21.3-E2E-005 an EXIF-less import moved to second stays second after a 
 
   // The EXIF-less import takes its file date (now): it sorts last.
   const plain = await importGeral(ana, await plainJpeg(page, 'whatsapp-sem-exif.jpg'));
-  expect(await tileIds(page)).toEqual([...dated, plain]);
+  await expect.poll(() => tileIds(page)).toEqual([...dated, plain]);
   await expect(galleryItem(page, plain).locator('.number-badge')).toHaveText('4');
 
   // Moved to second place: two "Subir".
   await movePhoto(page, plain, 'Subir', 3, 4);
   await movePhoto(page, plain, 'Subir', 2, 4);
   const moved = [dated[0]!, plain, dated[1]!, dated[2]!];
-  expect(await tileIds(page)).toEqual(moved);
+  await expect.poll(() => tileIds(page)).toEqual(moved);
   const key = (await photoRows(ana)).find((row) => row.id === plain)!.order_key;
   expect(key).toMatch(/^[0-9a-z]+$/);
 
@@ -201,8 +205,8 @@ test('@p0 21.3-E2E-006 two devices move the same photo offline to different plac
     // Ana moves photo 2 down (place 3); Eduardo moves the same photo up (place 1).
     await movePhoto(ana.page, second, 'Descer', 3, 3);
     await movePhoto(eduardo.page, second, 'Subir', 1, 3);
-    expect(await tileIds(ana.page)).toEqual([first, third, second]);
-    expect(await tileIds(eduardo.page)).toEqual([second, first, third]);
+    await expect.poll(() => tileIds(ana.page)).toEqual([first, third, second]);
+    await expect.poll(() => tileIds(eduardo.page)).toEqual([second, first, third]);
 
     // Ana syncs first, then Eduardo, then Ana again: Eduardo's put is the later one.
     await ana.context.setOffline(false);
