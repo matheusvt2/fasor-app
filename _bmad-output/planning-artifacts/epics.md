@@ -6946,6 +6946,8 @@ So that every technician sees the same way to test and every failure starts with
 
 The texts are Bruno's, and the wording is not edited by the build.
 
+*(2026-11-08, Matheus decided M-1: **(b), the private load path**. The texts never enter the repository: the office imports Bruno's JSON once through the app, the texts live as that company's data and stay editable afterwards. The DoR is met for path (b); path (a) is out.)*
+
 **Acceptance Criteria:**
 
 **Given** Matheus's decision recorded under this story

@@ -274,7 +274,7 @@ development_status:
   23-9-a-test-applies-from-the-nameplate-automatic-na-and-override: backlog  # added 2026-11-08 (decision J); wave 1, e23b, after 23.7; contract 35; DoR: 23.1 frames approved
   23-10-como-ensaiar-on-each-test-on-screen-only-offline: backlog  # added 2026-11-08 (decision M); wave 2, e23h; contract 37; DoR: 23.1 frames approved; mechanism only, seeded texts wait for 23.12 (M-1)
   23-11-the-tests-recommendation-is-the-derived-points-initial-text: ready-for-dev  # added 2026-11-08 (decision M); wave 2, e23h, after 23.10; contract 37; starts from main after e23f and merges after e23v
-  23-12-the-bases-help-and-recommendation-texts-in-the-seed: backlog  # added 2026-11-08 (decision M); wave 4, e23x; DoR blocked on Matheus M-1 (public repo waiver or private load path)
+  23-12-the-bases-help-and-recommendation-texts-in-the-seed: backlog  # added 2026-11-08 (decision M); wave 4, e23x; M-1 decided 2026-11-08: private load path (import of the JSON as company data)
   23-13-test-voltage-defaults-on-every-insulation-row: ready-for-dev  # added 2026-11-08 (decision D); wave 3, e23e; high-voltage notice unchanged until Bruno B-5
   23-14-contact-resistance-manufacturer-default-pole-deviation: ready-for-dev  # added 2026-11-08 (decision L); wave 2, e23v, after 23.6; contact vs previous visit out (B-6)
   23-15-winding-resistance-on-the-transformer: ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t, first; contract 38
