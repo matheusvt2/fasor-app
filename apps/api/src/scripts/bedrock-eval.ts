@@ -92,6 +92,8 @@ const expectedFileSchema = z
   .object({
     kind: z.enum(['plate', 'panel']),
     block_type: z.string().min(1).optional(),
+    /** Story 23.7: the seed version whose nameplate the plate is scored on (default: the current one). */
+    seed_version: z.string().min(1).optional(),
     values: z.record(z.string(), z.string()),
   })
   .refine((file) => file.kind === 'panel' || file.block_type !== undefined, { message: 'a plate names its block_type' });
@@ -111,6 +113,8 @@ const SYNTHETIC: Sample[] = [
     expected: {
       kind: 'plate',
       block_type: 'transformador_forca',
+      // Story 23.7: drawn for the v1 to v12 transformer (its text TAP ATUAL, which v13 replaced by TAPS).
+      seed_version: 'v12',
       values: {
         identificacao: 'TR-01',
         fabricacao: 'Celtta',
@@ -156,6 +160,47 @@ const SYNTHETIC: Sample[] = [
       values: { identificacao: 'TR-04', fabricacao: 'Varnelo', tipo: 'TRICAST', tipo_do_oleo: 'B', potencia_nominal: '500', tensao_nominal_at: '13.8', tensao_nominal_bt: '220' },
     },
   },
+  // Story 23.7 (seed v13): one plate per type with the fields v13 adds (fixtures README); the list and the √3 as printed.
+  {
+    name: 'plate-transformador-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-transformador-v13.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'transformador_forca',
+      seed_version: 'v13',
+      values: { identificacao: 'TR-05', fabricacao: 'Varnelo', taps: '13,8 / 13,2 / 12,6 / 12 / 11,4', tap_atual_kv: '12.6', impedancia_pct: '4.5', material_enrolamento: 'Cu', tensao_nominal_at: '13.8', tensao_nominal_bt: '380' },
+    },
+  },
+  {
+    name: 'plate-disjuntor-mt-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-disjuntor-mt-v13.png'),
+    expected: { kind: 'plate', block_type: 'disjuntor_mt', seed_version: 'v13', values: { identificacao: 'DJ-02', tipo_montagem: 'EXTRAÍVEL', tensao_comando_v: '125 Vcc', acionamento: 'MOLA MOTORIZADA', tempo_abertura_fab_ms: '45', tempo_fechamento_fab_ms: '60' } },
+  },
+  {
+    name: 'plate-chave-seccionadora-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-chave-seccionadora-v13.png'),
+    expected: { kind: 'plate', block_type: 'chave_seccionadora', seed_version: 'v13', values: { identificacao: 'SEC-03', acionamento: 'MOTORIZADO', tipo_seccionadora: 'SOB CARGA COM FUSÍVEIS', fusivel_corrente_a: '63' } },
+  },
+  {
+    name: 'plate-tp-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-tp-v13.png'),
+    expected: { kind: 'plate', block_type: 'tp', seed_version: 'v13', values: { identificacao: 'TP-02', tensao_nominal_at: '13,8/√3 kV', tensao_nominal_bt: '115/√3 V', grupo_ligacao_tp: '2 (FASE-TERRA, SISTEMA ATERRADO)' } },
+  },
+  {
+    name: 'plate-tc-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-tc-v13.png'),
+    expected: { kind: 'plate', block_type: 'tc', seed_version: 'v13', values: { identificacao: 'TC-03', relacao: '200-5 A' } },
+  },
+  {
+    name: 'plate-para-raio-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-para-raio-v13.png'),
+    expected: { kind: 'plate', block_type: 'para_raio', seed_version: 'v13', values: { mcov_kv: '12.7', involucro: 'POLIMÉRICO' } },
+  },
+  {
+    name: 'plate-cabos-v13 (synthetic, seed v13, Story 23.7)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-cabos-v13.png'),
+    expected: { kind: 'plate', block_type: 'cabos_entrada', seed_version: 'v13', values: { classe_cabo: '8,7/15 kV', isolacao_cabo: 'EPR', secao_mm2: '50', tipo_terminacao: 'TERMOCONTRÁTIL' } },
+  },
   {
     name: 'panel-seccionadora (synthetic)',
     path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/panel-seccionadora.png'),
@@ -188,7 +233,7 @@ function mimeOf(path: string): string {
 }
 
 function fieldsOf(expected: ExpectedFile): FieldDef[] {
-  return expected.kind === 'panel' ? [...PANEL_FIELDS] : [...getDefinition(SEED_VERSION, 'cabine_primaria', expected.block_type!).nameplate];
+  return expected.kind === 'panel' ? [...PANEL_FIELDS] : [...getDefinition(expected.seed_version ?? SEED_VERSION, 'cabine_primaria', expected.block_type!).nameplate];
 }
 
 /** Whether a model value, normalized the way the job stores it, is the expected one. */
@@ -198,6 +243,11 @@ function isRight(field: FieldDef, value: unknown, expected: string): boolean {
   const stored = normalized.value;
   if (field.kind === 'number') {
     const raw = (stored as { raw: string }).raw;
+    // Story 23.7: a list (TAPS) or a value over √3 is right when it reads as the expected text reads.
+    if (field.list === true || field.over_sqrt3 === true) {
+      const wanted = normalizeReadingValue(field, expected);
+      return wanted.ok && (wanted.value as { raw: string }).raw === raw;
+    }
     return Number(raw) === Number(expected.replace(',', '.'));
   }
   return normalizeRegistryName(String(stored)) === normalizeRegistryName(expected);

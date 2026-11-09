@@ -1,0 +1,159 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TC",
+        "bbox": [
+          70,
+          70,
+          125,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "TC-03",
+        "bbox": [
+          640,
+          156,
+          723,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          324,
+          234,
+          353
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "Velquor",
+        "bbox": [
+          640,
+          328,
+          753,
+          354
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "RELAÇÃO",
+        "bbox": [
+          72,
+          496,
+          192,
+          525
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "200-5",
+        "bbox": [
+          642,
+          500,
+          722,
+          521
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "A",
+        "bbox": [
+          732,
+          501,
+          752,
+          520
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "EXATIDÃO",
+        "bbox": [
+          72,
+          668,
+          200,
+          693
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "0,6",
+        "bbox": [
+          641,
+          672,
+          685,
+          696
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TC-03",
+        "ocr_token_ids": [
+          "t2"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Velquor",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "relacao",
+        "value": "200-5 A",
+        "ocr_token_ids": [
+          "t6",
+          "t7"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "exatidao",
+        "value": "0,6",
+        "ocr_token_ids": [
+          "t9"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

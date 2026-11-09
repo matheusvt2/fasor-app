@@ -92,6 +92,8 @@ export * from './relatorio/row-voltage.ts';
 export * from './relatorio/accuracy-class.ts';
 export * from './relatorio/ficha.ts';
 export * from './relatorio/readings.ts';
+export * from './relatorio/tap-rows.ts';
+export * from './relatorio/applicability.ts';
 export * from './relatorio/vector-group.ts';
 export * from './relatorio/measurement-evaluation.ts';
 export * from './relatorio/over-range.ts';

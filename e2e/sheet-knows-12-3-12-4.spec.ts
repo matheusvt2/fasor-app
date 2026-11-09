@@ -24,6 +24,8 @@ test.beforeEach(({ seed }) => {
 });
 const SECC = getDefinition('v2', 'cabine_primaria', 'chave_seccionadora');
 const CHECKLIST = SECC.checklist!;
+/** Batch e23b: the plate the sheet draws, the current seed's (E15-A3). */
+const SECC_PLATE = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').nameplate;
 
 interface OutboxRow {
   path: string;
@@ -61,7 +63,8 @@ function plateValue(f: FieldDef): unknown {
  * prefills), checklist C, readings within criterion, the pair.
  */
 function completeButInstruments(scope: Scope, blockId: string, blockType = 'chave_seccionadora'): OpDraft[] {
-  const definition = getDefinition('v2', 'cabine_primaria', blockType);
+  // Batch e23b: the current seed's plate, read from the kernel (E15-A3; v13 adds TIPO DE SECCIONADORA, required).
+  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', blockType);
   return [
     ...definition.nameplate.filter((f) => f.key !== 'tag').map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f))),
     ...(definition.checklist ?? []).map((item) => officeDraft(account, scope, `sheet/${blockId}/checklist/${item.key}/result`, 'C')),
@@ -129,7 +132,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await expect(page.getByRole('button', { name: 'Digitar' })).toHaveCount(0);
   const chips = page.getByRole('group', { name: 'Copiar dados de placa' });
   await expect(chips).toBeVisible();
-  for (const f of SECC.nameplate) await expect(field(page, f.key)).toBeVisible();
+  for (const f of SECC_PLATE) await expect(field(page, f.key)).toBeVisible();
   const chipsBox = (await chips.boundingBox())!;
   const gridBox = (await page.locator('#ficha-nameplate .nameplate-grid').boundingBox())!;
   expect(chipsBox.y + chipsBox.height).toBeLessThanOrEqual(gridBox.y);
@@ -139,7 +142,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await expect(tag).toHaveValue(target.tag);
   await expect(tag).toHaveAccessibleDescription('Do bloco · editável');
   await expect(tag).not.toHaveAttribute('data-missing-field');
-  expect(await stepMissing(page, 'Placa')).toBe(SECC.nameplate.length - 1);
+  expect(await stepMissing(page, 'Placa')).toBe(SECC_PLATE.filter((f) => f.optional !== true).length - 1);
 
   // D-3: "Igual à" copies the plate but the per-unit fields; the toast undoes it.
   await chips.getByRole('button', { name: `Igual à ${source.tag}?` }).click();
@@ -320,7 +323,10 @@ test('@p0 12.1-E2E-008 a primary still labelled "Próxima ficha" when the last r
 
 test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet and named on the Sumário row; editable while incomplete on a later sheet; one line with "Editar" once complete, the edit reaching every sheet', async ({ page }) => {
   test.setTimeout(180_000);
-  const { relatorioId } = await setUp(page);
+  const { relatorioId, sheets } = await setUp(page);
+  // Batch e23b: the cabine's first sheet is its Cabos de entrada, which seed v13 gives a plate of its own (Story 23.7).
+  const firstSheet = sheets.find((sheet) => sheet.locationName === 'Cubículo Enel')!;
+  const firstPlate = getDefinition(SEED_VERSION, 'cabine_primaria', firstSheet.blockType).nameplate.filter((f) => f.optional !== true && f.key !== 'tag').length;
 
   // The Sumário names what the cabine lacks, on its row and in the section 9 pending line.
   await openSection9(page);
@@ -335,11 +341,13 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
   const withCabine = await stepMissing(page, 'Placa');
   expect(withCabine).toBeGreaterThanOrEqual(6);
-  // E12-Q10: the cabine's first sheet holds no plate field left, and the header names the six as the cabine's;
+  // E12-Q10: ~~the cabine's first sheet holds no plate field left~~ (batch e23b: on seed v13 its cables'
+  // own plate fields count beside the six), and the header names the six as the cabine's;
   // E12-Q8: the count in `.n-missing`.
-  expect(withCabine).toBe(6);
-  await expect(page.getByTestId('ficha-progress')).toHaveText(/^Faltam 6 campos do local, /);
-  await expect(page.getByTestId('ficha-progress').locator('.n-missing').first()).toHaveText('6');
+  expect(withCabine).toBe(6 + firstPlate);
+  // The kernel names the plate's fields before the cabine's (`sheetProgressText`): "Faltam 6 campos da placa, 6 campos do local, …".
+  await expect(page.getByTestId('ficha-progress')).toHaveText(firstPlate === 0 ? /^Faltam 6 campos do local, / : new RegExp(`^Faltam ${firstPlate} campos da placa, 6 campos do local, `));
+  await expect(page.getByTestId('ficha-progress').locator('.n-missing').nth(firstPlate === 0 ? 0 : 1)).toHaveText('6');
   const tag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
   await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();

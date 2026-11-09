@@ -252,9 +252,14 @@ export const companyOilRuleSchema = z
     items: z.array(key).min(1),
     fields: z.array(key),
     full_values: z.array(z.string().min(1)).min(1).optional(),
+    // Seed v13 (Story 23.7): a copy of a v13 transformer keeps the fields its oil unit excuses (`oilRuleSchema`).
+    dry_fields: z.array(key).min(1).optional(),
   })
   .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
     message: 'full_values and oil_values are disjoint',
+  })
+  .refine((rule) => rule.dry_fields === undefined || rule.dry_fields.every((field) => !rule.fields.includes(field)), {
+    message: 'dry_fields and fields are disjoint',
   });
 
 /** The keys of a version's definition, each part with its own shape (AD-21 item 2). */

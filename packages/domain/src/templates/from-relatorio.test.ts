@@ -6,7 +6,7 @@ import { blockConfigSchema, MAX_QUANTITY, SECTION_BLOCK_TYPES, type Subtype, typ
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
-import { defaultBlockConfig, standardTemplate } from '../seed/template.ts';
+import { defaultBlockConfig, standardTemplate, withVersionSubBlocks } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { locationBlocks, newEquipmentBlock } from '../relatorio/tree.ts';
@@ -353,10 +353,15 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
     // The relatório itself is not touched: its row and its blocks stay on the version they were made with.
     expect(snapshot.relatorio.seed_version).toBe(version);
     expect(new Set(snapshot.blocks.map((block) => block.seed_version))).toEqual(new Set([version]));
-    // A relatório made from the saved template is born on the current version.
+    // A relatório made from the saved template is born on the current version, with the sub-blocks
+    // that version adds at their default (Story 23.7, seed v13: the cables' nameplate, `withVersionSubBlocks`).
     const again = build(saved, '019966b0-006b-7000-8000-');
     expect(again.snapshot.relatorio.seed_version).toBe(SEED_VERSION);
-    expect(structure(again.snapshot)).toEqual(structure(snapshot));
+    const completed = structure(snapshot).map((node) => ({
+      ...node,
+      blocks: node.blocks.map((block) => ({ ...block, config: blockConfigSchema.parse(withVersionSubBlocks([{ ...block.config, quantity: 1, skeleton_location_ref: null, section_text: null }], SEED_VERSION)[0]) })),
+    }));
+    expect(structure(again.snapshot)).toEqual(completed);
   });
 
   it('a relatório on a version this bundle does not ship keeps its own version on the saved template', () => {

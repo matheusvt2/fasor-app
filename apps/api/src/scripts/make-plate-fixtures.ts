@@ -43,6 +43,12 @@ import sharp from 'sharp';
  * insulation, to verify); and a TC (`tc_classe`) printing EXATIDÃO "0,6C25", answered as printed
  * (the kernel reads the class 0,6). A row may print words of its own at the left (`label`) instead
  * of the field's label, and cite them with its value (`citeLabel`).
+ *
+ * Story 23.7 adds seven seed v13 plates (`*_v13`), one per type with the fields v13 adds that a plate
+ * prints (TAPS, TAP ATUAL, the winding material and impedance; the breaker's mounting, command
+ * voltage, drive and maker's times; the seccionadora's type, fuse current and MOTORIZADO; the TP's
+ * voltages over √3 and its NBR 6855 group; the TC's "200-5"; the arrester's MCOV and housing; a
+ * cable's class, insulation, section and termination), no block type's default either.
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -68,7 +74,7 @@ interface PlateRow {
 }
 
 interface PlateSpec {
-  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca';
+  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca' | 'cabos_entrada';
   /** The seed version whose definition the plate is laid out on (default: the one a new relatório is created with). */
   seedVersion?: string;
   /** The argument that selects the plate when it is not its block type (Story 21.2: two transformer plates). */
@@ -263,6 +269,113 @@ const PLATES: PlateSpec[] = [
       { key: 'n_serie', tokens: ['TC-305290'], value: 'TC-305290' },
       { key: 'relacao', tokens: ['100-5', 'A'], value: '100-5 A' },
       { key: 'exatidao', tokens: ['0,6C25'], value: '0,6C25' },
+    ],
+  },
+  // Story 23.7 (seed v13, decision K): one plate per type with the fields v13 adds that a plate prints, laid out
+  // on the v13 definitions, named apart and no block type's default (every default fixture stays as it is).
+  // The temperatures, the breaker's counter, the arrester's DESLIGADOR ÍNTEGRO and the cable's length and
+  // condition are the visit's, never printed. Values invented; the makers are made-up words.
+  {
+    // TAPS printed with no unit: which unit the plate means is the ambiguous part, so the kernel asks for a check.
+    blockType: 'transformador_forca',
+    name: 'transformador_forca_v13',
+    seedVersion: 'v13',
+    file: 'plate-transformador-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TR-05'], value: 'TR-05' },
+      { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
+      { key: 'tipo_de_isolacao', tokens: ['ÓLEO', 'MINERAL'], value: 'ÓLEO MINERAL' },
+      { key: 'potencia_nominal', tokens: ['500', 'kVA'], value: num('500', 'kVA') },
+      { key: 'taps', tokens: ['13,8', '/', '13,2', '/', '12,6', '/', '12', '/', '11,4'], value: '13,8 / 13,2 / 12,6 / 12 / 11,4' },
+      { key: 'tap_atual_kv', tokens: ['12,6', 'kV'], value: num('12.6', 'kV') },
+      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      { key: 'tensao_nominal_bt', tokens: ['380', 'V'], value: num('380', 'V') },
+      { key: 'ligacao_secundaria', tokens: ['Dyn1'], value: 'Dyn1' },
+      { key: 'impedancia_pct', tokens: ['4,5', '%'], value: num('4.5', '%') },
+      { key: 'material_enrolamento', tokens: ['Cu'], value: 'Cu' },
+    ],
+  },
+  {
+    blockType: 'disjuntor_mt',
+    name: 'disjuntor_mt_v13',
+    seedVersion: 'v13',
+    file: 'plate-disjuntor-mt-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['DJ-02'], value: 'DJ-02' },
+      { key: 'fabricacao', tokens: ['Tensilda'], value: 'Tensilda' },
+      { key: 'n_serie', tokens: ['DJ-210611'], value: 'DJ-210611' },
+      { key: 'corrente_nominal', tokens: ['630', 'A'], value: num('630', 'A') },
+      { key: 'tipo_montagem', tokens: ['EXTRAÍVEL'], value: 'EXTRAÍVEL' },
+      { key: 'tensao_comando_v', tokens: ['125', 'Vcc'], value: '125 Vcc' },
+      { key: 'acionamento', tokens: ['MOLA', 'MOTORIZADA'], value: 'MOLA MOTORIZADA' },
+      { key: 'tempo_abertura_fab_ms', tokens: ['45', 'ms'], value: num('45', 'ms') },
+      { key: 'tempo_fechamento_fab_ms', tokens: ['60', 'ms'], value: num('60', 'ms') },
+    ],
+  },
+  {
+    blockType: 'chave_seccionadora',
+    name: 'chave_seccionadora_v13',
+    seedVersion: 'v13',
+    file: 'plate-chave-seccionadora-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['SEC-03'], value: 'SEC-03' },
+      { key: 'fabricacao', tokens: ['Morvatec'], value: 'Morvatec' },
+      { key: 'corrente_nominal', tokens: ['630', 'A'], value: num('630', 'A') },
+      { key: 'acionamento', tokens: ['MOTORIZADO'], value: 'MOTORIZADO' },
+      { key: 'tipo_seccionadora', tokens: ['SOB', 'CARGA', 'COM', 'FUSÍVEIS'], value: 'SOB CARGA COM FUSÍVEIS' },
+      { key: 'fusivel_corrente_a', tokens: ['63', 'A'], value: num('63', 'A') },
+    ],
+  },
+  {
+    // The TP's voltages over √3, printed with the root sign, answered as printed (the kernel stores "N/√3").
+    blockType: 'tp',
+    name: 'tp_v13',
+    seedVersion: 'v13',
+    file: 'plate-tp-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TP-02'], value: 'TP-02' },
+      { key: 'fabricacao', tokens: ['Ondarel'], value: 'Ondarel' },
+      { key: 'tensao_nominal_at', tokens: ['13,8/√3', 'kV'], value: '13,8/√3 kV' },
+      { key: 'tensao_nominal_bt', tokens: ['115/√3', 'V'], value: '115/√3 V' },
+      { key: 'grupo_ligacao_tp', tokens: ['2'], value: '2 (FASE-TERRA, SISTEMA ATERRADO)' },
+    ],
+  },
+  {
+    blockType: 'tc',
+    name: 'tc_v13',
+    seedVersion: 'v13',
+    file: 'plate-tc-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TC-03'], value: 'TC-03' },
+      { key: 'fabricacao', tokens: ['Velquor'], value: 'Velquor' },
+      { key: 'relacao', tokens: ['200-5', 'A'], value: '200-5 A' },
+      { key: 'exatidao', tokens: ['0,6'], value: '0,6' },
+    ],
+  },
+  {
+    blockType: 'para_raio',
+    name: 'para_raio_v13',
+    seedVersion: 'v13',
+    file: 'plate-para-raio-v13.png',
+    rows: [
+      { key: 'fabricacao', tokens: ['Quelvar'], value: 'Quelvar' },
+      { key: 'n_serie', tokens: ['PR-2207-208'], value: 'PR-2207-208' },
+      { key: 'corrente_nominal', tokens: ['10', 'kA'], value: num('10', 'kA') },
+      { key: 'mcov_kv', tokens: ['12,7', 'kV'], value: num('12.7', 'kV') },
+      { key: 'involucro', tokens: ['POLIMÉRICO'], value: 'POLIMÉRICO' },
+    ],
+  },
+  {
+    // A cable's printed marking, read on a cabos de entrada sheet (the cabos de saída hold the same fields).
+    blockType: 'cabos_entrada',
+    name: 'cabos_v13',
+    seedVersion: 'v13',
+    file: 'plate-cabos-v13.png',
+    rows: [
+      { key: 'classe_cabo', tokens: ['8,7/15', 'kV'], value: '8,7/15 kV' },
+      { key: 'isolacao_cabo', tokens: ['EPR'], value: 'EPR' },
+      { key: 'secao_mm2', tokens: ['50', 'mm²'], value: num('50', 'mm²') },
+      { key: 'tipo_terminacao', tokens: ['TERMOCONTRÁTIL'], value: 'TERMOCONTRÁTIL' },
     ],
   },
 ];

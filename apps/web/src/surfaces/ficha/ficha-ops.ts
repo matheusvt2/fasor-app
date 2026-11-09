@@ -147,6 +147,11 @@ export function testValueOp(author: Author, relatorioId: string, blockId: string
   return put(author, relatorioId, sheetTestValuePath(blockId, testKey, valueKey), value);
 }
 
+/** Story 23.9 (contract 35): `sheet/{blockId}/test/{testKey}/applicability` put, "Aplicar este ensaio" (`'applied'`) or "Seguir a placa" (null). */
+export function testApplicabilityOp(author: Author, relatorioId: string, blockId: string, testKey: string, value: 'applied' | null): OpDraft {
+  return put(author, relatorioId, sheetTestPath(blockId, testKey, 'applicability'), value);
+}
+
 /**
  * Batch e23a (Story 23.3): `sheet/{blockId}/test/{testKey}/criterion_override` put, the manufacturer's
  * value (`{raw, unit}`, the kernel's `parseManufacturerValue`), null to clear it.

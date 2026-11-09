@@ -4,6 +4,7 @@ import { evaluateSheetMeasurements, measurementCells } from '../relatorio/measur
 import { isReadingValue, overRangeText } from '../relatorio/over-range.ts';
 import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
+import { tapRowsOf } from '../relatorio/tap-rows.ts';
 import type { BlockRow, EquipmentRow, LastResults } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
@@ -26,7 +27,11 @@ import type { BlockDefinition } from '../seed/schema.ts';
  *   (`#${index in the table}` when every connection cell is blank, the typed TAP row), colKey the
  *   seed label of a `capture` column;
  * - a measurement test: the row's `key` and the column's `key`, number cells only;
- * - a key met again in one definition takes `~2`, `~3`, ... in definition order.
+ * - a key met again in one definition takes `~2`, `~3`, ... in definition order;
+ * - seed v13 (Story 23.8): a table whose rows come from the plate (`rows_from`, the TTR), read
+ *   with the block, has the block's rows: a tap of the plate or a row off it keyed by its tap in
+ *   whole V (`${table.key}:@13800`), so a reading is found again on the same tap at the next visit
+ *   whatever its position on the plate; row 0, typed before the list, keeps the seeded key.
  * Only `measured` and `over_range` captures of the tests that print are kept (enabled seeded
  * tests; measurement tests switched on and run, on the rows the configuration shows); a block
  * marked not tested, removed or with no equipment gives no entry, and an entry with no reading
@@ -57,12 +62,16 @@ export function readingAddressKey(address: { testKey: string; row: number; col: 
   return `${address.testKey}/${address.row}/${address.col}`;
 }
 
+/** What `readingSlotsOf` reads of a definition: its tests, and the nameplate a `rows_from` table's list is on. */
+type SlotDefinition = Pick<BlockDefinition, 'tests' | 'measurement_tests'> & Partial<Pick<BlockDefinition, 'nameplate'>>;
+
 /**
  * Every reading cell of a definition, keyed: the capture cells of every seeded test, in table,
  * row and column order, then the number cells of every measurement test (fixed cells left out),
- * whatever the block's configuration or switches.
+ * whatever the block's configuration or switches. Story 23.8: with `block`, a `rows_from` table's
+ * rows are the block's (`tapRowsOf`); without it, or with the plate's list empty, the seeded ones.
  */
-export function readingSlotsOf(definition: Pick<BlockDefinition, 'tests' | 'measurement_tests'>): ReadingSlot[] {
+export function readingSlotsOf(definition: SlotDefinition, block?: Pick<BlockRow, 'sheet'>): ReadingSlot[] {
   const out: ReadingSlot[] = [];
   const seen = new Map<string, number>();
   const push = (testKey: string, row: number, col: number, base: string) => {
@@ -73,13 +82,17 @@ export function readingSlotsOf(definition: Pick<BlockDefinition, 'tests' | 'meas
   for (const test of definition.tests) {
     let offset = 0;
     for (const table of test.tables) {
-      table.rows.forEach((connection, r) => {
-        const cells = connection.map((text) => text.trim());
-        const rowKey = `${table.key}:${cells.every((text) => text === '') ? `#${r}` : cells.join('/')}`;
+      const seededKey = (r: number) => {
+        const cells = (table.rows[r] ?? []).map((text) => text.trim());
+        return `${table.key}:${cells.every((text) => text === '') ? `#${r}` : cells.join('/')}`;
+      };
+      const captures = (row: number, rowKey: string) =>
         table.value_columns.forEach((column, col) => {
-          if (column.role === 'capture') push(test.key, offset + r, col, `${test.key}|${rowKey}|${column.label}`);
+          if (column.role === 'capture') push(test.key, row, col, `${test.key}|${rowKey}|${column.label}`);
         });
-      });
+      const plan = block === undefined || definition.nameplate === undefined ? null : tapRowsOf(block, { nameplate: definition.nameplate }, table, test.key);
+      if (plan === null) table.rows.forEach((_, r) => captures(offset + r, seededKey(r)));
+      else for (const entry of plan) captures(entry.row, entry.volts === null ? seededKey(entry.row) : `${table.key}:@${entry.volts}`);
       offset += table.rows.length;
     }
   }
@@ -95,9 +108,9 @@ export function readingSlotsOf(definition: Pick<BlockDefinition, 'tests' | 'meas
   return out;
 }
 
-/** The readings a block holds now, keyed as `readingSlotsOf` keys them; empty for a block with nothing measured. */
+/** The readings a block holds now, keyed as `readingSlotsOf` keys them (its own tap rows included); empty for a block with nothing measured. */
 export function blockReadings(block: BlockRow, definition: BlockDefinition): Record<string, LastResultReading> {
-  const keys = new Map(readingSlotsOf(definition).map((slot) => [readingAddressKey(slot), slot.key]));
+  const keys = new Map(readingSlotsOf(definition, block).map((slot) => [readingAddressKey(slot), slot.key]));
   const readings: Record<string, LastResultReading> = {};
   const keep = (address: { testKey: string; row: number; col: number }, state: string, raw: string, unit: string | null) => {
     const key = keys.get(readingAddressKey(address));
@@ -187,11 +200,14 @@ export function previousHelperText(entry: Pick<PreviousResults, 'revision_number
   return `Anterior: ${previousReadingText(reading)} (rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`;
 }
 
-/** The previous reading of each cell of `definition` the entry holds, by `readingAddressKey`. */
-export function previousReadingsByAddress(entry: PreviousResults | null, definition: Pick<BlockDefinition, 'tests' | 'measurement_tests'>): ReadonlyMap<string, LastResultReading> {
+/**
+ * The previous reading of each cell of `definition` the entry holds, by `readingAddressKey`; with
+ * `block`, its tap rows read the readings of their taps (Story 23.8).
+ */
+export function previousReadingsByAddress(entry: PreviousResults | null, definition: SlotDefinition, block?: Pick<BlockRow, 'sheet'>): ReadonlyMap<string, LastResultReading> {
   const out = new Map<string, LastResultReading>();
   if (entry === null) return out;
-  for (const slot of readingSlotsOf(definition)) {
+  for (const slot of readingSlotsOf(definition, block)) {
     const reading = entry.readings[slot.key];
     if (reading !== undefined) out.set(readingAddressKey(slot), reading);
   }
@@ -200,18 +216,20 @@ export function previousReadingsByAddress(entry: PreviousResults | null, definit
 
 /**
  * The "Anterior: …" line of every capture cell of a sheet that has a previous value, by
- * `readingAddressKey`; empty with no previous visit (`previousResultsFor`).
+ * `readingAddressKey`; empty with no previous visit (`previousResultsFor`). With the block's
+ * `sheet`, its tap rows have theirs (Story 23.8).
  */
 export function previousHelpers(
   equipment: Pick<EquipmentRow, 'last_results'> | null | undefined,
-  block: Pick<BlockRow, 'block_type'>,
-  definition: Pick<BlockDefinition, 'tests' | 'measurement_tests'>,
+  block: Pick<BlockRow, 'block_type'> & Partial<Pick<BlockRow, 'sheet'>>,
+  definition: SlotDefinition,
   relatorioId: string,
 ): ReadonlyMap<string, string> {
   const entry = previousResultsFor(equipment, block, relatorioId);
   const out = new Map<string, string>();
   if (entry === null) return out;
-  for (const [address, reading] of previousReadingsByAddress(entry, definition)) out.set(address, previousHelperText(entry, reading));
+  const rows = block.sheet === undefined ? undefined : { sheet: block.sheet };
+  for (const [address, reading] of previousReadingsByAddress(entry, definition, rows)) out.set(address, previousHelperText(entry, reading));
   return out;
 }
 

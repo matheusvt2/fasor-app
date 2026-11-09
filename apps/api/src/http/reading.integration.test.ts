@@ -115,11 +115,15 @@ function companyDraft(path: string, value: unknown): OpDraft {
   return { kind: 'create', scope: 'company', company_id: companyA.companyId, project_id: null, relatorio_id: null, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId };
 }
 
-/** A standard-template relatório of company A with its first transformer's TENSÃO NOMINAL AT typed. */
+/**
+ * A standard-template relatório of company A with its first transformer's TENSÃO NOMINAL AT typed.
+ * Story 23.7 (seed v13): on v12, the version the synthetic transformer plate is drawn for (its text
+ * TAP ATUAL, which v13 replaced by TAPS), as every test here ran before v13 (v13 opened equal to v12).
+ */
 async function relatorio(): Promise<{ relatorioId: string; transformer: BlockRow }> {
   const projectId = newId();
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), seedVersion: 'v12' }),
     { id: projectId },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: companyA.userId, companyId: companyA.companyId },

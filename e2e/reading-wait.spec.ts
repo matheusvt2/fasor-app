@@ -115,7 +115,9 @@ test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s
   // The page's clock jumps the 10 s to the age instead of spending them (fast-forward, as in 13.5-E2E-004).
   await page.clock.install();
   await ackPhotoBytes(page);
-  const ids = await openTransformerSheet(page, account, database);
+  // Batch e23b: on seed v12, whose plate holds the eleven keys of the transformer's default fixture
+  // (on v13 the job drops its text TAP ATUAL as `unknown_key`).
+  const ids = await openTransformerSheet(page, account, database, { seedVersion: 'v12' });
   const plateId = await importThrough(page, nameplate(page).locator('.camera-group').getByRole('button', { name: 'Fotografar placa' }), PLATE, 'placa.jpg');
   const termoId = await importThrough(page, env(page).locator('.ficha-amb-actions').getByRole('button', { name: 'Ler visor' }), TERMO, 'visor.jpg');
   // The creates go out and the device takes its bytes as acked (DG-4: the wait counts from

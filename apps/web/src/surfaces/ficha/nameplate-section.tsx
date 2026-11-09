@@ -4,6 +4,7 @@ import {
   INSULATION_FIELD_KEY,
   lastNameplateCopy,
   nameplateAcceptsNotApplicable,
+  nameplateFieldInput,
   nameplateMissingKeys,
   nameplateCopyFields,
   nameplateIsEmpty,
@@ -26,6 +27,7 @@ import {
   suggestionView,
   typedTurnsDownSuggestion,
   suggestNameplateCopy,
+  tapsHelperText,
   textCapOf,
   toIso,
   type BlockDefinition,
@@ -49,13 +51,14 @@ import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle } from '../../state/sync.tsx';
 import type { FichaApi } from './ficha-api.ts';
-import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
+import { firstFocusable, ReadOnlyField, SheetField, type FieldProps } from './ficha-fields.tsx';
 import { checklistResultOp, createWordOp, nameplateOp, withOilCrossing } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { PlateCameraGroup, PlateCrop, PlatePhotoRow, type PlateRetake } from './plate-photo.tsx';
 import { useReadingCancelled } from './reading-line.tsx';
+import { TapAtualField } from './tap-atual-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -405,8 +408,10 @@ export function NameplateSection({
           const stored = block.sheet.nameplate[field.key];
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;
           const value = prefilled ? tagPrefill : (stored?.value ?? null);
-          // Story 14.14: the seed's help under the field (the SELV/PELV meaning), on the sheet only.
-          const helper = prefilled ? t.tagHelper : field.help;
+          // Seed v13 (Story 23.7): a list (TAPS) or a value over √3 is typed as text; a field picked from a list is the picker.
+          const input = nameplateFieldInput(field);
+          // Story 14.14: the seed's help under the field (the SELV/PELV meaning), on the sheet only; seed v13: TAPS counts its taps.
+          const helper = prefilled ? t.tagHelper : input.list ? tapsHelperText(value) : field.help;
           const notice =
             field.key === selvField && selvNotice !== null ? (
               <span className="helper" data-tone="amber" role="status">
@@ -418,23 +423,22 @@ export function NameplateSection({
           if (pending?.view === 'fill') return <SuggestionFill key={`${field.key}:${pending.suggestion.id}`} model={suggestions} field={field} suggestion={pending.suggestion} />;
           const after = pending?.view === 'replace' ? <ReplaceLine model={suggestions} field={field} suggestion={pending.suggestion} typed={value} /> : null;
           const source = showsConfirmedGlyph(stored, snapshot.relatorio.status) ? suggestions.sourceOf(stored!.source_suggestion_id!) : null;
-          const sheetField = (
-            <SheetField
-              key={field.key}
-              field={field}
-              value={value}
-              {...(helper === undefined ? {} : { helper })}
-              missing={missingKeys.has(field.key)}
-              draft={{ entityId: block.id, field: `placa-${field.key.replace(/_/g, '-')}` }}
-              invalidText={t.invalidNumber}
-              selectEmpty={t.selectEmpty}
-              registries={registries}
-              acceptsNotApplicable={nameplateAcceptsNotApplicable(block, field.key, definitions)}
-              maxLength={textCapOf(sheetNameplatePath(block.id, field.key)) ?? undefined}
-              recents={{ blocks: snapshot.blocks, definitions }}
-              onCreateWord={(kind, name) => createWord(field.key, kind, name)}
-              onRegisterWord={registerWord}
-              commit={(next) => {
+          const fieldProps: FieldProps = {
+              field,
+              value,
+              ...(helper === undefined ? {} : { helper }),
+              missing: missingKeys.has(field.key),
+              draft: { entityId: block.id, field: `placa-${field.key.replace(/_/g, '-')}` },
+              invalidText: input.list ? t.invalidList : t.invalidNumber,
+              input,
+              selectEmpty: t.selectEmpty,
+              registries,
+              acceptsNotApplicable: nameplateAcceptsNotApplicable(block, field.key, definitions),
+              maxLength: textCapOf(sheetNameplatePath(block.id, field.key)) ?? undefined,
+              recents: { blocks: snapshot.blocks, definitions },
+              onCreateWord: (kind, name) => createWord(field.key, kind, name),
+              onRegisterWord: registerWord,
+              commit: (next) => {
                 if (api.author === null) return undefined;
                 // DG-2: a typed value that changes the field under "Sugerido: … — Substituir"
                 // discards that suggestion in the same batch (the engineer chose the typed one).
@@ -442,8 +446,8 @@ export function NameplateSection({
                 // the field or Enter turns the suggestion down (`turnDownOnLeave`).
                 if (field.key === oilField) return commitOilField(field.key, next);
                 return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
-              }}
-              after={
+              },
+              after:
                 field.key === INSULATION_FIELD_KEY && oilNaItems.length > 0 ? (
                   <>
                     {after}
@@ -458,13 +462,13 @@ export function NameplateSection({
                   </>
                 ) : (
                   after
-                )
-              }
+                ),
               // F-01: a suggestion landing on this field while it holds uncommitted typing
               // swaps it out; the typed text is committed then, never replaced by the guess.
-              flushOnUnmount
-            />
-          );
+              flushOnUnmount: true,
+            };
+          // Seed v13 (Story 23.7): a field picked from a list of the plate (TAP ATUAL) is the picker.
+          const sheetField = input.pickFrom === null ? <SheetField key={field.key} {...fieldProps} /> : <TapAtualField key={field.key} {...fieldProps} block={block} definition={definition} />;
           // One wrapper for every field, confirmed or not, so the field keeps its place in the
           // tree when a typed correction clears the provenance mid-typing (no remount).
           return (

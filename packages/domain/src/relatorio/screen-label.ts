@@ -39,6 +39,8 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'WCR',
   // Seed v6 (Story 14.9): the degree of protection of a quadro elétrico, a nameplate field.
   'IP',
+  // Seed v13 (Story 23.7): the arrester's maximum continuous operating voltage, a nameplate field.
+  'MCOV',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));

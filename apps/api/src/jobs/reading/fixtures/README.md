@@ -47,9 +47,12 @@ back to the default fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_
   size check passes whatever size the device's re-encode gave the photo, and the type's
   suggestions arrive. This is how the local stack, `e2e/plate-reading.spec.ts` and
   `e2e/plate-every-type.spec.ts` read a plate through the app under the `fake` providers.
-- a type with no nameplate (`cabos_entrada`, `cabos_saida`; the app shows no plate tile on
+- ~~a type with no nameplate (`cabos_entrada`, `cabos_saida`; the app shows no plate tile on
   their sheets): the reading fails permanently at its first attempt ("no fixture for block
-  type ..."), and the sheet would offer "Tentar novamente" and "Preencher manualmente".
+  type ..."), and the sheet would offer "Tentar novamente" and "Preencher manualmente".~~
+  *(2026-11-08, Story 23.7: on seed v13 the cables gain a nameplate and the app shows their plate
+  tile, but they keep no default: a cable plate photographed through the app still fails
+  permanently at its first attempt; the v13 cable plate below replays for its own bytes only.)*
 
 A photo's own fixture always wins over the default (the error and timeout images below).
 
@@ -195,6 +198,30 @@ keys and drops the others `unknown_key`.
 |---|---|---|
 | `plate-transformador-oleo.png` | `cbbc7884...json` | identificacao `TR-04`; fabricacao `Varnelo`; tipo `TRICAST` (printed "TIPO TRICAST"); tipo_do_oleo `B`, citing "Tipo óleo isolante B"; potencia_nominal `{raw: 500, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}`; tensao_nominal_bt `{raw: 220, unit: V}`. No insulation word is printed and no tipo_de_isolacao value is given: the kernel composes TIPO DE ISOLAÇÃO `ÓLEO MINERAL` in `verify`, citing the oil words (`reading/build.ts`) |
 | `plate-tc-classe.png` | `c1b740d6...json` | identificacao `TC-02`; fabricacao `Velquor`; n_serie `TC-305290`; relacao `100-5 A`; exatidao `0,6C25` as printed, which the kernel reads as the class `0,6` (`parseAccuracyClass`) |
+
+## The seven seed v13 plates (Story 23.7)
+
+Seven 1200 x 900 PNGs in `images/`, made by `make-plate-fixtures.ts transformador_forca_v13
+disjuntor_mt_v13 chave_seccionadora_v13 tp_v13 tc_v13 para_raio_v13 cabos_v13` on the seed v13
+definitions, one per type with the fields v13 adds that a plate prints (decision K). Values invented,
+makers made-up words. They are no block type's default: their fixtures replay for a photo of their
+own bytes (`job.integration.test.ts`; `bedrock-eval.ts`'s synthetic set).
+Every other default fixture is as it was, so a default plate on a v13 sheet drops the keys v13 renamed
+(the transformer's text `tap_atual`, `unknown_key`).
+
+| Image | Fixture | Values (the kernel parses the list and the √3, `reading/value.ts`) |
+|---|---|---|
+| `plate-transformador-v13.png` | `f121036e...json` | identificacao `TR-05`; fabricacao `Varnelo`; tipo_de_isolacao `ÓLEO MINERAL`; potencia_nominal `{raw: 500, unit: kVA}`; taps `13,8 / 13,2 / 12,6 / 12 / 11,4` printed with no unit, stored `{raw: 13.8;13.2;12.6;12;11.4, unit: kV}` in **verify** (which unit is the ambiguous part); tap_atual_kv `{raw: 12.6, unit: kV}`; tensao_nominal_at `{raw: 13.8, unit: kV}`; tensao_nominal_bt `{raw: 380, unit: V}`; ligacao_secundaria `Dyn1`; impedancia_pct `{raw: 4.5, unit: %}`; material_enrolamento `Cu` |
+| `plate-disjuntor-mt-v13.png` | `29c82594...json` | identificacao `DJ-02`; fabricacao `Tensilda`; n_serie `DJ-210611`; corrente_nominal `{raw: 630, unit: A}`; tipo_montagem `EXTRAÍVEL`; tensao_comando_v `125 Vcc`; acionamento `MOLA MOTORIZADA`; tempo_abertura_fab_ms `{raw: 45, unit: ms}`; tempo_fechamento_fab_ms `{raw: 60, unit: ms}` |
+| `plate-chave-seccionadora-v13.png` | `c83285d0...json` | identificacao `SEC-03`; fabricacao `Morvatec`; corrente_nominal `{raw: 630, unit: A}`; acionamento `MOTORIZADO`; tipo_seccionadora `SOB CARGA COM FUSÍVEIS`; fusivel_corrente_a `{raw: 63, unit: A}` |
+| `plate-tp-v13.png` | `16d176c2...json` | identificacao `TP-02`; fabricacao `Ondarel`; tensao_nominal_at `13,8/√3 kV` stored `{raw: 13.8/√3, unit: kV}`; tensao_nominal_bt `115/√3 V` stored `{raw: 115/√3, unit: V}`; grupo_ligacao_tp `2 (FASE-TERRA, SISTEMA ATERRADO)` (prints `2`) |
+| `plate-tc-v13.png` | `5b73f6bc...json` | identificacao `TC-03`; fabricacao `Velquor`; relacao `200-5 A` (read as 200 and 5 by the ratio test); exatidao `0,6` |
+| `plate-para-raio-v13.png` | `90d99ce5...json` | fabricacao `Quelvar`; n_serie `PR-2207-208`; corrente_nominal `{raw: 10, unit: kA}`; mcov_kv `{raw: 12.7, unit: kV}`; involucro `POLIMÉRICO` |
+| `plate-cabos-v13.png` | `cb18ca3f...json` | classe_cabo `8,7/15 kV`; isolacao_cabo `EPR`; secao_mm2 `{raw: 50, unit: mm²}`; tipo_terminacao `TERMOCONTRÁTIL` |
+
+Not printed on any of them (the visit's, never a plate's): the two temperatures, CLASSE TÉRMICA on an
+oil unit, the breaker's CONTADOR DE OPERAÇÕES, the arrester's DESLIGADOR ÍNTEGRO, and a cable's
+COMPRIMENTO and CONDIÇÃO.
 
 ## The error and timeout images
 

@@ -226,6 +226,32 @@ export type MeasurementCriterion =
   | (Omit<Extract<SeedMeasurementCriterion, { type: 'absolute' }>, 'seeded'> & { seeded?: string; seeded_criterion?: SeededLimit })
   | Exclude<SeedMeasurementCriterion, { type: 'absolute' }>;
 
+/*
+ * Seed v13 (Story 23.9, decision J): a test's applicability condition over one nameplate field,
+ * a small closed grammar the kernel evaluates (`relatorio/applicability.ts`): `in` (a select holds
+ * one of `values`), `filled` (the field holds a value), `above` and `below` (a number field
+ * holds more, or less, than `value`, in the field's unit). Unmet, the test is not applicable
+ * (NA) with its reason, until a per-test override applies it. An empty field applies the test
+ * unless `needs_value` says the test needs that value (the conservative reading); an "N/A" on
+ * the field is filled and meets no condition. `unmet` is how the reason says the plate's answer
+ * ("sem fusíveis"); without it the kernel composes one per operator. Shared by both test
+ * grammars; optional and never defaulted, so v1 to v12 parse to the bytes they shipped with.
+ */
+const appliesWhenBase = {
+  field: seedKey,
+  needs_value: z.literal(true).optional(),
+  unmet: z.string().min(1).optional(),
+};
+
+/** Seed v13 (Story 23.9): the condition a test applies under (see above). */
+export const appliesWhenSchema = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('in'), values: z.array(z.string().min(1)).min(1), ...appliesWhenBase }),
+  z.object({ op: z.literal('filled'), ...appliesWhenBase }),
+  z.object({ op: z.literal('above'), value: z.number(), ...appliesWhenBase }),
+  z.object({ op: z.literal('below'), value: z.number(), ...appliesWhenBase }),
+]);
+export type AppliesWhen = z.infer<typeof appliesWhenSchema>;
+
 /** The seeded test kinds whose registry instruments a measurement test's picker offers. */
 export const instrumentOfSchema = z.enum(['isolacao', 'resistencia_contato']);
 export type InstrumentOf = z.infer<typeof instrumentOfSchema>;
@@ -249,6 +275,10 @@ export const measurementTestShape = {
   values: z.array(measurementValueSchema).min(1).optional(),
   skip_when: whenValueSchema.optional(),
   criteria: z.array(measurementCriterionSchema).min(1),
+  /** Seed v13 (Story 23.9): the nameplate condition the test applies under; always, when absent. */
+  applies_when: appliesWhenSchema.optional(),
+  /** Seed v13 (Story 23.9): the test starts switched off in a new block's config (the base's "Opcional"); only on a `switchable` test. */
+  initial_off: z.literal(true).optional(),
 };
 
 /** What `checkMeasurementTest` reads of a test: the seed's shape, its key and criteria any (Story 14.6: the company variant shares the rule). */
@@ -271,6 +301,8 @@ export function checkMeasurementTest(test: MeasurementTestLike, ctx: z.Refinemen
   if (!unique(test.columns.map((column) => column.key))) issue(['columns'], 'a column key repeats');
   if (!unique(test.rows.map((row) => row.key))) issue(['rows'], 'a row key repeats');
   if (!unique((test.values ?? []).map((value) => value.key))) issue(['values'], 'a value key repeats');
+  // Seed v13 (Story 23.9): only a test the sheet can switch off starts off.
+  if (test.initial_off === true && test.switchable === undefined) issue(['initial_off'], 'initial_off belongs to a switchable test');
 
   test.rows.forEach((row, r) => {
     for (const column of Object.keys(row.fixed ?? {})) if (!columns.has(column)) issue(['rows', r, 'fixed', column], `"${column}" is not a column`);

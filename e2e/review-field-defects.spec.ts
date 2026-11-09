@@ -54,12 +54,15 @@ interface Built {
   drafts: OpDraft[];
 }
 
-/** Resets Empresa B, signs in at `width`, pushes a relatório of the standard template plus `extra` drafts and opens its Sumário. */
-async function setUp(page: Page, extra: (scope: Scope, built: Omit<Built, 'relatorioId'> & Scope) => OpDraft[] = () => [], width = 1280): Promise<Built> {
+/**
+ * Resets Empresa B, signs in at `width`, pushes a relatório of the standard template plus `extra` drafts and opens its Sumário.
+ * Batch e23b: `seedVersion` names an older seed for a test about its fields (v12's text TAP ATUAL).
+ */
+async function setUp(page: Page, extra: (scope: Scope, built: Omit<Built, 'relatorioId'> & Scope) => OpDraft[] = () => [], width = 1280, seedVersion?: string): Promise<Built> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, seedVersion === undefined ? {} : { seedVersion });
   const scope = { relatorioId: built.relatorioId };
   await pushDrafts(page, database, [...built.drafts, ...extra(scope, { ...built, ...scope })]);
   await openSumario(page, built.relatorioId);
@@ -77,8 +80,8 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 }
 
 /** The first transformer sheet of the relatório with some suggestions of the fixture plate pulled; their ids by field. */
-async function transformerWithSuggestions(page: Page, keys: readonly string[]): Promise<{ built: Built; blockId: string; ids: Record<string, string> }> {
-  const built = await setUp(page);
+async function transformerWithSuggestions(page: Page, keys: readonly string[], seedVersion?: string): Promise<{ built: Built; blockId: string; ids: Record<string, string> }> {
+  const built = await setUp(page, undefined, 1280, seedVersion);
   const blockId = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!.blockId;
   await openSheet(page, built.relatorioId, blockId);
   const all = transformerPlateFields();
@@ -89,9 +92,12 @@ async function transformerWithSuggestions(page: Page, keys: readonly string[]): 
   return { built, blockId, ids };
 }
 
-/** The first transformer sheet of the relatório, with the TAP ATUAL suggestion of the fixture plate ("5 · Verificar") pulled. */
+/**
+ * The first transformer sheet of the relatório, with the TAP ATUAL suggestion of the fixture plate ("5 · Verificar") pulled.
+ * Batch e23b: on seed v12, whose TAP ATUAL is the text field the fixture plate fills (v13's is TAPS and a kV TAP ATUAL picked from them).
+ */
 async function transformerWithTapSuggestion(page: Page): Promise<{ built: Built; blockId: string; suggestionId: string }> {
-  const { built, blockId, ids } = await transformerWithSuggestions(page, ['tap_atual']);
+  const { built, blockId, ids } = await transformerWithSuggestions(page, ['tap_atual'], 'v12');
   const tap = nameplateField(page, 'tap_atual').locator('.field.suggestion-field');
   await expect(tap).toHaveAttribute('data-state', 'verify', { timeout: 30_000 });
   await expect(tap.locator('input.sv')).toHaveValue('5');

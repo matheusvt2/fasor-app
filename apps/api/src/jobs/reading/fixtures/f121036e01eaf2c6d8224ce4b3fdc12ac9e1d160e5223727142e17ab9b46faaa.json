@@ -1,0 +1,688 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TRANSFORMADOR",
+        "bbox": [
+          70,
+          70,
+          481,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          494,
+          70,
+          549,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "FORÇA",
+        "bbox": [
+          562,
+          70,
+          711,
+          108
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "TR-05",
+        "bbox": [
+          640,
+          156,
+          723,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          214,
+          234,
+          243
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Varnelo",
+        "bbox": [
+          640,
+          218,
+          751,
+          239
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          280,
+          129,
+          301
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "DE",
+        "bbox": [
+          141,
+          281,
+          174,
+          300
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "ISOLAÇÃO",
+        "bbox": [
+          186,
+          276,
+          316,
+          305
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "ÓLEO",
+        "bbox": [
+          641,
+          275,
+          718,
+          301
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "MINERAL",
+        "bbox": [
+          730,
+          281,
+          860,
+          300
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "POTÊNCIA",
+        "bbox": [
+          72,
+          337,
+          201,
+          363
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "NOMINAL",
+        "bbox": [
+          213,
+          342,
+          333,
+          363
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "500",
+        "bbox": [
+          642,
+          342,
+          693,
+          363
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "kVA",
+        "bbox": [
+          705,
+          342,
+          759,
+          362
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "TAPS",
+        "bbox": [
+          69,
+          404,
+          133,
+          425
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "13,8",
+        "bbox": [
+          642,
+          404,
+          703,
+          428
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "/",
+        "bbox": [
+          713,
+          405,
+          723,
+          427
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "13,2",
+        "bbox": [
+          735,
+          404,
+          795,
+          428
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "/",
+        "bbox": [
+          805,
+          405,
+          815,
+          427
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "12,6",
+        "bbox": [
+          827,
+          404,
+          888,
+          428
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "/",
+        "bbox": [
+          898,
+          405,
+          908,
+          427
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "12",
+        "bbox": [
+          920,
+          404,
+          952,
+          424
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "/",
+        "bbox": [
+          962,
+          405,
+          972,
+          427
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "11,4",
+        "bbox": [
+          984,
+          405,
+          1045,
+          428
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "TAP",
+        "bbox": [
+          69,
+          467,
+          117,
+          486
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "ATUAL",
+        "bbox": [
+          127,
+          467,
+          210,
+          487
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "12,6",
+        "bbox": [
+          642,
+          466,
+          703,
+          490
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "kV",
+        "bbox": [
+          715,
+          466,
+          750,
+          486
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t30",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          524,
+          175,
+          549
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t31",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          528,
+          307,
+          549
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t32",
+        "text": "AT",
+        "bbox": [
+          317,
+          529,
+          349,
+          548
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t33",
+        "text": "13,8",
+        "bbox": [
+          642,
+          528,
+          703,
+          552
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t34",
+        "text": "kV",
+        "bbox": [
+          715,
+          528,
+          750,
+          548
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t35",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          586,
+          175,
+          611
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t36",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          590,
+          307,
+          611
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t37",
+        "text": "BT",
+        "bbox": [
+          319,
+          591,
+          351,
+          610
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t38",
+        "text": "380",
+        "bbox": [
+          641,
+          590,
+          693,
+          611
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t39",
+        "text": "V",
+        "bbox": [
+          703,
+          591,
+          723,
+          610
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t40",
+        "text": "DESLOCAMENTO",
+        "bbox": [
+          72,
+          652,
+          286,
+          673
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t41",
+        "text": "ANGULAR",
+        "bbox": [
+          296,
+          652,
+          422,
+          673
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t42",
+        "text": "Dyn1",
+        "bbox": [
+          642,
+          653,
+          714,
+          678
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t43",
+        "text": "IMPEDÂNCIA",
+        "bbox": [
+          72,
+          709,
+          232,
+          735
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t44",
+        "text": "4,5",
+        "bbox": [
+          641,
+          715,
+          685,
+          738
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t45",
+        "text": "%",
+        "bbox": [
+          695,
+          714,
+          721,
+          735
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t46",
+        "text": "MATERIAL",
+        "bbox": [
+          72,
+          777,
+          199,
+          796
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t47",
+        "text": "DO",
+        "bbox": [
+          211,
+          776,
+          248,
+          797
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t48",
+        "text": "ENROLAMENTO",
+        "bbox": [
+          260,
+          776,
+          459,
+          797
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t49",
+        "text": "Cu",
+        "bbox": [
+          641,
+          776,
+          676,
+          797
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TR-05",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Varnelo",
+        "ocr_token_ids": [
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_de_isolacao",
+        "value": "ÓLEO MINERAL",
+        "ocr_token_ids": [
+          "t10",
+          "t11"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "potencia_nominal",
+        "value": {
+          "raw": "500",
+          "unit": "kVA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t14",
+          "t15"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "taps",
+        "value": "13,8 / 13,2 / 12,6 / 12 / 11,4",
+        "ocr_token_ids": [
+          "t17",
+          "t18",
+          "t19",
+          "t20",
+          "t21",
+          "t22",
+          "t23",
+          "t24",
+          "t25"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tap_atual_kv",
+        "value": {
+          "raw": "12.6",
+          "unit": "kV",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t28",
+          "t29"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_at",
+        "value": {
+          "raw": "13.8",
+          "unit": "kV",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t33",
+          "t34"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_bt",
+        "value": {
+          "raw": "380",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t38",
+          "t39"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "ligacao_secundaria",
+        "value": "Dyn1",
+        "ocr_token_ids": [
+          "t42"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "impedancia_pct",
+        "value": {
+          "raw": "4.5",
+          "unit": "%",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t44",
+          "t45"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "material_enrolamento",
+        "value": "Cu",
+        "ocr_token_ids": [
+          "t49"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

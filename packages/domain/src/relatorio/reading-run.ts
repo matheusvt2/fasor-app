@@ -4,6 +4,7 @@ import type { CellAddress, EvaluatedCell, EvaluatedRow, EvaluatedTable, ReadingV
 import { deviationPct, formatDeviation, sameAddress } from './reading-evaluation.ts';
 import { isReadingValue } from './over-range.ts';
 import { sheetState } from './sheet-state.ts';
+import { tapCellTyped, tapRowRequired } from './tap-rows.ts';
 
 /*
  * E9-A7: what walks an evaluation -- the continuous Enter run (Story 5.6) and the worst
@@ -12,23 +13,41 @@ import { sheetState } from './sheet-state.ts';
 
 // --- the continuous run (Story 5.6) -------------------------------------------------------
 
-/** One column of one table: the run's unit of "down". */
-function runBlocks(evaluations: readonly TestEvaluation[]): EvaluatedCell[][] {
-  const blocks: EvaluatedCell[][] = [];
+/** A cell of the run, with whether a jump may stop at it while empty (Story 23.8: an unmarked tap row's is optional). */
+interface RunCell {
+  cell: EvaluatedCell;
+  required: boolean;
+}
+
+/**
+ * One column of one table: the run's unit of "down". Story 23.8 (seed v13): only the cells the
+ * sheet types (`tapCellTyped`: a tap row's captures; its V PRIMÁRIO and V SECUNDÁRIO come from the
+ * plate and a row off the plate is never written), every row of a v12 table as before.
+ */
+function runBlocks(evaluations: readonly TestEvaluation[]): RunCell[][] {
+  const blocks: RunCell[][] = [];
   for (const test of evaluations) {
     for (const table of test.tables) {
       for (const column of table.columns) {
         if (column.role === 'derived') continue;
-        blocks.push(table.rows.map((row) => row.cells.find((cell) => cell.address.col === column.col)!));
+        const cells = table.rows.flatMap((row) => {
+          const cell = row.cells.find((candidate) => candidate.address.col === column.col)!;
+          return tapCellTyped(row, cell) ? [{ cell, required: tapRowRequired(row) }] : [];
+        });
+        if (cells.length > 0) blocks.push(cells);
       }
     }
   }
   return blocks;
 }
 
-/** A cell the run stops at: nothing typed and nothing from the nameplate. */
-function runEmpty(cell: EvaluatedCell): boolean {
-  return cell.state === 'empty' && cell.source === null;
+/**
+ * A cell the run stops at: nothing typed and nothing from the nameplate. Story 23.8: a jump
+ * never stops at an unmarked tap row, which requires nothing; Enter down a column still walks
+ * every row, marked or not (EXPERIENCE.md › Tap rows).
+ */
+function runEmpty(entry: RunCell): boolean {
+  return entry.required && entry.cell.state === 'empty' && entry.cell.source === null;
 }
 
 /**
@@ -41,24 +60,24 @@ function runEmpty(cell: EvaluatedCell): boolean {
  */
 export function runTarget(evaluations: readonly TestEvaluation[], from: CellAddress, direction: 'next' | 'previous' | 'right'): CellAddress | 'end' | null {
   const blocks = runBlocks(evaluations);
-  const b = blocks.findIndex((block) => block.some((cell) => sameAddress(cell.address, from)));
+  const b = blocks.findIndex((block) => block.some((entry) => sameAddress(entry.cell.address, from)));
   if (b === -1) return null;
   const block = blocks[b]!;
-  const at = block.findIndex((cell) => sameAddress(cell.address, from));
+  const at = block.findIndex((entry) => sameAddress(entry.cell.address, from));
   if (direction === 'right') {
     const row = evaluations.flatMap((t) => t.tables.flatMap((table) => table.rows)).find((r) => r.cells.some((cell) => sameAddress(cell.address, from)));
-    const next = row?.cells.find((cell) => cell.address.testKey === from.testKey && cell.address.col > from.col);
+    const next = row?.cells.find((cell) => cell.address.testKey === from.testKey && cell.address.col > from.col && tapCellTyped(row, cell));
     return next?.address ?? null;
   }
   if (direction === 'previous') {
-    if (at > 0) return block[at - 1]!.address;
+    if (at > 0) return block[at - 1]!.cell.address;
     const before = blocks[b - 1];
-    return before === undefined ? null : before[before.length - 1]!.address;
+    return before === undefined ? null : before[before.length - 1]!.cell.address;
   }
-  if (at < block.length - 1) return block[at + 1]!.address;
+  if (at < block.length - 1) return block[at + 1]!.cell.address;
   for (const later of blocks.slice(b + 1)) {
     const empty = later.find(runEmpty);
-    if (empty !== undefined) return empty.address;
+    if (empty !== undefined) return empty.cell.address;
   }
   return 'end';
 }
@@ -89,7 +108,7 @@ export function unitTapNeedsEdit(block: BlockRow, cell: Pick<EvaluatedCell, 'sta
 export function firstRunCell(evaluations: readonly TestEvaluation[]): CellAddress | null {
   for (const block of runBlocks(evaluations)) {
     const empty = block.find(runEmpty);
-    if (empty !== undefined) return empty.address;
+    if (empty !== undefined) return empty.cell.address;
   }
   return null;
 }

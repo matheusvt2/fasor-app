@@ -1,0 +1,512 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "DISJUNTOR",
+        "bbox": [
+          73,
+          70,
+          319,
+          108
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "MT",
+        "bbox": [
+          332,
+          70,
+          396,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "DJ-02",
+        "bbox": [
+          642,
+          156,
+          716,
+          182
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          228,
+          234,
+          257
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "Tensilda",
+        "bbox": [
+          640,
+          232,
+          758,
+          253
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Nº",
+        "bbox": [
+          72,
+          308,
+          101,
+          328
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          303,
+          185,
+          329
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "DJ-210611",
+        "bbox": [
+          642,
+          308,
+          789,
+          334
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          384,
+          212,
+          405
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "NOMINAL",
+        "bbox": [
+          224,
+          384,
+          344,
+          405
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "630",
+        "bbox": [
+          641,
+          384,
+          693,
+          405
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "A",
+        "bbox": [
+          703,
+          385,
+          723,
+          404
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "MONTAGEM",
+        "bbox": [
+          72,
+          460,
+          220,
+          481
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "EXTRAÍVEL",
+        "bbox": [
+          642,
+          455,
+          800,
+          480
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          532,
+          175,
+          557
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "DE",
+        "bbox": [
+          187,
+          537,
+          220,
+          556
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "COMANDO",
+        "bbox": [
+          231,
+          536,
+          368,
+          557
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "125",
+        "bbox": [
+          642,
+          536,
+          693,
+          557
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "Vcc",
+        "bbox": [
+          703,
+          537,
+          753,
+          557
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "ACIONAMENTO",
+        "bbox": [
+          70,
+          612,
+          264,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "MOLA",
+        "bbox": [
+          642,
+          612,
+          724,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "MOTORIZADA",
+        "bbox": [
+          736,
+          612,
+          932,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "TEMPO",
+        "bbox": [
+          69,
+          688,
+          160,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "DE",
+        "bbox": [
+          172,
+          689,
+          205,
+          708
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "ABERTURA",
+        "bbox": [
+          215,
+          689,
+          353,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "DO",
+        "bbox": [
+          365,
+          688,
+          402,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "FABRICANTE",
+        "bbox": [
+          414,
+          688,
+          572,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "45",
+        "bbox": [
+          641,
+          689,
+          675,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "ms",
+        "bbox": [
+          687,
+          693,
+          727,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t30",
+        "text": "TEMPO",
+        "bbox": [
+          69,
+          764,
+          160,
+          785
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t31",
+        "text": "DE",
+        "bbox": [
+          172,
+          765,
+          205,
+          784
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t32",
+        "text": "FECHAMENTO",
+        "bbox": [
+          217,
+          764,
+          395,
+          785
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t33",
+        "text": "DO",
+        "bbox": [
+          407,
+          764,
+          444,
+          785
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t34",
+        "text": "FABRICANTE",
+        "bbox": [
+          456,
+          764,
+          614,
+          785
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t35",
+        "text": "60",
+        "bbox": [
+          641,
+          764,
+          675,
+          785
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t36",
+        "text": "ms",
+        "bbox": [
+          687,
+          769,
+          727,
+          785
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "DJ-02",
+        "ocr_token_ids": [
+          "t3"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Tensilda",
+        "ocr_token_ids": [
+          "t5"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "DJ-210611",
+        "ocr_token_ids": [
+          "t8"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_nominal",
+        "value": {
+          "raw": "630",
+          "unit": "A",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t11",
+          "t12"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_montagem",
+        "value": "EXTRAÍVEL",
+        "ocr_token_ids": [
+          "t14"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_comando_v",
+        "value": "125 Vcc",
+        "ocr_token_ids": [
+          "t18",
+          "t19"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "acionamento",
+        "value": "MOLA MOTORIZADA",
+        "ocr_token_ids": [
+          "t21",
+          "t22"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tempo_abertura_fab_ms",
+        "value": {
+          "raw": "45",
+          "unit": "ms",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t28",
+          "t29"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tempo_fechamento_fab_ms",
+        "value": {
+          "raw": "60",
+          "unit": "ms",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t35",
+          "t36"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

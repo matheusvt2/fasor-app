@@ -90,10 +90,16 @@ export function isOilItem(block: Partial<RuleBlock>, itemKey: string, ctx: Defin
   return oilRuleOf(block, ctx)?.items.includes(itemKey as OilRule['items'][number]) ?? false;
 }
 
-/** An oil field of a non-oil unit: shown excused, never missing, printed "-". */
+/**
+ * An oil field of a non-oil unit: shown excused, never missing, printed "-". Seed v13 (Story
+ * 23.7): so is a dry field (`dry_fields`, the transformer's TEMPERATURA DO ENROLAMENTO and CLASSE
+ * TÉRMICA) of an oil unit; an unknown unit excuses neither.
+ */
 export function isOilFieldExcused(block: StateBlock, fieldKey: string, ctx: DefinitionContext): boolean {
   const rule = oilRuleOf(block, ctx);
-  return rule !== null && rule.fields.includes(fieldKey) && isOilUnit(block, ctx) === false;
+  if (rule === null) return false;
+  if (rule.fields.includes(fieldKey)) return isOilUnit(block, ctx) === false;
+  return (rule.dry_fields?.includes(fieldKey) ?? false) && isOilUnit(block, ctx) === true;
 }
 
 /** One put of the crossing batch. */

@@ -311,13 +311,15 @@ export async function photoAckedAt(page: Page, database: string, photoId: string
 /**
  * Resets Empresa B, signs in, pushes a relatório of the standard template and opens the first
  * sheet of `typeLabel` (the tree row's type label, e.g. "Transformador de força") in the
- * cabine named `cabine`, through the tree.
+ * cabine named `cabine`, through the tree. Batch e23b: `seedVersion` names an older seed for a
+ * spec about its behaviour (the standard template on it, as `pushNewRelatorio` takes it); the
+ * current seed otherwise.
  */
 export async function openSheetOfType(
   page: Page,
   account: SeedAccount,
   database: string,
-  options: { cabine: string; typeLabel: string; width?: number; signIn?: () => Promise<void> },
+  options: { cabine: string; typeLabel: string; width?: number; signIn?: () => Promise<void>; seedVersion?: string },
 ): Promise<{ relatorioId: string; blockId: string }> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: options.width ?? 1280, height: 900 });
@@ -325,7 +327,7 @@ export async function openSheetOfType(
   if (options.signIn === undefined) await signIn(page, account.email);
   else await options.signIn();
   // Status flow 2026-10-10: Em campo from the start, as a relatório being filled on site is.
-  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true });
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true, ...(options.seedVersion === undefined ? {} : { seedVersion: options.seedVersion }) });
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
@@ -355,7 +357,7 @@ export async function openTransformerSheet(
   page: Page,
   account: SeedAccount,
   database: string,
-  options: { width?: number; signIn?: () => Promise<void> } = {},
+  options: { width?: number; signIn?: () => Promise<void>; seedVersion?: string } = {},
 ): Promise<{ relatorioId: string; blockId: string }> {
   return openSheetOfType(page, account, database, { ...options, cabine: 'Oxigênio', typeLabel: 'Transformador de força' });
 }

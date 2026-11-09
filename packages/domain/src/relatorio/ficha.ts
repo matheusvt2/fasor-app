@@ -5,11 +5,16 @@ import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
 import {
   formatDecimalGroupedPtBr,
+  formatNumberListPtBr,
+  formatOverSqrt3PtBr,
   isNotApplicableNumber,
   isNotApplicableText,
   NOT_APPLICABLE_NUMBER,
   NOT_APPLICABLE_TEXT,
+  numberEchoText,
   parseDecimalPtBr,
+  parseNumberListPtBr,
+  parseOverSqrt3PtBr,
   parseVoltagePairPtBr,
   type NotApplicableNumber,
 } from '../parse/pt-br-number.ts';
@@ -282,25 +287,70 @@ export function nameplateWordRecents(
  * "N/A", "N.A.", any case, whitespace anywhere) answers `NOT_APPLICABLE_NUMBER`. Fix batch
  * fxpw G4: with `pair` (the field accepts a two-level voltage, `acceptsVoltagePair`), a typed
  * "380/220" is measured too, its `raw` the dot-decimal pair (`parseVoltagePairPtBr`).
+ *
+ * Seed v13 (Story 23.7): with `list` (a `list` field, the transformer's TAPS) the typed text is
+ * a list of values only (`parseNumberListPtBr`, two or more, none repeated, whole in V), its raw
+ * "13.8;13.2;12.6"; with `sqrt3` (an `over_sqrt3` field, the TP's TENSÃO NOMINAL AT and BT) a
+ * typed "115/√3" ("115/V3", "115/raiz3") is measured too, its raw "115/√3". The flags are the
+ * kernel's `nameplateFieldInput`.
  */
 export function numberFieldValue(
   typed: string,
   unit: string | null,
-  options: { pair?: boolean } = {},
+  options: { pair?: boolean; list?: boolean; sqrt3?: boolean } = {},
 ): NotApplicableNumber | { raw: string; unit: string | null; state: 'measured' } | null | 'invalid' {
   if (typed.trim() === '') return null;
   if (isNotApplicableText(typed)) return NOT_APPLICABLE_NUMBER;
-  const raw = parseDecimalPtBr(typed) ?? (options.pair === true ? parseVoltagePairPtBr(typed) : null);
+  if (options.list === true) {
+    const list = parseNumberListPtBr(typed, { unit });
+    return list === null ? 'invalid' : { raw: list, unit, state: 'measured' };
+  }
+  const raw = parseDecimalPtBr(typed) ?? (options.pair === true ? parseVoltagePairPtBr(typed) : null) ?? (options.sqrt3 === true ? parseOverSqrt3PtBr(typed) : null);
   return raw === null ? 'invalid' : { raw, unit, state: 'measured' };
 }
 
-/** A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), "N/A" for the `not_applicable` state (Story 16.4), dates dd/mm/aaaa, text as typed; '' when empty. */
-export function fieldValueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
+/**
+ * Seed v13 (Story 23.7): the echo line under a nameplate number field while typing, `numberEchoText`
+ * for every field of v1 to v12; a list reads "= 13,8 · 13,2 · 12,6 kV", a value over √3 "= 115/√3 V".
+ */
+export function nameplateEchoText(field: Pick<FieldDef, 'kind'> & Partial<Pick<FieldDef, 'list' | 'over_sqrt3'>>, raw: string, unit: string | null): string {
+  if (field.list !== true && field.over_sqrt3 !== true) return numberEchoText(raw, unit);
+  const text = fieldValueText(field, { raw, state: 'measured' });
+  return unit === null || unit === '' ? `= ${text}` : `= ${text} ${unit}`;
+}
+
+/** Seed v13 (Story 23.7): how the sheet's number field of a nameplate `FieldDef` takes its input, read from the definition (AD-13). */
+export interface NameplateFieldInput {
+  /** A list of the plate's values (TAPS): typed as text, parsed by `parseNumberListPtBr`. */
+  list: boolean;
+  /** Also "N/√3" (the TP's secondary): typed as text. */
+  sqrt3: boolean;
+  /** The `list` field this field's value is picked from (TAP ATUAL from TAPS), or null. */
+  pickFrom: string | null;
+  /** The keyboard the field asks for: the decimal keypad has no ";" nor "/". */
+  inputMode: 'decimal' | 'text';
+}
+
+/** Seed v13 (Story 23.7): the input flags of a nameplate field; every field of v1 to v12 reads `{list: false, sqrt3: false, pickFrom: null, inputMode: 'decimal'}`. */
+export function nameplateFieldInput(field: Pick<FieldDef, 'list' | 'over_sqrt3' | 'pick_from'>): NameplateFieldInput {
+  const list = field.list === true;
+  const sqrt3 = field.over_sqrt3 === true;
+  return { list, sqrt3, pickFrom: field.pick_from ?? null, inputMode: list || sqrt3 ? 'text' : 'decimal' };
+}
+
+/**
+ * A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), "N/A" for the `not_applicable` state (Story 16.4), dates dd/mm/aaaa, text as typed; '' when empty.
+ * Seed v13 (Story 23.7): a `list` field's value reads "13,8 · 13,2 · 12,6", an `over_sqrt3` field's "N/√3" reads "115/√3" ("13,8/√3").
+ */
+export function fieldValueText(field: Pick<FieldDef, 'kind'> & Partial<Pick<FieldDef, 'list' | 'over_sqrt3'>>, value: unknown): string {
   if (value === null || value === undefined) return '';
   if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in (value as object)) {
     const number = value as { raw: string; state?: string };
-    return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
+    if (number.state === 'empty') return '';
+    if (field.list === true) return formatNumberListPtBr(number.raw);
+    if (field.over_sqrt3 === true) return formatOverSqrt3PtBr(formatDecimalGroupedPtBr(number.raw));
+    return formatDecimalGroupedPtBr(number.raw);
   }
   // E78-Q3: a date in another shape ("07/2025", "2012") shows as stored, never blank.
   if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value) || value;

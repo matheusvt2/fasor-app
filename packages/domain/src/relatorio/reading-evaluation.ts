@@ -1,4 +1,4 @@
-import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
 import type { CriterionTableRow } from '../seed/criteria-tables.ts';
@@ -9,13 +9,15 @@ import { listPtBr } from '../text/plural.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
 import { isOverRangeRaw, OVER_RANGE_ALLOWED, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
 import { ratedVoltsOf, rowTestVoltage, voltageColumnOf } from './row-voltage.ts';
+import { isTestInForce, testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
+import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
 import {
   convertRatioUnit,
   DECIMAL,
   headerText,
   inputHeaderText,
-  nameplateRatioInput,
+  nameplateRatioFallback,
   nameplateTap,
   ratioGroupOf,
   RATIO_POWER,
@@ -52,10 +54,15 @@ function criterionOf(test: TestDef): CriterionSeed {
   return found;
 }
 
-/** A nameplate number cell as a value in V (a stored kV is moved into V), or null when it holds no positive number. */
+/**
+ * A nameplate number cell as a value in V (a stored kV is moved into V), or null when it holds no positive number.
+ * Seed v13 (Story 23.7): a stored "N/√3" (an `over_sqrt3` field, the TP's TENSÃO NOMINAL) reads N/√3.
+ */
 export function voltsOf(value: unknown): number | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const cell = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  const sqrt3 = cell.state === 'measured' ? readOverSqrt3Raw(cell.raw) : null;
+  if (sqrt3 !== null) return voltsOf({ raw: canonicalDecimal((Number(sqrt3) / Math.sqrt(3)).toFixed(6)), unit: cell.unit, state: 'measured' });
   if (cell.state !== 'measured' || typeof cell.raw !== 'string' || !DECIMAL.test(cell.raw)) return null;
   const number = Number(cell.raw);
   if (!Number.isFinite(number) || number <= 0) return null;
@@ -502,14 +509,20 @@ function typedColumns(table: TableDef): { col: number; column: ColumnDef }[] {
   return table.value_columns.flatMap((column, col) => (column.role === 'capture' || column.role === 'input' ? [{ col, column }] : []));
 }
 
-/** Every typed cell address of a test, in table order then row then column (the op log's addressing). */
-export function cellAddressesOf(definition: BlockDefinition, testKey: TestKey): CellAddress[] {
+/**
+ * Every typed cell address of a test, in table order then row then column (the op log's addressing).
+ * Story 23.8 (seed v13): given the block, a `rows_from` table's rows are its plate's taps (the rows the
+ * fold accepts, `tap-rows.ts`); without one, or with the list empty, the seeded rows as before.
+ */
+export function cellAddressesOf(definition: BlockDefinition, testKey: TestKey, block?: Pick<BlockRow, 'sheet'>): CellAddress[] {
   const test = definition.tests.find((t) => t.key === testKey);
   if (test === undefined) return [];
   const out: CellAddress[] = [];
   let offset = 0;
   for (const table of test.tables) {
-    for (let r = 0; r < table.rows.length; r++) for (const { col } of typedColumns(table)) out.push({ testKey, row: offset + r, col });
+    const plan = block === undefined ? null : tapRowsOf(block, definition, table, testKey);
+    const rows = plan === null ? table.rows.map((_, r) => offset + r) : plan.filter((entry) => entry.kind !== 'off_plate').map((entry) => offset + entry.row);
+    for (const row of rows) for (const { col } of typedColumns(table)) out.push({ testKey, row, col });
     offset += table.rows.length;
   }
   return out;
@@ -577,14 +590,27 @@ function evaluateTable(
   });
   const typed = typedColumns(table);
   const inputs = typed.filter(({ column }) => column.role === 'input');
-  const rows: EvaluatedRow[] = table.rows.map((connection, r) => {
-    const row = offset + r;
-    // Batch e23a: the row's own criterion where the test is judged row by row, else the test's.
-    const own = rowCriteria === null ? null : (rowCriteria[row] ?? null);
+  // Story 23.8 (seed v13): a `rows_from` table's rows are the plate's taps (`tap-rows.ts`); null keeps the seeded rows (v1 to v12).
+  const plan = tapRowsOf(block, definition, table, test.key);
+  const listUnit = plan === null ? null : (definition.nameplate.find((field) => field.key === table.rows_from)?.unit ?? null);
+  const specs: { row: number; connection: readonly string[]; entry: TapRowPlan | null }[] =
+    plan === null
+      ? table.rows.map((connection, r) => ({ row: offset + r, connection, entry: null }))
+      : plan.map((entry) => ({ row: offset + entry.row, connection: table.rows[entry.row] ?? [''], entry }));
+
+  const rows: EvaluatedRow[] = specs.map(({ row, connection, entry }) => {
+    // Batch e23a: the row's own criterion where the test is judged row by row, else the test's. A tap
+    // row (Story 23.8, its `row` the tap in V) takes its table's seeded row's: a rows_from table has one.
+    const own = rowCriteria === null ? null : (rowCriteria[row] ?? (entry === null ? null : (rowCriteria[offset] ?? null)));
     const rowCriterionValue = own === null ? criterion : own.criterion;
     const helper = rowCriterionValue === null ? null : outHelperText(rowCriterionValue);
     // Story 22.10: a ratio cell (a ± criterion), capture or input, never takes a reading above the limit.
     const overRange: OverRangeAllowance = ratio || rowCriterionValue?.operator === '±' ? { allowed: false, refusal: OVER_RANGE_RATIO_REFUSAL } : OVER_RANGE_ALLOWED;
+    // A tap row reads its own tap as V PRIMÁRIO; a seeded row, and row 0 kept off the plate, read the plate as on v12.
+    const tapPrimary = entry !== null && entry.volts !== null && entry.raw !== null ? entry : null;
+    // A row of a v12 table, or a seeded row while TAPS is empty, requires its cells as on v12; a tap row only when marked.
+    const tap = entry === null ? null : evaluatedTapOf(entry, listUnit);
+    const required = tapRowRequired({ tap });
     const cells: EvaluatedCell[] = [];
     // The ratio: the effective primário / secundário, each typed or from the nameplate.
     let calculated: EvaluatedRow['calculated'] = null;
@@ -627,18 +653,21 @@ function evaluateTable(
         let base: string | null = null;
         if (state === 'measured') base = convertRatioUnit(stored!.raw, unit, column.unit === null ? null : column.unit);
         else if (state === 'empty') {
-          const fromPlate = nameplateRatioInput(block, definition, index, column.unit);
+          // Story 23.8: a tap row's V PRIMÁRIO is its tap, moved into the column's unit; every other input reads the plate.
+          const tapRaw = index === 0 && tapPrimary !== null ? convertRatioUnit(tapPrimary.raw!, listUnit, column.unit) : null;
+          const fromPlate = tapRaw !== null ? { raw: tapRaw, text: formatDecimalGroupedPtBr(tapRaw) } : nameplateRatioFallback(block, definition, index, column.unit);
           if (fromPlate !== null) {
-            cell.fallback = { raw: fromPlate, text: formatDecimalGroupedPtBr(fromPlate) };
+            cell.fallback = fromPlate;
             cell.source = 'nameplate';
-            base = fromPlate;
+            base = fromPlate.raw;
           }
         }
         const power = column.unit === null ? 0 : (RATIO_POWER[column.unit] ?? 0);
         effective[index] = base === null ? null : Number(shiftDecimal(base, power));
-        cell.missing = state === 'empty' && cell.fallback === null;
+        // Story 23.8: a tap row's inputs come from the plate, which counts its own missing fields.
+        cell.missing = state === 'empty' && cell.fallback === null && tap === null;
       } else {
-        cell.missing = state === 'empty';
+        cell.missing = state === 'empty' && required;
       }
       cells.push(cell);
     }
@@ -681,8 +710,13 @@ function evaluateTable(
       else if (captures.every((cell) => cell.verdict === 'within')) condicao = 'SATISFATÓRIO';
     }
     // F42: a typed connection the seed leaves blank (TAP Nº) reads the plate's TAP ATUAL as typed.
+    // Story 23.8: a tap row's TAP Nº is its position on the plate; a tap no longer on it shows none.
+    if (tap !== null && tapPrimary !== null) {
+      const position = tap.position === null ? '' : String(tap.position);
+      return { row, connection: connection.map(() => position), label: tapRowLabel(tap), cells, calculated, condicao, voltage: null, tap };
+    }
     const shown = connection.map((text) => (table.connection_typed && text.trim() === '' ? (nameplateTap(block) ?? '') : readingLabelText(text)));
-    const evaluated: EvaluatedRow = { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row) };
+    const evaluated: EvaluatedRow = { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row), tap };
     if (own !== null) {
       evaluated.criterion = own.criterion;
       evaluated.criterionText = own.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(own.criterion);
@@ -825,10 +859,39 @@ function sameCriterion(a: CriterionSeed | null, b: CriterionSeed | null): boolea
   return a.operator === b.operator && a.value === b.value && a.unit === b.unit && (a.text ?? null) === (b.text ?? null) && a.source.name === b.source.name;
 }
 
-/** THE evaluation: every enabled test of the sheet (AR-17: a disabled sub-block is ignored), in the definition's order. */
+/**
+ * THE evaluation: every enabled test of the sheet (AR-17: a disabled sub-block is ignored), in the definition's order.
+ * Story 23.9 (seed v13): a test the nameplate makes not applicable is ignored too (`isTestInForce`), as a
+ * switched-off sub-block is, by every reader of this evaluation; the screen draws its band from `testApplicability`.
+ */
 export function evaluateSheetReadings(block: BlockRow, definition: BlockDefinition): TestEvaluation[] {
   const enabled = enabledSubBlocksOf(block);
-  return definition.tests.filter((test) => enabled.has(test.key)).map((test) => evaluateTest(block, definition, test));
+  return definition.tests.filter((test) => enabled.has(test.key) && isTestInForce(block, definition, test.key)).map((test) => evaluateTest(block, definition, test));
+}
+
+/** Story 23.9: one enabled test of the seeded grammars as the sheet draws it, in the definition's order. */
+export interface SheetTestSection {
+  testKey: TestKey;
+  /** The test's heading ("Ensaio de resistência ôhmica de contato"). */
+  title: string;
+  applicability: TestApplicability;
+  /** Its evaluation (`evaluateSheetReadings`'s), null while the nameplate makes it not applicable: the sheet draws its band alone. */
+  evaluation: TestEvaluation | null;
+}
+
+/**
+ * Story 23.9 (seed v13): the Ensaios step's sections, every enabled test with its applicability,
+ * an NA test without an evaluation; the evaluations it holds are `evaluateSheetReadings`'s, in the
+ * same order, so the screen's run and cells read the one evaluation.
+ */
+export function sheetTestSections(block: BlockRow, definition: BlockDefinition): SheetTestSection[] {
+  const enabled = enabledSubBlocksOf(block);
+  return definition.tests
+    .filter((test) => enabled.has(test.key))
+    .map((test) => {
+      const applicability = testApplicability(block, definition, test.key);
+      return { testKey: test.key, title: sentenceCase(test.label), applicability, evaluation: applicability.state === 'na' ? null : evaluateTest(block, definition, test) };
+    });
 }
 
 /** Every evaluated cell of the sheet, test by test, table by table, row by row. */
@@ -861,19 +924,29 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
       const tap = table.connectionHeaders[0]?.toUpperCase().startsWith('TAP') === true;
       for (const [index, row] of table.rows.entries()) {
         if (row.condicao !== 'INSATISFATÓRIO' || row.calculated === null) continue;
-        const calculated = Number(row.calculated.raw);
-        let worst = -Infinity;
-        for (const cell of row.cells) {
-          if (cell.role === 'capture' && cell.verdict === 'out') worst = Math.max(worst, deviationPct(Number(cell.raw), calculated));
+        // Story 23.8: a tap row is named by its tap ("TAP 3", "TAP 13,2 kV").
+        if (row.tap !== null) {
+          out.push({ testKey: 'relacao_transformacao', label: tapFailedRowLabel(row.tap), deviationText: `${formatDeviation(worstDeviation(row))} %` });
+          continue;
         }
         // authored (fx17r, R5): a connection row with no label is named by its 1-based position in its table
         const blank = row.label.trim() === '';
         const label = tap ? (blank ? 'TAP' : `TAP ${row.label}`) : blank ? `Linha ${index + 1}` : row.label;
-        out.push({ testKey: 'relacao_transformacao', label, deviationText: `${formatDeviation(worst)} %` });
+        out.push({ testKey: 'relacao_transformacao', label, deviationText: `${formatDeviation(worstDeviation(row))} %` });
       }
     }
   }
   return out;
+}
+
+/** A ratio row's worst out capture's deviation from its VAL CALCULADO, in %. */
+function worstDeviation(row: EvaluatedRow): number {
+  const calculated = Number(row.calculated!.raw);
+  let worst = -Infinity;
+  for (const cell of row.cells) {
+    if (cell.role === 'capture' && cell.verdict === 'out') worst = Math.max(worst, deviationPct(Number(cell.raw), calculated));
+  }
+  return worst;
 }
 
 export function sameAddress(a: CellAddress, b: CellAddress): boolean {

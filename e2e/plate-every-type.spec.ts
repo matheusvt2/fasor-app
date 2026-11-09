@@ -18,7 +18,9 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * picker (no camera: the device re-encodes the file, so only the type's default fixture can
  * read it), and the type's suggestions arrive without a "Sincronizar agora". The two cable
  * types have no nameplate in FO.SERV-03 (addendum §9): their sheets show
- * neither the nameplate nor the tile (spec OQ-1).
+ * neither the nameplate nor the tile (spec OQ-1). Batch e23b (2026-11-08): that holds
+ * on seed v12 and before; seed v13 gives the cables a nameplate of their own (Story 23.7, typed in
+ * `v13-nameplate.spec.ts`) and no default plate fixture, so 13.7-E2E-001 is pinned to v12.
  *
  * Story 14.5: the library type of seed v5 (the Chave de transferência automática) has a
  * nameplate and its own synthetic plate too. The standard template places none, so its sheet
@@ -53,6 +55,8 @@ const PLATES: Record<string, { image: string; cabine: string }> = {
   transformador_forca: { image: resolve(root, 'services/ocr/tests/fixtures/plate-transformador.jpg'), cabine: 'Oxigênio' },
 };
 const CABLES: Record<string, string> = { cabos_entrada: 'Oxigênio', cabos_saida: 'Oxigênio' };
+/** Batch e23b: the last seed whose cables have no nameplate (v13 gives them one, Story 23.7). */
+const CABLES_WITHOUT_PLATE_SEED = 'v12';
 
 interface FixtureValue {
   key: string;
@@ -132,7 +136,7 @@ for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
   if (plate === undefined) {
     test(`@p1 13.7-E2E-001 ${type}: the sheet has no "Dados de placa" and no "Fotografar placa" (a cabine's first sheet keeps its Placa step for the cabine fields only)`, async ({ page }) => {
       test.setTimeout(120_000);
-      await openSheetOfType(page, account, database, { cabine: CABLES[type]!, typeLabel: label });
+      await openSheetOfType(page, account, database, { cabine: CABLES[type]!, typeLabel: label, seedVersion: CABLES_WITHOUT_PLATE_SEED });
       await expect(page.locator('#ficha-step-verificacoes')).toBeVisible();
       await expect(section(page)).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Fotografar placa' })).toHaveCount(0);

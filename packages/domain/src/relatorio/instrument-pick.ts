@@ -1,3 +1,4 @@
+import { isTestInForce } from './applicability.ts';
 import { calibrationStatusOf, calibrationValidUntil } from '../checks/calibration.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
 import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
@@ -235,7 +236,8 @@ export function suggestedInstrument(snapshot: InstrumentSnapshot, blockId: strin
   const ctx = snapshotDefinitionContext(snapshot);
   const definition = blockDefinitionIn(ctx, block);
   const of = definition === null ? null : instrumentKindOf(definition, testKey);
-  if (of === null || !enabledSubBlocksOf(block).has(testKey)) return null;
+  // Story 23.9: a test the nameplate makes not applicable suggests nothing ("Concluir ficha" writes no instrument into it).
+  if (of === null || !enabledSubBlocksOf(block).has(testKey) || !isTestInForce(block, definition!, testKey)) return null;
   if (isCellFilled(block.sheet.test[testKey]?.instrument)) return null;
   const lastId = lastInstrumentIdFor(snapshot.blocks, of.kind, ctx);
   const row = lastId === null ? undefined : snapshot.instruments.find((candidate) => candidate.id === lastId && candidate.removed_at === null);

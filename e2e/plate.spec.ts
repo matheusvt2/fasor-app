@@ -165,7 +165,8 @@ test('@p0 8.2-E2E-002 the reading line follows the server: "Lendo…", then "Nã
 test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outlines the focused field, one tap confirms eight, "Criar Celtta?" works offline and the Verificar field is fixed by hand', async ({ page, context }) => {
   test.setTimeout(240_000);
   await holdPhotoBytes(page);
-  const ids = await openTransformerSheet(page, account, database);
+  // Batch e23b: on seed v12, whose text TAP ATUAL the fixture plate's run fills (`transformerPlateFields`).
+  const ids = await openTransformerSheet(page, account, database, { seedVersion: 'v12' });
 
   // The engineer types TENSÃO NOMINAL AT before the reading comes.
   const at = field(page, 'tensao_nominal_at').locator('input');

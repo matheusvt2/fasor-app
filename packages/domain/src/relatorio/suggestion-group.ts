@@ -1,6 +1,6 @@
 import { plateDateAccepted } from '../checks/plate-date.ts';
 import { dateFieldText, parsePlateDateText } from '../format/datetime.ts';
-import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, formatNumberListPtBr, formatOverSqrt3PtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, parseDecimalPtBr, parseNumberListPtBr, parseOverSqrt3PtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
 import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
 import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
@@ -130,17 +130,23 @@ export function showsConfirmedGlyph(cell: Cell | null | undefined, relatorioStat
  * `not_applicable` state (Story 16.4, the text from the leaf `parse/pt-br-number.ts`), dates
  * dd/mm/aaaa.
  */
-export function valueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
+export function valueText(field: Pick<FieldDef, 'kind'> & Partial<Pick<FieldDef, 'list' | 'over_sqrt3'>>, value: unknown): string {
   if (value === null || value === undefined) return '';
   if (isNotApplicableNumber(value)) return NOT_APPLICABLE_TEXT;
   const number = numberShape(value);
-  if (number !== null) return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
+  if (number !== null) {
+    if (number.state === 'empty') return '';
+    // Seed v13 (Story 23.7): a list reads "13,8 · 13,2", a value over √3 "115/√3", as `fieldValueText` reads them.
+    if (field.list === true) return formatNumberListPtBr(number.raw);
+    if (field.over_sqrt3 === true) return formatOverSqrt3PtBr(formatDecimalGroupedPtBr(number.raw));
+    return formatDecimalGroupedPtBr(number.raw);
+  }
   if (field.kind === 'date' && typeof value === 'string') return dateFieldText(value);
   return typeof value === 'string' ? value : String(value);
 }
 
 /** A value as the editable guess shows it: "3.300", "03/2012", "15 kV", the text as it is; '' for none. */
-export function fieldInputText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
+export function fieldInputText(field: Pick<FieldDef, 'kind'> & Partial<Pick<FieldDef, 'list' | 'over_sqrt3'>>, value: unknown): string {
   if (value === null || value === undefined) return '';
   if (field.kind === 'voltage_class' && typeof value === 'string') {
     const kv = parseVoltageClassKv(value);
@@ -160,7 +166,7 @@ export function fieldInputText(field: Pick<FieldDef, 'kind'>, value: unknown): s
  * kV number ("15", "17,5 kV").
  */
 export function parseFieldInput(
-  field: Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'>,
+  field: Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'> & Partial<Pick<FieldDef, 'list' | 'over_sqrt3'>>,
   text: string,
   options: { now?: Date } = {},
 ): { ok: true; value: JsonValue | null } | { ok: false } {
@@ -168,7 +174,9 @@ export function parseFieldInput(
   if (trimmed === '') return { ok: true, value: null };
   switch (field.kind) {
     case 'number': {
-      const raw = parseDecimalPtBr(trimmed);
+      // Seed v13 (Story 23.7): a list field takes a list only, an `over_sqrt3` field also "N/√3" (`numberFieldValue`'s rules).
+      const raw =
+        field.list === true ? parseNumberListPtBr(trimmed, { unit: field.unit ?? null }) : (parseDecimalPtBr(trimmed) ?? (field.over_sqrt3 === true ? parseOverSqrt3PtBr(trimmed) : null));
       return raw === null ? { ok: false } : { ok: true, value: { raw, unit: field.unit ?? null, state: 'measured' } };
     }
     case 'date': {

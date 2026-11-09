@@ -1,12 +1,12 @@
 import {
   evaluateSheetMeasurements,
-  evaluateSheetReadings,
   evaluatedCells,
   instrumentRangeFor,
   manufacturerApplies,
   measurementCells,
   previousHelpers,
   readingAddressKey,
+  readingSlotsOf,
   measurementRunEnterKeyHint,
   measurementCellName,
   readingRowLabel,
@@ -17,6 +17,14 @@ import {
   screenLabel,
   tableDictationLabel,
   rowVoltageCell,
+  ratioRowCondicaoText,
+  readingLabelText,
+  sheetTestSections,
+  tapCellTyped,
+  tapInputText,
+  tapMarkText,
+  tapRowRequired,
+  tapsLine,
   testVoltageCheck,
   unitTapNeedsEdit,
   type BlockDefinition,
@@ -30,13 +38,14 @@ import {
   type MeasurementAddress,
   type MeasurementTestEvaluation,
   type RelatorioSnapshot,
+  type TestApplicability,
   type TestEvaluation,
-  condicaoScreenText,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
@@ -101,7 +110,10 @@ export function EnsaiosSection({
   targetFor: (testKey: string) => CaptureTarget;
   onCaptionPhoto?: Parameters<typeof useDisplaySuggestions>[0]['onCaptionPhoto'];
 }) {
-  const evaluations = useMemo(() => evaluateSheetReadings(block, definition), [block, definition]);
+  // Story 23.9: every enabled test in the definition's order, an NA one with its band only; the
+  // evaluations are `evaluateSheetReadings`'s (the tests in force), which the run and the cells read.
+  const sections = useMemo(() => sheetTestSections(block, definition), [block, definition]);
+  const evaluations = useMemo(() => sections.flatMap((section) => (section.evaluation === null ? [] : [section.evaluation])), [sections]);
   // Story 14.5: the measurement tests of a library type; none on the eight FO.SERV-03 types.
   const measurements = useMemo(() => evaluateSheetMeasurements(block, definition), [block, definition]);
   const display = useDisplaySuggestions({ api, state, snapshot, block, onCaptionPhoto });
@@ -168,9 +180,14 @@ export function EnsaiosSection({
   const own = block.equipment_id === null ? undefined : snapshot.equipment.find((row) => row.id === block.equipment_id);
   const lastResults = own?.last_results ?? null;
   const blockType = block.block_type;
+  // Story 23.8 (seed v13): a tap row's previous value is found by its tap, so the helpers read the
+  // block's rows; `slots` names them and changes only with them, never on a cell edit.
+  const sheet = block.sheet;
+  const slots = readingSlotsOf(definition, block).map(readingAddressKey).join(' ');
   const previous = useMemo(
-    () => previousHelpers({ last_results: lastResults }, { block_type: blockType }, definition, snapshot.relatorio.id),
-    [lastResults, blockType, definition, snapshot.relatorio.id],
+    () => previousHelpers({ last_results: lastResults }, { block_type: blockType, sheet }, definition, snapshot.relatorio.id),
+    // `sheet` is read for its rows alone, which `slots` follows.
+    [lastResults, blockType, definition, snapshot.relatorio.id, slots],
   );
   // Story 14.8: a company sheet's tests resolve through the snapshot's type versions.
   const definitions = snapshotDefinitionContext(snapshot);
@@ -188,21 +205,26 @@ export function EnsaiosSection({
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>
       <SheetCellExtrasProvider value={extras}>
         <UnitTapGuardProvider value={unitTapGuard}>
-          {evaluations.map((test) => (
-            <TestSection
-              key={test.testKey}
-              api={api}
-              snapshot={snapshot}
-              block={block}
-              definition={definition}
-              test={test}
-              instruments={instruments}
-              firstMissing={firstMissing}
-              onRun={onRun}
-              display={display}
-              targetFor={targetFor}
-            />
-          ))}
+          {sections.map((section) =>
+            section.evaluation === null ? (
+              <NotApplicableTest key={section.testKey} api={api} testKey={section.testKey} title={screenLabel(section.title)} applicability={section.applicability} />
+            ) : (
+              <TestSection
+                key={section.testKey}
+                api={api}
+                snapshot={snapshot}
+                block={block}
+                definition={definition}
+                test={section.evaluation}
+                applicability={section.applicability}
+                instruments={instruments}
+                firstMissing={firstMissing}
+                onRun={onRun}
+                display={display}
+                targetFor={targetFor}
+              />
+            ),
+          )}
           <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
         </UnitTapGuardProvider>
       </SheetCellExtrasProvider>
@@ -266,6 +288,7 @@ function TestSection({
   block,
   definition,
   test,
+  applicability,
   instruments,
   firstMissing,
   onRun,
@@ -277,6 +300,8 @@ function TestSection({
   block: BlockRow;
   definition: BlockDefinition;
   test: TestEvaluation;
+  /** Story 23.9: the test's applicability; applied by hand, the applied band sits over the test. */
+  applicability: TestApplicability;
   instruments: readonly InstrumentRow[];
   firstMissing: CellAddress | null;
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
@@ -327,12 +352,10 @@ function TestSection({
       }
     />
   ));
-  return (
-    <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} data-test-key={test.testKey}>
-      <div className="section-head">
-        <h2 id={headingId}>{screenLabel(test.title)}</h2>
-        {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
-      </div>
+  const applied = applicability.state === 'applied';
+  const sectionClass = ['section', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
+  const body = (
+    <>
       <InstrumentPicker
         api={api}
         block={block}
@@ -356,6 +379,23 @@ function TestSection({
         <p className="helper" data-class-helper="">
           {test.classHelper}
         </p>
+      )}
+    </>
+  );
+  return (
+    <section className={sectionClass} aria-labelledby={headingId} data-test-key={test.testKey} data-applicability={applied ? 'applied' : undefined}>
+      <div className="section-head">
+        <h2 id={headingId}>{screenLabel(test.title)}</h2>
+        {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
+      </div>
+      {/* Story 23.9: applied by hand, the band says so and the body shows (the mock's `.v13-na.is-applied .v13-na-body`). */}
+      {applied ? (
+        <>
+          <AppliedBand api={api} testKey={test.testKey} applicability={applicability} />
+          <div className="v13-na-body">{body}</div>
+        </>
+      ) : (
+        body
       )}
     </section>
   );
@@ -398,7 +438,8 @@ function MeasurementTable({
   // e22g (review N7): the row's name, its second connection joined where another row starts the same (the transformer's two PRIMÁRIO rows).
   const rowName = (row: EvaluatedRow) => screenLabel(readingRowLabel(table.rows, row));
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
-    readOnly ? (
+    // Story 23.8: a row the plate no longer lists keeps its readings, never written again (the fold refuses it).
+    readOnly || !tapCellTyped(row, cell) ? (
       <ReadOnlyMeasurementField cell={cell} label={measurementCellName(rowName(row), screenLabel(cell.column))} />
     ) : sameAddress(dictatedCell, cell.address) && dictated !== null ? (
       <DictatedMeasurementField
@@ -420,7 +461,15 @@ function MeasurementTable({
         onRun={onRun}
       />
     );
-  const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? condicaoScreenText(row.condicao) : (row.calculated?.text ?? '—'));
+  // Story 23.8: an unmarked tap row with nothing measured reads "Não medido" (`ratioRowCondicaoText`).
+  const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? ratioRowCondicaoText(row) : (row.calculated?.text ?? '—'));
+  // Story 23.8 (seed v13): the TTR's rows are the plate's taps; the line above the table counts them.
+  const tapRows = table.rows.some((row) => row.tap !== null);
+  const onPlate = table.rows.filter((row) => row.tap?.onPlate === true).length;
+  const line = onPlate === 0 ? null : tapsLine(onPlate);
+  /** An unmarked tap of the plate: required nothing, drawn muted (the mock's `tr.tap-optional`). */
+  const optional = (row: EvaluatedRow) => row.tap !== null && row.tap.onPlate && !tapRowRequired(row);
+  const markOf = (row: EvaluatedRow) => tapMarkText(row.tap);
   // Story 22.8 (seed v12): the row's test voltage, drawn right after the connection cells; null on v1 to v11 tables.
   const voltageColumn = table.voltageColumn;
   const notices = table.rows.flatMap((row) => (row.voltage?.notice === null || row.voltage?.notice === undefined ? [] : [{ row: row.row, text: row.voltage.notice }]));
@@ -461,10 +510,22 @@ function MeasurementTable({
         )}
       </div>
       {notice}
+      {line === null ? null : (
+        <p className="v13-line" data-taps-line="">
+          <span>
+            {line.label} <b>{line.count}</b>
+          </span>
+          <span>{line.note}</span>
+        </p>
+      )}
       {/* Review fixes 2026-10-08 (DC-1, DB-3): authored, the table's own horizontal scroller, UX-DR40's
           last resort: a table wider than its box scrolls inside it, never the title row or the page. */}
       <div className="mt-scroll">
-        <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
+        <table
+          className={table.ratio ? (tapRows ? 'measurement-table ficha-ttr is-wide ficha-ttr-taps' : 'measurement-table ficha-ttr is-wide') : 'measurement-table'}
+          aria-labelledby={table.title === null ? undefined : titleId}
+          aria-label={table.title === null ? screenLabel(test.title) : undefined}
+        >
           <thead>
             <tr>
               {table.connectionHeaders.map((header, i) => (
@@ -487,12 +548,22 @@ function MeasurementTable({
           </thead>
           <tbody>
             {table.rows.map((row) => (
-              <tr key={row.row}>
-                {row.connection.map((text, i) => (
-                  <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
-                    {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
-                  </td>
-                ))}
+              <tr key={row.row} className={optional(row) ? 'tap-optional' : undefined} data-tap-row={row.tap === null ? undefined : row.row}>
+                {row.connection.map((text, i) =>
+                  i === 0 && row.tap !== null ? (
+                    // Story 23.8 (`60-ficha.html` #/ficha/TR1): the tap's position with its word mark under it.
+                    <td key={`c${i}`} className="cell-point">
+                      <span className="tap-cell">
+                        <span>{text === '' ? '—' : text}</span>
+                        {markOf(row) === null ? null : <span className="tap-mark">{markOf(row)}</span>}
+                      </span>
+                    </td>
+                  ) : (
+                    <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
+                      {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
+                    </td>
+                  ),
+                )}
                 {voltageColumn === null || row.voltage === null ? null : (
                   <td className="cell-voltage">
                     <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} />
@@ -516,6 +587,14 @@ function MeasurementTable({
                     );
                   }
                   const cell = cellOf(row, column.col);
+                  // Story 23.8: a tap row's V PRIMÁRIO and V SECUNDÁRIO come from the plate, drawn as text (the mock's `td.cell-dim`).
+                  if (row.tap !== null && cell !== undefined && cell.role === 'input') {
+                    return (
+                      <td key={column.col} className="cell-dim">
+                        {tapInputText(cell)}
+                      </td>
+                    );
+                  }
                   // Story 22.8: below 768 px the row's voltage sits over its first typed cell, the column hidden (`ficha.css`).
                   const stacked = voltageColumn !== null && row.voltage !== null && cell !== undefined && cell === row.cells[0];
                   return (
@@ -540,7 +619,10 @@ function MeasurementTable({
       {table.ratio ? (
         <div className="ficha-cards">
           <div className="measurement-cards">
-            {table.rows.map((row) => (
+            {table.rows.map((row) =>
+              row.tap !== null ? (
+                <TapCard key={row.row} row={row} table={table} optional={optional(row)} mark={markOf(row)} field={field} derivedText={derivedText} />
+              ) : (
               <div key={row.row} className="measurement-card">
                 <p className="card-point">{screenLabel(row.label)}</p>
                 {row.cells.map((cell) => (
@@ -567,7 +649,8 @@ function MeasurementTable({
                     </p>
                   ))}
               </div>
-            ))}
+              ),
+            )}
           </div>
         </div>
       ) : null}
@@ -582,6 +665,61 @@ function MeasurementTable({
       {/* Story 21.1: the kernel's vector-group helpers (the windings to short, a missing or unrecognized group); never printed. */}
       {table.shortHelper === null ? null : <p className="helper">{table.shortHelper}</p>}
       {table.groupHelper === null ? null : <p className="helper">{table.groupHelper}</p>}
+    </div>
+  );
+}
+
+/**
+ * Story 23.8 (`60-ficha.html` #/ficha/TR1 `.measurement-card`): a tap row as a phone card: "Tap 3"
+ * with its mark, the plate's values in one line ("V primário 12,6 kV · V secundário 380 V ·
+ * Calculado 57,43"), the three captures in a row (`.card-fields`), then the Condição.
+ */
+function TapCard({
+  row,
+  table,
+  optional,
+  mark,
+  field,
+  derivedText,
+}: {
+  row: EvaluatedRow;
+  table: EvaluatedTable;
+  optional: boolean;
+  mark: string | null;
+  field: (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') => ReactNode;
+  derivedText: (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => string;
+}) {
+  const t = copy.ficha.ensaios;
+  const calculated = table.columns.find((column) => column.derivedKind === 'calculated');
+  const condicao = table.columns.find((column) => column.derivedKind === 'condicao');
+  const dims = [
+    ...row.cells.filter((cell) => cell.role === 'input').map((cell) => `${readingLabelText(table.columns.find((column) => column.col === cell.address.col)?.label ?? cell.column)} ${tapInputText(cell)}`),
+    ...(calculated === undefined ? [] : [`${screenLabel(calculated.header)} ${derivedText(row, 'calculated')}`]),
+  ];
+  return (
+    <div className={optional ? 'measurement-card tap-optional' : 'measurement-card'} data-tap-card={row.row}>
+      <p className="card-point">
+        {screenLabel(row.label)}
+        {mark === null ? null : <span className="tap-mark">{mark}</span>}
+      </p>
+      <p className="card-dims">{dims.join(t.tapCardSeparator)}</p>
+      <div className="card-fields">
+        {row.cells
+          .filter((cell) => cell.role === 'capture')
+          .map((cell) => (
+            <div key={cell.address.col} className="field">
+              <span className="field-label" aria-hidden="true">
+                {screenLabel(cell.column)}
+              </span>
+              {field(row, cell, 'card')}
+            </div>
+          ))}
+      </div>
+      {condicao === undefined ? null : (
+        <p className="card-dims" style={{ margin: 'var(--sp-2) 0 0' }}>
+          {t.cardCondition(derivedText(row, 'condicao'))}
+        </p>
+      )}
     </div>
   );
 }

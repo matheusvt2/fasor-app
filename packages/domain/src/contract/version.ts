@@ -377,8 +377,26 @@
  * raw a positive dot-decimal, a unit the test's criterion converts to; `manufacturerRefusal`). v1 to
  * v12 sheets fold as before, so no stored op changes its outcome. No path, row or snapshot shape
  * changes: a row written before 34 parses to the same bytes.
+ *
+ * 35 (2026-11-08, Stories 23.7 to 23.9, batch e23b; 34 is batch e23a's, merged first): seed v13's
+ * nameplate fields of decision K (TAPS, a numeric TAP ATUAL picked from them, the transformer's
+ * winding material, temperatures, impedance and thermal class, the disjuntor's mounting, command
+ * voltage, drive, counter and maker's times, the seccionadora's type, fuse current and
+ * MOTORIZADO, the TP's NBR 6855 group, the arrester's MCOV, housing and disconnector, a cable
+ * nameplate), a number field's raw taking a list ("13.8;13.2") or "N/√3" (`parse/pt-br-number.ts`),
+ * the TC's RELAÇÃO read with a dash; the transformer's TTR with one row per tap, its `row` the tap
+ * in whole V (`relatorio/tap-rows.ts`), which `applyOp` accepts only for a tap of the block's
+ * current list (or, the list empty, the seeded row) and refuses otherwise as `SeedPathError`; and
+ * a test's applicability from the nameplate, the new `TEST_FIELDS` value `applicability`
+ * (`sheet/{b}/test/{k}/applicability`, `'applied'` or null, refused as `SeedPathError` on a test
+ * whose definition carries no `applies_when` and for any other value), a cell of the sheet's test
+ * entry (optional and never defaulted, appended last) with its single-cell conflict. The seed
+ * schema gains optional keys only (a field's `list`, `pick_from`, `over_sqrt3`, `dash_ratio`; a
+ * table's `rows_from`; the oil rule's `dry_fields`; a test's `applies_when` and `initial_off`, in
+ * both grammars), so v1 to v12 parse to the bytes they shipped with and a row written before 35
+ * parses to the same bytes. MIN follows to 35 (below).
  */
-export const CONTRACT_VERSION = 34;
+export const CONTRACT_VERSION = 35;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -594,8 +612,17 @@ export const CONTRACT_VERSION = 34;
  * sheet as unknown and judge nothing; and its fold would store a malformed manufacturer's value the
  * server's fold refuses, which it would then show as the device's own. Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
+ *
+ * 35 (2026-11-08, Stories 23.7 to 23.9, batch e23b): a version-34 (or older) bundle's `opSchema`
+ * refuses a `sheet/{b}/test/{k}/applicability` put (an unknown `TEST_FIELDS` value), so a pulled
+ * page carrying one fails whole (`invalid_response`), the precedent of versions 20, 23, 28, 30 to
+ * 33; and it cannot read a v13 sheet as the server's kernel does: it would count a test the
+ * nameplate makes not applicable as missing and print it, show the transformer's TTR as one
+ * typed row where the server prints one row per tap (and would refuse, then drop, a reading on a
+ * tap row), and read a TAPS list or a "115/√3" as no number. A relatório stream carries such ops
+ * from the first v13 sheet on, so the version-34 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 34;
+export const MIN_CONTRACT_VERSION = 35;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

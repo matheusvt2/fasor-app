@@ -11,6 +11,9 @@ import { openTransformerSheet } from './support/reading-ops.ts';
  * failed ratio sets the floor Reprovado · Com restrições (Aprovado and Sem restrições
  * disabled, one reason line) and the derived verdict Não apto. The words asserted are the
  * kernel's (`conclusionFloorReasonText`, `parecerReasonText`, `composeParecer`).
+ *
+ * Batch e23b: the relatório is on seed v12, whose text TAP ATUAL names the one typed ratio row;
+ * seed v13's TTR per tap is `ttr-per-tap.spec.ts`'s.
  */
 
 let account: SeedAccount;
@@ -36,7 +39,7 @@ test('@p0 17.5-E2E-001 22.4-E2E 22.6-E2E a transformer ratio row INSATISFATÓRIO
   page,
 }) => {
   test.setTimeout(180_000);
-  const { relatorioId, blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
+  const { relatorioId, blockId } = await openTransformerSheet(page, account, database, { width: 1280, seedVersion: 'v12' });
 
   // QA G2 (fx17r): while TAP ATUAL is blank, a ratio cell is named by its column alone, never ", V primário".
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();

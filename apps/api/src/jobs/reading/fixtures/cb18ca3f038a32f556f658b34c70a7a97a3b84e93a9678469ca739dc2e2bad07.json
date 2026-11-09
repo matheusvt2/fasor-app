@@ -1,0 +1,208 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "CABOS",
+        "bbox": [
+          72,
+          70,
+          221,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          234,
+          70,
+          289,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "ENTRADA",
+        "bbox": [
+          302,
+          70,
+          513,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "CLASSE",
+        "bbox": [
+          71,
+          156,
+          169,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "U0/U",
+        "bbox": [
+          181,
+          156,
+          241,
+          179
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "8,7/15",
+        "bbox": [
+          641,
+          156,
+          730,
+          180
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "kV",
+        "bbox": [
+          742,
+          156,
+          777,
+          176
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "ISOLAÇÃO",
+        "bbox": [
+          72,
+          324,
+          202,
+          353
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "EPR",
+        "bbox": [
+          642,
+          329,
+          696,
+          348
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "SEÇÃO",
+        "bbox": [
+          71,
+          496,
+          158,
+          525
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "50",
+        "bbox": [
+          642,
+          500,
+          675,
+          521
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "mm²",
+        "bbox": [
+          687,
+          500,
+          750,
+          520
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "TERMINAÇÃO",
+        "bbox": [
+          69,
+          668,
+          242,
+          697
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "TERMOCONTRÁTIL",
+        "bbox": [
+          640,
+          667,
+          906,
+          693
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "classe_cabo",
+        "value": "8,7/15 kV",
+        "ocr_token_ids": [
+          "t5",
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "isolacao_cabo",
+        "value": "EPR",
+        "ocr_token_ids": [
+          "t8"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "secao_mm2",
+        "value": {
+          "raw": "50",
+          "unit": "mm²",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t10",
+          "t11"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_terminacao",
+        "value": "TERMOCONTRÁTIL",
+        "ocr_token_ids": [
+          "t13"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

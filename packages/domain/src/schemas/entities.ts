@@ -523,6 +523,14 @@ export const sheetSchema = z.object({
        * changes bytes.
        */
       values: cellMap.optional(),
+      /**
+       * Story 23.9 (contract 35): the technician's override of a test the nameplate makes not
+       * applicable, `'applied'` (or null: follow the plate), written only through
+       * `sheet/{block_id}/test/{test_key}/applicability` on a test whose definition carries
+       * `applies_when` (`relatorio/applicability.ts`). Optional and never defaulted, appended
+       * last: a test entry that never took it holds no key, so no stored row changes bytes.
+       */
+      applicability: cellSchema.optional(),
     }),
   ),
   conclusion: z.object({

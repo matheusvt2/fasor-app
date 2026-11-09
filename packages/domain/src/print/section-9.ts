@@ -889,8 +889,10 @@ function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDe
   const units = headerUnits(definition, evaluated);
   const voltage = printedVoltageOf(definition);
   const printed = printedValueColumns(definition);
-  definition.rows.forEach((connection, r) => {
-    const row = evaluated.rows[r]!;
+  // Story 23.8 (seed v13): a `rows_from` table prints every evaluated row, one per tap (TAP Nº its position)
+  // then each row off the plate (TAP Nº "-"), V PRIMÁRIO its tap; every other table its seeded rows, as before.
+  const lines = definition.rows_from === undefined ? definition.rows.map((connection, r) => ({ connection, row: evaluated.rows[r]! })) : evaluated.rows.map((row) => ({ connection: row.connection, row }));
+  lines.forEach(({ connection, row }) => {
     rows.push({
       cells: [
         // F42: a typed connection the seed leaves blank prints the evaluated one (the plate's TAP ATUAL), "-" when none.
@@ -962,7 +964,8 @@ function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefi
   const entry = previousResultsFor(equipment, block, ctx.snapshot.relatorio.id);
   if (entry === null) return null;
   // An entry none of whose keys this definition holds (every row renamed by a later seed) is no previous visit to print.
-  const readings = previousReadingsByAddress(entry, definition);
+  // Story 23.8: the block's tap rows read the readings of their taps.
+  const readings = previousReadingsByAddress(entry, definition, block);
   return readings.size === 0 ? null : readings;
 }
 
@@ -975,12 +978,14 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   const pairShape = test.tables.length === 2 && first !== undefined && second !== undefined && simpleTitled(first) && simpleTitled(second) && first.rows.length === second.rows.length;
   // Story 22.12: each row's previous captures, in column order; '-' for a row with none.
   let offset = 0;
-  const previousTexts = test.tables.map((tableDef) => {
+  const previousTexts = test.tables.map((tableDef, i) => {
     const start = offset;
     offset += tableDef.rows.length;
     if (previous === null) return null;
     const captures = tableDef.value_columns.flatMap((column, col) => (column.role === 'capture' ? [col] : []));
-    return tableDef.rows.map((_, r) => previousRowText(previous, captures.map((col) => ({ testKey: test.key, row: start + r, col }))));
+    // Story 23.8: a `rows_from` table's rows are its evaluated ones (a tap row is keyed by its volts).
+    const indices = tableDef.rows_from === undefined ? tableDef.rows.map((_, r) => start + r) : (evaluation.tables[i]?.rows ?? []).map((row) => row.row);
+    return indices.map((row) => previousRowText(previous, captures.map((col) => ({ testKey: test.key, row, col }))));
   });
   // e22g (review N1): MANUT. ANTERIOR is decided per table, printed only where a row of that
   // table has a previous value; the two halves of a side-by-side pair decide together, so the
@@ -1078,7 +1083,8 @@ function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | nu
  * method or a criterion line. The other tests keep their numbers ("E6 · …").
  */
 function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
-  if (!test.enabled || test.skipped) return null;
+  // Story 23.9: a test the nameplate makes not applicable is omitted, as a switched-off one is (FR-11).
+  if (!test.enabled || test.skipped || test.applicability.state === 'na') return null;
   const width = 1 + test.columns.length;
   const rows: PrintRow[] = [bandRow(printLabel(test.title), width)];
   if (test.instrumentOf !== null) rows.push(lineRow(instrumentLine(block, test.testKey), width));

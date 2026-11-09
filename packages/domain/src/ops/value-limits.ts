@@ -149,7 +149,8 @@ const VALUE_RULES = {
   'block/field': { kind: 'fields', fields: { order_key: orderKey, not_tested: NOT_TESTED_RULE, config: structured }, otherwise: schema },
   'sheet/nameplate': { kind: 'value', rule: plainCell },
   'sheet/checklist': { kind: 'fields', fields: { result: shortStrings, observation: textCell(TEXT_CAPS.medium) } },
-  'sheet/test': { kind: 'fields', fields: { instrument: structured, criterion_override: structured } },
+  // Story 23.9 (contract 35): the applicability override is `'applied'` or null, which the fold checks (`assertApplicability`).
+  'sheet/test': { kind: 'fields', fields: { instrument: structured, criterion_override: structured, applicability: schema } },
   'sheet/test/cell': { kind: 'value', rule: { kind: 'test_cell', cap: TEXT_CAPS.short } },
   'sheet/conclusion': {
     kind: 'fields',

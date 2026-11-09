@@ -15,7 +15,7 @@ import {
   type TypeVersionRef,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
-import { getDefinition, getDefinitionIn, naDefaultsFor, SEED_VERSION, type DefinitionContext } from './definitions.ts';
+import { findDefinition, getDefinition, getDefinitionIn, naDefaultsFor, SEED_VERSION, type DefinitionContext } from './definitions.ts';
 import type { BlockDefinition } from './schema.ts';
 
 /*
@@ -49,6 +49,37 @@ export function lockedSubBlocksOf(definition: Pick<BlockDefinition, 'sub_blocks'
   return definition.sub_blocks.filter((key) => always.has(key));
 }
 
+/**
+ * Seed v13 (Story 23.9, decision J): whether a sub-block starts switched off in a new block's
+ * config: `DEFAULT_OFF_SUB_BLOCKS`, and a test (either grammar) its definition marks
+ * `initial_off` (the base's "Opcional"). The template switch still removes any test (FR-11).
+ */
+export function startsOff(definition: Pick<BlockDefinition, 'tests' | 'measurement_tests'>, key: string): boolean {
+  if ((DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key)) return true;
+  return [...definition.tests, ...(definition.measurement_tests ?? [])].some((test) => test.key === key && test.initial_off === true);
+}
+
+/**
+ * Seed v13 (Story 23.7, contract 35): a template's blocks as they read on `seedVersion`. Every
+ * seeded equipment block's `sub_blocks` gains, at its default (`startsOff`), each sub-block that
+ * version's definition has and the block does not name (the v13 cables' nameplate), in the
+ * definition's order; nothing it names changes, and a section or company block is as it is. The
+ * fold of the server's seed move (`template/{id}/seed_version`, `ops/apply.ts`) and "Salvar como
+ * template" from an older relatório apply it, so moving an unedited standard template to a new
+ * version still equals a rebuild there. v1 to v12 share their sub-blocks: a move among them adds nothing.
+ */
+export function withVersionSubBlocks(blocks: readonly TemplateBlock[], seedVersion: string): TemplateBlock[] {
+  return blocks.map((block) => {
+    if (!isEquipmentBlockType(block.block_type)) return block;
+    const definition = findDefinition(seedVersion, block.block_type);
+    if (definition === null || definition.sub_blocks.every((key) => key in block.sub_blocks)) return block;
+    const sub_blocks: Record<string, SubBlockConfig> = {};
+    for (const key of definition.sub_blocks) sub_blocks[key] = block.sub_blocks[key] ?? { enabled: !startsOff(definition, key) };
+    for (const [key, entry] of Object.entries(block.sub_blocks)) if (!(key in sub_blocks)) sub_blocks[key] = entry;
+    return { ...block, sub_blocks };
+  });
+}
+
 export interface BlockConfigOptions {
   subtype?: Subtype;
   role?: Role;
@@ -56,8 +87,8 @@ export interface BlockConfigOptions {
 
 /**
  * The default `BlockConfig` of a block type under a seed version: every sub-block of its
- * definition on, `ia_ip_display` off, and the subtype's NA defaults. A section block has
- * no sub-blocks.
+ * definition on, `ia_ip_display` off (seed v13: and every `initial_off` test, `startsOff`), and
+ * the subtype's NA defaults. A section block has no sub-blocks.
  */
 export function defaultBlockConfig(
   seedVersion: string,
@@ -66,9 +97,8 @@ export function defaultBlockConfig(
 ): BlockConfig {
   const sub_blocks: Record<string, SubBlockConfig> = {};
   if (isEquipmentBlockType(blockType)) {
-    for (const key of getDefinition(seedVersion, 'cabine_primaria', blockType).sub_blocks) {
-      sub_blocks[key] = { enabled: !(DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key) };
-    }
+    const definition = getDefinition(seedVersion, 'cabine_primaria', blockType);
+    for (const key of definition.sub_blocks) sub_blocks[key] = { enabled: !startsOff(definition, key) };
   }
   return {
     block_type: blockType,
@@ -91,7 +121,7 @@ export function defaultBlockConfigIn(ctx: DefinitionContext, seedVersion: string
   if (!isCompanyBlockType(blockType)) return defaultBlockConfig(seedVersion, blockType, options);
   const definition = getDefinitionIn(ctx, seedVersion, blockType, typeVersion);
   const sub_blocks: Record<string, SubBlockConfig> = {};
-  for (const key of definition.sub_blocks) sub_blocks[key] = { enabled: !(DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key) };
+  for (const key of definition.sub_blocks) sub_blocks[key] = { enabled: !startsOff(definition, key) };
   // e22h S2: the config names the version row it resolved, so the block stays bound to that definition.
   return { block_type: blockType, sub_blocks, na_defaults: [], type_version: definition.type_version!, type_version_id: definition.type_version_id! };
 }

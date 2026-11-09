@@ -1,4 +1,4 @@
-import { getDefinition, type FieldDef, type OpDraft } from '@app/domain';
+import { getDefinition, SEED_VERSION, type FieldDef, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -49,12 +49,15 @@ const TABLET_SIZES = [
   { width: 1280, height: 800 },
 ] as const;
 
-/** Resets Empresa B, signs in at `viewport` and pushes a standard relatório plus `extra` drafts from the office. */
-async function setUp(page: Page, viewport: { width: number; height: number }, extra: (built: Built) => OpDraft[] = () => []): Promise<Built> {
+/**
+ * Resets Empresa B, signs in at `viewport` and pushes a standard relatório plus `extra` drafts from the office.
+ * Batch e23b: `seedVersion` names an older seed for a test bound to its fields (v12's transformer plate).
+ */
+async function setUp(page: Page, viewport: { width: number; height: number }, extra: (built: Built) => OpDraft[] = () => [], seedVersion?: string): Promise<Built> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize(viewport);
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, seedVersion === undefined ? {} : { seedVersion });
   const result = { relatorioId: built.relatorioId, projectId: built.projectId, sheets: built.sheets };
   // Status flow 2026-10-10: Em campo from the start. On a Rascunho relatório the first value typed raises "Relatório em campo",
   // and a field focused by the keyboard under any toast is scrolled clear of it (H-7), which moves what these tests measure.
@@ -364,7 +367,12 @@ test('@p0 R8LAY-E2E-002 DB-2 a concluded sheet: a unit tap with the input not fo
     .toEqual({ raw: '1.45', unit: 'TΩ', state: 'measured' });
 });
 
-/** The transformer's plate fields typed in order: key, text, the stored value. */
+/**
+ * The transformer's plate fields typed in order: key, text, the stored value. Batch e23b: seed v12's
+ * plate (its text TAP ATUAL, BT its last typed field); seed v13's TAPS and the fields after
+ * DESLOCAMENTO ANGULAR are `v13-nameplate.spec.ts`'s.
+ */
+const PLATE_SEED = 'v12';
 const PLATE_RUN: readonly [string, string, unknown][] = [
   ['vol_oleo', '120', { raw: '120', unit: 'L', state: 'measured' }],
   ['potencia_nominal', '500', { raw: '500', unit: 'kVA', state: 'measured' }],
@@ -380,7 +388,7 @@ const focusedFieldKey = (page: Page) => page.evaluate(() => document.activeEleme
 for (const width of [1280, 390] as const) {
   test(`@p0 R8LAY-E2E-00${width === 1280 ? 3 : 4} DB-7 Enter in the transformer's plate at ${width}: each Enter writes its field and lands on the next empty one, then on the sheet's next missing field`, async ({ page }) => {
     test.setTimeout(240_000);
-    const built = await setUp(page, { width, height: width === 1280 ? 800 : 844 });
+    const built = await setUp(page, { width, height: width === 1280 ? 800 : 844 }, undefined, PLATE_SEED);
     const sheet = sheetOf(built, 'transformador_forca');
     await openSheet(page, built.relatorioId, sheet.blockId);
     const nameplate = (key: string) => `sheet/${sheet.blockId}/nameplate/${key}`;
@@ -468,7 +476,8 @@ function plateValue(field: FieldDef): unknown {
 
 test('@p0 R8LAY-E2E-014 DB-7 Enter in the plate\'s last empty field lands in Verificações and leaves the completed plate expanded (Story 12.1)', async ({ page }) => {
   test.setTimeout(150_000);
-  const plate = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora').nameplate;
+  // Batch e23b: the current seed's plate (v13 adds TIPO DE SECCIONADORA, required), read from the kernel (E15-A3).
+  const plate = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').nameplate;
   const built = await setUp(page, { width: 1280, height: 800 }, (b) => {
     const sheet = sheetOf(b, 'chave_seccionadora');
     return plate.filter((field) => field.key !== 'n_serie').map((field) => officeDraft(account, { relatorioId: b.relatorioId }, `sheet/${sheet.blockId}/nameplate/${field.key}`, plateValue(field)));

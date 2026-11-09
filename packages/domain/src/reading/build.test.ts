@@ -32,8 +32,15 @@ function counter(start = 100): () => string {
   return () => uuid(n++);
 }
 
-function block(nameplate: Record<string, Cell> = {}, blockType = 'transformador_forca'): BuildReadingSuggestionsInput['block'] {
-  return { id: BLOCK, seed_version: SEED_VERSION, block_type: blockType, sheet: { nameplate, checklist: {}, test: {} } as unknown as BlockRow['sheet'] };
+/**
+ * The synthetic plate is drawn for the transformer of seeds v1 to v12 (its text TAP ATUAL): the
+ * README table is that sheet's. Seed v13 (Story 23.7) replaces TAP ATUAL by TAPS and a numeric TAP
+ * ATUAL, so the plate's `tap_atual` is no key there (the last test below).
+ */
+const PLATE_SEED = 'v12';
+
+function block(nameplate: Record<string, Cell> = {}, blockType = 'transformador_forca', seedVersion = PLATE_SEED): BuildReadingSuggestionsInput['block'] {
+  return { id: BLOCK, seed_version: seedVersion, block_type: blockType, sheet: { nameplate, checklist: {}, test: {} } as unknown as BlockRow['sheet'] };
 }
 
 function input(overrides: Partial<BuildReadingSuggestionsInput> = {}): BuildReadingSuggestionsInput {
@@ -73,6 +80,15 @@ function union(ids: string[]): [number, number, number, number] {
   const boxes = ids.map((id) => ocr.tokens.find((t) => t.id === id)!.bbox);
   return [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))];
 }
+
+describe('23.7-UNIT the committed transformer plate on a v13 sheet', () => {
+  it('suggests the same values but TAP ATUAL, whose text key v13 replaced (the plate prints no TAPS)', () => {
+    expect(SEED_VERSION).toBe('v13');
+    const { rows, dropped } = buildReadingSuggestions(input({ block: block({}, 'transformador_forca', 'v13') }));
+    expect(dropped).toEqual([{ key: 'tap_atual', reason: 'unknown_key' }]);
+    expect(rows.map((row) => row.target_path.split('/').at(-1))).toEqual(TABLE.map(([key]) => key).filter((key) => key !== 'tap_atual'));
+  });
+});
 
 describe('8.4-UNIT buildReadingSuggestions over the committed plate fixture', () => {
   it('the fixture is the 43 tokens of the plate', () => {
