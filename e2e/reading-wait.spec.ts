@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Request } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, openChaveSheet } from './support/photos.ts';
@@ -397,13 +397,34 @@ test('@p1 13.5-E2E-004 a reading still running past 120 s keeps its age and adds
   await expect(line.locator('.reading-note')).toHaveCount(0);
 
   const pulls: number[] = [];
+  /** Fix batch e23w (W2-G1): the device's api requests still open, the company pulls that ended, and when the last request ended (real time). */
+  const open = new Set<Request>();
+  const pulled: number[] = [];
+  let settledAt = Date.now();
+  const isApi = (request: Request) => new URL(request.url()).pathname.startsWith('/api/');
+  const settle = (request: Request) => {
+    if (!open.delete(request)) return;
+    settledAt = Date.now();
+    if (new URL(request.url()).pathname === '/api/sync/company') pulled.push(settledAt);
+  };
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/sync/company') pulls.push(Date.now());
+    if (isApi(request)) open.add(request);
   });
+  page.on('requestfinished', settle);
+  page.on('requestfailed', settle);
+  const jumped = Date.now();
   await page.clock.fastForward('02:05');
   await expect(line.locator('.reading-line')).toHaveText(/^Lendo… 2 min \d\d s$/, { timeout: 20_000 });
   await expect(line.locator('.reading-note')).toHaveText('A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.');
   await expect(line.getByRole('button', { name: 'Cancelar' })).toBeVisible();
+  // W2-G1 (bisect 2026-11-09): the engine arms its next tick only when a cycle ends (`fireCycle().finally(schedule)`), so
+  // the cycle the 02:05 jump fired must be over before the next jump, or its 60 s timer is armed after that jump and no
+  // pull comes. Over means: its company pull has ended, no api request is open, and none has been for 2 s (the cycle's
+  // last phases after the pull are local).
+  await expect
+    .poll(() => pulled.some((at) => at > jumped) && open.size === 0 && Date.now() - settledAt >= 2_000, { timeout: 30_000, intervals: [250] })
+    .toBe(true);
   // Past the fast window the cycles keep coming, every 60 s.
   const past = Date.now();
   await page.clock.fastForward('01:05');

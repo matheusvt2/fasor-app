@@ -233,6 +233,15 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'test-recommendation.spec.ts',
     why: 'Story 23.11: issues a revision through the shared queue and LibreOffice to read the out reading\'s point, its recommendation first, from section 8 of the downloaded DOCX',
   },
+  // Fix batch e23w: B-4 and B-6 read section 9 and section 8 from the DOCX they issue.
+  {
+    file: 'tp-insulation-table.spec.ts',
+    why: 'Fix batch e23w (B-4): issues a revision through the shared queue and LibreOffice to read the TP\'s Table 100.5 minimum in ACEITÁVEL from the downloaded DOCX',
+  },
+  {
+    file: 'contact-rise.spec.ts',
+    why: 'Fix batch e23w (B-6): issues two revisions through the shared queue and LibreOffice (relatório A, whose issue writes last_results, then B of the same obra) to read the CONCLUSÃO Reprovado and the rise point from the DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

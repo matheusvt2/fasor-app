@@ -4,6 +4,7 @@ import {
   lastResults,
   makeOp,
   MIN_CONTRACT_VERSION,
+  previousResultsFor,
   SERVER_DEVICE_ID,
   sheetNameplatePath,
   sheetTestCellPath,
@@ -13,7 +14,11 @@ import {
   type PointRow,
 } from '@app/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { and, eq } from 'drizzle-orm';
 import { asCompanyId } from '../db/repositories/company-id.ts';
+import { liveRevisions } from '../db/repositories/revisions.ts';
+import { entities } from '../db/schema.ts';
+import { firstIssuedAtOf } from '../jobs/generate/job.ts';
 import { newId } from '../ids.ts';
 import { companyA, companyB, routeHarness, type Company, type SeededRelatorio } from './rules.test-support.ts';
 import { toSnapshot } from './snapshot.ts';
@@ -42,11 +47,16 @@ function pointValue(id: string, relatorioId: string, equipmentId: string, origin
   return { id, relatorio_id: relatorioId, text, equipment_id: equipmentId, origin: origin as PointRow['origin'], order_key: 'a0', removed_at: null, action: null, priority: null, deadline: null, owner: null, item_key: null, test_key: 'isolacao' };
 }
 
-/** The `equipment/{id}/last_results` puts the generate job writes for revision 1 of `seeded`, applied as the server applies them. */
-async function project(company: Company, seeded: SeededRelatorio): Promise<Op[]> {
+/**
+ * The `equipment/{id}/last_results` puts the generate job writes for revision `revisionNumber` of `seeded` (1 by
+ * default), applied as the server applies them. Fix batch e23w (W2-1): the first issue instant is read as the job
+ * reads it (`firstIssuedAtOf` over the relatório's live revisions).
+ */
+async function project(company: Company, seeded: SeededRelatorio, revisionNumber = 1): Promise<Op[]> {
   const snapshot = await snapshotOf(company, seeded.relatorioId);
   const at = new Date();
-  const puts = lastResults(snapshot, { revisionNumber: 1, issuedAt: at.toISOString() }).map((entry) =>
+  const firstIssuedAt = firstIssuedAtOf(revisionNumber > 1 ? await liveRevisions(h.db, asCompanyId(company.companyId), seeded.relatorioId) : [], at.toISOString());
+  const puts = lastResults(snapshot, { revisionNumber, issuedAt: at.toISOString(), firstIssuedAt }).map((entry) =>
     makeOp(
       {
         kind: 'put',
@@ -147,5 +157,44 @@ describe('23.6-INT the issue\'s last_results keeps the corrected value (AD-25, c
     expect(await h.rowOf<EquipmentRow>(companyB, 'equipment', tf13.equipmentId)).toBeUndefined();
     const own = await h.authed(companyB, '/api/sync/company?since=0');
     expect(((await own.json()) as { ops: Op[] }).ops.some((op) => op.path.endsWith('/last_results'))).toBe(false);
+  });
+});
+
+describe('e23w-INT W2-1 a re-issue never takes a later visit\'s place in last_results (AD-25 order rule)', () => {
+  it('A issued, then B of the same obra issued over it, then A re-issued: B stays on top with prior A\'s re-issue, and A reads no previous visit', async () => {
+    const a = await h.seedRelatorio(companyA);
+    const tfA = a.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    const reading = (seeded: SeededRelatorio, blockId: string, raw: string) =>
+      h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(blockId, 'isolacao', 0, 1), relatorio_id: seeded.relatorioId, value: measured(raw, 'GΩ') });
+    expect((await h.push(companyA, [reading(a, tfA.id, '5')])).rejected).toEqual([]);
+    await h.cutRevision(companyA, a.relatorioId, 1);
+    await project(companyA, a);
+
+    const equipment = await h.db
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'equipment'), eq(entities.project_id, a.projectId)));
+    const b = await h.seedRelatorio(companyA, new Date(), undefined, { projectId: a.projectId, existingEquipment: equipment.map((one) => one.row as EquipmentRow) });
+    const tfB = b.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    expect(tfB.equipmentId).toBe(tfA.equipmentId);
+    expect((await h.push(companyA, [reading(b, tfB.id, '4')])).rejected).toEqual([]);
+    await h.cutRevision(companyA, b.relatorioId, 1);
+    await project(companyA, b);
+    expect((await h.rowOf<EquipmentRow>(companyA, 'equipment', tfA.equipmentId))!.last_results).toMatchObject({ relatorio_id: b.relatorioId, prior: { relatorio_id: a.relatorioId, revision_number: 1 } });
+
+    // A re-issued (revision 2) with a new reading: B keeps the top, its prior is A's revision 2.
+    expect((await h.push(companyA, [reading(a, tfA.id, '6')])).rejected).toEqual([]);
+    await h.cutRevision(companyA, a.relatorioId, 2);
+    await project(companyA, a, 2);
+    const top = (await h.rowOf<EquipmentRow>(companyA, 'equipment', tfA.equipmentId))!.last_results!;
+    expect(top).toMatchObject({ relatorio_id: b.relatorioId, revision_number: 1 });
+    expect(Object.values(top.readings)).toEqual([{ raw: '4', unit: 'GΩ', state: 'measured' }]);
+    expect(top.prior).toMatchObject({ relatorio_id: a.relatorioId, revision_number: 2 });
+    expect(Object.values(top.prior!.readings)).toEqual([{ raw: '6', unit: 'GΩ', state: 'measured' }]);
+    expect((top.prior as Record<string, unknown>).prior).toBeUndefined();
+    // A's sheet reads no previous visit (never B, a later one).
+    const snapshot = await snapshotOf(companyA, a.relatorioId);
+    const block = snapshot.blocks.find((one) => one.id === tfA.id)!;
+    expect(previousResultsFor(snapshot.equipment.find((one) => one.id === tfA.equipmentId), block, a.relatorioId)).toBeNull();
   });
 });

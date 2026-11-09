@@ -2147,7 +2147,8 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
 // e23a (Stories 23.2 to 23.4: the NETA criterion tables, the instrument-limit note), then e23b (Stories 23.7 to 23.9: the nameplate fields,
 // the TTR per tap, the dry fields; its block below), re-pinned on main 17127590 merged in.
 // e23v (Stories 23.5, 23.6, 23.14: the temperature correction, the restriction rules, the contact criterion status; its block below).
-const V13_HASH = '9a262edc8d2d0f0601933d6f80f2ff20b54c5aedf35124911c561fe4471a0c53';
+// e23w (fix batch, Bruno's answers B-4 and B-6 of 2026-11-09: the TP's Table 100.5, the contact's history_rise_out_pct).
+const V13_HASH = '91fe99b17429076658e94f7df955e9f2c1b5a6d6d2c9ecad62541a2bacc4c32f';
 
 describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', () => {
   const v12 = getSeed('v12', 'cabine_primaria');
@@ -2211,13 +2212,21 @@ describe('seed v13, batch e23a (Stories 23.2 and 23.4): the NETA tables and the 
     ]);
   });
 
-  it('picks Table 100.5 on the transformer (by winding, by medium) and the TC (by primary), 100.1 on the disjuntor, seccionadora and para-raio; the TP and the cables keep the seeded criterion', () => {
+  // Fix batch e23w (Bruno's answer B-4, 2026-11-09): the TP takes the TC's Table 100.5 by its AT and its medium (TP-02).
+  it('picks Table 100.5 on the transformer (by winding, by medium), the TC and the TP (by primary and medium), 100.1 on the disjuntor, seccionadora and para-raio; the cables keep the seeded criterion', () => {
     expect(insulation('transformador_forca').criterion_table).toEqual({ table: NETA_100_5, voltage: 'winding', medium: 'oil_rule' });
     expect(insulation('tc').criterion_table).toEqual({ table: NETA_100_5, voltage: { field: 'tensao_nominal_at' }, medium: 'oil_rule' });
+    expect(insulation('tp').criterion_table).toEqual({ table: NETA_100_5, voltage: { field: 'tensao_nominal_at' }, medium: 'oil_rule' });
+    // The TP's medium: TIPO DE ISOLAÇÃO, required, its oil rule's field; its AT is read over √3.
+    const tp = getDefinition('v13', 'cabine_primaria', 'tp');
+    expect(tp.oil_rule!.field).toBe('tipo_de_isolacao');
+    expect(tp.nameplate.find((field) => field.key === 'tipo_de_isolacao')).toMatchObject({ kind: 'select', options: ['EPÓXI', 'Á SECO', 'ÓLEO MINERAL'] });
+    expect(tp.nameplate.find((field) => field.key === 'tipo_de_isolacao')!.optional).toBeUndefined();
+    expect(tp.nameplate.find((field) => field.key === 'tensao_nominal_at')).toMatchObject({ kind: 'number', unit: 'kV', over_sqrt3: true });
     expect(insulation('disjuntor_mt').criterion_table).toEqual({ table: NETA_100_1, voltage: { field: 'tensao_nominal' } });
     expect(insulation('chave_seccionadora').criterion_table).toEqual({ table: NETA_100_1, voltage: { field: 'tensao_de_placa' } });
     expect(insulation('para_raio').criterion_table).toEqual({ table: NETA_100_1, voltage: { field: 'tensao_nominal' } });
-    for (const type of ['tp', 'cabos_entrada', 'cabos_saida', 'quadro_eletrico']) expect(insulation(type).criterion_table, type).toBeUndefined();
+    for (const type of ['cabos_entrada', 'cabos_saida', 'quadro_eletrico']) expect(insulation(type).criterion_table, type).toBeUndefined();
   });
 
   it('flags the instrument-limit note on the insulation test of the eight FO.SERV-03 types only', () => {
@@ -2423,7 +2432,8 @@ describe('seed v13, batch e23v (Stories 23.5, 23.6 and 23.14): the temperature c
     });
     for (const type of ['disjuntor_mt', 'chave_seccionadora']) {
       expect(keys(type, 'isolacao'), type).toEqual({ temperature_correction: { to_c: 20, medium: 'solid' }, restriction: undefined, criterion_status: undefined });
-      expect(keys(type, 'resistencia_contato'), type).toEqual({ temperature_correction: undefined, restriction: { pole_deviation_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' });
+      // Fix batch e23w (Bruno's answer B-6): a pole more than 50 % above the previous v13 visit's is out.
+      expect(keys(type, 'resistencia_contato'), type).toEqual({ temperature_correction: undefined, restriction: { pole_deviation_pct: 50, history_rise_out_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' });
     }
     for (const type of ['cabos_entrada', 'cabos_saida']) {
       expect(keys(type, 'isolacao'), type).toEqual({ temperature_correction: undefined, restriction: { below_largest_pct: 50, status: 'PADRÃO FASOR' }, criterion_status: undefined });

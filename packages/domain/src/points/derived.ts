@@ -4,6 +4,7 @@ import { conclusionFloor, effectiveConclusionPair, restrictedItems } from '../re
 import { locationPathText } from '../relatorio/location-path.ts';
 import { worstMeasurements } from '../relatorio/measurement-evaluation.ts';
 import { worstReadings } from '../relatorio/readings.ts';
+import { failedPrerequisites } from '../relatorio/restriction.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
@@ -128,6 +129,7 @@ function sheetEntries(
   photos: ReturnType<typeof livePhotos>,
   ctx: DefinitionContext,
   visit: VisitContext,
+  standing?: Set<string>,
 ): DerivedPoint[] {
   if (definition === null) return [];
   const out: DerivedPoint[] = [];
@@ -148,31 +150,36 @@ function sheetEntries(
     });
   }
   const evaluations = sheetReadings(block, definition, visit);
-  const titles = new Map(evaluations.map((test) => [test.testKey as string, test.title]));
   const readings = worstReadings(evaluations).filter((reading) => reading.verdict === 'out');
   // Batch e23v (Story 23.6): a failed prerequisite is its test's `reading` entry, with the test's worst out reading when it has one.
-  const failed = new Map(evaluations.flatMap((test) => (test.prerequisite?.failed === true ? [[test.testKey as string, test.prerequisite.text] as const] : [])));
+  // Fix batch e23w (W2-2): read over every test that names one (`failedPrerequisites`), its sub-block off or NA by the plate too.
+  const prerequisites = failedPrerequisites(block, definition);
+  const failed = new Map(prerequisites.map((one) => [one.testKey as string, one.text] as const));
+  const titles = new Map([...prerequisites.map((one) => [one.testKey as string, one.title] as const), ...evaluations.map((test) => [test.testKey as string, test.title] as const)]);
+  // The tests with an entry, in the definition's order: an evaluated one, or one that fails its prerequisite while off or NA.
+  const entryTests = definition.tests.filter((test) => failed.has(test.key) || evaluations.some((one) => one.testKey === test.key)).map((test) => test.key as string);
   const withEntry = new Set<string>();
-  for (const test of evaluations) {
-    const reading = readings.find((one) => one.testKey === test.testKey);
-    const prerequisite = failed.get(test.testKey) ?? null;
+  for (const testKey of entryTests) {
+    const reading = readings.find((one) => one.testKey === testKey);
+    const prerequisite = failed.get(testKey) ?? null;
     if (reading === undefined && prerequisite === null) continue;
-    withEntry.add(test.testKey);
+    withEntry.add(testKey);
     // authored (Story 22.5, open for Bruno): a reading entry's text, the ratio as its deviation.
     const value = reading === undefined ? null : reading.testKey === 'relacao_transformacao' ? `desvio de ${reading.valueText}` : reading.valueText;
-    const outText = reading === undefined ? null : `${value} em ${reading.where} (critério: ${reading.criterionText})`;
+    // Fix batch e23w (B-6): a pole out by its rise since the previous visit names the rise.
+    const outText = reading === undefined ? null : `${value} em ${reading.where} (${reading.rise ?? `critério: ${reading.criterionText}`})`;
     out.push({
       ...base,
       ...common,
       kind: 'reading',
-      key: `reading:${block.id}:${test.testKey}`,
-      test_key: test.testKey,
+      key: `reading:${block.id}:${testKey}`,
+      test_key: testKey,
       // authored (Story 23.6, listed for Bruno): a failed prerequisite before the out reading, "; " between them.
       // authored (Story 23.11, open for Bruno): the test's recommendation first, when it has one (`recommendedPointText`);
       // a `reading` entry is a failed test (an out reading, a failed prerequisite, or both), never a `restricao` one.
       text: recommendedPointText(
-        testRecommendationOf({ tests: definition.tests }, test.testKey),
-        `${titles.get(test.testKey) ?? test.testKey}: ${[prerequisite, outText].filter((part): part is string => part !== null).join('; ')}`,
+        testRecommendationOf({ tests: definition.tests }, testKey),
+        `${titles.get(testKey) ?? testKey}: ${[prerequisite, outText].filter((part): part is string => part !== null).join('; ')}`,
       ),
     });
   }
@@ -189,6 +196,13 @@ function sheetEntries(
         `${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`,
       ),
     });
+  }
+  // Fix batch e23w (W2-3): a test's restriction stands while it has a restricted reading or a rule still flags one now out
+  // (`restrictionStands`); the entries are unchanged, only `resolvedOriginPoints` reads this.
+  if (standing !== undefined && block.equipment_id !== null) {
+    for (const test of evaluations) {
+      if (test.restrictionStands === true || restrictedItems(test).length > 0) standing.add(`restricao:${block.equipment_id}:${test.testKey}`);
+    }
   }
   // Batch e23v (Story 23.6, seed v13): one entry per test with a restricted reading and no `reading` entry.
   for (const test of evaluations) {
@@ -220,8 +234,8 @@ function sheetEntries(
   return out;
 }
 
-/** Every entry before suppression, in tree order. */
-function allDerivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
+/** Every entry before suppression, in tree order. Fix batch e23w (W2-3): `standing` collects the restricted tests' sources that stand. */
+function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): DerivedPoint[] {
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
   const locals = new Map(siteLocals(snapshot).map((location) => [location.id, location]));
   const items = locals.size === 0 ? [] : siteItems(snapshot.relatorio.seed_version);
@@ -269,7 +283,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
       });
       continue;
     }
-    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos, ctx, visitContextOf(snapshot, block)));
+    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos, ctx, visitContextOf(snapshot, block), standing));
   }
   return out;
 }
@@ -320,10 +334,13 @@ export function derivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
  * manual-like points, flagged "Origem resolvida" on the Pontos screen.
  */
 export function resolvedOriginPoints(snapshot: DerivedSnapshot): Set<string> {
-  const standing = new Set(allDerivedPoints(snapshot).flatMap((entry) => {
+  // Fix batch e23w (W2-3): a `restricao` source stands while its test has a restricted reading or a rule flags one now out.
+  const restricted = new Set<string>();
+  const standing = new Set(allDerivedPoints(snapshot, restricted).flatMap((entry) => {
     const source = entrySource(entry);
     return source === null ? [] : [source];
   }));
+  for (const source of restricted) standing.add(source);
   return new Set(
     snapshot.points
       .filter((point) => point.removed_at === null && (point.origin === 'nc' || point.origin === 'reading' || point.origin === 'reprovado' || point.origin === 'restricao'))

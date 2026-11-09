@@ -8,6 +8,7 @@ import {
   standardTemplate,
   syncPushResponseSchema,
   toIso,
+  type EquipmentRow,
   type JsonValue,
   type Op,
   type OpInput,
@@ -155,18 +156,19 @@ export function routeHarness(deviceId: string) {
    * A relatório of the standard template and its obra, pushed as one client batch at `at` (Rascunho). Batch e23v: a suite
    * about an older seed's behaviour names its version (the standard template on it); the current one by default.
    */
-  async function seedRelatorio(company: Company, at: Date = new Date(), seedVersion?: string): Promise<SeededRelatorio> {
-    const projectId = newId();
+  async function seedRelatorio(company: Company, at: Date = new Date(), seedVersion?: string, obra?: { projectId: string; existingEquipment: EquipmentRow[] }): Promise<SeededRelatorio> {
+    // Fix batch e23w (W2-1): a later relatório of an existing obra binds its live equipment (no project create).
+    const projectId = obra?.projectId ?? newId();
     const project = clientOp(company, { kind: 'create', scope: 'company', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra das regras', site: null, removed_at: null } }, at);
     const { relatorioId, drafts } = instantiateTemplate(
       standardTemplate({ id: newId(), ...(seedVersion === undefined ? {} : { seedVersion }) }),
       { id: projectId },
-      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: obra?.existingEquipment ?? [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId, actorId: company.userId, companyId: company.companyId },
     );
     const batchId = newId();
     const created = drafts.map((draft) => makeOp({ ...draft, batch_id: batchId, device_id: deviceId }, { newId, now: at }));
-    const result = await push(company, [project, ...created]);
+    const result = await push(company, obra === undefined ? [project, ...created] : created);
     expect(result.rejected, JSON.stringify(result.rejected)).toEqual([]);
     written.streams.add(projectId);
     const rows = (prefix: string) => created.filter((op) => op.kind === 'create' && op.path.startsWith(prefix)).map((op) => op.value as Record<string, unknown>);

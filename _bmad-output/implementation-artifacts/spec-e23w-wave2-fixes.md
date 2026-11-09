@@ -2,8 +2,8 @@
 title: 'e23w: the Epic 23 wave 2 fixes (re-issue ordering, prerequisite off, standing restriction, confirm tests, parecer reason, 8 pt, TP-02, contact rise, the 60 s poll)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'ready-for-dev'
-baseline_revision: '32bd18456b6e1b1bf79da1d779fdf917b6a97951'
+status: 'in-progress'
+baseline_revision: 'efc4e1a9a63207f6dbe9956202a2f2a7633b2eb5'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

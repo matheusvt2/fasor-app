@@ -98,8 +98,17 @@ export function blockReadings(block: BlockRow, definition: BlockDefinition, visi
  * per equipment). The prior chain (Design Notes): writing for relatório X over the snapshot's
  * value E keeps `prior = E === null ? null : E.relatorio_id === X ? E.prior : E` (without its own
  * prior), so a re-issue of X still points at the visit before it.
+ *
+ * Fix batch e23w (W2-1, AD-25 order rule): visits are ordered by first issue. `firstIssuedAt` is
+ * the instant X was first issued (its earliest revision; `issuedAt` on revision 1). Over a value
+ * E of another relatório:
+ * - E's `prior` is X (X re-issued after E was issued over it): E stays on top, its `prior`
+ *   becomes X's new entry (without prior);
+ * - E is unrelated to X, this is a re-issue (revision > 1) and E was issued after X's first
+ *   issue: E is a later visit, and nothing is written for that equipment;
+ * - otherwise as before (X on top, prior E).
  */
-export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string }): LastResultsEntry[] {
+export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string; firstIssuedAt?: string }): LastResultsEntry[] {
   const out: LastResultsEntry[] = [];
   const done = new Set<string>();
   // Story 14.6: a company sheet's definition is the version its block references (the snapshot's `equipment_types`).
@@ -113,19 +122,22 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
     if (Object.keys(readings).length === 0) continue;
     done.add(block.equipment_id);
     const existing = snapshot.equipment.find((row) => row.id === block.equipment_id)?.last_results ?? null;
+    const own = {
+      relatorio_id: snapshot.relatorio.id,
+      revision_number: input.revisionNumber,
+      issued_at: input.issuedAt,
+      seed_version: block.seed_version,
+      block_type: block.block_type,
+      readings,
+    };
+    // Fix batch e23w (W2-1): a later visit on top keeps its place; this one refreshes its prior, or writes nothing.
+    if (existing !== null && existing.relatorio_id !== snapshot.relatorio.id && existing.prior?.relatorio_id === snapshot.relatorio.id) {
+      out.push({ equipmentId: block.equipment_id, value: { ...existing, prior: own } });
+      continue;
+    }
+    if (existing !== null && existing.relatorio_id !== snapshot.relatorio.id && input.revisionNumber > 1 && input.firstIssuedAt !== undefined && Date.parse(existing.issued_at) > Date.parse(input.firstIssuedAt)) continue;
     const prior = existing === null ? null : existing.relatorio_id === snapshot.relatorio.id ? existing.prior : withoutPrior(existing);
-    out.push({
-      equipmentId: block.equipment_id,
-      value: {
-        relatorio_id: snapshot.relatorio.id,
-        revision_number: input.revisionNumber,
-        issued_at: input.issuedAt,
-        seed_version: block.seed_version,
-        block_type: block.block_type,
-        readings,
-        prior,
-      },
-    });
+    out.push({ equipmentId: block.equipment_id, value: { ...own, prior } });
   }
   return out;
 }
