@@ -121,6 +121,12 @@ export interface EvaluatedCell {
    * value ignored); `required` whether an empty one is missing (the IP on a unit of `required_on`).
    */
   index?: { kind: 'ip' | 'dar' | 'plain'; notApplicable: boolean; required: boolean };
+  /**
+   * Fix batch e23w (B-6, seed v13, `restriction.history_rise_out_pct`): why a measured pole within
+   * its criterion is out: it rose more than the share above the same cell's previous measured
+   * value. The short reason the points and the conclusion name; present only on such a cell.
+   */
+  rise?: { reason: string };
 }
 
 export interface EvaluatedRow {
@@ -264,6 +270,12 @@ export interface TestEvaluation {
    */
   /** Story 23.16: each IP out of its class, as the conclusion and the points name it, in table order. */
   indexOut?: { where: string; valueText: string; criterionText: string; sourceName: string }[];
+  /**
+   * Fix batch e23w (W2-3): set when a rule of the test's `restriction` flags a reading already out
+   * of its criterion (its verdict stays out): the restriction still stands, so a stored `restricao`
+   * point is not "Origem resolvida". Absent otherwise, and on every test of v1 to v12.
+   */
+  restrictionStands?: true;
 }
 
 // --- text helpers ------------------------------------------------------------------------

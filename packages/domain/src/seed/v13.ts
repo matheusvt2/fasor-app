@@ -26,12 +26,16 @@ type CriterionTableKey = NonNullable<TestDef['criterion_table']>;
  * Story 23.2: the insulation test of each type the NETA tables judge, and how its rows pick their
  * row: the transformador de força by the winding each row tests and its medium (base rev08 TR-OL-02,
  * TR-SE-02), the TC by its primary voltage and medium (TC-02), the disjuntor, the seccionadora and
- * the para-raio by their class voltage (DJ-02, SC-02, PR-02). The TP (open item B-4) and the cables
- * (CB-02) keep the seeded criterion.
+ * the para-raio by their class voltage (DJ-02, SC-02, PR-02). ~~The TP (open item B-4) and the cables
+ * (CB-02) keep the seeded criterion.~~ (2026-11-09, fix batch e23w, Bruno's answer B-4: the TP is
+ * judged like the TC, by its TENSÃO NOMINAL AT and its TIPO DE ISOLAÇÃO (TP-02); a "N/√3" AT by its
+ * class voltage N. The cables (CB-02) keep the seeded criterion.)
  */
 const CRITERION_TABLES: Partial<Record<BaseEquipmentBlockType, () => CriterionTableKey>> = {
   transformador_forca: () => ({ table: structuredClone(NETA_100_5), voltage: 'winding', medium: 'oil_rule' }),
   tc: () => ({ table: structuredClone(NETA_100_5), voltage: { field: 'tensao_nominal_at' }, medium: 'oil_rule' }),
+  // Fix batch e23w (B-4): the TC's entry; the TP's TIPO DE ISOLAÇÃO (EPÓXI, Á SECO, ÓLEO MINERAL, required) picks the column.
+  tp: () => ({ table: structuredClone(NETA_100_5), voltage: { field: 'tensao_nominal_at' }, medium: 'oil_rule' }),
   disjuntor_mt: () => ({ table: structuredClone(NETA_100_1), voltage: { field: 'tensao_nominal' } }),
   chave_seccionadora: () => ({ table: structuredClone(NETA_100_1), voltage: { field: 'tensao_de_placa' } }),
   para_raio: () => ({ table: structuredClone(NETA_100_1), voltage: { field: 'tensao_nominal' } }),
@@ -213,7 +217,10 @@ function withNameplateFields(seed: ReportSeed): ReportSeed {
  *
  * Story 23.14 (decision L; DJ-03, SC-03, NETA MTS-2023 7.6.3 and 7.5.1): the contact resistance's
  * deviation over the lowest pole; the seeded 250 µΩ criterion stands, its row status PADRÃO FASOR.
- * No rule reads the previous visit's contact resistance (open item B-6).
+ * ~~No rule reads the previous visit's contact resistance (open item B-6).~~ (2026-11-09, fix batch
+ * e23w, Bruno's answer B-6: a pole more than 50 % above the same pole of the previous v13 visit is
+ * out, `history_rise_out_pct`; the restriction's status stays the pole deviation's CONFIRMADO, one
+ * status per restriction.)
  */
 
 type E23vKeys = Pick<TestDef, 'temperature_correction' | 'restriction' | 'criterion_status'>;
@@ -228,11 +235,11 @@ const E23V_KEYS: Partial<Record<BaseEquipmentBlockType, Partial<Record<TestDef['
   },
   disjuntor_mt: {
     isolacao: () => ({ temperature_correction: { to_c: 20, medium: 'solid' } }),
-    resistencia_contato: () => ({ restriction: { pole_deviation_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' }),
+    resistencia_contato: () => ({ restriction: { pole_deviation_pct: 50, history_rise_out_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' }),
   },
   chave_seccionadora: {
     isolacao: () => ({ temperature_correction: { to_c: 20, medium: 'solid' } }),
-    resistencia_contato: () => ({ restriction: { pole_deviation_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' }),
+    resistencia_contato: () => ({ restriction: { pole_deviation_pct: 50, history_rise_out_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' }),
   },
   cabos_entrada: { isolacao: () => ({ restriction: { below_largest_pct: 50, status: 'PADRÃO FASOR' } }) },
   cabos_saida: { isolacao: () => ({ restriction: { below_largest_pct: 50, status: 'PADRÃO FASOR' } }) },

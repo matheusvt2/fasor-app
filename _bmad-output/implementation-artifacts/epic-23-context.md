@@ -208,6 +208,36 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
     - a decision for Matheus: a copy that removes DESLOCAMENTO ANGULAR keeps a TTR read by vector group with nothing to
       read.
 
+## Fix batch e23w
+
+*(2026-11-09, filled by the e23w orchestrator on the coordinator's word.)*
+
+- **Branch** `e23w-wave2-fixes`, worktree `.claude/worktrees/e23w`, port base 57, from main `32bd1845`.
+- **Scope.** The second pass of the wave 2 integrated review on `8c097ffa` (W2-1 to W2-4, W2-K1, W2-K2), the wave 2 gate red W2-G1, and Bruno's 2026-11-09 answers B-4 (TP-02) and B-6 (contact rise).
+- **Contract and seed:** no contract (37 stays). Seed v13 changed in place (the TP's Table 100.5 key, `history_rise_out_pct` on the contact tests); `V13_HASH` re-pinned to `91fe99b1…`. Goldens unchanged.
+- **Record (2026-11-09).**
+  - PR #293 (open, not merged; its head is on the PR).
+  - Story gate on `49d1fdd7` (main `32bd1845`, unchanged since the branch), each stage under the lock:
+    - load `{ 3.15 8.36 11.12 }` at the start and `{ 5.46 7.05 7.94 }` at the end, with a peak of 21 during the e2e stage (the host's `contactsd` at 127 % CPU besides the VM); the e23t stack was up throughout, and its gate and fix gate held the lock;
+    - lock wait 0 s for lint, static, test:api and test:unit; 5144 s for the e2e stage (behind e23t's gate);
+    - lint 0, static 0, test:api 936 passed / 6 skipped (goldens unchanged), test:unit 5946 of 5947;
+    - the one unit red, `sumario-surface.test.tsx` "decision 2" (7,4 s, a file this batch does not touch), passed alone under the lock: 43 of 43 (E15-A4);
+    - 59 touched specs (every spec asserting section 9, the conclusion, the points or the parecer, plus `reading-wait` and the three new ones): 282 of 284. The two reds are both `@p1`, both serial, both in specs this batch does not touch: `export.spec.ts` 4.8-E2E-005 (no "Revisão 1 pronta" within 150 s) and `journeys-12-3-12-4.spec.ts` 12.3-E2E-004 (the stepper's "Ensaios, 0 faltando" not within 5 s). Both passed alone under the lock with `--repeat-each 2`: 2 of 2 each (lock wait 1290 s, load `{ 4.23 5.90 7.11 }` to `{ 4.05 5.46 6.84 }`), so they are counted load-bound under E15-A4 with both runs recorded.
+    - 13.5-E2E-004 passed in the gate; matrix not run (no fold, commit path or live-query change).
+  - Changes:
+    - W2-1: visits ordered by first issue (`firstIssuedAtOf` in the issue job). A re-issue whose top `last_results` entry is a later relatório with this one as `prior` reads no previous visit; its put refreshes that top's `prior` and keeps it on top; a re-issue over an unrelated top issued after its first issue writes nothing.
+    - W2-2: `failedPrerequisites` (`relatorio/restriction.ts`) reads every test with a prerequisite whatever its switch or applicability; the floor, the points, the conclusion and the parecer read it.
+    - W2-3: `TestEvaluation.restrictionStands`; `resolvedOriginPoints` reads it.
+    - W2-4: unit and e2e of both conclusion confirms under the cabine's ambient, with a mutation run.
+    - W2-K1: the parecer's `prerequisite` group.
+    - W2-K2: TEMPERATURA was already in the instrument header row (e23v), so the delta was the fit: the "20 °C" column is measured outside the 60 em budget and the transformer's table prints at 8 pt.
+    - B-4: the v13 TP takes the TC's Table 100.5 key; "N/√3" is judged by N.
+    - B-6: a pole more than 50 % above the same pole at the previous v13 visit is out (`EvaluatedCell.rise`).
+    - W2-G1: bisect alone under the lock, `967d898a` 6 of 6, `8c097ffa` 5 of 6: a race in the test (the engine arms the next tick when a cycle ends), not a 60 s regression. The test waits for the cycle to end; the product is unchanged.
+  - Authored wording, for Bruno: "pré-requisito do ensaio não atendido" (parecer group); "alta de {N} % sobre {valor} da manutenção anterior, rev. {n} de {dd/mm/aaaa}, acima do limite de {pct} %"; "Acima do aceitável: {motivo}".
+  - Review (Edge Case Hunter, Verification Gap; one loop): 12 findings, 4 patched (the W2-1 job-wiring case, the size pins, the rise's rounding, 13.5-E2E-004's listener scope), 1 deferred, 7 rejected.
+  - Left for the epic: six `deferred-work.md` rows under § "Epic 23 fix batch e23w": the prerequisite with the nameplate sub-block off (Matheus with Bruno), the two-entry chain after two later visits, a PDF look at the 8 pt table (wave QA), the authored texts, the B-6 narrowings, and the contract note (MIN must follow wave 3's bump). Two e23v rows closed (the 7,5 pt decision, the parecer wording).
+
 ## Batch plan
 
 There are two lanes per wave, so at most two batch stacks are up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`.

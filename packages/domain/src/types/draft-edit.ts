@@ -330,7 +330,8 @@ function dropE23vReads(next: Entry, key: string | null): void {
     if (restriction === undefined) continue;
     if (key !== null && (restriction.prerequisite as Entry | undefined)?.field === key) delete restriction.prerequisite;
     if (test.temperature_correction === undefined) delete restriction.history_drop_pct;
-    if (restriction.history_drop_pct === undefined && restriction.below_largest_pct === undefined && restriction.pole_deviation_pct === undefined && restriction.prerequisite === undefined) delete test.restriction;
+    // Fix batch e23w (B-6): `history_rise_out_pct` is a rule too.
+    if (restriction.history_drop_pct === undefined && restriction.below_largest_pct === undefined && restriction.pole_deviation_pct === undefined && restriction.history_rise_out_pct === undefined && restriction.prerequisite === undefined) delete test.restriction;
   }
 }
 
