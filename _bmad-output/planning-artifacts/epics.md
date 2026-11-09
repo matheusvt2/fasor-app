@@ -3906,6 +3906,8 @@ So that the readings are judged by what the manufacturer specifies, and the rela
 2. For Bruno: does the manufacturer criterion need a reference (manual or datasheet name) printed beside it (default: no reference field).
 3. For Bruno: may the manufacturer criterion be looser than the default (default: yes, it replaces the default whatever its value; the sheet shows the default beside it as a reminder).
 
+*(2026-11-09: closed, absorbed by Story 23.3, built in batch e23a, PR #286 merged as `17127590`.)*
+
 ### Story 14.14: Seed v7: the fixed extinction media with "Outro", the SELV/PELV help and the test voltage checked against the photo
 
 *(Added 2026-10-21 by the coordinator, from Bruno's answers 1, 3 and 4 of 2026-10-21 relayed by Matheus. Stories 14.9 and 14.11 are done and deployed in v0.2.3 with seed v6, which froze at that deploy; each answer below changes what shipped, so it lands as a new seed version and its own story rather than as an amendment of a done story. Backlog; it does not wait for the wave-3 gate.)*
@@ -6457,6 +6459,8 @@ So that the relatório follows the standard he signs against, not one number for
 - The `source-deltas.md` row's "planned" replaced by the built record.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
 
+*(2026-11-09, built as batch e23a with 23.3 and 23.4, PR #286 merged as `17127590` (contract 34, `V13_HASH` re-pinned by e23b). Narrowings: a row whose nameplate rating or insulation medium is missing falls back to the v12 criterion, with an authored helper line; ACEITÁVEL prints one minimum, or POR LINHA with a per-row column. Open, Matheus with Bruno: a v13 per-row table beside MANUT. ANTERIOR reaches 11 columns and may print at 6,5 or 6 pt (`deferred-work.md`, Epic 23 batch e23a).)*
+
 ### Story 23.3: The manufacturer's value on each test, optional (absorbs Story 14.13; contract 34)
 
 **Dev model:** opus · **Effort:** high · one optional "Valor do fabricante" per test of a sheet over the existing `criterion_override` path; the kernel names its source as the manufacturer's; empty, the table or seeded criterion applies; screen control from Story 23.1; print of the manufacturer's value in ACEITÁVEL
@@ -6511,6 +6515,8 @@ So that the reading is judged by the manufacturer, as the base's rule 1 says.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built in batch e23a, PR #286 merged as `17127590`. Narrowings: the fold refuses a malformed manufacturer value on v13 sheets only, so the v1 replay golden still replays and v1 to v12 readers keep the E5-A4 reading; issuing does not make a sheet read-only, so the read-only entry is tested on a not-tested sheet. Story 14.13 closes.)*
+
 ### Story 23.4: A reading above the instrument's limit under the table criteria
 
 **Dev model:** opus · **Effort:** medium · on v13 an over-range insulation reading whose limit meets the picked criterion is within, with Bruno's standard observation as a kernel note printed under the table; the IP is "não aplicável" when the 1-minute reading is over range; PR #268's rule stays as the guard
@@ -6549,6 +6555,8 @@ So that a table minimum of tens of GΩ never fails a winding the instrument cann
 - A section 9 print test.
 - A Playwright spec through the DOCX.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23a, PR #286 merged as `17127590`. The limit note is the base's text (decision F); the over-range row's POLARIZAÇÃO prints N/A in print only, because `ia_ip_display` has no screen.)*
 
 ### Story 23.5: Temperature correction: insulation at 20 °C, winding resistance at 75 °C
 
@@ -6741,6 +6749,8 @@ So that the app can pick the tests, the voltages and the corrections from them.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built as batch e23b with 23.8 and 23.9, PR #287 merged as `6be0a5ec` (contract 35). Narrowings: M-4 (ÓLEO ISOLANTE) stays with Story 23.17 and the temperature help text with Story 23.5; the temperatures are optional (decision B's fallback to the ambient, open to Bruno); the cables carry no default fake fixture; TAP ATUAL is a new key picked from TAPS. Before the deploy: the paid eval of prompt `bedrock-structuring-6`.)*
+
 ### Story 23.8: The TTR has one row per tap of the plate
 
 **Dev model:** opus · **Effort:** high · on v13 the transformer's ratio table takes one row per tap of TAPS, the current tap and the extremes pre-marked as to be measured, each row's VAL CALCULADO from its tap voltage and the vector group; cell addressing and the api's target checks over plate-derived rows
@@ -6788,6 +6798,8 @@ So that the relatório shows the ratio across the changer, as the base asks.
 - A Playwright spec through the DOCX.
 - The touched durability specs on the matrix projects.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23b, PR #287 merged as `6be0a5ec`. Narrowings: a tap row is keyed by the tap's voltage in whole V, not its position; unmeasured, unmarked tap rows print "-"; a tap dropped from the plate keeps its row flagged "Fora da placa" and refuses every write (clearing such a reading is open to Bruno); Yd keeps √3/2 until Bruno's B-2.)*
 
 ### Story 23.9: A test applies from the nameplate: automatic NA with its reason, and the technician's override (contract 35)
 
@@ -6846,6 +6858,8 @@ So that I neither fill a test that does not apply nor lose one that does.
 - The spine gains a dated note under AD-3 (the field) and AD-21 (the condition is definition data).
 - The `source-deltas.md` row.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23b, PR #287 merged as `6be0a5ec`. Narrowings: one condition per test; NA hides cells on screen only; DESLIGADOR ÍNTEGRO is SIM/NÃO and the base's "sem desligador" maps to N/A, open to Bruno.)*
 
 ### Story 23.10: "Como ensaiar" on each test: on screen only, offline, editable in the type editor (contract 37)
 
