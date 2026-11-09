@@ -3311,3 +3311,8 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `.scratch-e23v/unit-all-1.log`, `.scratch-e23v/unit-tree-edges.log` (11 of 11 alone).
   class: flake
   state: open (owner: the next carry-over batch, E15-A4)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Review Triage Log 2026-11-09, Edge Case Hunter)
+  summary: The parecer names a para-raio Reprovado only by its failed prerequisite (DESLIGADOR ÍNTEGRO NÃO) in the reasonless group ("Reprovado (PR-1)."), as if the engineer had chosen Reprovado. A fix needs a reason group, an authored word and a parecer-basis key present only when used.
+  evidence: `packages/domain/src/relatorio/parecer.ts` (the `byReason` loop: ratio, reading, defect, other).
+  class: defect
+  state: open (owner: the Epic 23 wave 2 fix batch)
