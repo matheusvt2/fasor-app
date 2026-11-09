@@ -3,6 +3,7 @@ import { SEEDED_CRITERIA, formatCriterionValue } from '../seed/criteria.ts';
 import { equipmentTypesOf, findDefinition } from '../seed/definitions.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { plural } from '../text/plural.ts';
+import type { TestHelpKey } from '../seed/test-help.ts';
 import { COMPANY_CRITERION_OPERATORS, criterionTypeOf, type CompanyCriterionOperator, type CompanyTypeDraft } from './definition.ts';
 
 /*
@@ -430,6 +431,33 @@ export function updateDraftTest(draft: CompanyTypeDraft | null, part: 'tests' | 
     if (patch.switchable) test.switchable = test.switchable ?? { off_note: 'Desligado — marque NA quando o ensaio não puder ser feito.' };
     else delete test.switchable;
   }
+  return back(next);
+}
+
+/**
+ * Batch e23h (Story 23.10): one heading of a test's "Como ensaiar", kept as typed (as
+ * `setDraftText` keeps a text); a blank value deletes the heading, and a help left with no heading
+ * is deleted.
+ */
+export function setDraftTestHelp(draft: CompanyTypeDraft | null, part: 'tests' | 'measurement_tests', index: number, key: TestHelpKey, value: string): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const test = listOf(next, part)[index];
+  if (test === undefined) return back(next);
+  const help: Entry = test.help !== null && typeof test.help === 'object' && !Array.isArray(test.help) ? (test.help as Entry) : {};
+  if (value.trim() === '') delete help[key];
+  else help[key] = value;
+  if (Object.keys(help).length === 0) delete test.help;
+  else test.help = help;
+  return back(next);
+}
+
+/** Batch e23h (Story 23.11): a test's "Recomendação se reprovado", kept as typed; a blank value deletes it. */
+export function setDraftTestRecommendation(draft: CompanyTypeDraft | null, part: 'tests' | 'measurement_tests', index: number, value: string): CompanyTypeDraft {
+  const next = asDraft(draft);
+  const test = listOf(next, part)[index];
+  if (test === undefined) return back(next);
+  if (value.trim() === '') delete test.recommendation;
+  else test.recommendation = value;
   return back(next);
 }
 

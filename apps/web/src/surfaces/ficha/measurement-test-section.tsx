@@ -4,6 +4,7 @@ import {
   enabledSubBlocksOf,
   measurementWhere,
   putBlockOp,
+  type BlockDefinition,
   type BlockRow,
   type EvaluatedMeasurementCell,
   type EvaluatedMeasurementRow,
@@ -26,6 +27,7 @@ import { conclusionOp, testCellOp, testChoiceCellOp, testValueOp } from './ficha
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { TestHelpAction } from './test-help-dialog.tsx';
 
 /*
  * Story 14.5 (`63-ficha-cta.html`): the measurement tests of a library type's sheet, the
@@ -59,6 +61,7 @@ export function MeasurementTests({
   api,
   snapshot,
   block,
+  definition,
   evaluations,
   instruments,
   onRun,
@@ -66,6 +69,8 @@ export function MeasurementTests({
   api: FichaApi;
   snapshot: RelatorioSnapshot;
   block: BlockRow;
+  /** Batch e23h (Story 23.10): the sheet's definition, whose tests may carry "Como ensaiar". */
+  definition: BlockDefinition;
   /** The kernel's `evaluateSheetMeasurements` of the sheet. */
   evaluations: readonly MeasurementTestEvaluation[];
   instruments: readonly InstrumentRow[];
@@ -76,7 +81,7 @@ export function MeasurementTests({
   return (
     <div className="tests-stack">
       {evaluations.map((test) => (
-        <MeasurementTestSection key={test.testKey} api={api} snapshot={snapshot} block={block} test={test} instruments={instruments} onRun={onRun} />
+        <MeasurementTestSection key={test.testKey} api={api} snapshot={snapshot} block={block} definition={definition} test={test} instruments={instruments} onRun={onRun} />
       ))}
     </div>
   );
@@ -86,6 +91,7 @@ function MeasurementTestSection({
   api,
   snapshot,
   block,
+  definition,
   test,
   instruments,
   onRun,
@@ -93,6 +99,7 @@ function MeasurementTestSection({
   api: FichaApi;
   snapshot: RelatorioSnapshot;
   block: BlockRow;
+  definition: BlockDefinition;
   test: MeasurementTestEvaluation;
   instruments: readonly InstrumentRow[];
   onRun: MeasurementRun;
@@ -124,7 +131,16 @@ function MeasurementTestSection({
   // Story 23.9 (seed v13): a test switched on that the nameplate makes not applicable shows its band
   // in place of its body, its switch kept; switched off it is the off test below. Applied by hand,
   // the applied band sits over it.
-  if (test.enabled && test.applicability.state === 'na') return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={headEnd} />;
+  if (test.enabled && test.applicability.state === 'na') {
+    // Batch e23h (EXPERIENCE.md "Como ensaiar"): the head of every test with help, an NA one too.
+    const naHeadEnd = (
+      <>
+        <TestHelpAction definition={definition} testKey={test.testKey} title={test.title} />
+        {headEnd}
+      </>
+    );
+    return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={naHeadEnd} />;
+  }
   const applied = test.enabled && test.applicability.state === 'applied';
   const sectionClass = ['section lib-test', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
 
@@ -139,6 +155,8 @@ function MeasurementTestSection({
     >
       <div className="section-head">
         <h2 id={headingId}>{test.title}</h2>
+        {/* Batch e23h (Story 23.10): "Como ensaiar" where the test's definition carries help. */}
+        <TestHelpAction definition={definition} testKey={test.testKey} title={test.title} />
         {headEnd}
       </div>
       {test.offNote === null ? null : (

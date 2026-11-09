@@ -126,7 +126,7 @@ function renderTests(
     <MemoryRouter>
       <ToastProvider>
         <SheetReadOnlyProvider value={readOnly}>
-          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={evaluateSheetMeasurements(block, definition)} instruments={instruments} onRun={onRun} />
+          <MeasurementTests api={api} snapshot={snapshot} block={block} definition={definition} evaluations={evaluateSheetMeasurements(block, definition)} instruments={instruments} onRun={onRun} />
         </SheetReadOnlyProvider>
       </ToastProvider>
     </MemoryRouter>,
@@ -556,8 +556,40 @@ describe('14.5 MeasurementTests: a test switched off, the instrument, a sheet no
     const evaluations = evaluateSheetMeasurements(block, seccionadora);
     expect(evaluations).toEqual([]);
     const { container } = render(
-      <MeasurementTests api={{} as FichaApi} snapshot={{} as RelatorioSnapshot} block={block} evaluations={evaluations} instruments={[]} onRun={() => false} />,
+      <MeasurementTests api={{} as FichaApi} snapshot={{} as RelatorioSnapshot} block={block} definition={seccionadora} evaluations={evaluations} instruments={[]} onRun={() => false} />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('23.10 MeasurementTests: "Como ensaiar" on a measurement test\'s head', () => {
+  // Synthetic help (M-1) on E2, and on E1 made not applicable by an invented condition over the plate.
+  const withHelp = (keys: readonly string[], extra: Partial<(typeof DEFINITION.measurement_tests & object)[number]> = {}) => ({
+    ...DEFINITION,
+    measurement_tests: DEFINITION.measurement_tests!.map((test) => (keys.includes(test.key) ? { ...test, help: { objective: 'Objetivo de exemplo.' }, ...(test.key === E1 ? extra : {}) } : test.key === E1 ? { ...test, ...extra } : test)),
+  });
+  const naE1 = { applies_when: { op: 'above' as const, field: 'tensao_nominal', value: 1000, unmet: 'de baixa tensão' } };
+  const lowVoltage = (block: BlockRow): BlockRow => ({ ...block, sheet: { ...block.sheet, nameplate: { tensao_nominal: stored(num('380', 'V')) } } });
+
+  it('draws the action only on the test with help, and pressing it opens the dialog named by that test\'s title', async () => {
+    const { container } = renderTests(cta(), { definition: withHelp([E2]) });
+    const head = section(container, E2).querySelector<HTMLElement>('.section-head')!;
+    const action = within(head).getByRole('button', { name: 'Como ensaiar' });
+    expect(within(section(container, E1)).queryByRole('button', { name: 'Como ensaiar' })).toBeNull();
+    await userEvent.click(action);
+    const dialog = screen.getByRole('dialog', { name: 'E2 · Isolamento principal' });
+    expect(dialog.querySelectorAll('.como-list dt')).toHaveLength(1);
+  });
+
+  it('an NA test with help keeps the action on its head beside the NA pill; one without help has none', () => {
+    const helped = renderTests(lowVoltage(cta()), { definition: withHelp([E1], naE1) });
+    const e1 = helped.container.querySelector<HTMLElement>(`section[data-test-key="${E1}"]`)!;
+    expect(e1).toHaveAttribute('data-applicability', 'na');
+    expect(within(e1.querySelector<HTMLElement>('.section-head')!).getByRole('button', { name: 'Como ensaiar' })).toBeVisible();
+    cleanup();
+    const plain = renderTests(lowVoltage(cta()), { definition: withHelp([], naE1) });
+    const bare = plain.container.querySelector<HTMLElement>(`section[data-test-key="${E1}"]`)!;
+    expect(bare).toHaveAttribute('data-applicability', 'na');
+    expect(within(bare).queryByRole('button', { name: 'Como ensaiar' })).toBeNull();
   });
 });

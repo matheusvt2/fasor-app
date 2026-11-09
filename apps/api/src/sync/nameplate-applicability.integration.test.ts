@@ -134,6 +134,7 @@ describe('23.9-INT the applicability override through the route (contract 35)', 
   });
 
   // Batch e23v (2026-11-09): contract 36 follows 35; a version-34 pull stays refused and the current one is answered.
+  // Batch e23h (contract 37): the version-34 refusal stands; the current pull speaks the current number.
   it('speaks contract 35 or later: a version-34 pull is answered 426 contract_outdated', async () => {
     expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(35);
     expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(35);

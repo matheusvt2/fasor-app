@@ -379,3 +379,27 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .mfr-note { flex: 1 1 220px; margin: 0; padding-bottom: var(--sp-2); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
 [data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .mfr-note b { color: var(--ink-primary); font-weight: 600; }
 [data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .btn-text { min-height: var(--touch-min); }
+
+/* ---------- batch e23h (Story 23.10): "Como ensaiar" ---------- */
+/* `60-ficha.html` (Story 23.1 frames) `[data-route="/ficha/:tag"] .section-head .btn-text .ico` and the `.como-*`
+   rules, declarations verbatim. The dialog is portaled to the end of <body>, outside the route, so its rules
+   are scoped by `.como-scrim` (the `.grammar-dialog` precedent of `type-editor.css`); `.frame-phone` becomes
+   the phone query (AGENTS.md "Mock container selectors"). */
+[data-route="/relatorio/:id/ficha/:blockId"] .section-head .btn-text .ico { width: 20px; height: 20px; }
+.dialog-scrim.como-scrim { align-items: center; }
+.como-scrim .form-dialog.como-dialog { max-height: 100%; overflow-y: auto; gap: var(--sp-3); }
+@media (max-width: 767.98px) {
+  .dialog-scrim.como-scrim { padding: 0; align-items: stretch; }
+  .como-scrim .form-dialog.como-dialog { width: 100%; max-height: none; border-radius: 0; padding: var(--sp-4) var(--gutter-phone); }
+}
+.como-scrim .como-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+.como-scrim .como-kicker { margin: 0; font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.como-scrim .como-meta { margin: 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.como-scrim .como-list { margin: 0; display: flex; flex-direction: column; }
+.como-scrim .como-list > div { padding: var(--sp-3) 0; border-top: 1px solid var(--border-hairline); }
+.como-scrim .como-list dt { font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: var(--sp-1); }
+.como-scrim .como-list dd { margin: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); color: var(--ink-primary); }
+/* authored: a heading typed on several lines in the type editor keeps its lines; a long word wraps inside the phone. */
+.como-scrim .como-list dd { white-space: pre-line; overflow-wrap: anywhere; }
+/* authored: the action is read-only, so a read-only sheet keeps it (the read-only rule above hides a head's `.btn`). */
+[data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .section-head .btn[data-test-help] { display: inline-flex; }

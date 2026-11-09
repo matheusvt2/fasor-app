@@ -228,6 +228,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'previous-visit-judges.spec.ts',
     why: 'Story 23.6: issues two revisions through the shared queue and LibreOffice (relatório A, whose issue writes the corrected last_results, then B of the same obra) to read the 20 °C column, MANUT. ANTERIOR and section 8 from the DOCX',
   },
+  // Batch e23h: 23.11-E2E-001 reads the recommendation from section 8 of the DOCX it issues.
+  {
+    file: 'test-recommendation.spec.ts',
+    why: 'Story 23.11: issues a revision through the shared queue and LibreOffice to read the out reading\'s point, its recommendation first, from section 8 of the downloaded DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

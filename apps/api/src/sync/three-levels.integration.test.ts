@@ -100,15 +100,16 @@ describe('23.6-INT a point written from a restricted test through the route (con
     expect(derivedPoints(await snapshotOf(companyA, relatorio_id)).some((one) => one.key === key)).toBe(false);
   });
 
-  it('speaks contract 36: a version-35 pull is answered 426 contract_outdated, the current one is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(36);
-    expect(MIN_CONTRACT_VERSION).toBe(36);
+  // Batch e23h (contract 37): the version-35 refusal stands; the current pull speaks the current number.
+  it('speaks contract 36 or later: a version-35 pull is answered 426 contract_outdated, the current one is answered', async () => {
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(36);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(36);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
       const old = await h.authed(companyA, path, { headers: { 'x-contract-version': '35' } });
       expect(old.status, path).toBe(426);
       expect(((await old.json()) as { code?: string }).code).toBe('contract_outdated');
     }
-    const current = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': '36' } });
+    const current = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': String(CONTRACT_VERSION) } });
     expect(current.status).toBe(200);
   });
 });

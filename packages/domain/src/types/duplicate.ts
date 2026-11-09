@@ -2,6 +2,7 @@ import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { EquipmentTypeDerivedFrom, EquipmentTypeRow, EquipmentTypeVersionRow } from '../schemas/entities.ts';
 import { SEEDED_CRITERIA } from '../seed/criteria.ts';
 import { getDefinition } from '../seed/definitions.ts';
+import type { BlockDefinition } from '../seed/schema.ts';
 import { TAG_PREFIX } from '../relatorio/tag.ts';
 import { type CompanyCriterion, type CompanyTypeDefinition, type CompanyTypeDraft, type TypeNoun } from './definition.ts';
 
@@ -76,7 +77,16 @@ function materialized(key: string): CompanyCriterion {
 
 /** "Duplicar" on a seeded type (library or FO.SERV-03) as its seed version defines it. */
 export function duplicateSeededType(seedVersion: string, blockType: EquipmentBlockType): TypeDuplicate {
-  const seed = structuredClone(getDefinition(seedVersion, 'cabine_primaria', blockType));
+  return duplicateSeededDefinition(seedVersion, blockType, getDefinition(seedVersion, 'cabine_primaria', blockType));
+}
+
+/**
+ * Batch e23h (Story 23.10): the pure core of `duplicateSeededType`, from the seeded definition
+ * itself, so a test can pass a fixture definition. The tests and measurement tests are copied
+ * whole, so every key they carry comes with them (a v13 test's `help` and `recommendation` too).
+ */
+export function duplicateSeededDefinition(seedVersion: string, blockType: EquipmentBlockType, definition: BlockDefinition): TypeDuplicate {
+  const seed = structuredClone(definition);
   const keys: string[] = [];
   const named = (key: string) => {
     if (!keys.includes(key)) keys.push(key);

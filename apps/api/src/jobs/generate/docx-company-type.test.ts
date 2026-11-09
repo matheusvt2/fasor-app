@@ -1,8 +1,8 @@
-import { buildSnapshot, layoutSpec, replay } from '@app/domain';
+import { buildSnapshot, layoutSpec, replay, TEST_HELP_KEYS, type RelatorioSnapshot, type TestHelp } from '@app/domain';
 import { companyTypes, RELATORIO_ID } from '@app/domain/fixtures/company-types';
 import { describe, expect, it } from 'vitest';
 import { buildDocx } from './docx.ts';
-import { extractStructure } from './docx-structure.test-support.ts';
+import { extractStructure, readZipEntries } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*
@@ -46,5 +46,46 @@ describe('Story 14.6: company types in section 9 of the DOCX', () => {
     expect(text).toContain('NB-3000');
     expect(text).toContain('BORNES E CONEXÕES DAS BATERIAS');
     expect(text).toContain('Tensão de flutuação do banco');
+  });
+});
+
+describe('Story 23.10 (batch e23h): "Como ensaiar" is never printed', () => {
+  /** A distinctive synthetic text per heading and test, so any leak into the document is found. */
+  const marker = (testKey: string, key: string) => `COMO-ENSAIAR-${testKey}-${key}-e23h`;
+
+  /** The snapshot with every test of every company version carrying all eight headings. */
+  function withHelp(snapshot: RelatorioSnapshot): RelatorioSnapshot {
+    const helpOf = (testKey: string): TestHelp => Object.fromEntries(TEST_HELP_KEYS.map((key) => [key, marker(testKey, key)]));
+    return {
+      ...snapshot,
+      equipment_types: snapshot.equipment_types!.map((row) => ({
+        ...row,
+        definition: {
+          ...row.definition,
+          tests: row.definition.tests.map((test) => ({ ...test, help: helpOf(test.key) })),
+          ...(row.definition.measurement_tests === undefined ? {} : { measurement_tests: row.definition.measurement_tests.map((test) => ({ ...test, help: helpOf(test.key) })) }),
+        },
+      })),
+    };
+  }
+
+  async function parts(snapshot: RelatorioSnapshot): Promise<Map<string, Buffer>> {
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    return readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout) }));
+  }
+
+  it('a relatório whose tests all carry help renders word/document.xml byte-equal to the help-free render, and no part holds a help text', async () => {
+    const plain = buildSnapshot(replay(companyTypes.log), RELATORIO_ID);
+    const helped = withHelp(plain);
+    const keys = helped.equipment_types!.flatMap((row) => [...row.definition.tests, ...(row.definition.measurement_tests ?? [])].map((test) => test.key));
+    expect(keys.length).toBeGreaterThan(0);
+    const a = await parts(plain);
+    const b = await parts(helped);
+    expect(b.get('word/document.xml')!.equals(a.get('word/document.xml')!)).toBe(true);
+    expect([...b.keys()]).toEqual([...a.keys()]);
+    for (const [name, bytes] of b) {
+      const text = bytes.toString('utf8');
+      expect(text.includes('COMO-ENSAIAR-'), name).toBe(false);
+    }
   });
 });
