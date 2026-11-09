@@ -365,3 +365,66 @@ describe('Story 14.6: contract 33', () => {
     expect(pushed.status).toBe(200);
   });
 });
+
+describe('Story 23.10/23.11: contract 37', () => {
+  // Synthetic texts (M-1: the base's texts never enter git).
+  const EIGHT = { objective: 'Objetivo de exemplo.', instrument: 'Instrumento de exemplo.', voltage: 'Tensão de exemplo.', connections: 'Ligações de exemplo.', procedure: 'Passo 1.\nPasso 2.', criterion: 'Critério de exemplo.', standard: 'Norma de exemplo.', nr10: '  Pré-requisito de exemplo.  ' };
+  const withTexts = (help: Record<string, unknown>, recommendation: unknown): CompanyTypeDefinition =>
+    ({
+      ...structuredClone(DEFINITION_1),
+      tests: DEFINITION_1.tests.map((test) => ({ ...structuredClone(test), help, recommendation })),
+      measurement_tests: DEFINITION_1.measurement_tests!.map((test) => ({ ...structuredClone(test), help, recommendation })),
+    }) as CompanyTypeDefinition;
+
+  /** A version-2 create of `typeId` with `definition`, built valid and then given it (`makeOp` builds only what it can check). */
+  function versionCreate(typeId: string, definition: CompanyTypeDefinition): Op {
+    const id = newId();
+    const valid = h.clientOp(companyA, { kind: 'create', scope: 'company', path: equipmentTypeVersionPath(id), value: versionValue(companyA, id, typeId, 2) });
+    return { ...valid, value: versionValue(companyA, id, typeId, 2, definition) } as Op;
+  }
+
+  it('a version create with the eight headings and a recommendation applies through the route and is pulled back equal, every text as written', async () => {
+    const { typeId } = await publishedType(companyA);
+    const definition = withTexts(EIGHT, 'Verificar o carregador');
+    const create = versionCreate(typeId, definition);
+    expect((await h.push(companyA, [create])).rejected).toEqual([]);
+    const versionId = (create.value as { id: string }).id;
+    expect((await h.rowOf<{ definition: unknown }>(companyA, 'equipment_type_version', versionId))!.definition).toEqual(definition);
+    let pulled: unknown;
+    for (let at = 0, page = 0; page < 200 && pulled === undefined; page++) {
+      const body = syncPullResponseSchema.parse(await (await companyPull(companyA, String(CONTRACT_VERSION), at)).json());
+      const ops = body.ops as { path: string; seq: number; value: unknown }[];
+      pulled = ops.find((o) => o.path === equipmentTypeVersionPath(versionId))?.value;
+      if (ops.length === 0 || body.seq <= at) break;
+      at = ops.at(-1)!.seq;
+    }
+    // The stored JSON keeps every value as written (spaces and line breaks included); jsonb orders its keys.
+    expect((pulled as { definition: unknown }).definition).toEqual(definition);
+    expect(((pulled as { definition: CompanyTypeDefinition }).definition.tests[0]!.help as Record<string, string>).nr10).toBe(EIGHT.nr10);
+  });
+
+  it('refuses op_invalid a version create whose heading or recommendation has 1001 characters; 1000 applies', async () => {
+    const { typeId } = await publishedType(companyA);
+    const over = 'x'.repeat(1001);
+    const heading = versionCreate(typeId, withTexts({ procedure: over }, 'Agir.'));
+    const recommendation = versionCreate(typeId, withTexts({ objective: 'Objetivo.' }, over));
+    const result = await h.push(companyA, [heading, recommendation]);
+    expect(result.rejected).toEqual([
+      { op_id: heading.op_id, code: 'op_invalid' },
+      { op_id: recommendation.op_id, code: 'op_invalid' },
+    ]);
+    expect(await h.logged(heading.op_id)).toBe(false);
+    expect(await h.rowOf(companyA, 'equipment_type', typeId)).toMatchObject({ latest_version: 1 });
+    const atCap = versionCreate(typeId, withTexts({ procedure: 'x'.repeat(1000) }, 'x'.repeat(1000)));
+    expect((await h.push(companyA, [atCap])).rejected).toEqual([]);
+    expect(await h.rowOf(companyA, 'equipment_type', typeId)).toMatchObject({ latest_version: 2 });
+  });
+
+  it('answers a version-36 pull 426 contract_outdated; the current one is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(37);
+    const res = await companyPull(companyA, '36');
+    expect(res.status).toBe(426);
+    expect(((await res.json()) as { code?: string }).code).toBe('contract_outdated');
+    expect((await companyPull(companyA)).status).toBe(200);
+  });
+});

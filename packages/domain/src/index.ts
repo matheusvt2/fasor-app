@@ -37,6 +37,8 @@ export * from './seed/criteria.ts';
 export * from './seed/criteria-tables.ts';
 export * from './seed/schema.ts';
 export * from './seed/measurement.ts';
+// Batch e23h (Stories 23.10 and 23.11, contract 37): a test's "Como ensaiar" and recommendation.
+export * from './seed/test-help.ts';
 export * from './seed/definitions.ts';
 // Story 14.6 (contract 33): company equipment types, their definition, validation, copies and adapter.
 export * from './types/definition.ts';

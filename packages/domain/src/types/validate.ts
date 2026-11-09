@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { TEST_TEXT_MAX_LENGTH } from '../seed/test-help.ts';
 import { companyTypeDefinitionSchema, type CompanyTypeDraft } from './definition.ts';
 
 /*
@@ -82,6 +83,20 @@ function nameOf(item: Record<string, unknown> | null, noun: string, index: unkno
   const label = item === null ? null : textOf(item.label);
   if (label !== null) return label;
   return typeof index === 'number' ? `${noun} ${index + 1}` : noun;
+}
+
+/**
+ * Batch e23h (Stories 23.10 and 23.11): the sentence of an issue on a test's "Como ensaiar" heading
+ * (`sub` 'help') or its recommendation: over the cap, blank, or not a text.
+ */
+function testTextSentence(issue: z.core.$ZodIssue, name: string, sub: 'help' | 'recommendation', plain: (message: string, what: string) => { message: string; summary: string }): { message: string; summary: string } {
+  const cap = TEST_TEXT_MAX_LENGTH.toLocaleString('pt-BR');
+  // authored (Stories 23.10 and 23.11, listed for Bruno).
+  const what = sub === 'help' ? 'cada tópico de Como ensaiar' : 'a recomendação se reprovado';
+  const short = sub === 'help' ? 'Como ensaiar' : 'recomendação';
+  if (issue.code === 'too_big') return plain(`${name}: ${what} tem até ${cap} caracteres.`, `${name} com ${short} acima de ${cap} caracteres`);
+  if (issue.code === 'custom') return plain(`${name}: ${what} não pode ficar só com espaços.`, `${name} com ${short} em branco`);
+  return plain(`${name}: confira ${sub === 'help' ? 'os tópicos de Como ensaiar' : 'a recomendação se reprovado'}.`, `${name} com ${short} inválido`);
 }
 
 /** The sentence and summary of one schema issue, by where it sits. */
@@ -168,6 +183,7 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       if (sub === 'tables' && leaf === 'rows_from') return plain(`${name}: as linhas vêm de uma lista da placa em V ou kV; mantenha esse campo como uma lista de números.`, `${name} sem lista de taps`);
       if (sub === 'applies_when') return plain(`${name}: a condição de aplicação lê um campo da placa; mantenha esse campo e as suas opções como a condição pede.`, `${name} sem campo da condição`);
       if (sub === 'label') return plain(`Ensaio ${index + 1}: informe o título do ensaio.`, `ensaio ${index + 1} sem título`);
+      if (sub === 'help' || sub === 'recommendation') return testTextSentence(issue, name, sub, plain);
       return plain(`${name}: confira as tabelas do ensaio.`, name);
     }
     case 'measurement_tests': {
@@ -185,6 +201,7 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       // authored (Story 23.9, listed for Bruno).
       if (sub === 'applies_when') return plain(`${name}: a condição de aplicação lê um campo da placa; mantenha esse campo e as suas opções como a condição pede.`, `${name} sem campo da condição`);
       if (sub === 'initial_off') return plain(`${name}: só um ensaio opcional na ficha começa desligado.`, `${name} desligado`);
+      if (sub === 'help' || sub === 'recommendation') return testTextSentence(issue, name, sub, plain);
       return plain(`${name}: confira a tabela de medições.`, name);
     }
     case 'config_fields':
@@ -268,7 +285,9 @@ export function validateTypeDraft(draft: CompanyTypeDraft | null | undefined): T
     if (head === 'measurement_tests' && path[2] === 'criteria' && path[4] === 'source' && seededCriterionAt(value, path[1], path[3])) continue;
     const part = partOf(path);
     const { message, summary } = sentenceOf(issue, value);
-    const at = `${JSON.stringify(path.slice(0, 2))}\u0000${message}`;
+    // Batch e23h: each heading of "Como ensaiar" is its own place (the editor shows it under its own field).
+    const place = (head === 'tests' || head === 'measurement_tests') && path[2] === 'help' ? path.slice(0, 4) : path.slice(0, 2);
+    const at = `${JSON.stringify(place)}\u0000${message}`;
     if (seen.has(at)) continue;
     seen.add(at);
     out.push({ path, part, message, summary });

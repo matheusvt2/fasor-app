@@ -685,6 +685,35 @@ export const copy = {
     moveDown: 'Descer',
     remove: 'Remover',
   },
+  // Batch e23h (Stories 23.10 and 23.11): "Como ensaiar" on the sheet (`60-ficha.html`
+  // `#ficha-dlg-como-iso`) and its fields in the type editor (`43-tipo-equipamento.html`
+  // `.tipo-help`), one group for both surfaces. The dialog's meta line is the kernel's
+  // (`testHelpMetaText`).
+  testHelp: {
+    // The eight headings, keyed by the kernel's `TEST_HELP_KEYS`, in its order.
+    headings: {
+      objective: 'Objetivo',
+      instrument: 'Instrumento',
+      voltage: 'Tensão de ensaio',
+      connections: 'Ligações',
+      procedure: 'Procedimento',
+      criterion: 'Critério',
+      standard: 'Norma',
+      nr10: 'Pré-requisito (NR-10)',
+    },
+    // The section head's text button and the dialog's kicker, close and secondary button.
+    open: 'Como ensaiar',
+    kicker: 'Como ensaiar',
+    close: 'Fechar Como ensaiar',
+    back: 'Voltar ao ensaio',
+    // The editor's group head, its helper and the empty field's placeholder.
+    editorHeading: 'Como ensaiar',
+    editorHelper: 'Aparece no botão “Como ensaiar” deste ensaio na ficha, também sem conexão. Não sai no relatório. Todos os campos são opcionais; só os preenchidos aparecem.',
+    optional: 'Opcional',
+    // Story 23.11: the recommendation field and its helper.
+    recommendationLabel: 'Recomendação se reprovado',
+    recommendationHelper: 'Texto inicial do ponto de atenção quando um valor deste ensaio fica fora do critério. Vazio, vale o texto padrão.',
+  },
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision
   // number is the kernel's (`idleReason`, `generatingText`, `generatingReason`,
   // `readyTitle`, `readyToast`, `nextEditNote`, `revisionRowSegments`); only the static

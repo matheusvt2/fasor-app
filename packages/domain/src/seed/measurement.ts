@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { subBlockKeySchema } from '../schemas/block-config.ts';
+import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
 
 /*
  * Story 14.5 (seed v5, AD-21): the measurement-table grammar. The four grammars of FO.SERV-03
@@ -279,6 +280,9 @@ export const measurementTestShape = {
   applies_when: appliesWhenSchema.optional(),
   /** Seed v13 (Story 23.9): the test starts switched off in a new block's config (the base's "Opcional"); only on a `switchable` test. */
   initial_off: z.literal(true).optional(),
+  /** Batch e23h (Stories 23.10 and 23.11): "Como ensaiar" and the recommendation, as on `testDefSchema` (`seed/test-help.ts`). */
+  help: testHelpSchema.optional(),
+  recommendation: testRecommendationSchema.optional(),
 };
 
 /** What `checkMeasurementTest` reads of a test: the seed's shape, its key and criteria any (Story 14.6: the company variant shares the rule). */

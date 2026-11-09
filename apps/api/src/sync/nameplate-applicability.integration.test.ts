@@ -133,13 +133,14 @@ describe('23.9-INT the applicability override through the route (contract 35)', 
     expect((await h.rowOf<BlockRow>(companyA, 'block', blockId))!.sheet.test.resistencia_contato!.applicability!.value).toBeNull();
   });
 
-  it('speaks contract 35: a version-34 pull is answered 426 contract_outdated', async () => {
-    expect(CONTRACT_VERSION).toBe(35);
-    expect(MIN_CONTRACT_VERSION).toBe(35);
+  // Batch e23h (contract 37): the version-34 refusal stands; the current pull speaks the current number.
+  it('speaks contract 35 or later: a version-34 pull is answered 426 contract_outdated', async () => {
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(35);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(35);
     const old = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': '34' } });
     expect(old.status).toBe(426);
     expect(((await old.json()) as { code?: string }).code).toBe('contract_outdated');
-    const current = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': '35' } });
+    const current = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': String(CONTRACT_VERSION) } });
     expect(current.status).toBe(200);
   });
 });

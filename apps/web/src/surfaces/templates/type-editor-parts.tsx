@@ -22,9 +22,12 @@ import {
   removeDraftMeasurementRow,
   SEED_VERSION,
   setDraftNoun,
+  setDraftTestHelp,
+  setDraftTestRecommendation,
   setDraftText,
   suggestedTagHelperText,
   TEST_GRAMMARS,
+  TEST_HELP_KEYS,
   testSummaryText,
   updateDraftCriterion,
   updateDraftField,
@@ -517,6 +520,84 @@ export function ChecklistPanel({ draft, issues, edit }: PanelProps) {
 
 // --- Ensaios -------------------------------------------------------------------------------------
 
+/**
+ * Batch e23h: a multiline `.observation-field` of the editor. Enter makes a new line and never
+ * leaves it; it writes when left or unmounted, as `TextInput` does (`useCommittedText`).
+ */
+function MultilineField({ label, value, onCommit, helper, issues = [], className = 'field', placeholder }: { label: string; value: string; onCommit: (value: string) => void; helper?: string; issues?: readonly TypeDraftIssue[]; className?: string; placeholder?: string }) {
+  const id = useId();
+  const helperId = useId();
+  const typed = useCommittedText(value, onCommit);
+  return (
+    <div className={className}>
+      <label className="field-label" htmlFor={id}>
+        {label}
+      </label>
+      <textarea
+        id={id}
+        className="observation-field"
+        value={typed.typed}
+        placeholder={placeholder}
+        aria-describedby={helper === undefined ? undefined : helperId}
+        onFocus={typed.onFocus}
+        onChange={(event) => typed.onChange(event.target.value)}
+        onBlur={typed.onBlur}
+      />
+      {helper === undefined ? null : (
+        <span className="helper" id={helperId}>
+          {helper}
+        </span>
+      )}
+      <IssueLines issues={issues} />
+    </div>
+  );
+}
+
+/** The two headings of "Como ensaiar" that span the grid, as the mock draws them. */
+const WIDE_HELP_KEYS: ReadonlySet<string> = new Set(['procedure', 'nr10']);
+
+/**
+ * Batch e23h (Stories 23.10 and 23.11; `43-tipo-equipamento.html` `.tipo-help`): a test's "Como
+ * ensaiar" (eight optional texts in the kernel's order, `TEST_HELP_KEYS`) and its "Recomendação se
+ * reprovado", in either grammar's editor. Each field writes one kernel edit (`setDraftTestHelp`,
+ * `setDraftTestRecommendation`: a blank text deletes its key) and shows the kernel's issues inline.
+ */
+function TestTextsFields({ test, part, index, issues, edit }: { test: Entry; part: 'tests' | 'measurement_tests'; index: number; issues: readonly TypeDraftIssue[]; edit: DraftEdit }) {
+  const h = copy.testHelp;
+  const headId = useId();
+  const help = test.help !== null && typeof test.help === 'object' && !Array.isArray(test.help) ? (test.help as Entry) : {};
+  return (
+    <>
+      <div className="tipo-help" role="group" aria-labelledby={headId}>
+        <div className="tipo-help-head">
+          <h3 id={headId}>{h.editorHeading}</h3>
+          <span className="helper">{h.editorHelper}</span>
+        </div>
+        <div className="field-grid">
+          {TEST_HELP_KEYS.map((key) => (
+            <MultilineField
+              key={key}
+              className={WIDE_HELP_KEYS.has(key) ? 'field span-2' : 'field'}
+              label={h.headings[key]}
+              value={text(help[key])}
+              placeholder={h.optional}
+              onCommit={(value) => edit((d) => setDraftTestHelp(d, part, index, key, value))}
+              issues={issuesAt(issues, [part, index, 'help', key])}
+            />
+          ))}
+        </div>
+      </div>
+      <MultilineField
+        label={h.recommendationLabel}
+        helper={h.recommendationHelper}
+        value={text(test.recommendation)}
+        onCommit={(value) => edit((d) => setDraftTestRecommendation(d, part, index, value))}
+        issues={issuesAt(issues, [part, index, 'recommendation'])}
+      />
+    </>
+  );
+}
+
 export function TestsPanel({ draft, issues, edit }: PanelProps) {
   const tests = listOf(draft, 'tests');
   const measurement = listOf(draft, 'measurement_tests');
@@ -538,6 +619,7 @@ export function TestsPanel({ draft, issues, edit }: PanelProps) {
         <>
           <TextField label={t.testTitle} value={name} onCommit={(value) => edit((d) => updateDraftTest(d, 'tests', index, { label: value }))} />
           <p className="section-note">{t.seededTableNote}</p>
+          <TestTextsFields test={test} part="tests" index={index} issues={issues} edit={edit} />
         </>
       ),
     };
@@ -606,6 +688,7 @@ export function TestsPanel({ draft, issues, edit }: PanelProps) {
             {icon('i-plus')}
             {t.addRow}
           </TextButton>
+          <TestTextsFields test={test} part="measurement_tests" index={index} issues={issues} edit={edit} />
           <div className="toggle-row">
             <span>
               <span className="toggle-label">{t.optionalLabel}</span>

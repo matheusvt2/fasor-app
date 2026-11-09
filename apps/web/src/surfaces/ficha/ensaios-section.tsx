@@ -57,6 +57,7 @@ import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
 
@@ -226,7 +227,7 @@ export function EnsaiosSection({
               />
             ),
           )}
-          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
+          <MeasurementTests api={api} snapshot={snapshot} block={block} definition={definition} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
         </UnitTapGuardProvider>
       </SheetCellExtrasProvider>
       {display.viewer}
@@ -387,6 +388,8 @@ function TestSection({
     <section className={sectionClass} aria-labelledby={headingId} data-test-key={test.testKey} data-applicability={applied ? 'applied' : undefined}>
       <div className="section-head">
         <h2 id={headingId}>{screenLabel(test.title)}</h2>
+        {/* Batch e23h (Story 23.10): "Como ensaiar" where the test's definition carries help, on a read-only sheet too. */}
+        <TestHelpAction definition={definition} testKey={test.testKey} title={screenLabel(test.title)} />
         {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
       </div>
       {/* Story 23.9: applied by hand, the band says so and the body shows (the mock's `.v13-na.is-applied .v13-na-body`). */}

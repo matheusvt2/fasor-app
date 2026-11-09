@@ -13,6 +13,7 @@ import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { recommendedPointText, testRecommendationOf } from '../seed/test-help.ts';
 
 /*
  * Story 6.6 (FR-31, E3-A9 bullet 4): every equipment sheet marked Não ensaiado lists
@@ -30,6 +31,8 @@ import type { BlockDefinition } from '../seed/schema.ts';
  * - `reading`: one entry per test with a reading out of criterion, naming its worst row;
  * - `reprovado`: a sheet whose effective result is Reprovado (Story 22.4) for a reason the two
  *   above and the Não ensaiado entry do not cover (the engineer chose Reprovado).
+ * Story 23.11 (batch e23h): a `reading` entry starts with its test's recommendation, when the
+ * definition gives one (`recommendedPointText`); the `reprovado` and `nc` texts never do.
  * A live point written from the same source replaces the entry (`origin` `nc` with its
  * `item_key`, `reading` with its `test_key`, `reprovado`), keyed by the equipment (or the
  * local, for a site NC); removing that point brings the entry back. A sheet with no equipment
@@ -140,7 +143,11 @@ function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node:
       kind: 'reading',
       key: `reading:${block.id}:${reading.testKey}`,
       test_key: reading.testKey,
-      text: `${titles.get(reading.testKey) ?? reading.testKey}: ${value} em ${reading.where} (critério: ${reading.criterionText})`,
+      // authored (Story 23.11, open for Bruno): the test's recommendation first, when it has one (`recommendedPointText`).
+      text: recommendedPointText(
+        testRecommendationOf({ tests: definition.tests }, reading.testKey),
+        `${titles.get(reading.testKey) ?? reading.testKey}: ${value} em ${reading.where} (critério: ${reading.criterionText})`,
+      ),
     });
   }
   for (const reading of worstMeasurements(sheetMeasurements(block, definition))) {
@@ -150,7 +157,11 @@ function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node:
       kind: 'reading',
       key: `reading:${block.id}:${reading.testKey}`,
       test_key: reading.testKey,
-      text: `${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`,
+      // authored (Story 23.11, open for Bruno): as above, in the measurement grammar.
+      text: recommendedPointText(
+        testRecommendationOf({ tests: [], measurement_tests: definition.measurement_tests }, reading.testKey),
+        `${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`,
+      ),
     });
   }
   // A Reprovado the floor does not explain: the engineer's own choice.

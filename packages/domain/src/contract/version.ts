@@ -395,8 +395,19 @@
  * table's `rows_from`; the oil rule's `dry_fields`; a test's `applies_when` and `initial_off`, in
  * both grammars), so v1 to v12 parse to the bytes they shipped with and a row written before 35
  * parses to the same bytes. MIN follows to 35 (below).
+ *
+ * 37 (2026-11-09, Stories 23.10 and 23.11, batch e23h; 36 is batch e23v's, merged first): a test
+ * definition, in both grammars, on a seed or a company type, gains two optional text keys
+ * (`seed/test-help.ts`): `help`, "Como ensaiar" (up to eight texts, shown on the sheet from the
+ * definition on the device, never printed), and `recommendation`, the text a `reading` derived
+ * point of section 8 starts with (`points/derived.ts` `recommendedPointText`). Both ride inside
+ * the existing `equipment_type` draft and `equipment_type_version` definition values (no path, op
+ * family or row shape changes); `applyOp` refuses as `op_invalid` a version create whose heading
+ * or recommendation is blank or longer than `TEST_TEXT_MAX_LENGTH` (1 000, `TEXT_CAPS.medium`),
+ * through the strict publish schema. No seed carries them, so v1 to v13 parse to the bytes they
+ * shipped with and a row written before 37 parses to the same bytes. MIN follows to 37 (below).
  */
-export const CONTRACT_VERSION = 35;
+export const CONTRACT_VERSION = 37;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -621,8 +632,15 @@ export const CONTRACT_VERSION = 35;
  * typed row where the server prints one row per tap (and would refuse, then drop, a reading on a
  * tap row), and read a TAPS list or a "115/√3" as no number. A relatório stream carries such ops
  * from the first v13 sheet on, so the version-34 bundle updates too.
+ *
+ * 37 (2026-11-09, Stories 23.10 and 23.11, batch e23h): a version-36 (or older) bundle would show
+ * no "Como ensaiar" on a company sheet; it would derive the generic text of a point out of
+ * criterion where the server's kernel derives the test's recommendation first, so the section 8 it
+ * shows would differ from the printed one; and its fold would not refuse an over-cap or blank help
+ * text the server's fold refuses (the precedent of 34). Its pull answers `426 contract_outdated`
+ * and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 35;
+export const MIN_CONTRACT_VERSION = 37;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

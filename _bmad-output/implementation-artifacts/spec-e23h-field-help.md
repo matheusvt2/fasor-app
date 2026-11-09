@@ -2,7 +2,8 @@
 title: 'e23h: "Como ensaiar" on each test and the recommendation as the derived point initial text (Stories 23.10 and 23.11, contract 37)'
 type: 'feature'
 created: '2026-11-09'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'dd947f419b4ef84531a2c4e60d08e4c8deaab64a'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

@@ -126,7 +126,7 @@ function renderTests(
     <MemoryRouter>
       <ToastProvider>
         <SheetReadOnlyProvider value={readOnly}>
-          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={evaluateSheetMeasurements(block, definition)} instruments={instruments} onRun={onRun} />
+          <MeasurementTests api={api} snapshot={snapshot} block={block} definition={definition} evaluations={evaluateSheetMeasurements(block, definition)} instruments={instruments} onRun={onRun} />
         </SheetReadOnlyProvider>
       </ToastProvider>
     </MemoryRouter>,
@@ -556,7 +556,7 @@ describe('14.5 MeasurementTests: a test switched off, the instrument, a sheet no
     const evaluations = evaluateSheetMeasurements(block, seccionadora);
     expect(evaluations).toEqual([]);
     const { container } = render(
-      <MeasurementTests api={{} as FichaApi} snapshot={{} as RelatorioSnapshot} block={block} evaluations={evaluations} instruments={[]} onRun={() => false} />,
+      <MeasurementTests api={{} as FichaApi} snapshot={{} as RelatorioSnapshot} block={block} definition={seccionadora} evaluations={evaluations} instruments={[]} onRun={() => false} />,
     );
     expect(container).toBeEmptyDOMElement();
   });

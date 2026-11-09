@@ -12,6 +12,7 @@ import {
 } from '../schemas/block-config.ts';
 import type { CriterionSeed } from './criteria.ts';
 import { criterionTableSchema } from './criteria-tables.ts';
+import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
 import { appliesWhenSchema, checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
 
 /*
@@ -304,6 +305,14 @@ export const testDefSchema = z.object({
    * observation under the table, and its row's POLARIZAÇÃO prints N/A.
    */
   instrument_limit_note: z.literal(true).optional(),
+  /*
+   * Batch e23h (Stories 23.10 and 23.11, contract 37), `seed/test-help.ts`: "Como ensaiar" (eight
+   * optional texts, shown on the sheet, never printed) and the recommendation a `reading` derived
+   * point starts with. Optional and never defaulted (no seed carries them), so v1 to v13 parse to
+   * the bytes they shipped with.
+   */
+  help: testHelpSchema.optional(),
+  recommendation: testRecommendationSchema.optional(),
 });
 /**
  * A test as every reader takes it. Story 14.6: on a company type's definition (`asBlockDefinition`)

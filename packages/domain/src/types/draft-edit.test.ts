@@ -17,6 +17,8 @@ import {
   removeDraftEntry,
   removeDraftMeasurementRow,
   setDraftNoun,
+  setDraftTestHelp,
+  setDraftTestRecommendation,
   setDraftText,
   testSummaryText,
   uniqueKey,
@@ -235,5 +237,59 @@ describe('14.7-UNIT the type list and the editor text', () => {
     expect(templateTypeVersionText(ctx, 'tc', undefined)).toBeNull();
     const retired = definitionContext([version, v2], [{ ...published, latest_version: 2, retired_at: '2026-11-07T00:00:00.000Z' }]);
     expect(templateTypeVersionText(retired, type, 2)).toBe('versão 2 · Aposentado');
+  });
+});
+
+describe('Stories 23.10 and 23.11 (batch e23h): the "Como ensaiar" and recommendation edits', () => {
+  const draft = (): CompanyTypeDraft => ({
+    tests: [{ key: 'isolacao', label: 'Isolação' }],
+    measurement_tests: [{ key: 'tensoes', label: 'Tensões' }],
+  });
+
+  it('sets a heading as typed (never trimmed), in either grammar, without touching the input draft', () => {
+    const before = draft();
+    const one = setDraftTestHelp(before, 'tests', 0, 'objective', '  Verificar a isolação.  ');
+    expect(one.tests![0]!.help).toEqual({ objective: '  Verificar a isolação.  ' });
+    expect(before.tests![0]!.help).toBeUndefined();
+    const two = setDraftTestHelp(one, 'measurement_tests', 0, 'nr10', 'Desenergizar.');
+    expect(two.measurement_tests![0]!.help).toEqual({ nr10: 'Desenergizar.' });
+    expect(two.tests![0]!.help).toEqual({ objective: '  Verificar a isolação.  ' });
+  });
+
+  it('a blank heading deletes its key; the last one gone deletes the help', () => {
+    let next = setDraftTestHelp(draft(), 'tests', 0, 'objective', 'A');
+    next = setDraftTestHelp(next, 'tests', 0, 'procedure', 'B');
+    next = setDraftTestHelp(next, 'tests', 0, 'objective', '   ');
+    expect(next.tests![0]!.help).toEqual({ procedure: 'B' });
+    next = setDraftTestHelp(next, 'tests', 0, 'procedure', '');
+    expect('help' in next.tests![0]!).toBe(false);
+    // An empty help already there is deleted by the next edit.
+    const empty = { tests: [{ key: 'isolacao', label: 'Isolação', help: {} }] } as CompanyTypeDraft;
+    expect('help' in setDraftTestHelp(empty, 'tests', 0, 'standard', ' ').tests![0]!).toBe(false);
+  });
+
+  it('sets the recommendation as typed; a blank one deletes it; a missing test changes nothing', () => {
+    const set = setDraftTestRecommendation(draft(), 'measurement_tests', 0, 'Verificar o carregador');
+    expect(set.measurement_tests![0]!.recommendation).toBe('Verificar o carregador');
+    expect('recommendation' in setDraftTestRecommendation(set, 'measurement_tests', 0, ' \n ').measurement_tests![0]!).toBe(false);
+    expect(setDraftTestRecommendation(draft(), 'tests', 4, 'X')).toEqual(draft());
+    expect(setDraftTestHelp(draft(), 'measurement_tests', 2, 'objective', 'X')).toEqual(draft());
+  });
+
+  it('a draft written through the edits publishes with both keys (the strict schema takes them)', () => {
+    let next: CompanyTypeDraft = duplicateSeededType(SEED_VERSION, 'para_raio').draft;
+    next = setDraftTestHelp(next, 'tests', 0, 'objective', 'Objetivo de exemplo.');
+    next = setDraftTestRecommendation(next, 'tests', 0, 'Recomendação de exemplo.');
+    let measured: CompanyTypeDraft = duplicateSeededType(SEED_VERSION, 'chave_transferencia_automatica').draft;
+    measured = setDraftTestHelp(measured, 'measurement_tests', 0, 'nr10', 'Pré-requisito de exemplo.');
+    measured = setDraftTestRecommendation(measured, 'measurement_tests', 0, 'Recomendação de exemplo.');
+    const parsed = companyTypeDefinitionSchema.safeParse(next);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data!.tests[0]!.help).toEqual({ objective: 'Objetivo de exemplo.' });
+    expect(parsed.data!.tests[0]!.recommendation).toBe('Recomendação de exemplo.');
+    const parsedMeasured = companyTypeDefinitionSchema.safeParse(measured);
+    expect(parsedMeasured.success).toBe(true);
+    expect(parsedMeasured.data!.measurement_tests![0]!.help).toEqual({ nr10: 'Pré-requisito de exemplo.' });
+    expect(parsedMeasured.data!.measurement_tests![0]!.recommendation).toBe('Recomendação de exemplo.');
   });
 });

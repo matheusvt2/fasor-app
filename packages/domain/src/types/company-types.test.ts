@@ -68,7 +68,8 @@ import { defaultBlockConfig, defaultBlockConfigIn, standardTemplate, templateTot
 import { composerView, enabledSubBlocks, setQuantity } from '../templates/compose.ts';
 import { asBlockDefinition } from './block-definition.ts';
 import { companyTypeDefinitionSchema, companyTypeDraftSchema, companySubBlocksOf, criterionRulesFor, type CompanyTypeDefinition } from './definition.ts';
-import { duplicateCompanyType, duplicateSeededType, newEquipmentTypeRow, openDraftText, typeStatusText, typeVersionRow } from './duplicate.ts';
+import { TEST_TEXT_MAX_LENGTH } from '../seed/test-help.ts';
+import { duplicateCompanyType, duplicateSeededDefinition, duplicateSeededType, newEquipmentTypeRow, openDraftText, typeStatusText, typeVersionRow } from './duplicate.ts';
 import { publishBlockedText, typeDraftIssueCount, validateTypeDraft } from './validate.ts';
 
 /*
@@ -876,5 +877,98 @@ describe('Story 14.6 review: snapshots and the device fold', () => {
     expect(alone).not.toBeNull();
     expect(materializeEntity(ref, [create], [outside])).toEqual(alone);
     expect(() => materializeEntity(ref, [create, { ...outside, seq: 2 }], [])).toThrow(SeedPathError);
+  });
+});
+
+describe('Stories 23.10 and 23.11 (batch e23h): a test\'s "Como ensaiar" and recommendation on a company type', () => {
+  // Synthetic texts (M-1: the base's texts never enter git).
+  const HELP = { objective: 'Objetivo de exemplo.', instrument: 'Instrumento de exemplo.', procedure: 'Procedimento de exemplo.', standard: 'Norma de exemplo.', nr10: 'Pré-requisito de exemplo.' };
+  const withTexts = (definition: CompanyTypeDefinition, help: Record<string, unknown> = HELP, recommendation: unknown = 'Recomendação de exemplo.'): CompanyTypeDefinition =>
+    ({
+      ...structuredClone(definition),
+      tests: definition.tests.map((test) => ({ ...structuredClone(test), help, recommendation })),
+      measurement_tests: definition.measurement_tests?.map((test) => ({ ...structuredClone(test), help, recommendation })),
+    }) as CompanyTypeDefinition;
+
+  it('"Duplicar" of a seeded definition carrying both keys (a fixture) carries them whole, in both grammars, and the copy publishes', () => {
+    // The seeded grammars on the v13 transformer, the measurement grammar on the v13 CTA.
+    for (const type of ['transformador_forca', 'chave_transferencia_automatica'] as const) {
+      const seed = structuredClone(getDefinition('v13', 'cabine_primaria', type));
+      const fixture = {
+        ...seed,
+        tests: seed.tests.map((test) => ({ ...test, help: HELP, recommendation: 'Trocar o componente.' })),
+        ...(seed.measurement_tests === undefined ? {} : { measurement_tests: seed.measurement_tests.map((test) => ({ ...test, help: { procedure: 'Passos de exemplo.' }, recommendation: 'Refazer a medição.' })) }),
+      };
+      const copy = duplicateSeededDefinition('v13', type, fixture);
+      const tests = [...copy.draft.tests, ...(copy.draft.measurement_tests ?? [])];
+      expect(tests.length, type).toBeGreaterThan(0);
+      expect(copy.draft.tests.map((test) => [test.help, test.recommendation])).toEqual(fixture.tests.map(() => [HELP, 'Trocar o componente.']));
+      expect((copy.draft.measurement_tests ?? []).map((test) => [test.help, test.recommendation])).toEqual((fixture.measurement_tests ?? []).map(() => [{ procedure: 'Passos de exemplo.' }, 'Refazer a medição.']));
+      expect(validateTypeDraft(copy.draft), type).toEqual([]);
+    }
+    expect(getDefinition('v13', 'cabine_primaria', 'transformador_forca').tests.length).toBeGreaterThan(0);
+    expect(getDefinition('v13', 'cabine_primaria', 'chave_transferencia_automatica').measurement_tests!.length).toBeGreaterThan(0);
+    // The seeded path is the same core: a seeded definition carries neither key, so neither comes.
+    const plain = duplicateSeededType('v13', 'chave_transferencia_automatica');
+    expect(plain).toEqual(duplicateSeededDefinition('v13', 'chave_transferencia_automatica', getDefinition('v13', 'cabine_primaria', 'chave_transferencia_automatica')));
+    expect(JSON.stringify(plain.draft)).not.toMatch(/"(help|recommendation)"/);
+  });
+
+  it('"Duplicar" of a published company version carries both keys whole', () => {
+    const definition = withTexts(DEFINITION_1);
+    const copy = duplicateCompanyType({ type_id: TYPE_1_ID, version: 1, definition });
+    expect(copy.draft.tests).toEqual(definition.tests);
+    expect(copy.draft.measurement_tests).toEqual(definition.measurement_tests);
+    expect(validateTypeDraft(copy.draft)).toEqual([]);
+  });
+
+  it('publishes a version whose tests carry the eight headings and a recommendation; the row keeps the definition as written', () => {
+    const eight = { objective: 'A', instrument: 'B', voltage: 'C', connections: 'D', procedure: 'E', criterion: 'F', standard: 'G', nr10: '  H com espaços  ' };
+    const definition = withTexts(DEFINITION_1, eight);
+    const state = fold([typeCreate(TYPE_1_ID), versionCreate(VERSION_1_ID, TYPE_1_ID, 1, definition)]);
+    expect((state.get(entityKey('equipment_type_version', VERSION_1_ID)) as EquipmentTypeVersionRow).definition).toEqual(definition);
+    // The block definition the readers take carries both keys.
+    const adapted = asBlockDefinition({ id: VERSION_1_ID, type_id: TYPE_1_ID, version: 1, definition });
+    expect(adapted.tests[0]!.help).toEqual(eight);
+    expect(adapted.measurement_tests![0]!.recommendation).toBe('Recomendação de exemplo.');
+  });
+
+  it('an over-cap heading or recommendation: the draft names it inline, "Publicar" waits, and the version create is refused', () => {
+    const atCap = 'x'.repeat(TEST_TEXT_MAX_LENGTH);
+    const accepted = withTexts(DEFINITION_1, { objective: atCap }, atCap);
+    expect(validateTypeDraft(accepted)).toEqual([]);
+    const overHelp = withTexts(DEFINITION_1, { objective: `${atCap}x`, procedure: `${atCap}x` });
+    const issues = validateTypeDraft(overHelp);
+    expect(issues.map((issue) => issue.path)).toEqual([
+      ['tests', 0, 'help', 'objective'],
+      ['tests', 0, 'help', 'procedure'],
+      ['measurement_tests', 0, 'help', 'objective'],
+      ['measurement_tests', 0, 'help', 'procedure'],
+    ]);
+    expect(issues[0]).toMatchObject({ part: 'ensaios', message: `${DEFINITION_1.tests[0]!.label}: cada tópico de Como ensaiar tem até 1.000 caracteres.` });
+    expect(publishBlockedText(issues)).toMatch(/^4 avisos antes de publicar: Ensaios › /);
+    const overRecommendation = withTexts(DEFINITION_1, HELP, `${atCap}x`);
+    expect(validateTypeDraft(overRecommendation).map((issue) => [issue.path, issue.message])).toEqual([
+      [['tests', 0, 'recommendation'], `${DEFINITION_1.tests[0]!.label}: a recomendação se reprovado tem até 1.000 caracteres.`],
+      [['measurement_tests', 0, 'recommendation'], 'Tensões medidas: a recomendação se reprovado tem até 1.000 caracteres.'],
+    ]);
+    const state = fold([typeCreate(TYPE_1_ID)]);
+    for (const definition of [overHelp, overRecommendation]) expect(() => fold([versionCreate(VERSION_1_ID, TYPE_1_ID, 1, definition)], state)).toThrow(SeedPathError);
+    expect(typeOf(fold([versionCreate(VERSION_1_ID, TYPE_1_ID, 1, accepted)], state), TYPE_1_ID).latest_version).toBe(1);
+  });
+
+  it('the version create (assertVersionCreate) refuses a blank heading, a non-string heading, an unknown heading and a blank recommendation', () => {
+    const state = fold([typeCreate(TYPE_1_ID)]);
+    for (const definition of [
+      withTexts(DEFINITION_1, { objective: '' }),
+      withTexts(DEFINITION_1, { objective: '   ' }),
+      withTexts(DEFINITION_1, { objective: 3 }),
+      withTexts(DEFINITION_1, { outro: 'Texto.' }),
+      withTexts(DEFINITION_1, HELP, ' '),
+      withTexts(DEFINITION_1, HELP, 7),
+    ]) {
+      expect(() => fold([versionCreate(VERSION_1_ID, TYPE_1_ID, 1, definition)], state), JSON.stringify(definition.tests[0]!.help)).toThrow(SeedPathError);
+      expect(validateTypeDraft(definition).length).toBeGreaterThan(0);
+    }
   });
 });

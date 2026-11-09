@@ -99,10 +99,10 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  // e23b (Stories 23.7 to 23.9, 2026-11-08): 35, after e23a's 34; MIN follows.
-  it('speaks version 35 and refuses version 34 (Story 23.9: a version-34 bundle cannot parse the applicability override nor read a v13 sheet as the server does)', () => {
-    expect(CONTRACT_VERSION).toBe(35);
-    expect(MIN_CONTRACT_VERSION).toBe(35);
+  // e23h (Stories 23.10 and 23.11, 2026-11-09): 37, after e23v's 36; MIN follows.
+  it('speaks version 37 and refuses version 36 (Stories 23.10 and 23.11: a version-36 bundle shows no "Como ensaiar" and derives a point text the server does not)', () => {
+    expect(CONTRACT_VERSION).toBe(37);
+    expect(MIN_CONTRACT_VERSION).toBe(37);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

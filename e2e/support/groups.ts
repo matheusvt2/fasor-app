@@ -219,6 +219,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'test-applicability.durability.spec.ts',
     why: 'Story 23.9: issues two revisions through the shared queue and LibreOffice, one with the test NA by the plate and one with it applied by hand, to read section 9 from the downloaded DOCX',
   },
+  // Batch e23h: 23.11-E2E-001 reads the recommendation from section 8 of the DOCX it issues.
+  {
+    file: 'test-recommendation.spec.ts',
+    why: 'Story 23.11: issues a revision through the shared queue and LibreOffice to read the out reading\'s point, its recommendation first, from section 8 of the downloaded DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */
