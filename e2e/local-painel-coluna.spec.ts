@@ -189,6 +189,16 @@ function completeSheet(scope: Scope, blockId: string, blockType: string): OpDraf
     ...definition.nameplate.filter((f) => f.key !== 'tag').map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f))),
     ...(definition.checklist ?? []).map((item) => officeDraft(account, scope, `sheet/${blockId}/checklist/${item.key}/result`, 'C')),
     ...definition.tests.flatMap((t) => cellAddressesOf(definition, t.key)).map((c) => officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, reading(c.testKey, c.col))),
+    // Batch e23t (seed v13, Story 23.15): the measurement tests a sheet draws after its seeded ones (the transformer's
+    // winding resistance, "Sempre" and required), every number cell at one value, so the phases agree (within).
+    // The plate's first options (EPÓXI, SEM CARGA) make the oil sampling and the HH fuses NA.
+    ...(definition.measurement_tests ?? []).flatMap((t) =>
+      t.rows.flatMap((row, r) =>
+        t.columns.flatMap((column, c) =>
+          (row.kind ?? column.kind) === 'number' ? [officeDraft(account, scope, `sheet/${blockId}/test/${t.key}/cell/${r}/${c}`, n('100', row.unit ?? column.unit ?? null))] : [],
+        ),
+      ),
+    ),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];

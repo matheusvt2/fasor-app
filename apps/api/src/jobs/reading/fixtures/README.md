@@ -256,3 +256,18 @@ docker compose --profile tools run --rm -w /workspace/apps/api tools node --inpu
 ```
 
 The token boxes were placed by hand over the rendered text.
+
+## The two seed v13 liquid plates (batch e23t, Story 23.17)
+
+Two 1200 x 900 PNGs in `images/`, made by `make-plate-fixtures.ts transformador_forca_tipo_b_v13
+transformador_forca_silicone_v13` on the seed v13 transformador de força. Like the other v13 plates
+they are no block type's default: their fixtures replay only for a photo of their own bytes
+(`job.integration.test.ts`; both are in `bedrock-eval.ts`'s synthetic set).
+
+| Image | Fixture | Values |
+|---|---|---|
+| `plate-transformador-tipo-b-v13.png` | `1a7e1690...json` | identificacao `TR-06`; fabricacao `Varnelo`; tipo `TRICAST`; tipo_anp `B`, citing "Tipo óleo isolante B"; potencia_nominal `{raw: 500, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}`; tensao_nominal_bt `{raw: 220, unit: V}`. No insulation or liquid word is printed: the kernel composes TIPO DE ISOLAÇÃO `ÓLEO ISOLANTE` and NATUREZA DO LÍQUIDO `MINERAL`, both in `verify`, citing the oil words (`reading/build.ts`) |
+| `plate-transformador-silicone-v13.png` | `16e2acf0...json` | identificacao `TR-07`; fabricacao `Varnelo`; tipo_de_isolacao `ÓLEO ISOLANTE` (printed "Isolação ÓLEO ISOLANTE"); natureza_liquido `SILICONE` (printed "Líquido isolante SILICONE"); potencia_nominal `{raw: 300, unit: kVA}`; tensao_nominal_at `{raw: 13.8, unit: kV}`; tensao_nominal_bt `{raw: 380, unit: V}`. No class is printed and none is suggested |
+
+The default transformer plate (`plate-transformador.jpg`) keeps replaying on a v13 block: its
+`tap_atual` is dropped `unknown_key` there (v13 reads TAPS and a numeric TAP ATUAL), as since Story 23.7.

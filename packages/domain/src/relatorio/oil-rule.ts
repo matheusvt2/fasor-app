@@ -3,6 +3,7 @@ import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { OilRule } from '../seed/schema.ts';
+import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
 import { isCellFilled } from './sheet-state.ts';
 
@@ -96,10 +97,30 @@ export function isOilItem(block: Partial<RuleBlock>, itemKey: string, ctx: Defin
  * TÉRMICA) of an oil unit; an unknown unit excuses neither.
  */
 export function isOilFieldExcused(block: StateBlock, fieldKey: string, ctx: DefinitionContext): boolean {
+  // Seed v13, batch e23t (Story 23.17): a field whose `excused_unless` the plate does not meet is excused too.
+  if (isFieldHidden(block, fieldKey, ctx)) return true;
   const rule = oilRuleOf(block, ctx);
   if (rule === null) return false;
   if (rule.fields.includes(fieldKey)) return isOilUnit(block, ctx) === false;
   return (rule.dry_fields?.includes(fieldKey) ?? false) && isOilUnit(block, ctx) === true;
+}
+
+/**
+ * Seed v13, batch e23t (Story 23.17): a field the sheet does not draw: its `excused_unless` names a
+ * select of the plate that holds a value outside its list (TIPO (ANP) on a liquid other than
+ * MINERAL). Never missing and printed "-" (`isOilFieldExcused`); shown while that select is empty or
+ * holds no option. False on every field of v1 to v12.
+ */
+export function isFieldHidden(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config' | 'sheet'>, fieldKey: string, ctx: DefinitionContext): boolean {
+  const definition = blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
+  const field = definition?.nameplate.find((candidate) => candidate.key === fieldKey);
+  const condition = field?.excused_unless;
+  if (definition === null || condition === undefined) return false;
+  const select = definition.nameplate.find((candidate) => candidate.key === condition.field);
+  const value = block.sheet.nameplate[condition.field]?.value;
+  if (select === undefined || typeof value !== 'string' || value.trim() === '') return false;
+  const option = selectOptionFor(select, value);
+  return option !== null && !condition.in.includes(option);
 }
 
 /** One put of the crossing batch. */

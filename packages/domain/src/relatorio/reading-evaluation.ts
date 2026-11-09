@@ -1,8 +1,8 @@
-import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, NOT_APPLICABLE_TEXT, parseReadingPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
 import type { CriterionTableRow } from '../seed/criteria-tables.ts';
-import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type TableDef, type TestDef } from '../seed/schema.ts';
+import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type PolarizationIndexRule, type TableDef, type TestDef } from '../seed/schema.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import { listPtBr } from '../text/plural.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
@@ -520,6 +520,8 @@ interface TableJudging {
   corrected: boolean;
   factor: number | null;
   previous: RestrictionPrevious;
+  /** Seed v13, batch e23t (Story 23.16): the unit's medium, which makes the IP required on a dry unit; null when unknown or unread. */
+  medium?: 'oil' | 'dry' | null;
   /** Fix batch e23w (W2-3): set by a table where a restriction rule flags a reading already out. */
   stands?: { value: boolean };
 }
@@ -527,9 +529,84 @@ interface TableJudging {
 const NO_PREVIOUS: RestrictionPrevious = { entry: null, byAddress: new Map() };
 const PLAIN_JUDGING: TableJudging = { corrected: false, factor: null, previous: NO_PREVIOUS };
 
-/** The typed columns of a table, in column order. */
+// --- the polarization index (seed v13, batch e23t, Story 23.16) -----------------------------------
+
+/** "1,0", "2,0", "0,8": an index as its class and helper say it, one decimal at least. */
+function indexText(value: number): string {
+  const decimals = Math.max(1, (canonicalDecimal(String(value)).split('.')[1] ?? '').length);
+  return formatDecimalGroupedPtBr(value.toFixed(decimals));
+}
+
+/** authored (Story 23.16, listed for Bruno): the IP criterion as the helper and the conclusion state it, "IP ≥ 1,0". */
+export function polarizationCriterionText(rule: PolarizationIndexRule): string {
+  return `IP ≥ ${indexText(rule.min)}`;
+}
+
+/** The base's source of the IP classes (Base rev08 TR-OL-03, TR-SE-03), as the conclusion names it. */
+const IP_SOURCE = 'NETA MTS-2023 7.2.1/7.2.2';
+
+/**
+ * Story 23.16: each `index` cell of one row. The IP (`polarization_index.column`) is N/A on a row
+ * whose capture is above the instrument's limit (a stored value ignored), else judged by class:
+ * below `min` out, below `restricted_below` restricted, from it on within; an empty IP is missing
+ * only on a unit of `required_on` whose row holds a measured capture. The DAR, and any index no rule
+ * names, is captured: never judged, never missing.
+ */
+function judgeIndexCells(table: TableDef, test: TestDef, cells: EvaluatedCell[], medium: 'oil' | 'dry' | null | undefined): void {
+  const rule = test.polarization_index;
+  const capture = cells.find((cell) => cell.role === 'capture');
+  for (const cell of cells) {
+    if (cell.role !== 'index') continue;
+    const label = table.value_columns[cell.address.col]?.label;
+    const kind = rule !== undefined && label === rule.column ? 'ip' : rule !== undefined && label === rule.dar_column ? 'dar' : 'plain';
+    cell.missing = false;
+    if (kind !== 'ip' || rule === undefined) {
+      cell.index = { kind, notApplicable: false, required: false };
+      continue;
+    }
+    if (capture?.state === 'over_range') {
+      cell.index = { kind, notApplicable: true, required: false };
+      cell.verdict = null;
+      cell.displayText = NOT_APPLICABLE_TEXT;
+      continue;
+    }
+    const required = medium === rule.required_on && capture?.state === 'measured';
+    cell.index = { kind, notApplicable: false, required };
+    cell.missing = required && cell.state === 'empty';
+    if (cell.state !== 'measured') continue;
+    const value = Number(cell.raw);
+    if (!Number.isFinite(value)) continue;
+    // authored (Story 23.16, listed for Bruno): the helper of an IP out of its class, and the restricted class's reason and sentence.
+    if (value < rule.min) {
+      cell.verdict = 'out';
+      cell.helperText = `Abaixo do aceitável (${polarizationCriterionText(rule)})`;
+    } else if (value < rule.restricted_below) {
+      cell.verdict = 'restricted';
+      cell.restriction = {
+        reason: `IP de ${formatDecimalGroupedPtBr(cell.raw)}, abaixo de ${indexText(rule.restricted_below)}`,
+        text: `IP de ${formatDecimalGroupedPtBr(cell.raw)}, abaixo de ${indexText(rule.restricted_below)}: isolação a acompanhar; a conclusão sobe para Com restrições.`,
+      };
+    } else cell.verdict = 'within';
+  }
+}
+
+/** Story 23.16: the IPs out of their class of a test with `polarization_index`, as the conclusion and the points name them. */
+function indexOutOf(test: TestDef, tables: readonly EvaluatedTable[]): NonNullable<TestEvaluation['indexOut']> {
+  const rule = test.polarization_index!;
+  return tables.flatMap((table) =>
+    table.rows.flatMap((row) =>
+      row.cells.flatMap((cell) =>
+        cell.role === 'index' && cell.index?.kind === 'ip' && cell.verdict === 'out'
+          ? [{ where: row.connection.filter((text) => text !== '').slice(0, 2).join('–'), valueText: `IP de ${cell.displayText}`, criterionText: polarizationCriterionText(rule), sourceName: IP_SOURCE }]
+          : [],
+      ),
+    ),
+  );
+}
+
+/** The typed columns of a table, in column order (seed v13, batch e23t: an `index` column is typed too). */
 function typedColumns(table: TableDef): { col: number; column: ColumnDef }[] {
-  return table.value_columns.flatMap((column, col) => (column.role === 'capture' || column.role === 'input' ? [{ col, column }] : []));
+  return table.value_columns.flatMap((column, col) => (column.role === 'capture' || column.role === 'input' || column.role === 'index' ? [{ col, column }] : []));
 }
 
 /**
@@ -648,7 +725,7 @@ function evaluateTable(
       const unit = stored?.unit ?? column.unit;
       const cell: EvaluatedCell = {
         address,
-        role: column.role as 'capture' | 'input',
+        role: column.role as 'capture' | 'input' | 'index',
         column: headerText(labelOf(column, col)),
         state,
         raw: stored?.raw ?? '',
@@ -672,7 +749,14 @@ function evaluateTable(
         outlier: null,
         missing: false,
       };
-      if (column.role === 'input') {
+      if (column.role === 'index') {
+        // Seed v13, batch e23t (Story 23.16): judged after the row's captures (`judgeIndexCells`).
+        cell.overRange = { allowed: false, refusal: '' };
+        if (stored?.state === 'over_range') {
+          cell.state = 'invalid';
+          cell.displayText = overRangeDisplay(stored.raw);
+        }
+      } else if (column.role === 'input') {
         const index = inputs.findIndex((input) => input.col === col);
         let base: string | null = null;
         if (state === 'measured') base = convertRatioUnit(stored!.raw, unit, column.unit === null ? null : column.unit);
@@ -734,6 +818,8 @@ function evaluateTable(
         cell.helperText = within ? null : corrected === null ? helper : correctedOutHelperText(rowCriterionValue, corrected.text);
       }
     }
+    // Seed v13, batch e23t (Story 23.16): the row's IP and DAR, after its captures.
+    if (test.polarization_index !== undefined || table.value_columns.some((column) => column.role === 'index')) judgeIndexCells(table, test, cells, judging.medium);
     const captures = cells.filter((cell) => cell.role === 'capture');
     // F42: one capture out of the criterion fails the row; every capture within passes it; otherwise unjudged.
     // Batch e23v (Story 23.6): a restricted capture is within its criterion here (B-8: SATISFATÓRIO).
@@ -875,10 +961,12 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
               : { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block) },
           stands: { value: false },
         };
+  // Seed v13, batch e23t (Story 23.16): the IP is required on a unit of the medium its rule names.
+  const judgingWithIndex: TableJudging = test.polarization_index === undefined ? judging : { ...judging, medium: mediumOf(definition, block) };
   const tables: EvaluatedTable[] = [];
   let offset = 0;
   for (const table of test.tables) {
-    tables.push(evaluateTable(block, definition, test, criterion, table, offset, rowCriteria, judging));
+    tables.push(evaluateTable(block, definition, test, criterion, table, offset, rowCriteria, judgingWithIndex));
     offset += table.rows.length;
   }
   const evaluation: TestEvaluation = {
@@ -902,6 +990,8 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
   const view = temperatureView(test, temperature);
   if (view !== null) evaluation.temperature = view;
   if (test.restriction?.prerequisite !== undefined) evaluation.prerequisite = prerequisiteFailure(block, definition, test);
+  // Seed v13, batch e23t (Story 23.16): the IPs out of their class.
+  if (test.polarization_index !== undefined) evaluation.indexOut = indexOutOf(test, tables);
   // Fix batch e23w (W2-3): a rule flags a reading now out, so a stored `restricao` point does not read resolved.
   if (judging.stands?.value === true) evaluation.restrictionStands = true;
   return evaluation;

@@ -119,7 +119,11 @@ test('@p0 23.9-E2E-001 a company copy of the v13 seccionadora whose contact resi
   const duplicated = (await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, typeId)).type!;
   const draft = duplicated.draft as { tests: { key: string }[] } & Record<string, unknown>;
   expect(draft.tests.map((t) => t.key)).toContain(TEST_KEY);
-  const conditioned = { ...draft, tests: draft.tests.map((t) => (t.key === TEST_KEY ? { ...t, applies_when: CONDITION } : t)) };
+  // Batch e23t (seed v13): the copy's own HH fuse test (the same condition, Story 23.19) is left out, so the step's count
+  // moves by the contact resistance alone, as this spec measures it.
+  const withoutFuses: Record<string, unknown> = { ...draft };
+  delete withoutFuses.measurement_tests;
+  const conditioned = { ...withoutFuses, tests: draft.tests.map((t) => (t.key === TEST_KEY ? { ...t, applies_when: CONDITION } : t)) };
   const put: OpDraft = {
     kind: 'put',
     scope: 'company',

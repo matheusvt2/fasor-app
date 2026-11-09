@@ -593,3 +593,52 @@ describe('23.10 MeasurementTests: "Como ensaiar" on a measurement test\'s head',
     expect(within(bare).queryByRole('button', { name: 'Como ensaiar' })).toBeNull();
   });
 });
+
+/*
+ * Batch e23t (Stories 23.15 and 23.17, seed v13): the transformer's winding resistance draws each value
+ * at 75 °C under its reading and the kernel's notes; the oil sampling is the frame's `.v13-choice`,
+ * whose reason chips the kernel shows under "Não coletado".
+ */
+describe('e23t MeasurementTests on a v13 transformer', () => {
+  const TF = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+  const transformer = (nameplate: Record<string, JsonValue>, test: Sheet['test']): BlockRow => {
+    const { block } = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: BLOCK, equipmentId: id(2), relatorioId: RELATORIO, projectId: id(5), locationId: id(3), type: 'transformador_forca', tag: 'TR-1', seedVersion: 'v13', orderKey: 'a0' });
+    return { ...block, sheet: { ...block.sheet, nameplate: Object.fromEntries(Object.entries(nameplate).map(([key, value]) => [key, stored(value)])), test } };
+  };
+
+  it('the winding: titled by its label alone, the temperature line, each value at 75 °C under its reading, a restricted phase in the amber state', () => {
+    const block = transformer(
+      { tipo_de_isolacao: 'ÓLEO ISOLANTE', material_enrolamento: 'Cu', temperatura_oleo_c: num('30', '°C') },
+      { resistencia_enrolamento: { cells: { '0': { '0': stored(num('1', 'Ω')), '1': stored(num('1.01', 'Ω')), '2': stored(num('1.03', 'Ω')) } } } },
+    );
+    const { container } = renderTests(block, { definition: TF });
+    const winding = container.querySelector<HTMLElement>('section[data-test-key="resistencia_enrolamento"]')!;
+    expect(winding.querySelector('h2')).toHaveTextContent('Resistência ôhmica dos enrolamentos');
+    expect(winding.querySelector('.v13-line[data-temperature-line="corrected"]')).toHaveTextContent('Temperatura 30 °C');
+    expect(winding.querySelector('.corrected-line[data-corrected-line="0/0"]')).toHaveTextContent('A 75 °C: 1,17 Ω');
+    expect(winding.querySelector('.ficha-cell[data-cell="resistencia_enrolamento:0:2"] .measurement-field')).toHaveAttribute('data-state', 'restricted');
+  });
+
+  it('the material missing: the kernel\'s note under the table and no value at 75 °C', () => {
+    const block = transformer({ tipo_de_isolacao: 'ÓLEO ISOLANTE', temperatura_oleo_c: num('30', '°C') }, { resistencia_enrolamento: { cells: { '0': { '0': stored(num('1', 'Ω')) } } } });
+    const { container } = renderTests(block, { definition: TF });
+    const winding = container.querySelector<HTMLElement>('section[data-test-key="resistencia_enrolamento"]')!;
+    expect(winding.querySelector('[data-measurement-note]')).toHaveTextContent('Informe o campo MATERIAL DO ENROLAMENTO na placa para corrigir os valores a 75 °C.');
+    expect(winding.querySelector('.corrected-line')).toBeNull();
+  });
+
+  it('the oil sampling: "Não coletado" shows the reason chips (one put each), "Coletado" none', async () => {
+    const notCollected = transformer({ tipo_de_isolacao: 'ÓLEO ISOLANTE' }, { coleta_oleo: { cells: { '0': { '0': stored(choiceValue('nao_coletado')) } } } });
+    const { container, edits } = renderTests(notCollected, { definition: TF });
+    const sampling = container.querySelector<HTMLElement>('section[data-test-key="coleta_oleo"]')!;
+    const choice = sampling.querySelector<HTMLElement>('.v13-choice')!;
+    expect(within(choice).getByRole('radio', { name: 'Não coletado' })).toHaveAttribute('aria-checked', 'true');
+    const reason = choice.querySelector<HTMLElement>('.v13-reason')!;
+    expect(reason).toHaveAttribute('data-missing-field', '');
+    await userEvent.click(within(reason).getByRole('button', { name: 'Equipamento energizado' }));
+    expect(edits.at(-1)).toEqual([expect.objectContaining({ path: sheetTestValuePath(BLOCK, 'coleta_oleo', 'motivo'), value: choiceValue('equipamento_energizado') })]);
+    cleanup();
+    const collected = renderTests(transformer({ tipo_de_isolacao: 'ÓLEO ISOLANTE' }, { coleta_oleo: { cells: { '0': { '0': stored(choiceValue('coletado')) } } } }), { definition: TF });
+    expect(collected.container.querySelector('section[data-test-key="coleta_oleo"] .v13-reason')).toBeNull();
+  });
+});

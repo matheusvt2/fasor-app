@@ -1,5 +1,6 @@
 import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseOverRangePtBr, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell, JsonValue } from '../schemas/entities.ts';
+import { isEquipmentBlockType } from '../schemas/block-config.ts';
 import { formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type {
   ConfigField,
@@ -29,6 +30,23 @@ import {
 import { readStored, type ReadingState, type ReadingVerdict } from './reading-cells.ts';
 import { testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
+import { formatDateOfInstant } from '../format/datetime.ts';
+import { canonicalDecimal } from '../parse/pt-br-number.ts';
+import { previousReadingsByAddress, readingAddressKey, type LastResultReading, type PreviousResults } from '../print/reading-slots.ts';
+import {
+  correctedRaw,
+  correctedText,
+  mediumOf,
+  WINDING_DIGITS,
+  WINDING_REFERENCE_C,
+  windingFactor,
+  windingMaterial,
+  windingMaterialMissingText,
+  windingTemperature,
+  windingTemperatureView,
+  type TestTemperatureView,
+} from './temperature-correction.ts';
+import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
 
 /*
  * Story 14.5 (seed v5): THE evaluation of a sheet's measurement tests, the tests of the
@@ -180,6 +198,22 @@ export interface EvaluatedMeasurementCell {
    * a "Conferir" helper, and the sheet's suggestion withheld while it stands.
    */
   toCheck: boolean;
+  /*
+   * Seed v13, batch e23t (Stories 23.15 and 23.19). Present only on a cell of a test whose
+   * definition carries the key the field names; absent on every cell of v5 to v12.
+   */
+  /**
+   * Story 23.15 (`winding_correction`): the measured value corrected to 75 °C, in its own unit
+   * ("1,17 Ω"); null without a temperature or a material, above the instrument's limit and on a
+   * cell holding no reading.
+   */
+  corrected?: { raw: string; unit: string | null; text: string } | null;
+  /**
+   * Stories 23.15 and 23.19 (a `phase_deviation` criterion's restricted band, the history rule):
+   * why the cell is restricted (`verdict` `restricted`): the short reason the points and the
+   * conclusion name, and the helper's sentence after the screen's "Com restrição:".
+   */
+  restriction?: { reason: string; text: string } | null;
 }
 
 export interface EvaluatedMeasurementRow {
@@ -283,6 +317,18 @@ export interface MeasurementTestEvaluation {
   criterionText: string;
   /** Their sources joined, each once. */
   sourceName: string;
+  /*
+   * Seed v13, batch e23t. Present only where the key applies; absent on every test of v5 to v12.
+   */
+  /**
+   * Story 23.15: the test of a definition with seeded tests (a FO.SERV-03 type) carries no "E{n} ·"
+   * in its title, which is its label; the CTA's keep their numbers.
+   */
+  unnumbered?: true;
+  /** Story 23.15 (`winding_correction`): the temperature line and print texts at 75 °C. */
+  temperature?: TestTemperatureView;
+  /** Stories 23.15 and 23.19: the kernel's requests under the table (the material, TIPO DE ISOLAÇÃO), in order. */
+  notes?: string[];
 }
 
 // --- stored values -----------------------------------------------------------------------------
@@ -548,7 +594,7 @@ function markPositiveOnly(rows: readonly EvaluatedMeasurementRow[], criterion: E
       if (cell.kind !== 'number' || cell.fixed !== null) continue;
       // authored: Epic 14 QA Q-3 (open for Bruno).
       cell.positiveOnlyText = `Informe um valor maior que zero: o critério compara com o ${reference}`;
-      if (!live || !judged(cell) || Number(cell.raw) > 0 || cell.verdict === 'out') continue;
+      if (!live || !judged(cell) || Number(cell.raw) > 0 || cell.verdict === 'out' || cell.verdict === 'restricted') continue;
       cell.toCheck = true;
       cell.verdict = null;
       // authored: Epic 14 QA Q-3 (open for Bruno).
@@ -605,6 +651,182 @@ function applyChoicePass(rows: readonly EvaluatedMeasurementRow[], criterion: Ex
   }
 }
 
+// --- the deviation between phases (seed v13, batch e23t, Stories 23.15 and 23.19) -------------------
+
+// authored (Stories 23.15 and 23.19, listed for Bruno): the helper and reason texts of the deviation between phases.
+const RESTRICTED_CLOSING = 'a conclusão sobe para Com restrições.';
+const OPEN_CIRCUIT_HELPER = 'Acima do limite do instrumento: circuito aberto';
+
+/** "2", "2,5". */
+function pctText(pct: number): string {
+  return formatDecimalGroupedPtBr(canonicalDecimal(String(pct)));
+}
+
+/** The cells a `phase_deviation` criterion compares, by group: a row's number cells (`across: 'columns'`) or a column's (`'rows'`). */
+function deviationGroups(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], across: 'columns' | 'rows'): { row: EvaluatedMeasurementRow; cell: EvaluatedMeasurementCell }[][] {
+  const numeric = (cell: EvaluatedMeasurementCell | undefined): cell is EvaluatedMeasurementCell => cell !== undefined && cell.kind === 'number' && cell.fixed === null;
+  if (across === 'columns') return rows.map((row) => row.cells.filter(numeric).map((cell) => ({ row, cell })));
+  return columns.map((column) =>
+    rows.flatMap((row) => {
+      const cell = row.cells[column.col];
+      return numeric(cell) ? [{ row, cell }] : [];
+    }),
+  );
+}
+
+/** Where a cell of a group is, as a reference names it: its column ("Fase A") across columns, its row ("Fase A") across rows. */
+function groupName(entry: { row: EvaluatedMeasurementRow; cell: EvaluatedMeasurementCell }, across: 'columns' | 'rows'): string {
+  return across === 'columns' ? entry.cell.column : entry.row.label;
+}
+
+/**
+ * Marks `cell` restricted (out > restricted > within): a cell already out keeps its verdict; a
+ * restricted one keeps its first reason and gains the other's.
+ */
+function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string): void {
+  if (cell.verdict === 'out') return;
+  if (cell.verdict === 'restricted' && cell.restriction != null) {
+    cell.restriction = { reason: `${cell.restriction.reason}; ${reason}`, text: `${cell.restriction.text} ${text}` };
+    return;
+  }
+  cell.verdict = 'restricted';
+  cell.restriction = { reason, text };
+  cell.criterionText = criterionTextOf(criterion);
+  cell.sourceName = criterion.source.name;
+}
+
+/**
+ * Seed v13 (Stories 23.15 and 23.19): the deviation between phases. A group's measured cells above
+ * zero, in the first one's unit, each against the lowest of them: at most `within_max_pct` within,
+ * in the restricted band restricted, past it out (the bounds inclusive, clear of float noise). A
+ * group with fewer than two such cells judges none; a cell at zero or below is no reference and is
+ * left without a verdict.
+ */
+function applyPhaseDeviation(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], criterion: Extract<MeasurementCriterion, { type: 'phase_deviation' }>): void {
+  for (const group of deviationGroups(rows, columns, criterion.across)) {
+    const measured = group.filter((entry) => judged(entry.cell));
+    const unit = measured[0]?.cell.unit ?? null;
+    const values = measured.flatMap((entry) => {
+      const value = scaleToUnit(Number(entry.cell.raw), entry.cell.unit, unit);
+      return value === null || !(value > 0) ? [] : [{ ...entry, value }];
+    });
+    if (values.length < 2) continue;
+    const lowest = values.reduce((least, entry) => (entry.value < least.value ? entry : least));
+    const lowestText = `${groupName(lowest, criterion.across)}: ${withUnit(lowest.cell.displayText, lowest.cell.unit)}`;
+    for (const entry of values) {
+      const pct = roundPct(((entry.value - lowest.value) / lowest.value) * 100);
+      if (pct <= criterion.within_max_pct) {
+        mark(entry.cell, true, criterion, '', 0);
+        continue;
+      }
+      const restricted = criterion.restricted_max_pct !== undefined ? pct <= criterion.restricted_max_pct : criterion.above === 'restricted';
+      if (restricted) {
+        const shown = numberText(shownPercent(pct, criterion.within_max_pct, false));
+        markRestricted(
+          entry.cell,
+          criterion,
+          `desvio de ${shown} % sobre a menor fase`,
+          `Desvio de ${shown} % sobre a menor fase (${lowestText}), acima de ${pctText(criterion.within_max_pct)} %: ${RESTRICTED_CLOSING}`,
+        );
+        continue;
+      }
+      const bound = criterion.restricted_max_pct ?? criterion.within_max_pct;
+      const helper = `${numberText(shownPercent(pct, bound, false))} % acima da menor fase (${lowestText}) — critério ≤ ${pctText(bound)} %`;
+      mark(entry.cell, false, criterion, helper, pct / bound - 1);
+    }
+  }
+}
+
+/**
+ * Seed v13 (Stories 23.15 and 23.19): a number cell of a test judged by the deviation between
+ * phases that holds a reading above the instrument's limit is an open circuit: out, whatever the
+ * medium, and out of every group (`judged` reads only measured cells).
+ */
+function markOpenCircuits(rows: readonly EvaluatedMeasurementRow[], criterion: MeasurementCriterion): void {
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.kind === 'number' && cell.fixed === null && cell.state === 'over_range') mark(cell, false, criterion, OPEN_CIRCUIT_HELPER, 1);
+    }
+  }
+}
+
+// --- the winding at 75 °C and its history (seed v13, batch e23t, Story 23.15) ----------------------
+
+/** What a test's evaluation reads beyond its block and configuration: the definition's plate and oil rule, the visit context. */
+interface MeasurementContext {
+  definition: Pick<BlockDefinition, 'nameplate' | 'oil_rule' | 'tests' | 'measurement_tests'>;
+  visit: VisitContext;
+  /** `measurementTestsUnnumbered` of the definition. */
+  unnumbered: boolean;
+}
+
+/**
+ * Batch e23t (Story 23.15, seed v13): whether a definition's measurement tests carry no "E{n} ·": a
+ * seeded FO.SERV-03 type (a seeded equipment type with seeded tests). The CTA (no seeded tests) and
+ * every company type (a copy that adds a measurement table included) keep their numbers. The one rule
+ * of the title, the conflict view, the merge line and the conclusion's criteria line.
+ */
+export function measurementTestsUnnumbered(definition: { block_type?: string | undefined; tests?: readonly unknown[] | undefined } | null | undefined): boolean {
+  return definition?.block_type !== undefined && isEquipmentBlockType(definition.block_type) && (definition.tests ?? []).length > 0;
+}
+
+/** Each measured number cell's value at 75 °C (`corrected`), null on every other cell; the test's temperature view and requests. */
+function applyWindingCorrection(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, rows: readonly EvaluatedMeasurementRow[], context: MeasurementContext): { view: TestTemperatureView; notes: string[] } | null {
+  const keys = test.winding_correction;
+  if (keys === undefined) return null;
+  const definition = { nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) };
+  const temperature = windingTemperature(block, definition, keys, context.visit);
+  const material = windingMaterial(block, definition, keys);
+  const factor = windingFactor(temperature, material);
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.kind !== 'number' || cell.fixed !== null) continue;
+      const raw = cell.state === 'measured' && factor !== null ? correctedRaw(Number(cell.raw), factor, WINDING_DIGITS) : null;
+      cell.corrected = raw === null ? null : { raw, unit: cell.unit, text: correctedText(raw, cell.unit) };
+    }
+  }
+  const notes: string[] = [];
+  if (material === null) {
+    const label = context.definition.nameplate.find((field) => field.key === keys.material_field)?.label ?? keys.material_field;
+    notes.push(windingMaterialMissingText(label));
+  }
+  return { view: windingTemperatureView(keys, temperature, mediumOf(definition, block)), notes };
+}
+
+/**
+ * Story 23.15 (TR-OL-05 history): a corrected cell within its criterion that moved more than
+ * `history_deviation_pct` from the previous visit's corrected value of the same cell is restricted;
+ * judged only when both carry a corrected value (a previous visit on v12 or uncorrected is shown,
+ * never judged).
+ */
+function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, rows: readonly EvaluatedMeasurementRow[], context: MeasurementContext, criterion: MeasurementCriterion): void {
+  const pct = test.history_deviation_pct;
+  const entry: PreviousResults | null = context.visit.previous;
+  if (pct === undefined || entry === null) return;
+  const slots = { tests: context.definition.tests ?? [], measurement_tests: context.definition.measurement_tests ?? [], nameplate: context.definition.nameplate };
+  const byAddress: ReadonlyMap<string, LastResultReading> = previousReadingsByAddress(entry, slots, block);
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      const now = cell.corrected ?? null;
+      // Like every restriction rule, it runs only on a cell already within (never an unjudged one: medium unknown, a lone phase).
+      if (now === null || cell.verdict !== 'within') continue;
+      const before = byAddress.get(readingAddressKey(cell.address))?.corrected ?? null;
+      if (before === null) continue;
+      const was = scaleToUnit(Number(before.raw), before.unit, now.unit);
+      if (was === null || !(was > 0)) continue;
+      const moved = roundPct((Math.abs(Number(now.raw) - was) / was) * 100);
+      if (!(moved > pct)) continue;
+      // authored (Story 23.15, listed for Bruno): the history rule's reason and helper.
+      markRestricted(
+        cell,
+        criterion,
+        `variação de mais de ${pctText(pct)} % desde a manutenção anterior`,
+        `Variou mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(before.raw, before.unit)} a ${WINDING_REFERENCE_C} °C, rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)}): ${RESTRICTED_CLOSING}`,
+      );
+    }
+  }
+}
+
 // --- the evaluation -------------------------------------------------------------------------------
 
 function columnsOf(test: MeasurementTest): EvaluatedMeasurementColumn[] {
@@ -630,7 +852,7 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
         column: column.label,
         kind,
         fixed,
-        optional: column.optional === true,
+        optional: column.optional === true || row.optional === true,
         state,
         raw: value?.raw ?? '',
         // A fixed cell is text: it has no unit slot.
@@ -645,7 +867,8 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
         criterionText: null,
         sourceName: null,
         excess: 0,
-        missing: fixed === null && column.optional !== true && state === 'empty',
+        // Seed v13 (batch e23t, Story 23.15): an optional row's cells are never missing either.
+        missing: fixed === null && column.optional !== true && row.optional !== true && state === 'empty',
         positiveOnlyText: null,
         toCheck: false,
       };
@@ -673,8 +896,7 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
     const held = heldBy(value);
     const state: ReadingState = held?.state ?? 'empty';
     const unit = value.kind === 'choice' ? null : (held?.unit ?? value.unit ?? null);
-    const depends = value.when === undefined ? undefined : (test.values ?? []).find((candidate) => candidate.key === value.when!.value);
-    const shown = value.when === undefined || (depends !== undefined && heldBy(depends)?.state === 'measured' && heldBy(depends)!.raw === value.when.equals);
+    const shown = value.when === undefined || shownUnder(value.when, test, heldBy, block);
     const text = displayOf(held, value.kind, value.options ?? []);
     return {
       key: value.key,
@@ -691,6 +913,28 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
       missing: shown && value.optional !== true && state === 'empty',
     };
   });
+}
+
+/** Whether the value `when` names holds its option: another test value's, or (seed v13, batch e23t) a choice cell's of the table. */
+function shownUnder(
+  when: NonNullable<MeasurementValue['when']>,
+  test: MeasurementTest,
+  heldBy: (value: MeasurementValue) => Stored | null,
+  block: Pick<BlockRow, 'sheet'>,
+): boolean {
+  if ('cell' in when) {
+    const r = test.rows.findIndex((row) => row.key === when.cell.row);
+    const c = test.columns.findIndex((column) => column.key === when.cell.column);
+    const row = test.rows[r];
+    const column = test.columns[c];
+    if (row === undefined || column === undefined) return false;
+    const options = (row.kind === undefined ? column.options : row.options) ?? [];
+    const held = readChoice(block.sheet.test[test.key]?.cells[String(r)]?.[String(c)], options);
+    return held !== null && held.state === 'measured' && held.raw === when.equals;
+  }
+  const depends = (test.values ?? []).find((candidate) => candidate.key === when.value);
+  const held = depends === undefined ? null : heldBy(depends);
+  return held !== null && held.state === 'measured' && held.raw === when.equals;
 }
 
 /** A choice's wording inside the values line: the option's `phrase`, else its label. */
@@ -710,13 +954,19 @@ function valuesLineOf(test: MeasurementTest, values: readonly EvaluatedMeasureme
   const live = values.filter((value) => value.group === null && value.shown && value.state === 'measured' && (!skipped || value.key === test.skip_when?.value));
   const parts: MeasurementLinePart[] = [];
   for (const value of live) {
-    const parent = defs.get(value.key)?.when?.value;
+    const when = defs.get(value.key)?.when;
+    const parent = when === undefined || 'cell' in when ? undefined : when.value;
     if (value.kind === 'number' && parent !== undefined && live.some((candidate) => candidate.key === parent && candidate.kind === 'choice')) continue;
     if (value.kind === 'number') {
       parts.push({ label: value.label, text: value.displayText, kind: 'number' });
       continue;
     }
-    const details = live.filter((candidate) => candidate.kind === 'number' && defs.get(candidate.key)?.when?.value === value.key).map((candidate) => candidate.displayText);
+    const details = live
+      .filter((candidate) => {
+        const under = defs.get(candidate.key)?.when;
+        return candidate.kind === 'number' && under !== undefined && !('cell' in under) && under.value === value.key;
+      })
+      .map((candidate) => candidate.displayText);
     parts.push({ label: value.label, text: details.length === 0 ? phraseOf(value) : `${phraseOf(value)} (${details.join(', ')})`, kind: 'choice' });
   }
   return parts.length === 0 ? null : { parts, text: parts.map((part) => `${part.label}: ${part.text}`).join(' · ') };
@@ -742,7 +992,14 @@ function groupsOf(values: readonly EvaluatedMeasurementValue[], skipped: boolean
   return groups;
 }
 
-function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTest, number: number, config: Readonly<Record<string, string>>, applicability: TestApplicability): MeasurementTestEvaluation {
+function evaluate(
+  block: Pick<BlockRow, 'config' | 'sheet'>,
+  test: MeasurementTest,
+  number: number,
+  config: Readonly<Record<string, string>>,
+  applicability: TestApplicability,
+  context: MeasurementContext,
+): MeasurementTestEvaluation {
   const enabled = test.switchable === undefined || enabledSubBlocksOf(block).has(test.key);
   const columns = columnsOf(test);
   const rows = evaluateRows(block, test, config);
@@ -755,13 +1012,31 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
   markOverRange(rows, criteria);
 
   let reference: MeasurementReference | null = null;
+  // Seed v13 (batch e23t, Story 23.15): the values at 75 °C, the temperature line and the material's request.
+  const winding = applyWindingCorrection(block, test, rows, context);
+  const notes: string[] = [...(winding?.notes ?? [])];
   if (live) {
+    // Seed v13 (batch e23t, Stories 23.15 and 23.19): a criterion read by medium judges only the medium the oil rule reads.
+    const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
+    const deviation = criteria.find((criterion) => criterion.type === 'phase_deviation' && (criterion.medium === undefined || criterion.medium === medium)) ?? criteria.find((criterion) => criterion.type === 'phase_deviation');
+    if (deviation !== undefined) markOpenCircuits(rows, deviation);
     for (const criterion of criteria) {
       if (criterion.type === 'absolute') applyAbsolute(rows, criterion);
       else if (criterion.type === 'relative_to_lowest') applyRelative(rows, columns, criterion);
       else if (criterion.type === 'equals_column') applyEquals(rows, criterion);
-      else applyChoicePass(rows, criterion);
+      else if (criterion.type === 'phase_deviation') {
+        if (criterion.medium === undefined || criterion.medium === medium) applyPhaseDeviation(rows, columns, criterion);
+      } else applyChoicePass(rows, criterion);
     }
+    if (deviation !== undefined && medium === null && criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) && !criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium === undefined)) {
+      const rule = context.definition.oil_rule;
+      const label = rule === undefined ? null : (context.definition.nameplate.find((field) => field.key === rule.field)?.label ?? null);
+      // authored (Story 23.15, listed for Bruno): the medium unknown, so no deviation between phases is judged.
+      if (label !== null) notes.push(`Informe o campo ${label} na placa para julgar o desvio entre fases.`);
+    }
+    // The criterion in force for the block's medium (the deviation judging's pick) names the restriction, else the first in force.
+    const named = deviation ?? criteria[0];
+    if (named !== undefined) applyHistory(block, test, rows, context, named);
   } else {
     // A test switched off or not run requires nothing: its cells keep what they hold and are neither missing nor judged.
     for (const row of rows) for (const cell of row.cells) cell.missing = false;
@@ -776,12 +1051,17 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
     if (!enabled || skipped || applicability.state === 'na') value.missing = false;
   }
 
-  const lines: MeasurementCriterionLine[] = criteria.map((criterion) => ({ text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition }));
+  // Seed v13 (batch e23t): a criterion read by medium is in force only on that medium (both while it is unknown).
+  const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
+  const inForce = criteria.filter((criterion) => criterion.type !== 'phase_deviation' || criterion.medium === undefined || medium === null || criterion.medium === medium);
+  const lines: MeasurementCriterionLine[] = inForce.map((criterion) => ({ text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition }));
+  // Story 23.15: a FO.SERV-03 type's measurement test is titled by its label alone (the CTA's keep "E{n} ·").
+  const unnumbered = context.unnumbered;
   return {
     testKey: test.key,
     number,
     label: test.label,
-    title: `E${number} · ${test.label}`,
+    title: unnumbered ? test.label : `E${number} · ${test.label}`,
     switchable: test.switchable !== undefined,
     offNote: test.switchable?.off_note ?? null,
     enabled,
@@ -798,6 +1078,9 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
     criteria: lines,
     criterionText: lines.map((line) => line.text).join('; '),
     sourceName: [...new Set(lines.map((line) => line.sourceName))].join('; '),
+    ...(unnumbered ? { unnumbered: true as const } : {}),
+    ...(winding === null ? {} : { temperature: winding.view }),
+    ...(notes.length === 0 ? {} : { notes }),
   };
 }
 
@@ -810,14 +1093,17 @@ const NONE: readonly MeasurementTestEvaluation[] = Object.freeze([]);
  */
 export function evaluateSheetMeasurements(
   block: Pick<BlockRow, 'config' | 'sheet'>,
-  definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'tests'>>,
+  definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'tests' | 'oil_rule' | 'block_type'>>,
+  visit: VisitContext = NO_VISIT_CONTEXT,
 ): readonly MeasurementTestEvaluation[] {
   const tests = definition.measurement_tests;
   if (tests === undefined) return NONE;
   const config = configOptionsOf(block, definition);
   // Story 23.9: a test's applicability reads the plate; a caller that hands no nameplate reads every test as applicable.
   const plate = { nameplate: definition.nameplate ?? [], tests: definition.tests ?? [], measurement_tests: tests };
-  return tests.map((test, index) => evaluate(block, test, index + 1, config, testApplicability(block, plate, test.key)));
+  // Batch e23t (Stories 23.15 to 23.19): the plate, the oil rule and (batch e23v's) visit context a v13 test reads.
+  const context: MeasurementContext = { definition: { ...plate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) }, visit, unnumbered: measurementTestsUnnumbered(definition) };
+  return tests.map((test, index) => evaluate(block, test, index + 1, config, testApplicability(block, plate, test.key), context));
 }
 
 /** Story 22.10: a typed reading of a cell, a limit the instrument passed carrying `state: 'over_range'`. */
@@ -969,6 +1255,30 @@ export function worstMeasurements(evaluations: readonly MeasurementTestEvaluatio
   return out;
 }
 
+/** Seed v13 (batch e23t, Stories 23.15 and 23.19): one measurement test's restricted cells, each named with its reason. */
+export interface RestrictedMeasurement {
+  testKey: MeasurementTestKey;
+  /** The test's heading ("Resistência ôhmica dos enrolamentos"). */
+  title: string;
+  label: string;
+  /** "AT, tap atual, Fase C: desvio de 3 % sobre a menor fase", in sheet order. */
+  items: string[];
+  /** Whether the test also holds a cell out of its criterion (its `reading` entry then speaks for it). */
+  hasOut: boolean;
+}
+
+/** Every live measurement test holding a restricted cell, in test order (none on v5 to v12: no rule there restricts). */
+export function restrictedMeasurements(evaluations: readonly MeasurementTestEvaluation[]): RestrictedMeasurement[] {
+  const out: RestrictedMeasurement[] = [];
+  for (const test of liveTests(evaluations)) {
+    const items = test.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.fixed === null && cell.verdict === 'restricted' && cell.restriction != null ? [`${measurementWhere(test, row, cell)}: ${cell.restriction.reason}`] : [])));
+    if (items.length === 0) continue;
+    const hasOut = test.rows.some((row) => row.cells.some((cell) => cell.fixed === null && cell.verdict === 'out'));
+    out.push({ testKey: test.testKey, title: test.title, label: test.label, items, hasOut });
+  }
+  return out;
+}
+
 // --- the continuous Enter run ---------------------------------------------------------------------
 
 function sameMeasurementAddress(a: MeasurementAddress, b: MeasurementAddress): boolean {
@@ -1026,6 +1336,20 @@ export function measurementRunTarget(
   return 'end';
 }
 
+/** The first stop of the measurement run, empty or not; null when no test switched on and run has a typed number cell. */
+export function measurementRunStart(evaluations: readonly MeasurementTestEvaluation[]): MeasurementAddress | null {
+  return measurementRunBlocks(evaluations)[0]?.[0]?.address ?? null;
+}
+
+/** The first empty stop of the measurement run (where Enter lands coming from the seeded tables), or null when every stop holds a value. */
+export function firstMeasurementRunCell(evaluations: readonly MeasurementTestEvaluation[]): MeasurementAddress | null {
+  for (const block of measurementRunBlocks(evaluations)) {
+    const empty = block.find((cell) => cell.state === 'empty');
+    if (empty !== undefined) return empty.address;
+  }
+  return null;
+}
+
 /** The mobile keyboard's Enter key label of a run cell (`runEnterKeyHint`'s rule): `next` while Enter moves to another cell, else `done`. */
 export function measurementRunEnterKeyHint(evaluations: readonly MeasurementTestEvaluation[], address: MeasurementAddress): 'next' | 'done' {
   const target = measurementRunTarget(evaluations, address, 'next');
@@ -1041,9 +1365,11 @@ function testOf(definition: Pick<BlockDefinition, 'measurement_tests'> | null, t
 }
 
 /** A measurement test's heading ("E1 · Resistência de contato"), or null when the definition has no such test. */
-export function measurementTestTitle(definition: Pick<BlockDefinition, 'measurement_tests'> | null, testKey: string): string | null {
+export function measurementTestTitle(definition: (Pick<BlockDefinition, 'measurement_tests'> & Partial<Pick<BlockDefinition, 'tests' | 'block_type'>>) | null, testKey: string): string | null {
   const found = testOf(definition, testKey);
-  return found === null ? null : `E${found.number} · ${found.test.label}`;
+  if (found === null) return null;
+  // Story 23.15 (seed v13): a seeded FO.SERV-03 type's measurement test is named by its label alone.
+  return measurementTestsUnnumbered(definition) ? found.test.label : `E${found.number} · ${found.test.label}`;
 }
 
 /** A table cell's name ("Polo C · Lado Emergência"), or null when the address is outside the test. */

@@ -126,12 +126,12 @@ export function temperatureFactor(temperature: TestTemperature | null): number |
  * significant figures (the precision of the table's factor), a dot-decimal raw ("8", "6.96",
  * "2610"); null for a product that is not a positive finite number.
  */
-export function correctedRaw(value: number, factor: number): string | null {
+export function correctedRaw(value: number, factor: number, digits = 3): string | null {
   const product = value * factor;
   if (!Number.isFinite(product) || product <= 0) return null;
-  const magnitude = Math.floor(Math.log10(product));
-  const rounded = Number(product.toPrecision(3));
-  return canonicalDecimal(rounded.toFixed(Math.max(0, 2 - magnitude)));
+  const rounded = Number(product.toPrecision(digits));
+  const magnitude = Math.floor(Math.log10(rounded));
+  return canonicalDecimal(rounded.toFixed(Math.max(0, digits - 1 - magnitude)));
 }
 
 // --- the texts (authored, Story 23.5, listed for Bruno; the oil line verbatim from `60-ficha.html` #/ficha/TR1) ---
@@ -222,4 +222,88 @@ export function temperatureView(test: TestDef, temperature: TestTemperature | nu
 export function correctedText(raw: string, unit: string | null): string {
   const value = formatDecimalGroupedPtBr(raw);
   return unit === null || unit === '' ? value : `${value} ${unit}`;
+}
+
+// --- batch e23t: the winding resistance at 75 °C (Story 23.15, seed v13) ---------------------------
+
+/** The reference temperature of the winding correction, °C. */
+export const WINDING_REFERENCE_C = 75;
+/**
+ * The significant figures a winding value corrected to 75 °C keeps: four, so a deviation of a few
+ * tenths of a percent (the 2 % history rule) is never made by the rounding.
+ */
+export const WINDING_DIGITS = 4;
+
+/** What a winding correction (`winding_correction`) reads of the plate: the material select and the two temperature fields. */
+export interface WindingCorrectionKeys {
+  material_field: string;
+  oil_field?: string | undefined;
+  dry_field?: string | undefined;
+}
+
+/** The winding's temperature: the plate field of the medium the oil rule reads, else the cabine's ambient (an unknown medium reads the ambient); else none. */
+export type WindingTemperature = { celsius: number; source: TemperatureSource } | { missing: 'temperature' } | { missing: 'range'; celsius: number; source: TemperatureSource };
+
+/**
+ * Story 23.15: the temperature a winding resistance is corrected from: TEMPERATURA DO ÓLEO on an oil
+ * unit, TEMPERATURA DO ENROLAMENTO on a dry one (the definition's oil rule decides), the cabine's
+ * ambient while that field is empty or the medium unknown; outside -10 °C to 110 °C, none.
+ */
+export function windingTemperature(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'oil_rule' | 'nameplate'>, keys: WindingCorrectionKeys, visit: VisitContext): WindingTemperature {
+  const medium = mediumOf(definition, block);
+  const field = medium === 'oil' ? keys.oil_field : medium === 'dry' ? keys.dry_field : undefined;
+  const plate = plateCelsius(block, field);
+  const found: { celsius: number; source: TemperatureSource } | null =
+    plate !== null ? { celsius: plate, source: medium === 'oil' ? 'oil' : 'winding' } : visit.ambientC !== null ? { celsius: visit.ambientC, source: 'ambient' } : null;
+  if (found === null) return { missing: 'temperature' };
+  if (!(found.celsius >= CORRECTION_MIN_C && found.celsius <= CORRECTION_MAX_C)) return { missing: 'range', ...found };
+  return found;
+}
+
+/** The winding's material, Cu or Al, from the plate select (aliases resolved); null while empty or another value. */
+export function windingMaterial(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, keys: WindingCorrectionKeys): 'Cu' | 'Al' | null {
+  const field = definition.nameplate.find((candidate) => candidate.key === keys.material_field);
+  if (field === undefined) return null;
+  const option = selectOptionFor(field, block.sheet.nameplate[keys.material_field]?.value);
+  return option === 'Cu' || option === 'Al' ? option : null;
+}
+
+/** The factor that brings a winding resistance at the resolved temperature to 75 °C, or null without a temperature or a material. */
+export function windingFactor(temperature: WindingTemperature, material: 'Cu' | 'Al' | null): number | null {
+  if (material === null || 'missing' in temperature) return null;
+  return windingResistanceTo75(1, temperature.celsius, material);
+}
+
+// authored (Story 23.15, listed for Bruno): the winding test's headers, lead and requests.
+export const WINDING_COLUMN_HEADER = 'Corrigido a 75 °C';
+export const WINDING_PRINT_HEADER = '75 °C';
+export const WINDING_CELL_LEAD = 'A 75 °C:';
+
+/** Story 23.15: what the winding test shows and prints about its temperature, as `temperatureView` does for the insulation. */
+export function windingTemperatureView(keys: WindingCorrectionKeys, temperature: WindingTemperature, medium: 'oil' | 'dry' | null): TestTemperatureView {
+  const fixed = { header: WINDING_COLUMN_HEADER, printHeader: WINDING_PRINT_HEADER, cellLead: WINDING_CELL_LEAD };
+  if (!('missing' in temperature)) {
+    return {
+      ...fixed,
+      state: 'corrected',
+      line: { label: TEMPERATURE_LINE_LABEL, value: celsiusText(temperature.celsius), note: `${SOURCE_LINE[temperature.source]} · os valores são corrigidos a ${WINDING_REFERENCE_C} °C` },
+      print: `${celsiusText(temperature.celsius)} (${SOURCE_PRINT[temperature.source]})`,
+    };
+  }
+  if (temperature.missing === 'range') {
+    return {
+      ...fixed,
+      state: 'out_of_range',
+      line: { label: TEMPERATURE_LINE_LABEL, value: celsiusText(temperature.celsius), note: `${SOURCE_LINE[temperature.source]} · fora da faixa de correção (${celsiusText(CORRECTION_MIN_C)} a ${celsiusText(CORRECTION_MAX_C)}): os valores não são corrigidos` },
+      print: `${celsiusText(temperature.celsius)} (${SOURCE_PRINT[temperature.source]})`,
+    };
+  }
+  const field = medium === 'oil' ? keys.oil_field : medium === 'dry' ? keys.dry_field : undefined;
+  const where = field === undefined ? 'a temperatura do ambiente de ensaio no local' : `a temperatura ${medium === 'oil' ? 'do óleo' : 'do enrolamento'} na placa ou a do ambiente de ensaio no local`;
+  return { ...fixed, state: 'missing_temperature', line: { label: TEMPERATURE_LINE_LABEL, value: '—', note: `Informe ${where}: sem ela, os valores não são corrigidos a ${WINDING_REFERENCE_C} °C.` }, print: DASH };
+}
+
+/** Story 23.15: the request of a winding test whose plate names no material ("Informe o campo MATERIAL DO ENROLAMENTO na placa …"). */
+export function windingMaterialMissingText(label: string): string {
+  return `Informe o campo ${label} na placa para corrigir os valores a ${WINDING_REFERENCE_C} °C.`;
 }

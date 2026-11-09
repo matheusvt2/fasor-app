@@ -49,6 +49,10 @@ import sharp from 'sharp';
  * voltage, drive and maker's times; the seccionadora's type, fuse current and MOTORIZADO; the TP's
  * voltages over √3 and its NBR 6855 group; the TC's "200-5"; the arrester's MCOV and housing; a
  * cable's class, insulation, section and termination), no block type's default either.
+ *
+ * Batch e23t (Story 23.17) adds two seed v13 transformer plates: one printing the ANP class and no
+ * insulation or liquid word (`transformador_forca_tipo_b_v13`), one naming a silicone liquid
+ * (`transformador_forca_silicone_v13`).
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -363,6 +367,39 @@ const PLATES: PlateSpec[] = [
       { key: 'corrente_nominal', tokens: ['10', 'kA'], value: num('10', 'kA') },
       { key: 'mcov_kv', tokens: ['12,7', 'kV'], value: num('12.7', 'kV') },
       { key: 'involucro', tokens: ['POLIMÉRICO'], value: 'POLIMÉRICO' },
+    ],
+  },
+  // Batch e23t (Story 23.17, seed v13): two oil transformer plates, no block type's default either. The first prints the
+  // ANP class ("Tipo óleo isolante B") and no insulation or liquid word: its answer gives TIPO (ANP) alone and the kernel
+  // composes TIPO DE ISOLAÇÃO ÓLEO ISOLANTE and NATUREZA DO LÍQUIDO MINERAL, to verify. The second names a silicone liquid.
+  {
+    blockType: 'transformador_forca',
+    name: 'transformador_forca_tipo_b_v13',
+    seedVersion: 'v13',
+    file: 'plate-transformador-tipo-b-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TR-06'], value: 'TR-06' },
+      { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
+      { key: 'tipo', tokens: ['TRICAST'], value: 'TRICAST' },
+      { key: 'tipo_anp', label: ['Tipo', 'óleo', 'isolante'], tokens: ['B'], value: 'B', citeLabel: true },
+      { key: 'potencia_nominal', tokens: ['500', 'kVA'], value: num('500', 'kVA') },
+      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      { key: 'tensao_nominal_bt', tokens: ['220', 'V'], value: num('220', 'V') },
+    ],
+  },
+  {
+    blockType: 'transformador_forca',
+    name: 'transformador_forca_silicone_v13',
+    seedVersion: 'v13',
+    file: 'plate-transformador-silicone-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TR-07'], value: 'TR-07' },
+      { key: 'fabricacao', tokens: ['Varnelo'], value: 'Varnelo' },
+      { key: 'tipo_de_isolacao', label: ['Isolação'], tokens: ['ÓLEO', 'ISOLANTE'], value: 'ÓLEO ISOLANTE' },
+      { key: 'natureza_liquido', label: ['Líquido', 'isolante'], tokens: ['SILICONE'], value: 'SILICONE' },
+      { key: 'potencia_nominal', tokens: ['300', 'kVA'], value: num('300', 'kVA') },
+      { key: 'tensao_nominal_at', tokens: ['13,8', 'kV'], value: num('13.8', 'kV') },
+      { key: 'tensao_nominal_bt', tokens: ['380', 'V'], value: num('380', 'V') },
     ],
   },
   {

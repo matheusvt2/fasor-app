@@ -160,6 +160,9 @@ describe('batch e23v the conclude judges under the visit context of the fresh ro
     delete tf.sheet.nameplate.temperatura_oleo_c;
     // The fixture's rule-made TTR readings fail it: switched off, so the insulation alone decides.
     (tf.config as { sub_blocks: Record<string, { enabled: boolean }> }).sub_blocks.relacao_transformacao = { enabled: false };
+    // Batch e23t (seed v13): the winding resistance and the oil sampling the fixture leaves empty, switched off too.
+    (tf.config as { sub_blocks: Record<string, { enabled: boolean }> }).sub_blocks.resistencia_enrolamento = { enabled: false };
+    (tf.config as { sub_blocks: Record<string, { enabled: boolean }> }).sub_blocks.coleta_oleo = { enabled: false };
     tf.sheet.test.isolacao!.cells['0']!['1'] = cell({ raw: '2', unit: 'GΩ', state: 'measured' });
     // No pair, no text: the conclude writes both, from the floor of the fresh rows (Com restrições, whose sheet
     // observation is already written, so the sheet is complete).

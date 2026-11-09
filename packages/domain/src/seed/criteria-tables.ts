@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { criterionSourceSchema } from './measurement.ts';
+import { criterionRowStatusSchema, criterionSourceSchema, CRITERION_ROW_STATUSES, type CriterionRowStatus } from './measurement.ts';
 
 /*
  * Story 23.2 (seed v13, Bruno's test base rev08, Matheus's decisions of 2026-11-08): the two
@@ -22,10 +22,8 @@ import { criterionSourceSchema } from './measurement.ts';
  * no procedure, recommendation or note text of the standard or of the base is copied here.
  */
 
-/** The base's four statuses of a criterion row (rev08's STATUS column). */
-export const CRITERION_ROW_STATUSES = ['CONFIRMADO', 'CONFERIR NA NORMA', 'FABRICANTE', 'PADRÃO FASOR'] as const;
-export const criterionRowStatusSchema = z.enum(CRITERION_ROW_STATUSES);
-export type CriterionRowStatus = z.infer<typeof criterionRowStatusSchema>;
+/** The base's four statuses of a criterion row (rev08's STATUS column); batch e23t moved them to `measurement.ts`, which the measurement grammar reads. */
+export { CRITERION_ROW_STATUSES, criterionRowStatusSchema, type CriterionRowStatus };
 
 /** One row of a criterion table: its rated-voltage bound, its test voltage and its minimum (one, or one per medium). */
 export const criterionTableRowSchema = z.object({

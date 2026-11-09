@@ -208,7 +208,7 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
 function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>, visit: VisitContext): SheetStepProgress {
   const evaluations = sheetReadings(block, definition, visit);
   const cells = evaluatedCells(evaluations);
-  const measurements = measurementCounts(sheetMeasurements(block, definition));
+  const measurements = measurementCounts(sheetMeasurements(block, definition, visit));
   // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
   // only while the plate that holds LIGAÇÃO SECUNDÁRIA can be filled (its sub-block enabled).
   // Fix batch e23g (R2-3): only a required row counts (`tapRowRequired`: every v11/v12 row; on a v13

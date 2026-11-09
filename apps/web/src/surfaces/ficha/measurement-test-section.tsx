@@ -28,6 +28,7 @@ import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import { TestHelpAction } from './test-help-dialog.tsx';
+import { TemperatureLine } from './corrected-value.tsx';
 
 /*
  * Story 14.5 (`63-ficha-cta.html`): the measurement tests of a library type's sheet, the
@@ -186,13 +187,28 @@ function MeasurementTestSection({
               readOnly={readOnly}
             />
           )}
-          {above.length === 0 ? null : <div className={above.some((item) => item.kind === 'choice') ? 'test-options' : 'test-fields'}>{above.map(value)}</div>}
-          {test.valuesLine === null ? null : (
-            <p className="cta-method-tag" data-testid="measurement-values-line">
-              {test.valuesLine.text}
-            </p>
+          {/* Batch e23t (Story 23.17, `60-ficha.html` #/ficha/TR1 "Coleta de óleo"): a one-cell choice test is the frame's `.v13-choice`. */}
+          {isSingleChoice(test) ? (
+            <SingleChoiceTest api={api} test={test} readOnly={readOnly} />
+          ) : (
+            <>
+              {above.length === 0 ? null : <div className={above.some((item) => item.kind === 'choice') ? 'test-options' : 'test-fields'}>{above.map(value)}</div>}
+              {test.valuesLine === null ? null : (
+                <p className="cta-method-tag" data-testid="measurement-values-line">
+                  {test.valuesLine.text}
+                </p>
+              )}
+              {/* Batch e23t (Story 23.15): the temperature the values are corrected from, the kernel's line (e23v's `.v13-line`). */}
+              <TemperatureLine test={test} />
+              <MeasurementTestTable api={api} test={test} readOnly={readOnly} onRun={onRun} />
+              {/* Batch e23t (Stories 23.15 and 23.19): the kernel's requests under the table (the material, TIPO DE ISOLAÇÃO). */}
+              {(test.notes ?? []).map((note) => (
+                <p key={note} className="helper" data-tone="amber" data-measurement-note="">
+                  {note}
+                </p>
+              ))}
+            </>
           )}
-          <MeasurementTestTable api={api} test={test} readOnly={readOnly} onRun={onRun} />
           {test.groups.map((group) => (
             <div key={group.label} className="test-fields">
               <p className="np-group">{group.label}</p>
@@ -203,6 +219,65 @@ function MeasurementTestSection({
         </AppliedBody>
       ) : null}
     </section>
+  );
+}
+
+/** The oil sampling's test key (seed v13, Story 23.17), the one test the frame draws as `.v13-choice` with its helper copy. */
+const OIL_SAMPLING_TEST = 'coleta_oleo';
+
+/** Batch e23t (Story 23.17): the oil sampling, one row and one choice column of two options, drawn as the frame's `.v13-choice`. */
+function isSingleChoice(test: MeasurementTestEvaluation): boolean {
+  const [row] = test.rows;
+  const [column] = test.columns;
+  return test.testKey === OIL_SAMPLING_TEST && test.rows.length === 1 && test.columns.length === 1 && row !== undefined && column !== undefined && column.kind === 'choice' && (row.cells[0]?.options.length ?? 0) <= SEGMENTED_OPTIONS;
+}
+
+/**
+ * Batch e23t (Story 23.17, `60-ficha.html` #/ficha/TR1 "Coleta de óleo"): the row's label over its
+ * choice (the sheet's choice cell, a Segmented control), the frame's helper, and each value the kernel
+ * shows under it (`shown`, the Motivo under "Não coletado") as the frame's `.v13-reason` chips, a
+ * `sheet/{b}/test/{t}/value/{key}` put each.
+ */
+function SingleChoiceTest({ api, test, readOnly }: { api: FichaApi; test: MeasurementTestEvaluation; readOnly: boolean }) {
+  const t = copy.ficha.measurement;
+  const labelId = useId();
+  const row = test.rows[0]!;
+  const cell = row.cells[0]!;
+  const reasons = test.values.filter((value) => value.shown && value.kind === 'choice');
+  const choose = (value: EvaluatedMeasurementValue, optionKey: string) => {
+    void api.edit((_blocks, by) => [testValueOp(by, api.relatorioId, api.blockId, test.testKey, value.key, choiceValue(optionKey))]).catch(() => undefined);
+  };
+  return (
+    <div className="v13-choice" data-row-key={row.key}>
+      <span className="field-label" id={labelId}>
+        {row.label}
+      </span>
+      <ChoiceCell api={api} cell={cell} label={measurementWhere(test, row, cell)} readOnly={readOnly} />
+      <p className="helper">{t.samplingHelper}</p>
+      {reasons.map((value) => (
+        <div key={value.key} className="v13-reason" data-value-key={value.key} data-missing-field={value.missing ? '' : undefined}>
+          <span className="field-label">{value.label}</span>
+          <div className="chip-row chips-recent" role="group" aria-label={t.samplingReasonGroup}>
+            {value.options.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                className="chip"
+                aria-pressed={value.state === 'measured' && value.raw === option.key}
+                disabled={readOnly}
+                data-value={option.key}
+                onClick={() => {
+                  if (!(value.state === 'measured' && value.raw === option.key)) choose(value, option.key);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="helper">{t.samplingReasonHelper}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -319,8 +394,30 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
   const control = (row: EvaluatedMeasurementRow, cell: EvaluatedMeasurementCell, presentation: 'table' | 'card'): ReactNode => {
     const label = measurementWhere(test, row, cell);
     if (cell.kind === 'choice') return <ChoiceCell api={api} cell={cell} label={label} readOnly={readOnly} />;
-    if (readOnly) return <ReadOnlyMeasurementField cell={cell} label={label} />;
-    return <MeasurementField api={api} cell={cell} label={label} presentation={presentation} missing={cell.missing} onRun={onRun} />;
+    // Batch e23t (Story 23.15): a value corrected to 75 °C stands under its reading, the kernel's words ("A 75 °C: 1,17 Ω calc.").
+    const corrected = test.temperature === undefined || (cell.corrected ?? null) === null ? null : (
+      <p className="card-dims corrected-line" data-corrected-line={`${cell.address.row}/${cell.address.col}`}>
+        {test.temperature.cellLead} <b className="t-value">{cell.corrected!.text}</b>
+        <span className="calc-mark" aria-hidden="true">
+          {ui.measurementField.calcMark}
+        </span>
+        <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
+      </p>
+    );
+    if (readOnly) {
+      return (
+        <>
+          <ReadOnlyMeasurementField cell={cell} label={label} />
+          {corrected}
+        </>
+      );
+    }
+    return (
+      <>
+        <MeasurementField api={api} cell={cell} label={label} presentation={presentation} missing={cell.missing} onRun={onRun} />
+        {corrected}
+      </>
+    );
   };
 
   return (

@@ -95,3 +95,32 @@ describe('22.9 plumbing: the printed class reaches EXATIDÃO through the parser 
     expect(rowOf(buildReadingSuggestions(input('tc', 'v11', ['0,6C25'], values([value('exatidao', '0,6C25', ['t0'])]))).rows, 'exatidao')).toMatchObject({ value: '0,6C25' });
   });
 });
+
+describe('23.17 plumbing (batch e23t, seed v13): the ANP class composes the oil insulation and a mineral liquid', () => {
+  const words = ['TIPO', 'TRICAST', 'Tipo', 'óleo', 'isolante', 'B', 'Líquido', 'SILICONE'];
+  const oilWords = ['t2', 't3', 't4', 't5'];
+
+  it('"Tipo óleo isolante B" on a v13 transformer: TIPO (ANP) B, NATUREZA DO LÍQUIDO MINERAL and TIPO DE ISOLAÇÃO ÓLEO ISOLANTE, both composed to verify citing the oil words', () => {
+    const { rows, dropped } = buildReadingSuggestions(input('transformador_forca', 'v13', words, values([value('tipo', 'TRICAST', ['t1']), value('tipo_anp', 'B', oilWords)])));
+    expect(dropped).toEqual([]);
+    expect(rowOf(rows, 'tipo_anp')).toMatchObject({ value: 'B' });
+    expect(rowOf(rows, 'natureza_liquido')).toMatchObject({ value: 'MINERAL', trust: 'verify', source: { ocr_token_ids: oilWords } });
+    expect(rowOf(rows, 'tipo_de_isolacao')).toMatchObject({ value: 'ÓLEO ISOLANTE', trust: 'verify', source: { ocr_token_ids: oilWords } });
+    expect(rows.map((row) => row.target_path.split('/').at(-1))).toEqual(['tipo', 'tipo_de_isolacao', 'natureza_liquido', 'tipo_anp']);
+  });
+
+  it('a liquid the plate names stands (silicone); "NÃO INFORMADO" composes nothing; the v12 TIPO DO ÓLEO is no v13 key', () => {
+    const silicone = buildReadingSuggestions(input('transformador_forca', 'v13', words, values([value('natureza_liquido', 'SILICONE', ['t7']), value('tipo_de_isolacao', 'ÓLEO ISOLANTE', ['t6', 't7'])])));
+    expect(rowOf(silicone.rows, 'natureza_liquido')).toMatchObject({ value: 'SILICONE' });
+    expect(rowOf(silicone.rows, 'tipo_anp')).toBeUndefined();
+    const unknown = buildReadingSuggestions(input('transformador_forca', 'v13', [...words, 'NÃO', 'INFORMADO'], values([value('tipo_anp', 'NÃO INFORMADO', ['t8', 't9'])])));
+    expect(rowOf(unknown.rows, 'natureza_liquido')).toBeUndefined();
+    expect(rowOf(unknown.rows, 'tipo_de_isolacao')).toBeUndefined();
+    expect(buildReadingSuggestions(input('transformador_forca', 'v13', words, values([value('tipo_do_oleo', 'B', oilWords)]))).dropped).toEqual([{ key: 'tipo_do_oleo', reason: 'unknown_key' }]);
+  });
+
+  it('an older ÓLEO MINERAL read on v13 is stored as ÓLEO ISOLANTE', () => {
+    const { rows } = buildReadingSuggestions(input('transformador_forca', 'v13', ['ÓLEO', 'MINERAL'], values([value('tipo_de_isolacao', 'ÓLEO MINERAL', ['t0', 't1'])])));
+    expect(rowOf(rows, 'tipo_de_isolacao')).toMatchObject({ value: 'ÓLEO ISOLANTE' });
+  });
+});
