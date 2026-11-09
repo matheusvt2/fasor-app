@@ -215,6 +215,20 @@ None of these is guessed. Each one is a DoR blocker or an out-of-scope note in i
 | M-5 | The coordinator's reading is taken; Story 23.1 draws it for his approval. |
 | M-6 | The coordinator's reading is taken: at a local, printed under "Outros equipamentos". |
 
+## Bruno's answers on the open items (2026-11-09, through Matheus)
+
+The answers in his words and their full mapping are in `docs/context/epic-23/respostas-bruno-rev08-2026-11-08.md` § 5 (gitignored).
+
+| Item | Answer | Effect |
+| --- | --- | --- |
+| B-1 | Keep the number beside the legend, to be improved later | No band is built from a vague term. Showing the measured number beside the legend is a later improvement, outside Epic 23 (the coordinator's reading). |
+| B-2 | The Fasor TTR is single-phase | Closed. √3/2 stays (decision N). |
+| B-3 | "ok" | The "Tipo (ANP)" field ships as decided, with no criterion (the coordinator's reading). |
+| B-4 | The TP needs the insulation field on every model | In scope: a dated line with criteria under Story 23.2, built by the wave 2 fix batch. |
+| B-5 | The notice is ok | Closed. It stays as built. |
+| B-6 | A rise of 50 % is Reprovado | In scope: a dated line with criteria under Story 23.14, built by the wave 2 fix batch. |
+| B-7 | VLF on IEEE 400.2-2024 and NETA 2023; vegetable oil, thermography and "Como ensaiar" confirmed | Closed, except question 36 (the recommendation), which he has not confirmed. |
+
 ## Checklist record
 
 | Item | Status | Note |
