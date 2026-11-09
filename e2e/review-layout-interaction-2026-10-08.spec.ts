@@ -781,7 +781,13 @@ test('@p1 R8LAY-E2E-009 the TP ratio table at 768, 1024 and 1280, and both ratio
     await page.setViewportSize(size);
     await expect(ttr.locator('table.ficha-ttr')).toBeVisible();
     const geometry = await expectTableWhole(page, ttr, `TP ${size.width}`, 72, inputs.last());
-    if (size.width === 1280) expect(geometry.scroller.scrollWidth, `TP 1280: the table scroller scrolls: ${geometry.columns}`).toBeLessThanOrEqual(geometry.scroller.clientWidth);
+    // ~~At 1280 the table scroller does not scroll.~~ (2026-11-09, batch e23e, Story 23.18: the v13 TP ratio table gains the
+    // POLARIDADE column; the Story 23.1 frame `60-ficha.html` #/ficha/TP-C16 lets that table scroll inside its box,
+    // `.section:has(.ficha-ttr-pol) { min-width: 0 }`, "never widens the page".) The page never scrolls sideways.
+    if (size.width === 1280) {
+      expect(geometry.columns, 'TP 1280: the POLARIDADE column is drawn').toContain('Polaridade');
+      await expectNoOverflow(page, 'page');
+    }
   }
   // At 390 both ratio tables are their cards.
   await page.setViewportSize({ width: 390, height: 844 });
