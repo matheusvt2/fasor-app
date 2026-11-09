@@ -31,17 +31,17 @@ import { validateTypeDraft } from './validate.ts';
 const testBaseRowSchema = z.looseObject({
   id: z.string(),
   equipamento: z.string(),
-  ensaio: z.string().optional(),
-  objetivo: z.string().optional(),
-  instrumento: z.string().optional(),
-  tensao_corrente_ensaio: z.string().optional(),
-  pontos_medicao: z.string().optional(),
-  procedimento: z.string().optional(),
-  criterio_aprovado: z.string().optional(),
-  criterio_restricao: z.string().optional(),
-  criterio_reprovado: z.string().optional(),
-  norma: z.string().optional(),
-  recomendacao_reprovado: z.string().optional(),
+  ensaio: z.string().nullish(),
+  objetivo: z.string().nullish(),
+  instrumento: z.string().nullish(),
+  tensao_corrente_ensaio: z.string().nullish(),
+  pontos_medicao: z.string().nullish(),
+  procedimento: z.string().nullish(),
+  criterio_aprovado: z.string().nullish(),
+  criterio_restricao: z.string().nullish(),
+  criterio_reprovado: z.string().nullish(),
+  norma: z.string().nullish(),
+  recomendacao_reprovado: z.string().nullish(),
 });
 export type TestBaseRow = z.infer<typeof testBaseRowSchema>;
 
@@ -94,14 +94,13 @@ export const TEST_BASE_ROW_TESTS: Readonly<Record<string, string>> = Object.free
   'GE-01': 'termografia',
 });
 
-/** The base's "no value": empty, blank, or only a dash after trimming. */
-function isNoValue(value: string | undefined): value is undefined {
-  if (value === undefined) return true;
-  const trimmed = value.trim();
-  return trimmed === '' || trimmed === '—' || trimmed === '–' || trimmed === '-';
+/** The base's "no value": absent, null, or made only of whitespace and dashes (-, –, —). */
+function isNoValue(value: string | null | undefined): value is null | undefined {
+  if (value === undefined || value === null) return true;
+  return /^[\s\-–—]*$/u.test(value);
 }
 
-const present = (value: string | undefined): string | null => (isNoValue(value) ? null : value);
+const present = (value: string | null | undefined): string | null => (isNoValue(value) ? null : value);
 
 /** A file's text parsed and checked; the reason when it is not a base. */
 export type TestBaseParse = { ok: true; file: TestBaseFile } | { ok: false; reason: 'json' | 'shape' };
@@ -125,7 +124,7 @@ export function parseTestBaseText(text: string): TestBaseParse {
  */
 export function testBaseHelpOf(row: TestBaseRow): TestHelp {
   const help: TestHelp = {};
-  const set = (key: TestHelpKey, value: string | undefined) => {
+  const set = (key: TestHelpKey, value: string | null | undefined) => {
     const text = present(value);
     if (text !== null) help[key] = text;
   };
@@ -135,7 +134,7 @@ export function testBaseHelpOf(row: TestBaseRow): TestHelp {
   set('connections', row.pontos_medicao);
   set('procedure', row.procedimento);
   // authored (Story 23.12, listed for Bruno): the three levels of the composed criterion.
-  const levels: [string, string | undefined][] = [
+  const levels: [string, string | null | undefined][] = [
     ['Aprovado', row.criterio_aprovado],
     ['Com restrições', row.criterio_restricao],
     ['Reprovado', row.criterio_reprovado],
@@ -283,7 +282,10 @@ export function planTestBaseImport(file: TestBaseFile, ctx: DefinitionContext, s
 /** The import's preview, one sentence per line (the dialog renders each line as a paragraph). */
 export function testBaseImportPreviewText(plan: TestBaseImportPlan): string {
   const lines: string[] = [];
-  if (plan.copies.length === 0) {
+  if (plan.copies.length === 0 && plan.alreadyImported.length === 0) {
+    // authored (Story 23.12, listed for Bruno): no row of the file attaches to a test of the app.
+    lines.push('Nenhum ensaio desta base tem ensaio correspondente no app. Nada será gravado.');
+  } else if (plan.copies.length === 0) {
     // authored (Story 23.12, listed for Bruno): nothing left to import.
     lines.push('Todos os tipos desta base já foram importados. Nada será gravado.');
   } else {

@@ -96,12 +96,29 @@ describe('Story 23.12: the base file', () => {
   });
 
   it('treats empty, blank and dash-only values as no value', () => {
-    for (const none of ['', '   ', '—', '–', '-', ' - ']) {
+    for (const none of ['', '   ', '—', '–', '-', ' - ', '--', '——', '- -', ' –— ']) {
       const row: TestBaseRow = { id: 'DJ-02', equipamento: 'DJ', objetivo: none, recomendacao_reprovado: none };
       expect(testBaseHelpOf(row).objective).toBeUndefined();
       expect(testBaseRecommendationOf(row)).toBeNull();
     }
     expect(testBaseHelpOf({ id: 'DJ-02', equipamento: 'DJ', objetivo: '  texto  ' }).objective).toBe('  texto  ');
+    expect(testBaseHelpOf({ id: 'DJ-02', equipamento: 'DJ', objetivo: '-texto-' }).objective).toBe('-texto-');
+  });
+
+  it('accepts a null text column as no value, and still plans the row', () => {
+    const file = fixture();
+    const raw = JSON.parse(FIXTURE_TEXT) as { ensaios: Record<string, unknown>[] };
+    raw.ensaios = raw.ensaios.map((row) => (row['id'] === 'DJ-02' ? { ...row, norma: null, recomendacao_reprovado: null } : row));
+    const parsed = parseTestBaseText(JSON.stringify(raw));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const dj = rowOf(parsed.file, 'DJ-02');
+    expect(testBaseHelpOf(dj).standard).toBeUndefined();
+    expect(testBaseRecommendationOf(dj)).toBeNull();
+    const copy = planTestBaseImport(parsed.file, EMPTY_DEFINITION_CONTEXT).copies.find((c) => c.equipmentId === 'DJ')!;
+    const test = testOf(copy.duplicate.draft, 'isolacao')!;
+    expect(test.help?.['procedure']).toBe(rowOf(file, 'DJ-02').procedimento);
+    expect(test.recommendation).toBeUndefined();
   });
 });
 
@@ -201,6 +218,7 @@ describe('Story 23.12: the plan over a company with no copies', () => {
     expect(preview).toContain('Disjuntor');
     expect(preview).toContain('Sem ensaio no app: ');
     expect(preview).toContain('CM-02');
+    if (plan.refused.length > 0) expect(preview).toContain('Texto acima de 1000 caracteres, deixado de fora: SC-04.');
     expect(testBaseImportedText(1)).toBe('1 tipo importado da base de ensaios');
     expect(testBaseImportedText(9)).toBe('9 tipos importados da base de ensaios');
     expect(testBaseInvalidText('json')).toContain('Nada foi gravado.');
@@ -227,6 +245,12 @@ describe('Story 23.12: re-import is idempotent and partial', () => {
     const discarded = types.map((type, index) => (index === 0 ? { ...type, removed_at: '2026-11-09T13:00:00.000Z' } : type));
     const again = planTestBaseImport(file, definitionContext(versions, discarded));
     expect(again.copies.map((copy) => copy.label)).toEqual([first.copies[0]!.label]);
+    const others = first.copies.slice(1).map((copy) => copy.label);
+    expect(again.alreadyImported).toEqual(others);
+    const preview = testBaseImportPreviewText(again);
+    expect(preview).toContain(`Cria 1 tipo da empresa`);
+    expect(preview).toContain('Já importado: ');
+    for (const label of others) expect(preview).toContain(label);
   });
 
   it('plans again only a renamed copy', () => {
@@ -241,5 +265,52 @@ describe('Story 23.12: re-import is idempotent and partial', () => {
     const other: EquipmentTypeRow = { ...newEquipmentTypeRow('other', { derived_from: null as never, draft: { ...copy.duplicate.draft } }), derived_from: null };
     const again = planTestBaseImport(file, definitionContext([], [other]));
     expect(again.copies.map((c) => c.label)).toContain(copy.label);
+  });
+});
+
+describe('Story 23.12: texts over the cap', () => {
+  /** The fixture with one DJ-02 column replaced, planned over an empty company; the DJ copy. */
+  function djWith(change: Record<string, string>) {
+    const raw = JSON.parse(FIXTURE_TEXT) as { ensaios: Record<string, unknown>[] };
+    raw.ensaios = raw.ensaios.map((row) => (row['id'] === 'DJ-02' ? { ...row, ...change } : row));
+    const parsed = parseTestBaseText(JSON.stringify(raw));
+    if (!parsed.ok) throw new Error('the changed base does not parse');
+    const plan = planTestBaseImport(parsed.file, EMPTY_DEFINITION_CONTEXT);
+    return { plan, copy: plan.copies.find((copy) => copy.equipmentId === 'DJ')! };
+  }
+
+  it('a recommendation over the cap is left out and the row refused; the copy is still published', () => {
+    const { plan, copy } = djWith({ recomendacao_reprovado: 'r'.repeat(TEST_TEXT_MAX_LENGTH + 1) });
+    const test = testOf(copy.duplicate.draft, 'isolacao')!;
+    expect(test.recommendation).toBeUndefined();
+    expect(test.help?.['procedure']).toBeDefined();
+    expect(plan.refused).toContain('DJ-02');
+    expect(copy.publishable).toBe(true);
+  });
+
+  it('a composed criterion over the cap, each level under it, is left out and the row refused; the copy is still published', () => {
+    const level = 'c'.repeat(400);
+    const { plan, copy } = djWith({ criterio_aprovado: level, criterio_restricao: level, criterio_reprovado: level });
+    const test = testOf(copy.duplicate.draft, 'isolacao')!;
+    expect(test.help?.['criterion']).toBeUndefined();
+    expect(test.help?.['objective']).toBeDefined();
+    expect(test.recommendation).toBeDefined();
+    expect(plan.refused).toContain('DJ-02');
+    expect(copy.publishable).toBe(true);
+  });
+});
+
+describe('Story 23.12: a base with no row the app knows', () => {
+  it('says no row has a test in the app, keeps the unattached line, and plans nothing', () => {
+    for (const text of ['{"ensaios":[]}', '{"ensaios":[{"id":"CM-02","equipamento":"CM"},{"id":"ZZ-09","equipamento":"ZZ"}]}']) {
+      const parsed = parseTestBaseText(text);
+      if (!parsed.ok) throw new Error(text);
+      const plan = planTestBaseImport(parsed.file, EMPTY_DEFINITION_CONTEXT);
+      expect(plan.copies).toEqual([]);
+      expect(plan.alreadyImported).toEqual([]);
+      const lines = testBaseImportPreviewText(plan).split('\n');
+      expect(lines[0]).toBe('Nenhum ensaio desta base tem ensaio correspondente no app. Nada será gravado.');
+      if (plan.unattached.length > 0) expect(lines).toContain('Sem ensaio no app: CM-02 e ZZ-09.');
+    }
   });
 });

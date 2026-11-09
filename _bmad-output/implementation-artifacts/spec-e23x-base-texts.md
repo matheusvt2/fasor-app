@@ -2,7 +2,7 @@
 title: 'e23x: the base''s help and recommendation texts through a private import (Story 23.12, decision M-1 (b), no contract)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '4a0ef642c82707892d490f8b362b149bbb2ac28a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'One story (23.12) in its own wave 3 batch; marked batched because it runs under the epic batch orchestrator beside e23e.'
-deferred: []
+deferred:
+  - summary: >-
+      A company that imported the base never gets texts for tests a later seed adds: held copies are skipped, never updated.
+    evidence: |-
+      planTestBaseImport lists a held copy (same seeded block type and name, not removed) as already imported and plans nothing for it, so a re-import after a new seed adds no text to its new tests. Updating would overwrite the office's edits; that is a product choice (Matheus). v13 deploys once with e23e's tests, so the first production import already sees termografia and the malha.
+    location: >-
+      packages/domain/src/types/test-base-import.ts alreadyHeld
+    severity: medium
+  - summary: >-
+      GE-01 (TODOS, termografia) and AT-01/AT-02 have no positive attach assertion until e23e's seed lands.
+    evidence: |-
+      The kernel test asserts GE-01 attaches iff the seed has termografia; on main fc0aa508 no v13 type has it. Closes when e23x merges e23e and adds the explicit assertions.
+    location: >-
+      packages/domain/src/types/test-base-import.test.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -95,6 +109,30 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-09 — Review pass
+- Layers: Edge Case Hunter, Verification Gap. Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 19 findings — high 0, medium 3, low 13, false 0, maybe-false 3
+- findings:
+  - `[low]` `[patch]` EC1 empty or fully unmapped base previews "Todos os tipos ... já foram importados" — the no-copies branch now distinguishes nothing-attached from all-held; kernel test.
+  - `[low]` `[patch]` EC2 a `null` text column refuses the whole file — text columns `.nullish()`, null is no value; kernel test.
+  - `[low]` `[reject]` EC3 a row whose ID prefix disagrees with its `equipamento` lands on the other copy — the row's own `equipamento` is the base's statement; not met in a real export; a guard adds a branch.
+  - `[low]` `[reject]` EC4 two rows with one ID: the last wins — not met in a real export; dedupe adds a branch.
+  - `[low]` `[patch]` EC5 multi-dash placeholders ("--", "——") stored as text — `isNoValue` reads whitespace-and-dashes only; test extended.
+  - `[medium]` `[defer]` EC6 a company that imported under an older seed never gets texts for tests a later seed adds (held copies are skipped, never updated) — a text-update path is a product decision (overwrite vs keep office edits); v13 deploys once with e23e's tests, so the first production import sees them.
+  - `[low]` `[reject]` EC7 a newline inside a row ID or label splits the preview — not met; IDs are short codes.
+  - `[low]` `[patch]` EC8 `file.text()` rejection unhandled — caught, invalid-file alert shown.
+  - `[low]` `[reject]` EC9 a very large file read whole — the office picks a JSON on purpose; a size cap adds a branch and a number to decide.
+  - `[medium]` `[patch]` EC10 the plan is computed at read time and committed as is; a type list changed under the open preview writes duplicate copies — the parsed file is kept and re-planned on the current ctx at "Importar".
+  - `[maybe-false]` `[reject]` EC11 a null commit after the dialog closed is silent — would need the edit queue's failure path read; if true only low (the queue owns its own error report).
+  - `[low]` `[reject]` EC12 the api test indexes versionIds by plan position — every fixture copy is publishable, so the index is right; test-only.
+  - `[low]` `[patch]` EC13 the tenant pull check passes vacuously when A holds no type — asserts A holds types first.
+  - `[low]` `[reject]` EC14 DialogShell instead of ConfirmDialog — ConfirmDialog cannot omit its confirm; the spec allows "absent or disabled"; same shell and classes.
+  - `[medium]` `[defer]` EC15 claim "a test a later seed adds attaches by itself" holds only for a company that has not imported yet — same root as EC6, deferred with it.
+  - `[maybe-false]` `[patch]` VG1 the preview's refused line and partial "Já importado" line are never asserted — assertions added (pre-verified gap).
+  - `[maybe-false]` `[patch]` VG2 no test of an over-cap recommendation or composed criterion — two kernel cases added (pre-verified gap).
+  - `[maybe-false]` `[defer]` VG3 GE-01's attach path (TODOS) has no positive assertion until e23e's `termografia` lands — tracked in `deferred-work.md`; closes on the e23e merge.
+  - `[low]` `[reject]` VG4 the draft-only path (`publishable === false`) is unreachable with the current seed — defensive; noted, not a gap.
+
 ## Design Notes
 
 Why copies and not an overlay: 23.10/23.11 store the texts on a test definition, of a seed or of a company type; a company overlay on seeded types would need an entity and an op family (a contract). The copies are the existing "Duplicar" path, so they judge and print as their source (e22h S1, e23v), and the office edits them in the type editor. Consequence, listed as a narrowing: the texts show on sheets of the imported company types, not on the library's seeded types.
@@ -110,3 +148,32 @@ Example label set from the synthetic file: "Transformador de força (TR-OL)", "T
 - `pnpm test:api -- src/sync/test-base-import.integration.test.ts` -- green (restart the api container first)
 - `pnpm exec tsx scripts/e2e.ts e2e/test-base-import.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green
 - `pnpm lint && pnpm static` -- clean
+
+## Auto Run Result
+
+Status: done
+
+- **Change.** "Importar base de ensaios" on Modelos > Tipos de equipamento reads the base JSON on the device. `planTestBaseImport` (kernel) turns it into company type copies of the v13 seeded types, one per base equipment and seeded type, named "⟨seeded label⟩ (⟨equipment ID⟩)", with each mapped test's `help` and `recommendation` filled. A preview dialog then shows what will be written, and "Importar" re-plans and writes one batch of the existing `equipment_type` and `equipment_type_version` creates (version 1). There is no route, no op family and no contract. Seed, print and goldens are untouched.
+- **Files.**
+  - `packages/domain/src/types/test-base-import.ts`: the schema, the row and equipment maps, the planner and the derived texts.
+  - `packages/domain/fixtures/test-base/base-ensaios-sintetica.json`: synthetic, with rev08 IDs only.
+  - `apps/web/src/surfaces/templates/type-list.tsx`: the action, the file input and the preview.
+  - `apps/web/src/copy/pt-br.ts`: the static words.
+  - Tests: `types/test-base-import.test.ts`, `type-list-import.test.tsx`, `apps/api/src/sync/test-base-import.integration.test.ts` and `e2e/test-base-import.spec.ts`.
+  - Docs: `docs/kbs/project/test-base.md`, `docs/kbs/log.md` and `deferred-work.md`.
+- **Review.** 19 findings:
+  - 8 patched: EC1, EC2, EC5, EC8, EC10, EC13, VG1 and VG2.
+  - 3 deferred: EC6 and EC15 (one root), and VG3.
+  - 8 rejected, each with its reason in the triage log.
+- **Patched counts by verdict.** 0 high, 1 medium (EC10), 7 low or maybe-false. `followup_review_recommended` is false.
+- **Verification by the implementer.**
+  - Kernel and web: 23 of 23.
+  - Api: 3 of 3 for the new file. The api suite before the patches: 944 passed, 6 skipped, goldens unchanged.
+  - Lint and static: clean.
+  - e2e `test-base-import`: 1 of 1 under the lock.
+  - Touched specs `type-editor`, `company-type-sheet` and `test-recommendation`: 10 of 10.
+  - The batch gate follows.
+- **Residual risks.**
+  - The texts show only on the imported copies, not on the library's types (narrowing).
+  - Copies held by a company are never updated by a re-import (EC6).
+  - GE-01 and AT rows attach only after e23e merges.

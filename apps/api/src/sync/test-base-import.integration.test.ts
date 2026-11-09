@@ -117,6 +117,9 @@ describe('Story 23.12: the base import through the route', () => {
   });
 
   it("company B's pull carries none of A's types, its plan is full, and its push leaves A's types unchanged", async () => {
+    // Not vacuous: A holds the copies the first case pushed.
+    expect(aTypes.length).toBeGreaterThan(0);
+    for (const id of aTypes) expect(await h.rowOf(companyA, 'equipment_type', id)).toBeDefined();
     const paths = await streamPaths(companyB);
     expect(paths.some((path) => aTypes.some((id) => path === equipmentTypePath(id)) || aVersions.some((id) => path === equipmentTypeVersionPath(id)))).toBe(false);
     const plan = planTestBaseImport(FIXTURE, await companyContext(companyB));

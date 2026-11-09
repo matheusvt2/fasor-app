@@ -22,6 +22,7 @@ import {
   type EquipmentBlockType,
   type EquipmentTypeRow,
   type OpDraft,
+  type TestBaseFile,
   type TestBaseImportPlan,
   type TypeDuplicate,
 } from '@app/domain';
@@ -70,7 +71,7 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
   const [retiring, setRetiring] = useState<EquipmentTypeRow | null>(null);
   const inFlight = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const [importPlan, setImportPlan] = useState<TestBaseImportPlan | null>(null);
+  const [importPlan, setImportPlan] = useState<{ file: TestBaseFile; plan: TestBaseImportPlan } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const importTitleId = useId();
   const importBodyId = useId();
@@ -101,16 +102,27 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
    */
   async function readBase(file: File): Promise<void> {
     setImportError(null);
-    const parsed = parseTestBaseText(await file.text());
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setImportError(testBaseInvalidText());
+      return;
+    }
+    const parsed = parseTestBaseText(text);
     if (!parsed.ok) {
       setImportError(testBaseInvalidText(parsed.reason));
       return;
     }
-    setImportPlan(planTestBaseImport(parsed.file, ctx));
+    setImportPlan({ file: parsed.file, plan: planTestBaseImport(parsed.file, ctx) });
   }
 
-  /** "Importar": every copy's create, then its version 1 when publishable, in one batch. */
-  async function importBase(plan: TestBaseImportPlan): Promise<void> {
+  /**
+   * "Importar": re-planned over the current types (a pull or another tab may have landed while the
+   * preview was open), then every copy's create and its version 1 when publishable, in one batch.
+   */
+  async function importBase(base: TestBaseFile): Promise<void> {
+    const plan = planTestBaseImport(base, ctx);
     if (user === null || inFlight.current || plan.copies.length === 0) return;
     inFlight.current = true;
     try {
@@ -262,7 +274,7 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
                 {copy.types.importBase}
               </h2>
               <div id={importBodyId}>
-                {testBaseImportPreviewText(importPlan)
+                {testBaseImportPreviewText(importPlan.plan)
                   .split('\n')
                   .map((line) => (
                     <p key={line} className="t-body">
@@ -274,11 +286,11 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
                 <Button className="btn btn-secondary" autoFocus onPress={close}>
                   {copy.types.cancel}
                 </Button>
-                {importPlan.copies.length === 0 ? null : (
+                {importPlan.plan.copies.length === 0 ? null : (
                   <Button
                     className="btn btn-primary"
                     onPress={() => {
-                      void importBase(importPlan);
+                      void importBase(importPlan.file);
                       close();
                     }}
                   >
