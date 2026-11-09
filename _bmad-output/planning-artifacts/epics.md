@@ -6461,6 +6461,13 @@ So that the relatório follows the standard he signs against, not one number for
 
 *(2026-11-09, built as batch e23a with 23.3 and 23.4, PR #286 merged as `17127590` (contract 34, `V13_HASH` re-pinned by e23b). Narrowings: a row whose nameplate rating or insulation medium is missing falls back to the v12 criterion, with an authored helper line; ACEITÁVEL prints one minimum, or POR LINHA with a per-row column. Open, Matheus with Bruno: a v13 per-row table beside MANUT. ANTERIOR reaches 11 columns and may print at 6,5 or 6 pt (`deferred-work.md`, Epic 23 batch e23a).)*
 
+*(2026-11-09, Bruno's answer to B-4 through Matheus, "Tp precisa do campo isolação para todos os modelos": TP-02's table judging enters scope, built by the wave 2 fix batch. Acceptance criteria:)*
+- Every v13 TP model's plate carries TIPO DE ISOLAÇÃO with the options of the v13 transformer's field. It counts as missing like the other plate fields.
+- TP-02 picks its minimum per row from the base's table by the class voltage and that medium, through `rowCriterion`. An empty medium keeps v12's > 400 MΩ, with the existing fallback helper.
+- The manufacturer's value (23.3) and the instrument limit (23.4) apply to the TP row as to the other insulation rows.
+- v5 to v12 TPs are unchanged, and the layout-lock and Porto Seguro goldens stay byte-equal.
+- Tests: kernel tests for SECA, ÓLEO and empty; a Playwright spec that fills a v13 TP plate, checks the helper and the verdict, and reads the row's minimum in section 9 of the DOCX.
+
 ### Story 23.3: The manufacturer's value on each test, optional (absorbs Story 14.13; contract 34)
 
 **Dev model:** opus · **Effort:** high · one optional "Valor do fabricante" per test of a sheet over the existing `criterion_override` path; the kernel names its source as the manufacturer's; empty, the table or seeded criterion applies; screen control from Story 23.1; print of the manufacturer's value in ACEITÁVEL
@@ -7051,6 +7058,13 @@ So that a contact starting to degrade shows up before it fails.
 - Kernel boundary tests (exactly at the deviation limit, one step past it, a pole over range).
 - A Playwright spec.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, Bruno's answer to B-6 through Matheus, "Resistencia subiu 50% é reprovado": the previous-visit rule on contact resistance enters scope, built by the wave 2 fix batch. Acceptance criteria:)*
+- On v13, a contact-resistance pole more than 50 % above the same pole's value at the previous visit makes the test out (Reprovado). The kernel's reason names the pole and the rise, and the existing chain gives the Reprovado floor and a `reading` point.
+- The previous visit is the one Story 23.6's `VisitContext` gives, after the wave 2 fix to the re-issue ordering. `last_results` carries the contact value per pole if it does not already.
+- No previous value for that pole, or a previous visit on v12, means no judgement. A pole at or below 0 is never a reference.
+- The pole-deviation restriction stays. A pole that is both restricted and out is out.
+- Tests: kernel tests for a rise over, at and under 50 %, a missing previous pole, and a v12 previous visit; a Playwright spec with two visits of one disjuntor where the second reads more than 50 % higher and the section 9 verdict and the point show Reprovado.
 
 ### Story 23.15: Winding resistance on the transformer
 
