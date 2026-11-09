@@ -9,6 +9,7 @@ import {
   configFieldSchema,
   equalsColumnCriterionSchema,
   measurementTestShape,
+  phaseDeviationCriterionSchema,
   relativeToLowestCriterionSchema,
 } from '../seed/measurement.ts';
 import { checklistItemSchema, checkSeedV6Definition, fieldDefSchema, testDefSchema, type OilRule } from '../seed/schema.ts';
@@ -102,6 +103,8 @@ export const companyMeasurementCriterionSchema = z.discriminatedUnion('type', [
   relativeToLowestCriterionSchema,
   equalsColumnCriterionSchema,
   choicePassCriterionSchema,
+  // Batch e23t (Stories 23.15 and 23.19): a copy of a v13 transformer or seccionadora keeps its deviation between phases.
+  phaseDeviationCriterionSchema,
 ]);
 
 /** A measurement test of a company type: Story 14.5's grammar with a free key. */

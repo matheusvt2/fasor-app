@@ -278,7 +278,36 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
   if (part === 'tests' || part === 'measurement_tests') pruneCriteria(next);
   // Batch e23v (Stories 23.5 and 23.6): what a test's correction or restriction reads of the removed field (or of a removed oil rule) goes too.
   if (part === 'nameplate' || part === 'checklist') dropE23vReads(next, part === 'nameplate' ? textOf(removed.key) : null);
+  // Batch e23t (Stories 23.15 and 23.17): what a winding correction or a field's `excused_unless` reads of the removed field (or of a removed oil rule) goes too.
+  if (part === 'nameplate' || part === 'checklist') dropE23tReads(next, part === 'nameplate' ? textOf(removed.key) : null);
   return back(next);
+}
+
+// --- e23t: Stories 23.15 to 23.17 ---
+/**
+ * Batch e23t: a removed nameplate field takes with it what reads it: a measurement test's winding
+ * correction whose material it was goes whole (no material, no correction) and with it the history
+ * rule (it compares corrected values), its `oil_field` or `dry_field` alone (the ambient then stands
+ * in); a field's `excused_unless` naming it (the field then always shows). With no oil rule left, a
+ * deviation criterion read by medium loses its medium (it judges every unit).
+ */
+function dropE23tReads(next: Entry, key: string | null): void {
+  for (const test of (Array.isArray(next.measurement_tests) ? next.measurement_tests : []) as Entry[]) {
+    const correction = test.winding_correction as Entry | undefined;
+    if (correction !== undefined && key !== null) {
+      if (correction.material_field === key) delete test.winding_correction;
+      else {
+        if (correction.oil_field === key) delete correction.oil_field;
+        if (correction.dry_field === key) delete correction.dry_field;
+      }
+    }
+    if (test.winding_correction === undefined) delete test.history_deviation_pct;
+    if (next.oil_rule === undefined) for (const criterion of (Array.isArray(test.criteria) ? test.criteria : []) as Entry[]) if (criterion.type === 'phase_deviation') delete criterion.medium;
+  }
+  if (key === null) return;
+  for (const field of (Array.isArray(next.nameplate) ? next.nameplate : []) as Entry[]) {
+    if ((field.excused_unless as Entry | undefined)?.field === key) delete field.excused_unless;
+  }
 }
 
 // --- e23v: Stories 23.5 and 23.6 ---

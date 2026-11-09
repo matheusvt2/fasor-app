@@ -1,3 +1,4 @@
+import { getDefinition, SEED_VERSION } from '@app/domain';
 import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
 import { signInForDurability } from './support/durability.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -31,6 +32,13 @@ interface OutboxRow {
 
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const written = async (page: Page, path: string) => (await outbox(page)).filter((row) => row.path === path).map((row) => row.value);
+/**
+ * Batch e23t (seed v13, Story 23.19): the HH fuse rows the seccionadora draws after its contact
+ * resistance while TIPO DE SECCIONADORA is empty, read from the kernel; the sheet's one Enter run
+ * goes on into them and ends on the last one.
+ */
+const FUSES = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').measurement_tests?.find((test) => test.key === 'resistencia_fusiveis')?.rows.length ?? 0;
+const RUN_END = FUSES > 0 ? `resistencia_fusiveis:${FUSES - 1}:0` : 'resistencia_contato:2:0';
 const cellInput = (page: Page, key: string) => page.locator(`input[data-cell-input="${key}"]`).filter({ visible: true });
 /** A tap: a real touch on the Chromium projects, the mouse on WebKit. */
 const tap = (page: Page, target: Locator, info: TestInfo) => humanTap(page, target, info, undefined, { touch: true });
@@ -51,22 +59,30 @@ async function openSeccionadora(page: Page, context: BrowserContext): Promise<Se
 test('@p0 13.4-E2E-004 INP-2: every run cell carries enterkeyhint, "done" on the one whose Enter reaches the primary, recomputed as cells fill', async ({ page, context }, info) => {
   test.setTimeout(120_000);
   const { blockId } = await openSeccionadora(page, context);
-  // The chave seccionadora's run: insulation T1 .. (isolacao:0..5:0), then contact resistance (resistencia_contato:0..2:0).
+  // The chave seccionadora's run: insulation T1 .. (isolacao:0..5:0), then contact resistance (resistencia_contato:0..2:0),
+  // then (seed v13, TIPO DE SECCIONADORA empty) the HH fuses (resistencia_fusiveis:0..2:0): one run, "done" on its last cell.
   const all = page.locator('#ficha-step-ensaios input[data-cell-input]');
   await expect(all.first()).toBeVisible();
   const hints = await all.evaluateAll((inputs) => inputs.map((input) => [input.getAttribute('data-cell-input'), input.getAttribute('enterkeyhint')]));
   expect(hints.length).toBeGreaterThan(1);
-  for (const [key, hint] of hints) expect(hint, `${key}`).toBe(key === 'resistencia_contato:2:0' ? 'done' : 'next');
+  expect(hints.map(([key]) => key)).toContain(RUN_END);
+  for (const [key, hint] of hints) expect(hint, `${key}`).toBe(key === RUN_END ? 'done' : 'next');
 
-  // Fill the contact resistance column: the insulation column's last cell now hands Enter to the primary.
-  for (const row of [0, 1, 2]) {
-    const input = cellInput(page, `resistencia_contato:${row}:0`);
-    await tap(page, input, info);
-    await expect(input).toBeFocused();
-    await page.keyboard.type('10');
-    await page.keyboard.press('Enter');
-    await expect.poll(() => written(page, `sheet/${blockId}/test/resistencia_contato/cell/${row}/0`)).toHaveLength(1);
-  }
+  // Fill the contact resistance column, then the fuses: the insulation column's last cell hands Enter on
+  // to the first empty fuse while any is empty, and to the primary once they are filled.
+  const fill = async (testKey: string, rows: number) => {
+    for (let row = 0; row < rows; row++) {
+      const input = cellInput(page, `${testKey}:${row}:0`);
+      await tap(page, input, info);
+      await expect(input).toBeFocused();
+      await page.keyboard.type('10');
+      await page.keyboard.press('Enter');
+      await expect.poll(() => written(page, `sheet/${blockId}/test/${testKey}/cell/${row}/0`)).toHaveLength(1);
+    }
+  };
+  await fill('resistencia_contato', 3);
+  await expect(cellInput(page, 'isolacao:5:0')).toHaveAttribute('enterkeyhint', FUSES > 0 ? 'next' : 'done');
+  await fill('resistencia_fusiveis', FUSES);
   await expect(cellInput(page, 'isolacao:5:0')).toHaveAttribute('enterkeyhint', 'done');
   await expect(cellInput(page, 'isolacao:4:0')).toHaveAttribute('enterkeyhint', 'next');
 });

@@ -22,7 +22,7 @@ import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
  */
 
 const READINGS = new WeakMap<object, WeakMap<object, WeakMap<VisitContext, TestEvaluation[]>>>();
-const MEASUREMENTS = new WeakMap<object, WeakMap<object, readonly MeasurementTestEvaluation[]>>();
+const MEASUREMENTS = new WeakMap<object, WeakMap<object, WeakMap<VisitContext, readonly MeasurementTestEvaluation[]>>>();
 
 function memo<T>(cache: WeakMap<object, WeakMap<object, T>>, block: object, definition: object, compute: () => T): T {
   let byDefinition = cache.get(block);
@@ -47,7 +47,12 @@ export function sheetReadings(block: BlockRow, definition: BlockDefinition, visi
   return value;
 }
 
-/** `evaluateSheetMeasurements`, once per block row and definition. */
-export function sheetMeasurements(block: BlockRow, definition: BlockDefinition): readonly MeasurementTestEvaluation[] {
-  return memo(MEASUREMENTS, block, definition, () => evaluateSheetMeasurements(block, definition));
+/** `evaluateSheetMeasurements`, once per block row, definition and (batch e23t, Story 23.15) visit context. */
+export function sheetMeasurements(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): readonly MeasurementTestEvaluation[] {
+  const byVisit = memo(MEASUREMENTS, block, definition, () => new WeakMap<VisitContext, readonly MeasurementTestEvaluation[]>());
+  const hit = byVisit.get(visit);
+  if (hit !== undefined) return hit;
+  const value = evaluateSheetMeasurements(block, definition, visit);
+  byVisit.set(visit, value);
+  return value;
 }

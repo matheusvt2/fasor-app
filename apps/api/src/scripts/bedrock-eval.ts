@@ -70,6 +70,8 @@ import { renderVariants } from '../storage/variants.ts';
  * unknown cited id, a value naming no option), "-" for no entry. The synthetic set gains the two seed v11 transformer plates
  * of `make-plate-fixtures.ts` (one printing "Dyn1", one drawing a Yyn0 diagram). Story 22.7 adds the
  * seed v12 oil transformer plate (prompt `bedrock-structuring-5`): TIPO is TRICAST and TIPO DO ÓLEO B.
+ * Batch e23t (Story 23.17, prompt `bedrock-structuring-7`) adds two seed v13 transformer plates: the ANP class B
+ * alone (TIPO (ANP) B, the kernel composing the insulation and a mineral liquid) and a silicone liquid.
  *
  * Options: `--models a,b` (default: the four candidates and Nova Pro), `--ocr textract|fake|ocr-svc`,
  * `--dir <folder>`, `--verbose` (one line per reading). The regions are BEDROCK_REGION and
@@ -158,6 +160,29 @@ const SYNTHETIC: Sample[] = [
       kind: 'plate',
       block_type: 'transformador_forca',
       values: { identificacao: 'TR-04', fabricacao: 'Varnelo', tipo: 'TRICAST', tipo_do_oleo: 'B', potencia_nominal: '500', tensao_nominal_at: '13.8', tensao_nominal_bt: '220' },
+    },
+  },
+  // Batch e23t (Story 23.17, prompt `bedrock-structuring-7`): a v13 plate printing the ANP class and no insulation or liquid
+  // word, whose TIPO DE ISOLAÇÃO (ÓLEO ISOLANTE) and NATUREZA DO LÍQUIDO (MINERAL) the kernel composes, to verify; and a v13
+  // plate naming a silicone liquid, which prints no class.
+  {
+    name: 'plate-transformador-tipo-b-v13 (synthetic, seed v13, Story 23.17)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-transformador-tipo-b-v13.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'transformador_forca',
+      seed_version: 'v13',
+      values: { identificacao: 'TR-06', fabricacao: 'Varnelo', tipo: 'TRICAST', tipo_anp: 'B', potencia_nominal: '500', tensao_nominal_at: '13.8', tensao_nominal_bt: '220' },
+    },
+  },
+  {
+    name: 'plate-transformador-silicone-v13 (synthetic, seed v13, Story 23.17)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-transformador-silicone-v13.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'transformador_forca',
+      seed_version: 'v13',
+      values: { identificacao: 'TR-07', fabricacao: 'Varnelo', tipo_de_isolacao: 'ÓLEO ISOLANTE', natureza_liquido: 'SILICONE', potencia_nominal: '300', tensao_nominal_at: '13.8', tensao_nominal_bt: '380' },
     },
   },
   // Story 23.7 (seed v13): one plate per type with the fields v13 adds (fixtures README); the list and the √3 as printed.

@@ -133,6 +133,12 @@ export const SUB_BLOCK_KEYS = [
   'cta_ajustes_controlador',
   'cta_transferencia',
   'cta_termografia',
+  // Appended (seed v13, batch e23t, contract 38): the measurement tests of Stories 23.15, 23.17 and
+  // 23.19, on the transformador de força (winding resistance, oil sampling), the disjuntor (oil
+  // sampling) and the chave seccionadora (HH fuses). Batch e23e appends after them.
+  'resistencia_enrolamento',
+  'coleta_oleo',
+  'resistencia_fusiveis',
 ] as const;
 
 export const subBlockKeySchema = z.enum(SUB_BLOCK_KEYS);

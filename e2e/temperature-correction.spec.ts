@@ -11,7 +11,7 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 /*
  * Story 23.5 (seed v13, decision B; Base rev08 TR-OL-02, table CORRECAO_TEMPERATURA): a v13 oil
  * transformer's insulation judged corrected to 20 °C, as a person records it at 1280 px. The office set
- * the plate (ÓLEO MINERAL, 13,8 kV / 380 V, so the AT rows ask ≥ 5.000 MΩ) and the cabine's ambient
+ * the plate (ÓLEO ISOLANTE, 13,8 kV / 380 V, so the AT rows ask ≥ 5.000 MΩ) and the cabine's ambient
  * (25 °C). The person types TEMPERATURA DO ÓLEO 40 °C on the plate and 2 GΩ on the AT row: the line over
  * the table names the oil, the "Corrigido a 20 °C" column reads 8 GΩ and the row is within (raw it would
  * be out). Clearing the plate temperature, the cabine's 25 °C stands in: the line names the ambient and
@@ -82,7 +82,7 @@ test('@p0 23.5-E2E-001 a v13 oil transformer: 2 GΩ at 40 °C of oil is 8 GΩ at
   await pushDrafts(page, database, [
     ...built.drafts,
     emCampoDraft(account, built.relatorioId),
-    plate('tipo_de_isolacao', 'ÓLEO MINERAL'),
+    plate('tipo_de_isolacao', 'ÓLEO ISOLANTE'),
     plate('tensao_nominal_at', { raw: '13.8', unit: 'kV', state: 'measured' }),
     plate('tensao_nominal_bt', { raw: '380', unit: 'V', state: 'measured' }),
     officeDraft(account, scope, `location/${cabine.id as string}/env/temperature_c`, { raw: '25', unit: '°C', state: 'measured' }),

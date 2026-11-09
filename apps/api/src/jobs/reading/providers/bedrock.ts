@@ -76,7 +76,8 @@ export {
 // 4 (e21f): a drawn diagram is described in the tool's `vector_diagram` facts and composed by the kernel (`composeVectorGroup`), never by the model.
 // 5 (Stories 22.7 and 22.9): TIPO is the maker's designation, never the oil; the oil class and the oil insulation; EXATIDÃO as printed.
 // 6 (Story 23.7, seed v13): TAPS as the plate's whole list in plate order, TAP ATUAL one of them, the winding material, a voltage over √3 and the TC's ratio as printed.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-6';
+// 7 (Story 23.17, seed v13): TIPO (ANP) as the oil's class letter and NATUREZA DO LÍQUIDO only when the plate names the liquid; the kernel composes the rest.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-7';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -226,6 +227,17 @@ export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
     const insulation = field('tipo_de_isolacao');
     const oilOption = insulation?.options?.find((option) => /óleo/i.test(option));
     if (oilOption !== undefined) notes.push(`The field tipo_de_isolacao is ${oilOption} when the plate names an insulating oil ("óleo isolante", "óleo mineral"); leave it out when the plate prints no insulation word.`);
+  }
+  // Story 23.17 (seed v13): TIPO (ANP), the class letter, and NATUREZA DO LÍQUIDO only as printed; the kernel composes the insulation and a mineral liquid from a class (P-2).
+  const anp = field('tipo_anp');
+  if (anp !== undefined) {
+    if (field('tipo') !== undefined) notes.push('The field tipo is the manufacturer\'s type or model designation (for example "TRICAST"), never the insulating oil.');
+    notes.push(`The field tipo_anp is the class letter of the insulating oil: "Tipo óleo isolante B" is tipo_anp = B; give one of: ${(anp.options ?? []).filter((option) => option.length === 1).join(' | ') || 'A | B'}; leave it out when the plate prints no class.`);
+    const liquid = field('natureza_liquido');
+    if (liquid !== undefined) notes.push(`The field natureza_liquido is the insulating liquid the plate names (give one of: ${liquid.options?.join(' | ') ?? ''}); leave it out when the plate names none.`);
+    const insulation = field('tipo_de_isolacao');
+    const oilOption = insulation?.options?.find((option) => /óleo/i.test(option));
+    if (oilOption !== undefined) notes.push(`The field tipo_de_isolacao is ${oilOption} when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.`);
   }
   const exatidao = field('exatidao');
   if (exatidao?.kind === 'select') {

@@ -253,7 +253,7 @@ export function tapFailedRowLabel(tap: EvaluatedTap): string {
  * captures (V PRIMÁRIO and V SECUNDÁRIO come from the plate, drawn as text); on a row off the
  * plate nothing (the fold refuses it). The run walks these cells only.
  */
-export function tapCellTyped(row: { tap: EvaluatedTap | null }, cell: { role: 'capture' | 'input' }): boolean {
+export function tapCellTyped(row: { tap: EvaluatedTap | null }, cell: { role: 'capture' | 'input' | 'index' }): boolean {
   if (row.tap === null) return true;
   return row.tap.onPlate && cell.role === 'capture';
 }

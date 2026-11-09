@@ -58,4 +58,4 @@ export {
   type ParsedManufacturerValue,
   type RowCriterion,
 } from './reading-evaluation.ts';
-export { firstRunCell, runEnterKeyHint, runTarget, unitTapNeedsEdit, worstReadings, type WorstReading } from './reading-run.ts';
+export { firstRunCell, lastRunCell, runEnterKeyHint, runTarget, unitTapNeedsEdit, worstReadings, type WorstReading } from './reading-run.ts';

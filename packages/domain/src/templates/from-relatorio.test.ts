@@ -287,10 +287,11 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
     const row = standardTemplate({ id: TEMPLATE, seedVersion: version });
     expect(row.seed_version).toBe(version);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);
-    // What the server step writes: the same row with only `seed_version` moved.
-    const moved = { ...row, seed_version: SEED_VERSION };
+    // What the server step writes: the same row with only `seed_version` moved, its blocks as the move's
+    // fold leaves them (`withVersionSubBlocks`; batch e23t: the v13 transformer drops IA e IP lidos do visor).
+    const moved = { ...row, seed_version: SEED_VERSION, blocks: withVersionSubBlocks(row.blocks, SEED_VERSION) };
     expect(templateRowSchema.safeParse(moved).success).toBe(true);
-    expect(templateRowSchema.parse(moved)).toEqual({ ...row, seed_version: SEED_VERSION });
+    expect(templateRowSchema.parse(moved)).toEqual(moved);
     expect(templateSeedUpgrade(moved)).toBeNull();
   });
 

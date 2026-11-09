@@ -1057,7 +1057,8 @@ describe('seed v5 (Story 14.5): v4 plus one block type, the Chave de transferên
       'Termografia sob carga',
     ]);
     expect(cta.sub_blocks).toEqual(['nameplate', 'checklist', ...keys, 'observations', 'conclusion']);
-    expect(SUB_BLOCK_KEYS.slice(-6)).toEqual(keys);
+    // Batch e23t appends after them (seed v13): the six stay contiguous where Story 14.5 appended them.
+    expect(SUB_BLOCK_KEYS.slice(SUB_BLOCK_KEYS.indexOf('cta_resistencia_contato'), SUB_BLOCK_KEYS.indexOf('cta_resistencia_contato') + 6)).toEqual(keys);
     expect(tests.map((candidate) => candidate.switchable !== undefined)).toEqual([true, true, true, false, false, true]);
     expect(tests.map((candidate) => candidate.instrument_of ?? null)).toEqual(['resistencia_contato', 'isolacao', 'isolacao', null, null, null]);
     for (const candidate of tests) expect(measurementTestSchema.safeParse(candidate).success, candidate.key).toBe(true);
@@ -2148,7 +2149,8 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
 // the TTR per tap, the dry fields; its block below), re-pinned on main 17127590 merged in.
 // e23v (Stories 23.5, 23.6, 23.14: the temperature correction, the restriction rules, the contact criterion status; its block below).
 // e23w (fix batch, Bruno's answers B-4 and B-6 of 2026-11-09: the TP's Table 100.5, the contact's history_rise_out_pct).
-const V13_HASH = '91fe99b17429076658e94f7df955e9f2c1b5a6d6d2c9ecad62541a2bacc4c32f';
+// e23t (Stories 23.15 to 23.17 and 23.19: the winding resistance, the typed IP, the insulating liquid and the oil sampling, the HH fuses; its block below).
+const V13_HASH = '6b5b0879327a1b580dda4687d0f521dab49a7d80a4a1a5eb685181b622c4bd3d';
 
 describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', () => {
   const v12 = getSeed('v12', 'cabine_primaria');
@@ -2163,8 +2165,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
   });
 
   it('differs from v12 by exactly its stories, and v1 to v12 hash as they shipped', () => {
-    // e23b: batch e23b's delta is undone here and pinned in its own block below; e23v's the same way.
-    const stripped = withoutE23b(withoutE23v(structuredClone(v13) as typeof v13));
+    // e23b: batch e23b's delta is undone here and pinned in its own block below; e23v's and e23t's the same way.
+    const stripped = withoutE23b(withoutE23v(withoutE23t(structuredClone(v13) as typeof v13)));
     // Batch e23a (Stories 23.2 and 23.4): the criterion tables and the instrument-limit note on the insulation tests.
     for (const definition of Object.values(stripped.blocks)) {
       for (const test of definition?.tests ?? []) {
@@ -2316,7 +2318,7 @@ describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of d
 
   it('adds exactly its delta to v12: the appended fields, TAPS and TAP ATUAL in place, the dry fields, the TTR from TAPS, MOTORIZADO, √3, the dash, the cable nameplate', () => {
     // Batch e23a's keys (the criterion tables, the instrument-limit note) are pinned in its own block; e23v's too.
-    const bare = withoutE23b(withoutE23v(structuredClone(v13) as typeof v13));
+    const bare = withoutE23b(withoutE23v(withoutE23t(structuredClone(v13) as typeof v13)));
     for (const definition of Object.values(bare.blocks)) {
       for (const test of definition?.tests ?? []) {
         delete test.criterion_table;
@@ -2326,15 +2328,18 @@ describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of d
     expect(JSON.stringify(bare)).toBe(JSON.stringify(v12));
     for (const [type, keys] of Object.entries(E23B_APPENDED)) {
       const before = keysOf('v12', type).flatMap((key) => (type === 'transformador_forca' && key === 'tap_atual' ? ['taps', 'tap_atual_kv'] : [key]));
-      const added = keysOf('v13', type).filter((key) => !before.includes(key));
+      // Batch e23t's NATUREZA DO LÍQUIDO and TIPO (ANP) are pinned in its own block.
+      const added = (withoutE23t(v13).blocks as Record<string, BlockDefinition | undefined>)[type]!.nameplate.map((field) => field.key).filter((key) => !before.includes(key));
       expect(added, type).toEqual(keys);
     }
     // No test of v13 carries an applicability condition or starts off: every one is "Sempre" (Base rev08).
-    for (const definition of Object.values(v13.blocks)) {
+    // Batch e23t: but the measurement tests it adds (Stories 23.17 and 23.19, pinned in its own block below).
+    for (const definition of Object.values(withoutE23t(v13).blocks)) {
       for (const test of definition!.tests) expect([test.applies_when, test.initial_off], `${definition!.block_type} ${test.key}`).toEqual([undefined, undefined]);
       for (const test of definition!.measurement_tests ?? []) expect([test.applies_when, test.initial_off], `${definition!.block_type} ${test.key}`).toEqual([undefined, undefined]);
     }
-    expect(v13.blocks.transformador_forca.oil_rule).toMatchObject({ fields: ['vol_oleo', 'tipo_do_oleo', 'temperatura_oleo_c'], dry_fields: ['temperatura_enrolamento_c', 'classe_termica'] });
+    // Batch e23t (Story 23.17): TIPO DO ÓLEO gave way to NATUREZA DO LÍQUIDO and TIPO (ANP) (pinned in its own block below).
+    expect(withoutE23t(v13).blocks.transformador_forca.oil_rule).toMatchObject({ fields: ['vol_oleo', 'tipo_do_oleo', 'temperatura_oleo_c'], dry_fields: ['temperatura_enrolamento_c', 'classe_termica'] });
   });
 
   it('pins the options it takes from the base (Base rev08 equipamentos[].campos) and which fields are optional', () => {
@@ -2417,7 +2422,7 @@ describe('seed v13, batch e23v (Stories 23.5, 23.6 and 23.14): the temperature c
 
   it('adds exactly its keys to v13, on the tests the base rows name (Base rev08 TR-OL-02, TR-SE-02, DJ-02, DJ-03, SC-02, SC-03, CB-02, PR-02)', () => {
     // With e23a's and e23b's own deltas undone too, v13 is v12.
-    const bare = withoutE23b(withoutE23v(structuredClone(v13) as typeof v13));
+    const bare = withoutE23b(withoutE23v(withoutE23t(structuredClone(v13) as typeof v13)));
     for (const definition of Object.values(bare.blocks)) {
       for (const one of definition?.tests ?? []) {
         delete one.criterion_table;
@@ -2558,5 +2563,160 @@ describe('the 2026-11-04 option amendment of v1 to v5 (Matheus, for Bruno)', () 
     }
     expect(withLegacyOptions(CABINE_PRIMARIA_V5).blocks.chave_seccionadora.nameplate.find((f) => f.key === 'meio_de_extincao')?.options).toEqual(['AR', 'SF6']);
     expect(options('v7', 'disjuntor_mt', 'meio_de_extincao')).toEqual(['Ar', 'Gás SF6', 'Vácuo', 'Óleo', 'Outro']);
+  });
+});
+
+// --- e23t: Stories 23.15 to 23.17 and 23.19 ---------------------------------------------------------
+
+/** Batch e23t's delta undone, so a v13 holding it compares with v12 (through the other batches' strips) for everything else. */
+function withoutE23t(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const blocks = out.blocks;
+  const transformer = blocks.transformador_forca;
+  transformer.nameplate = transformer.nameplate.flatMap((field): FieldDef[] => {
+    if (field.key === 'tipo_de_isolacao') return [{ ...field, options: ['EPÓXI', 'Á SECO', 'ÓLEO MINERAL'], option_aliases: { ÓLEO: 'ÓLEO MINERAL' } }];
+    if (field.key === 'natureza_liquido') return [{ key: 'tipo_do_oleo', label: 'TIPO DO ÓLEO', kind: 'select', options: ['A', 'B'] }];
+    if (field.key === 'tipo_anp') return [];
+    return [field];
+  });
+  const rule = transformer.oil_rule!;
+  rule.oil_values = ['ÓLEO MINERAL'];
+  rule.fields = rule.fields.flatMap((key) => (key === 'natureza_liquido' ? ['tipo_do_oleo'] : key === 'tipo_anp' ? [] : [key]));
+  for (const test of transformer.tests) {
+    delete test.polarization_index;
+    for (const table of test.tables) for (const column of table.value_columns) if (column.role === 'index') column.role = 'print';
+  }
+  const added = ['resistencia_enrolamento', 'coleta_oleo', 'resistencia_fusiveis'];
+  for (const type of ['transformador_forca', 'disjuntor_mt', 'chave_seccionadora'] as const) {
+    const definition = blocks[type];
+    const kept = (definition.measurement_tests ?? []).filter((test) => !added.includes(test.key));
+    if (kept.length === 0) delete definition.measurement_tests;
+    else definition.measurement_tests = kept;
+    definition.sub_blocks = definition.sub_blocks.filter((key) => !added.includes(key));
+  }
+  transformer.sub_blocks.splice(transformer.sub_blocks.indexOf('isolacao') + 1, 0, 'ia_ip_display');
+  return out;
+}
+
+describe('seed v13, batch e23t (Stories 23.15 to 23.17 and 23.19): the winding resistance, the typed IP, the insulating liquid and the oil sampling, the HH fuses', () => {
+  const v13 = getSeed('v13', 'cabine_primaria');
+  const definition = (type: string) => getDefinition('v13', 'cabine_primaria', type);
+  const measurement = (type: string, key: string) => definition(type).measurement_tests!.find((test) => test.key === key)!;
+
+  it('adds its three sub-blocks to SUB_BLOCK_KEYS, appended in order, and to the three types before OBSERVAÇÕES', () => {
+    expect(SUB_BLOCK_KEYS.slice(-3)).toEqual(['resistencia_enrolamento', 'coleta_oleo', 'resistencia_fusiveis']);
+    expect(definition('transformador_forca').sub_blocks).toEqual(['nameplate', 'checklist', 'isolacao', 'relacao_transformacao', 'resistencia_enrolamento', 'coleta_oleo', 'observations', 'conclusion']);
+    expect(definition('disjuntor_mt').sub_blocks.slice(-3)).toEqual(['coleta_oleo', 'observations', 'conclusion']);
+    expect(definition('chave_seccionadora').sub_blocks.slice(-3)).toEqual(['resistencia_fusiveis', 'observations', 'conclusion']);
+    // The other types gain nothing.
+    for (const type of ['cabos_entrada', 'cabos_saida', 'para_raio', 'tp', 'tc']) expect(definition(type).measurement_tests, type).toBeUndefined();
+  });
+
+  it('Story 23.15: the winding table, its two deviation criteria by medium, the 75 °C correction and the history rule (Base rev08 TR-OL-05, TR-SE-05)', () => {
+    const test = measurement('transformador_forca', 'resistencia_enrolamento');
+    expect(test.label).toBe('Resistência ôhmica dos enrolamentos');
+    expect(test.instrument_of).toBe('resistencia_contato');
+    expect(test.switchable).toBeDefined();
+    expect(test.initial_off).toBeUndefined();
+    expect(test.rows.map((row) => [row.key, row.unit, row.optional ?? false])).toEqual([
+      ['at_tap_atual', 'Ω', false],
+      ['at_primeiro_tap', 'Ω', true],
+      ['at_ultimo_tap', 'Ω', true],
+      ['bt', 'mΩ', false],
+    ]);
+    expect(test.columns.map((column) => column.label)).toEqual(['Fase A', 'Fase B', 'Fase C']);
+    expect(test.criteria.map((criterion) => (criterion.type === 'phase_deviation' ? [criterion.medium, criterion.within_max_pct, criterion.restricted_max_pct, criterion.above] : null))).toEqual([
+      ['oil', 2, 5, 'out'],
+      ['dry', 2, undefined, 'restricted'],
+    ]);
+    expect(test.winding_correction).toEqual({ to_c: 75, material_field: 'material_enrolamento', oil_field: 'temperatura_oleo_c', dry_field: 'temperatura_enrolamento_c' });
+    expect(test.history_deviation_pct).toBe(2);
+  });
+
+  it('Story 23.16: ABSORÇÃO and POLARIZAÇÃO are typed index columns, the IP judged by class, and IA e IP lidos do visor leaves the transformer', () => {
+    const insulation = definition('transformador_forca').tests.find((test) => test.key === 'isolacao')!;
+    const columns = insulation.tables[0]!.value_columns.map((column) => [column.label, column.role]);
+    expect(columns).toEqual([
+      ['30 SEGUNDOS', 'print'],
+      ['1 MINUTO', 'capture'],
+      ['ESTAB./10MIN', 'print'],
+      ['ABSORÇÃO', 'index'],
+      ['POLARIZAÇÃO', 'index'],
+      ['TENSÃO', 'voltage'],
+    ]);
+    expect(insulation.polarization_index).toEqual({ column: 'POLARIZAÇÃO', min: 1, restricted_below: 2, required_on: 'dry', dar_column: 'ABSORÇÃO', status: 'CONFIRMADO' });
+    expect(definition('transformador_forca').sub_blocks).not.toContain('ia_ip_display');
+    // The TP and the TC keep their print columns and their IA e IP lidos do visor.
+    for (const type of ['tp', 'tc']) expect(definition(type).sub_blocks, type).toContain('ia_ip_display');
+  });
+
+  it('Story 23.17: ÓLEO ISOLANTE with its two earlier spellings, NATUREZA DO LÍQUIDO and TIPO (ANP) in place of TIPO DO ÓLEO, the sampling on the transformer and the disjuntor', () => {
+    const plate = definition('transformador_forca').nameplate;
+    const field = (key: string) => plate.find((candidate) => candidate.key === key)!;
+    expect(field('tipo_de_isolacao')).toMatchObject({ options: ['EPÓXI', 'Á SECO', 'ÓLEO ISOLANTE'], option_aliases: { ÓLEO: 'ÓLEO ISOLANTE', 'ÓLEO MINERAL': 'ÓLEO ISOLANTE' } });
+    const keys = plate.map((candidate) => candidate.key);
+    expect(keys.slice(keys.indexOf('tipo_de_isolacao'), keys.indexOf('tipo_de_isolacao') + 3)).toEqual(['tipo_de_isolacao', 'natureza_liquido', 'tipo_anp']);
+    expect(keys).not.toContain('tipo_do_oleo');
+    expect(field('natureza_liquido').options).toEqual(['MINERAL', 'ÉSTER NATURAL (VEGETAL)', 'ÉSTER SINTÉTICO', 'SILICONE']);
+    expect(field('tipo_anp')).toMatchObject({ options: ['A', 'B', 'NÃO INFORMADO'], excused_unless: { field: 'natureza_liquido', in: ['MINERAL'] } });
+    expect(definition('transformador_forca').oil_rule).toMatchObject({ oil_values: ['ÓLEO ISOLANTE'], fields: ['vol_oleo', 'natureza_liquido', 'tipo_anp', 'temperatura_oleo_c'] });
+    // TP and TC keep ÓLEO MINERAL.
+    for (const type of ['tp', 'tc']) expect(definition(type).nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')!.options, type).toEqual(['EPÓXI', 'Á SECO', 'ÓLEO MINERAL']);
+    expect(measurement('transformador_forca', 'coleta_oleo').applies_when).toEqual({ field: 'tipo_de_isolacao', op: 'in', values: ['ÓLEO ISOLANTE'] });
+    expect(measurement('disjuntor_mt', 'coleta_oleo').applies_when).toEqual({ field: 'meio_de_extincao', op: 'in', values: ['Óleo'] });
+    const sampling = measurement('transformador_forca', 'coleta_oleo');
+    expect(sampling.values![0]!.when).toEqual({ cell: { row: 'amostra', column: 'resultado' }, equals: 'nao_coletado' });
+    expect(sampling.criteria[0]).toMatchObject({ type: 'choice_pass', pass: ['coletado', 'nao_coletado'] });
+  });
+
+  it('Story 23.19: the HH fuses by the deviation between fuses, NA unless the seccionadora carries fuses (Base rev08 SC-04)', () => {
+    const test = measurement('chave_seccionadora', 'resistencia_fusiveis');
+    expect(test.criteria[0]).toMatchObject({ type: 'phase_deviation', across: 'rows', within_max_pct: 15, above: 'out' });
+    expect(test.applies_when).toEqual({ field: 'tipo_seccionadora', op: 'in', values: ['SOB CARGA COM FUSÍVEIS'], unmet: 'sem fusíveis' });
+    expect(test.label).toBe('Resistência dos fusíveis HH');
+  });
+
+  it('no definition of v1 to v12 carries any of its keys (AD-21)', () => {
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']) {
+      for (const one of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const test of one?.tests ?? []) {
+          expect(test.polarization_index, `${version} ${one!.block_type}`).toBeUndefined();
+          for (const table of test.tables) for (const column of table.value_columns) expect(column.role, `${version} ${one!.block_type}`).not.toBe('index');
+        }
+        for (const field of one?.nameplate ?? []) expect(field.excused_unless, `${version} ${field.key}`).toBeUndefined();
+        for (const test of one?.measurement_tests ?? []) {
+          expect([test.winding_correction, test.history_deviation_pct], `${version} ${test.key}`).toEqual([undefined, undefined]);
+          for (const criterion of test.criteria) expect(criterion.type, `${version} ${test.key}`).not.toBe('phase_deviation');
+        }
+      }
+    }
+    expect(v13.blocks.transformador_forca.measurement_tests).toBeDefined();
+  });
+
+  it('refuses each bad reference of its keys at load', () => {
+    const base = (): BlockDefinition => structuredClone(definition('transformador_forca'));
+    const refused = (change: (copy: BlockDefinition) => void) => {
+      const copy = base();
+      change(copy);
+      return blockDefinitionSchema.safeParse(copy).success;
+    };
+    expect(refused(() => undefined)).toBe(true);
+    const winding = (copy: BlockDefinition) => copy.measurement_tests!.find((test) => test.key === 'resistencia_enrolamento')!;
+    expect(refused((copy) => (winding(copy).winding_correction!.material_field = 'tipo'))).toBe(false);
+    expect(refused((copy) => (winding(copy).winding_correction!.oil_field = 'potencia_nominal'))).toBe(false);
+    expect(refused((copy) => delete winding(copy).winding_correction)).toBe(false);
+    expect(refused((copy) => delete copy.oil_rule)).toBe(false);
+    const isolacao = (copy: BlockDefinition) => copy.tests.find((test) => test.key === 'isolacao')!;
+    expect(refused((copy) => (isolacao(copy).polarization_index!.column = '1 MINUTO'))).toBe(false);
+    expect(refused((copy) => (isolacao(copy).polarization_index!.dar_column = 'OUTRA'))).toBe(false);
+    expect(refused((copy) => (isolacao(copy).polarization_index!.restricted_below = 0.5))).toBe(false);
+    const anp = (copy: BlockDefinition) => copy.nameplate.find((field) => field.key === 'tipo_anp')!;
+    expect(refused((copy) => (anp(copy).excused_unless = { field: 'natureza_liquido', in: ['ÓLEO'] }))).toBe(false);
+    expect(refused((copy) => (anp(copy).excused_unless = { field: 'potencia_nominal', in: ['MINERAL'] }))).toBe(false);
+    const sampling = (copy: BlockDefinition) => copy.measurement_tests!.find((test) => test.key === 'coleta_oleo')!;
+    expect(refused((copy) => (sampling(copy).values![0]!.when = { cell: { row: 'outra', column: 'resultado' }, equals: 'nao_coletado' }))).toBe(false);
+    expect(refused((copy) => (sampling(copy).values![0]!.when = { cell: { row: 'amostra', column: 'resultado' }, equals: 'talvez' }))).toBe(false);
+    expect(measurementCriterionSchema.safeParse({ type: 'phase_deviation', across: 'rows', within_max_pct: 5, restricted_max_pct: 2, above: 'out', text: 'x', source: { name: 'x', edition: null } }).success).toBe(false);
+    expect(measurementCriterionSchema.safeParse({ type: 'phase_deviation', across: 'rows', within_max_pct: 2, restricted_max_pct: 5, above: 'restricted', text: 'x', source: { name: 'x', edition: null } }).success).toBe(false);
   });
 });

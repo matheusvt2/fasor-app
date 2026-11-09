@@ -78,8 +78,9 @@ describe('23.7-UNIT the v13 nameplate fields (decision K)', () => {
     const v12 = labels('v12', 'transformador_forca');
     const v13 = labels('v13', 'transformador_forca');
     const at = v12.indexOf('TAP ATUAL');
-    expect(v13.slice(0, at)).toEqual(v12.slice(0, at));
-    expect(v13.slice(at, at + 2)).toEqual(['TAPS', 'TAP ATUAL']);
+    // Batch e23t (Story 23.17): TIPO DO ÓLEO gave way in place to NATUREZA DO LÍQUIDO and TIPO (ANP), one label more before TAPS.
+    expect(v13.slice(0, at + 1)).toEqual(v12.slice(0, at).flatMap((label) => (label === 'TIPO DO ÓLEO' ? ['NATUREZA DO LÍQUIDO', 'TIPO (ANP)'] : [label])));
+    expect(v13.slice(at + 1, at + 3)).toEqual(['TAPS', 'TAP ATUAL']);
     const group = v13.indexOf('DESLOCAMENTO ANGULAR');
     expect(v13.slice(group + 1)).toEqual(['IMPEDÂNCIA', 'MATERIAL DO ENROLAMENTO', 'TEMPERATURA DO ÓLEO', 'TEMPERATURA DO ENROLAMENTO', 'CLASSE TÉRMICA']);
     const fields = getDefinition('v13', 'cabine_primaria', 'transformador_forca').nameplate;
@@ -94,7 +95,8 @@ describe('23.7-UNIT the v13 nameplate fields (decision K)', () => {
   });
 
   it('the temperature the insulation calls for: an oil unit excuses the winding and CLASSE TÉRMICA, a dry one the oil; unknown excuses neither', () => {
-    const oil = withNameplate(sheet('transformador_forca'), { tipo_de_isolacao: 'ÓLEO MINERAL' });
+    // Batch e23t (Story 23.17, M-4): v13's oil option is ÓLEO ISOLANTE.
+    const oil = withNameplate(sheet('transformador_forca'), { tipo_de_isolacao: 'ÓLEO ISOLANTE' });
     const dry = withNameplate(sheet('transformador_forca'), { tipo_de_isolacao: 'EPÓXI' });
     const unknown = sheet('transformador_forca');
     const excused = (block: BlockRow) => ['temperatura_oleo_c', 'temperatura_enrolamento_c', 'classe_termica'].filter((key) => isOilFieldExcused(block, key, EMPTY_DEFINITION_CONTEXT));
@@ -426,7 +428,7 @@ describe('23.8-UNIT the TTR per tap in print, and v12 unchanged', () => {
   });
 
   it('DADOS DO EQUIPAMENTO prints TAPS with "·", a √3 as typed and the excused temperature "-"', () => {
-    const block = fiveTaps({ tipo_de_isolacao: 'ÓLEO MINERAL', temperatura_enrolamento_c: measured('40', '°C'), temperatura_oleo_c: measured('35', '°C') });
+    const block = fiveTaps({ tipo_de_isolacao: 'ÓLEO ISOLANTE', temperatura_enrolamento_c: measured('40', '°C'), temperatura_oleo_c: measured('35', '°C') });
     const pairs = tablesOf(section9Layout(snapshotWith(block, 'v13'), 9, 'RELATÓRIOS DOS ENSAIOS')!).find((table) => table.rows[0]!.cells[0]!.text === 'DADOS DO EQUIPAMENTO')!;
     const cells = pairs.rows.slice(1).flatMap((row) => row.cells.map((one) => one.text));
     const valueOf = (label: string) => cells[cells.indexOf(label) + 1];

@@ -102,9 +102,10 @@ describe('contract constants', () => {
   // e23b (Stories 23.7 to 23.9, 2026-11-08): 35, after e23a's 34; MIN follows.
   // e23v (Stories 23.5, 23.6 and 23.14, 2026-11-09): 36, after e23b's 35; MIN follows.
   // e23h (Stories 23.10 and 23.11, 2026-11-09): 37, after e23v's 36; MIN follows.
-  it('speaks version 37 and refuses version 36 (Stories 23.10 and 23.11: a version-36 bundle shows no "Como ensaiar" and derives a point text the server does not)', () => {
-    expect(CONTRACT_VERSION).toBe(37);
-    expect(MIN_CONTRACT_VERSION).toBe(37);
+  // e23t (Stories 23.15 to 23.17 and 23.19, 2026-11-09): 38, after e23h's 37; MIN follows.
+  it('speaks version 38 and refuses version 37 (Stories 23.15 to 23.19: a version-37 bundle refuses a config naming the new measurement tests)', () => {
+    expect(CONTRACT_VERSION).toBe(38);
+    expect(MIN_CONTRACT_VERSION).toBe(38);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

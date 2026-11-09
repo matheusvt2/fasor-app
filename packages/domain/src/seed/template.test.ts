@@ -65,7 +65,22 @@ describe('standardTemplate', () => {
     expect(Object.keys(cable.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'ia_ip_display', 'observations', 'conclusion']);
     expect(cable.sub_blocks.nameplate).toEqual({ enabled: true });
     expect(cable.sub_blocks.isolacao).toEqual({ enabled: false });
-    expect(kept.blocks.filter((block) => block.block_type !== 'cabos_entrada' && block.block_type !== 'cabos_saida')).toEqual(edited.blocks.filter((block) => block.block_type !== 'cabos_entrada' && block.block_type !== 'cabos_saida'));
+    // Batch e23t (seed v13): the transformer, the disjuntor and the seccionadora gain their new tests (and the transformer loses its untouched IA e IP).
+    const untouched = (block: { block_type: string }) => !['cabos_entrada', 'cabos_saida', 'transformador_forca', 'disjuntor_mt', 'chave_seccionadora'].includes(block.block_type);
+    expect(kept.blocks.filter(untouched)).toEqual(edited.blocks.filter(untouched));
+    const transformer = kept.blocks.find((block) => block.block_type === 'transformador_forca')!;
+    expect(Object.keys(transformer.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'relacao_transformacao', 'resistencia_enrolamento', 'coleta_oleo', 'observations', 'conclusion']);
+  });
+
+  // Batch e23t (Story 23.16, contract 38): v13 types the transformer's IP and DAR, so its "IA e IP lidos do visor" leaves on the move whatever its switch.
+  it('batch e23t: the move of a v12 template to v13 drops the transformer\'s IA e IP lidos do visor, switched on included; the TP keeps its own', () => {
+    const v12 = standardTemplate({ id: ID, seedVersion: 'v12' });
+    const on = v12.blocks.map((block) => (block.block_type === 'transformador_forca' || block.block_type === 'tp' ? { ...block, sub_blocks: { ...block.sub_blocks, ia_ip_display: { enabled: true } } } : block));
+    const moved = withVersionSubBlocks(on, 'v13');
+    const transformer = moved.find((block) => block.block_type === 'transformador_forca')!;
+    expect(transformer.sub_blocks.ia_ip_display).toBeUndefined();
+    expect(transformer.sub_blocks.resistencia_enrolamento).toEqual({ enabled: true });
+    expect(moved.find((block) => block.block_type === 'tp')!.sub_blocks.ia_ip_display).toEqual({ enabled: true });
   });
 
   it('starts with the section blocks 1-6, 8, 10 and 11 in order, outside the skeleton', () => {
@@ -207,8 +222,9 @@ describe('standardTemplate', () => {
       }
       if (block.sub_blocks.ia_ip_display !== undefined) withIaIp += block.quantity;
     }
-    // cabos de entrada 4 + cabos de saída 9 + para-raios 5 + TP 11 + TC 11 + transformadores 8
-    expect(withIaIp).toBe(48);
+    // ~~cabos de entrada 4 + cabos de saída 9 + para-raios 5 + TP 11 + TC 11 + transformadores 8: 48~~
+    // Batch e23t (Story 23.16, seed v13): the transformers type their IP and DAR, so their 8 carry none.
+    expect(withIaIp).toBe(40);
   });
 
   it('is created through one template/{id} create op that applyOp accepts', () => {

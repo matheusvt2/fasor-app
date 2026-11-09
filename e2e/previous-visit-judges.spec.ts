@@ -82,7 +82,7 @@ async function issue(page: Page, relatorioId: string, number: number): Promise<D
 
 /** The transformer's plate at 20 °C of oil, from the office: no plate voltage, so every row asks the seeded > 400 MΩ. */
 const oilAt20 = (relatorioId: string, blockId: string): OpDraft[] => [
-  officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/tipo_de_isolacao`, 'ÓLEO MINERAL'),
+  officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/tipo_de_isolacao`, 'ÓLEO ISOLANTE'),
   officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/temperatura_oleo_c`, { raw: '20', unit: '°C', state: 'measured' }),
 ];
 

@@ -51,9 +51,26 @@ const options = z
 export const whenConfigSchema = z.object({ config: seedKey, in: z.array(seedKey).min(1) });
 export type WhenConfig = z.infer<typeof whenConfigSchema>;
 
-/** The test value another value is shown under, or that skips the table: that value's option equals `equals`. */
-export const whenValueSchema = z.object({ value: seedKey, equals: seedKey });
+/** The test value that skips the table: that value's option equals `equals`. */
+export const skipWhenSchema = z.object({ value: seedKey, equals: seedKey });
+export type SkipWhen = z.infer<typeof skipWhenSchema>;
+
+/**
+ * The test value another value is shown under: that value's option equals `equals`. Seed v13
+ * (batch e23t, Story 23.17): or a choice cell of the table (`cell`, its row and column keys)
+ * holds the option `equals` (the oil sampling's Motivo, shown under Amostra "Não coletado").
+ */
+export const whenValueSchema = z.union([skipWhenSchema, z.object({ cell: z.object({ row: seedKey, column: seedKey }), equals: seedKey })]);
 export type WhenValue = z.infer<typeof whenValueSchema>;
+
+/*
+ * Seed v13, batch e23t (Stories 23.15 to 23.17 and 23.19): the base's status of a criterion row
+ * (rev08's STATUS column), data only. Declared here, where the measurement grammar reads it, and
+ * re-exported by `criteria-tables.ts` (which imports this module, so the cycle stays one way).
+ */
+export const CRITERION_ROW_STATUSES = ['CONFIRMADO', 'CONFERIR NA NORMA', 'FABRICANTE', 'PADRÃO FASOR'] as const;
+export const criterionRowStatusSchema = z.enum(CRITERION_ROW_STATUSES);
+export type CriterionRowStatus = z.infer<typeof criterionRowStatusSchema>;
 
 /** `kind` with what it carries: options exactly on a choice, a unit only on a number. */
 const typed = {
@@ -96,6 +113,11 @@ export const measurementRowSchema = z
     options: options.optional(),
     fixed: z.record(seedKey, z.string().min(1)).optional(),
     when: whenConfigSchema.optional(),
+    /**
+     * Seed v13 (batch e23t, Story 23.15): a row typed when known, its cells never counted as
+     * missing (the winding table's extreme taps). Optional and never defaulted.
+     */
+    optional: z.literal(true).optional(),
   })
   .superRefine((row, ctx) => {
     if (row.kind === undefined && (row.unit !== undefined || row.options !== undefined)) {
@@ -196,11 +218,41 @@ export const choicePassCriterionSchema = z.object({
   ...criterionBase,
 });
 
+/**
+ * Seed v13 (batch e23t, Story 23.15; Story 23.19 reuses it): the deviation between phases. Per
+ * group (a row's number cells with `across: 'columns'`, a column's with `'rows'`) each measured
+ * cell's deviation over the group's lowest measured positive cell, in %, compared in one unit:
+ * at most `within_max_pct` is within; with `restricted_max_pct`, at most it is restricted and
+ * above it out; without it, above `within_max_pct` is `above`. `medium` makes the criterion judge
+ * only while the definition's oil rule reads that medium (an unknown medium judges no deviation).
+ * A cell above the instrument's limit is out (an open circuit) whatever the medium and leaves its
+ * group; a group with fewer than two measured cells judges no deviation (`measurement-evaluation.ts`).
+ */
+export const phaseDeviationCriterionSchema = z
+  .object({
+    type: z.literal('phase_deviation'),
+    across: z.enum(['columns', 'rows']),
+    within_max_pct: z.number().positive(),
+    restricted_max_pct: z.number().positive().optional(),
+    above: z.enum(['out', 'restricted']),
+    medium: z.enum(['oil', 'dry']).optional(),
+    text: criterionText,
+    /** The base's status of the rule (data only, never shown). */
+    status: criterionRowStatusSchema.optional(),
+    ...criterionBase,
+  })
+  .superRefine((criterion, ctx) => {
+    if (criterion.restricted_max_pct === undefined) return;
+    if (criterion.restricted_max_pct <= criterion.within_max_pct) ctx.addIssue({ code: 'custom', path: ['restricted_max_pct'], message: 'restricted_max_pct is above within_max_pct' });
+    if (criterion.above !== 'out') ctx.addIssue({ code: 'custom', path: ['above'], message: 'above a restricted band is out' });
+  });
+
 export const measurementCriterionSchema = z.discriminatedUnion('type', [
   absoluteCriterionSchema,
   relativeToLowestCriterionSchema,
   equalsColumnCriterionSchema,
   choicePassCriterionSchema,
+  phaseDeviationCriterionSchema,
 ]);
 type SeedMeasurementCriterion = z.infer<typeof measurementCriterionSchema>;
 
@@ -274,7 +326,7 @@ export const measurementTestShape = {
   columns: z.array(measurementColumnSchema).min(1),
   rows: z.array(measurementRowSchema).min(1),
   values: z.array(measurementValueSchema).min(1).optional(),
-  skip_when: whenValueSchema.optional(),
+  skip_when: skipWhenSchema.optional(),
   criteria: z.array(measurementCriterionSchema).min(1),
   /** Seed v13 (Story 23.9): the nameplate condition the test applies under; always, when absent. */
   applies_when: appliesWhenSchema.optional(),
@@ -283,6 +335,24 @@ export const measurementTestShape = {
   /** Batch e23h (Stories 23.10 and 23.11): "Como ensaiar" and the recommendation, as on `testDefSchema` (`seed/test-help.ts`). */
   help: testHelpSchema.optional(),
   recommendation: testRecommendationSchema.optional(),
+  /*
+   * Seed v13, batch e23t (Story 23.15). Both optional and never defaulted, so v5 to v12 parse to
+   * the bytes they shipped with.
+   */
+  /**
+   * Story 23.15 (Base rev08 TR-OL-05, TR-SE-05; IEC 60076-1 / NBR 5356-1): every number cell is
+   * also shown corrected to `to_c` (`windingResistanceTo75`), by the plate's winding material (a
+   * Cu/Al select, `material_field`) and its temperature: `oil_field` on an oil unit, `dry_field`
+   * on a dry one (the definition's oil rule decides), the cabine's ambient while that is empty or
+   * the medium unknown.
+   */
+  winding_correction: z.object({ to_c: z.literal(75), material_field: seedKey, oil_field: seedKey.optional(), dry_field: seedKey.optional() }).optional(),
+  /**
+   * Story 23.15 (TR-OL-05 history): a corrected cell that moved more than this share, in %,
+   * from the previous visit's corrected value of the same cell is restricted (both visits on v13,
+   * both corrected). Needs `winding_correction`.
+   */
+  history_deviation_pct: z.number().gt(0).lt(100).optional(),
 };
 
 /** What `checkMeasurementTest` reads of a test: the seed's shape, its key and criteria any (Story 14.6: the company variant shares the rule). */
@@ -293,6 +363,7 @@ type MeasurementTestLike = Omit<z.infer<z.ZodObject<typeof measurementTestShape>
     | { type: 'relative_to_lowest' }
     | { type: 'equals_column'; column: string; reference: string }
     | { type: 'choice_pass'; column: string; pass: readonly string[] }
+    | { type: 'phase_deviation' }
   )[];
 };
 
@@ -312,17 +383,33 @@ export function checkMeasurementTest(test: MeasurementTestLike, ctx: z.Refinemen
     for (const column of Object.keys(row.fixed ?? {})) if (!columns.has(column)) issue(['rows', r, 'fixed', column], `"${column}" is not a column`);
   });
 
-  const optionOf = (when: WhenValue, path: (string | number)[]) => {
+  const optionOf = (when: SkipWhen, path: (string | number)[]) => {
     const target = values.get(when.value);
     if (target === undefined) issue(path, `"${when.value}" is not a value of the test`);
     else if (!(target.options ?? []).some((option) => option.key === when.equals)) issue(path, `"${when.equals}" is not an option of "${when.value}"`);
   };
+  // Seed v13 (batch e23t, Story 23.17): a value shown under a choice cell of the table names a row, a choice column of it and one of its options.
+  const cellOptionOf = (when: { cell: { row: string; column: string }; equals: string }, path: (string | number)[]) => {
+    const row = test.rows.find((candidate) => candidate.key === when.cell.row);
+    const column = columns.get(when.cell.column);
+    if (row === undefined) issue(path, `"${when.cell.row}" is not a row`);
+    else if (column === undefined) issue(path, `"${when.cell.column}" is not a column`);
+    else {
+      const kind = row.kind ?? column.kind;
+      const choices = (row.kind === undefined ? column.options : row.options) ?? [];
+      if (kind !== 'choice' || row.fixed?.[column.key] !== undefined) issue(path, `the cell "${when.cell.row}" × "${when.cell.column}" is not a choice`);
+      else if (!choices.some((option) => option.key === when.equals)) issue(path, `"${when.equals}" is not an option of the cell "${when.cell.row}" × "${when.cell.column}"`);
+    }
+  };
   (test.values ?? []).forEach((value, v) => {
     if (value.when === undefined) return;
-    if (value.when.value === value.key) issue(['values', v, 'when'], 'a value cannot depend on itself');
+    if ('cell' in value.when) cellOptionOf(value.when, ['values', v, 'when']);
+    else if (value.when.value === value.key) issue(['values', v, 'when'], 'a value cannot depend on itself');
     else optionOf(value.when, ['values', v, 'when']);
   });
   if (test.skip_when !== undefined) optionOf(test.skip_when, ['skip_when']);
+  // Seed v13 (batch e23t, Story 23.15): the history rule compares corrected values.
+  if (test.history_deviation_pct !== undefined && test.winding_correction === undefined) issue(['history_deviation_pct'], 'a history rule needs the test\'s winding_correction');
 
   test.criteria.forEach((criterion, c) => {
     const at = (key: string) => ['criteria', c, key];

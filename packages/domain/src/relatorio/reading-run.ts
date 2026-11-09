@@ -32,7 +32,9 @@ function runBlocks(evaluations: readonly TestEvaluation[]): RunCell[][] {
         if (column.role === 'derived') continue;
         const cells = table.rows.flatMap((row) => {
           const cell = row.cells.find((candidate) => candidate.address.col === column.col)!;
-          return tapCellTyped(row, cell) ? [{ cell, required: tapRowRequired(row) }] : [];
+          // Seed v13, batch e23t (Story 23.16): an N/A IP is no stop; an index cell is a required stop only where it is missing when empty.
+          if (cell.index?.notApplicable === true) return [];
+          return tapCellTyped(row, cell) ? [{ cell, required: tapRowRequired(row) && (cell.role !== 'index' || cell.index?.required === true) }] : [];
         });
         if (cells.length > 0) blocks.push(cells);
       }
@@ -111,6 +113,12 @@ export function firstRunCell(evaluations: readonly TestEvaluation[]): CellAddres
     if (empty !== undefined) return empty.cell.address;
   }
   return null;
+}
+
+/** The run's last stop, empty or not (Shift+Enter from the measurement tests that follow lands here), or null when the run has none. */
+export function lastRunCell(evaluations: readonly TestEvaluation[]): CellAddress | null {
+  const last = runBlocks(evaluations).at(-1);
+  return last === undefined ? null : last[last.length - 1]!.cell.address;
 }
 
 // --- what the conclusion reads -----------------------------------------------------------

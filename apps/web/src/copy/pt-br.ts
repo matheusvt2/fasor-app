@@ -485,6 +485,10 @@ export const copy = {
       cta_ajustes_controlador: 'E4 · Ajustes do controlador',
       cta_transferencia: 'E5 · Transferência',
       cta_termografia: 'E6 · Termografia sob carga',
+      // Batch e23t (seed v13, Stories 23.15, 23.17 and 23.19): the three measurement tests, as the kernel titles them (no number on a FO.SERV-03 type).
+      resistencia_enrolamento: 'Resistência ôhmica dos enrolamentos',
+      coleta_oleo: 'Coleta de óleo',
+      resistencia_fusiveis: 'Resistência dos fusíveis HH',
     },
     // Story 3.6: the section text editor, a Form dialog from the section card's Overflow.
     editText: 'Editar texto',
@@ -1627,6 +1631,10 @@ export const copy = {
       // ("Lado Normal: 36 µΩ · Lado Emergência: 39 µΩ", "Normal fechada: — · Emergência fechada: —").
       cardPart: (column: string, text: string) => `${column}: ${text}`,
       cardSeparator: ' · ',
+      // Batch e23t (Story 23.17): the oil sampling's helpers and the reason chips' group name, verbatim from `60-ficha.html` #/ficha/TR1.
+      samplingHelper: 'Só registra a coleta; a análise do óleo é do laboratório.',
+      samplingReasonHelper: 'Não coletado não muda a conclusão da ficha.',
+      samplingReasonGroup: 'Motivo da não coleta',
     },
     // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
     // sheet Observation field and the Generated text field.
