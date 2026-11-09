@@ -252,6 +252,9 @@ const SCREEN_FORMS: Record<string, string> = {
   // Seed v12 (Stories 22.7, 22.8 and 22.11).
   TENSÃO: 'Tensão',
   'TIPO DO ÓLEO': 'Tipo do óleo',
+  // Batch e23t (Story 23.17, seed v13).
+  'NATUREZA DO LÍQUIDO': 'Natureza do líquido',
+  'TIPO (ANP)': 'Tipo (ANP)',
   'DESLOCAMENTO ANGULAR': 'Deslocamento angular',
   'Inspeção de QGBT': 'Inspeção de QGBT',
 };

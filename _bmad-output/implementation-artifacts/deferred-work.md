@@ -3334,3 +3334,16 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/points/derived.ts` `sheetEntries` (the `reprovado` entry only when `conclusionFloor` is not Reprovado); `points/derived-recommendation.test.ts`.
   class: decision
   state: open (owner: Bruno, question 36, with the authored join)
+
+## Deferred from: Epic 23 batch e23t (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23t-transformer-tests.md` (Story 23.17, "Old spelling")
+  summary: a TIPO DE ISOLAÇÃO stored as an older spelling ("ÓLEO MINERAL", "ÓLEO") directly on a v13 transformer (a v13 sheet written before e23t, or a hand-built op) reads as oil for the correction and the sampling (`mediumOf`, `testApplicability` resolve aliases) but as not oil for the oil items and fields (`oilStateOf` compares the stored text with `oil_values`); every path the app writes it through (the select, "Igual à", "Copiar da última visita", a plate reading) stores ÓLEO ISOLANTE. Aliasing `oilStateOf` reaches v6 to v12's readers too, so it was left for a decision.
+  evidence: `packages/domain/src/relatorio/oil-rule.ts` `oilStateOf`; `relatorio/temperature-correction.ts` `mediumOf`; `relatorio/e23t-transformer-tests.test.ts` ("the older spellings").
+  class: decision
+  state: open (owner: the Epic 23 wave 3 integrated review)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23t-transformer-tests.md` (Design Notes, "Readings listed for Bruno")
+  summary: the narrowings and authored wordings of the batch for Bruno: deviation over the lowest phase; a dry winding has no out band but an open circuit; the IP classes on both media; no IP history; the DAR captured, unjudged, on both media; the sampling reason a closed choice (free text in Observações); silicone applies the sampling; an empty TIPO DE SECCIONADORA applies the fuse test; no factory comparison for the winding; the criteria texts ("desvio entre fases ≤ 2 % (com restrição até 5 %)", "… (com restrição acima)", "desvio entre fusíveis ≤ 15 %", "registro da coleta (a análise é do laboratório)", "IP ≥ 1,0"), the helpers and reasons (`measurement-evaluation.ts`, `reading-evaluation.ts` `judgeIndexCells`, `temperature-correction.ts` winding texts) and the off note of the three tests.
+  evidence: every `// authored (Story 23.1x, listed for Bruno)` in `packages/domain/src/seed/v13.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/reading-evaluation.ts`, `relatorio/temperature-correction.ts`, `relatorio/conclusion.ts`.
+  class: decision
+  state: open (owner: Bruno, with the PR's list)

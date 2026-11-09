@@ -627,7 +627,9 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   expect(cells.sort()).toEqual(
     [...cellAddressesOf(SECCIONADORA, 'isolacao'), ...cellAddressesOf(SECCIONADORA, 'resistencia_contato')].map((a) => `${a.testKey}/cell/${a.row}/${a.col}`).sort(),
   );
-  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible();
+  // Batch e23t (seed v13, Story 23.19): the HH fuse test applies while TIPO DE SECCIONADORA is empty; its three fuses are what is left.
+  const fuses = SECCIONADORA.measurement_tests?.find((test) => test.key === 'resistencia_fusiveis')?.rows.length ?? 0;
+  await expect(stepper(page).getByRole('button', { name: `Ensaios, ${fuses} faltando` })).toBeVisible();
 
   // "Não medido" from the cell's Overflow: stored not_measured, shown "-".
   await page.getByRole('button', { name: 'Mais opções de T1, Valor' }).click();

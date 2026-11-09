@@ -2,7 +2,8 @@
 title: 'e23t: winding resistance, the judged IP, the insulating liquid and oil sampling, HH fuses (Stories 23.15, 23.16, 23.17, 23.19; contract 38)'
 type: 'feature'
 created: '2026-11-09'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'f59c9bd65d28af4bfa433d47fe1dd3562e5e5cf4'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

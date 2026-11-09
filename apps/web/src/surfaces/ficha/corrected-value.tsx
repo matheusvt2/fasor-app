@@ -8,7 +8,7 @@ import { ui } from '../../copy/ui.ts';
  */
 
 /** The `.v13-line` over the test's first table: "Temperatura **40 °C**" and where it came from (or what is missing). */
-export function TemperatureLine({ test }: { test: TestEvaluation }) {
+export function TemperatureLine({ test }: { test: Pick<TestEvaluation, 'temperature'> }) {
   const view = test.temperature;
   if (view === undefined) return null;
   return (

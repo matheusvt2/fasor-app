@@ -420,7 +420,26 @@
  * through the strict publish schema. No seed carries them, so v1 to v13 parse to the bytes they
  * shipped with and a row written before 37 parses to the same bytes. MIN follows to 37 (below).
  */
-export const CONTRACT_VERSION = 37;
+/*
+ * 38 (2026-11-09, Stories 23.15, 23.16, 23.17 and 23.19, batch e23t; 37 is batch e23h's, merged
+ * first): seed v13's winding resistance on the transformador de força, its oil sampling on the
+ * transformador and the disjuntor, and the HH fuses on the chave seccionadora, three measurement
+ * tests whose keys are appended to `SUB_BLOCK_KEYS` (`resistencia_enrolamento`, `coleta_oleo`,
+ * `resistencia_fusiveis`), so a `block/{id}/config` naming them and a `sheet/{b}/test/{k}/cell` or
+ * `/value` put on them parse only from 38 on; the measurement grammar gains the criterion
+ * `phase_deviation`, a row's `optional`, a value shown under a choice cell (`when.cell`), and a
+ * test's `winding_correction` and `history_deviation_pct`; a seeded test gains `polarization_index`
+ * and a table column the role `index` (the transformer's ABSORÇÃO and POLARIZAÇÃO, typed and judged);
+ * a nameplate field gains `excused_unless` (TIPO (ANP), only for a MINERAL liquid); the
+ * transformer's TIPO DE ISOLAÇÃO reads ÓLEO ISOLANTE and TIPO DO ÓLEO gives way to NATUREZA DO
+ * LÍQUIDO and TIPO (ANP). A measurement reading corrected to 75 °C keeps its `corrected` in
+ * `last_results` (the shape of 36). The template seed move drops an untouched default-off part the
+ * new version's definition no longer has (`withVersionSubBlocks`: the v13 transformer's
+ * `ia_ip_display`). The seed and company schemas gain optional keys only, so v1 to v12 parse to the
+ * bytes they shipped with and a row written before 38 parses to the same bytes. MIN follows to 38
+ * (below).
+ */
+export const CONTRACT_VERSION = 38;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -662,7 +681,16 @@ export const CONTRACT_VERSION = 37;
  * text the server's fold refuses (the precedent of 34). Its pull answers `426 contract_outdated`
  * and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 37;
+/*
+ * 38 (2026-11-09, Stories 23.15 to 23.17 and 23.19, batch e23t): a version-37 (or older) bundle's
+ * `blockConfigSchema` refuses a config naming `resistencia_enrolamento`, `coleta_oleo` or
+ * `resistencia_fusiveis` (unknown `SUB_BLOCK_KEYS`), so a pulled page carrying a v13 transformer,
+ * disjuntor or seccionadora block create fails whole (`invalid_response`), the precedent of 35 and
+ * 36; and it cannot judge a v13 sheet as the server's kernel does: it would show no winding,
+ * sampling or fuse test, no typed IP and no TIPO (ANP) rule where the server prints them, and judge
+ * a transformer IP the server judges. Its pull answers `426 contract_outdated` and it updates.
+ */
+export const MIN_CONTRACT_VERSION = 38;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -315,7 +315,8 @@ describe('3.5-UNIT sub-block defaults per equipment type', () => {
   it('typeConfigFor reads the one config of a placed type, and null for a type the template does not hold', () => {
     expect(typeConfigFor(standard.blocks, 'chave_seccionadora')).toEqual({
       subtype: 'manual',
-      sub_blocks: defaultBlockConfig('v1', 'chave_seccionadora').sub_blocks,
+      // Batch e23t (seed v13): the standard template is built on the current version, whose seccionadora gains the HH fuse test.
+      sub_blocks: defaultBlockConfig(standard.seed_version, 'chave_seccionadora').sub_blocks,
       na_defaults: ['motor', 'fusiveis'],
     });
     expect(typeConfigFor(standard.blocks, 'tp')).toEqual({ sub_blocks: defaultBlockConfig('v1', 'tp').sub_blocks, na_defaults: [] });

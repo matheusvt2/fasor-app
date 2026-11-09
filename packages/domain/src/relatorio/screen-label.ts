@@ -41,6 +41,8 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'IP',
   // Seed v13 (Story 23.7): the arrester's maximum continuous operating voltage, a nameplate field.
   'MCOV',
+  // Seed v13 (batch e23t, Story 23.17): the agency of TIPO (ANP), a nameplate field.
+  'ANP',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));

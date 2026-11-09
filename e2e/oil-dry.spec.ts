@@ -47,6 +47,8 @@ const OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_
 const TIPOS_DE_ISOLACAO = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').nameplate.find((f) => f.key === 'tipo_de_isolacao')!.options!;
 /** The TP's own oil items (seed v12: VASAMENTO alone, the TC's list). */
 const TP_OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').oil_rule!.items;
+/** Batch e23t (seed v13, M-4): the TP keeps ÓLEO MINERAL where the transformer reads ÓLEO ISOLANTE; its own oil value. */
+const TP_OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').oil_rule!.oil_values[0]!;
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const entities = <T,>(page: Page) => readStore<EntityRecord<T>>(page, database, 'entities');
 const toast = (page: Page) => page.getByTestId('toast');
@@ -236,10 +238,10 @@ test('@p0 14.11-E2E-002 the disjuntor\'s medium: a non-oil medium marks its oil 
   expect(seccionadora.filter((option) => media.includes(option))).toEqual([]);
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockOfType('tp').id}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-  await expect(select(page, 'tipo_de_isolacao').locator('option', { hasText: OIL_VALUE })).toHaveCount(1);
+  await expect(select(page, 'tipo_de_isolacao').locator('option', { hasText: TP_OIL_VALUE })).toHaveCount(1);
   await pick(page, 'tipo_de_isolacao', 'EPÓXI');
   for (const key of TP_OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
-  await pick(page, 'tipo_de_isolacao', OIL_VALUE);
+  await pick(page, 'tipo_de_isolacao', TP_OIL_VALUE);
   for (const key of TP_OIL) await expect(checked(page, key), key).toHaveCount(0);
 });
 

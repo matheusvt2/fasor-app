@@ -6,7 +6,7 @@ import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
-import { measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
+import { measurementCells, restrictedMeasurements, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
@@ -166,7 +166,8 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   const evaluations = sheetReadings(block, definition, visit);
   const cells = evaluatedCells(evaluations);
   // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
-  const tableCells = measurementCells(sheetMeasurements(block, definition));
+  // Batch e23t (Story 23.15): the measurement tests judged under the same visit context.
+  const tableCells = measurementCells(sheetMeasurements(block, definition, visit));
   const plainCells = evaluatedCells(evaluations.filter((test) => test.testKey !== 'relacao_transformacao'));
   const failures: ConclusionFloorReason[] = [];
   if (plainCells.some((cell) => cell.verdict === 'out')) failures.push('reading');
@@ -175,7 +176,8 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   // Batch e23v (Story 23.6): a failed prerequisite fails the sheet; a restricted reading restricts it.
   if (evaluations.some((test) => test.prerequisite?.failed === true)) failures.push('prerequisite');
   const restrictions: ConclusionFloorReason[] = [];
-  if (cells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
+  // Batch e23t (Stories 23.15, 23.16 and 23.19): a restricted measurement cell or IP restricts too.
+  if (cells.some((cell) => cell.verdict === 'restricted') || tableCells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
   if (ncItems(block, definition).length > 0) restrictions.push('nc');
   if (anyObservation(block, definition)) restrictions.push('observation');
   if (failures.length > 0) return { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: [...failures, ...restrictions] };
@@ -460,11 +462,22 @@ function restrictedClause(test: TestEvaluation): string | null {
   return items.length === 0 ? null : `com restrição no ${test.title.toLocaleLowerCase('pt-BR')} (${items.join('; ')})`;
 }
 
+/**
+ * Batch e23t (Story 23.16, seed v13): an IP out of its class as the paragraph names it. authored
+ * (Story 23.16, listed for Bruno): "IP de 0,8 no ensaio de isolação em Primário–Massa (critério: IP ≥ 1,0, NETA MTS-2023 7.2.1/7.2.2)".
+ */
+function indexClause(test: TestEvaluation, reading: NonNullable<TestEvaluation['indexOut']>[number]): string {
+  return `${reading.valueText} no ${test.title.toLocaleLowerCase('pt-BR')} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
+}
+
 // authored (Story 14.5): how an out reading of a measurement test is named, whatever its
 // criterion: "resistência de contato fora do critério em Polo C, Lado Emergência (63 µΩ;
 // critério: ≤ 50 % acima do menor do mesmo lado, NETA 7.22.3 (fonte secundária))".
-function measurementClause(reading: WorstMeasurement): string {
-  return `${reading.label.toLocaleLowerCase('pt-BR')} fora do critério em ${reading.where} (${reading.valueText}; critério: ${reading.criterionText}, ${reading.sourceName})`;
+function measurementClause(reading: WorstMeasurement, keepCase = false): string {
+  // Batch e23t: a FO.SERV-03 type's test (`keepCase`) lowers only its first letter, so an acronym keeps its case
+  // ("resistência dos fusíveis HH"); the CTA's and a company type's read as before.
+  const label = keepCase ? `${reading.label.charAt(0).toLocaleLowerCase('pt-BR')}${reading.label.slice(1)}` : reading.label.toLocaleLowerCase('pt-BR');
+  return `${label} fora do critério em ${reading.where} (${reading.valueText}; critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
 // The basis hash lives in `text/hash.ts` (shared with the parecer, Story 7.4).
@@ -499,20 +512,26 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const worst = worstReadings(evaluations);
   const out = worst.filter((reading) => reading.verdict === 'out');
   // Story 14.5: the measurement tests (none on the eight FO.SERV-03 types), read as the seeded tables are.
-  const measurements = sheetMeasurements(block, definition);
+  const measurements = sheetMeasurements(block, definition, visit);
   const tableCells = measurementCells(measurements);
   const tableOut = worstMeasurements(measurements);
+  // Batch e23t (Story 23.16): an IP out of its class is a failure the paragraph names with the out readings.
+  const indexOut = evaluations.flatMap((test) => (test.indexOut ?? []).map((reading) => indexClause(test, reading)));
   // Batch e23v (Story 23.6, seed v13): a failed prerequisite is a failure the paragraph names with the out readings.
   const prerequisites = evaluations.flatMap((test) => {
     const clause = prerequisiteClause(test);
     return clause === null ? [] : [clause];
   });
-  const outClauses = [...out.map(readingClause), ...tableOut.map(measurementClause), ...prerequisites];
+  const outClauses = [...out.map(readingClause), ...indexOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
   // Batch e23v (Story 23.6, seed v13): the restricted readings, named after the readings' clause.
-  const restricted = evaluations.flatMap((test) => {
-    const clause = restrictedClause(test);
-    return clause === null ? [] : [clause];
-  });
+  const restricted = [
+    ...evaluations.flatMap((test) => {
+      const clause = restrictedClause(test);
+      return clause === null ? [] : [clause];
+    }),
+    // Batch e23t (Stories 23.15 and 23.19): a measurement test's restricted cells, named the same way.
+    ...restrictedMeasurements(measurements).map((test) => `com restrição na ${test.label.charAt(0).toLocaleLowerCase('pt-BR')}${test.label.slice(1)} (${test.items.join('; ')})`),
+  ];
   // E5-Q4: "within the criteria" only when a capture was judged; "conformes" only with a C row.
   const judged = outClauses.length > 0 || cells.some((cell) => cell.role === 'capture' && cell.verdict !== null) || tableCells.some((cell) => cell.verdict !== null);
   // A capture measured but never judged (a TTR row with no VAL CALCULADO) is still a measurement.
@@ -554,7 +573,11 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
 
   const criteriaItems = [
     ...worst.map((reading) => `${TEST_WORDS[reading.testKey].symbol} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`),
-    ...tableOut.map((reading) => `E${measurements.find((test) => test.testKey === reading.testKey)!.number} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`),
+    ...tableOut.map((reading) => {
+      const test = measurements.find((candidate) => candidate.testKey === reading.testKey)!;
+      // Batch e23t (Story 23.15): a FO.SERV-03 type's measurement test has no number; it is named by its label.
+      return `${test.unnumbered === true ? test.label : `E${test.number}`} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`;
+    }),
     ...ncs.map((item) => `item ${item.n} NC`),
   ];
 
@@ -588,7 +611,20 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
               k: test.testKey,
               e: test.enabled,
               x: test.skipped,
-              c: test.rows.flatMap((row) => row.cells.filter((cell) => cell.fixed === null).map((cell) => ({ a: cell.address, s: cell.state, r: cell.raw, u: cell.unit, v: cell.verdict }))),
+              // Batch e23t (Stories 23.15 and 23.19): a cell's corrected value (`c`) and restriction reason (`x`) join only where present (v5 to v12 bytes kept).
+              c: test.rows.flatMap((row) =>
+                row.cells
+                  .filter((cell) => cell.fixed === null)
+                  .map((cell) => ({
+                    a: cell.address,
+                    s: cell.state,
+                    r: cell.raw,
+                    u: cell.unit,
+                    v: cell.verdict,
+                    ...(cell.corrected == null ? {} : { c: cell.corrected.raw }),
+                    ...(cell.restriction == null ? {} : { x: cell.restriction.reason }),
+                  })),
+              ),
             })),
           }),
     }),

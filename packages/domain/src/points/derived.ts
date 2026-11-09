@@ -2,7 +2,7 @@ import { photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
 import { conclusionFloor, effectiveConclusionPair, restrictedItems } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
-import { worstMeasurements } from '../relatorio/measurement-evaluation.ts';
+import { restrictedMeasurements, worstMeasurements } from '../relatorio/measurement-evaluation.ts';
 import { worstReadings } from '../relatorio/readings.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
@@ -156,7 +156,9 @@ function sheetEntries(
   for (const test of evaluations) {
     const reading = readings.find((one) => one.testKey === test.testKey);
     const prerequisite = failed.get(test.testKey) ?? null;
-    if (reading === undefined && prerequisite === null) continue;
+    // Batch e23t (Story 23.16): an IP out of its class fails the test too, named after its out reading.
+    const index = (test.indexOut ?? []).map((one) => `${one.valueText} em ${one.where} (critério: ${one.criterionText})`);
+    if (reading === undefined && prerequisite === null && index.length === 0) continue;
     withEntry.add(test.testKey);
     // authored (Story 22.5, open for Bruno): a reading entry's text, the ratio as its deviation.
     const value = reading === undefined ? null : reading.testKey === 'relacao_transformacao' ? `desvio de ${reading.valueText}` : reading.valueText;
@@ -172,11 +174,13 @@ function sheetEntries(
       // a `reading` entry is a failed test (an out reading, a failed prerequisite, or both), never a `restricao` one.
       text: recommendedPointText(
         testRecommendationOf({ tests: definition.tests }, test.testKey),
-        `${titles.get(test.testKey) ?? test.testKey}: ${[prerequisite, outText].filter((part): part is string => part !== null).join('; ')}`,
+        `${titles.get(test.testKey) ?? test.testKey}: ${[prerequisite, outText, ...index].filter((part): part is string => part !== null).join('; ')}`,
       ),
     });
   }
-  for (const reading of worstMeasurements(sheetMeasurements(block, definition))) {
+  // Batch e23t (Story 23.15): the measurement tests judged under the same visit context.
+  const measurements = sheetMeasurements(block, definition, visit);
+  for (const reading of worstMeasurements(measurements)) {
     out.push({
       ...base,
       ...common,
@@ -203,6 +207,19 @@ function sheetEntries(
       test_key: test.testKey,
       // authored (Story 23.6, listed for Bruno): a restricted test's entry, its rows with their reasons.
       text: `${test.title}: valor dentro do critério, com restrição (${items.join('; ')})`,
+    });
+  }
+  // Batch e23t (Stories 23.15 and 23.19): one entry per measurement test with a restricted cell and no out cell.
+  for (const test of restrictedMeasurements(measurements)) {
+    if (test.hasOut) continue;
+    out.push({
+      ...base,
+      ...common,
+      kind: 'restricao',
+      key: `restricao:${block.id}:${test.testKey}`,
+      test_key: test.testKey,
+      // authored (Story 23.6's wording, batch e23t): a restricted test's entry, its cells with their reasons.
+      text: `${test.label}: valor dentro do critério, com restrição (${test.items.join('; ')})`,
     });
   }
   // A Reprovado the floor does not explain: the engineer's own choice.

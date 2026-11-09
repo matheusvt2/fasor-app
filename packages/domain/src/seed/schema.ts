@@ -71,6 +71,13 @@ export const fieldDefSchema = z
     over_sqrt3: z.literal(true).optional(),
     /** Seed v13 (Story 23.7): a text ratio ("200/5") also read written with a dash ("200-5"), the TC's RELAÇÃO. */
     dash_ratio: z.literal(true).optional(),
+    /**
+     * Seed v13, batch e23t (Story 23.17): a field that exists only while the nameplate select
+     * `field` holds one of `in` (TIPO (ANP), only for a MINERAL liquid). Unmet, it is hidden on the
+     * sheet, never missing and prints "-"; with `field` empty it is shown
+     * (`relatorio/oil-rule.ts` `isFieldHidden`). Optional and never defaulted.
+     */
+    excused_unless: z.object({ field: seedKey, in: z.array(z.string().min(1)).min(1) }).optional(),
   })
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',
@@ -126,8 +133,12 @@ export const columnDefSchema = z
      * typed on site (`relatorio/row-voltage.ts`), never missing and never judged; it is appended
      * after the other value columns so their stored indices stay v11's, and screen and print draw
      * it right after the connection columns.
+     *
+     * Seed v13, batch e23t (Story 23.16): `index` is a typed unitless number that is never the
+     * capture column, the transformer insulation table's ABSORÇÃO and POLARIZAÇÃO (the IP is
+     * judged by the test's `polarization_index`, the DAR is captured and never judged).
      */
-    role: z.enum(['capture', 'input', 'derived', 'print', 'voltage']),
+    role: z.enum(['capture', 'input', 'derived', 'print', 'voltage', 'index']),
     derived: z.boolean(),
     group: z.string().min(1).optional(),
     /**
@@ -279,6 +290,26 @@ export const restrictionSchema = z
   });
 export type RestrictionRules = z.infer<typeof restrictionSchema>;
 
+/**
+ * Seed v13, batch e23t (Story 23.16; Base rev08 TR-OL-03, TR-SE-03, table IP_CLASSIFICACAO): the
+ * polarization index typed in the table's `index` column `column`, judged by class: below `min` out,
+ * from `min` to below `restricted_below` restricted, from it on within; required on a unit of the
+ * medium `required_on` (optional on the other or an unknown one); `dar_column` the absorption
+ * index beside it (captured, never judged nor required). On a row whose capture is above the
+ * instrument's limit the IP is N/A (Story 23.4). `status` is the base's (data only).
+ */
+export const polarizationIndexSchema = z
+  .object({
+    column: z.string().min(1),
+    min: z.number().positive(),
+    restricted_below: z.number().positive(),
+    required_on: z.enum(['dry']),
+    dar_column: z.string().min(1).optional(),
+    status: criterionRowStatusSchema,
+  })
+  .refine((rule) => rule.restricted_below > rule.min, { message: 'restricted_below is above min', path: ['restricted_below'] });
+export type PolarizationIndexRule = z.infer<typeof polarizationIndexSchema>;
+
 /** A test sub-block, bound by `criterion_key` to one of `SEEDED_CRITERIA` (Story 2.6). */
 export const testDefSchema = z.object({
   key: z.enum(['isolacao', 'resistencia_contato', 'relacao_transformacao']),
@@ -370,6 +401,12 @@ export const testDefSchema = z.object({
    */
   help: testHelpSchema.optional(),
   recommendation: testRecommendationSchema.optional(),
+  /*
+   * Seed v13, batch e23t (Story 23.16). Optional and never defaulted, so v1 to v12 parse to the
+   * bytes they shipped with; a test without it judges no index.
+   */
+  /** Story 23.16: the polarization index judged in the table's `index` columns (`polarizationIndexSchema`). */
+  polarization_index: polarizationIndexSchema.optional(),
 });
 /**
  * A test as every reader takes it. Story 14.6: on a company type's definition (`asBlockDefinition`)
@@ -432,8 +469,8 @@ export function checkSeedV6Definition(
     checklist: readonly { key: string }[] | null;
     tests: readonly TestDef[];
     oil_rule?: OilRule | undefined;
-    /** Seed v13 (Story 23.9): read for their `applies_when` only. */
-    measurement_tests?: readonly { applies_when?: AppliesWhen | undefined }[] | undefined;
+    /** Seed v13 (Story 23.9): read for their `applies_when`; batch e23t: their `winding_correction` and criteria's `medium`. */
+    measurement_tests?: readonly MeasurementTestRefs[] | undefined;
   },
   ctx: z.RefinementCtx,
 ): void {
@@ -505,7 +542,7 @@ function checkSeedV13Definition(
     nameplate: readonly FieldDef[];
     tests: readonly TestDef[];
     oil_rule?: OilRule | undefined;
-    measurement_tests?: readonly { applies_when?: AppliesWhen | undefined }[] | undefined;
+    measurement_tests?: readonly MeasurementTestRefs[] | undefined;
   },
   ctx: z.RefinementCtx,
 ): void {
@@ -545,7 +582,76 @@ function checkSeedV13Definition(
   (definition.measurement_tests ?? []).forEach((test, t) => checkCondition(test.applies_when, ['measurement_tests', t, 'applies_when']));
   // --- e23v: Stories 23.5, 23.6, 23.14 ---
   definition.tests.forEach((test, t) => checkE23vTest(definition, test, ['tests', t], field, issue));
+  // --- e23t: Stories 23.15 to 23.17 and 23.19 ---
+  checkE23tDefinition(definition, field, issue);
 }
+
+/** What `checkSeedV13Definition` reads of a measurement test (either a seed's or a company type's). */
+interface MeasurementTestRefs {
+  applies_when?: AppliesWhen | undefined;
+  winding_correction?: { material_field: string; oil_field?: string | undefined; dry_field?: string | undefined } | undefined;
+  criteria?: readonly { type: string; medium?: 'oil' | 'dry' | undefined }[] | undefined;
+}
+
+/**
+ * Seed v13, batch e23t (Stories 23.15 to 23.17 and 23.19): what the new keys name exists on the
+ * definition, each issue at its path:
+ * - a measurement test's `winding_correction` names a Cu/Al select (`material_field`) and number
+ *   fields in °C of one value (`oil_field`, `dry_field`);
+ * - a `phase_deviation` criterion read by `medium` needs the definition's oil rule;
+ * - a test's `polarization_index` names `index` columns of each of its tables (`column`, `dar_column`);
+ * - a field's `excused_unless` names another select of the nameplate and only its options.
+ */
+function checkE23tDefinition(
+  definition: { nameplate: readonly FieldDef[]; tests: readonly TestDef[]; oil_rule?: OilRule | undefined; measurement_tests?: readonly MeasurementTestRefs[] | undefined },
+  field: (key: string) => FieldDef | undefined,
+  issue: (path: (string | number)[], message: string) => void,
+): void {
+  (definition.measurement_tests ?? []).forEach((test, t) => {
+    const correction = test.winding_correction;
+    if (correction !== undefined) {
+      const material = field(correction.material_field);
+      if (material === undefined || material.kind !== 'select' || !(material.options ?? []).some((option) => WINDING_MATERIALS.includes(option))) {
+        issue(['measurement_tests', t, 'winding_correction', 'material_field'], `winding_correction.material_field "${correction.material_field}" is not a Cu/Al select of the nameplate`);
+      }
+      for (const key of ['oil_field', 'dry_field'] as const) {
+        const name = correction[key];
+        if (name === undefined) continue;
+        const target = field(name);
+        if (target === undefined || target.kind !== 'number' || target.unit !== '°C' || target.list === true) {
+          issue(['measurement_tests', t, 'winding_correction', key], `winding_correction.${key} "${name}" is not a number field of the nameplate in °C`);
+        }
+      }
+    }
+    (test.criteria ?? []).forEach((criterion, c) => {
+      if (criterion.type === 'phase_deviation' && criterion.medium !== undefined && definition.oil_rule === undefined) {
+        issue(['measurement_tests', t, 'criteria', c, 'medium'], 'a phase deviation read by medium needs an oil_rule');
+      }
+    });
+  });
+  definition.tests.forEach((test, t) => {
+    const rule = test.polarization_index;
+    if (rule === undefined) return;
+    for (const key of ['column', 'dar_column'] as const) {
+      const label = rule[key];
+      if (label === undefined) continue;
+      if (!test.tables.every((table) => table.value_columns.some((column) => column.role === 'index' && column.label === label))) {
+        issue(['tests', t, 'polarization_index', key], `polarization_index.${key} "${label}" is not an index column of every table of the test`);
+      }
+    }
+  });
+  definition.nameplate.forEach((candidate, f) => {
+    const condition = candidate.excused_unless;
+    if (condition === undefined) return;
+    const target = field(condition.field);
+    if (target === undefined || target.key === candidate.key || target.kind !== 'select' || !condition.in.every((value) => (target.options ?? []).includes(value))) {
+      issue(['nameplate', f, 'excused_unless'], `excused_unless names another select of the nameplate and only its options ("${condition.field}")`);
+    }
+  });
+}
+
+/** The winding materials a `winding_correction` reads (`windingResistanceTo75`). */
+export const WINDING_MATERIALS: readonly string[] = ['Cu', 'Al'];
 
 /**
  * Seed v13, batch e23v (Stories 23.5, 23.6 and 23.14): what a test's temperature correction and

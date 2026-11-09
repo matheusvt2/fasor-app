@@ -1211,3 +1211,17 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table :is(th[data-corrected-column], td[data-corrected-cell]) { display: none; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .corrected-stacked { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }
 }
+
+/* ---------- e23t (Stories 23.15 and 23.17, seed v13): the oil sampling and the winding's corrected line ----------
+   `60-ficha.html` (Story 23.1's frames, `#/ficha/TR1` "Coleta de óleo", its page CSS of 2026-11-08): each rule below is the
+   mock's `[data-route="/ficha/:tag"] X` rule with the route of the app's sheet, declarations copied verbatim. */
+/* `[data-route="/ficha/:tag"] .v13-choice` */
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-choice { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 520px; }
+/* `[data-route="/ficha/:tag"] .v13-reason` with its `.v13-choice:has(.seg[data-value="nao-coletado"][aria-checked="true"]) .v13-reason`
+   state: the kernel draws the reason only while it is shown (`EvaluatedMeasurementValue.shown`), so the shown state's `display: flex` holds. */
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-reason { display: flex; flex-direction: column; gap: var(--sp-2); }
+/* `[data-route="/ficha/:tag"] .v13-choice .v13-reason .chip-row` */
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-choice .v13-reason .chip-row { padding-bottom: 0; }
+/* authored (batch e23t, Story 23.15): the winding's value at 75 °C under each reading, at every width, the declarations of
+   e23v's phone line above (`.corrected-stacked`, the mock's `p.card-dims` line). */
+[data-route="/relatorio/:id/ficha/:blockId"] .corrected-line { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }

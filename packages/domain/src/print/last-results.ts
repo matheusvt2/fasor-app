@@ -87,8 +87,9 @@ export function blockReadings(block: BlockRow, definition: BlockDefinition, visi
   for (const cell of evaluatedCells(evaluateSheetReadings(block, definition, visit))) {
     if (cell.role === 'capture') keep(cell.address, cell.state, cell.raw, cell.unit, cell.corrected ?? null);
   }
-  for (const cell of measurementCells(evaluateSheetMeasurements(block, definition))) {
-    if (cell.kind === 'number') keep(cell.address, cell.state, cell.raw, cell.unit);
+  // Batch e23t (Story 23.15): a measurement cell corrected to 75 °C keeps that value too, which the next visit's history rule reads.
+  for (const cell of measurementCells(evaluateSheetMeasurements(block, definition, visit))) {
+    if (cell.kind === 'number') keep(cell.address, cell.state, cell.raw, cell.unit, cell.corrected ?? null);
   }
   return readings;
 }

@@ -1,0 +1,385 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TRANSFORMADOR",
+        "bbox": [
+          70,
+          70,
+          481,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          494,
+          70,
+          549,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "FORÇA",
+        "bbox": [
+          562,
+          70,
+          711,
+          108
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "TR-07",
+        "bbox": [
+          640,
+          156,
+          723,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          250,
+          234,
+          279
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Varnelo",
+        "bbox": [
+          640,
+          254,
+          751,
+          275
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "Isolação",
+        "bbox": [
+          72,
+          351,
+          175,
+          377
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "ÓLEO",
+        "bbox": [
+          641,
+          347,
+          718,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "ISOLANTE",
+        "bbox": [
+          730,
+          352,
+          871,
+          373
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "Líquido",
+        "bbox": [
+          72,
+          449,
+          163,
+          476
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "isolante",
+        "bbox": [
+          175,
+          450,
+          275,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "SILICONE",
+        "bbox": [
+          641,
+          450,
+          774,
+          471
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "POTÊNCIA",
+        "bbox": [
+          72,
+          543,
+          201,
+          569
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "NOMINAL",
+        "bbox": [
+          213,
+          548,
+          333,
+          569
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "300",
+        "bbox": [
+          641,
+          548,
+          693,
+          569
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "kVA",
+        "bbox": [
+          705,
+          548,
+          759,
+          568
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          642,
+          175,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          646,
+          307,
+          667
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "AT",
+        "bbox": [
+          317,
+          647,
+          349,
+          666
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "13,8",
+        "bbox": [
+          642,
+          646,
+          703,
+          670
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "kV",
+        "bbox": [
+          715,
+          646,
+          750,
+          666
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          740,
+          175,
+          765
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          744,
+          307,
+          765
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "BT",
+        "bbox": [
+          319,
+          745,
+          351,
+          764
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "380",
+        "bbox": [
+          641,
+          744,
+          693,
+          765
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "V",
+        "bbox": [
+          703,
+          745,
+          723,
+          764
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TR-07",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Varnelo",
+        "ocr_token_ids": [
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_de_isolacao",
+        "value": "ÓLEO ISOLANTE",
+        "ocr_token_ids": [
+          "t8",
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "natureza_liquido",
+        "value": "SILICONE",
+        "ocr_token_ids": [
+          "t12"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "potencia_nominal",
+        "value": {
+          "raw": "300",
+          "unit": "kVA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t15",
+          "t16"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_at",
+        "value": {
+          "raw": "13.8",
+          "unit": "kV",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t20",
+          "t21"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_bt",
+        "value": {
+          "raw": "380",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t25",
+          "t26"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

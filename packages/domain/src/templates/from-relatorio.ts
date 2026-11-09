@@ -97,7 +97,8 @@ export function templateSeedUpgrade(row: Pick<TemplateRow, 'seed_version' | 'blo
     name: '',
     version: 0,
     seed_version: SEED_VERSION,
-    blocks: row.blocks,
+    // Batch e23t (Story 23.16): judged as the move's fold leaves it (`withVersionSubBlocks`: the v13 transformer drops IA e IP).
+    blocks: withVersionSubBlocks(row.blocks, SEED_VERSION),
     skeleton: row.skeleton,
     archived_at: null,
     removed_at: null,

@@ -271,3 +271,22 @@ describe('9.1-UNIT buildDisplaySuggestions: the I/O matrix', () => {
     expect(build(ISOLACAO, displayCellTarget(BLOCK, 'chave_seccionadora', 'relacao_transformacao', { row: 0, col: 3 })).dropped).toEqual([{ key: '0:147', reason: 'no_cell' }]);
   });
 });
+
+describe('23.16-UNIT (batch e23t, seed v13): a display shot started on the transformer\'s typed IP', () => {
+  const v13 = (): NonNullable<BuildDisplaySuggestionsInput['block']> => ({ ...block('transformador_forca'), block_type: 'transformador_forca', seed_version: 'v13' });
+  const tf = (row: number, col: number) => displayCellTarget(BLOCK, 'transformador_forca', 'isolacao', { row, col });
+
+  it('one unitless value on POLARIZAÇÃO fills that IP cell, a suggestion like any reading', () => {
+    const { rows, dropped } = build(MEGOHMETRO, tf(0, 4), { block: v13() });
+    expect(dropped).toEqual([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ target_path: cellPath('isolacao', 0, 4), value: { raw: '3.42', unit: null, state: 'measured' }, status: 'pending' });
+  });
+
+  it('started on ABSORÇÃO, two values fill the DAR and the IP of that row; the v12 print column takes none', () => {
+    const two = [tok(0, '1.20', [100, 100, 300, 200], 0.98), tok(1, '2.10', [100, 300, 300, 400], 0.98)];
+    expect(build(two, tf(0, 3), { block: v13() }).rows.map((row) => row.target_path)).toEqual([cellPath('isolacao', 0, 3), cellPath('isolacao', 0, 4)]);
+    const v12 = { ...v13(), seed_version: 'v12' };
+    expect(build(two, tf(0, 3), { block: v12 }).dropped.map((drop) => drop.reason)).toEqual(['print_column', 'print_column']);
+  });
+});

@@ -1,6 +1,7 @@
 import {
   camposCopiadosText,
   discardSuggestionOp,
+  isFieldHidden,
   INSULATION_FIELD_KEY,
   lastNameplateCopy,
   nameplateAcceptsNotApplicable,
@@ -405,6 +406,8 @@ export function NameplateSection({
       ) : null}
       <div className="nameplate-grid" onFocus={trackFocus} onBlur={dropFocus}>
         {definition.nameplate.map((field) => {
+          // Batch e23t (Story 23.17): a field whose `excused_unless` the plate does not meet (TIPO (ANP) on a liquid other than mineral) is not drawn.
+          if (isFieldHidden(block, field.key, definitions)) return null;
           const stored = block.sheet.nameplate[field.key];
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;
           const value = prefilled ? tagPrefill : (stored?.value ?? null);

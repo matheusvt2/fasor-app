@@ -60,7 +60,8 @@ export interface VisibleColumn {
   label: string;
   /** The header the table shows ("1 minuto", "Valor", "Calculado"). */
   header: string;
-  role: 'capture' | 'input' | 'derived';
+  /** Seed v13, batch e23t (Story 23.16): `index`, a typed unitless index (the transformer's ABSORÇÃO and POLARIZAÇÃO). */
+  role: 'capture' | 'input' | 'derived' | 'index';
   unit: string | null;
   /** On a derived column: which of the two the kernel computes. */
   derivedKind: 'calculated' | 'condicao' | null;
@@ -68,7 +69,8 @@ export interface VisibleColumn {
 
 export interface EvaluatedCell {
   address: CellAddress;
-  role: 'capture' | 'input';
+  /** Seed v13, batch e23t (Story 23.16): `index` on a typed index column (see `index`). */
+  role: 'capture' | 'input' | 'index';
   /** The column's header ("1 minuto"), for the cell's accessible name. */
   column: string;
   state: ReadingState;
@@ -111,6 +113,14 @@ export interface EvaluatedCell {
    * after the screen's "Com restrição:"; null on a cell no rule restricts.
    */
   restriction?: { reason: string; text: string } | null;
+  /**
+   * Seed v13, batch e23t (Story 23.16): on an `index` cell only. `kind` names the index (`ip`, the
+   * polarization index the test's `polarization_index` judges; `dar`, the absorption index, captured
+   * and never judged; `plain`, an index no rule names); `notApplicable` an IP whose row's capture is
+   * above the instrument's limit (shown and printed N/A, never typed, judged or missing, a stored
+   * value ignored); `required` whether an empty one is missing (the IP on a unit of `required_on`).
+   */
+  index?: { kind: 'ip' | 'dar' | 'plain'; notApplicable: boolean; required: boolean };
 }
 
 export interface EvaluatedRow {
@@ -249,6 +259,11 @@ export interface TestEvaluation {
    * field holds a value that fails it (the arrester's DESLIGADOR ÍNTEGRO NÃO), else null.
    */
   prerequisite?: { failed: true; text: string } | null;
+  /*
+   * Seed v13, batch e23t (Story 23.16). Absent on a test without `polarization_index`.
+   */
+  /** Story 23.16: each IP out of its class, as the conclusion and the points name it, in table order. */
+  indexOut?: { where: string; valueText: string; criterionText: string; sourceName: string }[];
 }
 
 // --- text helpers ------------------------------------------------------------------------

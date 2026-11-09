@@ -420,8 +420,9 @@ describe('Story 23.10/23.11: contract 37', () => {
     expect(await h.rowOf(companyA, 'equipment_type', typeId)).toMatchObject({ latest_version: 2 });
   });
 
+  // Batch e23t (contract 38): the version-36 refusal stands; the current number moved on.
   it('answers a version-36 pull 426 contract_outdated; the current one is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(37);
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(37);
     const res = await companyPull(companyA, '36');
     expect(res.status).toBe(426);
     expect(((await res.json()) as { code?: string }).code).toBe('contract_outdated');

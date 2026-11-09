@@ -72,8 +72,26 @@ function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): Blo
   }
 }
 
-/** Story 22.7 (seed v12): the transformer's oil class and the insulation it implies. */
-const OIL_CLASS_FIELD = 'tipo_do_oleo';
+/** Story 22.7 (seed v12): the transformer's oil class and the insulation it implies; batch e23t (Story 23.17, seed v13): TIPO (ANP). */
+const OIL_CLASS_FIELDS: readonly string[] = ['tipo_do_oleo', 'tipo_anp'];
+/** Batch e23t (Story 23.17): the ANP classes a plate prints; NÃO INFORMADO names no liquid. */
+const ANP_CLASSES: readonly string[] = ['A', 'B'];
+
+/** The oil class field of a definition whose oil rule lists one (v12 TIPO DO ÓLEO, v13 TIPO (ANP)), else null. */
+function oilClassFieldOf(definition: BlockDefinition | null): string | null {
+  return OIL_CLASS_FIELDS.find((key) => definition?.oil_rule?.fields.includes(key) === true) ?? null;
+}
+
+/** The oil class the job keeps for the definition's class field, as its select reads it, or null. */
+function keptOilClass(definition: BlockDefinition, key: string, byKey: ReadonlyMap<string, StructuringValue>, tokens: ReadonlyMap<string, OcrToken>): { structured: StructuringValue; value: string } | null {
+  const field = definition.nameplate.find((candidate) => candidate.key === key);
+  const structured = byKey.get(key);
+  if (field === undefined || structured === undefined) return null;
+  const ordered = citedInOrder(structured.ocr_token_ids, tokens);
+  if (ordered === null) return null;
+  const normalized = normalizeReadingValue(field, structured.value, ordered);
+  return normalized.ok && typeof normalized.value === 'string' ? { structured, value: normalized.value } : null;
+}
 
 /**
  * Story 22.7 (seed v12, P-2: the model reports what the plate prints, the kernel composes): a plate
@@ -86,15 +104,39 @@ const OIL_CLASS_FIELD = 'tipo_do_oleo';
  */
 function composedInsulation(definition: BlockDefinition | null, byKey: ReadonlyMap<string, StructuringValue>, tokens: ReadonlyMap<string, OcrToken>): StructuringValue | null {
   const rule = definition?.oil_rule;
-  if (rule === undefined || !rule.fields.includes(OIL_CLASS_FIELD)) return null;
+  const classKey = oilClassFieldOf(definition);
+  if (rule === undefined || classKey === null) return null;
   const fieldOf = (key: string) => definition!.nameplate.find((candidate) => candidate.key === key);
   const own = byKey.get(rule.field);
   if (own !== undefined && dropReasonOf(fieldOf(rule.field), own, tokens) === null) return null;
-  const oil = byKey.get(OIL_CLASS_FIELD);
-  if (oil === undefined || dropReasonOf(fieldOf(OIL_CLASS_FIELD), oil, tokens) !== null) return null;
+  const oil = byKey.get(classKey);
+  if (oil === undefined || dropReasonOf(fieldOf(classKey), oil, tokens) !== null) return null;
+  // Batch e23t (Story 23.17): on v13 only a printed class (A or B) names an oil unit; "NÃO INFORMADO" composes nothing.
+  if (classKey === 'tipo_anp' && !ANP_CLASSES.includes(keptOilClass(definition!, classKey, byKey, tokens)?.value ?? '')) return null;
   const value = rule.oil_values[0];
   if (value === undefined || fieldOf(rule.field)?.options?.includes(value) !== true) return null;
   return { key: rule.field, value, ocr_token_ids: [...oil.ocr_token_ids], confidence: oil.confidence };
+}
+
+/**
+ * Batch e23t (Story 23.17, seed v13, P-2): an ANP class (A or B) the job keeps names a mineral oil,
+ * so a NATUREZA DO LÍQUIDO the model left out (or that the job drops) reads as the one value TIPO
+ * (ANP) exists for (its `excused_unless`), citing the class's words, to verify. Null on every other
+ * definition, for "NÃO INFORMADO", and when the model's own NATUREZA DO LÍQUIDO is kept.
+ */
+function composedLiquid(definition: BlockDefinition | null, byKey: ReadonlyMap<string, StructuringValue>, tokens: ReadonlyMap<string, OcrToken>): StructuringValue | null {
+  if (definition === null) return null;
+  const classField = definition.nameplate.find((candidate) => candidate.key === 'tipo_anp');
+  const condition = classField?.excused_unless;
+  const value = condition?.in[0];
+  if (classField === undefined || condition === undefined || value === undefined || !(definition.oil_rule?.fields.includes(classField.key) ?? false)) return null;
+  const liquid = definition.nameplate.find((candidate) => candidate.key === condition.field);
+  if (liquid === undefined || liquid.options?.includes(value) !== true) return null;
+  const own = byKey.get(liquid.key);
+  if (own !== undefined && dropReasonOf(liquid, own, tokens) === null) return null;
+  const kept = keptOilClass(definition, classField.key, byKey, tokens);
+  if (kept === null || !ANP_CLASSES.includes(kept.value)) return null;
+  return { key: liquid.key, value, ocr_token_ids: [...kept.structured.ocr_token_ids], confidence: kept.structured.confidence };
 }
 
 /** Why the job would drop this structured value of `field` (its citation, then its shape), or null when it keeps it. */
@@ -117,13 +159,16 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
     if (!fieldKeys.has(value.key)) dropped.push({ key: value.key, reason: 'unknown_key' });
     else byKey.set(value.key, value);
   }
-  const composed = composedInsulation(definition, byKey, tokens);
-  if (composed !== null) {
-    // A TIPO DE ISOLAÇÃO of the model's the job would drop is reported, and the composed one takes its place.
+  // Batch e23t (Story 23.17): on v13 the kept ANP class also composes NATUREZA DO LÍQUIDO MINERAL.
+  const composedValues = new Set<StructuringValue>();
+  for (const composed of [composedInsulation(definition, byKey, tokens), composedLiquid(definition, byKey, tokens)]) {
+    if (composed === null) continue;
+    // A value of the model's the job would drop is reported, and the composed one takes its place.
     const own = byKey.get(composed.key);
     const reason = own === undefined ? null : dropReasonOf(fields.find((field) => field.key === composed.key), own, tokens);
     if (reason !== null) dropped.push({ key: composed.key, reason });
     byKey.set(composed.key, composed);
+    composedValues.add(composed);
   }
 
   const rows: SuggestionRow[] = [];
@@ -167,7 +212,7 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
       value: normalized.value,
       cited: ordered,
       registry: input.registry,
-      verify: normalized.verify || diagram || otherGroup || structured === composed,
+      verify: normalized.verify || diagram || otherGroup || composedValues.has(structured),
       ...(normalized.printedText === undefined ? {} : { printedText: normalized.printedText }),
     });
     const union = unionBox(ordered.map((token) => token.bbox))!;

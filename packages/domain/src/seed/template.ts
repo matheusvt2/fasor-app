@@ -67,15 +67,22 @@ export function startsOff(definition: Pick<BlockDefinition, 'tests' | 'measureme
  * fold of the server's seed move (`template/{id}/seed_version`, `ops/apply.ts`) and "Salvar como
  * template" from an older relatório apply it, so moving an unedited standard template to a new
  * version still equals a rebuild there. v1 to v12 share their sub-blocks: a move among them adds nothing.
+ * Batch e23t (2026-11-09, Story 23.16, contract 38): a default-off part (`DEFAULT_OFF_SUB_BLOCKS`) the
+ * version's definition no longer has leaves the block, whatever its switch (the v13 transformer's "IA e
+ * IP lidos do visor": v13 types the IP and the DAR in the insulation table, so nothing is lost).
  */
 export function withVersionSubBlocks(blocks: readonly TemplateBlock[], seedVersion: string): TemplateBlock[] {
   return blocks.map((block) => {
     if (!isEquipmentBlockType(block.block_type)) return block;
     const definition = findDefinition(seedVersion, block.block_type);
-    if (definition === null || definition.sub_blocks.every((key) => key in block.sub_blocks)) return block;
+    if (definition === null) return block;
+    // Batch e23t (Story 23.16, seed v13): a default-off part the version's definition no longer has (the v13
+    // transformer's "IA e IP lidos do visor", whose IP and DAR v13 types in the table) leaves with it.
+    const dropped = (key: string): boolean => !definition.sub_blocks.includes(key) && (DEFAULT_OFF_SUB_BLOCKS as readonly string[]).includes(key);
+    if (definition.sub_blocks.every((key) => key in block.sub_blocks) && !Object.keys(block.sub_blocks).some(dropped)) return block;
     const sub_blocks: Record<string, SubBlockConfig> = {};
     for (const key of definition.sub_blocks) sub_blocks[key] = block.sub_blocks[key] ?? { enabled: !startsOff(definition, key) };
-    for (const [key, entry] of Object.entries(block.sub_blocks)) if (!(key in sub_blocks)) sub_blocks[key] = entry;
+    for (const [key, entry] of Object.entries(block.sub_blocks)) if (!(key in sub_blocks) && !dropped(key)) sub_blocks[key] = entry;
     return { ...block, sub_blocks };
   });
 }

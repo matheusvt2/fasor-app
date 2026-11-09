@@ -1,5 +1,6 @@
 import type { BaseEquipmentBlockType } from '../schemas/block-config.ts';
 import { NETA_100_1, NETA_100_5 } from './criteria-tables.ts';
+import type { MeasurementTest } from './measurement.ts';
 import type { BlockDefinition, FieldDef, ReportSeed, TestDef } from './schema.ts';
 import { CABINE_PRIMARIA_V12 } from './v12.ts';
 
@@ -253,6 +254,242 @@ function withCorrectionAndRestrictions(seed: ReportSeed): ReportSeed {
   return { ...seed, blocks };
 }
 
+// --- e23t: Stories 23.15 to 23.17 and 23.19 ---
+/*
+ * Story 23.15 (decision I; Base rev08 TR-OL-05, TR-SE-05): the transformer's winding resistance, a
+ * measurement test (`seed/measurement.ts`) of fixed rows: the AT on the tap in service and on the two
+ * extreme taps (those two optional) and the BT, per phase, judged by the deviation between phases
+ * over the row's lowest phase (an oil unit within 2 %, restricted to 5 %, out above; a dry one
+ * within 2 %, restricted above; an open circuit out on either), each cell also shown corrected to
+ * 75 °C by its winding material, and a corrected cell that moved more than 2 % since the previous
+ * v13 visit restricted. No comparison with the factory (no per-phase maker's value, B-1).
+ *
+ * Story 23.16 (Base rev08 TR-OL-03, TR-SE-03, table IP_CLASSIFICACAO): the insulation table's
+ * ABSORÇÃO and POLARIZAÇÃO become typed index columns where FO.SERV-03 prints them, the IP judged
+ * by class (below 1,0 out, 1,0 to below 2,0 restricted, from 2,0 within), required on a dry unit;
+ * the DAR captured, never judged. "IA e IP lidos do visor" leaves this type's v13 sub-blocks. No
+ * history rule (its term is a vague one, B-1).
+ *
+ * Story 23.17 (decision H; Base rev08 TR-OL-07, DJ-07; M-4): TIPO DE ISOLAÇÃO's oil option reads
+ * ÓLEO ISOLANTE (ÓLEO and ÓLEO MINERAL its earlier spellings), and v12's TIPO DO ÓLEO gives way in
+ * place to NATUREZA DO LÍQUIDO and TIPO (ANP), both oil fields, TIPO (ANP) only for a MINERAL
+ * liquid (B-3: it judges nothing). The oil sampling, a record that judges nothing, applies on the
+ * transformer while it holds ÓLEO ISOLANTE (silicone included, a reading for Bruno) and on the
+ * disjuntor while its extinction medium is Óleo.
+ *
+ * Story 23.19 (Base rev08 SC-04): the seccionadora's HH fuses, the deviation between fuses within
+ * 15 %, out above or open; not applicable unless TIPO DE SECCIONADORA is SOB CARGA COM FUSÍVEIS.
+ *
+ * Applied after e23v's section: every new key is optional and never defaulted (AD-21).
+ */
+
+/** The oil insulation on v13 (M-4). */
+const OLEO_ISOLANTE = 'ÓLEO ISOLANTE';
+const TIPO_DE_ISOLACAO_V13 = ['EPÓXI', 'Á SECO', OLEO_ISOLANTE];
+/** v6 to v11's ÓLEO and v12's ÓLEO MINERAL read as ÓLEO ISOLANTE on v13. */
+const TIPO_DE_ISOLACAO_ALIASES_V13: Record<string, string> = { ÓLEO: OLEO_ISOLANTE, 'ÓLEO MINERAL': OLEO_ISOLANTE };
+
+/** NATUREZA DO LÍQUIDO (Story 23.17), its help verbatim from `60-ficha.html` #/ficha/TR1. */
+const NATUREZA_DO_LIQUIDO: FieldDef = {
+  key: 'natureza_liquido',
+  label: 'NATUREZA DO LÍQUIDO',
+  kind: 'select',
+  options: ['MINERAL', 'ÉSTER NATURAL (VEGETAL)', 'ÉSTER SINTÉTICO', 'SILICONE'],
+  help: 'Mineral, éster natural (vegetal), éster sintético ou silicone',
+};
+/** TIPO (ANP): the ANP class of a mineral oil (B-3), its help verbatim from the frame. */
+const TIPO_ANP: FieldDef = {
+  key: 'tipo_anp',
+  label: 'TIPO (ANP)',
+  kind: 'select',
+  options: ['A', 'B', 'NÃO INFORMADO'],
+  help: 'Só para líquido mineral',
+  excused_unless: { field: NATUREZA_DO_LIQUIDO.key, in: ['MINERAL'] },
+};
+
+/** The insulation table's two quality columns, typed from v13 on (Story 23.16). */
+const ABSORCAO = 'ABSORÇÃO';
+const POLARIZACAO = 'POLARIZAÇÃO';
+
+// authored (Story 23.15, 23.17 and 23.19, listed for Bruno): the off note of the three new switchable tests.
+const OFF_NOTE_E23T = 'Desligado: o ensaio não conta como faltando e não sai no relatório.';
+
+const PHASE_COLUMNS: MeasurementTest['columns'] = [
+  { key: 'fase_a', label: 'Fase A', kind: 'number' },
+  { key: 'fase_b', label: 'Fase B', kind: 'number' },
+  { key: 'fase_c', label: 'Fase C', kind: 'number' },
+];
+
+/** Story 23.15: the winding resistance (TR-OL-05, TR-SE-05). */
+const RESISTENCIA_ENROLAMENTO: MeasurementTest = {
+  key: 'resistencia_enrolamento',
+  label: 'Resistência ôhmica dos enrolamentos',
+  instrument_of: 'resistencia_contato',
+  switchable: { off_note: OFF_NOTE_E23T },
+  row_header: 'Enrolamento',
+  columns: PHASE_COLUMNS,
+  rows: [
+    { key: 'at_tap_atual', label: 'AT, tap atual', kind: 'number', unit: 'Ω' },
+    { key: 'at_primeiro_tap', label: 'AT, primeiro tap', kind: 'number', unit: 'Ω', optional: true },
+    { key: 'at_ultimo_tap', label: 'AT, último tap', kind: 'number', unit: 'Ω', optional: true },
+    { key: 'bt', label: 'BT', kind: 'number', unit: 'mΩ' },
+  ],
+  criteria: [
+    {
+      type: 'phase_deviation',
+      across: 'columns',
+      within_max_pct: 2,
+      restricted_max_pct: 5,
+      above: 'out',
+      medium: 'oil',
+      // authored (Story 23.15, listed for Bruno): the criterion's wording.
+      text: 'desvio entre fases ≤ 2 % (com restrição até 5 %)',
+      status: 'CONFIRMADO',
+      source: { name: 'NETA MTS-2023 7.2.2; IEEE C57.152', edition: null },
+    },
+    {
+      type: 'phase_deviation',
+      across: 'columns',
+      within_max_pct: 2,
+      above: 'restricted',
+      medium: 'dry',
+      // authored (Story 23.15, listed for Bruno).
+      text: 'desvio entre fases ≤ 2 % (com restrição acima)',
+      status: 'CONFIRMADO',
+      source: { name: 'NETA MTS-2023 7.2.1.2', edition: null },
+    },
+  ],
+  winding_correction: { to_c: 75, material_field: 'material_enrolamento', oil_field: TEMPERATURA_DO_OLEO.key, dry_field: TEMPERATURA_DO_ENROLAMENTO.key },
+  history_deviation_pct: 2,
+};
+
+/** Story 23.17: the oil sampling (TR-OL-07, DJ-07): a record, both answers pass, "Não coletado" asks why. */
+function coletaOleo(appliesWhen: NonNullable<MeasurementTest['applies_when']>): MeasurementTest {
+  return {
+    key: 'coleta_oleo',
+    label: 'Coleta de óleo',
+    switchable: { off_note: OFF_NOTE_E23T },
+    // authored (Story 23.17, listed for Bruno): the row header and the result column.
+    row_header: 'Coleta',
+    columns: [
+      {
+        key: 'resultado',
+        label: 'Resultado',
+        kind: 'choice',
+        options: [
+          { key: 'coletado', label: 'Coletado' },
+          { key: 'nao_coletado', label: 'Não coletado' },
+        ],
+      },
+    ],
+    rows: [{ key: 'amostra', label: 'Amostra' }],
+    values: [
+      {
+        key: 'motivo',
+        label: 'Motivo',
+        kind: 'choice',
+        options: [
+          { key: 'equipamento_energizado', label: 'Equipamento energizado' },
+          { key: 'sem_ponto_de_coleta', label: 'Sem ponto de coleta' },
+          { key: 'outro', label: 'Outro' },
+        ],
+        when: { cell: { row: 'amostra', column: 'resultado' }, equals: 'nao_coletado' },
+      },
+    ],
+    criteria: [
+      {
+        type: 'choice_pass',
+        column: 'resultado',
+        pass: ['coletado', 'nao_coletado'],
+        // authored (Story 23.17, listed for Bruno): a record that judges nothing; the frame's helper says the lab analyses the oil.
+        text: 'registro da coleta (a análise é do laboratório)',
+        source: { name: 'NBR 8840:2021; NBR 7070:2006', edition: null },
+      },
+    ],
+    applies_when: appliesWhen,
+  };
+}
+
+/** Story 23.19: the HH fuses (SC-04). */
+const RESISTENCIA_FUSIVEIS: MeasurementTest = {
+  key: 'resistencia_fusiveis',
+  label: 'Resistência dos fusíveis HH',
+  instrument_of: 'resistencia_contato',
+  switchable: { off_note: OFF_NOTE_E23T },
+  row_header: 'Fusível',
+  columns: [{ key: 'resistencia', label: 'Resistência', kind: 'number', unit: 'mΩ' }],
+  rows: [
+    { key: 'fase_a', label: 'Fase A' },
+    { key: 'fase_b', label: 'Fase B' },
+    { key: 'fase_c', label: 'Fase C' },
+  ],
+  criteria: [
+    {
+      type: 'phase_deviation',
+      across: 'rows',
+      within_max_pct: 15,
+      above: 'out',
+      // authored (Story 23.19, listed for Bruno).
+      text: 'desvio entre fusíveis ≤ 15 %',
+      status: 'CONFIRMADO',
+      source: { name: 'NETA MTS-2023', edition: null },
+    },
+  ],
+  applies_when: { field: 'tipo_seccionadora', op: 'in', values: ['SOB CARGA COM FUSÍVEIS'], unmet: 'sem fusíveis' },
+};
+
+/** The definition's sub-blocks with `added` before OBSERVAÇÕES and `removed` left out. */
+function withSubBlocks(definition: BlockDefinition, added: readonly string[], removed: readonly string[] = []): string[] {
+  if (!definition.sub_blocks.includes('observations')) throw new Error(`seed v13: ${definition.block_type} lacks observations`);
+  const kept = definition.sub_blocks.filter((key) => !removed.includes(key));
+  const before = kept.indexOf('observations');
+  return [...kept.slice(0, before), ...added, ...kept.slice(before)];
+}
+
+/** The definition with `tests` appended to its measurement tests, each its sub-block. */
+function withMeasurementTests(definition: BlockDefinition, tests: readonly MeasurementTest[], removed: readonly string[] = []): BlockDefinition {
+  return {
+    ...definition,
+    sub_blocks: withSubBlocks(definition, tests.map((test) => test.key), removed),
+    measurement_tests: [...(definition.measurement_tests ?? []), ...tests.map((test) => structuredClone(test))],
+  };
+}
+
+/** Stories 23.15 to 23.17: the transformer's liquid, its typed IP and DAR, the winding resistance and the oil sampling. */
+function transformadorForcaE23t(definition: BlockDefinition): BlockDefinition {
+  const nameplate = definition.nameplate.flatMap((field): FieldDef[] => {
+    if (field.key === 'tipo_de_isolacao') return [{ ...field, options: [...TIPO_DE_ISOLACAO_V13], option_aliases: { ...TIPO_DE_ISOLACAO_ALIASES_V13 } }];
+    if (field.key === 'tipo_do_oleo') return [structuredClone(NATUREZA_DO_LIQUIDO), structuredClone(TIPO_ANP)];
+    return [field];
+  });
+  if (nameplate.length !== definition.nameplate.length + 1) throw new Error('seed v13: the transformador de força lacks TIPO DO ÓLEO');
+  const rule = definition.oil_rule!;
+  const fields = rule.fields.flatMap((key) => (key === 'tipo_do_oleo' ? [NATUREZA_DO_LIQUIDO.key, TIPO_ANP.key] : [key]));
+  const tests = definition.tests.map((test): TestDef => {
+    if (test.key !== 'isolacao') return test;
+    const tables = test.tables.map((table) => ({
+      ...table,
+      value_columns: table.value_columns.map((column) => (column.label === ABSORCAO || column.label === POLARIZACAO ? { ...column, role: 'index' as const } : column)),
+    }));
+    return { ...test, tables, polarization_index: { column: POLARIZACAO, min: 1, restricted_below: 2, required_on: 'dry', dar_column: ABSORCAO, status: 'CONFIRMADO' } };
+  });
+  const shaped: BlockDefinition = { ...definition, nameplate, oil_rule: { ...rule, oil_values: [OLEO_ISOLANTE], fields }, tests };
+  return withMeasurementTests(
+    shaped,
+    [RESISTENCIA_ENROLAMENTO, coletaOleo({ field: 'tipo_de_isolacao', op: 'in', values: [OLEO_ISOLANTE] })],
+    ['ia_ip_display'],
+  );
+}
+
+/** Batch e23t's whole delta (Stories 23.15 to 23.17 and 23.19), applied after e23v's. */
+function withTransformerAndSwitchingTests(seed: ReportSeed): ReportSeed {
+  const blocks = { ...seed.blocks };
+  blocks.transformador_forca = transformadorForcaE23t(blocks.transformador_forca);
+  blocks.disjuntor_mt = withMeasurementTests(blocks.disjuntor_mt, [coletaOleo({ field: 'meio_de_extincao', op: 'in', values: ['Óleo'] })]);
+  blocks.chave_seccionadora = withMeasurementTests(blocks.chave_seccionadora, [RESISTENCIA_FUSIVEIS]);
+  return { ...seed, blocks };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV13(): ReportSeed {
@@ -260,8 +497,8 @@ function cabinePrimariaV13(): ReportSeed {
   const blocks = { ...seed.blocks };
   // e23a (Stories 23.2 and 23.4).
   for (const type of LIMIT_NOTE_TYPES) blocks[type] = insulationV13(type, blocks[type]);
-  // e23b (Stories 23.7 to 23.9), after every e23a step; then e23v (Stories 23.5, 23.6, 23.14).
-  return withCorrectionAndRestrictions(withNameplateFields({ ...seed, blocks }));
+  // e23b (Stories 23.7 to 23.9), after every e23a step; then e23v (Stories 23.5, 23.6, 23.14); then e23t (Stories 23.15 to 23.17, 23.19).
+  return withTransformerAndSwitchingTests(withCorrectionAndRestrictions(withNameplateFields({ ...seed, blocks })));
 }
 
 export const CABINE_PRIMARIA_V13: ReportSeed = cabinePrimariaV13();

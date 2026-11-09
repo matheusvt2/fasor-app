@@ -9,6 +9,11 @@
  * the specs below share something no per-worker pair can separate. Each entry says why.
  */
 export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
+  // Batch e23t (2026-11-09, Stories 23.15 to 23.17 and 23.19): each issues a revision to read its DOCX tables.
+  { file: 'winding-resistance.spec.ts', why: 'Story 23.15: issues a revision through the shared queue and LibreOffice to read the winding table of the DOCX' },
+  { file: 'polarization-index.spec.ts', why: 'Story 23.16: issues a revision through the shared queue and LibreOffice to read the IP column of the DOCX' },
+  { file: 'oil-liquid-sampling.spec.ts', why: 'Story 23.17: issues a revision through the shared queue and LibreOffice to read the liquid fields and the absent sampling of the DOCX' },
+  { file: 'fuse-resistance.spec.ts', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   {
     file: 'document-pages.spec.ts',
     why: 'Stories 20.3, 20.5 and 20.6: issues a revision through the shared queue and LibreOffice to read where each ficha, table and photo lands on the PDF pages',

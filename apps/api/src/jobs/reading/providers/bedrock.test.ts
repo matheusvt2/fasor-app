@@ -255,8 +255,8 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 });
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
-  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 6 (Story 23.7)', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-6');
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 7 (Story 23.17)', async () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-7');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -272,7 +272,7 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-6');
+    expect(result.prompt_version).toBe('bedrock-structuring-7');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
@@ -512,7 +512,7 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
     expect(result.output.values).toHaveLength(others.length + 1);
     expect(Object.keys(result.output)).toEqual(['values']);
-    expect(result.prompt_version).toBe('bedrock-structuring-6');
+    expect(result.prompt_version).toBe('bedrock-structuring-7');
   });
 
   it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {
@@ -605,5 +605,20 @@ describe('e21a the vector-diagram fold through the bedrock provider (R-1, R-2, R
     } finally {
       lines.mockRestore();
     }
+  });
+});
+
+describe('23.17 (batch e23t, seed v13): the structuring prompt says what TIPO (ANP), NATUREZA DO LÍQUIDO and TIPO DE ISOLAÇÃO hold', () => {
+  const fieldsOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate;
+
+  it('a v13 transformer asks for the ANP class letter, the liquid only as printed and ÓLEO ISOLANTE for a named oil; v12 keeps TIPO DO ÓLEO', () => {
+    const notes = plateFieldNotes(fieldsOf('v13', 'transformador_forca'));
+    expect(notes).toContain('The field tipo_anp is the class letter of the insulating oil: "Tipo óleo isolante B" is tipo_anp = B; give one of: A | B; leave it out when the plate prints no class.');
+    expect(notes).toContain('The field natureza_liquido is the insulating liquid the plate names (give one of: MINERAL | ÉSTER NATURAL (VEGETAL) | ÉSTER SINTÉTICO | SILICONE); leave it out when the plate names none.');
+    expect(notes).toContain('The field tipo_de_isolacao is ÓLEO ISOLANTE when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.');
+    expect(notes.some((note) => note.includes('tipo_do_oleo'))).toBe(false);
+    expect(plateFieldNotes(fieldsOf('v12', 'transformador_forca')).some((note) => note.includes('tipo_anp'))).toBe(false);
+    // The TP and the TC carry no liquid field.
+    for (const type of ['tp', 'tc']) expect(plateFieldNotes(fieldsOf('v13', type)).some((note) => note.includes('tipo_anp')), type).toBe(false);
   });
 });

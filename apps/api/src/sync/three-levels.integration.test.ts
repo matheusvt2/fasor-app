@@ -121,7 +121,7 @@ describe('23.6-INT the issue\'s last_results keeps the corrected value (AD-25, c
     const plate = (seeded: SeededRelatorio, blockId: string, key: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path: sheetNameplatePath(blockId, key), relatorio_id: seeded.relatorioId, value });
     const at = (seeded: SeededRelatorio, blockId: string, raw: string) => h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(blockId, 'isolacao', 0, 1), relatorio_id: seeded.relatorioId, value: measured(raw, 'GΩ') });
     expect(
-      (await h.push(companyA, [plate(v13, tf13.id, 'tipo_de_isolacao', 'ÓLEO MINERAL'), plate(v13, tf13.id, 'temperatura_oleo_c', measured('40', '°C')), at(v13, tf13.id, '2')])).rejected,
+      (await h.push(companyA, [plate(v13, tf13.id, 'tipo_de_isolacao', 'ÓLEO ISOLANTE'), plate(v13, tf13.id, 'temperatura_oleo_c', measured('40', '°C')), at(v13, tf13.id, '2')])).rejected,
     ).toEqual([]);
     const puts13 = await project(companyA, v13);
     const row13 = await h.rowOf<EquipmentRow>(companyA, 'equipment', tf13.equipmentId);

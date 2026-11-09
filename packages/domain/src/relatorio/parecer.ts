@@ -124,7 +124,7 @@ function outReading(block: BlockRow, definition: BlockDefinition | null, visit: 
   if (block.not_tested !== null) return false;
   if (definition === null) return false;
   const plain = sheetReadings(block, definition, visit).filter((test) => test.testKey !== 'relacao_transformacao');
-  return evaluatedCells(plain).some((cell) => cell.verdict === 'out') || measurementCells(sheetMeasurements(block, definition)).some((cell) => cell.verdict === 'out');
+  return evaluatedCells(plain).some((cell) => cell.verdict === 'out') || measurementCells(sheetMeasurements(block, definition, visit)).some((cell) => cell.verdict === 'out');
 }
 
 /**

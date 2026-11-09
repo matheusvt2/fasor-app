@@ -752,6 +752,13 @@ function valueText(
       return printColumnText(block, testKey, row.row, col, column, enabled, test !== undefined && polarizationNotApplicable(test, row));
     case 'voltage':
       return voltageText(row);
+    case 'index': {
+      // Seed v13, batch e23t (Story 23.16): the typed IP or DAR as typed; an IP on a row above the instrument's limit prints N/A (Story 23.4's rule).
+      const cell = row.cells.find((candidate) => candidate.address.col === col);
+      if (cell === undefined) return DASH;
+      if (cell.index?.notApplicable === true) return NOT_APPLICABLE_TEXT;
+      return cell.state === 'measured' ? cell.displayText : DASH;
+    }
   }
 }
 
@@ -1148,6 +1155,13 @@ function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | nu
   return headerUnit === null ? withUnit(cell.displayText, cell.unit) : cell.displayText;
 }
 
+/** Batch e23t (Story 23.15): a cell's value at 75 °C, bare under a header carrying its unit; "-" without one. */
+function correctedMeasurementText(cell: EvaluatedMeasurementCell, headerUnit: string | null): string {
+  const value = cell.corrected ?? null;
+  if (cell.fixed !== null || value === null) return DASH;
+  return headerUnit !== null && value.unit === headerUnit ? formatDecimalGroupedPtBr(value.raw) : value.text;
+}
+
 /**
  * One measurement test as one table; null for a test switched off and (2026-10-14, Bruno) for
  * one marked not run (`skipped`, E5's método "Não realizado"): neither prints a title, a
@@ -1156,16 +1170,23 @@ function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | nu
 function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
   // Story 23.9: a test the nameplate makes not applicable is omitted, as a switched-off one is (FR-11).
   if (!test.enabled || test.skipped || test.applicability.state === 'na') return null;
-  const width = 1 + test.columns.length;
+  // Batch e23t (Story 23.15, seed v13): a test corrected to 75 °C repeats its columns in a "75 °C" group after them.
+  const corrected = test.temperature ?? null;
+  const width = 1 + test.columns.length * (corrected === null ? 1 : 2);
   const rows: PrintRow[] = [bandRow(printLabel(test.title), width)];
   if (test.instrumentOf !== null) rows.push(lineRow(instrumentLine(block, test.testKey), width));
+  // Batch e23t (Story 23.15): the temperature the values were corrected from, in e23v's print text ("TEMPERATURA: 30 °C (ÓLEO)").
+  if (corrected !== null) rows.push(lineRow(`${TEMPERATURE_PRINT_LABEL}: ${corrected.print}`, width));
   if (test.valuesLine !== null) {
     rows.push(lineRow(test.valuesLine.parts.map((part) => `${printLabel(part.label)}: ${part.kind === 'choice' ? printLabel(part.text) : part.text}`).join(SEP), width));
   }
   const units = test.columns.map((column) => sharedUnit(test, column.col));
-  rows.push(headerRow([printLabel(test.rowHeader), ...test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`))]));
+  const headers = test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`));
+  if (corrected !== null) rows.push({ header: true, cells: [headerCell(''), headerCell('', test.columns.length), headerCell(corrected.printHeader, test.columns.length)] });
+  rows.push(headerRow([printLabel(test.rowHeader), ...headers, ...(corrected === null ? [] : headers)]));
   for (const row of test.rows) {
-    rows.push({ cells: [valueCell(printLabel(row.label)), ...row.cells.map((cell, c) => valueCell(measurementText(cell, units[c] ?? null)))] });
+    const atReference = corrected === null ? [] : row.cells.map((cell, c) => valueCell(correctedMeasurementText(cell, units[c] ?? null)));
+    rows.push({ cells: [valueCell(printLabel(row.label)), ...row.cells.map((cell, c) => valueCell(measurementText(cell, units[c] ?? null))), ...atReference] });
   }
   if (test.reference !== null && test.reference.cells.some((cell) => cell.text !== null)) {
     rows.push({
@@ -1194,8 +1215,9 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
 }
 
 /** The measurement tests of a sheet that print, in the definition's order. */
-function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings): SheetPart[] {
-  return evaluateSheetMeasurements(block, definition).flatMap((test) => {
+function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings, visit: VisitContext): SheetPart[] {
+  // Batch e23t (Story 23.15): judged and corrected under the sheet's visit context, as on screen.
+  return evaluateSheetMeasurements(block, definition, visit).flatMap((test) => {
     const part = measurementTestPart(block, test, previous);
     return part === null ? [] : [part];
   });
@@ -1320,7 +1342,7 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   // Batch e23v (Stories 23.5 and 23.6, seed v13): the sheet judged under its visit context (the cabine's ambient, the previous visit).
   const visit = visitContextOf(ctx.snapshot, block);
   for (const evaluation of evaluateSheetReadings(block, definition, visit)) parts.push(...testParts(block, definition, evaluation, enabled, previous));
-  parts.push(...measurementParts(block, definition, previous));
+  parts.push(...measurementParts(block, definition, previous, visit));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
   if (enabled.has('conclusion')) {

@@ -295,6 +295,19 @@ function slotsFor(tables: ReturnType<typeof rowsOf>, target: DisplayCellTarget, 
       }
     }
   }
+  // Seed v13, batch e23t (Story 23.16): a shot started on a typed index (the transformer's IP or DAR) fills that row's
+  // index cells from there, never the captures after them.
+  const startColumn = home?.table.value_columns[start.col];
+  if (home !== undefined && startColumn?.role === 'index') {
+    const at = home.rows.indexOf(start.row);
+    const previousRow = at <= 0 ? null : home.rows[at - 1]!;
+    const position = positionOf(tables, start.row);
+    const indices = home.table.value_columns.flatMap((column, col) => (column.role === 'index' && col >= start.col ? [{ column, col }] : []));
+    return Array.from({ length: count }, (_, i) => {
+      const entry = indices[i];
+      return entry === undefined ? { drop: 'no_cell' as const } : { slot: { table: home.table, row: start.row, col: entry.col, column: entry.column, previousRow, position } };
+    });
+  }
   const slots = captureSlots(tables);
   const at = positionOf(tables, start.row);
   const from = at === -1 ? -1 : slots.findIndex((slot) => slot.position > at || (slot.position === at && slot.col >= start.col));

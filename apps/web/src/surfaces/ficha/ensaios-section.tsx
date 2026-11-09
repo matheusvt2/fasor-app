@@ -123,7 +123,8 @@ export function EnsaiosSection({
   const sections = useMemo(() => sheetTestSections(block, definition, visit), [block, definition, visit]);
   const evaluations = useMemo(() => sections.flatMap((section) => (section.evaluation === null ? [] : [section.evaluation])), [sections]);
   // Story 14.5: the measurement tests of a library type; none on the eight FO.SERV-03 types.
-  const measurements = useMemo(() => evaluateSheetMeasurements(block, definition), [block, definition]);
+  // Batch e23t (Story 23.15): judged and corrected under the same visit context as the seeded tests.
+  const measurements = useMemo(() => evaluateSheetMeasurements(block, definition, visit), [block, definition, visit]);
   const display = useDisplaySuggestions({ api, state, snapshot, block, onCaptionPhoto });
   const host = useRef<HTMLDivElement | null>(null);
   const firstMissing = useMemo(() => evaluatedCells(evaluations).find((cell) => cell.missing)?.address ?? null, [evaluations]);
@@ -459,7 +460,8 @@ function MeasurementTable({
   const rowName = (row: EvaluatedRow) => screenLabel(readingRowLabel(table.rows, row));
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     // Story 23.8: a row the plate no longer lists keeps its readings, never written again (the fold refuses it).
-    readOnly || !tapCellTyped(row, cell) ? (
+    // Batch e23t (Story 23.16): an IP the kernel makes N/A (its row above the instrument's limit) is never typed.
+    readOnly || !tapCellTyped(row, cell) || cell.index?.notApplicable === true ? (
       <ReadOnlyMeasurementField cell={cell} label={measurementCellName(rowName(row), screenLabel(cell.column))} />
     ) : sameAddress(dictatedCell, cell.address) && dictated !== null ? (
       <DictatedMeasurementField
