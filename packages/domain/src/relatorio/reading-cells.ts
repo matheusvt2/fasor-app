@@ -7,6 +7,7 @@ import { screenAcronym } from './screen-label.ts';
 import { isCellFilled } from './sheet-state.ts';
 import type { OverRangeAllowance } from './over-range.ts';
 import type { EvaluatedTap } from './tap-rows.ts';
+import type { TestTemperatureView } from './temperature-correction.ts';
 import { DEFAULT_VECTOR_GROUP_CODE, parseVectorGroup, VECTOR_GROUP_FIELD, vectorGroupByCode, type VectorGroup } from './vector-group.ts';
 
 /*
@@ -40,7 +41,12 @@ export interface CellAddress {
 
 /** Story 22.10: `over_range` is a reading above the instrument's limit, `raw` that limit (`over-range.ts`). */
 export type ReadingState = 'empty' | 'measured' | 'not_measured' | 'over_range' | 'invalid';
-export type ReadingVerdict = 'within' | 'out';
+/**
+ * Batch e23v (Story 23.6, seed v13): `restricted` is a reading inside its criterion that a test's
+ * restriction rule flags (`relatorio/restriction.ts`): out > restricted > within. Only a test whose
+ * definition carries `restriction` gives it; every other test gives `within` or `out` as before.
+ */
+export type ReadingVerdict = 'within' | 'restricted' | 'out';
 export type ReadingSource = 'typed' | 'nameplate' | 'derived';
 
 /** A column the Measurement table draws (every value column but `print`). */
@@ -89,6 +95,22 @@ export interface EvaluatedCell {
   outlier: { text: string } | null;
   /** Counted by `sheetProgress`: a capture not filled, or an input with no effective value. */
   missing: boolean;
+  /*
+   * Batch e23v (Stories 23.5 and 23.6, seed v13). Present only on a capture of a test whose
+   * definition carries the key the field names; absent on every other cell, every cell of v1 to v12.
+   */
+  /**
+   * Story 23.5 (`temperature_correction`): the reading corrected to 20 °C, in its own unit, as it is
+   * judged ("8 GΩ"); null without a temperature (or out of the table), on a reading above the
+   * instrument's limit (never corrected, Story 23.4) and on a cell holding no reading.
+   */
+  corrected?: { raw: string; unit: string | null; text: string } | null;
+  /**
+   * Story 23.6 (`restriction`): why a reading within its criterion is restricted (`verdict`
+   * `restricted`): the short reason the points and the conclusion name, and the helper's sentence
+   * after the screen's "Com restrição:"; null on a cell no rule restricts.
+   */
+  restriction?: { reason: string; text: string } | null;
 }
 
 export interface EvaluatedRow {
@@ -215,6 +237,17 @@ export interface TestEvaluation {
   sourceLines?: string[];
   /** Story 23.4: on a test with `instrument_limit_note`, the observation under its table, or null while no limit meets it. */
   limitNote?: string | null;
+  /*
+   * Batch e23v (Stories 23.5 and 23.6, seed v13). Optional and absent on a test none of them reaches,
+   * so the evaluation of a v1 to v12 test is the one it always was.
+   */
+  /** Story 23.5: on a test with `temperature_correction`, its temperature's line, printed cell and column headers. */
+  temperature?: TestTemperatureView;
+  /**
+   * Story 23.6: on a test whose `restriction` names a prerequisite, the failure when the plate's
+   * field holds a value that fails it (the arrester's DESLIGADOR ÍNTEGRO NÃO), else null.
+   */
+  prerequisite?: { failed: true; text: string } | null;
 }
 
 // --- text helpers ------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
 import { isTagTaken } from '../relatorio/tag.ts';
 import { blockTypeLabelIn } from '../relatorio/tree.ts';
+import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import { equipmentBlockName } from './info.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { relatorioOpEnvelope, type Author } from '../relatorio/ops.ts';
@@ -190,7 +191,7 @@ const CONCLUSION_LABELS: Readonly<Record<string, string>> = {
  * The EDITED basis with no `edited` status entry falls back to the basis `conflict` (the
  * edited write's, a third tablet's same-value status having dropped the status mark).
  */
-function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | null, tag: string, opOf: OpenDecisionsInput['opOf']): CellConflict | null {
+function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | null, tag: string, opOf: OpenDecisionsInput['opOf'], visit: VisitContext = NO_VISIT_CONTEXT): CellConflict | null {
   const { text, text_status: status, text_basis: basis } = block.sheet.conclusion;
   if (text?.conflict === undefined && status?.conflict === undefined && basis?.conflict === undefined) return null;
   const shown = (cell: Cell | null | undefined) => (cell === null || cell === undefined ? null : (cell.shown_op_id ?? cell.op_id));
@@ -225,7 +226,7 @@ function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | n
       const displacedText = text?.conflict !== undefined ? text.conflict.value : standingText;
       return row(sideFrom(shown(status), standingText), sideFrom(status.conflict.op_id, displacedText), 'edited', [standingBasis, displacedBasis]);
     }
-    const now = definition === null ? null : composeConclusion(block, definition, tag);
+    const now = definition === null ? null : composeConclusion(block, definition, tag, visit);
     const standingText = now?.text ?? text?.value ?? null;
     const displacedText = now?.text ?? (text?.conflict !== undefined ? text.conflict.value : (text?.value ?? null));
     const bases: [unknown, unknown] = now === null ? [standingBasis, displacedBasis] : [now.basis, now.basis];
@@ -233,7 +234,7 @@ function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | n
   }
   const editedEntry = entries.find((entry) => entry.value === 'edited');
   const confirmedEntry = entries.find((entry) => entry.value === 'confirmed');
-  const composition = definition === null ? null : composeConclusion(block, definition, tag);
+  const composition = definition === null ? null : composeConclusion(block, definition, tag, visit);
 
   const editedText = text?.conflict !== undefined ? text.conflict.value : text?.merge?.rule === 'filled_over_empty' ? '' : (text?.value ?? null);
   const editedBasis = editedEntry !== undefined ? editedEntry.basis : basis?.conflict !== undefined ? basis.conflict.value : (composition?.basis ?? null);
@@ -261,7 +262,13 @@ function conclusionTextConflict(block: BlockRow, definition: BlockDefinition | n
 }
 
 /** Every cell of a block holding a `conflict`, in the sheet's order, with its section and name. */
-function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equipment: OpenDecisionsInput['equipment'] = [], ctx: DefinitionContext): CellConflict[] {
+function cellConflictsOf(
+  block: BlockRow,
+  opOf: OpenDecisionsInput['opOf'],
+  equipment: OpenDecisionsInput['equipment'] = [],
+  ctx: DefinitionContext,
+  locations: OpenDecisionsInput['locations'] = [],
+): CellConflict[] {
   const definition = definitionOf(block, ctx);
   const out: CellConflict[] = [];
   const push = (path: OpPath, cell: Cell | undefined, section: string, label: string) => {
@@ -335,7 +342,8 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
     push({ family: 'sheet/conclusion', block_id: blockId, field }, sheet.conclusion[field], SECTION_CONCLUSION, CONCLUSION_LABELS[field]!);
   }
   const tag = block.equipment_id === null ? '' : (equipment.find((row) => row.id === block.equipment_id)?.tag ?? '');
-  const text = conclusionTextConflict(block, definition, tag, opOf);
+  // Batch e23v (Stories 23.5 and 23.6): the composition the sheet shows, under its visit context.
+  const text = conclusionTextConflict(block, definition, tag, opOf, visitContextOf({ locations, equipment }, block));
   if (text !== null) out.push(text);
   push({ family: 'sheet/observations', block_id: blockId }, sheet.observations ?? undefined, SECTION_OBSERVATIONS, 'Observações da ficha');
   return out;
@@ -375,7 +383,7 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   for (const block of sorted) {
     // A removed block's cells are not decided: its sheet is out of the tree (and a put on it
     // would mark a removal conflict); its removal decision, if any, comes first.
-    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment, input.definitions) : [];
+    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment, input.definitions, input.locations) : [];
     if (conflicts.length > 0) cells.push({ kind: 'cell', relatorio_id: input.relatorioId, block_id: block.id, cells: conflicts });
     const mark = block.removal_conflict;
     if (mark !== undefined && block.removed_at !== null) {

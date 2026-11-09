@@ -171,6 +171,8 @@ const DERIVED_HEADS: Readonly<Record<Exclude<DerivedPoint['kind'], 'not_tested'>
   nc: 'Item não conforme',
   reading: 'Ensaio fora do critério',
   reprovado: 'Equipamento reprovado',
+  // authored (Story 23.6, listed for Bruno): a test with a restricted reading (seed v13).
+  restricao: 'Ensaio com restrição',
 };
 
 /**

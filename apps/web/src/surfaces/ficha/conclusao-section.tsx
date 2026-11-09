@@ -24,6 +24,7 @@ import {
   type BlockRow,
   type ConclusionRestriction,
   type ConclusionResult,
+  type VisitContext,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { CharCount } from '../../components/index.ts';
@@ -184,6 +185,7 @@ export function ConclusaoSection({
   className,
   onFocus,
   section9,
+  visit,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -193,6 +195,8 @@ export function ConclusaoSection({
   onFocus: () => void;
   /** F43 (UX pass 2026-10-22): the kernel's `sectionMention` of section 9, where the conclusion prints. */
   section9: SectionMention;
+  /** Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (`visitContextOf`, from `useFichaData`), which every judgement here reads. */
+  visit: VisitContext;
 }) {
   const t = copy.ficha.conclusao;
   const obsHeading = useId();
@@ -207,14 +211,14 @@ export function ConclusaoSection({
   // Story 22.4: the effective pair (the floor's included) is what the radiogroups show. A sheet
   // marked not tested (read-only, Story 5.9) keeps showing the pair stored before the mark, which
   // no longer counts anywhere (`effectiveConclusionPair` ignores it).
-  const effective = effectiveConclusionPair(block, definition);
+  const effective = effectiveConclusionPair(block, definition, visit);
   const result = readOnly ? conclusionResultOf(block) : effective.result;
   const restriction = readOnly ? conclusionRestrictionOf(block) : effective.restriction;
-  const suggestion = conclusionSuggestion(block, definition);
-  const floorReason = conclusionFloorReasonText(block, definition);
-  const adjusted = conclusionAdjusted(block, definition);
-  const looser = (value: ConclusionResult | ConclusionRestriction) => !readOnly && isLooserThanFloor(block, value, definition);
-  const composed = useMemo(() => composeConclusion(block, definition, tag), [block, definition, tag]);
+  const suggestion = conclusionSuggestion(block, definition, visit);
+  const floorReason = conclusionFloorReasonText(block, definition, visit);
+  const adjusted = conclusionAdjusted(block, definition, visit);
+  const looser = (value: ConclusionResult | ConclusionRestriction) => !readOnly && isLooserThanFloor(block, value, definition, visit);
+  const composed = useMemo(() => composeConclusion(block, definition, tag, visit), [block, definition, tag, visit]);
   const textState = conclusionTextState(block, composed);
   const storedText = conclusionStoredText(block);
 
@@ -243,8 +247,8 @@ export function ConclusaoSection({
     observation.set(appendObservation(observationSuggested ? suggestedObservation : observation.text, text));
   };
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
-  const required = observationRequired(block, definition) && observation.text.trim() === '' && !observationSuggested;
-  const observationMissing = observationRequired(block, definition) && result !== null && restriction !== null;
+  const required = observationRequired(block, definition, visit) && observation.text.trim() === '' && !observationSuggested;
+  const observationMissing = observationRequired(block, definition, visit) && result !== null && restriction !== null;
 
   const edit = (build: Parameters<FichaApi['edit']>[0]) => void api.edit(build).catch(() => undefined);
 
@@ -273,7 +277,7 @@ export function ConclusaoSection({
     edit((blocks, by) => {
       const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
       if (fresh === undefined) return null;
-      const writes = conclusionAdjustWrites(fresh, definition, tag);
+      const writes = conclusionAdjustWrites(fresh, definition, tag, visit);
       if (writes === null) return null;
       return [
         ...(writes.result === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'result', writes.result)]),
@@ -317,7 +321,7 @@ export function ConclusaoSection({
         moved = false;
         if (status === 'confirmed') {
           const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
-          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis)) moved = true;
+          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis, visit)) moved = true;
           if (fresh === undefined || moved) return null;
         }
         const observationOp = suggestedObservationOp(blocks, by);

@@ -1563,6 +1563,9 @@ export const copy = {
       // Story 23.8 (`60-ficha.html` #/ficha/TR1 TTR card): the separator of a tap card's line of
       // plate values ("V primário 13,8 kV · V secundário 380 V · Calculado 62,90"); the words are the kernel's.
       tapCardSeparator: ' · ',
+      // Batch e23v (Story 23.6; `60-ficha.html` #/ficha/TR1 `.mf-helper[data-tone="restricted"]`, verbatim): the bold lead
+      // of a restricted reading's helper; the reason after it is the kernel's (`EvaluatedCell.restriction.text`).
+      restrictedLead: 'Com restrição:',
     },
     // Story 23.9 (`60-ficha.html` #/ficha/SEC-C05, DESIGN.md › Not-applicable test): a test the nameplate
     // makes not applicable; the reason and the applied sentence are the kernel's (`testApplicability`).

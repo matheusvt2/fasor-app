@@ -3,6 +3,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { evaluateSheetMeasurements, type MeasurementTestEvaluation } from './measurement-evaluation.ts';
 import type { TestEvaluation } from './reading-cells.ts';
 import { evaluateSheetReadings } from './reading-evaluation.ts';
+import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
 
 /*
  * e22f S7 (integrated review of Epic 22 wave A): the reading evaluation of one sheet, memoized
@@ -13,9 +14,14 @@ import { evaluateSheetReadings } from './reading-evaluation.ts';
  * changed sheet is evaluated again on its next read while the other sheets keep theirs. The
  * WeakMaps hold nothing alive: a row no snapshot references is dropped with its entry. Callers
  * must not mutate what these return (none does: every reader filters, maps or reads).
+ *
+ * Batch e23v (Stories 23.5 and 23.6): the readings also key on the sheet's `VisitContext` (the
+ * cabine's ambient and the previous visit, `visit-context.ts`), which `visitContextOf` memoizes per
+ * cabine row, equipment row and relatório, so a context is the same object for as long as its rows
+ * are; `NO_VISIT_CONTEXT` is the default.
  */
 
-const READINGS = new WeakMap<object, WeakMap<object, TestEvaluation[]>>();
+const READINGS = new WeakMap<object, WeakMap<object, WeakMap<VisitContext, TestEvaluation[]>>>();
 const MEASUREMENTS = new WeakMap<object, WeakMap<object, readonly MeasurementTestEvaluation[]>>();
 
 function memo<T>(cache: WeakMap<object, WeakMap<object, T>>, block: object, definition: object, compute: () => T): T {
@@ -31,9 +37,14 @@ function memo<T>(cache: WeakMap<object, WeakMap<object, T>>, block: object, defi
   return value;
 }
 
-/** `evaluateSheetReadings`, once per block row and definition. */
-export function sheetReadings(block: BlockRow, definition: BlockDefinition): TestEvaluation[] {
-  return memo(READINGS, block, definition, () => evaluateSheetReadings(block, definition));
+/** `evaluateSheetReadings`, once per block row, definition and visit context. */
+export function sheetReadings(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): TestEvaluation[] {
+  const byVisit = memo(READINGS, block, definition, () => new WeakMap<VisitContext, TestEvaluation[]>());
+  const hit = byVisit.get(visit);
+  if (hit !== undefined) return hit;
+  const value = evaluateSheetReadings(block, definition, visit);
+  byVisit.set(visit, value);
+  return value;
 }
 
 /** `evaluateSheetMeasurements`, once per block row and definition. */

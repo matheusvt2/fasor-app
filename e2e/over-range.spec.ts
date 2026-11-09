@@ -199,7 +199,9 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   // a row with a reading prints the instrument's 10 kV, a row with none "-".
   const insulation = tables.find((table) => table[0]?.[0] === 'SECCIONADORA CONTATO ABERTO' && table.some((row) => row[0] === 'T1' && row[4] !== '-'));
   expect(insulation).toBeDefined();
-  expect(insulation!.find((row) => row[0] === 'T1')).toEqual(['T1', 'T2', 'MASSA', '10', '> 2 TΩ', 'FASE A', 'MASSA', '', '-', '-']);
+  // Batch e23v (seed v13, Story 23.5): each half also prints its 20 °C column beside VALORES, "-" on a reading above the limit
+  // (never corrected) and on a row with none.
+  expect(insulation!.find((row) => row[0] === 'T1')).toEqual(['T1', 'T2', 'MASSA', '10', '> 2 TΩ', '-', 'FASE A', 'MASSA', '', '-', '-', '-']);
   expect(insulation!.find((row) => row[0] === 'T3')?.[4]).toBe('150 GΩ');
   const contactTable = tables.find((table) => table.some((row) => row.includes('VALORES (µΩ)')) && table.some((row) => row[0] === 'T1-T2' && row[3] !== '-'));
   expect(contactTable?.find((row) => row[0] === 'T1-T2')).toEqual(['T1-T2', 'FASE A', 'MASSA', '> 2.000']);

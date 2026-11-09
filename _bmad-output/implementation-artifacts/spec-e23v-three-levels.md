@@ -2,8 +2,8 @@
 title: 'e23v: temperature correction, three levels and the previous visit judging, contact pole deviation (Stories 23.5, 23.6, 23.14; contract 36)'
 type: 'feature'
 created: '2026-11-09'
-status: 'ready-for-dev'
-baseline_revision: '606177fe'
+status: 'in-progress'
+baseline_revision: '41454a6b7f541e6a472847854f2dda0f53b0b59b'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

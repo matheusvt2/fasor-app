@@ -115,7 +115,17 @@ export function firstRunCell(evaluations: readonly TestEvaluation[]): CellAddres
 
 // --- what the conclusion reads -----------------------------------------------------------
 
-/** One test's worst measured reading: the lowest insulation, the highest contact resistance, the largest ratio deviation. */
+/** Batch e23v (Story 23.6): the levels' order, out > restricted > within (an unjudged reading ranks as within). */
+const VERDICT_RANK: Readonly<Record<ReadingVerdict, number>> = { within: 0, restricted: 1, out: 2 };
+
+// authored (Story 23.5, listed for Bruno): a value judged at 20 °C, as the conclusion and the points name it ("8 GΩ a 20 °C").
+const CORRECTED_SUFFIX = ' a 20 °C';
+
+/**
+ * One test's worst measured reading: the lowest insulation, the highest contact resistance, the largest ratio deviation.
+ * Batch e23v (Stories 23.5 and 23.6, seed v13): a corrected reading ranks and reads by its value at 20 °C ("8 GΩ a 20 °C"),
+ * and a restricted one outranks a within one (out > restricted > within).
+ */
 export interface WorstReading {
   testKey: TestKey;
   criterionText: string;
@@ -143,12 +153,15 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
     // Story 14.9: a test no criterion judges (a band test with no band for the plate) names no worst reading.
     const criterion = test.criterion;
     if (criterion === null && test.testKey !== 'relacao_transformacao') continue;
-    let worst: { out: boolean; score: number; reading: WorstReading } | null = null;
+    let worst: { rank: number; score: number; reading: WorstReading } | null = null;
     for (const table of test.tables) {
       for (const row of table.rows) {
         for (const cell of row.cells) {
           if (cell.role !== 'capture' || !isReadingValue(cell.state)) continue;
-          const value = Number(cell.raw);
+          // Batch e23v (Story 23.5): a corrected reading is judged, so ranked and named, at 20 °C.
+          const corrected = cell.corrected ?? null;
+          const value = corrected === null ? Number(cell.raw) : Number(corrected.raw);
+          const shown = corrected === null ? (cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`) : `${corrected.text}${CORRECTED_SUFFIX}`;
           let score: number;
           let valueText: string;
           if (test.testKey === 'relacao_transformacao') {
@@ -163,19 +176,19 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
             const scaled = scaleToUnit(value, cell.unit, own.unit);
             if (scaled === null) continue;
             score = own.operator.startsWith('>') ? -(scaled / own.value) : scaled / own.value;
-            valueText = cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`;
+            valueText = shown;
           } else {
             const scaled = scaleToUnit(value, cell.unit, criterion!.unit);
             if (scaled === null) continue;
             // Insulation: the lowest is the worst; contact resistance: the highest.
             score = criterion!.operator.startsWith('>') ? -scaled : scaled;
-            valueText = cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`;
+            valueText = shown;
           }
-          // An out-of-criterion reading always outranks a within one.
-          const out = cell.verdict === 'out';
-          if (worst === null || (out && !worst.out) || (out === worst.out && score > worst.score)) {
+          // An out-of-criterion reading always outranks a within one; batch e23v: a restricted one sits between them.
+          const rank = VERDICT_RANK[cell.verdict ?? 'within'];
+          if (worst === null || rank > worst.rank || (rank === worst.rank && score > worst.score)) {
             worst = {
-              out,
+              rank,
               score,
               reading: {
                 testKey: test.testKey,

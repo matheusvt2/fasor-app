@@ -3,7 +3,6 @@ import type { BlockRow } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
 import type { CriterionTableRow } from '../seed/criteria-tables.ts';
 import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type TableDef, type TestDef } from '../seed/schema.ts';
-import { selectOptionFor } from '../seed/select-option.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import { listPtBr } from '../text/plural.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
@@ -12,6 +11,10 @@ import { ratedVoltsOf, rowTestVoltage, voltageColumnOf } from './row-voltage.ts'
 import { isTestInForce, testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
+import { previousReadingsByAddress } from '../print/reading-slots.ts';
+import { applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
+import { correctedRaw, correctedText, mediumOf, temperatureFactor, temperatureView, testTemperature } from './temperature-correction.ts';
+import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
 import {
   convertRatioUnit,
   DECIMAL,
@@ -341,19 +344,8 @@ function voltsText(volts: number): string {
   return volts >= 1000 ? `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts / 1000)))} kV` : `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts)))} V`;
 }
 
-/** Story 23.2: the oil or dry column the definition's oil rule picks from the plate; null while its field is empty. */
-function mediumOf(definition: BlockDefinition, block: Pick<BlockRow, 'sheet'>): 'oil' | 'dry' | null {
-  const rule = definition.oil_rule;
-  if (rule === undefined) return null;
-  const value = block.sheet.nameplate[rule.field]?.value;
-  if (typeof value !== 'string' || value.trim() === '') return null;
-  // Review fix (item 4): the value read as one of the field's options (its aliases first resolved); a
-  // value that is no option is no medium, so the row falls back rather than being judged dry.
-  const field = definition.nameplate.find((candidate) => candidate.key === rule.field);
-  const option = field === undefined ? null : selectOptionFor(field, value);
-  if (option === null) return null;
-  return rule.oil_values.includes(option) ? 'oil' : 'dry';
-}
+// Story 23.2's `mediumOf` (the oil or dry column the oil rule picks) lives in `temperature-correction.ts` since batch
+// e23v, which reads it for the correction's factor too.
 
 /** One row's criterion and the helper that names where it comes from (`rowCriterion`). */
 export interface RowCriterion {
@@ -504,6 +496,32 @@ function outHelperText(criterion: CriterionSeed): string {
   return `Fora do aceitável (${text})`;
 }
 
+/**
+ * Batch e23v (Story 23.5): the helper of a reading judged out at 20 °C, its corrected value named, so
+ * a raw value that reads above the criterion is never shown out without why. authored (Story 23.5,
+ * listed for Bruno): "Abaixo do aceitável a 20 °C: 4 GΩ (≥ 5.000 MΩ)".
+ */
+function correctedOutHelperText(criterion: CriterionSeed, corrected: string): string {
+  const text = formatCriterionValue(criterion);
+  if (criterion.operator === '>' || criterion.operator === '>=') return `Abaixo do aceitável a 20 °C: ${corrected} (${text})`;
+  if (criterion.operator === '<' || criterion.operator === '<=') return `Acima do aceitável a 20 °C: ${corrected} (${text})`;
+  return `Fora do aceitável a 20 °C: ${corrected} (${text})`;
+}
+
+/**
+ * Batch e23v (Stories 23.5 and 23.6, seed v13): what a table's readings are judged with beyond its
+ * criterion: whether the test is corrected and its factor (null without a temperature), and the
+ * previous visit its history rule reads. `PLAIN_JUDGING` on every test without either key.
+ */
+interface TableJudging {
+  corrected: boolean;
+  factor: number | null;
+  previous: RestrictionPrevious;
+}
+
+const NO_PREVIOUS: RestrictionPrevious = { entry: null, byAddress: new Map() };
+const PLAIN_JUDGING: TableJudging = { corrected: false, factor: null, previous: NO_PREVIOUS };
+
 /** The typed columns of a table, in column order. */
 function typedColumns(table: TableDef): { col: number; column: ColumnDef }[] {
   return table.value_columns.flatMap((column, col) => (column.role === 'capture' || column.role === 'input' ? [{ col, column }] : []));
@@ -555,6 +573,7 @@ function evaluateTable(
   table: TableDef,
   offset: number,
   rowCriteria: readonly RowCriterion[] | null = null,
+  judging: TableJudging = PLAIN_JUDGING,
 ): EvaluatedTable {
   const ratio = test.key === 'relacao_transformacao';
   // Story 21.1: the vector group of a transformer ratio table (seed v9 and later), read from its plate.
@@ -685,29 +704,38 @@ function evaluateTable(
     }
     // The verdicts: every measured capture against the criterion; Story 22.10: a limit the instrument passed by `overRangeVerdict`.
     for (const cell of cells) {
-      if (cell.role !== 'capture' || (cell.state !== 'measured' && cell.state !== 'over_range') || rowCriterionValue === null) continue;
+      if (cell.role !== 'capture') continue;
+      // Batch e23v (Story 23.5, seed v13): a measured capture of a corrected test is judged by its value
+      // at 20 °C; none without a temperature, and never a limit the instrument passed (Story 23.4 rules it).
+      if (judging.corrected) {
+        const raw = cell.state === 'measured' && judging.factor !== null ? correctedRaw(Number(cell.raw), judging.factor) : null;
+        cell.corrected = raw === null ? null : { raw, unit: cell.unit, text: correctedText(raw, cell.unit) };
+      }
+      if ((cell.state !== 'measured' && cell.state !== 'over_range') || rowCriterionValue === null) continue;
       const value = Number(cell.raw);
+      const corrected = cell.corrected ?? null;
       let within: boolean | null;
       try {
         if (cell.state === 'over_range') {
           const verdict = overRangeVerdict(value, cell.unit, rowCriterionValue);
           within = verdict === null ? null : verdict === 'within';
         } else if (ratio) within = calculated === null ? null : compareCriterion({ value: deviationPct(value, Number(calculated.raw)), unit: '%' }, rowCriterionValue);
-        else within = compareCriterion({ value, unit: cell.unit }, rowCriterionValue);
+        else within = compareCriterion({ value: corrected === null ? value : Number(corrected.raw), unit: cell.unit }, rowCriterionValue);
       } catch {
         within = null;
       }
       if (within !== null) {
         cell.verdict = within ? 'within' : 'out';
-        cell.helperText = within ? null : helper;
+        cell.helperText = within ? null : corrected === null ? helper : correctedOutHelperText(rowCriterionValue, corrected.text);
       }
     }
     const captures = cells.filter((cell) => cell.role === 'capture');
     // F42: one capture out of the criterion fails the row; every capture within passes it; otherwise unjudged.
+    // Batch e23v (Story 23.6): a restricted capture is within its criterion here (B-8: SATISFATÓRIO).
     let condicao: EvaluatedRow['condicao'] = null;
     if (ratio && calculated !== null && captures.length > 0) {
       if (captures.some((cell) => cell.verdict === 'out')) condicao = 'INSATISFATÓRIO';
-      else if (captures.every((cell) => cell.verdict === 'within')) condicao = 'SATISFATÓRIO';
+      else if (captures.every((cell) => cell.verdict === 'within' || cell.verdict === 'restricted')) condicao = 'SATISFATÓRIO';
     }
     // F42: a typed connection the seed leaves blank (TAP Nº) reads the plate's TAP ATUAL as typed.
     // Story 23.8: a tap row's TAP Nº is its position on the plate; a tap no longer on it shows none.
@@ -738,6 +766,8 @@ function evaluateTable(
   }
 
   markOutliers(rows, typed);
+  // Batch e23v (Stories 23.6 and 23.14, seed v13): the test's restriction rules over this table, on readings already within.
+  if (test.restriction !== undefined) applyRestrictions(test, rows, typed.filter(({ column }) => column.role === 'capture'), judging.previous);
 
   return {
     key: table.key,
@@ -806,8 +836,12 @@ function markOutliers(rows: EvaluatedRow[], typed: { col: number; column: Column
   }
 }
 
-/** One test sub-block's evaluation. */
-export function evaluateTest(block: BlockRow, definition: BlockDefinition, test: TestDef): TestEvaluation {
+/**
+ * One test sub-block's evaluation. Batch e23v (Stories 23.5 and 23.6): `visit` is the sheet's
+ * `VisitContext` (the cabine's ambient, the previous visit), which only a v13 test with
+ * `temperature_correction` or `restriction` reads; every other test evaluates the same with any.
+ */
+export function evaluateTest(block: BlockRow, definition: BlockDefinition, test: TestDef, visit: VisitContext = NO_VISIT_CONTEXT): TestEvaluation {
   // Batch e23a: a test with a criterion table, or a manufacturer's value, is judged row by row.
   const manufacturer = manufacturerCriterion(block, test);
   const byRow = manufacturer !== null || test.criterion_table !== undefined;
@@ -816,10 +850,20 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
   const first = rowCriteria?.[0]?.criterion ?? null;
   const uniform = rowCriteria === null || rowCriteria.every((one) => sameCriterion(one.criterion, first));
   const criterion = rowCriteria === null ? effectiveCriterion(block, test) : first;
+  // Batch e23v (Stories 23.5 and 23.6, seed v13): the test's temperature, and the previous visit its history rule reads.
+  const temperature = testTemperature(block, definition, test, visit);
+  const judging: TableJudging =
+    test.temperature_correction === undefined && test.restriction === undefined
+      ? PLAIN_JUDGING
+      : {
+          corrected: test.temperature_correction !== undefined,
+          factor: temperatureFactor(temperature),
+          previous: test.restriction?.history_drop_pct === undefined || visit.previous === null ? NO_PREVIOUS : { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block) },
+        };
   const tables: EvaluatedTable[] = [];
   let offset = 0;
   for (const table of test.tables) {
-    tables.push(evaluateTable(block, definition, test, criterion, table, offset, rowCriteria));
+    tables.push(evaluateTable(block, definition, test, criterion, table, offset, rowCriteria, judging));
     offset += table.rows.length;
   }
   const evaluation: TestEvaluation = {
@@ -839,6 +883,10 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
     evaluation.sourceLines = [...new Set([...rowCriteria.flatMap((one) => (one.helper === null ? [] : [one.helper])), ...underneath])];
   }
   if (test.instrument_limit_note === true) evaluation.limitNote = limitNoteOf(tables);
+  // Batch e23v (Stories 23.5 and 23.6, seed v13): the temperature's texts, and a prerequisite the plate fails.
+  const view = temperatureView(test, temperature);
+  if (view !== null) evaluation.temperature = view;
+  if (test.restriction?.prerequisite !== undefined) evaluation.prerequisite = prerequisiteFailure(block, definition, test);
   return evaluation;
 }
 
@@ -864,9 +912,9 @@ function sameCriterion(a: CriterionSeed | null, b: CriterionSeed | null): boolea
  * Story 23.9 (seed v13): a test the nameplate makes not applicable is ignored too (`isTestInForce`), as a
  * switched-off sub-block is, by every reader of this evaluation; the screen draws its band from `testApplicability`.
  */
-export function evaluateSheetReadings(block: BlockRow, definition: BlockDefinition): TestEvaluation[] {
+export function evaluateSheetReadings(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): TestEvaluation[] {
   const enabled = enabledSubBlocksOf(block);
-  return definition.tests.filter((test) => enabled.has(test.key) && isTestInForce(block, definition, test.key)).map((test) => evaluateTest(block, definition, test));
+  return definition.tests.filter((test) => enabled.has(test.key) && isTestInForce(block, definition, test.key)).map((test) => evaluateTest(block, definition, test, visit));
 }
 
 /** Story 23.9: one enabled test of the seeded grammars as the sheet draws it, in the definition's order. */
@@ -884,13 +932,13 @@ export interface SheetTestSection {
  * an NA test without an evaluation; the evaluations it holds are `evaluateSheetReadings`'s, in the
  * same order, so the screen's run and cells read the one evaluation.
  */
-export function sheetTestSections(block: BlockRow, definition: BlockDefinition): SheetTestSection[] {
+export function sheetTestSections(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): SheetTestSection[] {
   const enabled = enabledSubBlocksOf(block);
   return definition.tests
     .filter((test) => enabled.has(test.key))
     .map((test) => {
       const applicability = testApplicability(block, definition, test.key);
-      return { testKey: test.key, title: sentenceCase(test.label), applicability, evaluation: applicability.state === 'na' ? null : evaluateTest(block, definition, test) };
+      return { testKey: test.key, title: sentenceCase(test.label), applicability, evaluation: applicability.state === 'na' ? null : evaluateTest(block, definition, test, visit) };
     });
 }
 

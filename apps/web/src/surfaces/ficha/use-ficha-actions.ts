@@ -15,6 +15,7 @@ import {
   tagTakenText,
   tagVerdict,
   toIso,
+  visitContextOf,
   type BlockDefinition,
   type BlockRow,
   type InstrumentRow,
@@ -167,8 +168,10 @@ export function useFichaActions({
         // The TAG the ficha's own text field composes with: the fresh project equipment row's
         // (`useProjectEquipment`, the same source as Story 5.8's "Confirmar"), '' when none.
         const tag = fresh.equipment_id === null ? '' : (rows.equipment.find((row) => row.id === fresh.equipment_id)?.tag ?? '');
-        const text = conclusionTextOnConclude(fresh, definition, tag);
-        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh, definition) : null;
+        // Batch e23v (Stories 23.5 and 23.6): judged under the visit context of the same fresh rows.
+        const visit = visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh);
+        const text = conclusionTextOnConclude(fresh, definition, tag, visit);
+        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh, definition, visit) : null;
         return [
           ...suggestedInstruments({ blocks, instruments, equipment_types: snapshot.equipment_types }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
           ...(pair !== null && pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),

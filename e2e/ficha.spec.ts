@@ -534,7 +534,9 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   await expect(page.locator('.ficha-mt').first().locator('details.mt-source p')).toHaveText(isoEvaluation.sourceLines ?? [isoEvaluation.sourceName]);
   // Seed v12 (Story 22.8): the per-row TENSÃO select sits right after the connection columns.
   const voltage = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').tests[0]!.tables[0]!.value_columns.some((column) => column.role === 'voltage') ? ['Tensão (kV)'] : [];
-  await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', ...voltage, 'Valor']);
+  // Batch e23v (seed v13, Story 23.5): the seccionadora's insulation is corrected to 20 °C, so the kernel's "Corrigido a 20 °C" column follows Valor.
+  const corrected = isoEvaluation.temperature === undefined ? [] : [isoEvaluation.temperature.header];
+  await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', ...voltage, 'Valor', ...corrected]);
 
   // "3.300" is three thousand three hundred, echoed before any comparison.
   const t1 = cellInput(page, 'T1, Valor');
