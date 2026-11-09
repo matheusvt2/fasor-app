@@ -77,6 +77,8 @@ export const plateHandler: ReadingKindHandler = {
     { block_type: 'inspecao_qgbt', sha256: '7cfec77ab40680cdca0936b9b1a47ae530decd1bf3b6c25f21990383aed2d561' },
     // Story 23.7 (seed v13): the defaults stay as they are. The cables gain a nameplate on v13 but no
     // default: the v13 cable plate (images/plate-cabos-v13.png) replays for its own bytes only.
+    // images/plate-malha-aterramento.png (batch e23e, Story 23.21, seed v13): the Malha de aterramento's design data.
+    { block_type: 'malha_aterramento', sha256: 'c4f1e667a5780f05252532bc8ba0c533d341a196674a192bd66c06bfd60cf4a7' },
   ],
 
   async prepare({ db, companyId, relatorioId, photo }) {

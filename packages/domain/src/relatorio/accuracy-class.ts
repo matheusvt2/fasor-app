@@ -36,12 +36,12 @@ const NBR_PROTECTION_CLASSES: readonly string[] = ['5', '10'];
 
 /** A burden in VA, in front of or behind the class ("25VA", "12,5 VA"). */
 const BURDEN_VA = /\d+(?:[.,]\d+)?\s*va(?![a-z])/gi;
-const CLASS_TEXT = /^[\s;,/-]*(?:cl(?:asse)?\.?\s*)?(\d+(?:[.,]\d+)?)\s*([pab])?/i;
+const CLASS_TEXT = /^[\s;,/-]*(?:cl(?:asse)?\.?\s*)?(\d+(?:[.,]\d+)?)\s*([pab]|s(?![a-z]))?/i;
 
 /**
  * The class a printed or stored EXATIDÃO names, as the select offers it: "0,6C25" -> "0,6",
  * "10P20" -> "10P", "1,2P75" -> "1,2", "0.3" -> "0,3", "5P10" -> "5P", "25VA 5P20" -> "5P",
- * "12,5VA 0,3" -> "0,3", "10B100" -> "10P", "6P" -> "6P"; null for a text that names none ("C25",
+ * "12,5VA 0,3" -> "0,3", "10B100" -> "10P", "6P" -> "6P", (batch e23e) "0,3S" -> "0,3S"; null for a text that names none ("C25",
  * "", "25VA", a non-string).
  */
 export function parseAccuracyClass(text: unknown): string | null {
@@ -55,15 +55,35 @@ export function parseAccuracyClass(text: unknown): string | null {
   if (letter === 'p' && Object.hasOwn(PROTECTION_CLASSES, digits)) return `${digits}P`;
   // An A or B after 5 or 10 is the NBR protection class; after any other number the number is the measurement class.
   if ((letter === 'a' || letter === 'b') && NBR_PROTECTION_CLASSES.includes(digits)) return `${digits}P`;
+  // Seed v13, batch e23e (Story 23.18): the special measurement classes keep their S ("0,3S", "0,6S").
+  if (letter === 's') return `${digits.replace('.', ',')}S`;
   return digits.replace('.', ',');
+}
+
+/**
+ * Seed v13, batch e23e (Story 23.18): the option of an EXATIDÃO select a parsed class lands on: the
+ * class itself, else the same class without its S ("0,3S" on v12, whose select offers no S class,
+ * lands on "0,3"), else the option of the same protection class with its accuracy limit factor
+ * ("5P" on v13's "5P20"); null when none fits.
+ */
+export function accuracyClassOption(options: readonly string[], cls: string | null): string | null {
+  if (cls === null) return null;
+  if (options.includes(cls)) return cls;
+  const plain = /^(\d+(?:,\d+)?)S$/.exec(cls);
+  if (plain !== null && options.includes(plain[1]!)) return plain[1]!;
+  const protection = /^(\d+)P$/.exec(cls);
+  if (protection !== null) return options.find((option) => new RegExp(`^${protection[1]}P\\d+$`).test(option)) ?? null;
+  return null;
 }
 
 /** The ratio deviation in % a class is judged at: the class itself for a measurement class, the protection table's for a P class; null for no class. */
 export function accuracyClassDeviation(cls: string | null | undefined): number | null {
   if (typeof cls !== 'string') return null;
-  const protection = /^(\d+)P$/.exec(cls);
+  // Batch e23e (Story 23.18): a v13 option names its accuracy limit factor ("5P20"), judged as its class.
+  const protection = /^(\d+)P(?:\d+)?$/.exec(cls);
   if (protection !== null) return PROTECTION_CLASSES[protection[1]!] ?? null;
-  const number = Number(cls.replace(',', '.'));
+  // Batch e23e (Story 23.18): an S class is judged as its class ("0,3S" at ± 0,3 %).
+  const number = Number(cls.replace(/S$/, '').replace(',', '.'));
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 

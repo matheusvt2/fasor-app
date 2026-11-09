@@ -46,6 +46,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, TypeNouns>> = {
   quadro_eletrico: { one: 'quadro elétrico', many: 'quadros elétricos', label: 'Quadros elétricos' },
   // authored (Story 22.11, listed for Bruno).
   inspecao_qgbt: { one: 'inspeção de QGBT', many: 'inspeções de QGBT', label: 'Inspeções de QGBT' },
+  // authored (Story 23.21, listed for Bruno).
+  malha_aterramento: { one: 'malha de aterramento', many: 'malhas de aterramento', label: 'Malhas de aterramento' },
 };
 
 /**
@@ -64,6 +66,7 @@ export const TOTALS_ORDER: readonly EquipmentBlockType[] = [
   'chave_transferencia_automatica',
   'quadro_eletrico',
   'inspecao_qgbt',
+  'malha_aterramento',
 ];
 
 // authored: no mock draws a node or a template with no equipment yet.

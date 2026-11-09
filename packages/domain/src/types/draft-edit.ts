@@ -280,7 +280,39 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
   if (part === 'nameplate' || part === 'checklist') dropE23vReads(next, part === 'nameplate' ? textOf(removed.key) : null);
   // Batch e23t (Stories 23.15 and 23.17): what a winding correction or a field's `excused_unless` reads of the removed field (or of a removed oil rule) goes too.
   if (part === 'nameplate' || part === 'checklist') dropE23tReads(next, part === 'nameplate' ? textOf(removed.key) : null);
+  // Batch e23e (Stories 23.13, 23.18 and 23.21): what a voltage default, a notice or a maximum reads of the removed field goes too.
+  if (part === 'nameplate') dropE23eReads(next, textOf(removed.key));
   return back(next);
+}
+
+// --- e23e: Stories 23.13, 23.18, 23.20, 23.21 ---
+/**
+ * Batch e23e: a removed nameplate field takes with it what reads it: a table's `voltage_default` (the
+ * rows then start at the instrument's voltage, as on v12), a test's `notice_when` (no notice), and a
+ * measurement criterion `max_field` becomes the absolute maximum of its default (what it judged by
+ * with the field empty), so the copy stays publishable and judges as it did on an empty plate.
+ */
+function dropE23eReads(next: Entry, key: string): void {
+  for (const test of listOf(next, 'tests')) {
+    for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
+      const pick = table.voltage_default as Entry | undefined;
+      if (pick !== undefined && pick !== null && pick.field === key) delete table.voltage_default;
+    }
+    const notice = test.notice_when as Entry | undefined;
+    if (notice !== undefined && notice !== null && notice.field === key) delete test.notice_when;
+  }
+  for (const test of listOf(next, 'measurement_tests')) {
+    if (!Array.isArray(test.criteria)) continue;
+    test.criteria = (test.criteria as Entry[]).map((criterion) => {
+      if (criterion === null || typeof criterion !== 'object' || criterion.type !== 'max_field' || criterion.field !== key) return criterion;
+      const sign = '≤';
+      const value = typeof criterion.default === 'number' ? criterion.default : 0;
+      const unit = typeof criterion.unit === 'string' ? criterion.unit : null;
+      // The default's own wording: "≤ 5 Ω".
+      const text = `${sign} ${String(value).replace('.', ',')}${unit === null ? '' : ` ${unit}`}`;
+      return { type: 'absolute', operator: '<=', value, unit, text, source: criterion.source, ...(criterion.when === undefined ? {} : { when: criterion.when }) };
+    });
+  }
 }
 
 // --- e23t: Stories 23.15 to 23.17 ---

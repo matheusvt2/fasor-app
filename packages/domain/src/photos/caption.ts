@@ -38,6 +38,8 @@ export const CAPTION_EQUIPMENT_WORDS: Readonly<Record<EquipmentBlockType, SeedWo
   quadro_eletrico: { name: 'quadro elétrico', gender: 'm', number: 'singular' },
   // authored (Story 22.11, listed for Bruno).
   inspecao_qgbt: { name: 'quadro geral de baixa tensão', gender: 'm', number: 'singular' },
+  // authored (Story 23.21, listed for Bruno).
+  malha_aterramento: { name: 'malha de aterramento', gender: 'f', number: 'singular' },
 };
 
 /** The seed atividade a test table on screen names ("ensaios de resistência de isolação"). */
@@ -45,6 +47,8 @@ const TEST_ACTIVITY: Readonly<Record<string, string>> = {
   isolacao: 'ensaios de resistência de isolação',
   resistencia_contato: 'ensaios de resistência de contato',
   relacao_transformacao: 'ensaios de relação de transformação',
+  // authored (Story 23.20, listed for Bruno): a photo taken from the thermography ("Foto térmica") names it.
+  termografia: 'ensaios de termografia',
 };
 
 const MASCULINE_SINGULAR: Agreement = { gender: 'm', number: 'singular' };

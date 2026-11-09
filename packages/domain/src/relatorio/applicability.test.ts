@@ -9,7 +9,7 @@ import type { InstrumentRow } from '../registry/instrument-row.ts';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import type { AppliesWhen } from '../seed/measurement.ts';
+import type { PlateAppliesWhen as AppliesWhen } from '../seed/measurement.ts';
 import { blockDefinitionSchema, type BlockDefinition, type FieldDef } from '../seed/schema.ts';
 import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, getDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { defaultBlockConfigIn, startsOff } from '../seed/template.ts';

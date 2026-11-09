@@ -1,7 +1,7 @@
 import type { OcrReadResult, OcrToken, StructuringOutput, StructuringValue } from '../contract/ocr.ts';
 import type { NewId } from '../ids.ts';
 import { sheetNameplatePath } from '../ops/path.ts';
-import { ACCURACY_CLASS_FIELD, parseAccuracyClass } from '../relatorio/accuracy-class.ts';
+import { ACCURACY_CLASS_FIELD, accuracyClassOption, parseAccuracyClass } from '../relatorio/accuracy-class.ts';
 import { isCellFilled } from '../relatorio/sheet-state.ts';
 import { isVectorGroupField, parseVectorGroup } from '../relatorio/vector-group.ts';
 import { suggestionRowSchema, type BlockRow, type SuggestionRow } from '../schemas/entities.ts';
@@ -188,7 +188,8 @@ export function buildReadingSuggestions(input: BuildReadingSuggestionsInput): Bu
         dropped.push({ key: field.key, reason: 'invalid_shape' });
         continue;
       }
-      read = cls;
+      // Batch e23e (Story 23.18): the select's option the class lands on ("5P" on v13's "5P20", "0,3S" on v12's "0,3").
+      read = accuracyClassOption(field.options ?? [], cls) ?? cls;
     }
     let normalized: NormalizedReadingValue = normalizeReadingValue(field, read, ordered);
     if (!normalized.ok) {

@@ -1,0 +1,269 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "MALHA",
+        "bbox": [
+          73,
+          70,
+          230,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          243,
+          70,
+          298,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "ATERRAMENTO",
+        "bbox": [
+          308,
+          70,
+          643,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "VALOR",
+        "bbox": [
+          70,
+          156,
+          155,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "DE",
+        "bbox": [
+          167,
+          157,
+          200,
+          176
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "PROJETO",
+        "bbox": [
+          212,
+          156,
+          324,
+          182
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "2",
+        "bbox": [
+          642,
+          156,
+          656,
+          176
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "Ω",
+        "bbox": [
+          666,
+          156,
+          688,
+          176
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "MÉTODO",
+        "bbox": [
+          72,
+          381,
+          185,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "DE",
+        "bbox": [
+          197,
+          387,
+          230,
+          406
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "MEDIÇÃO",
+        "bbox": [
+          242,
+          382,
+          361,
+          411
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "QUEDA",
+        "bbox": [
+          641,
+          386,
+          743,
+          410
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "DE",
+        "bbox": [
+          755,
+          387,
+          791,
+          406
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "POTENCIAL",
+        "bbox": [
+          803,
+          386,
+          965,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "(62",
+        "bbox": [
+          977,
+          386,
+          1021,
+          410
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "%)",
+        "bbox": [
+          1031,
+          386,
+          1067,
+          410
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "CONDIÇÃO",
+        "bbox": [
+          71,
+          612,
+          211,
+          641
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "DO",
+        "bbox": [
+          223,
+          616,
+          260,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "SOLO",
+        "bbox": [
+          271,
+          616,
+          340,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "ÚMIDO",
+        "bbox": [
+          642,
+          611,
+          739,
+          637
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "valor_projeto_ohm",
+        "value": {
+          "raw": "2",
+          "unit": "Ω",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t6",
+          "t7"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "metodo_medicao",
+        "value": "QUEDA DE POTENCIAL (62 %)",
+        "ocr_token_ids": [
+          "t11",
+          "t12",
+          "t13",
+          "t14",
+          "t15"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "condicao_solo",
+        "value": "ÚMIDO",
+        "ocr_token_ids": [
+          "t19"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

@@ -4,7 +4,7 @@ import type { MeasurementTest } from '../seed/measurement.ts';
 import type { BlockDefinition, TableDef, TestDef } from '../seed/schema.ts';
 import { isApplicabilityValue } from '../relatorio/applicability.ts';
 import { tapRowAccepted } from '../relatorio/tap-rows.ts';
-import { manufacturerRefusal } from '../relatorio/reading-evaluation.ts';
+import { isChoiceCellValue, manufacturerRefusal } from '../relatorio/reading-evaluation.ts';
 import {
   blockRowSchema,
   cellSchema,
@@ -483,7 +483,7 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
   } else {
     const test = definition.tests.find((t) => t.key === path.test_key);
     if (test !== undefined) {
-      if (path.family === 'sheet/test/cell') assertCellGeometry(block, definition, test, path);
+      if (path.family === 'sheet/test/cell') assertCellGeometry(block, definition, test, path, op);
       if (path.family === 'sheet/test/value') {
         throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${test.key} declares no value "${path.value_key}"`);
       }
@@ -575,12 +575,17 @@ function assertApplicability(block: BlockRow, condition: unknown, op: Op, path: 
  * current list, or, the list empty, one of the seeded rows (`tapRowAccepted`): a row the plate
  * no longer lists keeps its readings but is never written again.
  */
-function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }): void {
+function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }, op: Op): void {
   const { row, col } = path;
   const columnOf = (table: TableDef) => {
     const column = table.value_columns[col];
     if (column === undefined) throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} is outside ${block.block_type}/${test.key} row ${row}`);
     if (column.role === 'derived') throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} of ${block.block_type}/${test.key} is derived, never written`);
+    // Batch e23e (Story 23.18, contract 39): a choice cell (POLARIDADE) takes one of its options or null, never anything else.
+    // Replay safety: no table of v1 to v12 has a choice column, so no older log reaches this.
+    if (column.role === 'choice' && op.kind === 'put' && !isChoiceCellValue(op.value ?? null, column.options ?? [])) {
+      throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} of ${block.block_type}/${test.key} takes one of ${JSON.stringify(column.options ?? [])} or null`);
+    }
   };
   const [single] = test.tables;
   if (test.tables.length === 1 && single !== undefined && single.rows_from !== undefined) {

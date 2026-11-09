@@ -29,6 +29,8 @@ import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection 
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import { TestHelpAction } from './test-help-dialog.tsx';
 import { TemperatureLine } from './corrected-value.tsx';
+import { ThermalPhotoButton } from './photo-openers.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
  * Story 14.5 (`63-ficha-cta.html`): the measurement tests of a library type's sheet, the
@@ -66,6 +68,7 @@ export function MeasurementTests({
   evaluations,
   instruments,
   onRun,
+  photoTarget,
 }: {
   api: FichaApi;
   snapshot: RelatorioSnapshot;
@@ -77,12 +80,14 @@ export function MeasurementTests({
   instruments: readonly InstrumentRow[];
   /** Moves the focus along the continuous Enter run; false when there is nowhere to go. */
   onRun: MeasurementRun;
+  /** Batch e23e (Story 23.20): the sheet photo's target with a test's context caption ("Foto térmica"); none, no such action. */
+  photoTarget?: (testKey: string) => CaptureTarget;
 }) {
   if (evaluations.length === 0) return null;
   return (
     <div className="tests-stack">
       {evaluations.map((test) => (
-        <MeasurementTestSection key={test.testKey} api={api} snapshot={snapshot} block={block} definition={definition} test={test} instruments={instruments} onRun={onRun} />
+        <MeasurementTestSection key={test.testKey} api={api} snapshot={snapshot} block={block} definition={definition} test={test} instruments={instruments} onRun={onRun} photoTarget={photoTarget} />
       ))}
     </div>
   );
@@ -96,6 +101,7 @@ function MeasurementTestSection({
   test,
   instruments,
   onRun,
+  photoTarget,
 }: {
   api: FichaApi;
   snapshot: RelatorioSnapshot;
@@ -104,6 +110,7 @@ function MeasurementTestSection({
   test: MeasurementTestEvaluation;
   instruments: readonly InstrumentRow[];
   onRun: MeasurementRun;
+  photoTarget?: (testKey: string) => CaptureTarget;
 }) {
   const t = copy.ficha.measurement;
   const headingId = useId();
@@ -140,7 +147,13 @@ function MeasurementTestSection({
         {headEnd}
       </>
     );
-    return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={naHeadEnd} />;
+    // Batch e23e (Story 23.20): a test NA by its own value ("Equipamento em carga") keeps that value's control under the band.
+    const deciding = test.applicability.value === undefined ? undefined : test.values.find((item) => item.key === test.applicability.value);
+    return (
+      <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={naHeadEnd}>
+        {deciding === undefined ? null : <div className="test-options">{value(deciding)}</div>}
+      </NotApplicableTest>
+    );
   }
   const applied = test.enabled && test.applicability.state === 'applied';
   const sectionClass = ['section lib-test', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
@@ -187,6 +200,12 @@ function MeasurementTestSection({
               readOnly={readOnly}
             />
           )}
+          {/* Batch e23e (Story 23.20): the thermography's "Foto térmica", the sheet camera with the test's context caption. */}
+          {test.testKey === THERMOGRAPHY_TEST && photoTarget !== undefined && !readOnly ? (
+            <div className="mt-actions" data-thermal-actions="">
+              <ThermalPhotoButton relatorioId={api.relatorioId} target={() => photoTarget(test.testKey)} />
+            </div>
+          ) : null}
           {/* Batch e23t (Story 23.17, `60-ficha.html` #/ficha/TR1 "Coleta de óleo"): a one-cell choice test is the frame's `.v13-choice`. */}
           {isSingleChoice(test) ? (
             <SingleChoiceTest api={api} test={test} readOnly={readOnly} />
@@ -221,6 +240,9 @@ function MeasurementTestSection({
     </section>
   );
 }
+
+/** The thermography's test key (seed v13, batch e23e, Story 23.20), the one test with "Foto térmica". */
+const THERMOGRAPHY_TEST = 'termografia';
 
 /** The oil sampling's test key (seed v13, Story 23.17), the one test the frame draws as `.v13-choice` with its helper copy. */
 const OIL_SAMPLING_TEST = 'coleta_oleo';

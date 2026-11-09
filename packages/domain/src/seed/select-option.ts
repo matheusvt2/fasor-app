@@ -1,4 +1,4 @@
-import { ACCURACY_CLASS_FIELD, parseAccuracyClass } from '../relatorio/accuracy-class.ts';
+import { ACCURACY_CLASS_FIELD, accuracyClassOption, parseAccuracyClass } from '../relatorio/accuracy-class.ts';
 import { isVectorGroupOptions, parseVectorGroup } from '../relatorio/vector-group.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import type { FieldDef } from './schema.ts';
@@ -37,8 +37,8 @@ export function selectOptionFor(field: Pick<FieldDef, 'options' | 'option_aliase
     if (group !== null && options.includes(group.code)) return group.code;
   }
   if (field.key === ACCURACY_CLASS_FIELD) {
-    const cls = parseAccuracyClass(value);
-    if (cls !== null && options.includes(cls)) return cls;
+    // Batch e23e (Story 23.18): the exact class, else without its S, else the protection class with its factor.
+    return accuracyClassOption(options, parseAccuracyClass(value));
   }
   return null;
 }

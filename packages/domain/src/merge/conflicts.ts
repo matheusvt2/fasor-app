@@ -321,7 +321,9 @@ function cellConflictsOf(
         const cell = evaluated?.cells.find((c) => c.address.col === col);
         // Story 22.8 (seed v12): the row's TENSÃO cell is named by the row and the voltage column's header.
         const voltageHeader = home?.voltageColumn?.col === col ? home.voltageColumn.header : null;
-        const column = cell?.column ?? voltageHeader;
+        // Batch e23e (Story 23.18, seed v13): the row's choice cell (POLARIDADE) by its column's header too.
+        const choiceHeader = home?.choiceColumn?.col === col ? home.choiceColumn.header : null;
+        const column = cell?.column ?? voltageHeader ?? choiceHeader;
         const label =
           evaluated === undefined || column === null || column === undefined
             ? (measurementCellLabel(definition, key, row, col) ?? `Linha ${row + 1} · coluna ${col + 1}`)

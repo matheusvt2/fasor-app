@@ -1,7 +1,7 @@
 import type { BaseEquipmentBlockType } from '../schemas/block-config.ts';
 import { NETA_100_1, NETA_100_5 } from './criteria-tables.ts';
 import type { MeasurementTest } from './measurement.ts';
-import type { BlockDefinition, FieldDef, ReportSeed, TestDef } from './schema.ts';
+import type { BlockDefinition, FieldDef, ReportSeed, TableDef, TestDef } from './schema.ts';
 import { CABINE_PRIMARIA_V12 } from './v12.ts';
 
 /*
@@ -497,6 +497,235 @@ function withTransformerAndSwitchingTests(seed: ReportSeed): ReportSeed {
   return { ...seed, blocks };
 }
 
+// --- e23e: Stories 23.13, 23.18, 23.20, 23.21 ---
+/*
+ * Story 23.13 (decision D; Base rev08 DJ-02, SC-02, TC-02, TP-02, PR-02, CB-02): each insulation
+ * table of the disjuntor, the seccionadora, the TC, the TP and the cables starts its rows at the
+ * voltage the plate's rating gives (`voltage_default`: 1 kV up to 600 V, 2,5 kV up to 5000 V, 5 kV
+ * above; the cable by the U of its CLASSE U0/U), the para-raio's by its MCOV (2,5 kV under 5 kV,
+ * 5 kV from it). A typed TENSÃO wins; an empty or unreadable rating leaves the instrument's TENSÃO
+ * ENSAIO, as on v12. The TC's and TP's secondaries at 1 kV apply to no row: the seeded tables hold
+ * FASE R/S/T against MASSA only (a narrowing, listed in the PR). The transformador de força keeps
+ * its rows' defaults.
+ *
+ * Story 23.18 (decision E; Base rev08 TC-03, TP-03): POLARIDADE, a choice column of the ratio table
+ * appended after its other columns (OK or INVERTIDA, INVERTIDA failing the row), required as the
+ * base's "Obrigatório"; under the ratio table the note that a ratio check is not an accuracy test;
+ * the TC's FUNÇÃO DO TC (required, appended), its notice under the insulation test while it reads
+ * FATURAMENTO (TC-02's "só com autorização da concessionária"), and its EXATIDÃO with the S classes
+ * and the protection classes with their accuracy limit factor (v12's 5P and 10P read as 5P20 and
+ * 10P20).
+ *
+ * Story 23.20 (decision I; Base rev08 GE-01, NETA MTS-2023 Table 100.18): the thermography, the last
+ * measurement test of each of the eight, switchable and on, applicable while "Equipamento em carga"
+ * reads Sim (GE-01's "Aplica-se: Equipamento em carga", read as needing the value), its rows the
+ * points GE-01 names and its two ΔT columns optional (a point the equipment lacks stays "-"), each
+ * column judged by its band table; a row takes the worse of its two cells.
+ *
+ * Story 23.21 (decision I; Base rev08 AT-01, AT-02): the Malha de aterramento, a library type
+ * offered at a local and printed under "Outros equipamentos": its plate (VALOR DE PROJETO optional,
+ * MÉTODO DE MEDIÇÃO and CONDIÇÃO DO SOLO required), the grid's resistance judged against the design
+ * value or 5 Ω without one (AT-01), and the continuity between the grid and the points AT-02 names,
+ * each optional, at most 0,5 Ω (NETA MTS-2023 7.13). AT-02's row the technician adds is not built
+ * (no row-adding capability exists; a `deferred-work.md` row).
+ *
+ * Applied after e23t's section: every new key is optional and never defaulted (AD-21).
+ */
+
+type VoltageDefault = NonNullable<TableDef['voltage_default']>;
+
+/** Story 23.13: the plate field (and rule) each type's insulation tables take their default from. */
+const VOLTAGE_DEFAULTS: Partial<Record<BaseEquipmentBlockType, VoltageDefault>> = {
+  disjuntor_mt: { field: 'tensao_nominal', rule: 'rating' },
+  chave_seccionadora: { field: 'tensao_de_placa', rule: 'rating' },
+  tc: { field: 'tensao_nominal_at', rule: 'rating' },
+  tp: { field: 'tensao_nominal_at', rule: 'rating' },
+  cabos_entrada: { field: 'classe_cabo', rule: 'rating' },
+  cabos_saida: { field: 'classe_cabo', rule: 'rating' },
+  para_raio: { field: 'mcov_kv', rule: 'mcov' },
+};
+
+/** Story 23.13: the definition's insulation tables with their `voltage_default`; throws on a table with no voltage column. */
+function withVoltageDefault(definition: BlockDefinition, pick: VoltageDefault): BlockDefinition {
+  const tests = definition.tests.map((test): TestDef => {
+    if (test.key !== 'isolacao') return test;
+    return {
+      ...test,
+      tables: test.tables.map((table) => {
+        if (!table.value_columns.some((column) => column.role === 'voltage')) throw new Error(`seed v13: ${definition.block_type}'s ${table.key} has no voltage column`);
+        return { ...table, voltage_default: { ...pick } };
+      }),
+    };
+  });
+  return { ...definition, tests };
+}
+
+/** Story 23.18: the ratio table's POLARIDADE (TC-03, TP-03). */
+const POLARIDADE: TableDef['value_columns'][number] = { label: 'POLARIDADE', unit: null, role: 'choice', derived: false, options: ['OK', 'INVERTIDA'], fails_on: ['INVERTIDA'] };
+// authored (Story 23.18, listed for Bruno): printed under the TC's and TP's ratio table.
+const RATIO_PRINT_NOTE = 'Verificação de relação (não substitui ensaio de exatidão).';
+// authored (Story 23.18, listed for Bruno): the notice under the TC's insulation test while its function is FATURAMENTO (TC-02).
+const FATURAMENTO_NOTICE = 'TC de faturamento: o ensaio de isolação depende de autorização da concessionária.';
+
+/** Story 23.18: FUNÇÃO DO TC (the base's `funcao`), required. */
+const FUNCAO_TC = requiredSelect('funcao_tc', 'FUNÇÃO DO TC', ['MEDIÇÃO', 'PROTEÇÃO', 'FATURAMENTO']);
+/** Story 23.18: the TC's v13 classes (TC-03): the S classes and the protection classes with their factor. */
+const TC_CLASSES_V13 = ['0,3', '0,3S', '0,6', '0,6S', '1,2', '3', '5P20', '10P20'];
+
+/** Story 23.18: the ratio test with POLARIDADE appended to its table and the print note. */
+function withPolarity(definition: BlockDefinition): BlockDefinition {
+  if (!definition.tests.some((test) => test.key === 'relacao_transformacao')) throw new Error(`seed v13: ${definition.block_type} lacks the ratio test`);
+  const tests = definition.tests.map((test): TestDef =>
+    test.key !== 'relacao_transformacao'
+      ? test
+      : { ...test, tables: test.tables.map((table) => ({ ...table, value_columns: [...table.value_columns, structuredClone(POLARIDADE)] })), print_note: RATIO_PRINT_NOTE },
+  );
+  return { ...definition, tests };
+}
+
+/** Story 23.18: the TC's EXATIDÃO, FUNÇÃO DO TC and the faturamento notice. */
+function tcE23e(definition: BlockDefinition): BlockDefinition {
+  const nameplate = definition.nameplate.map((field): FieldDef => (field.key === 'exatidao' ? { ...field, options: [...TC_CLASSES_V13], option_aliases: { '5P': '5P20', '10P': '10P20' } } : field));
+  if (!nameplate.some((field) => field.key === 'exatidao')) throw new Error('seed v13: the TC lacks EXATIDÃO');
+  const shaped = appended({ ...definition, nameplate }, [FUNCAO_TC]);
+  const tests = shaped.tests.map((test): TestDef => (test.key === 'isolacao' ? { ...test, notice_when: { field: FUNCAO_TC.key, values: ['FATURAMENTO'], text: FATURAMENTO_NOTICE } } : test));
+  return withPolarity({ ...shaped, tests });
+}
+
+// authored (Story 23.20, listed for Bruno): the off note of the thermography.
+const OFF_NOTE_E23E = 'Desligado: a termografia não conta como faltando e não sai no relatório.';
+const NETA_100_18 = { name: 'NETA MTS-2023 Tabela 100.18', edition: null };
+
+/** Story 23.20: the thermography of the eight (GE-01), judged by NETA MTS-2023 Table 100.18. */
+const TERMOGRAFIA: MeasurementTest = {
+  key: 'termografia',
+  label: 'Termografia',
+  switchable: { off_note: OFF_NOTE_E23E },
+  // authored (Story 23.20, listed for Bruno): the row header and the points GE-01 names.
+  row_header: 'Ponto',
+  columns: [
+    { key: 'delta_t_similares', label: 'ΔT entre similares', kind: 'number', unit: '°C', optional: true },
+    { key: 'delta_t_ambiente', label: 'ΔT sobre o ambiente', kind: 'number', unit: '°C', optional: true },
+  ],
+  rows: [
+    { key: 'conexoes', label: 'Conexões', optional: true },
+    { key: 'terminacoes', label: 'Terminações', optional: true },
+    { key: 'contatos', label: 'Contatos', optional: true },
+    { key: 'buchas', label: 'Buchas', optional: true },
+  ],
+  values: [
+    {
+      key: 'em_carga',
+      label: 'Equipamento em carga',
+      kind: 'choice',
+      options: [
+        { key: 'sim', label: 'Sim' },
+        { key: 'nao', label: 'Não' },
+      ],
+    },
+  ],
+  // authored (Story 23.20, listed for Bruno): the band classes and actions (NETA Table 100.18's, in pt-BR) and the criteria's wording.
+  criteria: [
+    {
+      type: 'bands',
+      column: 'delta_t_similares',
+      bands: [
+        { up_to: 3, level: 'within', class: 'possível deficiência' },
+        { up_to: 15, level: 'restricted', class: 'provável deficiência', action: 'reparar quando possível' },
+        { level: 'out', class: 'discrepância grave', action: 'reparar imediatamente' },
+      ],
+      text: 'ΔT entre similares ≤ 3 °C (com restrição até 15 °C)',
+      status: 'CONFIRMADO',
+      source: NETA_100_18,
+    },
+    {
+      type: 'bands',
+      column: 'delta_t_ambiente',
+      bands: [
+        { up_to: 10, level: 'within', class: 'possível deficiência' },
+        { up_to: 20, level: 'restricted', class: 'provável deficiência', action: 'reparar quando possível' },
+        { up_to: 40, level: 'restricted', class: 'deficiência', action: 'monitorar até a correção' },
+        { level: 'out', class: 'discrepância grave', action: 'reparar imediatamente' },
+      ],
+      text: 'ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)',
+      status: 'CONFIRMADO',
+      source: NETA_100_18,
+    },
+  ],
+  // authored (Story 23.20, listed for Bruno): the reasons of a thermography not applicable.
+  applies_when: { op: 'in', value: 'em_carga', values: ['sim'], needs_value: true, unmet: 'Equipamento fora de carga', empty: 'Informe se o equipamento está em carga' },
+};
+
+/** Story 23.21: the Malha de aterramento's plate (Base rev08 AT, `equipamentos[].campos`). */
+const MALHA_NAMEPLATE: readonly FieldDef[] = [
+  { key: 'valor_projeto_ohm', label: 'VALOR DE PROJETO', kind: 'number', unit: 'Ω', optional: true },
+  requiredSelect('metodo_medicao', 'MÉTODO DE MEDIÇÃO', ['QUEDA DE POTENCIAL (62 %)', 'ALTA FREQUÊNCIA 25 kHz', 'ALICATE TERRÔMETRO']),
+  requiredSelect('condicao_solo', 'CONDIÇÃO DO SOLO', ['SECO', 'ÚMIDO', 'APÓS CHUVA']),
+];
+
+/** Story 23.21: the grid's resistance (AT-01). */
+const RESISTENCIA_MALHA: MeasurementTest = {
+  key: 'resistencia_malha',
+  // authored (Story 23.21, listed for Bruno): the tests' labels, row headers, rows and wordings.
+  label: 'Resistência de aterramento da malha',
+  row_header: 'Medição',
+  columns: [{ key: 'resistencia', label: 'Resistência', kind: 'number', unit: 'Ω' }],
+  rows: [{ key: 'malha', label: 'Malha' }],
+  criteria: [
+    {
+      type: 'max_field',
+      field: 'valor_projeto_ohm',
+      default: 5,
+      unit: 'Ω',
+      text: '≤ valor de projeto (sem ele, ≤ 5 Ω)',
+      default_status: 'CONFIRMADO',
+      status: 'CONFIRMADO',
+      source: { name: 'NBR 15751:2013; NETA MTS-2023 7.13; IEEE 142', edition: null },
+    },
+  ],
+};
+
+/** Story 23.21: the continuity between the grid and the points AT-02 names, each optional. */
+const CONTINUIDADE_MALHA: MeasurementTest = {
+  key: 'continuidade_malha',
+  label: 'Continuidade e equipotencialização',
+  row_header: 'Ponto',
+  columns: [{ key: 'resistencia', label: 'Resistência', kind: 'number', unit: 'Ω' }],
+  rows: [
+    { key: 'carcacas', label: 'Carcaças', optional: true },
+    { key: 'portas', label: 'Portas', optional: true },
+    { key: 'neutro_transformador', label: 'Neutro do transformador', optional: true },
+    { key: 'para_raios', label: 'Para-raios', optional: true },
+    { key: 'blindagens', label: 'Blindagens', optional: true },
+  ],
+  criteria: [{ type: 'absolute', operator: '<=', value: 0.5, unit: 'Ω', text: '≤ 0,5 Ω entre pontos', source: { name: 'NETA MTS-2023 7.13', edition: null } }],
+};
+
+/** Story 23.21: the Malha de aterramento, a library type (`library`, "Outros equipamentos"). */
+const MALHA_ATERRAMENTO: BlockDefinition = {
+  block_type: 'malha_aterramento',
+  // authored (Story 23.21, listed for Bruno): the type's name on screen.
+  label: 'Malha de aterramento',
+  nameplate: MALHA_NAMEPLATE.map((field) => structuredClone(field)),
+  checklist: null,
+  tests: [],
+  sub_blocks: ['nameplate', RESISTENCIA_MALHA.key, CONTINUIDADE_MALHA.key, 'observations', 'conclusion'],
+  subtypes: [],
+  conclusion: true,
+  measurement_tests: [structuredClone(RESISTENCIA_MALHA), structuredClone(CONTINUIDADE_MALHA)],
+  library: true,
+};
+
+/** Batch e23e's whole delta (Stories 23.13, 23.18, 23.20 and 23.21), applied after e23t's. */
+function withTestVoltagesPolarityThermographyAndGrid(seed: ReportSeed): ReportSeed {
+  const blocks = { ...seed.blocks };
+  for (const [type, pick] of Object.entries(VOLTAGE_DEFAULTS) as [BaseEquipmentBlockType, VoltageDefault][]) blocks[type] = withVoltageDefault(blocks[type], pick);
+  blocks.tc = tcE23e(blocks.tc);
+  blocks.tp = withPolarity(blocks.tp);
+  for (const type of LIMIT_NOTE_TYPES) blocks[type] = withMeasurementTests(blocks[type], [TERMOGRAFIA]);
+  return { ...seed, blocks: { ...blocks, malha_aterramento: MALHA_ATERRAMENTO } };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV13(): ReportSeed {
@@ -504,8 +733,9 @@ function cabinePrimariaV13(): ReportSeed {
   const blocks = { ...seed.blocks };
   // e23a (Stories 23.2 and 23.4).
   for (const type of LIMIT_NOTE_TYPES) blocks[type] = insulationV13(type, blocks[type]);
-  // e23b (Stories 23.7 to 23.9), after every e23a step; then e23v (Stories 23.5, 23.6, 23.14); then e23t (Stories 23.15 to 23.17, 23.19).
-  return withTransformerAndSwitchingTests(withCorrectionAndRestrictions(withNameplateFields({ ...seed, blocks })));
+  // e23b (Stories 23.7 to 23.9), after every e23a step; then e23v (Stories 23.5, 23.6, 23.14); then e23t (Stories 23.15 to 23.17,
+  // 23.19); then e23e (Stories 23.13, 23.18, 23.20, 23.21).
+  return withTestVoltagesPolarityThermographyAndGrid(withTransformerAndSwitchingTests(withCorrectionAndRestrictions(withNameplateFields({ ...seed, blocks }))));
 }
 
 export const CABINE_PRIMARIA_V13: ReportSeed = cabinePrimariaV13();

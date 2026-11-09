@@ -62,14 +62,20 @@ describe('standardTemplate', () => {
     expect(moved).toEqual({ ...template, version: v12.version });
     const kept = applyOp(new Map([[`template:${ID}`, edited]]), move).get(`template:${ID}`) as typeof template;
     const cable = kept.blocks.find((block) => block.block_type === 'cabos_entrada')!;
-    expect(Object.keys(cable.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'ia_ip_display', 'observations', 'conclusion']);
+    // Batch e23e (Story 23.20): with its thermography, on, before OBSERVAÇÕES.
+    expect(Object.keys(cable.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'ia_ip_display', 'termografia', 'observations', 'conclusion']);
     expect(cable.sub_blocks.nameplate).toEqual({ enabled: true });
     expect(cable.sub_blocks.isolacao).toEqual({ enabled: false });
     // Batch e23t (seed v13): the transformer, the disjuntor and the seccionadora gain their new tests (and the transformer loses its untouched IA e IP).
     const untouched = (block: { block_type: string }) => !['cabos_entrada', 'cabos_saida', 'transformador_forca', 'disjuntor_mt', 'chave_seccionadora'].includes(block.block_type);
-    expect(kept.blocks.filter(untouched)).toEqual(edited.blocks.filter(untouched));
+    // Batch e23e (seed v13, Story 23.20): every one of the eight gains its thermography, on, before OBSERVAÇÕES.
+    const withThermography = <T extends { sub_blocks: Record<string, unknown> }>(block: T): T => ({
+      ...block,
+      sub_blocks: Object.fromEntries(Object.entries(block.sub_blocks).flatMap(([key, value]) => (key === 'observations' ? [['termografia', { enabled: true }], [key, value]] : [[key, value]]))),
+    });
+    expect(kept.blocks.filter(untouched)).toEqual(edited.blocks.filter(untouched).map(withThermography));
     const transformer = kept.blocks.find((block) => block.block_type === 'transformador_forca')!;
-    expect(Object.keys(transformer.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'relacao_transformacao', 'resistencia_enrolamento', 'coleta_oleo', 'observations', 'conclusion']);
+    expect(Object.keys(transformer.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'relacao_transformacao', 'resistencia_enrolamento', 'coleta_oleo', 'termografia', 'observations', 'conclusion']);
   });
 
   // Batch e23t (Story 23.16, contract 38): v13 types the transformer's IP and DAR, so its "IA e IP lidos do visor" leaves on the move whatever its switch.
@@ -145,6 +151,7 @@ describe('standardTemplate', () => {
       // Nor the second one (Story 14.9).
       quadro_eletrico: 0,
       inspecao_qgbt: 0,
+      malha_aterramento: 0,
     });
     expect(templateBlockTotal(template)).toBe(94);
     // A block whose node left the skeleton is not counted, in the total either.

@@ -608,9 +608,20 @@ function withUnitHeader(label: string, unit: string | null): string {
   return unit === null ? label : `${label} (${unit})`;
 }
 
-/** The value columns that print after the connection (and voltage) columns, in storage order, the voltage column left out. */
+/**
+ * The value columns that print after the connection (and voltage) columns, in storage order, the voltage column left out.
+ * Batch e23e (Story 23.18, seed v13): a `choice` column, stored last, prints right before CONDIÇÕES (the table's last
+ * derived column), as the screen draws it; a table without one (every table of v1 to v12) prints as before.
+ */
 function printedValueColumns(definition: TableDef): { col: number; column: ColumnDef }[] {
-  return definition.value_columns.flatMap((column, col) => (column.role === 'voltage' ? [] : [{ col, column }]));
+  const printed = definition.value_columns.flatMap((column, col) => (column.role === 'voltage' || column.role === 'choice' ? [] : [{ col, column }]));
+  const choice = definition.value_columns.findIndex((column) => column.role === 'choice');
+  if (choice === -1) return printed;
+  let before = printed.length;
+  printed.forEach((entry, i) => {
+    if (entry.column.role === 'derived') before = i;
+  });
+  return [...printed.slice(0, before), { col: choice, column: definition.value_columns[choice]! }, ...printed.slice(before)];
 }
 
 // --- the corrected column (batch e23v, Story 23.5, seed v13) -------------------------------------
@@ -752,6 +763,9 @@ function valueText(
       return printColumnText(block, testKey, row.row, col, column, enabled, test !== undefined && polarizationNotApplicable(test, row));
     case 'voltage':
       return voltageText(row);
+    case 'choice':
+      // Seed v13, batch e23e (Story 23.18): the row's answer in caps ("INVERTIDA"), "-" while empty.
+      return row.choice === undefined || row.choice.raw === '' ? DASH : printLabel(row.choice.raw);
     case 'index': {
       // Seed v13, batch e23t (Story 23.16): the typed IP or DAR as typed; an IP on a row above the instrument's limit prints N/A (Story 23.4's rule).
       const cell = row.cells.find((candidate) => candidate.address.col === col);
@@ -1116,11 +1130,13 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   const paired = pairShape && tables[0]!.columns.length === tables[1]!.columns.length;
   // Story 22.3: the instrument header and every table but the last keep with the next, so a test never parts from its header.
   // Story 23.4 (seed v13): the instrument-limit note, a paragraph right after the test's last table, kept with it.
-  const note = evaluation.limitNote ?? null;
+  // Batch e23e (Story 23.18, seed v13): the test's print note (the ratio check is not an accuracy test), the same way.
+  const notes = [evaluation.limitNote ?? null, evaluation.printNote ?? null].filter((text): text is string => text !== null);
   const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart =>
-    i < all.length - 1 || note !== null ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one },
+    i < all.length - 1 || notes.length > 0 ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one },
   );
-  return [{ ...instrumentPart(block, test, evaluation), keepWithNext: true }, ...printed, ...(note === null ? [] : [{ kind: 'paragraph' as const, text: note }])];
+  const paragraphs = notes.map((text, i): SheetPart => (i < notes.length - 1 ? { kind: 'paragraph', text, keepWithNext: true } : { kind: 'paragraph', text }));
+  return [{ ...instrumentPart(block, test, evaluation), keepWithNext: true }, ...printed, ...paragraphs];
 }
 
 // --- CONFIGURAÇÃO and the measurement tests (Story 14.5) ----------------------------------------

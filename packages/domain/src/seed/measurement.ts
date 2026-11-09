@@ -247,12 +247,66 @@ export const phaseDeviationCriterionSchema = z
     if (criterion.above !== 'out') ctx.addIssue({ code: 'custom', path: ['above'], message: 'above a restricted band is out' });
   });
 
+// --- e23e: Stories 23.13, 23.18, 23.20, 23.21 ---
+
+/** The level a band of a `bands` criterion gives a cell (`measurement-evaluation.ts`). */
+export const bandLevelSchema = z.enum(['within', 'restricted', 'out']);
+export type BandLevel = z.infer<typeof bandLevelSchema>;
+
+/**
+ * Seed v13, batch e23e (Story 23.20; NETA MTS-2023 Table 100.18): a band table over one number
+ * column. Each measured cell of `column` takes the first band whose `up_to` (inclusive, in the
+ * column's unit) it does not exceed, the last band (and only it) open-ended: `within`, `restricted`
+ * (its `class` and `action` the restriction's reason) or `out`. The bands ascend. `status` is the
+ * base's status of the rule (data only).
+ */
+export const bandsCriterionSchema = z
+  .object({
+    type: z.literal('bands'),
+    column: seedKey,
+    bands: z
+      .array(z.object({ up_to: z.number().optional(), level: bandLevelSchema, class: z.string().min(1), action: z.string().min(1).optional() }))
+      .min(2),
+    text: criterionText,
+    status: criterionRowStatusSchema.optional(),
+    ...criterionBase,
+  })
+  .superRefine((criterion, ctx) => {
+    const last = criterion.bands.length - 1;
+    criterion.bands.forEach((band, i) => {
+      if (i < last && band.up_to === undefined) ctx.addIssue({ code: 'custom', path: ['bands', i, 'up_to'], message: 'every band but the last has an up_to' });
+      if (i === last && band.up_to !== undefined) ctx.addIssue({ code: 'custom', path: ['bands', i, 'up_to'], message: 'the last band is open-ended' });
+      const previous = i === 0 ? undefined : criterion.bands[i - 1]!.up_to;
+      if (band.up_to !== undefined && previous !== undefined && band.up_to <= previous) ctx.addIssue({ code: 'custom', path: ['bands', i, 'up_to'], message: 'bands ascend by up_to' });
+    });
+  });
+
+/**
+ * Seed v13, batch e23e (Story 23.21; Base rev08 AT-01): a maximum read from the plate. Every
+ * measured number cell is within at most the nameplate number `field` holds, in `unit`, else at
+ * most `default` while the field is empty (the cell's helper then says the default applies); out
+ * above. `default_status` is the base's status of the default, `status` the rule's (data only).
+ */
+export const maxFieldCriterionSchema = z.object({
+  type: z.literal('max_field'),
+  field: seedKey,
+  default: z.number().positive(),
+  unit: z.string().min(1),
+  text: criterionText,
+  default_status: criterionRowStatusSchema,
+  status: criterionRowStatusSchema.optional(),
+  ...criterionBase,
+});
+
 export const measurementCriterionSchema = z.discriminatedUnion('type', [
   absoluteCriterionSchema,
   relativeToLowestCriterionSchema,
   equalsColumnCriterionSchema,
   choicePassCriterionSchema,
   phaseDeviationCriterionSchema,
+  // Seed v13, batch e23e (Stories 23.20 and 23.21).
+  bandsCriterionSchema,
+  maxFieldCriterionSchema,
 ]);
 type SeedMeasurementCriterion = z.infer<typeof measurementCriterionSchema>;
 
@@ -296,14 +350,40 @@ const appliesWhenBase = {
   unmet: z.string().min(1).optional(),
 };
 
-/** Seed v13 (Story 23.9): the condition a test applies under (see above). */
-export const appliesWhenSchema = z.discriminatedUnion('op', [
+/** Seed v13 (Story 23.9): a condition over one nameplate field (see above). */
+export const plateAppliesWhenSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('in'), values: z.array(z.string().min(1)).min(1), ...appliesWhenBase }),
   z.object({ op: z.literal('filled'), ...appliesWhenBase }),
   z.object({ op: z.literal('above'), value: z.number(), ...appliesWhenBase }),
   z.object({ op: z.literal('below'), value: z.number(), ...appliesWhenBase }),
 ]);
+export type PlateAppliesWhen = z.infer<typeof plateAppliesWhenSchema>;
+
+/**
+ * Seed v13, batch e23e (Story 23.20; Base rev08 GE-01 "Aplica-se: Equipamento em carga"): a
+ * condition over one choice value of the measurement test itself (`value`, a key of its `values`):
+ * met while the value holds one of the option keys `values`. Empty, it applies the test unless
+ * `needs_value`, and then its reason says `empty`; unmet, `unmet` (own wordings, never a plate's).
+ * Only a measurement test carries it (`checkMeasurementTest`); the NA band keeps the value's control.
+ */
+export const valueAppliesWhenSchema = z.object({
+  op: z.literal('in'),
+  value: seedKey,
+  values: z.array(seedKey).min(1),
+  needs_value: z.literal(true).optional(),
+  unmet: z.string().min(1),
+  empty: z.string().min(1).optional(),
+});
+export type ValueAppliesWhen = z.infer<typeof valueAppliesWhenSchema>;
+
+/** Seed v13 (Story 23.9): the condition a test applies under (see above); batch e23e: over a plate field or (Story 23.20) a test value. */
+export const appliesWhenSchema = z.union([plateAppliesWhenSchema, valueAppliesWhenSchema]);
 export type AppliesWhen = z.infer<typeof appliesWhenSchema>;
+
+/** Batch e23e (Story 23.20): whether a condition reads a value of the test rather than a plate field. */
+export function isValueCondition(condition: AppliesWhen): condition is ValueAppliesWhen {
+  return 'value' in condition && typeof condition.value === 'string';
+}
 
 /** The seeded test kinds whose registry instruments a measurement test's picker offers. */
 export const instrumentOfSchema = z.enum(['isolacao', 'resistencia_contato']);
@@ -364,6 +444,8 @@ type MeasurementTestLike = Omit<z.infer<z.ZodObject<typeof measurementTestShape>
     | { type: 'equals_column'; column: string; reference: string }
     | { type: 'choice_pass'; column: string; pass: readonly string[] }
     | { type: 'phase_deviation' }
+    | { type: 'bands'; column: string }
+    | { type: 'max_field' }
   )[];
 };
 
@@ -408,6 +490,14 @@ export function checkMeasurementTest(test: MeasurementTestLike, ctx: z.Refinemen
     else optionOf(value.when, ['values', v, 'when']);
   });
   if (test.skip_when !== undefined) optionOf(test.skip_when, ['skip_when']);
+  // Seed v13, batch e23e (Story 23.20): a condition over a value of the test names a choice value of it and only its options.
+  const condition = test.applies_when;
+  if (condition !== undefined && isValueCondition(condition)) {
+    const target = values.get(condition.value);
+    if (target === undefined || target.kind !== 'choice') issue(['applies_when', 'value'], `"${condition.value}" is not a choice value of the test`);
+    else for (const key of condition.values) if (!(target.options ?? []).some((option) => option.key === key)) issue(['applies_when', 'values'], `"${key}" is not an option of "${condition.value}"`);
+    if (target?.when !== undefined) issue(['applies_when', 'value'], 'the value a test applies by is always shown');
+  }
   // Seed v13 (batch e23t, Story 23.15): the history rule compares corrected values.
   if (test.history_deviation_pct !== undefined && test.winding_correction === undefined) issue(['history_deviation_pct'], 'a history rule needs the test\'s winding_correction');
 
@@ -427,6 +517,10 @@ export function checkMeasurementTest(test: MeasurementTestLike, ctx: z.Refinemen
         const known = new Set((column.options ?? []).map((option) => option.key));
         for (const key of criterion.pass) if (!known.has(key)) issue(at('pass'), `"${key}" is not an option of "${criterion.column}"`);
       }
+    } else if (criterion.type === 'bands') {
+      // Seed v13, batch e23e (Story 23.20): a band table reads a number column.
+      const column = columns.get(criterion.column);
+      if (column === undefined || column.kind !== 'number') issue(at('column'), `"${criterion.column}" is not a number column`);
     }
   });
 }

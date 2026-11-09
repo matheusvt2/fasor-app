@@ -53,6 +53,10 @@ import sharp from 'sharp';
  * Batch e23t (Story 23.17) adds two seed v13 transformer plates: one printing the ANP class and no
  * insulation or liquid word (`transformador_forca_tipo_b_v13`), one naming a silicone liquid
  * (`transformador_forca_silicone_v13`).
+ *
+ * Batch e23e adds a seed v13 TC printing FUNÇÃO DO TC and the class "0,3S" (`tc_funcao_v13`, Story
+ * 23.18, no default) and the Malha de aterramento's design data (`malha_aterramento`, Story 23.21,
+ * the type's default: VALOR DE PROJETO, MÉTODO DE MEDIÇÃO and CONDIÇÃO DO SOLO).
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -78,7 +82,7 @@ interface PlateRow {
 }
 
 interface PlateSpec {
-  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca' | 'cabos_entrada';
+  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca' | 'cabos_entrada' | 'malha_aterramento';
   /** The seed version whose definition the plate is laid out on (default: the one a new relatório is created with). */
   seedVersion?: string;
   /** The argument that selects the plate when it is not its block type (Story 21.2: two transformer plates). */
@@ -413,6 +417,32 @@ const PLATES: PlateSpec[] = [
       { key: 'isolacao_cabo', tokens: ['EPR'], value: 'EPR' },
       { key: 'secao_mm2', tokens: ['50', 'mm²'], value: num('50', 'mm²') },
       { key: 'tipo_terminacao', tokens: ['TERMOCONTRÁTIL'], value: 'TERMOCONTRÁTIL' },
+    ],
+  },
+  // Batch e23e (Story 23.18, seed v13): a TC printing its function and a special measurement class, answered as printed
+  // (the kernel lands "0,3S" on its option), no block type's default.
+  {
+    blockType: 'tc',
+    name: 'tc_funcao_v13',
+    seedVersion: 'v13',
+    file: 'plate-tc-funcao-v13.png',
+    rows: [
+      { key: 'identificacao', tokens: ['TC-04'], value: 'TC-04' },
+      { key: 'fabricacao', tokens: ['Velquor'], value: 'Velquor' },
+      { key: 'relacao', tokens: ['300-5', 'A'], value: '300-5 A' },
+      { key: 'exatidao', tokens: ['0,3S'], value: '0,3S' },
+      { key: 'funcao_tc', tokens: ['FATURAMENTO'], value: 'FATURAMENTO' },
+    ],
+  },
+  // Batch e23e (Story 23.21, seed v13): the Malha de aterramento's design data sheet, the type's default plate.
+  {
+    blockType: 'malha_aterramento',
+    seedVersion: 'v13',
+    file: 'plate-malha-aterramento.png',
+    rows: [
+      { key: 'valor_projeto_ohm', tokens: ['2', 'Ω'], value: num('2', 'Ω') },
+      { key: 'metodo_medicao', tokens: ['QUEDA', 'DE', 'POTENCIAL', '(62', '%)'], value: 'QUEDA DE POTENCIAL (62 %)' },
+      { key: 'condicao_solo', tokens: ['ÚMIDO'], value: 'ÚMIDO' },
     ],
   },
 ];

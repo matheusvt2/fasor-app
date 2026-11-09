@@ -215,6 +215,7 @@ describe('3.4-UNIT quantities per node', () => {
       chave_transferencia_automatica: 0,
       quadro_eletrico: 0,
       inspecao_qgbt: 0,
+      malha_aterramento: 0,
     });
     valid({ ...template, blocks });
   });
@@ -319,7 +320,8 @@ describe('3.5-UNIT sub-block defaults per equipment type', () => {
       sub_blocks: defaultBlockConfig(standard.seed_version, 'chave_seccionadora').sub_blocks,
       na_defaults: ['motor', 'fusiveis'],
     });
-    expect(typeConfigFor(standard.blocks, 'tp')).toEqual({ sub_blocks: defaultBlockConfig('v1', 'tp').sub_blocks, na_defaults: [] });
+    // Batch e23e (seed v13): the TP gains its thermography, so it reads the current version's config too.
+    expect(typeConfigFor(standard.blocks, 'tp')).toEqual({ sub_blocks: defaultBlockConfig(standard.seed_version, 'tp').sub_blocks, na_defaults: [] });
     expect(typeConfigFor(withColunas(1).blocks, 'tp')).toBeNull();
   });
 

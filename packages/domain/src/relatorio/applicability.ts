@@ -1,6 +1,6 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, printNotApplicable, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
-import type { AppliesWhen } from '../seed/measurement.ts';
+import { isValueCondition, type AppliesWhen, type PlateAppliesWhen, type ValueAppliesWhen } from '../seed/measurement.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { isCellFilled } from './sheet-state.ts';
@@ -36,6 +36,12 @@ export interface TestApplicability {
   phrase: string | null;
   /** The applied band's sentence, "A placa diz sem fusíveis."; null with `reason`. */
   appliedText: string | null;
+  /**
+   * Seed v13, batch e23e (Story 23.20): the key of the test's own value the condition reads
+   * ("em_carga"), so the screen keeps that value's control in the NA band; absent on a condition
+   * over the plate and on a test with none.
+   */
+  value?: string;
 }
 
 /** The one value the override stores; null clears it (the test follows the plate again). */
@@ -91,7 +97,7 @@ function boundText(value: number, unit: string | undefined): string {
 
 // authored (Story 23.9, listed for Bruno): what the reason says of the plate's answer when the condition names no `unmet` of its own.
 /** The phrase of an unmet condition after the field's label: the condition's own `unmet`, else one per operator. */
-function fallbackPhrase(condition: AppliesWhen, field: FieldDef): string {
+function fallbackPhrase(condition: PlateAppliesWhen, field: FieldDef): string {
   switch (condition.op) {
     case 'in':
       return `não é ${condition.values.join(' nem ')}`;
@@ -109,7 +115,7 @@ const EMPTY_PHRASE = 'sem valor';
 const NOT_APPLICABLE_PHRASE = NOT_APPLICABLE_TEXT;
 
 /** The condition's outcome on the plate: met, or unmet with how its phrase reads (the label's own phrase, or the condition's `unmet`). */
-function outcomeOf(condition: AppliesWhen, field: FieldDef, cell: Cell | undefined): { met: true } | { met: false; phrase: string; own: boolean } {
+function outcomeOf(condition: PlateAppliesWhen, field: FieldDef, cell: Cell | undefined): { met: true } | { met: false; phrase: string; own: boolean } {
   const value = cell?.value;
   if (isNotApplicableValue(value)) return { met: false, phrase: condition.unmet ?? NOT_APPLICABLE_PHRASE, own: condition.unmet !== undefined };
   if (!isCellFilled(cell)) return condition.needs_value === true ? { met: false, phrase: EMPTY_PHRASE, own: false } : { met: true };
@@ -143,6 +149,7 @@ function outcomeOf(condition: AppliesWhen, field: FieldDef, cell: Cell | undefin
 export function testApplicability(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate' | 'tests' | 'measurement_tests'>, testKey: string): TestApplicability {
   const condition = appliesWhenOf(definition, testKey);
   if (condition === null) return ALWAYS;
+  if (isValueCondition(condition)) return valueApplicability(block, definition, testKey, condition);
   const field = definition.nameplate.find((candidate) => candidate.key === condition.field);
   if (field === undefined) return MET;
   const outcome = outcomeOf(condition, field, block.sheet.nameplate[field.key]);
@@ -155,6 +162,35 @@ export function testApplicability(block: Pick<BlockRow, 'sheet'>, definition: Pi
     phrase,
     // authored (Story 23.9, from the mock's applied band): "A placa diz sem fusíveis."
     appliedText: outcome.own ? `A placa diz ${outcome.phrase}.` : `A placa diz ${field.label} ${outcome.phrase}.`,
+  };
+}
+
+// --- e23e: Story 23.20 (a condition over a value of the test, seed v13) -----------------------------
+
+/**
+ * Batch e23e (Story 23.20): the applicability of a test whose condition reads one of its own choice
+ * values (the thermography's "Equipamento em carga"): met while the value holds one of `values`;
+ * empty, met unless `needs_value` (then NA, its reason the condition's `empty`); any other option NA,
+ * its reason the condition's `unmet`. The override applies it as on a plate condition. The value
+ * stays the screen's to answer in the NA band (`value`).
+ */
+function valueApplicability(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'measurement_tests'>, testKey: string, condition: ValueAppliesWhen): TestApplicability {
+  const value = (definition.measurement_tests ?? []).find((test) => test.key === testKey)?.values?.find((candidate) => candidate.key === condition.value);
+  if (value === undefined) return MET;
+  const stored = block.sheet.test[testKey]?.values?.[condition.value]?.value;
+  const held = typeof stored === 'object' && stored !== null && !Array.isArray(stored) ? (stored as { raw?: unknown; state?: unknown }) : null;
+  const option = held !== null && held.state === 'measured' && typeof held.raw === 'string' && (value.options ?? []).some((candidate) => candidate.key === held.raw) ? held.raw : null;
+  if (option === null && condition.needs_value !== true) return MET;
+  if (option !== null && condition.values.includes(option)) return MET;
+  const phrase = `${option === null ? (condition.empty ?? `${value.label} ${EMPTY_PHRASE}`) : condition.unmet}.`;
+  const applied = block.sheet.test[testKey]?.applicability?.value === APPLICABILITY_APPLIED;
+  return {
+    state: applied ? 'applied' : 'na',
+    reason: `${NA_REASON_LEAD} ${phrase}`,
+    phrase,
+    // authored (Story 23.20, listed for Bruno): the applied band's sentence of a condition over the test's own value.
+    appliedText: `Aplicado mesmo assim: ${phrase}`,
+    value: condition.value,
   };
 }
 

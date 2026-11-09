@@ -138,9 +138,10 @@ describe('3.4 composer: quantities per node', () => {
     const groups = [...palette().querySelectorAll('.palette-group')].map((group) => group.textContent);
     expect(groups.indexOf('Outros equipamentos')).toBeGreaterThan(groups.indexOf('Equipamentos'));
     const rows = [...palette().querySelectorAll<HTMLElement>('.palette-item.is-stepper')];
-    // Story 22.11 (seed v12): the Inspeção de QGBT is the third library type.
-    expect(rows).toHaveLength(11);
+    // Story 22.11 (seed v12): the Inspeção de QGBT is the third library type; batch e23e (Story 23.21, seed v13) the Malha de aterramento the fourth.
+    expect(rows).toHaveLength(12);
     expect(rows[10]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Inspeção de QGBT');
+    expect(rows[11]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Malha de aterramento');
     // The library types are the last rows, after the heading, and say what they hold.
     const heading = within(palette()).getByText('Outros equipamentos');
     expect(rows[7]!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

@@ -170,6 +170,43 @@ export interface EvaluatedRow {
   criterionText?: string;
   /** Where it comes from: the table row with its edition, the fallback's request, the manufacturer's line. */
   criterionHelper?: string | null;
+  /**
+   * Seed v13, batch e23e (Story 23.18): the row's `choice` cell (the ratio's POLARIDADE). Present only
+   * on a row of a table with a choice column; absent on every other row, every row of v1 to v12.
+   */
+  choice?: EvaluatedChoice;
+}
+
+/**
+ * Seed v13, batch e23e (Story 23.18): a row's cell of a `choice` column, a closed answer stored as
+ * `{raw: option, unit: null, state: 'measured'}` (`choiceCellValue`). Never a capture: no reader of
+ * the captures (the display reading, the suggestions, the run) sees it. Missing while empty on a
+ * required row; an option of the column's `fails_on` is out and fails the row (CONDIÇÕES).
+ */
+export interface EvaluatedChoice {
+  /** The column's index in its table's `value_columns` (the cell put's `col`). */
+  col: number;
+  /** The stored option ("INVERTIDA"), '' when nothing valid is stored. */
+  raw: string;
+  /** The option as the screen shows it ("Invertida"), "—" when empty. */
+  displayText: string;
+  verdict: 'within' | 'out' | null;
+  missing: boolean;
+  /** The sheet's helper under an out row ("Polaridade invertida: a ficha fica Reprovado e gera um ponto de atenção."), else null. */
+  helperText: string | null;
+  /** The answer as the conclusion and the points name it ("polaridade invertida"), on an out cell only; else null. */
+  outText: string | null;
+}
+
+/** Seed v13, batch e23e (Story 23.18): a table's choice column as the sheet draws it, right before CONDIÇÕES. */
+export interface ChoiceColumn {
+  col: number;
+  /** "POLARIDADE", as printed. */
+  label: string;
+  /** The screen header, "Polaridade". */
+  header: string;
+  /** Each option as stored and as the screen shows it ("INVERTIDA", "Invertida"), and whether it fails. */
+  options: readonly { value: string; label: string; fails: boolean }[];
 }
 
 /** Story 23.3: a manufacturer's value as `criterion_override` stores it (AR-10's number shape, no state). */
@@ -224,6 +261,8 @@ export interface EvaluatedTable {
   groupMissing: boolean;
   /** Story 22.8: the voltage column, never in `columns`; null on a table without one (v1 to v11). */
   voltageColumn: VoltageColumn | null;
+  /** Seed v13, batch e23e (Story 23.18): the choice column, never in `columns`; absent on a table without one. */
+  choiceColumn?: ChoiceColumn;
 }
 
 export interface TestEvaluation {
@@ -270,6 +309,15 @@ export interface TestEvaluation {
    */
   /** Story 23.16: each IP out of its class, as the conclusion and the points name it, in table order. */
   indexOut?: { where: string; valueText: string; criterionText: string; sourceName: string }[];
+  /*
+   * Seed v13, batch e23e (Story 23.18). Absent on a test without the key the field names.
+   */
+  /** Story 23.18: each choice cell out (a polarity INVERTIDA), as the conclusion and the points name it, in table order. */
+  choiceOut?: { where: string; text: string }[];
+  /** Story 23.18 (`notice_when`): the screen-only notice while the plate meets it, else null; absent on a test without the key. */
+  notice?: string | null;
+  /** Story 23.18 (`print_note`): the sentence printed under the test's last table. */
+  printNote?: string;
   /**
    * Fix batch e23w (W2-3): set when a rule of the test's `restriction` flags a reading already out
    * of its criterion (its verdict stays out): the restriction still stands, so a stored `restricao`

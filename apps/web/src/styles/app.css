@@ -1225,3 +1225,27 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 /* authored (batch e23t, Story 23.15): the winding's value at 75 °C under each reading, at every width, the declarations of
    e23v's phone line above (`.corrected-stacked`, the mock's `p.card-dims` line). */
 [data-route="/relatorio/:id/ficha/:blockId"] .corrected-line { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }
+
+/* ---------- e23e (Story 23.18, seed v13): the polarity of the TC's and TP's ratio table ----------
+   `60-ficha.html` (Story 23.1's frames, `#/ficha/TP-C16`, its page CSS of 2026-11-08): each rule below is the mock's
+   `[data-route="/ficha/:tag"] X` rule (the `.ficha-ttr-pol` halves of the rules e23b translated for `.ficha-ttr-taps`, and the
+   polarity's own) with the route of the app's sheet, declarations copied verbatim. */
+/* `[data-route="/ficha/:tag"] .section:has(.ficha-ttr-pol)` */
+[data-route="/relatorio/:id/ficha/:blockId"] .section:has(.ficha-ttr-pol) { min-width: 0; }
+/* `[data-route="/ficha/:tag"] .ficha-ttr-pol` and its cells */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol { table-layout: auto; width: max-content; min-width: 100%; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol td { overflow-wrap: normal; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol .mf-value { white-space: nowrap; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol td.cell-value .measurement-field { flex-wrap: nowrap; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol th, [data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol th:nth-child(n) { width: auto; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol td.cell-pol { min-width: 196px; padding: var(--sp-1) var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol td.cell-value { width: 120px; min-width: 120px; }
+/* `[data-route="/ficha/:tag"] .segmented .seg[data-value="invertida"][aria-checked="true"]`: the failing choice takes the NC red when picked */
+[data-route="/relatorio/:id/ficha/:blockId"] .segmented .seg[data-value="invertida"][aria-checked="true"] { background: var(--nao-conforme-fill); color: var(--nao-conforme); box-shadow: inset 0 0 0 2px currentColor; }
+/* `[data-route="/ficha/:tag"] .ficha-ttr-pol tr.pol-helper` with its `tr:has(.seg[data-value="invertida"][aria-checked="true"]) + tr.pol-helper`
+   state: the kernel draws the helper row only while the choice fails (`EvaluatedChoice.helperText`), so the shown state's declaration holds. */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-pol tr.pol-helper { display: table-row; }
+/* `[data-route="/ficha/:tag"] .measurement-card .pol-note` with its `.measurement-card:has(...) .pol-note` state, likewise */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-card .pol-note { display: flex; margin-top: var(--sp-1); }
+/* The frame's inline `style="color: var(--nao-conforme)"` on the helper's `.mf-helper` (both the row and the card). */
+[data-route="/relatorio/:id/ficha/:blockId"] .mf-helper[data-tone="nc"] { color: var(--nao-conforme); }

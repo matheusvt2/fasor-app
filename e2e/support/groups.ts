@@ -14,6 +14,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
   { file: 'polarization-index.spec.ts', why: 'Story 23.16: issues a revision through the shared queue and LibreOffice to read the IP column of the DOCX' },
   { file: 'oil-liquid-sampling.spec.ts', why: 'Story 23.17: issues a revision through the shared queue and LibreOffice to read the liquid fields and the absent sampling of the DOCX' },
   { file: 'fuse-resistance.spec.ts', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
+  // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.
+  { file: 'voltage-defaults.spec.ts', why: 'Story 23.13: issues a revision through the shared queue and LibreOffice to read the TENSÃO column of the DOCX' },
+  { file: 'tc-polarity.spec.ts', why: 'Story 23.18: issues revisions through the shared queue and LibreOffice to read POLARIDADE, CONDIÇÕES and the note of the DOCX' },
+  { file: 'thermography.spec.ts', why: 'Story 23.20: issues a revision through the shared queue and LibreOffice to read the thermography tables and the thermal photo line of the DOCX' },
+  { file: 'ground-grid.spec.ts', why: 'Story 23.21: issues a revision through the shared queue and LibreOffice to read where the Malha de aterramento prints in the DOCX' },
   {
     file: 'document-pages.spec.ts',
     why: 'Stories 20.3, 20.5 and 20.6: issues a revision through the shared queue and LibreOffice to read where each ficha, table and photo lands on the PDF pages',

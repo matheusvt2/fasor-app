@@ -366,6 +366,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
   quadro_eletrico: { noun: 'O quadro elétrico', plural: false },
   // authored (Story 22.11, listed for Bruno).
   inspecao_qgbt: { noun: 'A inspeção do QGBT', plural: false },
+  // authored (Story 23.21, listed for Bruno).
+  malha_aterramento: { noun: 'A malha de aterramento', plural: false },
 };
 
 // authored: the recommendation that follows a restricted or failed result.
@@ -473,6 +475,14 @@ function indexClause(test: TestEvaluation, reading: NonNullable<TestEvaluation['
   return `${reading.valueText} no ${test.title.toLocaleLowerCase('pt-BR')} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
+/**
+ * Batch e23e (Story 23.18, seed v13): a failed choice as the paragraph names it. authored (Story
+ * 23.18, listed for Bruno): "polaridade invertida no ensaio de relação de transformação em Fase R".
+ */
+function choiceClause(test: TestEvaluation, one: NonNullable<TestEvaluation['choiceOut']>[number]): string {
+  return `${one.text} no ${test.title.toLocaleLowerCase('pt-BR')} em ${one.where}`;
+}
+
 // authored (Story 14.5): how an out reading of a measurement test is named, whatever its
 // criterion: "resistência de contato fora do critério em Polo C, Lado Emergência (63 µΩ;
 // critério: ≤ 50 % acima do menor do mesmo lado, NETA 7.22.3 (fonte secundária))".
@@ -520,10 +530,12 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const tableOut = worstMeasurements(measurements);
   // Batch e23t (Story 23.16): an IP out of its class is a failure the paragraph names with the out readings.
   const indexOut = evaluations.flatMap((test) => (test.indexOut ?? []).map((reading) => indexClause(test, reading)));
+  // Batch e23e (Story 23.18): a failed choice (a polarity INVERTIDA) is a failure the paragraph names too.
+  const choiceOut = evaluations.flatMap((test) => (test.choiceOut ?? []).map((one) => choiceClause(test, one)));
   // Batch e23v (Story 23.6, seed v13): a failed prerequisite is a failure the paragraph names with the out readings.
   // Fix batch e23w (W2-2): every failed prerequisite (`failedPrerequisites`), its test switched off or NA too.
   const prerequisites = failedPrerequisites(block, definition).map(prerequisiteClause);
-  const outClauses = [...out.map(readingClause), ...indexOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
+  const outClauses = [...out.map(readingClause), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
   // Batch e23v (Story 23.6, seed v13): the restricted readings, named after the readings' clause.
   const restricted = [
     ...evaluations.flatMap((test) => {

@@ -2,7 +2,8 @@
 title: 'e23e: test-voltage defaults, TC and TP polarity and function, thermography on the eight types, the Malha de aterramento (Stories 23.13, 23.18, 23.20, 23.21; contract 39)'
 type: 'feature'
 created: '2026-11-09'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '9351c73bf0d5e6cedd33c71095c3e2589bcd46d0'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

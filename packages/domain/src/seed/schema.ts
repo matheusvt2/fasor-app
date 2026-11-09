@@ -13,7 +13,7 @@ import {
 import type { CriterionSeed } from './criteria.ts';
 import { criterionRowStatusSchema, criterionTableSchema } from './criteria-tables.ts';
 import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
-import { appliesWhenSchema, checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
+import { checkMeasurementDefinition, plateAppliesWhenSchema, configFieldSchema, criterionSourceSchema, isValueCondition, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
 
 /*
  * The shape of one seed version (AD-21). Seed data is code, validated once at module
@@ -138,16 +138,32 @@ export const columnDefSchema = z
      * capture column, the transformer insulation table's ABSORÇÃO and POLARIZAÇÃO (the IP is
      * judged by the test's `polarization_index`, the DAR is captured and never judged).
      */
-    role: z.enum(['capture', 'input', 'derived', 'print', 'voltage', 'index']),
+    role: z.enum(['capture', 'input', 'derived', 'print', 'voltage', 'index', 'choice']),
     derived: z.boolean(),
     group: z.string().min(1).optional(),
     /**
      * Seed v12 (Story 22.8): on a `voltage` column only, the pt-BR texts of its select ("0,5", "10").
      * Optional and never defaulted, so v1 to v11 parse to the bytes they shipped with.
+     *
+     * Seed v13, batch e23e (Story 23.18): on a `choice` column too, its closed options as stored and
+     * printed ("OK", "INVERTIDA").
      */
     options: z.array(z.string().min(1)).min(1).optional(),
+    /*
+     * Seed v13, batch e23e (Story 23.18): `choice` is a per-row closed answer typed on site (the TC's
+     * and TP's POLARIDADE beside the ratio), stored as `{raw: option, unit: null, state: 'measured'}`,
+     * never a number to any reader of the captures. It is missing while empty; an option of
+     * `fails_on` puts it and its row out (`relatorio/reading-evaluation.ts`). Appended after every
+     * other value column, so the stored indices of the others hold; screen and print draw it right
+     * before CONDIÇÕES.
+     */
+    /** Seed v13 (Story 23.18): on a `choice` column only, the options that fail the row. Optional and never defaulted. */
+    fails_on: z.array(z.string().min(1)).min(1).optional(),
   })
-  .refine((c) => (c.role === 'voltage') === (c.options !== undefined), { message: 'options exist exactly on a voltage column' });
+  .refine((c) => (c.role === 'voltage' || c.role === 'choice') === (c.options !== undefined), { message: 'options exist exactly on a voltage or a choice column' })
+  .refine((c) => c.fails_on === undefined || (c.role === 'choice' && c.options !== undefined && c.fails_on.every((option) => c.options!.includes(option))), {
+    message: 'fails_on belongs to a choice column and names its options',
+  });
 export type ColumnDef = z.infer<typeof columnDefSchema>;
 
 /**
@@ -195,7 +211,22 @@ export const tableDefSchema = z
      * Optional and never defaulted, so v1 to v12 parse to the bytes they shipped with.
      */
     rows_from: seedKey.optional(),
+    /**
+     * Seed v13, batch e23e (Story 23.13, decision D): the default test voltage of the table's rows
+     * from the plate, after a row's own default and its winding's (`relatorio/row-voltage.ts`):
+     * `rating` reads the field (a number in V or kV, a voltage class, or a select of "U0/U kV"
+     * options read by U) and gives 1 kV up to 600 V, 2,5 kV up to 5000 V and 5 kV above; `mcov`
+     * reads a number field in kV and gives 2,5 kV under 5 kV and 5 kV from it. With the field
+     * empty or unreadable the instrument's TENSÃO ENSAIO applies, as before. Only on a table with a
+     * voltage column. Optional and never defaulted, so v1 to v12 parse to the bytes they shipped with.
+     */
+    voltage_default: z.object({ field: seedKey, rule: z.enum(['rating', 'mcov']) }).optional(),
   })
+  .refine((t) => t.voltage_default === undefined || t.value_columns.some((c) => c.role === 'voltage'), {
+    message: 'voltage_default belongs to a table with a voltage column',
+    path: ['voltage_default'],
+  })
+  .refine((t) => t.value_columns.filter((c) => c.role === 'choice').length <= 1, { message: 'a table has at most one choice column' })
   .refine((t) => t.rows_from === undefined || t.connection_typed, { message: 'rows_from belongs to a table whose connection is typed', path: ['rows_from'] })
   .refine((t) => t.rows_from === undefined || (t.rows.length === 1 && t.connection_columns.length === 1), {
     message: 'rows_from belongs to a table of one seeded row and one connection column',
@@ -336,7 +367,7 @@ export const testDefSchema = z.object({
    * (`relatorio/applicability.ts`); always, when absent. Optional and never defaulted, so v1 to
    * v12 parse to the bytes they shipped with.
    */
-  applies_when: appliesWhenSchema.optional(),
+  applies_when: plateAppliesWhenSchema.optional(),
   /** Seed v13 (Story 23.9): the test starts switched off in a new block's config (the base's "Opcional"); the template switch still removes it (FR-11). */
   initial_off: z.literal(true).optional(),
   /*
@@ -412,6 +443,18 @@ export const testDefSchema = z.object({
    */
   /** Story 23.16: the polarization index judged in the table's `index` columns (`polarizationIndexSchema`). */
   polarization_index: polarizationIndexSchema.optional(),
+  /*
+   * Seed v13, batch e23e (Story 23.18). Both optional and never defaulted, so v1 to v12 parse to the
+   * bytes they shipped with.
+   */
+  /**
+   * Story 23.18: a notice the sheet shows under the test while the nameplate select `field` holds
+   * one of `values` (the TC's FUNÇÃO DO TC FATURAMENTO); on the screen only, never printed, never
+   * blocking: the test is still filled and judged as any.
+   */
+  notice_when: z.object({ field: seedKey, values: z.array(z.string().min(1)).min(1), text: z.string().min(1) }).optional(),
+  /** Story 23.18: a sentence printed under the test's last table (the TC's and TP's ratio check is not an accuracy test). */
+  print_note: z.string().min(1).optional(),
 });
 /**
  * A test as every reader takes it. Story 14.6: on a company type's definition (`asBlockDefinition`)
@@ -564,7 +607,8 @@ function checkSeedV13Definition(
     if (field(key) === undefined) issue(['oil_rule', 'dry_fields'], `a dry field "${key}" is not on the nameplate`);
   }
   const checkCondition = (condition: AppliesWhen | undefined, path: (string | number)[]) => {
-    if (condition === undefined) return;
+    // Batch e23e (Story 23.20): a condition over a value of the test is the test's own to check (`checkMeasurementTest`).
+    if (condition === undefined || isValueCondition(condition)) return;
     const target = field(condition.field);
     if (target === undefined) issue([...path, 'field'], `applies_when.field "${condition.field}" is not a field of the nameplate`);
     else if (condition.op === 'in' && (target.kind !== 'select' || !condition.values.every((value) => target.options!.includes(value)))) {
@@ -589,13 +633,68 @@ function checkSeedV13Definition(
   definition.tests.forEach((test, t) => checkE23vTest(definition, test, ['tests', t], field, issue));
   // --- e23t: Stories 23.15 to 23.17 and 23.19 ---
   checkE23tDefinition(definition, field, issue);
+  // --- e23e: Stories 23.13, 23.18, 23.20, 23.21 ---
+  checkE23eDefinition(definition, field, issue);
+}
+
+/** Seed v13, batch e23e (Story 23.13): a "U0/U kV" option of a cable's CLASSE U0/U ("8,7/15 kV"); its U in kV, or null. */
+export function classU0UKv(option: string): string | null {
+  const match = /^\s*(\d+(?:,\d+)?)\s*\/\s*(\d+(?:,\d+)?)\s*kV\s*$/i.exec(option);
+  return match === null ? null : match[2]!.replace(',', '.');
+}
+
+/**
+ * Seed v13, batch e23e (Stories 23.13, 23.18, 23.20 and 23.21): what the new keys name exists on the
+ * definition, each issue at its path:
+ * - a table's `voltage_default` read by `rating` names a number field in V or kV, a voltage class or
+ *   a select whose every option reads "U0/U kV"; by `mcov` a number field in kV (never a `list`);
+ * - a test's `notice_when` names a select of the nameplate and only its options;
+ * - a measurement criterion `max_field` names a number field of the nameplate (never a `list`).
+ */
+function checkE23eDefinition(
+  definition: { tests: readonly TestDef[]; measurement_tests?: readonly MeasurementTestRefs[] | undefined },
+  field: (key: string) => FieldDef | undefined,
+  issue: (path: (string | number)[], message: string) => void,
+): void {
+  definition.tests.forEach((test, t) => {
+    test.tables.forEach((table, b) => {
+      const pick = table.voltage_default;
+      if (pick === undefined) return;
+      const target = field(pick.field);
+      const number = target !== undefined && target.kind === 'number' && target.list !== true;
+      const readable =
+        pick.rule === 'mcov'
+          ? number && target.unit === 'kV'
+          : target !== undefined &&
+            (target.kind === 'voltage_class' ||
+              (number && (target.unit === 'V' || target.unit === 'kV')) ||
+              (target.kind === 'select' && (target.options ?? []).every((option) => classU0UKv(option) !== null)));
+      if (!readable) issue(['tests', t, 'tables', b, 'voltage_default', 'field'], `voltage_default.field "${pick.field}" is not a field the "${pick.rule}" rule reads`);
+    });
+    const notice = test.notice_when;
+    if (notice !== undefined) {
+      const target = field(notice.field);
+      if (target === undefined || target.kind !== 'select' || !notice.values.every((value) => (target.options ?? []).includes(value))) {
+        issue(['tests', t, 'notice_when'], `notice_when names a select of the nameplate and only its options ("${notice.field}")`);
+      }
+    }
+  });
+  (definition.measurement_tests ?? []).forEach((test, t) => {
+    (test.criteria ?? []).forEach((criterion, c) => {
+      if (criterion.type !== 'max_field' || criterion.field === undefined) return;
+      const target = field(criterion.field);
+      if (target === undefined || target.kind !== 'number' || target.list === true) {
+        issue(['measurement_tests', t, 'criteria', c, 'field'], `max_field.field "${criterion.field}" is not a number field of the nameplate`);
+      }
+    });
+  });
 }
 
 /** What `checkSeedV13Definition` reads of a measurement test (either a seed's or a company type's). */
 interface MeasurementTestRefs {
   applies_when?: AppliesWhen | undefined;
   winding_correction?: { material_field: string; oil_field?: string | undefined; dry_field?: string | undefined } | undefined;
-  criteria?: readonly { type: string; medium?: 'oil' | 'dry' | undefined }[] | undefined;
+  criteria?: readonly { type: string; medium?: 'oil' | 'dry' | undefined; field?: string | undefined }[] | undefined;
 }
 
 /**

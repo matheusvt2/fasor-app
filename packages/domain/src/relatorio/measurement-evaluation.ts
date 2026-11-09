@@ -15,7 +15,7 @@ import type {
   MeasurementValue,
   WhenConfig,
 } from '../seed/measurement.ts';
-import type { BlockDefinition } from '../seed/schema.ts';
+import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import {
   isReadingValue,
   OVER_RANGE_ALLOWED,
@@ -750,6 +750,89 @@ function markOpenCircuits(rows: readonly EvaluatedMeasurementRow[], criterion: M
   }
 }
 
+// --- e23e: Stories 23.20 and 23.21 (band tables, a maximum from the plate) ------------------------
+
+/** "Discrepância grave". */
+function upperFirst(text: string): string {
+  return text.charAt(0).toLocaleUpperCase('pt-BR') + text.slice(1);
+}
+
+/**
+ * Seed v13, batch e23e (Story 23.20; NETA MTS-2023 Table 100.18): each measured cell of the
+ * criterion's column takes the first band whose `up_to` it does not exceed (the last band past every
+ * bound): within, restricted (its class and action the reason) or out (the helper names the class,
+ * the bound it passed and the action). A cell at zero or below is within (no rise); a row's two
+ * columns are judged apart, so the row reads the worse (out > restricted > within).
+ */
+function applyBands(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], criterion: Extract<MeasurementCriterion, { type: 'bands' }>): void {
+  const column = columns.find((candidate) => candidate.key === criterion.column);
+  if (column === undefined || column.kind !== 'number') return;
+  for (const row of rows) {
+    const cell = row.cells[column.col];
+    if (cell === undefined || cell.kind !== 'number' || !judged(cell)) continue;
+    const value = scaleToUnit(Number(cell.raw), cell.unit, column.unit ?? cell.unit);
+    if (value === null) continue;
+    const at = criterion.bands.findIndex((band) => band.up_to === undefined || roundPct(value) <= band.up_to);
+    const band = criterion.bands[at === -1 ? criterion.bands.length - 1 : at]!;
+    const shown = withUnit(cell.displayText, cell.unit);
+    // authored (Story 23.20, listed for Bruno): the reason, the helper's sentence and the out helper of a thermography cell.
+    if (band.level === 'within') mark(cell, true, criterion, '', 0);
+    else if (band.level === 'restricted') {
+      const action = band.action === undefined ? '' : `, ${band.action}`;
+      markRestricted(cell, criterion, `${cell.column} de ${shown} (${band.class})`, `${cell.column} de ${shown}: ${band.class}${action}; ${RESTRICTED_CLOSING}`);
+    } else {
+      const bound = criterion.bands[(at === -1 ? criterion.bands.length - 1 : at) - 1]?.up_to ?? 0;
+      const action = band.action === undefined ? '' : `: ${band.action}`;
+      mark(cell, false, criterion, `${upperFirst(band.class)} (${shown}, acima de ${withUnit(numberText(bound), cell.unit)})${action}`, bound > 0 ? (value - bound) / bound : 1);
+    }
+  }
+}
+
+/** Story 23.21: a plate number in the criterion's unit, or null (empty, an "N/A", not a positive number, no unit to compare). */
+function plateNumber(block: Pick<BlockRow, 'sheet'>, nameplate: readonly FieldDef[], key: string, unit: string): number | null {
+  const field = nameplate.find((candidate) => candidate.key === key);
+  const value = block.sheet.nameplate[key]?.value;
+  if (field === undefined || typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const stored = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  if (stored.state !== 'measured' || typeof stored.raw !== 'string' || !/^\d+(\.\d+)?$/.test(stored.raw)) return null;
+  const number = Number(stored.raw);
+  if (!(number > 0)) return null;
+  return scaleToUnit(number, typeof stored.unit === 'string' && stored.unit !== '' ? stored.unit : (field.unit ?? null), unit);
+}
+
+/** Story 23.21: the limit a `max_field` criterion judges by on this sheet, and whether it is the default. */
+function maxFieldLimit(block: Pick<BlockRow, 'sheet'>, nameplate: readonly FieldDef[], criterion: Extract<MeasurementCriterion, { type: 'max_field' }>): { limit: Limit; byDefault: boolean } {
+  const plate = plateNumber(block, nameplate, criterion.field, criterion.unit);
+  const value = plate ?? criterion.default;
+  return { limit: { operator: '<=', value, unit: criterion.unit, text: withUnit(`≤ ${numberText(value)}`, criterion.unit) }, byDefault: plate === null };
+}
+
+/**
+ * Seed v13, batch e23e (Story 23.21; Base rev08 AT-01): every measured number cell at most the plate's
+ * `field` (VALOR DE PROJETO), else at most the default; out above, its helper naming the limit and
+ * whether it is the design value or the default. A reading above the instrument's limit is judged
+ * as on an absolute criterion (`overRangeVerdict`).
+ */
+function applyMaxField(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'max_field' }>, limit: Limit, byDefault: boolean): void {
+  // authored (Story 23.21, listed for Bruno): the out helper, naming where the limit comes from.
+  const helper = `Acima do aceitável (${limit.text}, ${byDefault ? 'padrão sem valor de projeto' : 'valor de projeto'})`;
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.kind !== 'number' || cell.fixed !== null || !isReadingValue(cell.state)) continue;
+      const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
+      if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess);
+    }
+  }
+}
+
+/**
+ * Story 23.21: the helper a test judged by a `max_field` shows while its plate field is empty
+ * ("Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω."); authored (Story 23.21, listed for Bruno).
+ */
+export function maxFieldDefaultText(label: string, limitText: string): string {
+  return `Sem ${label} na placa, vale ${limitText}.`;
+}
+
 // --- the winding at 75 °C and its history (seed v13, batch e23t, Story 23.15) ----------------------
 
 /** What a test's evaluation reads beyond its block and configuration: the definition's plate and oil rule, the visit context. */
@@ -1015,6 +1098,12 @@ function evaluate(
   // Seed v13 (batch e23t, Story 23.15): the values at 75 °C, the temperature line and the material's request.
   const winding = applyWindingCorrection(block, test, rows, context);
   const notes: string[] = [...(winding?.notes ?? [])];
+  // Seed v13, batch e23e (Story 23.21): the default of a maximum read from the plate, said while the field is empty.
+  for (const criterion of criteria) {
+    if (criterion.type !== 'max_field') continue;
+    const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
+    if (byDefault) notes.push(maxFieldDefaultText(context.definition.nameplate.find((field) => field.key === criterion.field)?.label ?? criterion.field, limit.text));
+  }
   if (live) {
     // Seed v13 (batch e23t, Stories 23.15 and 23.19): a criterion read by medium judges only the medium the oil rule reads.
     const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
@@ -1026,6 +1115,10 @@ function evaluate(
       else if (criterion.type === 'equals_column') applyEquals(rows, criterion);
       else if (criterion.type === 'phase_deviation') {
         if (criterion.medium === undefined || criterion.medium === medium) applyPhaseDeviation(rows, columns, criterion);
+      } else if (criterion.type === 'bands') applyBands(rows, columns, criterion);
+      else if (criterion.type === 'max_field') {
+        const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
+        applyMaxField(rows, criterion, limit, byDefault);
       } else applyChoicePass(rows, criterion);
     }
     if (deviation !== undefined && medium === null && criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) && !criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium === undefined)) {

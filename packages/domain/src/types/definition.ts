@@ -2,12 +2,14 @@ import { z } from 'zod';
 import { criterionTypeSchema, type CriterionType } from '../seed/criteria.ts';
 import {
   absoluteCriterionShape,
+  bandsCriterionSchema,
   checkAbsoluteCriterion,
   checkMeasurementDefinition,
   checkMeasurementTest,
   choicePassCriterionSchema,
   configFieldSchema,
   equalsColumnCriterionSchema,
+  maxFieldCriterionSchema,
   measurementTestShape,
   phaseDeviationCriterionSchema,
   relativeToLowestCriterionSchema,
@@ -105,6 +107,9 @@ export const companyMeasurementCriterionSchema = z.discriminatedUnion('type', [
   choicePassCriterionSchema,
   // Batch e23t (Stories 23.15 and 23.19): a copy of a v13 transformer or seccionadora keeps its deviation between phases.
   phaseDeviationCriterionSchema,
+  // Batch e23e (Stories 23.20 and 23.21): a copy of a v13 type keeps its thermography's bands, a copy of the Malha its maximum from the plate.
+  bandsCriterionSchema,
+  maxFieldCriterionSchema,
 ]);
 
 /** A measurement test of a company type: Story 14.5's grammar with a free key. */
