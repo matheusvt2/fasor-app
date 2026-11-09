@@ -12,6 +12,7 @@ import {
   libraryTypesHeading,
   publishBlockedText,
   publishedText,
+  removeDraftEntry,
   retireTypeTitle,
   SEED_VERSION,
   setDraftNoun,
@@ -427,4 +428,42 @@ test('@p0 14.7-E2E-005 (e22h S1): the Critérios tab of a Quadro elétrico copy 
   await expect(row.getByRole('textbox')).toHaveCount(0);
   await expect(publishButton(page)).toHaveText('Publicar versão 1');
   await expect(reason(page)).toHaveCount(0);
+});
+
+test('@p0 23g-E2E-002 (fix batch e23g, R2-2): a copy of the v13 transformer loses TAPS, TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA through "Remover" and still publishes: no reason, no rows_from, no pick_from, no dry_fields', async ({ page, seed }) => {
+  test.setTimeout(150_000);
+  const account = seed.companies[1];
+  const database = deviceDatabaseName(account.userId);
+  await resetEmpresaB(account);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await openTypeList(page);
+  const copy = duplicateSeededType(SEED_VERSION, 'transformador_forca');
+  const typeId = await duplicateLibraryType(page, 'transformador_forca');
+  await expect(page.locator('.tipo-head h2')).toHaveText(copy.draft.label);
+  await editorTab(page, 'Placa');
+  const storedDraft = async () => (await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, typeId)).type?.draft ?? null;
+
+  // Each removal through the row menu, as a person does; the stored draft is the kernel's removal of the same field.
+  let expected: CompanyTypeDraft = copy.draft;
+  for (const label of ['TAPS', 'TEMPERATURA DO ENROLAMENTO', 'CLASSE TÉRMICA']) {
+    const index = (expected.nameplate ?? []).findIndex((entry) => entry.label === label);
+    expect(index, label).toBeGreaterThanOrEqual(0);
+    expected = removeDraftEntry(expected, 'nameplate', index);
+    await page.getByRole('button', { name: `Mais opções de ${label}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Remover' }).click();
+    await expect(page.locator('.registry-row .rr-primary').filter({ hasText: new RegExp(`^${label}$`) })).toHaveCount(0);
+    await expect.poll(storedDraft, { message: label }).toEqual(expected);
+  }
+
+  // The stored draft names none of the removed fields and validates.
+  const draft = (await storedDraft())!;
+  const json = JSON.stringify(draft);
+  expect(json).not.toContain('"rows_from"');
+  expect(json).not.toContain('"pick_from"');
+  expect(json).not.toContain('"dry_fields"');
+  expect(validateTypeDraft(draft)).toEqual([]);
+  await expect(reason(page)).toHaveCount(0);
+  await expect(publishButton(page)).toHaveText('Publicar versão 1');
+  await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
 });

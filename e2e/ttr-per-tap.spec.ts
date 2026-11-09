@@ -1,13 +1,18 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
+  confirmarTodosText,
   evaluateSheetReadings,
   getDefinition,
   ratioRowCondicaoText,
   SEED_VERSION,
+  sheetProgress,
   TAP_NOT_MEASURED_TEXT,
   TAP_OFF_PLATE_TEXT,
   tapMarkText,
   tapPickerOf,
   tapsLine,
+  tapTableLine,
   type BlockRow,
   type EvaluatedRow,
   type OpDraft,
@@ -50,6 +55,8 @@ interface OutboxRow {
   path: string;
   value: unknown;
   status: string;
+  batch_id: string | null;
+  meta: { source_suggestion_id?: string } | null;
 }
 interface EntityRecord<T> {
   entity: string;
@@ -109,6 +116,22 @@ function transformerRelatorio(): { relatorioId: string; blockId: string; drafts:
     })
     .map((draft) => (draft.path === `block/${block.id as string}` ? ({ ...draft, value: { ...(draft.value as Record<string, unknown>), feeds_block_id: null } } as OpDraft) : draft));
   return { relatorioId: built.relatorioId, blockId: block.id as string, drafts: [...drafts, emCampoDraft(account, built.relatorioId)] };
+}
+
+/** The device's display photos (`reading_kind` display), counted. */
+async function displayPhotoCount(page: Page): Promise<number> {
+  const records = await readStore<EntityRecord<{ kind?: string; reading_kind?: string | null }>>(page, database, 'entities');
+  return records.filter((record) => record.entity === 'file' && record.row.kind === 'photo' && record.row.reading_kind === 'display').length;
+}
+
+/** "Ler visor" with no camera (as `read-display-pipeline.spec.ts`): the system picker gets the display JPEG, one shot, saved on the device before this returns. */
+async function shootDisplay(page: Page, button: Locator, bytes: Buffer): Promise<void> {
+  const before = await displayPhotoCount(page);
+  const chooser = page.waitForEvent('filechooser');
+  await button.click();
+  await (await chooser).setFiles({ name: 'visor.jpg', mimeType: 'image/jpeg', buffer: bytes });
+  await expect.poll(() => displayPhotoCount(page), { timeout: 15_000 }).toBe(before + 1);
+  await expect(button).toHaveAttribute('data-count', '', { timeout: 15_000 });
 }
 
 /** Types `text` into the plate field `key` and leaves it with Tab, as a person does. */
@@ -278,4 +301,78 @@ test('@p0 23.8-E2E-001 five taps with the third in service: five rows in plate o
   // An unmarked tap with nothing measured prints "-" (the conservative reading, open with Bruno).
   expect(printed[1]!.slice(4)).toEqual(['-', '-', '-', '-']);
   expect(printed[4]!.at(-1)).toBe('SATISFATÓRIO');
+});
+
+/** The ratio meter's synthetic display (34.512, no unit), which the api's `fake` reads through the TTR's default fixture. */
+const DISPLAY_TTR = readFileSync(resolve(import.meta.dirname, '../services/ocr/tests/fixtures/display-ttr.jpg'));
+
+test('@p0 23g-E2E-001 (fix batch e23g, R2-1 and R2-3) five taps, TAP ATUAL the third, no LIGAÇÃO SECUNDÁRIA: the Ensaios count and its group are the kernel\'s (the group 3); three "Ler visor" shots land on tap rows 13800, 13200 and 12600, "Confirmar todos (3)" commits them in one batch and the count drops to the kernel\'s', async ({ page }) => {
+  test.setTimeout(360_000);
+  // No camera on this browser: "Ler visor" opens the system picker, one shot per open.
+  await page.addInitScript(() => {
+    const none = () => Promise.reject(new DOMException('Requested device not found', 'NotFoundError'));
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: none, configurable: true });
+  });
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const { relatorioId, blockId, drafts } = transformerRelatorio();
+  await pushDrafts(page, database, drafts);
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const cellPath = (volts: number, col: number) => `sheet/${blockId}/test/${TEST_KEY}/cell/${volts}/${col}`;
+  const kernelEnsaios = async () => sheetProgress({ blocks: [await blockRow(page, blockId)] }, blockId).steps.ensaios;
+
+  // The plate: five taps, the third in service; LIGAÇÃO SECUNDÁRIA left empty, so the TTR waits for its group.
+  await typeIn(page, 'taps', '13,8; 13,2; 12,6; 12; 11,4');
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/taps`)).toEqual(measured('13.8;13.2;12.6;12;11.4', 'kV'));
+  const tapAtual = DEFINITION.nameplate.find((f) => f.key === 'tap_atual_kv')!;
+  const third = tapPickerOf(await blockRow(page, blockId), DEFINITION, tapAtual)!.options[2]!;
+  await field(page, 'tap_atual_kv').getByRole('button', { name: 'Abrir lista' }).click();
+  await page.getByRole('option', { name: third.label, exact: true }).click();
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/tap_atual_kv`)).toEqual(measured('12.6', 'kV'));
+  // The reading job reads the block on the server: the plate is synced before the shots.
+  await syncNowAndReturn(page);
+  await expect.poll(async () => [...new Set((await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}`)).map((row) => row.status))]).toEqual(['acked']);
+
+  // R2-3: the stepper's count is the kernel's, and the group counts the current tap and the two extremes only.
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const before = await kernelEnsaios();
+  expect(before.group).toBe(3);
+  await expect.poll(() => stepMissing(page, 'Ensaios')).toBe(before.missing);
+  // R2-4: the tap line's count is the kernel's.
+  const line = page.locator(`.ficha-mt[data-table-key="${TEST_KEY}"] p.v13-line[data-taps-line]`);
+  const kernelLine = tapTableLine(await kernelRows(page, blockId))!;
+  await expect(line.locator('span').first()).toHaveText(`${kernelLine.label} ${kernelLine.count}`);
+  expect(kernelLine).toEqual(tapsLine(5));
+
+  // R2-1: three shots on the TTR's opener, each on the first tap row no photo targets yet, in plate order.
+  const opener = page.locator(`.ficha-mt[data-table-key="${TEST_KEY}"] .mt-actions`).getByRole('button', { name: 'Ler visor' });
+  for (let i = 0; i < 3; i++) await shootDisplay(page, opener, DISPLAY_TTR);
+  const SHOT = [13800, 13200, 12600];
+  for (const volts of SHOT) {
+    await expect(tapRow(page, volts).locator('.field.suggestion-field[data-state="suggested"]'), String(volts)).toHaveCount(1, { timeout: 60_000 });
+    await expect(captures(page, volts).first(), String(volts)).toHaveValue('34,512');
+  }
+  // Nothing landed on the other rows.
+  for (const volts of [12000, 11400]) await expect(tapRow(page, volts).locator('.field.suggestion-field')).toHaveCount(0);
+
+  // "Confirmar todos (3)": the three puts at cell/{volts}/{first capture}, each with its suggestion, in one batch.
+  const confirmAll = page.locator(`.ficha-mt[data-table-key="${TEST_KEY}"] .mt-actions`).getByRole('button', { name: confirmarTodosText(3) });
+  await expect(confirmAll).toBeVisible({ timeout: 15_000 });
+  await confirmAll.click();
+  const putsOf = async () => (await outbox(page)).filter((op) => SHOT.some((volts) => op.path === cellPath(volts, 3)));
+  await expect.poll(async () => (await putsOf()).length, { timeout: 15_000 }).toBe(3);
+  const puts = await putsOf();
+  expect(puts.map((op) => op.value)).toEqual(SHOT.map(() => measured('34.512', null)));
+  expect(puts[0]!.batch_id).not.toBeNull();
+  expect(puts.every((op) => op.batch_id === puts[0]!.batch_id && op.meta?.source_suggestion_id !== undefined)).toBe(true);
+  await expect(page.locator(`.ficha-mt[data-table-key="${TEST_KEY}"] .mt-actions`).getByRole('button', { name: /^Confirmar todos/ })).toHaveCount(0);
+
+  // The count drops to the kernel's: the two required rows filled (13800 and 12600), the unmarked 13200 counted nothing; the group still 3.
+  await expect.poll(async () => (await kernelEnsaios()).missing).toBe(before.missing - 2);
+  const after = await kernelEnsaios();
+  expect(after.group).toBe(3);
+  await expect.poll(() => stepMissing(page, 'Ensaios')).toBe(after.missing);
+  await expect(line.locator('span').first()).toHaveText(`${tapTableLine(await kernelRows(page, blockId))!.label} ${tapTableLine(await kernelRows(page, blockId))!.count}`);
 });

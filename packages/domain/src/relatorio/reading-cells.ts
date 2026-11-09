@@ -195,8 +195,9 @@ export interface EvaluatedTable {
    */
   shortHelper: string | null;
   /**
-   * Story 21.1: on a v11 table with no group, "Informe a LIGAÇÃO SECUNDÁRIA na placa para
-   * calcular"; on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group, "Ligação não
+   * Story 21.1: on a v11 table with no group, ~~"Informe a LIGAÇÃO SECUNDÁRIA na placa para
+   * calcular"~~ (e23g) "Informe o campo {the type's label of that field} na placa para calcular"
+   * (`vectorGroupMissingText`: DESLOCAMENTO ANGULAR since v12); on a v9/v10 table whose LIGAÇÃO SECUNDÁRIA names no group, "Ligação não
    * reconhecida: calculado como Dyn1"; null otherwise. On the sheet only. e21g D2: on a v9/v10
    * table whose LIGAÇÃO SECUNDÁRIA is empty, "LIGAÇÃO SECUNDÁRIA vazia: calculado como Dyn1".
    */

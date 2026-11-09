@@ -3271,6 +3271,24 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   class: decision
   state: open (owner: Matheus, with Bruno: whether an off-plate row takes a clear, or any write)
 
+## Deferred from: Epic 23 fix batch e23g (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23g-wave1-fixes.md` (R2-1, "Rows in table order")
+  summary: `measurementSuggestions` (every pending Measurement fill of a block) still sorts by the numeric row key, so on a v13 TTR whose taps descend its list reads 11400 before 13800. Its consumers do not depend on that order today (`read-display.tsx` keys its map by cell, `suggestion-store.ts` reads one entry); "Confirmar todos" and its verify count re-sort a table's fills by the table's row order (`tableFills`). A consumer that walks the list in reading order would need the same table-order sort.
+  evidence: `packages/domain/src/relatorio/measurement-suggestions.ts` `measurementSuggestions`, `tableFills`.
+  class: note
+  state: open (owner: the next batch reading `measurementSuggestions` in order)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23g-wave1-fixes.md` (review, Edge Case Hunter, low)
+  summary: the TTR table on the sheet still chooses its tap-row markup by `row.tap !== null` in `apps/web` (the position cell, V PRIMÁRIO and V SECUNDÁRIO drawn as text, the tap card): e23b's render branches. e23g moved the tap count and the "optional" and "tap table" predicates to the kernel; the input-as-text branch partly mirrors `tapCellTyped`, whose off-plate reading differs, so it was left as e23b drew it.
+  evidence: `apps/web/src/surfaces/ficha/ensaios-section.tsx` `MeasurementTable` (row.tap branches); `packages/domain/src/relatorio/tap-rows.ts` `tapCellTyped`.
+  class: note
+  state: open (owner: the next batch touching the TTR's markup, Epic 23 wave 2 or later)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23g-wave1-fixes.md` (late finding, noticed while folding it in, not verified on screen)
+  summary: a company copy of the transformer that removes its DESLOCAMENTO ANGULAR (`ligacao_secundaria`) field keeps a TTR read by vector group (`ratio_factor: 'vector_group'`) with no field to pick the group from: VAL CALCULADO never computes and the step counts the group missing for good, the R2-2 class for a seeded-grammar key. `removeDraftEntry` does not prune `ratio_factor`.
+  evidence: `packages/domain/src/types/draft-edit.ts` `removeDraftEntry`; `relatorio/reading-cells.ts` `ratioGroupOf` reads `VECTOR_GROUP_FIELD`; `relatorio/vector-group.ts` `vectorGroupFieldLabel` falls back to "LIGAÇÃO SECUNDÁRIA" when the field is gone.
+  class: decision
+  state: open (owner: Matheus: refuse that removal, or drop the table's `ratio_factor` with it)
+
 ## Deferred from: Epic 23 batch e23v (2026-11-09)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Tasks, `print/section-9.ts`: "the TF table fits at 8 pt (16 half points)")

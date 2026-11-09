@@ -3,9 +3,10 @@ import type { NewId } from '../ids.ts';
 import { locationEnvPath, sheetTestCellPath } from '../ops/path.ts';
 import { canonicalDecimal, INSULATION_UNITS } from '../parse/pt-br-number.ts';
 import { isCellFilled } from '../relatorio/sheet-state.ts';
+import { writableTableRows } from '../relatorio/tap-rows.ts';
 import { suggestionRowSchema, type BlockRow, type Cell, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
-import type { ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
+import type { ColumnDef, FieldDef, TableDef, TestDef } from '../seed/schema.ts';
 import { normalizeBox, unionBox } from './boxes.ts';
 import { digitCoverage, inTokenOrder } from './digits.ts';
 import { isDisplayCellTarget, type DisplayCellTarget, type DisplayReadingTarget } from './target.ts';
@@ -172,6 +173,8 @@ export interface BuildDisplaySuggestionsInput {
   newId: NewId;
   /** Story 14.6: the target block's tests as the job resolved them (a company type's from its version); its seed's when absent. */
   tests?: readonly TestDef[];
+  /** Fix batch e23g (R2-1): the target block's nameplate as the job resolved it (the plate a `rows_from` table's rows come from); its seed's when absent. */
+  nameplate?: readonly FieldDef[];
 }
 
 export interface BuiltDisplaySuggestions {
@@ -215,34 +218,53 @@ function dropKey(index: number, value: DisplayValue): string {
 
 interface CellSlot {
   table: TableDef;
-  /** The row of the table's first row, across the test's tables. */
-  offset: number;
   row: number;
   col: number;
   column: ColumnDef;
+  /** The op path's row of the row before this one in its table's order; null on a table's first row. */
+  previousRow: number | null;
+  /** The row's position across the test's rows, in table order. */
+  position: number;
 }
 
-/** The table holding `row` of `test`, with its offset. */
-function tableOf(test: TestDef, row: number): { table: TableDef; offset: number } | null {
+/**
+ * Fix batch e23g (R2-1): the rows of each table of `test` as the sheet has them, in table order,
+ * each with its op path's row (`writableTableRows`: a `rows_from` table's plate taps, off-plate
+ * rows excluded, else the seeded indices).
+ */
+function rowsOf(test: TestDef, block: Pick<BlockRow, 'sheet'>, nameplate: readonly FieldDef[]): { table: TableDef; offset: number; rows: number[] }[] {
+  const out: { table: TableDef; offset: number; rows: number[] }[] = [];
+  const definition = { nameplate: [...nameplate] };
   let offset = 0;
   for (const table of test.tables) {
-    if (row >= offset && row < offset + table.rows.length) return { table, offset };
+    out.push({ table, offset, rows: writableTableRows(block, definition, table, test.key).map((row) => offset + row) });
     offset += table.rows.length;
   }
-  return null;
+  return out;
 }
 
-/** Every capture cell of `test` in reading order (table, row, column), as slots. */
-function captureSlots(test: TestDef): CellSlot[] {
+/** The position of an op path's row across the test's rows in table order; -1 when the sheet has no such row. */
+function positionOf(tables: ReturnType<typeof rowsOf>, row: number): number {
+  let position = 0;
+  for (const entry of tables) {
+    const at = entry.rows.indexOf(row);
+    if (at !== -1) return position + at;
+    position += entry.rows.length;
+  }
+  return -1;
+}
+
+/** Every capture cell of `test` in reading order (table, row in table order, column), as slots. */
+function captureSlots(tables: ReturnType<typeof rowsOf>): CellSlot[] {
   const out: CellSlot[] = [];
-  let offset = 0;
-  for (const table of test.tables) {
-    for (let r = 0; r < table.rows.length; r++) {
+  let position = 0;
+  for (const { table, rows } of tables) {
+    rows.forEach((row, r) => {
       table.value_columns.forEach((column, col) => {
-        if (column.role === 'capture') out.push({ table, offset, row: offset + r, col, column });
+        if (column.role === 'capture') out.push({ table, row, col, column, previousRow: r === 0 ? null : rows[r - 1]!, position });
       });
-    }
-    offset += table.rows.length;
+      position += 1;
+    });
   }
   return out;
 }
@@ -251,26 +273,31 @@ function captureSlots(test: TestDef): CellSlot[] {
  * The cells the values go to, in value order (null: dropped with its reason). Several values
  * on a start column that belongs to a `group` of exactly that many columns fill that group's
  * row (a tester's stored 30 s / 1 min / 10 min, Conflict 3: print and derived columns are
- * dropped); otherwise the values walk the test's capture cells from `start_cell`.
+ * dropped); otherwise the values walk the test's capture cells from `start_cell`, by position
+ * in the table's row order (a start row the sheet does not have drops every value).
  */
-function slotsFor(test: TestDef, target: DisplayCellTarget, count: number): ({ slot: CellSlot } | { drop: DisplayDropReason })[] {
+function slotsFor(tables: ReturnType<typeof rowsOf>, target: DisplayCellTarget, count: number): ({ slot: CellSlot } | { drop: DisplayDropReason })[] {
   const start = target.start_cell;
-  const home = tableOf(test, start.row);
-  if (count > 1 && home !== null) {
+  const home = tables.find((entry) => entry.rows.includes(start.row));
+  if (count > 1 && home !== undefined) {
     const group = home.table.value_columns[start.col]?.group;
     if (group !== undefined) {
       const columns = home.table.value_columns.flatMap((column, col) => (column.group === group ? [{ column, col }] : []));
       if (columns.length === count) {
+        const at = home.rows.indexOf(start.row);
+        const previousRow = at <= 0 ? null : home.rows[at - 1]!;
+        const position = positionOf(tables, start.row);
         return columns.map(({ column, col }) => {
           if (column.role === 'print') return { drop: 'print_column' as const };
           if (column.role === 'derived') return { drop: 'derived_column' as const };
-          return { slot: { table: home.table, offset: home.offset, row: start.row, col, column } };
+          return { slot: { table: home.table, row: start.row, col, column, previousRow, position } };
         });
       }
     }
   }
-  const slots = captureSlots(test);
-  const from = slots.findIndex((slot) => slot.row > start.row || (slot.row === start.row && slot.col >= start.col));
+  const slots = captureSlots(tables);
+  const at = positionOf(tables, start.row);
+  const from = at === -1 ? -1 : slots.findIndex((slot) => slot.position > at || (slot.position === at && slot.col >= start.col));
   return Array.from({ length: count }, (_, i) => {
     const slot = from === -1 ? undefined : slots[from + i];
     return slot === undefined ? { drop: 'no_cell' as const } : { slot };
@@ -299,9 +326,10 @@ function suggestionRow(input: BuildDisplaySuggestionsInput, value: DisplayValue,
   });
 }
 
-function testOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>, testKey: string): TestDef | null {
+/** The seed definition of a block's type, or null. */
+function seedDefinitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): { tests: readonly TestDef[]; nameplate: readonly FieldDef[] } | null {
   try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests.find((test) => test.key === testKey) ?? null;
+    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
   } catch {
     return null;
   }
@@ -343,14 +371,16 @@ export function buildDisplaySuggestions(input: BuildDisplaySuggestionsInput): Bu
 
   const target = input.target;
   const block = input.block;
-  const test = block === null ? null : input.tests !== undefined ? (input.tests.find((candidate) => candidate.key === target.table_key) ?? null) : testOf(block, target.table_key);
+  const seed = block === null || (input.tests !== undefined && input.nameplate !== undefined) ? null : seedDefinitionOf(block);
+  const tests = input.tests ?? seed?.tests ?? [];
+  const test = block === null ? null : (tests.find((candidate) => candidate.key === target.table_key) ?? null);
   if (block === null || test === null) {
     values.forEach((value, index) => dropped.push({ key: dropKey(index, value), reason: 'no_cell' }));
     return { rows, dropped };
   }
   const cells = block.sheet.test[test.key]?.cells ?? {};
   const cellAt = (row: number, col: number): Cell | undefined => cells[String(row)]?.[String(col)];
-  const places = slotsFor(test, target, values.length);
+  const places = slotsFor(rowsOf(test, block, input.nameplate ?? seed?.nameplate ?? []), target, values.length);
   values.forEach((value, index) => {
     const place = places[index]!;
     if ('drop' in place) {
@@ -359,7 +389,8 @@ export function buildDisplaySuggestions(input: BuildDisplaySuggestionsInput): Bu
     }
     const { slot } = place;
     const stored = cellAt(slot.row, slot.col);
-    const previous = slot.row > slot.offset ? storedUnit(cellAt(slot.row - 1, slot.col)) : null;
+    // Fix batch e23g (R2-1): the previous row in the table's order (a tap row's is the tap above it on the plate).
+    const previous = slot.previousRow === null ? null : storedUnit(cellAt(slot.previousRow, slot.col));
     const unit = resolveUnit(value, slot.column, storedUnit(stored), previous);
     rows.push(
       suggestionRow(

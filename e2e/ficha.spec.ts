@@ -3,11 +3,13 @@ import {
   evaluateTest,
   getDefinition,
   ratioFormulaHelperText,
+  screenLabel,
   SEED_VERSION,
-  VECTOR_GROUP_MISSING_TEXT,
   vectorGroupByCode,
   vectorGroupCaptureLabel,
+  vectorGroupFieldLabel,
   vectorGroupFormulaText,
+  vectorGroupMissingText,
   vectorGroupNeutralCaptureLabel,
   vectorGroupShortText,
   type BlockRow,
@@ -727,7 +729,11 @@ test('@p0 21.1-E2E-001 a v11 star-star transformer (Yyn0) typed by hand: no VAL 
   await expect.poll(async () => (await outbox(page)).filter((r) => r.path === `sheet/${blockId}/test/relacao_transformacao/cell/0/5`).at(-1)?.value).toEqual({ raw: '36.3', unit: null, state: 'measured' });
   await expect(row.locator('td.cell-calc').first()).not.toContainText(/\d/);
   await expect(row.locator('td').last()).toHaveText('—');
-  await expect(helpers).toHaveText([VECTOR_GROUP_MISSING_TEXT]);
+  // e23g (late finding): the helper names the field this type carries (DESLOCAMENTO ANGULAR since v12), the kernel's text.
+  const groupField = vectorGroupFieldLabel(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'));
+  expect(groupField).toBe('DESLOCAMENTO ANGULAR');
+  await expect(helpers).toHaveText([vectorGroupMissingText(groupField)]);
+  await expect(page.locator('#ficha-nameplate [data-field-key="ligacao_secundaria"] .field-label')).toHaveText(screenLabel(groupField));
   // e21g D1: no terminal pair before the group is chosen: the captures read "Fase 1".."Fase 3",
   // as table headers at 1280 and 768, as card labels at 390.
   const neutral = [0, 1, 2].map((phase) => vectorGroupNeutralCaptureLabel(phase));

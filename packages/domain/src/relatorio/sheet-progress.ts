@@ -12,6 +12,7 @@ import { oilDerivedNaKeysUnder, oilRuleOf } from './oil-rule.ts';
 import { evaluatedCells } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
+import { tapRowRequired } from './tap-rows.ts';
 import { firstInTree } from './tree.ts';
 import { VECTOR_GROUP_FIELD } from './vector-group.ts';
 // Batch e23v (Stories 23.5 and 23.6): the sheet is judged under its visit context.
@@ -210,9 +211,11 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   const measurements = measurementCounts(sheetMeasurements(block, definition));
   // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
   // only while the plate that holds LIGAÇÃO SECUNDÁRIA can be filled (its sub-block enabled).
+  // Fix batch e23g (R2-3): only a required row counts (`tapRowRequired`: every v11/v12 row; on a v13
+  // tap table the current tap and the extremes, never an unmarked or off-plate row).
   const groupMissing = !enabled.has('nameplate')
     ? 0
-    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.length : 0), 0), 0);
+    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.filter((row) => tapRowRequired(row)).length : 0), 0), 0);
   return {
     missing: cells.filter((cell) => cell.missing).length + groupMissing + measurements.missing,
     outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit,
