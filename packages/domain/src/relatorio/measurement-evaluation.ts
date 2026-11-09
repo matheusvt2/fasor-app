@@ -1336,6 +1336,20 @@ export function measurementRunTarget(
   return 'end';
 }
 
+/** The first stop of the measurement run, empty or not; null when no test switched on and run has a typed number cell. */
+export function measurementRunStart(evaluations: readonly MeasurementTestEvaluation[]): MeasurementAddress | null {
+  return measurementRunBlocks(evaluations)[0]?.[0]?.address ?? null;
+}
+
+/** The first empty stop of the measurement run (where Enter lands coming from the seeded tables), or null when every stop holds a value. */
+export function firstMeasurementRunCell(evaluations: readonly MeasurementTestEvaluation[]): MeasurementAddress | null {
+  for (const block of measurementRunBlocks(evaluations)) {
+    const empty = block.find((cell) => cell.state === 'empty');
+    if (empty !== undefined) return empty.address;
+  }
+  return null;
+}
+
 /** The mobile keyboard's Enter key label of a run cell (`runEnterKeyHint`'s rule): `next` while Enter moves to another cell, else `done`. */
 export function measurementRunEnterKeyHint(evaluations: readonly MeasurementTestEvaluation[], address: MeasurementAddress): 'next' | 'done' {
   const target = measurementRunTarget(evaluations, address, 'next');

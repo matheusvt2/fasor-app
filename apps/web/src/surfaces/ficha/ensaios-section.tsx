@@ -8,14 +8,12 @@ import {
   previousHelpers,
   readingAddressKey,
   readingSlotsOf,
-  measurementRunEnterKeyHint,
   measurementCellName,
   readingRowLabel,
-  measurementRunTarget,
-  runEnterKeyHint,
   snapshotDefinitionContext,
-  runTarget,
   screenLabel,
+  sheetRunEnterKeyHint,
+  sheetRunTarget,
   tableDictationLabel,
   rowVoltageCell,
   ratioRowCondicaoText,
@@ -37,8 +35,8 @@ import {
   type EvaluatedTable,
   type InstrumentRow,
   type MeasurementAddress,
-  type MeasurementTestEvaluation,
   type RelatorioSnapshot,
+  type SheetRun,
   type TestApplicability,
   type TestEvaluation,
   type VisitContext,
@@ -84,7 +82,8 @@ import { DictationButton } from '../../speech/dictation.tsx';
  * Story 14.5: after the seeded tests come the measurement tests of a library type
  * (`measurement-test-section.tsx`, the kernel's `evaluateSheetMeasurements`), in the same
  * step: their number cells run on Enter by the kernel's `measurementRunTarget` (down the
- * column, then the first empty cell of what follows, then the primary).
+ * column, then the first empty cell of what follows, then the primary). Batch e23t gate fix
+ * (seed v13): a sheet with both kinds runs them as one, by the kernel's `sheetRunTarget`.
  */
 export function EnsaiosSection({
   api,
@@ -129,7 +128,9 @@ export function EnsaiosSection({
   const host = useRef<HTMLDivElement | null>(null);
   const firstMissing = useMemo(() => evaluatedCells(evaluations).find((cell) => cell.missing)?.address ?? null, [evaluations]);
 
-  useRunEnterKeyHints(host, evaluations, measurements);
+  // Batch e23t gate fix: the sheet's one Enter run, the seeded tables then the measurement tests (`sheetRunTarget`).
+  const run = useMemo(() => ({ readings: evaluations, measurements }), [evaluations, measurements]);
+  useRunEnterKeyHints(host, run);
 
   /** Focuses the visible input of a cell (the table or, for a table stacked on phone, its card). */
   const focusCell = (address: FieldAddress): boolean => {
@@ -165,16 +166,16 @@ export function EnsaiosSection({
   };
 
   const onRun = (from: CellAddress, direction: RunDirection): boolean => {
-    const target = runTarget(evaluations, from, direction);
+    const target = sheetRunTarget(run, from, direction);
     if (target === null) return false;
     const moved = target === 'end' ? endRun() : focusCell(target);
     if (moved && direction === 'next') revealRatioEnd(from);
     return moved;
   };
 
-  /** Story 14.5: the same run over the measurement tests, by the kernel's `measurementRunTarget`. */
+  /** Story 14.5: the same run over the measurement tests; batch e23t: the one run of the sheet (`sheetRunTarget`). */
   const onMeasurementRun = (from: MeasurementAddress, direction: RunDirection): boolean => {
-    const target = measurementRunTarget(measurements, from, direction);
+    const target = sheetRunTarget(run, from, direction);
     if (target === null) return false;
     return target === 'end' ? endRun() : focusCell(target);
   };
@@ -262,17 +263,17 @@ export function EnsaiosSection({
  * swapping to its suggested or dictated form). Only the attribute changes, so the observer,
  * watching the child list, never feeds itself.
  */
-function useRunEnterKeyHints(host: { current: HTMLDivElement | null }, evaluations: readonly TestEvaluation[], measurements: readonly MeasurementTestEvaluation[]): void {
+function useRunEnterKeyHints(host: { current: HTMLDivElement | null }, run: SheetRun): void {
   const hints = useMemo(
     () =>
       new Map([
-        ...evaluatedCells(evaluations).map((cell) => [cellKey(cell.address), runEnterKeyHint(evaluations, cell.address)] as const),
-        // Story 14.5: the measurement tests' number cells, by the kernel's own run.
-        ...measurementCells(measurements)
+        ...evaluatedCells(run.readings).map((cell) => [cellKey(cell.address), sheetRunEnterKeyHint(run, cell.address)] as const),
+        // Story 14.5: the measurement tests' number cells; batch e23t gate fix: by the sheet's one run.
+        ...measurementCells(run.measurements)
           .filter((cell) => cell.kind === 'number')
-          .map((cell) => [cellKey(cell.address), measurementRunEnterKeyHint(measurements, cell.address)] as const),
+          .map((cell) => [cellKey(cell.address), sheetRunEnterKeyHint(run, cell.address)] as const),
       ]),
-    [evaluations, measurements],
+    [run],
   );
   const latest = useRef(hints);
   latest.current = hints;

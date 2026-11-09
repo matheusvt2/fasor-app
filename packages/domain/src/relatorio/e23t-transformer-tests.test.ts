@@ -21,8 +21,9 @@ import { nameplateMissingKeys } from './dry-insulation.ts';
 import { choiceValue, evaluateSheetMeasurements, measurementCounts, measurementTestTitle, restrictedMeasurements, type MeasurementTestEvaluation } from './measurement-evaluation.ts';
 import { isFieldHidden, isOilFieldExcused } from './oil-rule.ts';
 import { parecerCounts } from './parecer.ts';
-import { evaluateSheetReadings, evaluateTest, firstRunCell, runTarget, type TestEvaluation } from './readings.ts';
+import { evaluateSheetReadings, evaluateTest, firstRunCell, lastRunCell, runTarget, type TestEvaluation } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
+import { sheetRunEnterKeyHint, sheetRunTarget } from './sheet-run.ts';
 import { newEquipmentBlock } from './tree.ts';
 import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from './visit-context.ts';
 
@@ -643,5 +644,35 @@ describe('e23t review fixes: the Enter run over the typed IP and DAR', () => {
     expect(jump === 'end' || jump === null || jump.testKey !== 'isolacao').toBe(true);
     const first = firstRunCell(oil);
     expect(first === null || first.testKey !== 'isolacao').toBe(true);
+  });
+});
+
+describe('e23t gate fix: the sheet\'s one Enter run joins the seeded tables and the measurement tests', () => {
+  const runOf = (block: BlockRow) => ({ readings: evaluateSheetReadings(block, definitionOf(block)), measurements: evaluateSheetMeasurements(block, definitionOf(block)) });
+  const contactEnd = { testKey: 'resistencia_contato' as const, row: 2, col: 0 };
+  const fuse = (row: number) => ({ testKey: 'resistencia_fusiveis', row, col: 0 });
+
+  it('a v13 seccionadora with TIPO DE SECCIONADORA empty: Enter on the last contact cell goes to the first empty fuse, the last fuse hands it to the primary', () => {
+    const run = runOf(sheet('chave_seccionadora'));
+    expect(sheetRunTarget(run, contactEnd, 'next')).toEqual(fuse(0));
+    expect(sheetRunEnterKeyHint(run, contactEnd)).toBe('next');
+    expect(sheetRunTarget(run, fuse(2), 'next')).toBe('end');
+    expect(sheetRunEnterKeyHint(run, fuse(2))).toBe('done');
+    expect(sheetRunTarget(run, fuse(0), 'previous')).toEqual(lastRunCell(run.readings));
+    expect(lastRunCell(run.readings)).toEqual(contactEnd);
+  });
+
+  it('the fuses filled, the seeded run ends on the primary; with the fuses NA (SEM CARGA) too, as before', () => {
+    const filled = cells(sheet('chave_seccionadora'), 'resistencia_fusiveis', { '0/0': measured('10', 'mΩ'), '1/0': measured('10', 'mΩ'), '2/0': measured('10', 'mΩ') });
+    expect(sheetRunTarget(runOf(filled), contactEnd, 'next')).toBe('end');
+    const sem = runOf(plate(sheet('chave_seccionadora'), { tipo_seccionadora: 'SEM CARGA' }));
+    expect(sem.measurements.find((test) => test.testKey === 'resistencia_fusiveis')!.applicability.state).toBe('na');
+    expect(sheetRunEnterKeyHint(sem, contactEnd)).toBe('done');
+  });
+
+  it('a v12 seccionadora (no measurement test): the seeded run alone, unchanged', () => {
+    const run = runOf(sheet('chave_seccionadora', 'v12'));
+    expect(run.measurements.length).toBe(0);
+    expect(sheetRunTarget(run, contactEnd, 'next')).toBe(runTarget(run.readings, contactEnd, 'next'));
   });
 });

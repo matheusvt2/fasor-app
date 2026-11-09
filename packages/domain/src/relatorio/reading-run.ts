@@ -115,6 +115,12 @@ export function firstRunCell(evaluations: readonly TestEvaluation[]): CellAddres
   return null;
 }
 
+/** The run's last stop, empty or not (Shift+Enter from the measurement tests that follow lands here), or null when the run has none. */
+export function lastRunCell(evaluations: readonly TestEvaluation[]): CellAddress | null {
+  const last = runBlocks(evaluations).at(-1);
+  return last === undefined ? null : last[last.length - 1]!.cell.address;
+}
+
 // --- what the conclusion reads -----------------------------------------------------------
 
 /** Batch e23v (Story 23.6): the levels' order, out > restricted > within (an unjudged reading ranks as within). */

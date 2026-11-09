@@ -224,9 +224,24 @@ async function typeInto(inputs: Locator, values: readonly string[]): Promise<voi
 
 // --- @p0 --------------------------------------------------------------------------------------
 
+/**
+ * Batch e23t (seed v13, Story 23.15): the winding resistance the transformer draws after its TTR, every cell
+ * typed from the office (equal phases, within), so the sheet's one Enter run still ends on the primary after
+ * the TTR's last capture (kernel `sheetRunTarget`), as this spec measures it. Rows and units from the kernel.
+ */
+function windingFilled(built: Built, blockId: string): OpDraft[] {
+  const winding = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').measurement_tests?.find((test) => test.key === 'resistencia_enrolamento');
+  if (winding === undefined) return [];
+  return winding.rows.flatMap((row, r) =>
+    winding.columns.map((_, c) =>
+      officeDraft(account, { relatorioId: built.relatorioId }, `sheet/${blockId}/test/resistencia_enrolamento/cell/${r}/${c}`, { raw: '1', unit: row.unit ?? null, state: 'measured' }),
+    ),
+  );
+}
+
 test('@p0 R8LAY-E2E-001 DC-1 the transformer TTR at 768, 1024 (rail open) and 1280: real inputs, whole words, its own scroller', async ({ page }) => {
   test.setTimeout(240_000);
-  const built = await setUp(page, { width: 1280, height: 800 });
+  const built = await setUp(page, { width: 1280, height: 800 }, (seeded) => windingFilled(seeded, sheetOf(seeded, 'transformador_forca').blockId));
   const sheet = sheetOf(built, 'transformador_forca');
   await openSheet(page, built.relatorioId, sheet.blockId);
   // Story 21.1 (seed v11): the ratio follows the plate's vector group; Dyn1 is the transformer this layout was measured on.

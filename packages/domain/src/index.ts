@@ -98,6 +98,8 @@ export * from './relatorio/tap-rows.ts';
 export * from './relatorio/applicability.ts';
 export * from './relatorio/vector-group.ts';
 export * from './relatorio/measurement-evaluation.ts';
+// Batch e23t gate fix: the sheet's one Enter run over the seeded and the measurement tests.
+export * from './relatorio/sheet-run.ts';
 export * from './relatorio/over-range.ts';
 // Batch e23v (Stories 23.5, 23.6, 23.14): the visit context, the temperature correction, the restriction rules.
 export * from './relatorio/visit-context.ts';
