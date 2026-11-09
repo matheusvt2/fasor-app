@@ -2,10 +2,10 @@
 title: 'e23v: temperature correction, three levels and the previous visit judging, contact pole deviation (Stories 23.5, 23.6, 23.14; contract 36)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: '41454a6b7f541e6a472847854f2dda0f53b0b59b'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: max
 context:
@@ -169,3 +169,12 @@ deferred:
   - `[medium]` `[patch]` (gap) the 390 px stacked corrected line untested — e2e step added.
 
 ## Auto Run Result
+
+Status: done (2026-11-09). Branch `e23v-three-levels`; main `982bebb9` (e23g, PR #289) merged in at `1b4c42a3`, no seed change from it, `V13_HASH` `9a262edc8d2d0f0601933d6f80f2ff20b54c5aedf35124911c561fe4471a0c53` holds on the merged head.
+
+- **Summary.** Story 23.5: v13 insulation of the transformador (oil or dry by the oil rule, plate temperature else the cabine's), the disjuntor and the seccionadora (solid factor, ambient) corrected to 20 °C and judged corrected; the temperature line, the "Corrigido a 20 °C" column and card line; print TEMPERATURA and the `20 °C` column in VALORES; the 75 °C function built, not wired. Story 23.6: `ReadingVerdict` `restricted`; history (TF, 50 % drop, both visits corrected), below 50 % of the largest row (cables, para-raio), the para-raio's DESLIGADOR ÍNTEGRO prerequisite (Reprovado); floor reasons, conclusion clause, derived `restricao` entries and stored origin `restricao` (contract 36, MIN 36); `last_results` carries `corrected`; one `VisitContext` (ambient, previous visit) threaded through every reader. Story 23.14: pole deviation over the lowest positive pole (50 %), the 250 µΩ default's status as data.
+- **Files.** Kernel: `relatorio/{visit-context,temperature-correction,restriction,reading-evaluation,reading-cells,reading-run,conclusion,parecer,pre-issue,sheet-progress,sheet-evaluation}.ts`, `points/derived.ts`, `print/{section-8,section-9,last-results,reading-slots}.ts`, `merge/conflicts.ts`, `seed/{schema,v13}.ts`, `schemas/entities.ts`, `types/*`, `contract/version.ts`. Web: ficha (`ensaios-section`, `measurement-field`, `corrected-value`, `conclusao-section`, `use-ficha-*`, `ficha-surface`), `points/point-writes.ts`, `app.css`, `copy/pt-br.ts`. Api: sync tests. e2e: four new specs, `groups.ts`.
+- **Review.** One pass, 11 findings: 8 patched (3 low, 5 medium gap tests), 2 deferred (the parecer's prerequisite wording; the 7,5 pt print), 1 rejected false (the corrected td: every evaluated row has every typed cell).
+- **Follow-up review recommended: true.** Five medium entries were patched; the fresh-context confirm in `conclusao-section.tsx` and the pole reference above 0 in `restriction.ts` were not re-reviewed.
+- **Verification** on `b6048f05` under the host lock, wait 0 s, load 2.24 at the start and 5.34 at the end: lint 0, static 0, test:api 929 passed / 6 skipped (goldens unchanged), test:unit 5887 of 5887, 61 touched specs 335 of 335, matrix durability 27 of 27.
+- **Residual risks.** A reader that omits the context judges a v13 sheet raw (the default compiles); the agreement test covers the floor, points, parecer, progress, pre-issue and sections 8 and 9. The TF table prints at 7,5 pt (Matheus decides).
