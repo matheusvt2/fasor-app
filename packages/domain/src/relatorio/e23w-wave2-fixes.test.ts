@@ -287,6 +287,10 @@ describe('e23w-UNIT B-6 a contact pole more than 50 % above the previous v13 vis
     expect(verdicts(evaluation(poles(['60', '45', '44']), 'resistencia_contato', previous(['40', '44', '44'])))).toEqual(['within', 'within', 'within']);
     expect(verdicts(evaluation(poles(['59', '45', '44']), 'resistencia_contato', previous(['40', '44', '44'])))).toEqual(['within', 'within', 'within']);
     expect(verdicts(evaluation(poles(['60.01', '45', '44']), 'resistencia_contato', previous(['40', '44', '44'])))[0]).toBe('out');
+    // Review fix: a rise just past the limit (+50,04 %) is shown rounded up, never as the limit itself.
+    const just = captures(evaluation(poles(['60.016', '45', '44']), 'resistencia_contato', previous(['40', '44', '44'])))[0]!;
+    expect(just.verdict).toBe('out');
+    expect(just.rise!.reason).toMatch(/^alta de 50,1 % sobre 40 µΩ /);
   });
 
   it('no judgement: previous pole missing, previous 0, previous or current over range, previous visit on v12, no previous visit', () => {

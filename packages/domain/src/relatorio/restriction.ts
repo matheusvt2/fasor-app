@@ -206,7 +206,8 @@ export function applyHistoryRise(test: TestDef, rows: readonly EvaluatedRow[], c
       const rise = ((now - was) / was) * 100;
       if (!(rise > pct * (1 + EPSILON))) continue;
       // authored (e23w, listed for Bruno): a pole out by its rise since the previous visit, as the helper, the points and the conclusion name it.
-      const reason = `alta de ${pctText(Number(rise.toFixed(1)))} % sobre ${previousReadingValueText(before)} da manutenção anterior, rev. ${entry.revision_number} de ${formatDateOfInstant(entry.issued_at)}, acima do limite de ${pctText(pct)} %`;
+      // The rise is shown rounded up to one decimal, so a rise just past the limit never reads as the limit (review fix).
+      const reason = `alta de ${pctText(Math.ceil(rise * 10 - EPSILON) / 10)} % sobre ${previousReadingValueText(before)} da manutenção anterior, rev. ${entry.revision_number} de ${formatDateOfInstant(entry.issued_at)}, acima do limite de ${pctText(pct)} %`;
       cell.verdict = 'out';
       cell.rise = { reason };
       cell.helperText = `Acima do aceitável: ${reason}`;

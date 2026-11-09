@@ -163,5 +163,7 @@ describe('e23a review fixes: the band test, the previous visit', () => {
     const table = tableWith(printed(built), '1 MINUTO');
     expect(texts(table)[1]!.slice(-2)).toEqual(['ACEITÁVEL', 'MANUT. ANTERIOR']);
     expect(wordsWiderThanColumns(table, readingFitWidthEm(table))).toEqual([]);
+    // Fix batch e23w (W2-K2, review fix): the 20 °C column stays outside the 60 em budget after the appended columns.
+    expect(table.textHalfPoints).toBe(13);
   });
 });

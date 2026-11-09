@@ -2,10 +2,10 @@
 title: 'e23w: the Epic 23 wave 2 fixes (re-issue ordering, prerequisite off, standing restriction, confirm tests, parecer reason, 8 pt, TP-02, contact rise, the 60 s poll)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'efc4e1a9a63207f6dbe9956202a2f2a7633b2eb5'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/spec-e23v-three-levels.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'The second pass of the Epic 23 wave 2 integrated review (W2-1 to W2-4, W2-K1, W2-K2), the wave 2 gate red W2-G1, and Bruno''s 2026-11-09 answers B-4 and B-6, which land on the same kernel files (restriction, conclusion, points, last_results); one fix batch, one gate, one PR, as the coordinator launched it.'
-deferred: []
+deferred:
+  - summary: >-
+      A v13 arrester whose nameplate sub-block is switched off while it still stores DESLIGADOR ÍNTEGRO NÃO stays Reprovado by a plate value the sheet no longer shows.
+    evidence: |-
+      `failedPrerequisites` reads the stored field whatever the sub-blocks (W2-2's "unconditionally", Story 23.6's AC). Whether a hidden plate value may fail the sheet is a product choice for Matheus with Bruno: keep it, or read the prerequisite only while the nameplate sub-block is on.
+    location: >-
+      packages/domain/src/relatorio/restriction.ts failedPrerequisites
+    severity: medium
 ---
 
 <intent-contract>
@@ -110,6 +117,27 @@ deferred: []
 - Given two visits of one v13 disjuntor where pole A rose from 40 to 61 µΩ, when the second evaluates and prints, then pole A is out, the floor and section 9 read Reprovado, and the point names the pole and the rise.
 - Given main with this batch, when 13.5-E2E-004 runs alone under the lock (`--repeat-each 5`), then it passes 5 of 5.
 
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-09 — Review pass
+- layers: Edge Case Hunter and Verification Gap (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 12 findings — high 0, medium 3, low 5, false 4, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: the job's `firstIssuedAt` wiring and `firstIssuedAtOf` are unobserved (the one revision-2 case short-circuits on the `prior` branch) — integration case A, B over A, C over B, A rev 2 through `firstIssuedAtOf`: no put, C stays on top; unit case of the earliest `created_at`; both red with `firstIssuedAtOf` returning `issuedAt` (mutation run).
+  - `[medium]` `[patch]` VG: no `textHalfPoints` pin on a corrected table after `withAppendedColumn` or `sideBySide` — size assertions added: the per-row transformer with MANUT. ANTERIOR pinned at 13 half points (red at 12 without the `withAppendedColumn` carry); DJ/SC side by side pinned at 9 pt, which stays green without the `sideBySide` carry because those tables fit at 9 pt either way (the carry has no seeded effect).
+  - `[low]` `[reject]` ECH: corrected columns sit outside the budget with no upper bound — only the transformer steps (DJ/SC print at 9 pt); a cap is a new guard for a table no seed has.
+  - `[low]` `[reject]` ECH: `readingFitWidthEm` widens the measure by the corrected column, so the word-whole check is the rule as built — the size pins (patch above) catch a regression; the real fit at 8 pt is a PDF check at the integrated QA (residual risk).
+  - `[low]` `[reject]` ECH: a `PrintTable` copy outside `withCorrectedColumns` would lose the record — every copying site in `section-9.ts` carries it today; the size pins catch a future loss.
+  - `[low]` `[patch]` ECH: a rise of 50,04 % printed "alta de 50 % … acima do limite de 50 %" — the shown rise is rounded up to one decimal (`Math.ceil(rise * 10 - EPSILON) / 10`); 40 to 60,016 µΩ reads "alta de 50,1 %".
+  - `[medium]` `[defer]` ECH: the prerequisite fails the sheet with the nameplate sub-block off — a product choice (frontmatter `deferred`, ledger).
+  - `[false]` `[reject]` ECH: `liveRevisions` empty on a revision > 1 makes `firstIssuedAt` now — `nextRevisionNumber(liveRevisions)` gives the number, so a revision > 1 always has a live earlier revision.
+  - `[false]` `[reject]` ECH: `history_rise_out_pct` on a corrected test of a company copy compares raw values — the seed sets it on the contact tests only (never corrected) and the type editor has no control that writes a restriction key; a copy carries the seed's.
+  - `[low]` `[patch]` ECH: 13.5-E2E-004's listeners are attached after the first syncs, so a request already in flight is not in `open` — the listener block moved before the sheet opens; `open` now tracks only `/api/sync/` and `/api/files/` requests and ignores beacons (a `sendBeacon` at pagehide never reports finished and held the quiet wait 3 of 3); alone `--repeat-each 3`, 3 of 3.
+  - `[false]` `[reject]` ECH: the parecer basis changes for a prerequisite-only Reprovado — only v13 sheets carry a prerequisite and v13 is not deployed, so no confirmed basis exists to go stale; every v1 to v12 basis keeps its bytes (unit pins).
+  - `[false]` `[reject]` ECH: no contract bump while v13 judging changes — v13 is undeployed (M-2, one deploy after wave 3), and wave 3's contracts 38 and 39 move MIN past 37 before any deploy; stated in the PR.
+
 ## Design Notes
 
 - **W2-G1 bisect (orchestrator, 2026-11-09, logs in `.scratch-e23w/bisect-*.log`).** 13.5-E2E-004 alone under the lock, `--repeat-each`: `967d898a` (e23v merged) 6 of 6 green; `8c097ffa` (e23h merged) 1 of 2, then 4 of 4: red only intermittently, load 4.4 to 5.7. Not a 60 s regression: `apps/web/src/sync/engine.ts` `schedule` arms the next tick only when a cycle ends (`fireCycle().finally(schedule)`), so when the cycle fired by the `02:05` jump is still running (real time) at the `01:05` jump, its 60 s timer is armed after the jump on the page's naturally flowing clock and no pull comes within the 20 s poll. Fix the test: before `past` and the `01:05` jump, wait until the cycle the `02:05` jump fired has ended (its pull finished and the engine idle, through what the page shows or the request events), so the 60 s timer is armed; keep the assertion that one pull follows one 65 s jump. Run it `--repeat-each 5` under the lock; the mutation check is the old wait, which may stay green alone (say so).
@@ -123,3 +151,15 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit -- packages/domain/src/relatorio packages/domain/src/points packages/domain/src/print packages/domain/src/seed apps/web/src/surfaces/ficha` -- green
 - `podman compose restart api` then `... tools pnpm test:api` -- green, goldens unchanged
 - `lockf -t 20000 /tmp/fasor-verify.lock podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts <new and edited specs> e2e/reading-wait.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green
+
+## Auto Run Result
+
+Status: done (orchestrator e23w, 2026-11-09).
+
+- **Implemented.** W2-1 (first-issue order: `previousResultsFor` reads none when the top's `prior` is this relatório; `lastResults` refreshes a later top's `prior` or writes nothing on a re-issue under a later visit; `firstIssuedAtOf` in the issue job). W2-2 (`failedPrerequisites`, read by the floor, the points, the conclusion and the parecer whatever the test's switch or applicability). W2-3 (`TestEvaluation.restrictionStands`; `resolvedOriginPoints` reads it). W2-4 (unit and e2e of both confirms under the cabine's ambient, mutation run). W2-K1 (parecer group `prerequisite`). W2-K2 (the "20 °C" column outside the 60 em budget: the transformer table at 8 pt). B-4 (TP-02 by Table 100.5 and the medium; "N/√3" by N). B-6 (`history_rise_out_pct: 50` on the v13 contact tests, `EvaluatedCell.rise`). W2-G1 (test fix; product unchanged; bisect in Design Notes). `V13_HASH` re-pinned.
+- **Files.** Kernel: `print/reading-slots.ts`, `print/last-results.ts`, `print/section-9.ts`, `relatorio/restriction.ts`, `reading-evaluation.ts`, `reading-cells.ts`, `reading-run.ts`, `conclusion.ts`, `parecer.ts`, `points/derived.ts`, `seed/schema.ts`, `seed/v13.ts`, `types/draft-edit.ts`; api `jobs/generate/job.ts`; tests (`relatorio/e23w-wave2-fixes.test.ts`, `last-results.test.ts`, `three-levels.test.ts`, `criteria-tables-print.test.ts`, `print-fit.test.ts`, `criteria-tables.test.ts`, `seed.test.ts`, `sync/three-levels.integration.test.ts`, `conclusao-section.test.tsx`); e2e (`contact-rise`, `tp-insulation-table`, `conclusion-visit-context` new; `three-levels`, `reading-wait`, `support/groups.ts`); docs (spine AD-25 note, KB concept and log).
+- **Review.** 12 findings: 4 patched (2 medium, 2 low), 1 deferred (medium, decision), 7 rejected (3 low, 4 false), reasons in the triage log. Patched, not re-reviewed: the W2-1 integration case, the size pins, the rise rounding, the 13.5-E2E-004 listener scope.
+- **Follow-up review recommended:** true by the rule (two medium patched); the named risk is the 8 pt fit, measured 61,6 em by the conservative measure and never checked by eye in a PDF.
+- **Verification.** Implementer: lint 0, static 0, test:api 934 passed / 6 skipped, the domain and ficha units green, 17 e2e specs green after one own-test fix, 13.5-E2E-004 5 of 5 then 3 of 3 after the patch. The story gate's results are in the PR body and the epic context's e23w record.
+- **Residual risks.** The 8 pt table needs a PDF look at the integrated QA; a re-issue after two later visits still reads the top (the chain holds two entries); the prerequisite fails a sheet whose nameplate sub-block is off (deferred decision).
+

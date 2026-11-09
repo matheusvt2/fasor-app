@@ -197,4 +197,45 @@ describe('e23w-INT W2-1 a re-issue never takes a later visit\'s place in last_re
     const block = snapshot.blocks.find((one) => one.id === tfA.id)!;
     expect(previousResultsFor(snapshot.equipment.find((one) => one.id === tfA.equipmentId), block, a.relatorioId)).toBeNull();
   });
+
+  it('A issued, then B over it and C over B: A re-issued (revision 2) writes nothing, C stays on top (a later visit unrelated to A by its chain)', async () => {
+    const a = await h.seedRelatorio(companyA);
+    const tfA = a.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    const reading = (seeded: SeededRelatorio, blockId: string, raw: string) =>
+      h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(blockId, 'isolacao', 0, 1), relatorio_id: seeded.relatorioId, value: measured(raw, 'GΩ') });
+    expect((await h.push(companyA, [reading(a, tfA.id, '5')])).rejected).toEqual([]);
+    await h.cutRevision(companyA, a.relatorioId, 1);
+    await project(companyA, a);
+    const equipment = async () =>
+      (
+        await h.db
+          .select({ row: entities.row })
+          .from(entities)
+          .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'equipment'), eq(entities.project_id, a.projectId)))
+      ).map((one) => one.row as EquipmentRow);
+    // B over A, then C over B: C's prior is B, so C is unrelated to A by its chain.
+    for (const raw of ['4', '3']) {
+      const later = await h.seedRelatorio(companyA, new Date(), undefined, { projectId: a.projectId, existingEquipment: await equipment() });
+      const tf = later.blocks.find((block) => block.blockType === 'transformador_forca')!;
+      expect((await h.push(companyA, [reading(later, tf.id, raw)])).rejected).toEqual([]);
+      await h.cutRevision(companyA, later.relatorioId, 1);
+      await project(companyA, later);
+    }
+    const before = (await h.rowOf<EquipmentRow>(companyA, 'equipment', tfA.equipmentId))!.last_results!;
+    expect(Object.values(before.readings)).toEqual([{ raw: '3', unit: 'GΩ', state: 'measured' }]);
+    expect(before.prior?.relatorio_id).not.toBe(a.relatorioId);
+
+    // A re-issued: its first issue (revision 1) is before C's, so C is a later visit and A writes nothing for it.
+    expect((await h.push(companyA, [reading(a, tfA.id, '6')])).rejected).toEqual([]);
+    await h.cutRevision(companyA, a.relatorioId, 2);
+    const puts = await project(companyA, a, 2);
+    expect(puts.some((op) => op.path === `equipment/${tfA.equipmentId}/last_results`)).toBe(false);
+    expect((await h.rowOf<EquipmentRow>(companyA, 'equipment', tfA.equipmentId))!.last_results).toEqual(before);
+  });
+
+  it('firstIssuedAtOf: the earliest live revision\'s created_at, else the issue instant', () => {
+    const at = (iso: string) => ({ created_at: iso });
+    expect(firstIssuedAtOf([at('2026-11-05T10:00:00.000Z'), at('2026-11-01T10:00:00.000Z'), at('2026-11-03T10:00:00.000Z')], '2026-11-09T10:00:00.000Z')).toBe('2026-11-01T10:00:00.000Z');
+    expect(firstIssuedAtOf([], '2026-11-09T10:00:00.000Z')).toBe('2026-11-09T10:00:00.000Z');
+  });
 });

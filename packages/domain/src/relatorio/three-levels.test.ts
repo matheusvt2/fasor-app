@@ -644,6 +644,8 @@ describe('23.5-UNIT section 9 at the fit (the 60 em rule)', () => {
       const block = blockOf(snapshot, type);
       const table = tableWith(snapshot, block.id, '20 °C');
       expect(wordsWiderThanColumns(table, readingFitWidthEm(table)), type).toEqual([]);
+      // Fix batch e23w (W2-K2, review fix): side by side, both 20 °C columns stay outside the 60 em budget.
+      expect(table.textHalfPoints, type).toBeUndefined();
       const bottom = table.rows.find((row) => row.header === true)!;
       expect(bottom.cells.map((one) => one.text), type).toEqual(['LINHA', 'TERRA', 'GUARD', 'TENSÃO (kV)', 'VALORES (GΩ)', '20 °C', 'LINHA', 'TERRA', 'GUARD', 'TENSÃO (kV)', 'VALORES (GΩ)', '20 °C']);
       // The solid factor at 35 °C is 2: 2.500 GΩ reads 5.000 at 20 °C (the disjuntor's first row is the fixture's 150).
