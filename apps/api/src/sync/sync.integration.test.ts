@@ -454,6 +454,33 @@ describe('1.5-API-001 push semantics', () => {
     expect((await storedIds([unknownTest.op_id, onSection.op_id, rowOutside.op_id, colOutside.op_id])).size).toBe(0);
   });
 
+  it('batch e23a (Story 23.3, contract 34): a malformed manufacturer value on a v13 sheet is refused as op_invalid and never stored; a well-formed one and a null clear are accepted', async () => {
+    const relatorioId = newId();
+    const equipment = newId();
+    const create = blockCreate(idsA, relatorioId, equipment, 'disjuntor_mt');
+    (create.value as { seed_version: string }).seed_version = 'v13';
+    expect((await pushOk(companyA, [relatorioCreate(idsA, relatorioId, obraA), create])).rejected).toEqual([]);
+    const path = `sheet/${equipment}/test/resistencia_contato/criterion_override`;
+    const refused = [{ raw: '-3', unit: 'µΩ' }, { raw: '0', unit: 'µΩ' }, { raw: 'abc', unit: 'µΩ' }, { raw: '80', unit: 'V' }].map((value) => sheetPut(idsA, relatorioId, path, value));
+    const good = sheetPut(idsA, relatorioId, path, { raw: '80', unit: 'µΩ' });
+    const result = await pushOk(companyA, [...refused, good]);
+    expect(result.rejected).toEqual(refused.map((o) => ({ op_id: o.op_id, code: 'op_invalid' })));
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+    const storedValue = async () => {
+      const [row] = await db
+        .select({ row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'block'), eq(entities.id, equipment)));
+      return (row?.row as { sheet: { test: Record<string, { criterion_override: { value: unknown } | null }> } }).sheet.test.resistencia_contato?.criterion_override?.value;
+    };
+    expect(await storedValue()).toEqual({ raw: '80', unit: 'µΩ' });
+    // The clear stands on the stored value (prev_op_id), as the device writes it.
+    const clear = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path, value: null, prev_op_id: good.op_id });
+    expect((await pushOk(companyA, [clear])).rejected).toEqual([]);
+    expect(await storedValue()).toBeNull();
+    expect((await storedIds(refused.map((o) => o.op_id))).size).toBe(0);
+  });
+
   it('rejects a server-only family and the two origin spoofs as op_server_only, a foreign actor as op_invalid', async () => {
     const relatorioId = newId();
     const fileId = newId();
@@ -1089,10 +1116,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 33 (Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-32 pull is refused with 426 contract_outdated on every stream, a version-33 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(33);
-    expect(MIN_CONTRACT_VERSION).toBe(33);
+  it('contract 34 (batch e23a, Stories 23.2 to 23.4; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-33 pull is refused with 426 contract_outdated on every stream, a version-34 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(34);
+    expect(MIN_CONTRACT_VERSION).toBe(34);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 33 cannot resolve seed v13 and would store a malformed manufacturer's value the server refuses (batch e23a);
       // 32 cannot parse the `equipment_type` families, a `type:` block or a snapshot carrying `equipment_types` (Story 14.6);
       // 31 cannot resolve seed v12 nor parse an `inspecao_qgbt` block or the `defeito_no_equipamento` reason (Stories 22.7 to 22.9 and 22.11);
       // it reads an over-range cell as invalid and cannot parse an `equipment/{id}/last_results` put (Stories 22.10 and 22.12);
@@ -1111,17 +1139,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['32', '31', '30', '29', '28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['33', '32', '31', '30', '29', '28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '33');
+    const current = await pull(companyA, '/api/sync/company?since=0', '34');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '32');
+    const pushed = await push(companyA, { ops: batch }, '33');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });

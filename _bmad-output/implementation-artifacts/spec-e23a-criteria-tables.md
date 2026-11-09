@@ -2,7 +2,8 @@
 title: 'e23a: criteria as data: seed v13, the NETA tables, the manufacturer value, the instrument limit (Stories 23.2, 23.3, 23.4; contract 34)'
 type: 'feature'
 created: '2026-11-08'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'b112e55d7e2e9175fd46a05182ecdd3b262ff0a7'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

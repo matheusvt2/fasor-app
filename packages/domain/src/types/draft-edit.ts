@@ -225,11 +225,16 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
       for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
         for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) if (row.winding === key) row.winding = null;
       }
+      // Batch e23a (Story 23.2): a criterion table read by the removed field goes with it (a winding's rows fall back to the seeded criterion).
+      const picked = test.criterion_table as Entry | undefined;
+      const voltage = picked?.voltage as Entry | string | undefined;
+      if (picked !== undefined && typeof voltage === 'object' && voltage !== null && voltage.field === key) delete test.criterion_table;
     }
     // Fix batch e22h (S1): the oil rule a copy carries loses its field with it, or that excused field.
     const rule = next.oil_rule as Entry | undefined;
     if (rule !== undefined && rule.field === key) delete next.oil_rule;
     else if (rule !== undefined && Array.isArray(rule.fields)) rule.fields = rule.fields.filter((field) => field !== key);
+    dropMediumTables(next);
   }
   if (part === 'checklist') {
     const rule = next.oil_rule as Entry | undefined;
@@ -238,9 +243,19 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
       rule.items = items;
       if (items.length === 0) delete next.oil_rule;
     }
+    dropMediumTables(next);
   }
   if (part === 'tests' || part === 'measurement_tests') pruneCriteria(next);
   return back(next);
+}
+
+/** Batch e23a (Story 23.2): with no oil rule left, a criterion table read by the medium has nothing to read it by and goes. */
+function dropMediumTables(next: Entry): void {
+  if (next.oil_rule !== undefined) return;
+  for (const test of (Array.isArray(next.tests) ? next.tests : []) as Entry[]) {
+    const picked = test.criterion_table as Entry | undefined;
+    if (picked !== undefined && picked.medium !== undefined) delete test.criterion_table;
+  }
 }
 
 // --- Ensaios -------------------------------------------------------------------------------------
@@ -330,6 +345,8 @@ export function addDraftTest(draft: CompanyTypeDraft | null, grammar: TestGramma
   delete test.criterion;
   delete test.criterion_bands;
   delete test.criterion_class_field;
+  // Batch e23a (Story 23.2): a criterion table reads the source type's plate, not this one's.
+  delete test.criterion_table;
   for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
     for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) row.winding = null;
   }

@@ -11,6 +11,7 @@ import {
   type EquipmentBlockType,
 } from '../schemas/block-config.ts';
 import type { CriterionSeed } from './criteria.ts';
+import { criterionTableSchema } from './criteria-tables.ts';
 import { checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 
 /*
@@ -233,6 +234,33 @@ export const testDefSchema = z.object({
    * parse to the bytes they shipped with.
    */
   criterion_class_field: seedKey.optional(),
+  /*
+   * Seed v13, batch e23a (Stories 23.2 and 23.4). Both optional and never defaulted, so v1 to v12
+   * parse to the bytes they shipped with.
+   */
+  /**
+   * Story 23.2: each row's criterion is picked from a NETA table (`seed/criteria-tables.ts`, the rows
+   * copied in, so the seed hash covers them) by a rated voltage of the plate: `'winding'` reads the
+   * nameplate number field each row's `voltage_rows[r].winding` names, `{field}` one nameplate field
+   * (a number in V or kV, or a voltage class) for every row; `medium: 'oil_rule'` picks the table's
+   * oil or dry column by the definition's oil rule field. With the rating (or the medium) unreadable
+   * the row keeps the seeded criterion (`relatorio/reading-evaluation.ts` `rowCriterion`).
+   */
+  criterion_table: z
+    .object({
+      table: criterionTableSchema,
+      voltage: z.union([z.literal('winding'), z.object({ field: seedKey })]),
+      medium: z.literal('oil_rule').optional(),
+    })
+    .refine((c) => (c.medium === undefined ? c.table.rows.every((row) => row.min !== undefined) : c.table.rows.every((row) => row.oil !== undefined && row.dry !== undefined)), {
+      message: 'a medium reads a table with oil and dry columns, no medium one with a minimum',
+    })
+    .optional(),
+  /**
+   * Story 23.4: a reading above the instrument's limit that meets the criterion prints the standard
+   * observation under the table, and its row's POLARIZAÇÃO prints N/A.
+   */
+  instrument_limit_note: z.literal(true).optional(),
 });
 /**
  * A test as every reader takes it. Story 14.6: on a company type's definition (`asBlockDefinition`)
@@ -311,6 +339,20 @@ export function checkSeedV6Definition(
         if (entry.winding !== null && field(entry.winding)?.kind !== 'number') issue(['tests', t, 'tables', b, 'voltage_rows'], `voltage_rows winding "${entry.winding}" is not a number field of the nameplate`);
       }
     });
+  });
+  // Seed v13, batch e23a (Story 23.2): what a criterion table reads exists on the definition.
+  definition.tests.forEach((test, t) => {
+    const table = test.criterion_table;
+    if (table === undefined) return;
+    const at = ['tests', t, 'criterion_table'];
+    if (table.voltage === 'winding') {
+      if (!test.tables.every((one) => one.voltage_rows !== undefined)) issue([...at, 'voltage'], 'a criterion table read by winding needs voltage_rows on every table');
+    } else {
+      const rated = field(table.voltage.field);
+      const readable = rated !== undefined && (rated.kind === 'voltage_class' || (rated.kind === 'number' && (rated.unit === 'V' || rated.unit === 'kV')));
+      if (!readable) issue([...at, 'voltage'], `criterion_table.voltage.field "${table.voltage.field}" is not a number field in V or kV nor a voltage class`);
+    }
+    if (table.medium === 'oil_rule' && definition.oil_rule === undefined) issue([...at, 'medium'], 'a criterion table read by medium needs an oil_rule');
   });
   definition.tests.forEach((test, t) => {
     const bands = test.criterion_bands;

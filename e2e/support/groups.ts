@@ -196,6 +196,15 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'over-range.spec.ts',
     why: 'Story 22.10: generates a revision through the shared queue and LibreOffice to read the over-range readings ("> 2 TΩ") of section 9 from the DOCX',
   },
+  // Batch e23a (Stories 23.2 to 23.4): each spec issues a revision to read section 9's ACEITÁVEL, the per-row column and the note from the DOCX.
+  {
+    file: 'criteria-tables.spec.ts',
+    why: 'Stories 23.2 and 23.4: generates a revision through the shared queue and LibreOffice to read the per-row ACEITÁVEL, POLARIZAÇÃO N/A and the instrument-limit note of section 9 from the DOCX',
+  },
+  {
+    file: 'manufacturer-value.spec.ts',
+    why: 'Story 23.3: generates a revision through the shared queue and LibreOffice to read the manufacturer value\'s ACEITÁVEL ("<80 µΩ (fabricante)") from the DOCX',
+  },
   // Story 22.12: 22.12-E2E-001 issues relatório A and then B of the same obra.
   {
     file: 'previous-visit.spec.ts',

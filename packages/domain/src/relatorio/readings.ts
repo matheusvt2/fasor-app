@@ -22,6 +22,7 @@ export {
   type EvaluatedRow,
   type EvaluatedTable,
   type ReadingSource,
+  type ManufacturerValue,
   type ReadingState,
   type ReadingVerdict,
   type TestEvaluation,
@@ -30,4 +31,27 @@ export {
   type VoltageColumn,
 } from './reading-cells.ts';
 export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, failedRatioRows, type FailedRatioRow, unitDefaultFor } from './reading-evaluation.ts';
+// Batch e23a (Stories 23.2 to 23.4): the row's criterion, the manufacturer's value, the instrument-limit note.
+export {
+  CRITERION_PER_ROW_TEXT,
+  criterionUnitOf,
+  instrumentLimitNoteText,
+  MANUFACTURER_PRINT_SUFFIX,
+  MANUFACTURER_SOURCE_LINE,
+  MANUFACTURER_SOURCE_NAME,
+  MANUFACTURER_VALUE_REFUSAL,
+  manufacturerCriterion,
+  manufacturerRefusal,
+  manufacturerUnitRefusal,
+  manufacturerUnitsOf,
+  manufacturerValueOf,
+  manufacturerValueText,
+  manufacturerValueView,
+  parseManufacturerValue,
+  polarizationNotApplicable,
+  rowCriterion,
+  type ManufacturerValueView,
+  type ParsedManufacturerValue,
+  type RowCriterion,
+} from './reading-evaluation.ts';
 export { firstRunCell, runEnterKeyHint, runTarget, unitTapNeedsEdit, worstReadings, type WorstReading } from './reading-run.ts';

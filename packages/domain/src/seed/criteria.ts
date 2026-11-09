@@ -39,6 +39,12 @@ export const criterionSeedSchema = z.object({
   source: z.object({ name: z.string().min(1), edition: z.string().nullable() }),
   /** Design Notes: no block/sheet data exists before Epic 5, so this is static seed-authored prose, never derived. */
   usedBy: z.string().min(1),
+  /**
+   * Seed v13, batch e23a (Story 23.2): the criterion as the sheet and the document write it, when it
+   * is not the operator glued to the number (a NETA row: "≥ 25.000 MΩ", grouped pt-BR);
+   * `formatCriterionValue` returns it as it stands. No seeded criterion carries it.
+   */
+  text: z.string().min(1).optional(),
 });
 export type CriterionSeed = z.infer<typeof criterionSeedSchema>;
 
@@ -113,7 +119,9 @@ export interface MeasuredValue {
  * AGENTS.md "derived text goes in `packages/domain`": the Critérios de aceitação table's
  * `.cell-crit` text, e.g. `>400 MΩ` or `±0,5 %` (pt-BR decimal comma, a space before the unit).
  */
-export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit'>): string {
+export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'>): string {
+  // Story 23.2 (seed v13): a criterion that carries its own text (a NETA row) reads as it.
+  if (criterion.text !== undefined) return criterion.text;
   const value = String(criterion.value).replace('.', ',');
   const withUnit = (text: string) => (criterion.unit === null ? text : `${text} ${criterion.unit}`);
   // authored (Story 14.6): a company type's two operators the seeds never use, as the editor's mock words them.

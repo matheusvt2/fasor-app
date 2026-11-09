@@ -1523,6 +1523,11 @@ export const copy = {
     ensaios: {
       // `.mt-criterion`: the criterion value alone after the word (EXPERIENCE.md › Measurement table).
       criterion: (text: string) => `Aceitável ${text}`,
+      // Batch e23a (Story 23.3): `60-ficha.html` `.v13-mfr`, the manufacturer's value entry, verbatim.
+      manufacturerLabel: 'Valor do fabricante',
+      manufacturerClear: 'Limpar',
+      // authored (Story 23.3, listed for Bruno): the entry's accessible name, one per test.
+      manufacturerName: (test: string) => `Valor do fabricante, ${test}`,
       sourceSummary: 'Fonte do critério',
       // The Instrument picker.
       instrumentLabel: 'Instrumento',

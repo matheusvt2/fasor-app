@@ -152,6 +152,12 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
           ? plain(`${name}: o critério SELV/PELV é escolhido pelo campo ${field} da placa; mantenha esse campo como uma lista com SIM.`, `${name} sem campo SELV/PELV`)
           : plain(`${name}: o critério é escolhido pela tensão do campo ${field} da placa; mantenha esse campo como um número em V.`, `${name} sem campo da tensão`);
       }
+      // authored (Story 23.2, listed for Bruno): a NETA criterion table whose plate field or oil rule changed.
+      if (sub === 'criterion_table') {
+        return subIndex === 'medium'
+          ? plain(`${name}: o critério da tabela NETA depende do tipo de isolação da placa; mantenha a regra de óleo do tipo.`, `${name} sem regra de óleo`)
+          : plain(`${name}: o critério da tabela NETA é escolhido pela tensão nominal da placa; mantenha esse campo como um número em V ou kV, ou uma classe de tensão.`, `${name} sem campo da tensão`);
+      }
       if (sub === 'tables' && leaf === 'voltage_rows') return plain(`${name}: a tensão de uma linha vem de um campo numérico da placa; mantenha esse campo como um número.`, `${name} sem campo da tensão`);
       if (sub === 'label') return plain(`Ensaio ${index + 1}: informe o título do ensaio.`, `ensaio ${index + 1} sem título`);
       return plain(`${name}: confira as tabelas do ensaio.`, name);

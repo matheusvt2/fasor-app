@@ -3194,3 +3194,26 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/relatorio/conclusion.ts` `ncClauseText`; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`.
   class: defect
   state: open (owner: the next batch touching `relatorio/conclusion.ts`)
+
+## Deferred from: Epic 23 batch e23a (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23a-criteria-tables.md` (Tasks, `ops/apply.ts`; narrowing)
+  summary: The fold refuses a malformed manufacturer's value only on a v13 (or later) sheet. A v1 to v12 sheet folds any `criterion_override` as before, because the replay fixture's log (`fixtures/replay-small/op-log.ts`, a v1 block) holds one in an older shape (`{operator, value, unit, source}`) and its golden must replay byte-equal; the readers keep ignoring a malformed value there (`effectiveCriterion`), and the sheet's entry refuses one inline on every version, so no surface writes one.
+  evidence: `packages/domain/src/ops/apply.ts` `assertManufacturerValue` (`MANUFACTURER_CHECK_FROM`); `relatorio/criteria-tables.test.ts` "a v12 (or older) sheet folds any value as before".
+  class: decision
+  state: open (owner: Matheus, confirm the reading)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23a-criteria-tables.md` (Design Notes, authored texts)
+  summary: The authored pt-BR texts of the batch, listed for Bruno: the two fallback helpers ("Sem a tensão nominal na placa, vale {crit}. Informe-a para julgar pela {Tabela 100.x}." and "Sem o tipo de isolação na placa, vale {crit}. Informe-o para julgar pela Tabela 100.5."), the row helper ("Tabela 100.5 (ANSI/NETA MTS-2023), seco, 13,8 kV: ≥ 25.000 MΩ"), "por linha" / "POR LINHA", the four manufacturer notes, the source line "Fabricante — digitado nesta ficha, vale para todas as linhas deste ensaio.", the two refusals, the print suffix " (fabricante)", the entry's accessible name "Valor do fabricante, {ensaio}", the company-type validation sentences of a criterion table, and IP "N/A". The note text is the base's (decision F).
+  evidence: `packages/domain/src/relatorio/reading-evaluation.ts` (batch e23a block), `print/section-9.ts` `ACCEPTABLE_PER_ROW`, `types/validate.ts`, `apps/web/src/copy/pt-br.ts` `copy.ficha.ensaios.manufacturer*`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23a-criteria-tables.md` (coordinator-free readings of the implementation)
+  summary: Three readings the spec leaves open: (1) a manufacturer's value on a QGBT band test whose plate picks no band takes the first band's operator and unit, so the value still judges; (2) the instrument-limit note quotes the first reading above the limit judged within, so a test holding two different limits names one; (3) the manufacturer's note on a table test names every distinct row minimum the table asks ("≥ 25.000 MΩ e ≥ 500 MΩ").
+  evidence: `relatorio/reading-evaluation.ts` `manufacturerCriterion`, `limitNoteOf`, `manufacturerValueView`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23a-criteria-tables.md` (gate; pre-existing at `027d916c`)
+  summary: Three unit tests failed on the batch's first commit because they read the current seed version, which became v13 there: `templates/text.test.ts` (the summary says "Semente v13"), `types/company-types.test.ts` (the fixture's relatório is pinned at v12) and `print/print-fit.test.ts` (v13 carries v12's TENSÃO column and steps as v12 does). Fixed in this batch, expectations only.
+  evidence: the three test files.
+  class: defect
+  state: closed (2026-11-08, batch e23a)
