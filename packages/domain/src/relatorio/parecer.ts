@@ -11,7 +11,7 @@ import { listPtBr, plural } from '../text/plural.ts';
 import { effectiveConclusionPair } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
 import { measurementCells } from './measurement-evaluation.ts';
-import { evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
+import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
 import { failedPrerequisites } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { sectionRefText } from './section-position.ts';
@@ -282,6 +282,8 @@ export interface ComposedParecer {
 // authored (e22g, review N4, listed for Bruno): a sheet Não ensaiado for a defect reason (`isDefectReason`) is "por defeito no equipamento", never "outro motivo".
 const REPROVADO_REASONS = {
   ratio: 'relação de transformação insatisfatória',
+  // Batch e23e (Story 23.18, review fix): a ratio failed by its choice alone; its words are the kernel's choice texts (`choiceOnlyFailureText`), set per summary.
+  choice: '',
   reading: 'leituras fora do critério de aceitação',
   // authored (e23w, listed for Bruno): a sheet reprovada only by a test's failed prerequisite, the floor's word
   // (`FLOOR_REASON_WORDS.prerequisite`, W2-K1), repeated here: the parecer loads before the conclusion in the import order.
@@ -298,13 +300,14 @@ const REPROVADO_REASONS = {
  * insatisfatória (TR-1) e 2 por leituras fora do critério de aceitação (PR-ENEL e DJ-01).";
  * with no ratio or reading reason, the names alone, as Story 22.6 printed them.
  */
-function reprovadoSentence(count: number, byReason: Record<keyof typeof REPROVADO_REASONS, string[]>): string {
+function reprovadoSentence(count: number, byReason: Record<keyof typeof REPROVADO_REASONS, string[]>, choiceWords: string): string {
   // authored (Story 22.6, open for Bruno): the Reprovado sheets sentence.
   const head = count === 1 ? '1 ficha foi reprovada' : `${count} fichas foram reprovadas`;
+  const words: Record<keyof typeof REPROVADO_REASONS, string> = { ...REPROVADO_REASONS, choice: choiceWords };
   const groups = (Object.keys(REPROVADO_REASONS) as (keyof typeof REPROVADO_REASONS)[]).filter((key) => byReason[key].length > 0);
   if (groups.length === 1 && groups[0] === 'other') return `${head} (${listPtBr(byReason.other)}).`;
-  if (groups.length === 1) return `${head} por ${REPROVADO_REASONS[groups[0]!]} (${listPtBr(byReason[groups[0]!])}).`;
-  return `${head}: ${listPtBr(groups.map((key) => `${byReason[key].length} por ${REPROVADO_REASONS[key]} (${listPtBr(byReason[key])})`))}.`;
+  if (groups.length === 1) return `${head} por ${words[groups[0]!]} (${listPtBr(byReason[groups[0]!])}).`;
+  return `${head}: ${listPtBr(groups.map((key) => `${byReason[key].length} por ${words[key]} (${listPtBr(byReason[key])})`))}.`;
 }
 
 /** "item 8 (contatos)", the checklist item as the summary groups it. */
@@ -339,13 +342,22 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   // e22f N1: a Reprovado sheet is named once, in the Reprovado sentence with its reason; the
   // ratio and out-reading sentences name only the others.
   const reprovadoSet = new Set(sheets.filter(({ block, definition, visit }) => reprovado(block, definition, visit)).map(({ block }) => block.id));
-  const ratio = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id)).map(({ name }) => name);
+  // Batch e23e (Story 23.18, review fix): a sheet whose every failed ratio row fails by its choice alone (a polarity INVERTIDA)
+  // is named by the choice's words, never "relação de transformação insatisfatória"; none on v1 to v12.
+  const choiceTexts = new Map(ratioSheets.flatMap(({ block, definition, visit }) => {
+    const text = choiceOnlyFailureText(failedRatioRowsOf(block, definition, visit));
+    return text === null ? [] : [[block.id, text] as const];
+  }));
+  const choiceWords = listPtBr([...new Set(choiceTexts.values())]);
+  const ratio = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id) && !choiceTexts.has(block.id)).map(({ name }) => name);
+  const choiceOnly = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id) && choiceTexts.has(block.id)).map(({ name }) => name);
   const outOthers = sheets.filter(({ block, definition, visit }) => !reprovadoSet.has(block.id) && outReading(block, definition, visit)).map(({ name }) => name);
   const ratioIds = new Set(ratioSheets.map(({ block }) => block.id));
-  const byReason = { ratio: [] as string[], reading: [] as string[], prerequisite: [] as string[], defect: [] as string[], other: [] as string[] };
+  const byReason = { ratio: [] as string[], choice: [] as string[], reading: [] as string[], prerequisite: [] as string[], defect: [] as string[], other: [] as string[] };
   for (const { block, definition, name, visit } of sheets) {
     if (!reprovadoSet.has(block.id)) continue;
-    if (ratioIds.has(block.id)) byReason.ratio.push(name);
+    if (choiceTexts.has(block.id)) byReason.choice.push(name);
+    else if (ratioIds.has(block.id)) byReason.ratio.push(name);
     else if (outReading(block, definition, visit)) byReason.reading.push(name);
     // Fix batch e23w (W2-K1, seed v13): reprovada by a failed prerequisite (the arrester's disconnector) and by no ratio or reading.
     else if (block.not_tested === null && definition !== null && failedPrerequisites(block, definition).length > 0) byReason.prerequisite.push(name);
@@ -368,7 +380,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     const pending = open > 0 ? `${open} ${open === 1 ? 'ainda não concluída' : 'ainda não concluídas'}` : null;
     const registered = total === 1 ? 'Foi registrada 1 ficha de ensaio' : `Foram registradas ${total} fichas de ensaio`;
     sentences.push(`${registered}: ${listPtBr([done, untested, pending].filter((part): part is string => part !== null))}.`);
-    if (reprovados.length > 0) sentences.push(reprovadoSentence(reprovados.length, byReason));
+    if (reprovados.length > 0) sentences.push(reprovadoSentence(reprovados.length, byReason, choiceWords));
     if (withRestriction.length > 0) {
       sentences.push(
         `${withRestriction.length === 1 ? '1 ficha apresentou' : `${withRestriction.length} fichas apresentaram`} restrições (${listPtBr(withRestriction)}).`,
@@ -380,6 +392,10 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     if (ratio.length > 0) {
       // authored (Story 17.5, open for Bruno): the failed ratio sentence.
       sentences.push(`Relação de transformação insatisfatória em ${plural(ratio.length, 'ficha', 'fichas')} (${listPtBr(ratio)}).`);
+    }
+    if (choiceOnly.length > 0) {
+      // authored (Story 23.18, listed for Bruno): a ratio failed by its choice alone, "Polaridade invertida em 1 ficha (TC-ENEL)."
+      sentences.push(`${choiceWords.charAt(0).toLocaleUpperCase('pt-BR')}${choiceWords.slice(1)} em ${plural(choiceOnly.length, 'ficha', 'fichas')} (${listPtBr(choiceOnly)}).`);
     }
     if (outOthers.length > 0) {
       // authored (Story 22.6, open for Bruno): the out-of-criterion readings sentence.
@@ -404,6 +420,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     ...nc.map((group) => `item ${group.n} NC (${group.sheets})`),
     // authored (Story 17.5, open for Bruno): the Critérios item of the failed ratios.
     ...(ratio.length > 0 ? [`relação de transformação insatisfatória (${ratio.join(', ')})`] : []),
+    // authored (Story 23.18, listed for Bruno): the Critérios item of a ratio failed by its choice alone.
+    ...(choiceOnly.length > 0 ? [`${choiceWords} (${choiceOnly.join(', ')})`] : []),
     // authored (Story 22.6, open for Bruno): the Critérios item of the out-of-criterion readings.
     ...(outOthers.length > 0 ? [`leituras fora do critério (${outOthers.join(', ')})`] : []),
     // authored: 2026-10-14, a Critérios item per NC site item (open for Bruno).
@@ -424,14 +442,17 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
       points,
       ...(site.length > 0 ? { site } : {}),
       ...(ratio.length > 0 ? { ratio } : {}),
+      // Batch e23e (Story 23.18): only where a sheet fails by its choice alone, so every basis written before keeps its bytes.
+      ...(choiceOnly.length > 0 ? { choiceOnly } : {}),
       ...(reprovados.length > 0 ? { reprovado: reprovados } : {}),
       ...(outOthers.length > 0 ? { outReadings: outOthers } : {}),
       // e22g N4: the defect group joins the basis only where it holds a sheet, so a basis written before keeps its bytes.
       // Fix batch e23w (W2-K1): the prerequisite group likewise, so every basis written before keeps its bytes.
-      ...(byReason.ratio.length + byReason.reading.length + byReason.prerequisite.length + byReason.defect.length > 0
+      ...(byReason.ratio.length + byReason.choice.length + byReason.reading.length + byReason.prerequisite.length + byReason.defect.length > 0
         ? {
             reprovadoBy: {
               ratio: byReason.ratio,
+              ...(byReason.choice.length > 0 ? { choice: byReason.choice } : {}),
               reading: byReason.reading,
               ...(byReason.prerequisite.length > 0 ? { prerequisite: byReason.prerequisite } : {}),
               ...(byReason.defect.length > 0 ? { defect: byReason.defect } : {}),

@@ -17,9 +17,9 @@ import { duplicateSeededType } from '../types/duplicate.ts';
 import { companyTypeDefinitionSchema } from '../types/definition.ts';
 import { accuracyClassDeviation, accuracyClassOption, parseAccuracyClass } from './accuracy-class.ts';
 import { APPLICABILITY_APPLIED, testApplicability } from './applicability.ts';
-import { composeConclusion, conclusionFloor } from './conclusion.ts';
+import { composeConclusion, conclusionFloor, conclusionFloorReasonText } from './conclusion.ts';
 import { choiceValue, evaluateSheetMeasurements, measurementCounts, restrictedMeasurements, type MeasurementTestEvaluation } from './measurement-evaluation.ts';
-import { parecerCounts } from './parecer.ts';
+import { composeParecer, parecerCounts } from './parecer.ts';
 import { choiceCellValue, evaluateSheetReadings, evaluateTest, failedRatioRows, firstRunCell, isChoiceCellValue, type TestEvaluation } from './readings.ts';
 import { decisionDDefaultKv, mcovDefaultKv } from './row-voltage.ts';
 import { sheetProgress } from './sheet-progress.ts';
@@ -169,6 +169,23 @@ describe('23.18-UNIT polarity, function and the S classes (Base rev08 TC-03, TP-
     expect(progress.missing - sheetProgress(filled, blockIdOf(filled, 'tc')).steps.ensaios.missing).toBe(2);
   });
 
+  it('review fix: a ratio failed by its polarity alone is named by it in the floor\'s reason and the parecer; one out by its deviation keeps "relação de transformação insatisfatória"', () => {
+    const polarity = tcRatio(plate(sheet('tc'), { exatidao: '0,3' }), '40', 'INVERTIDA');
+    expect(conclusionFloorReasonText(polarity, definitionOf(polarity))).toBe('A ficha exige no mínimo Reprovado · Com restrições: polaridade invertida.');
+    const deviation = tcRatio(plate(sheet('tc'), { exatidao: '0,3' }), '41', 'INVERTIDA');
+    expect(conclusionFloorReasonText(deviation, definitionOf(deviation))).toBe('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');
+    const tagOf = (snapshot: RelatorioSnapshot) => snapshot.equipment.find((row) => row.id === snapshot.blocks.find((block) => block.block_type === 'tc')!.equipment_id)!.tag;
+    const byPolarity = snapshotOf([polarity]);
+    expect(composeParecer(byPolarity).text).toContain(`1 por polaridade invertida (${tagOf(byPolarity)})`);
+    expect(composeParecer(byPolarity).text).not.toMatch(new RegExp(`insatisfatória \\([^)]*${tagOf(byPolarity)}`));
+    const byDeviation = snapshotOf([deviation]);
+    expect(composeParecer(byDeviation).text).toMatch(new RegExp(`por relação de transformação insatisfatória \\([^)]*${tagOf(byDeviation)}`));
+    expect(composeParecer(byDeviation).text).not.toContain('polaridade invertida');
+    // A v12 TC keeps its words.
+    const v12 = cells(plate(sheet('tc', 'v12'), { exatidao: '0,3' }), 'relacao_transformacao', { '0/0': measured('200', 'A'), '0/1': measured('5', 'A'), '0/3': measured('41', null) });
+    expect(conclusionFloorReasonText(v12, definitionOf(v12))).toBe('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');
+  });
+
   it('OK passes and leaves the ratio verdict to the capture; empty counts one missing per row; a polarity with no VAL CALCULADO still fails', () => {
     const ok = tcRatio(plate(sheet('tc'), { exatidao: '0,3' }), '40', 'OK');
     const row = testOf(ok, 'relacao_transformacao').tables[0]!.rows[0]!;
@@ -284,6 +301,15 @@ describe('23.20-UNIT thermography by NETA MTS-2023 Table 100.18, applicable whil
     expect(point.text).toContain('Termografia: 20 °C em Conexões');
   });
 
+  it('review fix: a ΔT above the instrument\'s limit is above every bound, out; the bounds 3 / 3,1 / 15 / 15,1 hold', () => {
+    const over = measurement(cells(inLoad(sheet('para_raio')), 'termografia', { '0/0': { raw: '150', unit: '°C', state: 'over_range' } }), 'termografia').rows[0]!.cells[0]!;
+    expect([over.state, over.verdict]).toEqual(['over_range', 'out']);
+    const block = cells(inLoad(sheet('para_raio')), 'termografia', { '0/1': { raw: '150', unit: '°C', state: 'over_range' } });
+    expect(conclusionFloor(block, definitionOf(block))?.pair.result).toBe('reprovado');
+    const verdict = (raw: string) => measurement(cells(inLoad(sheet('para_raio')), 'termografia', { '0/0': celsius(raw) }), 'termografia').rows[0]!.cells[0]!.verdict;
+    expect(['3', '3.1', '15', '15.1'].map(verdict)).toEqual(['within', 'restricted', 'restricted', 'out']);
+  });
+
   it('the bands of both columns at their edges, a negative ΔT within', () => {
     const verdict = (col: number, raw: string) => measurement(cells(inLoad(sheet('para_raio')), 'termografia', { [`0/${col}`]: celsius(raw) }), 'termografia').rows[0]!.cells[col]!.verdict;
     expect(['3', '3.1', '15', '15.1', '-2'].map((raw) => verdict(0, raw))).toEqual(['within', 'restricted', 'restricted', 'out', 'within']);
@@ -356,6 +382,15 @@ describe('23.21-UNIT the Malha de aterramento (Base rev08 AT-01, AT-02)', () => 
     expect(out.rows[0]!.cells[0]).toMatchObject({ verdict: 'out', helperText: 'Acima do aceitável (≤ 5 Ω, padrão sem valor de projeto)' });
     expect(out.notes).toEqual(['Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω.']);
     expect(out.title).toBe('E1 · Resistência de aterramento da malha');
+  });
+
+  it('review fix: the default\'s note is said only on a live test, never on one NA (a copy whose grid test needs MÉTODO DE MEDIÇÃO)', () => {
+    const copy = structuredClone(definitionOf(sheet('malha_aterramento')));
+    const grid = copy.measurement_tests!.find((test) => test.key === 'resistencia_malha')!;
+    expect(evaluateSheetMeasurements(sheet('malha_aterramento'), copy).find((test) => test.testKey === 'resistencia_malha')!.notes).toHaveLength(1);
+    grid.applies_when = { op: 'filled', field: 'metodo_medicao', needs_value: true };
+    const na = evaluateSheetMeasurements(sheet('malha_aterramento'), copy).find((test) => test.testKey === 'resistencia_malha')!;
+    expect([na.applicability.state, na.notes]).toEqual(['na', undefined]);
   });
 
   it('the continuity at most 0,5 Ω (NETA 7.13): 0,6 Ω out, 0,5 Ω within; every point optional', () => {

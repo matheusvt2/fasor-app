@@ -56,9 +56,22 @@ test('@p0 23.18-E2E-001 a v13 TC 0,3S of FATURAMENTO: the notice over a fillable
   const row = judged.test(RATIO).tables[0]!.rows[0]!;
   expect([row.choice!.verdict, row.condicao]).toEqual(['out', 'INSATISFATÓRIO']);
   await expect(testSection(page, RATIO).locator('[data-choice-helper="0"]')).toHaveText(row.choice!.helperText!);
-  expect(judged.floorReason).toMatch(/^A ficha exige no mínimo Reprovado · Com restrições: .*relação de transformação insatisfatória/);
+  // Review fix: the ratio failed by its polarity alone, the reason names the polarity.
+  expect(judged.floorReason).toBe('A ficha exige no mínimo Reprovado · Com restrições: polaridade invertida.');
   const point = derivedPoints(judged.snapshot).find((one) => one.block_id === tc.blockId && one.test_key === RATIO)!;
   expect(point.text).toContain('polaridade invertida em Fase R');
+
+  // At 390 px the ratio rows are cards (`.measurement-card`): Fase S's polarity Invertida there, one cell put, the card's note.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cardS = testSection(page, RATIO).locator('.ficha-cards .measurement-card').nth(1);
+  await expect(cardS.locator('.card-point')).toHaveText('Fase S');
+  await cardS.locator('[data-row-choice="1"]').getByRole('radio', { name: 'Invertida' }).click();
+  await expect.poll(async () => outboxValues(database, page, `sheet/${tc.blockId}/test/${RATIO}/cell/1/${choiceCol}`)).toEqual([{ raw: 'INVERTIDA', unit: null, state: 'measured' }]);
+  const faseS = (await kernelOf(page, database, relatorioId, tc.blockId)).test(RATIO).tables[0]!.rows[1]!;
+  expect(faseS.choice!.verdict).toBe('out');
+  await expect(cardS.locator('.pol-note')).toHaveText(faseS.choice!.helperText!);
+  await page.setViewportSize({ width: 1280, height: 900 });
+
   await openStep(page, relatorioId, tc.blockId, 'Conclusão');
   await expect(page.locator('.conclusion-hint')).toHaveText(judged.floorReason!);
 

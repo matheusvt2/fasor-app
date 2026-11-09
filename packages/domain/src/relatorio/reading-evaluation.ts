@@ -1177,6 +1177,16 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
   return out;
 }
 
+/**
+ * Batch e23e (Story 23.18, review fix): when every failed ratio row fails by its choice alone (a polarity INVERTIDA, no
+ * capture out of its deviation), the choices' texts as the floor's reason and the parecer name the failure ("polaridade
+ * invertida"); null when any row is out by its deviation, or none failed (every v1 to v12 sheet).
+ */
+export function choiceOnlyFailureText(rows: readonly FailedRatioRow[]): string | null {
+  if (rows.length === 0 || !rows.every((row) => row.choiceText !== undefined && row.deviationText === '')) return null;
+  return listPtBr([...new Set(rows.map((row) => row.choiceText!))]);
+}
+
 /** A ratio row's worst out capture's deviation from its VAL CALCULADO, in %. */
 function worstDeviation(row: EvaluatedRow): number {
   const calculated = Number(row.calculated!.raw);

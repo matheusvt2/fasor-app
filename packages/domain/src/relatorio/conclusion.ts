@@ -8,7 +8,7 @@ import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
 import { measurementCells, restrictedMeasurements, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
-import { evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
+import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
@@ -305,8 +305,11 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
 export function conclusionFloorReasonText(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): string | null {
   const floor = conclusionFloor(block, definition, visit);
   if (floor === null || floor.reasons.length === 0) return null;
-  // authored (Story 22.4, open for Bruno): the reason line of the disabled segments.
-  return `A ficha exige no mínimo ${RESULT_WORDS[floor.pair.result]} · ${RESTRICTION_WORDS[floor.pair.restriction]}: ${listPtBr(floor.reasons.map((reason) => FLOOR_REASON_WORDS[reason]))}.`;
+  // Batch e23e (Story 23.18, review fix): a ratio failed by its choice alone (a polarity INVERTIDA) names the choice.
+  const resolved = floor.reasons.includes('ratio') ? definitionOf(block, definition) : null;
+  const choice = resolved === null ? null : choiceOnlyFailureText(failedRatioRows(sheetReadings(block, resolved, visit)));
+  // authored (Story 22.4, open for Bruno): the reason line of the disabled segments; batch e23e (Story 23.18, listed for Bruno): the choice's words.
+  return `A ficha exige no mínimo ${RESULT_WORDS[floor.pair.result]} · ${RESTRICTION_WORDS[floor.pair.restriction]}: ${listPtBr(floor.reasons.map((reason) => (reason === 'ratio' && choice !== null ? choice : FLOOR_REASON_WORDS[reason])))}.`;
 }
 
 /**

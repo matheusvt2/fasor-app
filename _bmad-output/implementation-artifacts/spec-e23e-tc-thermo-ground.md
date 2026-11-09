@@ -2,7 +2,7 @@
 title: 'e23e: test-voltage defaults, TC and TP polarity and function, thermography on the eight types, the Malha de aterramento (Stories 23.13, 23.18, 23.20, 23.21; contract 39)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '9351c73bf0d5e6cedd33c71095c3e2589bcd46d0'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -130,6 +130,18 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-09 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 7 findings — high 0, medium 3, low 4, false 0, maybe-false 0
+- findings:
+  - `[low]` `[patch]` VG: the conflict label of a POLARIDADE cell (`merge/conflicts.ts` `?? choiceHeader`) has no test — added a 23.18 case beside the 22.8 voltage case in `conflicts.test.ts`.
+  - `[medium]` `[patch]` VG: the phone card's polarity Segmented and `.pol-note` (`ensaios-section.tsx`) are never exercised — `e2e/tc-polarity.spec.ts` gains a 390 px step (pick Invertida, outbox put, the note's kernel text).
+  - `[medium]` `[patch]` EC: a ΔT cell stored over range is skipped by `applyBands` (`!judged`), so a hot spot over the camera's range is never judged — judged above every bound (out), with a boundary test.
+  - `[low]` `[reject]` EC: a plate's 5P10/10P10 lands on the v13 option 5P20/10P20 — the spec's I/O row says so (v13 offers only 5P20 and 10P20, judged the same); whether other limit factors need options goes to Bruno as an open question in the PR.
+  - `[low]` `[patch]` EC: the `max_field` default helper is pushed for a test that is off or NA — moved inside `if (live)`, with a unit test.
+  - `[low]` `[reject]` EC: a picked polarity cannot be cleared, only flipped — every polarity row is required, so no answered-by-mistake optional row exists; a clear action would add UI the mock does not draw.
+  - `[medium]` `[patch]` EC: a TC/TP whose ratio rows fail by POLARIDADE alone is named "relação de transformação insatisfatória" by the conclusion and the parecer — named by the choice text ("polaridade invertida") when every failed row fails by its choice alone; a deviation failure keeps today's words; v12 unchanged.
 
 ## Design Notes
 

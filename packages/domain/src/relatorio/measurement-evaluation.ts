@@ -769,10 +769,12 @@ function applyBands(rows: readonly EvaluatedMeasurementRow[], columns: readonly 
   if (column === undefined || column.kind !== 'number') return;
   for (const row of rows) {
     const cell = row.cells[column.col];
-    if (cell === undefined || cell.kind !== 'number' || !judged(cell)) continue;
+    // Review fix: a reading above the instrument's limit ("> 150 °C") is above every bound, the last band's level.
+    const over = cell !== undefined && cell.fixed === null && cell.state === 'over_range';
+    if (cell === undefined || cell.kind !== 'number' || !(judged(cell) || over)) continue;
     const value = scaleToUnit(Number(cell.raw), cell.unit, column.unit ?? cell.unit);
     if (value === null) continue;
-    const at = criterion.bands.findIndex((band) => band.up_to === undefined || roundPct(value) <= band.up_to);
+    const at = over ? criterion.bands.length - 1 : criterion.bands.findIndex((band) => band.up_to === undefined || roundPct(value) <= band.up_to);
     const band = criterion.bands[at === -1 ? criterion.bands.length - 1 : at]!;
     const shown = withUnit(cell.displayText, cell.unit);
     // authored (Story 23.20, listed for Bruno): the reason, the helper's sentence and the out helper of a thermography cell.
@@ -1098,13 +1100,13 @@ function evaluate(
   // Seed v13 (batch e23t, Story 23.15): the values at 75 °C, the temperature line and the material's request.
   const winding = applyWindingCorrection(block, test, rows, context);
   const notes: string[] = [...(winding?.notes ?? [])];
-  // Seed v13, batch e23e (Story 23.21): the default of a maximum read from the plate, said while the field is empty.
-  for (const criterion of criteria) {
-    if (criterion.type !== 'max_field') continue;
-    const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
-    if (byDefault) notes.push(maxFieldDefaultText(context.definition.nameplate.find((field) => field.key === criterion.field)?.label ?? criterion.field, limit.text));
-  }
   if (live) {
+    // Seed v13, batch e23e (Story 23.21): the default of a maximum read from the plate, said while the field is empty (only on a live test).
+    for (const criterion of criteria) {
+      if (criterion.type !== 'max_field') continue;
+      const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
+      if (byDefault) notes.push(maxFieldDefaultText(context.definition.nameplate.find((field) => field.key === criterion.field)?.label ?? criterion.field, limit.text));
+    }
     // Seed v13 (batch e23t, Stories 23.15 and 23.19): a criterion read by medium judges only the medium the oil rule reads.
     const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
     const deviation = criteria.find((criterion) => criterion.type === 'phase_deviation' && (criterion.medium === undefined || criterion.medium === medium)) ?? criteria.find((criterion) => criterion.type === 'phase_deviation');

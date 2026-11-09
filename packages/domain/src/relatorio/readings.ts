@@ -34,7 +34,7 @@ export {
   type ChoiceColumn,
   type EvaluatedChoice,
 } from './reading-cells.ts';
-export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluatedChoices, choiceCellValue, isChoiceCellValue, evaluateSheetReadings, evaluateTest, failedRatioRows, sheetTestSections, type FailedRatioRow, type SheetTestSection, unitDefaultFor } from './reading-evaluation.ts';
+export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluatedChoices, choiceCellValue, choiceOnlyFailureText, isChoiceCellValue, evaluateSheetReadings, evaluateTest, failedRatioRows, sheetTestSections, type FailedRatioRow, type SheetTestSection, unitDefaultFor } from './reading-evaluation.ts';
 // Batch e23a (Stories 23.2 to 23.4): the row's criterion, the manufacturer's value, the instrument-limit note.
 export {
   CRITERION_PER_ROW_TEXT,
