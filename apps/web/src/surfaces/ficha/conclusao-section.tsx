@@ -19,6 +19,7 @@ import {
   sheetObservationsPath,
   suggestedSheetObservation,
   textCapOf,
+  visitContextOf,
   type BlockDefinition,
   type SectionMention,
   type BlockRow,
@@ -274,10 +275,11 @@ export function ConclusaoSection({
    * replaced by the text composed now (`conclusionAdjustWrites`).
    */
   const confirmAdjusted = () =>
-    edit((blocks, by) => {
+    edit((blocks, by, rows) => {
       const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
       if (fresh === undefined) return null;
-      const writes = conclusionAdjustWrites(fresh, definition, tag, visit);
+      // Batch e23v (Stories 23.5 and 23.6): judged under the visit context of the build's fresh rows, as the conclude is.
+      const writes = conclusionAdjustWrites(fresh, definition, tag, visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh));
       if (writes === null) return null;
       return [
         ...(writes.result === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'result', writes.result)]),
@@ -316,12 +318,13 @@ export function ConclusaoSection({
     /** Carry-over F: the basis moved between the draw and the tap, so nothing was written. */
     let moved = false;
     void api
-      .edit((blocks, by) => {
+      .edit((blocks, by, rows) => {
         // The build may run again on fresher rows: only its last run decides.
         moved = false;
         if (status === 'confirmed') {
           const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
-          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis, visit)) moved = true;
+          // Batch e23v (Stories 23.5 and 23.6): the basis recomposed under the visit context of the build's fresh rows.
+          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis, visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh))) moved = true;
           if (fresh === undefined || moved) return null;
         }
         const observationOp = suggestedObservationOp(blocks, by);

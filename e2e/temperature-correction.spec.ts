@@ -15,7 +15,8 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * (25 °C). The person types TEMPERATURA DO ÓLEO 40 °C on the plate and 2 GΩ on the AT row: the line over
  * the table names the oil, the "Corrigido a 20 °C" column reads 8 GΩ and the row is within (raw it would
  * be out). Clearing the plate temperature, the cabine's 25 °C stands in: the line names the ambient and
- * the 2,83 GΩ at 20 °C is out, its helper naming the corrected value. A v13 cable gets no line. The issued
+ * the 2,83 GΩ at 20 °C is out, its helper naming the corrected value; at 390 px the column hides and the
+ * value stands under its reading ("A 20 °C: 2,83 GΩ"). A v13 cable gets no line. The issued
  * DOCX prints TEMPERATURA "25 °C (AMBIENTE)" before ACEITÁVEL and the "20 °C" column inside VALORES.
  * Every expected word is the kernel's over the device's own rows. It issues a revision through the api's
  * one queue and LibreOffice, so it runs in the serial group (`e2e/support/groups.ts`).
@@ -137,6 +138,18 @@ test('@p0 23.5-E2E-001 a v13 oil transformer: 2 GΩ at 40 °C of oil is 8 GΩ at
   await expect(atCell.locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
   await expect(atCell.locator('.mf-helper[role="status"]')).toContainText(ambientAt.helperText!);
   expect(ambientAt.helperText).toBe('Abaixo do aceitável a 20 °C: 2,83 GΩ (≥ 5.000 MΩ)');
+
+  // The phone (390 px): the "Corrigido a 20 °C" column hidden, the value stacked under its reading as the card's line
+  // ("A 20 °C: 2,83 GΩ calc."), the kernel's lead and value.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const stackedLine = section(page).locator(`.corrected-stacked[data-corrected-line="${at!.row}"]`);
+  await expect(stackedLine).toBeVisible();
+  await expect(stackedLine).toContainText(`${ambient.temperature!.cellLead} ${ambientAt.corrected!.text}`);
+  await expect(stackedLine.locator('b.t-value')).toHaveText(ambientAt.corrected!.text);
+  await expect(section(page).locator(`td[data-corrected-cell="${at!.row}"]`)).toBeHidden();
+  await expect(section(page).locator('th[data-corrected-column]')).toBeHidden();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(stackedLine).toBeHidden();
 
   // A v13 cable is never corrected: no line, no column.
   await openEnsaios(page, built.relatorioId, cable.blockId);

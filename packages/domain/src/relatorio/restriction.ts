@@ -143,10 +143,11 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         if (largest !== null && own.value < ((largest.value * rules.below_largest_pct) / 100) * (1 - EPSILON)) findings.push(belowLargestFinding(rules.below_largest_pct, readingRowLabel(rows, largest.row), largest.cell));
       }
       if (own !== undefined && rules.pole_deviation_pct !== undefined) {
-        // The lowest pole is a measured one: a reading above the limit is a lower bound, never the lowest.
-        const measured = readings.filter((reading) => reading.cell.state === 'measured');
+        // The lowest pole is a measured one above zero: a reading above the limit is a lower bound, never the lowest, and a
+        // pole at 0 gives no share to deviate from (review fix: it no longer turns the rule off for the column).
+        const measured = readings.filter((reading) => reading.cell.state === 'measured' && reading.value > 0);
         const lowest = measured.reduce<ColumnReading | null>((best, reading) => (best === null || reading.value < best.value ? reading : best), null);
-        if (lowest !== null && lowest !== own && lowest.value > 0) {
+        if (lowest !== null && lowest !== own) {
           const deviation = ((own.value - lowest.value) / lowest.value) * 100;
           if (deviation > rules.pole_deviation_pct * (1 + EPSILON)) findings.push(poleFinding(rules.pole_deviation_pct, readingRowLabel(rows, lowest.row), lowest.cell));
         }

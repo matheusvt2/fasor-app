@@ -14,8 +14,9 @@ import { TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { addDraftTest, removeDraftEntry } from '../types/draft-edit.ts';
 import { duplicateSeededType } from '../types/duplicate.ts';
 import { validateTypeDraft } from '../types/validate.ts';
-import { composeConclusion, conclusionFloor, conclusionFloorReasonText, effectiveConclusionPair } from './conclusion.ts';
+import { composeConclusion, conclusionFloor, conclusionFloorReasonText, conclusionTextState, effectiveConclusionPair } from './conclusion.ts';
 import { composeParecer, derivedParecer, parecerCounts } from './parecer.ts';
+import { preIssue } from './pre-issue.ts';
 import { evaluateSheetReadings, evaluateTest, worstReadings, type TestEvaluation } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
 import { insulationFactorTo20, temperatureView, testTemperature, windingResistanceTo75 } from './temperature-correction.ts';
@@ -356,6 +357,12 @@ describe('23.14-UNIT contact resistance: the pole deviation over the lowest pole
     expect(verdicts(evaluation(poles('disjuntor_mt', ['40', '60.01', '45']), 'resistencia_contato'))).toEqual(['within', 'restricted', 'within']);
   });
 
+  it('a pole at 0 µΩ is no reference (review fix): over 0, 40 and 70 µΩ the 70 µΩ pole is restricted against 40', () => {
+    const test = evaluation(poles('disjuntor_mt', ['0', '40', '70']), 'resistencia_contato');
+    expect(verdicts(test)).toEqual(['within', 'within', 'restricted']);
+    expect(captures(test)[2]!.restriction!.text).toMatch(/^mais de 50 % acima do menor polo \([^:]+: 40 µΩ\)\. /);
+  });
+
   it('with the manufacturer\'s 60 µΩ the 70 µΩ pole is out and the floor Reprovado (Story 23.3 prevails; out outranks restricted)', () => {
     const block = poles('disjuntor_mt', ['40', '42', '70']);
     block.sheet.test.resistencia_contato = { ...block.sheet.test.resistencia_contato!, criterion_override: cell(measured('60', 'µΩ')) };
@@ -545,6 +552,33 @@ describe('23.5/23.6-UNIT one v13 snapshot whose visit context changes the verdic
       delete block.sheet.nameplate.temperatura_oleo_c;
     });
     expect(Object.values(blockReadings(cold, definitionOf(tf), visitContextOf(bare, cold))).some((reading) => 'corrected' in reading)).toBe(false);
+  });
+
+  it('pre-issue (review fix): a concluded sheet whose confirmed text was composed under its visit context reads neither stale nor unconfirmed', () => {
+    const snapshot = v13Snapshot();
+    cabineOfSnapshot(snapshot).env.temperature_c = measured('40', '°C');
+    // The plate's oil temperature cleared (the cabine's 40 °C stands in), the AT row at 2 GΩ (out raw), the TTR left empty.
+    const judged = editBlock(snapshot, 'transformador_forca', (block) => {
+      delete block.sheet.nameplate.temperatura_oleo_c;
+      delete block.sheet.test.relacao_transformacao;
+      block.sheet.test.isolacao!.cells['0']!['1'] = cell(measured('2', 'GΩ'));
+      block.sheet.conclusion.result = cell('aprovado');
+      block.sheet.conclusion.restriction = cell('com_restricoes');
+    });
+    const definition = definitionOf(judged);
+    const tag = snapshot.equipment.find((row) => row.id === judged.equipment_id)!.tag;
+    const composed = composeConclusion(judged, definition, tag, visitContextOf(snapshot, judged));
+    // Concluded with that text confirmed, as the conclude writes it.
+    const tf = editBlock(snapshot, 'transformador_forca', (block) => {
+      block.sheet.conclusion.text = cell(composed.text);
+      block.sheet.conclusion.text_status = cell('confirmed');
+      block.sheet.conclusion.text_basis = cell(composed.basis);
+      block.concluded_by = { actor_id: id(90), at: '2026-11-09T12:00:00.000Z' };
+    });
+    // Judged raw, the same text would read stale (the raw floor is Reprovado).
+    expect(conclusionTextState(tf, composeConclusion(tf, definition, tag))).toBe('stale');
+    expect(conclusionTextState(tf, composeConclusion(tf, definition, tag, visitContextOf(snapshot, tf)))).toBe('confirmed');
+    expect(preIssue(snapshot).filter((row) => row.kind === 'conclusion_stale' || row.kind === 'conclusion_unconfirmed')).toEqual([]);
   });
 });
 

@@ -2,7 +2,7 @@
 title: 'e23v: temperature correction, three levels and the previous visit judging, contact pole deviation (Stories 23.5, 23.6, 23.14; contract 36)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '41454a6b7f541e6a472847854f2dda0f53b0b59b'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'One verdict level (epic-23-context.md "Why these groupings"): 23.5 gives the corrected value 23.6 judges and compares, and 23.14 pole rule is the level first consumer; one seed delta, one contract (36), one review, one gate.'
-deferred: []
+deferred:
+  - summary: >-
+      The parecer names an arrester Reprovado only by its failed prerequisite (DESLIGADOR ÍNTEGRO NÃO) in the reasonless group, as if the engineer had chosen Reprovado.
+    evidence: |-
+      parecer.ts groups Reprovado sheets by ratio, out reading and defect; a prerequisite failure is none of them and lands in byReason.other ("Reprovado (PR-1)."). A fix needs a new reason group, an authored word and a parecer-basis key present only when used.
+    location: >-
+      packages/domain/src/relatorio/parecer.ts:341-347
+    severity: medium
+  - summary: >-
+      The transformer's insulation table with the 20 °C column prints at 7,5 pt, not the 8 pt of the approved frame.
+    evidence: |-
+      fittedColumns measures 61,6 em at 8 pt against READING_FIT_WIDTH_EM 60; the batch left e22g's rule as is and pinned 7,5 pt (three-levels.test.ts). Matheus decides: accept 7,5 pt, or a rule change for v13.
+    location: >-
+      packages/domain/src/print/section-9.ts fittedColumns
+    severity: medium
 ---
 
 <intent-contract>
@@ -137,5 +151,21 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-09 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 11 findings — high 0, medium 7, low 3, false 1, maybe-false 0
+- findings:
+  - `[low]` `[patch]` conclusao-section `confirmAdjusted` writes from the render-time visit context — rebuilt from the build's fresh rows.
+  - `[low]` `[patch]` conclusao-section `confirmText` basis guard under the render-time context — rebuilt from the build's fresh rows.
+  - `[low]` `[patch]` pole deviation: a lowest pole of 0 disables the rule for the column — reference is the lowest positive measured pole, boundary test added.
+  - `[medium]` `[defer]` parecer names a prerequisite-only Reprovado in the reasonless group — needs a reason group, an authored word and a basis key; deferred (frontmatter, ledger).
+  - `[false]` `[reject]` ensaios-section row one td short when the corrected capture cell is undefined — every evaluated row carries a cell for every typed column (`evaluateTable` loops over `typedColumns`), so the cell is never undefined there.
+  - `[medium]` `[defer]` the TF table prints at 7,5 pt, not the approved 8 pt — the 60 em rule's own measure; a decision for Matheus (frontmatter, ledger).
+  - `[medium]` `[patch]` (gap) the conclude batch under the visit context untested — use-ficha-actions test added.
+  - `[medium]` `[patch]` (gap) the conflict view's composed conclusion under the context untested — conflicts test added.
+  - `[medium]` `[patch]` (gap) pre-issue stale/unconfirmed rows under the context untested — pre-issue test added.
+  - `[medium]` `[patch]` (gap) `pointDraftValue` with origin `restricao` unpinned — test line added.
+  - `[medium]` `[patch]` (gap) the 390 px stacked corrected line untested — e2e step added.
 
 ## Auto Run Result
