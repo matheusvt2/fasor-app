@@ -2,10 +2,10 @@
 title: 'e23b: seed v13 nameplate fields, the TTR per tap, applicability from the nameplate (Stories 23.7, 23.8, 23.9; contract 35)'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: '5f86c8215957dae2a72ac290fa78c4308a3f0dee'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: max
 context:
@@ -178,3 +178,14 @@ deferred:
 - `pnpm test:unit` -- green, including `seed.test.ts` pins and the new kernel tests.
 - `pnpm test:api` (api restarted first) -- green; layout-lock and Porto Seguro goldens unchanged.
 - `pnpm exec tsx scripts/e2e.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` under `lockf -t 20000 /tmp/fasor-verify.lock` -- green; durability specs touched also on the matrix projects.
+
+## Auto Run Result
+
+Status: done (2026-11-09). Branch `e23b-nameplate-applicability`, stacked on `027d916c`; main `17127590` (e23a, PR #286) merged in at `73762e5e`.
+
+- **Summary.** Story 23.7: decision K's v13 nameplate fields (fenced `e23b` section of `seed/v13.ts`), list and "N/√3" parsing, "200-5", prompt `bedrock-structuring-6`, seven synthetic v13 plates. Story 23.8: the TTR's rows from TAPS keyed by the tap in V, marks, off-plate rows, the fold's row check, previous-visit slots per tap. Story 23.9: `applies_when` and `initial_off` on both grammars, the NA state and its reason in every reader but the screen, the override `sheet/{b}/test/{k}/applicability` (contract 35, MIN 35) with its single-cell conflict, the screen bands.
+- **Files.** Kernel: `seed/{schema,measurement,v13,template}.ts`, `parse/pt-br-number.ts`, `relatorio/{tap-rows,applicability,reading-evaluation,reading-cells,reading-run,oil-rule,ficha}.ts`, `ops/{path,apply,value-limits}.ts`, `merge/conflicts.ts`, `print/{section-9,section-11,last-results}.ts`, `types/*`, `contract/version.ts`. Web: `ficha-fields.tsx`, `tap-atual-field.tsx`, `nameplate-section.tsx`, `ensaios-section.tsx`, `measurement-test-section.tsx`, `applicability-band.tsx`, `app.css`, `copy/pt-br.ts`. API: `providers/bedrock.ts`, `make-plate-fixtures.ts`, fixtures, `bedrock-eval.ts`, sync and reading integration tests. E2E: three new specs, fifteen edited.
+- **Review.** One pass, 17 findings: 11 patched, 3 deferred (frontmatter `deferred`, ledger rows), 2 rejected (the one-tap plate: the spec's own I/O row, the field takes N/A; the NA test's old cells in `enabledCells`: rare, needs a definition context in sheet-state).
+- **Follow-up review recommended: true.** Four medium entries were patched (tap rows in `last_results`, the NA switch, the `rows_from` refine, `numberOf` over a pair and a list) plus the TAP ATUAL picker; none was re-reviewed. The integrated review reads the PR's "Patched, not re-reviewed" list first.
+- **Verification** on the merge `73762e5e`, under the host lock: lint 0, static 0, test:api 924 passed / 6 skipped, test:unit 5815 of 5815, the 38 touched specs of both batches 194 of 195 (the one red, 23.9-E2E-001, counted e23a's manufacturer field as a cell; locator fixed, re-run below), matrix durability specs 41 passed / 1 skipped. No golden file differs from main.
+- **Residual risks.** The paid eval of prompt 6 is not run (before the deploy). Thirteen tests stay pinned to v12 and the 32 specs that never name these types ran only in the wave gate. An offline reading on a removed tap is refused when it syncs.
