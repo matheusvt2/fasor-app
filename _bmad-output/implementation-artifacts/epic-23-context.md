@@ -249,11 +249,31 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
 
 ### Wave 0 (Story 23.1)
 
-*(Filled by the coordinator.)*
+~~*(Filled by the coordinator.)*~~ *(2026-11-09, coordinator.)* Story 23.1 is frames only (PR #284 merged as `e519f91d`, approval recorded in PR #285 as `a3b0ec0e`). It changed no code, so no gate ran.
 
 ### Wave 1
 
-*(Filled by the coordinator.)*
+~~*(Filled by the coordinator.)*~~ *(2026-11-09, coordinator.)*
+
+- **Merges.**
+  - e23a, PR #286, head `b133f017`, merged as `17127590` (contract 34).
+  - e23b, PR #287, head `70c97c2e`, merged as `6be0a5ec` (contract 35).
+  - The cross-batch rule held: e23b merged main `17127590` in at `73762e5e` and re-pinned `V13_HASH` to `b7f5cfb3…`. It then ran both batches' 38 touched specs, 194 of 195. The red was 23.9-E2E-001, which counted e23a's manufacturer field as a reading cell. With its locator fixed it passed 1 of 1. The matrix durability specs gave 41 passed and 1 skipped.
+  - Before each merge, `git diff --name-status` over the golden and fixture trees showed additions only: the new layout-lock-v5/v11/v12 goldens. The Porto Seguro goldens are untouched.
+- **Integrated gate** on `6be0a5ec`, after `podman compose up -d` and `podman compose restart api web`.
+  - Lock wait 0 s. Load `{ 2.97 3.48 4.02 }` at the start and `{ 5.33 5.02 4.40 }` at the end. Nothing else ran on the host: both batch stacks were stopped, and the second review pass was a code read with no stack.
+  - `pnpm test:e2e:full` ran 2530 s. The parallel group had 456 tests: 451 passed, 1 failed, 4 skipped. The serial group passed 171 of 171.
+  - The red was `@p1` 1.6-E2E-001 (`home.spec.ts:220`): the Sumário did not draw within the 30 s test timeout after the slowed stream pull. This is the same load-bound state recorded in `spec-e20w-web-conforme-search-relink.md`.
+  - The red re-ran alone under the lock with `--repeat-each 3` at load 4.06 to 4.35 and passed 3 of 3. It is counted under E15-A4 with both runs recorded.
+  - `pnpm test:e2e:matrix` ran 667 s and passed: 149 passed, 16 skipped, 0 failed.
+  - `pnpm test:e2e` (`@p0`) was not run separately; `test:e2e:full` runs every `@p0` test.
+- **Integrated review.**
+  - The second pass, a code read over both batches' "patched, not re-reviewed" lists and the e23a/e23b seams, found 4 defects:
+    - R2-1, medium: the display reading drops values on v13 tap rows.
+    - R2-2, medium: `removeDraftEntry` leaves dangling e23b references on a company type.
+    - R2-3, low: the vector-group missing count includes optional and off-plate taps.
+    - R2-4, low: the web counts plate taps itself.
+  - All four go to fix batch e23g. The behavior pass runs in parallel with e23g, and its findings join e23g.
 
 ### Wave 2
 
