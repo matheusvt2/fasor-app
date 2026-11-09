@@ -72,6 +72,7 @@ the thermo-hygrometer has no block type and the table key `env`.
 | plate | `tc` | - | `images/plate-tc.png` |
 | plate | `chave_transferencia_automatica` | - | `images/plate-chave-transferencia-automatica.png` |
 | plate | `quadro_eletrico` | - | `images/plate-quadro-eletrico.png` |
+| plate | `malha_aterramento` | - | `images/plate-malha-aterramento.png` (batch e23e, seed v13) |
 | display | `transformador_forca` | `isolacao` | `display-tres-valores.jpg` (1,20 / 1,45 / 1,80 GΩ: only 1 MINUTO is suggested) |
 | display | any | `isolacao` | `display-isolacao.jpg` (147 GΩ) |
 | display | any | `resistencia_contato` | `display-microhmimetro.jpg` (87 µΩ, read at 0.17: Verificar) |
@@ -271,3 +272,16 @@ they are no block type's default: their fixtures replay only for a photo of thei
 
 The default transformer plate (`plate-transformador.jpg`) keeps replaying on a v13 block: its
 `tap_atual` is dropped `unknown_key` there (v13 reads TAPS and a numeric TAP ATUAL), as since Story 23.7.
+
+## The two seed v13 plates of batch e23e (Stories 23.18 and 23.21)
+
+Two 1200 x 900 PNGs in `images/`, made by `make-plate-fixtures.ts tc_funcao_v13 malha_aterramento`.
+The TC's is no block type's default: its fixture replays only for a photo of its own bytes (it is in
+`bedrock-eval.ts`'s synthetic set, not run by this batch). The Malha de aterramento's is that type's
+default (`kinds/plate.ts`), so "Fotografar placa" on a Malha sheet reads it under the `fake` providers
+(`e2e/plate-every-type.spec.ts`).
+
+| Image | Fixture | Values |
+|---|---|---|
+| `plate-tc-funcao-v13.png` | `83e1fc2c...json` | identificacao `TC-04`; fabricacao `Velquor`; relacao `300-5 A`; exatidao `0,3S` (the kernel lands it on the v13 option `0,3S`; on v12, `0,3`); funcao_tc `FATURAMENTO` |
+| `plate-malha-aterramento.png` | `c4f1e667...json` | valor_projeto_ohm `{raw: 2, unit: Ω}`; metodo_medicao `QUEDA DE POTENCIAL (62 %)`; condicao_solo `ÚMIDO` |

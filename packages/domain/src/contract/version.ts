@@ -439,7 +439,22 @@
  * bytes they shipped with and a row written before 38 parses to the same bytes. MIN follows to 38
  * (below).
  */
-export const CONTRACT_VERSION = 38;
+/*
+ * 39 (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e; 38 is batch e23t's, merged
+ * first): seed v13's thermography on the eight types and the two tests of the new library type
+ * Malha de aterramento, whose keys are appended to `SUB_BLOCK_KEYS` (`termografia`,
+ * `resistencia_malha`, `continuidade_malha`), and the type itself, appended to
+ * `EQUIPMENT_BLOCK_TYPES` (`malha_aterramento`), so a `block/{id}/config` naming them, a block create
+ * of the type and a `sheet/{b}/test/{k}/cell` or `/value` put on them parse only from 39 on (the
+ * fold refuses the type's block on a v1 to v12 relatório, which ships no definition of it); a
+ * seeded table column gains the role `choice` with `fails_on` (the TC's and TP's POLARIDADE, a
+ * `{raw: option, unit: null, state: 'measured'}` cell the fold takes only with one of its options
+ * or null), a table gains `voltage_default`, a test `notice_when` and `print_note`; the measurement
+ * grammar gains the criteria `bands` and `max_field` and an `applies_when` over a value of the test.
+ * The seed and company schemas gain optional keys only, so v1 to v12 parse to the bytes they shipped
+ * with and a row written before 39 parses to the same bytes. MIN follows to 39 (below).
+ */
+export const CONTRACT_VERSION = 39;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -690,7 +705,17 @@ export const CONTRACT_VERSION = 38;
  * sampling or fuse test, no typed IP and no TIPO (ANP) rule where the server prints them, and judge
  * a transformer IP the server judges. Its pull answers `426 contract_outdated` and it updates.
  */
-export const MIN_CONTRACT_VERSION = 38;
+/*
+ * 39 (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e): a version-38 (or older)
+ * bundle's `blockConfigSchema` refuses a config naming `termografia`, `resistencia_malha` or
+ * `continuidade_malha`, and its block schema a `malha_aterramento` block, so a pulled page carrying
+ * any v13 block create fails whole (`invalid_response`), the precedent of 35, 36 and 38; and it
+ * cannot judge a v13 sheet as the server's kernel does: it would read a polarity INVERTIDA as no
+ * answer (no Reprovado floor, no point), show no thermography, start every insulation row at the
+ * instrument's voltage where the server prints decision D's default, and judge a 0,3S TC at the
+ * seeded ± 0,5 %. Its pull answers `426 contract_outdated` and it updates.
+ */
+export const MIN_CONTRACT_VERSION = 39;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

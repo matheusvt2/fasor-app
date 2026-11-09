@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { BASE_EQUIPMENT_BLOCK_TYPES, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, getDefinition, initialOrderKey, isLibraryType, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, getDefinition, accuracyClassOption, initialOrderKey, isLibraryType, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -75,8 +75,8 @@ function keptValues(type: string, values: readonly FixtureValue[]): FixtureValue
     const field = fields.find((candidate) => candidate.key === value.key);
     if (field === undefined) return false;
     if (field.key !== 'exatidao' || field.kind !== 'select') return true;
-    const cls = parseAccuracyClass(value.value);
-    return cls !== null && field.options!.includes(cls);
+    // Batch e23e (Story 23.18, seed v13): the class lands on the version's option ("10P" on v13's "10P20"), the kernel's one rule.
+    return accuracyClassOption(field.options!, parseAccuracyClass(value.value)) !== null;
   });
 }
 
@@ -157,6 +157,8 @@ const LIBRARY_PLATES: Record<string, string> = {
   quadro_eletrico: resolve(FIXTURES, 'images/plate-quadro-eletrico.png'),
   // Story 22.11 (seed v12): the Inspeção de QGBT replays the Quadro elétrico's plate (`kinds/plate.ts`).
   inspecao_qgbt: resolve(FIXTURES, 'images/plate-quadro-eletrico.png'),
+  // Batch e23e (Story 23.21, seed v13): the Malha de aterramento's design data (`kinds/plate.ts`).
+  malha_aterramento: resolve(FIXTURES, 'images/plate-malha-aterramento.png'),
 };
 const LIBRARY_TYPES = equipmentTypesOf(SEED_VERSION).filter((type) => isLibraryType(SEED_VERSION, type));
 

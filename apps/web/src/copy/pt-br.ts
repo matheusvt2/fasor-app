@@ -489,6 +489,11 @@ export const copy = {
       resistencia_enrolamento: 'Resistência ôhmica dos enrolamentos',
       coleta_oleo: 'Coleta de óleo',
       resistencia_fusiveis: 'Resistência dos fusíveis HH',
+      // Batch e23e (seed v13, Stories 23.20 and 23.21): the thermography of the eight (no number) and the two tests of the
+      // Malha de aterramento, a library type (numbered, as the CTA's), as the kernel titles them.
+      termografia: 'Termografia',
+      resistencia_malha: 'E1 · Resistência de aterramento da malha',
+      continuidade_malha: 'E2 · Continuidade e equipotencialização',
     },
     // Story 3.6: the section text editor, a Form dialog from the section card's Overflow.
     editText: 'Editar texto',
@@ -550,6 +555,8 @@ export const copy = {
       quadro_eletrico: 'Quadro elétrico (QGBT/QD)',
       // Story 22.11 (seed v12): the third library type, the seed's label. authored (Story 22.11, listed for Bruno)
       inspecao_qgbt: 'Inspeção de QGBT',
+      // Story 23.21 (seed v13): the fourth library type, the seed's label. authored (Story 23.21, listed for Bruno)
+      malha_aterramento: 'Malha de aterramento',
     },
   },
   // Story 14.7 (`41-templates.html` § Tipos de equipamento): the list's static words. Every
@@ -1641,6 +1648,8 @@ export const copy = {
       samplingHelper: 'Só registra a coleta; a análise do óleo é do laboratório.',
       samplingReasonHelper: 'Não coletado não muda a conclusão da ficha.',
       samplingReasonGroup: 'Motivo da não coleta',
+      // authored (Story 23.20, listed for Bruno): the thermography's action that opens the sheet camera with the test's context.
+      thermalPhoto: 'Foto térmica',
     },
     // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
     // sheet Observation field and the Generated text field.

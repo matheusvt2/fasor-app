@@ -45,6 +45,7 @@ describe('4.1-UNIT suggestTag', () => {
       'chave_transferencia_automatica',
       'disjuntor_mt',
       'inspecao_qgbt',
+      'malha_aterramento',
       'para_raio',
       'quadro_eletrico',
       'tc',

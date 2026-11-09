@@ -25,13 +25,16 @@ import {
   ratioGroupOf,
   RATIO_POWER,
   readingLabelText,
+  readingRowLabel,
   readStored,
   sentenceCase,
   shiftDecimal,
   storedCell,
   unitsOf,
   type CellAddress,
+  type ChoiceColumn,
   type EvaluatedCell,
+  type EvaluatedChoice,
   type EvaluatedRow,
   type EvaluatedTable,
   type ManufacturerValue,
@@ -317,7 +320,7 @@ function kvRawToVolts(raw: string): number {
  * V or kV; a two-level "380/220" reads its higher side, `ratedVoltsOf`), or a voltage class ("15",
  * "13,8", in kV); null when empty, not a positive number, or a field of another kind.
  */
-function plateVolts(definition: BlockDefinition, block: Pick<BlockRow, 'sheet'>, key: string): number | null {
+export function plateVolts(definition: Pick<BlockDefinition, 'nameplate'>, block: Pick<BlockRow, 'sheet'>, key: string): number | null {
   const field = definition.nameplate.find((candidate) => candidate.key === key);
   const value = block.sheet.nameplate[key]?.value;
   if (field === undefined || value === null || value === undefined) return null;
@@ -677,8 +680,8 @@ function evaluateTable(
   const columns: VisibleColumn[] = [];
   const derived = table.value_columns.flatMap((c, i) => (c.role === 'derived' ? [i] : []));
   table.value_columns.forEach((column, col) => {
-    // Story 22.8: the voltage column is the table's `voltageColumn`, never a value column.
-    if (column.role === 'print' || column.role === 'voltage') return;
+    // Story 22.8: the voltage column is the table's `voltageColumn`, never a value column; batch e23e (Story 23.18): the choice column its `choiceColumn`.
+    if (column.role === 'print' || column.role === 'voltage' || column.role === 'choice') return;
     const label = labelOf(column, col);
     columns.push({
       col,
@@ -691,6 +694,8 @@ function evaluateTable(
   });
   const typed = typedColumns(table);
   const inputs = typed.filter(({ column }) => column.role === 'input');
+  // Seed v13, batch e23e (Story 23.18): the table's choice column, never a typed reading column.
+  const choiceColumn = choiceColumnView(table);
   // Story 23.8 (seed v13): a `rows_from` table's rows are the plate's taps (`tap-rows.ts`); null keeps the seeded rows (v1 to v12).
   const plan = tapRowsOf(block, definition, table, test.key);
   const listUnit = plan === null ? null : (definition.nameplate.find((field) => field.key === table.rows_from)?.unit ?? null);
@@ -828,14 +833,18 @@ function evaluateTable(
       if (captures.some((cell) => cell.verdict === 'out')) condicao = 'INSATISFATÓRIO';
       else if (captures.every((cell) => cell.verdict === 'within' || cell.verdict === 'restricted')) condicao = 'SATISFATÓRIO';
     }
+    // Seed v13, batch e23e (Story 23.18): the row's choice cell (POLARIDADE); an option that fails puts the row out.
+    const choice = choiceColumn === null ? null : evaluateChoice(block, test.key, row, choiceColumn, required);
+    if (choice !== null && choice.verdict === 'out') condicao = 'INSATISFATÓRIO';
+    const withChoice = <T extends EvaluatedRow>(evaluatedRow: T): T => (choice === null ? evaluatedRow : { ...evaluatedRow, choice });
     // F42: a typed connection the seed leaves blank (TAP Nº) reads the plate's TAP ATUAL as typed.
     // Story 23.8: a tap row's TAP Nº is its position on the plate; a tap no longer on it shows none.
     if (tap !== null && tapPrimary !== null) {
       const position = tap.position === null ? '' : String(tap.position);
-      return { row, connection: connection.map(() => position), label: tapRowLabel(tap), cells, calculated, condicao, voltage: null, tap };
+      return withChoice({ row, connection: connection.map(() => position), label: tapRowLabel(tap), cells, calculated, condicao, voltage: null, tap });
     }
     const shown = connection.map((text) => (table.connection_typed && text.trim() === '' ? (nameplateTap(block) ?? '') : readingLabelText(text)));
-    const evaluated: EvaluatedRow = { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row), tap };
+    const evaluated: EvaluatedRow = withChoice({ row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row, definition), tap });
     if (own !== null) {
       evaluated.criterion = own.criterion;
       evaluated.criterionText = own.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(own.criterion);
@@ -879,7 +888,71 @@ function evaluateTable(
     vectorGroup: group?.code ?? null,
     groupMissing,
     voltageColumn: voltageColumnView(table),
+    ...(choiceColumn === null ? {} : { choiceColumn }),
   };
+}
+
+// --- e23e: Story 23.18 (the choice column, seed v13) ---------------------------------------------
+
+/** Story 23.18: a table's choice column as the sheet draws it, or null (every table of v1 to v12). */
+function choiceColumnView(table: TableDef): ChoiceColumn | null {
+  const col = table.value_columns.findIndex((column) => column.role === 'choice');
+  const column = col === -1 ? undefined : table.value_columns[col];
+  if (column === undefined) return null;
+  const fails = column.fails_on ?? [];
+  return { col, label: column.label, header: headerText(column.label), options: (column.options ?? []).map((value) => ({ value, label: readingLabelText(value), fails: fails.includes(value) })) };
+}
+
+/** Story 23.18: the value a choice cell's put stores for `option` (the shape the measurement grammar's choices share). */
+export function choiceCellValue(option: string): { raw: string; unit: null; state: 'measured' } {
+  return { raw: option, unit: null, state: 'measured' };
+}
+
+/** Story 23.18: the option a stored choice cell holds, or null (empty, or an option the column does not hold). */
+function storedChoice(value: unknown, options: readonly string[]): string | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const cell = value as { raw?: unknown; state?: unknown };
+  return cell.state === 'measured' && typeof cell.raw === 'string' && options.includes(cell.raw) ? cell.raw : null;
+}
+
+/**
+ * Story 23.18: whether a stored value is one a choice column takes: null (the clear) or exactly one
+ * of its options as `choiceCellValue` stores it. The fold refuses any other put on the column.
+ */
+export function isChoiceCellValue(value: unknown, options: readonly string[]): boolean {
+  if (value === null) return true;
+  if (typeof value !== 'object' || Array.isArray(value)) return false;
+  const cell = value as Record<string, unknown>;
+  return Object.keys(cell).length === 3 && cell.unit === null && storedChoice(value, options) !== null;
+}
+
+/** Story 23.18: one row's choice cell, judged by the column's `fails_on`; missing while empty on a required row. */
+function evaluateChoice(block: BlockRow, testKey: TestKey, row: number, column: ChoiceColumn, required: boolean): EvaluatedChoice {
+  const raw = storedChoice(storedCell(block, { testKey, row, col: column.col })?.value, column.options.map((option) => option.value));
+  const option = raw === null ? undefined : column.options.find((candidate) => candidate.value === raw);
+  if (option === undefined) return { col: column.col, raw: '', displayText: '—', verdict: null, missing: required, helperText: null, outText: null };
+  if (!option.fails) return { col: column.col, raw: option.value, displayText: option.label, verdict: 'within', missing: false, helperText: null, outText: null };
+  const text = `${column.header} ${option.label.toLocaleLowerCase('pt-BR')}`;
+  // authored (Story 23.18, from the mock `60-ficha.html` #/ficha/TP-C16): the helper under a row whose polarity fails.
+  return { col: column.col, raw: option.value, displayText: option.label, verdict: 'out', missing: false, helperText: `${text}: a ficha fica Reprovado e gera um ponto de atenção.`, outText: text.toLocaleLowerCase('pt-BR') };
+}
+
+/** Story 23.18: the choice cells out of a test's tables, as the conclusion and the points name them ("Fase R", "polaridade invertida"). */
+function choiceOutOf(tables: readonly EvaluatedTable[]): NonNullable<TestEvaluation['choiceOut']> {
+  return tables.flatMap((table) => table.rows.flatMap((row) => (row.choice?.verdict === 'out' && row.choice.outText !== null ? [{ where: readingRowLabel(table.rows, row) || row.label, text: row.choice.outText }] : [])));
+}
+
+/** Story 23.18: every choice cell of the evaluations, in test, table and row order. */
+export function evaluatedChoices(evaluations: readonly TestEvaluation[]): EvaluatedChoice[] {
+  return evaluations.flatMap((test) => test.tables.flatMap((table) => table.rows.flatMap((row) => (row.choice === undefined ? [] : [row.choice]))));
+}
+
+/** Story 23.18 (`notice_when`): the test's notice while the plate's select holds one of its values, else null. */
+function noticeOf(block: BlockRow, test: TestDef): string | null {
+  const notice = test.notice_when;
+  if (notice === undefined) return null;
+  const value = block.sheet.nameplate[notice.field]?.value;
+  return typeof value === 'string' && notice.values.includes(value) ? notice.text : null;
 }
 
 /** Story 22.8: a table's voltage column as the sheet draws it, or null (no voltage column). */
@@ -994,6 +1067,10 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
   if (test.polarization_index !== undefined) evaluation.indexOut = indexOutOf(test, tables);
   // Fix batch e23w (W2-3): a rule flags a reading now out, so a stored `restricao` point does not read resolved.
   if (judging.stands?.value === true) evaluation.restrictionStands = true;
+  // Seed v13, batch e23e (Story 23.18): the choice cells out, the plate's notice and the print note.
+  if (tables.some((table) => table.choiceColumn !== undefined)) evaluation.choiceOut = choiceOutOf(tables);
+  if (test.notice_when !== undefined) evaluation.notice = noticeOf(block, test);
+  if (test.print_note !== undefined) evaluation.printNote = test.print_note;
   return evaluation;
 }
 
@@ -1059,8 +1136,10 @@ export interface FailedRatioRow {
   testKey: 'relacao_transformacao';
   /** The row's name as a person reads it: "Fase R"; on a typed TAP table "TAP 5", or "TAP" when blank. */
   label: string;
-  /** The worst out capture's deviation from VAL CALCULADO, as `worstReadings` prints it ("4,17 %"). */
+  /** The worst out capture's deviation from VAL CALCULADO, as `worstReadings` prints it ("4,17 %"); batch e23e: '' on a row failed by its choice alone. */
   deviationText: string;
+  /** Batch e23e (Story 23.18): the row's failed choice ("polaridade invertida"); absent on a row it does not fail. */
+  choiceText?: string;
 }
 
 /**
@@ -1078,20 +1157,34 @@ export function failedRatioRows(evaluations: readonly TestEvaluation[]): FailedR
       // A typed TAP connection (the transformer) reads "TAP 5", or "TAP" alone when blank.
       const tap = table.connectionHeaders[0]?.toUpperCase().startsWith('TAP') === true;
       for (const [index, row] of table.rows.entries()) {
-        if (row.condicao !== 'INSATISFATÓRIO' || row.calculated === null) continue;
+        // Batch e23e (Story 23.18): a row failed by its choice (a polarity INVERTIDA) fails with or without VAL CALCULADO.
+        const choiceText = row.choice?.verdict === 'out' ? (row.choice.outText ?? undefined) : undefined;
+        if (row.condicao !== 'INSATISFATÓRIO' || (row.calculated === null && choiceText === undefined)) continue;
+        const deviationText = row.calculated !== null && row.cells.some((cell) => cell.role === 'capture' && cell.verdict === 'out') ? `${formatDeviation(worstDeviation(row))} %` : '';
+        const extra = choiceText === undefined ? {} : { choiceText };
         // Story 23.8: a tap row is named by its tap ("TAP 3", "TAP 13,2 kV").
         if (row.tap !== null) {
-          out.push({ testKey: 'relacao_transformacao', label: tapFailedRowLabel(row.tap), deviationText: `${formatDeviation(worstDeviation(row))} %` });
+          out.push({ testKey: 'relacao_transformacao', label: tapFailedRowLabel(row.tap), deviationText, ...extra });
           continue;
         }
         // authored (fx17r, R5): a connection row with no label is named by its 1-based position in its table
         const blank = row.label.trim() === '';
         const label = tap ? (blank ? 'TAP' : `TAP ${row.label}`) : blank ? `Linha ${index + 1}` : row.label;
-        out.push({ testKey: 'relacao_transformacao', label, deviationText: `${formatDeviation(worstDeviation(row))} %` });
+        out.push({ testKey: 'relacao_transformacao', label, deviationText, ...extra });
       }
     }
   }
   return out;
+}
+
+/**
+ * Batch e23e (Story 23.18, review fix): when every failed ratio row fails by its choice alone (a polarity INVERTIDA, no
+ * capture out of its deviation), the choices' texts as the floor's reason and the parecer name the failure ("polaridade
+ * invertida"); null when any row is out by its deviation, or none failed (every v1 to v12 sheet).
+ */
+export function choiceOnlyFailureText(rows: readonly FailedRatioRow[]): string | null {
+  if (rows.length === 0 || !rows.every((row) => row.choiceText !== undefined && row.deviationText === '')) return null;
+  return listPtBr([...new Set(rows.map((row) => row.choiceText!))]);
 }
 
 /** A ratio row's worst out capture's deviation from its VAL CALCULADO, in %. */

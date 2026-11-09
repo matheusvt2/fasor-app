@@ -5,7 +5,7 @@ import { join, relative, resolve } from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 import sharp from 'sharp';
-import { digitCoverage, EQUIPMENT_BLOCK_TYPES, getDefinition, inTokenOrder, normalizeReadingValue, PANEL_FIELDS, readingValueText, SEED_VERSION } from '@app/domain';
+import { digitCoverage, EQUIPMENT_BLOCK_TYPES, findDefinition, getDefinition, inTokenOrder, normalizeReadingValue, PANEL_FIELDS, readingValueText, SEED_VERSION } from '@app/domain';
 import {
   DEFAULT_FIXTURE_BY_BLOCK_TYPE,
   DEFAULT_FIXTURES_DIR,
@@ -199,7 +199,8 @@ describe('E78-Q2 the fake falls back to the block type\'s default fixture', () =
 describe('13.7-API every block type with a nameplate has its plate default', () => {
   const NO_FIXTURE = 'e'.repeat(64);
   const nameplateTypes = EQUIPMENT_BLOCK_TYPES.filter((type) => getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate.length > 0);
-  const nameplateTypesV12 = EQUIPMENT_BLOCK_TYPES.filter((type) => getDefinition('v12', 'cabine_primaria', type).nameplate.length > 0);
+  // Batch e23e: a type v12 does not ship (the Malha de aterramento) has no v12 nameplate.
+  const nameplateTypesV12 = EQUIPMENT_BLOCK_TYPES.filter((type) => (findDefinition('v12', type)?.nameplate.length ?? 0) > 0);
   const IMAGE_OF: Record<string, string> = {
     para_raio: 'plate-para-raio.png',
     chave_seccionadora: 'plate-chave-seccionadora.png',
@@ -212,6 +213,8 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     quadro_eletrico: 'plate-quadro-eletrico.png',
     // Story 22.11: the library type of seed v12 replays the Quadro elétrico's plate.
     inspecao_qgbt: 'plate-quadro-eletrico.png',
+    // Batch e23e (Story 23.21): the library type of seed v13, its design data.
+    malha_aterramento: 'plate-malha-aterramento.png',
   };
   /**
    * e22s: the synthetic plates were laid out on seed v11 (v12 adds TIPO DO ÓLEO and the TP's EXATIDÃO,
@@ -220,12 +223,13 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
    */
   const PLATE_SEED = 'v11';
 
-  it('the plate defaults are exactly the nine nameplate types, and no cable type', () => {
+  it('the plate defaults are exactly the nine nameplate types and the Malha de aterramento, and no cable type', () => {
     // Story 23.7 (seed v13): the cables gain a nameplate on v13, and no default (the defaults stay as
-    // they were): the nine are the types with a nameplate on v12, the defaults' version.
+    // they were): the nine are the types with a nameplate on v12, the defaults' version. Batch e23e
+    // (Story 23.21): the Malha de aterramento, new on v13, gains its own.
     expect(nameplateTypesV12).toHaveLength(9);
-    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypesV12].sort());
-    expect(nameplateTypes.filter((type) => !nameplateTypesV12.includes(type))).toEqual(['cabos_entrada', 'cabos_saida']);
+    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypesV12, 'malha_aterramento'].sort());
+    expect(nameplateTypes.filter((type) => !nameplateTypesV12.includes(type))).toEqual(['cabos_entrada', 'cabos_saida', 'malha_aterramento']);
     for (const cable of ['cabos_entrada', 'cabos_saida']) {
       expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
       expect(defaultFixtureFor(plate(cable))).toBeUndefined();

@@ -257,6 +257,13 @@ const SCREEN_FORMS: Record<string, string> = {
   'TIPO (ANP)': 'Tipo (ANP)',
   'DESLOCAMENTO ANGULAR': 'Deslocamento angular',
   'Inspeção de QGBT': 'Inspeção de QGBT',
+  // Batch e23e (Stories 23.18 and 23.21, seed v13).
+  POLARIDADE: 'Polaridade',
+  'FUNÇÃO DO TC': 'Função do TC',
+  'Malha de aterramento': 'Malha de aterramento',
+  'VALOR DE PROJETO': 'Valor de projeto',
+  'MÉTODO DE MEDIÇÃO': 'Método de medição',
+  'CONDIÇÃO DO SOLO': 'Condição do solo',
 };
 
 /** Every label of every shipped seed version that renders on screen. */

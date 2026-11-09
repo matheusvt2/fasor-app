@@ -58,6 +58,45 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
 }
 
 /**
+ * Batch e23e (Story 23.20, seed v13): the thermography's "Foto térmica", the sheet's burst camera
+ * opened from the test, so each shot is a sheet photo born with the test's context caption
+ * (`contextCaption` names the thermography) and prints in the sheet's photo block (FR-68). No new
+ * photo kind and no reading job.
+ */
+export function ThermalPhotoButton({ relatorioId, target }: { relatorioId: string; target: () => CaptureTarget }) {
+  const opener = useRef<HTMLButtonElement>(null);
+  const camera = useCamera(relatorioId, target, opener);
+  const deniedId = useId();
+  useAriaBusy(opener, camera.opening);
+  return (
+    <>
+      <AriaButton
+        ref={opener}
+        className="read-display-btn"
+        data-telemetry="ficha.thermal_photo"
+        data-thermal-photo=""
+        data-count={camera.burst > 0 ? String(camera.burst) : ''}
+        aria-describedby={camera.denied ? deniedId : undefined}
+        data-state={camera.opening ? 'opening' : undefined}
+        onPress={camera.open}
+      >
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-camera" />
+        </svg>
+        {copy.ficha.measurement.thermalPhoto}
+      </AriaButton>
+      <CameraOpeningStatus opening={camera.opening} />
+      {camera.denied ? (
+        <p className="camera-denied" id={deniedId} role="status">
+          {copy.photos.denied}
+        </p>
+      ) : null}
+      {camera.element}
+    </>
+  );
+}
+
+/**
  * Story 8.2 (`60-ficha.html` nameplate "empty" state): the "Fotografar placa" tile above the
  * nameplate fields. The camera opens straight away and closes by itself after one shot; the
  * shot is a normal sheet photo created with the plate reading (`target().reading`). A

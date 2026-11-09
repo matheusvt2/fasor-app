@@ -9,7 +9,7 @@ import { chosenConclusionPair, effectiveConclusionPair } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { measurementCounts } from './measurement-evaluation.ts';
 import { oilDerivedNaKeysUnder, oilRuleOf } from './oil-rule.ts';
-import { evaluatedCells } from './readings.ts';
+import { evaluatedCells, evaluatedChoices } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { tapRowRequired } from './tap-rows.ts';
@@ -216,9 +216,11 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   const groupMissing = !enabled.has('nameplate')
     ? 0
     : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.filter((row) => tapRowRequired(row)).length : 0), 0), 0);
+  // Seed v13, batch e23e (Story 23.18): a row's choice cell (POLARIDADE) counts missing while empty and out when it fails.
+  const choices = evaluatedChoices(evaluations);
   return {
-    missing: cells.filter((cell) => cell.missing).length + groupMissing + measurements.missing,
-    outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit,
+    missing: cells.filter((cell) => cell.missing).length + groupMissing + measurements.missing + choices.filter((choice) => choice.missing).length,
+    outOfLimit: cells.filter((cell) => cell.verdict === 'out').length + measurements.outOfLimit + choices.filter((choice) => choice.verdict === 'out').length,
     ...(groupMissing > 0 ? { group: groupMissing } : {}),
   };
 }

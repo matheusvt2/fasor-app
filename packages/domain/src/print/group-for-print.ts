@@ -304,6 +304,17 @@ function afterFullQuadros(outros: readonly TreeEquipmentNode[]): TreeEquipmentNo
 }
 
 /**
+ * Story 23.21 (seed v13, batch e23e; M-6): the "Outros equipamentos" of a run with the Malha de
+ * aterramento sheets after every other sheet of the group (the run's other library and company
+ * types), each keeping its tree order; a run with no Malha is unchanged.
+ */
+function malhasLast(outros: readonly TreeEquipmentNode[]): TreeEquipmentNode[] {
+  const malhas = outros.filter((node) => node.blockType === 'malha_aterramento');
+  if (malhas.length === 0) return [...outros];
+  return [...outros.filter((node) => node.blockType !== 'malha_aterramento'), ...malhas];
+}
+
+/**
  * One run of a flagged cabine (all of its sheets, its direct run, or one coluna of a painel)
  * split into the fixed type groups, an empty group skipped. The direct run's titles carry the
  * cabine's name (`base.title`), FO.SERV-03's own; a coluna's run names the coluna, the painel
@@ -360,7 +371,7 @@ function byType(
     disjuntores: disjuntores.map((node) => node.blockId),
     tps_tcs: tpTcPairs(tpsTcs),
     transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
-    outros: afterFullQuadros(outros).map((node) => node.blockId),
+    outros: malhasLast(afterFullQuadros(outros)).map((node) => node.blockId),
   };
   const titleOf = (words: string): string => {
     if (painel === null) return `${words} ${ofCabine(base.title)}`;
