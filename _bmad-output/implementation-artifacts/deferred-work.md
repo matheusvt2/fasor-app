@@ -3408,6 +3408,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/relatorio/accuracy-class.ts` `accuracyClassOption`; `packages/domain/src/seed/v13.ts` (the TC's classes).
   class: decision
   state: open (owner: Bruno)
+
 ## Deferred from: Epic 23 batch e23x (2026-11-09)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (Design Notes, narrowing)

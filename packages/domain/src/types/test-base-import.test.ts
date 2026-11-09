@@ -212,6 +212,34 @@ describe('Story 23.12: the plan over a company with no copies', () => {
     }
   });
 
+  it('after e23e (Stories 23.20, 23.21): GE-01 lands on the termografia of every FO.SERV-03 copy, AT-01 and AT-02 on the malha copy', () => {
+    const ge = rowOf(file, 'GE-01');
+    const eight = ['transformador_forca', 'disjuntor_mt', 'chave_seccionadora', 'tc', 'tp', 'para_raio', 'cabos_entrada', 'cabos_saida'];
+    for (const blockType of eight) {
+      const copies = plan.copies.filter((copy) => copy.blockType === blockType);
+      expect(copies.length, blockType).toBeGreaterThan(0);
+      for (const copy of copies) {
+        expect(copy.rows, copy.label).toContainEqual({ rowId: 'GE-01', testKey: 'termografia' });
+        const test = testOf(copy.duplicate.draft, 'termografia')!;
+        expect(test.recommendation, copy.label).toBe(ge.recomendacao_reprovado);
+        expect((test.help as { procedure?: string }).procedure, copy.label).toBe(ge.procedimento);
+      }
+    }
+    expect(plan.unattached).not.toContain('GE-01');
+    const malha = plan.copies.filter((copy) => copy.equipmentId === 'AT');
+    expect(malha.map((copy) => copy.blockType)).toEqual(['malha_aterramento']);
+    expect(malha[0]!.label).toBe('Malha de aterramento (AT)');
+    expect(malha[0]!.publishable).toBe(true);
+    for (const [rowId, testKey] of [['AT-01', 'resistencia_malha'], ['AT-02', 'continuidade_malha']] as const) {
+      const row = rowOf(file, rowId);
+      expect(malha[0]!.rows).toContainEqual({ rowId, testKey });
+      const test = testOf(malha[0]!.duplicate.draft, testKey)!;
+      expect(test.recommendation, rowId).toBe(row.recomendacao_reprovado);
+      expect((test.help as { procedure?: string }).procedure, rowId).toBe(row.procedimento);
+      expect(plan.unattached).not.toContain(rowId);
+    }
+  });
+
   it('derives the preview, the toast and the invalid-file line', () => {
     const preview = testBaseImportPreviewText(plan);
     expect(preview).toMatch(new RegExp(`^Cria ${plan.copies.length} tipos da empresa, com os textos de \\d+ ensaios: `));
