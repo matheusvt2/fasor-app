@@ -3398,3 +3398,8 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: every `// authored (Story 23.12, listed for Bruno)` in `packages/domain/src/types/test-base-import.ts` and `apps/web/src/copy/pt-br.ts`.
   class: decision
   state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (review EC6, EC15)
+  summary: a company that already imported the base never gets texts for tests a later seed adds: a held copy (same seeded source and name, not removed) is skipped, never updated, so a re-import cannot refresh it without overwriting the office's edits. Updating held copies is a product choice.
+  evidence: `packages/domain/src/types/test-base-import.ts` `alreadyHeld`, `planTestBaseImport`.
+  class: decision
+  state: open (owner: Matheus; harmless for the first production import, which runs after the single v13 deploy with e23e's tests)
