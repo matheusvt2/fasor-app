@@ -3217,3 +3217,8 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: the three test files.
   class: defect
   state: closed (2026-11-08, batch e23a)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23a-criteria-tables.md` (review fix loop, item 7c)
+  summary: A v13 table whose rows pick different minimums prints a per-row ACEITÁVEL column; beside MANUT. ANTERIOR the transformer's insulation table has 11 columns and broke every word at the 7 pt floor, so those per-row tables alone may shrink to 6,5 and 6 pt (`PER_ROW_TEXT_STEPS_HALF_POINTS`). v1 to v12 tables keep their steps (layout lock green). 6 pt print needs an OK, or another layout (for example the row minimums in the header, or a line under the table).
+  evidence: `packages/domain/src/print/section-9.ts` `PER_ROW_TEXT_STEPS_HALF_POINTS`; `print/criteria-tables-print.test.ts` "e23a review fixes: the band test, the previous visit".
+  class: decision
+  state: open (owner: Matheus, with Bruno)

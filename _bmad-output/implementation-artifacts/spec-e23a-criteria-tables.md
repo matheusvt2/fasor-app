@@ -2,7 +2,7 @@
 title: 'e23a: criteria as data: seed v13, the NETA tables, the manufacturer value, the instrument limit (Stories 23.2, 23.3, 23.4; contract 34)'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b112e55d7e2e9175fd46a05182ecdd3b262ff0a7'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -146,3 +146,7 @@ deferred: []
 - `pnpm test:unit` and `pnpm test:api` -- green; layout-lock and Porto Seguro goldens unchanged.
 - Touched specs under the host lock (`lockf -t 20000 /tmp/fasor-verify.lock`): `pnpm exec tsx scripts/e2e.ts e2e/manufacturer-value.spec.ts e2e/criteria-tables.spec.ts e2e/over-range.spec.ts e2e/over-range.durability.spec.ts e2e/seed-v12.spec.ts e2e/ficha.spec.ts e2e/points-derived.spec.ts e2e/conflicts.spec.ts e2e/merge.spec.ts e2e/oil-dry.spec.ts e2e/dry-transformer.durability.spec.ts e2e/sheet-knows-12-3-12-4.spec.ts e2e/journeys-12-3-12-4.spec.ts e2e/journey-taps.spec.ts e2e/review-field-defects.spec.ts e2e/review-field-defects-2.spec.ts e2e/review-layout-interaction-2026-10-08.spec.ts e2e/plate.spec.ts e2e/plate-units-years.spec.ts e2e/keyboard-salvo.spec.ts e2e/company-type-sheet.spec.ts e2e/company-type.durability.spec.ts e2e/type-editor.spec.ts e2e/previous-visit.spec.ts e2e/document-pages.spec.ts e2e/review-concluir-text.spec.ts e2e/suggestions.spec.ts --project desktop-chrome --project durability-desktop-chrome`.
 - Durability specs touched by a live query on the ficha (`over-range.durability`, `dry-transformer.durability`, `ficha.durability`) also on `pnpm test:e2e:matrix` with the spec paths.
+
+## Auto Run Result
+
+Status: done. Story gate green on `606e92f0`: lint, static, test:api 918/6 skipped, test:unit 5732/5732, touched specs 157/157, matrix durability 33/33. Lock wait 0 s; load 3.30 at the start, 4.79 at the end. One review loop: 10 patched, 2 rejected. Open: the 6 pt per-row print, the v13-only fold refusal, and the authored wordings (ledger, Epic 23 batch e23a).
