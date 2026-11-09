@@ -6468,6 +6468,8 @@ So that the relatório follows the standard he signs against, not one number for
 - v5 to v12 TPs are unchanged, and the layout-lock and Porto Seguro goldens stay byte-equal.
 - Tests: kernel tests for SECA, ÓLEO and empty; a Playwright spec that fills a v13 TP plate, checks the helper and the verdict, and reads the row's minimum in section 9 of the DOCX.
 
+*(2026-11-09, built as fix batch e23w (B-4; PR on branch `e23w-wave2-fixes`, no contract): the v13 TP takes the TC's Table 100.5 key (`voltage: tensao_nominal_at`, `medium: oil_rule`); its TIPO DE ISOLAÇÃO was already on the v13 TP (EPÓXI, Á SECO, ÓLEO MINERAL, required, since v12) and is now pinned. Narrowing: an AT typed "N/√3" is judged by N, the class voltage, never N/√3. `V13_HASH` re-pinned. Also W2-K2 (Story 23.5's print): TEMPERATURA already printed in the instrument header row, so the delta was the fit: the "20 °C" column is measured outside the 60 em budget and the transformer's table prints at 8 pt; every table without that column fits as before, and the layout-lock and Porto Seguro goldens are byte-equal.)*
+
 ### Story 23.3: The manufacturer's value on each test, optional (absorbs Story 14.13; contract 34)
 
 **Dev model:** opus · **Effort:** high · one optional "Valor do fabricante" per test of a sheet over the existing `criterion_override` path; the kernel names its source as the manufacturer's; empty, the table or seeded criterion applies; screen control from Story 23.1; print of the manufacturer's value in ACEITÁVEL
@@ -6691,6 +6693,8 @@ So that the relatório flags what the standard calls an investigation case.
 - The spine's AD-25 note.
 - The `source-deltas.md` row.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*(2026-11-09, fix batch e23w, the wave 2 review's W2-1 to W2-3 and W2-K1: visits in `last_results` are ordered by first issue. A re-issue of A after B was issued over it reads no previous visit (the visit before A is no longer stored; a later one is never taken), and its `last_results` put keeps B on top with A's re-issue as B's `prior`; a re-issue over an unrelated top issued after A's first issue writes nothing. Narrowing: with two later visits over A the chain cannot tell and A's re-issue reads the top as before (a deeper chain needs a projection shape change, `deferred-work.md`). The arrester's failed disconnector prerequisite fails the sheet whatever its test's switch or applicability (`failedPrerequisites`), and the parecer names such a sheet "por pré-requisito do ensaio não atendido". A stored `restricao` point is not "Origem resolvida" while a rule still flags a reading of its test, even one now out (`restrictionStands`). Open, Matheus with Bruno: the prerequisite also fails a sheet whose nameplate sub-block is switched off.)*
 
 ### Story 23.7: Seed v13 nameplate fields (decision K; contract 35)
 
@@ -7065,6 +7069,8 @@ So that a contact starting to degrade shows up before it fails.
 - No previous value for that pole, or a previous visit on v12, means no judgement. A pole at or below 0 is never a reference.
 - The pole-deviation restriction stays. A pole that is both restricted and out is out.
 - Tests: kernel tests for a rise over, at and under 50 %, a missing previous pole, and a v12 previous visit; a Playwright spec with two visits of one disjuntor where the second reads more than 50 % higher and the section 9 verdict and the point show Reprovado.
+
+*(2026-11-09, built as fix batch e23w (B-6, no contract): the restriction key `history_rise_out_pct: 50` on the v13 disjuntor's and seccionadora's contact test; a measured pole within its criterion more than 50 % above the same pole's measured value at the previous visit (issued on v13 or later, the visit `VisitContext` gives after the W2-1 ordering) is out, before the pole-deviation rule, so a pole both risen and deviating is out. `last_results` already carried each pole. Narrowings: a reading above the instrument's limit on either visit judges nothing; the rule's status stays the restriction's CONFIRMADO (one status per restriction). Authored for Bruno: "alta de {N} % sobre {valor} da manutenção anterior, rev. {n} de {dd/mm/aaaa}, acima do limite de {pct} %" (the point's and the conclusion's reason, the rise rounded up to one decimal) and the helper "Acima do aceitável: {motivo}".)*
 
 ### Story 23.15: Winding resistance on the transformer
 

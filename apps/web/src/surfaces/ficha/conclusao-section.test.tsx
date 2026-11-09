@@ -1,4 +1,19 @@
-import { composeConclusion, defaultBlockConfig, emptySheet, getDefinition, NO_VISIT_CONTEXT, TEXT_CAPS, type BlockRow, type Cell, type OpDraft, type Sheet } from '@app/domain';
+import {
+  cellAddressesOf,
+  composeConclusion,
+  conclusionFloor,
+  defaultBlockConfig,
+  emptySheet,
+  getDefinition,
+  NO_VISIT_CONTEXT,
+  TEXT_CAPS,
+  visitContextOf,
+  type BlockRow,
+  type Cell,
+  type LocationRow,
+  type OpDraft,
+  type Sheet,
+} from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -198,6 +213,102 @@ describe('e22f S1: "Confirmar" under "Conclusão ajustada pela ficha"', () => {
     expect(ops.map((op) => [op.path.split('/').slice(-1)[0], op.value])).toEqual([
       ['result', 'reprovado'],
       ['restriction', 'com_restricoes'],
+    ]);
+  });
+});
+
+describe('e23w W2-4: both confirms judge a v13 sheet under the visit context of the build\'s rows', () => {
+  /*
+   * A v13 disjuntor (no TENSÃO NOMINAL: the seeded > 400 MΩ) whose 600 MΩ reading is within raw and out at 20 °C at the
+   * cabine's 5 °C (solid factor 2^((5 - 20)/15) = 0,5: 300 MΩ). Mutation run (recorded in the batch's report): each test
+   * fails when its confirm reads `NO_VISIT_CONTEXT` instead of `visitContextOf(rows, fresh)`.
+   */
+  const DJ = getDefinition('v13', 'cabine_primaria', 'disjuntor_mt');
+  const CABINE = '019966b0-0052-7000-8000-000000000003';
+  const cabine: LocationRow = {
+    id: CABINE,
+    relatorio_id: ID,
+    parent_id: null,
+    kind: 'cabine',
+    name: 'Cabine A',
+    order_key: 'a0',
+    removed_at: null,
+    se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+    env: { altitude_m: null, temperature_c: { raw: '5', unit: '°C', state: 'measured' }, humidity_pct: null },
+    agrupar_por_tipo: false,
+  };
+  const rows = { blocks: [], locations: [cabine], allLocations: [cabine], equipment: [] };
+  const at = cellAddressesOf(DJ, 'isolacao').find((address) => DJ.tests.find((test) => test.key === 'isolacao')!.tables[0]!.value_columns[address.col]!.role === 'capture')!;
+  const disjuntor = (conclusion: Partial<Sheet['conclusion']>): BlockRow => ({
+    ...block({}),
+    block_type: 'disjuntor_mt',
+    seed_version: 'v13',
+    location_id: CABINE,
+    config: defaultBlockConfig('v13', 'disjuntor_mt'),
+    sheet: { ...emptySheet(), test: { isolacao: { cells: { [String(at.row)]: { [String(at.col)]: measured('600', 'MΩ') } } } }, conclusion: { ...emptySheet().conclusion, ...conclusion } },
+  });
+
+  function renderDisjuntor(shown: BlockRow) {
+    const builds: Build[] = [];
+    const api: FichaApi = {
+      relatorioId: ID,
+      projectId: ID,
+      blockId: ID,
+      author: AUTHOR,
+      commit: vi.fn(async () => undefined),
+      edit: vi.fn(async (build: Build) => {
+        builds.push(build);
+        return null;
+      }),
+      undoable: vi.fn(),
+      announce: vi.fn(),
+    };
+    render(
+      <ToastProvider>
+        <ConclusaoSection api={api} block={shown} definition={DJ} tag="DJ-01" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} visit={visitContextOf(rows, shown)} />
+      </ToastProvider>,
+    );
+    return builds;
+  }
+
+  it('"Confirmar" of "Conclusão ajustada" writes the floor the corrected reading gives (Reprovado · Com restrições) and the text composed under the context', async () => {
+    cleanup();
+    const within = disjuntor({});
+    // Concluded Aprovado · Sem restrições with the text composed before the ambient was typed (raw: within).
+    const composedRaw = composeConclusion(within, DJ, 'DJ-01');
+    const shown = disjuntor({ ...pair, text: cell(composedRaw.text), text_status: cell('confirmed'), text_basis: cell(composedRaw.basis) });
+    const visit = visitContextOf(rows, shown);
+    expect(conclusionFloor(shown, DJ, visit)!.pair).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
+    expect(conclusionFloor(shown, DJ, NO_VISIT_CONTEXT)!.pair).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    const builds = renderDisjuntor(shown);
+    const confirm = document.querySelector<HTMLButtonElement>('.conclusion-hint[role="status"] button')!;
+    expect(confirm.closest('.conclusion-hint')).toHaveTextContent('Conclusão ajustada pela ficha');
+    await userEvent.click(confirm);
+    const ops = builds.at(-1)!([shown], AUTHOR, rows) ?? [];
+    const now = composeConclusion(shown, DJ, 'DJ-01', visit);
+    expect(now.text).toContain('a 20 °C');
+    expect(ops.map((op) => [op.path.split('/').slice(-1)[0], op.value])).toEqual([
+      ['result', 'reprovado'],
+      ['restriction', 'com_restricoes'],
+      ['text', now.text],
+      ['text_status', 'confirmed'],
+      ['text_basis', now.basis],
+    ]);
+  });
+
+  it('"Confirmar" of the text writes the text and the basis composed under the context (judged at 20 °C)', async () => {
+    cleanup();
+    const shown = disjuntor({ result: cell('reprovado'), restriction: cell('com_restricoes') });
+    const visit = visitContextOf(rows, shown);
+    const builds = renderDisjuntor(shown);
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    const ops = builds.at(-1)!([shown], AUTHOR, rows) ?? [];
+    const composed = composeConclusion(shown, DJ, 'DJ-01', visit);
+    expect(composed.basis).not.toBe(composeConclusion(shown, DJ, 'DJ-01').basis);
+    expect(ops.map((op) => [op.path.split('/').slice(-1)[0], op.value])).toEqual([
+      ['text', composed.text],
+      ['text_status', 'confirmed'],
+      ['text_basis', composed.basis],
     ]);
   });
 });

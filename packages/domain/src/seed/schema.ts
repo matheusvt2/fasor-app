@@ -271,10 +271,12 @@ export const restrictionSchema = z
     history_drop_pct: restrictionPct.optional(),
     below_largest_pct: restrictionPct.optional(),
     pole_deviation_pct: restrictionPct.optional(),
+    // Fix batch e23w (B-6): see `testDefSchema.restriction`.
+    history_rise_out_pct: restrictionPct.optional(),
     prerequisite: z.object({ field: seedKey, fails_on: z.array(z.string().min(1)).min(1) }).optional(),
     status: criterionRowStatusSchema,
   })
-  .refine((r) => r.history_drop_pct !== undefined || r.below_largest_pct !== undefined || r.pole_deviation_pct !== undefined || r.prerequisite !== undefined, {
+  .refine((r) => r.history_drop_pct !== undefined || r.below_largest_pct !== undefined || r.pole_deviation_pct !== undefined || r.history_rise_out_pct !== undefined || r.prerequisite !== undefined, {
     message: 'a restriction names at least one rule',
   });
 export type RestrictionRules = z.infer<typeof restrictionSchema>;
@@ -356,7 +358,10 @@ export const testDefSchema = z.object({
    * below that share of the largest other row of its table and column (CB-02 between phases, PR-02
    * against the largest unit); `pole_deviation_pct` one above the lowest row of its table and
    * column by more than it (DJ-03, SC-03, NETA MTS-2023 7.6.3 and 7.5.1); `prerequisite` a select of
-   * the plate whose `fails_on` values fail the test whatever its readings (PR-02's disconnector).
+   * the plate whose `fails_on` values fail the test whatever its readings (PR-02's disconnector);
+   * fix batch e23w (Bruno's answer B-6, DJ-03, SC-03): `history_rise_out_pct` puts out a measured
+   * reading more than that share above the same cell's previous measured value (the previous
+   * visit on seed v13 or later), the one rule here that sets out rather than restricted.
    * `status` is the base's status of the rule (`CRITERION_ROW_STATUSES`, data only).
    */
   restriction: restrictionSchema.optional(),

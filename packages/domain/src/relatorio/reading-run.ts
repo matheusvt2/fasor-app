@@ -137,6 +137,12 @@ export interface WorstReading {
   verdict: ReadingVerdict | null;
   /** e22g (review N2): set when the worst reading is a limit the instrument passed ("> 2 TΩ"). */
   overRange?: true;
+  /**
+   * Fix batch e23w (B-6): set when the worst reading is out by its rise since the previous visit
+   * (`EvaluatedCell.rise`): its reason, which the conclusion and the points name instead of the
+   * criterion it meets.
+   */
+  rise?: string;
 }
 
 function whereOf(table: EvaluatedTable, row: EvaluatedRow, cell: EvaluatedCell): string {
@@ -199,6 +205,7 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
                 where: whereOf(table, row, cell),
                 verdict: cell.verdict,
                 ...(cell.state === 'over_range' ? { overRange: true as const } : {}),
+                ...(cell.rise === undefined ? {} : { rise: cell.rise.reason }),
               },
             };
           }

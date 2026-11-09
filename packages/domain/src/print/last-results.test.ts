@@ -21,6 +21,7 @@ import {
   readingAddressKey,
   readingSlotsOf,
 } from './last-results.ts';
+import { withoutPrior } from './reading-slots.ts';
 import { section9Layout, withPreviousColumn, type PrintSheet, type PrintTable } from './section-9.ts';
 
 /*
@@ -205,6 +206,42 @@ describe('22.12-UNIT the projection an issue writes (lastResults)', () => {
     const readings = blockReadings(b, getDefinition('v5', 'cabine_primaria', 'chave_transferencia_automatica'));
     expect(readings[`${E2}|a_t|normal_fechada`]).toEqual(measured('12.4', 'GΩ'));
     expect(b.equipment_id).toBe(CTA_EQUIPMENT);
+  });
+});
+
+describe('e23w-UNIT W2-1 visits ordered by first issue (lastResults, previousResultsFor)', () => {
+  const cabos = sheet(1, 'cabos_saida', { isolacao: { '0/1': measured('4.9', 'GΩ') } });
+  const block = cabos.block;
+  const strip = (entry: LastResults) => withoutPrior(entry);
+  // A (RELATORIO_A) issued first over nothing, then B (RELATORIO_C) issued over A.
+  const B_OVER_A: LastResults = { ...ENTRY_A, relatorio_id: RELATORIO_C, issued_at: '2026-10-20T12:00:00.000Z', prior: strip(ENTRY_A) };
+
+  it('read: top this relatório reads its prior; a later top whose prior is this one reads none; an unrelated top reads as before', () => {
+    expect(previousResultsFor({ last_results: { ...B_OVER_A, relatorio_id: RELATORIO_A, prior: strip(ENTRY_A) } }, block, RELATORIO_A)).toMatchObject({ relatorio_id: RELATORIO_A });
+    expect(previousResultsFor({ last_results: B_OVER_A }, block, RELATORIO_A)).toBeNull();
+    expect(previousResultsFor({ last_results: B_OVER_A }, block, RELATORIO_B)).toMatchObject({ relatorio_id: RELATORIO_C });
+    expect(previousResultsFor({ last_results: { ...B_OVER_A, prior: null } }, block, RELATORIO_A)).toMatchObject({ relatorio_id: RELATORIO_C });
+  });
+
+  it('write: issuing A while B (whose prior is A) is on top keeps B on top and refreshes its prior with A\'s new entry', () => {
+    const [entry] = lastResults(snapshotOf([withLast(cabos, B_OVER_A)], RELATORIO_A), { revisionNumber: 2, issuedAt: '2026-10-25T12:00:00.000Z', firstIssuedAt: ISSUED_A });
+    expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_C, revision_number: 1, issued_at: '2026-10-20T12:00:00.000Z' });
+    expect(entry!.value.prior).toEqual({ relatorio_id: RELATORIO_A, revision_number: 2, issued_at: '2026-10-25T12:00:00.000Z', seed_version: 'v1', block_type: 'cabos_saida', readings: { [CABOS_KEY('FASE A')]: measured('4.9', 'GΩ') } });
+    expect((entry!.value.prior as Record<string, unknown>).prior).toBeUndefined();
+    expect(lastResultsSchema.parse(entry!.value)).toEqual(entry!.value);
+  });
+
+  it('write: a re-issue of A over an unrelated later visit writes nothing for that equipment; one issued before A\'s first issue is replaced', () => {
+    const later: LastResults = { ...B_OVER_A, prior: null };
+    expect(lastResults(snapshotOf([withLast(cabos, later)], RELATORIO_A), { revisionNumber: 2, issuedAt: '2026-10-25T12:00:00.000Z', firstIssuedAt: ISSUED_A })).toEqual([]);
+    const earlier: LastResults = { ...later, issued_at: '2026-10-01T12:00:00.000Z' };
+    const [entry] = lastResults(snapshotOf([withLast(cabos, earlier)], RELATORIO_A), { revisionNumber: 2, issuedAt: '2026-10-25T12:00:00.000Z', firstIssuedAt: ISSUED_A });
+    expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_A, revision_number: 2, prior: { relatorio_id: RELATORIO_C } });
+  });
+
+  it('write: a first issue of A over B puts A on top with prior B, as before (whatever B\'s instant)', () => {
+    const [entry] = lastResults(snapshotOf([withLast(cabos, { ...B_OVER_A, prior: null })], RELATORIO_A), { revisionNumber: 1, issuedAt: ISSUED_A, firstIssuedAt: ISSUED_A });
+    expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_A, revision_number: 1, prior: { relatorio_id: RELATORIO_C } });
   });
 });
 

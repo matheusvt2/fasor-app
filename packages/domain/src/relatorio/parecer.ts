@@ -12,6 +12,7 @@ import { effectiveConclusionPair } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
 import { measurementCells } from './measurement-evaluation.ts';
 import { evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
+import { failedPrerequisites } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { sectionRefText } from './section-position.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
@@ -282,6 +283,9 @@ export interface ComposedParecer {
 const REPROVADO_REASONS = {
   ratio: 'relação de transformação insatisfatória',
   reading: 'leituras fora do critério de aceitação',
+  // authored (e23w, listed for Bruno): a sheet reprovada only by a test's failed prerequisite, the floor's word
+  // (`FLOOR_REASON_WORDS.prerequisite`, W2-K1), repeated here: the parecer loads before the conclusion in the import order.
+  prerequisite: 'pré-requisito do ensaio não atendido',
   defect: 'defeito no equipamento',
   other: 'outro motivo',
 } as const;
@@ -338,11 +342,13 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   const ratio = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id)).map(({ name }) => name);
   const outOthers = sheets.filter(({ block, definition, visit }) => !reprovadoSet.has(block.id) && outReading(block, definition, visit)).map(({ name }) => name);
   const ratioIds = new Set(ratioSheets.map(({ block }) => block.id));
-  const byReason = { ratio: [] as string[], reading: [] as string[], defect: [] as string[], other: [] as string[] };
+  const byReason = { ratio: [] as string[], reading: [] as string[], prerequisite: [] as string[], defect: [] as string[], other: [] as string[] };
   for (const { block, definition, name, visit } of sheets) {
     if (!reprovadoSet.has(block.id)) continue;
     if (ratioIds.has(block.id)) byReason.ratio.push(name);
     else if (outReading(block, definition, visit)) byReason.reading.push(name);
+    // Fix batch e23w (W2-K1, seed v13): reprovada by a failed prerequisite (the arrester's disconnector) and by no ratio or reading.
+    else if (block.not_tested === null && definition !== null && failedPrerequisites(block, definition).length > 0) byReason.prerequisite.push(name);
     else if (block.not_tested !== null && isDefectReason(block.seed_version, block.not_tested.reason)) byReason.defect.push(name);
     else byReason.other.push(name);
   }
@@ -421,8 +427,17 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
       ...(reprovados.length > 0 ? { reprovado: reprovados } : {}),
       ...(outOthers.length > 0 ? { outReadings: outOthers } : {}),
       // e22g N4: the defect group joins the basis only where it holds a sheet, so a basis written before keeps its bytes.
-      ...(byReason.ratio.length + byReason.reading.length + byReason.defect.length > 0
-        ? { reprovadoBy: byReason.defect.length > 0 ? byReason : { ratio: byReason.ratio, reading: byReason.reading, other: byReason.other } }
+      // Fix batch e23w (W2-K1): the prerequisite group likewise, so every basis written before keeps its bytes.
+      ...(byReason.ratio.length + byReason.reading.length + byReason.prerequisite.length + byReason.defect.length > 0
+        ? {
+            reprovadoBy: {
+              ratio: byReason.ratio,
+              reading: byReason.reading,
+              ...(byReason.prerequisite.length > 0 ? { prerequisite: byReason.prerequisite } : {}),
+              ...(byReason.defect.length > 0 ? { defect: byReason.defect } : {}),
+              other: byReason.other,
+            },
+          }
         : {}),
     }),
   );

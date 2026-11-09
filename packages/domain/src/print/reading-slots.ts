@@ -90,10 +90,17 @@ export function withoutPrior(entry: LastResults): PreviousResults {
  * The previous visit a sheet of relatório `relatorioId` reads: the equipment's entry when another
  * relatório left it, else (this relatório re-issued) its `prior`; null with none, or when the
  * entry is of another block type than the sheet's (the equipment changed type).
+ *
+ * Fix batch e23w (W2-1, AD-25 order rule): visits are ordered by first issue, and only the chain
+ * says which came first. When the top entry is a later relatório whose `prior` is this one (this
+ * relatório re-issued after another was issued over it), the visit before this one is no longer
+ * stored and a later one is never taken: no previous visit. A top entry unrelated to this
+ * relatório by its chain reads as before (the chain cannot tell).
  */
 export function previousResultsFor(equipment: Pick<EquipmentRow, 'last_results'> | null | undefined, block: Pick<BlockRow, 'block_type'>, relatorioId: string): PreviousResults | null {
   const top = equipment?.last_results ?? null;
   if (top === null) return null;
+  if (top.relatorio_id !== relatorioId && top.prior?.relatorio_id === relatorioId) return null;
   const entry = top.relatorio_id !== relatorioId ? withoutPrior(top) : top.prior;
   if (entry === null || entry.block_type !== block.block_type) return null;
   return entry;

@@ -9,6 +9,7 @@ import { listPtBr } from '../text/plural.ts';
 import { measurementCells, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
+import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
@@ -173,7 +174,8 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   if (failedRatioRows(evaluations).length > 0) failures.push('ratio');
   if (tableCells.some((cell) => cell.verdict === 'out')) failures.push('measurement');
   // Batch e23v (Story 23.6): a failed prerequisite fails the sheet; a restricted reading restricts it.
-  if (evaluations.some((test) => test.prerequisite?.failed === true)) failures.push('prerequisite');
+  // Fix batch e23w (W2-2): read over every test that names one, its sub-block switched off or NA by the plate too.
+  if (failedPrerequisites(block, definition).length > 0) failures.push('prerequisite');
   const restrictions: ConclusionFloorReason[] = [];
   if (cells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
   if (ncItems(block, definition).length > 0) restrictions.push('nc');
@@ -431,6 +433,8 @@ function readingClause(reading: WorstReading): string {
     reading.overRange === true && reading.valueText.startsWith(OVER_RANGE_TEXT_PREFIX)
       ? `${phrase.replace(/ de$/, '')} acima de ${reading.valueText.slice(OVER_RANGE_TEXT_PREFIX.length)} (limite do instrumento)`
       : `${phrase} ${reading.valueText}`;
+  // Fix batch e23w (B-6): a pole out by its rise since the previous visit names the rise, not the criterion it meets.
+  if (reading.rise !== undefined) return `${value} em ${reading.where} (${reading.rise})`;
   return `${value} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
@@ -439,9 +443,8 @@ function readingClause(reading: WorstReading): string {
  * it. authored (Story 23.6, listed for Bruno): "pré-requisito não atendido (Desligador íntegro: NÃO)
  * no ensaio de isolação".
  */
-function prerequisiteClause(test: TestEvaluation): string | null {
-  const failure = test.prerequisite ?? null;
-  return failure === null ? null : `${failure.text} no ${test.title.toLocaleLowerCase('pt-BR')}`;
+function prerequisiteClause(failure: FailedPrerequisite): string {
+  return `${failure.text} no ${failure.title.toLocaleLowerCase('pt-BR')}`;
 }
 
 /**
@@ -503,10 +506,8 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const tableCells = measurementCells(measurements);
   const tableOut = worstMeasurements(measurements);
   // Batch e23v (Story 23.6, seed v13): a failed prerequisite is a failure the paragraph names with the out readings.
-  const prerequisites = evaluations.flatMap((test) => {
-    const clause = prerequisiteClause(test);
-    return clause === null ? [] : [clause];
-  });
+  // Fix batch e23w (W2-2): every failed prerequisite (`failedPrerequisites`), its test switched off or NA too.
+  const prerequisites = failedPrerequisites(block, definition).map(prerequisiteClause);
   const outClauses = [...out.map(readingClause), ...tableOut.map(measurementClause), ...prerequisites];
   // Batch e23v (Story 23.6, seed v13): the restricted readings, named after the readings' clause.
   const restricted = evaluations.flatMap((test) => {

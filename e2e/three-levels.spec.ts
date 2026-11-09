@@ -7,7 +7,9 @@ import {
   derivedPointKindLabel,
   derivedPoints,
   entityKey,
+  evaluateSheetReadings,
   evaluateTest,
+  failedPrerequisites,
   getDefinition,
   parecerVerdictLabel,
   SEED_VERSION,
@@ -15,6 +17,7 @@ import {
   type BlockRow,
   type Entity,
   type EntityRow,
+  type OpDraft,
   type PointRow,
   type RelatorioSnapshot,
   type TestEvaluation,
@@ -232,4 +235,53 @@ test('@p0 23.6-E2E-002 a v13 arrester whose DESLIGADOR ÍNTEGRO is NÃO: the flo
   expect(conclusionFloorReasonText(lifted.block, definition, visitContextOf(lifted.snapshot, lifted.block))).toBeNull();
   await openStep(page, relatorioId, arrester.blockId, 'Conclusão');
   await expect(page.locator('.conclusion-hint')).toHaveCount(0);
+});
+
+test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off and whose DESLIGADOR ÍNTEGRO is NÃO: the floor is still Reprovado by the prerequisite, Pontos lists its "Fora do critério" entry, and the parecer follows', async ({ page }) => {
+  test.setTimeout(180_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  const arrester = built.sheets.find((sheet) => sheet.blockType === 'para_raio')!;
+  // The relatório is created with the arrester's insulation sub-block off (as a template switches it off).
+  type BlockValue = { id: string; config: { sub_blocks: Record<string, { enabled?: boolean }> } };
+  const drafts = built.drafts.map((draft): OpDraft => {
+    if (draft.kind !== 'create' || draft.path !== `block/${arrester.blockId}`) return draft;
+    const value = draft.value as unknown as BlockValue;
+    return { ...draft, value: { ...value, config: { ...value.config, sub_blocks: { ...value.config.sub_blocks, isolacao: { ...value.config.sub_blocks.isolacao, enabled: false } } } } } as unknown as OpDraft;
+  });
+  await pushDrafts(page, database, [...drafts, emCampoDraft(account, built.relatorioId)]);
+  await page.goto(`/relatorio/${built.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'para_raio');
+  const platePath = `sheet/${arrester.blockId}/nameplate/desligador_integro`;
+
+  await openStep(page, built.relatorioId, arrester.blockId, 'Placa');
+  await page.locator('#ficha-nameplate [data-field-key="desligador_integro"] select').selectOption('NÃO');
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === platePath).map((row) => row.value)).toEqual(['NÃO']);
+
+  // The kernel: no insulation evaluated (switched off), the prerequisite still failed, the floor Reprovado by it.
+  const snapshot = await deviceSnapshot(page, built.relatorioId);
+  const block = snapshot.blocks.find((row) => row.id === arrester.blockId)!;
+  const visit = visitContextOf(snapshot, block);
+  expect(evaluateSheetReadings(block, definition, visit).some((test) => test.testKey === 'isolacao')).toBe(false);
+  expect(failedPrerequisites(block, definition).map((one) => one.text)).toEqual(['pré-requisito não atendido (Desligador íntegro: NÃO)']);
+  const reason = conclusionFloorReasonText(block, definition, visit)!;
+  expect(reason).toBe('A ficha exige no mínimo Reprovado · Com restrições: pré-requisito do ensaio não atendido.');
+  await openStep(page, built.relatorioId, arrester.blockId, 'Conclusão');
+  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('#ficha-step-conclusao')).toContainText(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' }));
+
+  // Pontos: the test's reading entry, naming the disconnector.
+  const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${arrester.blockId}:isolacao`)!;
+  expect(entry.text).toContain('Ensaio de isolação: pré-requisito não atendido (Desligador íntegro: NÃO)');
+  await page.goto(`/relatorio/${built.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await expect(row10(page).locator('.sum-status')).toHaveText(parecerVerdictLabel(derivedParecer(snapshot)!));
+  await row8(page).getByRole('button', { name: /^Pontos de atenção/ }).click();
+  await expect(page).toHaveURL(/\/pontos$/);
+  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('reading') }) });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
 });

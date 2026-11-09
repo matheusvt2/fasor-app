@@ -3295,7 +3295,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The transformer's insulation table with the "20 °C" column does not fit the 60 em rule at 8 pt by the kernel's own measure (`fittedColumns`): v12's table needs 58,9 em at 8 pt and the column adds at least 2,2 em with its margins (61,6 em with the frame's readings), so it steps on to 7,5 pt (15 half points), every word whole; judged row by row (its ACEITÁVEL column) it steps further, as e23a's per-row steps allow. Nothing else was changed to reach 8 pt (the rule and its measure are e22g's); `three-levels.test.ts` pins 7,5 pt with the reason.
   evidence: `packages/domain/src/print/section-9.ts` `fittedColumns`, `READING_FIT_WIDTH_EM`; `packages/domain/src/relatorio/three-levels.test.ts` "section 9 at the fit".
   class: decision
-  state: open (owner: Matheus: 7,5 pt as the rule gives it, or a narrower layout)
+  state: ~~open (owner: Matheus: 7,5 pt as the rule gives it, or a narrower layout)~~ closed 2026-11-09 by fix batch e23w (W2-K2, Matheus's option (b)): the "20 °C" column is measured outside the 60 em budget and the table prints at 8 pt
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Design Notes, "Rules as read")
   summary: The narrowings of the batch, as the spec reads the base: correction only on TR-OL-02, TR-SE-02, DJ-02 and SC-02 (DJ and SC by the solid factor, at the ambient); a transformer whose TIPO DE ISOLAÇÃO is empty is not corrected; a reading above the instrument's limit is never corrected and prints "-" at 20 °C; CB-02's history (its only term, "queda acentuada", is open item B-1) and DJ-02/SC-02's "fases com diferença > 50 %" (no number in the rule) are not built; TR-OL-02's history serves TR-SE-02; the cable and arrester comparison is below 50 % of the largest other row (FASE RESERVA included); a failed prerequisite is the test's `reading` entry, never a new derived kind; a test with a `reading` entry derives no `restricao` entry; the TEMPERATURA cell and the "20 °C" column also print on the disjuntor's and the seccionadora's tables. Two readings of the implementation: a temperature outside -10 °C to 110 °C still prints in TEMPERATURA (with its source) while the "20 °C" column prints "-"; the corrected value is rounded to three significant figures, and that rounded value is what is judged and shown.
   evidence: `packages/domain/src/seed/v13.ts` (the e23v section), `relatorio/temperature-correction.ts`, `relatorio/restriction.ts`, `points/derived.ts`.
@@ -3315,7 +3315,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The parecer names a para-raio Reprovado only by its failed prerequisite (DESLIGADOR ÍNTEGRO NÃO) in the reasonless group ("Reprovado (PR-1)."), as if the engineer had chosen Reprovado. A fix needs a reason group, an authored word and a parecer-basis key present only when used.
   evidence: `packages/domain/src/relatorio/parecer.ts` (the `byReason` loop: ratio, reading, defect, other).
   class: defect
-  state: open (owner: the Epic 23 wave 2 fix batch)
+  state: ~~open (owner: the Epic 23 wave 2 fix batch)~~ closed 2026-11-09 by fix batch e23w (W2-K1): the parecer's `prerequisite` group, "por pré-requisito do ensaio não atendido"
 
 ## Deferred from: Epic 23 batch e23h (2026-11-09)
 
@@ -3334,3 +3334,37 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/points/derived.ts` `sheetEntries` (the `reprovado` entry only when `conclusionFloor` is not Reprovado); `points/derived-recommendation.test.ts`.
   class: decision
   state: open (owner: Bruno, question 36, with the authored join)
+
+## Deferred from: Epic 23 fix batch e23w (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (review, Edge Case Hunter, deferred)
+  summary: A v13 arrester whose nameplate sub-block is switched off while it still stores DESLIGADOR ÍNTEGRO NÃO stays Reprovado by a plate value the sheet no longer shows (W2-2 reads the prerequisite "unconditionally", Story 23.6's AC).
+  evidence: `packages/domain/src/relatorio/restriction.ts` `failedPrerequisites` (no sub-block check).
+  class: decision
+  state: open (owner: Matheus with Bruno: keep it, or read the prerequisite only while the nameplate sub-block is on)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (Design Notes, W2-1)
+  summary: `last_results` keeps two entries (top and `prior`). A re-issue of A after two later visits (B, then C over B) cannot see that A is older: A's sheets read C as their previous visit. With one later visit (top's `prior` is A) they read none, never the later one, and the issue job never writes A over a later top. A full order needs a deeper chain or the visit date in the entry, a projection shape change and a contract.
+  evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`; `schemas/entities.ts` `lastResultsSchema`.
+  class: decision
+  state: open (owner: Matheus, if a re-issue after two later visits of one equipment is a real case)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (W2-K2, residual risk)
+  summary: The v13 transformer insulation table with the "20 °C" column prints at 8 pt; by the kernel's conservative measure its longest words take 61,6 em against the calibrated 60 em, so the fit holds by the rule as built (the column outside the budget), not by a measured page. No PDF was checked by eye.
+  evidence: `packages/domain/src/print/section-9.ts` `fittedColumns` (`outsideBudget`), `readingFitWidthEm`; `relatorio/three-levels.test.ts` (16 half points).
+  class: verification
+  state: open (owner: the Epic 23 wave 2 re-check or wave 3 integrated QA: look at a v13 transformer's section 9 in the PDF, every word whole)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (authored strings, listed for Bruno)
+  summary: The authored pt-BR texts of the batch: the parecer group "por pré-requisito do ensaio não atendido" (the floor's existing word); the contact rise's reason "alta de {N} % sobre {valor} da manutenção anterior, rev. {n} de {dd/mm/aaaa}, acima do limite de {pct} %" (the rise rounded up to one decimal), in the point and the conclusion clause, and its helper "Acima do aceitável: {motivo}".
+  evidence: `packages/domain/src/relatorio/parecer.ts` `REPROVADO_REASONS`; `relatorio/restriction.ts` `applyHistoryRise`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (B-6 narrowings)
+  summary: The contact rise judges only measured readings on both visits (a reading above the instrument's limit on either side judges nothing) and only a previous visit issued on seed v13 or later; the rule's base status stays the restriction's CONFIRMADO (one status per restriction), although DJ-03 and SC-03 are PADRÃO FASOR.
+  evidence: `packages/domain/src/relatorio/restriction.ts` `applyHistoryRise`; `seed/v13.ts` `E23V_KEYS`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (no contract bump)
+  summary: The batch changes how a v13 sheet is judged (TP-02, the contact rise, the prerequisite off, the re-issue order) with no contract bump, as launched (38 and 39 reserved). Safe only because v13 is not deployed: wave 3's contracts move `MIN_CONTRACT_VERSION` past 37 before the one deploy, so no contract-37 bundle meets a server that judges otherwise.
+  evidence: `packages/domain/src/contract/version.ts` (37, unchanged); epic-23-context M-2.
+  class: decision
+  state: open (owner: the coordinator: keep MIN following wave 3's bump; if an earlier deploy is asked, this batch's change needs its own number)
+

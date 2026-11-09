@@ -453,6 +453,14 @@ interface Outputs {
   result: GenerationResult;
 }
 
+/**
+ * Fix batch e23w (W2-1, AD-25 order rule): the instant a relatório was first issued, the order its
+ * visits take in `last_results`: its earliest live revision's, else `issuedAt` (its first issue now).
+ */
+export function firstIssuedAtOf(revisions: readonly Pick<RevisionRow, 'created_at'>[], issuedAt: string): string {
+  return revisions.reduce((first, row) => (Date.parse(row.created_at) < Date.parse(first) ? row.created_at : first), issuedAt);
+}
+
 /** The one transaction: files, revision (number re-checked under the lock), status done, result. */
 async function commitRevision(
   deps: GenerateJobDeps,
@@ -497,7 +505,9 @@ async function commitRevision(
     generateOp(payload, now, deps.newId, { kind: 'put', scope: 'project', projectId, path: `equipment/${entry.equipmentId}/last_nameplate`, value: entry.value }),
   );
   // Story 22.12: the issued readings, the same way, so the next relatório shows "Anterior" and prints MANUT. ANTERIOR.
-  const lastResultsOps: Op[] = lastResults(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now }).map((entry) =>
+  // Fix batch e23w (W2-1): ordered by first issue, the relatório's earliest revision (this one on revision 1).
+  const firstIssuedAt = firstIssuedAtOf(frozen.number > 1 ? await liveRevisions(deps.db, companyId, payload.relatorio_id) : [], now);
+  const lastResultsOps: Op[] = lastResults(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now, firstIssuedAt }).map((entry) =>
     generateOp(payload, now, deps.newId, { kind: 'put', scope: 'project', projectId, path: `equipment/${entry.equipmentId}/last_results`, value: entry.value }),
   );
   const batch: Op[] = [

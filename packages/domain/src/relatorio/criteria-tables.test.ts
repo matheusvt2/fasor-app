@@ -204,9 +204,10 @@ describe('23.2-UNIT the TC, the disjuntor, the seccionadora, the para-raio; the 
     expect(bare.sourceLines).toEqual(['Sem a tensão nominal na placa, vale >400 MΩ. Informe-a para julgar pela Tabela 100.1.']);
   });
 
-  it('a v13 TP and the cables keep > 400 MΩ with no per-row keys; the QGBT keeps its bands', () => {
-    for (const type of ['tp', 'cabos_entrada', 'cabos_saida'] as const) {
-      const test = evaluation(plate(sheet(type), type === 'tp' ? { tipo_de_isolacao: 'EPÓXI', tensao_nominal_at: measured('13.8', 'kV') } : {}), 'isolacao');
+  // Fix batch e23w (Bruno's answer B-4): the TP is judged by Table 100.5 now (`e23w-wave2-fixes.test.ts`); the cables keep > 400 MΩ.
+  it('the v13 cables keep > 400 MΩ with no per-row keys; the QGBT keeps its bands', () => {
+    for (const type of ['cabos_entrada', 'cabos_saida'] as const) {
+      const test = evaluation(plate(sheet(type), {}), 'isolacao');
       expect(test.criterionText, type).toBe('>400 MΩ');
       expect(test.tables[0]!.rows.every((row) => !('criterion' in row)), type).toBe(true);
       expect(test.limitNote, type).toBeNull();

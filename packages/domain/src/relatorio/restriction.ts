@@ -120,17 +120,22 @@ function historyOf(cell: EvaluatedCell, pct: number, previous: RestrictionPrevio
  * capture cell of the table takes `restriction` (null when no rule flags it), and a cell within its
  * criterion that a rule flags takes the verdict `restricted` with its reason and helper sentence.
  * `captureColumns` are the table's capture columns (index and definition).
+ *
+ * Fix batch e23w (W2-3): the rules also run on a measured reading already out (its verdict and
+ * `restriction` unchanged); the return is true when a rule flags one, so the test records that its
+ * restriction still stands (`TestEvaluation.restrictionStands`).
  */
-export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], captureColumns: readonly { col: number; column: ColumnDef }[], previous: RestrictionPrevious): void {
+export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], captureColumns: readonly { col: number; column: ColumnDef }[], previous: RestrictionPrevious): boolean {
   const rules = test.restriction;
-  if (rules === undefined) return;
+  if (rules === undefined) return false;
+  let stands = false;
   for (const { col, column } of captureColumns) {
     const readings = columnReadings(rows, col, column);
     for (const row of rows) {
       const cell = row.cells.find((candidate) => candidate.address.col === col && candidate.role === 'capture');
       if (cell === undefined) continue;
       cell.restriction = null;
-      if (cell.verdict !== 'within' || cell.state !== 'measured') continue;
+      if ((cell.verdict !== 'within' && cell.verdict !== 'out') || cell.state !== 'measured') continue;
       const own = readings.find((reading) => reading.cell === cell);
       const findings: Finding[] = [];
       if (rules.history_drop_pct !== undefined) {
@@ -153,10 +158,67 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         }
       }
       if (findings.length === 0) continue;
+      if (cell.verdict === 'out') {
+        stands = true;
+        continue;
+      }
       cell.verdict = 'restricted';
       cell.restriction = { reason: findings.map((finding) => finding.reason).join('; '), text: `${findings.map((finding) => finding.detail).join('; ')}. ${CLOSING}` };
     }
   }
+  return stands;
+}
+
+/** "v13" -> 13; null for a version that is not "v" and a number. */
+function seedNumber(version: string): number | null {
+  const match = /^v(\d+)$/.exec(version);
+  return match === null ? null : Number(match[1]);
+}
+
+/** The first seed whose previous visit the rise rule reads (B-6: both visits judged by the base). */
+const RISE_FROM_SEED = 13;
+
+/**
+ * Fix batch e23w (B-6, Bruno 2026-11-09; seed v13, `restriction.history_rise_out_pct`, DJ-03 and
+ * SC-03): a measured pole within its criterion becomes out when its value, in the previous one's
+ * unit, is more than the share above the same cell's previous measured value. The previous visit
+ * (`visit.previous`) judges only when it was issued on seed v13 or later and the cell's previous
+ * reading is measured and above zero; a reading above the instrument's limit, on either visit,
+ * judges nothing. The bound is exclusive (exactly the share is within). Applied before the
+ * restriction rules (`applyRestrictions`), so a pole both risen and deviating is out.
+ * `captureColumns` are the table's capture columns. A reading already out keeps its own reason.
+ */
+export function applyHistoryRise(test: TestDef, rows: readonly EvaluatedRow[], captureColumns: readonly { col: number; column: ColumnDef }[], previous: RestrictionPrevious): void {
+  const pct = test.restriction?.history_rise_out_pct;
+  const entry = previous.entry;
+  if (pct === undefined || entry === null) return;
+  const seed = seedNumber(entry.seed_version);
+  if (seed === null || seed < RISE_FROM_SEED) return;
+  for (const { col } of captureColumns) {
+    for (const row of rows) {
+      const cell = row.cells.find((candidate) => candidate.address.col === col && candidate.role === 'capture');
+      if (cell === undefined || cell.state !== 'measured' || cell.verdict !== 'within') continue;
+      const before = previous.byAddress.get(readingAddressKey(cell.address));
+      if (before === undefined || before.state !== 'measured') continue;
+      const was = Number(before.raw);
+      const now = scaleToUnit(Number(cell.raw), cell.unit, before.unit);
+      if (!(was > 0) || !Number.isFinite(was) || now === null || !Number.isFinite(now)) continue;
+      const rise = ((now - was) / was) * 100;
+      if (!(rise > pct * (1 + EPSILON))) continue;
+      // authored (e23w, listed for Bruno): a pole out by its rise since the previous visit, as the helper, the points and the conclusion name it.
+      // The rise is shown rounded up to one decimal, so a rise just past the limit never reads as the limit (review fix).
+      const reason = `alta de ${pctText(Math.ceil(rise * 10 - EPSILON) / 10)} % sobre ${previousReadingValueText(before)} da manutenção anterior, rev. ${entry.revision_number} de ${formatDateOfInstant(entry.issued_at)}, acima do limite de ${pctText(pct)} %`;
+      cell.verdict = 'out';
+      cell.rise = { reason };
+      cell.helperText = `Acima do aceitável: ${reason}`;
+    }
+  }
+}
+
+/** A previous measured reading as the rise names it: "40 µΩ". */
+function previousReadingValueText(reading: LastResultReading): string {
+  const shown = formatDecimalGroupedPtBr(reading.raw);
+  return reading.unit === null || reading.unit === '' ? shown : `${shown} ${reading.unit}`;
 }
 
 /**
@@ -175,4 +237,29 @@ export function prerequisiteFailure(block: Pick<BlockRow, 'sheet'>, definition: 
   if (option === null || !rule.fails_on.includes(option)) return null;
   // authored (Story 23.6, listed for Bruno): a failed prerequisite as the points and the conclusion name it.
   return { failed: true, text: `pré-requisito não atendido (${sentenceCase(field.label)}: ${option})` };
+}
+
+/** Fix batch e23w (W2-2): one test whose plate fails its prerequisite, as the floor, the points, the conclusion and the parecer read it. */
+export interface FailedPrerequisite {
+  testKey: TestDef['key'];
+  /** The test's heading as the sheet names it ("Ensaio de isolação"). */
+  title: string;
+  /** `prerequisiteFailure`'s clause: "pré-requisito não atendido (Desligador íntegro: NÃO)". */
+  text: string;
+}
+
+/**
+ * Fix batch e23w (W2-2): THE reader of failed prerequisites. Every test of the definition carrying
+ * `restriction.prerequisite` whose plate fails it, in the definition's order, whatever its
+ * sub-block's switch or its applicability: switching the arrester's insulation test off (or the
+ * plate making it NA) never makes a failed disconnector vanish. With the test on, the list holds
+ * what the evaluation's `prerequisite` holds. Empty on every definition of v1 to v12 (no
+ * `restriction`).
+ */
+export function failedPrerequisites(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate' | 'tests'>): FailedPrerequisite[] {
+  return definition.tests.flatMap((test) => {
+    if (test.restriction?.prerequisite === undefined) return [];
+    const failure = prerequisiteFailure(block, definition, test);
+    return failure === null ? [] : [{ testKey: test.key, title: sentenceCase(test.label), text: failure.text }];
+  });
 }

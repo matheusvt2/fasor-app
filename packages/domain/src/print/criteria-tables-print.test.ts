@@ -9,7 +9,7 @@ import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { readingSlotsOf } from './last-results.ts';
-import { READING_FIT_WIDTH_EM, section9Layout, withAppendedColumn, withPreviousColumn, wordsWiderThanColumns, type LayoutSectionSheets, type PrintSheet, type PrintTable } from './section-9.ts';
+import { readingFitWidthEm, section9Layout, withAppendedColumn, withPreviousColumn, wordsWiderThanColumns, type LayoutSectionSheets, type PrintSheet, type PrintTable } from './section-9.ts';
 
 /*
  * Batch e23a (Stories 23.2 to 23.4, seed v13): the print deltas of section 9. ACEITÁVEL prints the
@@ -162,6 +162,8 @@ describe('e23a review fixes: the band test, the previous visit', () => {
     built.equipment = { ...built.equipment, last_results: { relatorio_id: id(9), revision_number: 1, issued_at: '2026-01-01T00:00:00.000Z', seed_version: 'v13', block_type: 'transformador_forca', readings, prior: null } };
     const table = tableWith(printed(built), '1 MINUTO');
     expect(texts(table)[1]!.slice(-2)).toEqual(['ACEITÁVEL', 'MANUT. ANTERIOR']);
-    expect(wordsWiderThanColumns(table, READING_FIT_WIDTH_EM)).toEqual([]);
+    expect(wordsWiderThanColumns(table, readingFitWidthEm(table))).toEqual([]);
+    // Fix batch e23w (W2-K2, review fix): the 20 °C column stays outside the 60 em budget after the appended columns.
+    expect(table.textHalfPoints).toBe(13);
   });
 });

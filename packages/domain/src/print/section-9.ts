@@ -827,7 +827,7 @@ interface FittedTable {
  * exactly as before, with no size: the margins stay the same points whatever the size, so
  * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS): FittedTable {
+function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS, outsideBudget: readonly number[] = []): FittedTable {
   const least = new Array<number>(count).fill(0);
   const whole = new Array<number>(count).fill(0);
   for (const row of rows) {
@@ -848,7 +848,8 @@ function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly
   const at = (scale: number) => {
     const minimum = least.map((em) => Math.max(em, 1.5) * scale + CELL_ALLOWANCE_EM);
     const preferred = whole.map((em, col) => Math.max(em * scale + CELL_ALLOWANCE_EM, minimum[col]!));
-    const fits = sum(minimum) <= READING_FIT_WIDTH_EM;
+    // Fix batch e23w (W2-K2): a corrected column (`outsideBudget`) rides on the table and is measured outside the 60 em budget.
+    const fits = sum(minimum.filter((_, col) => !outsideBudget.includes(col))) <= READING_FIT_WIDTH_EM;
     if (sum(preferred) <= CONTENT_WIDTH_EM) return { fits, columns: preferred };
     const room = CONTENT_WIDTH_EM - sum(minimum);
     const asked = sum(preferred) - sum(minimum);
@@ -973,7 +974,39 @@ function measurementTable(
       ],
     });
   });
-  return { ...fittedColumns(rows, width), rows };
+  // Fix batch e23w (W2-K2): the corrected column's place in a data row, measured outside the budget.
+  const at = printed.findIndex((entry) => entry.kind === 'corrected');
+  const outside = at === -1 ? [] : [definition.connection_columns.length + (voltage === null ? 0 : 1) + at];
+  return withCorrectedColumns({ ...fittedColumns(rows, width, TABLE_TEXT_STEPS_HALF_POINTS, outside), rows }, outside);
+}
+
+/**
+ * Fix batch e23w (W2-K2, the approved Story 23.1 frame: the transformer's table at 8 pt): the printed
+ * position of each table's corrected "20 °C" column, by table, measured outside the 60 em budget by
+ * `fittedColumns` (the approved column rides on v12's table: v12's table fits at 8 pt, 58,9 em, and
+ * the column takes it to 61,6 em). Kept beside the table, never in it, so the layout's shape is the
+ * one it was; carried by every re-fit (`withAppendedColumn` appends after it, `sideBySide` shifts the
+ * right half's). A table of any other test has none and fits as before.
+ */
+const CORRECTED_COLUMNS = new WeakMap<PrintTable, readonly number[]>();
+
+/** The table, with its corrected columns recorded, as `fittedColumns` gave it. */
+function withCorrectedColumns(table: PrintTable, columns: readonly number[]): PrintTable {
+  if (columns.length > 0) CORRECTED_COLUMNS.set(table, columns);
+  return table;
+}
+
+/**
+ * Fix batch e23w (W2-K2): the width a printed reading table's longest words are measured against:
+ * `READING_FIT_WIDTH_EM`, plus what its corrected "20 °C" columns take at the table's size (measured
+ * outside the budget). Every table without a corrected column measures against 60 em, as before.
+ */
+export function readingFitWidthEm(table: PrintTable): number {
+  const outside = CORRECTED_COLUMNS.get(table) ?? [];
+  if (outside.length === 0) return READING_FIT_WIDTH_EM;
+  const scale = textScale(table.textHalfPoints);
+  const longest = longestWords(table.rows, table.columns.length);
+  return READING_FIT_WIDTH_EM + outside.reduce((sum, col) => sum + Math.max(longest[col] ?? 0, 1.5) * scale + CELL_ALLOWANCE_EM, 0);
 }
 
 /** A titled table with one header row and no column groups: the shape FO.SERV-03 prints side by side (contato aberto · fechado). */
@@ -984,7 +1017,8 @@ function simpleTitled(definition: TableDef): boolean {
 /** Two tables of the same shape drawn as one, side by side, row by row, its columns fitted over the joined rows. */
 function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
   const rows = left.rows.map((row, i) => ({ ...row, cells: [...row.cells, ...right.rows[i]!.cells] }));
-  return { ...fittedColumns(rows, left.columns.length + right.columns.length), rows };
+  const outside = [...(CORRECTED_COLUMNS.get(left) ?? []), ...(CORRECTED_COLUMNS.get(right) ?? []).map((col) => col + left.columns.length)];
+  return withCorrectedColumns({ ...fittedColumns(rows, left.columns.length + right.columns.length, TABLE_TEXT_STEPS_HALF_POINTS, outside), rows }, outside);
 }
 
 // --- MANUT. ANTERIOR (Story 22.12) ----------------------------------------------------------------
@@ -1026,7 +1060,8 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
   // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
   const kept: PrintTable = { ...printed };
   delete kept.textHalfPoints;
-  return { ...kept, ...fittedColumns(rows, width + 1, steps), rows };
+  const outside = CORRECTED_COLUMNS.get(printed) ?? [];
+  return withCorrectedColumns({ ...kept, ...fittedColumns(rows, width + 1, steps, outside), rows }, outside);
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -1346,7 +1381,8 @@ function keptTogether(parts: readonly SheetPart[]): SheetPart[] {
     const keep = part.keepWithNext === true && next !== undefined && next.kind !== 'photos';
     switch (part.kind) {
       case 'table': {
-        const kept: PrintTable = part.table.keepWhole === true ? part.table : { ...part.table, keepRows: true };
+        // Fix batch e23w (W2-K2): a copy keeps the table's corrected columns (`CORRECTED_COLUMNS`).
+        const kept: PrintTable = part.table.keepWhole === true ? part.table : withCorrectedColumns({ ...part.table, keepRows: true }, CORRECTED_COLUMNS.get(part.table) ?? []);
         return keep ? { kind: 'table', table: kept, keepWithNext: true } : { kind: 'table', table: kept };
       }
       case 'photos':

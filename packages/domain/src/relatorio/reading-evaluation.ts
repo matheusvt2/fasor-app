@@ -12,7 +12,7 @@ import { isTestInForce, testApplicability, type TestApplicability } from './appl
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
 import { previousReadingsByAddress } from '../print/reading-slots.ts';
-import { applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
+import { applyHistoryRise, applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
 import { correctedRaw, correctedText, mediumOf, temperatureFactor, temperatureView, testTemperature } from './temperature-correction.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
 import {
@@ -329,7 +329,10 @@ function plateVolts(definition: BlockDefinition, block: Pick<BlockRow, 'sheet'>,
     return Number.isFinite(volts) && volts > 0 ? volts : null;
   }
   if (field.kind !== 'number' || typeof value !== 'object' || Array.isArray(value)) return null;
-  const cell = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  const stored = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  // Fix batch e23w (B-4, Bruno 2026-11-09): a TP's "13,8/√3" is judged by its class voltage, the numerator (13,8 kV).
+  const numerator = field.over_sqrt3 === true && stored.state === 'measured' ? readOverSqrt3Raw(stored.raw) : null;
+  const cell = numerator === null ? stored : { ...stored, raw: numerator };
   const unit = typeof cell.unit === 'string' && cell.unit !== '' ? cell.unit : (field.unit ?? null);
   // A kV reading moved by the decimal point, so 5 kV is exactly the 5000 V bound.
   if (unit === 'kV' && cell.state === 'measured' && typeof cell.raw === 'string' && DECIMAL.test(cell.raw)) {
@@ -517,6 +520,8 @@ interface TableJudging {
   corrected: boolean;
   factor: number | null;
   previous: RestrictionPrevious;
+  /** Fix batch e23w (W2-3): set by a table where a restriction rule flags a reading already out. */
+  stands?: { value: boolean };
 }
 
 const NO_PREVIOUS: RestrictionPrevious = { entry: null, byAddress: new Map() };
@@ -767,7 +772,13 @@ function evaluateTable(
 
   markOutliers(rows, typed);
   // Batch e23v (Stories 23.6 and 23.14, seed v13): the test's restriction rules over this table, on readings already within.
-  if (test.restriction !== undefined) applyRestrictions(test, rows, typed.filter(({ column }) => column.role === 'capture'), judging.previous);
+  // Fix batch e23w (B-6): first a pole that rose past the share since the previous visit is out; (W2-3) the rules also run on
+  // readings already out, which only records that the restriction stands.
+  if (test.restriction !== undefined) {
+    const captures = typed.filter(({ column }) => column.role === 'capture');
+    applyHistoryRise(test, rows, captures, judging.previous);
+    if (applyRestrictions(test, rows, captures, judging.previous) && judging.stands !== undefined) judging.stands.value = true;
+  }
 
   return {
     key: table.key,
@@ -858,7 +869,11 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
       : {
           corrected: test.temperature_correction !== undefined,
           factor: temperatureFactor(temperature),
-          previous: test.restriction?.history_drop_pct === undefined || visit.previous === null ? NO_PREVIOUS : { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block) },
+          previous:
+            (test.restriction?.history_drop_pct === undefined && test.restriction?.history_rise_out_pct === undefined) || visit.previous === null
+              ? NO_PREVIOUS
+              : { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block) },
+          stands: { value: false },
         };
   const tables: EvaluatedTable[] = [];
   let offset = 0;
@@ -887,6 +902,8 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
   const view = temperatureView(test, temperature);
   if (view !== null) evaluation.temperature = view;
   if (test.restriction?.prerequisite !== undefined) evaluation.prerequisite = prerequisiteFailure(block, definition, test);
+  // Fix batch e23w (W2-3): a rule flags a reading now out, so a stored `restricao` point does not read resolved.
+  if (judging.stands?.value === true) evaluation.restrictionStands = true;
   return evaluation;
 }
 

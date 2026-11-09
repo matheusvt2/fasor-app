@@ -13,7 +13,7 @@ import type { FieldDef } from '../seed/schema.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { readingSlotsOf } from './last-results.ts';
 import { layoutSpec } from './layout.ts';
-import { READING_FIT_WIDTH_EM, section9Layout, TABLE_TEXT_STEPS_HALF_POINTS, widenToFit, withPreviousColumn, wordsWiderThanColumns, type LayoutSectionSheets, type PrintRow, type PrintTable, type SheetPart } from './section-9.ts';
+import { READING_FIT_WIDTH_EM, readingFitWidthEm, section9Layout, TABLE_TEXT_STEPS_HALF_POINTS, widenToFit, withPreviousColumn, wordsWiderThanColumns, type LayoutSectionSheets, type PrintRow, type PrintTable, type SheetPart } from './section-9.ts';
 
 /*
  * Story 22.3 (FR-68): the label and value pair tables (DADOS DO EQUIPAMENTO, CONFIGURAÇÃO),
@@ -199,7 +199,7 @@ describe('e22g B1: the reading tables of every seed version hold every word whol
           const section = section9Layout(snapshotOf(version, previous, mixed), 9, 'RELATÓRIOS DOS ENSAIOS')!;
           const tables = readingTables(section);
           expect(tables.length).toBeGreaterThan(0);
-          const broken = tables.flatMap((table) => wordsWiderThanColumns(table, READING_FIT_WIDTH_EM).map((w) => `${table.rows[0]!.cells[0]!.text} (${table.columns.length} cols, ${table.textHalfPoints ?? 18} hp): ${w.word}`));
+          const broken = tables.flatMap((table) => wordsWiderThanColumns(table, readingFitWidthEm(table)).map((w) => `${table.rows[0]!.cells[0]!.text} (${table.columns.length} cols, ${table.textHalfPoints ?? 18} hp): ${w.word}`));
           expect(broken).toEqual([]);
           expect(tables.some(hasPreviousColumn)).toBe(previous);
         });
