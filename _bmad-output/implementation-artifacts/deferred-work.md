@@ -3380,3 +3380,21 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: every `// authored (Story 23.1x, listed for Bruno)` in `packages/domain/src/seed/v13.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/reading-evaluation.ts`, `relatorio/temperature-correction.ts`, `relatorio/conclusion.ts`.
   class: decision
   state: open (owner: Bruno, with the PR's list)
+
+## Deferred from: Epic 23 batch e23x (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (Design Notes, narrowing)
+  summary: the base's texts show only on sheets of the imported company type copies, not on the library's seeded types (a company overlay on seeded types would need an entity, an op family and a contract). A relatório must use the imported copies for "Como ensaiar" and the recommendation to appear.
+  evidence: `packages/domain/src/types/test-base-import.ts` `planTestBaseImport`.
+  class: decision
+  state: open (owner: Matheus, with Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (rows before e23e)
+  summary: GE-01 (`termografia`) and AT-01/AT-02 (`malha_aterramento`) attach only once e23e's seed lands; until then they are listed as "Sem ensaio no app". After the e23e merge, add explicit kernel assertions that they attach (the spec's Tasks).
+  evidence: `packages/domain/src/types/test-base-import.test.ts` (reads the kernel definition, holds before and after).
+  class: verification
+  state: open (owner: the batch merging second of e23e and e23x)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (authored strings, listed for Bruno)
+  summary: the authored pt-BR texts of the batch: the action "Importar base de ensaios", "Importar"; the preview lines "Cria {n} tipos da empresa, com os textos de {m} ensaios: …", "Ficam como rascunho, com avisos para publicar: …", "Já importado: …", "Todos os tipos desta base já foram importados. Nada será gravado.", "Sem ensaio no app: …", "Texto acima de 1000 caracteres, deixado de fora: …"; the toast "{n} tipos importados da base de ensaios"; the invalid-file lines; the copy names "⟨tipo⟩ (⟨ID⟩)"; the criterion's level words "Aprovado:", "Com restrições:", "Reprovado:".
+  evidence: every `// authored (Story 23.12, listed for Bruno)` in `packages/domain/src/types/test-base-import.ts` and `apps/web/src/copy/pt-br.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)

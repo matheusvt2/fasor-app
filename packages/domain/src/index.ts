@@ -169,3 +169,5 @@ export * from './registry/nc-phrase-row.ts';
 // `types/list.ts` reads `relatorio/tree.ts`, which must finish loading in its own order first.
 export * from './types/list.ts';
 export * from './types/draft-edit.ts';
+// Story 23.12: the base import reads `types/list.ts` (`typeNameOf`), so it loads after it.
+export * from './types/test-base-import.ts';

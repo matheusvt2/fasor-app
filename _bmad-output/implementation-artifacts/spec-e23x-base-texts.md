@@ -2,8 +2,8 @@
 title: 'e23x: the base''s help and recommendation texts through a private import (Story 23.12, decision M-1 (b), no contract)'
 type: 'feature'
 created: '2026-11-09'
-status: 'ready-for-dev'
-baseline_revision: 'fc0aa508'
+status: 'in-progress'
+baseline_revision: '4a0ef642c82707892d490f8b362b149bbb2ac28a'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
