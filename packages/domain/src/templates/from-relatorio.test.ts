@@ -278,12 +278,12 @@ describe('14.3-UNIT how templates reach the current seed version', () => {
   const EARLIER = Object.keys(SEED_VERSIONS).filter((version) => version !== SEED_VERSION);
   const TEMPLATE = '019966b0-0069-7000-8000-000000000001';
 
-  it('the bundle ships v1 to v11 before the current v12', () => {
-    expect(SEED_VERSION).toBe('v12');
-    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11']);
+  it('the bundle ships v1 to v12 before the current v13', () => {
+    expect(SEED_VERSION).toBe('v13');
+    expect(EARLIER).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']);
   });
 
-  it.each(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
+  it.each(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12'])('templateSeedUpgrade: the standard template of %s validates on the current version and moves to it', (version) => {
     const row = standardTemplate({ id: TEMPLATE, seedVersion: version });
     expect(row.seed_version).toBe(version);
     expect(templateSeedUpgrade(row)).toBe(SEED_VERSION);

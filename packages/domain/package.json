@@ -9,7 +9,8 @@
     "./fixtures/company-types": "./fixtures/company-types/op-log.ts",
     "./fixtures/porto-seguro": "./fixtures/porto-seguro/op-log.ts",
     "./fixtures/porto-seguro/small": "./fixtures/porto-seguro/small/op-log.ts",
-    "./fixtures/value-caps": "./fixtures/value-caps.ts"
+    "./fixtures/value-caps": "./fixtures/value-caps.ts",
+    "./fixtures/layout-lock": "./fixtures/layout-lock/op-log.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

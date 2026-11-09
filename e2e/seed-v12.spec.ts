@@ -6,7 +6,6 @@ import {
   getSeed,
   rowVoltageCell,
   screenLabel,
-  SEED_VERSION,
   SEEDED_CRITERIA,
   TEST_VOLTAGE_OPTIONS_KV,
   type BlockRow,
@@ -60,13 +59,15 @@ interface EntityRecord<T> {
 }
 
 const JOB_TIMEOUT = 150_000;
-const TF = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
-const TP = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp');
-const TC = getDefinition(SEED_VERSION, 'cabine_primaria', 'tc');
+/** Story 23.2 (seed v13): this walk is pinned to v12, the seed it was written on. */
+const SEED = 'v12';
+const TF = getDefinition(SEED, 'cabine_primaria', 'transformador_forca');
+const TP = getDefinition(SEED, 'cabine_primaria', 'tp');
+const TC = getDefinition(SEED, 'cabine_primaria', 'tc');
 const fieldOf = (definition: typeof TF, key: string) => definition.nameplate.find((field) => field.key === key)!;
 const OIL_VALUE = TF.oil_rule!.oil_values[0]!;
 const DRY_VALUE = fieldOf(TF, 'tipo_de_isolacao').options!.find((option) => option !== OIL_VALUE)!;
-const DEFECT = getSeed(SEED_VERSION, 'cabine_primaria').not_tested_reasons.find((reason) => reason.defect === true)!;
+const DEFECT = getSeed(SEED, 'cabine_primaria').not_tested_reasons.find((reason) => reason.defect === true)!;
 const RATIO_CRITERION = SEEDED_CRITERIA.find((criterion) => criterion.key === 'relacao_transformacao')!;
 const classCriterion = (cls: string) => formatCriterionValue({ ...RATIO_CRITERION, value: accuracyClassDeviation(cls)! });
 /** The transformer's insulation table: its voltage column's index. */
@@ -107,15 +108,14 @@ async function seedRelatorio(page: Page, extra: (relatorioId: string, sheetOf: (
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED });
   const sheetOf = (type: string) => built.sheets.find((sheet) => sheet.blockType === type)!;
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), ...extra(built.relatorioId, sheetOf)]);
   return { relatorioId: built.relatorioId, sheetOf };
 }
 
-test('@p0 22.7-E2E-001 a new relatório is on v12: the transformer offers ÓLEO MINERAL and TIPO DO ÓLEO and reads "Deslocamento angular"; EPÓXI marks the oil items NA, ÓLEO MINERAL brings them back; the TP holds the TC items', async ({ page }) => {
+test('@p0 22.7-E2E-001 a relatório on v12 (pinned since seed v13): the transformer offers ÓLEO MINERAL and TIPO DO ÓLEO and reads "Deslocamento angular"; EPÓXI marks the oil items NA, ÓLEO MINERAL brings them back; the TP holds the TC items', async ({ page }) => {
   test.setTimeout(240_000);
-  expect(SEED_VERSION).toBe('v12');
   const { relatorioId, sheetOf } = await seedRelatorio(page);
   const tf = sheetOf('transformador_forca');
   await openSheet(page, relatorioId, tf.blockId);

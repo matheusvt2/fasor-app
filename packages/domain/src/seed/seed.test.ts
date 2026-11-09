@@ -1751,7 +1751,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 and v12 (vector_group) transformador de força ratio table only', () => {
+  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v13 (vector_group) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
@@ -1763,6 +1763,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
       'v10/transformador_forca/relacao_transformacao/sqrt3',
       'v11/transformador_forca/relacao_transformacao/vector_group',
       'v12/transformador_forca/relacao_transformacao/vector_group',
+      'v13/transformador_forca/relacao_transformacao/vector_group',
     ]);
   });
 
@@ -1931,7 +1932,7 @@ describe('seed v11 (Story 21.1): v10 with the transformador de força\'s vector 
 /** v11 as it shipped (Stories 21.1 and 21.2), hashed before seed v12 was written; a change to it is a new version. */
 const V11_HASH = 'abf0ca496d8883659a1fc2379212e7363c35e55eb2aa9e676c1b28d58d46eb33';
 
-/** v12 as it ships (Stories 22.7 to 22.9 and 22.11); a change to it after the deploy is a new version. */
+/** v12 as it shipped (Stories 22.7 to 22.9 and 22.11, deployed ae3d37e0), hashed before seed v13 was written; a change to it is a new version. */
 // e22g (2026-11-07, before v12's first deploy): Bruno's test base rev03 (the TP's 3P and 6P) and review N3 (the inspection's title).
 const V12_HASH = '62b2d734e2e706be6a1f5add592260ccce2cbe2dffe439d1b9755a7fe66e0649';
 
@@ -1943,10 +1944,10 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
   const field = (version: string, type: string, key: string) => at(version, type).nameplate.find((candidate) => candidate.key === key);
   const INSULATED = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca', 'quadro_eletrico'];
 
-  it('is the version a new Template is created with, shipping the Inspeção de QGBT after the types of v11', () => {
-    expect(SEED_VERSION).toBe('v12');
+  // Seed v13 (Story 23.2) is the version a new Template is created with since e23a; v12 ships as it did.
+  it('ships the Inspeção de QGBT after the types of v11', () => {
     expect(SEED_VERSIONS.v12!.version).toBe('v12');
-    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 12)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']);
     expect(equipmentTypesOf('v12')).toEqual([...equipmentTypesOf('v11'), 'inspecao_qgbt']);
     expect(EQUIPMENT_BLOCK_TYPES.at(-1)).toBe('inspecao_qgbt');
     for (const version of Object.keys(SEED_VERSIONS).slice(0, 11)) expect(equipmentTypesOf(version), version).not.toContain('inspecao_qgbt');
@@ -2025,7 +2026,7 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
     expect(hash('v9')).toBe(V9_HASH);
     expect(hash('v10')).toBe(V10_HASH);
     expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
-    expect(hash('v12'), 'seed v12 changed: before its first deploy update this pin, after it add a new version').toBe(V12_HASH);
+    expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
   });
 
   it('every v12 insulation table carries the TENSÃO column after its value columns, their indices as v11; the transformer rows name their windings', () => {
@@ -2137,6 +2138,31 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
     const badClass = structuredClone(at('v12', 'tc')) as BlockDefinition;
     badClass.tests.find((one) => one.key === 'relacao_transformacao')!.criterion_class_field = 'tipo';
     expect(blockDefinitionSchema.safeParse(badClass).success).toBe(false);
+  });
+});
+
+/** v13 as it ships (Epic 23); until its deploy (M-2) each Epic 23 batch re-pins it, after it a change is a new version. */
+// e23a first commit (2026-11-08): v13 opens equal to v12.
+const V13_HASH = 'b9fc6c495d66ed7a496da881f3e37b7534455f857d79b00a150f0d0aee099702';
+
+describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', () => {
+  const v12 = getSeed('v12', 'cabine_primaria');
+  const v13 = getSeed('v13', 'cabine_primaria');
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
+
+  it('is the version a new Template is created with, offering the types of v12', () => {
+    expect(SEED_VERSION).toBe('v13');
+    expect(SEED_VERSIONS.v13!.version).toBe('v13');
+    expect(Object.keys(SEED_VERSIONS)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13']);
+    expect(equipmentTypesOf('v13')).toEqual(equipmentTypesOf('v12'));
+  });
+
+  it('differs from v12 by exactly its stories, and v1 to v12 hash as they shipped', () => {
+    const stripped = structuredClone(v13) as typeof v13;
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v12));
+    expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
+    expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
+    expect(hash('v13'), 'seed v13 changed: before its first deploy update this pin, after it add a new version').toBe(V13_HASH);
   });
 });
 
