@@ -3288,3 +3288,21 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/types/draft-edit.ts` `removeDraftEntry`; `relatorio/reading-cells.ts` `ratioGroupOf` reads `VECTOR_GROUP_FIELD`; `relatorio/vector-group.ts` `vectorGroupFieldLabel` falls back to "LIGAÇÃO SECUNDÁRIA" when the field is gone.
   class: decision
   state: open (owner: Matheus: refuse that removal, or drop the table's `ratio_factor` with it)
+
+## Deferred from: Epic 23 batch e23h (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23h-field-help.md` (review, Verification Gap VG-3, low)
+  summary: no test checks that an over-cap "Como ensaiar" heading or recommendation shows its issue inline under its own field in the type editor; only the kernel paths of `validateTypeDraft` are tested. A wrong `issuesAt` prefix would lose the placement only (the message still lists on the test's row and the kernel blocks "Publicar").
+  evidence: `apps/web/src/surfaces/templates/type-editor-parts.tsx` `TestTextsFields` (`issuesAt(issues, [part, index, 'help', key])`, `[part, index, 'recommendation']`); `packages/domain/src/types/company-types.test.ts`.
+  class: verification
+  state: open (owner: the next batch touching the type editor's Ensaios tab)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23h-field-help.md` (review loop, patched, not re-reviewed)
+  summary: "Como ensaiar" on the head of a test the nameplate makes NA is unit-tested in the measurement grammar only; the seeded-grammar NA head (`ensaios-section.tsx` `NotApplicableTest` with `headEnd`) has no component test, because `EnsaiosSection` has none, and no e2e opens it.
+  evidence: `apps/web/src/surfaces/ficha/ensaios-section.tsx` (NotApplicableTest branch); `apps/web/src/surfaces/ficha/measurement-test-section.test.tsx`.
+  class: verification
+  state: open (owner: the Epic 23 wave 2 integrated review, second pass)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23h-field-help.md` (Story 23.11, "Which points")
+  summary: only the `reading` origin takes the recommendation. A `reprovado` entry derives only for a Reprovado the floor does not explain (the engineer's own choice, no failing test), so no test is its reason; a test-caused Reprovado derives a `reading` entry, which carries it. If Bruno wants the recommendation on a Reprovado chosen by hand, that is a new rule.
+  evidence: `packages/domain/src/points/derived.ts` `sheetEntries` (the `reprovado` entry only when `conclusionFloor` is not Reprovado); `points/derived-recommendation.test.ts`.
+  class: decision
+  state: open (owner: Bruno, question 36, with the authored join)
