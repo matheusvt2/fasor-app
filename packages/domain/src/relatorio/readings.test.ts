@@ -28,7 +28,7 @@ import {
   condicaoScreenText,
 } from './readings.ts';
 import { sheetJumpTarget, sheetProgress } from './sheet-progress.ts';
-import { VECTOR_GROUPS, vectorGroupFactor, vectorGroupFormulaText } from './vector-group.ts';
+import { VECTOR_GROUPS, vectorGroupFactor, vectorGroupFieldLabel, vectorGroupFormulaText, vectorGroupMissingText } from './vector-group.ts';
 
 const ID = '019966b0-0051-7000-8000-000000000001';
 const OP = '019966b0-0051-7000-8000-000000000002';
@@ -732,7 +732,7 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
       expect(table.rows[0]!.cells.every((c) => c.verdict === null)).toBe(true);
       expect(table.formulaHelper).toBeNull();
       expect(table.shortHelper).toBeNull();
-      expect(table.groupHelper).toBe('Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular');
+      expect(table.groupHelper).toBe('Informe o campo LIGAÇÃO SECUNDÁRIA na placa para calcular');
       expect(table.groupMissing).toBe(true);
       expect(table.vectorGroup).toBeNull();
       // e21g D1: no terminal pair while the group is missing: the captures read "Fase 1".."Fase 3".
@@ -749,6 +749,21 @@ describe('21.1-UNIT the transformer ratio follows its vector group', () => {
     expect(missing(sheet('v11', null)) - missing(sheet('v11', 'Yyn0'))).toBe(1);
     // v10 with no group computes as Dyn1: nothing more missing.
     expect(missing(sheet('v10', null))).toBe(missing(sheet('v10', 'DYN1')));
+  });
+
+  it('e23g (late finding): the missing-group helper names the field the type carries: DESLOCAMENTO ANGULAR on v12 and v13, LIGAÇÃO SECUNDÁRIA on v11, a copy\'s own label', () => {
+    expect(ratioOf('v11', null, ['36.3', '36.3', '36.3']).groupHelper).toBe('Informe o campo LIGAÇÃO SECUNDÁRIA na placa para calcular');
+    for (const version of ['v12', 'v13']) {
+      expect(getDefinition(version, 'cabine_primaria', 'transformador_forca').nameplate.find((field) => field.key === 'ligacao_secundaria')!.label, version).toBe('DESLOCAMENTO ANGULAR');
+      expect(ratioOf(version, null, ['36.3', '36.3', '36.3']).groupHelper, version).toBe('Informe o campo DESLOCAMENTO ANGULAR na placa para calcular');
+      expect(ratioOf(version, null, ['36.3', '36.3', '36.3']).groupHelper, version).toBe(vectorGroupMissingText(vectorGroupFieldLabel(getDefinition(version, 'cabine_primaria', 'transformador_forca'))));
+    }
+    // A definition whose field is relabelled (a company copy) names its own label; one without the field names v11's.
+    const v13 = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+    const relabelled = { ...v13, nameplate: v13.nameplate.map((field) => (field.key === 'ligacao_secundaria' ? { ...field, label: 'GRUPO VETORIAL' } : field)) };
+    const b = { ...block('transformador_forca', test('relacao_transformacao', [[0, 3, measured('36.3', null)]]), defaultBlockConfig('v13', 'transformador_forca')), seed_version: 'v13' };
+    expect(evaluateSheetReadings(b, relabelled).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.groupHelper).toBe('Informe o campo GRUPO VETORIAL na placa para calcular');
+    expect(vectorGroupFieldLabel({ nameplate: [] })).toBe('LIGAÇÃO SECUNDÁRIA');
   });
 
   it('the missing group counts only while the plate can be filled: nameplate on, one per ratio row; off, none extra', () => {

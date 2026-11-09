@@ -41,7 +41,7 @@ export const displayHandler: ReadingKindHandler = {
     let location: Cabine | null = null;
     let fixture: { block_type: string | null; table_key: string | null };
     let tests: readonly TestDef[] | undefined;
-  let nameplate: readonly FieldDef[] | undefined;
+    let nameplate: readonly FieldDef[] | undefined;
     if (isDisplayCellTarget(target)) {
       block = await targetBlock(db, companyId, relatorioId, target);
       // Story 14.6: a company type's tests are its version's (the company's own rows).
