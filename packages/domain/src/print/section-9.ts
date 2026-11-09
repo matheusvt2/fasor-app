@@ -16,7 +16,7 @@ import { storedInstrumentHeader } from '../relatorio/instrument-pick.ts';
 import { configFieldsOf, evaluateSheetMeasurements, type EvaluatedMeasurementCell, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
 import { nameplateTagPrefill } from '../relatorio/nameplate-copy.ts';
 import { isOilFieldExcused } from '../relatorio/oil-rule.ts';
-import { evaluateSheetReadings, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
+import { evaluateSheetReadings, MANUFACTURER_PRINT_SUFFIX, polarizationNotApplicable, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
@@ -26,6 +26,7 @@ import { isReadingValue } from '../relatorio/over-range.ts';
 import type { BlockRow, EquipmentRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, findSeed, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { scaleToUnit } from '../seed/criteria.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { withCaptionOrdinals } from './caption-ordinal.ts';
 import { previousReadingsByAddress, previousResultsFor, previousRowText, type LastResultReading } from './last-results.ts';
@@ -221,6 +222,11 @@ const CONCLUSION_BOXES: readonly { value: ConclusionResult | ConclusionRestricti
 const VALORES = 'VALORES';
 /** The two grid columns the "IA e IP lidos do visor" sub-block (`ia_ip_display`) fills. */
 const IA_IP_COLUMNS: ReadonlySet<string> = new Set(['ABSORÇÃO', 'POLARIZAÇÃO']);
+// Batch e23a (Stories 23.2 and 23.4): the per-row ACEITÁVEL header word and the column the N/A of a reading above the limit lands in.
+// authored (Story 23.2, listed for Bruno): ACEITÁVEL of a test whose rows are judged by different criteria.
+const ACCEPTABLE_PER_ROW = 'POR LINHA';
+/** The column that prints N/A on a row whose reading is above the instrument's limit (Story 23.4). */
+const POLARIZATION_COLUMN = 'POLARIZAÇÃO';
 /** The mark in a chosen C/NC/NA or CONCLUSÃO box, and what an uncaptured value prints. */
 const MARK = 'X';
 const DASH = '-';
@@ -487,7 +493,22 @@ function instrumentPart(block: BlockRow, test: TestDef, evaluation: TestEvaluati
   // minimum alone ("ACEITÁVEL MΩ" over "0,5"), "-" when no band applies.
   const bands = test.criterion_bands;
   const acceptableLabel = bands === undefined ? ACCEPTABLE_LABEL : `${ACCEPTABLE_LABEL} ${bands.bands[0]!.unit}`;
-  const acceptable = bands === undefined ? evaluation.criterionText : evaluation.criterion === null ? DASH : bandValueText(evaluation.criterion.value);
+  // Batch e23a: the manufacturer's value prints with its suffix ("<80 µΩ (fabricante)"), rows judged
+  // by different criteria print POR LINHA here and their own in each table's ACEITÁVEL column.
+  // Review fix (item 2): under "ACEITÁVEL MΩ" a band test's manufacturer's value prints in the band style, scaled into the band unit.
+  const bandManufacturer = bands === undefined || evaluation.manufacturer === undefined ? null : scaleToUnit(evaluation.manufacturer.criterion.value, evaluation.manufacturer.criterion.unit, bands.bands[0]!.unit);
+  const acceptable =
+    evaluation.manufacturer !== undefined
+      ? bands !== undefined && bandManufacturer !== null
+        ? `${bandValueText(bandManufacturer)}${MANUFACTURER_PRINT_SUFFIX}`
+        : `${evaluation.manufacturer.criterionText}${MANUFACTURER_PRINT_SUFFIX}`
+      : evaluation.perRow === true
+        ? ACCEPTABLE_PER_ROW
+        : bands === undefined
+          ? evaluation.criterionText
+          : evaluation.criterion === null
+            ? DASH
+            : bandValueText(evaluation.criterion.value);
   const labels: string[] = [...INSTRUMENT_LABELS, ...(parameter === null ? [] : [parameter]), acceptableLabel];
   const values = [
     text(header?.manufacturer),
@@ -640,8 +661,13 @@ function readingText(cell: EvaluatedCell, column: ColumnDef, headerUnit: string 
   return DASH;
 }
 
-/** A `print` column's cell: "-", but ABSORÇÃO and POLARIZAÇÃO print what `ia_ip_display` stored. */
-function printColumnText(block: BlockRow, testKey: TestKey, row: number, col: number, column: ColumnDef, enabled: ReadonlySet<string>): string {
+/**
+ * A `print` column's cell: "-", but ABSORÇÃO and POLARIZAÇÃO print what `ia_ip_display` stored.
+ * Story 23.4 (seed v13): POLARIZAÇÃO prints N/A on a row whose reading is above the instrument's
+ * limit, on a test with `instrument_limit_note` (`polarizationNotApplicable`).
+ */
+function printColumnText(block: BlockRow, testKey: TestKey, row: number, col: number, column: ColumnDef, enabled: ReadonlySet<string>, notApplicable = false): string {
+  if (notApplicable && column.label === POLARIZATION_COLUMN) return NOT_APPLICABLE_TEXT;
   if (!IA_IP_COLUMNS.has(column.label) || !enabled.has('ia_ip_display')) return DASH;
   const value = block.sheet.test[testKey]?.cells[String(row)]?.[String(col)]?.value;
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return DASH;
@@ -659,6 +685,7 @@ function valueText(
   column: ColumnDef,
   enabled: ReadonlySet<string>,
   headerUnit: string | null,
+  test?: TestDef,
 ): string {
   switch (column.role) {
     case 'capture':
@@ -669,7 +696,7 @@ function valueText(
     case 'derived':
       return evaluated.columns.find((visible) => visible.col === col)?.derivedKind === 'condicao' ? (row.condicao ?? DASH) : (row.calculated?.text ?? DASH);
     case 'print':
-      return printColumnText(block, testKey, row.row, col, column, enabled);
+      return printColumnText(block, testKey, row.row, col, column, enabled, test !== undefined && polarizationNotApplicable(test, row));
     case 'voltage':
       return voltageText(row);
   }
@@ -716,6 +743,13 @@ export const SHEET_TEXT_HALF_POINTS = 18;
  * the floor of 7 pt), when its longest words do not fit the page at 9 pt.
  */
 export const TABLE_TEXT_STEPS_HALF_POINTS: readonly number[] = [17, 16, 15, 14];
+/**
+ * Batch e23a (review fix 7c, Story 23.2): the steps of a v13 reading table judged row by row, which
+ * carries its own ACEITÁVEL column and, with a previous visit, MANUT. ANTERIOR too: the transformer's
+ * eleven columns hold every word whole only at 6 pt, so such a table steps on to 6,5 and 6 pt. No
+ * other table takes these steps, so every v1 to v12 table fits as before.
+ */
+export const PER_ROW_TEXT_STEPS_HALF_POINTS: readonly number[] = [...TABLE_TEXT_STEPS_HALF_POINTS, 13, 12];
 
 /** A table's text size as a share of the 9 pt base: the factor its words' widths take. */
 const textScale = (halfPoints: number | undefined) => (halfPoints ?? SHEET_TEXT_HALF_POINTS) / SHEET_TEXT_HALF_POINTS;
@@ -740,7 +774,7 @@ interface FittedTable {
  * exactly as before, with no size: the margins stay the same points whatever the size, so
  * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number): FittedTable {
+function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS): FittedTable {
   const least = new Array<number>(count).fill(0);
   const whole = new Array<number>(count).fill(0);
   for (const row of rows) {
@@ -770,9 +804,9 @@ function fittedColumns(rows: readonly PrintRow[], count: number): FittedTable {
   };
   const base = at(1);
   if (base.fits) return { columns: base.columns };
-  for (const halfPoints of TABLE_TEXT_STEPS_HALF_POINTS) {
+  for (const halfPoints of steps) {
     const step = at(textScale(halfPoints));
-    if (step.fits || halfPoints === TABLE_TEXT_STEPS_HALF_POINTS[TABLE_TEXT_STEPS_HALF_POINTS.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
+    if (step.fits || halfPoints === steps[steps.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
   }
   return { columns: base.columns };
 }
@@ -847,7 +881,7 @@ export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'row
 }
 
 /** One measurement table: its title band, its header, then one row per connection with every value column. */
-function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDef, evaluated: EvaluatedTable, enabled: ReadonlySet<string>): PrintTable {
+function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDef, evaluated: EvaluatedTable, enabled: ReadonlySet<string>, test?: TestDef): PrintTable {
   const width = definition.connection_columns.length + definition.value_columns.length;
   const rows: PrintRow[] = [];
   if (definition.title !== undefined) rows.push(bandRow(printLabel(definition.title), width));
@@ -864,7 +898,7 @@ function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDe
         // F42: a typed connection the seed leaves blank prints the evaluated one (the plate's TAP ATUAL), "-" when none.
         ...connection.map((text, i) => valueCell(definition.connection_typed && text.trim() === '' ? row.connection[i] || DASH : printLabel(text))),
         ...(voltage === null ? [] : [valueCell(voltageText(row))]),
-        ...printed.map(({ column, col }) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled, units[col] ?? null))),
+        ...printed.map(({ column, col }) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled, units[col] ?? null, test))),
       ],
     });
   });
@@ -897,12 +931,21 @@ type PreviousReadings = ReadonlyMap<string, LastResultReading> | null;
  * its cell, `texts` in order ('' past their end: a reference or a group row). Columns re-fitted.
  */
 export function withPreviousColumn(printed: PrintTable, texts: readonly string[]): PrintTable {
+  return withAppendedColumn(printed, PREVIOUS_HEADER, texts);
+}
+
+/**
+ * The shape `withPreviousColumn` gives, for any header (batch e23a: Story 23.2's per-row ACEITÁVEL
+ * column takes it too, before MANUT. ANTERIOR): the column appended last, the last header row
+ * carrying `header`, bands and lines across spanning one more, data rows taking `texts` in order.
+ */
+export function withAppendedColumn(printed: PrintTable, header: string, texts: readonly string[], steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS): PrintTable {
   const width = printed.columns.length;
   const headers = printed.rows.filter((row) => row.header === true);
   const last = headers[headers.length - 1];
   let data = 0;
   const rows = printed.rows.map((row): PrintRow => {
-    if (row.header === true) return { ...row, cells: [...row.cells, headerCell(row === last ? PREVIOUS_HEADER : '')] };
+    if (row.header === true) return { ...row, cells: [...row.cells, headerCell(row === last ? header : '')] };
     const span = row.cells.reduce((sum, cell) => sum + (cell.span ?? 1), 0);
     if (row.band === true || (row.cells.length === 1 && span === width && width > 1)) return { ...row, cells: [{ ...row.cells[0]!, span: width + 1 }] };
     const text = texts[data] ?? '';
@@ -912,7 +955,7 @@ export function withPreviousColumn(printed: PrintTable, texts: readonly string[]
   // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
   const kept: PrintTable = { ...printed };
   delete kept.textHalfPoints;
-  return { ...kept, ...fittedColumns(rows, width + 1), rows };
+  return { ...kept, ...fittedColumns(rows, width + 1, steps), rows };
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -949,14 +992,22 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   // pair still prints as one.
   const holds = previousTexts.map((texts) => texts !== null && texts.some((text) => text !== DASH));
   const tables = test.tables.map((tableDef, i) => {
-    const printed = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled);
+    const plain = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled, test);
+    // Story 23.2 (seed v13): rows judged by different criteria print each row's in an ACEITÁVEL column, before MANUT. ANTERIOR.
+    const perRow = evaluation.perRow === true;
+    const printed = perRow ? withAppendedColumn(plain, ACCEPTABLE_LABEL, evaluation.tables[i]!.rows.map((row) => row.criterionText ?? DASH), PER_ROW_TEXT_STEPS_HALF_POINTS) : plain;
     const texts = previousTexts[i];
-    return texts !== null && texts !== undefined && (holds[i] || (pairShape && holds.some(Boolean))) ? withPreviousColumn(printed, texts) : printed;
+    if (texts === null || texts === undefined || !(holds[i] || (pairShape && holds.some(Boolean)))) return printed;
+    return perRow ? withAppendedColumn(printed, PREVIOUS_HEADER, texts, PER_ROW_TEXT_STEPS_HALF_POINTS) : withPreviousColumn(printed, texts);
   });
   const paired = pairShape && tables[0]!.columns.length === tables[1]!.columns.length;
   // Story 22.3: the instrument header and every table but the last keep with the next, so a test never parts from its header.
-  const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart => (i < all.length - 1 ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one }));
-  return [{ ...instrumentPart(block, test, evaluation), keepWithNext: true }, ...printed];
+  // Story 23.4 (seed v13): the instrument-limit note, a paragraph right after the test's last table, kept with it.
+  const note = evaluation.limitNote ?? null;
+  const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart =>
+    i < all.length - 1 || note !== null ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one },
+  );
+  return [{ ...instrumentPart(block, test, evaluation), keepWithNext: true }, ...printed, ...(note === null ? [] : [{ kind: 'paragraph' as const, text: note }])];
 }
 
 // --- CONFIGURAÇÃO and the measurement tests (Story 14.5) ----------------------------------------

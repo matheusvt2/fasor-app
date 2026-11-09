@@ -2,6 +2,7 @@ import {
   evaluateSheetMeasurements,
   evaluatedCells,
   instrumentRangeFor,
+  manufacturerApplies,
   measurementCells,
   previousHelpers,
   readingAddressKey,
@@ -49,6 +50,7 @@ import type { FichaApi } from './ficha-api.ts';
 import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
+import { ManufacturerValue } from './manufacturer-value.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
 import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
@@ -319,6 +321,9 @@ function TestSection({
         {voltage.text}
       </p>
     );
+  // Batch e23a (Story 23.3): the manufacturer's value under the first table's criterion row, on every seed version.
+  const manufacturer =
+    testDef === undefined || !manufacturerApplies(testDef) ? null : <ManufacturerValue api={api} block={block} definition={definition} test={testDef} title={screenLabel(test.title)} readOnly={readOnly} />;
   const tables = test.tables.map((table, index) => (
     <MeasurementTable
       key={table.key}
@@ -329,7 +334,14 @@ function TestSection({
       onRun={onRun}
       readOnly={readOnly}
       display={display}
-      notice={index === 0 ? voltageNotice : null}
+      notice={
+        index === 0 ? (
+          <>
+            {voltageNotice}
+            {manufacturer}
+          </>
+        ) : null
+      }
       actions={(dictated) =>
         readOnly ? null : (
           <>
@@ -356,6 +368,12 @@ function TestSection({
         readOnly={readOnly}
       />
       {tables.length > 1 ? <div className="tests-two">{tables}</div> : tables}
+      {/* Batch e23a (Story 23.4, seed v13): the kernel's instrument-limit note under the test's tables, as the document prints it. */}
+      {test.limitNote === undefined || test.limitNote === null ? null : (
+        <p className="helper" data-limit-note="">
+          {test.limitNote}
+        </p>
+      )}
       {/* Story 22.9 (seed v12): the kernel's helper while the class the ratio is judged by is empty; never printed. */}
       {test.classHelper === null ? null : (
         <p className="helper" data-class-helper="">
@@ -473,7 +491,16 @@ function MeasurementTable({
             </svg>
             {t.sourceSummary}
           </summary>
-          <p>{test.sourceName}</p>
+          {/* Batch e23a (Stories 23.2, 23.3): the kernel's source lines (each row's table and edition, the manufacturer's line) where it gives them. */}
+          {test.sourceLines === undefined ? (
+            <p>{test.sourceName}</p>
+          ) : (
+            test.sourceLines.map((line) => (
+              <p key={line} data-source-line="">
+                {line}
+              </p>
+            ))
+          )}
         </details>
         {readOnly ? null : (
           <div className="mt-actions">

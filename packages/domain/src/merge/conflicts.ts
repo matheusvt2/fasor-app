@@ -7,7 +7,7 @@ import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
 import { overRangeText } from '../relatorio/over-range.ts';
-import { evaluateTest } from '../relatorio/reading-evaluation.ts';
+import { evaluateTest, manufacturerValueText } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
@@ -679,6 +679,13 @@ export function conflictValueText(
   const parsed = safeParsePath(cell.path);
   if (parsed !== null && parsed.family === 'sheet/test' && parsed.field === 'applicability') return value === 'applied' ? APPLICABILITY_WORDS.applied : APPLICABILITY_WORDS.plate;
   if (value === null || value === undefined) return '—';
+  // Batch e23a (Story 23.3): a manufacturer's value reads as the criterion it makes ("<80 µΩ"), never as a bare number.
+  if (cell.path.endsWith('/criterion_override') && block !== undefined) {
+    const parsed = safeParsePath(cell.path);
+    const test = parsed !== null && parsed.family === 'sheet/test' ? definitionOf(block, ctx)?.tests.find((candidate) => candidate.key === parsed.test_key) : undefined;
+    const text = test === undefined ? null : manufacturerValueText(test, value);
+    if (text !== null) return text;
+  }
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };
     if (number.state === 'empty') return '—';

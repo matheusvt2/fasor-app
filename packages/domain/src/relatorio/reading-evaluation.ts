@@ -1,11 +1,14 @@
-import { canonicalDecimal, formatDecimalGroupedPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, parseReadingPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
+import type { CriterionTableRow } from '../seed/criteria-tables.ts';
 import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type TableDef, type TestDef } from '../seed/schema.ts';
+import { selectOptionFor } from '../seed/select-option.ts';
+import { parseVoltageClassKv } from '../registry/word-row.ts';
 import { listPtBr } from '../text/plural.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
-import { OVER_RANGE_ALLOWED, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
-import { rowTestVoltage, voltageColumnOf } from './row-voltage.ts';
+import { isOverRangeRaw, OVER_RANGE_ALLOWED, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
+import { ratedVoltsOf, rowTestVoltage, voltageColumnOf } from './row-voltage.ts';
 import { isTestInForce, testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
@@ -28,6 +31,7 @@ import {
   type EvaluatedCell,
   type EvaluatedRow,
   type EvaluatedTable,
+  type ManufacturerValue,
   type TestEvaluation,
   type TestKey,
   type VisibleColumn,
@@ -101,38 +105,386 @@ export function pickedBand(block: Pick<BlockRow, 'sheet'>, test: TestDef): BandC
 }
 
 /**
- * E5-A4: the criterion a test of this sheet is judged by: the seed's, with the value and
- * unit of the sheet's `test.{key}.criterion_override` when it is well formed -- `{raw, unit}`
- * (AR-10's number shape), `raw` a decimal string and `unit` one the seed's unit converts
- * to (`scaleToUnit`). The operator, type and source stay the seed's. A malformed override
- * (a negative value among them: it would make `>` pass and `±` fail every reading) is
- * ignored and the seed stands. Open question: no document fixes the override's shape;
- * this is the conservative reading, and no surface writes it yet.
- *
- * Story 14.9 (seed v6): a test with `criterion_bands` takes its band (`bandCriterion`) instead
- * of the seeded criterion, and null when none applies: every reader then gives no verdict.
+ * The criterion a test of this sheet is judged by before any manufacturer's value: the seeded one
+ * (Story 14.6: a company type's own), or the band the plate picks (Story 14.9, null when none
+ * applies), or the seeded one at the deviation of the accuracy class the plate names (Story 22.9).
  */
-export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
+function seededCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
   const banded = test.criterion_bands === undefined ? criterionOf(test) : bandCriterion(block, test);
   if (banded === null) return null;
   // Story 22.9 (seed v12): a test naming a class field is judged at its class's deviation; the
-  // seeded criterion stands while the field names no class. A well-formed override still wins.
+  // seeded criterion stands while the field names no class.
   const deviation = test.criterion_class_field === undefined ? null : accuracyClassDeviation(classOf(block, test));
-  const seed = deviation === null ? banded : { ...banded, value: deviation };
-  const value = block.sheet.test[test.key]?.criterion_override?.value;
-  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return seed;
-  const override = value as { raw?: unknown; unit?: unknown };
-  if (typeof override.raw !== 'string' || !DECIMAL.test(override.raw)) return seed;
-  if (override.unit !== null && typeof override.unit !== 'string') return seed;
-  const number = Number(override.raw);
-  if (!Number.isFinite(number) || number < 0 || scaleToUnit(number, override.unit, seed.unit) === null) return seed;
-  return { ...seed, value: number, unit: override.unit };
+  return deviation === null ? banded : { ...banded, value: deviation };
+}
+
+/**
+ * E5-A4: the criterion a test of this sheet is judged by: the seed's (`seededCriterion`), or the
+ * manufacturer's value when the sheet's `test.{key}.criterion_override` holds a well-formed one
+ * (`manufacturerCriterion`, Story 23.3), which prevails on every row of the test. A malformed
+ * override (any shape `manufacturerValueOf` refuses) is ignored and the seed stands; on a v13
+ * sheet the fold refuses it (`applyOp`, contract 34).
+ *
+ * Story 14.9 (seed v6): a test with `criterion_bands` takes its band (`bandCriterion`) instead
+ * of the seeded criterion, and null when none applies: every reader then gives no verdict.
+ * Story 23.2: a test with a `criterion_table` is judged row by row (`rowCriterion`); this is
+ * then the criterion of a row the table cannot judge.
+ */
+export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
+  return manufacturerCriterion(block, test) ?? seededCriterion(block, test);
 }
 
 /** Story 22.9: the accuracy class the test's class field names on the plate, or null (no field, empty, unparsable). */
 function classOf(block: Pick<BlockRow, 'sheet'>, test: TestDef): string | null {
   if (test.criterion_class_field === undefined) return null;
   return parseAccuracyClass(block.sheet.nameplate[test.criterion_class_field]?.value);
+}
+
+// --- batch e23a: Stories 23.2 to 23.4 (the row's criterion, the manufacturer's value, the instrument-limit note) ---
+
+// authored (Story 23.3, listed for Bruno): the source a manufacturer's value names.
+/** The source name of a criterion typed from the manufacturer's data (decision G: one value per test). */
+export const MANUFACTURER_SOURCE_NAME = 'Fabricante';
+// authored (Story 23.3, listed for Bruno): the source line under the criterion while the value is set.
+/** The source details of a test judged by the manufacturer's value. */
+export const MANUFACTURER_SOURCE_LINE = 'Fabricante — digitado nesta ficha, vale para todas as linhas deste ensaio.';
+// authored (Story 23.3, listed for Bruno): ACEITÁVEL's suffix in the document.
+/** What section 9 appends to ACEITÁVEL when the manufacturer's value judges the test. */
+export const MANUFACTURER_PRINT_SUFFIX = ' (fabricante)';
+// authored (Story 23.2, listed for Bruno): the criterion caption of a test whose rows differ.
+/** The criterion text of a test whose rows are judged by different criteria (the sheet's caption). */
+export const CRITERION_PER_ROW_TEXT = 'por linha';
+// authored (Story 23.3, listed for Bruno): the two refusals of a manufacturer's value.
+/** A manufacturer's value that is no number above zero. */
+export const MANUFACTURER_VALUE_REFUSAL = 'Valor do fabricante inválido: digite um número maior que zero.';
+/** A manufacturer's value in a unit the test's criterion cannot be compared with. */
+export function manufacturerUnitRefusal(unit: string | null): string {
+  return `Unidade incompatível com o critério (${unit === null || unit.trim() === '' ? 'sem unidade' : unit}).`;
+}
+
+/**
+ * Story 23.3: the unit a manufacturer's value must convert to, the unit the test's criterion is in:
+ * a criterion table's (MΩ), the bands' (the QGBT), else the seeded (or company) criterion's.
+ */
+export function criterionUnitOf(test: TestDef): string | null {
+  if (test.criterion_table !== undefined) return test.criterion_table.table.rows[0]!.unit;
+  if (test.criterion_bands !== undefined) return test.criterion_bands.bands[0]!.unit;
+  return criterionOf(test).unit;
+}
+
+/** The value of a stored manufacturer's value: `{raw, unit}`, raw a positive dot-decimal, a unit the criterion's converts to; null otherwise. */
+export function manufacturerValueOf(block: Pick<BlockRow, 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>, test: TestDef): ManufacturerValue | null {
+  const value = block.sheet.test[test.key]?.criterion_override?.value;
+  if (value === null || value === undefined) return null;
+  // Review fix (item 6): a v1 to v12 sheet reads a stored override as E5-A4 always did (a zero
+  // accepted); only a v13 sheet, whose fold refuses a malformed one, takes the strict rule.
+  const legacy = isLegacySeed(block.seed_version);
+  const ok = legacy ? legacyOverrideOk(test, value) : manufacturerRefusal(test, value) === null;
+  return ok ? (value as unknown as ManufacturerValue) : null;
+}
+
+/** A seed version before v13 ("v1" to "v12"); false for v13 on, and for a block whose version is not given. */
+function isLegacySeed(version: string | undefined): boolean {
+  if (version === undefined || !/^v\d+$/.test(version)) return false;
+  return Number(version.slice(1)) < 13;
+}
+
+/** E5-A4's reading of an override, as it stood before batch e23a: `{raw, unit}`, raw a decimal not below zero, a unit the criterion's converts to. */
+function legacyOverrideOk(test: TestDef, value: unknown): boolean {
+  if (!manufacturerApplies(test) || typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const override = value as { raw?: unknown; unit?: unknown };
+  if (typeof override.raw !== 'string' || !DECIMAL.test(override.raw)) return false;
+  if (override.unit !== null && typeof override.unit !== 'string') return false;
+  const number = Number(override.raw);
+  return Number.isFinite(number) && number >= 0 && scaleToUnit(number, override.unit, criterionUnitOf(test)) !== null;
+}
+
+/**
+ * Review fix (item 1): whether a test takes a manufacturer's value at all: not a company test
+ * whose criterion is `between` (two bounds, one value cannot replace them) or `pass_fail` (no
+ * number). Such a test shows no entry, and the fold and the entry refuse a value on it.
+ */
+export function manufacturerApplies(test: TestDef): boolean {
+  if (test.criterion_table !== undefined || test.criterion_bands !== undefined) return true;
+  const operator = criterionOf(test).operator;
+  return operator !== 'between' && operator !== 'pass_fail';
+}
+
+// authored (review fix, listed for Bruno): a value on a test whose criterion has two bounds or none.
+/** The refusal of a manufacturer's value on a test that takes none. */
+export const MANUFACTURER_NOT_APPLICABLE_REFUSAL = 'Este ensaio não aceita valor do fabricante.';
+
+/**
+ * Story 23.3 ("refused, never ignored"): why a manufacturer's value cannot be stored on `test`, or
+ * null when it can: null itself (the clear) or `{raw, unit}` with `raw` a positive dot-decimal and
+ * `unit` a string or null that `scaleToUnit` converts to the test's criterion unit. The fold refuses
+ * the put with this reason on a v13 sheet (`ops/apply.ts`); the sheet shows it inline.
+ */
+export function manufacturerRefusal(test: TestDef, value: unknown): string | null {
+  if (value === null) return null;
+  if (!manufacturerApplies(test)) return MANUFACTURER_NOT_APPLICABLE_REFUSAL;
+  if (typeof value !== 'object' || Array.isArray(value)) return MANUFACTURER_VALUE_REFUSAL;
+  const override = value as { raw?: unknown; unit?: unknown };
+  if (!isOverRangeRaw(override.raw)) return MANUFACTURER_VALUE_REFUSAL;
+  if (override.unit !== null && typeof override.unit !== 'string') return manufacturerUnitRefusal(null);
+  if (scaleToUnit(Number(override.raw), override.unit, criterionUnitOf(test)) === null) return manufacturerUnitRefusal(override.unit);
+  return null;
+}
+
+/** What the sheet's "Valor do fabricante" entry reads from a typed text: the value to store (null: clear), or why it refuses it. */
+export type ParsedManufacturerValue = { value: ManufacturerValue | null } | { refusal: string };
+
+/**
+ * Story 23.3: the manufacturer's value typed on the sheet (pt-BR, "80", "5,5", "5G" on an Ω-scale
+ * criterion) in the unit its slot shows: the value to store, null for an emptied entry, or the same
+ * refusal the fold gives (a negative, a zero, no number, an unconvertible unit), so nothing refused
+ * is ever written.
+ */
+export function parseManufacturerValue(test: TestDef, typed: string, unit: string | null): ParsedManufacturerValue {
+  const parsed = parseReadingPtBr(typed, { units: manufacturerUnitsOf(test), defaultUnit: unit });
+  if (parsed === null) return { value: null };
+  if (parsed === 'invalid') return { refusal: MANUFACTURER_VALUE_REFUSAL };
+  const value: ManufacturerValue = { raw: parsed.raw, unit: parsed.unit };
+  const refusal = manufacturerRefusal(test, value);
+  return refusal === null ? { value } : { refusal };
+}
+
+/** The units the manufacturer's value entry offers: the insulation family's cycle on an MΩ-scale criterion, else the criterion's one unit. */
+export function manufacturerUnitsOf(test: TestDef): readonly string[] {
+  const unit = criterionUnitOf(test);
+  if (unit !== null && INSULATION_UNITS.includes(unit)) return INSULATION_UNITS;
+  return unit === null ? [] : [unit];
+}
+
+/** The text a manufacturer's value prints as a criterion on a table test: "≥ 5 GΩ" (a NETA minimum, approved at it). */
+function minimumText(raw: string, unit: string | null): string {
+  return `≥ ${formatDecimalGroupedPtBr(raw)}${unit === null ? '' : ` ${unit}`}`;
+}
+
+/**
+ * Story 23.3: the criterion a well-formed manufacturer's value makes: on a table test `>=` the
+ * value (the NETA tables approve at their minimum), else the seeded criterion's operator (`>` on
+ * insulation, `<` on contact, `±` on the ratio; the bands' with no band for the plate); always the
+ * source `Fabricante`. Null when the sheet holds none.
+ */
+export function manufacturerCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed | null {
+  const value = manufacturerValueOf(block, test);
+  if (value === null) return null;
+  const seeded = criterionOf(test);
+  const source = { name: MANUFACTURER_SOURCE_NAME, edition: null };
+  const number = Number(value.raw);
+  if (test.criterion_table !== undefined) {
+    return { key: seeded.key, label: seeded.label, operator: '>=', value: number, unit: value.unit, type: 'absolute_min', source, usedBy: seeded.usedBy, text: minimumText(value.raw, value.unit) };
+  }
+  const base = seededCriterion(block, test) ?? (test.criterion_bands === undefined ? seeded : bandAsCriterion(test, test.criterion_bands.bands[0]!));
+  // A `between` or `pass_fail` test never reaches here (`manufacturerApplies`), so `value_max` is never dropped.
+  const criterion: CriterionSeed = { ...base, value: number, unit: value.unit, source };
+  delete criterion.text;
+  return criterion;
+}
+
+/**
+ * Story 23.3: a manufacturer's value as a criterion text ("<80 µΩ", "≥ 5 GΩ"), read off any sheet
+ * (the Conflict view's two sides, AC "its two values read as criterion texts"); null when the value
+ * is not a well-formed one. The operator is the test's own, the plate's class or band left aside.
+ */
+export function manufacturerValueText(test: TestDef, value: unknown): string | null {
+  const sheet = { nameplate: {}, checklist: {}, test: { [test.key]: { cells: {}, criterion_override: { value } } } } as unknown as BlockRow['sheet'];
+  const criterion = manufacturerCriterion({ sheet }, test);
+  return criterion === null ? null : formatCriterionValue(criterion);
+}
+
+/** Story 23.2: the table and the row of `row` (counted across the test's tables) inside it. */
+function homeOfRow(test: TestDef, row: number): { table: TableDef; r: number } | null {
+  let offset = 0;
+  for (const table of test.tables) {
+    if (row >= offset && row < offset + table.rows.length) return { table, r: row - offset };
+    offset += table.rows.length;
+  }
+  return null;
+}
+
+/** A dot-decimal kV raw in V, exact (a decimal-point move, never a float product). */
+function kvRawToVolts(raw: string): number {
+  return Number(shiftDecimal(raw, 3));
+}
+
+/**
+ * Story 23.2: a plate field's rated voltage in V: a number field (its stored unit, else the field's,
+ * V or kV; a two-level "380/220" reads its higher side, `ratedVoltsOf`), or a voltage class ("15",
+ * "13,8", in kV); null when empty, not a positive number, or a field of another kind.
+ */
+function plateVolts(definition: BlockDefinition, block: Pick<BlockRow, 'sheet'>, key: string): number | null {
+  const field = definition.nameplate.find((candidate) => candidate.key === key);
+  const value = block.sheet.nameplate[key]?.value;
+  if (field === undefined || value === null || value === undefined) return null;
+  if (field.kind === 'voltage_class') {
+    if (typeof value !== 'string') return null;
+    const kv = parseVoltageClassKv(value);
+    if (kv === null) return null;
+    const volts = kvRawToVolts(kv.replace(',', '.'));
+    return Number.isFinite(volts) && volts > 0 ? volts : null;
+  }
+  if (field.kind !== 'number' || typeof value !== 'object' || Array.isArray(value)) return null;
+  const cell = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  const unit = typeof cell.unit === 'string' && cell.unit !== '' ? cell.unit : (field.unit ?? null);
+  // A kV reading moved by the decimal point, so 5 kV is exactly the 5000 V bound.
+  if (unit === 'kV' && cell.state === 'measured' && typeof cell.raw === 'string' && DECIMAL.test(cell.raw)) {
+    const volts = kvRawToVolts(cell.raw);
+    return volts > 0 ? volts : null;
+  }
+  return ratedVoltsOf({ ...cell, unit });
+}
+
+/** A rated voltage as a helper reads it: "13,8 kV" from 1000 V up, else "380 V". */
+function voltsText(volts: number): string {
+  return volts >= 1000 ? `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts / 1000)))} kV` : `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts)))} V`;
+}
+
+/** Story 23.2: the oil or dry column the definition's oil rule picks from the plate; null while its field is empty. */
+function mediumOf(definition: BlockDefinition, block: Pick<BlockRow, 'sheet'>): 'oil' | 'dry' | null {
+  const rule = definition.oil_rule;
+  if (rule === undefined) return null;
+  const value = block.sheet.nameplate[rule.field]?.value;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  // Review fix (item 4): the value read as one of the field's options (its aliases first resolved); a
+  // value that is no option is no medium, so the row falls back rather than being judged dry.
+  const field = definition.nameplate.find((candidate) => candidate.key === rule.field);
+  const option = field === undefined ? null : selectOptionFor(field, value);
+  if (option === null) return null;
+  return rule.oil_values.includes(option) ? 'oil' : 'dry';
+}
+
+/** One row's criterion and the helper that names where it comes from (`rowCriterion`). */
+export interface RowCriterion {
+  /** Null only on a band test with no band for the plate (as `effectiveCriterion`). */
+  criterion: CriterionSeed | null;
+  /** The source details of the row: the table row, the fallback's request, the manufacturer's line; null on a plain test. */
+  helper: string | null;
+  kind: 'manufacturer' | 'table' | 'fallback' | 'test';
+}
+
+/**
+ * Story 23.2 (seed v13): the criterion one row of `test` is judged by. In order: the manufacturer's
+ * value when well formed (Story 23.3, every row of the test); else, on a test with a
+ * `criterion_table`, the table row the plate's rated voltage (and medium) picks, approved at its
+ * minimum (`>=`, NETA); with the rating or the medium unreadable, the seeded criterion with a helper
+ * asking for the plate value; else the test's criterion (`effectiveCriterion`). Every reader takes a
+ * row's verdict through this, never its own rule (AD-1).
+ */
+export function rowCriterion(block: Pick<BlockRow, 'sheet'>, definition: BlockDefinition, test: TestDef, row: number): RowCriterion {
+  const manufacturer = manufacturerCriterion(block, test);
+  if (manufacturer !== null) return { criterion: manufacturer, helper: MANUFACTURER_SOURCE_LINE, kind: 'manufacturer' };
+  const pick = test.criterion_table;
+  if (pick === undefined) return { criterion: seededCriterion(block, test), helper: null, kind: 'test' };
+  const seeded = criterionOf(test);
+  const fallbackText = formatCriterionValue(seeded);
+  const name = pick.table.name;
+  const medium = pick.medium === undefined ? null : mediumOf(definition, block);
+  // authored (Story 23.2, listed for Bruno): the two requests of a row the table cannot judge yet.
+  if (pick.medium !== undefined && medium === null) {
+    return { criterion: seeded, helper: `Sem o tipo de isolação na placa, vale ${fallbackText}. Informe-o para julgar pela ${name}.`, kind: 'fallback' };
+  }
+  const home = homeOfRow(test, row);
+  const key = pick.voltage === 'winding' ? (home?.table.voltage_rows?.[home.r]?.winding ?? null) : pick.voltage.field;
+  const volts = key === null ? null : plateVolts(definition, block, key);
+  if (volts === null) {
+    return { criterion: seeded, helper: `Sem a tensão nominal na placa, vale ${fallbackText}. Informe-a para julgar pela ${name}.`, kind: 'fallback' };
+  }
+  const found: CriterionTableRow = pick.table.rows.find((candidate) => candidate.up_to_v === null || volts <= candidate.up_to_v) ?? pick.table.rows[pick.table.rows.length - 1]!;
+  const minimum = medium === null ? found.min! : medium === 'oil' ? found.oil! : found.dry!;
+  const edition = `${found.source.name}-${found.source.edition ?? ''}`.replace(/-$/, '');
+  const text = minimumText(String(minimum), found.unit);
+  const criterion: CriterionSeed = {
+    key: seeded.key,
+    label: seeded.label,
+    operator: '>=',
+    value: minimum,
+    unit: found.unit,
+    type: 'absolute_min',
+    source: { name: `${edition}, ${name}`, edition: found.source.edition },
+    usedBy: seeded.usedBy,
+    text,
+  };
+  // authored (Story 23.2, listed for Bruno): the row's source line.
+  const parts = [`${name} (${edition})`, ...(medium === null ? [] : [medium === 'oil' ? 'óleo' : 'seco']), voltsText(volts)];
+  return { criterion, helper: `${parts.join(', ')}: ${text}`, kind: 'table' };
+}
+
+/**
+ * Story 23.4: the standard observation of a test whose reading above the instrument's limit meets
+ * its criterion (base rev08, decision F), the limit as the cell stores it: "Valores de resistência
+ * de isolamento superiores a 2 TΩ, limite de leitura do instrumento."
+ */
+export function instrumentLimitNoteText(raw: string, unit: string | null): string {
+  return `Valores de resistência de isolamento superiores a ${formatDecimalGroupedPtBr(raw)}${unit === null || unit === '' ? '' : ` ${unit}`}, limite de leitura do instrumento.`;
+}
+
+/** Story 23.4: the note of a test with `instrument_limit_note`: from its first reading above the limit judged within, else null. */
+function limitNoteOf(tables: readonly EvaluatedTable[]): string | null {
+  for (const table of tables) {
+    for (const row of table.rows) {
+      for (const cell of row.cells) if (cell.role === 'capture' && cell.state === 'over_range' && cell.verdict === 'within') return instrumentLimitNoteText(cell.raw, cell.unit);
+    }
+  }
+  return null;
+}
+
+/**
+ * Story 23.4 (print): a row of a test with `instrument_limit_note` whose capture holds a reading above
+ * the limit has no polarization index to state: its POLARIZAÇÃO prints N/A.
+ */
+export function polarizationNotApplicable(test: TestDef, row: EvaluatedRow): boolean {
+  return test.instrument_limit_note === true && row.cells.some((cell) => cell.role === 'capture' && cell.state === 'over_range');
+}
+
+/** The entry's operator sign: the two inclusive operators in their typographic form. */
+const OPERATOR_SIGNS: Readonly<Record<string, string>> = { '>=': '≥', '<=': '≤' };
+
+/** The view of the sheet's "Valor do fabricante" entry on one test (Story 23.3, every seed version). */
+export interface ManufacturerValueView {
+  /** The sign before the value (`.mfr-op`): ">", "<", "≥", "±". */
+  operator: string;
+  /** The stored well-formed value, or null. */
+  value: ManufacturerValue | null;
+  /** The stored value as the entry shows it ("80", "5,5"); '' when none. */
+  text: string;
+  /** The units its slot takes, and the one it shows now (the stored one, else the criterion's). */
+  units: readonly string[];
+  unit: string | null;
+  /** `.mfr-note`, its criterion in bold: the lead, the criterion text, the tail. */
+  note: { lead: string; criterion: string; tail: string };
+}
+
+/**
+ * Story 23.3: the "Valor do fabricante" entry of `test` on this sheet: the operator a value would
+ * take, the stored value, its units and the note naming what it prevails over (or what holds while
+ * it is empty). The criterion it names is the one the rows take without it: on a table test the
+ * table's minima (or the seeded criterion while the plate cannot pick a row), else the test's.
+ */
+export function manufacturerValueView(block: Pick<BlockRow, 'sheet'>, definition: BlockDefinition, test: TestDef): ManufacturerValueView | null {
+  if (!manufacturerApplies(test)) return null;
+  const value = manufacturerValueOf(block, test);
+  const without = withoutManufacturer(block, test);
+  const rows = test.tables.reduce((count, table) => count + table.rows.length, 0);
+  const criteria = Array.from({ length: rows }, (_, row) => rowCriterion(without, definition, test, row));
+  const table = test.criterion_table !== undefined && criteria.every((one) => one.kind === 'table');
+  const texts = [...new Set(criteria.map((one) => (one.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(one.criterion))))];
+  const shown = listPtBr(texts);
+  const seeded = seededCriterion(without, test) ?? (test.criterion_bands === undefined ? criterionOf(test) : bandAsCriterion(test, test.criterion_bands.bands[0]!));
+  // Review fix (item 3): the sign as the sheet writes it, never the ASCII ">=".
+  const operator = test.criterion_table !== undefined ? '≥' : (OPERATOR_SIGNS[seeded.operator] ?? seeded.operator);
+  const units = manufacturerUnitsOf(test);
+  // authored (Story 23.3, from the `60-ficha.html` frames, listed for Bruno): the note beside the entry.
+  const note =
+    value !== null
+      ? table
+        ? { lead: 'Prevalece sobre a tabela, que pede ', criterion: shown, tail: '.' }
+        : { lead: 'Prevalece sobre o critério do ensaio, ', criterion: shown, tail: '.' }
+      : table
+        ? { lead: 'Opcional. Vazio, vale a tabela (', criterion: shown, tail: ').' }
+        : { lead: 'Opcional. Vazio, vale ', criterion: shown, tail: ', o critério do ensaio.' };
+  return { operator, value, text: value === null ? '' : formatDecimalGroupedPtBr(value.raw), units, unit: value?.unit ?? criterionUnitOf(test), note };
 }
 
 // authored (Story 14.9): what a test reads when no criterion applies (the QGBT with no TENSÃO NOMINAL, or above 1000 V).
@@ -190,7 +542,20 @@ function formatCalculated(value: number): string {
   return formatDecimalGroupedPtBr(value.toFixed(2));
 }
 
-function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestDef, criterion: CriterionSeed | null, table: TableDef, offset: number): EvaluatedTable {
+/**
+ * One table's evaluation. `rowCriteria` (batch e23a) holds each row's criterion, by the row's index
+ * across the test's tables, on a test judged row by row (a criterion table or a manufacturer's
+ * value); null on every other test, whose rows all take `criterion`.
+ */
+function evaluateTable(
+  block: BlockRow,
+  definition: BlockDefinition,
+  test: TestDef,
+  criterion: CriterionSeed | null,
+  table: TableDef,
+  offset: number,
+  rowCriteria: readonly RowCriterion[] | null = null,
+): EvaluatedTable {
   const ratio = test.key === 'relacao_transformacao';
   // Story 21.1: the vector group of a transformer ratio table (seed v9 and later), read from its plate.
   const resolution = ratio ? ratioGroupOf(block, table.ratio_factor) : null;
@@ -225,10 +590,6 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   });
   const typed = typedColumns(table);
   const inputs = typed.filter(({ column }) => column.role === 'input');
-  const helper = criterion === null ? null : outHelperText(criterion);
-  // Story 22.10: a ratio cell (a ± criterion), capture or input, never takes a reading above the limit.
-  const overRange: OverRangeAllowance = ratio || criterion?.operator === '±' ? { allowed: false, refusal: OVER_RANGE_RATIO_REFUSAL } : OVER_RANGE_ALLOWED;
-
   // Story 23.8 (seed v13): a `rows_from` table's rows are the plate's taps (`tap-rows.ts`); null keeps the seeded rows (v1 to v12).
   const plan = tapRowsOf(block, definition, table, test.key);
   const listUnit = plan === null ? null : (definition.nameplate.find((field) => field.key === table.rows_from)?.unit ?? null);
@@ -238,6 +599,13 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
       : plan.map((entry) => ({ row: offset + entry.row, connection: table.rows[entry.row] ?? [''], entry }));
 
   const rows: EvaluatedRow[] = specs.map(({ row, connection, entry }) => {
+    // Batch e23a: the row's own criterion where the test is judged row by row, else the test's. A tap
+    // row (Story 23.8, its `row` the tap in V) takes its table's seeded row's: a rows_from table has one.
+    const own = rowCriteria === null ? null : (rowCriteria[row] ?? (entry === null ? null : (rowCriteria[offset] ?? null)));
+    const rowCriterionValue = own === null ? criterion : own.criterion;
+    const helper = rowCriterionValue === null ? null : outHelperText(rowCriterionValue);
+    // Story 22.10: a ratio cell (a ± criterion), capture or input, never takes a reading above the limit.
+    const overRange: OverRangeAllowance = ratio || rowCriterionValue?.operator === '±' ? { allowed: false, refusal: OVER_RANGE_RATIO_REFUSAL } : OVER_RANGE_ALLOWED;
     // A tap row reads its own tap as V PRIMÁRIO; a seeded row, and row 0 kept off the plate, read the plate as on v12.
     const tapPrimary = entry !== null && entry.volts !== null && entry.raw !== null ? entry : null;
     // A row of a v12 table, or a seeded row while TAPS is empty, requires its cells as on v12; a tap row only when marked.
@@ -317,15 +685,15 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     }
     // The verdicts: every measured capture against the criterion; Story 22.10: a limit the instrument passed by `overRangeVerdict`.
     for (const cell of cells) {
-      if (cell.role !== 'capture' || (cell.state !== 'measured' && cell.state !== 'over_range') || criterion === null) continue;
+      if (cell.role !== 'capture' || (cell.state !== 'measured' && cell.state !== 'over_range') || rowCriterionValue === null) continue;
       const value = Number(cell.raw);
       let within: boolean | null;
       try {
         if (cell.state === 'over_range') {
-          const verdict = overRangeVerdict(value, cell.unit, criterion);
+          const verdict = overRangeVerdict(value, cell.unit, rowCriterionValue);
           within = verdict === null ? null : verdict === 'within';
-        } else if (ratio) within = calculated === null ? null : compareCriterion({ value: deviationPct(value, Number(calculated.raw)), unit: '%' }, criterion);
-        else within = compareCriterion({ value, unit: cell.unit }, criterion);
+        } else if (ratio) within = calculated === null ? null : compareCriterion({ value: deviationPct(value, Number(calculated.raw)), unit: '%' }, rowCriterionValue);
+        else within = compareCriterion({ value, unit: cell.unit }, rowCriterionValue);
       } catch {
         within = null;
       }
@@ -348,7 +716,13 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
       return { row, connection: connection.map(() => position), label: tapRowLabel(tap), cells, calculated, condicao, voltage: null, tap };
     }
     const shown = connection.map((text) => (table.connection_typed && text.trim() === '' ? (nameplateTap(block) ?? '') : readingLabelText(text)));
-    return { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row), tap };
+    const evaluated: EvaluatedRow = { row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row), tap };
+    if (own !== null) {
+      evaluated.criterion = own.criterion;
+      evaluated.criterionText = own.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(own.criterion);
+      evaluated.criterionHelper = own.helper;
+    }
+    return evaluated;
   });
 
   // The units an empty cell shows: the previous row's, else the column's (Story 5.5 AC 2).
@@ -434,22 +808,55 @@ function markOutliers(rows: EvaluatedRow[], typed: { col: number; column: Column
 
 /** One test sub-block's evaluation. */
 export function evaluateTest(block: BlockRow, definition: BlockDefinition, test: TestDef): TestEvaluation {
-  const criterion = effectiveCriterion(block, test);
+  // Batch e23a: a test with a criterion table, or a manufacturer's value, is judged row by row.
+  const manufacturer = manufacturerCriterion(block, test);
+  const byRow = manufacturer !== null || test.criterion_table !== undefined;
+  const rowCount = test.tables.reduce((count, table) => count + table.rows.length, 0);
+  const rowCriteria = byRow ? Array.from({ length: rowCount }, (_, row) => rowCriterion(block, definition, test, row)) : null;
+  const first = rowCriteria?.[0]?.criterion ?? null;
+  const uniform = rowCriteria === null || rowCriteria.every((one) => sameCriterion(one.criterion, first));
+  const criterion = rowCriteria === null ? effectiveCriterion(block, test) : first;
   const tables: EvaluatedTable[] = [];
   let offset = 0;
   for (const table of test.tables) {
-    tables.push(evaluateTable(block, definition, test, criterion, table, offset));
+    tables.push(evaluateTable(block, definition, test, criterion, table, offset, rowCriteria));
     offset += table.rows.length;
   }
-  return {
+  const evaluation: TestEvaluation = {
     testKey: test.key,
     title: sentenceCase(test.label),
     criterion,
-    criterionText: criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(criterion),
+    criterionText: !uniform ? CRITERION_PER_ROW_TEXT : criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(criterion),
     sourceName: sourceNameOf(test, criterion),
     tables,
     classHelper: test.criterion_class_field !== undefined && classOf(block, test) === null ? ACCURACY_CLASS_HELPER : null,
   };
+  if (!uniform) evaluation.perRow = true;
+  if (manufacturer !== null) evaluation.manufacturer = { value: manufacturerValueOf(block, test)!, criterion: manufacturer, criterionText: formatCriterionValue(manufacturer) };
+  if (rowCriteria !== null) {
+    // Story 23.3: under the manufacturer's line, what the table would ask without it (a reminder).
+    const underneath = manufacturer !== null && test.criterion_table !== undefined ? tableHelpersWithout(block, definition, test, rowCount) : [];
+    evaluation.sourceLines = [...new Set([...rowCriteria.flatMap((one) => (one.helper === null ? [] : [one.helper])), ...underneath])];
+  }
+  if (test.instrument_limit_note === true) evaluation.limitNote = limitNoteOf(tables);
+  return evaluation;
+}
+
+/** The row helpers of a table test as they read with no manufacturer's value. */
+function tableHelpersWithout(block: BlockRow, definition: BlockDefinition, test: TestDef, rowCount: number): string[] {
+  const without = withoutManufacturer(block, test);
+  return Array.from({ length: rowCount }, (_, row) => rowCriterion(without, definition, test, row).helper).filter((helper): helper is string => helper !== null);
+}
+
+/** The sheet as it reads with the test's manufacturer's value cleared. */
+function withoutManufacturer<T extends Pick<BlockRow, 'sheet'>>(block: T, test: TestDef): T {
+  return { ...block, sheet: { ...block.sheet, test: { ...block.sheet.test, [test.key]: { cells: {}, ...block.sheet.test[test.key], criterion_override: null } } } };
+}
+
+/** Two row criteria judge alike: the same operator, value, unit and text. */
+function sameCriterion(a: CriterionSeed | null, b: CriterionSeed | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.operator === b.operator && a.value === b.value && a.unit === b.unit && (a.text ?? null) === (b.text ?? null) && a.source.name === b.source.name;
 }
 
 /**

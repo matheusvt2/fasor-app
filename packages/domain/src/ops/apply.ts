@@ -4,6 +4,7 @@ import type { MeasurementTest } from '../seed/measurement.ts';
 import type { BlockDefinition, TableDef, TestDef } from '../seed/schema.ts';
 import { isApplicabilityValue } from '../relatorio/applicability.ts';
 import { tapRowAccepted } from '../relatorio/tap-rows.ts';
+import { manufacturerRefusal } from '../relatorio/reading-evaluation.ts';
 import {
   blockRowSchema,
   cellSchema,
@@ -504,6 +505,37 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
   }
 }
 
+// --- batch e23a: Story 23.3 (contract 34) ----------------------------------------------------
+
+/** The first seed version whose sheets hold a manufacturer's value under the fold's check. */
+const MANUFACTURER_CHECK_FROM = 13;
+
+/** The number of a seed version ("v13" -> 13), NaN for any other text. */
+function seedVersionNumber(version: string): number {
+  return /^v\d+$/.test(version) ? Number(version.slice(1)) : Number.NaN;
+}
+
+/**
+ * Story 23.3 (contract 34, "refused, never ignored"): a `sheet/test/{key}/criterion_override` put on
+ * a seeded test (`definition.tests`) of a v13 (or later) sheet stores the manufacturer's value only
+ * when it is null (the clear) or well formed (`manufacturerRefusal`: `{raw, unit}`, raw a positive
+ * dot-decimal, a unit the criterion's converts to); any other value is a permanent refusal
+ * (`SeedPathError`, answered `op_invalid`). Replay safety: v1 to v12 sheets are not checked, so an
+ * override any older log holds (the replay fixture's) folds as it always did, and the readers keep
+ * ignoring a malformed one (`effectiveCriterion`); a v13 sheet cannot exist before contract 34.
+ */
+function assertManufacturerValue(block: BlockRow, op: Op, path: OpPath, ctx: () => DefinitionContext): void {
+  if (path.family !== 'sheet/test' || path.field !== 'criterion_override' || op.kind !== 'put') return;
+  if (!(seedVersionNumber(block.seed_version) >= MANUFACTURER_CHECK_FROM)) return;
+  const definition = isCompanyBlockType(block.block_type)
+    ? findDefinitionIn(ctx(), block.seed_version, block.block_type, typeVersionOf(block.config))
+    : findDefinition(block.seed_version, block.block_type);
+  const test = definition?.tests.find((candidate) => candidate.key === path.test_key);
+  if (test === undefined) return;
+  const refusal = manufacturerRefusal(test, op.value ?? null);
+  if (refusal !== null) throw new SeedPathError(formatPath(path), `sheet/test: criterion_override of ${block.block_type}/${test.key} refused: ${refusal}`);
+}
+
 /**
  * Story 14.5: a cell address of a measurement test: `row` is the index in the test's `rows`
  * (a row the configuration hides keeps its index and stays writable: the configuration may
@@ -641,6 +673,7 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
  */
 function writeSheet(block: BlockRow, op: Op, path: OpPath, ctx: () => DefinitionContext): BlockRow {
   assertSeedPath(block, path, ctx, op);
+  assertManufacturerValue(block, op, path, ctx);
   const cell = cellSchema.parse(cellOf(block, op, path));
   const next = attributed(putSheet(block, path, cell), op);
   attributionSchema.parse(next);

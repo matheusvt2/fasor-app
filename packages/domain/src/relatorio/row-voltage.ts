@@ -98,8 +98,13 @@ const VOLTAGE_PAIR = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/;
 
 /**
  * A winding's rating in V: the nameplate number (`voltsOf`), or the higher side of a two-level
- * secondary ("380/220", fix batch fxpw G4); null when the cell holds neither.
+ * secondary ("380/220", fix batch fxpw G4); null when the cell holds neither. Story 23.2: exported,
+ * the rating a v13 criterion table picks its row by (`rowCriterion`).
  */
+export function ratedVoltsOf(value: unknown): number | null {
+  return ratedVolts(value);
+}
+
 function ratedVolts(value: unknown): number | null {
   const single = voltsOf(value);
   if (single !== null) return single;

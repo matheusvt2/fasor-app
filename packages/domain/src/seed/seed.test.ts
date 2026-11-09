@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { BASE_EQUIPMENT_BLOCK_TYPES, EQUIPMENT_BLOCK_TYPES, ITEM_KEYS, SITE_ITEM_KEYS, SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
+import { CRITERION_ROW_STATUSES, NETA_100_1, NETA_100_5 } from './criteria-tables.ts';
 import {
   equipmentTypesOf,
   findDefinition,
@@ -2143,8 +2144,9 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
 
 /** v13 as it ships (Epic 23); until its deploy (M-2) each Epic 23 batch re-pins it, after it a change is a new version. */
 // e23a first commit (2026-11-08): v13 opens equal to v12.
-// e23b (2026-11-08, Stories 23.7 to 23.9): re-pinned with the nameplate fields, the TTR per tap and the dry fields (its block below).
-const V13_HASH = '5e0cd3a495f0a4bd92ff954056acb19580239eb34947e799dd487459a9d48067';
+// e23a (Stories 23.2 to 23.4: the NETA criterion tables, the instrument-limit note), then e23b (Stories 23.7 to 23.9: the nameplate fields,
+// the TTR per tap, the dry fields; its block below), re-pinned on main 17127590 merged in.
+const V13_HASH = 'b7f5cfb3cd38062a7f20dcbd0cd9dd81ce57bb17e424a94d3089d18fcfac246e';
 
 describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', () => {
   const v12 = getSeed('v12', 'cabine_primaria');
@@ -2161,10 +2163,100 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
   it('differs from v12 by exactly its stories, and v1 to v12 hash as they shipped', () => {
     // e23b: batch e23b's delta is undone here and pinned in its own block below.
     const stripped = withoutE23b(structuredClone(v13) as typeof v13);
+    // Batch e23a (Stories 23.2 and 23.4): the criterion tables and the instrument-limit note on the insulation tests.
+    for (const definition of Object.values(stripped.blocks)) {
+      for (const test of definition?.tests ?? []) {
+        delete test.criterion_table;
+        delete test.instrument_limit_note;
+      }
+    }
     expect(JSON.stringify(stripped)).toBe(JSON.stringify(v12));
     expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
     expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
     expect(hash('v13'), 'seed v13 changed: before its first deploy update this pin, after it add a new version').toBe(V13_HASH);
+  });
+});
+
+describe('seed v13, batch e23a (Stories 23.2 and 23.4): the NETA tables and the instrument-limit note', () => {
+  const v13 = getSeed('v13', 'cabine_primaria');
+  const insulation = (type: string) => (v13.blocks as Record<string, BlockDefinition | undefined>)[type]!.tests.find((test) => test.key === 'isolacao')!;
+
+  it('carries the two tables with every row sourced, editioned and given one of the base\'s four statuses', () => {
+    expect([...CRITERION_ROW_STATUSES]).toEqual(['CONFIRMADO', 'CONFERIR NA NORMA', 'FABRICANTE', 'PADRÃO FASOR']);
+    for (const table of [NETA_100_1, NETA_100_5]) {
+      for (const row of table.rows) {
+        expect(row.source).toEqual({ name: 'ANSI/NETA MTS', edition: '2023' });
+        expect(CRITERION_ROW_STATUSES).toContain(row.status);
+        expect(row.status).toBe('CONFIRMADO');
+        expect(row.unit).toBe('MΩ');
+      }
+    }
+    expect(NETA_100_1.rows.map((row) => [row.up_to_v, row.test_voltage_v, row.min])).toEqual([
+      [250, 500, 25],
+      [600, 1000, 100],
+      [1000, 1000, 100],
+      [2500, 1000, 500],
+      [5000, 2500, 1500],
+      [8000, 2500, 2500],
+      [15000, 2500, 5000],
+      [25000, 5000, 10000],
+      [34500, 5000, 100000],
+      [null, 5000, 100000],
+    ]);
+    expect(NETA_100_5.rows.map((row) => [row.up_to_v, row.test_voltage_v, row.oil, row.dry])).toEqual([
+      [600, 1000, 100, 500],
+      [5000, 2500, 1000, 5000],
+      [null, 5000, 5000, 25000],
+    ]);
+  });
+
+  it('picks Table 100.5 on the transformer (by winding, by medium) and the TC (by primary), 100.1 on the disjuntor, seccionadora and para-raio; the TP and the cables keep the seeded criterion', () => {
+    expect(insulation('transformador_forca').criterion_table).toEqual({ table: NETA_100_5, voltage: 'winding', medium: 'oil_rule' });
+    expect(insulation('tc').criterion_table).toEqual({ table: NETA_100_5, voltage: { field: 'tensao_nominal_at' }, medium: 'oil_rule' });
+    expect(insulation('disjuntor_mt').criterion_table).toEqual({ table: NETA_100_1, voltage: { field: 'tensao_nominal' } });
+    expect(insulation('chave_seccionadora').criterion_table).toEqual({ table: NETA_100_1, voltage: { field: 'tensao_de_placa' } });
+    expect(insulation('para_raio').criterion_table).toEqual({ table: NETA_100_1, voltage: { field: 'tensao_nominal' } });
+    for (const type of ['tp', 'cabos_entrada', 'cabos_saida', 'quadro_eletrico']) expect(insulation(type).criterion_table, type).toBeUndefined();
+  });
+
+  it('flags the instrument-limit note on the insulation test of the eight FO.SERV-03 types only', () => {
+    for (const type of BASE_EQUIPMENT_BLOCK_TYPES) expect(insulation(type).instrument_limit_note, type).toBe(true);
+    expect(insulation('quadro_eletrico').instrument_limit_note).toBeUndefined();
+    for (const definition of Object.values(v13.blocks)) {
+      for (const test of definition?.tests ?? []) if (test.key !== 'isolacao') expect(test.instrument_limit_note).toBeUndefined();
+    }
+  });
+
+  it('no definition of v1 to v12 carries either key', () => {
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const test of definition?.tests ?? []) {
+          expect(test.criterion_table, version).toBeUndefined();
+          expect(test.instrument_limit_note, version).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it('refuses a criterion table whose plate field, rows or medium do not hold', () => {
+    const disjuntor = structuredClone((v13.blocks as Record<string, BlockDefinition>).disjuntor_mt!);
+    const at = disjuntor.tests.findIndex((test) => test.key === 'isolacao');
+    const withTable = (table: unknown) => ({ ...disjuntor, tests: disjuntor.tests.map((test, i) => (i === at ? { ...test, criterion_table: table } : test)) });
+    expect(blockDefinitionSchema.safeParse(disjuntor).success).toBe(true);
+    // A field that is not a voltage, a medium with no oil rule, a medium over a one-column table.
+    expect(blockDefinitionSchema.safeParse(withTable({ table: NETA_100_1, voltage: { field: 'corrente_nominal' } })).success).toBe(false);
+    expect(blockDefinitionSchema.safeParse(withTable({ table: NETA_100_5, voltage: { field: 'tensao_nominal' }, medium: 'oil_rule' })).success).toBe(true);
+    expect(blockDefinitionSchema.safeParse(withTable({ table: NETA_100_1, voltage: { field: 'tensao_nominal' }, medium: 'oil_rule' })).success).toBe(false);
+    expect(blockDefinitionSchema.safeParse(withTable({ table: NETA_100_5, voltage: { field: 'tensao_nominal' } })).success).toBe(false);
+    const seccionadora = structuredClone((v13.blocks as Record<string, BlockDefinition>).chave_seccionadora!);
+    const iso = seccionadora.tests.findIndex((test) => test.key === 'isolacao');
+    const noRule = { ...seccionadora, tests: seccionadora.tests.map((test, i) => (i === iso ? { ...test, criterion_table: { table: NETA_100_5, voltage: { field: 'tensao_de_placa' }, medium: 'oil_rule' } } : test)) };
+    expect(blockDefinitionSchema.safeParse(noRule).success).toBe(false);
+    // By winding: every table of the test needs its voltage_rows.
+    const noRows = { ...disjuntor, tests: disjuntor.tests.map((test, i) => (i === at ? { ...test, criterion_table: { table: NETA_100_1, voltage: 'winding' }, tables: test.tables.map((table) => { const bare = { ...table, value_columns: table.value_columns.filter((column) => column.role !== 'voltage') }; delete bare.voltage_rows; return bare; }) } : test)) };
+    expect(blockDefinitionSchema.safeParse(noRows).success).toBe(false);
+    // Rows out of order.
+    expect(blockDefinitionSchema.safeParse(withTable({ table: { ...NETA_100_1, rows: [...NETA_100_1.rows].reverse() }, voltage: { field: 'tensao_nominal' } })).success).toBe(false);
   });
 });
 
@@ -2213,7 +2305,15 @@ describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of d
   const keysOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate.map((field) => field.key);
 
   it('adds exactly its delta to v12: the appended fields, TAPS and TAP ATUAL in place, the dry fields, the TTR from TAPS, MOTORIZADO, √3, the dash, the cable nameplate', () => {
-    expect(JSON.stringify(withoutE23b(structuredClone(v13) as typeof v13))).toBe(JSON.stringify(v12));
+    // Batch e23a's keys (the criterion tables, the instrument-limit note) are pinned in its own block.
+    const bare = withoutE23b(structuredClone(v13) as typeof v13);
+    for (const definition of Object.values(bare.blocks)) {
+      for (const test of definition?.tests ?? []) {
+        delete test.criterion_table;
+        delete test.instrument_limit_note;
+      }
+    }
+    expect(JSON.stringify(bare)).toBe(JSON.stringify(v12));
     for (const [type, keys] of Object.entries(E23B_APPENDED)) {
       const before = keysOf('v12', type).flatMap((key) => (type === 'transformador_forca' && key === 'tap_atual' ? ['taps', 'tap_atual_kv'] : [key]));
       const added = keysOf('v13', type).filter((key) => !before.includes(key));

@@ -1,5 +1,6 @@
 import {
   cellAddressesOf,
+  evaluateTest,
   getDefinition,
   ratioFormulaHelperText,
   SEED_VERSION,
@@ -9,6 +10,7 @@ import {
   vectorGroupFormulaText,
   vectorGroupNeutralCaptureLabel,
   vectorGroupShortText,
+  type BlockRow,
   type OpDraft,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
@@ -524,7 +526,12 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   // The criterion value in the title row, its source behind the chevron; the single value column.
   await expect(page.locator('.ficha-mt').first().locator('.mt-criterion')).toHaveText('Aceitável >400 MΩ');
   await page.locator('.ficha-mt').first().locator('details.mt-source summary').click();
-  await expect(page.locator('.ficha-mt').first().locator('details.mt-source p')).toHaveText('aceitável na ficha');
+  // Batch e23a (seed v13, Story 23.2): a seccionadora with no TENSÃO DE PLACA keeps > 400 MΩ, its source line the kernel's
+  // request for the plate value (Table 100.1); on v12 it was "aceitável na ficha".
+  const stored = (await readStore<{ entity: string; id: string; row: BlockRow }>(page, database, 'entities')).find((record) => record.entity === 'block' && record.id === blockId)!.row;
+  const isoDefinition = getDefinition(stored.seed_version, 'cabine_primaria', 'chave_seccionadora');
+  const isoEvaluation = evaluateTest(stored, isoDefinition, isoDefinition.tests.find((candidate) => candidate.key === 'isolacao')!);
+  await expect(page.locator('.ficha-mt').first().locator('details.mt-source p')).toHaveText(isoEvaluation.sourceLines ?? [isoEvaluation.sourceName]);
   // Seed v12 (Story 22.8): the per-row TENSÃO select sits right after the connection columns.
   const voltage = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').tests[0]!.tables[0]!.value_columns.some((column) => column.role === 'voltage') ? ['Tensão (kV)'] : [];
   await expect(page.locator('.ficha-mt').first().locator('thead th')).toHaveText(['Linha', 'Terra', 'Guard', ...voltage, 'Valor']);

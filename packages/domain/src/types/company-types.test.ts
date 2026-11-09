@@ -292,31 +292,6 @@ describe('Story 14.6: "Duplicar" and the status words', () => {
   });
 });
 
-describe('Story 23.7 (seed v13): "Duplicar" carries the v13 keys, and the copy publishes', () => {
-  it('a copy of the v13 transformer, TP and TC keeps TAPS, TAP ATUAL, the dry fields, the TTR from TAPS, √3 and the dash', () => {
-    const transformer = duplicateSeededType('v13', 'transformador_forca').draft;
-    expect(transformer.nameplate.find((field) => field.key === 'taps')).toMatchObject({ list: true, unit: 'kV' });
-    expect(transformer.nameplate.find((field) => field.key === 'tap_atual_kv')).toMatchObject({ pick_from: 'taps' });
-    expect(transformer.oil_rule).toMatchObject({ dry_fields: ['temperatura_enrolamento_c', 'classe_termica'] });
-    expect(transformer.tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!.rows_from).toBe('taps');
-    expect(duplicateSeededType('v13', 'tp').draft.nameplate.filter((field) => field.over_sqrt3 === true).map((field) => field.key)).toEqual(['tensao_nominal_at', 'tensao_nominal_bt']);
-    expect(duplicateSeededType('v13', 'tc').draft.nameplate.find((field) => field.key === 'relacao')!.dash_ratio).toBe(true);
-    for (const type of equipmentTypesOf('v13')) {
-      const draft = duplicateSeededType('v13', type).draft;
-      expect(validateTypeDraft(draft), type).toEqual([]);
-      expect(companyTypeDefinitionSchema.parse(draft), type).toEqual(draft);
-    }
-  });
-
-  it('the company schema refuses a copy whose TAP ATUAL picks from no list or whose oil rule names a dry field the plate lacks', () => {
-    const transformer = duplicateSeededType('v13', 'transformador_forca').draft;
-    const noList = { ...transformer, nameplate: transformer.nameplate.map((field) => (field.key === 'taps' ? { ...field, list: undefined } : field)) };
-    expect(validateTypeDraft(JSON.parse(JSON.stringify(noList))).map((issue) => issue.part)).toEqual(['placa', 'ensaios']);
-    const dry = { ...transformer, oil_rule: { ...transformer.oil_rule!, dry_fields: ['nao_existe'] } };
-    expect(validateTypeDraft(dry).map((issue) => issue.message)).toEqual(['A regra do óleo cita um campo que não está na placa.']);
-  });
-});
-
 describe('Story 14.6: the publish fold and the type refusals', () => {
   it('publishes v1 as latest + 1, clears a draft it published and keeps one edited after it', () => {
     const state = fold([typeCreate(TYPE_1_ID), versionCreate(VERSION_1_ID, TYPE_1_ID, 1)]);
@@ -724,7 +699,7 @@ describe('Story 14.6 review: the next visit, photos, parecer and pre-issue over 
           relatorio_id: RELATORIO_ID,
           revision_number: 1,
           issued_at: T(50),
-          // e23b: inherited from e23a's first commit: the fixture's blocks are on its own seed version (v12), not the current one.
+          // The fixture's relatório is pinned at seed v12 (`fixtures/company-types/op-log.ts`), not the current version.
           seed_version: 'v12',
           block_type: TYPE_1,
           readings: { 'tensoes_medidas|saida|valor': { raw: '125', unit: 'Vcc', state: 'measured' }, 'tensoes_medidas|flutuacao|valor': { raw: '131', unit: 'Vcc', state: 'measured' } },

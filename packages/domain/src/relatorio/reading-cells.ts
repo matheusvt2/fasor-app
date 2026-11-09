@@ -122,6 +122,22 @@ export interface EvaluatedRow {
    * (`relatorio/tap-rows.ts`); null on every other row, every row of v1 to v12 included.
    */
   tap: EvaluatedTap | null;
+  /*
+   * Batch e23a (Stories 23.2 and 23.3). Present only on a test with a `criterion_table` (seed v13)
+   * or a manufacturer's value: every row of such a test carries them; absent on every other row.
+   */
+  /** The criterion the row's captures are judged by (`rowCriterion`). */
+  criterion?: CriterionSeed | null;
+  /** Its text, as the row's helper and the printed ACEITÁVEL column read it ("≥ 25.000 MΩ"). */
+  criterionText?: string;
+  /** Where it comes from: the table row with its edition, the fallback's request, the manufacturer's line. */
+  criterionHelper?: string | null;
+}
+
+/** Story 23.3: a manufacturer's value as `criterion_override` stores it (AR-10's number shape, no state). */
+export interface ManufacturerValue {
+  raw: string;
+  unit: string | null;
 }
 
 /** Story 22.8 (seed v12): a table's voltage column as the sheet draws it, right after the connection columns. */
@@ -187,6 +203,18 @@ export interface TestEvaluation {
    * while its EXATIDÃO names none (the seeded ± 0,5 % then stands); null otherwise.
    */
   classHelper: string | null;
+  /*
+   * Batch e23a (Stories 23.2 to 23.4). Optional and absent on a test none of them reaches, so the
+   * evaluation of a v1 to v12 test with no manufacturer's value is the one it always was.
+   */
+  /** Story 23.2: the rows are judged by different criteria (`criterion` is then the first row's, `criterionText` "por linha"). */
+  perRow?: true;
+  /** Story 23.3: the manufacturer's value judging every row, and its criterion text ("<80 µΩ"). */
+  manufacturer?: { value: ManufacturerValue; criterion: CriterionSeed; criterionText: string };
+  /** Stories 23.2 and 23.3: the source details the sheet lists under the criterion (per-row helpers, the manufacturer's line). */
+  sourceLines?: string[];
+  /** Story 23.4: on a test with `instrument_limit_note`, the observation under its table, or null while no limit meets it. */
+  limitNote?: string | null;
 }
 
 // --- text helpers ------------------------------------------------------------------------

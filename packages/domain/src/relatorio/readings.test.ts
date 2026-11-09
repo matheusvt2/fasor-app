@@ -539,13 +539,14 @@ describe('E5-A4 criterion_override', () => {
   const override = (value: unknown) => ({ cells: {}, criterion_override: cell(value) });
   const readings = (): Sheet['test'][string]['cells'] => ({ '0': { '0': measured('500', 'MΩ') }, '1': { '0': measured('2', 'GΩ') } });
 
-  it('a well-formed override replaces the value and unit; operator, type and source stay the seed\'s', () => {
+  // Story 23.3 (batch e23a): the override is the manufacturer's value; its source names "Fabricante" (it was the seed's).
+  it('a well-formed override replaces the value and unit; operator and type stay the seed\'s, the source is the manufacturer', () => {
     const b = block('chave_seccionadora', { test: { isolacao: { ...override({ raw: '1000', unit: 'MΩ' }), cells: readings() } } });
     const criterion = effectiveCriterion(b, ISO);
-    expect(criterion).toMatchObject({ key: 'isolacao', operator: '>', value: 1000, unit: 'MΩ', type: 'absolute_min', source: { name: 'aceitável na ficha' } });
+    expect(criterion).toMatchObject({ key: 'isolacao', operator: '>', value: 1000, unit: 'MΩ', type: 'absolute_min', source: { name: 'Fabricante' } });
     const iso = evaluateSheetReadings(b, SEC)[0]!;
     expect(iso.criterionText).toBe('>1000 MΩ');
-    expect(iso.sourceName).toBe('aceitável na ficha');
+    expect(iso.sourceName).toBe('Fabricante');
     const cells = iso.tables[0]!.rows.map((r) => r.cells[0]!);
     // 500 MΩ is within the seed's >400 MΩ but out of the override's >1000 MΩ; 2 GΩ stays within.
     expect(cells.slice(0, 2).map((c) => c.verdict)).toEqual(['out', 'within']);

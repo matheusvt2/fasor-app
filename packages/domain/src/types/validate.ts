@@ -156,6 +156,12 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
           ? plain(`${name}: o critério SELV/PELV é escolhido pelo campo ${field} da placa; mantenha esse campo como uma lista com SIM.`, `${name} sem campo SELV/PELV`)
           : plain(`${name}: o critério é escolhido pela tensão do campo ${field} da placa; mantenha esse campo como um número em V.`, `${name} sem campo da tensão`);
       }
+      // authored (Story 23.2, listed for Bruno): a NETA criterion table whose plate field or oil rule changed.
+      if (sub === 'criterion_table') {
+        return subIndex === 'medium'
+          ? plain(`${name}: o critério da tabela NETA depende do tipo de isolação da placa; mantenha a regra de óleo do tipo.`, `${name} sem regra de óleo`)
+          : plain(`${name}: o critério da tabela NETA é escolhido pela tensão nominal da placa; mantenha esse campo como um número em V ou kV, ou uma classe de tensão.`, `${name} sem campo da tensão`);
+      }
       if (sub === 'tables' && leaf === 'voltage_rows') return plain(`${name}: a tensão de uma linha vem de um campo numérico da placa; mantenha esse campo como um número.`, `${name} sem campo da tensão`);
       // authored (Stories 23.8 and 23.9, listed for Bruno): the tap rows and the applicability condition a copy carries.
       if (sub === 'tables' && leaf === 'rows_from' && issue.message.includes('one seeded row')) return plain(`${name}: as linhas vêm da lista de taps da placa; mantenha a tabela com uma linha e uma coluna de conexão.`, `${name} com linhas a mais`);
