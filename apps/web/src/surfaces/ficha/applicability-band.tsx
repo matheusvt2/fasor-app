@@ -35,7 +35,22 @@ function useApplicabilityWrite(api: FichaApi, testKey: string): (value: typeof A
  * "Aplicar este ensaio" (none on a read-only sheet). `headEnd` is what the test's own head draws
  * at its end (a switchable measurement test's switch), kept beside the pill.
  */
-export function NotApplicableTest({ api, testKey, title, applicability, headEnd }: { api: FichaApi; testKey: string; title: string; applicability: TestApplicability; headEnd?: ReactNode }) {
+export function NotApplicableTest({
+  api,
+  testKey,
+  title,
+  applicability,
+  headEnd,
+  children,
+}: {
+  api: FichaApi;
+  testKey: string;
+  title: string;
+  applicability: TestApplicability;
+  headEnd?: ReactNode;
+  /** Batch e23e (Story 23.20): what the band keeps drawn under it (the test's own value its condition reads, "Equipamento em carga"). */
+  children?: ReactNode;
+}) {
   const t = copy.ficha.applicability;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
@@ -58,6 +73,7 @@ export function NotApplicableTest({ api, testKey, title, applicability, headEnd 
           </Button>
         )}
       </div>
+      {children}
     </section>
   );
 }

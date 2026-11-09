@@ -41,6 +41,8 @@ const SEEDED_NOUNS: Readonly<Record<EquipmentBlockType, TypeNoun>> = {
   chave_transferencia_automatica: { singular: 'chave de transferência automática', plural: 'chaves de transferência automática', gender: 'f' },
   quadro_eletrico: { singular: 'quadro elétrico', plural: 'quadros elétricos', gender: 'm' },
   inspecao_qgbt: { singular: 'quadro geral de baixa tensão', plural: 'quadros gerais de baixa tensão', gender: 'm' },
+  // authored (Story 23.21, listed for Bruno).
+  malha_aterramento: { singular: 'malha de aterramento', plural: 'malhas de aterramento', gender: 'f' },
 };
 
 /** The noun a copy of a seeded type starts with. */

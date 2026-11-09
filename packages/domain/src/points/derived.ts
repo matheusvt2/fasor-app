@@ -165,7 +165,9 @@ function sheetEntries(
     // Batch e23t (Story 23.16): an IP out of its class fails the test too, named after its out reading.
     const test = evaluations.find((one) => one.testKey === testKey);
     const index = (test?.indexOut ?? []).map((one) => `${one.valueText} em ${one.where} (critério: ${one.criterionText})`);
-    if (reading === undefined && prerequisite === null && index.length === 0) continue;
+    // Batch e23e (Story 23.18): a failed choice (a polarity INVERTIDA) fails the test too; authored (Story 23.18, listed for Bruno): "polaridade invertida em Fase R".
+    const choice = (test?.choiceOut ?? []).map((one) => `${one.text} em ${one.where}`);
+    if (reading === undefined && prerequisite === null && index.length === 0 && choice.length === 0) continue;
     withEntry.add(testKey);
     // authored (Story 22.5, open for Bruno): a reading entry's text, the ratio as its deviation.
     const value = reading === undefined ? null : reading.testKey === 'relacao_transformacao' ? `desvio de ${reading.valueText}` : reading.valueText;
@@ -182,7 +184,7 @@ function sheetEntries(
       // a `reading` entry is a failed test (an out reading, a failed prerequisite, or both), never a `restricao` one.
       text: recommendedPointText(
         testRecommendationOf({ tests: definition.tests }, testKey),
-        `${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index].filter((part): part is string => part !== null).join('; ')}`,
+        `${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`,
       ),
     });
   }

@@ -72,6 +72,7 @@ import { renderVariants } from '../storage/variants.ts';
  * seed v12 oil transformer plate (prompt `bedrock-structuring-5`): TIPO is TRICAST and TIPO DO ÓLEO B.
  * Batch e23t (Story 23.17, prompt `bedrock-structuring-7`) adds two seed v13 transformer plates: the ANP class B
  * alone (TIPO (ANP) B, the kernel composing the insulation and a mineral liquid) and a silicone liquid.
+ * Batch e23e (Story 23.18, prompt `bedrock-structuring-8`) adds a seed v13 TC printing FUNÇÃO DO TC and the class 0,3S.
  *
  * Options: `--models a,b` (default: the four candidates and Nova Pro), `--ocr textract|fake|ocr-svc`,
  * `--dir <folder>`, `--verbose` (one line per reading). The regions are BEDROCK_REGION and
@@ -183,6 +184,18 @@ const SYNTHETIC: Sample[] = [
       block_type: 'transformador_forca',
       seed_version: 'v13',
       values: { identificacao: 'TR-07', fabricacao: 'Varnelo', tipo_de_isolacao: 'ÓLEO ISOLANTE', natureza_liquido: 'SILICONE', potencia_nominal: '300', tensao_nominal_at: '13.8', tensao_nominal_bt: '380' },
+    },
+  },
+  // Batch e23e (Story 23.18, prompt `bedrock-structuring-8`): a v13 TC printing FUNÇÃO DO TC and the special class "0,3S",
+  // which the kernel lands on its option with the S kept. Not run here: the paid eval is the coordinator's before the deploy.
+  {
+    name: 'plate-tc-funcao-v13 (synthetic, seed v13, Story 23.18)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-tc-funcao-v13.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'tc',
+      seed_version: 'v13',
+      values: { identificacao: 'TC-04', fabricacao: 'Velquor', relacao: '300-5 A', exatidao: '0,3S', funcao_tc: 'FATURAMENTO' },
     },
   },
   // Story 23.7 (seed v13): one plate per type with the fields v13 adds (fixtures README); the list and the √3 as printed.

@@ -66,6 +66,7 @@ describe('3.7-UNIT-001 Porto Seguro fixture: full log', () => {
       chave_transferencia_automatica: 0,
       quadro_eletrico: 0,
       inspecao_qgbt: 0,
+      malha_aterramento: 0,
     });
   });
 

@@ -120,7 +120,8 @@ describe('14.7-UNIT draft edits', () => {
   });
 
   it('removing the last measurement table removes the part: the draft publishes as before it was added', () => {
-    const base = duplicateSeededType(SEED_VERSION, 'cabos_saida').draft;
+    // Batch e23e (seed v13): every one of the eight carries its thermography, so the copy is of a type with no measurement table.
+    const base = duplicateSeededType(SEED_VERSION, 'inspecao_qgbt').draft;
     expect(base).not.toHaveProperty('measurement_tests');
     const table = addDraftTest(base, 'medicoes', SEED_VERSION)!;
     const removed = removeDraftEntry(table.draft, 'measurement_tests', table.index);

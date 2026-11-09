@@ -25,6 +25,8 @@ export const TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
   quadro_eletrico: 'QD',
   // Story 22.11 (seed v12): the Inspeção de QGBT, "QGBT-C05".
   inspecao_qgbt: 'QGBT',
+  // Story 23.21 (seed v13, batch e23e): the Malha de aterramento, "MA-C05".
+  malha_aterramento: 'MA',
 };
 
 /**

@@ -256,7 +256,7 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
   it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 7 (Story 23.17)', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-7');
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-8');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -272,7 +272,7 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-7');
+    expect(result.prompt_version).toBe('bedrock-structuring-8');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
@@ -512,7 +512,7 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
     expect(result.output.values).toHaveLength(others.length + 1);
     expect(Object.keys(result.output)).toEqual(['values']);
-    expect(result.prompt_version).toBe('bedrock-structuring-7');
+    expect(result.prompt_version).toBe('bedrock-structuring-8');
   });
 
   it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {
@@ -620,5 +620,26 @@ describe('23.17 (batch e23t, seed v13): the structuring prompt says what TIPO (A
     expect(plateFieldNotes(fieldsOf('v12', 'transformador_forca')).some((note) => note.includes('tipo_anp'))).toBe(false);
     // The TP and the TC carry no liquid field.
     for (const type of ['tp', 'tc']) expect(plateFieldNotes(fieldsOf('v13', type)).some((note) => note.includes('tipo_anp')), type).toBe(false);
+  });
+});
+
+describe('23.18 (batch e23e, seed v13): the structuring prompt says what FUNÇÃO DO TC and the v13 classes hold', () => {
+  const fieldsOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate;
+
+  it('a v13 TC asks for its function by its options and keeps the S and the accuracy limit factor of its class; v12 and the TP ask for neither', () => {
+    const notes = plateFieldNotes(fieldsOf('v13', 'tc'));
+    expect(notes).toContain(
+      'The field funcao_tc is the transformer\'s function as printed: give one of: MEDIÇÃO | PROTEÇÃO | FATURAMENTO ("medição" is MEDIÇÃO, "proteção" PROTEÇÃO, a billing or utility metering transformer, "faturamento", FATURAMENTO); leave it out when the plate prints no function.',
+    );
+    expect(notes).toContain('The class of exatidao keeps the S of a special measurement class as printed ("0,3S", "0,6S") and the accuracy limit factor of a protection class ("5P20", "10P20"); never drop either.');
+    const text = structuringPrompt({ ...plateInput, fields: fieldsOf('v13', 'tc') });
+    expect(text.indexOf('The field funcao_tc')).toBeLessThan(text.indexOf('OCR words:'));
+    for (const [version, type] of [
+      ['v12', 'tc'],
+      ['v13', 'tp'],
+    ] as const) {
+      const other = plateFieldNotes(fieldsOf(version, type));
+      expect(other.some((note) => /funcao_tc|keeps the S/.test(note)), `${version} ${type}`).toBe(false);
+    }
   });
 });

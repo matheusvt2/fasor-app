@@ -10,6 +10,7 @@ import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION } from '../seed/d
 import { syncBadgeState, syncCounts } from '../sync/counts.ts';
 import { composeConclusion, conclusionTextState } from '../relatorio/conclusion.ts';
 import { visitContextOf } from '../relatorio/visit-context.ts';
+import { choiceCellValue } from '../relatorio/reading-evaluation.ts';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import {
@@ -163,6 +164,18 @@ describe('10.2 the contradiction mark', () => {
     const row = fold([create, eduardo(path, kv('5')), ana(path, kv('10'))]);
     const decision = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
     expect(decision.cells.map((cell) => [cell.path, cell.label])).toEqual([[path, 'T1 · Tensão (kV)']]);
+  });
+
+  it('23.18: two polarities on a v13 TC ratio row name the cell by its row and the POLARIDADE header, not "Linha · coluna"', () => {
+    const tc = getDefinition('v13', 'cabine_primaria', 'tc');
+    const choiceCol = tc.tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!.value_columns.findIndex((column) => column.role === 'choice');
+    expect(choiceCol).toBe(5);
+    const path = `sheet/${BLOCK}/test/relacao_transformacao/cell/0/${choiceCol}`;
+    const { f, eduardo, ana } = world();
+    const create = f.op({ kind: 'create', path: `block/${BLOCK}`, value: { ...blockRow(), block_type: 'tc', seed_version: 'v13' } as unknown as JsonValue, device_id: 'office' });
+    const row = fold([create, eduardo(path, choiceCellValue('OK')), ana(path, choiceCellValue('INVERTIDA'))]);
+    const decision = openDecisions({ definitions: EMPTY_DEFINITION_CONTEXT, relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined })[0] as CellDecision;
+    expect(decision.cells.map((cell) => [cell.path, cell.label])).toEqual([[path, 'Fase R · Polaridade']]);
   });
 
   it('"Aplicar" is a sequential put that clears the mark and leaves the NC merge of the sheet as it is', () => {

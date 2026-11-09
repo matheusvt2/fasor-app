@@ -1,10 +1,10 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
-import type { TableDef, TestDef } from '../seed/schema.ts';
+import { classU0UKv, type BlockDefinition, type TableDef, type TestDef } from '../seed/schema.ts';
 import { TEST_VOLTAGE_OPTIONS_KV } from '../seed/test-voltages.ts';
 import { storedInstrumentHeader } from './instrument-pick.ts';
 import { DECIMAL, readingLabelText } from './reading-cells.ts';
-import { voltsOf } from './reading-evaluation.ts';
+import { plateVolts, voltsOf } from './reading-evaluation.ts';
 import { testParameterVolts } from './test-voltage.ts';
 
 /*
@@ -156,12 +156,59 @@ export function ratingDefaultKv(block: Pick<BlockRow, 'sheet'>, winding: string 
   return rated <= RATING_BAND_HIGH_V ? '2.5' : '5';
 }
 
+// --- e23e: Story 23.13 (decision D, seed v13) ----------------------------------------------------
+
+/** The rating, in V, at or under which decision D starts a row at 1 kV. */
+const DECISION_D_LOW_V = 600;
+/** The rating, in V, at or under which it starts at 2,5 kV (5 kV above). */
+const DECISION_D_HIGH_V = 5000;
+/** The MCOV, in V, under which an arrester's rows start at 2,5 kV (5 kV from it). */
+const MCOV_BAND_V = 5000;
+
+/**
+ * Story 23.13 (decision D, Bruno's test base rev08): the default test voltage, in kV (dot-decimal),
+ * a rating in V gives an insulation row: "1" up to 600 V, "2.5" up to 5000 V, "5" above; null for a
+ * rating that is no positive number.
+ */
+export function decisionDDefaultKv(volts: number | null): string | null {
+  if (volts === null || !(volts > 0)) return null;
+  if (volts <= DECISION_D_LOW_V) return '1';
+  return volts <= DECISION_D_HIGH_V ? '2.5' : '5';
+}
+
+/** Story 23.13: an arrester's default from its MCOV in V: "2.5" under 5 kV, "5" from it; null for no positive number. */
+export function mcovDefaultKv(volts: number | null): string | null {
+  if (volts === null || !(volts > 0)) return null;
+  return volts < MCOV_BAND_V ? '2.5' : '5';
+}
+
+/**
+ * Story 23.13: the default a table's `voltage_default` gives its rows from the plate, or null (no
+ * key, the field empty or unreadable). `rating` reads a number in V or kV (a "N/√3" by N, as the
+ * criterion table does), a voltage class, or a "U0/U kV" select by its U; `mcov` a number in kV.
+ */
+function tableDefaultKv(block: Pick<BlockRow, 'sheet'>, table: TableDef, definition: Pick<BlockDefinition, 'nameplate'> | undefined): string | null {
+  const pick = table.voltage_default;
+  if (pick === undefined || definition === undefined) return null;
+  const field = definition.nameplate.find((candidate) => candidate.key === pick.field);
+  if (field === undefined) return null;
+  if (pick.rule === 'mcov') return mcovDefaultKv(plateVolts(definition, block, pick.field));
+  if (field.kind === 'select') {
+    const value = block.sheet.nameplate[pick.field]?.value;
+    const kv = typeof value === 'string' && (field.options ?? []).includes(value) ? classU0UKv(value) : null;
+    return kv === null ? null : decisionDDefaultKv(Math.round(Number(kv) * 1000));
+  }
+  return decisionDDefaultKv(plateVolts(definition, block, pick.field));
+}
+
 /**
  * The test voltage of `row` (counted across the test's tables, the cell put's `row`): null when
  * its table has no voltage column (every table of v1 to v11); else the effective voltage, its
- * source and the notice. Never throws.
+ * source and the notice. Never throws. Batch e23e (Story 23.13): given the definition, a table's
+ * `voltage_default` (seed v13) applies after the row's own and its winding's defaults, before the
+ * instrument's TENSÃO ENSAIO.
  */
-export function rowTestVoltage(block: Pick<BlockRow, 'sheet'>, test: TestDef, row: number): RowTestVoltage | null {
+export function rowTestVoltage(block: Pick<BlockRow, 'sheet'>, test: TestDef, row: number, definition?: Pick<BlockDefinition, 'nameplate'>): RowTestVoltage | null {
   const home = tableOfRow(test, row);
   if (home === null) return null;
   const col = voltageColumnOf(home.table);
@@ -169,7 +216,7 @@ export function rowTestVoltage(block: Pick<BlockRow, 'sheet'>, test: TestDef, ro
   const seeded = home.table.voltage_rows?.[home.r] ?? { default_kv: null, winding: null };
   const typed = typedKv(block.sheet.test[test.key]?.cells[String(row)]?.[String(col)]?.value);
   const rated = seeded.default_kv === null ? ratingDefaultKv(block, seeded.winding) : null;
-  const fallback = seeded.default_kv ?? rated ?? instrumentKv(block, test);
+  const fallback = seeded.default_kv ?? rated ?? tableDefaultKv(block, home.table, definition) ?? instrumentKv(block, test);
   const kv = typed ?? fallback;
   const source: RowVoltageSource | null = typed !== null ? 'typed' : fallback !== null ? 'default' : null;
   const linha = home.table.rows[home.r]?.[0] ?? '';

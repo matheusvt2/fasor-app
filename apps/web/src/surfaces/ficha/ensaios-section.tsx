@@ -1,4 +1,5 @@
 import {
+  choiceCellValue,
   evaluateSheetMeasurements,
   evaluatedCells,
   instrumentRangeFor,
@@ -29,6 +30,7 @@ import {
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
+  type ChoiceColumn,
   type EntityState,
   type EvaluatedCell,
   type EvaluatedRow,
@@ -43,6 +45,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
+import { SegmentedControl } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
@@ -243,7 +246,7 @@ export function EnsaiosSection({
               />
             ),
           )}
-          <MeasurementTests api={api} snapshot={snapshot} block={block} definition={definition} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} />
+          <MeasurementTests api={api} snapshot={snapshot} block={block} definition={definition} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} photoTarget={targetFor} />
         </UnitTapGuardProvider>
       </SheetCellExtrasProvider>
       {display.viewer}
@@ -376,6 +379,12 @@ function TestSection({
   const sectionClass = ['section', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
   const body = (
     <>
+      {/* Batch e23e (Story 23.18, seed v13): the kernel's notice while the plate names it (the TC's FUNÇÃO FATURAMENTO); on the sheet only, never blocking. */}
+      {test.notice === undefined || test.notice === null ? null : (
+        <p className="helper" data-tone="amber" role="status" data-test-notice="">
+          {test.notice}
+        </p>
+      )}
       <InstrumentPicker
         api={api}
         block={block}
@@ -498,6 +507,13 @@ function MeasurementTable({
   // Batch e23v (Story 23.5, seed v13): a corrected test's "Corrigido a 20 °C" column, after its (last) capture column.
   const correctedAfter = test.temperature === undefined ? null : (table.columns.filter((column) => column.role === 'capture').at(-1)?.col ?? null);
   const notices = table.rows.flatMap((row) => (row.voltage?.notice === null || row.voltage?.notice === undefined ? [] : [{ row: row.row, text: row.voltage.notice }]));
+  // Batch e23e (Story 23.18, seed v13): the table's choice column (POLARIDADE), drawn right before CONDIÇÕES (`60-ficha.html` #/ficha/TP-C16).
+  const choiceColumn = table.choiceColumn;
+  const choiceBefore = choiceColumn === undefined ? null : (table.columns.find((column) => column.derivedKind === 'condicao')?.col ?? null);
+  const choiceField = (row: EvaluatedRow) =>
+    choiceColumn === undefined || row.choice === undefined ? null : <RowChoiceField api={api} testKey={test.testKey} row={row} column={choiceColumn} label={measurementCellName(rowName(row), choiceColumn.header)} readOnly={readOnly} />;
+  const choiceTd = (row: EvaluatedRow) => (choiceColumn === undefined ? null : <td key="choice" className="cell-pol" data-choice-cell={row.row}>{choiceField(row)}</td>);
+  const columnCount = table.connectionHeaders.length + (voltageColumn === null ? 0 : 1) + table.columns.length + (choiceColumn === undefined ? 0 : 1) + (correctedAfter === null ? 0 : 1);
 
   return (
     <div className="ficha-mt" data-table-key={table.key}>
@@ -547,7 +563,17 @@ function MeasurementTable({
           last resort: a table wider than its box scrolls inside it, never the title row or the page. */}
       <div className="mt-scroll">
         <table
-          className={table.ratio ? (tapRows ? 'measurement-table ficha-ttr is-wide ficha-ttr-taps' : 'measurement-table ficha-ttr is-wide') : test.temperature === undefined ? 'measurement-table' : 'measurement-table ficha-iso-v13'}
+          className={
+            table.ratio
+              ? tapRows
+                ? 'measurement-table ficha-ttr is-wide ficha-ttr-taps'
+                : choiceColumn === undefined
+                  ? 'measurement-table ficha-ttr is-wide'
+                  : 'measurement-table ficha-ttr is-wide ficha-ttr-pol'
+              : test.temperature === undefined
+                ? 'measurement-table'
+                : 'measurement-table ficha-iso-v13'
+          }
           aria-labelledby={table.title === null ? undefined : titleId}
           aria-label={table.title === null ? screenLabel(test.title) : undefined}
         >
@@ -564,6 +590,12 @@ function MeasurementTable({
                 </th>
               )}
               {table.columns.map((column) => [
+                // Batch e23e (Story 23.18): the choice column's header right before CONDIÇÕES.
+                choiceColumn !== undefined && column.col === choiceBefore ? (
+                  <th key="choice" scope="col" data-choice-column="">
+                    <WholeWords className="mt-word" text={choiceColumn.header} />
+                  </th>
+                ) : null,
                 // DC-1: Condição is a word column (`60-ficha.html` draws its header without `col-value`).
                 <th key={column.col} scope="col" className={column.role === 'input' || column.derivedKind === 'condicao' ? undefined : 'col-value'}>
                   <WholeWords className="mt-word" text={screenLabel(column.header)} />
@@ -575,10 +607,15 @@ function MeasurementTable({
                   </th>
                 ) : null,
               ])}
+              {choiceColumn !== undefined && choiceBefore === null ? (
+                <th scope="col" data-choice-column="">
+                  <WholeWords className="mt-word" text={choiceColumn.header} />
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row) => (
+            {table.rows.map((row) => [
               <tr key={row.row} className={optional(row) ? 'tap-optional' : undefined} data-tap-row={row.tap === null ? undefined : row.row}>
                 {row.connection.map((text, i) =>
                   i === 0 && row.tap !== null ? (
@@ -602,7 +639,8 @@ function MeasurementTable({
                 )}
                 {table.columns.map((column) => {
                   if (column.role === 'derived') {
-                    return (
+                    return [
+                      column.col === choiceBefore ? choiceTd(row) : null,
                       // DC-1: Condição is the mock's `td.cell-dim` ("Satisfatório", `60-ficha.html`), the calculated value `td.cell-calc`.
                       <td key={column.col} className={column.derivedKind === 'condicao' ? 'cell-dim' : 'cell-calc'}>
                         {derivedText(row, column.derivedKind)}
@@ -614,8 +652,8 @@ function MeasurementTable({
                             <span className="visually-hidden">{ui.measurementField.calcSpoken}</span>
                           </>
                         )}
-                      </td>
-                    );
+                      </td>,
+                    ];
                   }
                   const cell = cellOf(row, column.col);
                   // Story 23.8: a tap row's V PRIMÁRIO and V SECUNDÁRIO come from the plate, drawn as text (the mock's `td.cell-dim`).
@@ -646,8 +684,17 @@ function MeasurementTable({
                     corrected,
                   ];
                 })}
-              </tr>
-            ))}
+                {choiceBefore === null ? choiceTd(row) : null}
+              </tr>,
+              // Batch e23e (Story 23.18, `60-ficha.html` #/ficha/TP-C16 `tr.pol-helper`): the kernel's helper under a row its choice fails.
+              row.choice?.helperText == null ? null : (
+                <tr key={`choice-helper-${row.row}`} className="pol-helper row-helper" data-choice-helper={row.row}>
+                  <td colSpan={columnCount} className="cell-helper">
+                    <ChoiceHelper text={row.choice.helperText} />
+                  </td>
+                </tr>
+              ),
+            ])}
           </tbody>
         </table>
       </div>
@@ -668,6 +715,22 @@ function MeasurementTable({
                     {field(row, cell, 'card')}
                   </div>
                 ))}
+                {/* Batch e23e (Story 23.18, `60-ficha.html` #/ficha/TP-C16 `.measurement-card`): the row's polarity and its note. */}
+                {choiceColumn === undefined || row.choice === undefined ? null : (
+                  <>
+                    <div className="field" style={{ marginTop: 'var(--sp-2)' }}>
+                      <span className="field-label" aria-hidden="true">
+                        {choiceColumn.header}
+                      </span>
+                      {choiceField(row)}
+                    </div>
+                    {row.choice.helperText === null ? null : (
+                      <p className="pol-note">
+                        <ChoiceHelper text={row.choice.helperText} />
+                      </p>
+                    )}
+                  </>
+                )}
                 {table.columns
                   .filter((column) => column.role === 'derived')
                   .map((column) => (
@@ -813,5 +876,50 @@ function RowVoltageField({
         ))}
       </select>
     </div>
+  );
+}
+
+/**
+ * Batch e23e (Story 23.18, seed v13; `60-ficha.html` #/ficha/TP-C16 `td.cell-pol`): a row's choice
+ * cell (POLARIDADE), a Segmented control of the column's options, each segment's `data-value` the
+ * option in lower case as the frame writes it ("ok", "invertida"). Picking one writes the existing
+ * cell put with the kernel's `choiceCellValue`; read-only, the answer as text.
+ */
+function RowChoiceField({ api, testKey, row, column, label, readOnly }: { api: FichaApi; testKey: string; row: EvaluatedRow; column: ChoiceColumn; label: string; readOnly: boolean }) {
+  const choice = row.choice!;
+  const segment = (option: string) => option.toLocaleLowerCase('pt-BR');
+  if (readOnly) {
+    return (
+      <div className="input" role="textbox" aria-readonly="true" aria-label={label} data-row-choice={row.row}>
+        {choice.displayText}
+      </div>
+    );
+  }
+  const choose = (picked: string) => {
+    const option = column.options.find((candidate) => segment(candidate.value) === picked);
+    if (option === undefined || api.author === null) return;
+    void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, testKey, row.row, column.col, choiceCellValue(option.value))]).catch(() => undefined);
+  };
+  return (
+    <div data-row-choice={row.row}>
+      <SegmentedControl aria-label={label} value={choice.raw === '' ? '' : segment(choice.raw)} onChange={choose} options={column.options.map((option) => ({ value: segment(option.value), label: option.label }))} />
+    </div>
+  );
+}
+
+/** Batch e23e (Story 23.18): the kernel's helper under a failed choice, its lead in bold as the frame draws it ("<b>Polaridade invertida:</b> a ficha …"). */
+function ChoiceHelper({ text }: { text: string }) {
+  const at = text.indexOf(':');
+  return (
+    <span className="mf-helper" data-tone="nc">
+      {at === -1 ? (
+        <span>{text}</span>
+      ) : (
+        <span>
+          <b>{text.slice(0, at + 1)}</b>
+          {text.slice(at + 1)}
+        </span>
+      )}
+    </span>
   );
 }

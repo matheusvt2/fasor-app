@@ -77,7 +77,8 @@ export {
 // 5 (Stories 22.7 and 22.9): TIPO is the maker's designation, never the oil; the oil class and the oil insulation; EXATIDÃO as printed.
 // 6 (Story 23.7, seed v13): TAPS as the plate's whole list in plate order, TAP ATUAL one of them, the winding material, a voltage over √3 and the TC's ratio as printed.
 // 7 (Story 23.17, seed v13): TIPO (ANP) as the oil's class letter and NATUREZA DO LÍQUIDO only when the plate names the liquid; the kernel composes the rest.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-7';
+// 8 (Story 23.18, seed v13): FUNÇÃO DO TC by its options (only as printed), and the S classes ("0,3S") and the protection classes with their factor ("5P20") as printed.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-8';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -242,6 +243,15 @@ export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
   const exatidao = field('exatidao');
   if (exatidao?.kind === 'select') {
     notes.push('The field exatidao is the accuracy class exactly as printed, burden included (for example "0,6C25" or "10P20"): give it as text, not forced to one of its options.');
+    // Story 23.18 (seed v13): a select offering the S classes and the protection classes with their accuracy limit factor.
+    if ((exatidao.options ?? []).some((option) => /S$|P\d+$/.test(option))) {
+      notes.push('The class of exatidao keeps the S of a special measurement class as printed ("0,3S", "0,6S") and the accuracy limit factor of a protection class ("5P20", "10P20"); never drop either.');
+    }
+  }
+  // Story 23.18 (seed v13): FUNÇÃO DO TC only as the plate prints it.
+  const funcao = field('funcao_tc');
+  if (funcao?.kind === 'select') {
+    notes.push(`The field funcao_tc is the transformer's function as printed: give one of: ${funcao.options?.join(' | ') ?? ''} ("medição" is MEDIÇÃO, "proteção" PROTEÇÃO, a billing or utility metering transformer, "faturamento", FATURAMENTO); leave it out when the plate prints no function.`);
   }
   // Story 23.7 (seed v13): the v13 keys the kernel parses (AD-13, E21-A4 P-2), named by the fields the request carries.
   for (const list of fields.filter((candidate) => candidate.kind === 'number' && candidate.list === true)) {

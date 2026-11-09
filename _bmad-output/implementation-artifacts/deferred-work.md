@@ -3380,3 +3380,31 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: every `// authored (Story 23.1x, listed for Bruno)` in `packages/domain/src/seed/v13.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/reading-evaluation.ts`, `relatorio/temperature-correction.ts`, `relatorio/conclusion.ts`.
   class: decision
   state: open (owner: Bruno, with the PR's list)
+
+## Deferred from: Epic 23 batch e23e (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (Design Notes, "Narrowings"; Base rev08 AT-02)
+  summary: AT-02's "the technician can add a row" (a continuity point beyond the five authored ones) is not built: no seeded or measurement table takes a row the definition does not hold (`ops/apply.ts` `assertMeasurementCell`, `assertCellGeometry`). A point outside the five goes in Observações until a row-adding capability is decided.
+  evidence: `packages/domain/src/seed/v13.ts` `CONTINUIDADE_MALHA`; `packages/domain/src/ops/apply.ts`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (Design Notes, "Readings taken" and "Narrowings")
+  summary: the readings and authored wordings of the batch for Bruno: polarity and FUNÇÃO DO TC required; thermography NA until "Equipamento em carga" is Sim (its rows and ΔT optional); the arrester with MCOV empty takes the instrument's voltage; the TC's and TP's secondaries at 1 kV apply to no row; the Malha's continuity rows optional and the Malha last under "Outros equipamentos"; thermal photos are sheet photos in the sheet's photo block. Authored texts: the faturamento notice, the ratio print note, the polarity helper (the frame's) and point ("polaridade invertida em Fase R"), the conclusion clause, the thermography's off note, row header, points, criteria wordings, band classes and actions, NA reasons ("Informe se o equipamento está em carga", "Equipamento fora de carga") and applied sentence ("Aplicado mesmo assim: …"), "Foto térmica", the caption's "ensaios de termografia", the Malha's label, test labels, row headers, points, criteria wordings, the out helper and the default's note ("Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω."), its nouns and TAG prefix MA. Added by the review loop: the floor reason and the parecer's `choice` group for a sheet failed by polarity alone ("polaridade invertida", "Polaridade invertida em N fichas", its Critérios item).
+  evidence: every `// authored (Story 23.13`, `23.18`, `23.20` or `23.21, listed for Bruno)` in `packages/domain/src/seed/v13.ts`, `relatorio/reading-evaluation.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/applicability.ts`, `relatorio/conclusion.ts`, `points/derived.ts`, `photos/caption.ts`, `templates/text.ts`, `types/duplicate.ts`, `apps/web/src/copy/pt-br.ts`.
+  class: decision
+  state: open (owner: Bruno, with the PR's list)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (Boundaries, "Layout lock")
+  summary: `packages/domain/fixtures/porto-seguro/op-log.test.ts` gains `malha_aterramento: 0` in its `templateTotals` expectation (the totals name every equipment type, and the spec appends one to `EQUIPMENT_BLOCK_TYPES`). The Porto Seguro golden JSON and the layout-lock goldens are byte-equal; only this test file shows an `M` line in `git diff 7424771d --name-status -- apps/api/src/jobs/generate/golden packages/domain/fixtures`. e22s changed the same line when it added the Inspeção de QGBT.
+  evidence: `packages/domain/fixtures/porto-seguro/op-log.test.ts`.
+  class: note
+  state: open (owner: the coordinator, to confirm against the lock rule)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (I/O matrix, "Not in load")
+  summary: on a thermography NA by its own value the band's button reads "Seguir a placa" once applied, though the condition reads the test's value, not the plate (the band is Story 23.9's). The paid eval of `bedrock-structuring-8` (the synthetic TC plate `plate-tc-funcao-v13.png`) is the coordinator's before the deploy.
+  evidence: `apps/web/src/surfaces/ficha/applicability-band.tsx`; `apps/api/src/scripts/bedrock-eval.ts`.
+  class: note
+  state: open (owner: the Epic 23 wave 3 integrated review)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (review pass of 2026-11-09, rejected finding)
+  summary: the v13 TC's EXATIDÃO offers 5P20 and 10P20 only (Story 23.18), so a plate read 5P10, 5P30 or 10P10 lands on 5P20 or 10P20: judged the same (± 1 %, ± 3 %), but the stored and printed accuracy limit factor differs from the plate. Question for Bruno: should the select offer the other factors?
+  evidence: `packages/domain/src/relatorio/accuracy-class.ts` `accuracyClassOption`; `packages/domain/src/seed/v13.ts` (the TC's classes).
+  class: decision
+  state: open (owner: Bruno)
