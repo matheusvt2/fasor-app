@@ -216,6 +216,7 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
 - **Scope.** The second pass of the wave 2 integrated review on `8c097ffa` (W2-1 to W2-4, W2-K1, W2-K2), the wave 2 gate red W2-G1, and Bruno's 2026-11-09 answers B-4 (TP-02) and B-6 (contact rise).
 - **Contract and seed:** no contract (37 stays). Seed v13 changed in place (the TP's Table 100.5 key, `history_rise_out_pct` on the contact tests); `V13_HASH` re-pinned to `91fe99b1…`. Goldens unchanged.
 - **Record (2026-11-09).**
+  - PR #293 (open, not merged; its head is on the PR).
   - Story gate on `49d1fdd7` (main `32bd1845`, unchanged since the branch), each stage under the lock:
     - load `{ 3.15 8.36 11.12 }` at the start and `{ 5.46 7.05 7.94 }` at the end, with a peak of 21 during the e2e stage (the host's `contactsd` at 127 % CPU besides the VM); the e23t stack was up throughout, and its gate and fix gate held the lock;
     - lock wait 0 s for lint, static, test:api and test:unit; 5144 s for the e2e stage (behind e23t's gate);
