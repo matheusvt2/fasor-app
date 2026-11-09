@@ -26,6 +26,7 @@ import { isReadingValue } from '../relatorio/over-range.ts';
 import type { BlockRow, EquipmentRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, findSeed, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { scaleToUnit } from '../seed/criteria.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { withCaptionOrdinals } from './caption-ordinal.ts';
 import { previousReadingsByAddress, previousResultsFor, previousRowText, type LastResultReading } from './last-results.ts';
@@ -494,9 +495,13 @@ function instrumentPart(block: BlockRow, test: TestDef, evaluation: TestEvaluati
   const acceptableLabel = bands === undefined ? ACCEPTABLE_LABEL : `${ACCEPTABLE_LABEL} ${bands.bands[0]!.unit}`;
   // Batch e23a: the manufacturer's value prints with its suffix ("<80 µΩ (fabricante)"), rows judged
   // by different criteria print POR LINHA here and their own in each table's ACEITÁVEL column.
+  // Review fix (item 2): under "ACEITÁVEL MΩ" a band test's manufacturer's value prints in the band style, scaled into the band unit.
+  const bandManufacturer = bands === undefined || evaluation.manufacturer === undefined ? null : scaleToUnit(evaluation.manufacturer.criterion.value, evaluation.manufacturer.criterion.unit, bands.bands[0]!.unit);
   const acceptable =
     evaluation.manufacturer !== undefined
-      ? `${evaluation.manufacturer.criterionText}${MANUFACTURER_PRINT_SUFFIX}`
+      ? bands !== undefined && bandManufacturer !== null
+        ? `${bandValueText(bandManufacturer)}${MANUFACTURER_PRINT_SUFFIX}`
+        : `${evaluation.manufacturer.criterionText}${MANUFACTURER_PRINT_SUFFIX}`
       : evaluation.perRow === true
         ? ACCEPTABLE_PER_ROW
         : bands === undefined
@@ -738,6 +743,13 @@ export const SHEET_TEXT_HALF_POINTS = 18;
  * the floor of 7 pt), when its longest words do not fit the page at 9 pt.
  */
 export const TABLE_TEXT_STEPS_HALF_POINTS: readonly number[] = [17, 16, 15, 14];
+/**
+ * Batch e23a (review fix 7c, Story 23.2): the steps of a v13 reading table judged row by row, which
+ * carries its own ACEITÁVEL column and, with a previous visit, MANUT. ANTERIOR too: the transformer's
+ * eleven columns hold every word whole only at 6 pt, so such a table steps on to 6,5 and 6 pt. No
+ * other table takes these steps, so every v1 to v12 table fits as before.
+ */
+export const PER_ROW_TEXT_STEPS_HALF_POINTS: readonly number[] = [...TABLE_TEXT_STEPS_HALF_POINTS, 13, 12];
 
 /** A table's text size as a share of the 9 pt base: the factor its words' widths take. */
 const textScale = (halfPoints: number | undefined) => (halfPoints ?? SHEET_TEXT_HALF_POINTS) / SHEET_TEXT_HALF_POINTS;
@@ -762,7 +774,7 @@ interface FittedTable {
  * exactly as before, with no size: the margins stay the same points whatever the size, so
  * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number): FittedTable {
+function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS): FittedTable {
   const least = new Array<number>(count).fill(0);
   const whole = new Array<number>(count).fill(0);
   for (const row of rows) {
@@ -792,9 +804,9 @@ function fittedColumns(rows: readonly PrintRow[], count: number): FittedTable {
   };
   const base = at(1);
   if (base.fits) return { columns: base.columns };
-  for (const halfPoints of TABLE_TEXT_STEPS_HALF_POINTS) {
+  for (const halfPoints of steps) {
     const step = at(textScale(halfPoints));
-    if (step.fits || halfPoints === TABLE_TEXT_STEPS_HALF_POINTS[TABLE_TEXT_STEPS_HALF_POINTS.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
+    if (step.fits || halfPoints === steps[steps.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
   }
   return { columns: base.columns };
 }
@@ -925,7 +937,7 @@ export function withPreviousColumn(printed: PrintTable, texts: readonly string[]
  * column takes it too, before MANUT. ANTERIOR): the column appended last, the last header row
  * carrying `header`, bands and lines across spanning one more, data rows taking `texts` in order.
  */
-export function withAppendedColumn(printed: PrintTable, header: string, texts: readonly string[]): PrintTable {
+export function withAppendedColumn(printed: PrintTable, header: string, texts: readonly string[], steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS): PrintTable {
   const width = printed.columns.length;
   const headers = printed.rows.filter((row) => row.header === true);
   const last = headers[headers.length - 1];
@@ -941,7 +953,7 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
   // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
   const kept: PrintTable = { ...printed };
   delete kept.textHalfPoints;
-  return { ...kept, ...fittedColumns(rows, width + 1), rows };
+  return { ...kept, ...fittedColumns(rows, width + 1, steps), rows };
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -977,9 +989,11 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   const tables = test.tables.map((tableDef, i) => {
     const plain = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled, test);
     // Story 23.2 (seed v13): rows judged by different criteria print each row's in an ACEITÁVEL column, before MANUT. ANTERIOR.
-    const printed = evaluation.perRow === true ? withAppendedColumn(plain, ACCEPTABLE_LABEL, evaluation.tables[i]!.rows.map((row) => row.criterionText ?? DASH)) : plain;
+    const perRow = evaluation.perRow === true;
+    const printed = perRow ? withAppendedColumn(plain, ACCEPTABLE_LABEL, evaluation.tables[i]!.rows.map((row) => row.criterionText ?? DASH), PER_ROW_TEXT_STEPS_HALF_POINTS) : plain;
     const texts = previousTexts[i];
-    return texts !== null && texts !== undefined && (holds[i] || (pairShape && holds.some(Boolean))) ? withPreviousColumn(printed, texts) : printed;
+    if (texts === null || texts === undefined || !(holds[i] || (pairShape && holds.some(Boolean)))) return printed;
+    return perRow ? withAppendedColumn(printed, PREVIOUS_HEADER, texts, PER_ROW_TEXT_STEPS_HALF_POINTS) : withPreviousColumn(printed, texts);
   });
   const paired = pairShape && tables[0]!.columns.length === tables[1]!.columns.length;
   // Story 22.3: the instrument header and every table but the last keep with the next, so a test never parts from its header.

@@ -3,6 +3,7 @@ import {
   evaluateSheetReadings,
   evaluatedCells,
   instrumentRangeFor,
+  manufacturerApplies,
   measurementCells,
   previousHelpers,
   readingAddressKey,
@@ -297,7 +298,7 @@ function TestSection({
     );
   // Batch e23a (Story 23.3): the manufacturer's value under the first table's criterion row, on every seed version.
   const manufacturer =
-    testDef === undefined ? null : <ManufacturerValue api={api} block={block} definition={definition} test={testDef} title={screenLabel(test.title)} readOnly={readOnly} />;
+    testDef === undefined || !manufacturerApplies(testDef) ? null : <ManufacturerValue api={api} block={block} definition={definition} test={testDef} title={screenLabel(test.title)} readOnly={readOnly} />;
   const tables = test.tables.map((table, index) => (
     <MeasurementTable
       key={table.key}

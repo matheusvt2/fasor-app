@@ -7,7 +7,9 @@ import type { BlockRow, Cell, EquipmentRow, LocationRow } from '../schemas/entit
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
-import { section9Layout, withAppendedColumn, withPreviousColumn, type LayoutSectionSheets, type PrintSheet, type PrintTable } from './section-9.ts';
+import { getDefinition } from '../seed/definitions.ts';
+import { readingSlotsOf } from './last-results.ts';
+import { READING_FIT_WIDTH_EM, section9Layout, withAppendedColumn, withPreviousColumn, wordsWiderThanColumns, type LayoutSectionSheets, type PrintSheet, type PrintTable } from './section-9.ts';
 
 /*
  * Batch e23a (Stories 23.2 to 23.4, seed v13): the print deltas of section 9. ACEITÁVEL prints the
@@ -136,5 +138,30 @@ describe('withAppendedColumn generalizes withPreviousColumn without changing its
     const previous = ['1,2 GΩ', '-', '0,9 GΩ'];
     expect(withAppendedColumn(table, 'MANUT. ANTERIOR', previous)).toEqual(withPreviousColumn(table, previous));
     expect(texts(withPreviousColumn(table, previous))[1]!.at(-1)).toBe('MANUT. ANTERIOR');
+  });
+});
+
+describe('e23a review fixes: the band test, the previous visit', () => {
+  it('a QGBT band test\'s manufacturer value prints under "ACEITÁVEL MΩ" in the band style, scaled into MΩ, with " (fabricante)"', () => {
+    const doc = printed(
+      sheet(8, 'quadro_eletrico', 'v13', (block) => {
+        block.sheet.nameplate.tensao_nominal = cell(measured('220', 'V'));
+        setTest(block, 'isolacao', {}, { raw: '2', unit: 'GΩ' });
+      }),
+    );
+    const header = tables(doc).find((table) => table.rows[0]?.cells[0]?.text === 'ENSAIO DE ISOLAÇÃO')!;
+    const labels = header.rows[1]!.cells.map((c) => c.text);
+    expect(labels.at(-1)).toBe('ACEITÁVEL MΩ');
+    expect(header.rows[2]!.cells.at(-1)!.text).toBe('2000,0 (fabricante)');
+  });
+
+  it('a v13 per-row transformer with a previous visit ends its header with ACEITÁVEL then MANUT. ANTERIOR, every word whole', () => {
+    const built = transformer(9, 'v13', 'EPÓXI', (block) => setTest(block, 'isolacao', { '0/1': measured('30', 'GΩ'), '1/1': measured('31', 'GΩ'), '2/1': measured('900', 'MΩ') }));
+    const definition = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+    const readings = Object.fromEntries(readingSlotsOf(definition).map((slot) => [slot.key, { raw: '4900', unit: 'MΩ', state: 'measured' as const }]));
+    built.equipment = { ...built.equipment, last_results: { relatorio_id: id(9), revision_number: 1, issued_at: '2026-01-01T00:00:00.000Z', seed_version: 'v13', block_type: 'transformador_forca', readings, prior: null } };
+    const table = tableWith(printed(built), '1 MINUTO');
+    expect(texts(table)[1]!.slice(-2)).toEqual(['ACEITÁVEL', 'MANUT. ANTERIOR']);
+    expect(wordsWiderThanColumns(table, READING_FIT_WIDTH_EM)).toEqual([]);
   });
 });

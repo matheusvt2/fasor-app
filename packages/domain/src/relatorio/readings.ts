@@ -40,6 +40,8 @@ export {
   MANUFACTURER_SOURCE_LINE,
   MANUFACTURER_SOURCE_NAME,
   MANUFACTURER_VALUE_REFUSAL,
+  manufacturerApplies,
+  MANUFACTURER_NOT_APPLICABLE_REFUSAL,
   manufacturerCriterion,
   manufacturerRefusal,
   manufacturerUnitRefusal,

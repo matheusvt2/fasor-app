@@ -2,7 +2,7 @@
 title: 'e23a: criteria as data: seed v13, the NETA tables, the manufacturer value, the instrument limit (Stories 23.2, 23.3, 23.4; contract 34)'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b112e55d7e2e9175fd46a05182ecdd3b262ff0a7'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -115,6 +115,23 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-08 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 12 findings — high 0, medium 7, low 4, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` Manufacturer value on a company `between`/`pass_fail` criterion deletes value_max, readings go unjudged — no entry, refused, null criterion.
+  - `[medium]` `[patch]` QGBT band ACEITÁVEL with a manufacturer value prints unit and raw ">=" under "ACEITÁVEL MΩ" — band-style value in the band unit + " (fabricante)".
+  - `[low]` `[patch]` `.mfr-op` shows raw ">=" on band tests — kernel maps to ≥/≤.
+  - `[low]` `[reject]` Fallback helper asks for a voltage already filled but unreadable — rare (selects and kV number fields), fix adds a branch and a new authored text.
+  - `[low]` `[patch]` A company copy that loses every winding field keeps a `winding` criterion_table and falls back for good — draft-edit drops it.
+  - `[medium]` `[patch]` An unrecognised medium is judged dry — aliases resolved, unknown falls back.
+  - `[maybe-false]` `[reject]` A block create carrying a malformed override bypasses the fold refusal — block creates carry an empty sheet from `newEquipmentBlock`; no surface writes one; would be low.
+  - `[medium]` `[patch]` A zero override on v1-v12 changed reading — old path kept as before, > 0 only on the manufacturer path.
+  - `[medium]` `[patch]` (gap) Unit cycle and read-only view of the entry untested — e2e added.
+  - `[medium]` `[patch]` (gap) Fold refusal untested on a company block — kernel test added.
+  - `[medium]` `[patch]` (gap) Per-row ACEITÁVEL beside MANUT. ANTERIOR unexercised — print test added.
+  - `[low]` `[patch]` (gap) worstReadings with a `<` manufacturer value and two within readings — kernel assertion added.
 
 ## Design Notes
 

@@ -5,7 +5,7 @@ import { escapeDialog } from './support/dialogs.ts';
 import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue } from './support/relatorio-flow.ts';
-import { emCampoDraft, newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
@@ -32,12 +32,12 @@ const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da fic
 const toast = (page: Page) => page.getByTestId('toast');
 
 /** The block as this device stores it, and the kernel's evaluation of one of its tests. */
-async function kernel(page: Page, blockId: string, testKey: string): Promise<{ block: BlockRow; evaluation: TestEvaluation; view: ReturnType<typeof manufacturerValueView> }> {
+async function kernel(page: Page, blockId: string, testKey: string): Promise<{ block: BlockRow; evaluation: TestEvaluation; view: NonNullable<ReturnType<typeof manufacturerValueView>> }> {
   const record = (await readStore<{ entity: string; id: string; row: BlockRow }>(page, database, 'entities')).find((row) => row.entity === 'block' && row.id === blockId)!;
   const block = record.row;
   const definition = getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
   const test = definition.tests.find((candidate) => candidate.key === testKey)!;
-  return { block, evaluation: evaluateTest(block, definition, test), view: manufacturerValueView(block, definition, test) };
+  return { block, evaluation: evaluateTest(block, definition, test), view: manufacturerValueView(block, definition, test)! };
 }
 
 test('@p0 23.3-E2E-001 the manufacturer\'s value on a v13 disjuntor: refused inline when malformed, 80 µΩ typed offline judges every row by < 80 µΩ, survives a reload and syncs, "Limpar" brings < 250 µΩ back, and the DOCX prints "<80 µΩ (fabricante)"', async ({
@@ -49,8 +49,17 @@ test('@p0 23.3-E2E-001 the manufacturer\'s value on a v13 disjuntor: refused inl
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);
-  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
   const disjuntor = built.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+  const transformer = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
+  // A seccionadora marked not tested from the office, its contact holding 80 µΩ: the read-only entry.
+  const chave = built.sheets.find((sheet) => sheet.blockType === 'chave_seccionadora')!;
+  const scope = { relatorioId: built.relatorioId };
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    officeDraft(account, scope, `sheet/${chave.blockId}/test/resistencia_contato/criterion_override`, { raw: '80', unit: 'µΩ' }),
+    officeDraft(account, scope, `block/${chave.blockId}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId }),
+  ]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${disjuntor.blockId}`);
@@ -123,7 +132,37 @@ test('@p0 23.3-E2E-001 the manufacturer\'s value on a v13 disjuntor: refused inl
   await expect(entry.getByRole('button', { name: 'Limpar' })).toHaveCount(0);
   await expect(first.locator('.measurement-field')).not.toHaveAttribute('data-state', 'out-of-limit');
 
-  // Set again for the document; at 390 px the entry fits the screen.
+  // A v13 transformer's insulation: 5 typed, the unit cycle tapped to GΩ, one op, every row judged by ≥ 5 GΩ.
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${transformer.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const tfSection = page.locator('section[data-test-key="isolacao"]');
+  const tfInput = tfSection.locator('input[data-manufacturer-input="isolacao"]');
+  const tfPath = `sheet/${transformer.blockId}/test/isolacao/criterion_override`;
+  await tfInput.click();
+  await page.keyboard.type('5');
+  await tfSection.locator('.v13-mfr .unit-cycle').click();
+  await expect.poll(() => outboxValues(page, tfPath)).toEqual([{ raw: '5', unit: 'GΩ' }]);
+  const tfKernel = await kernel(page, transformer.blockId, 'isolacao');
+  expect(tfKernel.evaluation.criterionText).toBe('≥ 5 GΩ');
+  await expect(tfSection.locator('.mt-criterion')).toHaveText(`Aceitável ${tfKernel.evaluation.criterionText}`);
+  await expect(tfSection.locator('.v13-mfr .mfr-op')).toHaveText(tfKernel.view.operator);
+
+  // The not-tested seccionadora: the stored value as text, no entry, no "Limpar".
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${chave.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const readOnly = page.locator('section[data-test-key="resistencia_contato"] .v13-mfr');
+  await readOnly.scrollIntoViewIfNeeded();
+  await expect(readOnly.getByRole('textbox', { name: 'Valor do fabricante, Ensaio de resistência ôhmica de contato' })).toHaveAttribute('aria-readonly', 'true');
+  await expect(readOnly.locator('.mf-value')).toHaveText('80');
+  await expect(readOnly.locator('.mf-unit')).toHaveText('µΩ');
+  await expect(readOnly.locator('input')).toHaveCount(0);
+  await expect(readOnly.getByRole('button', { name: 'Limpar' })).toHaveCount(0);
+
+  // Back on the disjuntor: set again for the document; at 390 px the entry fits the screen.
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${disjuntor.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   await input.fill('80');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await outboxValues(page, path)).at(-1)).toEqual({ raw: '80', unit: 'µΩ' });

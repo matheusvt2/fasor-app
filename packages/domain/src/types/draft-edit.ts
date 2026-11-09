@@ -229,6 +229,10 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
       const picked = test.criterion_table as Entry | undefined;
       const voltage = picked?.voltage as Entry | string | undefined;
       if (picked !== undefined && typeof voltage === 'object' && voltage !== null && voltage.field === key) delete test.criterion_table;
+      // Review fix (item 5): a table read by winding whose every row lost its winding has nothing left to read.
+      const tables = (Array.isArray(test.tables) ? test.tables : []) as Entry[];
+      const windings = tables.flatMap((table) => ((Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]).map((row) => row.winding));
+      if (picked !== undefined && voltage === 'winding' && windings.every((winding) => winding === null || winding === undefined)) delete test.criterion_table;
     }
     // Fix batch e22h (S1): the oil rule a copy carries loses its field with it, or that excused field.
     const rule = next.oil_rule as Entry | undefined;

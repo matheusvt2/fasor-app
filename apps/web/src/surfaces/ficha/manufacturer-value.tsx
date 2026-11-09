@@ -47,7 +47,8 @@ export function ManufacturerValue({
   const m = ui.measurementField;
   const helperId = useId();
   const echoId = useId();
-  const view = manufacturerValueView(block, definition, test);
+  // The caller renders this only for a test that takes a value (`manufacturerApplies`).
+  const view = manufacturerValueView(block, definition, test)!;
   // The unit chosen on the slot before a value holds it; a change of the stored value drops it.
   const [unitChoice, setUnitChoice] = useState<string | null>(null);
   const storedKey = `${view.value?.raw ?? ''}:${view.value?.unit ?? ''}`;

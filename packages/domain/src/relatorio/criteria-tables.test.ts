@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { companyTypes, BLOCK_1_ID } from '../../fixtures/company-types/op-log.ts';
 import { conflictValueText } from '../merge/conflicts.ts';
+import { replay } from '../ops/replay.ts';
+import type { CriterionSeed } from '../seed/criteria.ts';
+import type { TestDef } from '../seed/schema.ts';
 import { applyOp, entityKey, SeedPathError, type EntityState } from '../ops/apply.ts';
 import { sheetTestPath } from '../ops/path.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
@@ -17,6 +21,9 @@ import {
   evaluateSheetReadings,
   evaluateTest,
   instrumentLimitNoteText,
+  manufacturerApplies,
+  manufacturerCriterion,
+  MANUFACTURER_NOT_APPLICABLE_REFUSAL,
   MANUFACTURER_SOURCE_LINE,
   MANUFACTURER_VALUE_REFUSAL,
   manufacturerRefusal,
@@ -236,7 +243,7 @@ describe('23.3-UNIT the manufacturer\'s value prevails on every row of its test'
     expect(test.sourceLines![0]).toBe(MANUFACTURER_SOURCE_LINE);
     expect(test.sourceLines).toContain('Tabela 100.5 (ANSI/NETA MTS-2023), seco, 13,8 kV: ≥ 25.000 MΩ');
     const definition = definitionOf(block);
-    const view = manufacturerValueView(block, definition, definition.tests.find((t) => t.key === 'isolacao')!);
+    const view = manufacturerValueView(block, definition, definition.tests.find((t) => t.key === 'isolacao')!)!;
     expect(view).toMatchObject({ operator: '≥', value: { raw: '5', unit: 'GΩ' }, text: '5', unit: 'GΩ', units: ['MΩ', 'GΩ', 'TΩ'] });
     expect(view.note).toEqual({ lead: 'Prevalece sobre a tabela, que pede ', criterion: '≥ 25.000 MΩ e ≥ 500 MΩ', tail: '.' });
   });
@@ -252,12 +259,12 @@ describe('23.3-UNIT the manufacturer\'s value prevails on every row of its test'
   it('the entry\'s note says what holds while it is empty, on a plain test and on a table test', () => {
     const disjuntor = plate(sheet('disjuntor_mt'), { tensao_nominal: '15' });
     const definition = definitionOf(disjuntor);
-    const contact = manufacturerValueView(disjuntor, definition, definition.tests.find((t) => t.key === 'resistencia_contato')!);
+    const contact = manufacturerValueView(disjuntor, definition, definition.tests.find((t) => t.key === 'resistencia_contato')!)!;
     expect(contact).toMatchObject({ operator: '<', value: null, text: '', unit: 'µΩ', units: ['µΩ'] });
     expect(contact.note).toEqual({ lead: 'Opcional. Vazio, vale ', criterion: '<250 µΩ', tail: ', o critério do ensaio.' });
-    const insulation = manufacturerValueView(disjuntor, definition, definition.tests.find((t) => t.key === 'isolacao')!);
+    const insulation = manufacturerValueView(disjuntor, definition, definition.tests.find((t) => t.key === 'isolacao')!)!;
     expect(insulation.note).toEqual({ lead: 'Opcional. Vazio, vale a tabela (', criterion: '≥ 5.000 MΩ', tail: ').' });
-    const set = manufacturerValueView(manufacturer(structuredClone(disjuntor), 'resistencia_contato', { raw: '80', unit: 'µΩ' }), definition, definition.tests.find((t) => t.key === 'resistencia_contato')!);
+    const set = manufacturerValueView(manufacturer(structuredClone(disjuntor), 'resistencia_contato', { raw: '80', unit: 'µΩ' }), definition, definition.tests.find((t) => t.key === 'resistencia_contato')!)!;
     expect(set.note).toEqual({ lead: 'Prevalece sobre o critério do ensaio, ', criterion: '<250 µΩ', tail: '.' });
   });
 
@@ -404,5 +411,86 @@ describe('23.2-UNIT a company copy carries the v13 keys', () => {
     expect(issues.map((issue) => issue.message)).toContain(
       'ENSAIO DE ISOLAÇÃO: o critério da tabela NETA é escolhido pela tensão nominal da placa; mantenha esse campo como um número em V ou kV, ou uma classe de tensão.',
     );
+  });
+});
+
+describe('e23a review fixes (E14-A5 boundary tests)', () => {
+  const paraRaio = getDefinition('v13', 'cabine_primaria', 'para_raio');
+  const companyTest = (criterion: Partial<CriterionSeed>): TestDef => ({
+    ...structuredClone(paraRaio.tests[0]!),
+    criterion_table: undefined,
+    criterion: { key: 'isolacao', label: 'Isolação', operator: '>', value: 1, unit: 'MΩ', type: 'absolute_min', source: { name: 'Manual', edition: null }, usedBy: 'tipo', ...criterion },
+  });
+  const withOverride = (seedVersion: string, testKey: string, value: unknown) => manufacturer(sheet('para_raio', seedVersion), testKey, value);
+
+  it('item 1: a company test judged "between" or "pass_fail" takes no manufacturer value: no view, refused, no criterion, value_max kept', () => {
+    for (const criterion of [{ operator: 'between', value: 118, value_max: 132, unit: 'Vcc', type: 'deviation_between' as const }, { operator: 'pass_fail', value: 1, unit: null, type: 'pass_fail' as const }]) {
+      const test = companyTest(criterion);
+      expect(manufacturerApplies(test), criterion.operator).toBe(false);
+      expect(manufacturerRefusal(test, { raw: '120', unit: 'Vcc' })).toBe(MANUFACTURER_NOT_APPLICABLE_REFUSAL);
+      expect(manufacturerRefusal(test, null)).toBeNull();
+      expect(parseManufacturerValue(test, '120', 'Vcc')).toEqual({ refusal: MANUFACTURER_NOT_APPLICABLE_REFUSAL });
+      for (const version of ['v13', 'v12']) expect(manufacturerCriterion(withOverride(version, 'isolacao', { raw: '120', unit: 'Vcc' }), test), version).toBeNull();
+      expect(manufacturerValueView(sheet('para_raio'), paraRaio, test)).toBeNull();
+      expect(test.criterion!.value_max).toBe(criterion.operator === 'between' ? 132 : undefined);
+    }
+    expect(manufacturerApplies(companyTest({ operator: '<' }))).toBe(true);
+  });
+
+  it('item 3: the entry\'s sign is ≥ or ≤ for an inclusive operator, never ">=" or "<="', () => {
+    const block = sheet('para_raio');
+    expect(manufacturerValueView(block, paraRaio, companyTest({ operator: '>=' }))!.operator).toBe('≥');
+    expect(manufacturerValueView(block, paraRaio, companyTest({ operator: '<=' }))!.operator).toBe('≤');
+    expect(manufacturerValueView(block, paraRaio, companyTest({ operator: '>' }))!.operator).toBe('>');
+    expect(manufacturerValueView(block, paraRaio, paraRaio.tests[0]!)!.operator).toBe('≥');
+  });
+
+  it('item 4: TIPO DE ISOLAÇÃO read through its options and aliases; a value that is no option falls back, never judged dry', () => {
+    expect(rowTexts(evaluation(transformer('óleo mineral', measured('13.8', 'kV'), measured('380', 'V')), 'isolacao'))).toEqual(['≥ 5.000 MΩ', '≥ 5.000 MΩ', '≥ 100 MΩ']);
+    expect(rowTexts(evaluation(transformer('epoxi', measured('13.8', 'kV'), measured('380', 'V')), 'isolacao'))).toEqual(['≥ 25.000 MΩ', '≥ 25.000 MΩ', '≥ 500 MΩ']);
+    const unknown = evaluation(transformer('PAPEL', measured('13.8', 'kV'), measured('380', 'V')), 'isolacao');
+    expect(rowTexts(unknown)).toEqual(['>400 MΩ', '>400 MΩ', '>400 MΩ']);
+    expect(unknown.sourceLines).toEqual(['Sem o tipo de isolação na placa, vale >400 MΩ. Informe-o para julgar pela Tabela 100.5.']);
+  });
+
+  it('item 5: removing the windings until no row names one drops a table read by winding; one winding left keeps it', () => {
+    const copy = duplicateSeededType('v13', 'transformador_forca').draft;
+    const at = copy.nameplate.findIndex((field) => field.key === 'tensao_nominal_at');
+    const once = removeDraftEntry(copy, 'nameplate', at) as unknown as typeof copy;
+    expect(once.tests.find((test) => test.key === 'isolacao')!.criterion_table).toBeDefined();
+    const bt = once.nameplate.findIndex((field) => field.key === 'tensao_nominal_bt');
+    const twice = removeDraftEntry(once, 'nameplate', bt) as unknown as typeof copy;
+    expect(twice.tests.find((test) => test.key === 'isolacao')!.criterion_table).toBeUndefined();
+    expect(validateTypeDraft(twice)).toEqual([]);
+  });
+
+  it('item 6: a v12 sheet reads an override of "0" as E5-A4 did (accepted, every reading within); a v13 sheet ignores it', () => {
+    const v12 = readings(withOverride('v12', 'isolacao', { raw: '0', unit: 'MΩ' }), 'isolacao', { '0/1': measured('100', 'MΩ') });
+    const old = evaluation(v12, 'isolacao');
+    expect(old.criterion).toMatchObject({ operator: '>', value: 0, unit: 'MΩ' });
+    expect(verdicts(old)[0]).toBe('within');
+    const v13 = readings(withOverride('v13', 'isolacao', { raw: '0', unit: 'MΩ' }), 'isolacao', { '0/1': measured('100', 'MΩ') });
+    expect('manufacturer' in evaluation(v13, 'isolacao')).toBe(false);
+    // A negative override stays ignored on v12, as before.
+    expect(evaluation(withOverride('v12', 'isolacao', { raw: '-5', unit: 'MΩ' }), 'isolacao').criterionText).toBe('>400 MΩ');
+  });
+
+  it('item 7b: a malformed override on a v13 company block is refused by the fold; a well-formed one is stored', () => {
+    const replayed = replay(companyTypes.log);
+    const key = entityKey('block', BLOCK_1_ID);
+    const block = { ...(replayed.get(key) as BlockRow), seed_version: 'v13' };
+    const state: EntityState = new Map([...replayed.entries(), [key, block]]);
+    const f = opFactory();
+    const path = sheetTestPath(BLOCK_1_ID, 'isolacao', 'criterion_override');
+    expect(() => applyOp(state, f.op({ relatorio_id: block.relatorio_id, path, value: { raw: '-3', unit: 'MΩ' } }))).toThrow(SeedPathError);
+    expect(() => applyOp(state, f.op({ relatorio_id: block.relatorio_id, path, value: { raw: '5', unit: 'V' } }))).toThrow(SeedPathError);
+    const next = applyOp(state, f.op({ relatorio_id: block.relatorio_id, path, value: { raw: '500', unit: 'MΩ' } }));
+    expect((next.get(key) as BlockRow).sheet.test.isolacao?.criterion_override?.value).toEqual({ raw: '500', unit: 'MΩ' });
+  });
+
+  it('item 7d: with the contact judged by < 80 µΩ the worst reading of 70 and 79 µΩ is 79', () => {
+    const block = manufacturer(readings(sheet('disjuntor_mt'), 'resistencia_contato', { '0/0': measured('70', 'µΩ'), '1/0': measured('79', 'µΩ') }), 'resistencia_contato', { raw: '80', unit: 'µΩ' });
+    const worst = worstReadings(evaluateSheetReadings(block, definitionOf(block))).find((reading) => reading.testKey === 'resistencia_contato')!;
+    expect(worst).toMatchObject({ valueText: '79 µΩ', verdict: 'within', criterionText: '<80 µΩ', sourceName: 'Fabricante' });
   });
 });

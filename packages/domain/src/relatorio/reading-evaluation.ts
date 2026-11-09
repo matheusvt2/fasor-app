@@ -166,10 +166,46 @@ export function criterionUnitOf(test: TestDef): string | null {
 }
 
 /** The value of a stored manufacturer's value: `{raw, unit}`, raw a positive dot-decimal, a unit the criterion's converts to; null otherwise. */
-export function manufacturerValueOf(block: Pick<BlockRow, 'sheet'>, test: TestDef): ManufacturerValue | null {
+export function manufacturerValueOf(block: Pick<BlockRow, 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>, test: TestDef): ManufacturerValue | null {
   const value = block.sheet.test[test.key]?.criterion_override?.value;
-  return manufacturerRefusal(test, value) === null && value !== null && value !== undefined ? (value as unknown as ManufacturerValue) : null;
+  if (value === null || value === undefined) return null;
+  // Review fix (item 6): a v1 to v12 sheet reads a stored override as E5-A4 always did (a zero
+  // accepted); only a v13 sheet, whose fold refuses a malformed one, takes the strict rule.
+  const legacy = isLegacySeed(block.seed_version);
+  const ok = legacy ? legacyOverrideOk(test, value) : manufacturerRefusal(test, value) === null;
+  return ok ? (value as unknown as ManufacturerValue) : null;
 }
+
+/** A seed version before v13 ("v1" to "v12"); false for v13 on, and for a block whose version is not given. */
+function isLegacySeed(version: string | undefined): boolean {
+  if (version === undefined || !/^v\d+$/.test(version)) return false;
+  return Number(version.slice(1)) < 13;
+}
+
+/** E5-A4's reading of an override, as it stood before batch e23a: `{raw, unit}`, raw a decimal not below zero, a unit the criterion's converts to. */
+function legacyOverrideOk(test: TestDef, value: unknown): boolean {
+  if (!manufacturerApplies(test) || typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const override = value as { raw?: unknown; unit?: unknown };
+  if (typeof override.raw !== 'string' || !DECIMAL.test(override.raw)) return false;
+  if (override.unit !== null && typeof override.unit !== 'string') return false;
+  const number = Number(override.raw);
+  return Number.isFinite(number) && number >= 0 && scaleToUnit(number, override.unit, criterionUnitOf(test)) !== null;
+}
+
+/**
+ * Review fix (item 1): whether a test takes a manufacturer's value at all: not a company test
+ * whose criterion is `between` (two bounds, one value cannot replace them) or `pass_fail` (no
+ * number). Such a test shows no entry, and the fold and the entry refuse a value on it.
+ */
+export function manufacturerApplies(test: TestDef): boolean {
+  if (test.criterion_table !== undefined || test.criterion_bands !== undefined) return true;
+  const operator = criterionOf(test).operator;
+  return operator !== 'between' && operator !== 'pass_fail';
+}
+
+// authored (review fix, listed for Bruno): a value on a test whose criterion has two bounds or none.
+/** The refusal of a manufacturer's value on a test that takes none. */
+export const MANUFACTURER_NOT_APPLICABLE_REFUSAL = 'Este ensaio não aceita valor do fabricante.';
 
 /**
  * Story 23.3 ("refused, never ignored"): why a manufacturer's value cannot be stored on `test`, or
@@ -179,6 +215,7 @@ export function manufacturerValueOf(block: Pick<BlockRow, 'sheet'>, test: TestDe
  */
 export function manufacturerRefusal(test: TestDef, value: unknown): string | null {
   if (value === null) return null;
+  if (!manufacturerApplies(test)) return MANUFACTURER_NOT_APPLICABLE_REFUSAL;
   if (typeof value !== 'object' || Array.isArray(value)) return MANUFACTURER_VALUE_REFUSAL;
   const override = value as { raw?: unknown; unit?: unknown };
   if (!isOverRangeRaw(override.raw)) return MANUFACTURER_VALUE_REFUSAL;
@@ -233,8 +270,8 @@ export function manufacturerCriterion(block: Pick<BlockRow, 'sheet'>, test: Test
     return { key: seeded.key, label: seeded.label, operator: '>=', value: number, unit: value.unit, type: 'absolute_min', source, usedBy: seeded.usedBy, text: minimumText(value.raw, value.unit) };
   }
   const base = seededCriterion(block, test) ?? (test.criterion_bands === undefined ? seeded : bandAsCriterion(test, test.criterion_bands.bands[0]!));
+  // A `between` or `pass_fail` test never reaches here (`manufacturerApplies`), so `value_max` is never dropped.
   const criterion: CriterionSeed = { ...base, value: number, unit: value.unit, source };
-  delete criterion.value_max;
   delete criterion.text;
   return criterion;
 }
@@ -303,8 +340,11 @@ function mediumOf(definition: BlockDefinition, block: Pick<BlockRow, 'sheet'>): 
   if (rule === undefined) return null;
   const value = block.sheet.nameplate[rule.field]?.value;
   if (typeof value !== 'string' || value.trim() === '') return null;
+  // Review fix (item 4): the value read as one of the field's options (its aliases first resolved); a
+  // value that is no option is no medium, so the row falls back rather than being judged dry.
   const field = definition.nameplate.find((candidate) => candidate.key === rule.field);
-  const option = field === undefined ? value.trim() : (selectOptionFor(field, value) ?? value.trim());
+  const option = field === undefined ? null : selectOptionFor(field, value);
+  if (option === null) return null;
   return rule.oil_values.includes(option) ? 'oil' : 'dry';
 }
 
@@ -391,6 +431,9 @@ export function polarizationNotApplicable(test: TestDef, row: EvaluatedRow): boo
   return test.instrument_limit_note === true && row.cells.some((cell) => cell.role === 'capture' && cell.state === 'over_range');
 }
 
+/** The entry's operator sign: the two inclusive operators in their typographic form. */
+const OPERATOR_SIGNS: Readonly<Record<string, string>> = { '>=': '≥', '<=': '≤' };
+
 /** The view of the sheet's "Valor do fabricante" entry on one test (Story 23.3, every seed version). */
 export interface ManufacturerValueView {
   /** The sign before the value (`.mfr-op`): ">", "<", "≥", "±". */
@@ -412,7 +455,8 @@ export interface ManufacturerValueView {
  * it is empty). The criterion it names is the one the rows take without it: on a table test the
  * table's minima (or the seeded criterion while the plate cannot pick a row), else the test's.
  */
-export function manufacturerValueView(block: Pick<BlockRow, 'sheet'>, definition: BlockDefinition, test: TestDef): ManufacturerValueView {
+export function manufacturerValueView(block: Pick<BlockRow, 'sheet'>, definition: BlockDefinition, test: TestDef): ManufacturerValueView | null {
+  if (!manufacturerApplies(test)) return null;
   const value = manufacturerValueOf(block, test);
   const without = withoutManufacturer(block, test);
   const rows = test.tables.reduce((count, table) => count + table.rows.length, 0);
@@ -421,7 +465,8 @@ export function manufacturerValueView(block: Pick<BlockRow, 'sheet'>, definition
   const texts = [...new Set(criteria.map((one) => (one.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(one.criterion))))];
   const shown = listPtBr(texts);
   const seeded = seededCriterion(without, test) ?? (test.criterion_bands === undefined ? criterionOf(test) : bandAsCriterion(test, test.criterion_bands.bands[0]!));
-  const operator = test.criterion_table !== undefined ? '≥' : seeded.operator;
+  // Review fix (item 3): the sign as the sheet writes it, never the ASCII ">=".
+  const operator = test.criterion_table !== undefined ? '≥' : (OPERATOR_SIGNS[seeded.operator] ?? seeded.operator);
   const units = manufacturerUnitsOf(test);
   // authored (Story 23.3, from the `60-ficha.html` frames, listed for Bruno): the note beside the entry.
   const note =
