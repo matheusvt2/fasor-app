@@ -4,6 +4,7 @@ import { isCellFamily, sheetCellAt, siteCellAt } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath, type OpPath } from '../ops/path.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
+import { measurementTestsUnnumbered } from '../relatorio/measurement-evaluation.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
 import { typeVersionOf } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, EquipmentRow, FileRow, LocationRow } from '../schemas/entities.ts';
@@ -408,7 +409,7 @@ function configDifferences(standing: unknown, overridden: unknown, blockId: stri
     const measurement = (definition?.measurement_tests ?? []).findIndex((test) => test.key === key);
     const seeded = definition?.tests.find((test) => test.key === key);
     // Batch e23t (Story 23.15): a FO.SERV-03 type's measurement test has no number; it is named by its label.
-    const named = measurement === -1 ? null : (definition?.tests ?? []).length > 0 ? lowerFirst(definition!.measurement_tests![measurement]!.label) : `E${measurement + 1}`;
+    const named = measurement === -1 ? null : measurementTestsUnnumbered(definition) ? lowerFirst(definition!.measurement_tests![measurement]!.label) : `E${measurement + 1}`;
     push(named !== null ? named : seeded !== undefined ? lowerFirst(screenLabel(seeded.label)) : (CONFIG_PART_WORDS[key] ?? key));
   }
 

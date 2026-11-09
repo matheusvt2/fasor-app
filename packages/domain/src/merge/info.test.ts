@@ -393,4 +393,15 @@ describe('Epic 14 QA R1: a concurrent block/{id}/config pair names the keys that
     const info = mergeInfoOf(second, first, null)!;
     expect(mergeInfoText(info, context())).toBe('SEC-C12: configuração de Ana mantida (a mais recente prevalece); diferem: ensaio de resistência ôhmica de contato');
   });
+
+  // Batch e23t (seed v13, Story 23.15): a FO.SERV-03 type's measurement test has no number; the line names it by its label.
+  it('a v13 transformer names its switched winding-resistance test by its label, never "E{n}"', () => {
+    const { e, a } = scenario();
+    const tfContext = (): MergeInfoContext => ({ ...context([]), blocks: [{ ...blockRow(), block_type: 'transformador_forca', seed_version: 'v13' }], equipment: [{ id: EQUIPMENT, tag: 'TR-1' }] });
+    const seeded = defaultBlockConfig('v13', 'transformador_forca') as unknown as JsonValue;
+    const first = e(path, blockConfigWithSubBlock(seeded, 'resistencia_enrolamento', false));
+    const second = a(path, seeded);
+    const info = mergeInfoOf(second, first, null)!;
+    expect(mergeInfoText(info, tfContext())).toBe('TR-1: configuração de Ana mantida (a mais recente prevalece); diferem: resistência ôhmica dos enrolamentos');
+  });
 });

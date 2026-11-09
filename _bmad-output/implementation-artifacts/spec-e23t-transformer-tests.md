@@ -2,7 +2,7 @@
 title: 'e23t: winding resistance, the judged IP, the insulating liquid and oil sampling, HH fuses (Stories 23.15, 23.16, 23.17, 23.19; contract 38)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f59c9bd65d28af4bfa433d47fe1dd3562e5e5cf4'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -141,3 +141,25 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-09 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 17 findings — high 0, medium 10, low 7, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (EC) `applyHistory` names `criteria[0]` (the oil criterion's text and source) on a dry unit — the criterion in force for the medium is used; dry test added.
+  - `[medium]` `[patch]` (EC) `applyHistory` restricts an unjudged cell (medium unknown, a single measured phase) — the rule runs only on a cell `within`; test added.
+  - `[medium]` `[patch]` (EC) `unnumbered` from `tests.length > 0` drops "E{n} ·" on a company type copying a FO.SERV-03 type with an added measurement table — decided only for a seeded equipment type, one helper; test added.
+  - `[low]` `[patch]` (EC) merge info names such a company test by its label — same root cause and fix as the row above.
+  - `[low]` `[reject]` (EC) a company copy whose oil rule is removed keeps both medium criteria, duplicating reasons — rare (removing a transformer copy's oil rule) and the fix is a product choice of which band survives, more than a direct correction.
+  - `[medium]` `[patch]` (EC) `isSingleChoice` draws any one-row one-choice test (a company type's) as the oil-sampling frame with its copy — restricted to `coleta_oleo`.
+  - `[low]` `[patch]` (EC) section 9 reference and group rows span the single width on a 75 °C test — spanned over the doubled width (direct correction).
+  - `[low]` `[reject]` (EC) a display shot started on an N/A IP targets that cell — the cell is drawn read-only and a stored value there is ignored by evaluation and print; the fix is a new guard for a rare start.
+  - `[low]` `[reject]` (EC) a plate reading both SILICONE and TIPO (ANP) B suggests a hidden field — a contradictory plate; a hidden field is never drawn, never missing and prints "-", and the fix adds a branch to the reading build.
+  - `[medium]` `[patch]` (EC, claim) re-issuing an older company-type relatório would print different titles — same root cause as the unnumbered row.
+  - `[medium]` `[patch]` (VG) no consumer is checked with a non-empty visit (ambient fallback, history) — section 9, `blockReadings`, `derivedPoints` and the floor tests added.
+  - `[medium]` `[patch]` (VG) the unnumbered wording (out clause, criteria line, merge info) is unpinned — tests added.
+  - `[medium]` `[patch]` (VG) the Enter run over the index columns is untested — `runTarget`/`firstRunCell` cases added.
+  - `[medium]` `[patch]` (VG other) company types with seeded tests lose "E{n}" — grouped with the unnumbered rows.
+  - `[low]` `[patch]` (VG other) the contract-38 note says "untouched" while the seed move drops `ia_ip_display` whatever its switch — note corrected, switched-on case tested.
+  - `[medium]` `[patch]` (VG other) `applyHistory` takes `criteria[0]` whatever the medium — grouped with the first row.
+  - `[low]` `[patch]` (VG other) the spec's api display-reading fixture test filling an IP is missing — added to `job-display.integration.test.ts`.

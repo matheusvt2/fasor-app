@@ -5,7 +5,7 @@ import { readingSlotsOf, type PreviousResults } from '../print/reading-slots.ts'
 import { resolveSection8 } from '../print/section-8.ts';
 import { section9Layout, READING_FIT_WIDTH_EM, wordsWiderThanColumns, type PrintTable } from '../print/section-9.ts';
 import { derivedPoints } from '../points/derived.ts';
-import type { EquipmentBlockType } from '../schemas/block-config.ts';
+import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
@@ -18,10 +18,10 @@ import { companyTypeDefinitionSchema } from '../types/definition.ts';
 import { APPLICABILITY_APPLIED, testApplicability } from './applicability.ts';
 import { composeConclusion, conclusionFloor, effectiveConclusionPair } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
-import { choiceValue, evaluateSheetMeasurements, measurementCounts, restrictedMeasurements, type MeasurementTestEvaluation } from './measurement-evaluation.ts';
+import { choiceValue, evaluateSheetMeasurements, measurementCounts, measurementTestTitle, restrictedMeasurements, type MeasurementTestEvaluation } from './measurement-evaluation.ts';
 import { isFieldHidden, isOilFieldExcused } from './oil-rule.ts';
 import { parecerCounts } from './parecer.ts';
-import { evaluateSheetReadings, evaluateTest, type TestEvaluation } from './readings.ts';
+import { evaluateSheetReadings, evaluateTest, firstRunCell, runTarget, type TestEvaluation } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
 import { newEquipmentBlock } from './tree.ts';
 import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from './visit-context.ts';
@@ -518,5 +518,130 @@ describe('23.15 to 23.19-UNIT v12 and v5 unchanged with a non-empty visit contex
       expect(evaluateSheetMeasurements(block, definition, context), block.block_type).toEqual(evaluateSheetMeasurements(block, definition));
       expect(evaluateSheetReadings(block, definition, context), block.block_type).toEqual(evaluateSheetReadings(block, definition));
     }
+  });
+});
+
+// --- review fixes (batch e23t) -------------------------------------------------------------------------
+
+/** A previous v13 visit whose corrected winding readings of the AT row on the tap in service were `raw` Ω. */
+function previousWinding(block: BlockRow, raw: string): PreviousResults {
+  const keys = readingSlotsOf(definitionOf(block), block).filter((slot) => slot.testKey === 'resistencia_enrolamento' && slot.row === 0);
+  return {
+    relatorio_id: id(900),
+    revision_number: 2,
+    issued_at: '2026-10-01T12:00:00.000Z',
+    seed_version: 'v13',
+    block_type: 'transformador_forca',
+    readings: Object.fromEntries(keys.map((slot) => [slot.key, { raw, unit: 'Ω', state: 'measured' as const, corrected: { raw, unit: 'Ω' } }])),
+  };
+}
+
+describe('e23t review fixes: the history rule runs only on a cell within, named by the criterion in force', () => {
+  it('medium unknown (no deviation judged): a corrected value 2,5 % off the previous visit is not restricted', () => {
+    const block = atRow(transformer(null, { temperatura_oleo_c: measured('75', '°C') }), ohm('1.025'), ohm('1.025'), ohm('1.025'));
+    const test = measurement(block, 'resistencia_enrolamento', { ambientC: 75, previous: previousWinding(block, '1') });
+    expect(test.rows[0]!.cells.map((cell) => [cell.verdict, cell.restriction ?? null])).toEqual([
+      [null, null],
+      [null, null],
+      [null, null],
+    ]);
+  });
+
+  it('a lone measured phase (no deviation judged) is not restricted either', () => {
+    const block = cells(transformer('oil', { temperatura_oleo_c: measured('75', '°C') }), 'resistencia_enrolamento', { '0/0': ohm('1.025') });
+    expect(measurement(block, 'resistencia_enrolamento', { ambientC: null, previous: previousWinding(block, '1') }).rows[0]!.cells[0]!.verdict).toBeNull();
+  });
+
+  it('on a dry unit the restricted cell names the dry criterion and its source', () => {
+    const block = atRow(transformer('dry', { temperatura_enrolamento_c: measured('75', '°C') }), ohm('1.025'), ohm('1.025'), ohm('1.025'));
+    const cell = measurement(block, 'resistencia_enrolamento', { ambientC: null, previous: previousWinding(block, '1') }).rows[0]!.cells[0]!;
+    expect(cell.verdict).toBe('restricted');
+    expect([cell.criterionText, cell.sourceName]).toEqual(['desvio entre fases ≤ 2 % (com restrição acima)', 'NETA MTS-2023 7.2.1.2']);
+  });
+});
+
+describe('e23t review fixes: "E{n} ·" stays on every type but a seeded FO.SERV-03 one', () => {
+  it('a company type copying the seccionadora (seeded tests and a measurement table) keeps "E1 ·"; the seeded one drops it', () => {
+    const seeded = definitionOf(sheet('chave_seccionadora'));
+    const company: BlockDefinition = { ...seeded, block_type: companyBlockType('019a6100-0000-7000-8000-0000000000e1') };
+    const block = sheet('chave_seccionadora');
+    expect(evaluateSheetMeasurements(block, company).find((test) => test.testKey === 'resistencia_fusiveis')!.title).toBe('E1 · Resistência dos fusíveis HH');
+    expect(measurementTestTitle(company, 'resistencia_fusiveis')).toBe('E1 · Resistência dos fusíveis HH');
+    expect(evaluateSheetMeasurements(block, seeded).find((test) => test.testKey === 'resistencia_fusiveis')!.title).toBe('Resistência dos fusíveis HH');
+    expect(measurementTestTitle(seeded, 'resistencia_fusiveis')).toBe('Resistência dos fusíveis HH');
+  });
+
+  it('the conclusion of fuses at 10, 10 and 12 mΩ names the test by its label, its acronym kept, in the text and the criteria line', () => {
+    const block = cells(plate(sheet('chave_seccionadora'), { tipo_seccionadora: 'SOB CARGA COM FUSÍVEIS' }), 'resistencia_fusiveis', {
+      '0/0': measured('10', 'mΩ'),
+      '1/0': measured('10', 'mΩ'),
+      '2/0': measured('12', 'mΩ'),
+    });
+    const composed = composeConclusion(block, definitionOf(block), 'SC-1');
+    expect(composed.text).toContain('resistência dos fusíveis HH fora do critério em');
+    const item = composed.criteriaItems.find((one) => one.includes('12 mΩ'))!;
+    expect(item.startsWith('Resistência dos fusíveis HH ')).toBe(true);
+  });
+});
+
+describe('e23t review fixes: consumers judge under a non-empty visit context', () => {
+  it('a v13 winding with no oil temperature and the cabine at 30 °C: section 9 prints TEMPERATURA (AMBIENTE) and the 75 °C cells; last_results keeps the corrected values', () => {
+    const snapshot = v13Snapshot();
+    const tf = editBlock(snapshot, 'transformador_forca', (block) => {
+      block.sheet.nameplate.tipo_de_isolacao = cell('ÓLEO ISOLANTE');
+      block.sheet.nameplate.material_enrolamento = cell('Cu');
+      delete block.sheet.nameplate.temperatura_oleo_c;
+      block.sheet.test.resistencia_enrolamento = { cells: { '0': { '0': cell(ohm('1')), '1': cell(ohm('1')), '2': cell(ohm('1')) } } };
+    });
+    const cabine = snapshot.locations.find((location): location is Extract<RelatorioSnapshot['locations'][number], { kind: 'cabine' }> => location.kind === 'cabine')!;
+    cabine.env.temperature_c = measured('30', '°C');
+    const table = tableWith(snapshot, tf.id, 'RESISTÊNCIA ÔHMICA DOS ENROLAMENTOS')!;
+    const rows = table.rows.map((row) => row.cells.map((one) => one.text));
+    expect(rows).toContainEqual(['TEMPERATURA: 30 °C (AMBIENTE)']);
+    expect(rows.find((row) => row[0] === 'AT, TAP ATUAL')!.slice(4)).toEqual(['1,17 Ω', '1,17 Ω', '1,17 Ω']);
+    const readings = blockReadings(tf, definitionOf(tf), visitContextOf(snapshot, tf));
+    const winding = Object.entries(readings).filter(([key]) => key.startsWith('resistencia_enrolamento|'));
+    expect(winding.map(([, reading]) => reading.corrected)).toEqual([
+      { raw: '1.17', unit: 'Ω' },
+      { raw: '1.17', unit: 'Ω' },
+      { raw: '1.17', unit: 'Ω' },
+    ]);
+  });
+
+  it('a previous v13 visit on the equipment row whose corrected value moved 2,5 %: a restricao entry and the restriction floor through visitContextOf', () => {
+    const snapshot = v13Snapshot();
+    const tf = editBlock(snapshot, 'transformador_forca', (block) => {
+      block.sheet.nameplate.tipo_de_isolacao = cell('ÓLEO ISOLANTE');
+      block.sheet.nameplate.material_enrolamento = cell('Cu');
+      block.sheet.nameplate.temperatura_oleo_c = cell(measured('75', '°C'));
+      block.sheet.test.resistencia_enrolamento = { cells: { '0': { '0': cell(ohm('1.025')), '1': cell(ohm('1.025')), '2': cell(ohm('1.025')) } } };
+    });
+    snapshot.equipment = snapshot.equipment.map((row) => (row.id === tf.equipment_id ? { ...row, last_results: { ...previousWinding(tf, '1'), prior: null } } : row));
+    const visit = visitContextOf(snapshot, tf);
+    expect(visit.previous?.revision_number).toBe(2);
+    expect(conclusionFloor(tf, definitionOf(tf), visit)!.reasons).toContain('restriction');
+    const entry = derivedPoints(snapshot).find((one) => one.key === `restricao:${tf.id}:resistencia_enrolamento`)!;
+    expect(entry.text).toContain('variação de mais de 2 % desde a manutenção anterior');
+  });
+});
+
+describe('e23t review fixes: the Enter run over the typed IP and DAR', () => {
+  const insulationRows = (medium: 'oil' | 'dry') =>
+    cells(transformer(medium), 'isolacao', { '0/1': measured('5', 'GΩ'), '1/1': overRange('2', 'TΩ'), '2/1': measured('5', 'GΩ') });
+  const readingsOf = (block: BlockRow) => evaluateSheetReadings(block, definitionOf(block));
+
+  it('down POLARIZAÇÃO, Enter skips the row whose IP is N/A', () => {
+    expect(runTarget(readingsOf(insulationRows('dry')), { testKey: 'isolacao', row: 0, col: 4 }, 'next')).toEqual({ testKey: 'isolacao', row: 2, col: 4 });
+  });
+
+  it('a jump from the last 1 minuto stops on a required dry IP, skipping the empty DAR; on an oil unit it skips both', () => {
+    const dry = readingsOf(insulationRows('dry'));
+    expect(runTarget(dry, { testKey: 'isolacao', row: 2, col: 1 }, 'next')).toEqual({ testKey: 'isolacao', row: 0, col: 4 });
+    expect(firstRunCell(dry)).toEqual({ testKey: 'isolacao', row: 0, col: 4 });
+    const oil = readingsOf(insulationRows('oil'));
+    const jump = runTarget(oil, { testKey: 'isolacao', row: 2, col: 1 }, 'next');
+    expect(jump === 'end' || jump === null || jump.testKey !== 'isolacao').toBe(true);
+    const first = firstRunCell(oil);
+    expect(first === null || first.testKey !== 'isolacao').toBe(true);
   });
 });

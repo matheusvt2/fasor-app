@@ -1193,12 +1193,14 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
       cells: [
         { text: printLabel(test.reference.label), bold: true, align: 'center' },
         ...test.reference.cells.map((cell, c) => valueCell(cell.text === null ? DASH : units[c] !== null && units[c] === cell.unit ? cell.value! : cell.text)),
+        // Batch e23t (Story 23.15): under a corrected test's 75 °C group the reference row spans the doubled width.
+        ...(corrected === null ? [] : [{ text: '', span: test.columns.length, align: 'center' as const }]),
       ],
     });
   }
   for (const group of test.groups) {
     if (group.text === '') continue;
-    rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: test.columns.length, align: 'center' }] });
+    rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: width - 1, align: 'center' }] });
   }
   const printed: PrintTable = { ...fittedColumns(rows, width), rows };
   if (previous === null) return { kind: 'table', table: printed };

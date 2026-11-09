@@ -230,6 +230,20 @@ describe('9.1-INT the display reading kind', () => {
     expect((await suggestionsOf(id)).map((s) => [s.target_path, s.value])).toEqual([[sheetTestCellPath(transformer.id, 'isolacao', 0, 1), { raw: '1.45', unit: GOHM, state: 'measured' }]]);
   }, 60_000);
 
+  // Batch e23t (Story 23.16, seed v13): a shot started on the transformer's typed POLARIZAÇÃO fills that IP cell as a
+  // suggestion; the tester's other readings find no index cell after it and are dropped.
+  it('batch e23t: a v13 transformer\'s display shot on POLARIZAÇÃO fills the IP as a pending suggestion, unitless', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const transformer = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    expect(transformer.seed_version).toBe('v13');
+    const id = await photo(relatorioId, transformer.id, await shot('display-tres-valores'), displayCellTarget(transformer.id, transformer.block_type, 'isolacao', { row: 0, col: 4 }));
+    await run(id);
+    expect(await status(id)).toBe('done');
+    const rows = await suggestionsOf(id);
+    expect(rows.map((s) => [s.target_path, s.status, s.mode])).toEqual([[sheetTestCellPath(transformer.id, 'isolacao', 0, 4), 'pending', 'fill']]);
+    expect(rows[0]!.value).toMatchObject({ unit: null, state: 'measured' });
+  }, 60_000);
+
   it('fix batch e23g (R2-1): a v13 transformer with TAPS, the ratio meter shot on a tap row: the suggestion lands on that row', async () => {
     const { relatorioId, blocks } = await relatorio();
     const transformer = blocks.find((b) => b.block_type === 'transformador_forca')!;

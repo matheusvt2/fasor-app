@@ -222,11 +222,14 @@ function MeasurementTestSection({
   );
 }
 
-/** Batch e23t (Story 23.17): a test of one row and one choice column of two options, drawn as the frame's `.v13-choice`. */
+/** The oil sampling's test key (seed v13, Story 23.17), the one test the frame draws as `.v13-choice` with its helper copy. */
+const OIL_SAMPLING_TEST = 'coleta_oleo';
+
+/** Batch e23t (Story 23.17): the oil sampling, one row and one choice column of two options, drawn as the frame's `.v13-choice`. */
 function isSingleChoice(test: MeasurementTestEvaluation): boolean {
   const [row] = test.rows;
   const [column] = test.columns;
-  return test.rows.length === 1 && test.columns.length === 1 && row !== undefined && column !== undefined && column.kind === 'choice' && (row.cells[0]?.options.length ?? 0) <= SEGMENTED_OPTIONS;
+  return test.testKey === OIL_SAMPLING_TEST && test.rows.length === 1 && test.columns.length === 1 && row !== undefined && column !== undefined && column.kind === 'choice' && (row.cells[0]?.options.length ?? 0) <= SEGMENTED_OPTIONS;
 }
 
 /**

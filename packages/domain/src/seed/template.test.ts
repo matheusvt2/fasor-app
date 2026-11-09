@@ -72,6 +72,17 @@ describe('standardTemplate', () => {
     expect(Object.keys(transformer.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'relacao_transformacao', 'resistencia_enrolamento', 'coleta_oleo', 'observations', 'conclusion']);
   });
 
+  // Batch e23t (Story 23.16, contract 38): v13 types the transformer's IP and DAR, so its "IA e IP lidos do visor" leaves on the move whatever its switch.
+  it('batch e23t: the move of a v12 template to v13 drops the transformer\'s IA e IP lidos do visor, switched on included; the TP keeps its own', () => {
+    const v12 = standardTemplate({ id: ID, seedVersion: 'v12' });
+    const on = v12.blocks.map((block) => (block.block_type === 'transformador_forca' || block.block_type === 'tp' ? { ...block, sub_blocks: { ...block.sub_blocks, ia_ip_display: { enabled: true } } } : block));
+    const moved = withVersionSubBlocks(on, 'v13');
+    const transformer = moved.find((block) => block.block_type === 'transformador_forca')!;
+    expect(transformer.sub_blocks.ia_ip_display).toBeUndefined();
+    expect(transformer.sub_blocks.resistencia_enrolamento).toEqual({ enabled: true });
+    expect(moved.find((block) => block.block_type === 'tp')!.sub_blocks.ia_ip_display).toEqual({ enabled: true });
+  });
+
   it('starts with the section blocks 1-6, 8, 10 and 11 in order, outside the skeleton', () => {
     const sections = template.blocks.filter((b) => b.block_type.startsWith('section_'));
     expect(sections.map((b) => b.block_type)).toEqual([

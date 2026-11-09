@@ -433,9 +433,9 @@
  * a nameplate field gains `excused_unless` (TIPO (ANP), only for a MINERAL liquid); the
  * transformer's TIPO DE ISOLAÇÃO reads ÓLEO ISOLANTE and TIPO DO ÓLEO gives way to NATUREZA DO
  * LÍQUIDO and TIPO (ANP). A measurement reading corrected to 75 °C keeps its `corrected` in
- * `last_results` (the shape of 36). The template seed move drops an untouched default-off part the
- * new version's definition no longer has (`withVersionSubBlocks`: the v13 transformer's
- * `ia_ip_display`). The seed and company schemas gain optional keys only, so v1 to v12 parse to the
+ * `last_results` (the shape of 36). The template seed move drops a default-off part the new
+ * version's definition no longer has, whatever its switch (`withVersionSubBlocks`: the v13
+ * transformer's `ia_ip_display`, whose IP and DAR v13 types in the table). The seed and company schemas gain optional keys only, so v1 to v12 parse to the
  * bytes they shipped with and a row written before 38 parses to the same bytes. MIN follows to 38
  * (below).
  */
