@@ -9,6 +9,7 @@ import { evaluateSheetReadings, type CellAddress, type TestKey } from './reading
 import { screenLabel } from './screen-label.ts';
 import { isCellFilled } from './sheet-state.ts';
 import { numberShape, suggestionView } from './suggestion-rows.ts';
+import { writableTableRows } from './tap-rows.ts';
 
 /*
  * E9-A7, part of `suggestions.ts`: Story 9.1's Measurement cells ("Ler visor"): the pending
@@ -64,14 +65,19 @@ export function measurementSuggestions(
     .map(({ address, suggestion }) => ({ address, suggestion, view: suggestionView(storedTestCell(block, address), suggestion, NUMBER_FIELD) }));
 }
 
-/** The rows of one table of a test, across the test's tables (the op path's rows), or null. */
-function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partial<Pick<BlockRow, 'config'>>, testKey: string, tableKey: string, ctx: DefinitionContext): { from: number; to: number } | null {
+/**
+ * The rows of one table of a test as the sheet has them, by the op path's row, in table order, or
+ * null. Fix batch e23g (R2-1): a `rows_from` table's rows are its plate's taps, the rows off the
+ * plate excluded (`writableTableRows`, the fold refuses them); every other table its seeded rows.
+ */
+function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'sheet'> & Partial<Pick<BlockRow, 'config'>>, testKey: string, tableKey: string, ctx: DefinitionContext): number[] | null {
   try {
-    const test = blockDefinitionIn(ctx, block)?.tests.find((t) => t.key === testKey);
-    if (test === undefined) return null;
+    const definition = blockDefinitionIn(ctx, block);
+    const test = definition?.tests.find((t) => t.key === testKey);
+    if (definition === null || test === undefined) return null;
     let offset = 0;
     for (const table of test.tables) {
-      if (table.key === tableKey) return { from: offset, to: offset + table.rows.length };
+      if (table.key === tableKey) return writableTableRows(block, definition, table, testKey).map((row) => offset + row);
       offset += table.rows.length;
     }
     return null;
@@ -80,7 +86,7 @@ function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type'> & Partia
   }
 }
 
-/** The fills of one table the sheet shows as such: a cell in `exclude` (it shows a dictated reading) is not one. */
+/** The fills of one table the sheet shows as such, in the table's row order: a cell in `exclude` (it shows a dictated reading) is not one. */
 function tableFills(
   block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
   pending: readonly SuggestionRow[],
@@ -92,9 +98,9 @@ function tableFills(
   const rows = tableRows(block, testKey, tableKey, ctx);
   if (rows === null) return [];
   const excluded = (address: CellAddress) => exclude.some((cell) => cell.testKey === address.testKey && cell.row === address.row && cell.col === address.col);
-  return measurementSuggestions(block, pending, ctx).filter(
-    (entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to && entry.view === 'fill' && !excluded(entry.address),
-  );
+  return measurementSuggestions(block, pending, ctx)
+    .filter((entry) => entry.address.testKey === testKey && rows.includes(entry.address.row) && entry.view === 'fill' && !excluded(entry.address))
+    .sort((a, b) => rows.indexOf(a.address.row) - rows.indexOf(b.address.row));
 }
 
 /**

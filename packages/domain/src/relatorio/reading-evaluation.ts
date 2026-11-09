@@ -36,7 +36,7 @@ import {
   type TestKey,
   type VisibleColumn,
 } from './reading-cells.ts';
-import { VECTOR_GROUP_EMPTY_TEXT, VECTOR_GROUP_MISSING_TEXT, VECTOR_GROUP_UNRECOGNIZED_TEXT, vectorGroupCaptureLabel, vectorGroupNeutralCaptureLabel, vectorGroupFactor, vectorGroupFormulaText, vectorGroupShortText } from './vector-group.ts';
+import { VECTOR_GROUP_EMPTY_TEXT, VECTOR_GROUP_UNRECOGNIZED_TEXT, vectorGroupFieldLabel, vectorGroupMissingText, vectorGroupCaptureLabel, vectorGroupNeutralCaptureLabel, vectorGroupFactor, vectorGroupFormulaText, vectorGroupShortText } from './vector-group.ts';
 
 /*
  * E9-A7: THE evaluation of a sheet's readings (see `reading-cells.ts` for the addressing) and
@@ -748,7 +748,7 @@ function evaluateTable(
     ratio,
     formulaHelper: group === null ? null : vectorGroupFormulaText(group.k),
     shortHelper: group === null ? null : vectorGroupShortText(group),
-    groupHelper: resolution === null ? null : groupMissing ? VECTOR_GROUP_MISSING_TEXT : resolution.assumed ? (resolution.blank ? VECTOR_GROUP_EMPTY_TEXT : VECTOR_GROUP_UNRECOGNIZED_TEXT) : null,
+    groupHelper: resolution === null ? null : groupMissing ? vectorGroupMissingText(vectorGroupFieldLabel(definition)) : resolution.assumed ? (resolution.blank ? VECTOR_GROUP_EMPTY_TEXT : VECTOR_GROUP_UNRECOGNIZED_TEXT) : null,
     vectorGroup: group?.code ?? null,
     groupMissing,
     voltageColumn: voltageColumnView(table),

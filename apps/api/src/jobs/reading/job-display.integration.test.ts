@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   EMPTY_DEFINITION_CONTEXT,
+  SEED_VERSION,
+  companyBlockType,
+  companySubBlocksOf,
   displayCellTarget,
+  duplicateSeededType,
+  emptySheet,
   displayEnvTarget,
   instantiateTemplate,
   locationRowSchema,
@@ -223,6 +228,49 @@ describe('9.1-INT the display reading kind', () => {
     await run(id);
     expect(await status(id)).toBe('done');
     expect((await suggestionsOf(id)).map((s) => [s.target_path, s.value])).toEqual([[sheetTestCellPath(transformer.id, 'isolacao', 0, 1), { raw: '1.45', unit: GOHM, state: 'measured' }]]);
+  }, 60_000);
+
+  it('fix batch e23g (R2-1): a v13 transformer with TAPS, the ratio meter shot on a tap row: the suggestion lands on that row', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const transformer = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    expect(transformer.seed_version).toBe('v13');
+    await apply([draft('put', 'relatorio', relatorioId, `sheet/${transformer.id}/nameplate/taps`, { raw: '13.8;13.2;12.6;12;11.4', unit: 'kV', state: 'measured' })]);
+    const id = await photo(relatorioId, transformer.id, await shot('display-ttr'), displayCellTarget(transformer.id, transformer.block_type, 'relacao_transformacao', { row: 13200, col: 3 }));
+    await run(id);
+    expect(await status(id)).toBe('done');
+    expect((await suggestionsOf(id)).map((s) => [s.target_path, s.value, s.mode])).toEqual([
+      [sheetTestCellPath(transformer.id, 'relacao_transformacao', 13200, 3), { raw: '34.512', unit: null, state: 'measured' }, 'fill'],
+    ]);
+  }, 60_000);
+
+  it('fix batch e23g (R2-1): a company copy of the v13 transformer with TAPS: the job reads the version\'s nameplate and the suggestion lands on the tap row', async () => {
+    // The company's copy of the library transformer, published as v1 (as the 14.6-INT plate case publishes its type).
+    const definition = duplicateSeededType(SEED_VERSION, 'transformador_forca').draft;
+    const typeId = newId();
+    const versionId = newId();
+    await apply([
+      draft('create', 'company', null, `equipment_type/${typeId}`, { id: typeId, derived_from: null, draft: null, retired_at: null, removed_at: null, latest_version: 0 }),
+      draft('create', 'company', null, `equipment_type_version/${versionId}`, { id: versionId, type_id: typeId, version: 1, definition, published_by: ACTOR, published_at: new Date(Date.now() - 1000).toISOString() }),
+    ]);
+    const { relatorioId, blocks } = await relatorio();
+    const host = blocks.find((b) => b.equipment_id !== null)!;
+    const blockType = companyBlockType(typeId);
+    const block: BlockRow = {
+      ...host,
+      id: newId(),
+      block_type: blockType,
+      config: { block_type: blockType, sub_blocks: Object.fromEntries(companySubBlocksOf(definition).map((key) => [key, { enabled: true }])), na_defaults: [], type_version: 1, type_version_id: versionId },
+      order_key: 'zz',
+      sheet: emptySheet(),
+    };
+    await apply([draft('create', 'relatorio', relatorioId, `block/${block.id}`, block)]);
+    await apply([draft('put', 'relatorio', relatorioId, `sheet/${block.id}/nameplate/taps`, { raw: '13.8;13.2;12.6;12;11.4', unit: 'kV', state: 'measured' })]);
+    const id = await photo(relatorioId, block.id, await shot('display-ttr'), displayCellTarget(block.id, block.block_type, 'relacao_transformacao', { row: 13200, col: 3 }));
+    await run(id);
+    expect(await status(id)).toBe('done');
+    expect((await suggestionsOf(id)).map((s) => [s.target_path, s.value, s.mode])).toEqual([
+      [sheetTestCellPath(block.id, 'relacao_transformacao', 13200, 3), { raw: '34.512', unit: null, state: 'measured' }, 'fill'],
+    ]);
   }, 60_000);
 
   it('the thermo-hygrometer of a cabine: temperature and humidity on the cabine environment', async () => {

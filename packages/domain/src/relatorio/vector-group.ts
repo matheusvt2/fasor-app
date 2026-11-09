@@ -246,8 +246,22 @@ export function vectorGroupShortText(group: VectorGroup): string | null {
   return `Curto-circuitar ${a.short} na fase A, ${b.short} na B e ${c.short} na C`;
 }
 
-// authored: Story 21.1, the helper of a v11 ratio table whose LIGAÇÃO SECUNDÁRIA is empty.
-export const VECTOR_GROUP_MISSING_TEXT = 'Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular';
+// ~~authored: Story 21.1, the helper of a v11 ratio table whose LIGAÇÃO SECUNDÁRIA is empty: "Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular".~~
+// authored (fix batch e23g, late finding of the wave 1 behavior pass, listed for Bruno): the helper names the plate
+// field the block's type carries under `VECTOR_GROUP_FIELD` (LIGAÇÃO SECUNDÁRIA on v11, DESLOCAMENTO ANGULAR since
+// v12, Story 22.7; a company copy's own label), with "o campo" so the sentence holds for a label of either gender.
+/** The helper of a ratio table read by vector group while the group is missing: "Informe o campo DESLOCAMENTO ANGULAR na placa para calcular". */
+export function vectorGroupMissingText(fieldLabel: string): string {
+  return `Informe o campo ${fieldLabel} na placa para calcular`;
+}
+
+/** The label `vectorGroupMissingText` names when a definition carries no `VECTOR_GROUP_FIELD` (v11's). */
+export const VECTOR_GROUP_FIELD_FALLBACK_LABEL = 'LIGAÇÃO SECUNDÁRIA';
+
+/** The label of the plate field a definition reads the vector group from, as `vectorGroupMissingText` names it. */
+export function vectorGroupFieldLabel(definition: { nameplate: readonly { key: string; label: string }[] }): string {
+  return definition.nameplate.find((field) => field.key === VECTOR_GROUP_FIELD)?.label ?? VECTOR_GROUP_FIELD_FALLBACK_LABEL;
+}
 // authored: Story 21.1, the helper of a v9/v10 ratio table whose LIGAÇÃO SECUNDÁRIA names no group.
 export const VECTOR_GROUP_UNRECOGNIZED_TEXT = 'Ligação não reconhecida: calculado como Dyn1';
 // authored: e21g D2, the helper of a v9/v10 ratio table whose LIGAÇÃO SECUNDÁRIA is empty.

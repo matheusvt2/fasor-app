@@ -163,6 +163,51 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
     writes, an NC observation with line breaks splitting the section 9 conclusion paragraph, and the confirmed texts
     row, closed 2026-11-08 (Matheus: kept as stored).
 
+## Fix batch e23g
+
+*(2026-11-09, filled by the e23g orchestrator on the coordinator's word.)*
+
+- **Branch** `e23g-wave1-fixes`, worktree `.claude/worktrees/e23g`, port base 64, from main `6be0a5ec`.
+- **Scope.** The four findings of the second pass of the wave 1 integrated review (R2-1 to R2-4), plus one late finding of
+  the behavior pass, which came after the batch launched:
+  - R2-1: "Ler visor" on a v13 TTR with tap rows;
+  - R2-2: `removeDraftEntry` and the v13 keys;
+  - R2-3: the vector-group missing count;
+  - R2-4: the tap line's count in the web;
+  - late: the TTR's missing-group helper named LIGAÇÃO SECUNDÁRIA on a transformer whose field is DESLOCAMENTO ANGULAR
+    (since v12).
+- **Contract and seed:** none. Goldens unchanged.
+- **Record (2026-11-09).**
+  - PR #289 (open, not merged; its head is on the PR). Story gate on `03307e4c` under the lock:
+    - lock wait 0 s; load 1.98 at the start and 3.99 at the end; only the e23g stack up at the start, e23v's (wave 2) by
+      the end;
+    - lint 0, static 0, test:api 926 passed / 6 skipped (goldens unchanged), test:unit 5837 of 5837;
+    - 8 touched specs 57 of 57 (`ttr-per-tap`, `type-editor`, `ficha`, `read-display-pipeline`, `read-display`,
+      `dry-transformer.durability`, `company-type-sheet`, `test-applicability.durability`); matrix not run (no fold,
+      commit path or live-query change).
+  - Main `606177fe` (#288, docs only) merged after the gate; the gate stays valid.
+  - Changes:
+    - `writableTableRows` (`relatorio/tap-rows.ts`) is the one list of a table's writable rows in table order. The
+      display kernel walks it by position, and "Confirmar todos" and its verify count bound a table by it. The display
+      input gains `nameplate?`, which the api passes from the block's definition.
+    - `removeDraftEntry` prunes `dry_fields`, `pick_from`, `rows_from` and `applies_when` naming a removed field. This
+      is the prune of e22h S1, chosen over a refusal.
+    - The group count adds only `tapRowRequired` rows.
+    - The kernel gains `tapTableLine`, `isTapTable` and `tapRowOptional`.
+    - The helper becomes `vectorGroupMissingText(vectorGroupFieldLabel(definition))`.
+  - Authored wording, for Bruno: "Informe o campo {label} na placa para calcular". It replaces "Informe a LIGAÇÃO
+    SECUNDÁRIA na placa para calcular"; "o campo" fits a label of either gender. It is on the sheet only and never
+    printed.
+  - Review (Edge Case Hunter, Verification Gap; one loop):
+    - Patched: an api case for a company copy's display reading, with a mutation run (only that case red without the
+      forward).
+    - Deferred: one low finding, `MeasurementTable`'s `row.tap !== null` render branches from e23b.
+  - Left for the epic: three `deferred-work.md` rows under § "Epic 23 fix batch e23g":
+    - the order of `measurementSuggestions` (a note);
+    - the TTR markup branches (a note);
+    - a decision for Matheus: a copy that removes DESLOCAMENTO ANGULAR keeps a TTR read by vector group with nothing to
+      read.
+
 ## Batch plan
 
 There are two lanes per wave, so at most two batch stacks are up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`.

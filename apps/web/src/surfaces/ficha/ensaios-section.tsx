@@ -2,6 +2,7 @@ import {
   evaluateSheetMeasurements,
   evaluatedCells,
   instrumentRangeFor,
+  isTapTable,
   manufacturerApplies,
   measurementCells,
   previousHelpers,
@@ -23,8 +24,8 @@ import {
   tapCellTyped,
   tapInputText,
   tapMarkText,
-  tapRowRequired,
-  tapsLine,
+  tapRowOptional,
+  tapTableLine,
   testVoltageCheck,
   unitTapNeedsEdit,
   type BlockDefinition,
@@ -464,11 +465,11 @@ function MeasurementTable({
   // Story 23.8: an unmarked tap row with nothing measured reads "Não medido" (`ratioRowCondicaoText`).
   const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? ratioRowCondicaoText(row) : (row.calculated?.text ?? '—'));
   // Story 23.8 (seed v13): the TTR's rows are the plate's taps; the line above the table counts them.
-  const tapRows = table.rows.some((row) => row.tap !== null);
-  const onPlate = table.rows.filter((row) => row.tap?.onPlate === true).length;
-  const line = onPlate === 0 ? null : tapsLine(onPlate);
+  // Fix batch e23g (R2-4): the count and the predicates are the kernel's.
+  const tapRows = isTapTable(table.rows);
+  const line = tapTableLine(table.rows);
   /** An unmarked tap of the plate: required nothing, drawn muted (the mock's `tr.tap-optional`). */
-  const optional = (row: EvaluatedRow) => row.tap !== null && row.tap.onPlate && !tapRowRequired(row);
+  const optional = (row: EvaluatedRow) => tapRowOptional(row);
   const markOf = (row: EvaluatedRow) => tapMarkText(row.tap);
   // Story 22.8 (seed v12): the row's test voltage, drawn right after the connection cells; null on v1 to v11 tables.
   const voltageColumn = table.voltageColumn;
