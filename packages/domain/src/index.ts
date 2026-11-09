@@ -33,6 +33,8 @@ export * from './registry/empresa.ts';
 export * from './registry/client-row.ts';
 export * from './registry/word-row.ts';
 export * from './seed/criteria.ts';
+// Story 23.2 (seed v13): the NETA criterion tables.
+export * from './seed/criteria-tables.ts';
 export * from './seed/schema.ts';
 export * from './seed/measurement.ts';
 export * from './seed/definitions.ts';

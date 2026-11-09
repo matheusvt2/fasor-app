@@ -152,7 +152,8 @@ describe('10.2 the contradiction mark', () => {
   });
 
   it('22.8: two voltages on a v12 insulation row name the cell by its row and the TENSÃO header, not "Linha · coluna"', () => {
-    expect(SEED_VERSION).toBe('v12');
+    // Seed v13 keeps v12's TENSÃO column (Story 22.8).
+    expect(SEED_VERSION).toBe('v13');
     const voltageCol = definition.tests[0]!.tables[0]!.value_columns.findIndex((column) => column.role === 'voltage');
     const path = `sheet/${BLOCK}/test/${TEST}/cell/0/${voltageCol}`;
     const kv = (raw: string): JsonValue => ({ raw, unit: 'kV', state: 'measured' });

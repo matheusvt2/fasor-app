@@ -369,3 +369,13 @@
 /* A checklist item's hint (the QGBT's items 8 and 16): the `.helper` text on its own line under the
    label, wrapping inside the label's column at every width. No mock draws it. */
 .checklist-row .row-label .row-hint { display: block; overflow-wrap: anywhere; }
+
+/* ---------- batch e23a (Story 23.3): the manufacturer's value ---------- */
+/* `60-ficha.html` (Story 23.1 frames) `[data-route="/ficha/:tag"] .v13-mfr` and its children, declarations
+   verbatim: one optional entry per test, under the criterion row. */
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-3); margin: 0 0 var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr > .field { flex: 0 1 260px; min-width: 200px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .mfr-op { display: inline-flex; align-items: center; padding-left: var(--sp-3); font-size: var(--t-value-size); font-weight: var(--t-value-weight); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .mfr-note { flex: 1 1 220px; margin: 0; padding-bottom: var(--sp-2); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .mfr-note b { color: var(--ink-primary); font-weight: 600; }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-mfr .btn-text { min-height: var(--touch-min); }

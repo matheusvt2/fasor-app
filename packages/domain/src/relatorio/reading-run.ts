@@ -136,6 +136,15 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
             if (row.calculated === null) continue;
             score = deviationPct(value, Number(row.calculated.raw));
             valueText = `${formatDeviation(score)} %`;
+          } else if (row.criterion !== undefined) {
+            // Batch e23a (Stories 23.2, 23.3): a row judged by its own criterion ranks by its reading over
+            // that criterion, so the worst is the one furthest below its minimum (or above its maximum).
+            const own = row.criterion;
+            if (own === null || !(own.value > 0)) continue;
+            const scaled = scaleToUnit(value, cell.unit, own.unit);
+            if (scaled === null) continue;
+            score = own.operator.startsWith('>') ? -(scaled / own.value) : scaled / own.value;
+            valueText = cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`;
           } else {
             const scaled = scaleToUnit(value, cell.unit, criterion!.unit);
             if (scaled === null) continue;
@@ -151,8 +160,9 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
               score,
               reading: {
                 testKey: test.testKey,
-                criterionText: test.criterionText,
-                sourceName: test.sourceName,
+                // Batch e23a: named by the row's own criterion where the row carries one.
+                criterionText: row.criterionText ?? test.criterionText,
+                sourceName: row.criterion?.source.name ?? test.sourceName,
                 valueText,
                 where: whereOf(table, row, cell),
                 verdict: cell.verdict,

@@ -147,6 +147,14 @@ export function testValueOp(author: Author, relatorioId: string, blockId: string
   return put(author, relatorioId, sheetTestValuePath(blockId, testKey, valueKey), value);
 }
 
+/**
+ * Batch e23a (Story 23.3): `sheet/{blockId}/test/{testKey}/criterion_override` put, the manufacturer's
+ * value (`{raw, unit}`, the kernel's `parseManufacturerValue`), null to clear it.
+ */
+export function testManufacturerValueOp(author: Author, relatorioId: string, blockId: string, testKey: string, value: { raw: string; unit: string | null } | null): OpDraft {
+  return put(author, relatorioId, sheetTestPath(blockId, testKey, 'criterion_override'), value);
+}
+
 /** `sheet/{blockId}/test/{testKey}/instrument` put: the instrument header copied by value (Story 5.7, AR-18). */
 export function testInstrumentOp(author: Author, relatorioId: string, blockId: string, testKey: string, header: InstrumentHeader): OpDraft {
   return put(author, relatorioId, sheetTestPath(blockId, testKey, 'instrument'), header);

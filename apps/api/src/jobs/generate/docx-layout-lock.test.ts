@@ -1,0 +1,69 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { layoutSpec } from '@app/domain';
+import { LAYOUT_LOCK_ISSUED_AT, LAYOUT_LOCK_VERSIONS, layoutLockSnapshot } from '@app/domain/fixtures/layout-lock';
+import { describe, expect, it } from 'vitest';
+import { buildDocx } from './docx.ts';
+import { readZipEntries } from './docx-structure.test-support.ts';
+import { placeholderPages } from './toc.ts';
+
+/*
+ * Story 23.2, the Epic 23 layout lock (23.2-UNIT-LOCK): the DOCX parts of the synthetic v5, v11 and
+ * v12 relatórios (`@app/domain/fixtures/layout-lock`, one sheet of every type each version offers)
+ * are pinned byte for byte in `golden/layout-lock-{version}/`. Bruno likes the current relatório:
+ * every later Epic 23 PR keeps these, and the Porto Seguro goldens, unchanged; a drift here is a
+ * defect against the protection, never a golden update. They were taken on main a3b0ec0e (fix
+ * batch e23f merged) with `GOLDEN_UPDATE=1`. The PDF text half is `layout-lock.integration.test.ts`.
+ */
+
+const GOLDEN_DIR = resolve(__dirname, 'golden');
+/** The parts that carry the printed layout (the body, its numbering and styles, the header and footer). */
+const PARTS = /^word\/(document|numbering|styles|header\d*|footer\d*)\.xml$/;
+
+async function partsOf(version: string): Promise<Map<string, string>> {
+  const layout = layoutSpec(layoutLockSnapshot(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
+  const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+  const parts = new Map<string, string>();
+  for (const [name, bytes] of readZipEntries(docx)) if (PARTS.test(name)) parts.set(name, bytes.toString('utf8'));
+  return parts;
+}
+
+describe('23.2-UNIT-LOCK the DOCX of the locked seed versions is byte-equal to its golden', () => {
+  it.each(LAYOUT_LOCK_VERSIONS)(
+    '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
+    async (version) => {
+      const parts = await partsOf(version);
+      expect(parts.has('word/document.xml')).toBe(true);
+      const dir = resolve(GOLDEN_DIR, `layout-lock-${version}`);
+      const index = resolve(dir, 'parts.json');
+      if (process.env.GOLDEN_UPDATE === '1') {
+        mkdirSync(dir, { recursive: true });
+        for (const [name, text] of parts) {
+          const file = resolve(dir, name.replace('word/', ''));
+          mkdirSync(dirname(file), { recursive: true });
+          writeFileSync(file, text);
+        }
+        writeFileSync(index, `${JSON.stringify([...parts.keys()].sort(), null, 2)}\n`);
+      } else if (!existsSync(index)) {
+        throw new Error(`${index} is missing; the layout lock is taken once, deliberately, with GOLDEN_UPDATE=1`);
+      }
+      expect([...parts.keys()].sort(), 'the DOCX parts changed').toEqual(JSON.parse(readFileSync(index, 'utf8')));
+      for (const [name, text] of parts) {
+        const golden = readFileSync(resolve(dir, name.replace('word/', '')), 'utf8');
+        // Not toEqual on the whole string: a mismatch would print megabytes. Byte equality, then the first difference.
+        if (text !== golden) {
+          let at = 0;
+          while (at < text.length && text[at] === golden[at]) at++;
+          expect(text.slice(Math.max(0, at - 200), at + 200), `${version} ${name} drifted at ${at}`).toBe(golden.slice(Math.max(0, at - 200), at + 200));
+        }
+        expect(text === golden, `${version} ${name}`).toBe(true);
+      }
+    },
+    120_000,
+  );
+
+  it('is deterministic: two renders of v12 give the same document.xml', async () => {
+    const [a, b] = await Promise.all([partsOf('v12'), partsOf('v12')]);
+    expect(a.get('word/document.xml') === b.get('word/document.xml')).toBe(true);
+  }, 120_000);
+});

@@ -42,6 +42,7 @@ import { CABINE_PRIMARIA_V9 } from './v9.ts';
 import { CABINE_PRIMARIA_V10 } from './v10.ts';
 import { CABINE_PRIMARIA_V11 } from './v11.ts';
 import { CABINE_PRIMARIA_V12 } from './v12.ts';
+import { CABINE_PRIMARIA_V13 } from './v13.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -60,7 +61,7 @@ import { CABINE_PRIMARIA_V12 } from './v12.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v12';
+export const SEED_VERSION = 'v13';
 
 /**
  * The named variables section boilerplate may carry, resolved at generation. Seed v8 (UX pass
@@ -124,6 +125,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v10: bundle('v10', CABINE_PRIMARIA_V10),
   v11: bundle('v11', CABINE_PRIMARIA_V11),
   v12: bundle('v12', CABINE_PRIMARIA_V12),
+  v13: bundle('v13', CABINE_PRIMARIA_V13),
 });
 
 /**

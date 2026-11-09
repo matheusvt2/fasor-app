@@ -369,7 +369,16 @@
  * share a number. A device whose publish was refused for its number renumbers it and the blocks
  * naming its row on "Reenviar" (`resendRenumberedVersions`). MIN stays 33.
  */
-export const CONTRACT_VERSION = 33;
+/*
+ * 34 (2026-11-08, Stories 23.2 to 23.4, batch e23a): seed v13 (the NETA criterion tables, the
+ * instrument-limit note) is what a template the server moves to v13 and every relatório created on it
+ * carry, and `applyOp` refuses as `SeedPathError` (`op_invalid`) a `sheet/{b}/test/{t}/criterion_override`
+ * put on a v13 sheet whose value is neither null nor a well-formed manufacturer's value (`{raw, unit}`,
+ * raw a positive dot-decimal, a unit the test's criterion converts to; `manufacturerRefusal`). v1 to
+ * v12 sheets fold as before, so no stored op changes its outcome. No path, row or snapshot shape
+ * changes: a row written before 34 parses to the same bytes.
+ */
+export const CONTRACT_VERSION = 34;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -579,7 +588,14 @@ export const CONTRACT_VERSION = 33;
  * `equipment_types`; it would show a company block as an unknown section and print nothing of it.
  * Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 33;
+/*
+ * 34 (2026-11-08, batch e23a): a version-33 (or older) bundle cannot resolve seed v13, which a
+ * template the server moves to v13 and every relatório created on it carry, so it would show a v13
+ * sheet as unknown and judge nothing; and its fold would store a malformed manufacturer's value the
+ * server's fold refuses, which it would then show as the device's own. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 34;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

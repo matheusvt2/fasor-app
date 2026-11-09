@@ -99,9 +99,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 33 and refuses version 32 (Story 14.6: a version-32 bundle cannot parse the equipment_type families, a type: block or a snapshot carrying equipment_types)', () => {
-    expect(CONTRACT_VERSION).toBe(33);
-    expect(MIN_CONTRACT_VERSION).toBe(33);
+  it('speaks version 34 and refuses version 33 (batch e23a: a version-33 bundle cannot resolve seed v13, nor refuse a malformed manufacturer value)', () => {
+    expect(CONTRACT_VERSION).toBe(34);
+    expect(MIN_CONTRACT_VERSION).toBe(34);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

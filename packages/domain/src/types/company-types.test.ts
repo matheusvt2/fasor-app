@@ -699,7 +699,8 @@ describe('Story 14.6 review: the next visit, photos, parecer and pre-issue over 
           relatorio_id: RELATORIO_ID,
           revision_number: 1,
           issued_at: T(50),
-          seed_version: SEED_VERSION,
+          // The fixture's relatório is pinned at seed v12 (`fixtures/company-types/op-log.ts`), not the current version.
+          seed_version: 'v12',
           block_type: TYPE_1,
           readings: { 'tensoes_medidas|saida|valor': { raw: '125', unit: 'Vcc', state: 'measured' }, 'tensoes_medidas|flutuacao|valor': { raw: '131', unit: 'Vcc', state: 'measured' } },
           prior: null,
