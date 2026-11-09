@@ -6385,6 +6385,8 @@ So that the batches build from frames, not from a guess (E14-A4).
 - No app code changes.
 - `docs/kbs/log.md`.
 
+*(2026-11-08: frames merged in PR #284 and approved by Matheus in the browser. His choices on the frame's open points: the printed corrected column is headed "20 °C" inside the VALORES group, so the v13 insulation table prints at 8 pt under the 60 em rule (not "CORRIGIDO (GΩ)" at 7,5 pt; the printed frame in `key-print-section-9-v13.html` still draws CORRIGIDO and Story 23.5 prints the approved heading); TEMPERATURA sits in the instrument header row before ACEITÁVEL; on screen the corrected value is a calculated column at tablet and desktop and an "A 20 °C: …" line in the phone card. Not drawn, left to each story's own wording: the refused manufacturer value (23.3), a tap row no longer on the plate (23.8), the instrument-limit note (23.4), the winding-resistance table (23.15), ACEITÁVEL per row and " (fabricante)" in print (23.2, 23.3).)*
+
 ### Story 23.2: Seed v13 opens, the older layouts are locked, and insulation is judged by the NETA tables (contract 34)
 
 **Dev model:** opus · **Effort:** high · seed v13 derived from v12; the layout-lock goldens of a v5, a v11 and a v12 relatório taken after e23f; the criteria tables as seed data with source, edition and status per row; the insulation criterion picked from them by voltage and medium on v13; the instrument header and the criterion helper name the table
@@ -6605,6 +6607,8 @@ So that a warm winding is not approved, or failed, on a raw number.
 - The `SPEC.md` Non-goals line struck through with its date.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-08, Matheus at the Story 23.1 approval: the printed corrected column is headed "20 °C" inside the VALORES group, at 8 pt under the 60 em rule; not "CORRIGIDO (GΩ)" at 7,5 pt. What it prints for an over-range reading is Story 23.4's.)*
 
 ### Story 23.6: Three levels per reading, the comparisons between phases and units, and the previous visit's value judges
 
