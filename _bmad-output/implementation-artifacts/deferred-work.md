@@ -3239,7 +3239,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Three unit tests failed at the baseline because e23a's first commit made `SEED_VERSION` v13 without updating them: `templates/text.test.ts` (the seed name "Semente v13"), `print/print-fit.test.ts` (v13 excluded with v12 from the fit sweep) and `types/company-types.test.ts` (a v12 duplicate asserted on `seed_version: 'v12'`). This batch fixed them to pass its gate; e23a may fix the same lines, so the merge of the two batches must keep one version of each.
   evidence: the three test files, each failing when run alone on the baseline with this batch's changes stashed.
   class: process
-  state: open (owner: the coordinator, at the e23a and e23b merge)
+  state: ~~open (owner: the coordinator, at the e23a and e23b merge)~~ closed (2026-11-09, merge of main `17127590` into e23b): main's versions of the three files taken whole; e23a fixed them on its own branch.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (Story 23.7 AC 4; "Do not run the paid eval")
   summary: The plate prompt moved to `bedrock-structuring-6` (field notes for TAPS, TAP ATUAL, MATERIAL DO ENROLAMENTO, the √3 secondary and the dash ratio) and `bedrock-eval.ts` gained the seven synthetic v13 plates, but the paid evaluation was not run: providers stayed `fake`. It is due before the Epic 23 deploy, against the prompt-5 baseline.
   evidence: `apps/api/src/jobs/reading/providers/bedrock.ts` `BEDROCK_STRUCTURING_PROMPT_VERSION`, `plateFieldNotes`; `apps/api/src/scripts/bedrock-eval.ts`.
@@ -3260,3 +3260,13 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: the specs named, each with its dated comment; `e2e/tap-budget.spec.ts` `TAP_BUDGET`.
   class: verification
   state: open (owner: the Epic 23 QA, with the v13 re-measure of the field journeys)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (review pass of 2026-11-09)
+  summary: The NA band of a measurement-grammar test (`measurement-test-section.tsx`) has no browser coverage: the kernel is tested and the e2e drives the seeded grammar only.
+  evidence: no seeded v13 test carries `applies_when`; only a company draft put reaches that branch today.
+  class: verification
+  state: open (owner: the first of Stories 23.15 to 23.21 that attaches a condition to a measurement test)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (review pass of 2026-11-09; Story 23.8 "accepts exactly the rows the plate gives")
+  summary: A tap reading typed offline while another device removes that tap from TAPS is refused by the fold when it syncs (`op_invalid`) and dropped by the device; and a reading on an off-plate row (or the pre-TAPS row 0) cannot be cleared unless the tap is put back, while it is still judged and printed.
+  evidence: `packages/domain/src/ops/apply.ts` `assertCellGeometry` on a `rows_from` table; `relatorio/tap-rows.ts` `tapRowAccepted`; the off-plate cell is drawn read-only (`ensaios-section.tsx`).
+  class: decision
+  state: open (owner: Matheus, with Bruno: whether an off-plate row takes a clear, or any write)

@@ -73,7 +73,8 @@ const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da fic
 const sheetTitle = (page: Page) => page.locator('.sheet-header .sheet-title');
 const plateSelect = (page: Page, key: string) => page.locator(`#ficha-nameplate [data-field-key="${key}"] select`);
 const testSection = (page: Page): Locator => page.locator(`section[data-test-key="${TEST_KEY}"]`);
-const cellInputs = (page: Page) => testSection(page).locator('input.mf-value').filter({ visible: true });
+// The reading cells only: since batch e23a (Story 23.3) the section also holds the manufacturer's value field (`.v13-mfr`).
+const cellInputs = (page: Page) => testSection(page).locator('.measurement-table input.mf-value, .measurement-cards input.mf-value').filter({ visible: true });
 const exportDialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
 const frames = (page: Page) => page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))));
 
