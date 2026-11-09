@@ -2,10 +2,10 @@
 title: 'e23e: test-voltage defaults, TC and TP polarity and function, thermography on the eight types, the Malha de aterramento (Stories 23.13, 23.18, 23.20, 23.21; contract 39)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: '9351c73bf0d5e6cedd33c71095c3e2589bcd46d0'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -158,3 +158,16 @@ deferred: []
 - `podman compose restart api && podman compose --profile tools run --rm --user root tools pnpm test:api` -- expected: green, goldens unchanged.
 - `pnpm exec tsx scripts/e2e.ts e2e/voltage-defaults.spec.ts e2e/tc-polarity.spec.ts e2e/thermography.spec.ts e2e/ground-grid.spec.ts --project desktop-chrome --project durability-desktop-chrome` (under the lock) -- expected: green.
 - `git diff 7424771d --name-status -- apps/api/src/jobs/generate/golden packages/domain/fixtures` -- expected: no M or D lines.
+
+## Auto Run Result
+
+- **Status:** done (review loop 1 of 1; story gate recorded in the PR body).
+- **Summary.** On seed v13 only (one fenced e23e section of `seed/v13.ts`, contract 39 and MIN 39, `bedrock-structuring-8`):
+  - 23.13: a table key `voltage_default` gives the disjuntor, seccionadora, TC, TP, cable and para-raio insulation rows their decision D default after the row's and winding's own (`row-voltage.ts` `decisionDDefaultKv`, `mcovDefaultKv`).
+  - 23.18: a seeded-table column role `choice` with `fails_on` (POLARIDADE OK/INVERTIDA on the TC and TP ratio tables); FUNÇÃO DO TC with the faturamento notice (`notice_when`); the classes 0,3S, 0,6S, 5P20, 10P20 (`accuracyClassOption`); the print note under the ratio table (`print_note`).
+  - 23.20: the measurement test `termografia` on the eight types, judged by the new `bands` criterion (NETA Table 100.18), NA by a condition over its own value "Equipamento em carga" (`needs_value`); "Foto térmica" opens the sheet photo capture.
+  - 23.21: the library type `malha_aterramento` (TAG MA) with `resistencia_malha` (the new `max_field` criterion, 5 Ω default) and `continuidade_malha` (≤ 0,5 Ω), printed last under "Outros equipamentos".
+- **Files.** Kernel: `seed/{v13,schema,measurement,select-option}.ts`, `schemas/block-config.ts`, `relatorio/{row-voltage,accuracy-class,reading-evaluation,reading-cells,measurement-evaluation,applicability,conclusion,parecer,readings,sheet-progress,tag}.ts`, `ops/apply.ts`, `merge/conflicts.ts`, `print/{section-9,group-for-print}.ts`, `points/derived.ts`, `types/{definition,duplicate,draft-edit}.ts`, `contract/version.ts`, type literals. Web: `surfaces/ficha/{ensaios-section,measurement-test-section,applicability-band,photo-openers}.tsx`, `copy/pt-br.ts`, `styles/app.css`. API: `bedrock.ts`, plate fixtures, `bedrock-eval.ts`, `sync/tc-thermo-ground.integration.test.ts`. e2e: `voltage-defaults`, `tc-polarity`, `thermography`, `ground-grid` (serial group) and updated literal holders. Docs: `SPEC.md`, `source-deltas.md`, `docs/kbs`, `deferred-work.md`.
+- **Review.** 7 findings: 5 patched (2 medium tests, 1 medium wording, 1 medium over-range, 1 low note placement), 2 rejected (the 5P ALF question goes to Bruno; a clear action for a required choice). Patched, not re-reviewed: `applyBands` over range, the `max_field` note under `if (live)`, `choiceOnlyFailureText` and the parecer's `choice` group.
+- **Follow-up review recommended:** true — two or more medium entries were patched; the unverified risk is the parecer's new `choice` group (its basis keys and sentences) read only by its own unit tests.
+- **Residual risks.** `op-log.test.ts` (a test file under `fixtures/porto-seguro/`) gains `malha_aterramento: 0`, the goldens stay byte-equal; the applied band reads "Seguir a placa" on a value condition; the paid eval of `bedrock-structuring-8` is the coordinator's.
