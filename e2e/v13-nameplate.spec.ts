@@ -1,6 +1,8 @@
 import {
+  EMPTY_DEFINITION_CONTEXT,
   evaluateSheetReadings,
   getDefinition,
+  nameplateAcceptsNotApplicable,
   screenLabel,
   SEED_VERSION,
   tapPickerOf,
@@ -128,15 +130,31 @@ test('@p0 23.7-E2E-001 the v13 transformador de força: TAPS typed as a list (an
   await expect(taps).toHaveValue('13,8 · 13,2 · 12,6 · 12 · 11,4');
   await expect(field(page, 'taps').locator('.helper')).toHaveText(tapsHelperText(measured('13.8;13.2;12.6;12;11.4', 'kV')));
 
-  // TAP ATUAL is now the picker of the kernel's options, "N — V kV" in plate order; a pick writes the tap's kV.
+  // TAP ATUAL is now the picker of the kernel's options, "N — V kV" in plate order, then "N/A"; a pick writes the tap's kV.
   const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
   const tapAtual = definition.nameplate.find((f) => f.key === 'tap_atual_kv')!;
-  const picker = tapPickerOf(await blockRow(page, sheet.blockId), definition, tapAtual)!;
-  expect(picker.options.map((option) => option.label)).toEqual(['1 — 13,8 kV', '2 — 13,2 kV', '3 — 12,6 kV', '4 — 12 kV', '5 — 11,4 kV']);
+  const row = await blockRow(page, sheet.blockId);
+  const picker = tapPickerOf(row, definition, tapAtual, { acceptsNotApplicable: nameplateAcceptsNotApplicable(row, tapAtual.key, EMPTY_DEFINITION_CONTEXT) })!;
+  expect(picker.options.map((option) => option.label)).toEqual(['1 — 13,8 kV', '2 — 13,2 kV', '3 — 12,6 kV', '4 — 12 kV', '5 — 11,4 kV', 'N/A']);
   const combobox = field(page, 'tap_atual_kv').getByRole('combobox', { name: screenLabel(tapAtual.label) });
-  await expect(combobox).toBeVisible();
-  await field(page, 'tap_atual_kv').getByRole('button', { name: 'Abrir lista' }).click();
-  await expect(page.getByRole('option')).toHaveText(picker.options.map((option) => option.label));
+  const openList = () => field(page, 'tap_atual_kv').getByRole('button', { name: 'Abrir lista' }).click();
+  // The select's empty option leads the list, as on every plate select, and reads while nothing is stored.
+  await expect(combobox).toHaveValue('Selecione');
+  await openList();
+  await expect(page.getByRole('option')).toHaveText(['Selecione', ...picker.options.map((option) => option.label)]);
+  await page.getByRole('option', { name: picker.options[2]!.label, exact: true }).click();
+  await expect.poll(written(page, sheet.blockId, 'tap_atual_kv')).toEqual(measured('12.6', 'kV'));
+  await expect(combobox).toHaveValue(picker.options[2]!.label);
+  // "N/A" writes the not-applicable value; the empty option clears it.
+  await openList();
+  await page.getByRole('option', { name: 'N/A', exact: true }).click();
+  await expect.poll(written(page, sheet.blockId, 'tap_atual_kv')).toEqual({ raw: '', unit: null, state: 'not_applicable' });
+  await expect(combobox).toHaveValue('N/A');
+  await openList();
+  await page.getByRole('option', { name: 'Selecione', exact: true }).click();
+  await expect.poll(written(page, sheet.blockId, 'tap_atual_kv')).toBeNull();
+  await expect(combobox).toHaveValue('Selecione');
+  await openList();
   await page.getByRole('option', { name: picker.options[2]!.label, exact: true }).click();
   await expect.poll(written(page, sheet.blockId, 'tap_atual_kv')).toEqual(measured('12.6', 'kV'));
   await expect(combobox).toHaveValue(picker.options[2]!.label);

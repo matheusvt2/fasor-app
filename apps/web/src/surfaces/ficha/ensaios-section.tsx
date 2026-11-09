@@ -5,6 +5,7 @@ import {
   measurementCells,
   previousHelpers,
   readingAddressKey,
+  readingSlotsOf,
   measurementRunEnterKeyHint,
   measurementCellName,
   readingRowLabel,
@@ -177,9 +178,14 @@ export function EnsaiosSection({
   const own = block.equipment_id === null ? undefined : snapshot.equipment.find((row) => row.id === block.equipment_id);
   const lastResults = own?.last_results ?? null;
   const blockType = block.block_type;
+  // Story 23.8 (seed v13): a tap row's previous value is found by its tap, so the helpers read the
+  // block's rows; `slots` names them and changes only with them, never on a cell edit.
+  const sheet = block.sheet;
+  const slots = readingSlotsOf(definition, block).map(readingAddressKey).join(' ');
   const previous = useMemo(
-    () => previousHelpers({ last_results: lastResults }, { block_type: blockType }, definition, snapshot.relatorio.id),
-    [lastResults, blockType, definition, snapshot.relatorio.id],
+    () => previousHelpers({ last_results: lastResults }, { block_type: blockType, sheet }, definition, snapshot.relatorio.id),
+    // `sheet` is read for its rows alone, which `slots` follows.
+    [lastResults, blockType, definition, snapshot.relatorio.id, slots],
   );
   // Story 14.8: a company sheet's tests resolve through the snapshot's type versions.
   const definitions = snapshotDefinitionContext(snapshot);

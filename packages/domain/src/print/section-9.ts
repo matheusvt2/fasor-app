@@ -921,7 +921,8 @@ function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefi
   const entry = previousResultsFor(equipment, block, ctx.snapshot.relatorio.id);
   if (entry === null) return null;
   // An entry none of whose keys this definition holds (every row renamed by a later seed) is no previous visit to print.
-  const readings = previousReadingsByAddress(entry, definition);
+  // Story 23.8: the block's tap rows read the readings of their taps.
+  const readings = previousReadingsByAddress(entry, definition, block);
   return readings.size === 0 ? null : readings;
 }
 

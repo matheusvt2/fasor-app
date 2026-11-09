@@ -177,12 +177,17 @@ export const tableDefSchema = z
      * Seed v13 (Story 23.8, decision K): the `list` field of the nameplate whose values are the
      * table's rows (the transformer's TTR, one row per tap of TAPS, `relatorio/tap-rows.ts`), each
      * row keyed by its tap in whole V; with the list empty the seeded `rows` stand. Only on a
-     * test's single table with `connection_typed`. Optional and never defaulted, so v1 to v12 parse
-     * to the bytes they shipped with.
+     * test's single table with `connection_typed`, one connection column (the tap) and one seeded
+     * row (the typed one of v12; with more, a stored row 1 or 2 would read as a tap of 1 V or 2 V).
+     * Optional and never defaulted, so v1 to v12 parse to the bytes they shipped with.
      */
     rows_from: seedKey.optional(),
   })
   .refine((t) => t.rows_from === undefined || t.connection_typed, { message: 'rows_from belongs to a table whose connection is typed', path: ['rows_from'] })
+  .refine((t) => t.rows_from === undefined || (t.rows.length === 1 && t.connection_columns.length === 1), {
+    message: 'rows_from belongs to a table of one seeded row and one connection column',
+    path: ['rows_from'],
+  })
   .refine((t) => t.rows.every((row) => row.length === t.connection_columns.length), {
     message: 'every row has one cell per connection column',
   })
@@ -385,7 +390,7 @@ const ROW_LIST_UNITS: ReadonlySet<string> = new Set(['V', 'kV']);
  * - the oil rule's `dry_fields` are on the nameplate;
  * - a table's `rows_from` names a `list` field in V or kV, on the test's single table;
  * - an `applies_when` (either grammar) names a field of the nameplate; `in` a select and only its
- *   options; `above` and `below` a number field.
+ *   options; `above` and `below` a number field of one value (never a `list`).
  */
 function checkSeedV13Definition(
   definition: {
@@ -414,8 +419,8 @@ function checkSeedV13Definition(
     if (target === undefined) issue([...path, 'field'], `applies_when.field "${condition.field}" is not a field of the nameplate`);
     else if (condition.op === 'in' && (target.kind !== 'select' || !condition.values.every((value) => target.options!.includes(value)))) {
       issue([...path, 'values'], `applies_when "in" names a select of the nameplate and only its options ("${condition.field}")`);
-    } else if ((condition.op === 'above' || condition.op === 'below') && target.kind !== 'number') {
-      issue([...path, 'field'], `applies_when "${condition.op}" names a number field ("${condition.field}" is ${target.kind})`);
+    } else if ((condition.op === 'above' || condition.op === 'below') && (target.kind !== 'number' || target.list === true)) {
+      issue([...path, 'field'], `applies_when "${condition.op}" names a number field of one value ("${condition.field}" is ${target.list === true ? 'a list' : target.kind})`);
     }
   };
   definition.tests.forEach((test, t) => {

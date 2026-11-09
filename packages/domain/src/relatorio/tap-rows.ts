@@ -1,4 +1,4 @@
-import { formatDecimalGroupedPtBr, readNumberListRaw } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, isNotApplicableNumber, NOT_APPLICABLE_TEXT, readNumberListRaw } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { BlockDefinition, FieldDef, TableDef } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
@@ -20,7 +20,8 @@ import { isCellFilled } from './sheet-state.ts';
  *   and reads "Não medido" until filled.
  * - A stored row the plate no longer lists (a tap that left TAPS, or row 0 typed before TAPS was
  *   filled) stays after the plate rows with its readings, flagged off the plate: judged and
- *   printed, never missing, never written again (the fold refuses it).
+ *   printed, never missing. The fold refuses every write to it (`tapRowAccepted`), so a reading
+ *   typed offline on a tap another device removed from TAPS is rejected when it syncs.
  * - With the list empty or unreadable the seeded rows stand, as on v12.
  */
 
@@ -82,10 +83,13 @@ function listFieldOf(definition: Pick<BlockDefinition, 'nameplate'>, table: Pick
   return field !== undefined && field.list === true && field.unit !== undefined && VOLTS_PER_UNIT[field.unit] !== undefined ? field : null;
 }
 
-/** The plate's taps of a `rows_from` table, in plate order, each with its raw and volts; null when the list is empty or unreadable. */
-export function plateTaps(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, table: Pick<TableDef, 'rows_from'>): { raw: string; volts: number }[] | null {
-  const field = listFieldOf(definition, table);
-  if (field === null) return null;
+/**
+ * The taps a `list` field in V or kV holds, in plate order, each with its raw and volts: THE one
+ * reading of the list, for the TTR's rows and the TAP ATUAL picker alike. Null when the list is
+ * empty or unreadable, or an entry is not whole in V or repeats another (a list stored by another
+ * device or a reading, never through the typed parse that refuses it).
+ */
+function listTaps(block: Pick<BlockRow, 'sheet'>, field: FieldDef): { raw: string; volts: number }[] | null {
   const entries = readNumberListRaw(measuredRaw(block.sheet.nameplate[field.key]?.value));
   if (entries === null) return null;
   const taps: { raw: string; volts: number }[] = [];
@@ -97,38 +101,58 @@ export function plateTaps(block: Pick<BlockRow, 'sheet'>, definition: Pick<Block
   return taps;
 }
 
-/** Story 23.7: the values a `pick_from` field picks from (TAP ATUAL from TAPS), in plate order; null when that list is empty or unreadable. */
+/** The plate's taps of a `rows_from` table, in plate order, each with its raw and volts; null when the list is empty or unreadable. */
+export function plateTaps(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, table: Pick<TableDef, 'rows_from'>): { raw: string; volts: number }[] | null {
+  const field = listFieldOf(definition, table);
+  return field === null ? null : listTaps(block, field);
+}
+
+/**
+ * Story 23.7: the values a `pick_from` field picks from (TAP ATUAL from TAPS), in plate order; null
+ * when that list is empty or unreadable, read as the TTR reads its rows (`listTaps`), so the
+ * picker never lists taps the table does not show.
+ */
 export function plateTapsOfField(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, field: Pick<FieldDef, 'pick_from'>): { raw: string }[] | null {
   if (field.pick_from === undefined) return null;
   const list = definition.nameplate.find((candidate) => candidate.key === field.pick_from);
-  if (list === undefined || list.list !== true) return null;
-  const entries = readNumberListRaw(measuredRaw(block.sheet.nameplate[list.key]?.value));
-  return entries === null ? null : entries.map((raw) => ({ raw }));
+  if (list === undefined || list.list !== true || list.unit === undefined || VOLTS_PER_UNIT[list.unit] === undefined) return null;
+  return listTaps(block, list)?.map((tap) => ({ raw: tap.raw })) ?? null;
 }
 
-/** One option of the TAP ATUAL picker: the tap's 1-based position as its key, its text, and the raw a pick commits (null for a stored value off the list). */
+/** One option of the TAP ATUAL picker: the tap's 1-based position as its key, its text, and the raw a pick commits (null for a stored value off the list and for "N/A"). */
 export interface TapPickerOption {
   key: string;
   label: string;
   raw: string | null;
 }
 
+/** The picker's key of "N/A", the not-applicable value every plate number field takes (Story 16.4). */
+export const TAP_PICKER_NOT_APPLICABLE_KEY = 'nao_aplicavel';
+
 /**
  * Story 23.7: the picker of a `pick_from` field (TAP ATUAL): one option per tap of its list in plate
  * order ("3 — 12,6 kV"), a stored value the list no longer holds kept readable as an option of its
- * own, and the option the stored value selects; null while the list is empty or unreadable (the
- * field is then a plain number field).
+ * own, "N/A" last where the field takes it (or holds it), and the option the stored value selects;
+ * null while the list is empty or unreadable (the field is then a plain number field).
  */
-export function tapPickerOf(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, field: Pick<FieldDef, 'key' | 'pick_from' | 'unit'>): { options: TapPickerOption[]; selectedKey: string | null } | null {
+export function tapPickerOf(
+  block: Pick<BlockRow, 'sheet'>,
+  definition: Pick<BlockDefinition, 'nameplate'>,
+  field: Pick<FieldDef, 'key' | 'pick_from' | 'unit'>,
+  options: { acceptsNotApplicable?: boolean } = {},
+): { options: TapPickerOption[]; selectedKey: string | null } | null {
   const taps = plateTapsOfField(block, definition, field);
   if (taps === null) return null;
   const unit = field.unit ?? null;
-  const raw = measuredRaw(block.sheet.nameplate[field.key]?.value);
+  const value = block.sheet.nameplate[field.key]?.value;
+  const raw = measuredRaw(value);
   const stored = raw !== null && /^\d+(\.\d+)?$/.test(raw) ? raw : null;
   const at = stored === null ? -1 : taps.findIndex((tap) => Number(tap.raw) === Number(stored));
-  const options: TapPickerOption[] = taps.map((tap, i) => ({ key: String(i + 1), label: tapOptionText(i + 1, formatDecimalGroupedPtBr(tap.raw), unit), raw: tap.raw }));
-  if (stored !== null && at === -1) options.push({ key: OFF_LIST_KEY, label: unit === null ? formatDecimalGroupedPtBr(stored) : `${formatDecimalGroupedPtBr(stored)} ${unit}`, raw: null });
-  return { options, selectedKey: stored === null ? null : at === -1 ? OFF_LIST_KEY : String(at + 1) };
+  const out: TapPickerOption[] = taps.map((tap, i) => ({ key: String(i + 1), label: tapOptionText(i + 1, formatDecimalGroupedPtBr(tap.raw), unit), raw: tap.raw }));
+  if (stored !== null && at === -1) out.push({ key: OFF_LIST_KEY, label: unit === null ? formatDecimalGroupedPtBr(stored) : `${formatDecimalGroupedPtBr(stored)} ${unit}`, raw: null });
+  const notApplicable = isNotApplicableNumber(value);
+  if (notApplicable || options.acceptsNotApplicable === true) out.push({ key: TAP_PICKER_NOT_APPLICABLE_KEY, label: NOT_APPLICABLE_TEXT, raw: null });
+  return { options: out, selectedKey: notApplicable ? TAP_PICKER_NOT_APPLICABLE_KEY : stored === null ? null : at === -1 ? OFF_LIST_KEY : String(at + 1) };
 }
 
 /** The picker's key of a stored value its list does not hold. */

@@ -158,6 +158,7 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       }
       if (sub === 'tables' && leaf === 'voltage_rows') return plain(`${name}: a tensão de uma linha vem de um campo numérico da placa; mantenha esse campo como um número.`, `${name} sem campo da tensão`);
       // authored (Stories 23.8 and 23.9, listed for Bruno): the tap rows and the applicability condition a copy carries.
+      if (sub === 'tables' && leaf === 'rows_from' && issue.message.includes('one seeded row')) return plain(`${name}: as linhas vêm da lista de taps da placa; mantenha a tabela com uma linha e uma coluna de conexão.`, `${name} com linhas a mais`);
       if (sub === 'tables' && leaf === 'rows_from') return plain(`${name}: as linhas vêm de uma lista da placa em V ou kV; mantenha esse campo como uma lista de números.`, `${name} sem lista de taps`);
       if (sub === 'applies_when') return plain(`${name}: a condição de aplicação lê um campo da placa; mantenha esse campo e as suas opções como a condição pede.`, `${name} sem campo da condição`);
       if (sub === 'label') return plain(`Ensaio ${index + 1}: informe o título do ensaio.`, `ensaio ${index + 1} sem título`);

@@ -2,7 +2,7 @@
 title: 'e23b: seed v13 nameplate fields, the TTR per tap, applicability from the nameplate (Stories 23.7, 23.8, 23.9; contract 35)'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '5f86c8215957dae2a72ac290fa78c4308a3f0dee'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'One data set (the v13 nameplate): 23.8 builds its rows from 23.7 TAPS and 23.9 reads 23.7 fields; one seed delta, one contract (35), one review and one gate (epic-23-context.md "Why these groupings").'
-deferred: []
+deferred:
+  - summary: >-
+      The NA screen of a measurement-grammar test has no browser coverage.
+    evidence: |-
+      measurement-test-section.tsx renders the band and AppliedBody; only the kernel is tested and the e2e drives the seeded grammar. No seeded test carries a condition yet; cover it when Stories 23.15 to 23.21 attach conditions.
+    location: >-
+      apps/web/src/surfaces/ficha/measurement-test-section.tsx:118-150
+    severity: medium
+  - summary: >-
+      A tap reading taken offline while another device removes that tap from TAPS is refused by the fold and lost.
+    evidence: |-
+      assertCellGeometry accepts only the rows the current plate gives (Story 23.8: "accepts exactly the rows the plate gives"); the device drops the refused op. Design consequence of the story's rule; the coordinator or Bruno decides whether off-plate rows should take writes.
+    location: >-
+      packages/domain/src/ops/apply.ts:553-557
+    severity: medium
+  - summary: >-
+      A wrong reading on an off-plate tap row (or the pre-TAPS row 0) cannot be cleared unless the tap is put back.
+    evidence: |-
+      The fold refuses every write to an off-plate row and the screen draws it read-only; the row is still judged and printed. Allowing a clear needs a fold branch and a screen action the story did not ask for.
+    location: >-
+      packages/domain/src/ops/apply.ts:553-557; apps/web/src/surfaces/ficha/ensaios-section.tsx:417
+    severity: medium
 ---
 
 <intent-contract>
@@ -118,6 +139,31 @@ deferred: []
 - Given a v13 transformer with five taps and TAP ATUAL the third, when its TTR opens, then five rows show in plate order, rows 1, 3 and 5 are marked, each VAL CALCULADO follows its tap, readings on 1, 3 and 5 complete the test, and a tap dropped from TAPS keeps its row and reading, flagged.
 - Given a v13 test whose condition names TIPO DE SECCIONADORA and a plate with no fuses, when the sheet renders, then the test shows NA with the composed reason, counts nothing missing and is absent from the DOCX; "Aplicar este ensaio" writes one `'applied'` op that opens the cells, counts, prints and survives reload; a plate meeting the condition applies it with the override harmless; two devices disagreeing raise the single-cell conflict.
 - Given any v12 relatório, when it renders and prints, then nothing changes and the layout-lock and Porto Seguro goldens are byte-equal.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-09 — Review pass
+- verdicts: 17 findings — high 0, medium 9, low 8, false 0, maybe-false 0 (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- findings:
+  - `[medium]` `[patch]` tap rows get no last_results slot, so the previous visit never prints on a v13 TTR — slots from the evaluated tap rows, issue-then-print test.
+  - `[low]` `[patch]` the "Aplicação" decision of openDecisions untested — test added.
+  - `[low]` `[patch]` NA gates of section 11 and suggestedInstrument untested — tests added.
+  - `[medium]` `[defer]` NA screen of a measurement test has no browser coverage — deferred to the stories that attach conditions.
+  - `[medium]` `[patch]` NA early return hides a switchable measurement test's switch (grouped with the Edge Case Hunter's same finding) — band only when enabled and NA.
+  - `[medium]` `[defer]` concurrent offline reading on a removed tap refused and lost — the story's own "exactly the rows the plate gives"; deferred for a decision.
+  - `[medium]` `[defer]` off-plate reading cannot be cleared — needs a fold branch and a screen action the story did not ask for.
+  - `[medium]` `[patch]` rows_from with several seeded rows or connection columns misreads rows as taps — schema refine with a refusal test.
+  - `[medium]` `[patch]` above/below over a pair raw reads null (wrong NA); over a list meaningless — pair's first number, list refused at load.
+  - `[low]` `[reject]` one-tap plate refused by the list parser — the spec's own I/O row (one entry is invalid); the field takes N/A.
+  - `[low]` `[patch]` a unit after each tap in a reading drops the TAPS suggestion — unit stripped per entry.
+  - `[medium]` `[patch]` TAP ATUAL cannot be cleared or N/A, Replace line and helper not rendered — clear option, N/A, props passed.
+  - `[medium]` `[patch]` (grouped above) switchable measurement test switch hidden while NA.
+  - `[low]` `[patch]` conflict wording chosen by path suffix — parsed-path match.
+  - `[low]` `[patch]` plateTapsOfField skips plateTaps' checks — shared validation.
+  - `[low]` `[patch]` comment claims an off-plate row "is never written again" — comment says the fold refuses writes.
+  - `[low]` `[reject]` enabledCells counts an NA test's old cells, so a sheet holding only those reads em_preenchimento — rare, and the fix needs a definition context in sheet-state.
 
 ## Design Notes
 

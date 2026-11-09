@@ -93,7 +93,10 @@ function cta({ options = {}, off = [], cells = {}, values = {} }: Filled = {}): 
   return { ...block, config: config as BlockRow['config'], sheet: { ...block.sheet, test } };
 }
 
-function renderTests(block: BlockRow, { readOnly = false, instruments = [], others = [] }: { readOnly?: boolean; instruments?: InstrumentRow[]; others?: BlockRow[] } = {}) {
+function renderTests(
+  block: BlockRow,
+  { readOnly = false, instruments = [], others = [], definition = DEFINITION }: { readOnly?: boolean; instruments?: InstrumentRow[]; others?: BlockRow[]; definition?: typeof DEFINITION } = {},
+) {
   const commits: OpDraft[][] = [];
   const edits: OpDraft[][] = [];
   const announced: string[] = [];
@@ -123,7 +126,7 @@ function renderTests(block: BlockRow, { readOnly = false, instruments = [], othe
     <MemoryRouter>
       <ToastProvider>
         <SheetReadOnlyProvider value={readOnly}>
-          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={evaluateSheetMeasurements(block, DEFINITION)} instruments={instruments} onRun={onRun} />
+          <MeasurementTests api={api} snapshot={snapshot} block={block} evaluations={evaluateSheetMeasurements(block, definition)} instruments={instruments} onRun={onRun} />
         </SheetReadOnlyProvider>
       </ToastProvider>
     </MemoryRouter>,
@@ -447,6 +450,35 @@ describe('14.5 MeasurementTests: a test switched off, the instrument, a sheet no
     // A test that is on keeps its note in the document for the stylesheet, and draws its body.
     expect(section(container, E2).querySelector('.lib-test-body')).not.toBeNull();
     expect(section(container, E2)).not.toHaveAttribute('data-off');
+  });
+
+  // Story 23.9: E1 given a condition over the plate (invented: above 1.000 V), on a CTA whose plate says 380 V.
+  const conditioned = {
+    ...DEFINITION,
+    measurement_tests: DEFINITION.measurement_tests!.map((test) => (test.key === E1 ? { ...test, applies_when: { op: 'above' as const, field: 'tensao_nominal', value: 1000, unmet: 'de baixa tensão' } } : test)),
+  };
+  const lowVoltage = (block: BlockRow): BlockRow => ({ ...block, sheet: { ...block.sheet, nameplate: { tensao_nominal: stored(num('380', 'V')) } } });
+
+  it('23.9 a switchable test the plate makes not applicable, switched on, draws the NA band in place of its body and keeps its switch', async () => {
+    const block = lowVoltage(cta());
+    const { container, edits } = renderTests(block, { definition: conditioned });
+    const e1 = container.querySelector<HTMLElement>(`section[data-test-key="${E1}"]`)!;
+    expect(e1).toHaveAttribute('data-applicability', 'na');
+    expect(e1.querySelector('.v13-na-band')).toHaveTextContent('Não se aplica: Tensão nominal de baixa tensão.');
+    expect(e1.querySelector('.lib-test-body')).toBeNull();
+    const toggle = within(e1).getByRole('switch', { name: 'E1 · Resistência de contato nesta ficha' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(toggle);
+    expect(edits[0]).toEqual([expect.objectContaining({ path: `block/${BLOCK}/config`, value: blockConfigWithSubBlock(block.config, E1, false) })]);
+  });
+
+  it('23.9 switched off, a test the plate makes not applicable is the off test: its switch off and its note, no NA band', () => {
+    const { container } = renderTests(lowVoltage(cta({ off: [E1] })), { definition: conditioned });
+    const e1 = section(container, E1);
+    expect(e1).toHaveAttribute('data-off');
+    expect(e1.querySelector('.v13-na-band')).toBeNull();
+    expect(e1.querySelector('.lib-off-note')).not.toBeNull();
+    expect(within(e1).getByRole('switch', { name: 'E1 · Resistência de contato nesta ficha' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('the Instrument picker is drawn where the seed names whose instruments it offers: E1 to E3, never E4 to E6', () => {

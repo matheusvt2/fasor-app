@@ -2268,7 +2268,10 @@ describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of d
     expect(issues(ratio('nao_existe'))).toEqual(['tests.1.tables.0.rows_from: rows_from "nao_existe" is not a list field of the nameplate in V or kV']);
     const insulation = transformer();
     insulation.tests = insulation.tests.map((test) => (test.key === 'isolacao' ? { ...test, tables: test.tables.map((table) => ({ ...table, rows_from: 'taps' })) } : test));
-    expect(issues(insulation)).toEqual(['tests.0.tables.0.rows_from: rows_from belongs to a table whose connection is typed']);
+    expect(issues(insulation)).toEqual([
+      'tests.0.tables.0.rows_from: rows_from belongs to a table whose connection is typed',
+      'tests.0.tables.0.rows_from: rows_from belongs to a table of one seeded row and one connection column',
+    ]);
     const dry = transformer();
     dry.oil_rule = { ...dry.oil_rule!, dry_fields: ['nao_existe'] };
     expect(issues(dry)).toEqual(['oil_rule.dry_fields: a dry field "nao_existe" is not on the nameplate']);

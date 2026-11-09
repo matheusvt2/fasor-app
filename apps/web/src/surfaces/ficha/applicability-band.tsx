@@ -1,5 +1,5 @@
 import { APPLICABILITY_APPLIED, NA_REASON_LEAD, type TestApplicability } from '@app/domain';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { FichaApi } from './ficha-api.ts';
@@ -30,8 +30,12 @@ function useApplicabilityWrite(api: FichaApi, testKey: string): (value: typeof A
   };
 }
 
-/** A test NA by the plate: its heading with the pill, then the band with the kernel's reason and "Aplicar este ensaio" (none on a read-only sheet). */
-export function NotApplicableTest({ api, testKey, title, applicability }: { api: FichaApi; testKey: string; title: string; applicability: TestApplicability }) {
+/**
+ * A test NA by the plate: its heading with the pill, then the band with the kernel's reason and
+ * "Aplicar este ensaio" (none on a read-only sheet). `headEnd` is what the test's own head draws
+ * at its end (a switchable measurement test's switch), kept beside the pill.
+ */
+export function NotApplicableTest({ api, testKey, title, applicability, headEnd }: { api: FichaApi; testKey: string; title: string; applicability: TestApplicability; headEnd?: ReactNode }) {
   const t = copy.ficha.applicability;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
@@ -41,6 +45,7 @@ export function NotApplicableTest({ api, testKey, title, applicability }: { api:
       <div className="section-head">
         <h2 id={headingId}>{title}</h2>
         <span className="v13-na-pill">{t.pill}</span>
+        {headEnd}
       </div>
       <div className="v13-na-band" role="status">
         <span className="band-text">

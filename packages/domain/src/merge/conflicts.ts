@@ -674,8 +674,10 @@ export function conflictValueText(
   /** Story 14.6: the company's type versions, for a company block's fields. */
   ctx: DefinitionContext,
 ): string {
-  // Story 23.9: the override of a test the nameplate makes not applicable, as the sheet's bands say it.
-  if (cell.path.endsWith('/applicability') && cell.path.startsWith('sheet/')) return value === 'applied' ? APPLICABILITY_WORDS.applied : APPLICABILITY_WORDS.plate;
+  // Story 23.9: the override of a test the nameplate makes not applicable, as the sheet's bands say it
+  // (read off the parsed path: a nameplate field or a checklist item keyed "applicability" is not it).
+  const parsed = safeParsePath(cell.path);
+  if (parsed !== null && parsed.family === 'sheet/test' && parsed.field === 'applicability') return value === 'applied' ? APPLICABILITY_WORDS.applied : APPLICABILITY_WORDS.plate;
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };

@@ -64,13 +64,22 @@ function isNotApplicableValue(value: unknown): boolean {
   return isNotApplicableNumber(value) || (typeof value === 'string' && printNotApplicable(value) === NOT_APPLICABLE_TEXT);
 }
 
-/** A measured number of a nameplate cell in the field's unit (a stored "N/√3" reads N/√3); null for anything else. */
+/** A stored two-level value ("380/220", fix batch fxpw G4), whose first number is the one a bound reads. */
+const PAIR_RAW = /^(\d+(?:\.\d+)?)\/\d+(?:\.\d+)?$/;
+
+/**
+ * A measured number of a nameplate cell in the field's unit: a stored "N/√3" reads N/√3, a pair
+ * ("380/220") its first number, as the ratio's plate reading does (`nameplateFirstNumber`); null
+ * for anything else.
+ */
 function numberOf(value: unknown): number | null {
   if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return null;
   const v = value as { raw?: unknown; state?: unknown };
   if (v.state !== 'measured' || typeof v.raw !== 'string') return null;
   const sqrt3 = readOverSqrt3Raw(v.raw);
   if (sqrt3 !== null) return Number(sqrt3) / Math.sqrt(3);
+  const pair = PAIR_RAW.exec(v.raw);
+  if (pair !== null) return Number(pair[1]);
   return /^-?\d+(\.\d+)?$/.test(v.raw) ? Number(v.raw) : null;
 }
 

@@ -181,9 +181,26 @@ function splitVoltUnit(text: string): { body: string; unit: string | null } {
 /** The separators a plate prints between its taps ("13800/13200", "13,8 - 13,2", "13.8 | 13.2"), read as the list's ";". */
 const PLATE_LIST_SEPARATORS = /[/|–—-]/gu;
 
+/** Every separator a printed list may carry between two entries, the list's own ";" and "·" included. */
+const LIST_ENTRY_SEPARATORS = /[;·/|–—-]/u;
+
+/**
+ * A printed list split from its volt unit: one unit at the end ("13,8 - 13,2 kV") or the same unit
+ * after each entry ("13800 V - 13200 V"), the entries joined by ";"; null when two entries print
+ * different units (which one the plate means is not read).
+ */
+function splitListUnit(text: string): { body: string; unit: string | null } | null {
+  const entries = text.split(LIST_ENTRY_SEPARATORS).map((entry) => splitVoltUnit(entry));
+  const units = [...new Set(entries.flatMap((entry) => (entry.unit === null ? [] : [entry.unit])))];
+  if (units.length > 1) return null;
+  if (entries.length === 1) return splitVoltUnit(text);
+  return { body: entries.map((entry) => entry.body).join(';'), unit: units[0] ?? null };
+}
+
 /**
  * A `list` field's model value (the transformer's TAPS), given as printed: the entries in plate
- * order, separated as the plate separates them, with or without a trailing V or kV. Stored as
+ * order, separated as the plate separates them, with or without a V or kV at the end or after
+ * each entry (`splitListUnit`, the same unit throughout). Stored as
  * `parseNumberListPtBr` stores a typed list, in the field's unit; a list printed in another volt
  * unit is moved into it (the digit rule reads it as printed), and one printed with no unit is
  * read in the field's and asks for a check (which unit the plate means is the ambiguous part). A
@@ -193,7 +210,9 @@ function normalizeListValue(field: ReadingField, value: unknown): NormalizedRead
   const text = printedTextOf(value);
   if (text === null) return invalid;
   const fieldUnit = field.unit ?? null;
-  const { body, unit } = splitVoltUnit(text);
+  const split = splitListUnit(text);
+  if (split === null) return invalid;
+  const { body, unit } = split;
   const printedUnit = unit ?? fieldUnit;
   const list = parseNumberListPtBr(body.replace(PLATE_LIST_SEPARATORS, ';'), { unit: printedUnit });
   if (list === null) return invalid;

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { conflictValueText } from '../merge/conflicts.ts';
+import { applyPickOps, conflictValueText, openDecisions, type CellDecision } from '../merge/conflicts.ts';
 import { applyOp, entityKey, SeedPathError, type EntityState } from '../ops/apply.ts';
 import { opSchema, type Op } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
+import { section11Instruments } from '../print/section-11.ts';
 import { section9Layout, type SheetPart } from '../print/section-9.ts';
+import type { InstrumentRow } from '../registry/instrument-row.ts';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -16,9 +18,11 @@ import { duplicateSeededType } from '../types/duplicate.ts';
 import { validateTypeDraft } from '../types/validate.ts';
 import { APPLICABILITY_APPLIED, isTestInForce, testApplicability } from './applicability.ts';
 import { conclusionFloor } from './conclusion.ts';
+import { instrumentHeaderOf, suggestedInstrument } from './instrument-pick.ts';
 import { evaluateSheetMeasurements, measurementCounts } from './measurement-evaluation.ts';
 import { evaluateSheetReadings } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
+import { newEquipmentBlock } from './tree.ts';
 
 /*
  * Story 23.9 (seed v13, decision J; contract 35): a test applies from the nameplate. No seeded v13
@@ -208,6 +212,59 @@ describe('23.9-UNIT a test made not applicable by the nameplate', () => {
     const path = { path: `sheet/${BLOCK}/test/resistencia_contato/applicability` };
     expect(conflictValueText(path, 'applied', undefined, EMPTY_DEFINITION_CONTEXT)).toBe('Aplicado por você');
     expect(conflictValueText(path, null, undefined, EMPTY_DEFINITION_CONTEXT)).toBe('Segue a placa');
+    // The words follow the parsed path: a nameplate field keyed "applicability" keeps its own value.
+    expect(conflictValueText({ path: `sheet/${BLOCK}/nameplate/applicability` }, 'X', undefined, EMPTY_DEFINITION_CONTEXT)).toBe('X');
+  });
+
+  it('the contradicted override is one cell decision, "Aplicação"; "Aplicar" writes the side picked, which clears the mark', () => {
+    const first = applicabilityPut('applied');
+    const second = applicabilityPut(null, { device_id: 'tablet-b' });
+    const path = `sheet/${BLOCK}/test/resistencia_contato/applicability`;
+    const decisionsOf = (snapshot: RelatorioSnapshot) =>
+      openDecisions({ definitions: snapshotDefinitionContext(snapshot), relatorioId: RELATORIO, blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment, opOf: () => undefined, createOpOf: () => undefined });
+    const decisions = decisionsOf(snapshotOf([...base, first, second]));
+    expect(decisions).toHaveLength(1);
+    const decision = decisions[0] as CellDecision;
+    expect(decision.cells.map((cell) => [cell.path, cell.label, cell.standing.value, cell.displaced.value])).toEqual([[path, 'Aplicação', null, 'applied']]);
+    expect(applyPickOps({ id: USER, companyId: COMPANY }, decision, {})).toBeNull();
+    expect(applyPickOps({ id: USER, companyId: COMPANY }, decision, { [path]: 'displaced' })).toEqual([expect.objectContaining({ kind: 'put', path, value: 'applied', relatorio_id: RELATORIO })]);
+    // The device stamps prev_op_id and standing_op_id on the pick; folded, the cell holds it with no conflict.
+    const pick = op('put', 'relatorio', path, 'applied', { prev_op_id: second.op_id, meta: { standing_op_id: second.op_id } });
+    const resolved = snapshotOf([...base, first, second, pick]);
+    expect(blockOf(resolved).sheet.test.resistencia_contato!.applicability).toEqual({ value: 'applied', source_suggestion_id: null, op_id: pick.op_id });
+    expect(decisionsOf(resolved)).toEqual([]);
+  });
+
+  it('an NA test with an instrument stored prints no instrument in section 11 and is suggested none; applied, it is both', () => {
+    const instrument = {
+      id: fixed(50),
+      kind: 'instrument',
+      code: 'MO-01',
+      name: 'Microhmímetro',
+      manufacturer: 'Fabricante',
+      model: 'M-1',
+      serial: 'S-0001',
+      cert_number: '100/26',
+      laboratory: null,
+      calibrated_at: '2026-08-28',
+      calibration_interval_months: 12,
+      rbc_accredited: true,
+      test_isolacao: null,
+      test_resistencia_contato: { raw: '10', unit: 'A' },
+      test_relacao_transformacao: null,
+      certificate_file_id: null,
+      removed_at: null,
+    } as InstrumentRow;
+    const header = instrumentHeaderOf(instrument, 'resistencia_contato');
+    const stored = [...base, op('put', 'relatorio', `sheet/${BLOCK}/test/resistencia_contato/instrument`, header)];
+    expect(section11Instruments(snapshotOf(stored))).toEqual([]);
+    expect(section11Instruments(snapshotOf([...stored, applicabilityPut(APPLICABILITY_APPLIED)])).map((entry) => entry.instrument_id)).toEqual([instrument.id]);
+    // Another sheet of the relatório used the instrument for its contact resistance: the NA test takes no suggestion from it.
+    const other = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: fixed(30), equipmentId: fixed(31), relatorioId: RELATORIO, projectId: PROJECT, locationId: CABINE, type: 'chave_seccionadora', tag: 'SEC-02', seedVersion: 'v13', orderKey: 'a1' }).block;
+    other.sheet.test.resistencia_contato = { cells: {}, instrument: { value: header as unknown as Cell['value'], source_suggestion_id: null, op_id: fixed(41) } };
+    const suggestion = (snapshot: RelatorioSnapshot) => suggestedInstrument({ blocks: [other, blockOf(snapshot)], instruments: [instrument], equipment_types: snapshot.equipment_types }, BLOCK, 'resistencia_contato');
+    expect(suggestion(snapshotOf(base))).toBeNull();
+    expect(suggestion(snapshotOf([...base, applicabilityPut(APPLICABILITY_APPLIED)]))).toEqual(header);
   });
 });
 
@@ -244,6 +301,24 @@ describe('23.9-UNIT the condition grammar', () => {
     expect(stateOf({ op: 'filled', field: 'mcov_kv' }, { mcov_kv: { raw: '', unit: null, state: 'not_applicable' } })).toMatchObject({ state: 'na', reason: 'Não se aplica: MCOV N/A.' });
     expect(stateOf({ op: 'above', field: 'mcov_kv', value: 5, unmet: 'abaixo do limite' }, { mcov_kv: { raw: '', unit: null, state: 'not_applicable' } }).reason).toBe('Não se aplica: MCOV abaixo do limite.');
     expect(stateOf({ op: 'in', field: 'tipo', values: [FUSED] }, { tipo: 'N/A' }).state).toBe('na');
+  });
+
+  it('above and below read a two-level value by its first number ("380/220" is 380); a list field takes neither, refused at seed load', () => {
+    const pair: FieldDef = { key: 'tensao_secundaria', label: 'TENSÃO SECUNDÁRIA', kind: 'number', unit: 'V' };
+    const definition = (condition: AppliesWhen): Pick<BlockDefinition, 'nameplate' | 'tests' | 'measurement_tests'> => ({
+      nameplate: [pair],
+      tests: [{ ...getDefinition('v13', 'cabine_primaria', 'para_raio').tests[0]!, applies_when: condition }],
+    });
+    const at = (condition: AppliesWhen, raw: string) => testApplicability(plate({ tensao_secundaria: { raw, unit: 'V', state: 'measured' } }), definition(condition), 'isolacao').state;
+    expect(at({ op: 'above', field: 'tensao_secundaria', value: 300 }, '380/220')).toBe('met');
+    expect(at({ op: 'below', field: 'tensao_secundaria', value: 300 }, '380/220')).toBe('na');
+    expect(at({ op: 'below', field: 'tensao_secundaria', value: 400 }, '380/220')).toBe('met');
+    const transformer = structuredClone(getDefinition('v13', 'cabine_primaria', 'transformador_forca')) as BlockDefinition;
+    const t = transformer.tests.findIndex((test) => test.key === 'isolacao');
+    const overTaps = { ...transformer, tests: transformer.tests.map((test, i) => (i === t ? { ...test, applies_when: { op: 'above' as const, field: 'taps', value: 10 } } : test)) };
+    expect(blockDefinitionSchema.safeParse(overTaps).error?.issues.map((issue) => [issue.path.join('.'), issue.message])).toEqual([
+      [`tests.${t}.applies_when.field`, 'applies_when "above" names a number field of one value ("taps" is a list)'],
+    ]);
   });
 
   it('a test without a condition is always in force, v1 to v12 included', () => {

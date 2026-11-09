@@ -2,19 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { applyOp, entityKey, SeedPathError, type EntityState } from '../ops/apply.ts';
 import { replay } from '../ops/replay.ts';
+import { lastResults, previousHelpers } from '../print/last-results.ts';
 import { section9Layout, type LayoutSectionSheets, type PrintTable, type SheetPart } from '../print/section-9.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
-import type { BlockDefinition } from '../seed/schema.ts';
+import { blockDefinitionSchema, type BlockDefinition } from '../seed/schema.ts';
 import { opFactory, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
+import { duplicateSeededType } from '../types/duplicate.ts';
+import { validateTypeDraft } from '../types/validate.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { fieldValueText, nameplateFieldInput, numberFieldValue } from './ficha.ts';
 import { isOilFieldExcused } from './oil-rule.ts';
 import { cellAddressesOf, evaluateSheetReadings, evaluatedCells, failedRatioRows, firstRunCell, ratioRowCondicaoText, runTarget, type TestEvaluation } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
-import { plateTaps, tapMarkText, tapOptionText, tapRowAccepted, tapsHelperText, tapsLineText } from './tap-rows.ts';
+import { plateTaps, TAP_PICKER_NOT_APPLICABLE_KEY, tapMarkText, tapOptionText, tapPickerOf, tapRowAccepted, tapsHelperText, tapsLineText } from './tap-rows.ts';
 import { newEquipmentBlock } from './tree.ts';
 
 /*
@@ -185,6 +188,55 @@ describe('23.7-UNIT TAPS and "N/√3" typed, stored and shown', () => {
     expect(tapOptionText(3, '12,6', 'kV')).toBe('3 — 12,6 kV');
     expect(tapsLineText(5)).toBe('Taps da placa 5 · medir o tap atual e os extremos (marcados) · os outros são opcionais');
   });
+
+  it('the TAP ATUAL picker reads TAPS as the TTR does: a list with a repeat or a tap not whole in V lists nothing, as the table falls back to its seeded row', () => {
+    const definition = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+    const field = definition.nameplate.find((f) => f.key === 'tap_atual_kv')!;
+    const table = definition.tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!;
+    for (const raw of ['13.8;13.80', '13.8;13.2004']) {
+      const block = withNameplate(sheet('transformador_forca'), { taps: measured(raw, 'kV') });
+      expect(plateTaps(block, definition, table), raw).toBeNull();
+      expect(tapPickerOf(block, definition, field), raw).toBeNull();
+    }
+    expect(tapPickerOf(fiveTaps(), definition, field)?.options).toHaveLength(5);
+  });
+
+  it('the TAP ATUAL picker offers "N/A" where the field takes it, and a stored N/A selects it', () => {
+    const definition = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+    const field = definition.nameplate.find((f) => f.key === 'tap_atual_kv')!;
+    const offered = tapPickerOf(fiveTaps(), definition, field, { acceptsNotApplicable: true })!;
+    expect(offered.options.map((option) => option.label)).toEqual(['1 — 13,8 kV', '2 — 13,2 kV', '3 — 12,6 kV', '4 — 12 kV', '5 — 11,4 kV', 'N/A']);
+    expect(offered.options.at(-1)).toEqual({ key: TAP_PICKER_NOT_APPLICABLE_KEY, label: 'N/A', raw: null });
+    expect(offered.selectedKey).toBe('3');
+    const stored = tapPickerOf(fiveTaps({ tap_atual_kv: { raw: '', unit: null, state: 'not_applicable' } }), definition, field)!;
+    expect(stored.selectedKey).toBe(TAP_PICKER_NOT_APPLICABLE_KEY);
+    expect(stored.options.at(-1)?.label).toBe('N/A');
+  });
+
+  it('rows_from belongs to a table of one seeded row and one connection column: a copy with a row or a column added is refused', () => {
+    const base = structuredClone(getDefinition('v13', 'cabine_primaria', 'transformador_forca')) as BlockDefinition;
+    const t = base.tests.findIndex((test) => test.key === 'relacao_transformacao');
+    const withTable = (change: (table: BlockDefinition['tests'][number]['tables'][number]) => void) => {
+      const copy = structuredClone(base);
+      change(copy.tests[t]!.tables[0]!);
+      return blockDefinitionSchema.safeParse(copy).error?.issues.map((issue) => [issue.path.join('.'), issue.message]);
+    };
+    expect(blockDefinitionSchema.safeParse(base).success).toBe(true);
+    const refused = [[`tests.${t}.tables.0.rows_from`, 'rows_from belongs to a table of one seeded row and one connection column']];
+    expect(withTable((table) => table.rows.push(['']))).toEqual(refused);
+    expect(
+      withTable((table) => {
+        table.connection_columns.push('OUTRA');
+        table.rows = table.rows.map((row) => [...row, '']);
+      }),
+    ).toEqual(refused);
+    // A company copy with a row added says it in pt-BR on the Ensaios tab.
+    const copy = duplicateSeededType('v13', 'transformador_forca').draft;
+    copy.tests[t]!.tables[0]!.rows.push(['']);
+    expect(validateTypeDraft(copy).map((issue) => [issue.part, issue.message])).toEqual([
+      ['ensaios', 'ENSAIO DE RELAÇÃO DE TRANSFORMAÇÃO: as linhas vêm da lista de taps da placa; mantenha a tabela com uma linha e uma coluna de conexão.'],
+    ]);
+  });
 });
 
 describe('23.7-UNIT the TP\'s "115/√3" and the TC\'s "200-5" read by the ratio test', () => {
@@ -346,6 +398,31 @@ describe('23.8-UNIT the TTR per tap in print, and v12 unchanged', () => {
     const v12 = withNameplate(sheet('transformador_forca', 'v12'), { tensao_nominal_at: measured('13.8', 'kV'), tensao_nominal_bt: measured('380', 'V'), ligacao_secundaria: 'Dyn1', tap_atual: '3' });
     const rows = dataRows(ratioTable(snapshotWith(v12, 'v12')));
     expect(rows).toEqual([['3', '13,8 kV', '380 V', '62,90', '-', '-', '-', '-']]);
+  });
+
+  it('an issued revision leaves each tap\'s readings on the equipment by its volts; the next relatório finds them on the same taps, however the plate orders them, and prints MANUT. ANTERIOR', () => {
+    // Visit A: readings on taps 1, 3 and 5.
+    const visitA = withTest(fiveTaps(), 'relacao_transformacao', { ...captures(13800, '62.9'), ...captures(12600, '57.43'), ...captures(11400, '51.96') });
+    const [entry] = lastResults(snapshotWith(visitA, 'v13'), { revisionNumber: 1, issuedAt: '2026-11-08T12:00:00.000Z' });
+    const readings = entry!.value.readings;
+    expect(readings['relacao_transformacao|relacao_transformacao:@12600|H2-H1 / X2-X0']).toEqual(measured('57.43', null));
+    expect(Object.keys(readings).filter((key) => key.startsWith('relacao_transformacao|'))).toHaveLength(9);
+    // Visit B, another relatório of the obra: the same plate listed from the lowest tap, nothing measured yet.
+    const visitB = fiveTaps({ taps: measured('11.4;12;12.6;13.2;13.8', 'kV') });
+    const earlier = { ...entry!.value, relatorio_id: id(4242) };
+    const next = snapshotWith(visitB, 'v13');
+    const withPrevious: RelatorioSnapshot = { ...next, equipment: next.equipment.map((row) => ({ ...row, last_results: earlier })) };
+    const table = ratioTable(withPrevious);
+    expect(table.rows.find((row) => row.header === true && row.cells.some((one) => one.text === 'MANUT. ANTERIOR'))).toBeDefined();
+    const rows = dataRows(table);
+    expect(rows.map((row) => row[1])).toEqual(['11,4 kV', '12 kV', '12,6 kV', '13,2 kV', '13,8 kV']);
+    expect(rows.map((row) => row.at(-1))).toEqual(['51,96 · 51,96 · 51,96', '-', '57,43 · 57,43 · 57,43', '-', '62,9 · 62,9 · 62,9']);
+    // The sheet's "Anterior: …" line under the tap's own cell.
+    const helpers = previousHelpers({ last_results: earlier }, visitB, definitionOf(visitB), next.relatorio.id);
+    expect(helpers.get('relacao_transformacao/12600/4')).toBe('Anterior: 57,43 (rev. 1, 08/11/2026)');
+    expect(helpers.has('relacao_transformacao/13200/3')).toBe(false);
+    // Without the block (a v12 reader) the seeded row alone has a slot, as before.
+    expect(previousHelpers({ last_results: earlier }, { block_type: 'transformador_forca' }, definitionOf(visitB), next.relatorio.id).size).toBe(0);
   });
 
   it('DADOS DO EQUIPAMENTO prints TAPS with "·", a √3 as typed and the excused temperature "-"', () => {

@@ -115,9 +115,17 @@ function MeasurementTestSection({
   // The values drawn above the table (how the test was run); the grouped ones come after it.
   const above = test.values.filter((value) => value.shown && value.group === null);
   const value = (item: EvaluatedMeasurementValue) => <TestValue key={item.key} api={api} testKey={test.testKey} value={item} readOnly={readOnly} />;
-  // Story 23.9 (seed v13): a test the nameplate makes not applicable shows its band alone; applied by hand, the applied band over it.
-  if (test.applicability.state === 'na') return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} />;
-  const applied = test.applicability.state === 'applied';
+  // The head's end: the read-only reason, or a switchable test's switch (kept on an NA test too).
+  const headEnd = readOnly ? (
+    <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span>
+  ) : test.switchable ? (
+    <Toggle className="lib-test-switch" isSelected={test.enabled} onChange={switchTest} aria-label={t.switchLabel(test.title)} />
+  ) : null;
+  // Story 23.9 (seed v13): a test switched on that the nameplate makes not applicable shows its band
+  // in place of its body, its switch kept; switched off it is the off test below. Applied by hand,
+  // the applied band sits over it.
+  if (test.enabled && test.applicability.state === 'na') return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={headEnd} />;
+  const applied = test.enabled && test.applicability.state === 'applied';
   const sectionClass = ['section lib-test', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
 
   return (
@@ -131,11 +139,7 @@ function MeasurementTestSection({
     >
       <div className="section-head">
         <h2 id={headingId}>{test.title}</h2>
-        {readOnly ? (
-          <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span>
-        ) : test.switchable ? (
-          <Toggle className="lib-test-switch" isSelected={test.enabled} onChange={switchTest} aria-label={t.switchLabel(test.title)} />
-        ) : null}
+        {headEnd}
       </div>
       {test.offNote === null ? null : (
         // Shown only while the test is off (`ficha.css`, the mock's `:has(.lib-test-switch[aria-checked="false"])` rule).

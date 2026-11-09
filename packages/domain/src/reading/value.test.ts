@@ -211,6 +211,17 @@ describe('23.7-UNIT normalizeReadingValue: TAPS and a value over √3, as printe
     expect(normalizeReadingValue(taps, '13800-13200-12600 V', tokens('13800-13200-12600', 'V'))).toEqual({ ok: true, value: number('13.8;13.2;12.6', 'kV'), verify: false, printedText: '13800-13200-12600 V' });
   });
 
+  it('a unit printed after each tap ("13800 V - 13200 V") reads as the list\'s one unit; entries printing two units are dropped', () => {
+    expect(normalizeReadingValue(taps, '13800 V - 13200 V - 12600 V', tokens('13800', 'V', '-', '13200', 'V', '-', '12600', 'V'))).toEqual({
+      ok: true,
+      value: number('13.8;13.2;12.6', 'kV'),
+      verify: false,
+      printedText: '13800 V - 13200 V - 12600 V',
+    });
+    expect(normalizeReadingValue(taps, '13,8 kV / 13,2 kV', tokens('13,8', 'kV', '/', '13,2', 'kV'))).toEqual({ ok: true, value: number('13.8;13.2', 'kV'), verify: false });
+    expect(normalizeReadingValue(taps, '13,8 kV - 13200 V', tokens('13,8', 'kV', '-', '13200', 'V'))).toEqual({ ok: false, reason: 'invalid_shape' });
+  });
+
   it('a list printed with no unit is read in the field\'s and asks for a check (which unit the plate means is ambiguous)', () => {
     expect(normalizeReadingValue(taps, '13,8; 13,2', tokens('13,8;', '13,2'))).toEqual({ ok: true, value: number('13.8;13.2', 'kV'), verify: true });
   });
