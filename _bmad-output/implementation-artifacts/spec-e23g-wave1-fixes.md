@@ -2,9 +2,9 @@
 title: 'e23g: the four findings of the Epic 23 wave 1 integrated review (display reading on tap rows, draft pruning, the group count, the tap line)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '740660838c202fcff874932069d87dce9b524b7b'
-review_loop_iteration: 0
+review_loop_iteration: 1
 followup_review_recommended: false
 dev_model: opus
 dev_effort: high
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/spec-e23f-fixes.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Four findings (R2-1 to R2-4) of the second pass of the Epic 23 wave 1 integrated review on 6be0a5ec, all on the v13 TTR tap rows or the company type that carries them; one fix batch, one gate, one PR, as the coordinator launched it.'
-deferred: []
+deferred:
+  - summary: >-
+      MeasurementTable still draws its tap rows by branching on `row.tap !== null` (the position cell, the plate inputs as text, the tap card), e23b's own render choices; only the count and the two predicates moved to the kernel.
+    evidence: |-
+      ensaios-section.tsx:552, 554, 592, 624; five occurrences on main 6be0a5ec before this batch. Which markup to draw, not a status or a count; line 592 (`cell.role === 'input'` on a tap row) partly mirrors `tapCellTyped`, whose off-plate reading differs, so moving it would change e23b's off-plate rendering.
+    location: >-
+      apps/web/src/surfaces/ficha/ensaios-section.tsx:592
+    severity: low
 ---
 
 <intent-contract>
@@ -113,7 +120,23 @@ order or any surface outside the files below.
 
 ## Spec Change Log
 
+- 2026-11-09, late finding (coordinator, wave 1 behavior pass, outside the wave's scope, folded in by the
+  coordinator's word): the TTR's missing-group helper read "Informe a LIGAÇÃO SECUNDÁRIA na placa para calcular" on a
+  v12/v13 transformer, whose `ligacao_secundaria` field is labelled DESLOCAMENTO ANGULAR (Story 22.7). Amended: the
+  constant became `vectorGroupMissingText(label)` with `vectorGroupFieldLabel(definition)` (`relatorio/vector-group.ts`),
+  read by `evaluateTable`; the wording is gender-neutral ("Informe o campo {label} na placa para calcular", authored, for
+  Bruno), so v11 reads "Informe o campo LIGAÇÃO SECUNDÁRIA ...". On the sheet only (`groupHelper`), never printed: no
+  golden moves. Tests: `readings.test.ts` (v11, v12, v13, a relabelled copy, no field), `e2e/ficha.spec.ts` 21.1-E2E-001
+  reads the kernel's text and the plate label. KEEP: the v9/v10 helpers (`VECTOR_GROUP_EMPTY_TEXT`,
+  `VECTOR_GROUP_UNRECOGNIZED_TEXT`) stay, their seeds label the field LIGAÇÃO SECUNDÁRIA.
+
 ## Review Triage Log
+
+### 2026-11-09 — Review pass
+- verdicts: 2 findings — high 0, medium 1, low 1, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (Verification Gap) the api's `nameplate` forwarding in `kinds/display.ts` has no test on a company-type block: the e23g api case uses a seeded transformer, where the kernel's seed fallback hides a dropped forward — patched: a `job-display.integration.test.ts` case on a published copy of the v13 transformer (`type:<id>` block, TAPS, a `display-ttr` shot on tap row 13200, col 3) asserts `[target_path, value, mode]`; 11 of 11; mutation (the nameplate spread removed from the handler) turns only the new case red (1 failed, 10 passed), handler restored.
+  - `[low]` `[defer]` (Edge Case Hunter) `ensaios-section.tsx` still branches on `row.tap !== null` (552, 554, 592, 624) — pre-existing e23b render branches (five on main), which markup to draw rather than a status or count; moving line 592 onto `tapCellTyped` would change the off-plate rendering. Deferred (frontmatter, ledger row).
 
 ## Design Notes
 
