@@ -22,6 +22,7 @@ import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { composeConclusion, conclusionTextForPrint, conclusionTextState } from './conclusion.ts';
+import { visitContextOf } from './visit-context.ts';
 import { sheetOrder } from './ficha.ts';
 import { relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
@@ -220,10 +221,12 @@ function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
     // The cheap checks first; the composition runs only for a concluded sheet with a printable text.
     if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block) !== 'concluida') continue;
     const definition = blockDefinitionIn(ctx, block);
-    if (!enabledSubBlocksOf(block).has('conclusion') || conclusionTextForPrint(block, definition) === null) continue;
+    // Batch e23v (Stories 23.5 and 23.6): the sheet as it is judged, under its visit context.
+    const visit = visitContextOf(snapshot, block);
+    if (!enabledSubBlocksOf(block).has('conclusion') || conclusionTextForPrint(block, definition, visit) === null) continue;
     if (definition === null) continue;
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
-    if (conclusionTextState(block, composeConclusion(block, definition, tag)) === 'stale') stale.add(block.id);
+    if (conclusionTextState(block, composeConclusion(block, definition, tag, visit)) === 'stale') stale.add(block.id);
   }
   if (stale.size === 0) return [];
   const names: string[] = [];
@@ -417,7 +420,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       isEquipmentBlock(block) &&
       sheetState(block) === 'concluida' &&
       enabledSubBlocksOf(block).has('conclusion') &&
-      conclusionTextForPrint(block, blockDefinitionIn(definitions, block)) === null,
+      conclusionTextForPrint(block, blockDefinitionIn(definitions, block), visitContextOf(snapshot, block)) === null,
   ).length;
   if (unconfirmed > 0) {
     rows.push({ id: 'conclusion_unconfirmed', row: 'section_9', severity: 'pending', text: conclusionUnconfirmedText(unconfirmed), kind: 'conclusion_unconfirmed' });

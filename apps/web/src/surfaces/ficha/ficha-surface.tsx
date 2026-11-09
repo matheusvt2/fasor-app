@@ -115,7 +115,7 @@ function FichaBody({
   const blockId = block.id;
   // Review 2026-10-08 (FLD-1): the screen stays awake while a sheet is open ("Manter a tela ligada" in Conta).
   useScreenWakeLock(true);
-  const { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api } =
+  const { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api, visit } =
     useFichaData({ relatorioId, snapshot, state, block });
   // E12-A7: only the steps whose sub-block is on; the header sentence names only these.
   const shownSteps = useMemo(() => shownSheetSteps(block, { cabineFirst }), [block, cabineFirst]);
@@ -243,6 +243,7 @@ function FichaBody({
                 state={state}
                 targetFor={(testKey) => photos.targetFor('ensaios', testKey)}
                 onCaptionPhoto={photos.setCaptioning}
+                visit={visit}
               />
               <ConclusaoSection
                 api={api}
@@ -252,6 +253,7 @@ function FichaBody({
                 className={stepClass('conclusao')}
                 onFocus={() => focusIn('conclusao')}
                 section9={sectionMention(snapshot, 9)}
+                visit={visit}
               />
               {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}
               <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />

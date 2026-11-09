@@ -18,6 +18,7 @@ import { checklistResultUnder } from './sheet-progress.ts';
 import { siteNcCount, siteNcItems } from './site-checklist.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { locationTree, treeNodes } from './tree.ts';
+import { visitContextOf, type VisitContext } from './visit-context.ts';
 
 /*
  * Story 7.4 (FR-71, UX-DR45): the relatório's parecer, the one verdict section 10 prints in
@@ -74,6 +75,8 @@ interface CountedSheet {
   definition: BlockDefinition | null;
   /** The TAG, else the block type's name. */
   name: string;
+  /** Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (`visitContextOf`), which every judgement below reads. */
+  visit: VisitContext;
 }
 
 /** The live equipment sheets in tree order (the section 9 order), each with the name the text uses. */
@@ -92,10 +95,10 @@ function countedSheets(snapshot: RelatorioSnapshot): CountedSheet[] {
       const definition = blockDefinitionIn(ctx, block);
       // A company type is named by its label, never its `type:` key.
       const typeName = isCompanyBlockType(block.block_type) ? (definition?.label ?? block.block_type) : block.block_type;
-      return { block, definition, name: known?.name ?? (tag === '' ? typeName : tag), index: known?.index ?? Number.MAX_SAFE_INTEGER };
+      return { block, definition, name: known?.name ?? (tag === '' ? typeName : tag), index: known?.index ?? Number.MAX_SAFE_INTEGER, visit: visitContextOf(snapshot, block) };
     })
     .sort((a, b) => a.index - b.index || (a.block.id < b.block.id ? -1 : 1))
-    .map(({ block, definition, name }) => ({ block, definition, name }));
+    .map(({ block, definition, name, visit }) => ({ block, definition, name, visit }));
 }
 
 /**
@@ -103,24 +106,24 @@ function countedSheets(snapshot: RelatorioSnapshot): CountedSheet[] {
  * restriction is Com restrições, which an NC row, an observation, a failed ratio row or any
  * reading out of criterion sets through the floor whatever the stored pair says.
  */
-function restricted(block: BlockRow, definition: BlockDefinition | null): boolean {
+function restricted(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): boolean {
   if (block.not_tested !== null) return true;
-  return effectiveConclusionPair(block, definition).restriction === 'com_restricoes';
+  return effectiveConclusionPair(block, definition, visit).restriction === 'com_restricoes';
 }
 
 /** Story 22.6: a sheet whose effective result is Reprovado (a not tested sheet with a defect reason included). */
-function reprovado(block: BlockRow, definition: BlockDefinition | null): boolean {
-  return effectiveConclusionPair(block, definition).result === 'reprovado';
+function reprovado(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): boolean {
+  return effectiveConclusionPair(block, definition, visit).result === 'reprovado';
 }
 
 /**
  * Story 22.6: a tested sheet with a reading out of criterion other than a ratio row (an
  * insulation or contact capture, a measurement-table cell); the failed ratio has its own clause.
  */
-function outReading(block: BlockRow, definition: BlockDefinition | null): boolean {
+function outReading(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): boolean {
   if (block.not_tested !== null) return false;
   if (definition === null) return false;
-  const plain = sheetReadings(block, definition).filter((test) => test.testKey !== 'relacao_transformacao');
+  const plain = sheetReadings(block, definition, visit).filter((test) => test.testKey !== 'relacao_transformacao');
   return evaluatedCells(plain).some((cell) => cell.verdict === 'out') || measurementCells(sheetMeasurements(block, definition)).some((cell) => cell.verdict === 'out');
 }
 
@@ -128,9 +131,9 @@ function outReading(block: BlockRow, definition: BlockDefinition | null): boolea
  * Story 17.5: the ratio rows INSATISFATÓRIO of a live sheet, read through the one kernel
  * reader (`failedRatioRows`); empty when its seed is unknown or its ratio sub-block is off.
  */
-function failedRatioRowsOf(block: BlockRow, definition: BlockDefinition | null): FailedRatioRow[] {
+function failedRatioRowsOf(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): FailedRatioRow[] {
   if (definition === null) return [];
-  return failedRatioRows(sheetReadings(block, definition));
+  return failedRatioRows(sheetReadings(block, definition, visit));
 }
 
 /** The enabled checklist's NC items of a live sheet: their 1-based number and label. */
@@ -168,8 +171,8 @@ const VERDICT_RANK: Readonly<Record<ParecerVerdict, number>> = { apto: 1, apto_c
  */
 export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict | null {
   const sheets = countedSheets(snapshot);
-  if (sheets.some(({ block, definition }) => reprovado(block, definition))) return 'nao_apto';
-  if (sheets.some(({ block, definition }) => restricted(block, definition))) return 'apto_com_restricoes';
+  if (sheets.some(({ block, definition, visit }) => reprovado(block, definition, visit))) return 'nao_apto';
+  if (sheets.some(({ block, definition, visit }) => restricted(block, definition, visit))) return 'apto_com_restricoes';
   if (siteNcCount(snapshot) > 0 || pointsSummary(snapshot).total > 0) return 'apto_com_restricoes';
   return sheets.some(({ block }) => sheetState(block) === 'concluida') ? 'apto' : null;
 }
@@ -246,9 +249,9 @@ export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
   const sheets = countedSheets(snapshot);
   const concluded = sheets.filter(({ block }) => sheetState(block) === 'concluida').length;
   const notTested = sheets.filter(({ block }) => block.not_tested !== null).map(({ block, name }) => ({ name, reason: notTestedReason(block) }));
-  const withRestriction = sheets.filter(({ block, definition }) => block.not_tested === null && restricted(block, definition) && !reprovado(block, definition)).map(({ name }) => name);
-  const reprovados = sheets.filter(({ block, definition }) => reprovado(block, definition)).map(({ name }) => name);
-  const outReadings = sheets.filter(({ block, definition }) => outReading(block, definition)).map(({ name }) => name);
+  const withRestriction = sheets.filter(({ block, definition, visit }) => block.not_tested === null && restricted(block, definition, visit) && !reprovado(block, definition, visit)).map(({ name }) => name);
+  const reprovados = sheets.filter(({ block, definition, visit }) => reprovado(block, definition, visit)).map(({ name }) => name);
+  const outReadings = sheets.filter(({ block, definition, visit }) => outReading(block, definition, visit)).map(({ name }) => name);
   return {
     total: sheets.length,
     concluded,
@@ -328,18 +331,18 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   }
   const nc = [...ncGroups.values()].sort((a, b) => a.n - b.n || (a.label < b.label ? -1 : 1));
   // Story 17.5: the tested sheets with a ratio row INSATISFATÓRIO, by name in tree order.
-  const ratioSheets = sheets.filter(({ block, definition }) => block.not_tested === null && failedRatioRowsOf(block, definition).length > 0);
+  const ratioSheets = sheets.filter(({ block, definition, visit }) => block.not_tested === null && failedRatioRowsOf(block, definition, visit).length > 0);
   // e22f N1: a Reprovado sheet is named once, in the Reprovado sentence with its reason; the
   // ratio and out-reading sentences name only the others.
-  const reprovadoSet = new Set(sheets.filter(({ block, definition }) => reprovado(block, definition)).map(({ block }) => block.id));
+  const reprovadoSet = new Set(sheets.filter(({ block, definition, visit }) => reprovado(block, definition, visit)).map(({ block }) => block.id));
   const ratio = ratioSheets.filter(({ block }) => !reprovadoSet.has(block.id)).map(({ name }) => name);
-  const outOthers = sheets.filter(({ block, definition }) => !reprovadoSet.has(block.id) && outReading(block, definition)).map(({ name }) => name);
+  const outOthers = sheets.filter(({ block, definition, visit }) => !reprovadoSet.has(block.id) && outReading(block, definition, visit)).map(({ name }) => name);
   const ratioIds = new Set(ratioSheets.map(({ block }) => block.id));
   const byReason = { ratio: [] as string[], reading: [] as string[], defect: [] as string[], other: [] as string[] };
-  for (const { block, definition, name } of sheets) {
+  for (const { block, definition, name, visit } of sheets) {
     if (!reprovadoSet.has(block.id)) continue;
     if (ratioIds.has(block.id)) byReason.ratio.push(name);
-    else if (outReading(block, definition)) byReason.reading.push(name);
+    else if (outReading(block, definition, visit)) byReason.reading.push(name);
     else if (block.not_tested !== null && isDefectReason(block.seed_version, block.not_tested.reason)) byReason.defect.push(name);
     else byReason.other.push(name);
   }

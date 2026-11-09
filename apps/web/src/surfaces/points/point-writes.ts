@@ -316,8 +316,8 @@ export function pointDraftValue(value: unknown): PointDraftValue | null {
   const v = value as Record<string, unknown>;
   if (typeof v.relatorio_id !== 'string' || typeof v.text !== 'string' || typeof v.action !== 'string' || typeof v.is_new !== 'boolean') return null;
   if (v.equipmentId !== null && typeof v.equipmentId !== 'string') return null;
-  // Story 22.5: a point written from a derived entry keeps its origin and source.
-  if (v.origin !== 'manual' && v.origin !== 'not_tested' && v.origin !== 'nc' && v.origin !== 'reading' && v.origin !== 'reprovado') return null;
+  // Story 22.5: a point written from a derived entry keeps its origin and source (batch e23v, Story 23.6: `restricao` too).
+  if (v.origin !== 'manual' && v.origin !== 'not_tested' && v.origin !== 'nc' && v.origin !== 'reading' && v.origin !== 'reprovado' && v.origin !== 'restricao') return null;
   const itemKey = typeof v.itemKey === 'string' ? v.itemKey : null;
   const testKey = typeof v.testKey === 'string' ? v.testKey : null;
   // A draft written before Story 11.9 has no Responsável: it reads as blank.

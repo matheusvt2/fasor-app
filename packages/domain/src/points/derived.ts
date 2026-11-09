@@ -1,6 +1,6 @@
 import { photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
-import { conclusionFloor, effectiveConclusionPair } from '../relatorio/conclusion.ts';
+import { conclusionFloor, effectiveConclusionPair, restrictedItems } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
 import { worstMeasurements } from '../relatorio/measurement-evaluation.ts';
 import { worstReadings } from '../relatorio/readings.ts';
@@ -9,6 +9,7 @@ import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteLocals, siteObservationOf, sitePointTitle, siteResultOf } from '../relatorio/site-checklist.ts';
 import { locationTree, treeNodes, type TreeEquipmentNode } from '../relatorio/tree.ts';
+import { visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
@@ -34,9 +35,16 @@ import type { BlockDefinition } from '../seed/schema.ts';
  * `item_key`, `reading` with its `test_key`, `reprovado`), keyed by the equipment (or the
  * local, for a site NC); removing that point brings the entry back. A sheet with no equipment
  * is never suppressed. An old manual point does not suppress (`possibleDuplicatePoints`).
+ *
+ * Batch e23v (Story 23.6, seed v13; contract 36): one more kind, `restricao`, one entry per test with
+ * a reading restricted by its test's rule (`relatorio/restriction.ts`) and no `reading` entry of its
+ * own, naming the restricted rows with their reasons; a point written from it carries `origin`
+ * `restricao` with its `test_key` and replaces it. A test whose plate fails its prerequisite (the
+ * arrester's disconnector) has it in its `reading` entry, one entry per test. Every sheet is judged
+ * under its `VisitContext` (`visitContextOf`), as the sheet and the conclusion judge it.
  */
 
-export type DerivedPointKind = 'not_tested' | 'nc' | 'reading' | 'reprovado';
+export type DerivedPointKind = 'not_tested' | 'nc' | 'reading' | 'reprovado' | 'restricao';
 
 export interface DerivedPoint {
   /** Story 22.5: which source derives the entry. */
@@ -62,7 +70,7 @@ export interface DerivedPoint {
   text: string;
   /** Story 22.5: the checklist item of an `nc` entry; null otherwise. */
   item_key: string | null;
-  /** Story 22.5: the test of a `reading` entry; null otherwise. */
+  /** Story 22.5: the test of a `reading` entry (batch e23v: or a `restricao` one); null otherwise. */
   test_key: string | null;
 }
 
@@ -108,8 +116,16 @@ function rowPhotoIds(photos: ReturnType<typeof livePhotos>, owner: { blockId: st
 
 const base = { reason_key: '', reason_label: '', justification: null, item_key: null, test_key: null, location_id: null } as const;
 
-/** The derived entries of one tested equipment sheet, in order: its NC rows, its out tests, then its Reprovado. */
-function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node: TreeEquipmentNode, title: string, photos: ReturnType<typeof livePhotos>, ctx: DefinitionContext): DerivedPoint[] {
+/** The derived entries of one tested equipment sheet, in order: its NC rows, its out tests, its restricted tests (batch e23v), then its Reprovado. */
+function sheetEntries(
+  block: BlockRow,
+  definition: BlockDefinition | null,
+  node: TreeEquipmentNode,
+  title: string,
+  photos: ReturnType<typeof livePhotos>,
+  ctx: DefinitionContext,
+  visit: VisitContext,
+): DerivedPoint[] {
   if (definition === null) return [];
   const out: DerivedPoint[] = [];
   const common = { block_id: block.id, equipment_id: block.equipment_id, name: node.name, title };
@@ -128,19 +144,28 @@ function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node:
       });
     });
   }
-  const evaluations = sheetReadings(block, definition);
+  const evaluations = sheetReadings(block, definition, visit);
   const titles = new Map(evaluations.map((test) => [test.testKey as string, test.title]));
   const readings = worstReadings(evaluations).filter((reading) => reading.verdict === 'out');
-  for (const reading of readings) {
+  // Batch e23v (Story 23.6): a failed prerequisite is its test's `reading` entry, with the test's worst out reading when it has one.
+  const failed = new Map(evaluations.flatMap((test) => (test.prerequisite?.failed === true ? [[test.testKey as string, test.prerequisite.text] as const] : [])));
+  const withEntry = new Set<string>();
+  for (const test of evaluations) {
+    const reading = readings.find((one) => one.testKey === test.testKey);
+    const prerequisite = failed.get(test.testKey) ?? null;
+    if (reading === undefined && prerequisite === null) continue;
+    withEntry.add(test.testKey);
     // authored (Story 22.5, open for Bruno): a reading entry's text, the ratio as its deviation.
-    const value = reading.testKey === 'relacao_transformacao' ? `desvio de ${reading.valueText}` : reading.valueText;
+    const value = reading === undefined ? null : reading.testKey === 'relacao_transformacao' ? `desvio de ${reading.valueText}` : reading.valueText;
+    const outText = reading === undefined ? null : `${value} em ${reading.where} (critério: ${reading.criterionText})`;
     out.push({
       ...base,
       ...common,
       kind: 'reading',
-      key: `reading:${block.id}:${reading.testKey}`,
-      test_key: reading.testKey,
-      text: `${titles.get(reading.testKey) ?? reading.testKey}: ${value} em ${reading.where} (critério: ${reading.criterionText})`,
+      key: `reading:${block.id}:${test.testKey}`,
+      test_key: test.testKey,
+      // authored (Story 23.6, listed for Bruno): a failed prerequisite before the out reading, "; " between them.
+      text: `${titles.get(test.testKey) ?? test.testKey}: ${[prerequisite, outText].filter((part): part is string => part !== null).join('; ')}`,
     });
   }
   for (const reading of worstMeasurements(sheetMeasurements(block, definition))) {
@@ -153,8 +178,23 @@ function sheetEntries(block: BlockRow, definition: BlockDefinition | null, node:
       text: `${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`,
     });
   }
+  // Batch e23v (Story 23.6, seed v13): one entry per test with a restricted reading and no `reading` entry.
+  for (const test of evaluations) {
+    if (withEntry.has(test.testKey)) continue;
+    const items = restrictedItems(test);
+    if (items.length === 0) continue;
+    out.push({
+      ...base,
+      ...common,
+      kind: 'restricao',
+      key: `restricao:${block.id}:${test.testKey}`,
+      test_key: test.testKey,
+      // authored (Story 23.6, listed for Bruno): a restricted test's entry, its rows with their reasons.
+      text: `${test.title}: valor dentro do critério, com restrição (${items.join('; ')})`,
+    });
+  }
   // A Reprovado the floor does not explain: the engineer's own choice.
-  if (effectiveConclusionPair(block, definition).result === 'reprovado' && conclusionFloor(block, definition)?.pair.result !== 'reprovado') {
+  if (effectiveConclusionPair(block, definition, visit).result === 'reprovado' && conclusionFloor(block, definition, visit)?.pair.result !== 'reprovado') {
     const observation = isCellFilled(block.sheet.observations) && typeof block.sheet.observations!.value === 'string' ? block.sheet.observations!.value.trim() : '';
     out.push({
       ...base,
@@ -217,7 +257,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
       });
       continue;
     }
-    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos, ctx));
+    out.push(...sheetEntries(block, blockDefinitionIn(ctx, block), node, title, photos, ctx, visitContextOf(snapshot, block)));
   }
   return out;
 }
@@ -232,6 +272,8 @@ function pointSource(point: Pick<PointRow, 'origin' | 'equipment_id' | 'location
   if (point.origin === 'nc' || point.origin === 'manual') return point.item_key == null ? null : `nc:${owner}:${point.item_key}`;
   if (point.origin === 'reading') return point.equipment_id === null || point.test_key == null ? null : `reading:${point.equipment_id}:${point.test_key}`;
   if (point.origin === 'reprovado') return point.equipment_id === null ? null : `reprovado:${point.equipment_id}`;
+  // Batch e23v (Story 23.6): a point written from a restricted test's entry.
+  if (point.origin === 'restricao') return point.equipment_id === null || point.test_key == null ? null : `restricao:${point.equipment_id}:${point.test_key}`;
   return null;
 }
 
@@ -242,6 +284,7 @@ function entrySource(entry: DerivedPoint): string | null {
   if (entry.kind === 'not_tested') return entry.equipment_id === null ? null : `not_tested:${entry.equipment_id}`;
   if (entry.kind === 'nc') return `nc:${owner}:${entry.item_key}`;
   if (entry.kind === 'reading') return entry.equipment_id === null ? null : `reading:${entry.equipment_id}:${entry.test_key}`;
+  if (entry.kind === 'restricao') return entry.equipment_id === null ? null : `restricao:${entry.equipment_id}:${entry.test_key}`;
   return entry.equipment_id === null ? null : `reprovado:${entry.equipment_id}`;
 }
 
@@ -271,7 +314,7 @@ export function resolvedOriginPoints(snapshot: DerivedSnapshot): Set<string> {
   }));
   return new Set(
     snapshot.points
-      .filter((point) => point.removed_at === null && (point.origin === 'nc' || point.origin === 'reading' || point.origin === 'reprovado'))
+      .filter((point) => point.removed_at === null && (point.origin === 'nc' || point.origin === 'reading' || point.origin === 'reprovado' || point.origin === 'restricao'))
       .filter((point) => {
         const source = pointSource(point);
         return source !== null && !standing.has(source);
@@ -396,14 +439,16 @@ export function derivedPointReasonText(entry: Pick<DerivedPoint, 'reason_key' | 
 }
 
 // authored (Story 22.5, open for Bruno): the chip of a derived card, and the head of its section 8 bullet.
+// authored (Story 23.6, listed for Bruno): `restricao`.
 const KIND_LABELS: Readonly<Record<DerivedPointKind, string>> = {
   not_tested: 'Não ensaiado',
   nc: 'Não conforme',
   reading: 'Fora do critério',
   reprovado: 'Reprovado',
+  restricao: 'Com restrição',
 };
 
-/** Story 22.5: the chip of a derived card ("Não ensaiado", "Não conforme", "Fora do critério", "Reprovado"). */
+/** Story 22.5: the chip of a derived card ("Não ensaiado", "Não conforme", "Fora do critério", "Reprovado"; batch e23v: "Com restrição"). */
 export function derivedPointKindLabel(kind: DerivedPointKind): string {
   return KIND_LABELS[kind];
 }

@@ -1185,3 +1185,29 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 [data-route="/relatorio/:id/ficha/:blockId"] .v13-na.is-applied .v13-na-body { display: block; margin-top: var(--sp-3); }
 [data-route="/relatorio/:id/ficha/:blockId"] .v13-applied-band { flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); padding: var(--sp-2) var(--sp-4); border-left: 4px solid var(--primary); background: var(--focus-fill); border-radius: var(--r-sm); font-size: var(--t-body-size); }
 [data-route="/relatorio/:id/ficha/:blockId"] .v13-applied-band .band-text { flex: 1 1 260px; }
+
+/* ---------- e23v (Stories 23.5 and 23.6, seed v13): the corrected column and the restricted reading ----------
+   `60-ficha.html` (Story 23.1's frames, `#/ficha/TR1`, its page CSS of 2026-11-08): each rule below is the mock's
+   `[data-route="/ficha/:tag"] X` rule with the route of the app's sheet, `[data-route="/relatorio/:id/ficha/:blockId"]`,
+   declarations copied verbatim. The `.v13-line` the temperature line uses is e23b's translation above. */
+/* `[data-route="/ficha/:tag"] .measurement-field[data-state="restricted"]` and its `.measurement-table td.cell-value` form */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field[data-state="restricted"], [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-value .measurement-field[data-state="restricted"] { border-bottom: 3px solid var(--fora-do-limite); }
+/* `[data-route="/ficha/:tag"] .mf-helper[data-tone="restricted"] b` */
+[data-route="/relatorio/:id/ficha/:blockId"] .mf-helper[data-tone="restricted"] b { font-weight: 700; }
+/* `[data-route="/ficha/:tag"] .cell-calc .calc-mark` */
+[data-route="/relatorio/:id/ficha/:blockId"] .cell-calc .calc-mark { margin-left: var(--sp-1); }
+/* `[data-route="/ficha/:tag"] .ficha-iso-v13 td.cell-value` and `td.cell-calc`. The mock draws this table from 768 px only
+   (its phone frame stacks it into cards); the app keeps the table on the phone (EXPERIENCE.md › Measurement table), so the
+   value cell's width holds from 768 px, where the mock shows it. */
+@media (min-width: 768px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .ficha-iso-v13 td.cell-value { min-width: 150px; }
+}
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-iso-v13 td.cell-calc { white-space: nowrap; }
+/* authored (batch e23v, Story 23.5), the precedent of the v12 TENSÃO column (`ficha.css`): below 768 px the corrected
+   column is hidden and the value stands under its reading as the mock's phone card line ("A 20 °C: 7,9 GΩ calc.", its
+   `p.card-dims`: `.measurement-card .card-dims` of `components.css` and the line's inline margin, declarations copied). */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .corrected-stacked { display: none; }
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table :is(th[data-corrected-column], td[data-corrected-cell]) { display: none; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .corrected-stacked { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }
+}

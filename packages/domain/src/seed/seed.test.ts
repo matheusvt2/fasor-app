@@ -2146,7 +2146,8 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
 // e23a first commit (2026-11-08): v13 opens equal to v12.
 // e23a (Stories 23.2 to 23.4: the NETA criterion tables, the instrument-limit note), then e23b (Stories 23.7 to 23.9: the nameplate fields,
 // the TTR per tap, the dry fields; its block below), re-pinned on main 17127590 merged in.
-const V13_HASH = 'b7f5cfb3cd38062a7f20dcbd0cd9dd81ce57bb17e424a94d3089d18fcfac246e';
+// e23v (Stories 23.5, 23.6, 23.14: the temperature correction, the restriction rules, the contact criterion status; its block below).
+const V13_HASH = '9a262edc8d2d0f0601933d6f80f2ff20b54c5aedf35124911c561fe4471a0c53';
 
 describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', () => {
   const v12 = getSeed('v12', 'cabine_primaria');
@@ -2161,8 +2162,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
   });
 
   it('differs from v12 by exactly its stories, and v1 to v12 hash as they shipped', () => {
-    // e23b: batch e23b's delta is undone here and pinned in its own block below.
-    const stripped = withoutE23b(structuredClone(v13) as typeof v13);
+    // e23b: batch e23b's delta is undone here and pinned in its own block below; e23v's the same way.
+    const stripped = withoutE23b(withoutE23v(structuredClone(v13) as typeof v13));
     // Batch e23a (Stories 23.2 and 23.4): the criterion tables and the instrument-limit note on the insulation tests.
     for (const definition of Object.values(stripped.blocks)) {
       for (const test of definition?.tests ?? []) {
@@ -2305,8 +2306,8 @@ describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of d
   const keysOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate.map((field) => field.key);
 
   it('adds exactly its delta to v12: the appended fields, TAPS and TAP ATUAL in place, the dry fields, the TTR from TAPS, MOTORIZADO, √3, the dash, the cable nameplate', () => {
-    // Batch e23a's keys (the criterion tables, the instrument-limit note) are pinned in its own block.
-    const bare = withoutE23b(structuredClone(v13) as typeof v13);
+    // Batch e23a's keys (the criterion tables, the instrument-limit note) are pinned in its own block; e23v's too.
+    const bare = withoutE23b(withoutE23v(structuredClone(v13) as typeof v13));
     for (const definition of Object.values(bare.blocks)) {
       for (const test of definition?.tests ?? []) {
         delete test.criterion_table;
@@ -2378,6 +2379,129 @@ describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of d
     expect(issues(withField('identificacao', { list: true }))).toContain(`nameplate.${transformer().nameplate.findIndex((field) => field.key === 'identificacao')}: list, pick_from and over_sqrt3 belong to a number field`);
     expect(fieldDefSchema.safeParse({ key: 'relacao', label: 'RELAÇÃO', kind: 'number', dash_ratio: true }).success).toBe(false);
     expect(fieldDefSchema.safeParse({ key: 'taps', label: 'TAPS', kind: 'number', unit: 'kV', list: true, pick_from: 'outra' }).success).toBe(false);
+  });
+});
+
+// --- e23v: Stories 23.5, 23.6, 23.14 ---------------------------------------------------------------
+
+/** Batch e23v's delta undone (the three test keys), so a v13 holding it compares with v12 for everything else. */
+function withoutE23v(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  for (const definition of Object.values(out.blocks)) {
+    for (const test of definition?.tests ?? []) {
+      delete test.temperature_correction;
+      delete test.restriction;
+      delete test.criterion_status;
+    }
+  }
+  return out;
+}
+
+describe('seed v13, batch e23v (Stories 23.5, 23.6 and 23.14): the temperature correction, the restriction rules and the contact criterion status', () => {
+  const v12 = getSeed('v12', 'cabine_primaria');
+  const v13 = getSeed('v13', 'cabine_primaria');
+  const test = (type: string, key: string) => getDefinition('v13', 'cabine_primaria', type).tests.find((one) => one.key === key)!;
+  const keys = (type: string, key: string) => {
+    const found = test(type, key);
+    return { temperature_correction: found.temperature_correction, restriction: found.restriction, criterion_status: found.criterion_status };
+  };
+
+  it('adds exactly its keys to v13, on the tests the base rows name (Base rev08 TR-OL-02, TR-SE-02, DJ-02, DJ-03, SC-02, SC-03, CB-02, PR-02)', () => {
+    // With e23a's and e23b's own deltas undone too, v13 is v12.
+    const bare = withoutE23b(withoutE23v(structuredClone(v13) as typeof v13));
+    for (const definition of Object.values(bare.blocks)) {
+      for (const one of definition?.tests ?? []) {
+        delete one.criterion_table;
+        delete one.instrument_limit_note;
+      }
+    }
+    expect(JSON.stringify(bare)).toBe(JSON.stringify(v12));
+    expect(keys('transformador_forca', 'isolacao')).toEqual({
+      temperature_correction: { to_c: 20, medium: 'oil_rule', oil_field: 'temperatura_oleo_c', dry_field: 'temperatura_enrolamento_c' },
+      restriction: { history_drop_pct: 50, status: 'PADRÃO FASOR' },
+      criterion_status: undefined,
+    });
+    for (const type of ['disjuntor_mt', 'chave_seccionadora']) {
+      expect(keys(type, 'isolacao'), type).toEqual({ temperature_correction: { to_c: 20, medium: 'solid' }, restriction: undefined, criterion_status: undefined });
+      expect(keys(type, 'resistencia_contato'), type).toEqual({ temperature_correction: undefined, restriction: { pole_deviation_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' });
+    }
+    for (const type of ['cabos_entrada', 'cabos_saida']) {
+      expect(keys(type, 'isolacao'), type).toEqual({ temperature_correction: undefined, restriction: { below_largest_pct: 50, status: 'PADRÃO FASOR' }, criterion_status: undefined });
+    }
+    expect(keys('para_raio', 'isolacao')).toEqual({
+      temperature_correction: undefined,
+      restriction: { below_largest_pct: 50, prerequisite: { field: 'desligador_integro', fails_on: ['NÃO'] }, status: 'PADRÃO FASOR' },
+      criterion_status: undefined,
+    });
+    // The TC, the TP, the ratio tests and every library type carry none of the three (no base row names a correction or a rule there).
+    for (const definition of Object.values(v13.blocks)) {
+      for (const one of definition!.tests) {
+        const named = ['transformador_forca/isolacao', 'disjuntor_mt/isolacao', 'disjuntor_mt/resistencia_contato', 'chave_seccionadora/isolacao', 'chave_seccionadora/resistencia_contato', 'cabos_entrada/isolacao', 'cabos_saida/isolacao', 'para_raio/isolacao'];
+        if (named.includes(`${definition!.block_type}/${one.key}`)) continue;
+        expect([one.temperature_correction, one.restriction, one.criterion_status], `${definition!.block_type} ${one.key}`).toEqual([undefined, undefined, undefined]);
+      }
+    }
+    // Every status is one of the base's four.
+    for (const definition of Object.values(v13.blocks)) {
+      for (const one of definition!.tests) {
+        if (one.restriction !== undefined) expect(CRITERION_ROW_STATUSES).toContain(one.restriction.status);
+        if (one.criterion_status !== undefined) expect(CRITERION_ROW_STATUSES).toContain(one.criterion_status);
+      }
+    }
+  });
+
+  it('no definition of v1 to v12 carries any of the three keys (AD-21)', () => {
+    for (const version of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const one of definition?.tests ?? []) expect([one.temperature_correction, one.restriction, one.criterion_status], `${version} ${definition!.block_type} ${one.key}`).toEqual([undefined, undefined, undefined]);
+      }
+    }
+  });
+
+  it('refuses at load a correction, a restriction or a status that names nothing the definition holds', () => {
+    const issues = (definition: unknown) => blockDefinitionSchema.safeParse(definition).error?.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`) ?? [];
+    const withTest = (type: string, key: string, change: (one: TestDef) => TestDef) => {
+      const definition = structuredClone(getDefinition('v13', 'cabine_primaria', type)) as BlockDefinition;
+      definition.tests = definition.tests.map((one) => (one.key === key ? change(one) : one));
+      return definition;
+    };
+    const at = (type: string, key: string) => getDefinition('v13', 'cabine_primaria', type).tests.findIndex((one) => one.key === key);
+    const tf = at('transformador_forca', 'isolacao');
+    expect(issues(withTest('transformador_forca', 'isolacao', (one) => one))).toEqual([]);
+    // A field that is not a number in °C, or not on the plate.
+    expect(issues(withTest('transformador_forca', 'isolacao', (one) => ({ ...one, temperature_correction: { ...one.temperature_correction!, oil_field: 'potencia_nominal' } })))).toEqual([
+      `tests.${tf}.temperature_correction.oil_field: temperature_correction.oil_field "potencia_nominal" is not a number field of the nameplate in °C`,
+    ]);
+    expect(issues(withTest('transformador_forca', 'isolacao', (one) => ({ ...one, temperature_correction: { ...one.temperature_correction!, dry_field: 'nao_existe' } })))).toEqual([
+      `tests.${tf}.temperature_correction.dry_field: temperature_correction.dry_field "nao_existe" is not a number field of the nameplate in °C`,
+    ]);
+    // A correction read by the oil rule on a type with none; an oil field on a solid correction.
+    const dj = at('disjuntor_mt', 'isolacao');
+    const noRule = withTest('disjuntor_mt', 'isolacao', (one) => ({ ...one, temperature_correction: { to_c: 20, medium: 'oil_rule' } }));
+    delete noRule.oil_rule;
+    expect(issues(noRule)).toContain(`tests.${dj}.temperature_correction.medium: a temperature correction read by the oil rule needs an oil_rule`);
+    expect(issues(withTest('disjuntor_mt', 'isolacao', (one) => ({ ...one, temperature_correction: { to_c: 20, medium: 'solid', oil_field: 'tensao_nominal' } })))).toContain(
+      `tests.${dj}.temperature_correction.oil_field: oil_field belongs to a correction read by the oil rule`,
+    );
+    // A history rule with no correction; a prerequisite on a field that is no select, or naming an option it lacks.
+    const cable = at('cabos_entrada', 'isolacao');
+    expect(issues(withTest('cabos_entrada', 'isolacao', (one) => ({ ...one, restriction: { history_drop_pct: 50, status: 'PADRÃO FASOR' } })))).toEqual([
+      `tests.${cable}.restriction.history_drop_pct: a history rule needs the test's temperature_correction`,
+    ]);
+    const pr = at('para_raio', 'isolacao');
+    expect(issues(withTest('para_raio', 'isolacao', (one) => ({ ...one, restriction: { ...one.restriction!, prerequisite: { field: 'mcov_kv', fails_on: ['NÃO'] } } })))).toEqual([
+      `tests.${pr}.restriction.prerequisite: restriction.prerequisite names a select of the nameplate and only its options ("mcov_kv")`,
+    ]);
+    expect(issues(withTest('para_raio', 'isolacao', (one) => ({ ...one, restriction: { ...one.restriction!, prerequisite: { field: 'desligador_integro', fails_on: ['TALVEZ'] } } })))).toEqual([
+      `tests.${pr}.restriction.prerequisite: restriction.prerequisite names a select of the nameplate and only its options ("desligador_integro")`,
+    ]);
+    // The shapes: a share outside (0, 100), a restriction with no rule, a status the base does not have, another reference temperature.
+    const pole = at('disjuntor_mt', 'resistencia_contato');
+    for (const bad of [{ pole_deviation_pct: 0, status: 'CONFIRMADO' }, { pole_deviation_pct: 100, status: 'CONFIRMADO' }, { status: 'CONFIRMADO' }, { pole_deviation_pct: 50, status: 'OUTRO' }]) {
+      expect(issues(withTest('disjuntor_mt', 'resistencia_contato', (one) => ({ ...one, restriction: bad as TestDef['restriction'] }))).some((issue) => issue.startsWith(`tests.${pole}.restriction`)), JSON.stringify(bad)).toBe(true);
+    }
+    expect(issues(withTest('disjuntor_mt', 'resistencia_contato', (one) => ({ ...one, criterion_status: 'OUTRO' as TestDef['criterion_status'] }))).some((issue) => issue.startsWith(`tests.${pole}.criterion_status`))).toBe(true);
+    expect(issues(withTest('disjuntor_mt', 'isolacao', (one) => ({ ...one, temperature_correction: { to_c: 75, medium: 'solid' } as unknown as TestDef['temperature_correction'] }))).some((issue) => issue.startsWith(`tests.${dj}.temperature_correction.to_c`))).toBe(true);
   });
 });
 

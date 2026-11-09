@@ -23,6 +23,8 @@ import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import { isReadingValue } from '../relatorio/over-range.ts';
+import { TEMPERATURE_PRINT_LABEL, type TestTemperatureView } from '../relatorio/temperature-correction.ts';
+import { visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import type { BlockRow, EquipmentRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, findSeed, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
@@ -509,13 +511,16 @@ function instrumentPart(block: BlockRow, test: TestDef, evaluation: TestEvaluati
           : evaluation.criterion === null
             ? DASH
             : bandValueText(evaluation.criterion.value);
-  const labels: string[] = [...INSTRUMENT_LABELS, ...(parameter === null ? [] : [parameter]), acceptableLabel];
+  // Batch e23v (Story 23.5, seed v13; Story 23.1's frame, M-5): a corrected test prints the temperature used, and where it came from, before ACEITÁVEL.
+  const temperature = evaluation.temperature;
+  const labels: string[] = [...INSTRUMENT_LABELS, ...(parameter === null ? [] : [parameter]), ...(temperature === undefined ? [] : [TEMPERATURE_PRINT_LABEL]), acceptableLabel];
   const values = [
     text(header?.manufacturer),
     text(header?.model),
     text(header?.serial),
     text(header?.cert_number),
     ...(parameter === null ? [] : [text(header?.test_parameter)]),
+    ...(temperature === undefined ? [] : [temperature.print]),
     acceptable,
   ];
   const rows = [bandRow(printLabel(test.label), labels.length), headerRow(labels), { cells: values.map(valueCell) }];
@@ -608,6 +613,50 @@ function printedValueColumns(definition: TableDef): { col: number; column: Colum
   return definition.value_columns.flatMap((column, col) => (column.role === 'voltage' ? [] : [{ col, column }]));
 }
 
+// --- the corrected column (batch e23v, Story 23.5, seed v13) -------------------------------------
+
+/**
+ * Story 23.5 (Matheus at the Story 23.1 approval, 2026-11-08): a test with `temperature_correction`
+ * prints its readings corrected to 20 °C in one more column headed "20 °C", right after the table's
+ * capture column and inside its group (the transformer's VALORES; beside VALORES on the disjuntor's
+ * and the seccionadora's tables), its values in the group's header unit, "-" without a corrected
+ * value. `after` is the position in `printedValueColumns` it follows, `capture` the column it
+ * corrects. A table of any other test (every table of v1 to v12) has none and prints as before.
+ */
+interface PrintedCorrected {
+  after: number;
+  capture: number;
+  header: string;
+}
+
+function printedCorrectedOf(definition: TableDef, temperature: TestTemperatureView | undefined): PrintedCorrected | null {
+  if (temperature === undefined) return null;
+  const printed = printedValueColumns(definition);
+  let after = -1;
+  printed.forEach(({ column }, i) => {
+    if (column.role === 'capture') after = i;
+  });
+  return after === -1 ? null : { after, capture: printed[after]!.col, header: temperature.printHeader };
+}
+
+/** One printed value column: a seed column, or (batch e23v) the corrected one. */
+type PrintedEntry = { kind: 'seed'; col: number; column: ColumnDef } | { kind: 'corrected'; corrected: PrintedCorrected; group: string | undefined };
+
+/** The printed value columns with the corrected one in its place (after its capture column, in that column's group). */
+function printedEntries(definition: TableDef, corrected: PrintedCorrected | null): PrintedEntry[] {
+  const seed = printedValueColumns(definition).map(({ col, column }): PrintedEntry => ({ kind: 'seed', col, column }));
+  if (corrected === null) return seed;
+  const followed = definition.value_columns[corrected.capture]!;
+  return [...seed.slice(0, corrected.after + 1), { kind: 'corrected', corrected, group: followed.group }, ...seed.slice(corrected.after + 1)];
+}
+
+/** A row's corrected cell: the capture's value at 20 °C, bare in its header's unit, with its unit under a header with none; "-" without one. */
+function correctedCellText(row: EvaluatedRow, corrected: PrintedCorrected, headerUnit: string | null): string {
+  const value = row.cells.find((cell) => cell.address.col === corrected.capture)?.corrected ?? null;
+  if (value === null) return DASH;
+  return headerUnit !== null && value.unit === headerUnit ? formatDecimalGroupedPtBr(value.raw) : value.text;
+}
+
 /**
  * A row's voltage cell: the effective voltage ("10", "1", "0,5"), "-" when none applies or the row
  * holds no measured capture (a row not tested prints no test voltage). Story 22.10: a capture
@@ -618,29 +667,33 @@ function voltageText(row: EvaluatedRow): string {
   return row.cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)) ? row.voltage.text : DASH;
 }
 
-/** One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD). */
-function measurementHeader(definition: TableDef, evaluated: EvaluatedTable): PrintRow[] {
+/**
+ * One header row, or two where the seed groups its columns (PONTO DE ENSAIO/CONEXÃO over LINHA · TERRA · GUARD).
+ * Batch e23v (Story 23.5): the corrected column, where the test has one, sits after its capture column in that column's group.
+ */
+function measurementHeader(definition: TableDef, evaluated: EvaluatedTable, corrected: PrintedCorrected | null = null): PrintRow[] {
   const values = definition.value_columns;
   const voltage = printedVoltageOf(definition);
-  const printed = printedValueColumns(definition);
+  const printed = printedEntries(definition, corrected);
   // Story 21.1: a column prints the evaluated label, which on a ratio table's captures is its vector group's pair.
   const columnLabel = (column: ColumnDef, col: number) =>
     column.label === VALORES ? valoresHeader([col], evaluated, values) : printLabel(evaluated.columns.find((visible) => visible.col === col)?.label ?? column.label);
   const bottom = headerRow([
     ...definition.connection_columns.map(printLabel),
     ...(voltage === null ? [] : [voltage.header]),
-    ...printed.map(({ column, col }) => columnLabel(column, col)),
+    ...printed.map((entry) => (entry.kind === 'corrected' ? entry.corrected.header : columnLabel(entry.column, entry.col))),
   ]);
   if (definition.connection_group === undefined && !values.some((column) => column.group !== undefined)) return [bottom];
   const top: PrintCell[] = [];
   if (definition.connection_group !== undefined) top.push(headerCell(printLabel(definition.connection_group), definition.connection_columns.length));
   else for (let i = 0; i < definition.connection_columns.length; i++) top.push(headerCell(''));
   if (voltage !== null) top.push(headerCell(''));
+  const groupOf = (entry: PrintedEntry) => (entry.kind === 'corrected' ? entry.group : entry.column.group);
   for (let i = 0; i < printed.length; ) {
-    const group = printed[i]!.column.group;
+    const group = groupOf(printed[i]!);
     let end = i + 1;
-    if (group !== undefined) while (end < printed.length && printed[end]!.column.group === group) end++;
-    const cols = printed.slice(i, end).map(({ col }) => col);
+    if (group !== undefined) while (end < printed.length && groupOf(printed[end]!) === group) end++;
+    const cols = printed.slice(i, end).flatMap((entry) => (entry.kind === 'seed' ? [entry.col] : []));
     top.push(headerCell(group === undefined ? '' : group === VALORES ? valoresHeader(cols, evaluated, values) : printLabel(group), end - i));
     i = end;
   }
@@ -880,15 +933,27 @@ export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'row
   return out;
 }
 
-/** One measurement table: its title band, its header, then one row per connection with every value column. */
-function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDef, evaluated: EvaluatedTable, enabled: ReadonlySet<string>, test?: TestDef): PrintTable {
-  const width = definition.connection_columns.length + definition.value_columns.length;
+/**
+ * One measurement table: its title band, its header, then one row per connection with every value column.
+ * Batch e23v (Story 23.5, seed v13): a corrected test (`temperature`) prints its corrected column too.
+ */
+function measurementTable(
+  block: BlockRow,
+  testKey: TestKey,
+  definition: TableDef,
+  evaluated: EvaluatedTable,
+  enabled: ReadonlySet<string>,
+  test?: TestDef,
+  temperature?: TestTemperatureView,
+): PrintTable {
+  const corrected = printedCorrectedOf(definition, temperature);
+  const width = definition.connection_columns.length + definition.value_columns.length + (corrected === null ? 0 : 1);
   const rows: PrintRow[] = [];
   if (definition.title !== undefined) rows.push(bandRow(printLabel(definition.title), width));
-  rows.push(...measurementHeader(definition, evaluated));
+  rows.push(...measurementHeader(definition, evaluated, corrected));
   const units = headerUnits(definition, evaluated);
   const voltage = printedVoltageOf(definition);
-  const printed = printedValueColumns(definition);
+  const printed = printedEntries(definition, corrected);
   // Story 23.8 (seed v13): a `rows_from` table prints every evaluated row, one per tap (TAP Nº its position)
   // then each row off the plate (TAP Nº "-"), V PRIMÁRIO its tap; every other table its seeded rows, as before.
   const lines = definition.rows_from === undefined ? definition.rows.map((connection, r) => ({ connection, row: evaluated.rows[r]! })) : evaluated.rows.map((row) => ({ connection: row.connection, row }));
@@ -898,7 +963,13 @@ function measurementTable(block: BlockRow, testKey: TestKey, definition: TableDe
         // F42: a typed connection the seed leaves blank prints the evaluated one (the plate's TAP ATUAL), "-" when none.
         ...connection.map((text, i) => valueCell(definition.connection_typed && text.trim() === '' ? row.connection[i] || DASH : printLabel(text))),
         ...(voltage === null ? [] : [valueCell(voltageText(row))]),
-        ...printed.map(({ column, col }) => valueCell(valueText(block, testKey, row, evaluated, col, column, enabled, units[col] ?? null, test))),
+        ...printed.map((entry) =>
+          valueCell(
+            entry.kind === 'corrected'
+              ? correctedCellText(row, entry.corrected, units[entry.corrected.capture] ?? null)
+              : valueText(block, testKey, row, evaluated, entry.col, entry.column, enabled, units[entry.col] ?? null, test),
+          ),
+        ),
       ],
     });
   });
@@ -992,7 +1063,7 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   // pair still prints as one.
   const holds = previousTexts.map((texts) => texts !== null && texts.some((text) => text !== DASH));
   const tables = test.tables.map((tableDef, i) => {
-    const plain = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled, test);
+    const plain = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled, test, evaluation.temperature);
     // Story 23.2 (seed v13): rows judged by different criteria print each row's in an ACEITÁVEL column, before MANUT. ANTERIOR.
     const perRow = evaluation.perRow === true;
     const printed = perRow ? withAppendedColumn(plain, ACCEPTABLE_LABEL, evaluation.tables[i]!.rows.map((row) => row.criterionText ?? DASH), PER_ROW_TEXT_STEPS_HALF_POINTS) : plain;
@@ -1144,13 +1215,14 @@ function observationsPart(block: BlockRow): SheetPart | null {
  * never an unconfirmed or stale text, nor one of an incomplete pair. Story 22.2: the criteria
  * line no longer prints under it (the screen still shows it).
  */
-function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string): SheetPart[] {
+function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: string, visit: VisitContext): SheetPart[] {
   // Story 22.4: the X marks of the effective pair (the stricter of the floor and the stored pair);
   // e22f N2: of the chosen pair while the sheet is open, so the floor alone prints no mark.
-  const printed = printedConclusionPair(block, definition);
+  // Batch e23v (Stories 23.5 and 23.6): the sheet judged under its visit context, as on screen.
+  const printed = printedConclusionPair(block, definition, visit);
   const chosen = new Set<string>([printed.result, printed.restriction].filter((value): value is ConclusionResult | ConclusionRestriction => value !== null));
   // e22f S1: a confirmed text the floor made stale prints the text composed now.
-  const text = printedConclusionText(block, definition, tag);
+  const text = printedConclusionText(block, definition, tag, visit);
   const rows: PrintRow[] = [
     bandRow(CONCLUSION_TITLE, CONCLUSION_BOXES.length * 2),
     { cells: CONCLUSION_BOXES.flatMap(({ value, label }) => [{ text: printLabel(label), bold: true, align: 'left' as const }, valueCell(chosen.has(value) ? MARK : '')]) },
@@ -1245,14 +1317,16 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   if (checklist !== null) parts.push(checklist);
   // Story 22.12: with a previous visit of another relatório, every reading table gets MANUT. ANTERIOR.
   const previous = previousReadingsOf(ctx, block, definition);
-  for (const evaluation of evaluateSheetReadings(block, definition)) parts.push(...testParts(block, definition, evaluation, enabled, previous));
+  // Batch e23v (Stories 23.5 and 23.6, seed v13): the sheet judged under its visit context (the cabine's ambient, the previous visit).
+  const visit = visitContextOf(ctx.snapshot, block);
+  for (const evaluation of evaluateSheetReadings(block, definition, visit)) parts.push(...testParts(block, definition, evaluation, enabled, previous));
   parts.push(...measurementParts(block, definition, previous));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
   if (enabled.has('conclusion')) {
     // Story 22.3: CONCLUSÃO never sits alone at the top of a page; it keeps with the part before it.
     if (parts.length > 0) parts.push({ ...parts.pop()!, keepWithNext: true });
-    parts.push(...conclusionParts(block, definition, tag));
+    parts.push(...conclusionParts(block, definition, tag, visit));
   }
   // Story 20.6 (FR-68): one photo block closes the ficha, so no photo sits between its tables.
   parts.push(...photosPart(sheetPhotos(ctx, blockId)));

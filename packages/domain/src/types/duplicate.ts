@@ -18,7 +18,9 @@ import { type CompanyCriterion, type CompanyTypeDefinition, type CompanyTypeDraf
  * voltage bands; `criterion_class_field`, the TC and TP accuracy class) and the oil rule are carried
  * as the seed defines them, so a copy published untouched judges as its source; the Critérios tab
  * shows them read-only (`plateCriterionLines`). A copy of a company type copies its published
- * definition. The copy is a draft: nothing is published until "Publicar".
+ * definition. The copy is a draft: nothing is published until "Publicar". Batch e23v (Stories
+ * 23.5, 23.6 and 23.14): the tests are carried whole, so a copy of a v13 type keeps its tests'
+ * `temperature_correction`, `restriction` and `criterion_status` and judges as its source.
  */
 
 // authored (Story 14.6, listed for Bruno): the suffix of a copy's name, and each seeded type's noun

@@ -275,7 +275,33 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
     dropMediumTables(next);
   }
   if (part === 'tests' || part === 'measurement_tests') pruneCriteria(next);
+  // Batch e23v (Stories 23.5 and 23.6): what a test's correction or restriction reads of the removed field (or of a removed oil rule) goes too.
+  if (part === 'nameplate' || part === 'checklist') dropE23vReads(next, part === 'nameplate' ? textOf(removed.key) : null);
   return back(next);
+}
+
+// --- e23v: Stories 23.5 and 23.6 ---
+/**
+ * Batch e23v: a removed nameplate field takes with it what a test's temperature correction or restriction
+ * reads of it: the correction's `oil_field` or `dry_field` (the ambient then stands in) and the
+ * restriction's prerequisite. With no oil rule left, a correction read by the oil rule has no medium to
+ * read and goes, and with it a history rule (it compares corrected readings); a restriction left with no
+ * rule goes whole.
+ */
+function dropE23vReads(next: Entry, key: string | null): void {
+  for (const test of (Array.isArray(next.tests) ? next.tests : []) as Entry[]) {
+    const correction = test.temperature_correction as Entry | undefined;
+    if (correction !== undefined && key !== null) {
+      if (correction.oil_field === key) delete correction.oil_field;
+      if (correction.dry_field === key) delete correction.dry_field;
+    }
+    if (correction !== undefined && correction.medium === 'oil_rule' && next.oil_rule === undefined) delete test.temperature_correction;
+    const restriction = test.restriction as Entry | undefined;
+    if (restriction === undefined) continue;
+    if (key !== null && (restriction.prerequisite as Entry | undefined)?.field === key) delete restriction.prerequisite;
+    if (test.temperature_correction === undefined) delete restriction.history_drop_pct;
+    if (restriction.history_drop_pct === undefined && restriction.below_largest_pct === undefined && restriction.pole_deviation_pct === undefined && restriction.prerequisite === undefined) delete test.restriction;
+  }
 }
 
 /** Batch e23a (Story 23.2): with no oil rule left, a criterion table read by the medium has nothing to read it by and goes. */
@@ -376,6 +402,8 @@ export function addDraftTest(draft: CompanyTypeDraft | null, grammar: TestGramma
   delete test.criterion_class_field;
   // Batch e23a (Story 23.2): a criterion table reads the source type's plate, not this one's.
   delete test.criterion_table;
+  // Batch e23v (Stories 23.5, 23.6 and 23.14): nor its correction, restriction rules or criterion status, its source type's judging.
+  for (const key of ['temperature_correction', 'restriction', 'criterion_status']) delete test[key];
   for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) {
     for (const row of (Array.isArray(table.voltage_rows) ? table.voltage_rows : []) as Entry[]) row.winding = null;
   }

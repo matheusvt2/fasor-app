@@ -395,8 +395,21 @@
  * table's `rows_from`; the oil rule's `dry_fields`; a test's `applies_when` and `initial_off`, in
  * both grammars), so v1 to v12 parse to the bytes they shipped with and a row written before 35
  * parses to the same bytes. MIN follows to 35 (below).
+ *
+ * 36 (2026-11-09, Stories 23.5, 23.6 and 23.14, batch e23v): seed v13's insulation judged corrected
+ * to 20 °C (the test key `temperature_correction`: the transformer by its oil or winding temperature
+ * on the plate, the disjuntor and the seccionadora by the solid factor, each with the cabine's
+ * ambient as fallback), the third level of a reading, `restricted` (the test key `restriction`: the
+ * transformer's drop since the previous visit, the cables' and the arrester's comparison with the
+ * largest row, the contact resistance's pole deviation, the arrester's disconnector prerequisite),
+ * and the test key `criterion_status`. The point `origin` enum gains `restricao` (a point written
+ * from a restricted test's derived entry, with its `test_key`; it replaces that entry), and a
+ * `last_results` reading gains the optional `corrected: {raw, unit}` (the value judged at 20 °C,
+ * which the next visit's history rule compares with). The seed schema gains optional keys only, so
+ * v1 to v12 parse to the bytes they shipped with and a row written before 36 parses to the same
+ * bytes. MIN follows to 36 (below).
  */
-export const CONTRACT_VERSION = 35;
+export const CONTRACT_VERSION = 36;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -621,8 +634,17 @@ export const CONTRACT_VERSION = 35;
  * typed row where the server prints one row per tap (and would refuse, then drop, a reading on a
  * tap row), and read a TAPS list or a "115/√3" as no number. A relatório stream carries such ops
  * from the first v13 sheet on, so the version-34 bundle updates too.
+ *
+ * 36 (2026-11-09, Stories 23.5, 23.6 and 23.14, batch e23v): a version-35 (or older) bundle's
+ * `pointRowSchema` refuses a point create whose `origin` is `restricao`, so a pulled page carrying
+ * one fails whole (`invalid_response`), the precedent of versions 20, 23, 28, 30 to 33 and 35; its
+ * equipment row schema would strip a reading's `corrected` from `last_results`; and it cannot judge
+ * a v13 sheet as the server's kernel does: it would judge a transformer's insulation raw where the
+ * server corrects it to 20 °C, and show no restricted reading, no Aprovado · Com restrições floor
+ * and no restricted point where the server prints them. A relatório stream carries such sheets from
+ * the first v13 relatório on, so the version-35 bundle updates too.
  */
-export const MIN_CONTRACT_VERSION = 35;
+export const MIN_CONTRACT_VERSION = 36;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes
