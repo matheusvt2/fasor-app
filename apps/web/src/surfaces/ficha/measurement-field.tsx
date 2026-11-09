@@ -64,7 +64,31 @@ export type FieldCell<Address extends FieldAddress = FieldAddress> = Pick<Evalua
   positiveOnlyText?: string | null;
   /** Story 22.10: whether the cell takes a reading above the instrument's limit (the kernel's evaluation); absent: it does not. */
   overRange?: OverRangeAllowance;
+  /** Batch e23v (Story 23.6, seed v13): why a reading within its criterion is restricted (the kernel's); absent or null elsewhere. */
+  restriction?: EvaluatedCell['restriction'];
 };
+
+/**
+ * Batch e23v (Story 23.6; `60-ficha.html` #/ficha/TR1, EXPERIENCE.md › Restricted reading): the helper of a restricted
+ * reading, the static bold "Com restrição:" lead and the kernel's sentence; a neutral field with the amber bottom rule
+ * (`data-state="restricted"`), never the out-of-limit fill. Null on every other cell.
+ */
+function RestrictedHelper({ cell, id }: { cell: FieldCell; id?: string }) {
+  const restriction = cell.verdict === 'restricted' ? (cell.restriction ?? null) : null;
+  if (restriction === null) return null;
+  return (
+    <div className="mf-helper" data-tone="restricted" role="status" id={id}>
+      <span>
+        <b>{copy.ficha.ensaios.restrictedLead}</b> {restriction.text}
+      </span>
+    </div>
+  );
+}
+
+/** Batch e23v: the field's `data-state`: out of its limit, restricted (Story 23.6), or neither. */
+function fieldState(cell: Pick<FieldCell, 'verdict'>): 'out-of-limit' | 'restricted' | undefined {
+  return cell.verdict === 'out' ? 'out-of-limit' : cell.verdict === 'restricted' ? 'restricted' : undefined;
+}
 
 /**
  * Story 22.10 and 22.12: what a cell reads of its sheet beyond its evaluation, computed by the
@@ -284,10 +308,13 @@ export function MeasurementField<Address extends FieldAddress>({
   };
 
   const outlier = cell.outlier ?? null;
+  // Batch e23v (Story 23.6): a restricted reading's helper is the cell's description too.
+  const restricted = cell.verdict === 'restricted' && (cell.restriction ?? null) !== null;
   const hint = limitHint && !number.invalid && number.text.trim().startsWith('>') ? overRangeMissingLimitText(range, cell.units, slotUnit) : null;
   const describedBy =
-    [number.echo === null ? null : echoId, number.invalid || hint !== null || (!number.focused && (cell.helperText !== null || outlier !== null)) ? helperId : null].filter(Boolean).join(' ') ||
-    undefined;
+    [number.echo === null ? null : echoId, number.invalid || hint !== null || (!number.focused && (cell.helperText !== null || outlier !== null || restricted)) ? helperId : null]
+      .filter(Boolean)
+      .join(' ') || undefined;
   const overflowItems = [
     { id: 'not-measured', label: t.notMeasured, onAction: () => void write({ raw: '', unit: slotUnit, state: 'not_measured' }) },
     // Story 22.10: offered only where the kernel allows a reading above the limit (never on a ratio or a compared cell).
@@ -325,7 +352,7 @@ export function MeasurementField<Address extends FieldAddress>({
       data-state={confirmedCrop === undefined ? undefined : 'confirmed'}
       data-cell={cellKey(address)}
     >
-      <div className="measurement-field" data-state={out ? 'out-of-limit' : undefined}>
+      <div className="measurement-field" data-state={fieldState(cell)}>
         <input
           data-telemetry="ficha.measurement"
           className="mf-value"
@@ -408,6 +435,8 @@ export function MeasurementField<Address extends FieldAddress>({
           {outlier.text}
         </div>
       ) : null}
+      {/* Batch e23v (Story 23.6): a restricted reading's helper. */}
+      {!number.focused && !number.invalid ? <RestrictedHelper cell={cell} id={cell.helperText === null && outlier === null ? helperId : undefined} /> : null}
       <PreviousLine text={previous} />
       {after}
     </div>
@@ -564,7 +593,7 @@ export function ReadOnlyMeasurementField({ cell, label }: { cell: FieldCell; lab
   const text = empty ? (cell.fallback?.text ?? cell.displayText) : cell.displayText;
   return (
     <div className="ficha-cell" data-cell={cellKey(cell.address)}>
-      <div className="measurement-field" role="textbox" aria-readonly="true" aria-label={label} data-state={cell.verdict === 'out' ? 'out-of-limit' : undefined}>
+      <div className="measurement-field" role="textbox" aria-readonly="true" aria-label={label} data-state={fieldState(cell)}>
         <span className={empty ? 'mf-value is-empty' : 'mf-value'}>{text}</span>
         {cell.unit === null ? null : (
           <span className="mf-unit" aria-label={t.unitNames[cell.unit] ?? cell.unit}>
@@ -574,6 +603,7 @@ export function ReadOnlyMeasurementField({ cell, label }: { cell: FieldCell; lab
       </div>
       {cell.helperText === null ? null : <div className="mf-helper">{cell.helperText}</div>}
       {cell.outlier === null || cell.outlier === undefined ? null : <div className="outlier-helper">{cell.outlier.text}</div>}
+      <RestrictedHelper cell={cell} />
       <PreviousLine text={previous} />
     </div>
   );

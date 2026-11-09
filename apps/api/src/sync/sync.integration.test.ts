@@ -1116,12 +1116,12 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('contract 37 (Stories 23.10 and 23.11, batch e23h; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-36 pull is refused with 426 contract_outdated on every stream, a version-37 pull is answered', async () => {
+  it('contract 37 (Stories 23.10 and 23.11, batch e23h; contract 36, Stories 23.5, 23.6 and 23.14, batch e23v; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-36 pull is refused with 426 contract_outdated on every stream, a version-37 pull is answered', async () => {
     expect(CONTRACT_VERSION).toBe(37);
     expect(MIN_CONTRACT_VERSION).toBe(37);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
       // 36 shows no "Como ensaiar" and derives a point out of criterion without its test's recommendation (Stories 23.10 and 23.11);
-      // 35 lacks contract 36 (batch e23v);
+      // 35 cannot parse a point of origin restricao nor judge a v13 sheet corrected to 20 °C and on three levels (Stories 23.5, 23.6, 23.14);
       // 34 cannot parse a `sheet/{b}/test/{k}/applicability` put nor read a v13 sheet's TTR per tap and NA tests (Stories 23.7 to 23.9);
       // 33 cannot resolve seed v13 and would store a malformed manufacturer's value the server refuses (batch e23a);
       // 32 cannot parse the `equipment_type` families, a `type:` block or a snapshot carrying `equipment_types` (Story 14.6);

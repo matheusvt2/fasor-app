@@ -8,6 +8,7 @@ import {
   isEquipmentBlockType,
   nextSheet,
   sheetProgress,
+  visitContextOf,
   type BlockRow,
   type EntityState,
   type InstrumentRow,
@@ -74,6 +75,9 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
   // e22f N2: as "Concluir ficha" will leave the sheet (the floor filling an unset half).
   const concludeProgress = useMemo(() => sheetProgress({ ...snapshot, equipment }, blockId, { floorFills: true }), [snapshot, equipment, blockId]);
   const next = useMemo(() => nextSheet(snapshot, blockId), [snapshot, blockId]);
+  // Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (the cabine's ambient, the equipment's previous visit),
+  // from the same rows the progress reads; the kernel memoizes it per cabine row, equipment row and relatório.
+  const visit = useMemo(() => visitContextOf({ locations: snapshot.locations, equipment }, block), [snapshot.locations, equipment, block]);
   const cabine = useMemo(() => cabineOf(snapshot.locations, block.location_id), [snapshot.locations, block.location_id]);
   const cabineFirst = useMemo(() => isCabineFirstSheet(snapshot, blockId), [snapshot, blockId]);
   const enabled = enabledSubBlocksOf(block);
@@ -99,5 +103,5 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
     [relatorioId, projectId, blockId, editor, saved],
   );
 
-  return { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api };
+  return { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api, visit };
 }

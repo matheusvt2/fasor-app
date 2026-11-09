@@ -151,12 +151,15 @@ export function routeHarness(deviceId: string) {
     expect(result.rejected, JSON.stringify(result.rejected)).toEqual([]);
   }
 
-  /** A relatório of the standard template and its obra, pushed as one client batch at `at` (Rascunho). */
-  async function seedRelatorio(company: Company, at: Date = new Date()): Promise<SeededRelatorio> {
+  /**
+   * A relatório of the standard template and its obra, pushed as one client batch at `at` (Rascunho). Batch e23v: a suite
+   * about an older seed's behaviour names its version (the standard template on it); the current one by default.
+   */
+  async function seedRelatorio(company: Company, at: Date = new Date(), seedVersion?: string): Promise<SeededRelatorio> {
     const projectId = newId();
     const project = clientOp(company, { kind: 'create', scope: 'company', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra das regras', site: null, removed_at: null } }, at);
     const { relatorioId, drafts } = instantiateTemplate(
-      standardTemplate({ id: newId() }),
+      standardTemplate({ id: newId(), ...(seedVersion === undefined ? {} : { seedVersion }) }),
       { id: projectId },
       { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
       { newId, actorId: company.userId, companyId: company.companyId },

@@ -1,4 +1,4 @@
-import { composeConclusion, defaultBlockConfig, emptySheet, getDefinition, TEXT_CAPS, type BlockRow, type Cell, type OpDraft, type Sheet } from '@app/domain';
+import { composeConclusion, defaultBlockConfig, emptySheet, getDefinition, NO_VISIT_CONTEXT, TEXT_CAPS, type BlockRow, type Cell, type OpDraft, type Sheet } from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -72,7 +72,7 @@ function renderSection(shown: BlockRow, current?: BlockRow) {
   };
   render(
     <ToastProvider>
-      <ConclusaoSection api={api} block={shown} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} />
+      <ConclusaoSection api={api} block={shown} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} visit={NO_VISIT_CONTEXT} />
     </ToastProvider>,
   );
   return builds;
@@ -138,7 +138,7 @@ function renderObservations() {
   };
   render(
     <ToastProvider>
-      <ConclusaoSection api={api} block={block({})} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} />
+      <ConclusaoSection api={api} block={block({})} definition={SEC} tag="SEC-C05" className="ficha-step" onFocus={() => undefined} section9={{ ref: 'seção 5', prints: true, absent: 'não sai no documento: o relatório não tem a seção 5' }} visit={NO_VISIT_CONTEXT} />
     </ToastProvider>,
   );
 }

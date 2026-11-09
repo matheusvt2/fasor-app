@@ -4,11 +4,21 @@ import { evaluateSheetMeasurements, measurementCells } from '../relatorio/measur
 import { isReadingValue, overRangeText } from '../relatorio/over-range.ts';
 import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
-import { tapRowsOf } from '../relatorio/tap-rows.ts';
+import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import type { BlockRow, EquipmentRow, LastResults } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import {
+  previousReadingsByAddress,
+  previousResultsFor,
+  readingAddressKey,
+  readingSlotsOf,
+  withoutPrior,
+  type LastResultReading,
+  type PreviousResults,
+  type SlotDefinition,
+} from './reading-slots.ts';
 
 /*
  * Story 22.12 (contract 32, AD-25's second projection): the readings an issued revision leaves on
@@ -36,105 +46,51 @@ import type { BlockDefinition } from '../seed/schema.ts';
  * tests; measurement tests switched on and run, on the rows the configuration shows); a block
  * marked not tested, removed or with no equipment gives no entry, and an entry with no reading
  * is not written (the older one stays, as `last_nameplate` does).
+ *
+ * Batch e23v (Story 23.6, contract 36): a reading of a v13 test with `temperature_correction`
+ * keeps its value corrected to 20 °C as the sheet judged it (`corrected`, under the block's visit
+ * context: the cabine's ambient), the value the next visit's history rule compares with; a reading
+ * of any other test, every reading of v1 to v12, and one with no temperature carry none.
  */
 
 export type LastResultsValue = LastResults;
-/** One revision's readings, without its `prior`. */
-export type PreviousResults = Omit<LastResults, 'prior'>;
-export type LastResultReading = LastResults['readings'][string];
+
+// Batch e23v (Story 23.6): the reading keys and the previous-visit lookups live in `reading-slots.ts`
+// (no evaluation imported there, so the reading evaluation reads them); re-exported here unchanged.
+export {
+  previousReadingsByAddress,
+  previousResultsFor,
+  readingAddressKey,
+  readingSlotsOf,
+  type LastResultReading,
+  type PreviousResults,
+  type ReadingSlot,
+} from './reading-slots.ts';
 
 export interface LastResultsEntry {
   equipmentId: string;
   value: LastResultsValue;
 }
 
-/** One reading cell of a definition and its key. */
-export interface ReadingSlot {
-  testKey: string;
-  /** The op path's `row` and `col` (`reading-cells.ts` for a seeded test, `measurement-evaluation.ts` for a measurement test). */
-  row: number;
-  col: number;
-  key: string;
-}
-
-/** The op-path address of a cell as one string: `${testKey}/${row}/${col}`. */
-export function readingAddressKey(address: { testKey: string; row: number; col: number }): string {
-  return `${address.testKey}/${address.row}/${address.col}`;
-}
-
-/** What `readingSlotsOf` reads of a definition: its tests, and the nameplate a `rows_from` table's list is on. */
-type SlotDefinition = Pick<BlockDefinition, 'tests' | 'measurement_tests'> & Partial<Pick<BlockDefinition, 'nameplate'>>;
-
 /**
- * Every reading cell of a definition, keyed: the capture cells of every seeded test, in table,
- * row and column order, then the number cells of every measurement test (fixed cells left out),
- * whatever the block's configuration or switches. Story 23.8: with `block`, a `rows_from` table's
- * rows are the block's (`tapRowsOf`); without it, or with the plate's list empty, the seeded ones.
+ * The readings a block holds now, keyed as `readingSlotsOf` keys them (its own tap rows included); empty for a block with nothing measured.
+ * Batch e23v: under `visit` (the block's visit context), a corrected reading keeps its value at 20 °C.
  */
-export function readingSlotsOf(definition: SlotDefinition, block?: Pick<BlockRow, 'sheet'>): ReadingSlot[] {
-  const out: ReadingSlot[] = [];
-  const seen = new Map<string, number>();
-  const push = (testKey: string, row: number, col: number, base: string) => {
-    const n = (seen.get(base) ?? 0) + 1;
-    seen.set(base, n);
-    out.push({ testKey, row, col, key: n === 1 ? base : `${base}~${n}` });
-  };
-  for (const test of definition.tests) {
-    let offset = 0;
-    for (const table of test.tables) {
-      const seededKey = (r: number) => {
-        const cells = (table.rows[r] ?? []).map((text) => text.trim());
-        return `${table.key}:${cells.every((text) => text === '') ? `#${r}` : cells.join('/')}`;
-      };
-      const captures = (row: number, rowKey: string) =>
-        table.value_columns.forEach((column, col) => {
-          if (column.role === 'capture') push(test.key, row, col, `${test.key}|${rowKey}|${column.label}`);
-        });
-      const plan = block === undefined || definition.nameplate === undefined ? null : tapRowsOf(block, { nameplate: definition.nameplate }, table, test.key);
-      if (plan === null) table.rows.forEach((_, r) => captures(offset + r, seededKey(r)));
-      else for (const entry of plan) captures(entry.row, entry.volts === null ? seededKey(entry.row) : `${table.key}:@${entry.volts}`);
-      offset += table.rows.length;
-    }
-  }
-  for (const test of definition.measurement_tests ?? []) {
-    test.rows.forEach((row, r) => {
-      test.columns.forEach((column, col) => {
-        const kind = row.kind ?? column.kind;
-        if (kind !== 'number' || row.fixed?.[column.key] !== undefined) return;
-        push(test.key, r, col, `${test.key}|${row.key}|${column.key}`);
-      });
-    });
-  }
-  return out;
-}
-
-/** The readings a block holds now, keyed as `readingSlotsOf` keys them (its own tap rows included); empty for a block with nothing measured. */
-export function blockReadings(block: BlockRow, definition: BlockDefinition): Record<string, LastResultReading> {
+export function blockReadings(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): Record<string, LastResultReading> {
   const keys = new Map(readingSlotsOf(definition, block).map((slot) => [readingAddressKey(slot), slot.key]));
   const readings: Record<string, LastResultReading> = {};
-  const keep = (address: { testKey: string; row: number; col: number }, state: string, raw: string, unit: string | null) => {
+  const keep = (address: { testKey: string; row: number; col: number }, state: string, raw: string, unit: string | null, corrected: { raw: string; unit: string | null } | null = null) => {
     const key = keys.get(readingAddressKey(address));
     if (key === undefined || !isReadingValue(state)) return;
-    readings[key] = { raw, unit, state };
+    readings[key] = corrected === null ? { raw, unit, state } : { raw, unit, state, corrected: { raw: corrected.raw, unit: corrected.unit } };
   };
-  for (const cell of evaluatedCells(evaluateSheetReadings(block, definition))) {
-    if (cell.role === 'capture') keep(cell.address, cell.state, cell.raw, cell.unit);
+  for (const cell of evaluatedCells(evaluateSheetReadings(block, definition, visit))) {
+    if (cell.role === 'capture') keep(cell.address, cell.state, cell.raw, cell.unit, cell.corrected ?? null);
   }
   for (const cell of measurementCells(evaluateSheetMeasurements(block, definition))) {
     if (cell.kind === 'number') keep(cell.address, cell.state, cell.raw, cell.unit);
   }
   return readings;
-}
-
-function strip(entry: LastResults): PreviousResults {
-  return {
-    relatorio_id: entry.relatorio_id,
-    revision_number: entry.revision_number,
-    issued_at: entry.issued_at,
-    seed_version: entry.seed_version,
-    block_type: entry.block_type,
-    readings: entry.readings,
-  };
 }
 
 /**
@@ -153,11 +109,11 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
     if (done.has(block.equipment_id)) continue;
     const definition = blockDefinitionIn(ctx, block);
     if (definition === null) continue;
-    const readings = blockReadings(block, definition);
+    const readings = blockReadings(block, definition, visitContextOf(snapshot, block));
     if (Object.keys(readings).length === 0) continue;
     done.add(block.equipment_id);
     const existing = snapshot.equipment.find((row) => row.id === block.equipment_id)?.last_results ?? null;
-    const prior = existing === null ? null : existing.relatorio_id === snapshot.relatorio.id ? existing.prior : strip(existing);
+    const prior = existing === null ? null : existing.relatorio_id === snapshot.relatorio.id ? existing.prior : withoutPrior(existing);
     out.push({
       equipmentId: block.equipment_id,
       value: {
@@ -174,19 +130,6 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
   return out;
 }
 
-/**
- * The previous visit a sheet of relatório `relatorioId` reads: the equipment's entry when another
- * relatório left it, else (this relatório re-issued) its `prior`; null with none, or when the
- * entry is of another block type than the sheet's (the equipment changed type).
- */
-export function previousResultsFor(equipment: Pick<EquipmentRow, 'last_results'> | null | undefined, block: Pick<BlockRow, 'block_type'>, relatorioId: string): PreviousResults | null {
-  const top = equipment?.last_results ?? null;
-  if (top === null) return null;
-  const entry = top.relatorio_id !== relatorioId ? strip(top) : top.prior;
-  if (entry === null || entry.block_type !== block.block_type) return null;
-  return entry;
-}
-
 /** A previous reading as the helper and MANUT. ANTERIOR print it: "4,9 GΩ", "> 2 TΩ". */
 export function previousReadingText(reading: LastResultReading): string {
   if (!isReadingValue(reading.state)) return '-';
@@ -198,20 +141,6 @@ export function previousReadingText(reading: LastResultReading): string {
 /** The line under a capture cell: "Anterior: 4,9 GΩ (rev. 1, 05/11/2026)". */
 export function previousHelperText(entry: Pick<PreviousResults, 'revision_number' | 'issued_at'>, reading: LastResultReading): string {
   return `Anterior: ${previousReadingText(reading)} (rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`;
-}
-
-/**
- * The previous reading of each cell of `definition` the entry holds, by `readingAddressKey`; with
- * `block`, its tap rows read the readings of their taps (Story 23.8).
- */
-export function previousReadingsByAddress(entry: PreviousResults | null, definition: SlotDefinition, block?: Pick<BlockRow, 'sheet'>): ReadonlyMap<string, LastResultReading> {
-  const out = new Map<string, LastResultReading>();
-  if (entry === null) return out;
-  for (const slot of readingSlotsOf(definition, block)) {
-    const reading = entry.readings[slot.key];
-    if (reading !== undefined) out.set(readingAddressKey(slot), reading);
-  }
-  return out;
 }
 
 /**

@@ -5,10 +5,12 @@ import { invertBatch } from '../ops/outbox.ts';
 import { NOT_APPLICABLE_NUMBER } from '../parse/pt-br-number.ts';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
-import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type Cell, type EquipmentRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { syncBadgeState, syncCounts } from '../sync/counts.ts';
 import { composeConclusion, conclusionTextState } from '../relatorio/conclusion.ts';
+import { visitContextOf } from '../relatorio/visit-context.ts';
+import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import {
   applyPickOps,
@@ -1070,5 +1072,62 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
     const row = fold([create, edit, removal, keep, later, undo]);
     expect(row.removed_by).toBe(ANA);
     expect(row.removal_conflict).toEqual({ removed_by: ANA, removed_at: removal.client_ts, edited_by: EDUARDO, edited_at: later.client_ts });
+  });
+});
+
+/*
+ * Batch e23v (Stories 23.5 and 23.6, seed v13; review fix): the conclusion text decision composes the
+ * sheet as it is judged, under its visit context. A v13 oil transformer with no plate temperature takes
+ * the cabine's 40 °C: its AT row at 2 GΩ, out raw, is 8 GΩ at 20 °C, so the text composed now differs
+ * from the raw judgement's, and the composed side carries the context's text and basis.
+ */
+describe('batch e23v the conclusion text decision composes under the visit context', () => {
+  it('a v13 transformer judged at the cabine\'s 40 °C: the composed side\'s text and basis are composeConclusion under visitContextOf', () => {
+    const snapshot = structuredClone(layoutLockSnapshot('v13'));
+    const source = snapshot.blocks.find((row) => row.block_type === 'transformador_forca' && row.removed_at === null)!;
+    const tf: BlockRow = structuredClone(source);
+    const op = (n: number) => `019966b0-0012-7000-8000-0000000e23${n.toString(16).padStart(2, '0')}`;
+    const cellOf = (value: Cell['value'], n: number, conflict?: { value: Cell['value']; n: number }): Cell => ({
+      value,
+      source_suggestion_id: null,
+      op_id: op(n),
+      ...(conflict === undefined ? {} : { conflict: { op_id: op(conflict.n), value: conflict.value, source_suggestion_id: null } }),
+    });
+    delete tf.sheet.nameplate.temperatura_oleo_c;
+    // The fixture's rule-made TTR readings fail it: left empty, so the insulation decides.
+    delete tf.sheet.test.relacao_transformacao;
+    tf.sheet.test.isolacao!.cells['0']!['1'] = cellOf({ raw: '2', unit: 'GΩ', state: 'measured' }, 1);
+    // Contract 16's row: Ana's composed text stands, Eduardo's edited one displaced, each with its status and basis.
+    tf.sheet.conclusion = {
+      result: cellOf('aprovado', 2),
+      restriction: cellOf('com_restricoes', 3),
+      text: cellOf('Texto composto de Ana.', 4, { value: 'Texto editado por Eduardo.', n: 5 }),
+      text_status: cellOf('confirmed', 6, { value: 'edited', n: 7 }),
+      text_basis: cellOf('bbbbbbbb', 8, { value: 'aaaaaaaa', n: 9 }),
+    };
+    snapshot.blocks = snapshot.blocks.map((row) => (row.id === tf.id ? tf : row));
+    const cabine = snapshot.locations.find((row): row is Extract<LocationRow, { kind: 'cabine' }> => row.kind === 'cabine')!;
+    cabine.env.temperature_c = { raw: '40', unit: '°C', state: 'measured' };
+    const tfDefinition = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+    const tag = snapshot.equipment.find((row) => row.id === tf.equipment_id)!.tag;
+    const now = composeConclusion(tf, tfDefinition, tag, visitContextOf(snapshot, tf));
+    expect(now.basis).not.toBe(composeConclusion(tf, tfDefinition, tag).basis);
+
+    const decision = openDecisions({
+      definitions: EMPTY_DEFINITION_CONTEXT,
+      relatorioId: tf.relatorio_id,
+      blocks: [tf],
+      locations: snapshot.locations,
+      equipment: snapshot.equipment,
+      opOf: () => undefined,
+      createOpOf: () => undefined,
+    }).find((one): one is CellDecision => one.kind === 'cell')!;
+    const text = decision.cells.find((one) => one.path === `sheet/${tf.id}/conclusion/text`)!;
+    expect(text.composedSide).toBe('standing');
+    expect(text.standing.value).toBe(now.text);
+    expect(text.companions).toEqual([
+      { path: `sheet/${tf.id}/conclusion/text_status`, standing: 'confirmed', displaced: 'edited' },
+      { path: `sheet/${tf.id}/conclusion/text_basis`, standing: now.basis, displaced: 'aaaaaaaa' },
+    ]);
   });
 });

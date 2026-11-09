@@ -197,6 +197,62 @@ function withNameplateFields(seed: ReportSeed): ReportSeed {
   return { ...seed, blocks };
 }
 
+// --- e23v: Stories 23.5, 23.6, 23.14 ---------------------------------------------------------
+/*
+ * Story 23.5 (decision B; Base rev08 table CORRECAO_TEMPERATURA): the transformador de força's
+ * insulation is judged corrected to 20 °C by its medium, an oil unit from TEMPERATURA DO ÓLEO and a
+ * dry one from TEMPERATURA DO ENROLAMENTO (TR-OL-02, TR-SE-02), the disjuntor's and the
+ * seccionadora's by the solid factor at the cabine's ambient (DJ-02, SC-02: the base names no
+ * medium there). No other test is corrected (the TC, TP, arrester and cable rows name none).
+ *
+ * Story 23.6 (decision C): only the rules the base states in numbers. TR-OL-02's history rule
+ * (TR-SE-02 takes it too: one product type, the same number), CB-02's comparison between phases
+ * (its history term is a vague one, open item B-1, and cables are never corrected), PR-02's
+ * comparison against the largest unit with its disconnector prerequisite.
+ *
+ * Story 23.14 (decision L; DJ-03, SC-03, NETA MTS-2023 7.6.3 and 7.5.1): the contact resistance's
+ * deviation over the lowest pole; the seeded 250 µΩ criterion stands, its row status PADRÃO FASOR.
+ * No rule reads the previous visit's contact resistance (open item B-6).
+ */
+
+type E23vKeys = Pick<TestDef, 'temperature_correction' | 'restriction' | 'criterion_status'>;
+
+/** The e23v keys of each type's tests, by test key; every other test as it was. */
+const E23V_KEYS: Partial<Record<BaseEquipmentBlockType, Partial<Record<TestDef['key'], () => E23vKeys>>>> = {
+  transformador_forca: {
+    isolacao: () => ({
+      temperature_correction: { to_c: 20, medium: 'oil_rule', oil_field: TEMPERATURA_DO_OLEO.key, dry_field: TEMPERATURA_DO_ENROLAMENTO.key },
+      restriction: { history_drop_pct: 50, status: 'PADRÃO FASOR' },
+    }),
+  },
+  disjuntor_mt: {
+    isolacao: () => ({ temperature_correction: { to_c: 20, medium: 'solid' } }),
+    resistencia_contato: () => ({ restriction: { pole_deviation_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' }),
+  },
+  chave_seccionadora: {
+    isolacao: () => ({ temperature_correction: { to_c: 20, medium: 'solid' } }),
+    resistencia_contato: () => ({ restriction: { pole_deviation_pct: 50, status: 'CONFIRMADO' }, criterion_status: 'PADRÃO FASOR' }),
+  },
+  cabos_entrada: { isolacao: () => ({ restriction: { below_largest_pct: 50, status: 'PADRÃO FASOR' } }) },
+  cabos_saida: { isolacao: () => ({ restriction: { below_largest_pct: 50, status: 'PADRÃO FASOR' } }) },
+  para_raio: {
+    isolacao: () => ({ restriction: { below_largest_pct: 50, prerequisite: { field: 'desligador_integro', fails_on: ['NÃO'] }, status: 'PADRÃO FASOR' } }),
+  },
+};
+
+/** Batch e23v's whole delta (Stories 23.5, 23.6 and 23.14), applied after e23b's; throws on a test this section did not expect. */
+function withCorrectionAndRestrictions(seed: ReportSeed): ReportSeed {
+  const blocks = { ...seed.blocks };
+  for (const [type, byTest] of Object.entries(E23V_KEYS) as [BaseEquipmentBlockType, Partial<Record<TestDef['key'], () => E23vKeys>>][]) {
+    const definition = blocks[type];
+    for (const key of Object.keys(byTest)) {
+      if (!definition.tests.some((test) => test.key === key)) throw new Error(`seed v13: ${type} lacks the test "${key}"`);
+    }
+    blocks[type] = { ...definition, tests: definition.tests.map((test): TestDef => (byTest[test.key] === undefined ? test : { ...test, ...byTest[test.key]!() })) };
+  }
+  return { ...seed, blocks };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV13(): ReportSeed {
@@ -204,8 +260,8 @@ function cabinePrimariaV13(): ReportSeed {
   const blocks = { ...seed.blocks };
   // e23a (Stories 23.2 and 23.4).
   for (const type of LIMIT_NOTE_TYPES) blocks[type] = insulationV13(type, blocks[type]);
-  // e23b (Stories 23.7 to 23.9), after every e23a step.
-  return withNameplateFields({ ...seed, blocks });
+  // e23b (Stories 23.7 to 23.9), after every e23a step; then e23v (Stories 23.5, 23.6, 23.14).
+  return withCorrectionAndRestrictions(withNameplateFields({ ...seed, blocks }));
 }
 
 export const CABINE_PRIMARIA_V13: ReportSeed = cabinePrimariaV13();

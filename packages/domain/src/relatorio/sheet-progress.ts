@@ -15,6 +15,8 @@ import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 import { tapRowRequired } from './tap-rows.ts';
 import { firstInTree } from './tree.ts';
 import { VECTOR_GROUP_FIELD } from './vector-group.ts';
+// Batch e23v (Stories 23.5 and 23.6): the sheet is judged under its visit context.
+import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from './visit-context.ts';
 
 /*
  * Story 5.1: the per-sheet progress the Sheet header's Progress counter, the Section
@@ -203,8 +205,8 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
   return missing;
 }
 
-function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>): SheetStepProgress {
-  const evaluations = sheetReadings(block, definition);
+function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>, visit: VisitContext): SheetStepProgress {
+  const evaluations = sheetReadings(block, definition, visit);
   const cells = evaluatedCells(evaluations);
   const measurements = measurementCounts(sheetMeasurements(block, definition));
   // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
@@ -221,12 +223,12 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   };
 }
 
-function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>, floorFills: boolean): { missing: number; observation: number } {
+function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<string>, floorFills: boolean, visit: VisitContext): { missing: number; observation: number } {
   if (!enabled.has('conclusion')) return { missing: 0, observation: 0 };
   // ~~Story 22.4: the effective pair, so a floor fills an unset half~~ e22f N2: the chosen pair
   // (a stored half, made stricter by the floor); with `floorFills`, what "Concluir ficha" will
   // write, the effective pair (the floor fills an unset half in the conclude batch).
-  const { result, restriction } = floorFills ? effectiveConclusionPair(block, definition) : chosenConclusionPair(block, definition);
+  const { result, restriction } = floorFills ? effectiveConclusionPair(block, definition, visit) : chosenConclusionPair(block, definition, visit);
   let missing = 0;
   let observation = 0;
   if (result === null) missing += 1;
@@ -264,8 +266,10 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, 
     const placa = placaMissing(snapshot, block, enabled);
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled, ctx);
-    steps.ensaios = ensaiosCounts(block, definition, enabled);
-    const conclusao = conclusaoMissing(block, definition, enabled, options.floorFills === true);
+    // Batch e23v: the visit context of the sheet when the caller holds its locations and equipment, else none.
+    const visit = snapshot.locations === undefined || snapshot.equipment === undefined ? NO_VISIT_CONTEXT : visitContextOf({ locations: snapshot.locations, equipment: snapshot.equipment }, block);
+    steps.ensaios = ensaiosCounts(block, definition, enabled, visit);
+    const conclusao = conclusaoMissing(block, definition, enabled, options.floorFills === true, visit);
     steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;

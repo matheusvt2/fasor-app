@@ -43,6 +43,9 @@ describe('14.3-UNIT pointDraftValue', () => {
     const reading = { ...base, equipmentId: EQUIPMENT, origin: 'reading', testKey: 'isolacao' };
     expect(pointDraftValue(reading)).toEqual(reading);
     expect(pointDraftValue({ ...base, equipmentId: EQUIPMENT, origin: 'reprovado' })).toEqual({ ...base, equipmentId: EQUIPMENT, origin: 'reprovado' });
+    // Batch e23v (Story 23.6, contract 36): a point written from a restricted test's entry, with its test.
+    const restricao = { ...base, equipmentId: EQUIPMENT, origin: 'restricao', testKey: 'isolacao' };
+    expect(pointDraftValue(restricao)).toEqual(restricao);
     expect(pointDraftValue({ ...base, itemKey: 7 })).not.toHaveProperty('itemKey');
     expect(pointDraftValue({ ...base, origin: 'derivado' })).toBeNull();
   });

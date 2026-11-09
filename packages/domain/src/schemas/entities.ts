@@ -341,8 +341,19 @@ export const lastNameplateSchema = z.object({
   fields: z.record(z.string(), fieldValueSchema),
 });
 
-/** Story 22.12: one stored reading of an issued revision, by value (AR-10's number shape). */
-export const lastResultReadingSchema = z.object({ raw: z.string(), unit: nullableString, state: z.enum(['measured', 'over_range']) });
+/**
+ * Story 22.12: one stored reading of an issued revision, by value (AR-10's number shape). Batch e23v
+ * (Story 23.6, contract 36): `corrected` is the reading corrected to 20 °C as it was judged (seed v13,
+ * a test with `temperature_correction`), the value the next visit's history rule compares with;
+ * optional and never defaulted, so a reading written before 36 (or of an uncorrected test) parses to
+ * the same bytes and judges nothing.
+ */
+export const lastResultReadingSchema = z.object({
+  raw: z.string(),
+  unit: nullableString,
+  state: z.enum(['measured', 'over_range']),
+  corrected: z.object({ raw: z.string(), unit: nullableString }).optional(),
+});
 
 /** Story 22.12: the readings of one issued revision of one equipment (`print/last-results.ts`), keyed `${testKey}|${rowKey}|${colKey}`. */
 const lastResultsEntryShape = {
@@ -692,9 +703,11 @@ export const pointRowSchema = z.object({
   /**
    * Story 22.5 (contract 31): `nc`, `reading` and `reprovado` name the derived entry a point
    * was written from ("Editar" on the entry, "Criar ponto de atenção" on an NC row), with its
-   * `item_key` or `test_key`; the point replaces that entry (`points/derived.ts`).
+   * `item_key` or `test_key`; the point replaces that entry (`points/derived.ts`). Batch e23v
+   * (Story 23.6, contract 36): `restricao`, a test with a reading restricted on seed v13, with its
+   * `test_key`.
    */
-  origin: z.enum(['manual', 'not_tested', 'nc', 'reading', 'reprovado']),
+  origin: z.enum(['manual', 'not_tested', 'nc', 'reading', 'reprovado', 'restricao']),
   order_key: z.string(),
   removed_at: nullableIso,
   action: nullableString.default(null),

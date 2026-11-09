@@ -3289,6 +3289,34 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   class: decision
   state: open (owner: Matheus: refuse that removal, or drop the table's `ratio_factor` with it)
 
+## Deferred from: Epic 23 batch e23v (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Tasks, `print/section-9.ts`: "the TF table fits at 8 pt (16 half points)")
+  summary: The transformer's insulation table with the "20 °C" column does not fit the 60 em rule at 8 pt by the kernel's own measure (`fittedColumns`): v12's table needs 58,9 em at 8 pt and the column adds at least 2,2 em with its margins (61,6 em with the frame's readings), so it steps on to 7,5 pt (15 half points), every word whole; judged row by row (its ACEITÁVEL column) it steps further, as e23a's per-row steps allow. Nothing else was changed to reach 8 pt (the rule and its measure are e22g's); `three-levels.test.ts` pins 7,5 pt with the reason.
+  evidence: `packages/domain/src/print/section-9.ts` `fittedColumns`, `READING_FIT_WIDTH_EM`; `packages/domain/src/relatorio/three-levels.test.ts` "section 9 at the fit".
+  class: decision
+  state: open (owner: Matheus: 7,5 pt as the rule gives it, or a narrower layout)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Design Notes, "Rules as read")
+  summary: The narrowings of the batch, as the spec reads the base: correction only on TR-OL-02, TR-SE-02, DJ-02 and SC-02 (DJ and SC by the solid factor, at the ambient); a transformer whose TIPO DE ISOLAÇÃO is empty is not corrected; a reading above the instrument's limit is never corrected and prints "-" at 20 °C; CB-02's history (its only term, "queda acentuada", is open item B-1) and DJ-02/SC-02's "fases com diferença > 50 %" (no number in the rule) are not built; TR-OL-02's history serves TR-SE-02; the cable and arrester comparison is below 50 % of the largest other row (FASE RESERVA included); a failed prerequisite is the test's `reading` entry, never a new derived kind; a test with a `reading` entry derives no `restricao` entry; the TEMPERATURA cell and the "20 °C" column also print on the disjuntor's and the seccionadora's tables. Two readings of the implementation: a temperature outside -10 °C to 110 °C still prints in TEMPERATURA (with its source) while the "20 °C" column prints "-"; the corrected value is rounded to three significant figures, and that rounded value is what is judged and shown.
+  evidence: `packages/domain/src/seed/v13.ts` (the e23v section), `relatorio/temperature-correction.ts`, `relatorio/restriction.ts`, `points/derived.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Boundaries, authored strings listed for Bruno)
+  summary: The authored pt-BR texts of the batch: the temperature line's sources ("do óleo, na placa", "do enrolamento, na placa", "do ambiente de ensaio, no local"), its requests ("Informe a temperatura do óleo na placa ou a do ambiente de ensaio no local: sem ela, …", "Informe o tipo de isolação na placa: sem ele, …") and its out-of-table note; the column header "Corrigido a 20 °C", the card lead "A 20 °C:", the print header "20 °C" and the TEMPERATURA cell ("40 °C (ÓLEO)", "(ENROLAMENTO)", "(AMBIENTE)"); the out helper "Abaixo do aceitável a 20 °C: {valor} ({critério})" and " a 20 °C" after a judged value; the three restriction reasons and helper details ("queda de mais de 50 % desde a manutenção anterior", "abaixo de 50 % da maior leitura", "mais de 50 % acima do menor polo", each with the row and value compared), the closing sentence (`60-ficha.html`'s, verbatim); the prerequisite clause "pré-requisito não atendido ({campo}: {valor})"; the floor words "pré-requisito do ensaio não atendido" and "leitura com restrição"; the conclusion clauses "com restrição no {ensaio} ({linhas})" and "{pré-requisito} no {ensaio}"; the point's text "{Ensaio}: valor dentro do critério, com restrição ({motivos})", its chip "Com restrição" and its section 8 head "Ensaio com restrição"; the type editor's four validation sentences.
+  evidence: `packages/domain/src/relatorio/temperature-correction.ts`, `relatorio/restriction.ts`, `relatorio/conclusion.ts`, `relatorio/reading-run.ts`, `points/derived.ts`, `print/section-8.ts`, `types/validate.ts`, `apps/web/src/copy/pt-br.ts` `restrictedLead`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (gate, `pnpm test:unit` 2026-11-09)
+  summary: One web test failed once in the full unit run under load and passed alone (`relatorio-tree-edges.test.tsx` "Desfazer after a move focuses the row's Position box", 9,5 s): the relatório tree, untouched by this batch.
+  evidence: `.scratch-e23v/unit-all-1.log`, `.scratch-e23v/unit-tree-edges.log` (11 of 11 alone).
+  class: flake
+  state: open (owner: the next carry-over batch, E15-A4)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Review Triage Log 2026-11-09, Edge Case Hunter)
+  summary: The parecer names a para-raio Reprovado only by its failed prerequisite (DESLIGADOR ÍNTEGRO NÃO) in the reasonless group ("Reprovado (PR-1)."), as if the engineer had chosen Reprovado. A fix needs a reason group, an authored word and a parecer-basis key present only when used.
+  evidence: `packages/domain/src/relatorio/parecer.ts` (the `byReason` loop: ratio, reading, defect, other).
+  class: defect
+  state: open (owner: the Epic 23 wave 2 fix batch)
+
 ## Deferred from: Epic 23 batch e23h (2026-11-09)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23h-field-help.md` (review, Verification Gap VG-3, low)

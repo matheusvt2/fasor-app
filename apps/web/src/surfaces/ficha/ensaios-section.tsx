@@ -41,6 +41,7 @@ import {
   type RelatorioSnapshot,
   type TestApplicability,
   type TestEvaluation,
+  type VisitContext,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
@@ -50,6 +51,7 @@ import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applica
 import type { FichaApi } from './ficha-api.ts';
 import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
+import { CorrectedValue, TemperatureLine } from './corrected-value.tsx';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { ManufacturerValue } from './manufacturer-value.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
@@ -96,6 +98,7 @@ export function EnsaiosSection({
   primaryId,
   targetFor,
   onCaptionPhoto,
+  visit,
 }: {
   api: FichaApi;
   /** Story 9.1: the device's rows, for the display suggestions. */
@@ -111,10 +114,13 @@ export function EnsaiosSection({
   /** Story 9.1: the capture target of a "Ler visor" shot of one test. */
   targetFor: (testKey: string) => CaptureTarget;
   onCaptionPhoto?: Parameters<typeof useDisplaySuggestions>[0]['onCaptionPhoto'];
+  /** Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (`visitContextOf`, from `useFichaData`), shared with the conclusion. */
+  visit: VisitContext;
 }) {
   // Story 23.9: every enabled test in the definition's order, an NA one with its band only; the
   // evaluations are `evaluateSheetReadings`'s (the tests in force), which the run and the cells read.
-  const sections = useMemo(() => sheetTestSections(block, definition), [block, definition]);
+  // Batch e23v: judged under the sheet's visit context (a v13 test's correction and restriction rules read it).
+  const sections = useMemo(() => sheetTestSections(block, definition, visit), [block, definition, visit]);
   const evaluations = useMemo(() => sections.flatMap((section) => (section.evaluation === null ? [] : [section.evaluation])), [sections]);
   // Story 14.5: the measurement tests of a library type; none on the eight FO.SERV-03 types.
   const measurements = useMemo(() => evaluateSheetMeasurements(block, definition), [block, definition]);
@@ -349,6 +355,8 @@ function TestSection({
           <>
             {voltageNotice}
             {manufacturer}
+            {/* Batch e23v (Story 23.5, seed v13): the temperature the test is corrected at, over its first table. */}
+            <TemperatureLine test={test} />
           </>
         ) : null
       }
@@ -484,6 +492,8 @@ function MeasurementTable({
   const markOf = (row: EvaluatedRow) => tapMarkText(row.tap);
   // Story 22.8 (seed v12): the row's test voltage, drawn right after the connection cells; null on v1 to v11 tables.
   const voltageColumn = table.voltageColumn;
+  // Batch e23v (Story 23.5, seed v13): a corrected test's "Corrigido a 20 °C" column, after its (last) capture column.
+  const correctedAfter = test.temperature === undefined ? null : (table.columns.filter((column) => column.role === 'capture').at(-1)?.col ?? null);
   const notices = table.rows.flatMap((row) => (row.voltage?.notice === null || row.voltage?.notice === undefined ? [] : [{ row: row.row, text: row.voltage.notice }]));
 
   return (
@@ -534,7 +544,7 @@ function MeasurementTable({
           last resort: a table wider than its box scrolls inside it, never the title row or the page. */}
       <div className="mt-scroll">
         <table
-          className={table.ratio ? (tapRows ? 'measurement-table ficha-ttr is-wide ficha-ttr-taps' : 'measurement-table ficha-ttr is-wide') : 'measurement-table'}
+          className={table.ratio ? (tapRows ? 'measurement-table ficha-ttr is-wide ficha-ttr-taps' : 'measurement-table ficha-ttr is-wide') : test.temperature === undefined ? 'measurement-table' : 'measurement-table ficha-iso-v13'}
           aria-labelledby={table.title === null ? undefined : titleId}
           aria-label={table.title === null ? screenLabel(test.title) : undefined}
         >
@@ -550,12 +560,18 @@ function MeasurementTable({
                   <WholeWords className="mt-word" text={voltageColumn.header} />
                 </th>
               )}
-              {table.columns.map((column) => (
+              {table.columns.map((column) => [
                 // DC-1: Condição is a word column (`60-ficha.html` draws its header without `col-value`).
                 <th key={column.col} scope="col" className={column.role === 'input' || column.derivedKind === 'condicao' ? undefined : 'col-value'}>
                   <WholeWords className="mt-word" text={screenLabel(column.header)} />
-                </th>
-              ))}
+                </th>,
+                // Batch e23v (Story 23.5): `60-ficha.html` #/ficha/TR1, the corrected column's header (the kernel's words).
+                column.col === correctedAfter && test.temperature !== undefined ? (
+                  <th key={`corrected-${column.col}`} scope="col" className="col-value" data-corrected-column="">
+                    <WholeWords className="mt-word" text={test.temperature.header} />
+                  </th>
+                ) : null,
+              ])}
             </tr>
           </thead>
           <tbody>
@@ -609,7 +625,9 @@ function MeasurementTable({
                   }
                   // Story 22.8: below 768 px the row's voltage sits over its first typed cell, the column hidden (`ficha.css`).
                   const stacked = voltageColumn !== null && row.voltage !== null && cell !== undefined && cell === row.cells[0];
-                  return (
+                  // Batch e23v (Story 23.5): the corrected value beside this capture, and under it below 768 px (the column hidden there).
+                  const corrected = column.col === correctedAfter && cell !== undefined ? <CorrectedValue key={`corrected-${column.col}`} test={test} cell={cell} /> : null;
+                  return [
                     <td key={column.col} className="cell-value">
                       {stacked ? (
                         <div className="voltage-stacked">
@@ -620,8 +638,10 @@ function MeasurementTable({
                         </div>
                       ) : null}
                       {cell === undefined ? null : field(row, cell, 'table')}
-                    </td>
-                  );
+                      {corrected === null ? null : <CorrectedValue test={test} cell={cell!} stacked />}
+                    </td>,
+                    corrected,
+                  ];
                 })}
               </tr>
             ))}

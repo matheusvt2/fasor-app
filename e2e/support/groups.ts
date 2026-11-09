@@ -219,6 +219,15 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'test-applicability.durability.spec.ts',
     why: 'Story 23.9: issues two revisions through the shared queue and LibreOffice, one with the test NA by the plate and one with it applied by hand, to read section 9 from the downloaded DOCX',
   },
+  // Batch e23v: 23.5-E2E-001 and 23.6-E2E-003 read the DOCX of the revisions they issue.
+  {
+    file: 'temperature-correction.spec.ts',
+    why: 'Story 23.5: issues a revision through the shared queue and LibreOffice to read TEMPERATURA and the 20 °C column of section 9 from the downloaded DOCX',
+  },
+  {
+    file: 'previous-visit-judges.spec.ts',
+    why: 'Story 23.6: issues two revisions through the shared queue and LibreOffice (relatório A, whose issue writes the corrected last_results, then B of the same obra) to read the 20 °C column, MANUT. ANTERIOR and section 8 from the DOCX',
+  },
   // Batch e23h: 23.11-E2E-001 reads the recommendation from section 8 of the DOCX it issues.
   {
     file: 'test-recommendation.spec.ts',

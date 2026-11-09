@@ -11,7 +11,7 @@ import {
   type EquipmentBlockType,
 } from '../schemas/block-config.ts';
 import type { CriterionSeed } from './criteria.ts';
-import { criterionTableSchema } from './criteria-tables.ts';
+import { criterionRowStatusSchema, criterionTableSchema } from './criteria-tables.ts';
 import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
 import { appliesWhenSchema, checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
 
@@ -251,6 +251,34 @@ export const criterionBandsSchema = z
   });
 export type CriterionBands = z.infer<typeof criterionBandsSchema>;
 
+/** Seed v13 (Story 23.5): a test's temperature correction (see `testDefSchema.temperature_correction`). */
+export const temperatureCorrectionSchema = z
+  .object({
+    to_c: z.literal(20),
+    medium: z.enum(['oil_rule', 'solid']),
+    oil_field: seedKey.optional(),
+    dry_field: seedKey.optional(),
+  })
+  .refine((c) => c.medium === 'oil_rule' || c.oil_field === undefined, { message: 'oil_field belongs to a correction read by the oil rule', path: ['oil_field'] });
+export type TemperatureCorrection = z.infer<typeof temperatureCorrectionSchema>;
+
+/** A restriction rule's share, in (0, 100) percent. */
+const restrictionPct = z.number().gt(0).lt(100);
+
+/** Seed v13 (Stories 23.6 and 23.14): a test's restriction rules (see `testDefSchema.restriction`). */
+export const restrictionSchema = z
+  .object({
+    history_drop_pct: restrictionPct.optional(),
+    below_largest_pct: restrictionPct.optional(),
+    pole_deviation_pct: restrictionPct.optional(),
+    prerequisite: z.object({ field: seedKey, fails_on: z.array(z.string().min(1)).min(1) }).optional(),
+    status: criterionRowStatusSchema,
+  })
+  .refine((r) => r.history_drop_pct !== undefined || r.below_largest_pct !== undefined || r.pole_deviation_pct !== undefined || r.prerequisite !== undefined, {
+    message: 'a restriction names at least one rule',
+  });
+export type RestrictionRules = z.infer<typeof restrictionSchema>;
+
 /** A test sub-block, bound by `criterion_key` to one of `SEEDED_CRITERIA` (Story 2.6). */
 export const testDefSchema = z.object({
   key: z.enum(['isolacao', 'resistencia_contato', 'relacao_transformacao']),
@@ -305,6 +333,35 @@ export const testDefSchema = z.object({
    * observation under the table, and its row's POLARIZAÇÃO prints N/A.
    */
   instrument_limit_note: z.literal(true).optional(),
+  /*
+   * Seed v13, batch e23v (Stories 23.5, 23.6 and 23.14). The three keys below are optional and never
+   * defaulted, so v1 to v12 parse to the bytes they shipped with; a test without them is judged raw
+   * and on two levels, as before.
+   */
+  /**
+   * Seed v13 (Story 23.5, decision B; Base rev08 TR-OL-02, TR-SE-02, DJ-02, SC-02, table
+   * CORRECAO_TEMPERATURA): the test's readings are judged corrected to `to_c`
+   * (`relatorio/temperature-correction.ts`). `medium: 'oil_rule'` takes the oil or the solid factor
+   * by the definition's oil rule (a medium the plate leaves unknown corrects nothing), `'solid'`
+   * always the solid one; `oil_field` and `dry_field` are the plate's number fields in °C an oil or
+   * a dry unit reads its temperature from (`oil_field` only under the oil rule), the cabine's ambient
+   * standing in while empty or where none is named.
+   */
+  temperature_correction: temperatureCorrectionSchema.optional(),
+  /**
+   * Seed v13 (Story 23.6, decision C; Story 23.14, decision L): the rules that restrict a reading
+   * already within its criterion (`relatorio/restriction.ts`), each a percentage in (0, 100):
+   * `history_drop_pct` a corrected reading that fell more than it since the previous visit's
+   * corrected one (Base rev08 TR-OL-02, needs `temperature_correction`); `below_largest_pct` one
+   * below that share of the largest other row of its table and column (CB-02 between phases, PR-02
+   * against the largest unit); `pole_deviation_pct` one above the lowest row of its table and
+   * column by more than it (DJ-03, SC-03, NETA MTS-2023 7.6.3 and 7.5.1); `prerequisite` a select of
+   * the plate whose `fails_on` values fail the test whatever its readings (PR-02's disconnector).
+   * `status` is the base's status of the rule (`CRITERION_ROW_STATUSES`, data only).
+   */
+  restriction: restrictionSchema.optional(),
+  /** Seed v13 (Story 23.14; Base rev08 DJ-03, SC-03): the base's status of the test's seeded criterion row (data only, never shown). */
+  criterion_status: criterionRowStatusSchema.optional(),
   /*
    * Batch e23h (Stories 23.10 and 23.11, contract 37), `seed/test-help.ts`: "Como ensaiar" (eight
    * optional texts, shown on the sheet, never printed) and the recommendation a `reading` derived
@@ -486,6 +543,48 @@ function checkSeedV13Definition(
     checkCondition(test.applies_when, ['tests', t, 'applies_when']);
   });
   (definition.measurement_tests ?? []).forEach((test, t) => checkCondition(test.applies_when, ['measurement_tests', t, 'applies_when']));
+  // --- e23v: Stories 23.5, 23.6, 23.14 ---
+  definition.tests.forEach((test, t) => checkE23vTest(definition, test, ['tests', t], field, issue));
+}
+
+/**
+ * Seed v13, batch e23v (Stories 23.5, 23.6 and 23.14): what a test's temperature correction and
+ * restriction rules name exists on the definition, each issue at its path (so a company type's
+ * draft names it beside its part, `types/validate.ts`):
+ * - a correction read by the oil rule needs the definition's oil rule;
+ * - its `oil_field` and `dry_field` are number fields of the nameplate in °C, of one value;
+ * - a history rule needs the test's temperature correction (it compares corrected readings);
+ * - a prerequisite names a select of the nameplate and only its options.
+ */
+function checkE23vTest(
+  definition: { oil_rule?: OilRule | undefined },
+  test: TestDef,
+  at: (string | number)[],
+  field: (key: string) => FieldDef | undefined,
+  issue: (path: (string | number)[], message: string) => void,
+): void {
+  const correction = test.temperature_correction;
+  if (correction !== undefined) {
+    if (correction.medium === 'oil_rule' && definition.oil_rule === undefined) issue([...at, 'temperature_correction', 'medium'], 'a temperature correction read by the oil rule needs an oil_rule');
+    for (const key of ['oil_field', 'dry_field'] as const) {
+      const name = correction[key];
+      if (name === undefined) continue;
+      const target = field(name);
+      if (target === undefined || target.kind !== 'number' || target.unit !== '°C' || target.list === true) {
+        issue([...at, 'temperature_correction', key], `temperature_correction.${key} "${name}" is not a number field of the nameplate in °C`);
+      }
+    }
+  }
+  const restriction = test.restriction;
+  if (restriction === undefined) return;
+  if (restriction.history_drop_pct !== undefined && correction === undefined) issue([...at, 'restriction', 'history_drop_pct'], 'a history rule needs the test\'s temperature_correction');
+  const prerequisite = restriction.prerequisite;
+  if (prerequisite !== undefined) {
+    const target = field(prerequisite.field);
+    if (target === undefined || target.kind !== 'select' || !prerequisite.fails_on.every((value) => target.options!.includes(value))) {
+      issue([...at, 'restriction', 'prerequisite'], `restriction.prerequisite names a select of the nameplate and only its options ("${prerequisite.field}")`);
+    }
+  }
 }
 
 /** The option of a SELV/PELV select that picks the SELV criterion. */

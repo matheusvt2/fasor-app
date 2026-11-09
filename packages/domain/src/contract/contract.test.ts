@@ -99,6 +99,8 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
+  // e23b (Stories 23.7 to 23.9, 2026-11-08): 35, after e23a's 34; MIN follows.
+  // e23v (Stories 23.5, 23.6 and 23.14, 2026-11-09): 36, after e23b's 35; MIN follows.
   // e23h (Stories 23.10 and 23.11, 2026-11-09): 37, after e23v's 36; MIN follows.
   it('speaks version 37 and refuses version 36 (Stories 23.10 and 23.11: a version-36 bundle shows no "Como ensaiar" and derives a point text the server does not)', () => {
     expect(CONTRACT_VERSION).toBe(37);
