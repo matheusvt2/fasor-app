@@ -201,7 +201,13 @@ function pruneCriteria(draft: Draft): void {
   draft.criteria = listOf(draft, 'criteria').filter((criterion) => named.has(textOf(criterion.key)));
 }
 
-/** One entry removed; a removed field or item leaves no test or oil rule naming it, a removed test leaves no criterion only it named. */
+/**
+ * One entry removed; a removed field or item leaves no test or oil rule naming it, a removed test
+ * leaves no criterion only it named. Fix batch e23g (R2-2), the v13 keys: a removed nameplate field
+ * leaves the oil rule's `dry_fields` (the key goes when empty), no field's `pick_from`, no table's
+ * `rows_from` (the table falls back to its seeded row) and no test's `applies_when` (the test applies
+ * always) naming it, so the copy stays publishable.
+ */
 export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): CompanyTypeDraft {
   const next = asDraft(draft);
   const list = listOf(next, part);
@@ -237,7 +243,26 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
     // Fix batch e22h (S1): the oil rule a copy carries loses its field with it, or that excused field.
     const rule = next.oil_rule as Entry | undefined;
     if (rule !== undefined && rule.field === key) delete next.oil_rule;
-    else if (rule !== undefined && Array.isArray(rule.fields)) rule.fields = rule.fields.filter((field) => field !== key);
+    else if (rule !== undefined) {
+      if (Array.isArray(rule.fields)) rule.fields = rule.fields.filter((field) => field !== key);
+      // Fix batch e23g (R2-2): a dry field goes the same way; the key goes when none is left (the schema takes one or more).
+      if (Array.isArray(rule.dry_fields)) {
+        const dry = (rule.dry_fields as unknown[]).filter((field) => field !== key);
+        if (dry.length === 0) delete rule.dry_fields;
+        else rule.dry_fields = dry;
+      }
+    }
+    // Fix batch e23g (R2-2): a picker whose list went is a plain number field again (TAP ATUAL without TAPS).
+    for (const field of listOf(next, 'nameplate')) if (field.pick_from === key) delete field.pick_from;
+    for (const test of listOf(next, 'tests')) {
+      // A table whose rows came from the removed list keeps its seeded row, as with the list empty.
+      for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) if (table.rows_from === key) delete table.rows_from;
+    }
+    // A test whose condition reads the removed field applies always, the schema's meaning of no condition (`initial_off` is kept).
+    for (const test of [...listOf(next, 'tests'), ...listOf(next, 'measurement_tests')]) {
+      const condition = test.applies_when as Entry | undefined;
+      if (condition !== undefined && condition !== null && condition.field === key) delete test.applies_when;
+    }
     dropMediumTables(next);
   }
   if (part === 'checklist') {

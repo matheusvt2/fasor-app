@@ -225,6 +225,19 @@ describe('9.1-INT the display reading kind', () => {
     expect((await suggestionsOf(id)).map((s) => [s.target_path, s.value])).toEqual([[sheetTestCellPath(transformer.id, 'isolacao', 0, 1), { raw: '1.45', unit: GOHM, state: 'measured' }]]);
   }, 60_000);
 
+  it('fix batch e23g (R2-1): a v13 transformer with TAPS, the ratio meter shot on a tap row: the suggestion lands on that row', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const transformer = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    expect(transformer.seed_version).toBe('v13');
+    await apply([draft('put', 'relatorio', relatorioId, `sheet/${transformer.id}/nameplate/taps`, { raw: '13.8;13.2;12.6;12;11.4', unit: 'kV', state: 'measured' })]);
+    const id = await photo(relatorioId, transformer.id, await shot('display-ttr'), displayCellTarget(transformer.id, transformer.block_type, 'relacao_transformacao', { row: 13200, col: 3 }));
+    await run(id);
+    expect(await status(id)).toBe('done');
+    expect((await suggestionsOf(id)).map((s) => [s.target_path, s.value, s.mode])).toEqual([
+      [sheetTestCellPath(transformer.id, 'relacao_transformacao', 13200, 3), { raw: '34.512', unit: null, state: 'measured' }, 'fill'],
+    ]);
+  }, 60_000);
+
   it('the thermo-hygrometer of a cabine: temperature and humidity on the cabine environment', async () => {
     const { relatorioId, cabineId } = await relatorio();
     const id = await photo(relatorioId, null, await shot('display-termo'), displayEnvTarget(cabineId));

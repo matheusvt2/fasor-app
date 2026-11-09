@@ -3270,3 +3270,11 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/ops/apply.ts` `assertCellGeometry` on a `rows_from` table; `relatorio/tap-rows.ts` `tapRowAccepted`; the off-plate cell is drawn read-only (`ensaios-section.tsx`).
   class: decision
   state: open (owner: Matheus, with Bruno: whether an off-plate row takes a clear, or any write)
+
+## Deferred from: Epic 23 fix batch e23g (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23g-wave1-fixes.md` (R2-1, "Rows in table order")
+  summary: `measurementSuggestions` (every pending Measurement fill of a block) still sorts by the numeric row key, so on a v13 TTR whose taps descend its list reads 11400 before 13800. Its consumers do not depend on that order today (`read-display.tsx` keys its map by cell, `suggestion-store.ts` reads one entry); "Confirmar todos" and its verify count re-sort a table's fills by the table's row order (`tableFills`). A consumer that walks the list in reading order would need the same table-order sort.
+  evidence: `packages/domain/src/relatorio/measurement-suggestions.ts` `measurementSuggestions`, `tableFills`.
+  class: note
+  state: open (owner: the next batch reading `measurementSuggestions` in order)

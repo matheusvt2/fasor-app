@@ -212,6 +212,18 @@ export function tapRowsOf(block: Pick<BlockRow, 'sheet'>, definition: Pick<Block
   return [...base, ...off];
 }
 
+/**
+ * Fix batch e23g (R2-1): the rows of one table a reading may write, by the table's own row key
+ * (add the table's offset for the op path's row), in the order the table shows them: a
+ * `rows_from` table's plate rows (`tapRowsOf` without the rows off the plate, which the fold
+ * refuses), else the seeded indices. A walk "from a row onward" goes by position in this list,
+ * never by comparing row keys (the plate's taps may descend).
+ */
+export function writableTableRows(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, table: Pick<TableDef, 'rows_from' | 'rows'>, testKey: string): number[] {
+  const plan = tapRowsOf(block, definition, table, testKey);
+  return plan === null ? table.rows.map((_, r) => r) : plan.filter((entry) => entry.kind !== 'off_plate').map((entry) => entry.row);
+}
+
 /** Whether the fold accepts a cell write on `row` of a `rows_from` table: a tap of the block's current list in V, or, the list empty, a seeded row. */
 export function tapRowAccepted(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, table: Pick<TableDef, 'rows_from' | 'rows'>, row: number): boolean {
   const taps = plateTaps(block, definition, table);
@@ -249,6 +261,16 @@ export function tapCellTyped(row: { tap: EvaluatedTap | null }, cell: { role: 'c
 /** Whether a row's empty captures are required: every v12 row, a marked tap row; never an unmarked or off-plate one. */
 export function tapRowRequired(row: { tap: EvaluatedTap | null }): boolean {
   return row.tap === null || (row.tap.onPlate && row.tap.mark !== null);
+}
+
+/** Fix batch e23g (R2-4): whether a table's rows are a tap table's (any row of a `rows_from` table on a v13 plate); false on every v1 to v12 table. */
+export function isTapTable(rows: readonly { tap: EvaluatedTap | null }[]): boolean {
+  return rows.some((row) => row.tap !== null);
+}
+
+/** Fix batch e23g (R2-4): an unmarked tap of the plate: it requires nothing and is drawn muted (the mock's `tr.tap-optional`). */
+export function tapRowOptional(row: { tap: EvaluatedTap | null }): boolean {
+  return row.tap !== null && row.tap.onPlate && !tapRowRequired(row);
 }
 
 /** What `tapInputText` reads of a cell. */
@@ -294,6 +316,12 @@ export interface TapsLine {
 /** "Taps da placa 5 · medir o tap atual e os extremos (marcados) · os outros são opcionais". */
 export function tapsLine(n: number): TapsLine {
   return { label: 'Taps da placa', count: String(n), note: 'medir o tap atual e os extremos (marcados) · os outros são opcionais' };
+}
+
+/** Fix batch e23g (R2-4): the line above a tap table, counting its rows on the plate; null for a table with none (every v1 to v12 table, TAPS empty). */
+export function tapTableLine(rows: readonly { tap: EvaluatedTap | null }[]): TapsLine | null {
+  const onPlate = rows.filter((row) => row.tap?.onPlate === true).length;
+  return onPlate === 0 ? null : tapsLine(onPlate);
 }
 
 /** `tapsLine` as one sentence, for a reader that draws no bold. */

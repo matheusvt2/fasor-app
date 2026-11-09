@@ -2,8 +2,8 @@
 title: 'e23g: the four findings of the Epic 23 wave 1 integrated review (display reading on tap rows, draft pruning, the group count, the tap line)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'ready-for-dev'
-baseline_revision: '6be0a5ec'
+status: 'in-progress'
+baseline_revision: '740660838c202fcff874932069d87dce9b524b7b'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
