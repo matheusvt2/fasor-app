@@ -2,10 +2,10 @@
 title: 'e23t: winding resistance, the judged IP, the insulating liquid and oil sampling, HH fuses (Stories 23.15, 23.16, 23.17, 23.19; contract 38)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f59c9bd65d28af4bfa433d47fe1dd3562e5e5cf4'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -163,3 +163,13 @@ deferred: []
   - `[low]` `[patch]` (VG other) the contract-38 note says "untouched" while the seed move drops `ia_ip_display` whatever its switch — note corrected, switched-on case tested.
   - `[medium]` `[patch]` (VG other) `applyHistory` takes `criteria[0]` whatever the medium — grouped with the first row.
   - `[low]` `[patch]` (VG other) the spec's api display-reading fixture test filling an IP is missing — added to `job-display.integration.test.ts`.
+
+## Auto Run Result
+
+Status: done (2026-11-09). Branch `e23t-transformer-tests`; reviewed head `af106d37`; main `32bd1845` (e23w not merged yet).
+
+- **Summary.** Story 23.15: `resistencia_enrolamento` on the v13 transformer (rows AT tap atual, two optional extreme taps, BT; phases as columns), judged by the new `phase_deviation` criterion (oil 2/5 %, dry 2 % then restricted, over range out), corrected to 75 °C by MATERIAL DO ENROLAMENTO, history 2 % against the previous corrected visit. Story 23.16: ABSORÇÃO and POLARIZAÇÃO are `index` columns on the v13 transformer; the IP judged (< 1,0 out, 1,0 to < 2,0 restricted, >= 2,0 within), required on a dry unit, N/A over range; `ia_ip_display` leaves the v13 transformer (the template seed move drops it). Story 23.17: TIPO DE ISOLAÇÃO ÓLEO ISOLANTE (aliases), NATUREZA DO LÍQUIDO and TIPO (ANP) (`excused_unless`, hidden unless MINERAL), `coleta_oleo` on the transformer and the disjuntor, plate composition and `bedrock-structuring-7`. Story 23.19: `resistencia_fusiveis` on the seccionadora (15 %, NA unless SOB CARGA COM FUSÍVEIS). Contract 38/38.
+- **Review.** One pass, 17 findings: 14 patched (8 medium, 6 low counting grouped rows; see the triage log), 3 low rejected (oil-rule removal on a copy, display shot on an N/A IP, a contradictory silicone + type B plate).
+- **Follow-up review recommended: true.** Patched, not re-reviewed: `applyHistory` (within-only, the medium's criterion), `measurementTestsUnnumbered` and its sites, `isSingleChoice` limited to `coleta_oleo`, the section 9 spans on a corrected test (no test reaches them), the seed move dropping `ia_ip_display` whatever its switch.
+- **Verification.** Child runs: e23t, merge-info and template tests 88/88; measurement/print/merge/conclusion 183/183; job-display 12/12; typecheck clean. The story gate runs from `.scratch-e23t/gate.sh` under the host lock.
+- **Residual risks.** Every v13 seccionadora with TIPO DE SECCIONADORA empty requires the fuse test, and every v13 transformer the winding and (oil or empty insulation) sampling tests: more missing cells on those sheets.
