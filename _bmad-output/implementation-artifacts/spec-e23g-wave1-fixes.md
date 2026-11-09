@@ -2,7 +2,7 @@
 title: 'e23g: the four findings of the Epic 23 wave 1 integrated review (display reading on tap rows, draft pruning, the group count, the tap line)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: '740660838c202fcff874932069d87dce9b524b7b'
 review_loop_iteration: 1
 followup_review_recommended: false
@@ -156,3 +156,43 @@ order or any surface outside the files below.
 - `pnpm test:unit -- packages/domain/src/reading packages/domain/src/relatorio packages/domain/src/types` -- expected: green.
 - `pnpm lint` and `pnpm static` -- expected: exit 0.
 - `pnpm exec tsx scripts/e2e.ts e2e/ttr-per-tap.spec.ts e2e/type-editor.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- expected: green (orchestrator).
+
+## Auto Run Result
+
+- **Implemented** by `bmad-dev-opus-high` (R2-1 to R2-4, kernel and api tests, 23g-E2E-001 and -002). The orchestrator
+  folded in the late finding of the coordinator's behavior pass (the missing-group helper names the type's field).
+- **Files.**
+  - `reading/display.ts`: the walk goes in table order, a start row the sheet lacks drops every value as `no_cell`, the
+    unit fallback reads the previous row in table order, and the input gains `nameplate?`.
+  - `relatorio/tap-rows.ts`: adds `writableTableRows`, `isTapTable`, `tapRowOptional` and `tapTableLine`.
+  - `relatorio/measurement-suggestions.ts`: a table is bounded by its row set, in table order.
+  - `relatorio/sheet-progress.ts`: the group count takes only required rows.
+  - `types/draft-edit.ts`: prunes the v13 keys.
+  - `relatorio/vector-group.ts` and `relatorio/reading-evaluation.ts`: add `vectorGroupMissingText` and
+    `vectorGroupFieldLabel`.
+  - `apps/api/.../kinds/display.ts`: passes the nameplate.
+  - `ensaios-section.tsx`: reads the kernel.
+  - Tests: `e23g-wave1-fixes.test.ts`, `readings.test.ts`, `job-display.integration.test.ts`, `ttr-per-tap.spec.ts`,
+    `type-editor.spec.ts`, `ficha.spec.ts`.
+  - Docs: `deferred-work.md`, `docs/kbs/log.md`.
+- **Review.** Edge Case Hunter and Verification Gap Reviewer, opus, one loop. Blind Hunter and Intent Alignment were
+  skipped (token economy; the integrated epic review covers them).
+  - Findings: 2. One medium patch: the api case on a company copy, with a mutation run that turns only that case red
+    without the forward. One low deferral: `MeasurementTable`'s e23b render branches. Nothing rejected.
+  - Patched by verdict: high 0, medium 1, low 0.
+  - Follow-up review recommended: false.
+- **Gate.** Story gate on `03307e4c` under the host lock. Lock wait 0 s; load 1.98 at the start and 3.99 at the end.
+  Only the e23g stack was up at the start; e23v's stack (wave 2) was up by the end.
+  - lint 0 (23 s) and static 0 (31 s).
+  - test:api 926 passed, 6 skipped (378 s); the goldens are unchanged.
+  - test:unit 5837 of 5837 (243 s).
+  - 8 touched specs, 57 of 57 (parallel 52, serial 5; 226 s): `ttr-per-tap`, `type-editor`, `ficha`,
+    `read-display-pipeline`, `read-display`, `dry-transformer.durability`, `company-type-sheet` and
+    `test-applicability.durability`.
+  - Matrix not run: no fold, commit path or live-query change.
+  - Main `606177fe` (#288, docs only) was merged after the gate; the gate stays valid.
+- **Residual risks.**
+  - `measurementSuggestions` orders a block's fills by numeric row (ledger note).
+  - A copy that removes DESLOCAMENTO ANGULAR keeps a TTR read by vector group (ledger decision row, Matheus).
+  - Dictation on a v13 tap row was not examined: a tap row's connection text is empty, so it may name no row. This
+    is unverified and outside this batch.
