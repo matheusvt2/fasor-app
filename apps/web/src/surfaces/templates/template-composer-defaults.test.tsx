@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { emptyTemplate, moveSection, naDefaultsCountText, naDefaultsFor, removeSection, SEED_VERSION, standardTemplate, type TemplateRow } from '@app/domain';
+import { emptyTemplate, getDefinition, moveSection, naDefaultsCountText, naDefaultsFor, removeSection, SEED_VERSION, standardTemplate, type TemplateRow } from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -148,7 +148,8 @@ describe('3.5 composer: sub-block defaults per type', () => {
     }
     // E3-A9: the kernel's line under each sub-block that holds something, then the two "Sempre na ficha".
     expect([...dialog.querySelectorAll('.toggle-sub')].map((el) => el.textContent)).toEqual([
-      '10 campos',
+      // e23b (seed v13, Story 23.7): the seccionadora's field count read from the kernel (E14-A3).
+      `${getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').nameplate.length} campos`,
       '14 itens C · NC · NA',
       'Sempre na ficha',
       'T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · >400 MΩ (aceitável na ficha)',

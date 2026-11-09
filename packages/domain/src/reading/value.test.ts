@@ -201,3 +201,29 @@ describe('AIR-1 normalizeReadingValue: a plate number in another unit of the fie
     expect(normalizeReadingValue(voltage, '15', tokens('15', 'A'))).toEqual({ ok: true, value: '15', verify: false });
   });
 });
+
+describe('23.7-UNIT normalizeReadingValue: TAPS and a value over √3, as printed', () => {
+  const taps = { kind: 'number', unit: 'kV', list: true } as const;
+  const sqrt3 = { kind: 'number', unit: 'V', over_sqrt3: true } as const;
+
+  it('a list printed with its unit is stored in the field\'s unit; printed in V it is moved into kV and read as printed', () => {
+    expect(normalizeReadingValue(taps, '13,8 / 13,2 / 12,6 / 12 / 11,4 kV', tokens('13,8', '/', '13,2', '/', '12,6', '/', '12', '/', '11,4', 'kV'))).toEqual({ ok: true, value: number('13.8;13.2;12.6;12;11.4', 'kV'), verify: false });
+    expect(normalizeReadingValue(taps, '13800-13200-12600 V', tokens('13800-13200-12600', 'V'))).toEqual({ ok: true, value: number('13.8;13.2;12.6', 'kV'), verify: false, printedText: '13800-13200-12600 V' });
+  });
+
+  it('a list printed with no unit is read in the field\'s and asks for a check (which unit the plate means is ambiguous)', () => {
+    expect(normalizeReadingValue(taps, '13,8; 13,2', tokens('13,8;', '13,2'))).toEqual({ ok: true, value: number('13.8;13.2', 'kV'), verify: true });
+  });
+
+  it('a value that is no list of two or more taps is dropped, never stored as one number', () => {
+    expect(normalizeReadingValue(taps, number('13.8', 'kV'), tokens('13,8', 'kV'))).toEqual({ ok: false, reason: 'invalid_shape' });
+    expect(normalizeReadingValue(taps, '13,8; 13,8 kV', tokens('13,8;', '13,8', 'kV'))).toEqual({ ok: false, reason: 'invalid_shape' });
+  });
+
+  it('"115/√3" is stored as typed; one the cited tokens do not print asks for a check; a plain number reads as any number', () => {
+    expect(normalizeReadingValue(sqrt3, '115/√3 V', tokens('115/√3', 'V'))).toEqual({ ok: true, value: number('115/√3', 'V'), verify: false });
+    expect(normalizeReadingValue(sqrt3, '115/√3', tokens('115', 'V'))).toEqual({ ok: true, value: number('115/√3', 'V'), verify: true });
+    expect(normalizeReadingValue({ kind: 'number', unit: 'kV', over_sqrt3: true }, '13800/√3 V', tokens('13800/√3', 'V'))).toEqual({ ok: true, value: number('13.8/√3', 'kV'), verify: false, printedText: '13800/√3 V' });
+    expect(normalizeReadingValue(sqrt3, number('115', 'V'), tokens('115', 'V'))).toEqual({ ok: true, value: number('115', 'V'), verify: false });
+  });
+});

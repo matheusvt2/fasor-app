@@ -1,3 +1,4 @@
+import { isTestInForce } from '../relatorio/applicability.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { storedInstrumentHeader, type InstrumentHeader } from '../relatorio/instrument-pick.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
@@ -68,9 +69,12 @@ function sheetHeaders(block: BlockRow, ctx: DefinitionContext): InstrumentHeader
   if (block.removed_at !== null || block.not_tested !== null) return [];
   const enabled = enabledSubBlocksOf(block);
   const own = companySubBlockKeys(block.config);
+  const definition = blockDefinitionIn(ctx, block);
   return testKeysOf(block, ctx).flatMap((key) => {
     // A test keyed by a sub-block name follows its switch (Story 14.6: a company type's are its config's keys).
     if (((SUB_BLOCK_KEYS as readonly string[]).includes(key) || own.has(key)) && !enabled.has(key)) return [];
+    // Story 23.9: a test the nameplate makes not applicable prints nothing, its instrument included.
+    if (definition !== null && !isTestInForce(block, definition, key)) return [];
     const header = storedInstrumentHeader(block.sheet.test[key]?.instrument?.value);
     return header === null ? [] : [header];
   });

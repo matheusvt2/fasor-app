@@ -10,7 +10,7 @@ import {
 } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type LocationRow, type RelatorioRow, type TemplateRow } from '../schemas/entities.ts';
 import { SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
-import { defaultBlockConfig } from '../seed/template.ts';
+import { defaultBlockConfig, withVersionSubBlocks } from '../seed/template.ts';
 import { liveLocationIds } from '../relatorio/location-live.ts';
 import { locationBlocks } from '../relatorio/tree.ts';
 
@@ -177,5 +177,6 @@ export function templateFromRelatorio(
 
   const row: TemplateRow = { id: meta.id, name: meta.name, version: 1, seed_version: seedVersion, blocks, skeleton, archived_at: null, removed_at: null };
   const upgraded = templateSeedUpgrade(row);
-  return upgraded === null ? row : { ...row, seed_version: upgraded };
+  // Story 23.7 (seed v13): born current, its blocks read as they do there (the sub-blocks a later version adds, at their default).
+  return upgraded === null ? row : { ...row, seed_version: upgraded, blocks: withVersionSubBlocks(row.blocks, upgraded) };
 }

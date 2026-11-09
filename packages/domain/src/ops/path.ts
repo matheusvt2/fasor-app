@@ -43,7 +43,8 @@ export const BLOCK_FIELDS = [
   'concluded_by',
 ] as const;
 export const CHECKLIST_FIELDS = ['result', 'observation'] as const;
-export const TEST_FIELDS = ['instrument', 'criterion_override'] as const;
+/** Story 23.9 (contract 35): `applicability`, the technician's override of a test the nameplate makes not applicable. */
+export const TEST_FIELDS = ['instrument', 'criterion_override', 'applicability'] as const;
 export const CONCLUSION_FIELDS = ['result', 'restriction', 'text', 'text_status', 'text_basis'] as const;
 export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
 /**

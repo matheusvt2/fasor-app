@@ -53,7 +53,9 @@ interface EntityRecord {
 
 test('@p0 E78-Q2 8.4-E2E-001 a plate imported through the app is read by the real job under the fake providers, and its eleven suggestions arrive without a manual sync', async ({ page }) => {
   test.setTimeout(180_000);
-  await openTransformerSheet(page, account, database);
+  // Batch e23b: on seed v12, whose plate holds every key of the transformer's default fixture (on v13
+  // the job drops its text TAP ATUAL, `unknown_key`, and suggests ten: TAPS is not on that plate).
+  await openTransformerSheet(page, account, database, { seedVersion: 'v12' });
   const photoId = await importPlate(page);
   const create = (await readStore<{ kind: string; path: string; value: { sha256: string; reading_target: unknown } }>(page, database, 'outbox')).find(
     (op) => op.kind === 'create' && op.path === `file/${photoId}`,

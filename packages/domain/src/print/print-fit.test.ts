@@ -225,8 +225,9 @@ describe('e22g B1: the reading tables of every seed version hold every word whol
   });
 
   it('v1 to v11 with one unit and no previous visit print every reading table at 9 pt, as before; v12 steps its wide insulation tables down', () => {
+    // e23b: inherited from e23a's first commit: v13 derives from v12 and steps its wide insulation tables down as v12 does.
     const smaller = Object.keys(SEED_VERSIONS)
-      .filter((v) => v !== 'v12')
+      .filter((v) => v !== 'v12' && v !== 'v13')
       .flatMap((version) =>
         section9Layout(snapshotOf(version, false, false), 9, 'RELATÓRIOS DOS ENSAIOS')!
           .subsections.flatMap((s) => s.sheets)

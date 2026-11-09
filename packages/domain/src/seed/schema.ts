@@ -11,7 +11,7 @@ import {
   type EquipmentBlockType,
 } from '../schemas/block-config.ts';
 import type { CriterionSeed } from './criteria.ts';
-import { checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
+import { appliesWhenSchema, checkMeasurementDefinition, configFieldSchema, criterionSourceSchema, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
 
 /*
  * The shape of one seed version (AD-21). Seed data is code, validated once at module
@@ -57,6 +57,18 @@ export const fieldDefSchema = z
      * ("ÓLEO (PVO)" reads as "Óleo"). Never offered, never stored as such.
      */
     option_aliases: z.record(z.string().min(1), z.string().min(1)).optional(),
+    /*
+     * Seed v13 (Story 23.7, decision K). The four keys below are optional and never defaulted, so
+     * v1 to v12 parse to the bytes they shipped with; a field without them reads as before.
+     */
+    /** Seed v13 (Story 23.7): a number field holding the plate's whole list of values, in plate order (the transformer's TAPS). */
+    list: z.literal(true).optional(),
+    /** Seed v13 (Story 23.7): a number field whose value is picked from the `list` field of this key (TAP ATUAL from TAPS). */
+    pick_from: seedKey.optional(),
+    /** Seed v13 (Story 23.7): a number field that also takes "N/√3" (the TP's "115/√3"), stored as typed in canonical form. */
+    over_sqrt3: z.literal(true).optional(),
+    /** Seed v13 (Story 23.7): a text ratio ("200/5") also read written with a dash ("200-5"), the TC's RELAÇÃO. */
+    dash_ratio: z.literal(true).optional(),
   })
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',
@@ -66,6 +78,15 @@ export const fieldDefSchema = z
   })
   .refine((f) => f.unit === undefined || f.kind === 'number' || f.kind === 'voltage_class', {
     message: 'a unit belongs to a number or voltage_class field',
+  })
+  .refine((f) => (f.list === undefined && f.pick_from === undefined && f.over_sqrt3 === undefined) || f.kind === 'number', {
+    message: 'list, pick_from and over_sqrt3 belong to a number field',
+  })
+  .refine((f) => f.list === undefined || (f.pick_from === undefined && f.over_sqrt3 === undefined), {
+    message: 'a list field is neither picked from a list nor over √3',
+  })
+  .refine((f) => f.dash_ratio === undefined || f.kind === 'text', {
+    message: 'dash_ratio belongs to a text field',
   });
 export type FieldDef = z.infer<typeof fieldDefSchema>;
 
@@ -152,7 +173,16 @@ export const tableDefSchema = z
      * Optional and never defaulted, so v1 to v11 parse to the bytes they shipped with.
      */
     voltage_rows: z.array(z.object({ default_kv: z.string().min(1).nullable(), winding: seedKey.nullable() })).optional(),
+    /**
+     * Seed v13 (Story 23.8, decision K): the `list` field of the nameplate whose values are the
+     * table's rows (the transformer's TTR, one row per tap of TAPS, `relatorio/tap-rows.ts`), each
+     * row keyed by its tap in whole V; with the list empty the seeded `rows` stand. Only on a
+     * test's single table with `connection_typed`. Optional and never defaulted, so v1 to v12 parse
+     * to the bytes they shipped with.
+     */
+    rows_from: seedKey.optional(),
   })
+  .refine((t) => t.rows_from === undefined || t.connection_typed, { message: 'rows_from belongs to a table whose connection is typed', path: ['rows_from'] })
   .refine((t) => t.rows.every((row) => row.length === t.connection_columns.length), {
     message: 'every row has one cell per connection column',
   })
@@ -233,6 +263,14 @@ export const testDefSchema = z.object({
    * parse to the bytes they shipped with.
    */
   criterion_class_field: seedKey.optional(),
+  /**
+   * Seed v13 (Story 23.9, decision J): the nameplate condition the test applies under
+   * (`relatorio/applicability.ts`); always, when absent. Optional and never defaulted, so v1 to
+   * v12 parse to the bytes they shipped with.
+   */
+  applies_when: appliesWhenSchema.optional(),
+  /** Seed v13 (Story 23.9): the test starts switched off in a new block's config (the base's "Opcional"); the template switch still removes it (FR-11). */
+  initial_off: z.literal(true).optional(),
 });
 /**
  * A test as every reader takes it. Story 14.6: on a company type's definition (`asBlockDefinition`)
@@ -267,9 +305,18 @@ export const oilRuleSchema = z
      * parses as it shipped.
      */
     full_values: z.array(z.string().min(1)).min(1).optional(),
+    /**
+     * Seed v13 (Story 23.7, decision K): the nameplate fields an oil unit shows excused and prints
+     * "-" (the transformer's TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA, a dry unit's), the
+     * mirror of `fields`. Optional and never defaulted, so v6 to v12 parse as they shipped.
+     */
+    dry_fields: z.array(seedKey).min(1).optional(),
   })
   .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
     message: 'full_values and oil_values are disjoint',
+  })
+  .refine((rule) => rule.dry_fields === undefined || rule.dry_fields.every((key) => !rule.fields.includes(key)), {
+    message: 'dry_fields and fields are disjoint',
   });
 export type OilRule = Omit<z.infer<typeof oilRuleSchema>, 'items'> & { items: string[] };
 
@@ -286,9 +333,12 @@ export function checkSeedV6Definition(
     checklist: readonly { key: string }[] | null;
     tests: readonly TestDef[];
     oil_rule?: OilRule | undefined;
+    /** Seed v13 (Story 23.9): read for their `applies_when` only. */
+    measurement_tests?: readonly { applies_when?: AppliesWhen | undefined }[] | undefined;
   },
   ctx: z.RefinementCtx,
 ): void {
+  checkSeedV13Definition(definition, ctx);
   const field = (key: string) => definition.nameplate.find((candidate) => candidate.key === key);
   const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
   const rule = definition.oil_rule;
@@ -322,6 +372,64 @@ export function checkSeedV6Definition(
       if (selv === undefined || selv.kind !== 'select' || !selv.options!.includes(SELV_YES)) issue(['tests', t, 'criterion_bands', 'selv_field'], `criterion_bands.selv_field "${bands.selv_field}" is not a SIM/NÃO select`);
     }
   });
+}
+
+/** The units a `list` field a table's rows come from may carry: its rows are keyed in whole V (Story 23.8). */
+const ROW_LIST_UNITS: ReadonlySet<string> = new Set(['V', 'kV']);
+
+/**
+ * Seed v13 (Stories 23.7 to 23.9): what the nameplate keys, the tap rows and the applicability
+ * conditions name exists on the definition, each issue at its path, as `checkSeedV6Definition`'s
+ * are (so a company type's draft names it beside its part):
+ * - a field's `pick_from` names another `list` field of the nameplate, in the same unit;
+ * - the oil rule's `dry_fields` are on the nameplate;
+ * - a table's `rows_from` names a `list` field in V or kV, on the test's single table;
+ * - an `applies_when` (either grammar) names a field of the nameplate; `in` a select and only its
+ *   options; `above` and `below` a number field.
+ */
+function checkSeedV13Definition(
+  definition: {
+    nameplate: readonly FieldDef[];
+    tests: readonly TestDef[];
+    oil_rule?: OilRule | undefined;
+    measurement_tests?: readonly { applies_when?: AppliesWhen | undefined }[] | undefined;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const field = (key: string) => definition.nameplate.find((candidate) => candidate.key === key);
+  const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
+  definition.nameplate.forEach((candidate, f) => {
+    if (candidate.pick_from === undefined) return;
+    const list = field(candidate.pick_from);
+    if (list === undefined || list.list !== true || list.key === candidate.key || list.unit !== candidate.unit) {
+      issue(['nameplate', f, 'pick_from'], `pick_from "${candidate.pick_from}" is not a list field of the nameplate in ${candidate.unit ?? 'no unit'}`);
+    }
+  });
+  for (const key of definition.oil_rule?.dry_fields ?? []) {
+    if (field(key) === undefined) issue(['oil_rule', 'dry_fields'], `a dry field "${key}" is not on the nameplate`);
+  }
+  const checkCondition = (condition: AppliesWhen | undefined, path: (string | number)[]) => {
+    if (condition === undefined) return;
+    const target = field(condition.field);
+    if (target === undefined) issue([...path, 'field'], `applies_when.field "${condition.field}" is not a field of the nameplate`);
+    else if (condition.op === 'in' && (target.kind !== 'select' || !condition.values.every((value) => target.options!.includes(value)))) {
+      issue([...path, 'values'], `applies_when "in" names a select of the nameplate and only its options ("${condition.field}")`);
+    } else if ((condition.op === 'above' || condition.op === 'below') && target.kind !== 'number') {
+      issue([...path, 'field'], `applies_when "${condition.op}" names a number field ("${condition.field}" is ${target.kind})`);
+    }
+  };
+  definition.tests.forEach((test, t) => {
+    test.tables.forEach((table, b) => {
+      if (table.rows_from === undefined) return;
+      const list = field(table.rows_from);
+      if (list === undefined || list.list !== true || list.unit === undefined || !ROW_LIST_UNITS.has(list.unit)) {
+        issue(['tests', t, 'tables', b, 'rows_from'], `rows_from "${table.rows_from}" is not a list field of the nameplate in V or kV`);
+      }
+      if (test.tables.length !== 1) issue(['tests', t, 'tables', b, 'rows_from'], 'rows_from belongs to a test with a single table');
+    });
+    checkCondition(test.applies_when, ['tests', t, 'applies_when']);
+  });
+  (definition.measurement_tests ?? []).forEach((test, t) => checkCondition(test.applies_when, ['measurement_tests', t, 'applies_when']));
 }
 
 /** The option of a SELV/PELV select that picks the SELV criterion. */

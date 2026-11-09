@@ -199,6 +199,7 @@ describe('E78-Q2 the fake falls back to the block type\'s default fixture', () =
 describe('13.7-API every block type with a nameplate has its plate default', () => {
   const NO_FIXTURE = 'e'.repeat(64);
   const nameplateTypes = EQUIPMENT_BLOCK_TYPES.filter((type) => getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate.length > 0);
+  const nameplateTypesV12 = EQUIPMENT_BLOCK_TYPES.filter((type) => getDefinition('v12', 'cabine_primaria', type).nameplate.length > 0);
   const IMAGE_OF: Record<string, string> = {
     para_raio: 'plate-para-raio.png',
     chave_seccionadora: 'plate-chave-seccionadora.png',
@@ -220,8 +221,11 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
   const PLATE_SEED = 'v11';
 
   it('the plate defaults are exactly the nine nameplate types, and no cable type', () => {
-    expect(nameplateTypes).toHaveLength(9);
-    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypes].sort());
+    // Story 23.7 (seed v13): the cables gain a nameplate on v13, and no default (the defaults stay as
+    // they were): the nine are the types with a nameplate on v12, the defaults' version.
+    expect(nameplateTypesV12).toHaveLength(9);
+    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypesV12].sort());
+    expect(nameplateTypes.filter((type) => !nameplateTypesV12.includes(type))).toEqual(['cabos_entrada', 'cabos_saida']);
     for (const cable of ['cabos_entrada', 'cabos_saida']) {
       expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
       expect(defaultFixtureFor(plate(cable))).toBeUndefined();

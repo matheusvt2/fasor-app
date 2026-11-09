@@ -151,7 +151,8 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e23b: on seed v12, the plate the review baseline was counted on (v13 adds TIPO DE SECCIONADORA, required).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v12' });
   const enel = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel');
   expect(enel).toHaveLength(2);
   const [secEnel, secEnel2] = enel as [(typeof enel)[number], (typeof enel)[number]];

@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, emptyTemplate, instantiateTemplate, SEED_VERSION, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, emptyTemplate, instantiateTemplate, SEED_VERSION, standardTemplate, templateRowSchema, withVersionSubBlocks, type TemplateRow } from '@app/domain';
 import { and, eq, like } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -155,8 +155,10 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
 
       for (const id of movedIds) {
         const row = (await templateRow(companyId, id)).row as unknown as TemplateRow;
-        // Only `seed_version` moved: `version`, `blocks`, `skeleton` and everything else are what they were.
-        expect(row, id).toEqual({ ...(before.get(id) as object), seed_version: SEED_VERSION });
+        // Only `seed_version` moved, and (Story 23.7, seed v13) the blocks gained the sub-blocks v13 adds at their default
+        // (the cables' nameplate, `withVersionSubBlocks`): `version`, `skeleton` and everything else are what they were.
+        const was = before.get(id) as TemplateRow;
+        expect(row, id).toEqual({ ...was, seed_version: SEED_VERSION, blocks: withVersionSubBlocks(was.blocks, SEED_VERSION) });
         expect(templateRowSchema.safeParse(row).success, id).toBe(true);
       }
       expect((await templateRow(companyId, seeded.id)).row).toMatchObject({ version: 1 });
@@ -222,7 +224,7 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
       expect(counts.reduce((sum, n) => sum + n, 0)).toBe(1);
       const added = (await templateOps(companyId)).slice(before);
       expect(added.map((op) => op.path)).toEqual([`template/${template.id}/seed_version`]);
-      expect((await templateRow(companyId, template.id)).row).toEqual({ ...template, seed_version: SEED_VERSION });
+      expect((await templateRow(companyId, template.id)).row).toEqual({ ...template, seed_version: SEED_VERSION, blocks: withVersionSubBlocks(template.blocks, SEED_VERSION) });
     } finally {
       await dropCompany(db, companyId);
     }

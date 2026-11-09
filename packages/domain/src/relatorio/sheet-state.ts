@@ -89,7 +89,8 @@ export function enabledCells(block: BlockRow): Cell[] {
     // A test keyed by a sub-block name follows its switch (Story 14.6: a company type's are its
     // config's keys); any other key is always read.
     if (((SUB_BLOCK_KEYS as readonly string[]).includes(key) || own.has(key)) && !enabled.has(key)) continue;
-    for (const c of [test.instrument, test.criterion_override]) if (c) cells.push(c);
+    // Story 23.9: the applicability override is the technician's answer on the sheet too.
+    for (const c of [test.instrument, test.criterion_override, test.applicability]) if (c) cells.push(c);
     for (const row of Object.values(test.cells)) cells.push(...Object.values(row));
     // Story 14.5: a measurement test's values outside its table.
     cells.push(...Object.values(test.values ?? {}));

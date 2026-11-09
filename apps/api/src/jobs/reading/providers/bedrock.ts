@@ -75,7 +75,8 @@ export {
 // 3 (Story 21.2): the transformer's vector group, printed or read from the drawn HV and LV diagrams, one of the 47 codes.
 // 4 (e21f): a drawn diagram is described in the tool's `vector_diagram` facts and composed by the kernel (`composeVectorGroup`), never by the model.
 // 5 (Stories 22.7 and 22.9): TIPO is the maker's designation, never the oil; the oil class and the oil insulation; EXATIDÃO as printed.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-5';
+// 6 (Story 23.7, seed v13): TAPS as the plate's whole list in plate order, TAP ATUAL one of them, the winding material, a voltage over √3 and the TC's ratio as printed.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-6';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -209,6 +210,11 @@ export function vectorGroupPrompt(key: string): string {
  * ÓLEO (the oil class letter) and its TIPO DE ISOLAÇÃO (oil when the plate names insulating oil),
  * and an EXATIDÃO select's class, sent as printed for the kernel to read (`parseAccuracyClass`).
  * Empty for a request with none of them, so every other plate's prompt is as before.
+ *
+ * Story 23.7 (seed v13): TAPS (a `list` field) as the whole list in plate order, TAP ATUAL (its
+ * `pick_from` field) one of them, MATERIAL DO ENROLAMENTO by its options, a TP voltage over √3 (an
+ * `over_sqrt3` field) and the TC's RELAÇÃO (a `dash_ratio` field) as printed: the kernel parses
+ * them (`reading/value.ts`), never the model. A v12 request carries none of these keys.
  */
 export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
   const field = (key: string) => fields.find((candidate) => candidate.key === key);
@@ -224,6 +230,21 @@ export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
   const exatidao = field('exatidao');
   if (exatidao?.kind === 'select') {
     notes.push('The field exatidao is the accuracy class exactly as printed, burden included (for example "0,6C25" or "10P20"): give it as text, not forced to one of its options.');
+  }
+  // Story 23.7 (seed v13): the v13 keys the kernel parses (AD-13, E21-A4 P-2), named by the fields the request carries.
+  for (const list of fields.filter((candidate) => candidate.kind === 'number' && candidate.list === true)) {
+    notes.push(`The field ${list.key} is the plate's whole list of taps (derivações), every tap in plate order, exactly as printed with its unit (for example "13,8 / 13,2 / 12,6 / 12 / 11,4 kV" or "13800-13200-12600 V"): give it as text, never one tap alone.`);
+    for (const picked of fields.filter((candidate) => candidate.pick_from === list.key)) {
+      notes.push(`The field ${picked.key} is the tap in service, one value of ${list.key} with its unit; leave it out when the plate does not print which tap is in service.`);
+    }
+  }
+  const material = field('material_enrolamento');
+  if (material?.kind === 'select') notes.push(`The field material_enrolamento is the winding material: give one of: ${material.options?.join(' | ') ?? 'Cu | Al'} (Cu for copper, "cobre"; Al for aluminium, "alumínio").`);
+  for (const over of fields.filter((candidate) => candidate.kind === 'number' && candidate.over_sqrt3 === true)) {
+    notes.push(`The field ${over.key} may print a voltage over the square root of 3 ("115/√3", "115/V3"): give it exactly as printed, as text; a plain voltage as a number.`);
+  }
+  for (const ratio of fields.filter((candidate) => candidate.dash_ratio === true)) {
+    notes.push(`The field ${ratio.key} is the ratio exactly as printed, a dash or a slash included (for example "200-5 A" or "200/5"): give it as text.`);
   }
   return notes;
 }

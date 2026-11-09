@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, itensMarcadosConformeText, type FieldDef, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, itensMarcadosConformeText, SEED_VERSION, type FieldDef, type OpDraft } from '@app/domain';
 import type { BrowserContext, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { conclusionOpOf, concludeBatch } from './support/conclude-batch.ts';
@@ -63,9 +63,12 @@ function plateValue(field: FieldDef): unknown {
 
 type Scope = { relatorioId: string };
 
+/** Batch e23b: the plate the sheet draws, the current seed's, read from the kernel (E15-A3; v13 adds TIPO DE SECCIONADORA, required). */
+const SECC_PLATE = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').nameplate;
+
 /** Every nameplate field but `except`. */
 const seedPlate = (scope: Scope, blockId: string, except: string | null = null): OpDraft[] =>
-  SECC.nameplate.filter((f) => f.key !== except).map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f)));
+  SECC_PLATE.filter((f) => f.key !== except).map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f)));
 
 /** Every checklist item C but the ones in `except`. */
 const seedChecklist = (scope: Scope, blockId: string, except: readonly string[] = []): OpDraft[] =>

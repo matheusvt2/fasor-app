@@ -1,0 +1,267 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "TP",
+        "bbox": [
+          70,
+          70,
+          125,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "TP-02",
+        "bbox": [
+          640,
+          156,
+          721,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          290,
+          234,
+          319
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "Ondarel",
+        "bbox": [
+          641,
+          294,
+          754,
+          315
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          428,
+          175,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          432,
+          307,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "AT",
+        "bbox": [
+          317,
+          433,
+          349,
+          452
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "13,8/√3",
+        "bbox": [
+          642,
+          430,
+          747,
+          456
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "kV",
+        "bbox": [
+          759,
+          432,
+          794,
+          452
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          566,
+          175,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          570,
+          307,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "BT",
+        "bbox": [
+          319,
+          571,
+          351,
+          590
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "115/√3",
+        "bbox": [
+          642,
+          568,
+          737,
+          593
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "V",
+        "bbox": [
+          747,
+          571,
+          767,
+          590
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "GRUPO",
+        "bbox": [
+          71,
+          708,
+          162,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "DE",
+        "bbox": [
+          174,
+          709,
+          207,
+          728
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "LIGAÇÃO",
+        "bbox": [
+          219,
+          704,
+          331,
+          733
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "2",
+        "bbox": [
+          642,
+          708,
+          656,
+          728
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "TP-02",
+        "ocr_token_ids": [
+          "t2"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Ondarel",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_at",
+        "value": "13,8/√3 kV",
+        "ocr_token_ids": [
+          "t8",
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal_bt",
+        "value": "115/√3 V",
+        "ocr_token_ids": [
+          "t13",
+          "t14"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "grupo_ligacao_tp",
+        "value": "2 (FASE-TERRA, SISTEMA ATERRADO)",
+        "ocr_token_ids": [
+          "t18"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

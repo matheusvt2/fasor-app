@@ -201,6 +201,15 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'previous-visit.spec.ts',
     why: 'Story 22.12: issues two revisions through the shared queue and LibreOffice (relatório A, whose issue writes last_results, then B of the same obra) to read MANUT. ANTERIOR from the DOCX',
   },
+  // Batch e23b: 23.8-E2E-001 and 23.9-E2E-001 read the DOCX of the revisions they issue.
+  {
+    file: 'ttr-per-tap.spec.ts',
+    why: 'Story 23.8: issues a revision through the shared queue and LibreOffice to read the TTR per tap of section 9 (the plate rows and the one off the plate) from the downloaded DOCX',
+  },
+  {
+    file: 'test-applicability.durability.spec.ts',
+    why: 'Story 23.9: issues two revisions through the shared queue and LibreOffice, one with the test NA by the plate and one with it applied by hand, to read section 9 from the downloaded DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

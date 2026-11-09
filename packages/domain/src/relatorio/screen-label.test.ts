@@ -9,6 +9,30 @@ import { screenLabel } from './screen-label.ts';
  * data and never pass through `screenLabel`.
  */
 const SCREEN_FORMS: Record<string, string> = {
+  // Seed v13 (Story 23.7): the nameplate fields of decision K.
+  TAPS: 'Taps',
+  IMPEDÂNCIA: 'Impedância',
+  'MATERIAL DO ENROLAMENTO': 'Material do enrolamento',
+  'TEMPERATURA DO ÓLEO': 'Temperatura do óleo',
+  'TEMPERATURA DO ENROLAMENTO': 'Temperatura do enrolamento',
+  'CLASSE TÉRMICA': 'Classe térmica',
+  MONTAGEM: 'Montagem',
+  'TENSÃO DE COMANDO': 'Tensão de comando',
+  'CONTADOR DE OPERAÇÕES': 'Contador de operações',
+  'TEMPO DE ABERTURA DO FABRICANTE': 'Tempo de abertura do fabricante',
+  'TEMPO DE FECHAMENTO DO FABRICANTE': 'Tempo de fechamento do fabricante',
+  'TIPO DE SECCIONADORA': 'Tipo de seccionadora',
+  'CORRENTE DO FUSÍVEL': 'Corrente do fusível',
+  'GRUPO DE LIGAÇÃO': 'Grupo de ligação',
+  MCOV: 'MCOV',
+  INVÓLUCRO: 'Invólucro',
+  'DESLIGADOR ÍNTEGRO': 'Desligador íntegro',
+  'CLASSE U0/U': 'Classe U0/U',
+  ISOLAÇÃO: 'Isolação',
+  SEÇÃO: 'Seção',
+  COMPRIMENTO: 'Comprimento',
+  TERMINAÇÃO: 'Terminação',
+  CONDIÇÃO: 'Condição',
   // block types (already sentence case in the seed)
   'Cabos de entrada': 'Cabos de entrada',
   'Cabos de saída': 'Cabos de saída',

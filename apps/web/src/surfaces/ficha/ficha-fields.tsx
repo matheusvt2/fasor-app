@@ -2,6 +2,7 @@ import {
   criarText,
   fieldValueText,
   formatDecimalGroupedPtBr,
+  nameplateEchoText,
   isNotApplicableNumber,
   nameplateWordRecents,
   NOT_APPLICABLE_NUMBER,
@@ -20,6 +21,7 @@ import {
   wordRowByName,
   type BlockRow,
   type FieldDef,
+  type NameplateFieldInput,
   type WordRow,
   EMPTY_DEFINITION_CONTEXT,
   type DefinitionContext,
@@ -291,6 +293,12 @@ export interface FieldProps {
    * SECUNDÁRIA only); validity is `numberFieldValue`'s.
    */
   acceptsPair?: boolean;
+  /**
+   * Seed v13 (Story 23.7): how a nameplate number field takes its input, the kernel's
+   * `nameplateFieldInput`: a list of the plate's values (TAPS) or a value over √3 ("115/√3") is
+   * typed as text and parsed, echoed and shown by the kernel. Absent on every v12 field.
+   */
+  input?: NameplateFieldInput;
 }
 
 /** One sheet field, editable, rendered by its kind. */
@@ -369,15 +377,19 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
  * shows a secondary "N/A" button at its trailing end while it does not read N/A; a tap
  * commits the same `not_applicable` put as the typed spelling and moves no focus.
  */
-function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount, acceptsNotApplicable, acceptsPair }: FieldProps) {
+function NumberField({ field, value, commit, draft, missing, label, helper, invalidText, after, flushOnUnmount, acceptsNotApplicable, acceptsPair, input }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
+  // Seed v13 (Story 23.7): a list (TAPS) or a value over √3 reads and shows through the kernel's field texts.
+  const list = input?.list === true;
+  const sqrt3 = input?.sqrt3 === true;
+  const shapedText = (raw: string) => (list || sqrt3 ? fieldValueText(field, { raw, state: 'measured' }) : formatDecimalGroupedPtBr(raw));
   const storedNotApplicable = isNotApplicableNumber(value);
   const measuredRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
   const storedRaw = storedNotApplicable ? NOT_APPLICABLE_STORED_RAW : measuredRaw;
   const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
-    const parsed = numberFieldValue(text, unit, { pair: acceptsPair === true });
+    const parsed = numberFieldValue(text, unit, { pair: acceptsPair === true, list, sqrt3 });
     if (parsed === null || parsed === 'invalid') return parsed;
     // QA G1, fx17r review: an N/A stored before the field stopped offering it still reads N/A.
     if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true && !storedNotApplicable) return 'invalid';
@@ -385,17 +397,18 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   };
   const number: ReturnType<typeof useNumberInput> = useNumberInput({
     // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload; a stored "N/A" reads "N/A".
-    storedText: measuredRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(measuredRaw),
+    storedText: measuredRaw === null ? fieldValueText(field, value) : shapedText(measuredRaw),
     storedRaw,
     parse: parseNumber,
     commit: (parsed) =>
       commit(parsed === null ? null : parsed.state === 'not_applicable' ? { ...NOT_APPLICABLE_NUMBER } : { raw: parsed.raw, unit, state: 'measured' }),
-    echo: (parsed) => (parsed.state === 'not_applicable' ? null : numberEchoText(parsed.raw, unit)),
-    format: (parsed) => (parsed.state === 'not_applicable' ? NOT_APPLICABLE_TEXT : formatDecimalGroupedPtBr(parsed.raw)),
+    echo: (parsed) => (parsed.state === 'not_applicable' ? null : list || sqrt3 ? nameplateEchoText(field, parsed.raw, unit) : numberEchoText(parsed.raw, unit)),
+    format: (parsed) => (parsed.state === 'not_applicable' ? NOT_APPLICABLE_TEXT : shapedText(parsed.raw)),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
     flushOnUnmount: flushOnUnmount === true,
-    // G4: the decimal keypad has no "/", so a field that takes "380/220" asks for the text keyboard.
-    inputMode: acceptsPair === true ? 'text' : 'decimal',
+    // G4: the decimal keypad has no "/", so a field that takes "380/220" asks for the text keyboard;
+    // seed v13: nor ";" nor "√", so a list or a value over √3 asks for it too (`nameplateFieldInput`).
+    inputMode: acceptsPair === true ? 'text' : (input?.inputMode ?? 'decimal'),
     // Story 18.4: a refusal on blur or Enter is an `input_refused` with the kernel's reason.
     onRefuse: (text) => trackInputRefused('ficha.number', refusedNumberKind(text)),
     // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
@@ -412,7 +425,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
       return true;
     },
   });
-  const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;
+  const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`, helper === undefined || number.invalid ? null : `${helperId}-help`].filter(Boolean).join(' ') || undefined;
   // Story 16.4: "N/A" has no unit, at rest and once typed.
   const showsNotApplicable = number.parsed !== null && number.parsed !== 'invalid' && number.parsed.state === 'not_applicable';
   const fieldLabel = screenLabel(label ?? field.label);
@@ -467,6 +480,12 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
           {invalidText}
         </span>
       ) : null}
+      {/* Seed v13 (Story 23.7): the kernel's line under the field (TAPS: "Na ordem da placa · 5 taps"). */}
+      {helper === undefined || number.invalid ? null : (
+        <span className="helper" id={`${helperId}-help`}>
+          {helper}
+        </span>
+      )}
       {after}
     </div>
   );

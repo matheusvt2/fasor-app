@@ -1,7 +1,9 @@
 import { BASE_EQUIPMENT_BLOCK_TYPES, companyTypeIdOf, isCompanyBlockType, isEquipmentBlockType, sameTypeVersion, typeVersionIdOf, typeVersionOf } from '../schemas/block-config.ts';
 import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, typeVersionText, type DefinitionContext } from '../seed/definitions.ts';
 import type { MeasurementTest } from '../seed/measurement.ts';
-import type { BlockDefinition, TestDef } from '../seed/schema.ts';
+import type { BlockDefinition, TableDef, TestDef } from '../seed/schema.ts';
+import { isApplicabilityValue } from '../relatorio/applicability.ts';
+import { tapRowAccepted } from '../relatorio/tap-rows.ts';
 import {
   blockRowSchema,
   cellSchema,
@@ -16,8 +18,9 @@ import {
   type LocationRow,
   type RelatorioRow,
   type Sheet,
+  type TemplateRow,
 } from '../schemas/entities.ts';
-import { lockedSubBlocksOf } from '../seed/template.ts';
+import { lockedSubBlocksOf, withVersionSubBlocks } from '../seed/template.ts';
 import { canonicalJson } from '../text/hash.ts';
 import { companyTypeDefinitionSchema } from '../types/definition.ts';
 import { validateTypeDraft } from '../types/validate.ts';
@@ -448,7 +451,7 @@ function assertBlockType(state: EntityState, op: Op, path: OpPath): void {
  * none). `sheet/test` on a measurement test writes its instrument only, and only when the
  * test offers a picker (`instrument_of`); there is no criterion override.
  */
-function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionContext): void {
+function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionContext, op: Op): void {
   if (
     path.family !== 'sheet/nameplate' &&
     path.family !== 'sheet/checklist' &&
@@ -479,10 +482,11 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
   } else {
     const test = definition.tests.find((t) => t.key === path.test_key);
     if (test !== undefined) {
-      if (path.family === 'sheet/test/cell') assertCellGeometry(block, test, path);
+      if (path.family === 'sheet/test/cell') assertCellGeometry(block, definition, test, path);
       if (path.family === 'sheet/test/value') {
         throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${test.key} declares no value "${path.value_key}"`);
       }
+      if (path.family === 'sheet/test' && path.field === 'applicability') assertApplicability(block, test.applies_when, op, path);
       return;
     }
     const measurement = (definition.measurement_tests ?? []).find((t) => t.key === path.test_key);
@@ -492,6 +496,8 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
       if (!(measurement.values ?? []).some((value) => value.key === path.value_key)) {
         throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${measurement.key} declares no value "${path.value_key}"`);
       }
+    } else if (path.field === 'applicability') {
+      assertApplicability(block, measurement.applies_when, op, path);
     } else if (path.field !== 'instrument' || measurement.instrument_of === undefined) {
       throw new SeedPathError(formatPath(path), `sheet/test: ${block.block_type}/${measurement.key} holds no ${path.field}`);
     }
@@ -515,19 +521,45 @@ function assertMeasurementCell(block: BlockRow, test: MeasurementTest, path: OpP
 }
 
 /**
+ * Story 23.9 (contract 35): the override of a test the nameplate makes not applicable,
+ * `sheet/{b}/test/{k}/applicability`: accepted only on a test (either grammar) whose definition
+ * carries `applies_when`, and only `'applied'` or null (follow the plate again). Never a refusal
+ * of a cell write because a test is NA: that is the screen's to hide, never the fold's.
+ */
+function assertApplicability(block: BlockRow, condition: unknown, op: Op, path: OpPath & { family: 'sheet/test' }): void {
+  if (condition === undefined) throw new SeedPathError(formatPath(path), `sheet/test: ${block.block_type}/${path.test_key} has no applicability condition to override`);
+  const value = op.kind === 'remove' ? null : op.value;
+  if (!isApplicabilityValue(value)) throw new SeedPathError(formatPath(path), `sheet/test: the applicability override is "applied" or null, never ${JSON.stringify(value)}`);
+}
+
+/**
  * Stories 5.5-5.6: a cell address is the fixture's (`relatorio/readings.ts`): `row` across
  * the test's tables in table order, `col` into that row's table `value_columns`. A row or
  * column outside the geometry, or a `derived` column (VAL CALCULADO, CONDIÇÕES: the
  * kernel's, never written), is refused; a `print` column stays writable.
+ *
+ * Story 23.8 (seed v13, contract 35): a test whose single table names `rows_from` (the
+ * transformer's TTR from TAPS) takes a row only when it is a tap, in whole V, of the block's
+ * current list, or, the list empty, one of the seeded rows (`tapRowAccepted`): a row the plate
+ * no longer lists keeps its readings but is never written again.
  */
-function assertCellGeometry(block: BlockRow, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }): void {
+function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }): void {
   const { row, col } = path;
+  const columnOf = (table: TableDef) => {
+    const column = table.value_columns[col];
+    if (column === undefined) throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} is outside ${block.block_type}/${test.key} row ${row}`);
+    if (column.role === 'derived') throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} of ${block.block_type}/${test.key} is derived, never written`);
+  };
+  const [single] = test.tables;
+  if (test.tables.length === 1 && single !== undefined && single.rows_from !== undefined) {
+    if (!tapRowAccepted(block, definition, single, row)) throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is not a tap of the plate's ${single.rows_from} on ${block.block_type}/${test.key}`);
+    columnOf(single);
+    return;
+  }
   let offset = 0;
   for (const table of test.tables) {
     if (row < offset + table.rows.length) {
-      const column = table.value_columns[col];
-      if (column === undefined) throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} is outside ${block.block_type}/${test.key} row ${row}`);
-      if (column.role === 'derived') throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} of ${block.block_type}/${test.key} is derived, never written`);
+      columnOf(table);
       return;
     }
     offset += table.rows.length;
@@ -608,7 +640,7 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
  * same `ZodError` the whole-row parse threw for a value that is not a JSON value.
  */
 function writeSheet(block: BlockRow, op: Op, path: OpPath, ctx: () => DefinitionContext): BlockRow {
-  assertSeedPath(block, path, ctx);
+  assertSeedPath(block, path, ctx, op);
   const cell = cellSchema.parse(cellOf(block, op, path));
   const next = attributed(putSheet(block, path, cell), op);
   attributionSchema.parse(next);
@@ -771,6 +803,14 @@ function writeRow(row: EntityRow, op: Op, path: OpPath, ctx: () => DefinitionCon
       if (path.field === 'removed_at') return writeRemovedAt(row as BlockRow, op, value as string | null);
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;
       return path.field === 'not_tested' ? attributed(block, op) : block;
+    }
+    case 'template/seed_version': {
+      // Story 23.7 (seed v13, contract 35): the server's seed move also gives each seeded equipment
+      // block the sub-blocks the new version adds (the cables' nameplate), at their default, so an
+      // unedited standard template moved to v13 reads as one built there (`withVersionSubBlocks`).
+      const template = row as TemplateRow;
+      // A value that is no version is the row schema's to refuse, as before.
+      return typeof value === 'string' ? { ...template, seed_version: value, blocks: withVersionSubBlocks(template.blocks, value) } : ({ ...r, seed_version: value } as unknown as EntityRow);
     }
     case 'template/field': {
       // D-4 (2026-09-23): a content edit bumps `version` here, on the device and on the

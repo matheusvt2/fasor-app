@@ -147,6 +147,11 @@ export function testValueOp(author: Author, relatorioId: string, blockId: string
   return put(author, relatorioId, sheetTestValuePath(blockId, testKey, valueKey), value);
 }
 
+/** Story 23.9 (contract 35): `sheet/{blockId}/test/{testKey}/applicability` put, "Aplicar este ensaio" (`'applied'`) or "Seguir a placa" (null). */
+export function testApplicabilityOp(author: Author, relatorioId: string, blockId: string, testKey: string, value: 'applied' | null): OpDraft {
+  return put(author, relatorioId, sheetTestPath(blockId, testKey, 'applicability'), value);
+}
+
 /** `sheet/{blockId}/test/{testKey}/instrument` put: the instrument header copied by value (Story 5.7, AR-18). */
 export function testInstrumentOp(author: Author, relatorioId: string, blockId: string, testKey: string, header: InstrumentHeader): OpDraft {
   return put(author, relatorioId, sheetTestPath(blockId, testKey, 'instrument'), header);

@@ -75,6 +75,8 @@ export const plateHandler: ReadingKindHandler = {
     // Story 22.11 (seed v12): the Inspeção de QGBT replays the Quadro elétrico's plate; its four
     // fields are keys of that plate's answer, and the others drop `unknown_key`.
     { block_type: 'inspecao_qgbt', sha256: '7cfec77ab40680cdca0936b9b1a47ae530decd1bf3b6c25f21990383aed2d561' },
+    // Story 23.7 (seed v13): the defaults stay as they are. The cables gain a nameplate on v13 but no
+    // default: the v13 cable plate (images/plate-cabos-v13.png) replays for its own bytes only.
   ],
 
   async prepare({ db, companyId, relatorioId, photo }) {

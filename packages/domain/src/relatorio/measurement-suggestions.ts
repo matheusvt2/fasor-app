@@ -185,6 +185,8 @@ export function displayBurstStops(block: BlockRow, definition: BlockDefinition):
       const capture = table.columns.find((column) => column.role === 'capture');
       if (capture === undefined) continue;
       for (const row of table.rows) {
+        // Story 23.8: a tap row the plate no longer lists is never written again, so no shot targets it.
+        if (row.tap !== null && !row.tap.onPlate) continue;
         out.push({ testKey: test.testKey, tableKey: table.key, row: row.row, col: capture.col, tableTitle: table.title ?? test.title, rowLabel: row.label });
       }
     }

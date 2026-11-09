@@ -1449,6 +1449,8 @@ export const copy = {
       lastVisit: (tag: string) => `Copiar da última visita (${tag})`,
       copiedFrom: (tag: string) => `Copiado de ${tag}`,
       invalidNumber: 'Número não reconhecido',
+      // authored (Story 23.7, listed for Bruno): a TAPS list the kernel cannot read (one value, a repeat, text).
+      invalidList: 'Lista não reconhecida: dois ou mais valores diferentes, separados por ;',
       selectEmpty: 'Selecione',
       // authored (Story 8.1): the typed guess of a suggested field that is not its kind.
       invalidDate: 'Data não reconhecida — use dd/mm/aaaa ou mm/aaaa',
@@ -1553,6 +1555,22 @@ export const copy = {
       mismatchLabel: 'Leitura do visor diferente do valor digitado',
       // authored: the toast after picking the typed value over the display's.
       typedKept: 'Valor digitado mantido',
+      // Story 23.8 (`60-ficha.html` #/ficha/TR1 TTR card): the separator of a tap card's line of
+      // plate values ("V primário 13,8 kV · V secundário 380 V · Calculado 62,90"); the words are the kernel's.
+      tapCardSeparator: ' · ',
+    },
+    // Story 23.9 (`60-ficha.html` #/ficha/SEC-C05, DESIGN.md › Not-applicable test): a test the nameplate
+    // makes not applicable; the reason and the applied sentence are the kernel's (`testApplicability`).
+    applicability: {
+      pill: 'Não se aplica',
+      bandSub: 'Pela placa. Não conta como faltando e não sai no relatório.',
+      // authored (Story 23.9, listed for Bruno; the mock's button).
+      apply: 'Aplicar este ensaio',
+      appliedLead: 'Aplicado por você.',
+      followPlate: 'Seguir a placa',
+      // The mock's toasts of the two buttons (`data-toast`).
+      appliedToast: 'Ensaio aplicado — os campos abrem e ele sai no relatório',
+      followedToast: 'Voltou a seguir a placa — não se aplica',
     },
     // Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the header pill of a library type's sheet, verbatim.
     libraryPill: 'Tipo da biblioteca',

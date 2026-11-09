@@ -111,7 +111,8 @@ function isNcDevice(result: Cell, deviceId: string): boolean {
  * folds as sequential (the text's latest writer's basis stands, no record, no info entry)
  * unless the `text_status` cell holds a `conflict` (every writer puts text, status, basis in
  * that order, so a real contradiction keeps its basis mark). A contradiction keeps the `seq`-later op's value on display and (Story
- * 10.2) marks the cell with the side it displaced (`mergeCell`, the one branch).
+ * 10.2) marks the cell with the side it displaced (`mergeCell`, the one branch). Story 23.9: a
+ * concurrent applicability override of another value is a contradiction, its null included.
  */
 export function mergePolicy(input: MergePolicyInput): MergeOutcome {
   const { path, current, op } = input;
@@ -127,6 +128,10 @@ export function mergePolicy(input: MergePolicyInput): MergeOutcome {
   }
   const mine = current.value;
   const theirs = op.value;
+  // Story 23.9 (contract 35): the applicability override is a choice between two answers, applied
+  // ('applied') and following the plate (null): two devices that disagree are a contradiction the
+  // Conflict view asks about ("Aplicação"), never "filled over empty".
+  if (path.family === 'sheet/test' && path.field === 'applicability' && canonicalJson(mine ?? null) !== canonicalJson(theirs ?? null)) return { kind: 'contradiction' };
 
   const emptyMine = isEmptyValue(mine);
   const emptyTheirs = isEmptyValue(theirs);

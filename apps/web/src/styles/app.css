@@ -1147,3 +1147,41 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
    takes the field helper's neutral colour, the declaration of `.helper` (components.css) copied
    verbatim. Layout, size and weight stay the `.mf-helper` base rule's. */
 .mf-helper[data-tone="previous"] { color: var(--ink-secondary); }
+
+/* ---------- e23b (Stories 23.8 and 23.9, seed v13): the TTR per tap and a test not applicable by the nameplate ----------
+   `60-ficha.html` (Story 23.1's frames, `#/ficha/TR1` and `#/ficha/SEC-C05`, its page CSS of 2026-11-08): each rule
+   below is the mock's `[data-route="/ficha/:tag"] X` rule with the route of the app's sheet,
+   `[data-route="/relatorio/:id/ficha/:blockId"]`, declarations copied verbatim. The polarity rules beside them in the
+   mock (`.ficha-ttr-pol`, Story 23.18) and the "Como ensaiar" ones (Story 23.10) are their stories'. */
+/* `[data-route="/ficha/:tag"] .v13-line` and `.v13-line b`: the line over the tap table ("Taps da placa 5 · …") */
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); margin: 0 0 var(--sp-3); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-line b { color: var(--ink-primary); font-size: var(--t-body-size); font-weight: 600; }
+/* `[data-route="/ficha/:tag"] .tap-cell`, `.tap-mark` and `tr.tap-optional td.cell-point` */
+[data-route="/relatorio/:id/ficha/:blockId"] .tap-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .tap-mark { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--sp-2); border: 1.5px solid var(--primary); border-radius: var(--r-full); color: var(--primary); font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); white-space: nowrap; }
+[data-route="/relatorio/:id/ficha/:blockId"] tr.tap-optional td.cell-point { font-weight: 400; color: var(--ink-secondary); }
+/* `[data-route="/ficha/:tag"] .section.v13` (its `.section:has(.ficha-ttr-pol)` half is Story 23.18's) */
+[data-route="/relatorio/:id/ficha/:blockId"] .section.v13 { min-width: 0; }
+/* `[data-route="/ficha/:tag"] .ficha-ttr-taps` and its cells (the `.ficha-ttr-pol` halves are Story 23.18's) */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps { table-layout: auto; width: max-content; min-width: 100%; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps td { overflow-wrap: normal; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps .mf-value { white-space: nowrap; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps td.cell-value .measurement-field { flex-wrap: nowrap; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps th, [data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps th:nth-child(n) { width: auto; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps td.cell-value { width: 96px; min-width: 96px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr-taps .measurement-field .mf-value { padding: 0 var(--sp-2); }
+/* `[data-route="/ficha/:tag"] .measurement-card .tap-mark`, `.card-fields`, `.card-fields .field-label` and `.measurement-card.tap-optional .card-point` */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-card .tap-mark { margin-left: var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-card .card-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-card .card-fields .field-label { font-size: var(--t-meta-size); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-card.tap-optional .card-point { font-weight: 400; color: var(--ink-secondary); }
+/* `[data-route="/ficha/:tag"] .v13-na-pill`, `.v13-na-band`, `.band-text`, `.band-sub`, the applied state and `.v13-applied-band` */
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--sp-3); border-radius: var(--r-full); background: var(--nao-aplica-fill); color: var(--nao-aplica); font-size: var(--t-label-size); font-weight: 600; }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na-band { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); padding: var(--sp-3) var(--sp-4); background: var(--nao-aplica-fill); border-left: 4px solid var(--nao-aplica); border-radius: var(--r-sm); color: var(--ink-primary); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na-band .band-text { flex: 1 1 300px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na-band .band-sub { display: block; margin-top: 2px; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na .v13-applied-band, [data-route="/relatorio/:id/ficha/:blockId"] .v13-na .v13-na-body, [data-route="/relatorio/:id/ficha/:blockId"] .v13-na.is-applied .v13-na-band, [data-route="/relatorio/:id/ficha/:blockId"] .v13-na.is-applied .v13-na-pill { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na.is-applied .v13-applied-band { display: flex; }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-na.is-applied .v13-na-body { display: block; margin-top: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-applied-band { flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); padding: var(--sp-2) var(--sp-4); border-left: 4px solid var(--primary); background: var(--focus-fill); border-radius: var(--r-sm); font-size: var(--t-body-size); }
+[data-route="/relatorio/:id/ficha/:blockId"] .v13-applied-band .band-text { flex: 1 1 260px; }

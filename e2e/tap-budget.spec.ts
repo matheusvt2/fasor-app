@@ -173,7 +173,9 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
 
-  const built = newRelatorioDrafts(account);
+  // Batch e23b: on seed v12, the plate the budget was measured on (v13 adds TIPO DE SECCIONADORA, required,
+  // which a plate copied from an earlier visit leaves to pick: `deferred-work.md` › Epic 23 batch e23b).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v12' });
   const scope = { relatorioId: built.relatorioId };
   const enel = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel');
   expect(enel).toHaveLength(2);

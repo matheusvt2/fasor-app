@@ -48,7 +48,8 @@ interface OutboxRow {
   batch_id: string | null;
 }
 
-const PARA_RAIO = getDefinition('v1', 'cabine_primaria', 'para_raio');
+// Batch e23b: the current seed's, read from the kernel (E15-A3); seed v13 appends MCOV, INVÓLUCRO and DESLIGADOR ÍNTEGRO.
+const PARA_RAIO = getDefinition(SEED_VERSION, 'cabine_primaria', 'para_raio');
 const toast = (page: Page) => page.getByTestId('toast');
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const enel = (page: Page) => tree(page).locator(':scope > li.s9-local').filter({ has: page.locator(':scope > .s9-loc-row .s9-loc-name', { hasText: 'Cubículo Enel' }) });
@@ -163,6 +164,13 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(field(page, 'corrente_nominal').locator('.mf-unit')).toHaveText('kA');
   await corrente.fill('10');
   await corrente.press('Tab');
+  // Batch e23b (seed v13, Story 23.7): the fields after CORRENTE NOMINAL, each by its own control.
+  const mcov = field(page, 'mcov_kv').locator('input');
+  await expect(mcov).toHaveAttribute('inputmode', 'decimal');
+  await mcov.fill('12,7');
+  await mcov.press('Tab');
+  await field(page, 'involucro').locator('select').selectOption('POLIMÉRICO');
+  await field(page, 'desligador_integro').locator('select').selectOption('SIM');
   await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
 
   await expect
@@ -457,7 +465,8 @@ test('@p0 5.1-E2E-004 uncommitted observation text survives a dead tab as "Rascu
 
 // --- Stories 5.5-5.8: the readings, the run, the instrument, the conclusion -------------------
 
-const SECCIONADORA = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora');
+// Batch e23b: the current seed's (E15-A3); seed v13 appends TIPO DE SECCIONADORA and CORRENTE DO FUSÍVEL.
+const SECCIONADORA = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora');
 const cellInput = (page: Page, name: string) => page.getByRole('textbox', { name, exact: true });
 const cellBox = (page: Page, key: string) => page.locator(`.ficha-cell[data-cell="${key}"]`).filter({ visible: true });
 const resultGroup = (page: Page) => page.getByRole('radiogroup', { name: 'Resultado' });
@@ -645,7 +654,8 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
 
 test('@p1 UX-F42 a transformer ratio row out of ±0,5 % reads INSATISFATÓRIO, its out cell offers "Marcar Com restrições", and TAP Nº reads the plate\'s TAP atual; Story 15.6: VAL CALCULADO is U1 · √3 / U2 with its formula shown', async ({ page }) => {
   test.setTimeout(150_000);
-  const { blockId } = await openTransformerSheet(page, account, database, { width: 1280 });
+  // Batch e23b: on seed v12, whose text TAP ATUAL names the one typed row (v13's TTR per tap is `ttr-per-tap.spec.ts`'s).
+  const { blockId } = await openTransformerSheet(page, account, database, { width: 1280, seedVersion: 'v12' });
   // The plate's TAP ATUAL, typed as a person would.
   const tap = field(page, 'tap_atual').locator('input').first();
   await tap.fill('5');
@@ -1226,10 +1236,14 @@ test('@p0 12.1-E2E-011 D-2: the NC chip completing the checklist keeps it open; 
   // and the plate it left collapses.
   await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
   await expect(stepHost(page, 'placa')).toBeFocused();
-  // DATA DE FABRICAÇÃO is the plate's last field; its year segment the last stop in it.
-  const lastPlate = field(page, 'data_de_fabricacao').getByRole('spinbutton', { name: /^ano/ });
-  await lastPlate.focus();
-  await expect(lastPlate).toBeFocused();
+  // ~~DATA DE FABRICAÇÃO is the plate's last field; its year segment the last stop in it.~~ Batch e23b
+  // (seed v13): TIPO DE SECCIONADORA and CORRENTE DO FUSÍVEL follow it, so the plate's last stop is
+  // read off the page: its last focusable control.
+  await stepHost(page, 'placa').evaluate((host) => {
+    const stops = [...host.querySelectorAll<HTMLElement>('input, select, textarea, button, [tabindex]')].filter((el) => el.tabIndex >= 0 && !el.matches(':disabled') && el.getClientRects().length > 0);
+    stops.at(-1)!.focus();
+  });
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-step]')?.getAttribute('data-step') ?? null)).toBe('placa');
   await expect(stepHost(page, 'placa')).not.toHaveClass(/is-collapsed/);
   await page.keyboard.press('Tab');
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-step]')?.getAttribute('data-step') ?? null)).not.toBe('placa');

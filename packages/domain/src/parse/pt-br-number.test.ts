@@ -8,9 +8,15 @@ import {
   NOT_APPLICABLE_NUMBER,
   NOT_APPLICABLE_TEXT,
   numberEchoText,
+  formatNumberListPtBr,
+  formatOverSqrt3PtBr,
   parseDecimalPtBr,
+  parseNumberListPtBr,
+  parseOverSqrt3PtBr,
   parseReadingPtBr,
   parseVoltagePairPtBr,
+  readNumberListRaw,
+  readOverSqrt3Raw,
 } from './pt-br-number.ts';
 
 describe('5.3-UNIT parseDecimalPtBr (EXPERIENCE.md › Measurement field, Parsing)', () => {
@@ -148,5 +154,53 @@ describe('fix batch fxpw G4: the two-level voltage "380/220" (FO.SERV-03 practic
     expect(formatDecimalGroupedPtBr('n/a')).toBe('n/a');
     expect(formatDecimalGroupedPtBr('380/')).toBe('380/');
     expect(numberEchoText('380/220', 'V')).toBe('= 380/220 V');
+  });
+});
+
+describe('23.7-UNIT parseNumberListPtBr: the plate\'s list of values (TAPS)', () => {
+  it('reads two or more pt-BR numbers separated by ";", "·" or spaces, in order, canonical', () => {
+    expect(parseNumberListPtBr('13,8; 13,2; 12,6; 12; 11,4', { unit: 'kV' })).toBe('13.8;13.2;12.6;12;11.4');
+    expect(parseNumberListPtBr('13,8 · 13,2 · 12,6', { unit: 'kV' })).toBe('13.8;13.2;12.6');
+    expect(parseNumberListPtBr('  13,8   13,2 ;; 12,60 ', { unit: 'kV' })).toBe('13.8;13.2;12.6');
+    expect(parseNumberListPtBr('13.800;13.200', { unit: 'V' })).toBe('13800;13200');
+    expect(parseNumberListPtBr('1,5; 2', { unit: 'A' })).toBe('1.5;2');
+  });
+
+  it('refuses one entry, a repeat (once canonical), a sign, zero, a non-number and a value not whole in volts', () => {
+    for (const text of ['13,8', '', ';', '12; 12,0', '13,8; -13,2', '+13,8; 13,2', '0; 13,2', '13,8; doze', '13,8, 13,2'])
+      expect(parseNumberListPtBr(text, { unit: 'kV' }), text).toBeNull();
+    expect(parseNumberListPtBr('13,8505; 13,2', { unit: 'kV' })).toBeNull();
+    expect(parseNumberListPtBr('13800,5; 13200', { unit: 'V' })).toBeNull();
+    // A unit with no volts reads any positive decimal.
+    expect(parseNumberListPtBr('13,8505; 13,2', { unit: 'A' })).toBe('13.8505;13.2');
+  });
+
+  it('reads back a stored list and shows it with "·"; any other raw reads none and shows as it is', () => {
+    expect(readNumberListRaw('13.8;13.2;12')).toEqual(['13.8', '13.2', '12']);
+    for (const raw of ['13.8', '13.8;13.8', '13,8;13,2', '13.8;', '', null, 13.8]) expect(readNumberListRaw(raw), String(raw)).toBeNull();
+    expect(formatNumberListPtBr('13.8;13.2;12.6;12;11.4')).toBe('13,8 · 13,2 · 12,6 · 12 · 11,4');
+    expect(formatNumberListPtBr('13800;13200')).toBe('13.800 · 13.200');
+    expect(formatNumberListPtBr('13.8')).toBe('13.8');
+  });
+});
+
+describe('23.7-UNIT parseOverSqrt3PtBr: a value over √3 (the TP\'s "115/√3")', () => {
+  it('reads "N/√3", "N/V3", "N/raiz3" in any case, spaces allowed, stored "N/√3" canonical', () => {
+    for (const text of ['115/√3', '115/V3', '115/v3', '115/raiz3', '115/RAIZ3', ' 115 / raiz 3 ', '115,0/√3']) expect(parseOverSqrt3PtBr(text), text).toBe('115/√3');
+    expect(parseOverSqrt3PtBr('13,8/√3')).toBe('13.8/√3');
+    expect(parseOverSqrt3PtBr('13.800/√3')).toBe('13800/√3');
+  });
+
+  it('refuses "/√3" alone, another root, a sign, zero and a plain number', () => {
+    for (const text of ['/√3', '√3', '115/√2', '115/√', '-115/√3', '0/√3', '115', 'x/√3', '115/√3/√3']) expect(parseOverSqrt3PtBr(text), text).toBeNull();
+  });
+
+  it('reads back a stored "N/√3" and shows it pt-BR', () => {
+    expect(readOverSqrt3Raw('115/√3')).toBe('115');
+    expect(readOverSqrt3Raw('13.8/√3')).toBe('13.8');
+    for (const raw of ['115', '115/V3', '13,8/√3', null]) expect(readOverSqrt3Raw(raw), String(raw)).toBeNull();
+    expect(formatOverSqrt3PtBr('13.8/√3')).toBe('13,8/√3');
+    expect(formatOverSqrt3PtBr('13800/√3')).toBe('13.800/√3');
+    expect(formatOverSqrt3PtBr('115')).toBe('115');
   });
 });

@@ -9,6 +9,8 @@
 
 export {
   condicaoScreenText,
+  ratioRowCondicaoText,
+  TAP_NOT_MEASURED_TEXT,
   headerText,
   measurementCellName,
   nextUnit,
@@ -29,5 +31,5 @@ export {
   type VisibleColumn,
   type VoltageColumn,
 } from './reading-cells.ts';
-export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, failedRatioRows, type FailedRatioRow, unitDefaultFor } from './reading-evaluation.ts';
+export { bandCriterion, cellAddressesOf, pickedBand, CRITERION_NOT_EVALUATED, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, failedRatioRows, sheetTestSections, type FailedRatioRow, type SheetTestSection, unitDefaultFor } from './reading-evaluation.ts';
 export { firstRunCell, runEnterKeyHint, runTarget, unitTapNeedsEdit, worstReadings, type WorstReading } from './reading-run.ts';

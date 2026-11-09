@@ -5,7 +5,7 @@ import { templateRowSchema } from '../schemas/entities.ts';
 import { blockConfigSchema } from '../schemas/block-config.ts';
 import { EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
 import { equipmentTypesOf, getDefinition, SEED_VERSION, SEED_VERSIONS } from './definitions.ts';
-import { defaultBlockConfig, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals } from './template.ts';
+import { defaultBlockConfig, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals, withVersionSubBlocks } from './template.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000f1';
 const template = standardTemplate({ id: ID });
@@ -32,17 +32,40 @@ describe('standardTemplate', () => {
   // template's `seed_version` alone. That loses nothing for an unedited standard template only
   // while every shipped version builds the same content; a version that changes it must make
   // the boot step write the blocks and the skeleton too.
-  it('builds the same blocks and skeleton at every shipped seed version, so moving `seed_version` alone equals a rebuild', () => {
+  // ~~builds the same blocks at every shipped seed version~~ Story 23.7 (2026-11-08, seed v13):
+  // v13 gives both cable types a nameplate sub-block, so the move's fold completes the blocks with
+  // the sub-blocks the new version adds (`withVersionSubBlocks`), and moving still equals a rebuild.
+  it('builds the same blocks and skeleton at every shipped seed version once the move completes them, so moving `seed_version` equals a rebuild', () => {
     const versions = Object.keys(SEED_VERSIONS);
     expect(versions).toContain(SEED_VERSION);
     expect(versions.length).toBeGreaterThan(1);
     for (const version of versions) {
       const built = standardTemplate({ id: ID, seedVersion: version });
       expect(built.seed_version, version).toBe(version);
-      expect(built.blocks, version).toEqual(template.blocks);
+      expect(withVersionSubBlocks(built.blocks, SEED_VERSION), version).toEqual(template.blocks);
       expect(built.skeleton, version).toEqual(template.skeleton);
-      expect({ ...built, seed_version: SEED_VERSION }, version).toEqual(template);
     }
+    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type.
+    const v12 = standardTemplate({ id: ID, seedVersion: 'v12' }).blocks;
+    for (const version of versions.filter((one) => one !== 'v13')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
+    expect(withVersionSubBlocks(v12, 'v12')).toEqual(v12);
+  });
+
+  it('Story 23.7: the server\'s move of a v12 template to v13 folds the cables\' nameplate in, on; nothing a block names changes', () => {
+    const v12 = standardTemplate({ id: ID, seedVersion: 'v12' });
+    const edited = { ...v12, blocks: v12.blocks.map((block) => (block.block_type === 'cabos_entrada' ? { ...block, sub_blocks: { ...block.sub_blocks, isolacao: { enabled: false } } } : block)) };
+    const move = makeOp(
+      { kind: 'put', scope: 'company', company_id: '019966b0-0000-7000-8000-0000000000c1', project_id: null, relatorio_id: null, prev_op_id: null, batch_id: null, meta: null, actor_id: 'system:identity', device_id: 'server', path: `template/${ID}/seed_version`, value: 'v13' },
+      { newId: () => '019966b0-0000-7000-8000-0000000000c2', now: new Date('2026-11-08T12:00:00Z') },
+    );
+    const moved = applyOp(new Map([[`template:${ID}`, v12]]), move).get(`template:${ID}`);
+    expect(moved).toEqual({ ...template, version: v12.version });
+    const kept = applyOp(new Map([[`template:${ID}`, edited]]), move).get(`template:${ID}`) as typeof template;
+    const cable = kept.blocks.find((block) => block.block_type === 'cabos_entrada')!;
+    expect(Object.keys(cable.sub_blocks)).toEqual(['nameplate', 'checklist', 'isolacao', 'ia_ip_display', 'observations', 'conclusion']);
+    expect(cable.sub_blocks.nameplate).toEqual({ enabled: true });
+    expect(cable.sub_blocks.isolacao).toEqual({ enabled: false });
+    expect(kept.blocks.filter((block) => block.block_type !== 'cabos_entrada' && block.block_type !== 'cabos_saida')).toEqual(edited.blocks.filter((block) => block.block_type !== 'cabos_entrada' && block.block_type !== 'cabos_saida'));
   });
 
   it('starts with the section blocks 1-6, 8, 10 and 11 in order, outside the skeleton', () => {

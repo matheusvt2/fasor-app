@@ -43,7 +43,8 @@ test('@p1 9.2-E2E-004 the panel is read by the real job, the corrected type is c
   await resetCompany(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 900 });
   await signIn(page, account.email);
-  const { relatorioId } = await pushNewRelatorio(page, account, database);
+  // Batch e23b: on seed v12, whose transformer plate holds the eleven keys of its default fixture (on v13 the job drops the text TAP ATUAL).
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { seedVersion: 'v12' });
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });

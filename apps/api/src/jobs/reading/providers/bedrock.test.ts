@@ -255,8 +255,8 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 });
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
-  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 5', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-5');
+  it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 6 (Story 23.7)', async () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-6');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -272,7 +272,7 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-5');
+    expect(result.prompt_version).toBe('bedrock-structuring-6');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
@@ -313,6 +313,32 @@ describe('22.7 and 22.9 (seed v12): the structuring prompt says what TIPO, TIPO 
     expect(plateFieldNotes(getDefinition('v11', 'cabine_primaria', 'tc').nameplate)).toEqual([]);
     expect(plateFieldNotes(getDefinition('v11', 'cabine_primaria', 'transformador_forca').nameplate)).toEqual([]);
     expect(plateFieldNotes(getDefinition('v11', 'cabine_primaria', 'para_raio').nameplate)).toEqual([]);
+  });
+});
+
+describe('23.7 (seed v13): the structuring prompt says what TAPS, TAP ATUAL, the winding material, a voltage over √3 and the TC ratio hold', () => {
+  const fieldsOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate;
+
+  it('a v13 transformer asks for TAPS whole and in plate order, TAP ATUAL one of them, and the material by its options', () => {
+    const notes = plateFieldNotes(fieldsOf('v13', 'transformador_forca'));
+    expect(notes).toContain('The field taps is the plate\'s whole list of taps (derivações), every tap in plate order, exactly as printed with its unit (for example "13,8 / 13,2 / 12,6 / 12 / 11,4 kV" or "13800-13200-12600 V"): give it as text, never one tap alone.');
+    expect(notes).toContain('The field tap_atual_kv is the tap in service, one value of taps with its unit; leave it out when the plate does not print which tap is in service.');
+    expect(notes).toContain('The field material_enrolamento is the winding material: give one of: Cu | Al (Cu for copper, "cobre"; Al for aluminium, "alumínio").');
+    const text = structuringPrompt({ ...plateInput, fields: fieldsOf('v13', 'transformador_forca') });
+    expect(text.indexOf('Fields:')).toBeLessThan(text.indexOf('The field taps'));
+    expect(text.indexOf('The field taps')).toBeLessThan(text.indexOf('OCR words:'));
+  });
+
+  it('a v13 TP asks for its voltages over √3 as printed and a v13 TC for its ratio with the dash; v12 asks for none of it', () => {
+    expect(plateFieldNotes(fieldsOf('v13', 'tp')).filter((note) => note.includes('square root of 3'))).toEqual([
+      'The field tensao_nominal_at may print a voltage over the square root of 3 ("115/√3", "115/V3"): give it exactly as printed, as text; a plain voltage as a number.',
+      'The field tensao_nominal_bt may print a voltage over the square root of 3 ("115/√3", "115/V3"): give it exactly as printed, as text; a plain voltage as a number.',
+    ]);
+    expect(plateFieldNotes(fieldsOf('v13', 'tc'))).toContain('The field relacao is the ratio exactly as printed, a dash or a slash included (for example "200-5 A" or "200/5"): give it as text.');
+    for (const type of ['tp', 'tc', 'transformador_forca']) {
+      const v12 = plateFieldNotes(fieldsOf('v12', type));
+      expect(v12.some((note) => /taps|square root|dash|material_enrolamento/.test(note)), type).toBe(false);
+    }
   });
 });
 
@@ -486,7 +512,7 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
     expect(result.output.values).toHaveLength(others.length + 1);
     expect(Object.keys(result.output)).toEqual(['values']);
-    expect(result.prompt_version).toBe('bedrock-structuring-5');
+    expect(result.prompt_version).toBe('bedrock-structuring-6');
   });
 
   it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {

@@ -26,7 +26,7 @@ import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
-import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, type BlockDefinition, type ReportSeed, type TableDef, type TestDef } from './schema.ts';
+import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, type BlockDefinition, type FieldDef, type ReportSeed, type TableDef, type TestDef } from './schema.ts';
 
 /** v1 to v5 as merged, before the 2026-11-04 option amendment (`legacy-options.ts`). */
 const AS_SHIPPED: Readonly<Record<string, ReportSeed>> = { v1: CABINE_PRIMARIA_V1, v2: CABINE_PRIMARIA_V2, v3: CABINE_PRIMARIA_V3, v4: CABINE_PRIMARIA_V4, v5: CABINE_PRIMARIA_V5 };
@@ -2143,7 +2143,8 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
 
 /** v13 as it ships (Epic 23); until its deploy (M-2) each Epic 23 batch re-pins it, after it a change is a new version. */
 // e23a first commit (2026-11-08): v13 opens equal to v12.
-const V13_HASH = 'b9fc6c495d66ed7a496da881f3e37b7534455f857d79b00a150f0d0aee099702';
+// e23b (2026-11-08, Stories 23.7 to 23.9): re-pinned with the nameplate fields, the TTR per tap and the dry fields (its block below).
+const V13_HASH = '5e0cd3a495f0a4bd92ff954056acb19580239eb34947e799dd487459a9d48067';
 
 describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', () => {
   const v12 = getSeed('v12', 'cabine_primaria');
@@ -2158,11 +2159,122 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
   });
 
   it('differs from v12 by exactly its stories, and v1 to v12 hash as they shipped', () => {
-    const stripped = structuredClone(v13) as typeof v13;
+    // e23b: batch e23b's delta is undone here and pinned in its own block below.
+    const stripped = withoutE23b(structuredClone(v13) as typeof v13);
     expect(JSON.stringify(stripped)).toBe(JSON.stringify(v12));
     expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
     expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
     expect(hash('v13'), 'seed v13 changed: before its first deploy update this pin, after it add a new version').toBe(V13_HASH);
+  });
+});
+
+// --- e23b: Stories 23.7 to 23.9 ---------------------------------------------------------------
+
+/** The nameplate keys batch e23b appends after v12's (Story 23.7), by type. */
+const E23B_APPENDED: Readonly<Partial<Record<(typeof EIGHT)[number], readonly string[]>>> = {
+  transformador_forca: ['impedancia_pct', 'material_enrolamento', 'temperatura_oleo_c', 'temperatura_enrolamento_c', 'classe_termica'],
+  disjuntor_mt: ['tipo_montagem', 'tensao_comando_v', 'acionamento', 'contador_operacoes', 'tempo_abertura_fab_ms', 'tempo_fechamento_fab_ms'],
+  chave_seccionadora: ['tipo_seccionadora', 'fusivel_corrente_a'],
+  tp: ['grupo_ligacao_tp'],
+  para_raio: ['mcov_kv', 'involucro', 'desligador_integro'],
+  cabos_entrada: ['classe_cabo', 'isolacao_cabo', 'secao_mm2', 'comprimento_m', 'tipo_terminacao', 'condicao_cabo'],
+  cabos_saida: ['classe_cabo', 'isolacao_cabo', 'secao_mm2', 'comprimento_m', 'tipo_terminacao', 'condicao_cabo'],
+};
+
+/** Batch e23b's delta undone, so a v13 holding it compares with v12 for everything else (the e23a block reads it). */
+function withoutE23b(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const blocks = out.blocks;
+  for (const [type, keys] of Object.entries(E23B_APPENDED)) {
+    const definition = blocks[type as (typeof EIGHT)[number]];
+    definition.nameplate = definition.nameplate.filter((field) => !keys!.includes(field.key));
+  }
+  const transformer = blocks.transformador_forca;
+  transformer.nameplate.splice(
+    transformer.nameplate.findIndex((field) => field.key === 'taps'),
+    2,
+    { key: 'tap_atual', label: 'TAP ATUAL', kind: 'text' },
+  );
+  const rule = transformer.oil_rule!;
+  rule.fields = rule.fields.filter((key) => key !== 'temperatura_oleo_c');
+  delete rule.dry_fields;
+  for (const test of transformer.tests) for (const table of test.tables) delete table.rows_from;
+  const acionamento = blocks.chave_seccionadora.nameplate.find((field) => field.key === 'acionamento')!;
+  acionamento.options = acionamento.options!.filter((option) => option !== 'MOTORIZADO');
+  for (const field of blocks.tp.nameplate) delete field.over_sqrt3;
+  for (const field of blocks.tc.nameplate) delete field.dash_ratio;
+  for (const type of ['cabos_entrada', 'cabos_saida'] as const) blocks[type].sub_blocks = blocks[type].sub_blocks.filter((key) => key !== 'nameplate');
+  return out;
+}
+
+describe('seed v13, batch e23b (Stories 23.7 to 23.9): the nameplate fields of decision K, the TTR per tap and the applicability keys', () => {
+  const v12 = getSeed('v12', 'cabine_primaria');
+  const v13 = getSeed('v13', 'cabine_primaria');
+  const keysOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate.map((field) => field.key);
+
+  it('adds exactly its delta to v12: the appended fields, TAPS and TAP ATUAL in place, the dry fields, the TTR from TAPS, MOTORIZADO, √3, the dash, the cable nameplate', () => {
+    expect(JSON.stringify(withoutE23b(structuredClone(v13) as typeof v13))).toBe(JSON.stringify(v12));
+    for (const [type, keys] of Object.entries(E23B_APPENDED)) {
+      const before = keysOf('v12', type).flatMap((key) => (type === 'transformador_forca' && key === 'tap_atual' ? ['taps', 'tap_atual_kv'] : [key]));
+      const added = keysOf('v13', type).filter((key) => !before.includes(key));
+      expect(added, type).toEqual(keys);
+    }
+    // No test of v13 carries an applicability condition or starts off: every one is "Sempre" (Base rev08).
+    for (const definition of Object.values(v13.blocks)) {
+      for (const test of definition!.tests) expect([test.applies_when, test.initial_off], `${definition!.block_type} ${test.key}`).toEqual([undefined, undefined]);
+      for (const test of definition!.measurement_tests ?? []) expect([test.applies_when, test.initial_off], `${definition!.block_type} ${test.key}`).toEqual([undefined, undefined]);
+    }
+    expect(v13.blocks.transformador_forca.oil_rule).toMatchObject({ fields: ['vol_oleo', 'tipo_do_oleo', 'temperatura_oleo_c'], dry_fields: ['temperatura_enrolamento_c', 'classe_termica'] });
+  });
+
+  it('pins the options it takes from the base (Base rev08 equipamentos[].campos) and which fields are optional', () => {
+    const field = (type: string, key: string) => getDefinition('v13', 'cabine_primaria', type).nameplate.find((one) => one.key === key)!;
+    expect(field('transformador_forca', 'classe_termica').options).toEqual(['B (130)', 'F (155)', 'H (180)']);
+    expect(field('disjuntor_mt', 'tipo_montagem').options).toEqual(['EXTRAÍVEL', 'FIXO']);
+    expect(field('disjuntor_mt', 'acionamento').options).toEqual(['MOLA MOTORIZADA', 'MOLA MANUAL', 'MAGNÉTICO']);
+    expect(field('disjuntor_mt', 'tensao_comando_v').kind).toBe('text');
+    expect(field('chave_seccionadora', 'tipo_seccionadora').options).toEqual(['SEM CARGA', 'SOB CARGA (INTERRUPTORA)', 'SOB CARGA COM FUSÍVEIS', 'CHAVE DE ATERRAMENTO']);
+    expect(field('tp', 'grupo_ligacao_tp').options).toEqual(['1 (FASE-FASE)', '2 (FASE-TERRA, SISTEMA ATERRADO)', '3 (FASE-TERRA, SISTEMA ISOLADO)']);
+    expect(field('para_raio', 'involucro').options).toEqual(['POLIMÉRICO', 'CERÂMICO']);
+    expect(field('para_raio', 'desligador_integro').options).toEqual(['SIM', 'NÃO']);
+    expect(field('para_raio', 'mcov_kv')).toMatchObject({ kind: 'number', unit: 'kV' });
+    expect(field('cabos_entrada', 'classe_cabo').options).toEqual(['3,6/6 kV', '6/10 kV', '8,7/15 kV', '12/20 kV', '15/25 kV', '20/35 kV']);
+    expect(field('cabos_saida', 'secao_mm2')).toMatchObject({ kind: 'number', unit: 'mm²' });
+    const optional = (type: string) => getDefinition('v13', 'cabine_primaria', type).nameplate.filter((one) => one.optional === true).map((one) => one.key);
+    expect(optional('transformador_forca')).toEqual(['impedancia_pct', 'temperatura_oleo_c', 'temperatura_enrolamento_c', 'classe_termica']);
+    expect(optional('disjuntor_mt')).toEqual(['contador_operacoes', 'tempo_abertura_fab_ms', 'tempo_fechamento_fab_ms']);
+    expect(optional('chave_seccionadora')).toEqual(['fusivel_corrente_a']);
+    for (const type of ['tp', 'tc', 'para_raio', 'cabos_entrada', 'cabos_saida']) expect(optional(type), type).toEqual([]);
+  });
+
+  it('refuses at load a pick_from, a rows_from, a dry field or a key on the wrong kind that names nothing the definition holds', () => {
+    const transformer = () => structuredClone(getDefinition('v13', 'cabine_primaria', 'transformador_forca')) as BlockDefinition;
+    const issues = (definition: unknown) => blockDefinitionSchema.safeParse(definition).error?.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`) ?? [];
+    expect(issues(transformer())).toEqual([]);
+    const pickAt = transformer().nameplate.findIndex((field) => field.key === 'tap_atual_kv');
+    const withField = (key: string, change: Partial<FieldDef>) => {
+      const definition = transformer();
+      definition.nameplate = definition.nameplate.map((field) => (field.key === key ? ({ ...field, ...change } as FieldDef) : field));
+      return definition;
+    };
+    expect(issues(withField('tap_atual_kv', { pick_from: 'potencia_nominal' }))).toEqual([`nameplate.${pickAt}.pick_from: pick_from "potencia_nominal" is not a list field of the nameplate in kV`]);
+    expect(issues(withField('tap_atual_kv', { pick_from: 'taps', unit: 'V' }))).toEqual([`nameplate.${pickAt}.pick_from: pick_from "taps" is not a list field of the nameplate in V`]);
+    const ratio = (rowsFrom: string) => {
+      const definition = transformer();
+      definition.tests = definition.tests.map((test) => (test.key === 'relacao_transformacao' ? { ...test, tables: test.tables.map((table) => ({ ...table, rows_from: rowsFrom })) } : test));
+      return definition;
+    };
+    expect(issues(ratio('tensao_nominal_at'))).toEqual(['tests.1.tables.0.rows_from: rows_from "tensao_nominal_at" is not a list field of the nameplate in V or kV']);
+    expect(issues(ratio('nao_existe'))).toEqual(['tests.1.tables.0.rows_from: rows_from "nao_existe" is not a list field of the nameplate in V or kV']);
+    const insulation = transformer();
+    insulation.tests = insulation.tests.map((test) => (test.key === 'isolacao' ? { ...test, tables: test.tables.map((table) => ({ ...table, rows_from: 'taps' })) } : test));
+    expect(issues(insulation)).toEqual(['tests.0.tables.0.rows_from: rows_from belongs to a table whose connection is typed']);
+    const dry = transformer();
+    dry.oil_rule = { ...dry.oil_rule!, dry_fields: ['nao_existe'] };
+    expect(issues(dry)).toEqual(['oil_rule.dry_fields: a dry field "nao_existe" is not on the nameplate']);
+    expect(issues(withField('identificacao', { list: true }))).toContain(`nameplate.${transformer().nameplate.findIndex((field) => field.key === 'identificacao')}: list, pick_from and over_sqrt3 belong to a number field`);
+    expect(fieldDefSchema.safeParse({ key: 'relacao', label: 'RELAÇÃO', kind: 'number', dash_ratio: true }).success).toBe(false);
+    expect(fieldDefSchema.safeParse({ key: 'taps', label: 'TAPS', kind: 'number', unit: 'kV', list: true, pick_from: 'outra' }).success).toBe(false);
   });
 });
 

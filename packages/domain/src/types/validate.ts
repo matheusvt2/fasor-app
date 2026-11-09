@@ -118,6 +118,10 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       if (sub === 'options') return plain(`${name}: cada opção da lista precisa de um texto.`, `${name} com opção vazia`);
       if (issue.message.includes('options exist exactly')) return plain(`${name}: uma lista precisa de opções, e só uma lista tem opções.`, `${name} sem opções`);
       if (issue.message.includes('a unit belongs')) return plain(`${name}: só um número ou uma classe de tensão tem unidade.`, `${name} com unidade`);
+      // authored (Story 23.7, listed for Bruno): the v13 nameplate keys a copy carries (TAPS, TAP ATUAL, "115/√3", "200-5").
+      if (sub === 'pick_from') return plain(`${name}: o valor é escolhido de um campo de lista da placa; mantenha esse campo como uma lista de números na mesma unidade.`, `${name} sem lista`);
+      if (issue.message.includes('belong to a number field') || issue.message.includes('a list field is')) return plain(`${name}: só um campo numérico guarda uma lista de valores ou um valor sobre √3.`, `${name} com lista`);
+      if (issue.message.includes('dash_ratio')) return plain(`${name}: só um campo de texto lê a relação com traço.`, `${name} com relação`);
       return plain(`${name}: confira o campo.`, name);
     }
     case 'checklist': {
@@ -153,6 +157,9 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
           : plain(`${name}: o critério é escolhido pela tensão do campo ${field} da placa; mantenha esse campo como um número em V.`, `${name} sem campo da tensão`);
       }
       if (sub === 'tables' && leaf === 'voltage_rows') return plain(`${name}: a tensão de uma linha vem de um campo numérico da placa; mantenha esse campo como um número.`, `${name} sem campo da tensão`);
+      // authored (Stories 23.8 and 23.9, listed for Bruno): the tap rows and the applicability condition a copy carries.
+      if (sub === 'tables' && leaf === 'rows_from') return plain(`${name}: as linhas vêm de uma lista da placa em V ou kV; mantenha esse campo como uma lista de números.`, `${name} sem lista de taps`);
+      if (sub === 'applies_when') return plain(`${name}: a condição de aplicação lê um campo da placa; mantenha esse campo e as suas opções como a condição pede.`, `${name} sem campo da condição`);
       if (sub === 'label') return plain(`Ensaio ${index + 1}: informe o título do ensaio.`, `ensaio ${index + 1} sem título`);
       return plain(`${name}: confira as tabelas do ensaio.`, name);
     }
@@ -168,6 +175,9 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       if (sub === 'criteria' && leaf === 'seeded') return plain(`${name}: o critério de uma linha não está na aba Critérios.`, `${name} sem critério`);
       if (sub === 'criteria') return plain(`${name}: confira os critérios da tabela.`, `${name} critérios`);
       if (sub === 'row_header') return plain(`${name}: informe o título da coluna das linhas.`, `${name} sem título de linha`);
+      // authored (Story 23.9, listed for Bruno).
+      if (sub === 'applies_when') return plain(`${name}: a condição de aplicação lê um campo da placa; mantenha esse campo e as suas opções como a condição pede.`, `${name} sem campo da condição`);
+      if (sub === 'initial_off') return plain(`${name}: só um ensaio opcional na ficha começa desligado.`, `${name} desligado`);
       return plain(`${name}: confira a tabela de medições.`, name);
     }
     case 'config_fields':
@@ -178,7 +188,7 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       const at = rule !== null && typeof rule === 'object' ? (rule as Record<string, unknown>).field : undefined;
       const field = fieldLabelOf(draft, at) ?? 'do tipo de isolação';
       if (index === 'items') return plain('A regra do óleo cita um item que não está na lista de verificação.', 'regra do óleo sem item');
-      if (index === 'fields') return plain('A regra do óleo cita um campo que não está na placa.', 'regra do óleo sem campo');
+      if (index === 'fields' || index === 'dry_fields') return plain('A regra do óleo cita um campo que não está na placa.', 'regra do óleo sem campo');
       if (index === 'oil_values' || index === 'full_values') return plain(`A regra do óleo cita uma opção que o campo ${field} não tem; mantenha as opções desse campo.`, 'regra do óleo sem opção');
       return plain(`A regra do óleo lê o campo ${field} da placa; mantenha esse campo como uma lista.`, 'regra do óleo sem campo');
     }

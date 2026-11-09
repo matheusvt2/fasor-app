@@ -1,4 +1,4 @@
-import { canonicalDecimal, INSULATION_UNITS, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, parseDecimalPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
@@ -6,6 +6,7 @@ import type { RowTestVoltage } from './row-voltage.ts';
 import { screenAcronym } from './screen-label.ts';
 import { isCellFilled } from './sheet-state.ts';
 import type { OverRangeAllowance } from './over-range.ts';
+import type { EvaluatedTap } from './tap-rows.ts';
 import { DEFAULT_VECTOR_GROUP_CODE, parseVectorGroup, VECTOR_GROUP_FIELD, vectorGroupByCode, type VectorGroup } from './vector-group.ts';
 
 /*
@@ -115,6 +116,12 @@ export interface EvaluatedRow {
    * judged; null on a table with no voltage column (every table of v1 to v11).
    */
   voltage: RowTestVoltage | null;
+  /**
+   * Story 23.8 (seed v13): a row of a `rows_from` table (the transformer's TTR from TAPS): its
+   * position on the plate, its tap in V, its mark and whether the plate still lists it
+   * (`relatorio/tap-rows.ts`); null on every other row, every row of v1 to v12 included.
+   */
+  tap: EvaluatedTap | null;
 }
 
 /** Story 22.8 (seed v12): a table's voltage column as the sheet draws it, right after the connection columns. */
@@ -261,6 +268,20 @@ export function inputHeaderText(label: string, unit: string | null): string {
 export function condicaoScreenText(condicao: EvaluatedRow['condicao']): string {
   if (condicao === null) return '—';
   return condicao === 'SATISFATÓRIO' ? 'Satisfatório' : 'Insatisfatório';
+}
+
+// authored (Story 23.1's frame, built by Story 23.8): an unmarked tap row with nothing measured (`60-ficha.html` #/ficha/TR1).
+export const TAP_NOT_MEASURED_TEXT = 'Não medido';
+
+/**
+ * Story 23.8 (seed v13): the Condição a ratio row shows on screen, `condicaoScreenText` but on an
+ * unmarked tap row of the plate with no capture filled, which reads "Não medido" (it requires
+ * nothing). The printed sheet prints "-" there, as for any unjudged row.
+ */
+export function ratioRowCondicaoText(row: Pick<EvaluatedRow, 'condicao' | 'tap' | 'cells'>): string {
+  const unmarked = row.tap !== null && row.tap.onPlate && row.tap.mark === null;
+  if (row.condicao === null && unmarked && row.cells.every((cell) => cell.role !== 'capture' || cell.state === 'empty')) return TAP_NOT_MEASURED_TEXT;
+  return condicaoScreenText(row.condicao);
 }
 
 /**
@@ -417,17 +438,58 @@ export function nameplateTap(block: BlockRow): string | null {
  * ratio table's first (primário) and second (secundário) input column.
  */
 export function nameplateRatioInput(block: BlockRow, definition: BlockDefinition, index: number, columnUnit: string | null): string | null {
-  if (definition.nameplate.some((field) => field.key === 'relacao')) {
+  return nameplateRatioFallback(block, definition, index, columnUnit)?.raw ?? null;
+}
+
+/** The TC's RELAÇÃO split at its slash or colon ("200/5", "200:5"). */
+const RATIO_SPLIT = /[/:]/;
+/** Seed v13 (Story 23.7): a `dash_ratio` RELAÇÃO also splits at a dash ("200-5"). */
+const RATIO_SPLIT_DASH = /[/:-]/;
+/** Seed v13 (Story 23.7): the ampere unit a plate prints after a ratio ("200-5 A"), dropped on a `dash_ratio` field. */
+const RATIO_UNIT = /\s*A$/i;
+
+/**
+ * `nameplateRatioInput`'s value with the text the cell shows for it (the placeholder of an
+ * untyped input, the printed V PRIMÁRIO): the decimal pt-BR on every v1 to v12 path. Seed v13
+ * (Story 23.7): a `dash_ratio` RELAÇÃO also reads "200-5" (and "200-5 A") as 200 and 5, and an
+ * `over_sqrt3` TENSÃO NOMINAL holding "N/√3" reads N/√3 in the column's unit, shown "N/√3"
+ * ("13,8/√3" kV under a V column: "13.800/√3").
+ */
+export function nameplateRatioFallback(block: BlockRow, definition: BlockDefinition, index: number, columnUnit: string | null): { raw: string; text: string } | null {
+  const relacao = definition.nameplate.find((field) => field.key === 'relacao');
+  if (relacao !== undefined) {
     const text = block.sheet.nameplate.relacao?.value;
     if (typeof text !== 'string') return null;
-    const parts = text.split(/[/:]/);
+    const dash = relacao.dash_ratio === true;
+    const parts = (dash ? text.trim().replace(RATIO_UNIT, '') : text).split(dash ? RATIO_SPLIT_DASH : RATIO_SPLIT);
     if (parts.length !== 2) return null;
-    const raw = parseDecimalPtBr(parts[index]!);
-    return raw === null ? null : canonicalDecimal(raw);
+    const parsed = parseDecimalPtBr(parts[index]!);
+    if (parsed === null) return null;
+    const raw = canonicalDecimal(parsed);
+    return { raw, text: formatDecimalGroupedPtBr(raw) };
   }
   const key = index === 0 ? 'tensao_nominal_at' : 'tensao_nominal_bt';
   const field = definition.nameplate.find((f) => f.key === key);
+  if (field === undefined) return null;
+  if (field.over_sqrt3 === true) {
+    const over = nameplateOverSqrt3(block, key);
+    if (over !== null) {
+      const numerator = convertRatioUnit(over.numerator, over.unit ?? field.unit ?? null, columnUnit);
+      if (numerator === null) return null;
+      return { raw: canonicalDecimal((Number(numerator) / Math.sqrt(3)).toFixed(6)), text: `${formatDecimalGroupedPtBr(numerator)}/√3` };
+    }
+  }
   const value = index === 0 ? nameplateNumber(block, key) : nameplateFirstNumber(block, key);
-  if (field === undefined || value === null) return null;
-  return convertRatioUnit(value.raw, value.unit ?? field.unit ?? null, columnUnit);
+  if (value === null) return null;
+  const raw = convertRatioUnit(value.raw, value.unit ?? field.unit ?? null, columnUnit);
+  return raw === null ? null : { raw, text: formatDecimalGroupedPtBr(raw) };
+}
+
+/** Seed v13 (Story 23.7): a measured nameplate "N/√3" ("115/√3"): its numerator and unit; null for any other value. */
+function nameplateOverSqrt3(block: BlockRow, key: string): { numerator: string; unit: string | null } | null {
+  const value = block.sheet.nameplate[key]?.value;
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return null;
+  const v = value as { raw?: unknown; unit?: unknown; state?: unknown };
+  const numerator = v.state === 'measured' ? readOverSqrt3Raw(v.raw) : null;
+  return numerator === null ? null : { numerator, unit: typeof v.unit === 'string' ? v.unit : null };
 }

@@ -99,9 +99,10 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 33 and refuses version 32 (Story 14.6: a version-32 bundle cannot parse the equipment_type families, a type: block or a snapshot carrying equipment_types)', () => {
-    expect(CONTRACT_VERSION).toBe(33);
-    expect(MIN_CONTRACT_VERSION).toBe(33);
+  // e23b (Stories 23.7 to 23.9, 2026-11-08): 35, after e23a's 34; MIN follows.
+  it('speaks version 35 and refuses version 34 (Story 23.9: a version-34 bundle cannot parse the applicability override nor read a v13 sheet as the server does)', () => {
+    expect(CONTRACT_VERSION).toBe(35);
+    expect(MIN_CONTRACT_VERSION).toBe(35);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

@@ -97,6 +97,96 @@ export function parseVoltagePairPtBr(input: string): string | null {
   return out.join('/');
 }
 
+/*
+ * Seed v13 (Story 23.7, decision K): two more shapes of a nameplate number value, parsed here
+ * only (AR-10) and stored in `raw` as typed, in canonical form:
+ *
+ * - a list of the plate's values in plate order (`FieldDef.list`, the transformer's TAPS):
+ *   "13,8; 13,2; 12,6; 12; 11,4", the entries separated by ";", "·" or spaces, stored
+ *   "13.8;13.2;12.6;12;11.4" and shown "13,8 · 13,2 · 12,6 · 12 · 11,4";
+ * - a value over √3 (`FieldDef.over_sqrt3`, the TP's secondary): "115/√3", also "115/V3" or
+ *   "115/raiz3" in any case, stored "115/√3".
+ */
+
+const LIST_SEPARATORS = /[;·\s]+/u;
+/** A stored list entry: a positive plain decimal. */
+const LIST_ENTRY = /^\d+(?:\.\d+)?$/;
+
+/** Whether a positive dot-decimal value in `unit` is a whole number of volts (any value of another unit is). */
+function wholeInVolts(raw: string, unit: string | null | undefined): boolean {
+  const fraction = raw.split('.')[1] ?? '';
+  if (unit === 'kV') return fraction.length <= 3;
+  if (unit === 'V') return fraction === '';
+  return true;
+}
+
+/**
+ * Seed v13 (Story 23.7): a typed list of plate values, its dot-decimal entries joined by ";", or
+ * null when it is no list: fewer than two entries, an entry that is no positive pt-BR number, a
+ * value repeated (compared once canonical: "12" and "12,0" repeat), or, in V or kV, a value that
+ * is not a whole number of volts (a tap is keyed by its volts, `relatorio/tap-rows.ts`).
+ */
+export function parseNumberListPtBr(input: string, options: { unit?: string | null } = {}): string | null {
+  const parts = input
+    .split(LIST_SEPARATORS)
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+  if (parts.length < 2) return null;
+  const out: string[] = [];
+  for (const part of parts) {
+    if (part.startsWith('-') || part.startsWith('+')) return null;
+    const parsed = parseDecimalPtBr(part);
+    if (parsed === null) return null;
+    const raw = canonicalDecimal(parsed);
+    if (!(Number(raw) > 0) || !wholeInVolts(raw, options.unit) || out.includes(raw)) return null;
+    out.push(raw);
+  }
+  return out.join(';');
+}
+
+/** Seed v13 (Story 23.7): a stored list's entries in plate order, or null when `raw` is not a list `parseNumberListPtBr` writes. */
+export function readNumberListRaw(raw: unknown): string[] | null {
+  if (typeof raw !== 'string') return null;
+  const entries = raw.split(';');
+  if (entries.length < 2 || !entries.every((entry) => LIST_ENTRY.test(entry) && Number(entry) > 0)) return null;
+  return new Set(entries).size === entries.length ? entries : null;
+}
+
+/** Seed v13 (Story 23.7): a stored list as pt-BR shows and prints it, "13,8 · 13,2 · 12,6"; any other text unchanged. */
+export function formatNumberListPtBr(raw: string): string {
+  const entries = readNumberListRaw(raw);
+  return entries === null ? raw : entries.map((entry) => formatDecimalGroupedPtBr(entry)).join(' · ');
+}
+
+/** "N/√3" as typed: the number, a slash and √3 spelled "√3", "V3" or "raiz3" (any case, spaces allowed). */
+const OVER_SQRT3_TYPED = /^\s*(\S(?:.*\S)?)\s*\/\s*(?:√|v|raiz\s*)3\s*$/iu;
+/** "N/√3" as stored. */
+const OVER_SQRT3_STORED = /^(\d+(?:\.\d+)?)\/√3$/u;
+
+/** Seed v13 (Story 23.7): a typed "N/√3" as stored, "115/√3" ("13,8/raiz3" -> "13.8/√3"); null for anything else ("/√3", "x/√2", a plain number). */
+export function parseOverSqrt3PtBr(input: string): string | null {
+  const match = OVER_SQRT3_TYPED.exec(input);
+  if (match === null) return null;
+  const text = match[1]!;
+  if (text.startsWith('-') || text.startsWith('+')) return null;
+  const parsed = parseDecimalPtBr(text);
+  if (parsed === null) return null;
+  const raw = canonicalDecimal(parsed);
+  return Number(raw) > 0 ? `${raw}/√3` : null;
+}
+
+/** Seed v13 (Story 23.7): the numerator of a stored "N/√3" ("115/√3" -> "115"), or null when `raw` is not one. */
+export function readOverSqrt3Raw(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  return OVER_SQRT3_STORED.exec(raw)?.[1] ?? null;
+}
+
+/** Seed v13 (Story 23.7): a stored "N/√3" as pt-BR shows and prints it, "13,8/√3"; any other text unchanged. */
+export function formatOverSqrt3PtBr(raw: string): string {
+  const numerator = readOverSqrt3Raw(raw);
+  return numerator === null ? raw : `${formatDecimalGroupedPtBr(numerator)}/√3`;
+}
+
 /** The insulation family: the only units a typed suffix or the unit tap-cycle may set. */
 export const INSULATION_UNITS: readonly string[] = ['MΩ', 'GΩ', 'TΩ'];
 

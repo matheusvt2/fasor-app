@@ -1,0 +1,341 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "CHAVE",
+        "bbox": [
+          72,
+          70,
+          217,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "SECCIONADORA",
+        "bbox": [
+          229,
+          70,
+          584,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "SEC-03",
+        "bbox": [
+          641,
+          156,
+          741,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          267,
+          234,
+          296
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "Morvatec",
+        "bbox": [
+          642,
+          272,
+          775,
+          292
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          386,
+          212,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "NOMINAL",
+        "bbox": [
+          224,
+          386,
+          344,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "630",
+        "bbox": [
+          641,
+          386,
+          693,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "A",
+        "bbox": [
+          703,
+          387,
+          723,
+          406
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "ACIONAMENTO",
+        "bbox": [
+          70,
+          501,
+          264,
+          522
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "MOTORIZADO",
+        "bbox": [
+          642,
+          501,
+          839,
+          522
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          616,
+          129,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "DE",
+        "bbox": [
+          141,
+          617,
+          174,
+          636
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "SECCIONADORA",
+        "bbox": [
+          185,
+          616,
+          394,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "SOB",
+        "bbox": [
+          641,
+          616,
+          699,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "CARGA",
+        "bbox": [
+          710,
+          616,
+          810,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "COM",
+        "bbox": [
+          821,
+          616,
+          885,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "FUSÍVEIS",
+        "bbox": [
+          897,
+          611,
+          1027,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          731,
+          212,
+          752
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "DO",
+        "bbox": [
+          224,
+          731,
+          261,
+          752
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "FUSÍVEL",
+        "bbox": [
+          273,
+          726,
+          378,
+          752
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "63",
+        "bbox": [
+          641,
+          731,
+          674,
+          752
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "A",
+        "bbox": [
+          684,
+          732,
+          704,
+          751
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "SEC-03",
+        "ocr_token_ids": [
+          "t3"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Morvatec",
+        "ocr_token_ids": [
+          "t5"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_nominal",
+        "value": {
+          "raw": "630",
+          "unit": "A",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t8",
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "acionamento",
+        "value": "MOTORIZADO",
+        "ocr_token_ids": [
+          "t11"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_seccionadora",
+        "value": "SOB CARGA COM FUSÍVEIS",
+        "ocr_token_ids": [
+          "t15",
+          "t16",
+          "t17",
+          "t18"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fusivel_corrente_a",
+        "value": {
+          "raw": "63",
+          "unit": "A",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t22",
+          "t23"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

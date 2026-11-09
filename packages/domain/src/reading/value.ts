@@ -1,6 +1,6 @@
 import { structuringValueSchemaFor, type OcrToken } from '../contract/ocr.ts';
 import { formatCalendarDate, normalizeDateValue } from '../format/datetime.ts';
-import { isNotApplicableNumber, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, isNotApplicableNumber, parseDecimalPtBr, parseNumberListPtBr, parseOverSqrt3PtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import type { JsonValue } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
@@ -24,7 +24,7 @@ import { convertReadingUnit, parseSiUnit } from './units.ts';
  * the bare year yet; it gains `YYYY` at the next contract change (`deferred-work.md`).
  */
 
-type ReadingField = Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'>;
+type ReadingField = Pick<FieldDef, 'kind' | 'unit' | 'options' | 'option_aliases'> & Partial<Pick<FieldDef, 'list' | 'over_sqrt3'>>;
 
 const NUMBER_RAW = /^-?\d+(\.\d+)?$/;
 const ISO_DATE = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/;
@@ -161,6 +161,84 @@ function normalizeNumber(field: ReadingField, model: { raw: string; unit: string
   };
 }
 
+// --- seed v13 (Story 23.7): a list of taps and a value over √3, as printed ---------------------------
+
+/** The text a model value prints: the string itself, or a number object's raw (a list or "N/√3" given there); null for anything else. */
+function printedTextOf(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  return isRecord(value) && typeof value.raw === 'string' ? value.raw : null;
+}
+
+/** A volt unit printed at the end of a value ("... 11,4 kV", "13800V"), split from it. */
+const TRAILING_VOLT_UNIT = /^(.*?)\s*(kV|V)\s*$/iu;
+
+function splitVoltUnit(text: string): { body: string; unit: string | null } {
+  const match = TRAILING_VOLT_UNIT.exec(text.trim());
+  if (match === null) return { body: text.trim(), unit: null };
+  return { body: match[1]!, unit: match[2]!.toLowerCase() === 'kv' ? 'kV' : 'V' };
+}
+
+/** The separators a plate prints between its taps ("13800/13200", "13,8 - 13,2", "13.8 | 13.2"), read as the list's ";". */
+const PLATE_LIST_SEPARATORS = /[/|–—-]/gu;
+
+/**
+ * A `list` field's model value (the transformer's TAPS), given as printed: the entries in plate
+ * order, separated as the plate separates them, with or without a trailing V or kV. Stored as
+ * `parseNumberListPtBr` stores a typed list, in the field's unit; a list printed in another volt
+ * unit is moved into it (the digit rule reads it as printed), and one printed with no unit is
+ * read in the field's and asks for a check (which unit the plate means is the ambiguous part). A
+ * value that is no list of two or more distinct values, whole in V, is dropped.
+ */
+function normalizeListValue(field: ReadingField, value: unknown): NormalizedReadingValue {
+  const text = printedTextOf(value);
+  if (text === null) return invalid;
+  const fieldUnit = field.unit ?? null;
+  const { body, unit } = splitVoltUnit(text);
+  const printedUnit = unit ?? fieldUnit;
+  const list = parseNumberListPtBr(body.replace(PLATE_LIST_SEPARATORS, ';'), { unit: printedUnit });
+  if (list === null) return invalid;
+  let raw = list;
+  if (printedUnit !== null && fieldUnit !== null && printedUnit !== fieldUnit) {
+    const moved: string[] = [];
+    for (const entry of list.split(';')) {
+      const converted = convertReadingUnit(entry, printedUnit, fieldUnit);
+      if (converted === null) return invalid;
+      moved.push(canonicalDecimal(converted));
+    }
+    const again = parseNumberListPtBr(moved.join(';'), { unit: fieldUnit });
+    if (again === null) return invalid;
+    raw = again;
+  }
+  return { ok: true, value: { raw, unit: fieldUnit, state: 'measured' }, verify: unit === null, ...(raw === list ? {} : { printedText: text }) };
+}
+
+/** Whether the cited tokens print a √3 ("√3", "V3", "raiz3"), so a value read over √3 is grounded on the plate. */
+function printsSqrt3(cited: readonly CitedToken[]): boolean {
+  return /(?:√|\bv|raiz)\s*3/iu.test(cited.map((token) => token.text).join(' '));
+}
+
+/**
+ * An `over_sqrt3` field's model value (the TP's "115/√3"), given as printed: stored as typed
+ * (`parseOverSqrt3PtBr`, "115/√3"), its numerator moved into the field's unit when the plate prints
+ * another volt unit. A value over √3 its cited tokens do not print asks for a check. Null when the
+ * value is no "N/√3", which reads as any number of the field.
+ */
+function normalizeOverSqrt3Value(field: ReadingField, value: unknown, cited: readonly CitedToken[]): NormalizedReadingValue | null {
+  const text = printedTextOf(value);
+  if (text === null) return null;
+  const { body, unit } = splitVoltUnit(text);
+  const typed = parseOverSqrt3PtBr(body);
+  if (typed === null) return null;
+  const fieldUnit = field.unit ?? null;
+  let raw = typed;
+  if (unit !== null && fieldUnit !== null && unit !== fieldUnit) {
+    const numerator = convertReadingUnit(typed.slice(0, -'/√3'.length), unit, fieldUnit);
+    if (numerator === null) return invalid;
+    raw = `${canonicalDecimal(numerator)}/√3`;
+  }
+  return { ok: true, value: { raw, unit: fieldUnit, state: 'measured' }, verify: !printsSqrt3(cited), ...(raw === typed ? {} : { printedText: text }) };
+}
+
 /** A voltage class as kV text: the kV forms `parseVoltageClassKv` reads, or a number in another volt unit moved into kV. */
 function voltageClassKv(text: string): string | null {
   const kv = parseVoltageClassKv(text);
@@ -203,6 +281,12 @@ function withPrintedVoltUnit(text: string, cited: readonly CitedToken[]): string
  * - `text` and `manufacturer`: whitespace collapsed, not empty.
  */
 export function normalizeReadingValue(field: ReadingField, value: unknown, cited: readonly CitedToken[] = []): NormalizedReadingValue {
+  // Seed v13 (Story 23.7): a list (TAPS) is read only as a list; a value over √3 as printed, else as any number.
+  if (field.kind === 'number' && field.list === true) return normalizeListValue(field, value);
+  if (field.kind === 'number' && field.over_sqrt3 === true) {
+    const over = normalizeOverSqrt3Value(field, value, cited);
+    if (over !== null) return over;
+  }
   // AIR-V1: a plate that prints only the year is suggested as printed; no month is invented.
   if (field.kind === 'date' && typeof value === 'string' && BARE_YEAR.test(value.trim())) return { ok: true, value: value.trim(), verify: false };
   // E78-Q3: a model date in `mm/aaaa` or `dd/mm/aaaa` is read in the canonical shape first.

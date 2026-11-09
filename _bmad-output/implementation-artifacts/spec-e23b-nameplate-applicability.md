@@ -2,7 +2,8 @@
 title: 'e23b: seed v13 nameplate fields, the TTR per tap, applicability from the nameplate (Stories 23.7, 23.8, 23.9; contract 35)'
 type: 'feature'
 created: '2026-11-08'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '5f86c8215957dae2a72ac290fa78c4308a3f0dee'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

@@ -121,7 +121,9 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
 
-  const built = newRelatorioDrafts(account);
+  // Batch e23b: on seed v12, the plate the budget was measured on (v13 adds TIPO DE SECCIONADORA, required,
+  // which a plate copied from an earlier visit leaves to pick: `deferred-work.md` › Epic 23 batch e23b).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v12' });
   const scope = { relatorioId: built.relatorioId };
   const enel = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel');
   const [secEnel, secEnel2] = enel as [SeededSheet, SeededSheet];

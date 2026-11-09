@@ -303,6 +303,8 @@ function cellConflictsOf(block: BlockRow, opOf: OpenDecisionsInput['opOf'], equi
     const title = evaluation?.title ?? measurementTestTitle(definition, key) ?? key;
     push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'instrument' }, stored.instrument, title, 'Instrumento');
     push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'criterion_override' }, stored.criterion_override, title, 'Critério');
+    // authored (Story 23.9, listed for Bruno): the override "Aplicar este ensaio" as the Conflict view names it.
+    push({ family: 'sheet/test', block_id: blockId, test_key: key, field: 'applicability' }, stored.applicability, title, 'Aplicação');
     const rows = Object.keys(stored.cells).map(Number).sort((a, b) => a - b);
     for (const row of rows) {
       const cols = Object.keys(stored.cells[String(row)] ?? {}).map(Number).sort((a, b) => a - b);
@@ -418,7 +420,7 @@ function sheetCells(block: Pick<BlockRow, 'sheet'>): Cell[] {
     ...Object.values(sheet.nameplate),
     ...Object.values(sheet.checklist).flatMap((entry) => [entry.result, entry.observation]),
     // Story 14.5: a measurement test's values outside its table are cells of the sheet too.
-    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, ...Object.values(test.cells).flatMap((row) => Object.values(row)), ...Object.values(test.values ?? {})]),
+    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, test.applicability, ...Object.values(test.cells).flatMap((row) => Object.values(row)), ...Object.values(test.values ?? {})]),
     ...Object.values(sheet.conclusion),
     sheet.observations,
   ];
@@ -640,6 +642,8 @@ export function conflictPickLabel(cell: CellConflict): string {
 }
 
 const CHECKLIST_WORDS: Readonly<Record<string, string>> = { C: 'Conforme', NC: 'Não conforme', NA: 'Não se aplica' };
+// authored (Story 23.9, listed for Bruno): the two sides of the "Aplicação" conflict, applied by hand or following the plate.
+const APPLICABILITY_WORDS = { applied: 'Aplicado por você', plate: 'Segue a placa' } as const;
 const CONCLUSION_WORDS: Readonly<Record<string, string>> = {
   aprovado: 'Aprovado',
   reprovado: 'Reprovado',
@@ -670,6 +674,8 @@ export function conflictValueText(
   /** Story 14.6: the company's type versions, for a company block's fields. */
   ctx: DefinitionContext,
 ): string {
+  // Story 23.9: the override of a test the nameplate makes not applicable, as the sheet's bands say it.
+  if (cell.path.endsWith('/applicability') && cell.path.startsWith('sheet/')) return value === 'applied' ? APPLICABILITY_WORDS.applied : APPLICABILITY_WORDS.plate;
   if (value === null || value === undefined) return '—';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {
     const number = value as { raw: string; unit?: string | null; state?: string };

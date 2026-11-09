@@ -3194,3 +3194,41 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/relatorio/conclusion.ts` `ncClauseText`; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`.
   class: defect
   state: open (owner: the next batch touching `relatorio/conclusion.ts`)
+
+## Deferred from: Epic 23 batch e23b (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (Story 23.8)
+  summary: Seed v13's tap rows carry no previous visit. `readingSlotsOf` walks a table's seeded rows, so for the transformer's TTR (`rows_from: 'taps'`) it records only v12's typed row 0 in `last_results`; a tap row (keyed by its volts, 13800) gets no "Anterior" helper on the sheet and no MANUT. ANTERIOR in section 9. A slot per tap needs a row key by the tap's volts and a rule for a tap the next plate no longer lists.
+  evidence: `packages/domain/src/print/last-results.ts` `readingSlotsOf`, `previousReadingsByAddress`; `packages/domain/src/print/section-9.ts` `testParts` (`previousTexts` reads a `rows_from` table by its evaluated rows, which find no slot).
+  class: gap
+  state: open (owner: the next batch touching `print/last-results.ts`, after Bruno says how a previous tap reading should show)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (Story 23.7, "No default fake reading fixture of an existing type changes")
+  summary: The cables gain a nameplate on seed v13 but no default fake plate fixture. On the compose stack (`fake` providers) a cable plate photographed in the app (re-encoded bytes) finds no fixture and its reading fails permanently; only the committed `images/plate-cabos-v13.png` replays, for its own bytes. Adding a cable default is a fixture decision the spec ruled out for this batch.
+  evidence: `apps/api/src/jobs/reading/kinds/plate.ts` `fakeDefaults`; `apps/api/src/jobs/reading/fixtures/README.md` § The seven seed v13 plates.
+  class: gap
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (baseline `5f86c821`, e23a's first commit `027d916c`)
+  summary: Three unit tests failed at the baseline because e23a's first commit made `SEED_VERSION` v13 without updating them: `templates/text.test.ts` (the seed name "Semente v13"), `print/print-fit.test.ts` (v13 excluded with v12 from the fit sweep) and `types/company-types.test.ts` (a v12 duplicate asserted on `seed_version: 'v12'`). This batch fixed them to pass its gate; e23a may fix the same lines, so the merge of the two batches must keep one version of each.
+  evidence: the three test files, each failing when run alone on the baseline with this batch's changes stashed.
+  class: process
+  state: open (owner: the coordinator, at the e23a and e23b merge)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (Story 23.7 AC 4; "Do not run the paid eval")
+  summary: The plate prompt moved to `bedrock-structuring-6` (field notes for TAPS, TAP ATUAL, MATERIAL DO ENROLAMENTO, the √3 secondary and the dash ratio) and `bedrock-eval.ts` gained the seven synthetic v13 plates, but the paid evaluation was not run: providers stayed `fake`. It is due before the Epic 23 deploy, against the prompt-5 baseline.
+  evidence: `apps/api/src/jobs/reading/providers/bedrock.ts` `BEDROCK_STRUCTURING_PROMPT_VERSION`, `plateFieldNotes`; `apps/api/src/scripts/bedrock-eval.ts`.
+  class: verification
+  state: open (owner: the coordinator, before the Epic 23 deploy)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (screens from `60-ficha.html` #/ficha/TR1 and #/ficha/SEC-C05)
+  summary: Only the mock rules this batch renders are translated into `app.css` (`.v13-line`, `.tap-cell`, `.tap-mark`, `.tap-optional`, `.ficha-ttr-taps`, the tap cards, `.v13-na*`, `.band-text`, `.band-sub`, `.v13-applied-band`, `.is-applied`). The TR1 frame's manufacturer value (`.v13-mfr`, Story 23.3), the oil-sampling choice (`.v13-choice`, `.v13-reason`) and "Como ensaiar" (Story 23.10) keep their rules untranslated until their stories render them.
+  evidence: `apps/web/src/styles/app.css` (the e23b block); `mockups/prototype/screens/60-ficha.html` CSS lines 236 to 305.
+  class: note
+  state: open (owner: Stories 23.3, 23.10 and the oil-sampling story)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (Design Notes, "Open with Bruno, kept as read")
+  summary: Read as the spec says until Bruno answers: both equipment temperatures optional (the base marks them required; Story 23.5 falls back to the ambient), DESLIGADOR ÍNTEGRO as SIM or NÃO (the base's "sem desligador" is the field's N/A), an unmeasured unmarked tap row printed "-", the TTR Yd factor (B-2) and the TP insulation criterion (B-4) untouched. The authored pt-BR wordings of the batch are listed in its PR for him.
+  evidence: `packages/domain/src/seed/v13.ts` (the e23b section); `packages/domain/src/print/section-9.ts` `measurementTable`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (the e2e grep of the DoD, E15-A3)
+  summary: The e2e journeys that count taps against a measured budget or baseline (`tap-budget.spec.ts` TAP_BUDGET J1 and J3, `tap-budget-signal.spec.ts` SM-3, `journey-taps.spec.ts` and `journeys-12-3-12-4.spec.ts` J1 to J3) and the reading pipelines that count the transformer default fixture's eleven suggestions (`plate.spec.ts` 8.6-E2E-001, `plate-reading.spec.ts` 8.4-E2E-001, `reading-wait.spec.ts` 13.5-E2E-001, `panel-capture-pipeline.spec.ts` 9.2-E2E-004) are pinned to seed v12, the seed they were measured or written on; so are the tests built on v12's text TAP ATUAL. On v13 the seccionadora's required TIPO DE SECCIONADORA is not in a plate copied from an earlier visit, so J1 needs one more pick (two taps), and the default transformer fixture gives ten suggestions (its text TAP ATUAL is dropped as `unknown_key`). The budgets were not re-measured on v13.
+  evidence: the specs named, each with its dated comment; `e2e/tap-budget.spec.ts` `TAP_BUDGET`.
+  class: verification
+  state: open (owner: the Epic 23 QA, with the v13 re-measure of the field journeys)

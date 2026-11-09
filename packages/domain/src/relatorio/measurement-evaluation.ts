@@ -27,6 +27,7 @@ import {
   type OverRangeAllowance,
 } from './over-range.ts';
 import { readStored, type ReadingState, type ReadingVerdict } from './reading-cells.ts';
+import { testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 
 /*
@@ -253,6 +254,12 @@ export interface MeasurementTestEvaluation {
   offNote: string | null;
   /** False for a switchable test switched off: body hidden, nothing required, judged or printed. */
   enabled: boolean;
+  /**
+   * Story 23.9 (seed v13): the test's applicability from the nameplate (`testApplicability`). In
+   * the `na` state it is a switched-off test for every reader (nothing required, judged or
+   * printed) but the screen, which draws its band; `always` on every test of v1 to v12.
+   */
+  applicability: TestApplicability;
   /** True when the test's own value says it was not run (E5 "Não realizado"): its table is not required and not printed. */
   skipped: boolean;
   /** Whose registry instruments the picker offers; null for a test with no picker. */
@@ -735,14 +742,15 @@ function groupsOf(values: readonly EvaluatedMeasurementValue[], skipped: boolean
   return groups;
 }
 
-function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTest, number: number, config: Readonly<Record<string, string>>): MeasurementTestEvaluation {
+function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTest, number: number, config: Readonly<Record<string, string>>, applicability: TestApplicability): MeasurementTestEvaluation {
   const enabled = test.switchable === undefined || enabledSubBlocksOf(block).has(test.key);
   const columns = columnsOf(test);
   const rows = evaluateRows(block, test, config);
   const values = evaluateValues(block, test);
   const skipValue = test.skip_when === undefined ? undefined : values.find((value) => value.key === test.skip_when!.value);
   const skipped = skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals;
-  const live = enabled && !skipped;
+  // Story 23.9: a test the nameplate makes not applicable is not live, as a switched-off one is not.
+  const live = enabled && !skipped && applicability.state !== 'na';
   const criteria = test.criteria.filter((criterion) => holds(criterion.when, config));
   markOverRange(rows, criteria);
 
@@ -765,7 +773,7 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
   }
   for (const value of values) {
     // The value that says the test was not run is the one thing a skipped test still asks for; it is filled by definition.
-    if (!enabled || skipped) value.missing = false;
+    if (!enabled || skipped || applicability.state === 'na') value.missing = false;
   }
 
   const lines: MeasurementCriterionLine[] = criteria.map((criterion) => ({ text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition }));
@@ -777,6 +785,7 @@ function evaluate(block: Pick<BlockRow, 'config' | 'sheet'>, test: MeasurementTe
     switchable: test.switchable !== undefined,
     offNote: test.switchable?.off_note ?? null,
     enabled,
+    applicability,
     skipped,
     instrumentOf: test.instrument_of ?? null,
     rowHeader: test.row_header,
@@ -799,11 +808,16 @@ const NONE: readonly MeasurementTestEvaluation[] = Object.freeze([]);
  * off one included (`enabled: false`: the sheet draws its switch and its off note). A block
  * type with no measurement test (every FO.SERV-03 type) answers none.
  */
-export function evaluateSheetMeasurements(block: Pick<BlockRow, 'config' | 'sheet'>, definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'>): readonly MeasurementTestEvaluation[] {
+export function evaluateSheetMeasurements(
+  block: Pick<BlockRow, 'config' | 'sheet'>,
+  definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'tests'>>,
+): readonly MeasurementTestEvaluation[] {
   const tests = definition.measurement_tests;
   if (tests === undefined) return NONE;
   const config = configOptionsOf(block, definition);
-  return tests.map((test, index) => evaluate(block, test, index + 1, config));
+  // Story 23.9: a test's applicability reads the plate; a caller that hands no nameplate reads every test as applicable.
+  const plate = { nameplate: definition.nameplate ?? [], tests: definition.tests ?? [], measurement_tests: tests };
+  return tests.map((test, index) => evaluate(block, test, index + 1, config, testApplicability(block, plate, test.key)));
 }
 
 /** Story 22.10: a typed reading of a cell, a limit the instrument passed carrying `state: 'over_range'`. */
@@ -877,9 +891,9 @@ export function anyMeasurementToCheck(evaluations: readonly MeasurementTestEvalu
   return measurementCells(evaluations).some((cell) => cell.toCheck);
 }
 
-/** The tests that count: switched on and run. */
+/** The tests that count: switched on and run, and (Story 23.9) not made not applicable by the nameplate. */
 function liveTests(evaluations: readonly MeasurementTestEvaluation[]): MeasurementTestEvaluation[] {
-  return evaluations.filter((test) => test.enabled && !test.skipped);
+  return evaluations.filter((test) => test.enabled && !test.skipped && test.applicability.state !== 'na');
 }
 
 /** Every typed cell (never a fixed one) of the tests that are switched on and were run, in sheet order. */
@@ -889,7 +903,7 @@ export function measurementCells(evaluations: readonly MeasurementTestEvaluation
 
 /** Every shown value of the tests that are switched on, in sheet order. */
 export function measurementValues(evaluations: readonly MeasurementTestEvaluation[]): EvaluatedMeasurementValue[] {
-  return evaluations.filter((test) => test.enabled).flatMap((test) => test.values.filter((value) => value.shown));
+  return evaluations.filter((test) => test.enabled && test.applicability.state !== 'na').flatMap((test) => test.values.filter((value) => value.shown));
 }
 
 /** What `sheetProgress` adds to the Ensaios step: the required cells and values still empty, and the cells out of criterion. */
