@@ -101,13 +101,19 @@ export function testRecommendationOf(definition: DefinitionTextsLike, testKey: s
 }
 
 /**
+ * A text already terminated: its last character before any closing quotes, parentheses or
+ * brackets is ".", "!", "?", "…", ":" or ";" ("Trocar (urgente.)", "Ver manual:").
+ */
+const TERMINATED = /[.!?…:;]['"”’)\]]*$/;
+
+/**
  * Story 23.11: a `reading` derived point's text with its test's recommendation first: the
- * recommendation (a period appended unless it ends in ".", "!" or "?"), a space, then the composed
- * reference of the reading; the composed text alone, byte-equal, with no recommendation.
+ * recommendation (a period appended unless it is already terminated, `TERMINATED`), a space, then
+ * the composed reference of the reading; the composed text alone, byte-equal, with no recommendation.
  */
 export function recommendedPointText(recommendation: string | null, composed: string): string {
   const head = recommendation?.trim() ?? '';
   if (head === '') return composed;
   // authored (Story 23.11, open for Bruno): the join of the recommendation and the reading's reference.
-  return `${/[.!?]$/.test(head) ? head : `${head}.`} ${composed}`;
+  return `${TERMINATED.test(head) ? head : `${head}.`} ${composed}`;
 }

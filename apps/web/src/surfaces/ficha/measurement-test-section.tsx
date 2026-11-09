@@ -131,7 +131,16 @@ function MeasurementTestSection({
   // Story 23.9 (seed v13): a test switched on that the nameplate makes not applicable shows its band
   // in place of its body, its switch kept; switched off it is the off test below. Applied by hand,
   // the applied band sits over it.
-  if (test.enabled && test.applicability.state === 'na') return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={headEnd} />;
+  if (test.enabled && test.applicability.state === 'na') {
+    // Batch e23h (EXPERIENCE.md "Como ensaiar"): the head of every test with help, an NA one too.
+    const naHeadEnd = (
+      <>
+        <TestHelpAction definition={definition} testKey={test.testKey} title={test.title} />
+        {headEnd}
+      </>
+    );
+    return <NotApplicableTest api={api} testKey={test.testKey} title={test.title} applicability={test.applicability} headEnd={naHeadEnd} />;
+  }
   const applied = test.enabled && test.applicability.state === 'applied';
   const sectionClass = ['section lib-test', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
 

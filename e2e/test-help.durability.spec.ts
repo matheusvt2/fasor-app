@@ -30,7 +30,8 @@ import { syncNow } from './support/sync.ts';
  * headings in the fixed order and the kernel's meta line, the focus on the title, Esc giving it
  * back to the button; at 390 px full screen with no sideways scroll, "Voltar ao ensaio" closing it.
  * Back online: a seeded sheet's tests show no "Como ensaiar", the editor's fields do not overflow
- * at 390 px, and "Duplicar" of the published type carries the help. Synthetic texts (M-1). Empresa
+ * at 390 px, "Duplicar" of the published type carries the help, and the sheet made read-only (Não
+ * ensaiado) keeps the action. Synthetic texts (M-1). Empresa
  * B is this worker's own (E6-Q7); nothing is generated, so the file stays in the parallel group.
  */
 
@@ -215,4 +216,21 @@ test('@p0 23.10-E2E-001 "Como ensaiar" typed in the type editor and published op
   await expect
     .poll(async () => ((await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, copyId)).type?.draft as { tests?: { help?: unknown }[] } | null | undefined)?.tests?.[TEST_INDEX]?.help)
     .toEqual(HELP);
+
+  // --- a read-only sheet (marked Não ensaiado from the office) keeps "Como ensaiar", and it opens ---
+  await pushDrafts(page, database, [
+    officeDraft(account, { relatorioId: built.relatorioId }, `block/${pair.block.id}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId }),
+  ]);
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${pair.block.id}`);
+  await expect(sheetTitle(page)).toContainText(NAME, { timeout: 30_000 });
+  await expect(page.locator('.not-tested-band')).toBeVisible({ timeout: 30_000 });
+  await expect(section).toHaveClass(/is-readonly/);
+  await expect(section.locator('.section-head .btn-reason')).toBeVisible();
+  await expect(action).toBeVisible();
+  await action.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.como-list dt')).toHaveText(ORDER.map((key) => LABEL[key]!));
+  await dialog.getByRole('button', { name: 'Fechar Como ensaiar' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(action).toBeFocused();
 });

@@ -209,7 +209,15 @@ export function EnsaiosSection({
         <UnitTapGuardProvider value={unitTapGuard}>
           {sections.map((section) =>
             section.evaluation === null ? (
-              <NotApplicableTest key={section.testKey} api={api} testKey={section.testKey} title={screenLabel(section.title)} applicability={section.applicability} />
+              <NotApplicableTest
+                key={section.testKey}
+                api={api}
+                testKey={section.testKey}
+                title={screenLabel(section.title)}
+                applicability={section.applicability}
+                // Batch e23h (EXPERIENCE.md "Como ensaiar"): the head of every test with help, an NA one too.
+                headEnd={<TestHelpAction definition={definition} testKey={section.testKey} title={screenLabel(section.title)} />}
+              />
             ) : (
               <TestSection
                 key={section.testKey}

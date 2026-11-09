@@ -2,17 +2,24 @@
 title: 'e23h: "Como ensaiar" on each test and the recommendation as the derived point initial text (Stories 23.10 and 23.11, contract 37)'
 type: 'feature'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'dd947f419b4ef84531a2c4e60d08e4c8deaab64a'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Stories 23.10 and 23.11 add the two optional text keys of one test definition (help, recommendation) through the same schema change, the same type editor block and the same contract 37 (epic-23-context Batch plan, e23h).'
-deferred: []
+deferred:
+  - summary: >-
+      No test checks that an over-cap "Como ensaiar" heading or recommendation shows its issue inline under its own field in the type editor.
+    evidence: |-
+      TestTextsFields reads issuesAt(issues, [part, index, 'help', key]) and [part, index, 'recommendation'] (type-editor-parts.tsx:585, 595); only the kernel paths are tested (company-types.test.ts). The message still lists on the test row and the kernel blocks "Publicar", so a regression would lose only the placement.
+    location: >-
+      apps/web/src/surfaces/templates/type-editor-parts.tsx:585
+    severity: low
 ---
 
 <intent-contract>
@@ -200,6 +207,30 @@ deferred: []
 - **23.11 generic fallback.** Given a seeded v13 test with no recommendation, when its point derives, then the text is byte-equal to v12's generic one.
 - **23.11 v12 unchanged.** Given a v12 relatório, when it prints, then section 8 is unchanged and the layout-lock goldens hold.
 
+## Spec Change Log
+
+### 2026-11-09: review pass 1
+- Trigger: Edge Case Hunter finding "no Como ensaiar on an NA test head".
+- Amended: the I/O matrix row "NA test → no action" is withdrawn in favor of EXPERIENCE.md:325, which puts the action on the head of every test that has help. The intent-contract text is left as written (read-only); this entry overrides it. Patched in the code, not re-derived.
+- Known-bad state avoided: help an office typed is unreachable on a test the plate makes NA.
+- KEEP: the rest of the build.
+
+## Review Triage Log
+
+### 2026-11-09 — Review pass
+- verdicts: 10 findings — high 0, medium 3, low 5, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` (ECH-1) An NA test with help shows no "Como ensaiar" — the spec's own narrowing contradicted EXPERIENCE.md:325 ("every test that has help"); patched: TestHelpAction in the NotApplicableTest heads of both grammars, with component tests.
+  - `[low]` `[reject]` (ECH-2) The dialog stays open while help turns null, then reopens — unreachable: a block's company type version never changes (config put refused, AD-21) and seeds carry no help, so `testHelpOf` is constant for a mounted sheet.
+  - `[low]` `[patch]` (ECH-3) `recommendedPointText` appends "." after ":", "…", or a mark followed by a closing bracket or quote — patched: the terminator set is widened, with boundary tests.
+  - `[low]` `[reject]` (ECH-4) An issue at `[part,i,'help']` itself (an unknown heading, a non-object help) has no field to show it — the editor never writes either, and the issue still lists on the test row (`issuesAt(issues, ['tests', index])`), with Publicar blocked; this is a raw-op case only.
+  - `[medium]` `[patch]` (ECH-5, claim) "The sheet shows the action on each test that has help" fails on NA heads — same root cause as ECH-1; patched with it.
+  - `[false]` `[reject]` (ECH-6, claim) The version.ts "36 is e23v's, merged first" is untrue on the branch — the PR opens only after e23v (contract 36) merges and main is merged in (launch rule), so the comment describes the merged head; checked again at the merge.
+  - `[false]` `[reject]` (ECH-7, claim) The never-printed DOCX test patches only company versions — seeds never carry help (test-help.test.ts asserts v1 to v13 carry neither key), and the layout reads a `BlockDefinition` the same way from either origin, so the company case covers the reader.
+  - `[medium]` `[patch]` (VG-1) "Como ensaiar" in a measurement-grammar section head is untested — patched: a measurement-test-section.test.tsx case renders the button in that head and opens the dialog.
+  - `[low]` `[patch]` (VG-2) The read-only CSS override is never exercised in a browser — patched: test-help.durability.spec.ts asserts the action is visible and opens on a read-only sheet.
+  - `[low]` `[defer]` (VG-3) No test checks that the inline issue sits under a help field — deferred as filed (only the placement is lost; the message lists on the row and the kernel blocks the publish).
+
 ## Design Notes
 
 - **Contract 37.** No path changes. A version-36 bundle would:
@@ -219,3 +250,51 @@ deferred: []
 - `pnpm test:api` (after `podman compose restart api`): expected all green, goldens unchanged.
 - `pnpm exec tsx scripts/e2e.ts e2e/test-help.durability.spec.ts e2e/test-recommendation.spec.ts e2e/type-editor.spec.ts e2e/company-type-sheet.spec.ts e2e/company-type.durability.spec.ts e2e/points-derived.spec.ts --project desktop-chrome --project durability-desktop-chrome`: expected all pass.
 - `git diff origin/main --stat -- apps/api/src/jobs/generate/golden packages/domain/fixtures`: expected no golden modified.
+
+## Auto Run Result
+
+Status: done (gate result: see the PR body).
+
+**Summary.**
+- Story 23.10: every test definition (both grammars, seed or company type) takes an optional `help` with eight optional texts, capped at 1000 characters each and never blank (`seed/test-help.ts`).
+  - The sheet draws "Como ensaiar" on the head of every test that has help: TestSection, MeasurementTestSection, and the NA heads of both grammars. It is drawn on a read-only sheet too, and the dialog opens offline from the definition already on the device.
+  - The type editor edits all eight texts (`TestTextsFields`), and "Duplicar" carries them.
+  - No print path reads `help`.
+- Story 23.11: an optional `recommendation` (same cap) starts the text of a `reading` derived point (`recommendedPointText`). Without it, the text is byte-equal to the generic one, and the `reprovado` and NC texts are unchanged.
+- Contract 37, MIN 37.
+
+**Files.**
+- Kernel:
+  - `seed/test-help.ts` (new: keys, cap, schemas, helpers);
+  - `seed/schema.ts` and `seed/measurement.ts` (the two keys);
+  - `types/draft-edit.ts` (the setters), `types/duplicate.ts` (the pure core), `types/validate.ts` (the inline sentences);
+  - `points/derived.ts` (the recommendation first);
+  - `contract/version.ts` (37/37);
+  - `index.ts`.
+- Api tests: `company-types.integration.test.ts` (route, cap, 426), `docx-company-type.test.ts` (never printed), and the pinned numbers in `sync` and `nameplate-applicability`.
+- Web:
+  - `ficha/test-help-dialog.tsx` (new), `ensaios-section.tsx`, `measurement-test-section.tsx` and `ficha.css`;
+  - `templates/type-editor-parts.tsx` and `type-editor.css`;
+  - `copy/pt-br.ts` (`testHelp`).
+- E2E: `test-help.durability.spec.ts` (new) and `test-recommendation.spec.ts` (new, in `SERIAL_SPECS`).
+- Docs: the AD-21 spine note, `source-deltas.md`, and the KB concept and log.
+
+**Review.**
+- Two layers ran (Edge Case Hunter and Verification Gap) with one loop; Blind Hunter and Intent Alignment were skipped for token economy.
+- Ten findings: five patched in three entries (two medium, one low, plus the low VG-2), one deferred (VG-3) and four rejected (ECH-2 unreachable, ECH-4 raw-op only, ECH-6 and ECH-7 false). Each is in the triage log above.
+- Patched entries by verdict: medium 2 (NA heads; measurement-head test), low 2 (the terminator set; the read-only browser step).
+
+**Follow-up review: true.** Two medium entries were patched and not re-reviewed:
+- the NA-head action (no unit test on the seeded-grammar NA path, since there is no `EnsaiosSection` component test);
+- the widened terminator regex of `recommendedPointText`.
+The integrated review should read them first.
+
+**Verification.**
+- Implementer, before the review: lint 0, static 0, test:unit 5866 of 5866, test:api 930 passed and 6 skipped, the six spec files 15 of 15, `test-help.durability` on the matrix with `--repeat-each 3` green, and the golden and fixture trees unchanged.
+- After the patches: the touched vitest files 50 of 50 and `test-help.durability` 1 of 1.
+- The batch gate runs next.
+
+**Residual risks.**
+- The authored wordings (the join, the meta line, the editor sentences) are open for Bruno.
+- The 1000-character cap is a narrowing.
+- Contract 36 is e23v's, and its merge must precede this PR.

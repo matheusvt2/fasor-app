@@ -123,6 +123,13 @@ describe('e23h-UNIT the helpers', () => {
     expect(recommendedPointText('Verificar já!', composed)).toBe(`Verificar já! ${composed}`);
     expect(recommendedPointText('Trocar?', composed)).toBe(`Trocar? ${composed}`);
     expect(recommendedPointText('  Verificar  ', composed)).toBe(`Verificar. ${composed}`);
+    // Already terminated: "…", ":" and ";", and a terminal mark before closing quotes, parentheses or brackets.
+    for (const ended of ['Verificar…', 'Ver manual:', 'Trocar o fusível;', 'Trocar (urgente.)', 'Trocar [urgente!]', 'Dizer "trocar?"', 'Anotar “trocar.”', "Anotar 'trocar.'", 'Ver (manual:)']) {
+      expect(recommendedPointText(ended, composed), ended).toBe(`${ended} ${composed}`);
+    }
+    // A closing mark with no terminal mark before it, or a terminal mark inside the text only, gets the period.
+    expect(recommendedPointText('Trocar (urgente)', composed)).toBe(`Trocar (urgente). ${composed}`);
+    expect(recommendedPointText('Ver: manual', composed)).toBe(`Ver: manual. ${composed}`);
     expect(recommendedPointText(null, composed)).toBe(composed);
     expect(recommendedPointText('  ', composed)).toBe(composed);
   });
