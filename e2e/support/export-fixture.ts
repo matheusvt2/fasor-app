@@ -1,22 +1,24 @@
 import { resetTestCompanyData, seedAccount } from '../../apps/api/src/db/seed.ts';
-import { seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from '../../apps/api/src/db/test-fixtures.ts';
+import { seedPortoSeguroSmall, smallFixtureCopy, type SmallFixtureCopy } from '../../apps/api/src/db/test-fixtures.ts';
 import { SEED_PASSWORD, timed, type SeedAccount } from './merged-fixtures.ts';
 import { withSeedDb } from './reset-empresa-b.ts';
 
-/** The relatório the Export specs drive: the small Porto Seguro fixture. */
-export const EXPORT_RELATORIO_ID = SMALL_FIXTURE_RELATORIO_ID;
+export type { SmallFixtureCopy } from '../../apps/api/src/db/test-fixtures.ts';
 
 /**
- * This worker's Empresa B reset, its user seeded again, and the small fixture applied onto
- * it as the server would (Story 4.8 specs). The fixture's ids are fixed and its seed
- * reclaims them from any company, so the specs that call this run in the serial group.
+ * This worker's Empresa B reset, its user seeded again, and its own copy of the small fixture
+ * applied onto it as the server would (Story 4.8 specs). Chore T3 (2026-11-09): the copy's ids
+ * are derived from the company (`smallFixtureCopy`), so two workers of the `queue` lane can
+ * each hold their copy at once; a spec takes every fixture id (relatório, block, cabine,
+ * equipment) from the copy this returns, never from the fixture's own constants.
  */
-export function resetEmpresaBWithFixture(b: SeedAccount): Promise<void> {
+export function resetEmpresaBWithFixture(b: SeedAccount): Promise<SmallFixtureCopy> {
   return timed('resetEmpresaBWithFixture', () =>
     withSeedDb(async (db, auth) => {
       await resetTestCompanyData(db, [b.companyId]);
       await seedAccount(db, auth, b, SEED_PASSWORD, { standardTemplate: false });
-      await seedPortoSeguroSmall(db, b.companyId, { responsibleUserId: b.userId });
+      await seedPortoSeguroSmall(db, b.companyId, { responsibleUserId: b.userId, copy: true });
+      return smallFixtureCopy(b.companyId);
     }),
   );
 }

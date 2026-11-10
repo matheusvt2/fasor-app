@@ -1,11 +1,10 @@
-import { BLOCK_CHAVE_ID } from '@app/domain/fixtures/porto-seguro/small';
 import { photoToken, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { copy } from '../apps/web/src/copy/pt-br.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { pdfTextItems } from './support/pdf-text.ts';
@@ -24,8 +23,9 @@ import { syncNow } from './support/sync.ts';
  * section 7 in the moved order as "Imagem 1" to "Imagem 5", and the sheet photo keeps its
  * section 9 number. At 390, 768 and 1280 px; a fourth test checks that a section 8 point citing
  * "Imagem 3" prints "conforme Imagem 5" once that photo moved to place 5, and the point editor's
- * "Escolher fotos" offers the photos in the gallery's order. The fixture's ids are
- * fixed and revisions are generated, so this spec runs in the serial group (`e2e/support/groups.ts`).
+ * "Escolher fotos" offers the photos in the gallery's order. Revisions are generated, so this
+ * spec runs in the serial `queue` lane (`e2e/support/groups.ts`), on this worker's own copy of
+ * the fixture (chore T3, 2026-11-09).
  */
 
 test.use({
@@ -79,8 +79,8 @@ async function shootFromBar(page: Page, n: number): Promise<void> {
   await expect(camera(page)).toHaveCount(0, { timeout: 15_000 });
 }
 
-async function openGallery(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/fotos`);
+async function openGallery(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}/fotos`);
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
 }
 
@@ -137,19 +137,19 @@ async function expectFits(page: Page, id: string): Promise<void> {
 /**
  * The sheet photo (chave's sticky bar), then five "Geral" photos (gallery burst), each Geral
  * photo captioned "Captura n" from the office so the documents say which photo prints where.
- * Returns the sheet photo and the five Geral photos in capture order.
+ * Returns the sheet photo, the five Geral photos in capture order and this worker's fixture copy.
  */
-async function sheetPhotoAndFiveGeral(page: Page): Promise<{ sheet: PhotoRecord; geral: PhotoRecord[] }> {
-  await resetEmpresaBWithFixture(account);
+async function sheetPhotoAndFiveGeral(page: Page): Promise<{ sheet: PhotoRecord; geral: PhotoRecord[]; fixture: SmallFixtureCopy }> {
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/ficha/${BLOCK_CHAVE_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await shootFromBar(page, 1);
   await expect.poll(async () => (await photoRows(page)).length, { timeout: 15_000 }).toBe(1);
   const [sheet] = await photoRows(page);
-  expect(sheet!.block_id).toBe(BLOCK_CHAVE_ID);
+  expect(sheet!.block_id).toBe(fixture.blockChaveId);
 
-  await openGallery(page);
+  await openGallery(page, fixture);
   await shootFromBar(page, 5);
   await expect.poll(async () => (await photoRows(page)).length, { timeout: 15_000 }).toBe(6);
   const geral = (await photoRows(page)).filter((row) => row.id !== sheet!.id);
@@ -158,16 +158,16 @@ async function sheetPhotoAndFiveGeral(page: Page): Promise<{ sheet: PhotoRecord;
 
   // The creates reach the server first (a put on a row it does not hold is refused), then the captions come back.
   await syncNow(page);
-  await pushDrafts(page, database, geral.map((photo, i) => officeDraft(account, { relatorioId: EXPORT_RELATORIO_ID }, `file/${photo.id}/caption`, `Captura ${i + 1}`)));
+  await pushDrafts(page, database, geral.map((photo, i) => officeDraft(account, { relatorioId: fixture.relatorioId }, `file/${photo.id}/caption`, `Captura ${i + 1}`)));
   await syncNow(page);
-  await openGallery(page);
+  await openGallery(page, fixture);
   for (const [i, photo] of geral.entries()) await expect(galleryItem(page, photo.id).locator('.photo-meta')).toHaveText(`Captura ${i + 1}`);
-  return { sheet: sheet!, geral };
+  return { sheet: sheet!, geral, fixture };
 }
 
 /** Generates revision 1 from the Sumário; returns the DOCX structure and the PDF text. */
-async function generate(page: Page): Promise<{ docx: ReturnType<typeof extractStructure>; pdf: string }> {
-  await setParecer(page, EXPORT_RELATORIO_ID);
+async function generate(page: Page, fixture: SmallFixtureCopy): Promise<{ docx: ReturnType<typeof extractStructure>; pdf: string }> {
+  await setParecer(page, fixture.relatorioId);
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   await expect(exportDialog(page)).toBeVisible();
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
@@ -208,7 +208,7 @@ for (const [n, width] of [[1, 390], [2, 768], [3, 1280]] as const) {
   test(`@p0 21.3-E2E-00${n} at ${width} px: photo 4 moved up twice prints section 7 as 1, 4, 2, 3, 5 ("Imagem 1" to "Imagem 5") in the DOCX and the PDF, the sheet photo keeps its section 9 number, the ends are disabled and a sheet photo has no move`, async ({ page }) => {
     test.setTimeout(480_000);
     await page.setViewportSize({ width, height: 900 });
-    const { sheet, geral } = await sheetPhotoAndFiveGeral(page);
+    const { sheet, geral, fixture } = await sheetPhotoAndFiveGeral(page);
     const [p1, p2, p3, p4, p5] = geral.map((photo) => photo.id) as [string, string, string, string, string];
 
     // Before: capture order, the sheet photo (captured first) numbered after section 7.
@@ -241,7 +241,7 @@ for (const [n, width] of [[1, 390], [2, 768], [3, 1280]] as const) {
 
     // The documents (the same at every width: generated from the Sumário at 1280 px).
     await page.setViewportSize({ width: 1280, height: 900 });
-    const { docx, pdf } = await generate(page);
+    const { docx, pdf } = await generate(page, fixture);
     const seven = docxSection7(docx);
     expect(seven.paragraphs.filter((paragraph) => /^Imagem \d+[.:]/.test(paragraph))).toEqual([
       'Imagem 1: Captura 1.',
@@ -267,18 +267,18 @@ for (const [n, width] of [[1, 390], [2, 768], [3, 1280]] as const) {
 test('@p0 21.3-E2E-004 a section 8 point citing "Imagem 3" prints "conforme Imagem 5" once that photo moved to place 5', async ({ page }) => {
   test.setTimeout(480_000);
   await page.setViewportSize({ width: 1280, height: 900 });
-  const { geral } = await sheetPhotoAndFiveGeral(page);
+  const { geral, fixture } = await sheetPhotoAndFiveGeral(page);
   const [p1, p2, p3, p4, p5] = geral.map((photo) => photo.id) as [string, string, string, string, string];
 
   // A point citing photo 3, written on another device of the office (the point editor's photo reference has its own e2e).
   const pointId = newId();
   const point: OpDraft = officeDraft(
     account,
-    { relatorioId: EXPORT_RELATORIO_ID },
+    { relatorioId: fixture.relatorioId },
     `point/${pointId}`,
     {
       id: pointId,
-      relatorio_id: EXPORT_RELATORIO_ID,
+      relatorio_id: fixture.relatorioId,
       text: `Isolador trincado, conforme ${photoToken(p3)}.`,
       equipment_id: null,
       origin: 'manual',
@@ -293,14 +293,14 @@ test('@p0 21.3-E2E-004 a section 8 point citing "Imagem 3" prints "conforme Imag
   );
   await pushDrafts(page, database, [point]);
   await syncNow(page);
-  await openGallery(page);
+  await openGallery(page, fixture);
 
   // Photo 3 down twice: place 5.
   await movePhoto(page, p3, 'Descer', 4, 5);
   await movePhoto(page, p3, 'Descer', 5, 5);
   expect((await tileOrder(page)).filter(([id]) => geral.some((photo) => photo.id === id))).toEqual([[p1, '1'], [p2, '2'], [p4, '3'], [p5, '4'], [p3, '5']]);
 
-  const { docx, pdf } = await generate(page);
+  const { docx, pdf } = await generate(page, fixture);
   expect(docx.paragraphs).toContain('Isolador trincado, conforme Imagem 5. Substituir na próxima parada.');
   expect(docx.paragraphs.some((paragraph) => paragraph.includes('conforme Imagem 3'))).toBe(false);
   expect(pdf.replace(/\s+/g, ' ')).toContain('conforme Imagem 5');
@@ -315,7 +315,7 @@ test('@p0 21.3-E2E-004 a section 8 point citing "Imagem 3" prints "conforme Imag
 
   // The point editor's "Escolher fotos" offers the photos in the gallery's order: the sheet photo
   // (captured first, Imagem 6) in its capture slot, the Geral ones in section 7's moved order.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/pontos`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });

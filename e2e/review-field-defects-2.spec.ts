@@ -5,7 +5,7 @@ import type { Locator, Page, Route } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
@@ -21,7 +21,8 @@ import { syncNow, syncNowAndReturn } from './support/sync.ts';
  * device committed (the outbox or the store) or what the issued document holds, and what the
  * screen shows. Every test resets Empresa B and pushes what its scenario needs from an
  * "office" device. Two tests issue revisions through the api's one queue and LibreOffice and
- * one loads the fixed-id Porto Seguro fixture, so this spec runs in the serial group.
+ * one loads this worker's copy of the Porto Seguro fixture, so this spec runs in the serial
+ * `queue` lane.
  */
 
 let account: SeedAccount;
@@ -264,11 +265,11 @@ test('@p0 F-03 F-04 issuing with 93 empty sheets asks first, naming the counts; 
 
 test('@p0 F-05 a point citing a photo after "etc." prints "…, conforme Imagem 1. <ação>" as its section 8 bullet in the issued DOCX', async ({ page }) => {
   test.setTimeout(420_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
 
   // One photo in the gallery, through "Adicionar fotos".
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/fotos`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/fotos`);
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
   const chooser = page.waitForEvent('filechooser');
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
@@ -285,11 +286,11 @@ test('@p0 F-05 a point citing a photo after "etc." prints "…, conforme Imagem 
   await pushDrafts(page, database, [
     officeDraft(
       account,
-      { relatorioId: EXPORT_RELATORIO_ID },
+      { relatorioId: fixture.relatorioId },
       `point/${pointId}`,
       {
         id: pointId,
-        relatorio_id: EXPORT_RELATORIO_ID,
+        relatorio_id: fixture.relatorioId,
         text: `Ausência de identificação da função dos transformadores etc. ${photoToken(photo!.id)}`,
         equipment_id: null,
         origin: 'manual',
@@ -304,14 +305,14 @@ test('@p0 F-05 a point citing a photo after "etc." prints "…, conforme Imagem 
     ),
   ]);
 
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await setParecer(page, fixture.relatorioId);
   await footButton(page).click();
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
   await generateButton(page).click();
   // The "Geral" photo's vision caption may take the toast meanwhile: the dialog's own result is read.
   await expect(exportDialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: JOB_TIMEOUT });
   const revision = (await entities<{ id: string; number: number; relatorio_id: string }>(page)).find(
-    (record) => record.entity === 'revision' && record.row.relatorio_id === EXPORT_RELATORIO_ID && record.row.number === 1,
+    (record) => record.entity === 'revision' && record.row.relatorio_id === fixture.relatorioId && record.row.number === 1,
   )!;
   const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
   const structure = extractStructure(Buffer.from(await response.body()));

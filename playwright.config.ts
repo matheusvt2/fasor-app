@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { NON_SERIAL_SPEC_PATTERN, PARALLEL_WORKERS, readGroup, SERIAL_SPEC_PATTERN } from './e2e/support/groups.ts';
+import { NOT_LANE_SPEC_PATTERN, PARALLEL_WORKERS, QUEUE_WORKERS, readGroup, SERIAL_SPEC_PATTERN } from './e2e/support/groups.ts';
 
 /**
  * One server: `vite preview` on 5200 over the `build:e2e` bundle, for every project.
@@ -18,16 +18,19 @@ import { NON_SERIAL_SPEC_PATTERN, PARALLEL_WORKERS, readGroup, SERIAL_SPEC_PATTE
  * offline or a routed request means for them.
  */
 /**
- * E6-Q7: the suite runs in two groups (`e2e/support/groups.ts`), which `scripts/e2e.ts`
+ * E6-Q7: the suite runs in groups (`e2e/support/groups.ts`), which `scripts/e2e.ts`
  * runs one after the other with `E2E_GROUP` set: `parallel` on `PARALLEL_WORKERS` workers,
- * each on its own pair of companies (the `seed` fixture), then `serial` on one worker for
- * the specs that share the document queue or a fixed-id fixture. A bare `playwright test`
- * (no group) runs every spec on one worker. `--workers=N` overrides the parallel group's
- * count; outside the parallel group the global setup refuses more than one worker
- * (`assertWorkersAllowed`), so no invocation puts a serial spec beside another worker.
+ * each on its own pair of companies (the `seed` fixture), then (chore T3, 2026-11-09) the
+ * `queue` lane on `QUEUE_WORKERS` workers for the specs that share the document or reading
+ * queue (each worker on its own copy of the small fixture), then the `solo` lane on one worker
+ * for the specs that time a tap or a wait against a render. A bare `playwright test` (no group)
+ * runs every spec on one worker. `--workers=N` overrides the parallel group's count only; the
+ * global setup refuses more workers than a lane allows (`assertWorkersAllowed`), so no
+ * invocation puts a `queue` spec beside more than its lane's workers or a `solo` spec beside
+ * any other worker.
  */
 const group = readGroup(process.env.E2E_GROUP);
-const groupIgnore = group === 'parallel' ? [SERIAL_SPEC_PATTERN] : group === 'serial' ? [NON_SERIAL_SPEC_PATTERN] : [];
+const groupIgnore = group === undefined ? [] : group === 'parallel' ? [SERIAL_SPEC_PATTERN] : [NOT_LANE_SPEC_PATTERN[group]];
 const label = group ?? 'all';
 
 export default defineConfig({
@@ -44,15 +47,17 @@ export default defineConfig({
     ['json', { outputFile: `test-results/e2e-report/${label}.json` }],
     ['./e2e/support/timing-reporter.ts', { outputFile: `test-results/e2e-report/timings-${label}.json` }],
   ],
-  // Each group keeps its own artifacts: the serial run must not clean the parallel run's.
+  // Each group keeps its own artifacts: a lane's run must not clean an earlier run's.
   outputDir: group === undefined ? 'test-results' : `test-results/${group}`,
-  workers: group === 'parallel' ? PARALLEL_WORKERS : 1,
+  workers: group === 'parallel' ? PARALLEL_WORKERS : group === 'queue' ? QUEUE_WORKERS : 1,
   // Test-speed batch (2026-09-27): the parallel group hands out tests, not files, so one
   // long file (ficha.spec.ts, about a fifth of the group's time) no longer keeps one
   // worker busy after the others ran dry. Every test there already starts from its own
   // reset of its worker's pair (none needs an earlier test of its file), and each worker
-  // keeps its own pair whatever file its tests come from.
-  fullyParallel: group === 'parallel',
+  // keeps its own pair whatever file its tests come from. Chore T3 (2026-11-09): the `queue`
+  // lane too; no serial spec uses `describe.serial`, `describe.configure` or `beforeAll`, and
+  // each of its tests resets its own worker's pair (and its own copy of the small fixture).
+  fullyParallel: group === 'parallel' || group === 'queue',
   globalSetup: './e2e/support/global-setup.ts',
   globalTeardown: './e2e/support/global-teardown.ts',
   // Fail fast (test-speed batch, 2026-09-27): without an action timeout a click on a

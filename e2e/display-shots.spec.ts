@@ -1,8 +1,7 @@
-import { BLOCK_CHAVE_ID } from '@app/domain/fixtures/porto-seguro/small';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen } from './support/photos.ts';
@@ -20,8 +19,9 @@ import { setParecer } from './support/relatorio-flow.ts';
  * reads the sheet-photo sentence and leaves the Geral photo's 1, and in the generated DOCX
  * section 7 holds only the Geral photo ("Imagem 1.") while the chave's sheet in section 9
  * prints "Imagem 2: ⟨legenda⟩." in its one photo block after CONCLUSÃO (Story 20.6), and in the
- * PDF each of the fixture's three fichas starts a page. The fixture's ids are fixed and a revision is generated, so
- * this spec runs in the serial group (`e2e/support/groups.ts`).
+ * PDF each of the fixture's three fichas starts a page. A revision is generated, so this spec
+ * runs in the serial `queue` lane (`e2e/support/groups.ts`), on this worker's own copy of the
+ * fixture (chore T3, 2026-11-09).
  */
 
 test.use({
@@ -60,29 +60,29 @@ async function displayRows(page: Page): Promise<FileRecord['row'][]> {
   return records.filter((record) => record.entity === 'file' && record.row.kind === 'photo' && record.row.reading_kind === 'display').map((record) => record.row);
 }
 
-async function openSumario(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+async function openSumario(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 }
 
-async function openGallery(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/fotos`);
+async function openGallery(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}/fotos`);
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
 }
 
-async function openChave(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/ficha/${BLOCK_CHAVE_ID}`);
+async function openChave(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
 }
 
 test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge on screen, offered by the picker, out of section 7, printed in section 9 after its ficha\'s CONCLUSÃO as "Imagem N: ⟨legenda⟩."', async ({ page }) => {
   test.setTimeout(420_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openSumario(page);
+  await openSumario(page, fixture);
 
   // A one-shot "Ler visor" burst on the chave's isolation table: the display shot comes first in capture order.
-  await openChave(page);
+  await openChave(page, fixture);
   await opener(page, 'contato_aberto').click();
   const view = await expectCameraOpen(page);
   await view.getByRole('button', { name: 'Disparar' }).click();
@@ -93,7 +93,7 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge 
   // The committed store row: a live photo of the chave with `reading_kind: 'display'`.
   await expect.poll(async () => (await displayRows(page)).length, { timeout: 15_000 }).toBe(1);
   const [display] = await displayRows(page);
-  expect(display).toMatchObject({ kind: 'photo', block_id: BLOCK_CHAVE_ID, reading_kind: 'display', removed_at: null });
+  expect(display).toMatchObject({ kind: 'photo', block_id: fixture.blockChaveId, reading_kind: 'display', removed_at: null });
 
   // The sheet strip: the display shot, the relatório's only photo so far, carries number 1.
   const strip = page.locator('.sheet-photos');
@@ -102,7 +102,7 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge 
   await expect(strip.getByRole('button', { name: 'Foto 1, abrir', exact: true })).toBeVisible();
 
   // The gallery: a "Geral" photo added afterwards is "Foto 1" (section 7 opens the sequence); the display shot moves to 2.
-  await openGallery(page);
+  await openGallery(page, fixture);
   const chooser = page.waitForEvent('filechooser');
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
   await (await chooser).setFiles([await plainJpeg(page, 'vista-geral.jpg')]);
@@ -134,7 +134,7 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge 
   await expect.poll(async () => (await displayRows(page))[0]?.caption).toBe(CAPTION);
 
   // Generate revision 1 and read the DOCX back.
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await setParecer(page, fixture.relatorioId);
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   await expect(exportDialog(page)).toBeVisible();
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
@@ -175,7 +175,7 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge 
   await expect(exportDialog(page)).toBeHidden();
 
   // The point editor's picker offers both photos, the display shot as "Imagem 2".
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/pontos`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
@@ -190,7 +190,7 @@ test('@p0 16.3-E2E-001 a "Ler visor" display shot is numbered (17.4): its badge 
   await expect(picker).toHaveCount(0);
 
   // The viewer on the display shot: badge 2, "Foto 2 de 2" with its count.
-  await openGallery(page);
+  await openGallery(page, fixture);
   await galleryItem(page, display!.id).getByRole('button', { name: /^Foto 2, (legenda sugerida, )?abrir$/ }).click();
   const viewer = page.getByRole('dialog', { name: 'Foto 2 de 2', exact: true });
   await expect(viewer).toBeVisible();
