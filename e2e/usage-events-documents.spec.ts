@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { TELEMETRY_ROUTE, uxEventSchema, type UxEvent } from '@app/domain';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { setParecer } from './support/relatorio-flow.ts';
@@ -9,8 +9,8 @@ import { setParecer } from './support/relatorio-flow.ts';
  * 18.4-E2E-002 and 18.4-E2E-003 (Story 18.4): the `preview` and `generate` waits time what the
  * engineer waited for, from the press to the document, not the request that enqueues the job
  * (the first production read: 26.8 s on the screen, 176 ms in the view). The job runs for real
- * (LibreOffice in the api container) on the small Porto Seguro fixture, so this spec is in the
- * serial group. The device ships its queue with each sync cycle, so the wait is looked for in
+ * (LibreOffice in the api container) on this worker's copy of the small Porto Seguro fixture,
+ * and its timed waits must not share the CPU, so this spec is in the serial `solo` lane. The device ships its queue with each sync cycle, so the wait is looked for in
  * the queue and in what the page posted to `POST /api/telemetry`.
  */
 
@@ -55,18 +55,20 @@ async function waitsOf(page: Page, posted: UxEvent[], kind: 'preview' | 'generat
   return [...seen.values()];
 }
 
-async function openFixture(page: Page): Promise<void> {
-  await resetEmpresaBWithFixture(account);
+/** Loads this worker's copy of the fixture, signs in and opens its Sumário; returns the copy. */
+async function openFixture(page: Page): Promise<SmallFixtureCopy> {
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
+  return fixture;
 }
 
 test('@p0 18.4-E2E-002 "Pré-visualizar" queues one preview wait, ok, as long as the tap-to-PDF-tab interval', async ({ page, context }) => {
   test.setTimeout(240_000);
   const posted = recordTelemetryPosts(page);
-  await openFixture(page);
+  const fixture = await openFixture(page);
   await footButton(page).click();
 
   const tabPromise = context.waitForEvent('page');
@@ -82,7 +84,7 @@ test('@p0 18.4-E2E-002 "Pré-visualizar" queues one preview wait, ok, as long as
   await expect.poll(async () => (await waitsOf(page, posted, 'preview')).length, { timeout: 15_000 }).toBe(1);
   const [wait] = await waitsOf(page, posted, 'preview');
   expect(uxEventSchema.safeParse(wait).success).toBe(true);
-  expect(wait).toMatchObject({ name: 'wait', kind: 'preview', outcome: 'ok', relatorio_id: EXPORT_RELATORIO_ID });
+  expect(wait).toMatchObject({ name: 'wait', kind: 'preview', outcome: 'ok', relatorio_id: fixture.relatorioId });
   expect(wait!.duration_ms, `interval ${interval} ms`).toBeGreaterThanOrEqual(interval - 1000);
   expect(wait!.duration_ms!).toBeLessThanOrEqual(interval + 1000);
 });
@@ -90,8 +92,8 @@ test('@p0 18.4-E2E-002 "Pré-visualizar" queues one preview wait, ok, as long as
 test('@p0 18.4-E2E-003 "Gerar relatório" queues one generate wait, ok once the download buttons enable, as long as the tap-to-download interval', async ({ page }) => {
   test.setTimeout(300_000);
   const posted = recordTelemetryPosts(page);
-  await openFixture(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  const fixture = await openFixture(page);
+  await setParecer(page, fixture.relatorioId);
   await footButton(page).click();
 
   const tapped = Date.now();
@@ -105,7 +107,7 @@ test('@p0 18.4-E2E-003 "Gerar relatório" queues one generate wait, ok once the 
   await expect.poll(async () => (await waitsOf(page, posted, 'generate')).length, { timeout: 15_000 }).toBe(1);
   const [wait] = await waitsOf(page, posted, 'generate');
   expect(uxEventSchema.safeParse(wait).success).toBe(true);
-  expect(wait).toMatchObject({ name: 'wait', kind: 'generate', outcome: 'ok', relatorio_id: EXPORT_RELATORIO_ID });
+  expect(wait).toMatchObject({ name: 'wait', kind: 'generate', outcome: 'ok', relatorio_id: fixture.relatorioId });
   expect(wait!.duration_ms, `interval ${interval} ms`).toBeGreaterThanOrEqual(interval - 1000);
   expect(wait!.duration_ms!).toBeLessThanOrEqual(interval + 1000);
   await page.keyboard.press('Escape');

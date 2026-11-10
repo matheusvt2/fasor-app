@@ -1,10 +1,9 @@
 import type { OpDraft } from '@app/domain';
-import { BLOCK_CHAVE_ID, CABINE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
@@ -46,8 +45,8 @@ interface OutboxOp {
 const outboxOps = async (page: Page, path: string | RegExp) =>
   (await readStore<OutboxOp>(page, database, 'outbox')).filter((op) => (typeof path === 'string' ? op.path === path : path.test(op.path)));
 
-async function openFixtureSumario(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+async function openFixtureSumario(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(sumario(page)).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
 }
@@ -129,9 +128,9 @@ test('@p0 E78-Q1 7.5-E2E-006 22.6-E2E a relatório with no section block (the Po
   page,
 }) => {
   test.setTimeout(180_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
+  await openFixtureSumario(page, fixture);
 
   // The eleven sections the document prints, as virtual rows: numbers as text, no Position box, no Overflow.
   const numbered = sumario(page).locator('li.sum-row[data-virtual]');
@@ -160,7 +159,7 @@ test('@p0 E78-Q1 7.5-E2E-006 22.6-E2E a relatório with no section block (the Po
 
   // Row 10 opens Dados do relatório › Etapa 6 (no block is needed for it), Apto disabled.
   await row10.getByRole('button').first().click();
-  await expect(page).toHaveURL(new RegExp(`/relatorio/${EXPORT_RELATORIO_ID}/setup\\?etapa=6$`));
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${fixture.relatorioId}/setup\\?etapa=6$`));
   const group = page.getByRole('radiogroup', { name: 'Parecer' });
   await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
   await expect(group.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
@@ -171,15 +170,15 @@ test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with 
   page,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  const envelope = { scope: 'relatorio' as const, company_id: account.companyId, project_id: null, relatorio_id: EXPORT_RELATORIO_ID, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId };
+  await openFixtureSumario(page, fixture);
+  const envelope = { scope: 'relatorio' as const, company_id: account.companyId, project_id: null, relatorio_id: fixture.relatorioId, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId };
   // The chave concluded Reprovado; a summary typed before Story 22.6 (stored `edited`).
   await pushDrafts(page, database, [
-    { ...envelope, kind: 'put', path: `sheet/${BLOCK_CHAVE_ID}/conclusion/result`, value: 'reprovado' },
-    { ...envelope, kind: 'put', path: `sheet/${BLOCK_CHAVE_ID}/conclusion/restriction`, value: 'com_restricoes' },
-    { ...envelope, kind: 'put', path: `sheet/${BLOCK_CHAVE_ID}/observations`, value: 'Contatos com desgaste acentuado.' },
+    { ...envelope, kind: 'put', path: `sheet/${fixture.blockChaveId}/conclusion/result`, value: 'reprovado' },
+    { ...envelope, kind: 'put', path: `sheet/${fixture.blockChaveId}/conclusion/restriction`, value: 'com_restricoes' },
+    { ...envelope, kind: 'put', path: `sheet/${fixture.blockChaveId}/observations`, value: 'Contatos com desgaste acentuado.' },
     {
       ...envelope,
       kind: 'put',
@@ -188,7 +187,7 @@ test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with 
     },
   ]);
 
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/setup?etapa=6`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const group = page.getByRole('radiogroup', { name: 'Parecer' });
   await expect(group.getByRole('radio', { name: 'Não apto', exact: true })).toHaveAttribute('aria-checked', 'true');
@@ -203,7 +202,7 @@ test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with 
   await expect(page.getByText('Resumo digitado antes pelo engenheiro.')).toBeVisible();
 
   // Issued: the DOCX's section 10.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(sumario(page)).toBeVisible({ timeout: 30_000 });
   await expect(sumario(page).locator('li[data-row="section_10"] .sum-status')).toHaveText('Não apto');
   await footButton(page).click();
@@ -226,7 +225,7 @@ test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with 
   expect(structure.paragraphs.slice(validity - 2, validity).every((p) => p.length > 40)).toBe(true);
 
   // Back in Etapa 6, "Limpar" clears the typed summary (one op) and the box no longer prints it.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/setup?etapa=6`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Limpar', exact: true }).click();
   await expect.poll(async () => (await outboxOps(page, 'relatorio/setup/parecer')).at(-1)?.value).toEqual({ verdict: 'apto', text: null, text_status: null, text_basis: null });
@@ -237,11 +236,11 @@ test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: 
   page,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
+  await openFixtureSumario(page, fixture);
   // Story 22.6: the fixture's untested sheet makes the derived verdict Apto com restrições, so Apto is disabled and the derived one prints.
-  await setParecer(page, EXPORT_RELATORIO_ID, 'Apto');
+  await setParecer(page, fixture.relatorioId, 'Apto');
   await expect(headerPill(page)).toHaveText('Em campo');
   await footButton(page).click();
   await expect(dialog(page).locator('.generate-row .btn-reason')).toHaveText(IDLE_1);
@@ -272,9 +271,9 @@ test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: 
 
 test('@p0 7.5-E2E-001 "Pré-visualizar" opens preview.pdf in a new tab, reading "Gerando rascunho…" meanwhile; no status op, no revision', async ({ page, context }) => {
   test.setTimeout(240_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
+  await openFixtureSumario(page, fixture);
   await footButton(page).click();
   // Story 22.6: nothing blocks issuing; previewing does not issue either.
   await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
@@ -308,28 +307,28 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
   page,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
+  await openFixtureSumario(page, fixture);
   // The fixture's chave prints no Placa (its config enables no optional sub-block), and a
   // disabled nameplate is not the last visit's plate: this visit turns it on before issuing.
-  const chaveConfig = (portoSeguroSmall.log.find((op) => op.kind === 'create' && op.path === `block/${BLOCK_CHAVE_ID}`)!.value as { config: object }).config;
+  const chaveConfig = (fixture.log.find((op) => op.kind === 'create' && op.path === `block/${fixture.blockChaveId}`)!.value as { config: object }).config;
   await pushDrafts(page, database, [
     {
       scope: 'relatorio',
       company_id: account.companyId,
       project_id: null,
-      relatorio_id: EXPORT_RELATORIO_ID,
+      relatorio_id: fixture.relatorioId,
       prev_op_id: null,
       batch_id: null,
       meta: null,
       actor_id: account.userId,
       kind: 'put',
-      path: `block/${BLOCK_CHAVE_ID}/config`,
+      path: `block/${fixture.blockChaveId}/config`,
       value: { ...chaveConfig, sub_blocks: { nameplate: { enabled: true } } } as never,
     },
   ]);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await setParecer(page, fixture.relatorioId);
   await footButton(page).click();
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
   await generateButton(page).click();
@@ -341,11 +340,11 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
   const r2 = newId();
   const cabine = newId();
   const block = newId();
-  const byPath = (path: string) => portoSeguroSmall.log.find((op) => op.kind === 'create' && op.path === path)!;
+  const byPath = (path: string) => fixture.log.find((op) => op.kind === 'create' && op.path === path)!;
   const envelope = { scope: 'relatorio' as const, company_id: account.companyId, project_id: null, relatorio_id: r2, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId };
-  const relatorio = byPath(`relatorio/${EXPORT_RELATORIO_ID}`).value as Record<string, unknown>;
-  const location = byPath(`location/${CABINE_ID}`).value as Record<string, unknown>;
-  const chave = byPath(`block/${BLOCK_CHAVE_ID}`).value as Record<string, unknown>;
+  const relatorio = byPath(`relatorio/${fixture.relatorioId}`).value as Record<string, unknown>;
+  const location = byPath(`location/${fixture.cabineId}`).value as Record<string, unknown>;
+  const chave = byPath(`block/${fixture.blockChaveId}`).value as Record<string, unknown>;
   // Stories 20.7 to 20.10 (contract 29): born Rascunho, then Em campo as the fixture's relatório is, through the table's own move.
   const drafts: OpDraft[] = [
     { ...envelope, kind: 'create', path: `relatorio/${r2}`, value: { ...relatorio, id: r2, status: 'rascunho', setup: { ...(relatorio.setup as object), responsible_user_id: account.userId } } as never },
@@ -360,7 +359,7 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
         id: block,
         relatorio_id: r2,
         location_id: cabine,
-        equipment_id: EQUIPMENT_CHAVE_ID,
+        equipment_id: fixture.equipmentChaveId,
         // This visit's sheet shows its Placa (the fixture's own config enables no optional sub-block).
         config: { ...(chave.config as object), sub_blocks: { nameplate: { enabled: true } } },
       } as never,
@@ -378,10 +377,10 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
 
 test('@p1 7.5-E2E-003 R4: pressed and left for Home, the ready toast arrives there, once, and no issue op is written (2026-10-10)', async ({ page }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await openFixtureSumario(page, fixture);
+  await setParecer(page, fixture.relatorioId);
   await footButton(page).click();
   await generateButton(page).click();
   await expect(dialog(page).locator('.gen-progress[role="status"]')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
@@ -430,10 +429,10 @@ test('@p1 7.5-E2E-004 Epic 4 item 29: "Restaurar" lists only the block removed a
 
 test('@p1 7.5-E2E-005 the Export dialog at 390 px: the precheck, the document control and the generate row fit without sideways scroll', async ({ page }) => {
   test.setTimeout(120_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await page.setViewportSize({ width: 390, height: 844 });
-  await openFixtureSumario(page);
+  await openFixtureSumario(page, fixture);
   await footButton(page).click();
   await expect(dialog(page).locator('.precheck')).toBeVisible();
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);

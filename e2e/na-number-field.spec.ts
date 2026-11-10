@@ -1,6 +1,5 @@
-import { BLOCK_TRANSFORMADOR_ID, CABINE_ID } from '@app/domain/fixtures/porto-seguro/small';
 import type { Locator, Page } from '@playwright/test';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { pdfTextItems } from './support/pdf-text.ts';
@@ -12,8 +11,8 @@ import { pdfTextItems } from './support/pdf-text.ts';
  * typed in the cabine's POT√äNCIA INSTALADA reads "N/A" on the collapsed cabine line. Story 17.3:
  * at 390 px, the "N/A" control beside each field, tapped over a number, commits the same put,
  * hides itself and moves no focus; the preview PDF prints "N/A" in both cells. The preview
- * renders through the one queue and LibreOffice of the api and the fixture's ids are fixed, so
- * the file is in the serial group.
+ * renders through the one queue and LibreOffice of the api, so the file is in the serial `queue`
+ * lane, on this worker's own copy of the fixture (chore T3, 2026-11-09).
  */
 
 let account: SeedAccount;
@@ -26,8 +25,8 @@ test.beforeEach(({ seed }) => {
 /** The job's own time: flush, queue pick-up, two LibreOffice passes. */
 const JOB_TIMEOUT = 150_000;
 const NA = { raw: '', unit: null, state: 'not_applicable' };
-const POTENCIA_PATH = `sheet/${BLOCK_TRANSFORMADOR_ID}/nameplate/potencia_nominal`;
-const INSTALADA_PATH = `location/${CABINE_ID}/se/installed_kva`;
+const potenciaPath = (fixture: SmallFixtureCopy) => `sheet/${fixture.blockTransformadorId}/nameplate/potencia_nominal`;
+const instaladaPath = (fixture: SmallFixtureCopy) => `location/${fixture.cabineId}/se/installed_kva`;
 
 interface OutboxRow {
   path: string;
@@ -43,8 +42,8 @@ const exportDialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar rel
 const naControl = (page: Page, label: string): Locator => page.getByRole('button', { name: `Marcar ${label} como n√£o aplic√°vel`, exact: true });
 const previewButton = (page: Page) => exportDialog(page).locator('.generate-row').getByRole('button', { name: /^(Pr√©-visualizar|Gerando rascunho‚Ä¶)$/ });
 
-async function openTransformer(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/ficha/${BLOCK_TRANSFORMADOR_ID}`);
+async function openTransformer(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockTransformadorId}`);
   await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
   await expect(plateField(page, 'potencia_nominal').locator('input')).toBeVisible();
 }
@@ -66,14 +65,14 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
   context,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo', { timeout: 30_000 });
 
   // The nameplate: "n.a" over the stored 1.000 kVA, then the focus leaves.
-  await openTransformer(page);
+  await openTransformer(page, fixture);
   const potencia = plateField(page, 'potencia_nominal');
   const input = potencia.locator('input');
   await expect(input).toHaveValue('1.000');
@@ -90,7 +89,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
   await expect(potencia.locator('.mf-echo')).toHaveCount(0);
   await expect(potencia.getByText('N√∫mero n√£o reconhecido')).toHaveCount(0);
   await expect(naControl(page, 'Pot√™ncia nominal')).toHaveCount(0);
-  await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual(NA);
+  await expect.poll(() => lastOutboxValue(page, potenciaPath(fixture))).toEqual(NA);
 
   // A reload reads it back from the device store.
   await page.reload();
@@ -108,7 +107,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
   await expect(instalada).toHaveValue('N/A');
   await expect(page.locator('[data-field-key="installed_kva"] .mf-unit')).toHaveCount(0);
   await expect(naControl(page, 'Pot√™ncia instalada')).toHaveCount(0);
-  await expect.poll(() => lastOutboxValue(page, INSTALADA_PATH)).toEqual(NA);
+  await expect.poll(() => lastOutboxValue(page, instaladaPath(fixture))).toEqual(NA);
   // The next visit of the sheet draws the line again, "N/A" in the value's place, no kVA.
   await page.reload();
   await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
@@ -125,7 +124,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
     await input.blur();
     await expect(input).toHaveValue('1.000');
     await expect(potencia.locator('.mf-unit')).toHaveText('kVA');
-    await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual({ raw: '1000', unit: 'kVA', state: 'measured' });
+    await expect.poll(() => lastOutboxValue(page, potenciaPath(fixture))).toEqual({ raw: '1000', unit: 'kVA', state: 'measured' });
     await expect(plateControl).toHaveText('N/A');
     await plateControl.scrollIntoViewIfNeeded();
     await expectControlFits(page, potencia, plateControl);
@@ -135,7 +134,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
     await expect(potencia.locator('.mf-unit')).toHaveCount(0);
     await expect(potencia.locator('.mf-echo')).toHaveCount(0);
     await expect(plateControl).toHaveCount(0);
-    await expect.poll(() => lastOutboxValue(page, POTENCIA_PATH)).toEqual(NA);
+    await expect.poll(() => lastOutboxValue(page, potenciaPath(fixture))).toEqual(NA);
     await expect(page.locator('input:focus')).toHaveCount(0);
   }
 
@@ -146,7 +145,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
   await instalada.fill('300');
   await instalada.blur();
   await expect(instalada).toHaveValue('300');
-  await expect.poll(() => lastOutboxValue(page, INSTALADA_PATH)).toEqual({ raw: '300', unit: 'kVA', state: 'measured' });
+  await expect.poll(() => lastOutboxValue(page, instaladaPath(fixture))).toEqual({ raw: '300', unit: 'kVA', state: 'measured' });
   const cabineControl = naControl(page, 'Pot√™ncia instalada');
   await cabineControl.scrollIntoViewIfNeeded();
   await expectControlFits(page, page.locator('[data-field-key="installed_kva"]'), cabineControl);
@@ -154,7 +153,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
   await expect(instalada).toHaveValue('N/A');
   await expect(page.locator('[data-field-key="installed_kva"] .mf-unit')).toHaveCount(0);
   await expect(cabineControl).toHaveCount(0);
-  await expect.poll(() => lastOutboxValue(page, INSTALADA_PATH)).toEqual(NA);
+  await expect.poll(() => lastOutboxValue(page, instaladaPath(fixture))).toEqual(NA);
   await expect(page.locator('input:focus')).toHaveCount(0);
 
   // A reload keeps both.
@@ -166,7 +165,7 @@ test('@p0 16.4-E2E-001 17.3-E2E-001 "N/A" typed in the transformer sheet\'s POT√
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // The preview prints "N/A" in both cells, never the old values.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sum√°rio do relat√≥rio' })).toBeVisible({ timeout: 30_000 });
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relat√≥rio' }).click();
   const tabPromise = context.waitForEvent('page');

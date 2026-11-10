@@ -2,26 +2,29 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { E2eGroup } from '../e2e/support/groups.ts';
+import { E2E_GROUPS, QUEUE_WORKERS, type E2eGroup } from '../e2e/support/groups.ts';
 import { preflight } from './preflight.ts';
 
 /**
  * E6-Q7: the one entry of every e2e command (`test:e2e`, `test:e2e:full`,
- * `test:e2e:matrix`). It builds the web bundle once, then runs the parallel group and,
- * after it has ended, the serial group (`e2e/support/groups.ts`), each as its own
- * Playwright run with the same arguments, so a serial spec never runs beside a parallel
- * worker. Both groups always run: a failure in one never skips the other, and the command
- * exits non-zero when either failed (or when neither ran a test).
+ * `test:e2e:matrix`). It builds the web bundle once, then runs the groups of
+ * `e2e/support/groups.ts` one after the other, each as its own Playwright run with the same
+ * arguments: the parallel group, then (chore T3, 2026-11-09) the `queue` lane, then the
+ * `solo` lane, each starting only once the one before has ended, so a serial spec never runs
+ * beside a parallel worker and a `solo` spec beside nothing. All three always run: a failure
+ * in one never skips a later one, and the command exits non-zero when any failed (or when
+ * none ran a test).
  *
- * `--workers=N` reaches the parallel group only; the serial group always runs on one.
- * After both, it writes `test-results/e2e-report/summary.json` (per group and in total:
- * tests, passed, failed, skipped, flaky, duration, and every test's title with its
- * outcome) and prints the totals, so runs can be compared title by title.
+ * `--workers=N` reaches the parallel group only; the `queue` lane always runs on
+ * `QUEUE_WORKERS` workers and the `solo` lane on one. After all three, it writes
+ * `test-results/e2e-report/summary.json` (per group and in total: tests, passed, failed,
+ * skipped, flaky, duration, start time, and every test's title with its outcome) and prints
+ * the totals, so runs can be compared title by title.
  *
  * TST-V1 (review 2026-10-08): each group runs with `--pass-with-no-tests`, because a spec
- * path of the serial group matches nothing in the parallel group and the other way round.
- * So the command checks the spec paths itself: a spec path (an argument Playwright reads as
- * a file filter, `specFilters`) on which no test ran in either group fails the run, so a
+ * path of one lane matches nothing in the others. So the command checks the spec paths
+ * itself: a spec path (an argument Playwright reads as a file filter, `specFilters`) on
+ * which no test ran in any group fails the run, so a
  * typo, a spec whose every test skipped or a `:line` no test starts on can no longer turn
  * a story gate green on the other paths alone.
  *
@@ -222,7 +225,7 @@ export function unmatchedFilters(filters: readonly string[], ran: readonly SpecL
   });
 }
 
-/** Drops every `--workers`/`-j` argument (with its value), for the serial group. */
+/** Drops every `--workers`/`-j` argument (with its value), for the serial lanes. */
 export function withoutWorkers(args: readonly string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < args.length; i += 1) {
@@ -237,10 +240,11 @@ export function withoutWorkers(args: readonly string[]): string[] {
   return out;
 }
 
-/** The arguments each group's Playwright run gets. */
+/** The arguments each group's Playwright run gets: the lanes' worker counts are fixed, whatever `--workers` says. */
 export function groupArgs(group: E2eGroup, args: readonly string[]): string[] {
   const base = ['playwright', 'test', '--pass-with-no-tests'];
-  return group === 'parallel' ? [...base, ...args] : [...base, ...withoutWorkers(args), '--workers=1'];
+  if (group === 'parallel') return [...base, ...args];
+  return [...base, ...withoutWorkers(args), `--workers=${group === 'queue' ? QUEUE_WORKERS : 1}`];
 }
 
 /** A describe's location; a file's own suite (line 0) is not a describe a `:line` can name. */
@@ -313,17 +317,16 @@ export function readReport(text: string | null, runStartedMs: number): JsonRepor
   return Number.isFinite(start) && start >= runStartedMs - 1_000 ? parsed : null;
 }
 
-/** Runs the parallel group, then the serial group, always both, whatever the first one did. */
-export function runBothGroups(runGroup: (group: E2eGroup) => GroupSummary): [GroupSummary, GroupSummary] {
-  const parallel = runGroup('parallel');
-  const serial = runGroup('serial');
-  return [parallel, serial];
+/** Runs the parallel group, then the `queue` lane, then the `solo` lane, always all three, whatever an earlier one did. */
+export function runGroups(runGroup: (group: E2eGroup) => GroupSummary): GroupSummary[] {
+  const summaries: GroupSummary[] = [];
+  for (const group of E2E_GROUPS) summaries.push(runGroup(group));
+  return summaries;
 }
 
 /**
- * The combined result: exit 1 when either group failed, neither ran a test (a skipped test
- * ran nothing), or a spec path of the command (`filters`) matched no test either group ran
- * (TST-V1).
+ * The combined result: exit 1 when any group failed, none ran a test (a skipped test ran
+ * nothing), or a spec path of the command (`filters`) matched no test any group ran (TST-V1).
  */
 export function combine(groups: readonly GroupSummary[], durationMs: number, filters: readonly string[] = [], testDir = E2E_DIR) {
   const sum = (key: 'tests' | 'passed' | 'failed' | 'skipped' | 'flaky') => groups.reduce((total, group) => total + group[key], 0);
@@ -355,7 +358,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv): number {
 function runGroup(group: E2eGroup, args: readonly string[]): GroupSummary {
   const reportFile = resolve(REPORT_DIR, `${group}.json`);
   const started = Date.now();
-  console.log(`\n[e2e] ${group} group: playwright ${groupArgs(group, args).slice(1).join(' ')}`);
+  console.log(`\n[e2e] ${group === 'parallel' ? 'parallel group' : `${group} lane`}: playwright ${groupArgs(group, args).slice(1).join(' ')}`);
   const exitCode = run('pnpm', ['exec', ...groupArgs(group, args)], { ...process.env, E2E_GROUP: group, E2E_PREBUILT: '1' });
   let text: string | null;
   try {
@@ -375,14 +378,14 @@ function main(): number {
   const started = Date.now();
   mkdirSync(REPORT_DIR, { recursive: true });
 
-  console.log('[e2e] building the web bundle once for both groups (build:e2e)');
+  console.log('[e2e] building the web bundle once for every group (build:e2e)');
   if (run('pnpm', ['--filter', '@app/web', 'run', 'build:e2e'], process.env) !== 0) {
     console.error('[e2e] build:e2e failed; no group ran');
     return 1;
   }
 
-  // Sequential on purpose: the serial group starts only once the parallel run has exited.
-  const groups = runBothGroups((group) => runGroup(group, args));
+  // Sequential on purpose: each lane starts only once the run before it has exited.
+  const groups = runGroups((group) => runGroup(group, args));
   const { exitCode, total, titles, unmatched } = combine(groups, Date.now() - started, specFilters(args));
   const failed = exitCode !== 0;
   const summary = { args, exitCode, total, groups, titles, unmatched };

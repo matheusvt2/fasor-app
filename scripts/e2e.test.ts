@@ -3,10 +3,26 @@ import { createRequire } from 'node:module';
 import { basename, join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import type { E2eLeak } from '../apps/api/src/db/e2e-leak-check.ts';
+import { workerSeed } from '../apps/api/src/db/e2e-worker-seed.ts';
+import { sampleId, sampleRelatorioIds } from '../apps/api/src/db/sample-relatorio.ts';
+import { SMALL_FIXTURE_PROJECT_ID, SMALL_FIXTURE_RELATORIO_ID, smallFixtureCopy } from '../apps/api/src/db/test-fixtures.ts';
 import { missingSmokeVariables, readSmokeEnv } from '../e2e/production/smoke-env.ts';
 import { assertNoLeaks } from '../e2e/support/global-teardown.ts';
-import { assertWorkersAllowed, NON_SERIAL_SPEC_PATTERN, SERIAL_SPEC_PATTERN, SERIAL_SPECS, type E2eGroup } from '../e2e/support/groups.ts';
+import {
+  assertWorkersAllowed,
+  E2E_GROUPS,
+  LANE_SPEC_PATTERN,
+  NON_SERIAL_SPEC_PATTERN,
+  NOT_LANE_SPEC_PATTERN,
+  PARALLEL_WORKERS,
+  QUEUE_WORKERS,
+  readGroup,
+  SERIAL_SPEC_PATTERN,
+  SERIAL_SPECS,
+  type E2eGroup,
+} from '../e2e/support/groups.ts';
 import playwrightConfig from '../playwright.config.ts';
 import {
   combine,
@@ -14,7 +30,7 @@ import {
   groupArgs,
   PLAYWRIGHT_TEST_OPTIONS,
   readReport,
-  runBothGroups,
+  runGroups,
   specFilters,
   summarize,
   unmatchedFilters,
@@ -26,7 +42,7 @@ import {
 /*
  * E6-Q7: the e2e grouping and its runner. The Playwright run itself is `test:e2e`; these
  * pin what can be checked without a browser: the argument handling, the report counting,
- * which specs the serial group holds, and that no spec names a fixed company, user or
+ * which specs each serial lane holds, and that no spec names a fixed company, user or
  * e-mail (each takes its worker's pair from the `seed` fixture).
  */
 
@@ -111,16 +127,21 @@ describe('scripts/e2e.ts arguments', () => {
     expect(groupArgs('parallel', ['--grep', '@p0', '--workers=1'])).toEqual(['playwright', 'test', '--pass-with-no-tests', '--grep', '@p0', '--workers=1']);
   });
 
-  it('runs the serial group on one worker whatever --workers says', () => {
+  it('runs the queue lane on QUEUE_WORKERS and the solo lane on one worker, whatever --workers says (chore T3)', () => {
     expect(withoutWorkers(['--workers=3', '--grep', '@p0', '--workers', '2', '-j', '4', '-j5', '--project', 'x'])).toEqual(['--grep', '@p0', '--project', 'x']);
-    expect(groupArgs('serial', ['--project', 'desktop-chrome', '--workers=3'])).toEqual([
-      'playwright',
-      'test',
-      '--pass-with-no-tests',
-      '--project',
-      'desktop-chrome',
-      '--workers=1',
-    ]);
+    expect(QUEUE_WORKERS).toBe(2);
+    expect(PARALLEL_WORKERS).toBe(2);
+    const base = ['playwright', 'test', '--pass-with-no-tests', '--project', 'desktop-chrome'];
+    expect(groupArgs('queue', ['--project', 'desktop-chrome', '--workers=3'])).toEqual([...base, '--workers=2']);
+    expect(groupArgs('solo', ['--project', 'desktop-chrome', '--workers=3'])).toEqual([...base, '--workers=1']);
+    // Without --workers: the parallel group keeps the config's count, the lanes their own.
+    expect(groupArgs('parallel', ['--project', 'desktop-chrome'])).toEqual(base);
+    expect(groupArgs('queue', ['--project', 'desktop-chrome'])).toEqual([...base, '--workers=2']);
+    expect(groupArgs('solo', ['--project', 'desktop-chrome'])).toEqual([...base, '--workers=1']);
+    // `pnpm test:e2e --workers=3`: parallel on 3, queue on 2, solo on 1.
+    expect(groupArgs('parallel', ['--workers=3']).at(-1)).toBe('--workers=3');
+    expect(groupArgs('queue', ['--workers=3']).filter((arg) => arg.startsWith('--workers'))).toEqual(['--workers=2']);
+    expect(groupArgs('solo', ['-j', '3']).filter((arg) => arg.startsWith('--workers') || arg.startsWith('-j'))).toEqual(['--workers=1']);
   });
 });
 
@@ -164,7 +185,7 @@ describe('scripts/e2e.ts summary', () => {
   });
 
   it('treats a missing report as a failed group, even when Playwright exited 0', () => {
-    expect(summarize('serial', 0, null)).toMatchObject({ exitCode: 1, tests: 0 });
+    expect(summarize('queue', 0, null)).toMatchObject({ exitCode: 1, tests: 0 });
   });
 
   it('reads only a whole report of this run: a missing, corrupt or older one is null', () => {
@@ -198,38 +219,45 @@ describe('scripts/e2e.ts combining the groups', () => {
     locations: tests === 0 ? [] : [{ file: `${name}.spec.ts`, line: 3, column: 1 }],
   });
 
-  it('runs the serial group after a failed parallel group, in that order', () => {
-    const ran: E2eGroup[] = [];
-    const groups = runBothGroups((name) => {
-      ran.push(name);
-      return group(name, name === 'parallel' ? 1 : 0, 2);
-    });
-    expect(ran).toEqual(['parallel', 'serial']);
-    expect(combine(groups, 5).exitCode).toBe(1);
+  it('runs parallel, then queue, then solo, in that order, a failed lane skipping none after it', () => {
+    for (const failing of E2E_GROUPS) {
+      const ran: E2eGroup[] = [];
+      const groups = runGroups((name) => {
+        ran.push(name);
+        return group(name, name === failing ? 1 : 0, 2);
+      });
+      expect(ran).toEqual(['parallel', 'queue', 'solo']);
+      expect(groups.map((summary) => summary.group)).toEqual(['parallel', 'queue', 'solo']);
+      expect(combine(groups, 5).exitCode).toBe(1);
+    }
+    expect(combine(runGroups((name) => group(name, 0, 1)), 5).exitCode).toBe(0);
   });
 
-  it('exits 1 when either group failed or no test ran, 0 only when both passed with tests', () => {
-    expect(combine([group('parallel', 0, 2), group('serial', 0, 1)], 5)).toMatchObject({
+  it('exits 1 when any lane failed or no test ran, 0 only when all passed with tests', () => {
+    expect(combine([group('parallel', 0, 2), group('queue', 0, 1), group('solo', 0, 1)], 5)).toMatchObject({
       exitCode: 0,
-      total: { tests: 3, passed: 3, failed: 0, durationMs: 5 },
-      titles: ['parallel > t0', 'parallel > t1', 'serial > t0'],
+      total: { tests: 4, passed: 4, failed: 0, durationMs: 5 },
+      titles: ['parallel > t0', 'parallel > t1', 'queue > t0', 'solo > t0'],
     });
-    expect(combine([group('parallel', 0, 2), group('serial', 1, 1)], 5).exitCode).toBe(1);
-    expect(combine([group('parallel', 1, 2), group('serial', 0, 1)], 5).exitCode).toBe(1);
-    expect(combine([group('parallel', 0, 0), group('serial', 0, 0)], 5).exitCode).toBe(1);
+    expect(combine([group('parallel', 0, 2), group('queue', 1, 1), group('solo', 0, 1)], 5).exitCode).toBe(1);
+    expect(combine([group('parallel', 0, 2), group('queue', 0, 1), group('solo', 1, 1)], 5).exitCode).toBe(1);
+    expect(combine([group('parallel', 1, 2), group('queue', 0, 1), group('solo', 0, 1)], 5).exitCode).toBe(1);
+    expect(combine([group('parallel', 0, 0), group('queue', 0, 0), group('solo', 0, 0)], 5).exitCode).toBe(1);
     // A run whose every test was skipped ran nothing either (review 2026-10-08, PR #116).
     const skippedOnly = { ...group('parallel', 0, 2), passed: 0, skipped: 2, files: [], locations: [] };
-    expect(combine([skippedOnly, group('serial', 0, 0)], 5).exitCode).toBe(1);
+    expect(combine([skippedOnly, group('queue', 0, 0), group('solo', 0, 0)], 5).exitCode).toBe(1);
   });
 
-  // TST-V1: each group runs with --pass-with-no-tests (a serial spec path matches nothing in
-  // the parallel group), so a mistyped path used to leave a green run of the other paths.
-  it('exits 1 when a spec path of the command matched no test in either group', () => {
-    const groups = [group('parallel', 0, 2), group('serial', 0, 1)];
-    expect(combine(groups, 5, ['e2e/parallel.spec.ts', 'e2e/serial.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 0, unmatched: [] });
-    expect(combine(groups, 5, ['e2e/parallel.spec.ts', 'e2e/serail.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 1, unmatched: ['e2e/serail.spec.ts'] });
+  // TST-V1: each group runs with --pass-with-no-tests (a lane's spec path matches nothing in
+  // the other groups), so a mistyped path used to leave a green run of the other paths.
+  it('exits 1 when a spec path of the command matched no test in any group', () => {
+    const groups = [group('parallel', 0, 2), group('queue', 0, 1), group('solo', 0, 1)];
+    expect(combine(groups, 5, ['e2e/parallel.spec.ts', 'e2e/queue.spec.ts', 'e2e/solo.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 0, unmatched: [] });
+    expect(combine(groups, 5, ['e2e/parallel.spec.ts', 'e2e/qeueu.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 1, unmatched: ['e2e/qeueu.spec.ts'] });
     // A path whose every test the grep left out is a path that matched no test too.
-    expect(combine([group('parallel', 0, 1), group('serial', 0, 0)], 5, ['e2e/serial.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 1 });
+    expect(combine([group('parallel', 0, 1), group('queue', 0, 0), group('solo', 0, 0)], 5, ['e2e/queue.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 1 });
+    // A spec path only in solo: the parallel group and the queue lane run nothing, solo runs it, exit 0.
+    expect(combine([group('parallel', 0, 0), group('queue', 0, 0), group('solo', 0, 1)], 5, ['e2e/solo.spec.ts'], '/w/e2e')).toMatchObject({ exitCode: 0, unmatched: [] });
   });
 });
 
@@ -453,12 +481,24 @@ describe('tap-timing specs arrange their sync through the helper (TST-2)', () =>
 });
 
 describe('the e2e run guards', () => {
-  it('refuses more than one worker outside the parallel group', () => {
+  it('refuses more workers than a lane allows: parallel any, queue QUEUE_WORKERS, solo and a bare run one (chore T3)', () => {
     expect(() => assertWorkersAllowed('parallel', 3)).not.toThrow();
-    expect(() => assertWorkersAllowed('serial', 1)).not.toThrow();
+    expect(() => assertWorkersAllowed('queue', 1)).not.toThrow();
+    expect(() => assertWorkersAllowed('queue', QUEUE_WORKERS)).not.toThrow();
+    expect(() => assertWorkersAllowed('solo', 1)).not.toThrow();
     expect(() => assertWorkersAllowed(undefined, 1)).not.toThrow();
-    expect(() => assertWorkersAllowed('serial', 2)).toThrow(/pnpm test:e2e/);
+    expect(() => assertWorkersAllowed('queue', 3)).toThrow(/the queue lane .*at most 2 workers, got 3.*lane rule.*pnpm test:e2e/);
+    expect(() => assertWorkersAllowed('solo', 2)).toThrow(/the solo lane .*one worker, got 2.*lane rule/);
+    expect(() => assertWorkersAllowed(undefined, 2)).toThrow(/without E2E_GROUP.*one worker.*lane rule/);
     expect(() => assertWorkersAllowed(undefined, 3)).toThrow(/without E2E_GROUP.*one worker/);
+  });
+
+  it('reads the three group names and refuses the old "serial" one, naming the three', () => {
+    expect(E2E_GROUPS).toEqual(['parallel', 'queue', 'solo']);
+    for (const name of E2E_GROUPS) expect(readGroup(name)).toBe(name);
+    expect(readGroup(undefined)).toBeUndefined();
+    expect(readGroup('')).toBeUndefined();
+    expect(() => readGroup('serial')).toThrow(/"parallel", "queue", "solo".*got "serial"/);
   });
 
   it('keeps the leak check registered as the global teardown, and it fails on a leak', async () => {
@@ -467,6 +507,36 @@ describe('the e2e run guards', () => {
     const leak: E2eLeak = { table: 'ops', companyId: 'c', userId: 'u', what: 'probe/x' };
     await expect(assertNoLeaks(async () => [])).resolves.toBeUndefined();
     await expect(assertNoLeaks(async () => [leak])).rejects.toThrow(/user u wrote probe\/x into company c/);
+  });
+});
+
+describe('the e2e workers\' fixture copies (chore T3)', () => {
+  const a = workerSeed(0).companies[1].companyId;
+  const b = workerSeed(1).companies[1].companyId;
+
+  it('derives the copy\'s ids from the company: the same company, the same ids; never the fixed, the sample\'s or another company\'s', () => {
+    const copyA = smallFixtureCopy(a);
+    const copyB = smallFixtureCopy(b);
+    expect(smallFixtureCopy(a).relatorioId).toBe(copyA.relatorioId);
+    const keys = ['relatorioId', 'projectId', 'cabineId', 'equipmentChaveId', 'blockChaveId', 'blockTransformadorId'] as const;
+    const fixed = new Set([SMALL_FIXTURE_RELATORIO_ID, SMALL_FIXTURE_PROJECT_ID]);
+    for (const key of keys) {
+      expect(copyA[key]).toMatch(/^019966c1-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(copyA[key]).not.toBe(copyB[key]);
+      expect(fixed.has(copyA[key])).toBe(false);
+    }
+    expect(copyA.relatorioId).not.toBe(sampleRelatorioIds(a).relatorioId);
+    expect(copyA.relatorioId).not.toBe(sampleId(a, SMALL_FIXTURE_RELATORIO_ID));
+    // The company becomes the copy's company and the fixture's user is kept, in the envelope and the values.
+    expect(copyA.id(portoSeguroSmall.companyId)).toBe(a);
+    expect(copyA.id(portoSeguroSmall.userId)).toBe(portoSeguroSmall.userId);
+    expect(copyA.log.every((op) => op.company_id === a && op.actor_id === portoSeguroSmall.userId)).toBe(true);
+    const opIds = new Set(portoSeguroSmall.log.map((op) => op.op_id));
+    expect(copyA.log.some((op) => opIds.has(op.op_id))).toBe(false);
+    expect(new Set(copyA.log.map((op) => op.op_id)).size).toBe(copyA.log.length);
+    expect(copyA.log.map((op) => op.path)).toContain(`block/${copyA.blockChaveId}`);
+    expect(JSON.stringify(copyA.log)).not.toContain(SMALL_FIXTURE_RELATORIO_ID);
+    expect(JSON.stringify(copyA.log)).not.toContain(portoSeguroSmall.companyId);
   });
 });
 
@@ -481,22 +551,35 @@ describe('the e2e groups', () => {
     }
   });
 
-  it('puts every spec in exactly one group', () => {
-    for (const path of specs) expect(SERIAL_SPEC_PATTERN.test(path)).not.toBe(NON_SERIAL_SPEC_PATTERN.test(path));
+  it('puts every spec in exactly one group, and every serial spec in exactly one lane', () => {
+    for (const path of specs) {
+      expect(SERIAL_SPEC_PATTERN.test(path)).not.toBe(NON_SERIAL_SPEC_PATTERN.test(path));
+      const groups = [NON_SERIAL_SPEC_PATTERN.test(path), LANE_SPEC_PATTERN.queue.test(path), LANE_SPEC_PATTERN.solo.test(path)];
+      expect(groups.filter(Boolean), path).toHaveLength(1);
+      for (const lane of ['queue', 'solo'] as const) expect(LANE_SPEC_PATTERN[lane].test(path), `${lane} ${path}`).not.toBe(NOT_LANE_SPEC_PATTERN[lane].test(path));
+    }
+    expect(new Set(SERIAL_SPECS.map((spec) => spec.file)).size).toBe(SERIAL_SPECS.length);
   });
 
-  it('keeps every spec that generates a document or loads the fixed-id fixture in the serial group', () => {
+  it('keeps every spec that generates a document or loads the fixture in a serial lane (queue or solo)', () => {
     const shared = /export-fixture|test-fixtures|seedPortoSeguroSmall|SMALL_FIXTURE_RELATORIO_ID|\/generate\b|generate-row/;
     for (const path of specs) {
       if (shared.test(readFileSync(path, 'utf8'))) expect(SERIAL_SPEC_PATTERN.test(path), path).toBe(true);
     }
   });
 
-  it('keeps every spec that times a tap against a render in the serial group (test-speed batch)', () => {
+  it('keeps every spec that times a tap against a render in the solo lane (test-speed batch, chore T3)', () => {
     const timed = /humanTap|touchPressAcross|tapCounter/;
     for (const path of specs) {
-      if (timed.test(readFileSync(path, 'utf8'))) expect(SERIAL_SPEC_PATTERN.test(path), path).toBe(true);
+      if (timed.test(readFileSync(path, 'utf8'))) expect(LANE_SPEC_PATTERN.solo.test(path), path).toBe(true);
     }
+    for (const spec of SERIAL_SPECS.filter((entry) => /^times (a|every) tap/.test(entry.why))) expect(spec.lane, spec.file).toBe('solo');
+  });
+
+  it('takes every fixture id from the worker\'s copy: no e2e file imports the fixture\'s fixed ids or names EXPORT_RELATORIO_ID (chore T3)', () => {
+    const fixed = /EXPORT_RELATORIO_ID|SMALL_FIXTURE_RELATORIO_ID|SMALL_FIXTURE_PROJECT_ID|fixtures\/porto-seguro\/small/;
+    const offenders = e2eFiles().filter((path) => fixed.test(readFileSync(path, 'utf8')));
+    expect(offenders).toEqual([]);
   });
 
   it('never names a fixed test company, user or e-mail: every spec takes its pair from `seed`', () => {

@@ -13,9 +13,11 @@ import { withSeedDb } from './reset-empresa-b.ts';
  * then projects each user back into it as its `user/{id}` create with the seeded
  * registration. The api suite's own two test companies are not touched here.
  *
- * Before any of that, a run that holds the serial specs (no `E2E_GROUP`, or the serial
- * group) and asks for more than one worker is refused, so `--workers=N` can never put
- * them beside another worker.
+ * Before any of that, a run that asks for more workers than its group allows is refused
+ * (chore T3, 2026-11-09): the `queue` lane on more than `QUEUE_WORKERS`, the `solo` lane or a
+ * run without `E2E_GROUP` (which holds every serial spec) on more than one. So `--workers=N`
+ * can never put a `queue` spec beside more than its lane's workers, or a `solo` spec beside
+ * any other worker.
  */
 export default async function globalSetup(config: FullConfig): Promise<void> {
   assertWorkersAllowed(readGroup(process.env.E2E_GROUP), config.workers);

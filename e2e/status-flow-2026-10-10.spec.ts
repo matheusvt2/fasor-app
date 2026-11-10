@@ -2,7 +2,7 @@ import { artOrTrtLabel, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, type 
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { escapeDialog } from './support/dialogs.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
 import { addLocal } from './support/local.ts';
@@ -35,7 +35,8 @@ import { appOrigin } from './support/origin.ts';
  *   Em revisão, "Ainda não enviada ao cliente", with "Marcar como enviado ao cliente" offered.
  *
  * The second and third tests generate through the one queue and LibreOffice, so the file runs
- * in the serial group (`support/groups.ts`).
+ * in the serial `queue` lane (`support/groups.ts`), each on this worker's own copy of the small
+ * Porto Seguro fixture (chore T3, 2026-11-09).
  */
 
 let account: SeedAccount;
@@ -256,18 +257,18 @@ for (const viewport of WIDTHS) {
     page,
   }) => {
     test.setTimeout(480_000);
-    await resetEmpresaBWithFixture(account);
+    const fixture = await resetEmpresaBWithFixture(account);
     await signIn(page, account.email);
-    await openSumario(page, EXPORT_RELATORIO_ID);
+    await openSumario(page, fixture.relatorioId);
     await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
-    await setParecer(page, EXPORT_RELATORIO_ID);
+    await setParecer(page, fixture.relatorioId);
 
     // m2: two other devices of this user push; the dialog draws one line for them, not two.
-    await pushFromDevice(page, 'office-a', officeDraft(account, { relatorioId: EXPORT_RELATORIO_ID }, 'relatorio/setup/local', 'Sala elétrica A'));
-    await pushFromDevice(page, 'office-b', officeDraft(account, { relatorioId: EXPORT_RELATORIO_ID }, 'relatorio/setup/local', 'Sala elétrica B'));
+    await pushFromDevice(page, 'office-a', officeDraft(account, { relatorioId: fixture.relatorioId }, 'relatorio/setup/local', 'Sala elétrica A'));
+    await pushFromDevice(page, 'office-b', officeDraft(account, { relatorioId: fixture.relatorioId }, 'relatorio/setup/local', 'Sala elétrica B'));
     await syncNowAndReturn(page);
     await page.setViewportSize(viewport);
-    await openSumario(page, EXPORT_RELATORIO_ID);
+    await openSumario(page, fixture.relatorioId);
     await expect(step(page)).toHaveText('Em campo: gerar o relatório passa a Em revisão.', { timeout: 30_000 });
     await expect(foot(page)).toHaveText(/^Nada impede gerar\./);
     await expect(foot(page)).not.toContainText('Em campo');
@@ -294,7 +295,7 @@ for (const viewport of WIDTHS) {
     const markBox = (await markInDialog.boundingBox())!;
     const againBox = (await dialog(page).getByRole('button', { name: 'Gerar de novo' }).boundingBox())!;
     expect(markBox.y).toBeLessThan(againBox.y);
-    expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao']);
+    expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao']);
     await escapeDialog(page, dialog(page));
 
     // The Sumário says the same: the banner, the Controle row ("gerada", decision 4), the next
@@ -320,7 +321,7 @@ for (const viewport of WIDTHS) {
     await expect(step(page)).toHaveText('Emitido: nada mudou desde a revisão 1.');
     await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
     await expect(controle(page)).toContainText('Rev. 1 emitida');
-    expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+    expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido']);
 
     // Moved back to Em campo with nothing edited: "Gerar relatório" answers revision 1
     // (`unchanged`), writes `generate` only and ends Em revisão, never Emitido.
@@ -336,7 +337,7 @@ for (const viewport of WIDTHS) {
     await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: 30_000 });
     await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
     await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
-    expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido', 'em_revisao', 'em_campo', 'em_revisao']);
+    expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido', 'em_revisao', 'em_campo', 'em_revisao']);
     // Marked as sent again, in the dialog this time.
     await dialog(page).getByRole('button', { name: MARK_SENT }).click();
     await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
@@ -346,7 +347,7 @@ for (const viewport of WIDTHS) {
     await expect(headerPill(page)).toHaveText('Emitido');
 
     // An Emitido relatório's sheet says that editing reopens it; the edit does, in its batch.
-    const blockId = await openFirstSheet(page, EXPORT_RELATORIO_ID);
+    const blockId = await openFirstSheet(page, fixture.relatorioId);
     const sheetBanner = 'Relatório emitido (revisão 1). Editar esta ficha reabre o relatório como Em revisão e gera a revisão 2.';
     await expect(banner(page)).toContainText(sheetBanner);
     await typeObservation(page, 'Revisto depois do envio');
@@ -354,14 +355,14 @@ for (const viewport of WIDTHS) {
     await expect(page.getByText(sheetBanner)).toHaveCount(0);
     const ops = await outbox(page);
     const edit = ops.find((op) => op.path === `sheet/${blockId}/observations`);
-    const reopened = ops.filter((op) => op.path === 'relatorio/status' && op.relatorio_id === EXPORT_RELATORIO_ID).at(-1);
+    const reopened = ops.filter((op) => op.path === 'relatorio/status' && op.relatorio_id === fixture.relatorioId).at(-1);
     expect(edit).toBeDefined();
     expect(reopened).toMatchObject({ value: 'em_revisao' });
     expect(reopened!.batch_id).toBe(edit!.batch_id);
 
     // The Sumário: Em revisão with newer edits asks for revision 2 first (decision 2), and
     // the Controle row reads the Export dialog's own "Rev." line.
-    await openSumario(page, EXPORT_RELATORIO_ID);
+    await openSumario(page, fixture.relatorioId);
     await expect(headerPill(page)).toHaveText('Em revisão');
     await expect(controle(page)).toContainText('Rev. 2 na próxima emissão');
     await expect(step(page)).toHaveText('Em revisão: há alterações desde a revisão 1. Gere a revisão 2 antes de marcar como enviado ao cliente.');
@@ -400,11 +401,11 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   page,
 }) => {
   test.setTimeout(480_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openSumario(page, EXPORT_RELATORIO_ID);
+  await openSumario(page, fixture.relatorioId);
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await setParecer(page, fixture.relatorioId);
   await page.setViewportSize(WIDTHS[0]);
   const pill = dialog(page).locator('.row-wrap .status-pill');
   const note = dialog(page).locator('.row-wrap .t-meta');
@@ -417,7 +418,7 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await expect(ready(1)).toBeVisible({ timeout: JOB_TIMEOUT });
   await dialog(page).getByRole('button', { name: MARK_SENT }).click();
   await expect(pill).toHaveText('Emitido');
-  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+  expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido']);
 
   // "Gerar de novo" with nothing edited: the server answers revision 1 (`unchanged`), which the
   // client already has. Emitido stays, no status op is written and nothing asks to be sent.
@@ -429,32 +430,32 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await expect(pill).toHaveText('Emitido');
   await expect(note).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.');
   await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toHaveCount(0);
-  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+  expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido']);
   await escapeDialog(page, dialog(page));
 
   // Content the client does not have, with no status op: another device of this user edits
   // the relatório and this device pulls the edit. Its row still says Emitido.
   await syncNowAndReturn(page);
-  await pushFromDevice(page, 'office-c', officeDraft(account, { relatorioId: EXPORT_RELATORIO_ID }, 'relatorio/setup/local', 'Sala elétrica C'));
+  await pushFromDevice(page, 'office-c', officeDraft(account, { relatorioId: fixture.relatorioId }, 'relatorio/setup/local', 'Sala elétrica C'));
   await syncNowAndReturn(page);
-  await openSumario(page, EXPORT_RELATORIO_ID);
+  await openSumario(page, fixture.relatorioId);
   await expect(headerPill(page)).toHaveText('Emitido');
   await expect(step(page)).toHaveText('Emitido: há alterações desde a revisão 1. Gerar cria a revisão 2.', { timeout: 30_000 });
   await expect(controle(page)).toContainText('Rev. 2 na próxima emissão');
   await expect(footMarkSent(page)).toHaveCount(0);
-  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido']);
+  expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido']);
 
   // "Gerar relatório" is queued (revision 2 will be built): the press writes Em revisão, and
   // the revision's arrival leaves it there. Nobody marked revision 2 as sent.
   await footGenerate(page).click();
   await expect(idleReason(page)).toHaveText(IDLE_2);
   await generateButton(page).click();
-  await expect.poll(() => statusValues(page, EXPORT_RELATORIO_ID), { timeout: 30_000 }).toEqual(['em_revisao', 'emitido', 'em_revisao']);
+  await expect.poll(() => statusValues(page, fixture.relatorioId), { timeout: 30_000 }).toEqual(['em_revisao', 'emitido', 'em_revisao']);
   await expect(ready(2)).toBeVisible({ timeout: JOB_TIMEOUT });
   await expect(pill).toHaveText('Em revisão');
   await expect(note).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
   await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toBeVisible();
-  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido', 'em_revisao']);
+  expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido', 'em_revisao']);
   await escapeDialog(page, dialog(page));
 
   // The Sumário says the same, and the action is offered in the bar: it issues revision 2.
@@ -465,5 +466,5 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await footMarkSent(page).click();
   await expect(headerPill(page)).toHaveText('Emitido');
   await expect(controle(page)).toContainText('Rev. 2 emitida');
-  expect(await statusValues(page, EXPORT_RELATORIO_ID)).toEqual(['em_revisao', 'emitido', 'em_revisao', 'emitido']);
+  expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido', 'em_revisao', 'emitido']);
 });

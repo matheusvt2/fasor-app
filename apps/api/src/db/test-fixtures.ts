@@ -1,11 +1,12 @@
 import type { Op, RelatorioParecer } from '@app/domain';
-import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
+import { BLOCK_CHAVE_ID, BLOCK_TRANSFORMADOR_ID, CABINE_ID, EQUIPMENT_CHAVE_ID, PROJECT_ID, RELATORIO_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { now } from '../clock.ts';
 import { applyOps } from '../sync/apply.ts';
 import type { Db } from './client.ts';
 import { isE2eWorkerCompany } from './e2e-worker-seed.ts';
 import { asCompanyId } from './repositories/company-id.ts';
+import { derivedFixtureId, remapFixtureLog } from './sample-relatorio.ts';
 import { entities, ops } from './schema.ts';
 import { TEST_SEED } from './test-seed.ts';
 
@@ -21,12 +22,80 @@ import { TEST_SEED } from './test-seed.ts';
 export const SMALL_FIXTURE_RELATORIO_ID = portoSeguroSmall.relatorioId;
 export const SMALL_FIXTURE_PROJECT_ID = portoSeguroSmall.projectId;
 
-const fixtureEntityIds = [...new Set(portoSeguroSmall.log.filter((op) => op.kind === 'create').map((op) => (op.value as { id: string }).id))];
-const fixtureOpIds = portoSeguroSmall.log.map((op) => op.op_id);
+/**
+ * Chore T3 (2026-11-09): one company's own copy of the small fixture. Each e2e worker's
+ * Empresa B loads its copy, so two workers can hold the fixture at once. Every fixture id is
+ * derived from the company (`derivedFixtureId` salted with `e2e-copy:`, never the sample's
+ * salt, so a copy shares no id with the fixed fixture, the developer's sample or another
+ * company's copy); the fixture's company becomes `companyId` and its user id is kept. The ids
+ * are deterministic: the same company always gets the same copy.
+ */
+export interface SmallFixtureCopy {
+  companyId: string;
+  relatorioId: string;
+  projectId: string;
+  cabineId: string;
+  equipmentChaveId: string;
+  blockChaveId: string;
+  blockTransformadorId: string;
+  /** The copy's id for any id of the fixture (`fixedId`, `fixedOpId`); its company maps to `companyId`, its user to itself. */
+  id: (originalId: string) => string;
+  /** The fixture's log as this copy, with no setup patch (what `seedPortoSeguroSmall` applies before its options). */
+  log: Op[];
+}
+
+/** The copy's id for the fixture's `originalId` in `companyId`. */
+function copyId(companyId: string, originalId: string): string {
+  if (originalId === portoSeguroSmall.companyId) return companyId;
+  if (originalId === portoSeguroSmall.userId) return originalId;
+  return derivedFixtureId(`e2e-copy:${companyId}:${originalId}`, originalId);
+}
+
+/** The small fixture as `companyId`'s own copy. */
+export function smallFixtureCopy(companyId: string): SmallFixtureCopy {
+  const id = (originalId: string) => copyId(companyId, originalId);
+  return {
+    companyId,
+    relatorioId: id(RELATORIO_ID),
+    projectId: id(PROJECT_ID),
+    cabineId: id(CABINE_ID),
+    equipmentChaveId: id(EQUIPMENT_CHAVE_ID),
+    blockChaveId: id(BLOCK_CHAVE_ID),
+    blockTransformadorId: id(BLOCK_TRANSFORMADOR_ID),
+    id,
+    log: remapFixtureLog(companyId, id),
+  };
+}
+
+/** The rows one removal looks for: the fixed fixture's, or one company's copy. */
+interface FixtureRows {
+  relatorioId: string;
+  projectId: string;
+  opIds: string[];
+  entityIds: string[];
+}
+
+function rowsOf(log: readonly Op[], relatorioId: string, projectId: string): FixtureRows {
+  return {
+    relatorioId,
+    projectId,
+    opIds: log.map((op) => op.op_id),
+    entityIds: [...new Set(log.filter((op) => op.kind === 'create').map((op) => (op.value as { id: string }).id))],
+  };
+}
+
+const fixedRows = rowsOf(portoSeguroSmall.log, SMALL_FIXTURE_RELATORIO_ID, SMALL_FIXTURE_PROJECT_ID);
 
 export interface RemoveSmallFixtureOptions {
   /** The one company besides the test and e2e companies the fixture may be removed from (the company `seedPortoSeguroSmall` seeds). */
   allowCompanyId?: string;
+  /**
+   * Chore T3: remove this company's copy (`smallFixtureCopy`) instead of the fixed-id fixture.
+   * The removal is scoped to that company and the copy's ids; the company must still be a
+   * test company, an e2e worker's or `allowCompanyId`, and a copy row held by any other company
+   * makes it throw, deleting nothing.
+   */
+  copyOf?: string;
 }
 
 /**
@@ -35,17 +104,29 @@ export interface RemoveSmallFixtureOptions {
  * neither a `TEST_SEED` company, nor an e2e worker's, nor `allowCompanyId`, nothing is
  * deleted and it throws: a sample relatório seeded on a real company (`seed-users.ts
  * --sample-relatorio`) is never wiped by a test run. The deletes are scoped to the companies
- * that were read.
+ * that were read. With `copyOf` it removes that company's copy instead, and only from it.
  */
 export async function removePortoSeguroSmall(db: Db, options: RemoveSmallFixtureOptions = {}): Promise<void> {
-  const opRows = or(inArray(ops.op_id, fixtureOpIds), eq(ops.relatorio_id, SMALL_FIXTURE_RELATORIO_ID), eq(ops.project_id, SMALL_FIXTURE_PROJECT_ID));
-  const entityRows = or(eq(entities.relatorio_id, SMALL_FIXTURE_RELATORIO_ID), eq(entities.project_id, SMALL_FIXTURE_PROJECT_ID), inArray(entities.id, fixtureEntityIds));
+  const copy = options.copyOf === undefined ? null : smallFixtureCopy(options.copyOf);
+  const rows = copy === null ? fixedRows : rowsOf(copy.log, copy.relatorioId, copy.projectId);
+  const opRows = or(inArray(ops.op_id, rows.opIds), eq(ops.relatorio_id, rows.relatorioId), eq(ops.project_id, rows.projectId));
+  const entityRows = or(eq(entities.relatorio_id, rows.relatorioId), eq(entities.project_id, rows.projectId), inArray(entities.id, rows.entityIds));
   const testIds: readonly string[] = TEST_SEED.companies.map((c) => c.companyId);
+  const allowed = (id: string) => testIds.includes(id) || isE2eWorkerCompany(id) || id === options.allowCompanyId;
   await db.transaction(async (tx) => {
     const holders = new Set<string>();
     for (const row of await tx.selectDistinct({ company_id: ops.company_id }).from(ops).where(opRows)) holders.add(row.company_id);
     for (const row of await tx.selectDistinct({ company_id: entities.company_id }).from(entities).where(entityRows)) holders.add(row.company_id);
-    const foreign = [...holders].filter((id) => !testIds.includes(id) && !isE2eWorkerCompany(id) && id !== options.allowCompanyId);
+    if (copy !== null) {
+      if (!allowed(copy.companyId)) {
+        throw new Error(`${copy.companyId} is not a test company; removePortoSeguroSmall deletes nothing there`);
+      }
+      const others = [...holders].filter((id) => id !== copy.companyId);
+      if (others.length > 0) {
+        throw new Error(`the small fixture copy of ${copy.companyId} is held by ${others.join(', ')}, not a test company of that copy; removePortoSeguroSmall deletes nothing there`);
+      }
+    }
+    const foreign = [...holders].filter((id) => !allowed(id));
     if (foreign.length > 0) {
       throw new Error(`the small fixture is held by ${foreign.join(', ')}, not a test company; removePortoSeguroSmall deletes nothing there`);
     }
@@ -64,13 +145,37 @@ export interface SeedSmallFixtureOptions {
    * (the fixture's log carries none, and "Parecer não preenchido" is the one blocking row).
    */
   parecer?: RelatorioParecer;
+  /**
+   * Chore T3: seed `companyId`'s own copy (`smallFixtureCopy`) instead of the fixed-id
+   * fixture, reclaiming only that copy. The api suite's callers leave it unset and keep the
+   * fixed ids.
+   */
+  copy?: boolean;
 }
 
 /** A parecer the issue tests seed the fixture with. */
 export const TEST_PARECER: RelatorioParecer = { verdict: 'apto', text: null, text_status: null, text_basis: null };
 
-/** Reclaims and applies the fixture onto `companyId`; throws when any op is rejected. */
+/** The relatório create's setup patch the options name. */
+function setupPatch(options: SeedSmallFixtureOptions): Record<string, unknown> {
+  return {
+    ...(options.responsibleUserId === undefined ? {} : { responsible_user_id: options.responsibleUserId }),
+    ...(options.parecer === undefined ? {} : { parecer: options.parecer }),
+  };
+}
+
+/**
+ * Reclaims and applies the fixture onto `companyId`; throws when any op is rejected. With
+ * `copy`, it reclaims and applies `companyId`'s own copy (its ids: `smallFixtureCopy`).
+ */
 export async function seedPortoSeguroSmall(db: Db, companyId: string, options: SeedSmallFixtureOptions = {}): Promise<void> {
+  if (options.copy === true) {
+    await removePortoSeguroSmall(db, { allowCompanyId: companyId, copyOf: companyId });
+    const log = remapFixtureLog(companyId, smallFixtureCopy(companyId).id, setupPatch(options));
+    const result = await applyOps(db, asCompanyId(companyId), log, { now, origin: 'server' });
+    if (result.rejected.length > 0) throw new Error(`small fixture copy rejected: ${JSON.stringify(result.rejected)}`);
+    return;
+  }
   await removePortoSeguroSmall(db, { allowCompanyId: companyId });
   const remapped: Op[] = portoSeguroSmall.log.map((op) => {
     let value = op.value;
