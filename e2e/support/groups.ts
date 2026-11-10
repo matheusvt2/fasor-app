@@ -104,6 +104,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 22.5 (fix batch e24h): generates a revision through the shared queue and LibreOffice to read section 8 of the DOCX, stored points only',
   },
+  // Fix batch e24h, H9 (2026-11-10): e24h-H9-E2E-001 previews the draft PDF to read a ficha's conclusion marks.
+  {
+    file: 'observation-free.spec.ts',
+    lane: 'queue',
+    why: 'Fix batch e24h (H9): previews the draft PDF through the shared queue and LibreOffice to read a ficha\'s CONCLUSÃO marks',
+  },
   // Fix batch e24h (2026-11-10): e24h-E2E-001 previews the draft PDF twice to read section 8.
   {
     file: 'points-on-click.spec.ts',

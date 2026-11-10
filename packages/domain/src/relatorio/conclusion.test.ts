@@ -109,7 +109,8 @@ describe('22.4-UNIT conclusionFloor and the suggestion row (amends 5.8 suggestCo
     expect(effectiveConclusionPair(trafo(null))).toEqual({ result: null, restriction: null });
   });
 
-  it('an NC row, a sheet observation or a row observation: Aprovado · Com restrições; Sem disabled, Reprovado choosable', () => {
+  // Fix batch e24h (H9, 2026-11-10): ~~a sheet observation or a row observation: Aprovado · Com restrições~~; an observation floors nothing.
+  it('an NC row: Aprovado · Com restrições; Sem disabled, Reprovado choosable; a sheet or row observation floors nothing (H9)', () => {
     const nc = block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, test: within() });
     expect(conclusionFloor(nc)).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['nc'] });
     expect(isLooserThanFloor(nc, 'sem_restricoes')).toBe(true);
@@ -117,9 +118,9 @@ describe('22.4-UNIT conclusionFloor and the suggestion row (amends 5.8 suggestCo
     expect(isLooserThanFloor(nc, 'aprovado')).toBe(false);
     expect(conclusionFloorReasonText(nc)).toBe('A ficha exige no mínimo Aprovado · Com restrições: item não conforme.');
     const sheetObs = block({ checklist: allC(), test: within(), observations: cell('Porta empenada') });
-    expect(conclusionFloor(sheetObs)).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['observation'] });
+    expect(conclusionFloor(sheetObs)).toEqual({ pair: { result: 'aprovado', restriction: 'sem_restricoes' }, reasons: [] });
     const rowObs = block({ checklist: { ...allC(), contatos: { result: cell('C'), observation: cell('Leve oxidação') } }, test: within() });
-    expect(floorPair(rowObs)).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    expect(floorPair(rowObs)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
     // A blank observation is no text.
     expect(floorPair(block({ checklist: allC(), test: within(), observations: cell('   ') }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
   });

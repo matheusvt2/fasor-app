@@ -218,7 +218,8 @@ export function recentChecklistObservations(
  * its observation in the same batch only while that observation is still the NC phrase a chip
  * wrote, unedited: exactly one of the row's chips (`ncChipPhrases`: the seed's phrases, the
  * learned ones, the recents). Kept otherwise (an edited or typed text is the engineer's, and
- * as a C row's observation it still sets the floor's "observação registrada").
+ * as a C row's observation it ~~still sets the floor's "observação registrada"~~ stays a comment; fix batch e24h, H9: it
+ * floors nothing).
  */
 export function clearsNcObservation(from: string | null, to: string | null, observation: string, chips: readonly string[]): boolean {
   if (from !== 'NC' || to !== 'C') return false;

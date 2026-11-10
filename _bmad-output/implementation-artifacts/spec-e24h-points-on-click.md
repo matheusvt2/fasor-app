@@ -123,8 +123,34 @@ deferred: []
 
 **Where a stored Sem restrições with an observation now reads differently** (filled by the implementation): every reader of `effectiveConclusionPair` / `chosenConclusionPair` / `printedConclusionPair`.
 
+The change reaches a ficha only when its observation was the floor's sole source (no NC row, restricted or out reading, failed ratio or prerequisite, defect reason). On such a ficha, stored Sem restrições or with the restriction unset:
+- **Ficha screen** (`conclusao-section.tsx`):
+  - "Sem restrições" is enabled (`isLooserThanFloor`).
+  - The reason line "… observação registrada." is gone (`conclusionFloorReasonText`).
+  - "Conclusão ajustada pela ficha" and its Confirmar are gone (`conclusionAdjusted` false).
+  - OBSERVAÇÕES is no longer required under Sem restrições (`observationRequired`). It is still required under Com restrições.
+- **Suggestion row** (`conclusionSuggestion`): "Aprovado · Sem restrições?" where it read "Aprovado · Com restrições?".
+- **"Concluir ficha"** (`use-ficha-actions.ts`, `effectiveConclusionPair`): an unset restriction is written Sem restrições.
+- **Sheet progress** (`sheet-progress.ts`): the conclusion step no longer owes "as observações", and the floor fills Sem.
+- **Sumário:** the ficha drops out of the restriction counts. Row 10's verdict follows the parecer.
+- **Section 9 marks** (`printedConclusionPair`): X on SEM RESTRIÇÕES where a stored Sem printed COM RESTRIÇÕES (the floor made it stricter).
+- **Conclusion paragraph** (`composeConclusion`):
+  - No "Recomenda-se a correção dos pontos indicados antes da próxima manutenção."
+  - Its basis (the pair) changes, so a text confirmed before reads "Sugerido: texto atualizado" and the pre-issue `conclusion_stale` row names it.
+- **Parecer** (`parecer.ts` `restricted`): the ficha leaves `withRestriction`. The verdict can fall to Apto, with no other restriction, NC, site NC or stored point. The summary's "N fichas apresentaram restrições", the Critérios "N com restrições", the reason line and the basis follow.
+- **Pre-issue:** `conclusion_stale` as above. No new row.
+- **Counts:** `parecerCounts.withRestriction` and the Sumário's restriction counts.
+- **Not touched:**
+  - A stored Com restrições stays Com restrições everywhere.
+  - Points (`hasPointSource`): an observation was never a finding.
+  - Fixtures: only `replay-small`'s one tested ficha moves (Com to Sem; its verdict stays Apto com restrições). Porto Seguro, the company-types fixture and layout lock v5, v11 and v12 keep every pair.
+
 ## Changed tests
 
+- H9: `packages/domain/src/relatorio/observation-free.test.ts` (new), every H9 matrix row (7 cases, all red on `d58d8be7`).
+- H9: `packages/domain/src/relatorio/conclusion.test.ts`, the Story 22.4 case "a sheet observation or a row observation: Aprovado · Com restrições" now floors Aprovado · Sem restrições with no reason (the NC half unchanged).
+- H9: `packages/domain/src/points/points-on-click.test.ts`, the replay-small fixture's one tested ficha reads Aprovado · Sem restrições (its observation was its only restriction); its verdict is unchanged.
+- H9: `e2e/observation-free.spec.ts` (new, `@p0`, `queue` lane in `e2e/support/groups.ts`): an observation on a clean ficha; the suggestion and segment Sem; the stored pair; the draft's marks; the parecer Apto. Red on `d58d8be7` (Sem disabled).
 - `packages/domain/src/points/points-on-click.test.ts` (new): H1 to H4 red on `72ed1f51` (each finding alone lists, counts and prints nothing; two stored points beside the four findings; the pre-31 manual point; the create texts; "Origem resolvida"; each kind's verdict and reason line; every fixture's verdict and effective pairs pinned to `72ed1f51`'s).
 - `packages/domain/src/points/derived-kinds.test.ts`: Story 22.5's scenarios rewritten to the new rule (the manual point alone in section 8, no "Possível duplicado", no Reprovado bullet, no NC bullet citing the photo); `derivedPoints`, `derivedPointSeed`, `derivedPointKindLabel` and `possibleDuplicatePoints` went.
 - `packages/domain/src/points/derived-recommendation.test.ts`: Story 23.11's entry-text cases went with `derivedPoints`; kept as "a recommended out test and a Reprovado by hand print no bullet".

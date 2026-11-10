@@ -256,7 +256,9 @@ describe('e24h-UNIT H3 the fixtures keep every verdict of 72ed1f51', () => {
   const fixtures: [string, () => RelatorioSnapshot, string, Record<string, number>][] = [
     ['Porto Seguro', () => buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId), 'nao_apto', { 'null/null': 3, 'aprovado/sem_restricoes': 73, 'reprovado/com_restricoes': 18 }],
     ['Porto Seguro small', () => buildSnapshot(replay(portoSeguroSmall.log, { deadOpIds: portoSeguroSmall.deadOpIds }), portoSeguroSmall.relatorioId), 'apto_com_restricoes', { 'null/null': 1, 'aprovado/sem_restricoes': 2 }],
-    ['replay small', () => buildSnapshot(replay(replaySmall.log, { deadOpIds: replaySmall.deadOpIds }), replaySmall.relatorioId), 'apto_com_restricoes', { 'null/null': 2, 'aprovado/com_restricoes': 1 }],
+    // H9 (an observation never forces a restriction): its one tested ficha, Com restrições by its observation alone on
+    // 72ed1f51, reads Aprovado · Sem restrições; the verdict holds (its untested sheet and its stored point).
+    ['replay small', () => buildSnapshot(replay(replaySmall.log, { deadOpIds: replaySmall.deadOpIds }), replaySmall.relatorioId), 'apto_com_restricoes', { 'null/null': 2, 'aprovado/sem_restricoes': 1 }],
     ['company types', () => buildSnapshot(replay(companyTypes.log), companyTypes.relatorioId), 'nao_apto', { 'aprovado/sem_restricoes': 2, 'reprovado/com_restricoes': 1 }],
     ['layout lock v5', () => layoutLockSnapshot('v5'), 'nao_apto', { 'null/null': 11, 'aprovado/com_restricoes': 6, 'reprovado/com_restricoes': 3 }],
     ['layout lock v11', () => layoutLockSnapshot('v11'), 'nao_apto', { 'null/null': 11, 'aprovado/com_restricoes': 7, 'reprovado/com_restricoes': 3 }],

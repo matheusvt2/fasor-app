@@ -3562,3 +3562,13 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/contract/version.ts` (41 and MIN 41).
   class: note
   state: ~~open (owner: the coordinator)~~ closed 2026-11-10: main's planning delta (#305) already records 41 and 41 for e24h in `epic-24-context.md` and `docs/kbs/architecture/kernel-and-seed.md`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (H9, an observation never forces a restriction)
+  summary: On every seed, an observation (the sheet's OBSERVAÇÕES or a C/NA row's observation) no longer floors Aprovado · Com restrições: the `observation` floor reason is gone. A ficha whose observation was its floor's only source now reads its stored Sem restrições (or, unset, the floor's Sem) everywhere: the screen, the suggestion, section 9's marks, the paragraph (no recommendation sentence), the parecer (it can fall to Apto). A conclusion text confirmed before reads stale there ("Sugerido: texto atualizado", the `conclusion_stale` pre-issue row) because its basis holds the pair; nothing is rewritten. No stored pair changes; a stored Com restrições stays. Of the fixtures only `replay-small` moves (its verdict holds). The readers are listed in the spec's H9 section.
+  evidence: `packages/domain/src/relatorio/conclusion.ts` (`computeFloor`, `ConclusionFloorReason`); `packages/domain/src/relatorio/observation-free.test.ts`.
+  class: note
+  state: open (owner: Matheus: a production count of the fichas whose stored conclusion text goes stale, if wanted before the deploy)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (H9)
+  summary: Story 24.3 planned "an observation floors nothing" for seed v14 only, behind the `conclusion_restriction_by_choice` flag; H9 does it on every seed now, so 24.3 keeps only the Reprovado-without-restriction half. Its text in `epics.md` and `epic-24-context.md` is the planner's to amend (not edited here).
+  evidence: `epic-24-context.md` § Decisions, the 24.3 row of the flags table.
+  class: decision
+  state: open (owner: the coordinator, with Story 24.3's amendment)

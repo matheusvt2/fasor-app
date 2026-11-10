@@ -105,8 +105,9 @@ function countedSheets(snapshot: RelatorioSnapshot): CountedSheet[] {
 
 /**
  * A sheet that carries a restriction: marked not tested, or (Story 22.4) its effective
- * restriction is Com restrições, which an NC row, an observation, a failed ratio row or any
- * reading out of criterion sets through the floor whatever the stored pair says.
+ * restriction is Com restrições, which an NC row, ~~an observation,~~ a failed ratio row or any
+ * reading out of criterion sets through the floor whatever the stored pair says (fix batch e24h, H9:
+ * an observation floors nothing; a stored Com restrições still counts).
  */
 function restricted(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): boolean {
   if (block.not_tested !== null) return true;
