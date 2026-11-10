@@ -1,7 +1,6 @@
-import { BLOCK_CHAVE_ID } from '@app/domain/fixtures/porto-seguro/small';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { fichaStart, pdfPageTexts, pdfTextItems } from './support/pdf-text.ts';
@@ -17,8 +16,9 @@ import { setParecer } from './support/relatorio-flow.ts';
  * sheet photo "2" although captured first; the gallery says under its camera where its shots
  * print. In the issued DOCX and PDF, section 7 holds "Imagem 1." alone and "Imagem 2" prints
  * once, under the chave's sheet in section 9, after its CONCLUSÃO (Story 20.6), and each of the
- * fixture's three fichas starts a page of the PDF. The fixture's ids are fixed and a revision is
- * generated, so this spec runs in the serial group (`e2e/support/groups.ts`).
+ * fixture's three fichas starts a page of the PDF. A revision is generated, so this spec runs in
+ * the serial `queue` lane (`e2e/support/groups.ts`), on this worker's own copy of the fixture
+ * (chore T3, 2026-11-09).
  */
 
 test.use({
@@ -72,22 +72,22 @@ async function shootFromBar(page: Page): Promise<void> {
 
 test('@p0 17.1-E2E-001 section 7 holds only the "Geral" photo: numbered 1 before the sheet photo captured earlier, which prints once, as "Imagem 2", under its sheet in section 9 of the DOCX and the PDF', async ({ page }) => {
   test.setTimeout(420_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 
   // A sheet photo first: the chave's sticky bar camera.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/ficha/${BLOCK_CHAVE_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await shootFromBar(page);
   await expect.poll(async () => (await photoRows(page)).length, { timeout: 15_000 }).toBe(1);
   const [sheetPhoto] = await photoRows(page);
-  expect(sheetPhoto).toMatchObject({ block_id: BLOCK_CHAVE_ID, removed_at: null });
+  expect(sheetPhoto).toMatchObject({ block_id: fixture.blockChaveId, removed_at: null });
   expect(sheetPhoto!.size).toBeGreaterThan(0);
 
   // Then a "Geral" photo: the gallery camera, its note saying where these shots print.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/fotos`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/fotos`);
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.sticky-action-bar .gallery-geral-note')).toHaveText(GERAL_NOTE);
   await shootFromBar(page);
@@ -104,12 +104,12 @@ test('@p0 17.1-E2E-001 section 7 holds only the "Geral" photo: numbered 1 before
   await expect(galleryItem(page, sheetPhoto!.id).getByRole('button', { name: /^Foto 2, (legenda sugerida, )?abrir$/ })).toBeVisible();
 
   // The sheet's strip carries the same number.
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/ficha/${BLOCK_CHAVE_ID}`);
+  await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
   const strip = page.getByRole('region', { name: /^Fotos da ficha \(\d+\)$/ });
   await expect(strip.locator('.photo-list > .photo-row .number-badge')).toHaveText(['2']);
 
   // Generate revision 1; read the DOCX and the PDF back.
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await setParecer(page, fixture.relatorioId);
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   await expect(exportDialog(page)).toBeVisible();
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });

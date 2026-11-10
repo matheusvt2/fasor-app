@@ -4,7 +4,8 @@ import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { samplePdf } from '../apps/api/src/jobs/generate/sample-pdf.test-support.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { escapeDialog } from './support/dialogs.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readFileBlobs, readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
@@ -18,8 +19,9 @@ import { syncNow } from './support/sync.ts';
  * 7.2/7.3-E2E: the photo numbers a revision freezes (Story 7.2 AC3), and the printed
  * sections 7, 8 and 11 (Stories 7.2 AC1 and 7.3) in a DOCX generated for real by the api
  * (its queue, its LibreOffice: two TOC passes plus the certificate's rasterized pages).
- * Driven on the small Porto Seguro fixture seeded onto this worker's Empresa B, so this
- * spec runs in the serial group (`e2e/support/groups.ts`).
+ * Driven on this worker's copy of the small Porto Seguro fixture, seeded onto its Empresa B
+ * (chore T3, 2026-11-09); the documents are generated, so this spec runs in the serial `queue`
+ * lane (`e2e/support/groups.ts`).
  */
 
 let account: SeedAccount;
@@ -43,13 +45,13 @@ const numbersStatus = (page: Page) => page.getByTestId('photo-numbers-status');
 const galleryItems = (page: Page) => page.locator('[data-route="/relatorio/:id/fotos"] .gallery-item');
 const viewer = (page: Page) => page.getByRole('dialog', { name: /^Foto \d+ de \d+$/ });
 
-async function openSumario(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+async function openSumario(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 }
 
-async function openGallery(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/fotos`);
+async function openGallery(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}/fotos`);
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
 }
 
@@ -80,9 +82,14 @@ async function generateRevision(page: Page, n: number): Promise<void> {
   await expect(dialog(page).getByRole('heading', { level: 2, name: `Revisão ${n} pronta` })).toBeVisible();
 }
 
+/**
+ * Chore T3 (2026-11-09): through `escapeDialog` (E9-Q13), which presses Escape once the focus is
+ * back in the dialog. On the first run of the two-worker `queue` lane 7.2-E2E-001 pressed it
+ * while "Marcar como enviado ao cliente", just removed, had left the focus on `BODY`, and the
+ * dialog stayed open.
+ */
 async function closeDialog(page: Page): Promise<void> {
-  await page.keyboard.press('Escape');
-  await expect(dialog(page)).toBeHidden();
+  await escapeDialog(page, dialog(page));
 }
 
 /**
@@ -106,26 +113,26 @@ async function viewerCount(page: Page, tile: Locator): Promise<string> {
 
 test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo added afterwards makes them provisional again and the Sumário names revision 2', async ({ page }) => {
   test.setTimeout(360_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openSumario(page);
+  await openSumario(page, fixture);
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
 
   // Before any revision: the note alone says the numbers are provisional.
-  await openGallery(page);
+  await openGallery(page, fixture);
   await addGeneralPhoto(page, 'antes.jpg');
   await expect(galleryItems(page)).toHaveCount(1);
   await expect(numbersStatus(page)).toHaveCount(0);
   // The new photo is a `file` row on this device and a `file` create in its outbox.
   const [first] = await devicePhotos(page, database);
-  expect(first).toMatchObject({ kind: 'photo', relatorio_id: EXPORT_RELATORIO_ID, block_id: null, caption: null, removed_at: null });
+  expect(first).toMatchObject({ kind: 'photo', relatorio_id: fixture.relatorioId, block_id: null, caption: null, removed_at: null });
   const outbox = await readStore<{ path: string; kind: string }>(page, database, 'outbox');
   expect(outbox.some((op) => op.kind === 'create' && op.path === `file/${first!.id}`)).toBe(true);
   expect(await viewerCount(page, galleryTile(page, 1))).toBe('1 de 1 · nº provisório');
 
   // Issue revision 1 through the Export dialog (it drains the photo's upload first); the
   // parecer is the one blocking row since Story 7.4, so it is set first (and opens the Sumário).
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await setParecer(page, fixture.relatorioId);
   await generateRevision(page, 1);
   // Status flow 2026-10-10: the revision is marked as sent by the user; that is what issues it.
   await dialog(page).getByRole('button', { name: 'Marcar como enviado ao cliente' }).click();
@@ -134,7 +141,7 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   await expect(headerPill(page)).toHaveText('Emitido', { timeout: 30_000 });
 
   // Nothing edited since: the numbers are the revision's, and the viewer drops "nº provisório".
-  await openGallery(page);
+  await openGallery(page, fixture);
   await expect(numbersStatus(page)).toHaveText('Números da revisão 1', { timeout: 30_000 });
   await expect(numbersStatus(page)).toHaveClass('section-note');
   expect(await viewerCount(page, galleryTile(page, 1))).toBe('1 de 1');
@@ -145,13 +152,13 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   await expect(numbersStatus(page)).toHaveText('Números provisórios — serão definidos na revisão 2');
   const photos = await devicePhotos(page, database);
   const added = photos.find((photo) => photo.id !== first!.id)!;
-  expect(added).toMatchObject({ kind: 'photo', relatorio_id: EXPORT_RELATORIO_ID, removed_at: null });
+  expect(added).toMatchObject({ kind: 'photo', relatorio_id: fixture.relatorioId, removed_at: null });
   expect((await readStore<{ path: string; kind: string }>(page, database, 'outbox')).some((op) => op.kind === 'create' && op.path === `file/${added.id}`)).toBe(true);
   const addedTile = page.locator(`.gallery-item[data-photo-id="${added.id}"]`).getByRole('button', { name: /^Foto \d+, abrir$/ });
   expect(await viewerCount(page, addedTile)).toMatch(/^\d de 2 · nº provisório$/);
 
   // The Sumário's banner names the next revision.
-  await openSumario(page);
+  await openSumario(page, fixture);
   // 2026-10-10: the photo reopened the relatório (Em revisão), and the banner says where it goes.
   await expect(headerPill(page)).toHaveText('Em revisão');
   await expect(banner(page)).toContainText('Há alterações desde a revisão 1');
@@ -160,7 +167,7 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
 
 test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing it as "Imagem 1" in section 8, and the certificate checked at setup as rasterized pages in section 11', async ({ page }) => {
   test.setTimeout(420_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
 
   // Cadastros › Instrumentos: a new instrument with a two-page PDF certificate, uploaded.
@@ -176,8 +183,8 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   await expect.poll(async () => (await readFileBlobs(page, database))[0]?.acked, { timeout: 30_000 }).toBe(true);
 
   // Dados do relatório › Etapa 4: the instrument checked for this relatório.
-  await openSumario(page);
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}/setup?etapa=4`);
+  await openSumario(page, fixture);
+  await page.goto(`/relatorio/${fixture.relatorioId}/setup?etapa=4`);
   const checkbox = page.getByRole('checkbox', { name: /^CT-7/ });
   await expect(checkbox).toBeVisible({ timeout: 30_000 });
   await checkbox.click();
@@ -186,7 +193,7 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
 
   // One photo in the gallery; a point citing it, written on another device of the office
   // (the point editor's photo reference has its own e2e, `points.spec.ts`).
-  await openGallery(page);
+  await openGallery(page, fixture);
   await addGeneralPhoto(page, 'isolador.jpg');
   const [photo] = await devicePhotos(page, database);
   const pointId = newId();
@@ -195,11 +202,11 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
     scope: 'relatorio',
     company_id: account.companyId,
     project_id: null,
-    relatorio_id: EXPORT_RELATORIO_ID,
+    relatorio_id: fixture.relatorioId,
     path: `point/${pointId}`,
     value: {
       id: pointId,
-      relatorio_id: EXPORT_RELATORIO_ID,
+      relatorio_id: fixture.relatorioId,
       text: `Isolador trincado, conforme ${photoToken(photo!.id)}.`,
       equipment_id: null,
       origin: 'manual',
@@ -218,8 +225,8 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   await pushDrafts(page, database, [point]);
 
   // Generate and download the DOCX (Story 22.6: the parecer is derived; `setParecer` sets Apto only when the fichas allow it).
-  await setParecer(page, EXPORT_RELATORIO_ID);
-  await openSumario(page);
+  await setParecer(page, fixture.relatorioId);
+  await openSumario(page, fixture);
   await generateRevision(page, 1);
   const download = await downloadFrom(page, () => dialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   const docx = await downloadBytes(download);

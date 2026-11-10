@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { escapeDialog } from './support/dialogs.ts';
-import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
+import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNow } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
@@ -53,8 +53,8 @@ const FAILED = 'Não foi possível gerar o relatório. Os dados não foram alter
 const JOB_TIMEOUT = 150_000;
 
 /** The small fixture's Sumário, pulled onto this device (AD-8: opening it asks for the stream). */
-async function openFixtureSumario(page: Page): Promise<void> {
-  await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
+async function openFixtureSumario(page: Page, fixture: SmallFixtureCopy): Promise<void> {
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
@@ -218,10 +218,10 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   page,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await openFixtureSumario(page, fixture);
+  await setParecer(page, fixture.relatorioId);
 
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_1);
@@ -261,10 +261,10 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
 });
 
 test('@p1 4.8-E2E-002 offline, "Gerar relatório" waits with its reason and calls nothing', async ({ page, context }) => {
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await openFixtureSumario(page, fixture);
+  await setParecer(page, fixture.relatorioId);
   await footButton(page).click();
   await expect(dialog(page)).toBeVisible();
 
@@ -289,10 +289,10 @@ test('@p1 4.8-E2E-002 offline, "Gerar relatório" waits with its reason and call
 
 test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was created; "Tentar novamente" then generates', async ({ page }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await openFixtureSumario(page, fixture);
+  await setParecer(page, fixture.relatorioId);
   await footButton(page).click();
 
   await page.route('**/api/relatorios/*/generate', (route) => route.abort('failed'));
@@ -331,9 +331,9 @@ async function statusOpIds(page: Page): Promise<string[]> {
 }
 
 /** Story 16.2: the fixture relatório's status as this device's store holds it. */
-async function relatorioStatusOnDevice(page: Page): Promise<unknown> {
+async function relatorioStatusOnDevice(page: Page, fixture: SmallFixtureCopy): Promise<unknown> {
   const rows = await readStore<{ entity: string; id: string; row: { status?: unknown } }>(page, database, 'entities');
-  return rows.find((record) => record.entity === 'relatorio' && record.id === EXPORT_RELATORIO_ID)?.row.status;
+  return rows.find((record) => record.entity === 'relatorio' && record.id === fixture.relatorioId)?.row.status;
 }
 
 /** Opens the header Overflow and confirms the one-step backward move to `to`. */
@@ -348,10 +348,10 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   page,
 }) => {
   test.setTimeout(480_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await openFixtureSumario(page, fixture);
+  await setParecer(page, fixture.relatorioId);
 
   // Revision 1 from Em campo: Em revisão until it is marked as sent, then Emitido.
   await footButton(page).click();
@@ -401,7 +401,7 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   await expect(dialog(page).locator('h2.dialog-title + .banner')).toHaveCount(1);
   await expect(dialog(page).locator('.revision-row .rev-text')).toHaveText([/^Rev\. 1 — .* — anterior às alterações$/]);
   expect((await statusOpIds(page)).filter((id) => !statusOpsBefore.includes(id))).toEqual([]);
-  expect(await relatorioStatusOnDevice(page)).toBe('em_revisao');
+  expect(await relatorioStatusOnDevice(page, fixture)).toBe('em_revisao');
 
   // Revision 2: listed with revision 1; marked as sent from the Sumário's foot, Emitido again.
   await generateButton(page).click();
@@ -530,10 +530,10 @@ test('@p1 E4-E2E-003 an edited section text reads "texto editado" on its Sumári
 
 test('@p1 E4-E2E-004 Etapa 2: an exclusion removed from its menu comes back with "Desfazer", and a blank exclusion never prints', async ({ page }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture(account);
+  const fixture = await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
-  await openFixtureSumario(page);
-  await setParecer(page, EXPORT_RELATORIO_ID);
+  await openFixtureSumario(page, fixture);
+  await setParecer(page, fixture.relatorioId);
   await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
   await expectBelowAppBar(page, page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' }));

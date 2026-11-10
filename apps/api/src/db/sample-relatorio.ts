@@ -23,29 +23,71 @@ import { entities, ops } from './schema.ts';
 /** Every id the small fixture mints (`fixedId`, `fixedOpId`): the `019966c1` prefix. */
 const FIXTURE_ID = /019966c1-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/g;
 
-/** The sample's id for the fixture's `originalId` in `companyId`. */
-export function sampleId(companyId: string, originalId: string): string {
-  const hash = createHash('sha256').update(`${companyId}:${originalId}`).digest('hex');
+/**
+ * A UUIDv7-shaped id derived from `seed` for the fixture's `originalId`: the original's first
+ * 12 hex digits (its timestamp) and version nibble, the rest from a hash of `seed`, with valid
+ * variant bits. Each caller salts `seed` its own way, so their copies never share an id.
+ */
+export function derivedFixtureId(seed: string, originalId: string): string {
+  const hash = createHash('sha256').update(seed).digest('hex');
   const variant = ((Number.parseInt(hash[3]!, 16) & 0x3) | 0x8).toString(16);
   return `${originalId.slice(0, 8)}-${originalId.slice(9, 13)}-7${hash.slice(0, 3)}-${variant}${hash.slice(4, 7)}-${hash.slice(7, 19)}`;
 }
 
-/** The fixture's string with every fixture id replaced: its company by `companyId`, its user kept, the rest derived. */
-function remapText(text: string, companyId: string): string {
+/** The sample's id for the fixture's `originalId` in `companyId`. */
+export function sampleId(companyId: string, originalId: string): string {
+  return derivedFixtureId(`${companyId}:${originalId}`, originalId);
+}
+
+/** Maps one fixture id (neither its company nor its user) to the id it takes in a copy. */
+export type DeriveFixtureId = (originalId: string) => string;
+
+/** The fixture's string with every fixture id replaced: its company by `companyId`, its user kept, the rest by `deriveId`. */
+function remapText(text: string, companyId: string, deriveId: DeriveFixtureId): string {
   return text.replace(FIXTURE_ID, (id) => {
     if (id === portoSeguroSmall.companyId) return companyId;
     if (id === portoSeguroSmall.userId) return id;
-    return sampleId(companyId, id);
+    return deriveId(id);
   });
 }
 
-function remapValue(value: unknown, companyId: string): unknown {
-  if (typeof value === 'string') return remapText(value, companyId);
-  if (Array.isArray(value)) return value.map((item) => remapValue(item, companyId));
+function remapValue(value: unknown, companyId: string, deriveId: DeriveFixtureId): unknown {
+  if (typeof value === 'string') return remapText(value, companyId, deriveId);
+  if (Array.isArray(value)) return value.map((item) => remapValue(item, companyId, deriveId));
   if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [remapText(key, companyId), remapValue(item, companyId)]));
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [remapText(key, companyId, deriveId), remapValue(item, companyId, deriveId)]));
   }
   return value;
+}
+
+/**
+ * The fixture's log moved into `companyId` under the ids `deriveId` gives (chore T3, 2026-11-09:
+ * one walk for the developer's sample and the e2e workers' copies): every fixture id in the op
+ * envelope, the path and the value (keys included) remapped, the company in the envelope and in
+ * a `file` create's value, the fixture's user kept. `setup` is merged into the relatório
+ * create's `setup` when it names anything.
+ */
+export function remapFixtureLog(companyId: string, deriveId: DeriveFixtureId, setup: Record<string, unknown> = {}): Op[] {
+  const relatorioPath = `relatorio/${remapText(portoSeguroSmall.relatorioId, companyId, deriveId)}`;
+  const patch = Object.keys(setup).length > 0;
+  return portoSeguroSmall.log.map((op) => {
+    let value = remapValue(op.value, companyId, deriveId);
+    const path = remapText(op.path, companyId, deriveId);
+    if (op.kind === 'create' && path === relatorioPath && patch) {
+      const row = value as { setup: Record<string, unknown> };
+      value = { ...row, setup: { ...row.setup, ...setup } };
+    }
+    return {
+      ...op,
+      op_id: remapText(op.op_id, companyId, deriveId),
+      company_id: companyId,
+      project_id: typeof op.project_id === 'string' ? remapText(op.project_id, companyId, deriveId) : op.project_id,
+      relatorio_id: typeof op.relatorio_id === 'string' ? remapText(op.relatorio_id, companyId, deriveId) : op.relatorio_id,
+      path,
+      value: value as Op['value'],
+      seq: undefined,
+    } as Op;
+  });
 }
 
 /** The sample's relatório and project ids in `companyId`. */
@@ -55,25 +97,11 @@ export function sampleRelatorioIds(companyId: string): { relatorioId: string; pr
 
 /** The fixture's log as the sample of `companyId`: every id derived, the company in the envelope and in a `file` create's value. */
 export function sampleRelatorioLog(companyId: string, options: { responsibleUserId?: string } = {}): Op[] {
-  const { relatorioId } = sampleRelatorioIds(companyId);
-  return portoSeguroSmall.log.map((op) => {
-    let value = remapValue(op.value, companyId);
-    const path = remapText(op.path, companyId);
-    if (op.kind === 'create' && path === `relatorio/${relatorioId}` && options.responsibleUserId !== undefined) {
-      const row = value as { setup: Record<string, unknown> };
-      value = { ...row, setup: { ...row.setup, responsible_user_id: options.responsibleUserId } };
-    }
-    return {
-      ...op,
-      op_id: remapText(op.op_id, companyId),
-      company_id: companyId,
-      project_id: typeof op.project_id === 'string' ? remapText(op.project_id, companyId) : op.project_id,
-      relatorio_id: typeof op.relatorio_id === 'string' ? remapText(op.relatorio_id, companyId) : op.relatorio_id,
-      path,
-      value: value as Op['value'],
-      seq: undefined,
-    } as Op;
-  });
+  return remapFixtureLog(
+    companyId,
+    (id) => sampleId(companyId, id),
+    options.responsibleUserId === undefined ? {} : { responsible_user_id: options.responsibleUserId },
+  );
 }
 
 /**
