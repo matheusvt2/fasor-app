@@ -2,7 +2,7 @@
 title: 'e24h: a point of attention exists only when the technician creates it (no automatic points), and an observation never forces a restriction (H9; contract 41)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '72ed1f51733c8abfdfd16fb209bc5c8171737215'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -219,3 +219,16 @@ The change reaches a ficha only when its observation was the floor's sole source
 - **Follow-up review:** not recommended (no patch).
 - **Verification:** story gate on `6e14ef55`, lock wait 0 s, load `{ 2.06 5.46 6.49 }` to `{ 5.25 6.02 6.12 }`: lint 0 (27 s), static 0 (39 s), test:api 957 passed / 2 failed / 6 skipped (549 s), test:unit 6143 of 6143 (311 s), 22 touched specs 142 of 142 (parallel 83, queue 54, solo 5; 692 s). The two api reds: `docx-company-type.test.ts` (pinned the automatic action-plan row; rewritten) and `docx.test.ts` 4.8-UNIT-006 (Porto Seguro, D3). Re-run under the lock after the rewrite: lint 0; the two files 37 of 38, the one red 4.8-UNIT-006 only.
 - **Residual risks:** the Etapa 6 reason line stays well formed only while every finding kind also sets a conclusion-floor reason or a site NC (pinned per kind); 4.8-UNIT-006 is red until Matheus decides the Porto Seguro golden; the open questions D5.
+- **Follow-up (2026-11-10, coordinator):**
+  - **Porto Seguro skeleton.** Regenerated for the points delta on Matheus's approval (`f177abf6`): the 18 automatic rows leave, row 7 loses its trailing comma, and "25 pontos" becomes "7".
+  - **Full e2e on `d58d8be7`.** 659 tests: 654 passed, 1 failed, 4 skipped, 6497.9 s. The red, 12.2-E2E-002 (solo lane, the machine slept), passed alone 1 of 1.
+  - **H9 (`86c98108`).** The `observation` floor reason is retired on every seed.
+    - The new `observation-free.test.ts` was 7 of 7 red before the fix, and `e2e/observation-free.spec.ts` was red before it.
+    - No golden moved.
+    - Review: read against the H9 matrix by the orchestrator; no separate layers ("patched, not re-reviewed").
+  - **Story gate on `86c98108`.** Lock wait 0 s, load `{ 2.56 4.68 6.56 }` to `{ 4.74 5.46 5.73 }`:
+    - lint 0
+    - static 0
+    - test:api 959 passed, 6 skipped
+    - test:unit 6150 of 6150
+    - 39 specs: 180 of 180 (parallel 100, queue 65, solo 15)
