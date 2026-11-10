@@ -15,6 +15,6 @@ All under `_bmad-output/` unless stated.
 - `planning-artifacts/prds/prd-fasor-2026-09-19/`: `prd.md` (outdated in places), `addendum.md` (section 9 holds the seed content of the eight block types, decoded from FO.SERV-03 in gitignored `docs/context/`).
 - `planning-artifacts/ux-designs/ux-fasor-2026-09-18/`: `EXPERIENCE.md`, `DESIGN.md`, `mockups/`, `imports/extract-fo-serv-03.md` (structural extraction), reviews and reconcile notes. See [ux](/ux/index.md).
 - `planning-artifacts/briefs/`, `research/`: early inputs.
-- `test-artifacts/`: `test-design-architecture.md`, `test-design-qa.md`, `test-design-progress-system.md`, `test-design/`, `manual/` (device scripts for iPad and Android).
+- `test-artifacts/`: `test-design-architecture.md`, `test-design-qa.md`, `test-design-progress-system.md`, `test-design/`, `manual/` (device scripts for iPad and Android). *(2026-11-10: `manual/` also holds the dated browser pass reports, among them `behaviour-pass-e23-2026-11-10.md`, the Epic 23 behaviour pass with findings F1 to F20.)*
 - `implementation-artifacts/`: `sprint-status.yaml`, `epic-N-context.md`, `epic-N-retro-*.md`, `spec-*.md` per story or batch, `deferred-work.md`, `epic-batch-orchestrator.md`, `reviews/`.
 - Outside `_bmad-output`: `docs/concorrentes/` (competitor reading, cite by path only), `docs/display-reading-spike.md`, `docs/nc-chip-phrases.md`, `docs/tablet-https-setup.md`.

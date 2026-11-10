@@ -238,6 +238,40 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
   - Review (Edge Case Hunter, Verification Gap; one loop): 12 findings, 4 patched (the W2-1 job-wiring case, the size pins, the rise's rounding, 13.5-E2E-004's listener scope), 1 deferred, 7 rejected.
   - Left for the epic: six `deferred-work.md` rows under § "Epic 23 fix batch e23w": the prerequisite with the nameplate sub-block off (Matheus with Bruno), the two-entry chain after two later visits, a PDF look at the 8 pt table (wave QA), the authored texts, the B-6 narrowings, and the contract note (MIN must follow wave 3's bump). Two e23v rows closed (the 7,5 pt decision, the parecer wording).
 
+## Fix batch e23p
+
+*(2026-11-10, coordinator.)*
+
+- **Scope.** The five fixes Matheus approved on 2026-11-10 from the browser behaviour pass on `47be2638`. The pass report is `_bmad-output/test-artifacts/manual/behaviour-pass-e23-2026-11-10.md`, and the F numbers below are its own. The batch's record is `spec-e23p-pass-fixes.md`.
+- **Branch** `e23p-pass-fixes`, from main `b307ced1`.
+- **Contract and seed:** no contract change (40 stays, minimum 40). No seed change (`V13_HASH` unchanged). Goldens unchanged: v1 to v12 print as before.
+- **Record (2026-11-10).**
+  - PR #301, head `cc83df6c`, merged as `9add87b5` on 2026-11-10.
+  - What it fixes:
+    - P1 (F2): "Copiar da última visita" and "Igual à" no longer copy the fields measured on the day of the visit. These are the oil and winding temperatures, CONTADOR DE OPERAÇÕES, DESLIGADOR ÍNTEGRO and CONDIÇÃO DO SOLO.
+    - P2 (F3): the v13 transformer insulation table prints every word whole. Its sizes are 7,5 pt with one criterion, 7 pt with ACEITÁVEL per row, 7 pt with one criterion and MANUT. ANTERIOR, and 6 pt with ACEITÁVEL per row and MANUT. ANTERIOR.
+    - P3 (F4, the screen and the point's text): the "Anterior:" line shows the previous value measured and corrected, and the derived point names both compared values.
+    - P4 (F5): on an oil unit the dry-only fields are read-only, with the reason under them. Switching a dry unit to oil clears them, with "Desfazer".
+    - P5 (F7): with a design value, the ground grid criterion states its number ("≤ 3 Ω, valor de projeto").
+  - PDF crops of the four table shapes: `_bmad-output/implementation-artifacts/e23p-pdf-crops/`.
+  - Story gate on `1d41b639` (the head `cc83df6c` adds only the PDF crops and the spec's result), lock wait 0 s:
+    - lint 0 errors, static clean, test:api 959 passed and 6 skipped;
+    - test:unit 6133 of 6136. The three reds are in `telemetry/flush.test.ts` and `setup-surface.test.tsx`, files this batch does not touch, and they passed alone under the lock;
+    - the touched Playwright specs: 21 specs, 108 of 108 tests.
+  - `pnpm test:e2e:full` on `cc83df6c`, which is the same tree as `9add87b5` because main had not moved:
+    - 658 tests, 652 passed, 2 failed, 4 skipped, in 4887,7 s;
+    - the two reds were `review-photo-failures.spec.ts:349` (R8CAP-E2E-010, a click timeout) and `local-painel-coluna.spec.ts:466` (14.10-E2E-006, the revision toast not within 150 s);
+    - both passed alone under the lock, and Matheus accepted them on 2026-11-10 as load-induced;
+    - the matrix was not rerun.
+  - Matheus accepted on 2026-11-10: the four type sizes of P2, the three fields P1 adds to the two temperatures, and the point's text naming both compared values. The matching `deferred-work.md` rows under § "Epic 23 fix batch e23p" are marked confirmed.
+  - Left open in `deferred-work.md` § "Epic 23 fix batch e23p": whether the oil fields of a dry unit become read-only the same way (Matheus), and the batch's authored texts (Bruno).
+- **Not in this batch.** They move to Epic 24 or to the next list of questions for Bruno:
+  - F6 (section 9 prints no criterion and no verdict per row on four tests);
+  - the print half of F4 (the row in section 9 shows the measured values);
+  - the low findings F9 to F20;
+  - F8 is a question for Bruno: is a rise of exactly 50 % already Reprovado?
+  - F1 needs no change: it is local dev data only (§ Deploy, the read-only counts).
+
 ## Batch plan
 
 There are two lanes per wave, so at most two batch stacks are up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`.
@@ -411,8 +445,23 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
   - The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`.
   - The image tag before it was `ae3d37e0`.
   - It went out after wave 3's gate and before wave 3's fix batch. So the production bundle carries the W3 findings that e23z fixes.
-- **Second deploy.** `47be2638` (contract 40: e23z and T3) is not deployed. It waits for Matheus's word.
+- **Second deploy.** ~~`47be2638` (contract 40: e23z and T3) is not deployed. It waits for Matheus's word.~~ *(2026-11-10, coordinator.)* `47be2638` (contract 40: e23z and T3) went to production on 2026-11-10, through `infra/bin/deploy`.
+  - `GET /api/health` returned every component up.
+  - The smoke passed 8 of 8.
+  - The usage-event check found 6 `session_start` with the new `app_version` since 2026-11-10T11:39:13Z, and 0 `ux_event_sink_failed`.
+  - The image tag before it was `ef099d41`.
   - Bruno's base is imported in production only after it, because W3-3's print grouping of the copies lands with e23z.
+- **Read-only production counts.** *(2026-11-10, coordinator.)* Two counts ran in production on 2026-11-10. Each was a command override on the migrate task, inside a read-only transaction, and returned counts only.
+  - Company type versions: zero. So no company copy made before `base_block_type` exists in production (the e23z row of W3-3 in `deferred-work.md` is closed with this).
+  - Templates on seed v13: 11, in 2 companies. None carries the sub-block `ia_ip_display` on a transformer block, and there is no stale transformer block.
+  - So finding F1 of the behaviour pass is local dev data only.
+- **Browser behaviour pass.** *(2026-11-10, coordinator.)* It ran on 2026-11-10 on the product code of `47be2638`. The report is `_bmad-output/test-artifacts/manual/behaviour-pass-e23-2026-11-10.md`.
+  - Items 3 to 8 passed.
+  - Items 1 and 2 failed: the v13 transformer insulation table in print.
+- **PR #300** (`b307ced1`), 2026-11-10: tests only. It closes the Epic 23 verification rows of `deferred-work.md`.
+- **Fix batch e23p**, PR #301, merged as `9add87b5` on 2026-11-10 (no contract change: still 40, minimum 40). It fixes the pass findings F2, F3, F4 (the screen and the point's text), F5 and F7. Its record and its gates are in § "Fix batch e23p".
+- **Third deploy.** COORDINATOR-FILLS
+- **Release v0.8.0.** COORDINATOR-FILLS
 - **Paid plate eval** of `bedrock-structuring-8`, on Matheus's AWS login (profile `fasor-admin`), Textract, Bedrock `us-east-1`. The log is stamped 2026-11-10 05:50 to 05:54 UTC, which is after the first deploy.
 
   | Set | Haiku 4.5 | Nova Pro |
@@ -427,9 +476,16 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
 - **The "before the deploy" rows** of `deferred-work.md` are closed with dates:
   - the e23b eval row and the e23e row, by the eval above;
   - the e23w contract row, since MIN followed wave 3 to 39.
+- **Matheus's decisions of 2026-11-10** on the open Epic 23 rows of `deferred-work.md`. *(2026-11-10, coordinator.)* Each decision is on its row's `state:` line.
+  - Kept as built, no change: the malformed manufacturer's value on older sheets, the three readings of the manufacturer's value and the instrument limit, the tap reading dropped at sync, the re-issue after two later visits, the old spelling of TIPO DE ISOLAÇÃO, the Malha's five points, the base's texts on the imported types only, the re-import that does not update held copies, and the IP rows' "Como ensaiar" texts.
+  - Three of those leave a question: the Malha's extra point and the IP texts go to Bruno, and the re-import is decided again when Bruno sends a new revision of the base.
+  - Changed inside Epic 24, with no extra batch: the arrester's prerequisite read only while its nameplate block is on (wave 1), the cable's default fake plate fixture (wave 2), and a publish issue for a transformer type that lost its vector group field (wave 3).
+  - Tap budgets: the limits measured on seed v13 are accepted (J1 11 taps, SM-3 22 taps). The budget documents are amended with seed v14 in Epic 24.
+  - The Porto Seguro test line (e23e) was closed by the coordinator: it does not break the layout lock.
+- **Moved to Epic 24 or to Bruno** from the behaviour pass: F6, the print half of F4 and the low findings F9 to F20. F8 is a question for Bruno: is a rise of exactly 50 % already Reprovado?
 - **Still open** (handover of 2026-11-10):
-  - the second deploy;
-  - the browser behavior pass, never run: the PDF of the v13 insulation table at 8 pt, the TP insulation, the contact rise, thermography, the Malha and the base import;
+  - ~~the second deploy;~~ *(2026-11-10, coordinator: done, see "Second deploy" above.)*
+  - ~~the browser behavior pass, never run: the PDF of the v13 insulation table at 8 pt, the TP insulation, the contact rise, thermography, the Malha and the base import;~~ *(2026-11-10, coordinator: run, see "Browser behaviour pass" above.)*
   - the release v0.8.0, on Matheus's word;
-  - the optional read-only count, in production, of the company copies made before `base_block_type`;
+  - ~~the optional read-only count, in production, of the company copies made before `base_block_type`;~~ *(2026-11-10, coordinator: run, zero company type versions, see "Read-only production counts" above.)*
   - the Epic 23 retrospective.
