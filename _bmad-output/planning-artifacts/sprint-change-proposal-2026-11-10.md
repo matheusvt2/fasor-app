@@ -117,6 +117,8 @@ The full text of each story, with its Definition of Ready, acceptance criteria a
 | 24.19 | A copied type hides its original in the field | 32 | company types | opus · medium |
 | 24.20 | A company type that cannot compute its ratio is not published | n/a | company types | opus · medium |
 
+*(2026-11-10, evening: Matheus added one story to this list, **24.21 "An equipment keeps its history when its TAG is renamed"**, in batch e24b after 24.8, opus · high, for every equipment created from now on. The same evening he decided that no point of attention is automatic (fix batch e24h, contract 41), so the contract numbers of this table and of the batch table below each read one higher, and Stories 24.7 and 24.17 changed. The record is the last section of this document. The approved text above and below stays as it was approved.)*
+
 **What each story carries beyond its title.** "Row" means a row of `deferred-work.md`, cited by the line of its `state:` on main `f89b787a`.
 
 - **24.3**
@@ -303,7 +305,7 @@ Each has a dated note in its story. The full list is in `epic-24-context.md` § 
 
 **A renamed TAG loses the previous visit.** This is already true today (an open ledger row): when a technician renames an equipment's TAG, the next relatório of the obra does not find it, creates it again, and the sheet starts with no previous visit. With Bruno's rule (the plate's TAG typed over the suggestion) renaming becomes the common case, so MANUT. ANTERIOR and the 50 % rules would stop working for most equipment.
 
-The coordinator's recommendation: one more story in batch e24b, **24.21 "An equipment keeps its history when its TAG is renamed"**. The equipment stores, at its creation, the key the reuse matches on, and the reuse reads that key and no longer the visible TAG. Equipment created before it keeps matching by its TAG as today. It is a small change in the fold, so it takes e24b's contract number. Until Matheus decides, it is not written and Story 24.8 keeps the limit as an explicit note.
+The coordinator's recommendation: one more story in batch e24b, **24.21 "An equipment keeps its history when its TAG is renamed"**. The equipment stores, at its creation, the key the reuse matches on, and the reuse reads that key and no longer the visible TAG. Equipment created before it keeps matching by its TAG as today. It is a small change in the fold, so it takes e24b's contract number. ~~Until Matheus decides, it is not written and Story 24.8 keeps the limit as an explicit note.~~ *(2026-11-10, evening, Matheus: decided, "pode criar uma história a mais". Story 24.21 is written in `epics.md`, and the note of Story 24.8 is struck.)*
 
 ### The Epic 23 retrospective
 
@@ -323,7 +325,59 @@ A third read-only count in production the same day found no relatório on seed v
 
 | Item | Question | Owner |
 | --- | --- | --- |
-| M-5 | Story 24.21 for the renamed TAG, as recommended above | Matheus |
+| M-5 | ~~Story 24.21 for the renamed TAG, as recommended above~~ *(2026-11-10, evening, Matheus: approved. Story 24.21 is written.)* | Matheus |
 | B-11 | Should the TC's list ask an item on its secondary (never open, the short-circuit terminals)? | Bruno, with B-1 to B-10 |
 
 John's other readings are listed in `epic-24-context.md` § "Coordinator's readings (open to Matheus)". Each one is the most conservative choice and is taken unless Matheus corrects it before its batch starts.
+
+## After Matheus's two decisions of the evening (2026-11-10)
+
+Matheus took two more decisions on the evening of 2026-11-10. John (`bmad-agent-pm`) recorded them the same evening, in `epics.md`, `epic-24-context.md`, `source-deltas.md`, `sprint-status.yaml`, `deferred-work.md` and the knowledge base. The sections above stay as approved; this section says what changed.
+
+### Decision 11: Story 24.21, an equipment keeps its history when its TAG is renamed (M-5)
+
+Matheus approved the recommendation of M-5 ("pode criar uma história a mais"). The story is in `epics.md` § Epic 24, in batch e24b, right after Story 24.8, opus · high. It changes the fold, so it takes batch e24b's contract number.
+
+- **The key.** The equipment stores, at its creation, the key the reuse matches on: the TAG the old rule gives its place in the template (type, local, place). It is hidden, written once and never changed. The visible TAG is free to be the plate's.
+- **The match.** A new relatório looks for a stored key first. For equipment with no key it compares the TAG, as today. With neither, it creates the equipment.
+- **Before the story.** Equipment created before it has no key and keeps matching by its TAG.
+- **Nothing printed changes.** No golden and no fixture moves.
+
+Where the code forced a choice, the story takes the conservative reading and lists it for Matheus. The main one: an equipment from before the story gets no key, so renaming it later still loses its history. That covers every obra that exists today.
+
+### Decision 12: no automatic points of attention (fix batch e24h)
+
+Bruno reported on 2026-11-10, through Matheus and in chat, that points of attention appear when an NC is entered although nobody tapped "Criar ponto de atenção". He asks for an urgent correction: a point exists only when the technician creates it. There is no file with his words.
+
+Matheus decided:
+
+- All five automatic kinds stop: a sheet Não ensaiado, an NC row, a reading out of its criterion, a Reprovado, a restriction. For every relatório, on every seed.
+- How automatic points should work is thought through later. It is not built now.
+- This overrides Bruno's earlier answer to question 28, where an automatic point was fine under conditions. Decision 2 (the app asks before it removes a point) stays, for points the technician created.
+
+**It is built as fix batch e24h, not as a story.** Branch `e24h-points-on-click`, spec `spec-e24h-points-on-click.md`, contract 41 with minimum 41. It runs first and alone, and it is deployed alone on Matheus's word, before the rest of Epic 24. Nothing lists, counts, flags or prints an automatic point. The create actions that exist work as today. Verdicts and the parecer do not change. No data is deleted.
+
+**What it changes in this plan:**
+
+| Part of the plan | Before | Now |
+| --- | --- | --- |
+| Order | The planning PR, then Story 24.1 and e24f | e24h first and alone; e24f starts after e24h merges |
+| Contracts | e24a 41, e24b 42, e24s 43, e24p 44 | e24h 41; e24a 42, e24b 43 (taken by Story 24.21), e24s 44, e24p 45 |
+| Old print | Every relatório on v1 to v13 prints byte-identical | e24h changes old print once: section 8 and the points count lose the automatic points. After it the rule holds again |
+| Story 24.1 | The frames of section 2 | Three more: the Pontos screen with stored points only, the create action on a reading, the editor it opens |
+| Story 24.3 and the seed stories | An NC row "derives" its point | The row offers "Criar ponto de atenção"; no point without the tap |
+| Story 24.7 | A question about the point; the heading fix; a walk of an automatic entry | The question and the remove action concern stored points only; the heading is e24h's; the walk is of a point created by the tap |
+| Story 24.17 | The automatic entry's recommendation goes to its action, on v14 | A failed test, a restricted reading and a ficha the technician reproved offer "Criar ponto de atenção"; on v14 the point it starts carries the recommendation in "Ação recomendada". Effort high |
+| Fix batch e24f, item R-3 | The imported polarization-index recommendation prints with no way to edit it | It reaches print only inside a point someone created; the fix is unchanged |
+| The ledger | Rows on automatic points open, two of them in Story 24.7 | Three rows superseded by e24h, two narrowed, four more with a dated new reading; the row on the renamed TAG assigned to Story 24.21 |
+
+**The records overridden:** Story 6.6 (the untested sheet that lists itself), Story 15.2 (the count of automatic points, finding F34), Story 22.5, the automatic point of Story 23.6 and the automatic half of Story 23.11. Each has a dated note in `epics.md`, and `source-deltas.md` has one row for all of them.
+
+### Open items after the evening
+
+| Item | Question | Owner |
+| --- | --- | --- |
+| M-6 | Story 24.17's create action on a reading is the coordinator's reading. Is it what he wants, and may it wait for wave 3? Until the epic deploys, a failed test has no create action | Matheus |
+| M-7 | Story 24.21 gives no key to equipment that exists today. Should a later step cover it? | Matheus |
+| M-8 | The open questions of fix batch e24h, as its spec stood that evening (an NC row with no point before issuing, a confirmed parecer text that reads stale, the Porto Seguro golden) | Matheus |
+| later | How automatic points should work | Matheus, with Bruno |
