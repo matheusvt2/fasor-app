@@ -584,6 +584,12 @@ export const copy = {
     cancel: 'Cancelar',
     // authored (Story 14.7): no company type yet.
     empty: 'Nenhum tipo da empresa. Duplique um tipo da biblioteca para começar.',
+    // Story 23.12 (M-1 (b)): the base import's static words. The preview, the toast and the
+    // invalid-file line are the kernel's (`testBaseImportPreviewText`, `testBaseImportedText`,
+    // `testBaseInvalidText`). authored (Story 23.12, listed for Bruno)
+    importBase: 'Importar base de ensaios',
+    importConfirm: 'Importar',
+    importFileLabel: 'Arquivo JSON da base de ensaios',
   },
   // Story 14.7 (`43-tipo-equipamento.html`): the type editor's static words. Tab labels with
   // their counts, the head line, the publish label and reason, every row line and every issue

@@ -7,20 +7,30 @@ import {
   libraryTypeListRows,
   libraryTypesHeading,
   newEquipmentTypeRow,
+  parseTestBaseText,
+  planTestBaseImport,
   PRODUTO,
   retireTypeBody,
   retireTypeTitle,
   SEED_VERSION,
+  testBaseImportedText,
+  testBaseImportPreviewText,
+  testBaseInvalidText,
   toIso,
   typeDuplicatedText,
+  typeVersionRow,
   type EquipmentBlockType,
   type EquipmentTypeRow,
   type OpDraft,
+  type TestBaseFile,
+  type TestBaseImportPlan,
   type TypeDuplicate,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { Button } from 'react-aria-components';
 import { ConfirmDialog, TextButton } from '../../components/index.ts';
+import { DialogShell } from '../../components/dialog-shell.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useDefinitionContext } from '../../state/definition-context.ts';
@@ -28,7 +38,7 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import type { UndoableEdits } from '../../state/use-undoable-edits.ts';
 import { newId } from '../../ids.ts';
-import { createTypeOp, putTypeStampOp } from './type-ops.ts';
+import { createTypeOp, createVersionOp, putTypeStampOp } from './type-ops.ts';
 
 export interface TypeListSectionProps {
   /** Commits one batch through the list's edit queue; null when nothing was written. */
@@ -60,6 +70,11 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
   const libraryId = useId();
   const [retiring, setRetiring] = useState<EquipmentTypeRow | null>(null);
   const inFlight = useRef(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [importPlan, setImportPlan] = useState<{ file: TestBaseFile; plan: TestBaseImportPlan } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importTitleId = useId();
+  const importBodyId = useId();
 
   const types = useMemo(() => [...ctx.types.values()], [ctx]);
   const company = useMemo(() => companyTypeListRows(types, ctx), [types, ctx]);
@@ -81,6 +96,50 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
     }
   }
 
+  /**
+   * Story 23.12 (M-1 (b)): "Importar base de ensaios". The file is read on this device and the
+   * kernel plans the copies (`planTestBaseImport`); nothing is written before "Importar".
+   */
+  async function readBase(file: File): Promise<void> {
+    setImportError(null);
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setImportError(testBaseInvalidText());
+      return;
+    }
+    const parsed = parseTestBaseText(text);
+    if (!parsed.ok) {
+      setImportError(testBaseInvalidText(parsed.reason));
+      return;
+    }
+    setImportPlan({ file: parsed.file, plan: planTestBaseImport(parsed.file, ctx) });
+  }
+
+  /**
+   * "Importar": re-planned over the current types (a pull or another tab may have landed while the
+   * preview was open), then every copy's create and its version 1 when publishable, in one batch.
+   */
+  async function importBase(base: TestBaseFile): Promise<void> {
+    const plan = planTestBaseImport(base, ctx);
+    if (user === null || inFlight.current || plan.copies.length === 0) return;
+    inFlight.current = true;
+    try {
+      const at = toIso(now());
+      const drafts: OpDraft[] = [];
+      for (const copy of plan.copies) {
+        const row = newEquipmentTypeRow(newId(), copy.duplicate);
+        drafts.push(createTypeOp(user, row));
+        if (copy.publishable) drafts.push(createVersionOp(user, typeVersionRow({ id: newId(), type: row, definition: copy.duplicate.draft, publishedBy: user.id, publishedAt: at })));
+      }
+      if ((await commit(drafts)) === null) return;
+      showToast(testBaseImportedText(plan.copies.length));
+    } finally {
+      inFlight.current = false;
+    }
+  }
+
   async function stamp(type: EquipmentTypeRow, field: 'retired_at' | 'removed_at', on: boolean, toast: string, undoable: boolean): Promise<void> {
     if (user === null) return;
     const batchId = await commit([putTypeStampOp(user, type.id, field, on ? toIso(now()) : null)]);
@@ -93,7 +152,31 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
     <section className="section tpl-group" aria-labelledby={headingId} id="tpl-tipos">
       <div className="section-head">
         <h2 id={headingId}>{copy.types.heading}</h2>
+        <TextButton onPress={() => fileInput.current?.click()}>
+          {icon('i-book')}
+          {copy.types.importBase}
+        </TextButton>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          className="visually-hidden"
+          tabIndex={-1}
+          aria-label={copy.types.importFileLabel}
+          data-testid="test-base-file"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            // Cleared so the same file can be chosen again (a second import of the same base).
+            event.currentTarget.value = '';
+            if (file !== undefined) void readBase(file);
+          }}
+        />
       </div>
+      {importError === null ? null : (
+        <p className="section-note" role="alert">
+          {importError}
+        </p>
+      )}
       <p className="section-note">{copy.types.note(PRODUTO)}</p>
 
       <p className="type-sub" id={companyId}>
@@ -174,6 +257,51 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
         ))}
       </ul>
       <p className="section-note type-lib-note">{copy.types.libraryNote}</p>
+
+      {importPlan === null ? null : (
+        <DialogShell
+          className="confirm-dialog"
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) setImportPlan(null);
+          }}
+          aria-labelledby={importTitleId}
+          aria-describedby={importBodyId}
+        >
+          {({ close }) => (
+            <>
+              <h2 className="dialog-title" id={importTitleId}>
+                {copy.types.importBase}
+              </h2>
+              <div id={importBodyId}>
+                {testBaseImportPreviewText(importPlan.plan)
+                  .split('\n')
+                  .map((line) => (
+                    <p key={line} className="t-body">
+                      {line}
+                    </p>
+                  ))}
+              </div>
+              <div className="dialog-actions">
+                <Button className="btn btn-secondary" autoFocus onPress={close}>
+                  {copy.types.cancel}
+                </Button>
+                {importPlan.plan.copies.length === 0 ? null : (
+                  <Button
+                    className="btn btn-primary"
+                    onPress={() => {
+                      void importBase(importPlan.file);
+                      close();
+                    }}
+                  >
+                    {copy.types.importConfirm}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </DialogShell>
+      )}
 
       {retiring === null ? null : (
         <ConfirmDialog
