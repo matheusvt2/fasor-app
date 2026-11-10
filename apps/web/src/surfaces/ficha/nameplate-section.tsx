@@ -1,6 +1,7 @@
 import {
   camposCopiadosText,
   discardSuggestionOp,
+  dryFieldExcusedReason,
   isFieldHidden,
   INSULATION_FIELD_KEY,
   lastNameplateCopy,
@@ -10,7 +11,6 @@ import {
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
-  oilItemsClearedText,
   oilItemsNaText,
   oilNaChipItems,
   oilNaChipText,
@@ -185,14 +185,17 @@ export function NameplateSection({
    */
   function commitOilField(fieldKey: string, next: unknown): Promise<void> {
     let cleared = 0;
+    let toast = '';
     return api
       .edit((blocks, by) => {
         const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files, equipment_types: snapshot.equipment_types }, [nameplateOp(by, api.relatorioId, block.id, fieldKey, next)]);
         cleared = built.cleared;
+        // Fix batch e23p (P4): the kernel's toast, naming the dry fields a crossing to an oil unit cleared.
+        toast = built.toast;
         return built.drafts;
       })
       .then((batch) => {
-        if (batch !== null && cleared > 0) api.undoable(oilItemsClearedText(cleared), batch);
+        if (batch !== null && cleared > 0) api.undoable(toast, batch);
       });
   }
   const oilField = oilRuleOf(block, definitions)?.field ?? null;
@@ -408,6 +411,10 @@ export function NameplateSection({
         {definition.nameplate.map((field) => {
           // Batch e23t (Story 23.17): a field whose `excused_unless` the plate does not meet (TIPO (ANP) on a liquid other than mineral) is not drawn.
           if (isFieldHidden(block, field.key, definitions)) return null;
+          // Fix batch e23p (P4): a dry field of an oil unit is drawn read-only and empty, with the kernel's reason; a value
+          // stored there stays in the store, unseen, and shows again if the unit becomes dry.
+          const dryReason = dryFieldExcusedReason(block, field.key, definitions);
+          if (dryReason !== null) return <ReadOnlyField key={field.key} field={field} value={null} helper={dryReason} />;
           const stored = block.sheet.nameplate[field.key];
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;
           const value = prefilled ? tagPrefill : (stored?.value ?? null);

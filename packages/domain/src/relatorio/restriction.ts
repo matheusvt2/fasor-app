@@ -55,16 +55,19 @@ function readingText(cell: EvaluatedCell): string {
 // The closing sentence is `60-ficha.html`'s (#/ficha/TR1), verbatim.
 const CLOSING = 'Dentro do aceitável; a conclusão sobe para Com restrições.';
 
-/** One rule's finding on a cell: the short reason and the helper's detail. */
+/** One rule's finding on a cell: the short reason, the helper's detail and (fix batch e23p, P3) the history rule's comparison. */
 interface Finding {
   reason: string;
   detail: string;
+  compared?: string;
 }
 
-function historyFinding(pct: number, entry: PreviousResults, previous: NonNullable<LastResultReading['corrected']>): Finding {
+function historyFinding(pct: number, entry: PreviousResults, previous: NonNullable<LastResultReading['corrected']>, now: { raw: string; unit: string | null }): Finding {
   return {
     reason: `queda de mais de ${pctText(pct)} % desde a manutenção anterior`,
     detail: `caiu mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(previous.raw, previous.unit)} a ${INSULATION_REFERENCE_C} °C, rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`,
+    // authored (e23p, listed for Bruno): both corrected values, as the derived point names them.
+    compared: `de ${correctedText(previous.raw, previous.unit)} para ${correctedText(now.raw, now.unit)}, a ${INSULATION_REFERENCE_C} °C`,
   };
 }
 
@@ -112,7 +115,7 @@ function historyOf(cell: EvaluatedCell, pct: number, previous: RestrictionPrevio
   const now = Number(corrected.raw);
   if (was === null || !(was > 0) || !Number.isFinite(now)) return null;
   const drop = ((was - now) / was) * 100;
-  return drop > pct * (1 + EPSILON) ? historyFinding(pct, previous.entry, before) : null;
+  return drop > pct * (1 + EPSILON) ? historyFinding(pct, previous.entry, before, corrected) : null;
 }
 
 /**
@@ -163,7 +166,12 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         continue;
       }
       cell.verdict = 'restricted';
-      cell.restriction = { reason: findings.map((finding) => finding.reason).join('; '), text: `${findings.map((finding) => finding.detail).join('; ')}. ${CLOSING}` };
+      const compared = findings.flatMap((finding) => (finding.compared === undefined ? [] : [finding.compared]));
+      cell.restriction = {
+        reason: findings.map((finding) => finding.reason).join('; '),
+        text: `${findings.map((finding) => finding.detail).join('; ')}. ${CLOSING}`,
+        ...(compared.length === 0 ? {} : { compared: compared.join('; ') }),
+      };
     }
   }
   return stands;

@@ -2,7 +2,7 @@
 title: 'e23p: the behaviour-pass fixes (copied temperatures, the v13 insulation table in print, the previous value shown corrected, dry-only fields on an oil unit, the ground grid criterion)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: 'b307ced129f855dfc6759d5f1d246a1ff3d94577'
 review_loop_iteration: 0
 followup_review_recommended: false

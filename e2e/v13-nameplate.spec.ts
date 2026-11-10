@@ -1,7 +1,10 @@
 import {
+  camposCopiadosText,
   EMPTY_DEFINITION_CONTEXT,
   evaluateSheetReadings,
   getDefinition,
+  isDayMeasuredField,
+  lastNameplateCopy,
   nameplateAcceptsNotApplicable,
   screenLabel,
   SEED_VERSION,
@@ -12,10 +15,13 @@ import {
   type OpDraft,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
+import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { pushLastNameplate } from './support/push-server-ops.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 
 /*
  * Story 23.7 (seed v13, decision K), driven as a person does on a fresh standard relatório of
@@ -26,6 +32,7 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * missing while empty; a TP's "13,8/√3" over "115/√3" and a TC's "200-5" give VAL CALCULADO.
  * Every derived word and number asserted is the kernel's (the helper, the picker's options, VAL
  * CALCULADO, from the device's own block row); the sample values are invented.
+ * Fix batch e23p (P1): "Copiar da última visita" never copies the two temperatures measured on the day.
  */
 
 let account: SeedAccount;
@@ -308,4 +315,49 @@ test('@p0 23.7-E2E-004 a v13 TP typed "13,8/√3" over "115/V3" and a v13 TC typ
   expect(tcCalculated).toBe('40,00');
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   await expect(ratioRow(page).locator('td.cell-calc').first()).toContainText(tcCalculated);
+});
+
+test('@p0 e23p-E2E-001 "Copiar da última visita" on a v13 transformer copies its plate but never the two temperatures measured on the day: no op on them, the toast counts the rest', async ({ page }) => {
+  test.setTimeout(180_000);
+  const built = await setUp(page);
+  const sheet = sheetOf(built.sheets, 'transformador_forca', 'Oxigênio');
+  const block = built.drafts.find((draft) => draft.kind === 'create' && draft.path === `block/${sheet.blockId}`)!.value as { equipment_id: string };
+  // The last issued plate holds both temperatures among its filled fields (values invented).
+  const lastNameplate = {
+    relatorio_id: newId(),
+    revision_number: 1,
+    issued_at: '2026-03-10T12:00:00.000Z',
+    seed_version: SEED_VERSION,
+    block_type: 'transformador_forca',
+    fields: {
+      n_serie: 'TX-2301',
+      impedancia_pct: measured('5.5', '%'),
+      material_enrolamento: 'Cu',
+      temperatura_oleo_c: measured('40', '°C'),
+      temperatura_enrolamento_c: measured('45', '°C'),
+    },
+  };
+  await openSheet(page, built.relatorioId, sheet.blockId);
+  await pushLastNameplate(account.companyId, built.projectId, block.equipment_id, lastNameplate, account.userId);
+  await syncNowAndReturn(page);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+
+  // The kernel's copy: every filled field but the two temperatures.
+  const copied = lastNameplateCopy({ last_nameplate: lastNameplate }, getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca')).map((entry) => entry.fieldKey);
+  expect([...copied].sort()).toEqual(['impedancia_pct', 'material_enrolamento', 'n_serie']);
+  expect(Object.keys(lastNameplate.fields).filter(isDayMeasuredField).sort()).toEqual(['temperatura_enrolamento_c', 'temperatura_oleo_c']);
+
+  const copy = page.getByRole('button', { name: /^Copiar da última visita \(.+\)$/ });
+  await expect(copy).toBeVisible({ timeout: 30_000 });
+  await copy.click();
+  await expect(page.getByTestId('toast')).toContainText(camposCopiadosText(copied.length));
+  const plateWrites = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${sheet.blockId}/nameplate/`)).map((row) => row.path.split('/').at(-1)!);
+  await expect.poll(async () => [...(await plateWrites())].sort()).toEqual([...copied].sort());
+  // No op on either temperature: both stay empty, on the screen and in the store.
+  expect((await plateWrites()).filter(isDayMeasuredField)).toEqual([]);
+  await expect(field(page, 'temperatura_oleo_c').locator('input')).toHaveValue('');
+  await expect(field(page, 'temperatura_enrolamento_c').locator('input')).toHaveValue('');
+  const row = await blockRow(page, sheet.blockId);
+  expect([row.sheet.nameplate.temperatura_oleo_c, row.sheet.nameplate.temperatura_enrolamento_c]).toEqual([undefined, undefined]);
+  expect(row.sheet.nameplate.material_enrolamento?.value).toBe('Cu');
 });

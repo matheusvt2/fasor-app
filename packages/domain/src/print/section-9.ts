@@ -34,6 +34,7 @@ import { withCaptionOrdinals } from './caption-ordinal.ts';
 import { previousReadingsByAddress, previousResultsFor, previousRowText, type LastResultReading } from './last-results.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
 import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
+import { printTextEm } from './text-metrics.ts';
 
 /*
  * Story 7.1 (FR-68, AR-11, NFR-17), Story 7.2 AC2 and E12-A2: section 9 as data. Every sheet
@@ -128,7 +129,8 @@ export interface PrintTable {
    * e22g (review B1): a reading table whose longest words do not fit the page at the sheet's
    * 9 pt prints at this size, in half-points (17 to 14: 8,5 pt to 7 pt), the largest at which
    * every word stays whole (`fittedColumns`). Absent on every table that fits at 9 pt: the
-   * renderer then prints it exactly as before.
+   * renderer then prints it exactly as before. Batch e23a: a per-row table steps on to 13 and 12;
+   * fix batch e23p: a whole-fit table (`WHOLE_FIT_TABLES`) down to 10 (5 pt).
    */
   textHalfPoints?: number;
 }
@@ -825,6 +827,12 @@ export const TABLE_TEXT_STEPS_HALF_POINTS: readonly number[] = [17, 16, 15, 14];
  */
 export const PER_ROW_TEXT_STEPS_HALF_POINTS: readonly number[] = [...TABLE_TEXT_STEPS_HALF_POINTS, 13, 12];
 
+/**
+ * Fix batch e23p (P2): the smallest size a whole-fit table (`WHOLE_FIT_TABLES`) steps on to, past its
+ * given steps, one half point at a time, when its words still do not fit: 5 pt.
+ */
+const WHOLE_FIT_FLOOR_HALF_POINTS = 10;
+
 /** A table's text size as a share of the 9 pt base: the factor its words' widths take. */
 const textScale = (halfPoints: number | undefined) => (halfPoints ?? SHEET_TEXT_HALF_POINTS) / SHEET_TEXT_HALF_POINTS;
 
@@ -848,7 +856,9 @@ interface FittedTable {
  * exactly as before, with no size: the margins stay the same points whatever the size, so
  * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS, outsideBudget: readonly number[] = []): FittedTable {
+function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS, outsideBudget: readonly number[] = [], wholeFit = false): FittedTable {
+  // Fix batch e23p (P2): a whole-fit table measures its words by the face's advance widths.
+  const measure = wholeFit ? printTextEm : emWidth;
   const least = new Array<number>(count).fill(0);
   const whole = new Array<number>(count).fill(0);
   for (const row of rows) {
@@ -857,9 +867,9 @@ function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly
       const span = cell.span ?? 1;
       if (span === 1 && col < count) {
         const bold = cell.bold === true;
-        const word = Math.max(0, ...cell.text.split(/\s+/).map((part) => emWidth(part, bold)));
+        const word = Math.max(0, ...cell.text.split(/\s+/).map((part) => measure(part, bold)));
         least[col] = Math.max(least[col]!, word);
-        whole[col] = Math.max(whole[col]!, [...cell.text].length <= SHORT_TEXT ? emWidth(cell.text, bold) : word);
+        whole[col] = Math.max(whole[col]!, [...cell.text].length <= SHORT_TEXT ? measure(cell.text, bold) : word);
       }
       col += span;
     }
@@ -870,7 +880,8 @@ function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly
     const minimum = least.map((em) => Math.max(em, 1.5) * scale + CELL_ALLOWANCE_EM);
     const preferred = whole.map((em, col) => Math.max(em * scale + CELL_ALLOWANCE_EM, minimum[col]!));
     // Fix batch e23w (W2-K2): a corrected column (`outsideBudget`) rides on the table and is measured outside the 60 em budget.
-    const fits = sum(minimum.filter((_, col) => !outsideBudget.includes(col))) <= READING_FIT_WIDTH_EM;
+    // Fix batch e23p (P2): a whole-fit table counts every column, the corrected one included, against the page.
+    const fits = wholeFit ? sum(minimum) <= CONTENT_WIDTH_EM : sum(minimum.filter((_, col) => !outsideBudget.includes(col))) <= READING_FIT_WIDTH_EM;
     if (sum(preferred) <= CONTENT_WIDTH_EM) return { fits, columns: preferred };
     const room = CONTENT_WIDTH_EM - sum(minimum);
     const asked = sum(preferred) - sum(minimum);
@@ -879,9 +890,12 @@ function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly
   };
   const base = at(1);
   if (base.fits) return { columns: base.columns };
-  for (const halfPoints of steps) {
+  // Fix batch e23p (P2): past its given floor, a whole-fit table keeps stepping one half point at a time down to 5 pt.
+  const floor = steps[steps.length - 1];
+  const tried = wholeFit && floor !== undefined ? [...steps, ...Array.from({ length: Math.max(0, floor - WHOLE_FIT_FLOOR_HALF_POINTS) }, (_, i) => floor - 1 - i)] : steps;
+  for (const halfPoints of tried) {
     const step = at(textScale(halfPoints));
-    if (step.fits || halfPoints === steps[steps.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
+    if (step.fits || halfPoints === tried[tried.length - 1]) return { columns: step.columns, textHalfPoints: halfPoints };
   }
   return { columns: base.columns };
 }
@@ -940,6 +954,8 @@ export function widenToFit(base: readonly number[], rows: readonly PrintRow[], v
 export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'rows' | 'textHalfPoints'>, pageEm: number = CONTENT_WIDTH_EM): { col: number; word: string }[] {
   const total = printed.columns.reduce((sum, weight) => sum + weight, 0);
   const scale = textScale(printed.textHalfPoints);
+  // Fix batch e23p (P2): a whole-fit table's words are measured by the face's advance widths, as it was fitted.
+  const measure = WHOLE_FIT_TABLES.has(printed) ? printTextEm : emWidth;
   const out: { col: number; word: string }[] = [];
   for (const row of printed.rows) {
     let col = 0;
@@ -947,7 +963,7 @@ export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'row
       const span = cell.span ?? 1;
       if (span === 1 && col < printed.columns.length) {
         const width = (printed.columns[col]! / total) * pageEm;
-        for (const word of cell.text.split(/\s+/)) if (emWidth(word, cell.bold === true) * scale + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
+        for (const word of cell.text.split(/\s+/)) if (measure(word, cell.bold === true) * scale + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
       }
       col += span;
     }
@@ -967,6 +983,7 @@ function measurementTable(
   enabled: ReadonlySet<string>,
   test?: TestDef,
   temperature?: TestTemperatureView,
+  single = false,
 ): PrintTable {
   const corrected = printedCorrectedOf(definition, temperature);
   const width = definition.connection_columns.length + definition.value_columns.length + (corrected === null ? 0 : 1);
@@ -998,7 +1015,9 @@ function measurementTable(
   // Fix batch e23w (W2-K2): the corrected column's place in a data row, measured outside the budget.
   const at = printed.findIndex((entry) => entry.kind === 'corrected');
   const outside = at === -1 ? [] : [definition.connection_columns.length + (voltage === null ? 0 : 1) + at];
-  return withCorrectedColumns({ ...fittedColumns(rows, width, TABLE_TEXT_STEPS_HALF_POINTS, outside), rows }, outside);
+  // Fix batch e23p (P2): a table printed alone (not side by side) with its corrected column fits whole.
+  const wholeFit = single && corrected !== null;
+  return withWholeFit(withCorrectedColumns({ ...fittedColumns(rows, width, TABLE_TEXT_STEPS_HALF_POINTS, outside, wholeFit), rows }, outside), wholeFit);
 }
 
 /**
@@ -1010,6 +1029,23 @@ function measurementTable(
  * right half's). A table of any other test has none and fits as before.
  */
 const CORRECTED_COLUMNS = new WeakMap<PrintTable, readonly number[]>();
+
+/**
+ * Fix batch e23p (P2, the behaviour pass's F3: the v13 transformer's insulation table broke "SECUNDÁRIO"
+ * and "22,6" in the PDF in all three shapes): the reading tables fitted whole. A table printed alone
+ * (never a side-by-side pair) with a corrected "20 °C" column measures its words by the face's advance
+ * widths (`printTextEm`) and counts every column, the corrected one included, against the page
+ * (`CONTENT_WIDTH_EM`), stepping past its floor down to 5 pt. Kept beside the table, as
+ * `CORRECTED_COLUMNS`; `withAppendedColumn` re-fits such a table the same way. The disjuntor's and the
+ * seccionadora's pairs keep e23w's rule, and every table of seeds v1 to v12 has no corrected column.
+ */
+const WHOLE_FIT_TABLES = new WeakSet<object>();
+
+/** The table, recorded as fitted whole when `wholeFit`. */
+function withWholeFit(table: PrintTable, wholeFit: boolean): PrintTable {
+  if (wholeFit) WHOLE_FIT_TABLES.add(table);
+  return table;
+}
 
 /** The table, with its corrected columns recorded, as `fittedColumns` gave it. */
 function withCorrectedColumns(table: PrintTable, columns: readonly number[]): PrintTable {
@@ -1023,6 +1059,8 @@ function withCorrectedColumns(table: PrintTable, columns: readonly number[]): Pr
  * outside the budget). Every table without a corrected column measures against 60 em, as before.
  */
 export function readingFitWidthEm(table: PrintTable): number {
+  // Fix batch e23p (P2): a whole-fit table's words were fitted against the whole page.
+  if (WHOLE_FIT_TABLES.has(table)) return CONTENT_WIDTH_EM;
   const outside = CORRECTED_COLUMNS.get(table) ?? [];
   if (outside.length === 0) return READING_FIT_WIDTH_EM;
   const scale = textScale(table.textHalfPoints);
@@ -1082,7 +1120,9 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
   const kept: PrintTable = { ...printed };
   delete kept.textHalfPoints;
   const outside = CORRECTED_COLUMNS.get(printed) ?? [];
-  return withCorrectedColumns({ ...kept, ...fittedColumns(rows, width + 1, steps, outside), rows }, outside);
+  // Fix batch e23p (P2): a whole-fit table stays one, re-fitted the same way.
+  const wholeFit = WHOLE_FIT_TABLES.has(printed);
+  return withWholeFit(withCorrectedColumns({ ...kept, ...fittedColumns(rows, width + 1, steps, outside, wholeFit), rows }, outside), wholeFit);
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -1119,7 +1159,7 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   // pair still prints as one.
   const holds = previousTexts.map((texts) => texts !== null && texts.some((text) => text !== DASH));
   const tables = test.tables.map((tableDef, i) => {
-    const plain = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled, test, evaluation.temperature);
+    const plain = measurementTable(block, test.key, tableDef, evaluation.tables[i]!, enabled, test, evaluation.temperature, !pairShape);
     // Story 23.2 (seed v13): rows judged by different criteria print each row's in an ACEITÁVEL column, before MANUT. ANTERIOR.
     const perRow = evaluation.perRow === true;
     const printed = perRow ? withAppendedColumn(plain, ACCEPTABLE_LABEL, evaluation.tables[i]!.rows.map((row) => row.criterionText ?? DASH), PER_ROW_TEXT_STEPS_HALF_POINTS) : plain;
@@ -1421,8 +1461,11 @@ function keptTogether(parts: readonly SheetPart[]): SheetPart[] {
     const keep = part.keepWithNext === true && next !== undefined && next.kind !== 'photos';
     switch (part.kind) {
       case 'table': {
-        // Fix batch e23w (W2-K2): a copy keeps the table's corrected columns (`CORRECTED_COLUMNS`).
-        const kept: PrintTable = part.table.keepWhole === true ? part.table : withCorrectedColumns({ ...part.table, keepRows: true }, CORRECTED_COLUMNS.get(part.table) ?? []);
+        // Fix batch e23w (W2-K2): a copy keeps the table's corrected columns (`CORRECTED_COLUMNS`); e23p (P2): and its whole fit.
+        const kept: PrintTable =
+          part.table.keepWhole === true
+            ? part.table
+            : withWholeFit(withCorrectedColumns({ ...part.table, keepRows: true }, CORRECTED_COLUMNS.get(part.table) ?? []), WHOLE_FIT_TABLES.has(part.table));
         return keep ? { kind: 'table', table: kept, keepWithNext: true } : { kind: 'table', table: kept };
       }
       case 'photos':

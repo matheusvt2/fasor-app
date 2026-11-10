@@ -2,6 +2,7 @@ import { formatDateOfInstant } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { evaluateSheetMeasurements, measurementCells } from '../relatorio/measurement-evaluation.ts';
 import { isReadingValue, overRangeText } from '../relatorio/over-range.ts';
+import { correctedText } from '../relatorio/temperature-correction.ts';
 import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
@@ -151,9 +152,24 @@ export function previousReadingText(reading: LastResultReading): string {
   return reading.unit === null || reading.unit === '' ? shown : `${shown} ${reading.unit}`;
 }
 
-/** The line under a capture cell: "Anterior: 4,9 GΩ (rev. 1, 05/11/2026)". */
-export function previousHelperText(entry: Pick<PreviousResults, 'revision_number' | 'issued_at'>, reading: LastResultReading): string {
-  return `Anterior: ${previousReadingText(reading)} (rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`;
+/**
+ * The line under a capture cell: "Anterior: 4,9 GΩ (rev. 1, 05/11/2026)".
+ * Fix batch e23p (P3, the behaviour pass's F4): with the test's reference temperature (`referenceC`,
+ * null for an uncorrected test) and the reading's corrected value, the value the history rule judges
+ * by follows the measured one: "Anterior: 12 GΩ, 30 GΩ a 20 °C (rev. 1, 05/11/2026)". A reading with
+ * no `corrected` (a v12 visit, an uncorrected test) reads as before.
+ */
+export function previousHelperText(entry: Pick<PreviousResults, 'revision_number' | 'issued_at'>, reading: LastResultReading, referenceC: number | null = null): string {
+  // authored (e23p, listed for Bruno): the previous corrected value beside the measured one.
+  const corrected = referenceC === null || reading.corrected === undefined ? '' : `, ${correctedText(reading.corrected.raw, reading.corrected.unit)} a ${referenceC} °C`;
+  return `Anterior: ${previousReadingText(reading)}${corrected} (rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`;
+}
+
+/** Fix batch e23p (P3): a test's reference temperature by key: a table test's `temperature_correction.to_c`, a measurement test's `winding_correction.to_c`. */
+function referenceOf(definition: SlotDefinition, testKey: string): number | null {
+  const table = definition.tests.find((test) => test.key === testKey);
+  if (table !== undefined) return table.temperature_correction?.to_c ?? null;
+  return definition.measurement_tests?.find((test) => test.key === testKey)?.winding_correction?.to_c ?? null;
 }
 
 /**
@@ -171,7 +187,7 @@ export function previousHelpers(
   const out = new Map<string, string>();
   if (entry === null) return out;
   const rows = block.sheet === undefined ? undefined : { sheet: block.sheet };
-  for (const [address, reading] of previousReadingsByAddress(entry, definition, rows)) out.set(address, previousHelperText(entry, reading));
+  for (const [address, reading] of previousReadingsByAddress(entry, definition, rows)) out.set(address, previousHelperText(entry, reading, referenceOf(definition, address.slice(0, address.indexOf('/')))));
   return out;
 }
 

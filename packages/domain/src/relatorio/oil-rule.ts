@@ -106,6 +106,24 @@ export function isOilFieldExcused(block: StateBlock, fieldKey: string, ctx: Defi
 }
 
 /**
+ * Fix batch e23p (P4, the behaviour pass's F5): why a dry field (`dry_fields`) of an oil unit is not
+ * filled, the line the sheet shows under it while it draws it read-only and empty: "Não se aplica:
+ * TIPO DE ISOLAÇÃO é ÓLEO ISOLANTE."; null for every other field, a dry unit and an unknown one (and
+ * on every definition of v1 to v12, which has no `dry_fields`). A value stored there is kept, never
+ * shown, and printed "-" (`isOilFieldExcused`).
+ */
+export function dryFieldExcusedReason(block: StateBlock, fieldKey: string, ctx: DefinitionContext): string | null {
+  const rule = oilRuleOf(block, ctx);
+  if (rule === null || !(rule.dry_fields?.includes(fieldKey) ?? false) || isOilUnit(block, ctx) !== true) return null;
+  const value = block.sheet.nameplate[rule.field]?.value;
+  if (typeof value !== 'string') return null;
+  const definition = blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
+  const label = definition?.nameplate.find((field) => field.key === rule.field)?.label ?? rule.field;
+  // authored (e23p, listed for Bruno): the reason under a dry field of an oil unit.
+  return `Não se aplica: ${label} é ${value.trim()}.`;
+}
+
+/**
  * Seed v13, batch e23t (Story 23.17): a field the sheet does not draw: its `excused_unless` names a
  * select of the plate that holds a value outside its list (TIPO (ANP) on a liquid other than
  * MINERAL). Never missing and printed "-" (`isOilFieldExcused`); shown while that select is empty or
@@ -157,6 +175,8 @@ export function oilCrossingPuts(
     if (isCellFilled(entry?.observation)) puts.push({ path: sheetChecklistPath(block.id, itemKey, 'observation'), value: null });
   }
   for (const key of rule.fields) if (isCellFilled(block.sheet.nameplate[key])) puts.push({ path: sheetNameplatePath(block.id, key), value: null });
+  // Fix batch e23p (P4): a crossing to an oil unit also clears every filled dry field (seed v13's `dry_fields`).
+  if (after) for (const key of rule.dry_fields ?? []) if (isCellFilled(block.sheet.nameplate[key])) puts.push({ path: sheetNameplatePath(block.id, key), value: null });
   const items = new Set<string>(rule.items);
   for (const file of snapshot.files) {
     if (file.kind !== 'photo' || file.removed_at !== null || file.block_id !== block.id || file.item_key === null || !items.has(file.item_key)) continue;
@@ -185,4 +205,32 @@ export function oilCrossingClearedCount(puts: readonly OilCrossingPut[], snapsho
 /** "1 item de óleo apagado", "8 itens de óleo apagados". */
 export function oilItemsClearedText(n: number): string {
   return plural(n, 'item de óleo apagado', 'itens de óleo apagados');
+}
+
+/**
+ * Fix batch e23p (P4): the undo toast of a crossing batch. With no dry field cleared it is
+ * `oilItemsClearedText` of `oilCrossingClearedCount`, as before; a crossing to an oil unit that
+ * cleared dry fields (`dry_fields`) names both parts, each only when its count is above 0: "2 itens
+ * de óleo apagados e 1 campo de unidade a seco apagado".
+ */
+export function oilCrossingToastText(
+  puts: readonly OilCrossingPut[],
+  snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files']; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
+): string {
+  const ctx = snapshotDefinitionContext(snapshot);
+  const isDry = (put: OilCrossingPut): boolean => {
+    const segments = put.path.split('/');
+    if (segments[0] !== 'sheet' || segments[2] !== 'nameplate') return false;
+    const block = snapshot.blocks.find((row) => row.id === segments[1]);
+    return block !== undefined && (oilRuleOf(block, ctx)?.dry_fields?.includes(segments[3]!) ?? false);
+  };
+  const dry = puts.filter(isDry);
+  const oil = oilCrossingClearedCount(
+    puts.filter((put) => !isDry(put)),
+    snapshot,
+  );
+  if (dry.length === 0) return oilItemsClearedText(oil);
+  // authored (e23p, listed for Bruno): the dry fields a crossing to an oil unit cleared.
+  const dryText = plural(new Set(dry.map((put) => put.path)).size, 'campo de unidade a seco apagado', 'campos de unidade a seco apagados');
+  return oil > 0 ? `${oilItemsClearedText(oil)} e ${dryText}` : dryText;
 }

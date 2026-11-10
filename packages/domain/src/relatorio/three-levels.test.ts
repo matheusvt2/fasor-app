@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
-import { blockReadings, lastResults } from '../print/last-results.ts';
-import { readingSlotsOf, type PreviousResults } from '../print/reading-slots.ts';
+import { blockReadings, lastResults, previousHelpers } from '../print/last-results.ts';
+import { readingAddressKey, readingSlotsOf, type PreviousResults } from '../print/reading-slots.ts';
 import { resolveSection8 } from '../print/section-8.ts';
 import { readingFitWidthEm, section9Layout, wordsWiderThanColumns, type PrintTable } from '../print/section-9.ts';
 import { derivedPoints, resolvedOriginPoints } from '../points/derived.ts';
@@ -317,6 +317,102 @@ describe('23.6-UNIT the previous visit judges (TR-OL-02 history), only when both
   });
 });
 
+describe('e23p-P3 the previous value shown corrected, and the derived point naming both (behaviour pass F4, screen half)', () => {
+  const definition = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
+  const isolacaoKeys = readingSlotsOf(definition).filter((slot) => slot.testKey === 'isolacao');
+  const entry = (readings: PreviousResults['readings']): PreviousResults => ({
+    relatorio_id: id(900),
+    revision_number: 1,
+    issued_at: '2026-11-05T15:00:00.000Z',
+    seed_version: 'v13',
+    block_type: 'transformador_forca',
+    readings,
+  });
+
+  it('the "Anterior:" line names the corrected value at the test\'s reference; a reading with none reads as before', () => {
+    const block = sheet('transformador_forca');
+    const atSlot = isolacaoKeys.find((slot) => slot.row === 0)!;
+    const bSlot = isolacaoKeys.find((slot) => slot.row === 1)!;
+    const [atKey, bKey] = [atSlot.key, bSlot.key];
+    const helpers = previousHelpers(
+      { last_results: { ...entry({ [atKey]: { raw: '12', unit: 'GΩ', state: 'measured', corrected: { raw: '30', unit: 'GΩ' } }, [bKey]: { raw: '12', unit: 'GΩ', state: 'measured' } }), prior: null } },
+      { block_type: 'transformador_forca', sheet: block.sheet },
+      definition,
+      TEST_RELATORIO,
+    );
+    expect(helpers.get(readingAddressKey(atSlot))).toBe('Anterior: 12 GΩ, 30 GΩ a 20 °C (rev. 1, 05/11/2026)');
+    // A v12 visit's reading (no `corrected`) reads byte-equal to before.
+    expect(helpers.get(readingAddressKey(bSlot))).toBe('Anterior: 12 GΩ (rev. 1, 05/11/2026)');
+    // The winding resistance's corrected value is at 75 °C.
+    const windingSlot = readingSlotsOf(definition, block).find((slot) => slot.testKey === 'resistencia_enrolamento')!;
+    const windingKey = windingSlot.key;
+    const winding = previousHelpers(
+      { last_results: { ...entry({ [windingKey]: { raw: '2.1', unit: 'Ω', state: 'measured', corrected: { raw: '2.3', unit: 'Ω' } } }), prior: null } },
+      { block_type: 'transformador_forca', sheet: block.sheet },
+      definition,
+      TEST_RELATORIO,
+    );
+    expect(winding.get(readingAddressKey(windingSlot))).toBe('Anterior: 2,1 Ω, 2,3 Ω a 75 °C (rev. 1, 05/11/2026)');
+    // An uncorrected test (the disjuntor's contact) reads as before, whatever the reading holds.
+    const disjuntor = getDefinition('v13', 'cabine_primaria', 'disjuntor_mt');
+    const contactSlot = readingSlotsOf(disjuntor).find((slot) => slot.testKey === 'resistencia_contato')!;
+    const contactKey = contactSlot.key;
+    const contact = previousHelpers(
+      { last_results: { ...entry({ [contactKey]: { raw: '40', unit: 'µΩ', state: 'measured', corrected: { raw: '41', unit: 'µΩ' } } }), block_type: 'disjuntor_mt', prior: null } },
+      { block_type: 'disjuntor_mt' },
+      disjuntor,
+      TEST_RELATORIO,
+    );
+    expect(contact.get(readingAddressKey(contactSlot))).toBe('Anterior: 40 µΩ (rev. 1, 05/11/2026)');
+  });
+
+  it('a cell restricted by the drop (30 to 10 GΩ at 20 °C): the restricao point names both values; the conclusion and section 9 keep the reason alone', () => {
+    const snapshot = v13Snapshot();
+    const tf = editBlock(snapshot, 'transformador_forca', (block) => {
+      delete block.sheet.nameplate.tensao_nominal_at;
+      delete block.sheet.nameplate.tensao_nominal_bt;
+      delete block.sheet.test.relacao_transformacao;
+      block.sheet.nameplate.tipo_de_isolacao = cell('ÓLEO MINERAL');
+      block.sheet.nameplate.temperatura_oleo_c = cell(measured('20', '°C'));
+      for (const row of ['0', '1', '2']) block.sheet.test.isolacao!.cells[row]!['1'] = cell(measured('10', 'GΩ'));
+    });
+    const atKey = isolacaoKeys.find((slot) => slot.row === 0)!.key;
+    snapshot.equipment = snapshot.equipment.map((row) =>
+      row.id === tf.equipment_id ? { ...row, last_results: { ...entry({ [atKey]: { raw: '30', unit: 'GΩ', state: 'measured', corrected: { raw: '30', unit: 'GΩ' } } }), prior: null } } : row,
+    );
+    const visit = visitContextOf(snapshot, tf);
+    const test = evaluateTest(tf, definition, definition.tests.find((one) => one.key === 'isolacao')!, visit);
+    expect(captures(test)[0]!.restriction).toMatchObject({ reason: 'queda de mais de 50 % desde a manutenção anterior', compared: 'de 30 GΩ para 10 GΩ, a 20 °C' });
+    const point = derivedPoints(snapshot).find((one) => one.key === `restricao:${tf.id}:isolacao`)!;
+    expect(point.text.startsWith('Ensaio de isolação: valor dentro do critério, com restrição (')).toBe(true);
+    expect(point.text.endsWith(': queda de mais de 50 % desde a manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C))')).toBe(true);
+    // The paragraph (and so section 9's conclusion) names the reason alone, as before.
+    const composed = composeConclusion(tf, definition, 'TR-1', visit).text;
+    expect(composed).toContain('queda de mais de 50 % desde a manutenção anterior)');
+    expect(composed).not.toContain('para 10 GΩ');
+    const printed = section9Layout(snapshot, 9, 'RESULTADOS')!.subsections.flatMap((subsection) => subsection.sheets).find((one) => one.blockId === tf.id)!;
+    expect(JSON.stringify(printed)).not.toContain('para 10 GΩ');
+  });
+
+  it('the contact rise (out) already names both values in its reading point: unchanged', () => {
+    const snapshot = v13Snapshot();
+    const dj = editBlock(snapshot, 'disjuntor_mt', (block) => {
+      block.sheet.test.resistencia_contato = { cells: Object.fromEntries([['0', '64'], ['1', '45'], ['2', '44']].map(([row, raw]) => [row, { '0': cell(measured(raw!, 'µΩ')) }])) };
+    });
+    const disjuntor = getDefinition('v13', 'cabine_primaria', 'disjuntor_mt');
+    const contact = readingSlotsOf(disjuntor).filter((slot) => slot.testKey === 'resistencia_contato');
+    const before = ['40', '44', '44'];
+    snapshot.equipment = snapshot.equipment.map((row) =>
+      row.id === dj.equipment_id
+        ? { ...row, last_results: { ...entry(Object.fromEntries(contact.map((slot, i) => [slot.key, { raw: before[i] ?? '44', unit: 'µΩ', state: 'measured' as const }]))), block_type: 'disjuntor_mt', prior: null } }
+        : row,
+    );
+    const point = derivedPoints(snapshot).find((one) => one.key === `reading:${dj.id}:resistencia_contato`)!;
+    expect(point.text).toContain('64 µΩ');
+    expect(point.text).toContain('(alta de 60 % sobre 40 µΩ da manutenção anterior, rev. 1 de 05/11/2026, acima do limite de 50 %)');
+  });
+});
+
 describe('23.6-UNIT the arrester\'s disconnector prerequisite (PR-02)', () => {
   it('DESLIGADOR ÍNTEGRO NÃO fails the test: the floor is Reprovado, readings within or none; SIM or empty has no effect', () => {
     const failing = plate(sheet('para_raio'), { desligador_integro: 'NÃO' });
@@ -591,9 +687,12 @@ describe('23.5-UNIT section 9 at the fit (the 60 em rule)', () => {
   // ~~Reported to the coordinator (e23v): the spec states 8 pt (16 half points) for this table; the 60 em rule's own
   // measure (`fittedColumns`) needs 61,6 em at 8 pt (v12's table measures 58,9 em there, and the column adds at least
   // 2,2 em with its margins), so it steps on to 7,5 pt (15). Pinned as the rule gives it, every word whole.~~
-  // Fix batch e23w (W2-K2): the approved 8 pt. The corrected column is measured outside the 60 em budget: without it the
-  // table's longest words take 58,9 em at 8 pt (61,6 em with it), and 62,6 em at 8,5 pt, so 8 pt is the first step that fits.
-  it('the transformer\'s table judged by one criterion prints with the 20 °C column inside VALORES, every word whole, at the approved 8 pt', () => {
+  // ~~Fix batch e23w (W2-K2): the approved 8 pt. The corrected column is measured outside the 60 em budget: without it the
+  // table's longest words take 58,9 em at 8 pt (61,6 em with it), and 62,6 em at 8,5 pt, so 8 pt is the first step that fits.~~
+  // Fix batch e23p (P2, the behaviour pass's F3: the PDF broke SECUNDÁRIO and 22,6 at 8 pt): the table is fitted whole, every
+  // column (the 20 °C one included) against the page, its words measured by Arial's advance widths; 8 pt leaves no room for
+  // the margins, so it prints at 7,5 pt (15 half points).
+  it('the transformer\'s table judged by one criterion prints with the 20 °C column inside VALORES, every word whole, at 7,5 pt', () => {
     const snapshot = v13Snapshot();
     // No plate voltages: every row takes the seeded criterion, so the table is the plain one (no ACEITÁVEL column);
     // readings of a field visit (2,0, 2,6 and 1,9 GΩ, as Story 23.1's frame) at 40 °C of oil.
@@ -604,7 +703,8 @@ describe('23.5-UNIT section 9 at the fit (the 60 em rule)', () => {
       for (const [row, raw] of [['0', '2.0'], ['1', '2.6'], ['2', '1.9']] as const) block.sheet.test.isolacao!.cells[row]!['1'] = cell(measured(raw, 'GΩ'));
     });
     const table = tableWith(snapshot, tf.id, '20 °C');
-    expect(table.textHalfPoints).toBe(16);
+    expect(table.textHalfPoints).toBe(15);
+    expect(readingFitWidthEm(table)).toBe(58);
     expect(wordsWiderThanColumns(table, readingFitWidthEm(table))).toEqual([]);
     const top = table.rows.find((row) => row.header === true)!;
     expect(top.cells.map((one) => [one.text, one.span ?? 1])).toEqual([
@@ -630,11 +730,48 @@ describe('23.5-UNIT section 9 at the fit (the 60 em rule)', () => {
     });
     const table = tableWith(snapshot, tf.id, '20 °C');
     expect(wordsWiderThanColumns(table, readingFitWidthEm(table))).toEqual([]);
+    // Fix batch e23p (P2): eleven columns (ACEITÁVEL appended), fitted whole at 7 pt.
+    expect(table.textHalfPoints).toBe(14);
+    expect(readingFitWidthEm(table)).toBe(58);
     const bottom = table.rows.filter((row) => row.header === true).at(-1)!;
     const col = bottom.cells.findIndex((one) => one.text === '20 °C');
     expect(table.rows.filter((row) => row.header !== true && row.band !== true).map((row) => row.cells[col]!.text)).toEqual(['-', '-', '-']);
     const header = tableWith(snapshot, tf.id, 'TEMPERATURA');
     expect(header.rows[2]!.cells[header.rows[1]!.cells.findIndex((one) => one.text === 'TEMPERATURA')]!.text).toBe('-');
+  });
+
+  it('e23p-P2 one criterion with MANUT. ANTERIOR (eleven columns): every word whole at 7 pt, the previous column read corrected', () => {
+    const snapshot = v13Snapshot();
+    const tf = editBlock(snapshot, 'transformador_forca', (block) => {
+      delete block.sheet.nameplate.tensao_nominal_at;
+      delete block.sheet.nameplate.tensao_nominal_bt;
+      block.sheet.nameplate.temperatura_oleo_c = cell(measured('35', '°C'));
+    });
+    const definition = definitionOf(tf);
+    const previous = Object.fromEntries(
+      readingSlotsOf(definition)
+        .filter((slot) => slot.testKey === 'isolacao')
+        .map((slot) => [slot.key, { raw: '12', unit: 'GΩ', state: 'measured' as const, corrected: { raw: '30', unit: 'GΩ' } }]),
+    );
+    snapshot.equipment = snapshot.equipment.map((row) =>
+      row.id === tf.equipment_id
+        ? { ...row, last_results: { relatorio_id: id(9_001), revision_number: 1, issued_at: '2026-01-01T00:00:00.000Z', seed_version: 'v13', block_type: 'transformador_forca', readings: previous, prior: null } }
+        : row,
+    );
+    const table = tableWith(snapshot, tf.id, '20 °C');
+    expect(table.rows.filter((row) => row.header === true).at(-1)!.cells.at(-1)!.text).toBe('MANUT. ANTERIOR');
+    expect(table.columns).toHaveLength(11);
+    expect(table.textHalfPoints).toBe(14);
+    expect(wordsWiderThanColumns(table, readingFitWidthEm(table))).toEqual([]);
+  });
+
+  it('e23p-P2 the v12 transformer\'s insulation table keeps its columns and its 8 pt (no corrected column, never fitted whole)', () => {
+    const snapshot = structuredClone(layoutLockSnapshot('v12'));
+    const tf = blockOf(snapshot, 'transformador_forca');
+    const table = tableWith(snapshot, tf.id, '1 MINUTO');
+    expect(table.textHalfPoints).toBe(16);
+    expect(table.columns).toEqual([6.908888888888888, 6.908888888888888, 6.908888888888888, 5.0088, 6.378399999999999, 4.704444444444444, 7.728977777777778, 6.378399999999999, 8.014311111111109]);
+    expect(readingFitWidthEm(table)).toBe(60);
   });
 
   it('the disjuntor\'s and the seccionadora\'s open and closed tables print the 20 °C column beside VALORES, side by side as one table, every word whole', () => {

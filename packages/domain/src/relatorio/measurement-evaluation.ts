@@ -212,8 +212,10 @@ export interface EvaluatedMeasurementCell {
    * Stories 23.15 and 23.19 (a `phase_deviation` criterion's restricted band, the history rule):
    * why the cell is restricted (`verdict` `restricted`): the short reason the points and the
    * conclusion name, and the helper's sentence after the screen's "Com restrição:".
+   * Fix batch e23p (P3): `compared`, set by the history rule, names both corrected values ("de 2,3 Ω
+   * para 3,5 Ω, a 75 °C"); only the derived point reads it.
    */
-  restriction?: { reason: string; text: string } | null;
+  restriction?: { reason: string; text: string; compared?: string } | null;
 }
 
 export interface EvaluatedMeasurementRow {
@@ -512,7 +514,7 @@ function judged(cell: EvaluatedMeasurementCell): boolean {
 }
 
 /** Marks `cell` with one criterion's answer: an `out` stands over a `within`, and the worst `out` keeps its words. */
-function mark(cell: EvaluatedMeasurementCell, within: boolean, criterion: MeasurementCriterion, helperText: string, excess: number): void {
+function mark(cell: EvaluatedMeasurementCell, within: boolean, criterion: MeasurementCriterion, helperText: string, excess: number, criterionText: string = criterionTextOf(criterion)): void {
   if (within) {
     if (cell.verdict === null) cell.verdict = 'within';
     return;
@@ -520,7 +522,7 @@ function mark(cell: EvaluatedMeasurementCell, within: boolean, criterion: Measur
   if (cell.verdict === 'out' && cell.excess >= excess) return;
   cell.verdict = 'out';
   cell.helperText = helperText;
-  cell.criterionText = criterionTextOf(criterion);
+  cell.criterionText = criterionText;
   cell.sourceName = criterion.source.name;
   cell.excess = excess;
 }
@@ -699,14 +701,16 @@ function groupName(entry: { row: EvaluatedMeasurementRow; cell: EvaluatedMeasure
  * Marks `cell` restricted (out > restricted > within): a cell already out keeps its verdict; a
  * restricted one keeps its first reason and gains the other's.
  */
-function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string): void {
+function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string, compared?: string): void {
   if (cell.verdict === 'out') return;
   if (cell.verdict === 'restricted' && cell.restriction != null) {
-    cell.restriction = { reason: `${cell.restriction.reason}; ${reason}`, text: `${cell.restriction.text} ${text}` };
+    // Fix batch e23p (P3): the comparisons merge as the reasons do.
+    const merged = [cell.restriction.compared, compared].filter((one): one is string => one !== undefined);
+    cell.restriction = { reason: `${cell.restriction.reason}; ${reason}`, text: `${cell.restriction.text} ${text}`, ...(merged.length === 0 ? {} : { compared: merged.join('; ') }) };
     return;
   }
   cell.verdict = 'restricted';
-  cell.restriction = { reason, text };
+  cell.restriction = { reason, text, ...(compared === undefined ? {} : { compared }) };
   cell.criterionText = criterionTextOf(criterion);
   cell.sourceName = criterion.source.name;
 }
@@ -835,6 +839,17 @@ function maxFieldLimit(block: Pick<BlockRow, 'sheet'>, nameplate: readonly Field
 }
 
 /**
+ * Fix batch e23p (P5, the behaviour pass's F7): a `max_field` criterion's wording on this sheet: with
+ * the plate's value, the number it judges by ("≤ 3 Ω, valor de projeto");
+ * without one, the seed's text, as before. The criterion line, an out cell's criterion (and so the
+ * derived point and the conclusion) read it.
+ */
+function maxFieldCriterionText(criterion: Extract<MeasurementCriterion, { type: 'max_field' }>, limit: Limit, byDefault: boolean): string {
+  // authored (e23p, listed for Bruno): the design value's number, "≤ 3 Ω, valor de projeto".
+  return byDefault ? criterionTextOf(criterion) : `${limit.text}, valor de projeto`;
+}
+
+/**
  * Seed v13, batch e23e (Story 23.21; Base rev08 AT-01): every measured number cell at most the plate's
  * `field` (VALOR DE PROJETO), else at most the default; out above, its helper naming the limit and
  * whether it is the design value or the default. A reading above the instrument's limit is judged
@@ -847,7 +862,7 @@ function applyMaxField(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
     for (const cell of row.cells) {
       if (cell.kind !== 'number' || cell.fixed !== null || !isReadingValue(cell.state)) continue;
       const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
-      if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess);
+      if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess, maxFieldCriterionText(criterion, limit, byDefault));
     }
   }
 }
@@ -942,6 +957,8 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
         criterion,
         `variação de mais de ${pctText(pct)} % desde a manutenção anterior`,
         `Variou mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(before.raw, before.unit)} a ${WINDING_REFERENCE_C} °C, rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)}): ${RESTRICTED_CLOSING}`,
+        // authored (e23p, listed for Bruno): both corrected values, as the derived point names them.
+        `de ${correctedText(before.raw, before.unit)} para ${correctedText(now.raw, now.unit)}, a ${WINDING_REFERENCE_C} °C`,
       );
     }
   }
@@ -1195,7 +1212,12 @@ function evaluate(
   // Seed v13 (batch e23t): a criterion read by medium is in force only on that medium (both while it is unknown).
   const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
   const inForce = criteria.filter((criterion) => criterion.type !== 'phase_deviation' || criterion.medium === undefined || medium === null || criterion.medium === medium);
-  const lines: MeasurementCriterionLine[] = inForce.map((criterion) => ({ text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition }));
+  const lines: MeasurementCriterionLine[] = inForce.map((criterion) => {
+    // Fix batch e23p (P5): a maximum read from the plate states its number when the plate gives one.
+    if (criterion.type !== 'max_field') return { text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
+    const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
+    return { text: maxFieldCriterionText(criterion, limit, byDefault), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
+  });
   // Story 23.15: a FO.SERV-03 type's measurement test is titled by its label alone (the CTA's keep "E{n} ·").
   const unnumbered = context.unnumbered;
   return {
@@ -1406,6 +1428,12 @@ export interface RestrictedMeasurement {
   label: string;
   /** "AT, tap atual, Fase C: desvio de 3 % sobre a menor fase", in sheet order. */
   items: string[];
+  /**
+   * Fix batch e23p (P3): `items` as the derived point names them, a history restriction followed by
+   * both corrected values ("…: variação de mais de 10 % desde a manutenção anterior (de 2,3 Ω para
+   * 3,5 Ω, a 75 °C)"); the same as `items` where no cell carries a comparison.
+   */
+  pointItems: string[];
   /** Whether the test also holds a cell out of its criterion (its `reading` entry then speaks for it). */
   hasOut: boolean;
 }
@@ -1414,10 +1442,12 @@ export interface RestrictedMeasurement {
 export function restrictedMeasurements(evaluations: readonly MeasurementTestEvaluation[]): RestrictedMeasurement[] {
   const out: RestrictedMeasurement[] = [];
   for (const test of liveTests(evaluations)) {
-    const items = test.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.fixed === null && cell.verdict === 'restricted' && cell.restriction != null ? [`${measurementWhere(test, row, cell)}: ${cell.restriction.reason}`] : [])));
-    if (items.length === 0) continue;
+    const restricted = test.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.fixed === null && cell.verdict === 'restricted' && cell.restriction != null ? [{ row, cell, restriction: cell.restriction }] : [])));
+    if (restricted.length === 0) continue;
+    const items = restricted.map(({ row, cell, restriction }) => `${measurementWhere(test, row, cell)}: ${restriction.reason}`);
+    const pointItems = restricted.map(({ restriction }, i) => (restriction.compared === undefined ? items[i]! : `${items[i]!} (${restriction.compared})`));
     const hasOut = test.rows.some((row) => row.cells.some((cell) => cell.fixed === null && cell.verdict === 'out'));
-    out.push({ testKey: test.testKey, title: test.title, label: test.label, items, hasOut });
+    out.push({ testKey: test.testKey, title: test.title, label: test.label, items, pointItems, hasOut });
   }
   return out;
 }

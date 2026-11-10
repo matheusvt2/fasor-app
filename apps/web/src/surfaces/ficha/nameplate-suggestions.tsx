@@ -8,7 +8,6 @@ import {
   criarText,
   discardSuggestionOp,
   fieldInputText,
-  oilItemsClearedText,
   hasCreateHint,
   nameplateSuggestions,
   numberPhotos,
@@ -220,15 +219,18 @@ export function useNameplateSuggestions({
    */
   const oilCrossing = () => {
     let cleared = 0;
+    let toast = '';
     return {
       drafts: (blocks: readonly BlockRow[], by: NonNullable<FichaApi['author']>, drafts: readonly OpDraft[]): OpDraft[] => {
         const built = withOilCrossing(by, api.relatorioId, { blocks, files: snapshot.files, equipment_types: snapshot.equipment_types }, drafts);
         cleared = built.cleared;
+        // Fix batch e23p (P4): the kernel's toast, which names the dry fields a crossing to an oil unit cleared.
+        toast = built.toast;
         return built.drafts;
       },
       undoable: (batch: string | null): boolean => {
         if (batch === null || cleared === 0) return false;
-        api.undoable(oilItemsClearedText(cleared), batch);
+        api.undoable(toast, batch);
         return true;
       },
     };

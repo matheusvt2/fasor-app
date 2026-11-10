@@ -123,7 +123,7 @@ describe('23.15-UNIT winding resistance: the deviation between phases by medium 
     const definition = definitionOf(block);
     expect(conclusionFloor(block, definition)).toEqual({ pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: ['restriction'] });
     expect(restrictedMeasurements(evaluateSheetMeasurements(block, definition))).toEqual([
-      { testKey: 'resistencia_enrolamento', title: 'Resistência ôhmica dos enrolamentos', label: 'Resistência ôhmica dos enrolamentos', items: ['AT, tap atual, Fase C: desvio de 3 % sobre a menor fase'], hasOut: false },
+      { testKey: 'resistencia_enrolamento', title: 'Resistência ôhmica dos enrolamentos', label: 'Resistência ôhmica dos enrolamentos', items: ['AT, tap atual, Fase C: desvio de 3 % sobre a menor fase'], pointItems: ['AT, tap atual, Fase C: desvio de 3 % sobre a menor fase'], hasOut: false },
     ]);
     expect(composeConclusion(block, definition, 'TR-1').text).toContain('com restrição na resistência ôhmica dos enrolamentos (AT, tap atual, Fase C: desvio de 3 % sobre a menor fase)');
   });
@@ -215,6 +215,8 @@ describe('23.15-UNIT winding resistance: the deviation between phases by medium 
     expect(cellAt(judged, 0, 0).restriction).toEqual({
       reason: 'variação de mais de 2 % desde a manutenção anterior',
       text: 'Variou mais de 2 % desde a manutenção anterior (1 Ω a 75 °C, rev. 2, 01/10/2026): a conclusão sobe para Com restrições.',
+      // Fix batch e23p (P3): both corrected values, for the derived point.
+      compared: 'de 1 Ω para 1,025 Ω, a 75 °C',
     });
     expect(verdictsOf(measurement(block, 'resistencia_enrolamento', previous(false)), 0)).toEqual(['within', 'within', 'within']);
     // Exactly 2 % is within.
@@ -623,6 +625,11 @@ describe('e23t review fixes: consumers judge under a non-empty visit context', (
     expect(conclusionFloor(tf, definitionOf(tf), visit)!.reasons).toContain('restriction');
     const entry = derivedPoints(snapshot).find((one) => one.key === `restricao:${tf.id}:resistencia_enrolamento`)!;
     expect(entry.text).toContain('variação de mais de 2 % desde a manutenção anterior');
+    // Fix batch e23p (P3): the point names both corrected values; the paragraph keeps the reason alone.
+    expect(entry.text).toBe(
+      'Resistência ôhmica dos enrolamentos: valor dentro do critério, com restrição (AT, tap atual, Fase A: variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C); AT, tap atual, Fase B: variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C); AT, tap atual, Fase C: variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C))',
+    );
+    expect(composeConclusion(tf, definitionOf(tf), 'TR-1', visit).text).not.toContain('para 1,025 Ω');
   });
 });
 

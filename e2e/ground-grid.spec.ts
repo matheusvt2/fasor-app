@@ -1,4 +1,4 @@
-import { derivedParecer, getDefinition, parecerCounts, parecerVerdictLabel, SEED_VERSION, type BlockRow } from '@app/domain';
+import { derivedParecer, derivedPointKindLabel, derivedPoints, getDefinition, parecerCounts, parecerVerdictLabel, SEED_VERSION, type BlockRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { cellOf, deviceSnapshot, kernelOf, openStep, outbox, outboxValues, plateField, setUpRelatorio, testSection, typeCell } from './support/e23t-flow.ts';
@@ -16,6 +16,8 @@ import { expandLocation, section9Chevron } from './support/tree.ts';
  * With VALOR DE PROJETO empty the kernel's helper says the 5 Ω default applies and 3 Ω is within; the
  * design value typed at 2 Ω puts 3 Ω out (the floor Reprovado), the conclusion is confirmed and the
  * derived parecer names the sheet. The DOCX prints the sheet under "Outros equipamentos dos Geradores".
+ * Fix batch e23p (P5): the design value is stated as its number ("≤ 2 Ω, valor de projeto") in the criterion
+ * line, the suggested conclusion and the derived point; with none, the seed's wording.
  * Every expected word is the kernel's over the device's own rows. It issues a revision through the
  * api's one queue and LibreOffice, so it runs in the serial group.
  */
@@ -82,6 +84,9 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
   expect(byDefault.notes).toEqual(['Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω.']);
   expect(byDefault.rows[0]!.cells[0]!.verdict).toBe('within');
   await expect(testSection(page, GRID).locator('[data-measurement-note]')).toHaveText(byDefault.notes![0]!);
+  // Fix batch e23p (P5): with no design value the criterion line reads the seed's wording, as before.
+  expect(byDefault.criterionText).toBe('≤ valor de projeto (sem ele, ≤ 5 Ω)');
+  await expect(testSection(page, GRID).locator('.mt-criterion')).toHaveText(byDefault.criterionText);
   await expect(testSection(page, 'continuidade_malha')).toBeVisible();
 
   // The design value at 2 Ω: 3 Ω is out, the floor Reprovado.
@@ -94,6 +99,10 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
   expect([out.verdict, out.helperText]).toEqual(['out', 'Acima do aceitável (≤ 2 Ω, valor de projeto)']);
   await expect(cellOf(page, GRID, 0, 0).locator('.mf-helper[role="status"]')).toContainText(out.helperText!);
   await expect(testSection(page, GRID).locator('[data-measurement-note]')).toHaveCount(0);
+  // Fix batch e23p (P5): the design value is stated as the number it judges by, in the criterion line and the out cell.
+  expect(judged.measurement(GRID).criterionText).toBe('≤ 2 Ω, valor de projeto');
+  expect(out.criterionText).toBe('≤ 2 Ω, valor de projeto');
+  await expect(testSection(page, GRID).locator('.mt-criterion')).toHaveText('≤ 2 Ω, valor de projeto');
   expect(judged.floorReason).toBe('A ficha exige no mínimo Reprovado · Com restrições: medição fora do critério.');
 
   // The conclusion confirmed at its floor; the derived parecer names the sheet as Reprovado.
@@ -102,10 +111,22 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => (await outboxValues(database, page, `sheet/${blockId}/conclusion/result`)).at(-1)).toBe('reprovado');
+  // Fix batch e23p (P5): the suggested conclusion text names the design value's number.
+  await expect(page.locator('.ficha-conc-text')).toContainText('critério: ≤ 2 Ω, valor de projeto');
   const snapshot = await deviceSnapshot(page, database, relatorioId);
   expect(parecerCounts(snapshot).reprovado).toContain(tag);
   const verdict = derivedParecer(snapshot)!;
   expect(verdict).not.toBeNull();
+  // Fix batch e23p (P5): the derived point names it too, on the Pontos de atenção surface.
+  const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${blockId}:${GRID}`)!;
+  expect(entry.text).toContain('(critério: ≤ 2 Ω, valor de projeto)');
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await page.locator('li.sum-row[data-row="section_8"]').getByRole('button', { name: /^Pontos de atenção/ }).click();
+  await expect(page).toHaveURL(/\/pontos$/);
+  const card = page.locator('.poa-list > .point-of-attention-card.is-auto').filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('reading') }) }).filter({ has: page.locator('.poa-title', { hasText: entry.title }) });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
 
   // --- the DOCX: under "Outros equipamentos dos Geradores" ---
   await setParecer(page, relatorioId, parecerVerdictLabel(verdict) as Parameters<typeof setParecer>[2]);

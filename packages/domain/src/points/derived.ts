@@ -1,6 +1,6 @@
 import { photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
-import { conclusionFloor, effectiveConclusionPair, restrictedItems } from '../relatorio/conclusion.ts';
+import { conclusionFloor, effectiveConclusionPair, restrictedItems, restrictedPointItems } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
 import { restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
 import type { TestEvaluation } from '../relatorio/reading-cells.ts';
@@ -224,7 +224,8 @@ function sheetEntries(
   // Batch e23v (Story 23.6, seed v13): one entry per test with a restricted reading and no `reading` entry.
   for (const test of evaluations) {
     if (withEntry.has(test.testKey)) continue;
-    const items = restrictedItems(test);
+    // Fix batch e23p (P3): the point names the history rule's two corrected values.
+    const items = restrictedPointItems(test);
     if (items.length === 0) continue;
     out.push({
       ...base,
@@ -246,7 +247,7 @@ function sheetEntries(
       key: `restricao:${block.id}:${test.testKey}`,
       test_key: test.testKey,
       // authored (Story 23.6's wording, batch e23t): a restricted test's entry, its cells with their reasons.
-      text: `${test.label}: valor dentro do critério, com restrição (${test.items.join('; ')})`,
+      text: `${test.label}: valor dentro do critério, com restrição (${test.pointItems.join('; ')})`,
     });
   }
   // A Reprovado the floor does not explain: the engineer's own choice.

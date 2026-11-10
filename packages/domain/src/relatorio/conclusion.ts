@@ -468,6 +468,23 @@ export function restrictedItems(test: TestEvaluation): string[] {
   );
 }
 
+/**
+ * Fix batch e23p (P3): `restrictedItems` as the derived point names them: a reading restricted by the
+ * history rule followed by both corrected values ("Primário–Massa: queda de mais de 50 % desde a
+ * manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C)"). The paragraph keeps `restrictedItems`.
+ */
+export function restrictedPointItems(test: TestEvaluation): string[] {
+  return test.tables.flatMap((table) =>
+    table.rows.flatMap((row) =>
+      row.cells.flatMap((cell) => {
+        if (cell.verdict !== 'restricted' || cell.restriction == null) return [];
+        const item = `${readingRowLabel(table.rows, row)}: ${cell.restriction.reason}`;
+        return [cell.restriction.compared === undefined ? item : `${item} (${cell.restriction.compared})`];
+      }),
+    ),
+  );
+}
+
 /** authored (Story 23.6, listed for Bruno): a test's restricted readings in the paragraph, "com restrição no ensaio de isolação (Fase C: …)". */
 function restrictedClause(test: TestEvaluation): string | null {
   const items = restrictedItems(test);

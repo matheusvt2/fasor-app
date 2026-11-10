@@ -3221,7 +3221,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: A v13 table whose rows pick different minimums prints a per-row ACEITÁVEL column; beside MANUT. ANTERIOR the transformer's insulation table has 11 columns and broke every word at the 7 pt floor, so those per-row tables alone may shrink to 6,5 and 6 pt (`PER_ROW_TEXT_STEPS_HALF_POINTS`). v1 to v12 tables keep their steps (layout lock green). 6 pt print needs an OK, or another layout (for example the row minimums in the header, or a line under the table).
   evidence: `packages/domain/src/print/section-9.ts` `PER_ROW_TEXT_STEPS_HALF_POINTS`; `print/criteria-tables-print.test.ts` "e23a review fixes: the band test, the previous visit".
   class: decision
-  state: open (owner: Matheus, with Bruno)
+  state: ~~open (owner: Matheus, with Bruno)~~ closed (2026-11-10, fix batch e23p, P2, on Matheus's approval of the behaviour-pass fixes): the table is now fitted by Arial's advance widths with every column counted against the page (`print/text-metrics.ts`, `WHOLE_FIT_TABLES` in `print/section-9.ts`). The PDF previewed through LibreOffice (`apps/api/src/jobs/generate/v13-insulation-print.integration.test.ts`) prints every word of the four shapes whole: one criterion at 7,5 pt (ten columns), ACEITÁVEL per row at 7 pt (eleven), one criterion with MANUT. ANTERIOR at 7 pt (eleven), ACEITÁVEL with MANUT. ANTERIOR at 6 pt (twelve). On `b307ced1` the same PDF broke "SECUNDÁRIO" and "22,6".
 
 ## Deferred from: Epic 23 batch e23b (2026-11-08)
 
@@ -3351,7 +3351,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The v13 transformer insulation table with the "20 °C" column prints at 8 pt; by the kernel's conservative measure its longest words take 61,6 em against the calibrated 60 em, so the fit holds by the rule as built (the column outside the budget), not by a measured page. No PDF was checked by eye.
   evidence: `packages/domain/src/print/section-9.ts` `fittedColumns` (`outsideBudget`), `readingFitWidthEm`; `relatorio/three-levels.test.ts` (16 half points).
   class: verification
-  state: open (owner: the Epic 23 wave 2 re-check or wave 3 integrated QA: look at a v13 transformer's section 9 in the PDF, every word whole)
+  state: ~~open (owner: the Epic 23 wave 2 re-check or wave 3 integrated QA: look at a v13 transformer's section 9 in the PDF, every word whole)~~ closed (2026-11-10, fix batch e23p, P2): the behaviour pass looked at the PDF and found "SECUNDÁRIO" and "22,6" broken at 8 pt (its F3). The table is now fitted whole by Arial's widths and prints at 7,5 pt, every word whole in the PDF, asserted by `apps/api/src/jobs/generate/v13-insulation-print.integration.test.ts` (it fails on `b307ced1`).
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (authored strings, listed for Bruno)
   summary: The authored pt-BR texts of the batch: the parecer group "por pré-requisito do ensaio não atendido" (the floor's existing word); the contact rise's reason "alta de {N} % sobre {valor} da manutenção anterior, rev. {n} de {dd/mm/aaaa}, acima do limite de {pct} %" (the rise rounded up to one decimal), in the point and the conclusion clause, and its helper "Acima do aceitável: {motivo}".
   evidence: `packages/domain/src/relatorio/parecer.ts` `REPROVADO_REASONS`; `relatorio/restriction.ts` `applyHistoryRise`.
@@ -3470,5 +3470,33 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   - the editor's "Grupo na impressão", which shows the base type's group words;
   - how several recommendations are joined in a hand-chosen Reprovado's point.
   evidence: every `authored (e23z, listed for Bruno)` in `apps/web/src/copy/pt-br.ts`, `packages/domain/src/types/draft-edit.ts`, `packages/domain/src/print/group-for-print.ts`, `packages/domain/src/points/derived.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+
+## Deferred from: Epic 23 fix batch e23p (2026-11-10)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md` (Design Notes, P1 list)
+  summary: the fields neither copy chip copies, measured on the day of the visit: TEMPERATURA DO ÓLEO, TEMPERATURA DO ENROLAMENTO, CONTADOR DE OPERAÇÕES, DESLIGADOR ÍNTEGRO and CONDIÇÃO DO SOLO (`DAY_MEASURED_NAMEPLATE_KEYS`, by key). MÉTODO DE MEDIÇÃO, TAP ATUAL and every plate field keep copying. The list is the batch's reading of the launch's two temperatures.
+  evidence: `packages/domain/src/relatorio/nameplate-copy.ts` `DAY_MEASURED_NAMEPLATE_KEYS`.
+  class: decision
+  state: open (owner: Matheus: confirm the list)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md` (Design Notes, P4 reading)
+  summary: on a v13 oil unit the dry fields (TEMPERATURA DO ENROLAMENTO, CLASSE TÉRMICA) are drawn read-only and empty with the reason, and a crossing to oil clears them. The oil fields of a dry unit keep today's screen: editable, excused, cleared at the crossing to dry. A plate-reading suggestion on a dry field of an oil unit is not drawn on that field (the field is read-only); "Confirmar todos" can still write it, kept unseen and printed "-".
+  evidence: `packages/domain/src/relatorio/oil-rule.ts` `dryFieldExcusedReason`; `apps/web/src/surfaces/ficha/nameplate-section.tsx`.
+  class: decision
+  state: open (owner: Matheus: align the oil fields of a dry unit the same way, or keep them)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md` (P2, sizes)
+  summary: the v13 transformer's insulation table now prints at 7,5 pt (one criterion), 7 pt (ACEITÁVEL per row, or MANUT. ANTERIOR) and 6 pt (both), every word whole; the disjuntor's and the seccionadora's paired tables print as on `b307ced1` (the behaviour pass's F13, reported, not fixed).
+  evidence: `packages/domain/src/print/section-9.ts` `WHOLE_FIT_TABLES`; `relatorio/three-levels.test.ts`; `print/criteria-tables-print.test.ts`.
+  class: note
+  state: open (owner: Matheus, with Bruno, if the smaller sizes need another layout)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md` (authored strings, listed for Bruno)
+  summary: the batch's authored pt-BR texts:
+  - the previous line with its corrected value, "Anterior: {medido}, {corrigido} a {ref} °C (rev. {n}, {dd/mm/aaaa})";
+  - the history comparison in the derived point, "(de {antes} para {agora}, a {ref} °C)";
+  - the dry field's reason, "Não se aplica: {campo} é {valor}.";
+  - the crossing toast's second part, "{m} campo(s) de unidade a seco apagado(s)", joined with " e ";
+  - the Malha's criterion with a design value, "≤ {valor} Ω, valor de projeto".
+  evidence: every `authored (e23p, listed for Bruno)` in `packages/domain/src/print/last-results.ts`, `relatorio/restriction.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/oil-rule.ts`.
   class: decision
   state: open (owner: Bruno, through Matheus)

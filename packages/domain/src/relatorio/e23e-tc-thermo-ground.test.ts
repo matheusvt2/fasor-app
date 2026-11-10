@@ -413,6 +413,42 @@ describe('23.21-UNIT the Malha de aterramento (Base rev08 AT-01, AT-02)', () => 
     expect(printed.heading).toContain('Outros equipamentos');
   });
 
+  it('e23p-P5 with VALOR DE PROJETO 3 Ω the criterion line, the out cell, the point, the suggested and the printed conclusion state "≤ 3 Ω, valor de projeto"; empty, the default wording', () => {
+    const malha = grid(plate(sheet('malha_aterramento'), { valor_projeto_ohm: measured('3', 'Ω') }), '4');
+    const test = measurement(malha, 'resistencia_malha');
+    expect(test.criteria.map((line) => line.text)).toEqual(['≤ 3 Ω, valor de projeto']);
+    expect(test.criterionText).toBe('≤ 3 Ω, valor de projeto');
+    expect(test.rows[0]!.cells[0]).toMatchObject({ verdict: 'out', criterionText: '≤ 3 Ω, valor de projeto', helperText: 'Acima do aceitável (≤ 3 Ω, valor de projeto)' });
+    const snapshot = snapshotOf([malha], true, ['malha_aterramento']);
+    const malhaId = blockIdOf(snapshot, 'malha_aterramento');
+    const block = snapshot.blocks.find((one) => one.id === malhaId)!;
+    const point = derivedPoints(snapshot).find((entry) => entry.key === `reading:${malhaId}:resistencia_malha`)!;
+    expect(point.text).toContain('(critério: ≤ 3 Ω, valor de projeto)');
+    const tag = snapshot.equipment.find((row) => row.id === block.equipment_id)!.tag;
+    const composed = composeConclusion(block, definitionOf(block), tag);
+    expect(composed.text).toContain('critério: ≤ 3 Ω, valor de projeto,');
+    // Concluded with that text confirmed, as the conclude writes it: section 9 prints it.
+    const concluded = structuredClone(block);
+    concluded.sheet.conclusion.result = cell('reprovado');
+    concluded.sheet.conclusion.restriction = cell('com_restricoes');
+    concluded.sheet.conclusion.text = cell(composed.text);
+    concluded.sheet.conclusion.text_status = cell('confirmed');
+    concluded.sheet.conclusion.text_basis = cell(composed.basis);
+    concluded.concluded_by = { actor_id: id(91), at: '2026-11-10T12:00:00.000Z' };
+    snapshot.blocks = snapshot.blocks.map((one) => (one.id === concluded.id ? concluded : one));
+    const printed = section9Layout(snapshot, 9, 'RESULTADOS')!.subsections.flatMap((one) => one.sheets).find((one) => one.blockId === malhaId)!;
+    expect(JSON.stringify(printed)).toContain('≤ 3 Ω, valor de projeto');
+    expect(JSON.stringify(printed)).not.toContain('≤ valor de projeto (sem ele');
+    // Empty: the seed's wording everywhere, as before.
+    const bare = grid(sheet('malha_aterramento'), '6');
+    const bareTest = measurement(bare, 'resistencia_malha');
+    expect(bareTest.criteria.map((line) => line.text)).toEqual(['≤ valor de projeto (sem ele, ≤ 5 Ω)']);
+    expect(bareTest.rows[0]!.cells[0]).toMatchObject({ verdict: 'out', criterionText: '≤ valor de projeto (sem ele, ≤ 5 Ω)' });
+    const bareSnapshot = snapshotOf([bare], true, ['malha_aterramento']);
+    const bareId = blockIdOf(bareSnapshot, 'malha_aterramento');
+    expect(derivedPoints(bareSnapshot).find((entry) => entry.key === `reading:${bareId}:resistencia_malha`)!.text).toContain('(critério: ≤ valor de projeto (sem ele, ≤ 5 Ω))');
+  });
+
   it('a company copy carries its maximum and the thermography\'s grammar, and removing VALOR DE PROJETO leaves the 5 Ω maximum', () => {
     const copy = duplicateSeededType('v13', 'malha_aterramento').draft;
     expect(companyTypeDefinitionSchema.safeParse(copy).success).toBe(true);
