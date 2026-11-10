@@ -381,3 +381,17 @@ Matheus decided:
 | M-7 | Story 24.21 gives no key to equipment that exists today. Should a later step cover it? | Matheus |
 | M-8 | The open questions of fix batch e24h, as its spec stood that evening (an NC row with no point before issuing, a confirmed parecer text that reads stale, the Porto Seguro golden) | Matheus |
 | later | How automatic points should work | Matheus, with Bruno |
+
+## The observation rule, brought forward (2026-11-10, later)
+
+Bruno reported the same day, through Matheus, that he could not write "Observações" on a ficha Aprovado · Sem restrições, and that the same holds for the relatório's conclusion. Matheus decided:
+
+13. An observation never forces a restriction, and this is fixed at once for every relatório on every seed. It does not wait for seed v14.
+14. The Porto Seguro golden is regenerated for the automatic points (25 points become 7).
+15. Story 24.1's frames are approved, with one correction: the unit column of a measurement table is aligned on a row with no crop. Story 24.9 mirrors it in the app.
+
+What it means:
+
+- Fix batch e24h gained item H9 and builds the observation rule. Story 24.3 keeps its other rules (the reading out of its criterion, the restriction boxes, the technician's choice).
+- This is the one conclusion rule that reaches relatórios on seed v13 and older. Decision 5 still holds for the rest: a reading out of its criterion gives Reprovado only on v14.
+- A ficha already concluded keeps its stored pair. No golden moved by the observation rule.
