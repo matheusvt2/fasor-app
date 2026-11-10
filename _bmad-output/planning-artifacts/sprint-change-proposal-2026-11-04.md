@@ -49,7 +49,7 @@ Unit and api are healthy, at about 40 ms per test. The e2e groups carry the time
      - the device's 3 s poll of the job (`GenerateWatcher`, `pollMs = 3000`).
    - ~~Nobody has measured the breakdown.~~ *(2026-11-04, T2 review: wrong. The job already logs one `generate timing` line with `stages_ms` (`apps/api/src/jobs/generate/job.ts`, Story 14.10 part 4), `job-timing.test.ts` covers it and `generation-time.integration.test.ts` asserts per-stage targets from it. What is unmeasured is the device side after the job (the 3 s poll and the pull) and the soffice spawn inside the conversion stage.)*
 
-**What changed in the recommendation during the analysis.** The TEA reading first named "per-worker ids for the Porto Seguro fixture, so the document specs run on two workers" as the remaining big lever (5 to 6 min). It is not, because of AD-15. Two workers would overlap only the UI part of each document test; the generations would still queue one after the other. The honest estimate is 1 to 2 min, with the flakiness history `e2e/support/groups.ts` records for every raise in load. The real lever is the time of one generation, and it needs measuring before it is changed.
+**What changed in the recommendation during the analysis.** The TEA reading first named "per-worker ids for the Porto Seguro fixture, so the document specs run on two workers" as the remaining big lever (5 to 6 min). It is not, because of AD-15. Two workers would overlap only the UI part of each document test; the generations would still queue one after the other. ~~The honest estimate is 1 to 2 min, with the flakiness history `e2e/support/groups.ts` records for every raise in load.~~ *(2026-11-09, chore T3 § 4.4: measured wrong. The generations are 5.9 min of job time in a 30.6 min serial group; the other 24 min are UI work that two workers overlap. The estimate is 9 to 13 min.)* The real lever is the time of one generation, and it needs measuring before it is changed.
 
 ## 2. Impact analysis
 
@@ -79,7 +79,7 @@ Unit and api are healthy, at about 40 ms per test. The e2e groups carry the time
 | Option | Verdict | Why |
 | --- | --- | --- |
 | Direct adjustment (T2 chore and generation spike) | **Recommended** | Low effort, low risk, keeps every behavior tested end to end |
-| Per-worker fixture ids, document specs on two workers | Not now | 1 to 2 min, because AD-15 serializes the generations; adds load-sensitive flakiness |
+| Per-worker fixture ids, document specs on two workers | ~~Not now~~ *(2026-11-09, Matheus: approved as chore T3, § 4.4, "pode fazer 1 e 2 ja")* | ~~1 to 2 min, because AD-15 serializes the generations; adds load-sensitive flakiness~~ *(2026-11-09: the wave 3 gate measured 5.9 min of generation in 30.6 min of serial wall time, so 9 to 13 min; the tap-timing specs keep one worker to themselves)* |
 | Drop the DOCX tails of the per-type specs (`cta`, `qgbt`, `seed-v9`, `seed-v10`, `action-plan`, …) | Rejected | The api `docx-*.test.ts` files cover the content, but this saves only 1 to 2 min, and each tail is its story's end-to-end proof, which `AGENTS.md` requires ("Nothing ships untested") |
 | Move the ~45 queue-free tests out of serial files | Rejected | About 1 min for a split of eleven spec files |
 | Retag `@p0` (322 tests, 63 % of the suite) | Not now | The story gate (E11-A1) already runs only the touched specs; `@p0` runs once per wave |
@@ -143,6 +143,45 @@ Proposed spec file: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
 
 ~~For example: "a change limited to `e2e/` test code, which removes no assertion, may go to main directly after its touched specs pass." Or was it a one-off? If it is standing, the Policy line "One branch and one pull request per story" gains it beside the date, struck-through style per the planning-document rule.~~
 
+### 4.4 Chore T3: split the serial group by resource (added 2026-11-09)
+
+**Dev model:** opus · **Effort:** high
+
+Approved by Matheus on 2026-11-09 ("pode fazer 1 e 2 ja"). Spec: `_bmad-output/implementation-artifacts/spec-t3-serial-split.md`, built with `bmad-build-auto` on branch `t3-serial-split`.
+
+**Why the 1 to 2 min estimate of § 3 was wrong.** It assumed the generations were most of a document test. The wave 3 gate of 2026-11-09 (main `ef099d41`, `test:e2e:full`, 651 tests, 53.6 min wall, load 5 to 7) says otherwise. Its serial group ran 187 tests in 30.6 min on one worker; each test was matched to the api's `generate timing` lines and the device's `ux_event` waits inside its window:
+
+| Class | Spec files | Tests | Time | Share | Generation job time |
+| --- | --- | --- | --- | --- | --- |
+| Issue or preview a document (queue and LibreOffice; 11 also load the fixed-id fixture) | 46 | 124 | 20.9 min | 69 % | 5.9 min (78 jobs) |
+| Time a tap against a render, or measure the CPU (8 tap specs, `tap-budget-signal`, `review-layout-interaction-2026-10-08`, `usage-events-documents`) | 11 | 42 | 5.2 min | 17 % | 0.04 min |
+| Real reading jobs (`*-pipeline`, `plate-every-type`) | 4 | 18 | 3.9 min | 13 % | none (3.1 min of reading waits) |
+| Hold the generate request at the network (`loading-states`) | 1 | 3 | 0.1 min | 0.3 % | none |
+
+So a document test is about 28 % generation and 72 % UI work (sign-in 1.6 min, pushed drafts 0.9 min, sync 0.9 min across the group, then the screens). AD-15 still serializes the 5.9 min of jobs; two workers overlap the rest. A longest-first schedule of the 133 tests that need no quiet CPU on two workers gives 12.5 min at the measured speed and 16.2 min with every test 30 % slower under the extra load. The 42 timing tests add 5.2 min alone. The estimate is a serial phase of 18 to 21 min against 30.6 min: **9 to 13 min saved**, above the 5 min bar set before building.
+
+**Lanes.** The serial group becomes two lanes, run after the parallel group in this order:
+
+1. `queue`: the document, reading and network-held specs on two workers, `fullyParallel` (no serial spec uses `describe.serial` or `beforeAll`). Each worker works on its own pair and on its own copy of the small Porto Seguro fixture. Generation stays at concurrency 1 (AD-15 unchanged); the queue orders the jobs while the UI work overlaps.
+2. `solo`: the eleven timing specs on one worker, after the `queue` lane has ended, so nothing runs beside them.
+
+**Acceptance criteria.**
+
+1. **Per-worker fixture copies.** Given an e2e worker company, when its spec loads the small Porto Seguro fixture, then it gets a copy whose every id (op, entity, relatório, project, block, cabine, equipment) is derived from that company, and loading or removing it never touches another company's copy. The api suite's `TEST_SEED` companies keep the fixed ids. The specs take the copy's ids from one helper, never from the fixture's constants.
+2. **Lanes.** `e2e/support/groups.ts` names each serial spec's lane and resource. `scripts/e2e.ts` runs `parallel`, then `queue` on two workers, then `solo` on one worker, always all three, and fails when any failed. `--workers=N` still reaches the parallel group only, and `PARALLEL_WORKERS` stays 2.
+3. **Guards.** The global setup refuses a run that would put a `queue` spec beside more than the lane's workers, or a `solo` spec beside any other worker. The `test:unit` guards still keep every spec that generates, previews or loads the fixture out of the parallel group, and every tap-timing spec in `solo`.
+4. **Leak check.** The global teardown's leak check still fails a run where a worker's user wrote outside its own pair, and it passes on the two-worker `queue` lane.
+5. **Reports.** `summary.json` holds one entry per lane (tests, outcomes, duration, start time), and each lane writes its own `timings-{lane}.json` and JSON report.
+6. **Unit coverage.** `scripts/e2e.test.ts` covers the lane order, each lane's worker count with and without `--workers`, the combined exit code, the setup refusal and the fixture id derivation.
+7. **Docs.** `AGENTS.md` "Running and verifying", `docs/kbs/workflow/e2e-testing.md` and `docs/kbs/log.md` describe the lanes, struck through and dated where they change.
+
+**Definition of ready:** this section approved (2026-11-09) and the wave 3 baseline recorded above.
+
+**Definition of done:**
+- AC 1 to 7 met; `lint`, `static` and `test:unit` green, output in the PR.
+- Two `pnpm test:e2e:full` runs on the branch under the host lock, each recorded in the PR with the `queue` and `solo` wall times, the whole run's wall time and the load line, against this baseline (serial 30.6 min, total 53.6 min).
+- A test red under the new lanes and green alone is fixed, or its spec goes back to `solo` with a dated `why`.
+
 ## 5. Implementation handoff
 
 **Scope: Minor.** The Developer agent implements directly. No backlog reorganization and no PM or Architect replan.
@@ -152,6 +191,7 @@ Proposed spec file: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
 | 4.1 Chore T2 | Developer (`bmad-build`, opus · medium) | AC 1 to 4 met, gate output in the PR |
 | 4.2 Generation spike | Developer or TEA (opus · high) | Findings note written; a costed story proposal only if worth it |
 | 4.3 Decision-of-record line | Coordinator | The line added to `AGENTS.md` (2026-11-04, a one-off; no Policy amendment) |
+| 4.4 Chore T3 (added 2026-11-09) | Developer (`bmad-build-auto`, opus · high) | AC 1 to 7 met, two `test:e2e:full` runs recorded in the PR |
 
 **Success criteria.**
 - No spec waits for the sync tick again; the guard proves it in `test:unit`.
