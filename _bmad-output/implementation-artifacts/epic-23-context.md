@@ -460,8 +460,12 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
   - Items 1 and 2 failed: the v13 transformer insulation table in print.
 - **PR #300** (`b307ced1`), 2026-11-10: tests only. It closes the Epic 23 verification rows of `deferred-work.md`.
 - **Fix batch e23p**, PR #301, merged as `9add87b5` on 2026-11-10 (no contract change: still 40, minimum 40). It fixes the pass findings F2, F3, F4 (the screen and the point's text), F5 and F7. Its record and its gates are in § "Fix batch e23p".
-- **Third deploy.** COORDINATOR-FILLS
-- **Release v0.8.0.** COORDINATOR-FILLS
+- **Third deploy.** *(2026-11-10, coordinator.)* `9add87b5` (fix batch e23p; contract 40, minimum 40) went to production on 2026-11-10 through `infra/bin/deploy`, on Matheus's word.
+  - Health was up on every component.
+  - The smoke passed 8 of 8.
+  - The usage-event check found 6 `session_start` with the new `app_version` since 2026-11-10T16:30:29Z and 0 `ux_event_sink_failed`.
+  - The image tag before it was `47be2638`.
+- **Release v0.8.0.** *(2026-11-10, coordinator.)* Published on 2026-11-10 on Matheus's word, with the tag `v0.8.0` on `9add87b5`. It covers Epic 23, T3 and fix batch e23p.
 - **Paid plate eval** of `bedrock-structuring-8`, on Matheus's AWS login (profile `fasor-admin`), Textract, Bedrock `us-east-1`. The log is stamped 2026-11-10 05:50 to 05:54 UTC, which is after the first deploy.
 
   | Set | Haiku 4.5 | Nova Pro |
@@ -486,6 +490,6 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
 - **Still open** (handover of 2026-11-10):
   - ~~the second deploy;~~ *(2026-11-10, coordinator: done, see "Second deploy" above.)*
   - ~~the browser behavior pass, never run: the PDF of the v13 insulation table at 8 pt, the TP insulation, the contact rise, thermography, the Malha and the base import;~~ *(2026-11-10, coordinator: run, see "Browser behaviour pass" above.)*
-  - the release v0.8.0, on Matheus's word;
+  - ~~the release v0.8.0, on Matheus's word;~~ *(2026-11-10, coordinator: published, see "Release v0.8.0" above.)*
   - ~~the optional read-only count, in production, of the company copies made before `base_block_type`;~~ *(2026-11-10, coordinator: run, zero company type versions, see "Read-only production counts" above.)*
   - the Epic 23 retrospective.
