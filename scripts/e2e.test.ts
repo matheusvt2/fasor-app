@@ -510,6 +510,51 @@ describe('the e2e run guards', () => {
   });
 });
 
+describe('playwright.config.ts per lane (chore T3)', () => {
+  const specs = e2eFiles().filter((path) => path.endsWith('.spec.ts'));
+  const asList = (value: unknown): RegExp[] => (value === undefined ? [] : ((Array.isArray(value) ? value : [value]) as RegExp[]));
+  const inLane: Record<E2eGroup, (path: string) => boolean> = {
+    parallel: (path) => NON_SERIAL_SPEC_PATTERN.test(path),
+    queue: (path) => SERIAL_SPECS.some((spec) => spec.lane === 'queue' && basename(path) === spec.file),
+    solo: (path) => SERIAL_SPECS.some((spec) => spec.lane === 'solo' && basename(path) === spec.file),
+  };
+  const expected: Record<E2eGroup, { workers: number; fullyParallel: boolean }> = {
+    parallel: { workers: PARALLEL_WORKERS, fullyParallel: true },
+    queue: { workers: 2, fullyParallel: true },
+    solo: { workers: 1, fullyParallel: false },
+  };
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  for (const lane of E2E_GROUPS) {
+    it(`under E2E_GROUP=${lane} each project runs exactly the lane's specs, on its worker count and parallelism`, async () => {
+      vi.stubEnv('E2E_GROUP', lane);
+      vi.resetModules();
+      try {
+        const config = (await import('../playwright.config.ts')).default;
+        expect(config.workers).toBe(expected[lane].workers);
+        expect(config.fullyParallel).toBe(expected[lane].fullyParallel);
+        expect(config.projects!.length).toBeGreaterThan(0);
+        for (const project of config.projects!) {
+          const match = asList(project.testMatch);
+          const ignore = asList(project.testIgnore);
+          const durability = /durability\.spec\.ts/;
+          for (const path of specs) {
+            const ofProject = project.name === 'desktop-chrome' ? !durability.test(path) : durability.test(path);
+            const runs = (match.length === 0 || match.some((re) => re.test(path))) && !ignore.some((re) => re.test(path));
+            expect(runs, `${lane} ${project.name} ${path}`).toBe(ofProject && inLane[lane](path));
+          }
+        }
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+  }
+});
+
 describe('the e2e workers\' fixture copies (chore T3)', () => {
   const a = workerSeed(0).companies[1].companyId;
   const b = workerSeed(1).companies[1].companyId;
@@ -537,6 +582,15 @@ describe('the e2e workers\' fixture copies (chore T3)', () => {
     expect(copyA.log.map((op) => op.path)).toContain(`block/${copyA.blockChaveId}`);
     expect(JSON.stringify(copyA.log)).not.toContain(SMALL_FIXTURE_RELATORIO_ID);
     expect(JSON.stringify(copyA.log)).not.toContain(portoSeguroSmall.companyId);
+  });
+
+  // Literals computed once from the baseline formula (4992dd88 `sampleId`: sha256 of
+  // `${companyId}:${originalId}`, the copy salting it with `e2e-copy:`), so a change to the
+  // derivation fails here instead of breaking the re-runs of `seed-users --sample-relatorio`.
+  it('keeps the derived ids of a fixed company: the developer sample\'s as before the refactor, and the copy\'s', () => {
+    const company = '01999999-aaaa-7bbb-8ccc-dddddddddddd';
+    expect(sampleRelatorioIds(company).relatorioId).toBe('019966c1-0000-721c-ae11-425e4268effa');
+    expect(smallFixtureCopy(company).relatorioId).toBe('019966c1-0000-7f36-9c98-bf992db85b83');
   });
 });
 
@@ -574,6 +628,13 @@ describe('the e2e groups', () => {
       if (timed.test(readFileSync(path, 'utf8'))) expect(LANE_SPEC_PATTERN.solo.test(path), path).toBe(true);
     }
     for (const spec of SERIAL_SPECS.filter((entry) => /^times (a|every) tap/.test(entry.why))) expect(spec.lane, spec.file).toBe('solo');
+  });
+
+  it('seeds and removes the small fixture only through export-fixture.ts, so no e2e source reaches its fixed ids (chore T3)', () => {
+    const offenders = e2eFiles().filter(
+      (path) => path !== join(e2eDir, 'support', 'export-fixture.ts') && /seedPortoSeguroSmall|removePortoSeguroSmall/.test(readFileSync(path, 'utf8')),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it('takes every fixture id from the worker\'s copy: no e2e file imports the fixture\'s fixed ids or names EXPORT_RELATORIO_ID (chore T3)', () => {

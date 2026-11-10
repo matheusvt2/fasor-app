@@ -12,7 +12,21 @@ followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/planning-artifacts/sprint-change-proposal-2026-11-04.md'
 warnings: ['oversized']
-deferred: []
+deferred:
+  - summary: >-
+      No test pins removePortoSeguroSmall({ copyOf }) refusing a copy row another company holds.
+    evidence: |-
+      test-fixtures.integration.test.ts covers only the not-a-test-company throw; every case has one holder. The state needs ops forged across companies, which no current path produces.
+    location: >-
+      apps/api/src/db/test-fixtures.ts:124
+    severity: low
+  - summary: >-
+      verificacoes-local.spec.ts (queue lane) counts animation frames against the camera focus watch while a second worker shares the CPU.
+    evidence: |-
+      Edge Case Hunter, low confidence. If it goes red in a full run and passes alone, it moves to solo per the definition of done; the two full runs record the outcome.
+    location: >-
+      e2e/verificacoes-local.spec.ts:848
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -89,6 +103,22 @@ deferred: []
 - Given `pnpm test:e2e:full`, when it runs, then the log shows the parallel, queue (2 workers) and solo (1 worker) Playwright runs in that order, and `summary.json` and `timings-{parallel,queue,solo}.json` name each lane with its tests and duration.
 - Given a lane that fails, when the run ends, then the later lanes still ran and the command exits 1.
 - Given `test:api`, when it runs, then the fixed-id fixture tests pass unchanged.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-10 — Review pass
+- Layers skipped: Blind Hunter and Intent Alignment (token economy; the integrated review covers them).
+- verdicts: 7 findings — high 0, medium 2, low 2, false 2, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` playwright.config.ts per-lane testIgnore, workers and fullyParallel never evaluated under E2E_GROUP — added a per-lane config test in scripts/e2e.test.ts (parallel, queue, solo).
+  - `[low]` `[defer]` removal refusal for a copy held by another company untested — deferred, no path produces the state.
+  - `[medium]` `[patch]` derived sample ids not pinned across the refactor (smoke-seed idempotence) — pinned literals computed from the 4992dd88 formula.
+  - `[low]` `[patch]` an e2e file seeding the fixed ids would pass the guard — guard fails any e2e source but support/export-fixture.ts naming seedPortoSeguroSmall or removePortoSeguroSmall.
+  - `[false]` `[reject]` prev_op_id and batch_id not remapped — every fixture op carries null for both (small/op-log.ts:307-308).
+  - `[maybe-false]` `[defer]` verificacoes-local frame poll under two workers — settled by the two full runs.
+  - `[false]` `[reject]` photo-numbers closeDialog timing change slips by — every assertion kept; the escapeDialog change is the known E9-Q13 focus race, dated in the spec and named in the PR.
 
 ## Design Notes
 
