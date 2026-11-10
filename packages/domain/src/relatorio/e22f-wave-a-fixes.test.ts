@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import { newPointRow } from '../points/checks.ts';
-import { derivedPoints, ncRowPointText, possibleDuplicatePairs, possibleDuplicatePoints, possibleDuplicatesText, predatesItemSource } from '../points/derived.ts';
+import { ncRowPointText, predatesItemSource } from '../points/derived.ts';
+import { sectionEightEntries } from '../points/summary.ts';
 import { PARECER_MISSING_TITLE, section10Layout } from '../print/section-10.ts';
 import type { BlockRow, Cell, PointRow, Sheet } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -206,7 +207,8 @@ function ncOn(block: BlockRow, index: number, observation: string | null): Block
   return { ...block, sheet: { ...block.sheet, checklist: { ...block.sheet.checklist, [item.key]: { result: cell('NC'), ...(observation === null ? {} : { observation: cell(observation) }) } } } };
 }
 
-describe('e22f S2 and N4: possible duplicates', () => {
+// Fix batch e24h (2026-11-10): ~~possible duplicates~~ retired with the automatic entries; the cases below hold the new rule.
+describe('e22f S2 and N4: possible duplicates (fix batch e24h: none can exist)', () => {
   const base = fresh();
   const trafo = firstOf(base, 'transformador_forca');
   const withNc = edit(base, trafo.id, (b) => ncOn(ncOn(allC(b), 0, 'oxidação nos terminais'), 1, null));
@@ -219,31 +221,22 @@ describe('e22f S2 and N4: possible duplicates', () => {
     expect(predatesItemSource(legacyPoint(base, '019966b0-e22f-7003-8000-000000000002', null))).toBe(true);
   });
 
-  it('a pre-31 manual point of the equipment pairs with each NC entry: flagged, counted, a pending pre-issue row on section 8 (never blocking)', () => {
+  it('a pre-31 manual point of the equipment beside two NC rows: one entry, no flag, no pre-issue row on section 8 but its own', () => {
     const snapshot = { ...withNc, points: [legacyPoint(withNc, '019966b0-e22f-7003-8000-000000000003', trafo.equipment_id)] };
-    expect(possibleDuplicatePoints(snapshot).pointIds.size).toBe(1);
-    expect(possibleDuplicatePairs(snapshot)).toBe(2);
-    const row = preIssue(snapshot).find((r) => r.kind === 'points_possible_duplicate');
-    expect(row).toMatchObject({ row: 'section_8', severity: 'pending', text: '2 pares de pontos possivelmente duplicados' });
-    expect(possibleDuplicatesText(1)).toBe('1 par de pontos possivelmente duplicados');
-    // Nothing is removed on its own: both NC entries still print.
-    expect(derivedPoints(snapshot).filter((e) => e.kind === 'nc')).toHaveLength(2);
+    expect(sectionEightEntries(snapshot)).toHaveLength(1);
+    expect(preIssue(snapshot).filter((r) => r.row === 'section_8').map((r) => r.kind)).toEqual(['points_sem_prazo']);
   });
 
-  it('a manual point written since (item_key null) is not flagged; one carrying the item suppresses its entry', () => {
+  it('a manual point written since, with or without the item: one entry each, the NC rows list nothing', () => {
     const fresh31 = newPointRow({ id: '019966b0-e22f-7003-8000-000000000004', relatorioId: base.relatorio.id, text: 'Vara de manobra sem certificado', equipmentId: trafo.equipment_id, origin: 'manual', action: null }, []);
-    const later = { ...withNc, points: [fresh31] };
-    expect(possibleDuplicatePairs(later)).toBe(0);
-    expect(preIssue(later).some((r) => r.kind === 'points_possible_duplicate')).toBe(false);
-    const named = { ...withNc, points: [{ ...fresh31, item_key: itemKey }] };
-    expect(derivedPoints(named).filter((e) => e.kind === 'nc').map((e) => e.item_key)).toEqual([findDefinition(trafo.seed_version, trafo.block_type)!.checklist![1]!.key]);
+    expect(sectionEightEntries({ ...withNc, points: [fresh31] })).toHaveLength(1);
+    expect(sectionEightEntries({ ...withNc, points: [{ ...fresh31, item_key: itemKey }] })).toHaveLength(1);
+    expect(sectionEightEntries(withNc)).toEqual([]);
   });
 
-  it('S4: an NC row\'s "Criar ponto de atenção" text is its derived entry\'s, as "Editar" seeds it', () => {
+  it('S4: an NC row\'s "Criar ponto de atenção" text names the item and its observation', () => {
     const block = withNc.blocks.find((b) => b.id === trafo.id)!;
-    const entry = derivedPoints(withNc).find((e) => e.kind === 'nc' && e.item_key === itemKey)!;
-    expect(ncRowPointText(withNc, { block }, itemKey)).toBe(entry.text);
-    expect(entry.text).toMatch(/^Item 1 \(.+\): oxidação nos terminais$/);
+    expect(ncRowPointText(withNc, { block }, itemKey)).toMatch(/^Item 1 \(.+\): oxidação nos terminais$/);
     expect(ncRowPointText(withNc, { block }, 'no_such_item')).toBe('');
   });
 });

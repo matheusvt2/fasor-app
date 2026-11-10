@@ -3,7 +3,8 @@ import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { groupForPrint } from '../print/group-for-print.ts';
 import { applyOp } from '../ops/apply.ts';
 import { makeOp } from '../ops/op.ts';
-import { derivedPoints } from '../points/derived.ts';
+import { hasPointSource } from '../points/derived.ts';
+import { resolveSection8 } from '../print/section-8.ts';
 import { section9Layout, type PrintTable } from '../print/section-9.ts';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
@@ -153,7 +154,8 @@ describe('23.18-UNIT polarity, function and the S classes (Base rev08 TC-03, TP-
       displayText: 'Invertida',
       verdict: 'out',
       missing: false,
-      helperText: 'Polaridade invertida: a ficha fica Reprovado e gera um ponto de atenção.',
+      // Fix batch e24h: the helper no longer promises a point (was "… e gera um ponto de atenção.").
+      helperText: 'Polaridade invertida: a ficha fica Reprovado.',
       outText: 'polaridade invertida',
     });
     expect(row.condicao).toBe('INSATISFATÓRIO');
@@ -296,9 +298,9 @@ describe('23.20-UNIT thermography by NETA MTS-2023 Table 100.18, applicable whil
     expect(test.rows[0]!.cells[0]).toMatchObject({ verdict: 'out', helperText: 'Discrepância grave (20 °C, acima de 15 °C): reparar imediatamente' });
     expect(conclusionFloor(block, definitionOf(block))?.pair.result).toBe('reprovado');
     const snapshot = snapshotOf([block]);
-    const point = derivedPoints(snapshot).find((one) => one.test_key === 'termografia' && one.block_id === blockIdOf(snapshot, 'para_raio'))!;
-    expect(point.kind).toBe('reading');
-    expect(point.text).toContain('Termografia: 20 °C em Conexões');
+    // Fix batch e24h: the finding stands (it floors the parecer) and prints no point (was a derived point naming the test).
+    expect(hasPointSource(snapshot)).toBe(true);
+    expect(resolveSection8(snapshot, new Map())).toEqual([]);
   });
 
   it('review fix: a ΔT above the instrument\'s limit is above every bound, out; the bounds 3 / 3,1 / 15 / 15,1 hold', () => {
@@ -422,8 +424,8 @@ describe('23.21-UNIT the Malha de aterramento (Base rev08 AT-01, AT-02)', () => 
     const snapshot = snapshotOf([malha], true, ['malha_aterramento']);
     const malhaId = blockIdOf(snapshot, 'malha_aterramento');
     const block = snapshot.blocks.find((one) => one.id === malhaId)!;
-    const point = derivedPoints(snapshot).find((entry) => entry.key === `reading:${malhaId}:resistencia_malha`)!;
-    expect(point.text).toContain('(critério: ≤ 3 Ω, valor de projeto)');
+    // Fix batch e24h: no derived point carries the criterion any more (was "(critério: ≤ 3 Ω, valor de projeto)").
+    expect(resolveSection8(snapshot, new Map())).toEqual([]);
     const tag = snapshot.equipment.find((row) => row.id === block.equipment_id)!.tag;
     const composed = composeConclusion(block, definitionOf(block), tag);
     expect(composed.text).toContain('critério: ≤ 3 Ω, valor de projeto,');
@@ -444,9 +446,8 @@ describe('23.21-UNIT the Malha de aterramento (Base rev08 AT-01, AT-02)', () => 
     const bareTest = measurement(bare, 'resistencia_malha');
     expect(bareTest.criteria.map((line) => line.text)).toEqual(['≤ valor de projeto (sem ele, ≤ 5 Ω)']);
     expect(bareTest.rows[0]!.cells[0]).toMatchObject({ verdict: 'out', criterionText: '≤ valor de projeto (sem ele, ≤ 5 Ω)' });
-    const bareSnapshot = snapshotOf([bare], true, ['malha_aterramento']);
-    const bareId = blockIdOf(bareSnapshot, 'malha_aterramento');
-    expect(derivedPoints(bareSnapshot).find((entry) => entry.key === `reading:${bareId}:resistencia_malha`)!.text).toContain('(critério: ≤ valor de projeto (sem ele, ≤ 5 Ω))');
+    // Fix batch e24h: ~~the derived point's "(critério: ≤ valor de projeto (sem ele, ≤ 5 Ω))"~~; the finding stands, no point.
+    expect(hasPointSource(snapshotOf([bare], true, ['malha_aterramento']))).toBe(true);
   });
 
   it('a company copy carries its maximum and the thermography\'s grammar, and removing VALOR DE PROJETO leaves the 5 Ω maximum', () => {

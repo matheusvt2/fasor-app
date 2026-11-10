@@ -2,8 +2,6 @@ import {
   buildSnapshot,
   cellAddressesOf,
   conclusionFloorReasonText,
-  derivedPointKindLabel,
-  derivedPoints,
   EMPTY_DEFINITION_CONTEXT,
   entityKey,
   evaluateTest,
@@ -59,7 +57,6 @@ const entities = (page: Page) => readStore<EntityRecord>(page, database, 'entiti
 const toast = (page: Page) => page.getByTestId('toast');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
-const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
 const AT = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
@@ -90,7 +87,7 @@ const oilAt20 = (relatorioId: string, blockId: string): OpDraft[] => [
   officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/temperatura_oleo_c`, { raw: '20', unit: '°C', state: 'measured' }),
 ];
 
-test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of the obra at 4 GΩ (20 °C): restricted by the drop, the helper naming rev. 1 and its value at 20 °C; B\'s DOCX prints the 20 °C column, MANUT. ANTERIOR and the restricted test in section 8', async ({
+test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of the obra at 4 GΩ (20 °C): restricted by the drop, the helper naming rev. 1 and its value at 20 °C; B\'s DOCX prints the 20 °C column and MANUT. ANTERIOR, and no automatic point in section 8 (fix batch e24h)', async ({
   page,
 }) => {
   test.setTimeout(480_000);
@@ -165,18 +162,17 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
   await expect(page.locator('.conclusion-hint')).toHaveText(reason);
 
-  // Fix batch e23p (P3): the derived restricao point names both corrected values, on the Pontos de atenção surface.
-  const entry = derivedPoints(snapshot).find((one) => one.key === `restricao:${trB.id}:isolacao`)!;
-  expect(entry.text).toContain(': queda de mais de 50 % desde a manutenção anterior (de 10 GΩ para 4 GΩ, a 20 °C)');
+  // ~~Fix batch e23p (P3): the derived restricao point names both corrected values, on the Pontos de atenção surface.~~
+  // Fix batch e24h (2026-11-10): no automatic point; Pontos lists nothing until the technician creates one.
   await page.goto(`/relatorio/${b.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await expect(row8(page).locator('.sum-status')).toHaveText('Nenhum ponto de atenção');
   await row8(page).getByRole('button', { name: /^Pontos de atenção/ }).click();
   await expect(page).toHaveURL(/\/pontos$/);
-  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('restricao') }) });
-  await expect(card).toHaveCount(1);
-  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
 
-  // B's DOCX: the insulation table with the 20 °C column and MANUT. ANTERIOR, and the restricted test in section 8.
+  // B's DOCX: the insulation table with the 20 °C column and MANUT. ANTERIOR; no automatic point in section 8.
   const structure = await issue(page, b.relatorioId, 1);
   const table = structure.tables.find((one) => one.some((row) => row.includes('20 °C')) && one.some((row) => row.includes('MANUT. ANTERIOR')))!;
   expect(table).toBeDefined();
@@ -184,7 +180,6 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   const data = table.slice(table.indexOf(labels) + 1);
   expect(data[0]![labels.indexOf('20 °C')]).toBe('4');
   expect(data[0]!.at(-1)).toBe('10 GΩ');
-  expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio com restrição: ') && paragraph.includes('valor dentro do critério, com restrição'))).toBe(true);
-  // Fix batch e23p (P3): while the point is not written, section 8's bullet is its text, both values named.
-  expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio com restrição: ') && paragraph.includes('(de 10 GΩ para 4 GΩ, a 20 °C)'))).toBe(true);
+  // ~~Fix batch e23p (P3): while the point is not written, section 8's bullet is its text, both values named.~~ Fix batch e24h: no bullet.
+  expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio com restrição: '))).toBe(false);
 });

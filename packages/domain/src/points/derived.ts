@@ -19,41 +19,33 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
 
 /*
- * Story 6.6 (FR-31, E3-A9 bullet 4): every equipment sheet marked Não ensaiado lists
- * itself in section 8, after the manual points, in tree order (the section 9 order of
- * `sheetOrder`), with its reason and the justification the seed prints for it (the typed
- * text for "Outro"). The entry is derived, never stored: clearing the mark takes it away,
- * and a live point with `origin: 'not_tested'` for the same equipment (written from that
- * sheet) replaces it. A block with no equipment is never suppressed.
+ * Fix batch e24h (Matheus, 2026-11-10, on Bruno's report of points created with no tap): a point of
+ * attention exists only when the technician creates it. The entries below are the ficha findings a
+ * point can be written from (an NC row of a sheet or a local, a test out of criterion or failing its
+ * prerequisite, a restricted test, a Reprovado chosen by hand, a sheet marked Não ensaiado); they are
+ * never listed, counted or printed. Two readers keep them, and neither may move: the parecer's floor
+ * (`hasPointSource`, so no verdict changes) and "Origem resolvida" (`resolvedOriginPoints`, a stored
+ * point whose finding no longer stands). How automatic points should work is planned later (Epic 24).
  *
- * Story 22.5 (Bruno, 2026-11-06, item 26): three more kinds, derived the same way and in the
- * same tree order (a local's NC entries at the local, before its equipment):
- * - `nc`: one entry per checklist row answered NC, of a sheet or of a local's "Verificações do
- *   local", with the row's observation (the learned or seeded NC phrase, Story 14.12) and its
- *   photos as section 8's `[[foto]]` tokens ("conforme Imagem N");
- * - `reading`: one entry per test with a reading out of criterion, naming its worst row;
- * - `reprovado`: a sheet whose effective result is Reprovado (Story 22.4) for a reason the two
- *   above and the Não ensaiado entry do not cover (the engineer chose Reprovado).
- * Story 23.11 (batch e23h): a `reading` entry starts with its test's recommendation, when the
- * definition gives one (`recommendedPointText`); the `reprovado` and `nc` texts never do. Fix batch e23z (item 2,
- * Bruno 2026-11-09): a `reprovado` entry does too, with its in-force tests' recommendations (`reprovadoRecommendations`);
- * (W3-7) a failed polarization index starts with its test's `index_recommendation`.
- * A live point written from the same source replaces the entry (`origin` `nc` with its
- * `item_key`, `reading` with its `test_key`, `reprovado`), keyed by the equipment (or the
- * local, for a site NC); removing that point brings the entry back. A sheet with no equipment
- * is never suppressed. An old manual point does not suppress (`possibleDuplicatePoints`).
- *
- * Batch e23v (Story 23.6, seed v13; contract 36): one more kind, `restricao`, one entry per test with
- * a reading restricted by its test's rule (`relatorio/restriction.ts`) and no `reading` entry of its
- * own, naming the restricted rows with their reasons; a point written from it carries `origin`
- * `restricao` with its `test_key` and replaces it. A test whose plate fails its prerequisite (the
- * arrester's disconnector) has it in its `reading` entry, one entry per test. Every sheet is judged
- * under its `VisitContext` (`visitContextOf`), as the sheet and the conclusion judge it.
+ * History of the findings, each once a listed entry (struck by e24h):
+ * - Story 6.6 (FR-31, E3-A9 bullet 4): a sheet marked Não ensaiado, with its reason and the
+ *   justification the seed prints for it (the typed text for "Outro").
+ * - Story 22.5 (Bruno, 2026-11-06, item 26): `nc`, one per checklist row answered NC of a sheet or of a
+ *   local's "Verificações do local", with the row's observation and photo tokens; `reading`, one per test
+ *   with a reading out of criterion, naming its worst row; `reprovado`, a sheet whose effective result is
+ *   Reprovado for a reason the floor does not cover (the engineer chose Reprovado).
+ * - Story 23.11 (batch e23h), fix batch e23z: a `reading` (and a `reprovado`) text starts with its test's
+ *   recommendation (`recommendedPointText`); a failed polarization index with its `index_recommendation`.
+ * - Batch e23v (Story 23.6, seed v13; contract 36): `restricao`, one per test with a reading restricted by
+ *   its test's rule and no `reading` finding of its own; a failed prerequisite is its test's `reading`.
+ * A stored point names its finding by `origin` with its `item_key` or `test_key`, keyed by the equipment (or
+ * the local, for a site NC): `pointSource` and `entrySource` pair them. Every sheet is judged under its
+ * `VisitContext` (`visitContextOf`), as the sheet and the conclusion judge it.
  */
 
-export type DerivedPointKind = 'not_tested' | 'nc' | 'reading' | 'reprovado' | 'restricao';
+type DerivedPointKind = 'not_tested' | 'nc' | 'reading' | 'reprovado' | 'restricao';
 
-export interface DerivedPoint {
+interface DerivedPoint {
   /** Story 22.5: which source derives the entry. */
   kind: DerivedPointKind;
   /** Story 22.5: unique among the entries of a relatório (the card's key). */
@@ -288,7 +280,7 @@ function reprovadoRecommendations(definition: BlockDefinition, evaluations: read
   return order.filter((key) => picked.includes(key)).map((key) => testRecommendationOf({ tests: definition.tests, measurement_tests: definition.measurement_tests }, key));
 }
 
-/** Every entry before suppression, in tree order. Fix batch e23w (W2-3): `standing` collects the restricted tests' sources that stand. */
+/** Every finding, in tree order (fix batch e24h: no longer filtered by the stored points, nothing lists them). Fix batch e23w (W2-3): `standing` collects the restricted tests' sources that stand. */
 function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): DerivedPoint[] {
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
   const locals = new Map(siteLocals(snapshot).map((location) => [location.id, location]));
@@ -333,7 +325,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): De
         reason_key: reason.key,
         reason_label: reason.label,
         justification: reason.justification,
-        text: derivedPointReasonText({ reason_key: reason.key, reason_label: reason.label, justification: reason.justification }),
+        text: reasonText({ reason_key: reason.key, reason_label: reason.label, justification: reason.justification }),
       });
       continue;
     }
@@ -342,7 +334,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): De
   return out;
 }
 
-/** The source a live point of a derived origin names: what it suppresses, null for a manual one or one with no owner. */
+/** The finding a live point of a derived origin was written from, null for a manual one or one with no owner. */
 function pointSource(point: Pick<PointRow, 'origin' | 'equipment_id' | 'location_id' | 'item_key' | 'test_key'>): string | null {
   const owner = point.equipment_id ?? point.location_id ?? null;
   if (owner === null) return null;
@@ -357,7 +349,7 @@ function pointSource(point: Pick<PointRow, 'origin' | 'equipment_id' | 'location
   return null;
 }
 
-/** An entry's source as a point names it; null when no point can replace it (a sheet with no equipment). */
+/** A finding as a point names it; null when no point can name it (a sheet with no equipment). */
 function entrySource(entry: DerivedPoint): string | null {
   const owner = entry.equipment_id ?? entry.location_id;
   if (owner === null) return null;
@@ -368,18 +360,14 @@ function entrySource(entry: DerivedPoint): string | null {
   return entry.equipment_id === null ? null : `reprovado:${entry.equipment_id}`;
 }
 
-/** The derived section 8 entries of a relatório, in tree order, after suppression. */
-export function derivedPoints(snapshot: DerivedSnapshot): DerivedPoint[] {
-  const suppressed = new Set(
-    snapshot.points.filter((point) => point.removed_at === null).flatMap((point) => {
-      const source = pointSource(point);
-      return source === null ? [] : [source];
-    }),
-  );
-  return allDerivedPoints(snapshot).filter((entry) => {
-    const source = entrySource(entry);
-    return source === null || !suppressed.has(source);
-  });
+/**
+ * Fix batch e24h: whether the relatório holds any ficha finding a point can be written from, stored
+ * point or not. Only the parecer's floor reads it (`derivedParecer`), so no verdict moves now that the
+ * findings are no longer points: a finding raised the verdict to Apto com restrições through the
+ * automatic entry before, and still does through this.
+ */
+export function hasPointSource(snapshot: DerivedSnapshot): boolean {
+  return allDerivedPoints(snapshot).length > 0;
 }
 
 /**
@@ -415,50 +403,10 @@ export function predatesItemSource(point: Pick<PointRow, 'item_key'>): boolean {
   return !Object.prototype.hasOwnProperty.call(point, 'item_key');
 }
 
-/** The (manual point, NC entry) pairs of one owner: what "Possível duplicado" flags. */
-function duplicatePairs(snapshot: DerivedSnapshot): { pointId: string; entryKey: string }[] {
-  const entries = derivedPoints(snapshot).filter((entry) => entry.kind === 'nc');
-  if (entries.length === 0) return [];
-  const pairs: { pointId: string; entryKey: string }[] = [];
-  for (const point of snapshot.points) {
-    // e22f N4: only a manual point written before contract 31 (no `item_key` key): one written
-    // since names its item when it comes from an NC row, so it never pairs by its owner alone.
-    if (point.removed_at !== null || point.origin !== 'manual' || !predatesItemSource(point)) continue;
-    const owner = point.equipment_id ?? point.location_id ?? null;
-    if (owner === null) continue;
-    for (const entry of entries) if ((entry.equipment_id ?? entry.location_id) === owner) pairs.push({ pointId: point.id, entryKey: entry.key });
-  }
-  return pairs;
-}
-
-/**
- * Story 22.5: a manual point written before this story from an NC row (`origin` `manual`, no
- * source) does not suppress the NC entry of the same equipment or local; both are flagged
- * "Possível duplicado" on the Pontos screen and the engineer removes one. The manual points'
- * ids and the derived entries' keys, each paired with at least one of the other. e22f N4: only
- * the manual points written before contract 31 (`predatesItemSource`) pair.
- */
-export function possibleDuplicatePoints(snapshot: DerivedSnapshot): { pointIds: Set<string>; entryKeys: Set<string> } {
-  const pairs = duplicatePairs(snapshot);
-  return { pointIds: new Set(pairs.map((pair) => pair.pointId)), entryKeys: new Set(pairs.map((pair) => pair.entryKey)) };
-}
-
-/** e22f S2: how many (manual point, NC entry) pairs "Possível duplicado" flags; the pre-issue row's count. */
-export function possibleDuplicatePairs(snapshot: DerivedSnapshot): number {
-  return duplicatePairs(snapshot).length;
-}
-
-/** e22f S2: the pre-issue row: "1 par de pontos possivelmente duplicados", "3 pares de …". */
-export function possibleDuplicatesText(pairs: number): string {
-  // authored (e22f S2, open for Bruno).
-  return `${pairs} ${pairs === 1 ? 'par de pontos possivelmente duplicados' : 'pares de pontos possivelmente duplicados'}`;
-}
-
 /**
  * e22f S4: the text "Criar ponto de atenção" on an NC row starts the point with: the row's
- * derived entry text ("Item 3 (mufla): oxidação nos terminais" and the row's photo tokens), as
- * "Editar" on that entry starts it (`derivedPointSeed`). `owner` is the sheet or the local. ''
- * when the row's seed item is unknown.
+ * finding text ("Item 3 (mufla): oxidação nos terminais" and the row's photo tokens). `owner` is the
+ * sheet or the local. '' when the row's seed item is unknown.
  */
 export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'relatorio' | 'equipment_types'>, owner: { block: BlockRow } | { location: Parameters<typeof siteObservationOf>[0] & { id: string } }, itemKey: string): string {
   const photos = livePhotos(snapshot);
@@ -475,65 +423,11 @@ export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'rela
   return ncText(item.number, item.label, siteObservationOf(owner.location, itemKey), rowPhotoIds(photos, { locationId: owner.location.id }, itemKey));
 }
 
-export interface DerivedPointGroup {
-  /** Story 22.5: the kind of the group's entries. */
-  kind: DerivedPointKind;
-  reason_key: string;
-  justification: string | null;
-  block_ids: string[];
-  /** Story 22.5: the group's entries by `DerivedPoint.key`, in order. */
-  keys: string[];
-}
-
-/**
- * E3-A9 bullet 4, the data half: consecutive Não ensaiado entries with the same reason and
- * the same justification form one group, so section 8 prints one bullet for them; Story
- * 22.5: every other entry is a group of its own. Composing that bullet's sentence is the
- * renderer's (Epic 7).
- */
-export function groupDerivedPoints(entries: readonly DerivedPoint[]): DerivedPointGroup[] {
-  const groups: DerivedPointGroup[] = [];
-  for (const entry of entries) {
-    const last = groups.at(-1);
-    if (entry.kind === 'not_tested' && last !== undefined && last.kind === 'not_tested' && last.reason_key === entry.reason_key && last.justification === entry.justification) {
-      if (entry.block_id !== null) last.block_ids.push(entry.block_id);
-      last.keys.push(entry.key);
-    } else {
-      groups.push({
-        kind: entry.kind,
-        reason_key: entry.reason_key,
-        justification: entry.justification,
-        block_ids: entry.block_id === null ? [] : [entry.block_id],
-        keys: [entry.key],
-      });
-    }
-  }
-  return groups;
-}
-
-/**
- * The `.not-tested-band` text of a derived card (`72-pontos.html`): "⟨reason⟩ — ⟨justification⟩",
- * the typed text alone for "Outro", the reason alone when nothing is printed for it.
- */
-export function derivedPointReasonText(entry: Pick<DerivedPoint, 'reason_key' | 'reason_label' | 'justification'>): string {
+/** A Não ensaiado finding's text: "⟨reason⟩ — ⟨justification⟩", the typed text alone for "Outro", the reason alone when nothing is printed for it. */
+function reasonText(entry: Pick<DerivedPoint, 'reason_key' | 'reason_label' | 'justification'>): string {
   if (entry.justification === null) return entry.reason_label;
   if (entry.reason_key === 'outro') return entry.justification;
   return `${entry.reason_label} — ${entry.justification}`;
-}
-
-// authored (Story 22.5, open for Bruno): the chip of a derived card, and the head of its section 8 bullet.
-// authored (Story 23.6, listed for Bruno): `restricao`.
-const KIND_LABELS: Readonly<Record<DerivedPointKind, string>> = {
-  not_tested: 'Não ensaiado',
-  nc: 'Não conforme',
-  reading: 'Fora do critério',
-  reprovado: 'Reprovado',
-  restricao: 'Com restrição',
-};
-
-/** Story 22.5: the chip of a derived card ("Não ensaiado", "Não conforme", "Fora do critério", "Reprovado"; batch e23v: "Com restrição"). */
-export function derivedPointKindLabel(kind: DerivedPointKind): string {
-  return KIND_LABELS[kind];
 }
 
 /** The text a point written from an untested sheet starts with: what section 8 would print for it; "" when nothing. */
@@ -550,26 +444,4 @@ export function withPhotoTokens(text: string | null, photoIds: readonly string[]
   const base = text ?? '';
   const missing = photoIds.filter((id) => !base.includes(photoToken(id))).map((id) => photoToken(id));
   return [base, ...missing].filter((part) => part !== '').join(' ');
-}
-
-/**
- * Story 22.5: what a point written from a derived entry starts with ("Editar" on the entry):
- * its text, its origin and source, its equipment or local.
- */
-export function derivedPointSeed(entry: DerivedPoint): {
-  text: string;
-  equipmentId: string | null;
-  locationId: string | null;
-  origin: PointRow['origin'];
-  itemKey: string | null;
-  testKey: string | null;
-} {
-  return {
-    text: entry.kind === 'not_tested' ? (entry.justification ?? '') : entry.text,
-    equipmentId: entry.equipment_id,
-    locationId: entry.location_id,
-    origin: entry.kind,
-    itemKey: entry.item_key,
-    testKey: entry.test_key,
-  };
 }

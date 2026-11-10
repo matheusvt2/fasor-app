@@ -1,13 +1,11 @@
 import { formatCalendarDate } from '../format/datetime.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { livePoints } from '../points/checks.ts';
-import { derivedPoints, groupDerivedPoints, type DerivedPoint, type DerivedPointGroup } from '../points/derived.ts';
 import { priorityLabel } from '../points/priority.ts';
 import { extractPhotoRefs, pointTextTokens } from '../points/refs.ts';
 import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { listPtBr } from '../text/plural.ts';
 import type { NumberingSnapshot } from './photo-order.ts';
 
 /*
@@ -16,25 +14,24 @@ import type { NumberingSnapshot } from './photo-order.ts';
  * "Imagem N" of `numberPhotos` (the same map section 7 prints) as a "conforme Imagem N"
  * clause where the text does not introduce it (F-05, `resolveBulletPhotoTokens`), its Ação
  * recomendada after the text's full stop. A stored point written from an untested sheet (`origin: not_tested`) is a
- * bullet of its own, never merged (open question 1). Then the derived Não ensaiado entries
+ * bullet of its own, never merged (open question 1). ~~Then the derived Não ensaiado entries
  * in tree order, consecutive entries with the same reason and justification as one bullet
  * (`groupDerivedPoints`, E3-A9 bullet 4). Story 22.5: the NC, out-reading and Reprovado
- * entries in the same tree order, one bullet and one action-plan row each, printed as the
- * Não ensaiado bullet is ("⟨head⟩: ⟨title⟩. ⟨text⟩").
+ * entries in the same tree order, one bullet and one action-plan row each ("⟨head⟩: ⟨title⟩.
+ * ⟨text⟩").~~ Fix batch e24h (Matheus, 2026-11-10): a point exists only when the technician
+ * creates it, so section 8 prints the live points alone; with none it prints its empty note.
  *
  * Story 11.10 (FR-52, AR-25): beneath the bullets, whenever section 8 prints, the
- * action-plan table: one row per bullet in bullet order, numbered 1..n continuously
- * (manual rows first, then the derived groups), with the point's resolved text, where it
- * sits, its priority, deadline, action, owner and the numbers of the photos it cites; "—"
- * for every missing value.
+ * action-plan table: one row per bullet in bullet order, numbered 1..n continuously, with the
+ * point's resolved text, where it sits, its priority, deadline, action, owner and the numbers of
+ * the photos it cites; "—" for every missing value.
  */
 
 /** authored: what a token prints when its photo is not numbered (removed since it was cited) (open for Bruno). */
 export const REMOVED_PHOTO_REF_TEXT = 'imagem removida';
 
-export type Section8Bullet =
-  | { kind: 'point'; text: string; point_id: string }
-  | { kind: 'derived'; text: string; block_ids: string[]; keys: string[] };
+/** One printed bullet: a live point (fix batch e24h: the derived kind is gone). */
+export type Section8Bullet = { kind: 'point'; text: string; point_id: string };
 
 /** One row of the action-plan table, every cell ready to print ("—" when missing). */
 export interface ActionPlanRow {
@@ -166,55 +163,15 @@ function sentence(text: string): string {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
-// authored (Story 22.5, open for Bruno): the head of an NC, out-reading and Reprovado bullet.
-const DERIVED_HEADS: Readonly<Record<Exclude<DerivedPoint['kind'], 'not_tested'>, string>> = {
-  nc: 'Item não conforme',
-  reading: 'Ensaio fora do critério',
-  reprovado: 'Equipamento reprovado',
-  // authored (Story 23.6, listed for Bruno): a test with a restricted reading (seed v13).
-  restricao: 'Ensaio com restrição',
-};
-
-/**
- * The bullet of one derived group: "Equipamento não ensaiado: ⟨title⟩. ⟨J⟩" for one sheet,
- * "Equipamentos não ensaiados: ⟨t1⟩, ⟨t2⟩ e ⟨t3⟩. ⟨J⟩" for several. J is the group's
- * justification (the typed text for "Outro"), else the reason's label, as a sentence. Story
- * 22.5: an NC, out-reading or Reprovado entry prints "⟨head⟩: ⟨title⟩. ⟨text⟩", its photo
- * tokens resolved as a manual point's ("conforme Imagem N").
- */
-export function derivedGroupText(group: DerivedPointGroup, entries: readonly DerivedPoint[], numbering: ReadonlyMap<string, number> = new Map()): string {
-  const byKey = new Map(entries.map((entry) => [entry.key, entry]));
-  const members = group.keys.map((key) => byKey.get(key)).filter((entry): entry is DerivedPoint => entry !== undefined);
-  if (group.kind !== 'not_tested') {
-    const entry = members[0];
-    if (entry === undefined) return '';
-    return `${DERIVED_HEADS[group.kind]}: ${entry.title}. ${sentence(resolveBulletPhotoTokens(entry.text, numbering))}`;
-  }
-  const titles = members.map((entry) => entry.title);
-  const reason = group.justification ?? members[0]?.reason_label ?? group.reason_key;
-  // authored: the source prints one untested equipment per bullet in its own prose; the
-  // merged sentence of a group of them is written here (open for Bruno).
-  const head = titles.length === 1 ? `Equipamento não ensaiado: ${titles[0]}` : `Equipamentos não ensaiados: ${listPtBr(titles)}`;
-  return `${head}. ${sentence(reason)}`;
-}
-
-/** Every bullet of section 8 in print order: the live points, then the derived groups. */
+/** Every bullet of section 8 in print order: the live points. */
 export function resolveSection8(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): Section8Bullet[] {
-  const points: Section8Bullet[] = livePoints(snapshot.points).map((point) => {
+  return livePoints(snapshot.points).map((point) => {
     const parts = [point.text, point.action ?? '']
       .map((part) => resolveBulletPhotoTokens(part, numbering).trim())
       .filter((part) => part !== '');
     // F-05: the action starts a sentence of its own after the point's text.
-    return { kind: 'point', text: parts.length === 2 ? `${sentence(parts[0]!)} ${parts[1]!}` : (parts[0] ?? ''), point_id: point.id };
+    return { kind: 'point' as const, text: parts.length === 2 ? `${sentence(parts[0]!)} ${parts[1]!}` : (parts[0] ?? ''), point_id: point.id };
   });
-  const entries = derivedPoints(snapshot);
-  const derived: Section8Bullet[] = groupDerivedPoints(entries).map((group) => ({
-    kind: 'derived',
-    text: derivedGroupText(group, entries, numbering),
-    block_ids: [...group.block_ids],
-    keys: [...group.keys],
-  }));
-  return [...points, ...derived];
 }
 
 /** The photo numbers a point cites (text, then action), first-seen order, each once; photos the numbering lacks are left out. */
@@ -232,12 +189,12 @@ function pointLocal(point: Pick<PointRow, 'equipment_id' | 'location_id'>, snaps
 }
 
 /**
- * The action-plan rows, one per section 8 bullet in the same order (`resolveSection8`):
- * the live points, then the derived groups (their bullet text, their sheets' titles joined
- * by "; ", and, Story 22.5, the photos an NC entry cites; nothing else), numbered 1..n.
+ * The action-plan rows, one per section 8 bullet in the same order (`resolveSection8`): the live
+ * points (fix batch e24h: ~~then the derived groups~~ only they), numbered 1..n.
  */
 export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): ActionPlanRow[] {
-  const points = livePoints(snapshot.points).map((point) => ({
+  return livePoints(snapshot.points).map((point, i) => ({
+    number: String(i + 1),
     point: cell(resolvePhotoTokens(point.text, numbering)),
     local: pointLocal(point, snapshot),
     priority: point.priority === null ? ACTION_PLAN_NONE : priorityLabel(point.priority),
@@ -246,24 +203,9 @@ export function resolveActionPlan(snapshot: Section8Snapshot, numbering: Readonl
     owner: cell(point.owner),
     images: pointImages(point, numbering),
   }));
-  const entries = derivedPoints(snapshot);
-  const byKey = new Map(entries.map((entry) => [entry.key, entry]));
-  const derived = groupDerivedPoints(entries).map((group) => {
-    const members = group.keys.map((key) => byKey.get(key)).filter((entry): entry is DerivedPoint => entry !== undefined);
-    return {
-      point: derivedGroupText(group, entries, numbering),
-      local: cell(members.map((entry) => entry.title).join('; ')),
-      priority: ACTION_PLAN_NONE,
-      deadline: ACTION_PLAN_NONE,
-      action: ACTION_PLAN_NONE,
-      owner: ACTION_PLAN_NONE,
-      images: group.kind === 'not_tested' ? ACTION_PLAN_NONE : pointImages({ text: members.map((entry) => entry.text).join(' '), action: null }, numbering),
-    };
-  });
-  return [...points, ...derived].map((row, i) => ({ number: String(i + 1), ...row }));
 }
 
-/** Section 8's layout under its heading; null when there is no point and no derived entry (the section prints the empty note). */
+/** Section 8's layout under its heading; null when there is no live point (the section prints the empty note). */
 export function section8Layout(snapshot: Section8Snapshot & NumberingSnapshot, heading: { number: number; title: string }): LayoutSectionPoints | null {
   const numbering = numberPhotos(snapshot);
   const bullets = resolveSection8(snapshot, numbering).map((bullet) => bullet.text);

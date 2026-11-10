@@ -1,4 +1,3 @@
-import { derivedPoints } from '@app/domain';
 import { deviceSnapshot, issueAndReadTables, kernelOf, openStep, outboxValues, setUpRelatorio, testSection, typeCell } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 
@@ -46,7 +45,7 @@ test('@p0 23.18-E2E-001 a v13 TC 0,3S of FATURAMENTO: the notice over a fillable
   expect(within.criterionText).toBe('±0,3 %');
   expect(within.tables[0]!.rows[0]!.condicao).toBe('SATISFATÓRIO');
 
-  // Fase R's polarity Invertida: one cell put, the row out, the frame's helper, the floor and a derived point.
+  // Fase R's polarity Invertida: one cell put, the row out, the frame's helper and the floor (fix batch e24h: ~~a derived point~~ none).
   const polarity = testSection(page, RATIO).locator('[data-row-choice="0"]').filter({ visible: true });
   await polarity.getByRole('radio', { name: 'Invertida' }).click();
   const choiceCol = within.tables[0]!.choiceColumn!.col;
@@ -55,11 +54,12 @@ test('@p0 23.18-E2E-001 a v13 TC 0,3S of FATURAMENTO: the notice over a fillable
   const judged = await kernelOf(page, database, relatorioId, tc.blockId);
   const row = judged.test(RATIO).tables[0]!.rows[0]!;
   expect([row.choice!.verdict, row.condicao]).toEqual(['out', 'INSATISFATÓRIO']);
+  // Fix batch e24h (H7): the helper no longer promises a point (was "… e gera um ponto de atenção.").
+  expect(row.choice!.helperText).toBe('Polaridade invertida: a ficha fica Reprovado.');
   await expect(testSection(page, RATIO).locator('[data-choice-helper="0"]')).toHaveText(row.choice!.helperText!);
   // Review fix: the ratio failed by its polarity alone, the reason names the polarity.
   expect(judged.floorReason).toBe('A ficha exige no mínimo Reprovado · Com restrições: polaridade invertida.');
-  const point = derivedPoints(judged.snapshot).find((one) => one.block_id === tc.blockId && one.test_key === RATIO)!;
-  expect(point.text).toContain('polaridade invertida em Fase R');
+  expect(judged.snapshot.points.filter((point) => point.removed_at === null)).toEqual([]);
 
   // At 390 px the ratio rows are cards (`.measurement-card`): Fase S's polarity Invertida there, one cell put, the card's note.
   await page.setViewportSize({ width: 390, height: 844 });

@@ -329,11 +329,11 @@ test('@p0 11.9-E2E-012 the card after P4 on a month-only next intervention shows
 });
 
 
-test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the point prioritized in the UI with its suggested Prazo, a point without one as "—", derived rows after; the Sumário counts "1 ponto sem prazo"', async ({ page }) => {
+test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the point prioritized in the UI with its suggested Prazo, a point without one as "—", no row for an untested sheet (fix batch e24h); the Sumário counts "1 ponto sem prazo"', async ({ page }) => {
   test.setTimeout(420_000);
   const { relatorioId, points } = await setUp(page, {
     texts: ['Plaquetas de identificação ausentes.', 'Diagrama unifilar desatualizado.'],
-    // One sheet marked Não ensaiado: a derived row after the manual ones.
+    // One sheet marked Não ensaiado: ~~a derived row after the manual ones~~ (fix batch e24h: no row of its own).
     extra: (scope, sheets) => [officeDraft(account, scope, `block/${sheets[0]!.blockId}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId })],
   });
   const first = points[0]!;
@@ -373,10 +373,8 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   expect(rows[0]).toEqual(['Nº', 'Ponto de atenção', 'Local/TAG', 'Prioridade', 'Prazo', 'Ação recomendada', 'Responsável', 'Imagens']);
   expect(rows[1]).toEqual(['1', 'Plaquetas de identificação ausentes.', '—', 'P1 · Curto prazo', formatCalendarDate(deadline), '—', 'Manutenção predial', '—']);
   expect(rows[2]).toEqual(['2', 'Diagrama unifilar desatualizado.', '—', '—', '—', '—', '—', '—']);
-  expect(rows).toHaveLength(4);
-  expect(rows[3]![0]).toBe('3');
-  expect(rows[3]![1]).toMatch(/^Equipamento não ensaiado: /);
-  expect(rows[3]!.slice(3)).toEqual(['—', '—', '—', '—', '—']);
+  expect(rows).toHaveLength(3);
+  expect(rows.some((cells) => /^Equipamento não ensaiado: /.test(cells[1] ?? ''))).toBe(false);
 
   // 11.10-PDF (E11-Q3): "PDF — enviar ao cliente" saves the issued PDF of the same revision.
   // Its text (the action-plan headers unbroken, the rows) is read in the api's

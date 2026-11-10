@@ -4,7 +4,7 @@ import { blockReadings, lastResults, previousHelpers } from '../print/last-resul
 import { readingAddressKey, readingSlotsOf, type PreviousResults } from '../print/reading-slots.ts';
 import { resolveSection8 } from '../print/section-8.ts';
 import { readingFitWidthEm, section9Layout, wordsWiderThanColumns, type PrintTable } from '../print/section-9.ts';
-import { derivedPoints, resolvedOriginPoints } from '../points/derived.ts';
+import { hasPointSource, resolvedOriginPoints } from '../points/derived.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -386,9 +386,9 @@ describe('e23p-P3 the previous value shown corrected, and the derived point nami
       reason: 'queda de mais de 50 % desde a manutenção anterior',
       pointReason: 'queda de mais de 50 % desde a manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C)',
     });
-    const point = derivedPoints(snapshot).find((one) => one.key === `restricao:${tf.id}:isolacao`)!;
-    expect(point.text.startsWith('Ensaio de isolação: valor dentro do critério, com restrição (')).toBe(true);
-    expect(point.text.endsWith(': queda de mais de 50 % desde a manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C))')).toBe(true);
+    // Fix batch e24h: the restricted test prints no automatic point (was its entry naming the two corrected values).
+    expect(hasPointSource(snapshot)).toBe(true);
+    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes('para 10 GΩ'))).toBe(false);
     // The paragraph (and so section 9's conclusion) names the reason alone, as before.
     const composed = composeConclusion(tf, definition, 'TR-1', visit).text;
     expect(composed).toContain('queda de mais de 50 % desde a manutenção anterior)');
@@ -433,9 +433,9 @@ describe('e23p-P3 the previous value shown corrected, and the derived point nami
         ? { ...row, last_results: { ...entry(Object.fromEntries(contact.map((slot, i) => [slot.key, { raw: before[i] ?? '44', unit: 'µΩ', state: 'measured' as const }]))), block_type: 'disjuntor_mt', prior: null } }
         : row,
     );
-    const point = derivedPoints(snapshot).find((one) => one.key === `reading:${dj.id}:resistencia_contato`)!;
-    expect(point.text).toContain('64 µΩ');
-    expect(point.text).toContain('(alta de 60 % sobre 40 µΩ da manutenção anterior, rev. 1 de 05/11/2026, acima do limite de 50 %)');
+    // Fix batch e24h: the rise is a finding (it floors), never an automatic point (was the entry naming the rise).
+    expect(hasPointSource(snapshot)).toBe(true);
+    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes('64 µΩ'))).toBe(false);
   });
 });
 
@@ -557,9 +557,6 @@ describe('23.5/23.6-UNIT one v13 snapshot whose visit context changes the verdic
     expect(conclusionFloor(tf, definition)!.pair.result).toBe('reprovado');
     expect(conclusionFloor(tf, definition, visit)!.pair).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
     expect(effectiveConclusionPair(tf, definition, visit).result).toBe('aprovado');
-    // Points: no out entry for the transformer's insulation.
-    const entries = derivedPoints(snapshot);
-    expect(entries.some((entry) => entry.key === `reading:${tf.id}:isolacao`)).toBe(false);
     // The parecer names the transformer with a restriction (its NC row), never reprovada.
     const tag = snapshot.equipment.find((row) => row.id === tf.equipment_id)!.tag;
     expect(parecerCounts(snapshot).reprovado).not.toContain(tag);
@@ -585,20 +582,17 @@ describe('23.5/23.6-UNIT one v13 snapshot whose visit context changes the verdic
     expect(conclusion.rows[1]!.cells.map((one) => one.text)).toEqual(['APROVADO', 'X', 'REPROVADO', '', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
   });
 
-  it('a restricted cable derives one restricao entry naming the test and the phase; a stored restricao point suppresses it, and resolves once the reading is corrected', () => {
+  // Fix batch e24h: ~~a restricted cable derives one restricao entry naming the test and the phase; a stored point suppresses it~~.
+  it('a restricted cable prints no automatic point; a stored restricao point lists, and resolves once the reading is corrected', () => {
     const snapshot = v13Snapshot();
     const cable = editBlock(snapshot, 'cabos_entrada', (block) => {
       for (const [row, raw] of [['0', '5'], ['1', '5'], ['2', '1.5'], ['3', '5']] as const) block.sheet.test.isolacao!.cells[row]!['1'] = cell(measured(raw, 'GΩ'));
     });
-    const key = `restricao:${cable.id}:isolacao`;
-    const entry = derivedPoints(snapshot).find((one) => one.key === key)!;
-    expect(entry).toMatchObject({ kind: 'restricao', test_key: 'isolacao', equipment_id: cable.equipment_id, text: 'Ensaio de isolação: valor dentro do critério, com restrição (Fase C: abaixo de 50 % da maior leitura)' });
-    const section8 = resolveSection8(snapshot, new Map()).find((bullet) => bullet.kind === 'derived' && bullet.keys.includes(key))!;
-    expect(section8.text).toBe(`Ensaio com restrição: ${entry.title}. Ensaio de isolação: valor dentro do critério, com restrição (Fase C: abaixo de 50 % da maior leitura).`);
+    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.startsWith('Ensaio com restrição'))).toBe(false);
     const point: PointRow = {
       id: id(700),
       relatorio_id: snapshot.relatorio.id,
-      text: entry.text,
+      text: 'Ensaio de isolação: valor dentro do critério, com restrição (Fase C: abaixo de 50 % da maior leitura)',
       equipment_id: cable.equipment_id,
       origin: 'restricao',
       order_key: 'a0',
@@ -611,7 +605,7 @@ describe('23.5/23.6-UNIT one v13 snapshot whose visit context changes the verdic
       test_key: 'isolacao',
     };
     snapshot.points.push(point);
-    expect(derivedPoints(snapshot).some((one) => one.key === key)).toBe(false);
+    expect(resolveSection8(snapshot, new Map()).filter((bullet) => bullet.point_id === point.id)).toHaveLength(1);
     expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(false);
     editBlock(snapshot, 'cabos_entrada', (block) => {
       block.sheet.test.isolacao!.cells['2']!['1'] = cell(measured('4', 'GΩ'));
@@ -635,14 +629,12 @@ describe('23.5/23.6-UNIT one v13 snapshot whose visit context changes the verdic
     expect(parecerCounts(snapshot).withRestriction).toEqual([tag]);
   });
 
-  it('the arrester whose disconnector is not intact (the fixture\'s NÃO): Reprovado, its reading entry naming the disconnector', () => {
+  // Fix batch e24h: ~~its reading entry naming the disconnector~~; no automatic point.
+  it('the arrester whose disconnector is not intact (the fixture\'s NÃO): Reprovado, no automatic point', () => {
     const snapshot = v13Snapshot();
     const arrester = blockOf(snapshot, 'para_raio');
     expect(effectiveConclusionPair(arrester, definitionOf(arrester), visitContextOf(snapshot, arrester)).result).toBe('reprovado');
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${arrester.id}:isolacao`)!;
-    // Its rule-made 2.500 MΩ is out of ≥ 5.000 MΩ too: one entry for the test, the prerequisite first.
-    expect(entry.text).toBe('Ensaio de isolação: pré-requisito não atendido (Desligador íntegro: NÃO); 2.500 MΩ em Fase A–Massa (critério: ≥ 5.000 MΩ)');
-    expect(derivedPoints(snapshot).some((one) => one.key === `restricao:${arrester.id}:isolacao`)).toBe(false);
+    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes('Desligador íntegro'))).toBe(false);
   });
 
   it('last_results keeps the corrected value of a corrected reading (under the visit context) and none of an uncorrected one', () => {
@@ -837,7 +829,9 @@ describe('23.5/23.6-UNIT v12 and v5 sheets judge, compose and print the same wit
     const warm = structuredClone(snapshot);
     cabineOfSnapshot(warm).env.temperature_c = measured('40', '°C');
     expect(composeParecer(warm).basis).toBe(composeParecer(snapshot).basis);
-    expect(derivedPoints(warm)).toEqual(derivedPoints(snapshot));
+    // Fix batch e24h: the findings, as the parecer and "Origem resolvida" read them (was `derivedPoints`).
+    expect(hasPointSource(warm)).toBe(hasPointSource(snapshot));
+    expect(resolvedOriginPoints(warm)).toEqual(resolvedOriginPoints(snapshot));
     const sheets = (one: RelatorioSnapshot) => section9Layout(one, 9, 'RESULTADOS')!.subsections.flatMap((subsection) => subsection.sheets);
     expect(sheets(warm)).toEqual(sheets(snapshot));
   });

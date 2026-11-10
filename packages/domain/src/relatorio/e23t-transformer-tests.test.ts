@@ -4,7 +4,7 @@ import { blockReadings } from '../print/last-results.ts';
 import { readingSlotsOf, type PreviousResults } from '../print/reading-slots.ts';
 import { resolveSection8 } from '../print/section-8.ts';
 import { section9Layout, READING_FIT_WIDTH_EM, wordsWiderThanColumns, type PrintTable } from '../print/section-9.ts';
-import { derivedPoints } from '../points/derived.ts';
+import { hasPointSource } from '../points/derived.ts';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -435,10 +435,9 @@ describe('23.15 to 23.19-UNIT one v13 snapshot: floor, points, parecer, progress
     const definition = definitionOf(tf);
     const visit = visitContextOf(snapshot, tf);
     expect(conclusionFloor(tf, definition, visit)!.reasons).toContain('restriction');
-    const key = `restricao:${tf.id}:resistencia_enrolamento`;
-    const entry = derivedPoints(snapshot).find((one) => one.key === key)!;
-    expect(entry.text).toBe('Resistência ôhmica dos enrolamentos: valor dentro do critério, com restrição (AT, tap atual, Fase C: desvio de 3 % sobre a menor fase)');
-    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.kind === 'derived' && bullet.keys.includes(key))).toBe(true);
+    // Fix batch e24h: the restriction is a finding (it floors) and prints no automatic point (was its restricao entry and bullet).
+    expect(hasPointSource(snapshot)).toBe(true);
+    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes('Resistência ôhmica dos enrolamentos'))).toBe(false);
     const tag = snapshot.equipment.find((row) => row.id === tf.equipment_id)!.tag;
     expect(parecerCounts(snapshot).reprovado.includes(tag)).toBe(effectiveConclusionPair(tf, definition, visit).result === 'reprovado');
     // A restricted phase is within its criterion for the progress (B-8): no reading out of its limit on the winding.
@@ -469,8 +468,7 @@ describe('23.15 to 23.19-UNIT one v13 snapshot: floor, points, parecer, progress
     });
     const definition = definitionOf(tf);
     expect(conclusionFloor(tf, definition, visitContextOf(snapshot, tf))!.pair.result).toBe('reprovado');
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${tf.id}:isolacao`)!;
-    expect(entry.text).toContain('IP de 0,8 em Primário–Massa (critério: IP ≥ 1,0)');
+    // Fix batch e24h: ~~the reading entry "IP de 0,8 em Primário–Massa (critério: IP ≥ 1,0)"~~; the conclusion still names it.
     expect(composeConclusion(tf, definition, 'TR-1', visitContextOf(snapshot, tf)).text).toContain('IP de 0,8 no ensaio de isolação em Primário–Massa (critério: IP ≥ 1,0, NETA MTS-2023 7.2.1/7.2.2)');
     const table = tableWith(snapshot, tf.id, 'POLARIZAÇÃO')!;
     const bottom = table.rows.filter((row) => row.header === true).at(-1)!;
@@ -639,12 +637,8 @@ describe('e23t review fixes: consumers judge under a non-empty visit context', (
     const visit = visitContextOf(snapshot, tf);
     expect(visit.previous?.revision_number).toBe(2);
     expect(conclusionFloor(tf, definitionOf(tf), visit)!.reasons).toContain('restriction');
-    const entry = derivedPoints(snapshot).find((one) => one.key === `restricao:${tf.id}:resistencia_enrolamento`)!;
-    expect(entry.text).toContain('variação de mais de 2 % desde a manutenção anterior');
-    // Fix batch e23p (P3): the point names both corrected values; the paragraph keeps the reason alone.
-    expect(entry.text).toBe(
-      'Resistência ôhmica dos enrolamentos: valor dentro do critério, com restrição (AT, tap atual, Fase A: variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C); AT, tap atual, Fase B: variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C); AT, tap atual, Fase C: variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C))',
-    );
+    // Fix batch e24h: ~~the point naming both corrected values (fix batch e23p, P3)~~: no automatic point; the paragraph keeps the reason alone.
+    expect(hasPointSource(snapshot)).toBe(true);
     expect(composeConclusion(tf, definitionOf(tf), 'TR-1', visit).text).not.toContain('para 1,025 Ω');
   });
 });

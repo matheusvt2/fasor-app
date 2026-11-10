@@ -98,10 +98,17 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     why: 'generates a revision through the shared queue and LibreOffice and loads its worker\'s copy of the Porto Seguro fixture',
   },
   // Story 22.5: 22.5-E2E-001 generates the DOCX its derived section 8 entries are read from.
+  // Fix batch e24h: ~~the derived entries~~ the stored points only, and no automatic entry, are read from it.
   {
     file: 'points-derived.spec.ts',
     lane: 'queue',
-    why: 'Story 22.5: generates a revision through the shared queue and LibreOffice to read the derived NC and out-reading entries of section 8 from the DOCX',
+    why: 'Story 22.5 (fix batch e24h): generates a revision through the shared queue and LibreOffice to read section 8 of the DOCX, stored points only',
+  },
+  // Fix batch e24h (2026-11-10): e24h-E2E-001 previews the draft PDF twice to read section 8.
+  {
+    file: 'points-on-click.spec.ts',
+    lane: 'queue',
+    why: 'Fix batch e24h: previews the draft PDF through the shared queue and LibreOffice to read section 8 before and after a point is created',
   },
   // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
   {

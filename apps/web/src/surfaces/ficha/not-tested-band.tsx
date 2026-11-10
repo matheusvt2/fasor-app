@@ -1,4 +1,4 @@
-import { hasNotTestedPoint, notTestedPointText, notTestedReasonText, sectionMention, type BlockRow, type RelatorioSnapshot } from '@app/domain';
+import { hasNotTestedPoint, notTestedPointText, notTestedReasonText, type BlockRow, type RelatorioSnapshot } from '@app/domain';
 import { useRef, useState } from 'react';
 import { ConfirmDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -54,7 +54,7 @@ export function NotTestedBand({
         <span className="band-text">
           {t.notTestedBandBefore}
           <span className="band-reason">{reason}</span>
-          {t.notTestedBandAfter(sectionMention(snapshot, 8))}
+          {t.notTestedBandAfter}
         </span>
         <button type="button" className="btn btn-text" ref={desfazerRef} onClick={() => void desfazer()}>
           {t.desfazer}

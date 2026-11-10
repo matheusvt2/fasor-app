@@ -605,7 +605,9 @@ test('@p0 12.4-E2E-002 "Marcar não ensaiado" from the sheet menu and the tree m
   await expect(primary).not.toHaveAttribute('aria-disabled');
   await primary.click();
   await expect(dialog).toBeHidden();
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
+  // Fix batch e24h: the toast no longer says the sheet enters section 9 (no automatic point).
+  await expect(toast(page)).toContainText('Marcada como não ensaiada');
+  await expect(toast(page)).not.toContainText('entra na');
   await expect(page.locator('.not-tested-band .band-reason')).toHaveText('Equipamento inacessível');
   expect((await outbox(page)).find((row) => row.path === `block/${first.blockId}/not_tested`)).toMatchObject({ value: { reason: 'equipamento_inacessivel', text: null } });
 

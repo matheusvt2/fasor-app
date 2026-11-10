@@ -98,7 +98,37 @@ deferred: []
 
 ## Changed tests
 
-(filled by the implementation: one line per file, with the reason.)
+- `packages/domain/src/points/points-on-click.test.ts` (new): H1 to H4 red on `72ed1f51` (each finding alone lists, counts and prints nothing; two stored points beside the four findings; the pre-31 manual point; the create texts; "Origem resolvida"; each kind's verdict and reason line; every fixture's verdict and effective pairs pinned to `72ed1f51`'s).
+- `packages/domain/src/points/derived-kinds.test.ts`: Story 22.5's scenarios rewritten to the new rule (the manual point alone in section 8, no "Possível duplicado", no Reprovado bullet, no NC bullet citing the photo); `derivedPoints`, `derivedPointSeed`, `derivedPointKindLabel` and `possibleDuplicatePoints` went.
+- `packages/domain/src/points/derived-recommendation.test.ts`: Story 23.11's entry-text cases went with `derivedPoints`; kept as "a recommended out test and a Reprovado by hand print no bullet".
+- `packages/domain/src/points/derived-recommendation-restricao.test.ts` (deleted): its only subject was the text of a `restricao` entry (`derivedPoints`, removed); the restricted case is in `points-on-click.test.ts`.
+- `packages/domain/src/points/points.test.ts`: 6.6-UNIT derivedPoints and groupDerivedPoints (removed functions) replaced by "an untested sheet lists nothing"; the summary, row 8 and heading counts without "automático" (F34, fx15q struck); Porto Seguro lists its 7 stored points.
+- `packages/domain/src/print/section-8.test.ts`: 7.3-UNIT-003 (`derivedGroupText`, removed) and the derived action-plan rows replaced by "untested sheets print nothing"; Porto Seguro prints 7 bullets and 7 rows.
+- `packages/domain/src/print/e23f-print-fixes.test.ts`: (a) the Reprovado bullet is gone; the line breaks are kept in a point written with them.
+- `packages/domain/src/print/layout.test.ts`: Porto Seguro's section 8 holds 7 bullets (was 7 + 18); the moved section 8 of the small fixture prints its empty note.
+- `packages/domain/src/relatorio/e23e-tc-thermo-ground.test.ts`: the polarity helper drops "e gera um ponto de atenção" (H7); the thermography and ground-grid entry texts became "a finding, no bullet".
+- `packages/domain/src/relatorio/three-levels.test.ts`: the restricao, rise and prerequisite entry texts became "no bullet"; the restricted cable's stored point lists and resolves; the context test compares the findings (`hasPointSource`, `resolvedOriginPoints`) instead of `derivedPoints`.
+- `packages/domain/src/relatorio/e23t-transformer-tests.test.ts`: the winding restricao and IP entry texts became "a finding, no bullet".
+- `packages/domain/src/relatorio/e23w-wave2-fixes.test.ts`: the prerequisite entry became `hasPointSource`; the restricao/reading entry checks went (W2-3's "Origem resolvida" kept).
+- `packages/domain/src/relatorio/e22f-wave-a-fixes.test.ts`: S2/N4 possible duplicates (removed functions and pre-issue row) became "no pair, one entry"; S4 keeps the NC row's text.
+- `packages/domain/src/relatorio/site-checklist.test.ts`: "a site NC is a point by itself" became "a site NC is no point; the Q-4 row stays retired".
+- `packages/domain/src/relatorio/parecer.test.ts`: the reason lines and the summary drop the automatic point ("1 não ensaiada", "1 NC nas verificações do local", no points sentence); the verdicts are unchanged.
+- `packages/domain/src/relatorio/e23z-final-fixes.test.ts`: the W3-7 IP and item 2 Reprovado entry-text cases went with `derivedPoints` (their helpers with them); `recommendedPointText` keeps its own case; W3-1 keeps "Origem resolvida".
+- `packages/domain/src/contract/contract.test.ts`: 41 and MIN 41.
+- `apps/web/src/surfaces/compact-template-sections.test.tsx`: the Não ensaiado band no longer names "entra na seção 5" (H7).
+- `apps/web/src/surfaces/relatorio/setup-surface.test.tsx`: the reason line drops "e 1 ponto de atenção".
+- `apps/web/src/surfaces/relatorio/sumario-surface.test.tsx`: row 9 (points) reads "Nenhum ponto de atenção" (was "1 automático").
+- `apps/api/src/sync/sync.integration.test.ts`: 1.5-API-005, 40 joins the refused list, 41 answered, a 40 push accepted.
+- `apps/api/src/sync/three-levels.integration.test.ts`: the restricao point through the route is the one section 8 entry (was "replaces the derived entry").
+- `apps/api/src/jobs/generate/golden/layout-lock-{v5,v11,v12}/document.xml` and `pdf-text.json`: regenerated with `GOLDEN_UPDATE=1` after the normalized text diff showed only the removed automatic bullets and rows, the empty note, the parecer's points sentence and Critérios item, and page numbers.
+- `e2e/points-on-click.spec.ts` (new, `@p0`, `queue` lane in `e2e/support/groups.ts`): H8.
+- `e2e/points-derived.spec.ts`: 22.5-E2E-001/002 rewritten (no automatic card or flag, "Criar ponto de atenção" on the NC row, DOCX with the stored points only, "Origem resolvida"); 23f-E2E-001 (a) asserts no Reprovado bullet.
+- `e2e/points.spec.ts`: 6.6-E2E-003 (the untested sheet lists nothing; "Criar ponto" on its band), 6.6-E2E-005 and 6.6-E2E-016 (row 8 and heading without "automáticos").
+- `e2e/three-levels.spec.ts`, `e2e/previous-visit-judges.spec.ts`, `e2e/ground-grid.spec.ts`, `e2e/contact-rise.spec.ts`, `e2e/tc-polarity.spec.ts`, `e2e/test-recommendation.spec.ts`, `e2e/test-base-import.spec.ts`: the automatic card, its "Editar" and its DOCX bullet became "Pontos lists nothing, section 8 prints no automatic bullet"; tc-polarity pins the new helper text.
+- `e2e/action-plan.spec.ts`: no action-plan row for the untested sheet.
+- `e2e/parecer-export.spec.ts`: the reason line drops "e 1 ponto de atenção".
+- `e2e/verificacoes-local.spec.ts`: comments struck; the site NC lists no card beside the stored point.
+- `e2e/company-type-sheet.spec.ts`, `e2e/ficha.spec.ts`, `e2e/ficha.durability.spec.ts`, `e2e/sheet-knows-12-3-12-4.spec.ts`, `e2e/tree.spec.ts`: the Não ensaiado toast reads "Marcada como não ensaiada" (no "— entra na seção 9").
 
 ## Design Notes
 

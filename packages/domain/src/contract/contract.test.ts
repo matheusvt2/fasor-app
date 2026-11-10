@@ -105,9 +105,10 @@ describe('contract constants', () => {
   // e23t (Stories 23.15 to 23.17 and 23.19, 2026-11-09): 38, after e23h's 37; MIN follows.
   // e23e (Stories 23.13, 23.18, 23.20 and 23.21, 2026-11-09): 39, after e23t's 38; MIN follows.
   // e23z (the final Epic 23 fixes, 2026-11-10): 40, after e23e's 39; MIN follows.
-  it('speaks version 40 and refuses version 39 (fix batch e23z: a version-39 bundle refuses the off-plate clear and judges a v13 sheet otherwise)', () => {
-    expect(CONTRACT_VERSION).toBe(40);
-    expect(MIN_CONTRACT_VERSION).toBe(40);
+  // e24h (points on click, 2026-11-10): 41, after e23z's 40; MIN follows.
+  it('speaks version 41 and refuses version 40 (fix batch e24h: a version-40 bundle lists, counts and prints automatic points)', () => {
+    expect(CONTRACT_VERSION).toBe(41);
+    expect(MIN_CONTRACT_VERSION).toBe(41);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

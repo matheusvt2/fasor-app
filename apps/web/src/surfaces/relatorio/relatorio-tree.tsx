@@ -9,7 +9,6 @@ import {
   locationTree,
   moveTargets,
   paletteLocationFor,
-  sectionMention,
   sectionRefText,
   removeBlockTitle,
   treePathTo,
@@ -186,7 +185,6 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   const host = useMemo(
     () => ({
       root: () => rootRef.current,
-      sectionMention: (section: number) => sectionMention(latestSnapshot.current, section),
       reveal,
       locationOf: (blockId: string) => blockLocations.current.get(blockId) ?? null,
       addLocal: () => footRef.current?.querySelector<HTMLElement>('button') ?? null,

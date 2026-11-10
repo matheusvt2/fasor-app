@@ -1,5 +1,6 @@
 import { artLabel } from '../print/document-control.ts';
-import { pointsSummary } from '../points/summary.ts';
+import { livePoints } from '../points/checks.ts';
+import { hasPointSource } from '../points/derived.ts';
 import type { BlockRow, RelatorioParecer } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isCompanyBlockType } from '../schemas/block-config.ts';
@@ -163,7 +164,10 @@ const VERDICT_RANK: Readonly<Record<ParecerVerdict, number>> = { apto: 1, apto_c
  * give. Não apto when any live sheet is effectively Reprovado (Story 22.4); Apto com
  * restrições when any sheet is Com restrições, any sheet is Não ensaiado (another reason), any
  * live local holds an NC site item, or any point of attention exists (section 8's entries,
- * the derived ones included); Apto otherwise. ~~Always one: the "Parecer não preenchido" row
+ * ~~the derived ones included~~); Apto otherwise. Fix batch e24h (2026-11-10): the findings a
+ * point can be written from no longer list as points, and still floor the verdict
+ * (`hasPointSource`), so no verdict moves: a finding with no point of its own floored it before
+ * through its automatic entry. ~~Always one: the "Parecer não preenchido" row
  * retires with it.~~ e22f S5 (integrated review): "Apto" needs a judged sheet: while no sheet is
  * concluded and nothing gives a stricter verdict, there is none (null), so a relatório nothing
  * was judged in never reads "Apto", and issuing stays blocked by "Parecer não preenchido" until a
@@ -174,7 +178,7 @@ export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict | nu
   const sheets = countedSheets(snapshot);
   if (sheets.some(({ block, definition, visit }) => reprovado(block, definition, visit))) return 'nao_apto';
   if (sheets.some(({ block, definition, visit }) => restricted(block, definition, visit))) return 'apto_com_restricoes';
-  if (siteNcCount(snapshot) > 0 || pointsSummary(snapshot).total > 0) return 'apto_com_restricoes';
+  if (siteNcCount(snapshot) > 0 || livePoints(snapshot.points).length > 0 || hasPointSource(snapshot)) return 'apto_com_restricoes';
   return sheets.some(({ block }) => sheetState(block) === 'concluida') ? 'apto' : null;
 }
 
@@ -207,7 +211,8 @@ export function parecerReasonText(snapshot: RelatorioSnapshot): string | null {
   const derived = derivedParecer(snapshot);
   if (derived === null || derived === 'apto') return null;
   const counts = parecerCounts(snapshot);
-  const points = pointsSummary(snapshot).total;
+  // Fix batch e24h: the stored live points only.
+  const points = livePoints(snapshot.points).length;
   // authored (Story 22.6, open for Bruno): the reason line of the disabled verdicts.
   const parts =
     derived === 'nao_apto'
@@ -365,7 +370,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     else byReason.other.push(name);
   }
   const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
-  const points = pointsSummary(snapshot).total;
+  // Fix batch e24h: the stored live points only (the sentence, the Critérios item and the basis).
+  const points = livePoints(snapshot.points).length;
 
   // authored (open question for Bruno): the summary states counts only, never a verdict.
   const sentences: string[] = [];

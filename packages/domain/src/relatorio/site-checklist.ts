@@ -282,7 +282,9 @@ export function siteUnansweredText(locals: readonly SiteUnanswered[]): string | 
 }
 
 // ~~Epic 14 QA Q-4: `siteNcWithoutPoint` and its pre-issue row~~ Story 22.5 (2026-11-06): retired,
-// every NC site item is a point of attention by itself (`points/derived.ts`).
+// ~~every NC site item is a point of attention by itself (`points/derived.ts`).~~ Fix batch e24h
+// (2026-11-10): an NC site item is a point only when the technician creates one; the retired row is
+// not rebuilt (an open question for Matheus, spec e24h D5).
 
 /**
  * The surface's banner on an Emitido relatório: editing reopens it. The sheet's sentence
