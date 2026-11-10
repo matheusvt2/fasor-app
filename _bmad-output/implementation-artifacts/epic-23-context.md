@@ -492,4 +492,4 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
   - ~~the browser behavior pass, never run: the PDF of the v13 insulation table at 8 pt, the TP insulation, the contact rise, thermography, the Malha and the base import;~~ *(2026-11-10, coordinator: run, see "Browser behaviour pass" above.)*
   - ~~the release v0.8.0, on Matheus's word;~~ *(2026-11-10, coordinator: published, see "Release v0.8.0" above.)*
   - ~~the optional read-only count, in production, of the company copies made before `base_block_type`;~~ *(2026-11-10, coordinator: run, zero company type versions, see "Read-only production counts" above.)*
-  - the Epic 23 retrospective.
+  - ~~the Epic 23 retrospective.~~ *(2026-11-10: run headless, accepted-with-open-items, `epic-23-retro-2026-11-10.md`, action items E23-A1 to E23-A8.)*

@@ -3461,7 +3461,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   - Item 4: only removing the field is refused. Changing its kind or options is not.
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (`unjudged`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`); `packages/domain/src/types/draft-edit.ts`.
   class: note
-  state: open (owner: the Epic 23 retrospective)
+  state: ~~open (owner: the Epic 23 retrospective)~~ closed (2026-11-10, the Epic 23 retrospective, headless): the clear with no "Desfazer" (item 3) and the refusal of only the field's removal (item 4) are accepted as designed. The missing helper on a cell the deviation between phases cannot judge (W3-2) goes to E23-A1 with finding R-1 of `epic-23-retro-2026-11-10.md`.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR texts:
   - "Apagar leitura" and "Leitura apagada";
@@ -3500,3 +3500,31 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: every `authored (e23p, listed for Bruno)` in `packages/domain/src/print/last-results.ts`, `relatorio/restriction.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/oil-rule.ts`.
   class: decision
   state: open (owner: Bruno, through Matheus)
+
+## Deferred from: the Epic 23 retrospective (2026-11-10)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-2, owner: E23-A2)
+  summary: Fix batch e23p changed what a device derives and writes (the day-measured plate fields never copied, the dry fields cleared at the crossing to oil, the derived point's text, the Malha's criterion text) and took no contract number, after contract 40 was already in production. A device still on the `47be2638` bundle passes every pull and keeps the old behaviour until its next launch with an empty outbox.
+  evidence: `packages/domain/src/contract/version.ts:469,738` (40 and MIN 40, untouched in `47be2638..9add87b5`); `apps/web/src/sw/use-shell-update.ts:8-9`; the MIN comments for 37 and 40 in `version.ts`; the e23w contract row above.
+  class: decision
+  state: open (owner: Matheus: contract 41 with MIN 41, or the gap accepted here with a date)
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-6, owner: E23-A2)
+  summary: Seed v13 has no layout lock. The goldens cover v5, v11 and v12 and the Porto Seguro fixture, so "goldens byte-equal" in a gate says nothing about how a v13 relatório prints. e23p's promise that the disjuntor's and the seccionadora's paired insulation tables print as before is pinned only by type size and by words that fit the kernel's own width model.
+  evidence: `packages/domain/fixtures/layout-lock/op-log.ts:40` (`LAYOUT_LOCK_VERSIONS`); `apps/api/src/jobs/generate/golden/` (no v13 folder); `epic-23-context.md` § Coordinator decisions, "Only v13 fixtures may gain goldens".
+  class: decision
+  state: open (owner: Matheus: lock v13 as it prints in production before seed v14 opens, or not)
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-9, the deferred half)
+  summary: Two low items. A dry-only value hidden on an oil transformer stays in the store and is written to `last_nameplate` with no filter, so a later "Copiar da última visita" carries CLASSE TÉRMICA along, still hidden; nothing prints or judges by it. The off-plate clear swallows a commit error with no message.
+  evidence: `packages/domain/src/print/last-nameplate.ts:38-41`; `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`, `.catch(() => undefined)`).
+  class: note
+  state: open (owner: the next batch touching the nameplate copy or the TTR's off-plate rows)
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (P-4, owner: E23-A4, a test-hardening batch)
+  summary: Three tests went red under load in two or more gates of Epic 23 and passed alone each time: 21.1-E2E-002 (`e2e/seed-v11.spec.ts`; e23t's story gate, the wave 3 gate, T3's run 1), R8CAP-E2E-010 (`e2e/review-photo-failures.spec.ts`; e23t's story gate, e23p's full run) and 4.8-E2E-005 (`e2e/export.spec.ts`; e23w's story gate, T3's run 2, where the job finished in 1.6 s and the device sent no request for 150 s). `setup-surface.test.tsx`, already in the Epic 21 retrospective's row above, was red again in e23p's story gate. That row still has no state and no owner batch.
+  evidence: `epic-23-context.md` § Fix batch e23w, § Wave 3, § Fix batch e23p; `spec-e23t-transformer-tests.md` Auto Run Result (gate reds); `spec-t3-serial-split.md:151-152`.
+  class: flake
+  state: open (owner: E23-A4)
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (Behavior verification, owner: E23-A5)
+  summary: The read-only preview of Bruno's v5 relatório after the deploy, planned in `epic-23-context.md` § Coordinator decisions ("Bruno's v5 relatório"), has no run on record for any of the three Epic 23 deploys. The v5 layout-lock golden covers the same risk in tests; the production check is the one that was planned.
+  evidence: `epic-23-context.md:341` against § Deploy.
+  class: verification
+  state: open (owner: the coordinator: run it and record it, or record why it was dropped)
