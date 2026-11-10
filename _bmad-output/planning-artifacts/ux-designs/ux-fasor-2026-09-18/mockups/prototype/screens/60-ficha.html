@@ -74,6 +74,8 @@
 [data-route="/ficha/:tag"] .measurement-field .crop-thumb { order: 0; }
 [data-route="/ficha/:tag"] .measurement-field .mf-value { order: 1; } [data-route="/ficha/:tag"] .measurement-field .mf-unit { order: 2; } [data-route="/ficha/:tag"] .measurement-field .confirm-btn { order: 3; }
 [data-route="/ficha/:tag"] .suggestion-field.is-confirmed .measurement-field .crop-thumb, [data-route="/ficha/:tag"] .all-confirmed .suggestion-field[data-state="suggested"] .measurement-field .crop-thumb, [data-route="/ficha/:tag"] .suggestion-field[data-state="confirmed"] .measurement-field .crop-thumb { order: 9; margin-right: var(--sp-2); }
+/* 2026-11-10 (Matheus, on the Story 24.1 frames): in a measurement table where a confirmed reading shows its crop glyph after the unit, a row with no crop keeps the same slot empty, so every value and every unit sits in one column. Before, the row with no reading ("Fase Reserva") drew its value and unit one slot to the right. */
+[data-route="/ficha/:tag"] .measurement-table:has(.suggestion-field[data-state="confirmed"] .crop-thumb, .suggestion-field.is-confirmed .crop-thumb) .measurement-field:not(:has(.crop-thumb))::after { content: ""; flex: none; order: 9; width: 24px; margin: 0 var(--sp-2); }
 [data-route="/ficha/:tag"] .ficha-sug-confirm { display: none; align-self: flex-start; margin-top: var(--sp-1); }
 [data-route="/ficha/:tag"] .suggestion-field[data-state="suggested"]:not(.is-confirmed) .ficha-sug-confirm { display: inline-flex; }
 [data-route="/ficha/:tag"] .suggestion-group-head .btn { flex: none; }
