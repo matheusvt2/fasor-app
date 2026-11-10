@@ -6631,6 +6631,8 @@ So that a warm winding is not approved, or failed, on a raw number.
 
 *(2026-11-08, Matheus at the Story 23.1 approval: the printed corrected column is headed "20 °C" inside the VALORES group, at 8 pt under the 60 em rule; not "CORRIGIDO (GΩ)" at 7,5 pt. What it prints for an over-range reading is Story 23.4's.)*
 
+*(2026-11-09, built as batch e23v with 23.6 and 23.14, PR #290 merged as `967d898a` (contract 36). Narrowings (`spec-e23v-three-levels.md`, Design Notes): the correction follows the base's formulas over NETA 100.14's span, -10 to 110 °C; the disjuntor and the seccionadora take the solid factor, since the base names no medium; a transformer with its medium unknown is not corrected; a reading over the instrument's range is never corrected and prints "-"; the TEMPERATURA cell and the "20 °C" column print on the disjuntor and seccionadora tables too, though Story 23.1 drew only the transformer's.)*
+
 ### Story 23.6: Three levels per reading, the comparisons between phases and units, and the previous visit's value judges
 
 **Dev model:** opus · **Effort:** max · `ReadingVerdict` gains `restricted` on v13 definitions; the bands the base states in numbers (rev08 TR-OL-02 history, TR-OL-05 and TR-SE-05 bands, CB-02 between phases and history, PR-02 against the largest unit and its disconnector prerequisite); a restricted reading raises the floor to Com restrições and derives a point; `last_results` judges when both visits are corrected; vague terms excluded
@@ -6697,6 +6699,8 @@ So that the relatório flags what the standard calls an investigation case.
 - The spine's AD-25 note.
 - The `source-deltas.md` row.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23v, PR #290 merged as `967d898a`. Narrowings: the cable history (CB-02) is not built, its only term being B-1's "queda acentuada"; the disjuntor's and seccionadora's "fases com diferença > 50 %" is not built, its rule carrying no number; the cable and arrester comparison is "below 50 % of the largest other row", FASE RESERVA included; the oil transformer's history row serves the dry one too (one product type); a failed prerequisite is the test's `reading` entry, with no new derived kind; a test with an out reading derives no `restricao` entry (amended 2026-11-10 by fix batch e23z, W3-1, Story 23.15's line).)*
 
 *(2026-11-09, fix batch e23w, the wave 2 review's W2-1 to W2-3 and W2-K1: visits in `last_results` are ordered by first issue. A re-issue of A after B was issued over it reads no previous visit (the visit before A is no longer stored; a later one is never taken), and its `last_results` put keeps B on top with A's re-issue as B's `prior`; a re-issue over an unrelated top issued after A's first issue writes nothing. Narrowing: with two later visits over A the chain cannot tell and A's re-issue reads the top as before (a deeper chain needs a projection shape change, `deferred-work.md`). The arrester's failed disconnector prerequisite fails the sheet whatever its test's switch or applicability (`failedPrerequisites`), and the parecer names such a sheet "por pré-requisito do ensaio não atendido". A stored `restricao` point is not "Origem resolvida" while a rule still flags a reading of its test, even one now out (`restrictionStands`). Open, Matheus with Bruno: the prerequisite also fails a sheet whose nameplate sub-block is switched off.)*
 
@@ -6928,6 +6932,8 @@ So that I connect and run it right without leaving the sheet.
 - The touched durability specs on the matrix projects.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built as batch e23h with 23.11, PR #291 merged as `8c097ffa` (contract 37), after e23v. Narrowing (`spec-e23h-field-help.md`): each heading and the recommendation are capped at 1000 characters (`TEXT_CAPS.medium`), so a recommendation plus the composed reference fits a point's text. The review's finding that an NA test showed no "Como ensaiar" was patched in the batch: the action shows on NA tests too.)*
+
 ### Story 23.11: The test's recommendation is the initial text of its derived point (contract 37)
 
 **Dev model:** opus · **Effort:** medium · an optional `recommendation` per test definition; a derived point of an out-of-criterion test or a Reprovado sheet starts with its test's recommendation, the generic kernel text staying the fallback; editable in the type editor; shares contract 37 with Story 23.10
@@ -6967,6 +6973,8 @@ So that I edit a fitting text instead of writing one from the generic sentence.
 - A Playwright spec from the editor to the DOCX.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built in batch e23h, PR #291 merged as `8c097ffa`. Narrowings: the recommendation leads the `reading` entries of out readings only, not the `restricao` entries (the merge with e23v); a Reprovado chosen by hand kept its text (amended 2026-11-10 by fix batch e23z, the line below).)*
+
 *(2026-11-10, fix batch e23z, Bruno 2026-11-09 item 6: ~~the `reprovado` entry's text unchanged~~ a Reprovado chosen by hand (the floor not Reprovado) starts with the recommendations of the sheet's in-force tests: those of the restricted tests when any test is restricted, else every in-force test's, distinct, in definition order, then the existing text. Reading open for Bruno. W3-7: an IP failure starts with the test's `index_recommendation` when it has one. Contract 40.)*
 
 ### Story 23.12: The base's help and recommendation texts in the seed
@@ -7004,6 +7012,8 @@ The texts are Bruno's, and the wording is not edited by the build.
 - If (b): the import is idempotent and tenant-scoped, with an api test.
 - `docs/kbs/project/test-base.md` and `docs/kbs/log.md`.
 
+*(2026-11-09, built as batch e23x under M-1 (b), PR #296 merged as `ef099d41`; no contract, no seed change. Narrowings (`spec-e23x-base-texts.md`): the texts show on the imported company copies only, never on the library's seeded types; a copy the company already holds is never updated by a re-import (a `deferred-work.md` decision for Matheus). The wave 3 review's W3-3 found that the copies printed under "Outros equipamentos"; fix batch e23z fixes it for copies made after it.)*
+
 *(2026-11-10, fix batch e23z, W3-7: the base's IP rows (TR-OL-03, TR-SE-03) attach to the insulation test as its IP row: the copy's test takes `index_recommendation`, and the preview no longer lists them "Sem ensaio no app". Narrowings: the IP row's help is not merged into "Como ensaiar", and the editor does not show `index_recommendation`. W3-3: the imported copies print in their base type's group, see Story 14.6.)*
 
 ### Story 23.13: Test-voltage defaults on every insulation row (decision D)
@@ -7038,6 +7048,8 @@ So that I change a voltage only when I really used another.
 - Kernel tests per type at each band edge (600 V, 601 V, 5000 V, 5001 V).
 - A Playwright spec through the DOCX.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built as batch e23e with 23.18, 23.20 and 23.21, PR #295 merged as `7f29b243` (contract 39). Narrowing (`spec-e23e-tc-thermo-ground.md`, Design Notes): the TC and TP secondaries at 1 kV apply to no row, since the seeded tables hold FASE R/S/T × MASSA only and no secondary row is added.)*
 
 ### Story 23.14: Contact resistance: the manufacturer's value, else the default, with the pole deviation as restriction (decision L)
 
@@ -7074,6 +7086,8 @@ So that a contact starting to degrade shows up before it fails.
 - Kernel boundary tests (exactly at the deviation limit, one step past it, a pole over range).
 - A Playwright spec.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23v, PR #290 merged as `967d898a`. No narrowing of its own; the contact against the previous visit stayed out until B-6, below.)*
 
 *(2026-11-09, Bruno's answer to B-6 through Matheus, "Resistencia subiu 50% é reprovado": the previous-visit rule on contact resistance enters scope, built by the wave 2 fix batch. Acceptance criteria:)*
 - On v13, a contact-resistance pole more than 50 % above the same pole's value at the previous visit makes the test out (Reprovado). The kernel's reason names the pole and the rise, and the existing chain gives the Reprovado floor and a `reading` point.
@@ -7132,6 +7146,8 @@ So that a loose connection or a damaged winding shows in the relatório.
 - Every spec asserting the sub-block list read from the kernel (E14-A3).
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built as batch e23t with 23.16, 23.17 and 23.19, PR #294 merged as `fc0aa508` (contract 38). Narrowings (`spec-e23t-transformer-tests.md`, listed for Bruno): the deviation is taken over the lowest phase; a dry winding has no out band but an open circuit; the winding is not compared with the factory value.)*
+
 *(2026-11-10, fix batch e23z, W3-1 and W3-2: a stored `restricao` point stays standing while a measurement test holds a restricted cell, even if another cell is out, or while a restriction rule (the history move, a restricted band) flags a cell now out. A measured cell the deviation between phases cannot judge leaves no floor: the medium unknown, a cell at zero, or a lone phase. The sheet then gets no Aprovado · Sem restrições (Story 14.9's rule). Contract 40.)*
 
 ### Story 23.16: The polarization index judged
@@ -7175,6 +7191,8 @@ So that a wet or aged insulation shows even when the 1-minute value passes.
 - A Playwright spec through the DOCX.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23t, PR #294 merged as `fc0aa508`. Narrowings: the IP classes (below 1,0 out, 1,0 to below 2,0 restricted, 2,0 and above within) apply to both media; the IP has no history; the DAR is captured on both media and not judged.)*
 
 ### Story 23.17: The insulating liquid and oil sampling (decision H)
 
@@ -7230,6 +7248,8 @@ So that the relatório names the liquid right and says what goes to the laborato
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built in batch e23t, PR #294 merged as `fc0aa508`. Narrowings: the sampling reason is a closed choice, free text going in Observações; a silicone liquid applies the sampling, as the AC says, a reading listed for Bruno against the base row TR-OL-07.)*
+
 ### Story 23.18: TC and TP: polarity, the TC's function and the S classes (decision E)
 
 **Dev model:** opus · **Effort:** high · on v13 a polarity result per TC and TP (OK or Invertida, Invertida failing); the TC's FUNÇÃO (medição, proteção, faturamento) with the faturamento notice; the TC classes 0,3S and 0,6S and the notation 5P20 and 10P20; the printed note under the ratio test; the plate structuring told about the function
@@ -7273,6 +7293,8 @@ So that the relatório says what was verified and does not pass for an accuracy 
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built in batch e23e, PR #295 merged as `7f29b243`. Narrowing: polarity is a choice column of the seeded ratio table, the mock's shape, so a failing choice lives on that grammar, not on the measurement grammar.)*
+
 ### Story 23.19: HH fuse resistance on the seccionadora
 
 **Dev model:** opus · **Effort:** medium · a new v13 test on the seccionadora: the resistance of each fuse, judged by the deviation between phases (rev08 SC-04), applied only when TIPO DE SECCIONADORA has fuses (Story 23.9 over Story 23.7's field); reuses Story 23.15's "deviation between phases" criterion
@@ -7303,6 +7325,8 @@ So that a damaged fuse shows before it fails in service.
 - Kernel tests.
 - A Playwright spec through the DOCX.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23t, PR #294 merged as `fc0aa508`. Narrowing: an empty TIPO DE SECCIONADORA applies the fuse test, by Story 23.9's rule for a condition over an empty field.)*
 
 *(2026-11-10, fix batch e23z, W3-1, W3-2 and W3-4: as Story 23.15. A fuse at zero leaves no floor; a company copy of the seccionadora keeps "HH" in the conclusion clause.)*
 
@@ -7353,6 +7377,8 @@ So that the relatório tells a possible deficiency from an urgent one.
 - The `SPEC.md` Non-goals line.
 - `docs/kbs/log.md`.
 
+*(2026-11-09, built in batch e23e, PR #295 merged as `7f29b243`. Narrowing: a thermal photo is a sheet photo taken from the test with its caption context, and it prints in the sheet's photo block right after the thermography table (FR-68, Story 20.6); there is no new photo kind and no reading job.)*
+
 *(2026-11-10, fix batch e23z, W3-1 and W3-6: a band restriction stands for a stored point while another cell is out; the applied band of a value condition, see Story 23.9.)*
 
 ### Story 23.21: A new type: Malha de aterramento
@@ -7400,6 +7426,8 @@ So that its resistance and its continuity are in the relatório with a verdict.
 - The `SPEC.md` Non-goals line.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-09, built in batch e23e, PR #295 merged as `7f29b243`. Narrowings: the base's added row for the grid (AT-02) is not built, since no row-adding capability exists (a `deferred-work.md` row for Matheus); the Malha prints after the run's other library types.)*
 
 *(2026-11-10, fix batch e23z, W3-3: a company copy of the Malha prints last in "Outros equipamentos", as the Malha does.)*
 
