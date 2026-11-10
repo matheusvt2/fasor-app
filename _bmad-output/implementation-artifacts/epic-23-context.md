@@ -455,6 +455,7 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
   - Company type versions: zero. So no company copy made before `base_block_type` exists in production (the e23z row of W3-3 in `deferred-work.md` is closed with this).
   - Templates on seed v13: 11, in 2 companies. None carries the sub-block `ia_ip_display` on a transformer block, and there is no stale transformer block.
   - So finding F1 of the behaviour pass is local dev data only.
+  - *(2026-11-10, coordinator, a third count asked by the retrospective.)* Relatórios on seed v13: none, in any status. On seed v12: one, em campo. So no document was issued on v13 between the first and the third deploy.
 - **Browser behaviour pass.** *(2026-11-10, coordinator.)* It ran on 2026-11-10 on the product code of `47be2638`. The report is `_bmad-output/test-artifacts/manual/behaviour-pass-e23-2026-11-10.md`.
   - Items 3 to 8 passed.
   - Items 1 and 2 failed: the v13 transformer insulation table in print.

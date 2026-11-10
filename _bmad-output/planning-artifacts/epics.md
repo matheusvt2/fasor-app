@@ -7431,6 +7431,1517 @@ So that its resistance and its continuity are in the relatório with a verdict.
 
 *(2026-11-10, fix batch e23z, W3-3: a company copy of the Malha prints last in "Outros equipamentos", as the Malha does.)*
 
+## Epic 24: Bruno's answers on the product: a conclusion by his rules, the TAG, the checklists, the previous visit in print and company types (seed v14; Bruno and Matheus, 2026-11-10)
+
+Bruno answered questions 18, 19, 22 to 30 and 32 to 34 of the 2026-11-07 list on 2026-11-10. He agrees with part of how the product concludes a ficha, names equipment, lists its checks and compares visits. He corrects the rest. Matheus took ten decisions the same day. This epic builds them.
+
+The sources are gitignored, pt-BR and absent on other machines:
+- Bruno's answers and a table comparing each request with the code: `docs/context/epic-23/respostas-bruno-produto-2026-11-10.md`;
+- the questions: `docs/context/epic-23/perguntas-bruno-2026-11-07.md`.
+
+This epic cites Bruno by question number ("Bruno, 2026-11-10, question 25"), never by his sentences. Item names, field names and TAG prefixes that become product labels are product content and are written in the stories. The plan is `sprint-change-proposal-2026-11-10.md`. The hands-on pass it cites is `_bmad-output/test-artifacts/manual/behaviour-pass-e23-2026-11-10.md` (findings F1 to F20). The overridden records are the eleven `source-deltas.md` rows of 2026-11-10. "Row" below means a row of `deferred-work.md`, cited by the line of main `f89b787a` the proposal uses.
+
+**Matheus's decisions (2026-11-10):**
+1. A Reprovado ficha prints both restriction boxes empty. "Com restrições" exists only with Aprovado.
+2. When an item goes back to Conforme, the app asks whether to remove the point of attention.
+3. A ficha already concluded keeps its stored pair.
+4. Three waves: the rules, then the seed beside the print and company types. The No-break's tests stay out.
+5. The new conclusion rules apply to new relatórios only (seed v14). Screen-only behaviour applies to all. Older relatórios print byte-identical.
+6. The previous visit's date is the service date, stored at issue from now on. Older visits fall back to the issue date.
+7. Drops and rises print as a note line under the table. The table itself does not change.
+8. The story list and the batches are approved.
+9. The four low findings of the hands-on pass (F10, F15, F18, F20) are fixed in this epic, and the ledger of deferred work was swept for rows that fit.
+10. The stories are written with John (`bmad-agent-pm`) and built by Amelia (`bmad-agent-dev`).
+
+**Rules every story keeps:**
+- **Seed v14, new relatórios only (AD-21).** Seed v14 derives from v13, with `V13_HASH` pinned as shipped. A change to a verdict or to a printed page is reached through a key of the v14 seed: a definition key, or a key of the seed-level `rules` object that Story 24.2 adds. A v1 to v13 seed carries none of these keys, so it gives today's result in every reader. No relatório migrates its seed. No rule compares version numbers.
+- **Screen-only behaviour applies to every seed.** The preview wording, the question about the point, the NC phrase warning, the TAG suggestion and the small screen fixes change no verdict and no printed page.
+- **The stored pair stays.** A ficha already concluded keeps the pair it stored. Nothing is recomputed, on any seed.
+- **The printed layout of every older relatório stays byte-identical.** Bruno likes the current relatório. Story 24.2 adds v13 goldens to the layout lock. Every later story keeps the v5, v11, v12 and v13 goldens and the Porto Seguro goldens unchanged. Goldens and fixtures change by additions only. A v14 sheet prints only the delta its story names.
+- **A test that pins v13 stays on v13.** A test or spec that asserts a v13 verdict or a v13 printed page is pinned to v13 by an addition (`seedVersion: 'v13'`). It is never rewritten to the v14 result. The v14 behaviour gets new tests.
+- **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` computes every status, count, text, order and verdict, once. `apps/web` renders from IndexedDB and writes ops only. `apps/api` applies ops and renders documents. `applyOp` is the only reducer.
+- **Strings (AGENTS.md "Where a new user-facing string goes").**
+  - Derived text goes in `packages/domain`.
+  - Static surface copy goes in `apps/web/src/copy/pt-br.ts`.
+  - Component chrome goes in `apps/web/src/copy/ui.ts`.
+  - Seeded content (item labels, NC phrases, field labels) lives in the seed. Every new NC phrase is added to `docs/nc-chip-phrases.md` in the same PR (`scripts/nc-chip-phrases.test.ts` checks it).
+  - Every pt-BR sentence a story authors is marked `// authored (Story 24.x, listed for Bruno)` and listed in the PR.
+- **Not guessed.** A point nobody decided is written under its story as "Coordinator's reading, open to Matheus", with the most conservative reading built.
+- **Out of this epic:**
+  - the No-break's tests (Bruno, question 34: a later module);
+  - the open items B-1 to B-10 of the proposal, which Bruno answers after the epic is built;
+  - the rows the sweep left out (3037, 1047, 3032, 3100, 3153), for the reasons the proposal gives.
+- **Raised while writing the stories, for Bruno:** B-11, whether the TC's list should ask an item on its secondary (Story 24.10). It joins B-1 to B-10.
+
+**Waves and gates** (detail in `implementation-artifacts/epic-24-context.md`):
+- **Wave 0.** Story 24.1, the frames, drawn by the coordinator with `bmad-ux`. Matheus approves them in the browser.
+- **Wave 1** starts from main after the planning PR merges and 24.1 is approved.
+  - e24a: 24.2, 24.3, 24.4. The conclusion lane. It owns the opening of seed v14 and the v13 layout lock. Contract 41.
+  - e24b: 24.5, 24.6, 24.7, 24.8, 24.9. The screen lane. It needs no seed v14. It edits `points/derived.ts` beside e24a, so it merges second. Contract 42.
+- **Wave 2.** e24s: 24.10, 24.11, 24.12, 24.13, 24.14. The seed lane. After wave 1's gate and fix batch. Contract 43.
+- **Wave 3.** e24p: 24.15, 24.16, 24.17, 24.18, 24.19, 24.20. Print and company types. Side by side with e24s. Contract 44.
+- Contract numbers are reserved in merge order. A batch whose spec finds no fold change takes none, and the coordinator renumbers the later batches before they launch.
+- The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Each wave ends with a two-pass integrated review and a fix batch.
+
+**Definition of Done of the epic:**
+- Every story merged with its story gate pasted in its PR.
+- Each wave gate green on the integrated main, and its integrated review accepted.
+- The paid plate eval run on Matheus's AWS login for the prompt change of Story 24.13 (E21-A4), its table recorded.
+- **The hands-on pass in the browser runs before the deploy, not after it** (the process change taken from Epic 23). A QA agent walks a v14 relatório and a v13 relatório on the integrated main. Its report is tracked under `_bmad-output/test-artifacts/manual/` before the deploy.
+- One deploy, after the last wave gate, its review, the eval and the pass, on Matheus's word. Seed v14 freezes at that deploy.
+- After the deploy, one message to Bruno with the open items B-1 to B-10 and every authored sentence of the epic.
+
+### Story 24.1: The Epic 24 frames in the mocks
+
+**Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code; dated amendments to DESIGN.md and EXPERIENCE.md; `MOCK-GUIDE.md` and `index.html` list the frames
+
+As Matheus approving what the field will see,
+I want each new control of Epic 24 drawn before it is built,
+So that the batches build from frames, not from a guess (E14-A4).
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `mockups/prototype/screens/60-ficha.html` line 991 draws the suggestion as one amber banner, "Sugestão: …" with the reason and an "Aceitar" button, over two unselected radiogroups. The build differs: a Suggestion field labelled "Sugestão" with the pill "Sugerido" and "Confirmar", over radiogroups that already show the floor's pair as selected (`apps/web/src/surfaces/ficha/conclusao-section.tsx:428-457`).
+- Nothing draws: a preview state of the conclusion; a question about a point of attention; a warning on a kept NC observation; a Reprovado ficha with no restriction choice; a No-break de comando sheet; a palette where a copy stands in its original's place; a "nominal ± %" criterion in the type editor (`43-tipo-equipamento.html`).
+- `key-print-section-9-v13.html` is the last printed frame. It draws MANUT. ANTERIOR with no date and no note line under a table.
+
+*(Definition of Ready, met 2026-11-10: the proposal's frame list in its "Artifact conflicts" table, and this story's list. The look follows `DESIGN.md`. No new colour token is drawn unless a frame shows the need and names it, per `MOCK-GUIDE.md`.)*
+
+**Acceptance Criteria:**
+
+**Given** `60-ficha.html`, `61-verificacoes-local.html`, `72-pontos.html`, `43-tipo-equipamento.html` and the field palette of `40-relatorio-overview.html`
+**When** they are redrawn
+**Then** they show, at 390, 768 and 1280 px, light and dark, with no emoji and no Fasor branding:
+- the Conclusão step before the technician concludes: the suggestion row worded as a preview, and the two radiogroups showing the floor's pair in a preview state that reads differently from a stored pair (Story 24.5);
+- the same step on a v14 ficha that is Reprovado: the result chosen, no restriction choice offered, the reason line, and OBSERVAÇÕES required (Story 24.3);
+- the same step on a v14 ficha with a reading out of its criterion: no "Marcar Com restrições" on the reading (Story 24.3);
+- an NC row set back to Conforme whose observation was edited: the observation kept, a warning line under it and its "Apagar observação" action (Story 24.6), on a sheet row and on a local's row;
+- the question asked when an NC row with a stored point goes back to Conforme, as a dialog with its two answers (Story 24.7);
+- a point flagged "Origem resolvida" on the Pontos screen, with its remove action beside the flag (Story 24.7);
+- the TAG field of a new sheet with a suggested "DJ-01" and its helper (Story 24.8);
+- a No-break de comando sheet: its plate with the battery fields, its six items, no test step content (Story 24.13);
+- the palette "Adicionar equipamento" where a company copy stands in its library original's place (Story 24.19);
+- the type editor's Critérios tab with a "nominal ± %" row: the rule, the nominal value, the tolerance, and how the sheet's helper reads it (Story 24.18)
+
+**Given** the small controls of Stories 24.9, 24.11 and 24.14
+**When** their frames are drawn in the same screens
+**Then** they show:
+- the TAPS helper naming the separator;
+- "Foto térmica" after a photo was attached;
+- "Agrupar por tipo" in the local's dialog;
+- the template list's line for templates that cannot be read;
+- an oil-only plate field drawn read-only with its reason on a dry unit;
+- the oil sampling's "Outro" with its text;
+- the Malha de aterramento's first block with its own title and no "Fotografar placa"
+
+**Given** the print of a v14 sheet
+**When** the printed frame is drawn (`key-print-section-9-v14.html`, in the `key-*.html` style)
+**Then** it shows only these deltas from `key-print-section-9-v13.html`:
+- the MANUT. ANTERIOR header with the previous visit's date (Story 24.15);
+- one note line under a table naming a drop and a rise (Story 24.16);
+- the CONCLUSÃO row of a Reprovado ficha with both restriction boxes empty (Story 24.3);
+- a section 8 row whose "Ação recomendada" holds the test's recommendation (Story 24.17)
+
+**Given** the approved frames
+**When** the PR merges
+**Then** `DESIGN.md` and `EXPERIENCE.md` carry dated amendments (strike-through, never a rewrite), and `MOCK-GUIDE.md` and `index.html` list the frames
+
+**Definition of Done, in addition:**
+- Matheus approves the frames in the browser at 390, 768 and 1280 px, with one dialog open.
+- No app code changes.
+- Every authored pt-BR sentence in a frame is listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+*(2026-11-10, John: the proposal's frame list names screens only. The printed frame and the small controls are added here, because the print is the epic's highest risk and E14-A4 asks for a frame before each new control. They add no story.)*
+
+### Story 24.2: Seed v14 opens and the v13 layout is locked (contract 41)
+
+**Dev model:** opus · **Effort:** high · seed v14 derived from v13 with `V13_HASH` pinned as shipped; the seed-level `rules` object, optional and empty of effect at the opening; the layout-lock goldens of a v13 relatório that covers what Epic 24 changes on v14; contract 41 with its `MIN_CONTRACT_VERSION` decision
+
+As Bruno reading a relatório issued before this epic,
+I want it to conclude and print exactly as it did,
+So that the new rules reach only the relatórios created after them.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `SEED_VERSION` is `'v13'` (`seed/definitions.ts:64`), and `SEED_VERSIONS` holds v1 to v13 (`:128`). Seed v13 is deployed (`9add87b5`) and released (v0.8.0), so it is frozen (AD-21).
+- `seed.test.ts` pins `V13_HASH` `ff1737055c046a1f8a3fb9099bae3306b338b8af50be5502b347837602bd30ff` (`:2155`).
+- The contract is 40 with minimum 40 (`contract/version.ts:469` and `:738`).
+- The layout lock covers v5, v11 and v12 only: `LAYOUT_LOCK_VERSIONS` (`packages/domain/fixtures/layout-lock/op-log.ts:40`), the goldens under `apps/api/src/jobs/generate/golden/layout-lock-{v5,v11,v12}/`, compared by `docx-layout-lock.test.ts` ("23.2-UNIT-LOCK") and `layout-lock.integration.test.ts` ("23.2-INT-LOCK"). There is no v13 golden.
+- The lock fixture holds no `last_results`, so no golden prints MANUT. ANTERIOR.
+- The conclusion rules, the parecer and sections 8 and 10 have no seed gate (`relatorio/conclusion.ts`, `relatorio/parecer.ts`). `reportSeedSchema` (`seed/schema.ts:999`) has optional seed-level keys already (`recurring_findings`, `site_checklist`).
+- The server moves a Template to the newest seed (`templateSeedUpgrade`, Story 14.3), so every relatório created after the deploy is born on v14.
+
+*(Definition of Ready, met 2026-11-10 by decision 5 and the proposal's "Technical impact":)*
+- **Seed v14** derives from v13. This batch owns `seed/v14.ts`. Its first commit holds only v14 = v13 (a new version, same content), the `rules` key and the v13 layout lock.
+- **The gate key.** `reportSeedSchema` gains one optional key, `rules`, an object of optional flags. It is absent on v1 to v13, so their content hashes hold. Each later story adds its own flag to the v14 seed. The kernel reads a flag through `findSeed(seed_version)`: the block's `seed_version` for a ficha (a company block carries its relatório's), the relatório's for the parecer and for sections 8 and 10.
+- **The v13 layout lock.** `LAYOUT_LOCK_VERSIONS` gains `'v13'`. The v13 fixture is synthetic and covers what Epic 24 changes on v14, so each change has its v13 pin:
+  - one sheet of every type v13 offers;
+  - a ficha Reprovado by a reading out of its criterion (it prints Reprovado and COM RESTRIÇÕES);
+  - a ficha Com restrições by an observation alone;
+  - an arrester whose nameplate sub-block is off and whose stored DESLIGADOR ÍNTEGRO is NÃO (it prints Reprovado);
+  - a second visit with `last_results` on the insulation, contact and winding-resistance tables, with a contact rise out and an insulation drop restricted;
+  - an NC observation typed in two lines;
+  - a company-type sheet whose reading out of its criterion carries a recommendation (section 8);
+  - a template's own Conclusão text with part of "nos itens 8 e 9" in bold.
+- **The goldens are taken on main at the start of wave 1**, before any other Epic 24 change. *(2026-11-10, coordinator: and after fix batch e24f has merged, so the lock holds the print with the retrospective's fixes; `epic-24-context.md` § Fix batch e24f.)* The v5, v11 and v12 goldens are not regenerated.
+- **Contract 41.** A 40 client cannot resolve a v14 definition. `MIN_CONTRACT_VERSION` moves to 41 unless the PR shows why not.
+- **Out of scope:** every rule change. At the end of this story a v14 relatório concludes and prints exactly as a v13 one.
+
+**Acceptance Criteria:**
+
+**Given** main at the start of wave 1
+**When** the v13 layout-lock goldens are generated
+**Then** `golden/layout-lock-v13/` pins the DOCX parts and the PDF text of the v13 fixture, the v5, v11 and v12 goldens and the Porto Seguro goldens are byte-equal to main, and every later Epic 24 PR must keep all of them byte-equal
+
+**Given** seed v14 at its opening
+**When** `seed.test.ts` runs
+**Then** `V13_HASH` is the value v13 shipped with, `SEED_VERSION` is `'v14'`, `Object.keys(SEED_VERSIONS)` is v1 to v14, `equipmentTypesOf('v14')` equals v13's list, and v14 stringifies equal to v13
+
+**Given** a seed with no `rules` key (v1 to v13)
+**When** any reader asks for a flag
+**Then** it answers "off", and every v1 to v13 hash in `seed.test.ts` is unchanged
+
+**Given** a relatório created after this story
+**When** it is created from a template, in the app or by the server's template upgrade
+**Then** it is born on v14, and a relatório that existed before keeps its seed
+
+**Given** a client on contract 40
+**When** it syncs
+**Then** it is refused with 426 and the update notice
+
+**Given** a v14 relatório and a v13 relatório with the same answers
+**When** both conclude and print
+**Then** their verdicts are equal and their documents differ in nothing but their ids and dates: no rule differs yet
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "24.2-UNIT": the pins above, and the `rules` reader on a seed with and without the key.
+- `docx-layout-lock.test.ts` and `layout-lock.integration.test.ts` run over v5, v11, v12 and v13 ("24.2-UNIT-LOCK", "24.2-INT-LOCK").
+- Every test that pins `SEED_VERSION` or the version list is updated (`merge/conflicts.test.ts`, `relatorio/section-position.test.ts`, `templates/from-relatorio.test.ts`, found by grep).
+- "24.2-API-001": the 426 through the sync route, and a v14 relatório created through it.
+- `e2e/seed-v14.spec.ts` "24.2-E2E-001 @p0": a new relatório is on v14, fills one sheet of each of the eight types and generates its DOCX; a v13 relatório opened beside it still generates.
+- The touched durability specs on the matrix projects.
+- The spine gains a dated note under AD-21 (a seed may carry rule flags; a rule is reached by its flag, never by a version number).
+- The `source-deltas.md` rows keep "planned" until their own stories build.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 24.3: Out of criterion gives Reprovado only; a restriction is the technician's choice; an observation gives none
+
+**Dev model:** opus · **Effort:** max · the v14 conclusion rule in `relatorio/conclusion.ts`: a failure floors Reprovado with no restriction; an observation is no reason; the effective, chosen and printed pairs, the progress count, the required observation, the reason line, the suggestion and "Marcar Com restrições" follow it; the arrester's prerequisite read only with the nameplate on; v1 to v13 untouched
+
+As Bruno concluding a ficha with a reading out of its criterion,
+I want it to be Reprovado and nothing else, and I want a note I typed to stay a note,
+So that "Com restrições" means what I chose, and half my fichas stop printing a restriction I never gave.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `computeFloor` (`relatorio/conclusion.ts:162-203`) gives Reprovado · Com restrições for a failure: a reading out, a ratio row INSATISFATÓRIO, a measurement cell out, a failed prerequisite, a defect Não ensaiado (`:164`, `:186`).
+- It gives Aprovado · Com restrições for a restricted reading, an NC row or an observation (`:181-187`). `anyObservation` (`:111-116`) counts the sheet observation and the observation of a row that is not NC.
+- `effectiveConclusionPair` (`:228`) is the stricter of the floor and the stored pair, per half. `conclusionPairComplete` (`:711`) needs both halves. `printedConclusionPair` (`:263`) feeds the four boxes of section 9 (`print/section-9.ts:219-224`).
+- `observationRequired` (`:355`) is true only under Com restrições. `conclusaoMissing` (`relatorio/sheet-progress.ts:228-240`) counts a result, a restriction and that observation.
+- A reading out of its criterion shows "Marcar Com restrições" (`apps/web/src/surfaces/ficha/measurement-field.tsx:297`, `measurement-test-section.tsx:563`), which writes the restriction alone (row at 3019).
+- `failedPrerequisites` (`relatorio/restriction.ts`) reads the arrester's DESLIGADOR ÍNTEGRO whatever the nameplate sub-block's switch (row 3344).
+- "Concluir ficha" writes the effective pair (`apps/web/src/surfaces/ficha/use-ficha-actions.ts:146-200`).
+- The technician can already choose Aprovado · Com restrições over a clean ficha, and OBSERVAÇÕES is then required.
+
+*(Definition of Ready, met 2026-11-10 by Bruno's questions 25 and 26 and Matheus's decisions 1, 3 and 5. Blocked until Story 24.1's frames of the Reprovado ficha are approved.)*
+- **The gate.** The v14 seed carries the flag of this rule in `rules`. Every function below reads it. Without the flag the function returns exactly what it returns today.
+- **The floor on v14:**
+  - a failure gives **Reprovado**, with no restriction;
+  - a defect Não ensaiado gives Reprovado, with no restriction;
+  - a restricted reading (Story 23.6) gives Aprovado · Com restrições, as on v13;
+  - an NC row gives Aprovado · Com restrições, as on v13;
+  - an observation, on the sheet or on a row, gives nothing;
+  - else Aprovado · Sem restrições, under the same conditions as today.
+- **The pair on v14.** When the effective result is Reprovado, the effective restriction is none. This holds for a floor and for a Reprovado the technician chose. A stored restriction under it is not shown.
+- **Complete on v14.** Reprovado alone is a complete pair. Aprovado needs its restriction.
+- **The technician's choice.** Aprovado · Com restrições stays choosable whenever the floor allows Aprovado. Its justification is OBSERVAÇÕES, required as today.
+- **The observation on v14** is required under Com restrições and under Reprovado (Bruno, question 25: asking for it is right), while the observations sub-block is on.
+- **Stored pair (decision 3).** No v1 to v13 function changes. Nothing writes to a ficha that is not being edited.
+- **The arrester (row 3344).** On v14 `failedPrerequisites` reads the prerequisite only while the nameplate sub-block is on.
+- **"Marcar Com restrições" (row at 3019).** The kernel says when the action may show. On v14 it never shows on a reading out of its criterion. On v1 to v13 it shows as today.
+- **Records amended in the build PR:** a dated line on the SPEC Non-goals "A decision-maker" bullet, and the `source-deltas.md` row.
+
+**Acceptance Criteria:**
+
+**Given** a v14 cable with an insulation reading of 300 MΩ against > 400 MΩ, and nothing else wrong
+**When** the Conclusão step renders
+**Then** the result shown is Reprovado, Aprovado is disabled, no restriction is selected or offered, the reason line reads "A ficha exige no mínimo Reprovado: leitura fora do critério." with no "Com restrições", and OBSERVAÇÕES is required
+
+**Given** that ficha with OBSERVAÇÕES filled
+**When** "Concluir ficha" is tapped
+**Then** one batch writes the result Reprovado and no restriction, the ficha is Concluída, and section 9 prints X on REPROVADO with SEM RESTRIÇÕES and COM RESTRIÇÕES both empty
+
+**Given** a v14 ficha with every row Conforme, every reading within its criterion, and text in OBSERVAÇÕES and in one Conforme row's observation
+**When** the floor is computed
+**Then** it is Aprovado · Sem restrições with no reason, Sem restrições is enabled, and no line says "observação registrada"
+
+**Given** a v14 ficha with a clean floor
+**When** the technician chooses Aprovado and Com restrições
+**Then** OBSERVAÇÕES becomes required, "Concluir ficha" writes Aprovado · Com restrições, section 9 prints X on APROVADO and on COM RESTRIÇÕES, and the parecer is Apto com restrições
+
+**Given** a v14 ficha with one NC row, or with one restricted reading, and no failure
+**When** the floor is computed
+**Then** it is Aprovado · Com restrições, as on v13
+
+**Given** a v14 ficha with one NC row and a reading out of its criterion
+**When** it concludes
+**Then** it is Reprovado with no restriction, and the NC row still derives its point of attention
+
+**Given** a v14 ficha where the technician chose Reprovado over a clean floor
+**When** the choice is written
+**Then** the same batch clears a stored restriction, no restriction is offered, and choosing Aprovado again asks for the restriction again
+
+**Given** a v14 ficha concluded Aprovado · Com restrições, and a reading then corrected out of its criterion
+**When** the ficha, the Sumário and the preview render
+**Then** each shows Reprovado with no restriction, the ficha shows "Conclusão ajustada pela ficha", and its "Confirmar" writes Reprovado and clears the stored restriction
+
+**Given** a v14 ficha with a reading out of its criterion
+**When** the reading's helper renders
+**Then** "Marcar Com restrições" is not offered; on a v13 ficha with the same reading it is
+
+**Given** a v14 arrester with DESLIGADOR ÍNTEGRO stored as NÃO
+**When** its nameplate sub-block is on
+**Then** the floor is Reprovado
+**And when** the sub-block is switched off
+**Then** the prerequisite is not read by the floor, the points, the conclusion text or the parecer; on a v13 arrester it is still read
+
+**Given** a v14 relatório with one Reprovado ficha
+**When** the parecer is derived
+**Then** it is Não apto, the ficha is counted under the reprovadas and never under "com restrições"
+
+**Given** a v13, a v12 and a v5 relatório, each with a ficha concluded Reprovado · Com restrições and a ficha Com restrições by an observation
+**When** they render and print after this story
+**Then** every pair, reason line, count and printed box is as before, the stored pairs are untouched, and the layout-lock and Porto Seguro goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "24.3-UNIT": the floor over every source on a v14 test seed and on v13 (each failure kind, a defect reason, a restricted reading, an NC row, both observations, the mixes); the effective, chosen and printed pairs; `conclusionPairComplete`; `observationRequired`; `conclusaoMissing`; the reason line and the suggestion text; `conclusionAdjustWrites`; `failedPrerequisites` with the nameplate on and off; the action's rule.
+- Section 9 print tests of the four boxes on v14 and v13.
+- "24.3-API-001": the conclude batch (the result put and the restriction removed) through the sync route. The fold gains no rule: the pair is derived on read.
+- `e2e/conclusion-v14.spec.ts`, each through the DOCX: "24.3-E2E-001 @p0" out of criterion to Reprovado with empty boxes; "24.3-E2E-002 @p0" observations give no restriction; "24.3-E2E-003" the technician's Aprovado · Com restrições with its required observation; "24.3-E2E-004" the adjusted note; "24.3-E2E-005" a v13 relatório beside it concludes as before.
+- The touched durability specs on the matrix projects.
+- Every spec that asserts a v13 pair is pinned to v13, not rewritten.
+- The SPEC Non-goals dated line.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *An NC row and a restricted reading keep flooring Aprovado · Com restrições on v14. Bruno's answers change the reading out of its criterion and the observation only.*
+- *The justification of the technician's Aprovado · Com restrições is OBSERVAÇÕES, already required. No second field is added.*
+- *On v14 the observation is required under any Reprovado, the technician's own included.*
+- *Row 3344 (the arrester) changes a verdict, so it applies on v14 only, under decision 5.*
+
+### Story 24.4: Section 10 names the finding
+
+**Dev model:** opus · **Effort:** high · on v14 the parecer's Reprovado sentence names each reprovada ficha with its findings, in the words section 9's conclusion uses; the NC clause on one line; the fixed reference replaced across formatted runs; v1 to v13 text and bases byte-equal
+
+As Bruno reading the CONCLUSÃO of a relatório with a reproved ficha,
+I want it to say what was found and where,
+So that the client reads the finding in the conclusion and never a positive conclusion over a reproved ficha.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- A reproved ficha already forces Não apto (`relatorio/parecer.ts` `derivedParecer`), and under Não apto the third fixed bullet does not print (`print/section-10.ts`, `POSITIVE_RESULTS_BULLET`).
+- The Parecer box prints `composeParecer`'s text. Its Reprovado sentence names the ficha's TAG and a reason category only: "1 ficha foi reprovada por leituras fora do critério de aceitação (DJ-01)." (`reprovadoSentence`, `REPROVADO_REASONS`). It never names the test, the value or the criterion.
+- Section 9's conclusion paragraph does name them, through `readingClause`, `indexClause`, `choiceClause`, `measurementClause` and `prerequisiteClause` (`relatorio/conclusion.ts`).
+- `ncClauseText` takes an NC observation as typed. With line breaks, section 9 prints the sentence broken in the middle (row 3196; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`).
+- `section10Layout` replaces "nos itens 8 e 9" only inside one run, so a template's own text with part of the phrase in bold keeps the literal numbers (row at 3125).
+- A blank ART prints "[ART]" (`validityLine`). That is Matheus's M-4 and is not touched.
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 28, third condition, and decision 5:)*
+- **The gate.** Three flags in the v14 `rules`. Without them `composeParecer`, `ncClauseText` and `section10Layout` return today's bytes, and a stored `text_basis` or parecer basis keeps its value.
+- **The sentence on v14.** The Reprovado sentence names each reprovada ficha once, in tree order, with its findings:
+  - one finding per failed test, its worst row, built by the clause section 9's conclusion uses for it (the value, where, and the criterion or the rise);
+  - a failed prerequisite by its clause;
+  - a ficha Não ensaiado for a defect reason by that reason;
+  - a ficha the technician reproved with no finding by its TAG alone, as today.
+- **Its form** (authored, listed for Bruno): "1 ficha foi reprovada: DJ-01, por resistência de contato máxima de 310 µΩ em Polo A (critério: <250 µΩ, aceitável na ficha)." With several fichas, each "TAG, por …" is joined by "; ". With several findings on one ficha they are joined as a pt-BR list.
+- **What stays.** The NC sentence ("Itens não conformes: …") already names each item. The Critérios line, the counts and the verdict rule do not change. The on-screen parecer band shows the same text, since it is the same function.
+- **The NC clause (row 3196).** On v14 an NC observation typed in several lines enters the conclusion's clause with its lines joined by "; ".
+- **The fixed reference (row at 3125).** On v14 the replacement of "nos itens 8 e 9" joins the runs first. The replaced phrase takes the formatting of the run where it starts.
+- **Out of scope:** M-4 (the blank ART), and any change to the bullets.
+
+**Acceptance Criteria:**
+
+**Given** a v14 relatório where DJ-01 has a contact reading of 310 µΩ against 250 µΩ
+**When** section 10 prints
+**Then** the Parecer box is titled Não apto, its text names DJ-01 with the test, the value, the pole and the criterion, the same finding stands in DJ-01's conclusion in section 9 and in its point in section 8, and the third fixed bullet is absent
+
+**Given** a v14 relatório with two reprovadas, one by two failed tests and one by a failed ratio row
+**When** the summary is composed
+**Then** each ficha is named once with its own findings, in tree order
+
+**Given** a v14 ficha reprovada by a contact rise since the previous visit
+**When** the summary is composed
+**Then** its finding names the rise, not the criterion it meets
+
+**Given** a v14 ficha the technician reproved with nothing out
+**When** the summary is composed
+**Then** it is named by its TAG alone
+
+**Given** a v14 ficha with an NC observation typed in two lines
+**When** its conclusion text is composed and printed
+**Then** the clause holds both lines joined by "; " and the sentence prints in one paragraph
+
+**Given** a v14 relatório from a template whose own Conclusão text has "8 e 9" in bold inside "nos itens 8 e 9"
+**When** section 10 prints with the results at positions 4 and 5
+**Then** it prints "nos itens 4 e 5" and no literal "8 e 9"
+
+**Given** a v13 relatório with the same fichas, the same two-line observation and the same template text
+**When** it composes and prints
+**Then** every text, basis and stale state is as before, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "24.4-UNIT": the sentence over each finding kind, several fichas, several findings, the ficha with none; the basis of a v13 summary unchanged; `ncClauseText` and `section10Layout` on v14 and v13.
+- "24.4-INT": the DOCX of a v14 relatório, section 10's box text and bullets.
+- `e2e/parecer-names-finding.spec.ts`: "24.4-E2E-001 @p0" a reading out on a v14 sheet, through Etapa 6's band, to the DOCX's sections 8, 9 and 10; "24.4-E2E-002" the two-line NC observation and the bold reference through the DOCX.
+- Every authored sentence listed in the PR for Bruno.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+### Story 24.5: The suggested conclusion reads as a preview until the technician concludes
+
+**Dev model:** opus · **Effort:** medium · screen only, every seed: the suggestion row and the floor's pair shown in the radiogroups read as a preview until the pair is stored; kernel words, the mock's preview state; no verdict, no print change
+
+As Bruno opening the Conclusão step of a ficha I have not concluded,
+I want the pair the app proposes to read as a preview,
+So that nobody takes a proposal for my conclusion.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- The step shows the proposal twice. A Suggestion field labelled "Sugestão" (`copy.ficha.conclusao.suggestionLabel`, `pt-br.ts:1683`) holds the kernel's "Aprovado · Sem restrições?" (`conclusionSuggestionText`), with the pill "Sugerido" and "Confirmar" (`ui.ts:117-123`).
+- Under it the two radiogroups already show the floor's pair as selected, because `effectiveConclusionPair` fills an unset half with the floor's (`conclusao-section.tsx:215-217`, `:435-457`). Nothing tells that selection from a stored one.
+- The pair appears nowhere else before the ficha is concluded: the header, the tree and the Sumário show the state word only, and an open ficha prints no mark the floor alone sets (`printedConclusionPair`).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 24. Blocked until Story 24.1's preview frame is approved.)*
+- **Preview** means: a half of the pair that is not stored and is shown from the floor. It ends when the half is stored, by "Confirmar", by a tap on a segment, or by "Concluir ficha".
+- **The row.** Its label reads "Prévia da conclusão" and its pill "Prévia" (both authored, listed for Bruno). The kernel's pair text keeps its form.
+- **The radiogroups.** A group showing a preview half carries the mock's preview state, and one line under the groups says it is a preview (authored: "Prévia: só vale depois de Confirmar ou de Concluir ficha."). The line is part of the groups' accessible description.
+- **Which half is a preview** is the kernel's answer, never computed in `apps/web`.
+- **Unchanged:** the floor, the disabled segments and their reason line, "Conclusão ajustada pela ficha", what "Concluir ficha" writes, and every printed page.
+
+**Acceptance Criteria:**
+
+**Given** an open ficha with a floor and no stored pair, on any seed
+**When** the Conclusão step renders
+**Then** the row is labelled "Prévia da conclusão" with the pill "Prévia", both radiogroups show the floor's pair in the preview state, the preview line stands under them, and a screen reader hears the line with each group
+
+**Given** that ficha
+**When** the technician taps "Confirmar" on the row
+**Then** the pair is stored, the row leaves, and the groups show the pair with no preview state and no preview line
+
+**Given** that ficha with one half stored by a tap and the other still from the floor
+**When** the step renders
+**Then** only the unstored half's group is in the preview state
+
+**Given** that ficha
+**When** "Concluir ficha" is tapped
+**Then** the pair is written as today and nothing reads as a preview
+
+**Given** an open ficha with a preview pair
+**When** the preview PDF is generated
+**Then** section 9 prints no mark for it, as today
+
+**Given** a ficha marked Não ensaiado, and a ficha with no floor
+**When** the step renders
+**Then** no preview row, state or line is drawn
+
+**Given** a stored pair a later floor made stricter
+**When** the step renders
+**Then** it shows "Conclusão ajustada pela ficha" as today, and nothing reads as a preview
+
+**Definition of Done, in addition:**
+- Kernel "24.5-UNIT": which halves are a preview, over stored, half-stored, floor-only, not tested and no-floor fichas, on v5 and v13.
+- Web unit tests of the step in each state.
+- `e2e/conclusion-preview.spec.ts`: "24.5-E2E-001 @p0" at 768 px the preview, "Confirmar", then a second ficha concluded by "Concluir ficha", with the preview PDF checked for no mark; "24.5-E2E-002" at 390 and 1280 px and in the dark theme, the half-stored case and the accessible description.
+- The `app.css` translation of the mock's preview rule, with its comment (AGENTS.md "Mock container selectors").
+- `EXPERIENCE.md` carries Story 24.1's dated line; no other document changes.
+- `docs/kbs/log.md`.
+
+### Story 24.6: The NC phrase follows its item, and warns when it was edited (contract 42)
+
+**Dev model:** opus · **Effort:** high · screen only, every seed: an NC row set to Conforme or to N.A. drops its observation while that is still only the offered phrases; an edited observation is kept with a warning and a one-tap removal; the chips stop offering one phrase twice; sheet rows and local rows
+
+As Bruno correcting an item I marked NC by mistake,
+I want the automatic phrase to leave with the NC, and my own words to stay with a warning,
+So that a ficha keeps no leftover phrase and loses nothing I wrote.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `clearsNcObservation` (`relatorio/ficha.ts:223-227`) clears the observation only on NC to C, and only when the text is exactly one of the row's chips. `ChecklistRow.choose` (`apps/web/src/surfaces/ficha/checklist-section.tsx:437-442`) writes the clear in the same batch as the result.
+- On NC to N.A. the observation always stays. An edited text always stays, with no notice.
+- Two chips tapped one after the other give "frase A, frase B" (`insertPhrase`, `ficha.ts:233`). That text is not "exactly one chip", so it stays.
+- `typedPieces` (`registry/nc-phrase-row.ts:124-138`) already tells the typed pieces of an observation from the offered phrases.
+- On v1 to v13 a kept observation on a Conforme row floors Com restrições (Story 22.4). On v14 it floors nothing (Story 24.3).
+- The chip row can offer one phrase twice: the learned phrase is stored without its final period, the recent observation keeps it, and `ncChipPhrases` compares with `normalizeRegistryName`, which keeps punctuation (row 2552; `nc-phrase-row.ts:39-69`, `ficha.ts:192-214`).
+- A local's "Verificações do local" uses the same row component.
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 27. Blocked until Story 24.1's warning frame is approved.)*
+- **When.** The row's result changes from NC to C or from NC to N.A. Clearing the result ("Limpar") stays as today.
+- **Still automatic** means: the observation holds no typed piece. It is made only of phrases the row offers (the seed's, the learned ones, the recents), joined as a chip tap joins them, a final period aside. The kernel answers it; `typedPieces` is the rule.
+- **Automatic:** the observation is removed in the same batch as the result.
+- **Edited:** the observation is kept, and the row shows a warning line (authored: "Observação mantida: o texto foi editado.") with the action "Apagar observação". The action removes it in one tap and offers "Desfazer". The warning shows on that device until the row's observation or result changes again.
+- **The chips (row 2552).** `ncChipPhrases` drops a phrase whose text, without its final period and normalised, an earlier chip already offers.
+- **Contract 42** is reserved for batch e24b. This story's reading writes only ops that exist (a result put, an observation remove), so it needs no fold change. The batch takes the number only if its spec finds one.
+
+**Acceptance Criteria:**
+
+**Given** an NC row whose observation is one tapped chip, on any seed
+**When** the technician sets the row to Conforme, or to N.A.
+**Then** the observation is removed in the same batch, and no warning shows
+
+**Given** an NC row whose observation is two tapped chips and nothing typed
+**When** the row is set to Conforme
+**Then** the observation is removed
+
+**Given** an NC row whose observation was typed, or is a chip with words typed after it
+**When** the row is set to Conforme, or to N.A.
+**Then** the observation is kept, the warning line shows under it, and a screen reader hears it once
+
+**Given** that warning
+**When** the technician taps "Apagar observação"
+**Then** the observation is removed, "Desfazer" brings it back, and the warning leaves
+
+**Given** that warning on a v13 ficha
+**When** the Conclusão step renders
+**Then** the kept observation still floors Com restrições, as today; on a v14 ficha it floors nothing
+
+**Given** a local's NC item with a typed observation
+**When** it is set to Conforme
+**Then** the same warning and action show on the "Verificações do local" row
+
+**Given** a learned phrase and a recent observation that differ only by the final period
+**When** the chip row renders
+**Then** the phrase is offered once
+
+**Given** a row set back to NC after its observation was removed
+**When** it renders
+**Then** it asks for an observation as any NC row does
+
+**Definition of Done, in addition:**
+- Kernel "24.6-UNIT": the rule over one chip, two chips, a chip with typed words, typed text, a blank observation, NC to C, NC to N.A., NC cleared, C to NC; the chip list with and without the final period.
+- Web unit tests of the row on a sheet and on a local.
+- `e2e/nc-phrase-follows-item.spec.ts`: "24.6-E2E-001 @p0" the three cases on a sheet through the preview PDF (the removed phrase and the kept text in section 9); "24.6-E2E-002" the local's row and the chip offered once.
+- The touched durability specs (`ficha.durability.spec.ts`, `verificacoes-local.durability.spec.ts`) on the matrix projects.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*(2026-11-10, John: the proposal gives this story contract 42. The code shows no fold change in it: the rule compares the stored observation with the row's phrases and writes existing ops. The number stays reserved for batch e24b under the epic's rule, and the title keeps it until the batch's spec decides.)*
+
+*Coordinator's reading, open to Matheus:*
+- *An observation of several tapped chips counts as automatic. Today only "exactly one chip" does.*
+- *The warning is a line on the row with one action, not a dialog. The technician is told and loses no tap.*
+
+### Story 24.7: An item back to Conforme: the app asks whether to remove its point of attention
+
+**Dev model:** opus · **Effort:** high · screen only, every seed: a question when an NC row with a stored point leaves NC, on a sheet and on a local; a remove action on every point flagged "Origem resolvida"; the Points heading with only automatic points; the browser walk of a local's NC item
+
+As Bruno setting an item back to Conforme,
+I want the app to ask me about the point of attention I made from it,
+So that section 8 does not keep a point whose cause is gone, unless I say so.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- A derived (automatic) entry leaves by itself when its source is gone (`points/derived.ts` `derivedPoints`).
+- A stored point written from a source (`origin` `nc`, `reading`, `reprovado` or `restricao`) stays, flagged "Origem resolvida" (`resolvedOriginPoints`, `derived.ts:390-405`; `copy.points.originResolved`, `pt-br.ts:1339`). The flag is an amber line on the card. The card's only removal is "Remover" in its overflow (`points-surface.tsx:306-420`).
+- On the sheet, an NC row names its point ("Ponto de atenção N") through `ncRowPointPositions` (`points/checks.ts:186-198`). Nothing is asked when the row leaves NC.
+- `removePointOp` (`relatorio/ops.ts:59-61`) removes a point, and the Pontos screen offers "Desfazer".
+- With no live point and three automatic ones the Pontos heading reads "Pontos de atenção (0 + 3 automáticos)" (`pointsHeadingText`, `points/summary.ts:152-157`), where the Sumário reads "3 automáticos" (`pointsSummaryText`, `:126-141`) (row 2352).
+- No browser test walks a local's NC item as an automatic entry (row at 3025).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 28, second condition, and decision 2. Blocked until Story 24.1's question and card frames are approved.)*
+- **The question** is asked on the row, when its result changes from NC to C or to N.A. and a live point of `origin: 'nc'` names that row (same equipment or local, same `item_key`). It is a `ConfirmDialog`:
+  - title "Remover o ponto de atenção deste item?" (authored);
+  - a description naming the point by its number (kernel text);
+  - "Remover ponto" (destructive) and "Manter ponto" (authored).
+- **The result is written either way.** "Remover ponto" removes each such point in the same batch. "Manter ponto" keeps it, flagged "Origem resolvida" as today.
+- **A local's item gets the same question** (the proposal leaves it to this story): it is the same row and the same origin.
+- **Every other resolved point** (a reading corrected, a Reprovado lifted, a restriction gone, a change made on another device or before this story) is not asked about while typing. Its card on the Pontos screen gains "Remover ponto" beside the "Origem resolvida" flag. It opens the existing removal dialog, with "Desfazer" after.
+- **The heading (row 2352).** `pointsHeadingText` with no live point reads as the Sumário does: "Pontos de atenção (3 automáticos)".
+- **Nothing is removed without an answer.** No point is removed by a sync, a merge or a recompute.
+
+**Acceptance Criteria:**
+
+**Given** a sheet's NC row with a stored point written from it, on any seed
+**When** the technician sets the row to Conforme
+**Then** the question opens naming the point, and the row already shows Conforme behind it
+
+**Given** that question
+**When** the technician answers "Remover ponto"
+**Then** the point is removed in the same batch as the result, the Pontos screen and section 8 no longer hold it, and no automatic entry comes back for the row
+
+**Given** that question
+**When** the technician answers "Manter ponto", or closes the dialog
+**Then** the point stays, flagged "Origem resolvida"
+
+**Given** an NC row with no stored point, only its automatic entry
+**When** it is set to Conforme
+**Then** nothing is asked and the entry leaves
+
+**Given** a local's NC item with a stored point
+**When** it is set to Conforme on "Verificações do local"
+**Then** the same question is asked, with the same two outcomes
+
+**Given** a point of origin `reading` whose reading was corrected into its criterion
+**When** the Pontos screen renders
+**Then** its card shows "Origem resolvida" with "Remover ponto" beside it, the action asks the existing confirmation, and "Desfazer" restores the point
+
+**Given** a relatório with no live point and three automatic entries
+**When** the Pontos screen renders
+**Then** its heading reads "Pontos de atenção (3 automáticos)"
+
+**Given** a local whose site item is NC
+**When** the technician opens Pontos, follows "Abrir verificações de ⟨local⟩", comes back and taps "Editar" on the entry
+**Then** the entry is replaced by a point of origin `nc`, and removing that point brings the entry back
+
+**Definition of Done, in addition:**
+- Kernel "24.7-UNIT": the points a row's change asks about (sheet, local, two points, a manual point never asked about); the heading over 0, 1 and N automatic entries with and without live points.
+- Web unit tests of the dialog's three exits and of the card's action.
+- `e2e/point-question.spec.ts`: "24.7-E2E-001 @p0" both answers on a sheet through the DOCX's section 8; "24.7-E2E-002" the resolved `reading` point removed from the Pontos screen and restored; "24.7-E2E-003" the local's NC item walked as an automatic entry (row at 3025), with the question on the local's row.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The question is asked for N.A. as for Conforme: both end the NC.*
+- *A point resolved by a reading or by a verdict is not asked about at the reading. It gets the remove action on its card.*
+
+### Story 24.8: The TAG: the plate's first, else type and a two-digit number
+
+**Dev model:** opus · **Effort:** high · every sheet created from now on, every seed: the suggestion is PREFIX-NN, free in the obra; the helper asks for the plate's TAG; the seccionadora's prefix is SC; a new relatório of an obra still finds its equipment; fixtures keep their TAGs
+
+As Bruno adding a breaker to a relatório,
+I want the app to offer "DJ-01" when I have no TAG, and to take the plate's TAG when I have one,
+So that no equipment is named after the utility or the room.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `suggestTag` (`relatorio/tag.ts:98-118`) gives PREFIX-CODE, the code taken from the local's name ("Cubículo Enel" gives "ENEL", "Coluna 5" gives "C05"), then "-2", "-3". A transformer gets "TR-n" across the obra.
+- `TAG_PREFIX` (`tag.ts:13-30`): CE, PR, SEC, DJ, TP, TC, CS, TR, CTA, QD, QGBT, MA. A company type carries its own `tag_prefix`.
+- The TAG is typed by the technician: the sheet's TAG field (helper "Do bloco · editável", `pt-br.ts:1490`) and "Renomear TAG". The plate reading reads no TAG.
+- Callers of `suggestTag`: `relatorio/instantiate.ts:337` and `:346`, `relatorio/tree.ts:699` (duplicate) and `:828` (palette items), `relatorio/move.ts:68` (a moved block is offered the TAG of its new local), `relatorio/panel.ts:238`, `apps/web/src/surfaces/relatorio/tree-actions.ts:333` and `block-palette-field.tsx:277`.
+- **The reuse.** A new relatório of an existing obra binds each template position to the obra's live equipment whose TAG equals the TAG `suggestTag` gives that position, same type (`instantiate.ts:337-338`). If the suggestion changed alone, no old TAG would match, every equipment would be created again and its previous visit (`last_results`, `last_nameplate`) would be lost.
+- An equipment whose TAG was renamed is not found by the reuse today (ledger row at line 647, open, a design question).
+- The layout-lock, Porto Seguro and replay fixtures and `e2e/support/relatorio-seed.ts` build their relatórios through `instantiateTemplate`, so their TAGs come from `suggestTag`.
+- A CTA placed on a local named "Geradores" is suggested "CTA-GERADORES" (row 2051). A company copy of the transformer is suggested "TR-PRIMARIA" where the library type gives "TR-10" (pass finding F14).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 29 and the constraint the sweep found:)*
+- **The rule.** The suggestion is `PREFIX-NN`: the type's prefix, a hyphen, and the smallest number from 01 that is free among the obra's live equipment, written with two digits (three from 100). A TAG takes its number whatever its zeros: "TR-1" takes "TR-01". The local's name no longer enters the suggestion, for any type.
+- **Prefixes.** The seccionadora's becomes SC. The others stay: CE, PR, DJ, TP, TC, CS, TR, CTA, QD, QGBT, MA. A company type keeps its `tag_prefix`. NB arrives with Story 24.13.
+- **The plate's TAG first.** The TAG stays always editable. The field's helper asks for the TAG of the plate, of the single-line diagram or the one used on site, and says the app's value is a suggestion (authored, listed for Bruno). The plate reading does not read a TAG, and its prompt does not change.
+- **Existing TAGs never change.** The rule applies to a sheet created from now on, on any seed.
+- **The reuse keeps working.** `instantiateTemplate` matches a position against the obra's equipment by two candidates, in this order: the TAG the old rule gives the position (the old rule and its prefix table are kept as a frozen function, used for this match and by fixtures only), then the TAG the new rule gives it. A match needs the same type. A created equipment gets the new suggestion.
+- **Fixtures keep their TAGs.** `instantiateTemplate` takes the TAG rule as an input, the new one by default. The layout-lock, Porto Seguro and replay fixtures and `e2e/support/relatorio-seed.ts` pass the old rule, by an addition, so no golden and no existing spec's TAG changes.
+- **A move** no longer offers a TAG rename: the suggestion does not depend on the local.
+- **Rows.** It closes row 2051 and pass finding F14's odd suggestion. Row 2727 (the "Blocos" drawer says its target to a screen reader) is fixed here only if the batch edits `apps/web/src/surfaces/templates/block-palette.tsx`; else it stays open.
+- **Out of scope:** an equipment whose TAG was renamed is still not found by the reuse (ledger row at line 647).
+
+**Acceptance Criteria:**
+
+**Given** a relatório with no breaker
+**When** the technician adds a Disjuntor MT at any local
+**Then** the TAG suggested is "DJ-01", the next one "DJ-02", and the field's helper asks for the plate's TAG
+
+**Given** an obra whose live equipment holds "TR-1" and "TR-2"
+**When** a transformer is added
+**Then** the suggestion is "TR-03"
+
+**Given** a new seccionadora, a CTA on a local named "Geradores", and a company copy of the transformer with prefix TR
+**When** each is added
+**Then** the suggestions are "SC-01", "CTA-01" and the next free "TR-NN"
+
+**Given** a suggested "DJ-01"
+**When** the technician types "QM8" over it
+**Then** the equipment is "QM8", and nothing changes it back
+
+**Given** an obra whose equipment carries the old TAGs (SEC-C05, DJ-C05, CE-ENEL, TR-1), each with `last_results`
+**When** a second relatório is created from the same template
+**Then** every position binds its old equipment, no equipment is created, the old TAGs stand, and each sheet shows its "Anterior" value and "Copiar da última visita"
+
+**Given** an obra whose first relatório was created under the new rule (SC-01, DJ-01, DJ-02, TR-01)
+**When** a second relatório is created from the same template
+**Then** every position binds the same equipment and none is created
+
+**Given** an obra with old TAGs and a template that gained one more breaker position
+**When** a relatório is created
+**Then** the old positions bind their equipment and the new position creates "DJ-01"
+
+**Given** a sheet moved to another local
+**When** the move is confirmed
+**Then** no TAG rename is offered, for any type
+
+**Given** the layout-lock, Porto Seguro and replay fixtures
+**When** their goldens are compared
+**Then** they are byte-equal: the fixtures pass the old rule
+
+**Given** two live equipment with the same TAG
+**When** the integrity check runs
+**Then** it still reports the duplicate, as today
+
+**Definition of Done, in addition:**
+- Kernel "24.8-UNIT": the rule (free number, zero padding, 100 and above, a removed row never counts, a company prefix); the frozen old rule equal to today's outputs over the existing `tag.test.ts` cases; `instantiateTemplate` over the three obras of the criteria, with the old rule passed and not passed; `moveTagSuggestion`; `duplicateTagSuggestion`.
+- `e2e/tag-suggestion.spec.ts`: "24.8-E2E-001 @p0" a relatório created through "Novo relatório", its TAGs, a breaker added from the palette, a TAG typed over the suggestion, through the DOCX; "24.8-E2E-002 @p0" the obra with old TAGs issued once, a second relatório created through the screen, its previous values shown and printed.
+- Every spec that creates a relatório through the screen and asserts a suggested TAG is updated (4.1-E2E-003 and those `grep` finds). Specs seeded through `relatorio-seed.ts` keep their TAGs.
+- The glossary's TAG entry and `EXPERIENCE.md` (Smart Input, Equipment identity) gain dated lines.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *"The plate's TAG first" is the technician's typing, prompted by the helper. The app reads no TAG from a photo.*
+- *The types Bruno did not list (CE, CS, CTA, QD, MA) keep their prefix. Only SEC becomes SC.*
+- *A renamed TAG is still not found by the next relatório of the obra. With the plate's TAG typed over the suggestion this becomes the common case: the next relatório creates a new equipment and its sheet starts with no previous visit. Fixing it needs a key that survives a rename (for example the suggested TAG stored on the equipment at its creation), which is a product decision and a contract change. It is not in this story.*
+
+### Story 24.9: Small screen fixes from the hands-on pass
+
+**Dev model:** opus · **Effort:** medium · screen only, every seed: seven small fixes from the pass (F1, F9, F11, F16, F17, F19, F20), three unused copy keys removed, the `signIn` helper's wait; no verdict, no print change
+
+As a technician on site,
+I want the small rough edges the pass found on the sheet smoothed,
+So that I read what a field expects before I get it wrong.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- **F9.** The TAPS helper reads "Na ordem da placa" (`tapsHelperText`, `relatorio/tap-rows.ts:360-363`). The separator is named only by the error (`invalidList`, `pt-br.ts:1499`). The parser takes ";", "·" or a space (`parse/pt-br-number.ts:110`).
+- **F11.** After "Concluir fotos" nothing near "Foto térmica" says a photo was attached: the count shows during the burst only (`photo-openers.tsx:66-97`). An applied test reads "Aplicado por você." and then "Aplicado mesmo assim: Equipamento fora de carga." (`applicability-band.tsx:97`, `relatorio/applicability.ts:192`).
+- **F16.** On a v13 TP the fallback sentences ("Sem o tipo de isolação na placa, vale …", "Sem a tensão nominal na placa, vale …", `relatorio/reading-evaluation.ts:383-391`) show only inside the collapsed "Fonte do critério" (`ensaios-section.tsx:530-545`). `row.criterionHelper` is set and no component reads it.
+- **F17.** Before TIPO DE ISOLAÇÃO is chosen, the winding resistance shows both criteria joined by "; " in one line (`measurement-evaluation.ts:1245`). The restricted helper is a sentence ("Desvio de … sobre a menor fase (…), acima de … %: …"), the out helper a fragment ("… % acima da menor fase (…) — critério ≤ … %") (`:748-760`).
+- **F19.** "Critérios usados" for a pole out by its rise reads "R_cont ⟨polo⟩ 61 µΩ · critério <250 µΩ" (`conclusion.ts:610-611`), which reads as a pass. The paragraph's clause already names the rise (`readingClause`, `:447-448`).
+- **F20.** In a relatório, "Agrupar por tipo" is switched only from the tree's menu of a local (`relatorio-tree-shared.tsx:134`). The local's dialog (`local-dialog.tsx`) holds the function and the name only. The flag is off on a new local (`relatorio/tree.ts:979`, `templates/compose.ts:158`).
+- **F1.** A template row that fails its schema is dropped from the list with a console warning (`apps/web/src/db/home-store.ts:47-66`). The list then shows no row, no "Nenhum template" and no create action (`templates-surface.tsx:200`).
+- **Row at 3022.** `parecerHelper`, `parecerConfirmed` and `parecerConfirmedToast` (`pt-br.ts:1798-1800`) are rendered nowhere. `blockingMeta` and `editInSetup` are still read by the Export dialog and stay.
+- **Row 1439.** `signIn` (`e2e/support/merged-fixtures.ts:49-61`) waits for Home with the default 5 s.
+
+*(Definition of Ready, met 2026-11-10 by decision 9 and the proposal's list for this story. Blocked until Story 24.1's small-control frames are approved.)*
+- Everything here is screen only. Any text that also prints keeps its printed form, and a kernel test pins the printed one.
+- Left for Bruno, not built: a ficha concluding with no thermography (B-3), the same four points on every type (B-3), "ÓLEO MINERAL" beside "ÓLEO ISOLANTE" (B-8), the readings in GΩ beside a criterion in MΩ.
+- "Agrupar por tipo" keeps its default, off (Matheus's M-2).
+
+**Acceptance Criteria:**
+
+**Given** a transformer's empty TAPS field
+**When** it renders
+**Then** its helper names the separator before any error (authored: "Na ordem da placa, separados por ;"), and with a list stored it adds the tap count as today
+
+**Given** a thermography test with two photos taken through "Foto térmica"
+**When** the camera closes and the sheet renders again, also after a reload
+**Then** the control reads "Foto térmica · 2" (the count is the kernel's), and it reads "Foto térmica" alone with none
+
+**Given** a test applied by the technician over an unmet condition
+**When** its band renders
+**Then** it reads one lead and the reason once (authored: "Aplicado por você. Equipamento fora de carga."), for a condition over a value and over the plate
+
+**Given** a v13 or v14 TP whose TIPO DE ISOLAÇÃO or TENSÃO NOMINAL AT is empty
+**When** its insulation test renders
+**Then** the fallback sentence shows under "Aceitável …" without opening "Fonte do critério"
+
+**Given** a winding-resistance test whose TIPO DE ISOLAÇÃO is empty
+**When** its criterion line renders on screen
+**Then** each criterion is named by its medium (authored: "Óleo: … · Seco: …"), and the printed criterion line is unchanged
+
+**Given** a winding-resistance phase out of its criterion
+**When** its helper renders
+**Then** it is built as the restricted helper is: the deviation, the lowest phase with its value, the bound, then the outcome
+
+**Given** a contact pole out by its rise since the previous visit
+**When** "Critérios usados" renders
+**Then** its item names the rise with the previous value, not "critério <250 µΩ"
+
+**Given** a local in a relatório
+**When** the engineer opens its dialog, from "Adicionar local" or from its edit action
+**Then** "Agrupar por tipo" is a switch there, off on a new local, and the tree's menu item stays
+
+**Given** a device holding two templates that fail their schema and none that reads
+**When** the Templates screen renders
+**Then** it says how many templates could not be read on this device (kernel text, authored), and it does not say "Nenhum template"
+
+**Given** the three unused parecer copy keys
+**When** the story merges
+**Then** they are gone from `pt-br.ts`, and lint and static are clean
+
+**Given** the `signIn` helper under host load
+**When** Home takes up to 15 s
+**Then** the helper still passes
+
+**Given** a v13 relatório with every case above
+**When** it prints
+**Then** the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "24.9-UNIT": each new or changed text, with the printed text of the same value pinned beside it.
+- Web unit tests of the local dialog's switch and of the Templates notice.
+- `e2e/pass-screen-fixes.spec.ts`: "24.9-E2E-001 @p0" TAPS, the thermal photo count, the applied band and the TP sentence on one v13 transformer and one TP; "24.9-E2E-002" the winding-resistance texts and "Critérios usados" over two visits; "24.9-E2E-003" "Agrupar por tipo" from the dialog through the DOCX's grouping, at 390 and 1280 px.
+- Every authored sentence listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *With unreadable templates and no readable one, "Criar template padrão" stays hidden, as today. The story only says what happened.*
+
+### Story 24.10: TP and TC with their own checklists (contract 43)
+
+**Dev model:** opus · **Effort:** medium · seed v14: the TP keeps FUSÍVEIS with a hint; the TC loses FUSÍVEIS; the batch's fenced section of `seed/v14.ts` opens; the tap budgets get their v14 run; v1 to v13 unchanged
+
+As Bruno inspecting a TC,
+I want its list without the fuse item, and the TP's list with it,
+So that each sheet asks only what its equipment has.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- On v13 the TP and the TC ask the same seven items. The TC's list is v10's (`seed/v10.ts:39-50`), and the TP copies it since v12 (`seed/v12.ts:143`). Seed v13 touches neither.
+- The seven, in order: LIMPEZA, PINTURA E CORROSÃO; VASAMENTO; FUSÍVEIS; ATERRAMENTO; CONEXÕES; FIAÇÃO SECUNDÁRIA; BUCHAS.
+- FUSÍVEIS carries the phrases "fusível queimado", "fusível com dimensionamento incorreto" and "base do fusível danificada".
+- No item and no phrase of either list names an open secondary or short-circuit terminals.
+- An item can carry a `hint`, shown under its label on the sheet only (seed v6).
+- The tap-budget journeys are pinned to seed v12 by `newRelatorioDrafts(account, { seedVersion: 'v12' })` (`e2e/tap-budget.spec.ts:178`, `tap-budget-signal.spec.ts:126`, `journey-taps.spec.ts:155`, `journeys-12-3-12-4.spec.ts:133`). Matheus accepted the v13 numbers on 2026-11-10 (row 3262): J1 11 taps and SM-3 22 taps.
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 18:)*
+- **TP on v14:** the seven items, in the same order. FUSÍVEIS gains the hint "ÍNTEGROS E COM ESPECIFICAÇÃO CORRETA" (authored from Bruno's wording, listed for him). Its printed label stays FUSÍVEIS.
+- **TC on v14:** the list without FUSÍVEIS, six items, in the same order.
+- **Nothing else changes** on either type: the plate, the tests, the oil rule (`vasamento` stays the one oil item).
+- **Copies.** "Duplicar" and the base import take the v14 lists from the day v14 is the current seed. A company copy made before keeps its own list.
+- **The seed lane.** This is batch e24s's first story. It opens the batch's fenced section in `seed/v14.ts`, and `V14_HASH` is re-pinned by each batch until the deploy.
+- **The tap budgets (row 3262).** The four journey specs gain a seed v14 run with the numbers accepted on v13. The v12 runs stay.
+- **Contract 43** is the batch's, for the keys and the type Stories 24.11 to 24.14 append. This story appends none.
+
+**Acceptance Criteria:**
+
+**Given** a new relatório on v14 with a TP and a TC
+**When** their VERIFICAÇÕES GERAIS render
+**Then** the TP asks seven items with the hint under FUSÍVEIS, and the TC asks six with no FUSÍVEIS
+
+**Given** those sheets filled and concluded
+**When** the DOCX is generated
+**Then** the TP's table prints seven rows with FUSÍVEIS as its label, the TC's prints six, and the conclusion's "item N" numbers follow each list
+
+**Given** a v14 TC "Igual à" or "Copiar da última visita" from a v13 TC
+**When** the copy is applied
+**Then** it copies the plate as today and nothing about FUSÍVEIS
+
+**Given** a v13 and a v12 relatório with a TP and a TC
+**When** they render and print
+**Then** both ask and print seven items, and the layout-lock goldens hold
+
+**Given** the tap-budget journeys on a v14 relatório
+**When** they run
+**Then** J1 stays within 11 taps and SM-3 within 22, and the v12 runs keep their budgets
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "24.10-UNIT": v14's TP and TC lists, the hint, v14's difference from v13 stripped back to v13, and every shipped hash.
+- Section 9 print tests of both tables on v14.
+- `e2e/seed-v14-tp-tc.spec.ts` "24.10-E2E-001 @p0": both sheets from the palette through the DOCX.
+- The four tap-budget specs with their v14 run and a dated comment.
+- `docs/nc-chip-phrases.md` gains the v14 TP and TC tables.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The TC gains no item on its secondary. Bruno's answer speaks of TC items about an open secondary and short-circuit terminals, and the product has none. Whether the TC should ask one is a question for Bruno, added to the list sent after the build (B-11).*
+- *The TP's fuse wording is a hint on the existing item, so its printed label and its NC phrases stay.*
+
+### Story 24.11: The transformer: oil items and dry items
+
+**Dev model:** opus · **Effort:** high · seed v14: one more oil item (TANQUE E ALETAS), three dry items that go N.A. on an oil unit through a new `oil_rule.dry_items`, the mirror of `items`; on every seed with an oil rule, an oil-only plate field is read-only on a dry unit; v1 to v13 lists unchanged
+
+As Bruno inspecting a dry transformer,
+I want its coils, its resin and its forced ventilation on the list, and the oil items out of my way,
+So that the same sheet serves both kinds of unit without asking the wrong thing.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- The v13 transformer asks 14 items (v1's list without `indicador_nivel_de_oleo`, `seed/v9.ts`). Seven are oil items: VÁLVULA DE ALÍVIO; ELEMENTO SECANTE; JUNTAS, VEDAÇÕES E VAZAMENTOS; REGISTROS, RADIADORES; RELÉ DE GÁS, FUNCIONAMENTO; TERMÔMETRO; ÓLEO ISOLANTE/INDICADOR DE NÍVEL.
+- So Bruno's oil list is met except the tank and the fins. The nearest item is REGISTROS, RADIADORES.
+- There is no dry-only item. VENTILADORES (item 5) is asked on both kinds of unit.
+- `oil_rule.items` makes the oil items N.A. on a dry unit: the N.A. is derived, never written, and a stored answer wins (`relatorio/oil-rule.ts` `oilDerivedNaKeys`). There is no mirror for items. The only mirror is `dry_fields`, for plate fields (`seed/schema.ts:499-504`).
+- The oil sampling exists since v13 as a test, `coleta_oleo`: "Coletado" or "Não coletado" with a reason, applied on an oil unit only (`seed/v13.ts:374-418`, `:489`).
+- A dry-only plate field on an oil unit is drawn read-only and empty with its reason (fix batch e23p; `nameplate-section.tsx:414-417`, `dryFieldExcusedReason`). An oil-only field on a dry unit is still editable: it is only never missing and prints "-" (row 3487).
+- Item keys are a closed enum (`ITEM_KEYS`, `schemas/block-config.ts:163`).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 19 and Matheus's decision on row 3487. Blocked until Story 24.1's read-only oil field frame is approved.)*
+- **Items on v14.** The 14 keep their keys and order. Three are appended, in this order:
+  - 15, TANQUE E ALETAS (`tanque_e_aletas`), an oil item;
+  - 16, LIMPEZA DAS BOBINAS (`limpeza_das_bobinas`), a dry item;
+  - 17, TRINCAS NA RESINA (`trincas_na_resina`), a dry item.
+- **Forced ventilation** is item 5, which exists: on v14 it reads VENTILAÇÃO FORÇADA (key `ventiladores` kept, phrases kept) and becomes a dry item.
+- **NC phrases** of the three new items: three each, authored by the batch, listed for Bruno and added to `docs/nc-chip-phrases.md`.
+- **The mirror.** `oil_rule` gains the optional `dry_items`. On an oil unit its items are N.A., derived and never written, and a stored answer wins. On a crossing to oil the stored answers of the dry items are cleared in the same batch, as `oilCrossingPuts` clears the oil items on a crossing to dry. With the medium unknown every item is asked.
+- **The dry subtypes** keep their `na_defaults` (the oil items, now eight).
+- **The oil sampling** stays the v13 test. No checklist item is added for it.
+- **Oil fields on a dry unit (row 3487).** Wherever a definition carries `oil_rule.fields` (every seed from v6), an oil-only field on a dry unit is drawn read-only and empty with its reason, as the dry fields are on an oil unit. The stored value is kept. Print is unchanged: it already prints "-".
+- **Contract 43** covers the three item keys and the `dry_items` key in a company definition.
+
+**Acceptance Criteria:**
+
+**Given** a v14 transformer with TIPO DE ISOLAÇÃO ÓLEO ISOLANTE
+**When** its list renders
+**Then** it asks 17 items, TANQUE E ALETAS among them, and VENTILAÇÃO FORÇADA, LIMPEZA DAS BOBINAS and TRINCAS NA RESINA show N.A. by the rule, not counted as missing
+
+**Given** a v14 transformer with TIPO DE ISOLAÇÃO Á SECO or EPÓXI
+**When** its list renders
+**Then** the eight oil items show N.A., the three dry items are asked, and the oil sampling test does not apply
+
+**Given** a v14 oil unit where the technician answers NC on VENTILAÇÃO FORÇADA
+**When** the answer is stored
+**Then** it wins over the derived N.A., and the row derives its point of attention
+
+**Given** a v14 dry unit with the three dry items answered
+**When** TIPO DE ISOLAÇÃO changes to ÓLEO ISOLANTE
+**Then** the same batch clears those three answers, and they read N.A.
+
+**Given** a v14 transformer with TIPO DE ISOLAÇÃO empty
+**When** its list renders
+**Then** all 17 items are asked
+
+**Given** a dry transformer, on v14 and on v12
+**When** its plate renders
+**Then** each oil-only field is read-only and empty with the reason line, it is not counted as missing, and section 9 prints "-" as before
+
+**Given** a company type duplicated from the v14 transformer
+**When** it is published and used
+**Then** it carries the 17 items and the `dry_items` rule, and behaves as the library type
+
+**Given** a v13 transformer
+**When** it renders and prints
+**Then** it asks 14 items with VENTILADORES on both kinds of unit, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "24.11-UNIT": the v14 list, the rule's `items` and `dry_items`, the strip back to v13, every shipped hash.
+- Kernel tests of the derived N.A. both ways, the crossing both ways, a stored answer over a derived N.A., the unknown medium, and the oil field's reason on v6, v12 and v14 definitions.
+- "24.11-API-001": a company type with `dry_items` published through the sync route, and an older client refused with 426.
+- `e2e/seed-v14-transformer.spec.ts`: "24.11-E2E-001 @p0" an oil unit and a dry unit from the palette through the DOCX; "24.11-E2E-002" the crossing both ways and the read-only oil fields on a v12 dry unit.
+- The touched durability specs (`oil-dry.durability.spec.ts`, `dry-transformer.durability.spec.ts`) on the matrix projects.
+- `docs/nc-chip-phrases.md`.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*(2026-11-10, John: the proposal counts two more oil items. The code shows the second, the oil sampling, already exists as the v13 test `coleta_oleo`. A checklist item for the same fact could contradict the test. So v14 adds one oil item and keeps the test.)*
+
+*Coordinator's reading, open to Matheus:*
+- *The forced-ventilation item is the existing item 5, renamed and made a dry item, not a new item beside it. A technician can still answer it on an oil unit with fans.*
+- *The three new items are appended at the end of the list, so items 1 to 14 keep their numbers.*
+- *Nothing is printed about the laboratory's report being sent apart. If Bruno wants a sentence, it is a new request.*
+
+### Story 24.12: Inspeção de QGBT: retightening, function test, optional thermography
+
+**Dev model:** opus · **Effort:** medium · seed v14: the Inspeção de QGBT gains two checklist items and the v13 thermography test; v12 and v13 inspection sheets unchanged
+
+As Bruno doing the preventive visit of a QGBT,
+I want the retightening and the function test on its inspection sheet, and a place for the thermography,
+So that the sheet records the main service of the visit.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `inspecao_qgbt` (`seed/v12.ts:183-202`) has four plate fields, ten visual items taken from the Quadro elétrico's list, no test, and the sub-blocks `nameplate`, `checklist`, `observations` and `conclusion`.
+- The Quadro elétrico's REAPERTO GERAL (`reaperto_geral`, `seed/v6.ts:132`) was left out of the inspection as "a maintenance action" (`v12.ts:168`). Its phrases: "conexão frouxa encontrada", "sinais de aquecimento na conexão", "terminal oxidado".
+- The v13 thermography (`TERMOGRAFIA`, `seed/v13.ts:600-657`) is a measurement test that can be switched off. It does not apply until "Equipamento em carga" is answered Sim. It sits on the eight FO.SERV-03 types only (`v13.ts:725`).
+- A type with no test never says "sem valores medidos" in its conclusion (`conclusion.ts`, e22g N5).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 22:)*
+- **Items on v14.** The ten keep their keys and order. Two are appended:
+  - 11, REAPERTO GERAL (`reaperto_geral`, the Quadro's key and phrases), with the hint "TORQUE CONFORME O FABRICANTE" (authored);
+  - 12, TESTE DE FUNCIONAMENTO (`teste_de_funcionamento`, a new key), with the hint "ACIONAMENTO MANUAL DOS DISJUNTORES, MULTIMEDIDOR, SINALIZAÇÃO, DPS" (authored) and three or four NC phrases authored by the batch.
+- **Thermography on v14.** The type gains the v13 `termografia` test as it is: the same rows, columns, bands, "Foto térmica" and switch, with the default it has on the eight types. It stays optional: off, or not applicable until "Equipamento em carga" is Sim.
+- **The Quadro elétrico (QGBT/QD)** does not change.
+- **Contract 43** covers the new item key.
+
+**Acceptance Criteria:**
+
+**Given** a v14 Inspeção de QGBT
+**When** its sheet renders
+**Then** it asks twelve items, the two new ones with their hints, and shows the thermography test under its switch
+
+**Given** that sheet with the thermography left unanswered
+**When** it is concluded with every item Conforme
+**Then** it concludes Aprovado · Sem restrições, the thermography is not counted as missing, and the DOCX prints no thermography table
+
+**Given** that sheet with "Equipamento em carga" Sim and a ΔT in the band the table calls for action
+**When** it evaluates
+**Then** the reading is judged by the same bands as on the eight types, and the DOCX prints the thermography table
+
+**Given** REAPERTO GERAL answered NC with a chip
+**When** the Pontos screen renders
+**Then** the row derives its point of attention, as any NC row
+
+**Given** a v13 and a v12 Inspeção de QGBT
+**When** they render and print
+**Then** they ask ten items with no test, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "24.12-UNIT": the v14 type, the strip back to v13, every shipped hash.
+- Kernel tests of the conclusion's wording with the thermography off, not applicable and measured.
+- `e2e/seed-v14-qgbt-inspecao.spec.ts` "24.12-E2E-001 @p0": the sheet from the palette, both new items, the thermography applied with a thermal photo, through the DOCX. `e2e/qgbt-inspecao.spec.ts` is pinned to v13.
+- `docs/nc-chip-phrases.md`.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The function test is one C/NC/N.A. item with a hint naming its four parts, not four items and not a measured test.*
+- *The thermography keeps the four points it has on every type. Whether the points differ by type is Bruno's open item B-3.*
+
+### Story 24.13: A new type: No-break de comando, with no tests
+
+**Dev model:** opus · **Effort:** high · a v14 library type `no_break_comando` with its plate (the unit and its battery bank), six checklist items, observations, conclusion and photos, no test; added at a local, printed under "Outros equipamentos"; a new closed-enum type (contract 43); the plate prompt and its paid eval; the cable's missing fake plate fixture
+
+As Bruno inspecting the command no-break of a cabine,
+I want a sheet for it, with its plate, its batteries and its checks,
+So that the equipment that feeds the relays has its place in the relatório.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `EQUIPMENT_BLOCK_TYPES` holds the eight types plus four library types (`schemas/block-config.ts:39`). The last one added was `malha_aterramento` (batch e23e, contract 39).
+- The no-break exists only as item 16 of the Disjuntor MT's list, NO-BREAK DE COMANDO (`seed/v4.ts:147-158`). It stays.
+- A test fixture of company types is also named "No-break de comando" (`packages/domain/fixtures/company-types/op-log.ts`). The layout-lock goldens of v5, v11 and v12 print it, so it cannot be renamed.
+- A plate has no group or sub-heading. Its field kinds are text, number, date, select, manufacturer and voltage class (`seed/schema.ts:26`). A date field takes a month and a year.
+- A new type touches: `TAG_PREFIX`, `NOUNS` (`relatorio/conclusion.ts`), `print/group-for-print.ts`, `photos/caption.ts`, `types/duplicate.ts`, `templates/text.ts`, `copy.composer.equipmentNames`. The palette is data-driven.
+- The plate reading builds its schema from the field kinds (`apps/api/src/jobs/reading/providers/bedrock.ts`, prompt `bedrock-structuring-8`). With the `fake` provider each type needs a default plate fixture (`jobs/reading/kinds/plate.ts` `fakeDefaults`).
+- The cables gained a plate on v13 and have no default fake plate fixture, so a cable plate photographed on the local stack fails to read (row 3237).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 34 and decision 4. Blocked until Story 24.1's No-break frame is approved.)*
+- **The type.** `no_break_comando`, label "No-break de comando", TAG prefix NB, library type, print title "NO-BREAK DE COMANDO" (authored). Sub-blocks: `nameplate`, `checklist`, `observations`, `conclusion`. No test and no subtype.
+- **Plate fields**, in this order (labels authored from Bruno's list, listed for him):
+  - FABRICANTE (manufacturer); MODELO (text); Nº SÉRIE (text);
+  - POTÊNCIA NOMINAL (number, VA); POTÊNCIA ATIVA (number, W, optional);
+  - TENSÃO DE ENTRADA (number, V); TIPO DE ENTRADA (select: Vca, Vcc);
+  - TENSÃO DE SAÍDA (number, V); TIPO DE SAÍDA (select: Vca, Vcc);
+  - FREQUÊNCIA (number, Hz); AUTONOMIA NOMINAL (number, min);
+  - BATERIAS: FABRICANTE (text); BATERIAS: MODELO (text); BATERIAS: TIPO (text);
+  - BATERIAS: QUANTIDADE (number); BATERIAS: TENSÃO POR UNIDADE (number, V); BATERIAS: CAPACIDADE (number, Ah);
+  - BATERIAS: DATA DE FABRICAÇÃO OU INSTALAÇÃO (date, month and year accepted).
+- **The battery bank** has no heading of its own: the plate grammar has no group. Its fields carry "BATERIAS:" in their labels.
+- **Checklist**, six items, one per group of Bruno's list (keys appended to `ITEM_KEYS`):
+  - 1, LIMPEZA, VENTILAÇÃO E VENTILADORES;
+  - 2, DISPLAY, ALARMES E LEDS;
+  - 3, REAPERTO DAS CONEXÕES;
+  - 4, BATERIAS, with the hint "ESTUFAMENTO, VAZAMENTO, OXIDAÇÃO NOS BORNES, VIDA ÚTIL";
+  - 5, ATERRAMENTO, BYPASS E IDENTIFICAÇÃO;
+  - 6, CARGAS ALIMENTADAS IDENTIFICADAS, with the hint "RELÉS, BOBINAS DE ABERTURA".
+  - Each carries three or four NC phrases authored by the batch from the parts of its group, listed for Bruno.
+- **Where.** Added at a local or a coluna as the library types are. Printed under "Outros equipamentos", after the run's other library types and before the Malha de aterramento.
+- **Its conclusion** reads as a type with nothing to measure: it never says "sem valores medidos".
+- **Plate reading.** The prompt gains what the battery fields need, once (`bedrock-structuring-9`). The paid eval runs on Matheus's login before the deploy (E21-A4). A synthetic No-break plate fixture and its `fakeDefaults` entry are added.
+- **The cable (row 3237).** The cable types gain their default fake plate fixture in the same change.
+- **The plate script (row at 3007, third part).** `make-plate-fixtures.ts` is corrected only if the new plates need it.
+- **Contract 43**, for the appended type and item keys.
+- **Out of scope:** any test of the no-break (Bruno: a later module), and the Disjuntor MT's item 16.
+
+**Acceptance Criteria:**
+
+**Given** a v14 relatório
+**When** the engineer opens "Adicionar equipamento" at a local
+**Then** "No-break de comando" is offered under "Outros equipamentos", and adding it suggests the TAG "NB-01"
+
+**Given** that sheet
+**When** it renders
+**Then** it shows the eighteen plate fields in order, the six items with their hints, OBSERVAÇÕES and the conclusion, and no test step content
+
+**Given** the sheet with its plate filled, item 4 NC with a chip, and the rest Conforme
+**When** it is concluded
+**Then** the floor is Aprovado · Com restrições, item 4 derives a point of attention, and the conclusion text names the item and says nothing about measured values
+
+**Given** that relatório
+**When** the DOCX is generated
+**Then** the sheet prints under "Outros equipamentos" with its plate table, its six rows and its conclusion, and nothing else in the document moves
+
+**Given** a plate photo taken on the sheet, with the `fake` provider
+**When** the reading returns
+**Then** the plate fields are suggested from the No-break's default fixture
+
+**Given** a cable plate photographed on the local stack
+**When** the reading returns
+**Then** it suggests the cable's fields from its default fixture, and no longer fails
+
+**Given** a v13 relatório
+**When** its palette opens
+**Then** the type is not offered
+
+**Given** a company that holds the fixture type also named "No-break de comando"
+**When** the palette lists both
+**Then** each is told apart by its "Tipo da empresa" mark, and every spec picks the one it means without ambiguity
+
+**Given** a client on contract 42
+**When** it syncs a relatório holding the type
+**Then** it is refused with 426
+
+**Definition of Done, in addition:**
+- Seed, composer, palette and caption tests "24.13-UNIT"; `seed.test.ts` pins `equipmentTypesOf('v14')` as v13's list plus the type.
+- "24.13-API-001": the new type and its item keys through the sync route.
+- "24.13-INT": the DOCX of a relatório with the sheet, its group and its order.
+- `e2e/no-break.spec.ts` "24.13-E2E-001 @p0": from the palette, the plate read from a photo and confirmed, the six items, the conclusion, through the DOCX under "Outros equipamentos".
+- `plate-every-type.spec.ts` covers the No-break and the cables.
+- Every spec asserting the type list reads it from the kernel (E14-A3).
+- The touched durability specs on the matrix projects.
+- The fixtures README lists the new plates.
+- The paid eval's table recorded before the deploy.
+- `docs/nc-chip-phrases.md`.
+- The `SPEC.md` line on seeded types, dated.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *Six checklist items, one per group of Bruno's list. The parts of a group become its hint and its NC phrases, not separate rows.*
+- *"Potência (VA/W)" is two fields, the W one optional. Input and output each carry a voltage and a Vca or Vcc select.*
+- *The battery data usually sit on the batteries' own label, not on the unit's plate. The photo reading fills them only when the photo shows them.*
+
+### Story 24.14: Two small sheet fixes from the pass: the oil sampling's "Outro" reason and the ground grid's plate block
+
+**Dev model:** opus · **Effort:** medium · seed v14: the oil sampling's reason "Outro" takes a text (a new value kind in the measurement grammar); the Malha de aterramento's first block gets its own title and no plate photo, through two definition keys; v13 sheets unchanged
+
+As a technician who could not take the oil sample for a reason that is not on the list,
+I want to write the reason,
+So that the relatório says why, and the ground grid sheet stops asking me to photograph a plate it does not have.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- `coleta_oleo` asks a reason when the result is "Não coletado": "Equipamento energizado", "Sem ponto de coleta" or "Outro" (`seed/v13.ts:374-418`). The reason is required while it shows. A test value can only be a number or a choice (`seed/measurement.ts:31`), so "Outro" takes no text (pass finding F10).
+- Section 9 prints the reason as one line, "MOTIVO: OUTRO" (`print/section-9.ts:1271-1273`).
+- The Malha de aterramento's first block holds VALOR DE PROJETO, MÉTODO DE MEDIÇÃO and CONDIÇÃO DO SOLO (`seed/v13.ts:660-664`). It is a `nameplate`, so the sheet titles it "Dados de placa" and offers "Fotografar placa" (`nameplate-section.tsx:127-128`, `:156`, `:395`). No definition key can change either (pass finding F18).
+- The grid's resistance is judged against VALOR DE PROJETO, read from that block (`measurement-evaluation.ts:838`).
+
+*(Definition of Ready, met 2026-11-10 by decision 9. Blocked until Story 24.1's two small frames are approved.)*
+- **The reason's text.** On v14 `coleta_oleo` gains a text value, "Descreva o motivo" (authored), shown when the reason is "Outro". It is required while it shows, as the reason is. Its length follows the kernel's caps (Story 20.9). It serves the transformer and the Disjuntor MT, which share the test.
+- **Its print.** The reason line prints the text after the word: "MOTIVO: OUTRO, ⟨texto⟩", the text as typed (authored form).
+- **The grammar.** A measurement test value may be of kind `text`. The fold accepts a string for it. No other test uses it.
+- **The grid's block.** A definition may carry two optional keys: the title of its plate block, and a flag that it has no plate to photograph. On v14 the Malha de aterramento sets them: the block reads "Dados da malha" (authored, listed for Bruno) on the sheet and in the composer, and "Fotografar placa" is not offered.
+- **Unchanged on the grid:** its fields, the copy chips, the design value's role, and its printed table.
+- **Contract 43** covers the text value and the two keys in a company definition.
+
+**Acceptance Criteria:**
+
+**Given** a v14 oil transformer whose oil sampling is "Não coletado" with the reason "Outro"
+**When** the test renders
+**Then** a text field asks for the reason, the test counts as missing while it is empty, and it is filled by typing or by dictation as any observation
+
+**Given** that text filled
+**When** the DOCX is generated
+**Then** the test's reason line prints the word and the text
+
+**Given** the reason changed from "Outro" to "Sem ponto de coleta"
+**When** the test renders
+**Then** the text field leaves, it no longer counts, and the line prints the new reason alone
+
+**Given** a v14 Disjuntor MT with MEIO DE EXTINÇÃO Óleo
+**When** its oil sampling is "Não coletado" with "Outro"
+**Then** it behaves the same way
+
+**Given** a v14 Malha de aterramento
+**When** its sheet renders
+**Then** its first block is titled "Dados da malha", "Fotografar placa" is not offered, the three fields and the copy chips are there, and a resistance above VALOR DE PROJETO still fails the sheet
+
+**Given** that sheet
+**When** the DOCX is generated
+**Then** its tables print exactly as a v13 Malha's with the same values
+
+**Given** a v13 transformer and a v13 Malha de aterramento
+**When** they render and print
+**Then** "Outro" takes no text, the Malha shows "Dados de placa" and "Fotografar placa", and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "24.14-UNIT": the v14 keys, the strip back to v13, every shipped hash; kernel tests of the text value (shown, missing, cleared with its reason, its cap) and of the two definition keys.
+- "24.14-API-001": the text value through the sync route, refused when longer than its cap.
+- Section 9 print tests of the reason line on v14 and v13.
+- `e2e/seed-v14-sheet-fixes.spec.ts`: "24.14-E2E-001 @p0" the "Outro" text through the DOCX; "24.14-E2E-002" the grid's block and its verdict by the design value, through the DOCX.
+- The touched durability specs on the matrix projects.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The "Outro" text is required while it shows: a bare "Outro" says nothing in print.*
+- *The grid's block is named "Dados da malha". The fix is on v14 sheets only, since it is a definition key.*
+
+### Story 24.15: The previous visit's date in the table header (contract 44)
+
+**Dev model:** opus · **Effort:** high · every seed, from now on: the service date is kept in `last_results` at issue, and the visits are ordered by it; seed v14: the MANUT. ANTERIOR header prints the previous visit's date, and the printed history texts name it; v1 to v13 print unchanged
+
+As Bruno comparing a reading with the last visit's,
+I want the date of that visit in the column's header,
+So that I know how old the value I compare with is.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- A `last_results` entry keeps `relatorio_id`, `revision_number`, `issued_at`, `seed_version`, `block_type` and the readings (`schemas/entities.ts:351-378`). Its only date is `issued_at`, the instant of the issue. The service date is not kept.
+- The issue job writes the entry (`apps/api/src/jobs/generate/job.ts` `commitRevision`, `:465-521`) through `lastResults` (`print/last-results.ts:113-145`). The visits are ordered by first issue (fix batch e23w). A relatório issued late, for an older visit, can become the "previous" of a newer one (row 3087).
+- The service dates are `relatorio.setup.service_start` and `service_end`, each a day or a month (`entities.ts:410-411`), printed by `formatServiceDates` (`format/datetime.ts:216`).
+- The printed header is the constant "MANUT. ANTERIOR" (`print/section-9.ts:1086`), on the seeded test tables and on the measurement tests. The column must fit the 60 em rule, and Matheus accepted the type sizes of the transformer's insulation table on 2026-11-10 (7,5 pt, 7 pt, 7 pt and 6 pt for its four shapes).
+- On screen the helper reads "Anterior: … (rev. N, dd/mm/aaaa)" with the issue date (`previousHelperText`, `last-results.ts:162-166`). The history reasons that print in the conclusion name "rev. N de dd/mm/aaaa" with the issue date too (`relatorio/restriction.ts`).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 23 and decision 6. Blocked until Story 24.1's printed frame is approved.)*
+- **The date kept.** From now on the issue job writes the visit's service date in the entry, for every seed: `service_end`, else `service_start`. An entry with none is an older visit.
+- **A visit's date** is its service date, else its issue date. One kernel function answers it.
+- **The order (row 3087).** `lastResults` orders two visits by their dates. A relatório whose visit is older than the top entry's never becomes the top: it is written as the top's `prior` when it is newer than the prior held, else not written. With equal dates, or with no service date on either, the order is today's (first issue), so nothing old changes. The re-issue rules of fix batch e23w stay.
+- **The header on v14.** The column's header prints the previous visit's date under "MANUT. ANTERIOR": a day as dd/mm/aaaa, a month as mm/aaaa (authored layout, from Story 24.1's frame). The tables keep the type sizes they have on v13.
+- **The printed history texts on v14** (a drop, a rise, a variation) name the same date as the header.
+- **On screen, every seed,** the "Anterior" helper shows the visit's date.
+- **Contract 44**, for the entry's new optional key, with the `MIN_CONTRACT_VERSION` decision in the PR.
+- **The spine** gains a dated note under AD-25 (Matheus's M-3: written in the build PR).
+
+**Acceptance Criteria:**
+
+**Given** a relatório whose service ended on 2026-03-14, issued on 2026-04-02, on any seed
+**When** it is issued after this story
+**Then** each of its equipment's `last_results` entry keeps 2026-03-14 as the visit's date, beside `issued_at`
+
+**Given** a v14 relatório of the same obra, with that visit as the previous one
+**When** its DOCX is generated
+**Then** every table that prints MANUT. ANTERIOR prints "14/03/2026" in that header, and the rest of each table is as on v13
+
+**Given** a previous visit issued before this story, with no service date kept
+**When** a v14 relatório prints
+**Then** the header prints that visit's issue date
+
+**Given** a previous visit whose service date is a month only
+**When** a v14 relatório prints
+**Then** the header prints mm/aaaa
+
+**Given** the transformer's insulation table in its four shapes on v14
+**When** it prints with the dated header
+**Then** it keeps the sizes Matheus accepted, with every word whole
+
+**Given** relatório B (service in September) already issued, and relatório A of the same obra (service in March) issued after it
+**When** A's issue writes `last_results`
+**Then** B stays the top entry with A as its `prior`, B's sheets and print show A's values as previous, and a later relatório C reads B's
+
+**Given** two visits with no service date kept, and the re-issue cases of fix batch e23w
+**When** `lastResults` runs
+**Then** the result is byte-equal to today's
+
+**Given** a v13 relatório with a previous visit
+**When** it prints
+**Then** the header is "MANUT. ANTERIOR" alone, its history texts name the issue date, and the layout-lock goldens hold
+
+**Given** a sheet with a previous visit, on any seed
+**When** the "Anterior" helper renders
+**Then** it shows the visit's date
+
+**Definition of Done, in addition:**
+- Kernel "24.15-UNIT": the visit's date over the three cases; `lastResults` over every order of two and three visits, with and without service dates, and the e23w cases unchanged; the header text; `fittedColumns` on the four insulation shapes.
+- Projection tests of the entry through the issue job, with a cross-tenant check ("24.15-INT").
+- "24.15-API-001": the contract bump through the sync route.
+- `e2e/previous-visit-date.spec.ts`: "24.15-E2E-001 @p0" two relatórios of one obra, the header's date read in the second one's DOCX and the helper on its sheet; "24.15-E2E-002" the older visit issued late.
+- `previous-visit.spec.ts` and `previous-visit-judges.spec.ts` are pinned to v13.
+- The touched durability specs on the matrix projects.
+- The spine's dated note under AD-25.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The service date kept is the visit's last day (`service_end`), else its first.*
+- *An older visit with no service date is compared by its issue date. A relatório issued long after its visit, before this story, can still sort as newer than it was.*
+
+### Story 24.16: Drops and rises against the previous visit, as a note line under the table
+
+**Dev model:** opus · **Effort:** high · seed v14: one note line under a readings table names the rows a previous-visit rule flagged, with their values; the table itself unchanged; seeded tests and measurement tests; v1 to v13 print unchanged
+
+As Bruno reviewing the printed tables,
+I want the relevant drops of insulation and rises of contact resistance pointed out under their table,
+So that I see at a glance what moved since the last visit.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- Three v13 rules judge against the previous visit:
+  - the transformer's insulation, a drop of more than 50 % of the corrected value, restricted (`seed/v13.ts:233`, `relatorio/restriction.ts:108-168`);
+  - the breaker's and the switch's contact resistance, a rise of more than 50 %, out (`v13.ts:238-242`, `applyHistoryRise`);
+  - the winding resistance, a variation of more than 2 % of the corrected value, restricted (`v13.ts:370`, `measurement-evaluation.ts:933-972`).
+- Their words reach the row's helper on screen, the conclusion paragraph and the derived point. The printed table shows no sign of them.
+- So a contact table prints "ACEITÁVEL <250 µΩ" over a 61 µΩ row that the rise reproved (pass finding F6). An insulation row prints its measured values while the conclusion speaks of a drop judged on the corrected ones (pass finding F4, the print half).
+- A seeded test already prints note lines under its last table: `limitNote` and `printNote`, as paragraph parts kept with the table (`print/section-9.ts:1174-1178`; api `partsChildren`). A measurement test prints none.
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 23 and decision 7. Blocked until Story 24.1's printed frame is approved.)*
+- **Relevant** means flagged by one of the three rules above. No new threshold is added.
+- **The line on v14.** Under a table with at least one flagged row, one paragraph names each flagged row with its reason and both values, in row order. It uses the kernel's reasons as they stand: the insulation drop with both corrected values, the contact rise with its share and the previous value, the winding variation with both corrected values.
+- **Its form** (authored, listed for Bruno): "Em relação à manutenção anterior: ⟨linha⟩, ⟨motivo⟩; ⟨linha⟩, ⟨motivo⟩."
+- **Where.** After the test's other note lines, kept with its table. A measurement test gains the note slot for this line.
+- **The table does not change:** no mark, no colour, no column.
+- **Row 3191** (two glued photo references in section 8) is not in this story's file. Story 24.17 edits `print/section-8.ts` in the same batch and takes it, on v14 only.
+
+**Acceptance Criteria:**
+
+**Given** a v14 breaker whose pole A went from 40 µΩ to 61 µΩ since the previous v13 or v14 visit
+**When** its DOCX is generated
+**Then** one line under the contact table names pole A, the rise and 40 µΩ, the table's cells and header are as on v13, and the conclusion and section 8 name the same rise
+
+**Given** a v14 transformer whose corrected AT insulation fell by more than half
+**When** its DOCX is generated
+**Then** the line under the insulation table names the row and both corrected values
+
+**Given** a v14 winding-resistance test with one phase varied by more than 2 %
+**When** its DOCX is generated
+**Then** the line prints under the measurement table
+
+**Given** a table with an instrument-limit note and a flagged row
+**When** it prints
+**Then** both lines print, the limit note first, and both stay on the table's page
+
+**Given** a v14 table whose readings moved less than the rules' limits, or with no previous visit
+**When** it prints
+**Then** no line is added
+
+**Given** a v13 relatório with the same readings
+**When** it prints
+**Then** no line is added, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "24.16-UNIT": the line over each rule, several rows, a table with none, a previous visit on v12 (not judged, no line), and the measurement test's note slot.
+- "24.16-INT": the DOCX parts and the PDF text of a v14 second visit.
+- `e2e/previous-visit-note.spec.ts` "24.16-E2E-001 @p0": two relatórios of one obra, a contact rise and an insulation drop, the lines read in the second DOCX.
+- Every authored sentence listed in the PR for Bruno.
+- The `source-deltas.md` row's "planned" replaced by the built record (it shares Story 24.15's row).
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *"Relevant" is what the three v13 rules already flag. A smaller drop or rise is not pointed out.*
+
+### Story 24.17: The test's recommendation fills "Ação recomendada"
+
+**Dev model:** opus · **Effort:** medium · seed v14: a derived point's recommendation goes to its action, on the Pontos screen, in a point written from it and in section 8's "Ação recomendada" column; the long row checked against a page break; two glued photo references; v1 to v13 unchanged
+
+As Bruno reading the action plan,
+I want the recommendation of a failed test in the "Ação recomendada" column,
+So that the column says what to do and the finding's text says what was found.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- A test may carry a `recommendation` (`seed/test-help.ts`). No shipped seed sets one: they come from company types, the imported base among them.
+- A derived entry of kind `reading` or `reprovado` puts the recommendation inside its text, before the composed finding (`recommendedPointText`, `test-help.ts:128-139`; `points/derived.ts:181-195`, `:264`).
+- In section 8's table a derived entry prints "—" under "Ação recomendada" (`print/section-8.ts:256-259`). "Editar" on the entry writes a point whose text holds both and whose action is empty (`derivedPointSeed`, `derived.ts:559-575`). (Pass finding F15.)
+- Section 8's body rows can split across two pages: only the header row is kept whole (`apps/api/src/jobs/generate/sections/section-8.ts:38-40`).
+- A photo reference typed with no space around it prints glued, "verImagem 1" or "Imagem 1texto" (row 3191; `resolveBulletPhotoTokens`, `resolvePhotoTokens`).
+
+*(Definition of Ready, met 2026-11-10 by decision 9, pass finding F15. Blocked until Story 24.1's printed frame is approved.)*
+- **On v14** a derived entry's text is the composed finding alone, and its action is the recommendation (several joined as today's text joins them).
+- **Where it shows on v14:**
+  - the Pontos screen's card, in the action's place;
+  - a point written from the entry ("Editar", "Criar ponto de atenção"): its `action` holds the recommendation and its `text` the finding;
+  - section 8's bullet, the finding then the action, as a manual point prints;
+  - section 8's table, "Ação recomendada".
+- **With no recommendation** nothing changes: the action stays "—".
+- **The long row.** On v14 a body row of the action plan that fits on a page is not split across two. A row taller than a page still splits.
+- **Row 3191.** On v14 a photo reference glued to a word prints with its space, in the bullet and in the table.
+- **Stored points stay.** A point written before this story keeps its text and its action.
+
+**Acceptance Criteria:**
+
+**Given** a v14 relatório with a company-type sheet whose reading out of its criterion carries a recommendation
+**When** the Pontos screen renders
+**Then** the automatic entry's text is the finding and its action is the recommendation
+
+**Given** that entry
+**When** the engineer taps "Editar" and saves
+**Then** the point written has the finding as its text and the recommendation as its action, and both are editable
+
+**Given** that relatório
+**When** the DOCX is generated
+**Then** section 8's table prints the recommendation under "Ação recomendada" and the finding under "Ponto de atenção", and the bullet prints the finding then the recommendation
+
+**Given** a v14 Reprovado ficha whose in-force tests carry two recommendations
+**When** its entry renders and prints
+**Then** both stand in the action, in the tests' order
+
+**Given** a v14 entry with no recommendation
+**When** it prints
+**Then** "Ação recomendada" is "—", as today
+
+**Given** a v14 action plan whose long row would cross a page end
+**When** the PDF is generated
+**Then** the row starts on the next page, whole
+
+**Given** a v14 point whose text holds a photo reference glued to a word
+**When** it prints
+**Then** the reference and the word are separated by one space
+
+**Given** a v13 relatório with the same sheet and the same point text
+**When** it renders and prints
+**Then** the recommendation stays in the text, the action is "—", the glued reference prints as today, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "24.17-UNIT": the entry's text and action on v14 and v13 for `reading` and `reprovado`; `derivedPointSeed`; section 8's rows and bullets; the photo reference rule on v14 with v13's output pinned.
+- "24.17-INT": the DOCX of a v14 relatório, the table and the bullet, and the PDF's page of the long row.
+- `e2e/recommendation-action.spec.ts` "24.17-E2E-001 @p0": a company type with a recommendation, the entry, "Editar", through the DOCX. `e2e/test-recommendation.spec.ts` is pinned to v13.
+- The touched durability specs on the matrix projects.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+### Story 24.18: A "nominal ± %" criterion on company types
+
+**Dev model:** opus · **Effort:** high · a new rule of a company type's criteria row: a nominal value and a tolerance in percent, judged as the range it gives, both ends included; the type editor's Critérios tab, the sheet's helper and the printed ACEITÁVEL; the min and max range stays; no seeded type changes
+
+As the office writing its own sheet for a 220 V supply,
+I want to say "220 V ± 5 %",
+So that I type the nominal value once and the app works out the range.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- A company criteria row has an operator among `>`, `<`, `>=`, `<=`, `between`, `±` and `pass_fail` (`types/definition.ts:52`, `companyCriterionSchema` `:77-94`). `between` takes `value` and `value_max`.
+- `±` is allowed only on the ratio test's deviation and compares a deviation already in percent (`criterionRulesFor`, `definition.ts:203-210`; `seed/criteria.ts:145-147`). Nothing takes a nominal value with a tolerance.
+- The editor's Critérios tab offers the rules `criterionRulesFor` allows, a value, and a second value for `between` (`type-editor-parts.tsx:799-908`). The rule words are the kernel's (`CRITERION_RULE_WORDS`, `types/draft-edit.ts:630-638`). The tab's line of rules is static copy (`typeEditor.criteriaRules`, `pt-br.ts:676`).
+- A criterion's text is built by `formatCriterionValue` (`seed/criteria.ts:122-135`): "entre 198 e 242 Vca" for a range, "±0,5 %" for the ratio.
+- A company type is not tied to a seed: its published version is offered and judged on a relatório of any seed (`findDefinitionIn`, `seed/definitions.ts:383-389`).
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 30. Blocked until Story 24.1's criterion frame is approved.)*
+- **The rule.** A criteria row may take the operator "nominal ± %": `value` is the nominal, in the row's unit, and a new field holds the tolerance in percent, above zero.
+- **The judgement.** A reading is within when it lies between nominal × (1 − tolerance/100) and nominal × (1 + tolerance/100), both ends included. It is judged by the code that judges `between`, over those two bounds. Units scale as today.
+- **Where it may be used.** Wherever `between` may: a measurement row and a seeded-grammar test. Not on the ratio's deviation, which keeps `±`.
+- **The editor.** The rule's word is "nominal ± %" (authored, in the kernel's rule words). The row shows two inputs, "Valor nominal" and "Tolerância (%)" (authored). The tab's line of rules gains the word.
+- **The text.** The criterion reads "220 V ± 5 %" on the sheet's helper and in the printed ACEITÁVEL (authored form). How a tolerance is written in print is Bruno's open item B-9; this is the form until he answers.
+- **Who gets it.** A type version published with the rule. Every version already published, and every sheet made with one, is untouched.
+- **Contract 44** covers the new operator and field in a company definition. An older client is refused.
+- **Out of scope:** a nominal read from a plate field; the rule on a seeded type.
+
+**Acceptance Criteria:**
+
+**Given** a company type's draft with a measurement row in V
+**When** the office picks "nominal ± %" on its criteria row and types 220 and 5
+**Then** the row is valid, the preview reads "220 V ± 5 %", and the type publishes
+
+**Given** a sheet of that type
+**When** readings of 209 V, 231 V, 208,9 V and 231,1 V are typed
+**Then** the first two are within and the last two are out, each helper names "220 V ± 5 %", and an out reading floors the ficha as any reading out of its criterion does on its seed
+
+**Given** that sheet concluded
+**When** the DOCX is generated
+**Then** ACEITÁVEL prints "220 V ± 5 %", and the row prints its verdict as a range row does
+
+**Given** a draft row with the rule and a tolerance of zero, empty or negative, or with no nominal
+**When** the draft is checked
+**Then** a publish issue names the row and the field, in the Critérios tab
+
+**Given** a criteria row used by the ratio test's deviation
+**When** its rule list opens
+**Then** "nominal ± %" is not offered, and `±` still is
+
+**Given** a draft row changed from "nominal ± %" to "entre"
+**When** it is saved
+**Then** the tolerance is dropped and the row asks for the two bounds
+
+**Given** every seeded type, every company version published before this story and every relatório using them
+**When** they evaluate and print
+**Then** nothing changes, and the layout-lock and Porto Seguro goldens hold
+
+**Given** a client on contract 43
+**When** it syncs a company holding a version with the rule
+**Then** it is refused with 426
+
+**Definition of Done, in addition:**
+- Kernel "24.18-UNIT": the schema's refusal matrix; the judgement at each bound, one step inside and outside, across units, on a reading above the instrument's limit; the text; `criterionRulesFor`; the draft edits.
+- "24.18-API-001": a version with the rule published through the sync route, and a malformed one refused.
+- Web unit tests of the Critérios row.
+- `e2e/nominal-tolerance.spec.ts` "24.18-E2E-001 @p0": the editor, publish, a sheet with a reading inside and one outside, through the DOCX; at 390 px the editor only must not break (the editor is an office tool).
+- `e2e/type-editor.spec.ts` keeps passing.
+- Every authored sentence listed in the PR for Bruno, with B-9.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The nominal is a number typed in the criterion. Reading it from the equipment's plate is not built.*
+- *Both ends of the range are within, as in "entre".*
+
+### Story 24.19: A copied type hides its original in the field
+
+**Dev model:** opus · **Effort:** medium · screen only, every seed: while a company copy of a seeded type is published and not retired, the palettes list the copy in the original's place and do not offer the original; nothing already placed changes
+
+As Bruno adding equipment on site,
+I want to see only the office's version of a type once it exists,
+So that I do not pick the library's sheet by mistake.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- The palettes read `paletteTypeGroups` (`relatorio/tree.ts:792-799`): the eight types, then "Outros equipamentos" with the library types followed by every published company type.
+- So a copy of the transformer sits at the end of "Outros equipamentos" while the original stays among the eight (pass finding F14).
+- A copy records its origin: the type row's `derived_from` and the definition's `base_block_type`, which already sends its sheets to the original's print group (`types/duplicate.ts:115`, `print/group-for-print.ts:133-136`).
+- A retired or removed company type is not offered (`offeredTypes`, `seed/definitions.ts:431-442`).
+- Nothing hides a library type. The type list says "O tipo da biblioteca continua nas paletas." (`copy.types.libraryNote`, `pt-br.ts:571`).
+- "Fotografar equipamento" proposes a type among the seeded ones only (`relatorio/panel.ts:186`, `:231`).
+- The base's "Como ensaiar" and recommendation texts live on the imported copies only. Matheus accepted that on 2026-11-10 (row 3418), with this story as what removes the confusion.
+
+*(Definition of Ready, met 2026-11-10 by Bruno's question 32. Blocked until Story 24.1's palette frame is approved.)*
+- **A copy that hides** is a company type that is published, not retired and not removed, whose latest published definition names a seeded type (one of the eight or a library type) as its `base_block_type`.
+- **The rule, in the kernel.** While a type has at least one such copy, the palettes do not offer it. Its copies are listed where it stood, by label. Both palettes follow, the composer's and the relatório's, because they read one function.
+- **Retiring** the last copy brings the original back.
+- **Nothing placed changes.** A sheet or a template position of the original keeps working, printing and duplicating as today.
+- **"Fotografar equipamento".** When the type it reads is hidden, it proposes the copy if there is exactly one, and proposes nothing if there are several.
+- **The type list** (the office's screen) keeps listing the library type, with a line saying it is hidden in the palettes while a copy is published (authored). `libraryNote` is struck through to match.
+- **No seed gate:** it is a screen rule over the company's types.
+
+**Acceptance Criteria:**
+
+**Given** a company with a published copy of the Transformador de força
+**When** "Adicionar equipamento" opens in a relatório, on v14 and on v13
+**Then** the copy stands where the transformer stood among the eight, with its "Tipo da empresa" mark, and the library's transformer is not offered
+
+**Given** a company that imported the base, with two copies of one type
+**When** the palette opens
+**Then** both copies stand in the original's place, in label order, and the original is not offered
+
+**Given** the same company
+**When** the template composer's palette opens
+**Then** it lists the same way
+
+**Given** the copy retired
+**When** the palette opens again
+**Then** the library's type is back in its place and the copy is gone
+
+**Given** a relatório that already holds a sheet of the library's transformer, and a template that places one
+**When** they open, duplicate, print and create a new relatório
+**Then** everything works as before the copy existed
+
+**Given** "Fotografar equipamento" reading a transformer's plate
+**When** one copy hides the transformer
+**Then** the dialog proposes the copy
+**And when** two copies hide it
+**Then** it proposes no type and the engineer picks one
+
+**Given** the type list
+**When** it renders for a hidden library type
+**Then** its row says it is hidden in the palettes while a copy is published
+
+**Definition of Done, in addition:**
+- Kernel "24.19-UNIT": the palette groups over no copy, one copy, two copies, a retired copy, a draft never published, a copy of a copy, a copy of a library type under "Outros equipamentos"; the panel's proposal.
+- Web unit tests of both palettes and of the type list's line.
+- `e2e/copied-type-hides-original.spec.ts`: "24.19-E2E-001 @p0" duplicate, publish, the field palette, add the copy, retire, the palette again; "24.19-E2E-002" the composer's palette and a relatório that already held the original.
+- `e2e/support/palette.ts` and every spec asserting the palette's list read it from the kernel (E14-A3).
+- The `source-deltas.md` row's "planned" replaced by the built record (it shares Story 24.18's row).
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The original is hidden in the composer's palette too, not only in the field's. One list serves both, and a template built with the library's type would bring it back to the field.*
+- *The copy takes the original's place in the list, instead of sitting at the end of "Outros equipamentos".*
+
+### Story 24.20: A company type that cannot compute its ratio is not published
+
+**Dev model:** opus · **Effort:** medium · a publish issue when a ratio table reads by vector group and the plate has no valid vector-group field; the editor refuses the change of that field's kind or options; versions already published untouched
+
+As the office editing a copy of the transformer,
+I want the editor to stop me from publishing a type whose ratio can never compute,
+So that no technician finds a ratio table that stays empty on site.
+
+**Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
+- A ratio table with `ratio_factor: 'vector_group'` computes VAL CALCULADO from the plate field `ligacao_secundaria` (`relatorio/reading-cells.ts:452-461`, `VECTOR_GROUP_FIELD`). With no group it shows no calculated value, and the sheet gets no Sem restrições floor.
+- The editor refuses to remove that field while a ratio table reads it (`removeDraftEntryRefusal`, `types/draft-edit.ts:206-222`, fix batch e23z). It does not refuse a change of its kind or its options (`updateDraftField`, `:104-128`; row 3464, item 4).
+- A draft that lost the field before e23z can still publish: `validateTypeDraft` raises no issue, and no schema rule ties `ratio_factor` to the field (row 3441).
+- A valid vector-group field is a select whose options are exactly the 47 codes (`isVectorGroupField`, `relatorio/vector-group.ts:290-299`).
+- Publish issues are pt-BR sentences built in the kernel and shown inline and in the publish bar (`types/validate.ts`, `publishBlockedText`).
+
+*(Definition of Ready, met 2026-11-10 by Matheus's decision on row 3441 and the sweep's row 3464, item 4:)*
+- **The issue.** A draft with a ratio table that reads by vector group and no valid vector-group field on its plate has one publish issue. It covers the field missing, its kind changed, and its options changed.
+- **Its sentence** (authored, kernel, listed for Bruno) names the field's label and the two ways out the editor has: remove the ratio test, or start again from "Duplicar".
+- **The editor's refusal.** Changing the kind or the options of that field while a ratio table reads it is refused, with the removal's toast pattern and its own sentence.
+- **The strict schema** refuses the same draft on the server, so an older build cannot publish it either.
+- **Published versions stay.** A version already published in that state keeps its number and its sheets. The issue shows when its draft is next opened.
+- **Contract 44** covers the stricter publish rule.
+
+**Acceptance Criteria:**
+
+**Given** a draft copied from the transformer, whose plate lost DESLOCAMENTO ANGULAR before fix batch e23z
+**When** the editor opens it
+**Then** "Publicar" is disabled, the publish bar counts the issue, and the issue shows inline with its sentence
+
+**Given** that draft
+**When** the office removes the ratio test
+**Then** the issue leaves and the type publishes
+
+**Given** a draft whose vector-group field is a select of the 47 codes, read by its ratio table
+**When** the office tries to change its kind, or to remove one of its options
+**Then** the change is refused with a toast, and the draft is unchanged
+
+**Given** a draft put by an older build with that field's options changed
+**When** it is checked on the device and published through the server
+**Then** the device shows the issue, and the server refuses the publish
+
+**Given** a draft whose ratio table uses the fixed √3 factor, or a type with no ratio test
+**When** it is checked
+**Then** no issue is raised for the field
+
+**Given** the base import of a transformer copy
+**When** its plan is checked
+**Then** the copy passes, as today
+
+**Given** a version already published with no valid field, and a sheet made with it
+**When** the sheet opens
+**Then** it works as today
+
+**Definition of Done, in addition:**
+- Kernel "24.20-UNIT": the issue over the three causes and the two clean cases; the refusal of the kind and of the options; the strict schema; `planTestBaseImport` unchanged.
+- "24.20-API-001": the publish refused through the sync route.
+- `e2e/type-editor.spec.ts` gains "24.20-E2E-001 @p0": the refusal of the change, a draft seeded in the broken state showing the issue, the way out, the publish.
+- The `deferred-work.md` rows 3441 and 3464 (item 4) closed in the PR.
+- `docs/kbs/log.md`.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.

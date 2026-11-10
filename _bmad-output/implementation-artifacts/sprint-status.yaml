@@ -247,7 +247,7 @@ development_status:
   21-3-move-a-photo-up-or-down-in-the-registro-fotografico: done  # 2026-11-05: merged in #254; was ready-for-dev  # added 2026-11-05 (Bruno); section 7 only and Subir/Descer are the coordinator's reading, open to Matheus; shares contract 30 with 21.1
 
   epic-22: done  # 2026-11-07: waves A, B and C deployed as ae3d37e0, smoke 8 of 8 | was in-progress  # 2026-11-06: wave A merged (#266, #267) | was backlog  # added 2026-11-06 (Bruno's review of a relatório concluded 2026-11-04, via Matheus; verified on 5584a6e3, the relatório is on seed v5): waves A (e22p, e22c), B (e22s, e22r), C (e22t = 14.6-14.8); epic-22-context.md
-  epic-22-retrospective: optional
+  epic-22-retrospective: optional  # 2026-11-10: waived by Matheus (E23-A2 item 3); the Epic 23 retrospective covered its follow-through
   22-1-attach-a-photo-from-the-computer-to-a-reading: done  # 2026-11-06: merged in #266; was ready-for-dev  # added 2026-11-06 (Matheus); wave A, e22p; openers and the "Anexar arquivo" wording are the coordinator's reading
   22-2-the-printed-ficha-without-internal-lines-one-na-and-the-unit-once: done  # 2026-11-06: merged in #266; was ready-for-dev  # added 2026-11-06 (Matheus: "Remover as quatro"); wave A, e22p; the measurement "ACEITAVEL" row is the coordinator's reading
   22-3-a-ficha-never-splits-from-its-conclusion-columns-fit-repeated-captions-differ: done  # 2026-11-06: merged in #266; was ready-for-dev  # added 2026-11-06 (Bruno item 30); wave A, e22p; the caption ordinal is the coordinator's reading
@@ -284,6 +284,29 @@ development_status:
   23-19-hh-fuse-resistance-on-the-seccionadora: done  # 2026-11-09: e23t, PR #294 (fc0aa508), contract 38; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t, after 23.15
   23-20-thermography-on-the-eight-types: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e
   23-21-a-new-type-malha-de-aterramento: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e, last; contract 39; placement at a local is the coordinator's reading (M-6)
+
+  epic-24: backlog  # added 2026-11-10 (Bruno's answers of 2026-11-10 to questions 18, 19, 22 to 30 and 32 to 34; Matheus's ten decisions of the same day): seed v14 for new relatorios only, older relatorios conclude and print byte-identical, screen-only behaviour on every seed; waves 0 (24.1), 1 (e24a, e24b), 2 (e24s), 3 (e24p, beside e24s); contracts 41 to 44 reserved; the hands-on pass runs before the single deploy; sprint-change-proposal-2026-11-10.md, epic-24-context.md
+  epic-24-retrospective: optional
+  24-1-the-epic-24-frames-in-the-mocks: ready-for-dev  # added 2026-11-10; wave 0, coordinator with bmad-ux; Matheus approves the frames; the printed frame and the small controls are John's addition to the proposal's frame list
+  24-2-seed-v14-opens-and-the-v13-layout-is-locked: ready-for-dev  # added 2026-11-10 (decision 5); wave 1, e24a, first; contract 41; the v13 layout lock is taken on main before any other Epic 24 change
+  24-3-out-of-criterion-gives-reprovado-only-restriction-is-the-technicians-choice: backlog  # added 2026-11-10 (Bruno 25, 26; decisions 1, 3, 5); wave 1, e24a, after 24.2; v14 only; DoR: 24.1 frames approved; NC row and restricted reading unchanged, the observation required under Reprovado and row 3344 on v14 only are the coordinator's reading
+  24-4-section-10-names-the-finding: ready-for-dev  # added 2026-11-10 (Bruno 28); wave 1, e24a, after 24.3; v14 only; rows 3196 and 3125; M-4 untouched
+  24-5-the-suggested-conclusion-reads-as-a-preview: backlog  # added 2026-11-10 (Bruno 24); wave 1, e24b; every seed; DoR: 24.1 frames approved
+  24-6-the-nc-phrase-follows-its-item-and-warns-when-edited: backlog  # added 2026-11-10 (Bruno 27); wave 1, e24b; every seed; contract 42 reserved, no fold change found in planning; row 2552; DoR: 24.1 frames approved; several chips as automatic and the warning as a line are the coordinator's reading
+  24-7-an-item-back-to-conforme-the-app-asks-about-its-point: backlog  # added 2026-11-10 (Bruno 28; decision 2); wave 1, e24b; every seed; rows 2352 and 3025; DoR: 24.1 frames approved; N.A. asked as Conforme and the card action for other origins are the coordinator's reading
+  24-8-the-tag-the-plates-first-else-type-and-a-two-digit-number: ready-for-dev  # added 2026-11-10 (Bruno 29); wave 1, e24b; new sheets on every seed; the reuse of an obra's equipment and the fixtures keep the old TAGs; rows 2051, 2727 (only if the drawer is touched); a renamed TAG still not reused (open to Matheus)
+  24-9-small-screen-fixes-from-the-hands-on-pass: backlog  # added 2026-11-10 (decision 9); wave 1, e24b; every seed; pass F1, F9, F11, F16, F17, F19, F20; rows 3022, 1439; DoR: 24.1 frames approved
+  24-10-tp-and-tc-with-their-own-checklists: ready-for-dev  # added 2026-11-10 (Bruno 18); wave 2, e24s, first; contract 43 (the batch's); v14 only; tap budgets on v14 (row 3262); no new TC item is the coordinator's reading (B-11 for Bruno)
+  24-11-the-transformer-oil-items-and-dry-items: backlog  # added 2026-11-10 (Bruno 19); wave 2, e24s; v14 only, the read-only oil fields on every seed with an oil rule (row 3487); one new oil item, not two: the oil sampling stays the v13 test; DoR: 24.1 frames approved
+  24-12-inspecao-de-qgbt-retightening-function-test-optional-thermography: ready-for-dev  # added 2026-11-10 (Bruno 22); wave 2, e24s; v14 only; the function test as one item is the coordinator's reading
+  24-13-a-new-type-no-break-de-comando-with-no-tests: backlog  # added 2026-11-10 (Bruno 34; decision 4); wave 2, e24s; contract 43; v14 only; paid eval before the deploy; rows 3237, 3007 (third part, only if needed); DoR: 24.1 frames approved; six items and the field list are the coordinator's reading
+  24-14-two-small-sheet-fixes-oil-sampling-outro-and-the-ground-grids-plate-block: backlog  # added 2026-11-10 (decision 9); wave 2, e24s, last; v14 only; pass F10, F18; DoR: 24.1 frames approved
+  24-15-the-previous-visits-date-in-the-table-header: backlog  # added 2026-11-10 (Bruno 23; decision 6); wave 3, e24p, first; contract 44; the date kept on every seed, the header on v14; row 3087; AD-25 note in the build PR (M-3); DoR: 24.1 frames approved
+  24-16-drops-and-rises-against-the-previous-visit-as-a-note-line: backlog  # added 2026-11-10 (Bruno 23; decision 7); wave 3, e24p, after 24.15; v14 only; pass F4 (print half), F6 (contact); DoR: 24.1 frames approved
+  24-17-the-tests-recommendation-fills-acao-recomendada: backlog  # added 2026-11-10 (decision 9); wave 3, e24p; v14 only; pass F15; row 3191 taken here, with the section 8 edit; DoR: 24.1 frames approved
+  24-18-a-nominal-plus-minus-percent-criterion-on-company-types: backlog  # added 2026-11-10 (Bruno 30); wave 3, e24p; contract 44; company types; print wording until Bruno B-9; DoR: 24.1 frames approved
+  24-19-a-copied-type-hides-its-original-in-the-field: backlog  # added 2026-11-10 (Bruno 32); wave 3, e24p; every seed; row 3418; DoR: 24.1 frames approved; hidden in the composer too is the coordinator's reading
+  24-20-a-company-type-that-cannot-compute-its-ratio-is-not-published: ready-for-dev  # added 2026-11-10 (Matheus on row 3441); wave 3, e24p, last; contract 44; rows 3441, 3464 (item 4)
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
@@ -1798,7 +1821,7 @@ action_items:
       withoutUncitedValues in a provider-neutral module (R-4); a job-level test that
       printed Dyn1 plus diagram facts stays suggested (R-9). No prompt change."
     owner: "coordinator (batch, opus high)"
-    status: open
+    status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
     ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-168-e21-a2-paid-eval-prompt-revision"
     epic: 21
@@ -1809,7 +1832,7 @@ action_items:
       (R-7); add a real non-Dyn1 plate when one exists (ask Bruno for the star-star
       plate of his 2026-11-05 message)."
     owner: "Matheus (AWS login, Bruno); coordinator (run and record)"
-    status: open
+    status: in-progress  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6)
     ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-169-e21-a3-records"
     epic: 21
@@ -1819,7 +1842,7 @@ action_items:
       the e21r uncited-diagram row; epics.md dated line under Story 21.2 (real-set
       eval after the deploy, accepted deviation; N-4 and N-5 accepted as designed)."
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
     ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-170-e21-a4-process-lessons"
     epic: 21
@@ -1834,7 +1857,7 @@ action_items:
       review runs the second-pass brief over its own diff and records it in its PR
       body (P-4)."
     owner: "coordinator"
-    status: open
+    status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
     ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-171-e21-a5-decisions"
     epic: 21
@@ -1859,7 +1882,7 @@ action_items:
       between two v13 transformers (R-9)."
     owner: "coordinator (batch); suggested as the carry-over batch that opens Epic
       24"
-    status: open
+    status: open  # 2026-11-10: Matheus said yes; planned as fix batch e24f, beside Epic 24 wave 0 (epic-24-context.md)
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-173-e23-a2-matheus-decisions"
     epic: 23
@@ -1870,7 +1893,7 @@ action_items:
       e23p row on the oil fields of a dry unit; the three proposed status transitions
       of the Epic 21 items (E21-A1, E21-A3 and E21-A4 done)."
     owner: "Matheus (decision); coordinator (record)"
-    status: open
+    status: done  # 2026-11-10: Matheus decided all six: the e23p contract gap accepted (contract 41 comes with e24a); v13 layout lock yes (Story 24.2); the Epic 22 retrospective waived; the two base quotes stay in the git history; oil fields of a dry unit read-only (Story 24.11); E21-A1, E21-A3 and E21-A4 done, E21-A2 in progress
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-174-e23-a3-process-rules"
     epic: 23
@@ -1900,7 +1923,7 @@ action_items:
       R8LAY-E2E-008 from the Epic 21 row; relatorio-tree-edges.test.tsx from the open
       e23v row."
     owner: "coordinator (batch)"
-    status: open
+    status: open  # 2026-11-10: Matheus said yes; planned inside fix batch e24f (epic-24-context.md)
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-176-e23-a5-records"
     epic: 23
@@ -1940,5 +1963,5 @@ action_items:
       that has a company copy; whether a cable copy carries a role (R-4); the two
       open e23f print rows and the open e23b and e23g notes."
     owner: "coordinator (Epic 24 planning)"
-    status: open
+    status: done  # 2026-11-10: handed over in sprint-change-proposal-2026-11-10.md and epics.md, Epic 24
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
