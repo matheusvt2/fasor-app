@@ -8197,6 +8197,10 @@ So that I read what a field expects before I get it wrong.
 **When** Home takes up to 15 s
 **Then** the helper still passes
 
+**Given** a measurement table where some rows show a confirmed reading with its crop glyph after the unit and one row has no reading *(2026-11-10, Matheus, on the Story 24.1 frames: "está desalinhado, alinhar")*
+**When** the table renders at 768 and 1280 px
+**Then** every value and every unit sits in one column: the row with no crop keeps the glyph's slot empty, as the mock rule of `60-ficha.html` dated 2026-11-10 draws it. The rule is mirrored in `app.css`; `components.css` stays unchanged
+
 **Given** a v13 relatório with every case above
 **When** it prints
 **Then** the layout-lock goldens hold
@@ -8206,6 +8210,7 @@ So that I read what a field expects before I get it wrong.
 - Web unit tests of the local dialog's switch and of the Templates notice.
 - `e2e/pass-screen-fixes.spec.ts`: "24.9-E2E-001 @p0" TAPS, the thermal photo count, the applied band and the TP sentence on one v13 transformer and one TP; "24.9-E2E-002" the winding-resistance texts and "Critérios usados" over two visits; "24.9-E2E-003" "Agrupar por tipo" from the dialog through the DOCX's grouping, at 390 and 1280 px.
 - Every authored sentence listed in the PR for Bruno.
+- *(2026-11-10.)* The table alignment has a Playwright check that compares the right edge of the unit across the rows of one table.
 - `docs/kbs/log.md`.
 
 *Coordinator's reading, open to Matheus:*

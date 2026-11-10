@@ -683,6 +683,12 @@
         <div class="input" role="textbox" aria-labelledby="tc-local-name-label" contenteditable="true"><span id="tc-local-name">Cabine de transformação</span></div>
         <span class="helper">Vem da função; complete com o lugar, como em "Cabine primária — 1° Subsolo".</span>
       </div>
+      <!-- Story 24.1 (2026-11-10), for Story 24.9 (F20): "Agrupar por tipo" is a switch in the local's dialog, off on a new local (M-2); the same dialog
+           serves "Adicionar local" and the local's edit action inside a relatório, and the tree's menu item stays -->
+      <div class="toggle-row">
+        <span class="toggle-label" id="tc-local-agrupar-l">Agrupar por tipo</span>
+        <button class="toggle" role="switch" aria-checked="false" aria-labelledby="tc-local-agrupar-l"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="toggle-word">Desativado</span></button>
+      </div>
       <div class="dialog-actions">
         <button class="btn btn-secondary" data-close>Cancelar</button>
         <button class="btn btn-primary" data-close data-toast="Local adicionado — adicione equipamentos ou um painel">Adicionar local</button>
