@@ -15,10 +15,12 @@
 [data-route="/relatorio/porto-seguro/pontos"] .poa-photos .photo-tile { cursor: pointer; }
 [data-route="/relatorio/porto-seguro/pontos"] .poa-photos .photo-tile .caption { display: none; }
 [data-route="/relatorio/porto-seguro/pontos"] .poa-photos-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-top: var(--sp-1); }
-/* Auto-listed "Não ensaiado" entry: not reorderable, violet dashed rule, no drag handle (a 48px spacer keeps alignment) */
-[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-auto { border-color: var(--nao-ensaiado); border-style: dashed; }
-[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-auto .handle-spacer { width: var(--touch-min); flex: none; }
-.frame-phone [data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-auto .handle-spacer { width: var(--sp-2); }
+/* Story 24.1 (2026-11-10, fix batch e24h, decision 12): no point is automatic, so the dashed violet card of the auto-listed "Não ensaiado"
+   entry (.is-auto, drawn here until this date) is gone: the list holds stored points only. */
+/* Story 24.1 (2026-11-10), for Story 24.7: a stored point whose source is gone keeps the amber flag "Origem resolvida" the app already draws
+   (.helper[data-tone="amber"]) and gains "Remover ponto" beside it */
+[data-route="/relatorio/porto-seguro/pontos"] .poa-flag-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-1); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-flag-row .btn-text { min-height: var(--touch-min); padding: 0 var(--sp-2); }
 /* Vision draft (card 4): Suggestion field, block variant — sparkles glyph, kicker, "Confirmar"; is-confirmed on the card = plain text */
 [data-route="/relatorio/porto-seguro/pontos"] .poa-draft .suggestion-block { align-items: flex-start; }
 [data-route="/relatorio/porto-seguro/pontos"] .poa-draft .suggestion-block > .ico { width: 24px; height: 24px; flex: none; color: var(--fora-do-limite); margin-top: 2px; }
@@ -70,10 +72,12 @@
 
     <section class="section" aria-labelledby="pontos-h">
       <div class="section-head">
-        <h2 id="pontos-h">Pontos de atenção (4 + 1 automático)</h2>
+        <!-- Story 24.1 (2026-11-10, fix batch e24h): stored points only; the heading read "Pontos de atenção (4 + 1 automático)" until this date -->
+        <h2 id="pontos-h">Pontos de atenção (7)</h2>
         <span class="progress-counter" data-state="pending" role="status"><span class="dot" aria-hidden="true"></span>1 rascunho pela foto para confirmar · sem ação</span>
       </div>
-      <p class="section-note">A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento; o texto chega como rascunho na sincronização. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a seção 8 imprime, depois dos pontos, a tabela do plano de ação.</p>
+      <!-- Story 24.1 (2026-11-10, fix batch e24h): the sentence "Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo." left this note: a point exists only when someone creates it -->
+      <p class="section-note">A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento; o texto chega como rascunho na sincronização. A prioridade (P0 a P4) sugere o prazo; a seção 8 imprime, depois dos pontos, a tabela do plano de ação.</p>
 
       <div class="poa-list">
 
@@ -82,7 +86,7 @@
           <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Plaquetas de identificação"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
           <div class="poa-body">
             <div>
-              <span class="poa-order">1 de 4</span>
+              <span class="poa-order">1 de 7</span>
               <h3 class="poa-title" id="pontos-1-t">Plaquetas de identificação</h3>
             </div>
             <p>As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: função da cabine, tensão, potência, função dos transformadores etc.</p>
@@ -101,7 +105,7 @@
           <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Diagrama unifilar (PIE)"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
           <div class="poa-body">
             <div>
-              <span class="poa-order">2 de 4</span>
+              <span class="poa-order">2 de 7</span>
               <h3 class="poa-title" id="pontos-2-t">Diagrama unifilar emoldurado (PIE)</h3>
             </div>
             <p>Emoldurar e pendurar nas cabines primária e de transformação o diagrama unifilar atualizado (faz parte do PIE).</p>
@@ -120,7 +124,7 @@
           <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Isolação abaixo de 400 MΩ sob chuva"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
           <div class="poa-body">
             <div>
-              <span class="poa-order">3 de 4</span>
+              <span class="poa-order">3 de 7</span>
               <h3 class="poa-title" id="pontos-3-t">Isolação abaixo de 400 MΩ sob chuva</h3>
             </div>
             <p>Recomenda-se o acompanhamento, nas próximas manutenções preventivas, dos resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ (conforme <span class="photo-ref">Imagem 13</span> e <span class="photo-ref">Imagem 14</span>). Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados.</p>
@@ -146,8 +150,8 @@
           <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Fusíveis com aquecimento — SEC-C12"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
           <div class="poa-body">
             <div>
-              <span class="poa-order poa-order-draft">4 de 4 · criado do item 10 (Fusíveis) de SEC-C12 · rascunho pela foto</span>
-              <span class="poa-order poa-order-done">4 de 4 · criado do item 10 (Fusíveis) de SEC-C12</span>
+              <span class="poa-order poa-order-draft">4 de 7 · criado do item 10 (Fusíveis) de SEC-C12 · rascunho pela foto</span>
+              <span class="poa-order poa-order-done">4 de 7 · criado do item 10 (Fusíveis) de SEC-C12</span>
               <h3 class="poa-title" id="pontos-4-t">Fusíveis com aquecimento — SEC-C12</h3>
             </div>
 
@@ -184,7 +188,7 @@
         <article class="point-of-attention-card is-editing" id="pontos-edit" aria-label="Ponto de atenção 4 em edição" hidden>
           <div class="poa-body">
             <div>
-              <span class="poa-order">4 de 4 · criado do item 10 de SEC-C12 · salvo automaticamente</span>
+              <span class="poa-order">4 de 7 · criado do item 10 de SEC-C12 · salvo automaticamente</span>
             </div>
 
             <!-- 2026-11-03, Story 20.4: "Equipamento ou local", a listbox picker with groups ("Geral"; each local with
@@ -264,33 +268,69 @@
             </div>
 
             <div class="poa-edit-actions">
-              <button class="btn btn-primary" data-close="#pontos-edit" data-open="#pontos-draft" data-toggle-class="is-confirmed" data-toggle-target="#pontos-draft" data-toast="Ponto de atenção salvo · 4 de 4 na seção 8">Concluir edição</button>
+              <button class="btn btn-primary" data-close="#pontos-edit" data-open="#pontos-draft" data-toggle-class="is-confirmed" data-toggle-target="#pontos-draft" data-toast="Ponto de atenção salvo · 4 de 7 na seção 8">Concluir edição</button>
               <button class="btn btn-destructive" data-close="#pontos-edit" data-open="#pontos-draft" data-toast="Ponto removido" data-toast-action="Desfazer">Remover ponto</button>
             </div>
           </div>
         </article>
 
-        <!-- Auto-listed: Não ensaiado -->
-        <article class="point-of-attention-card is-auto" aria-labelledby="pontos-auto-t">
-          <span class="handle-spacer" aria-hidden="true"></span>
+        <!-- Story 24.1 (2026-11-10, fix batch e24h, decision 12): the automatic "Não ensaiado" card of DJ-C14 that closed this list is gone.
+             Points 5 to 7 are stored points, each created by a tap: 5 from an NC row of a sheet (60-ficha.html, DJ-01 item 3), 6 from an
+             NC item of a local (61-verificacoes-local.html, item 11), 7 from a failed test (Story 24.17). Point 7's reading was corrected
+             into its criterion afterwards, so its card carries "Origem resolvida" with "Remover ponto" beside it (Story 24.7). -->
+        <article class="point-of-attention-card" aria-labelledby="pontos-5-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Contatos com desgaste — DJ-01"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
           <div class="poa-body">
             <div>
-              <span class="poa-order">Listado automaticamente · após os pontos manuais</span>
-              <h3 class="poa-title" id="pontos-auto-t">Disjuntor TIE — DJ-C14 · 1° Subsolo › Coluna 14</h3>
+              <span class="poa-order">5 de 7 · criado do item 3 (Contatos) de DJ-01</span>
+              <h3 class="poa-title" id="pontos-5-t">Contatos com desgaste — DJ-01</h3>
             </div>
-            <div class="not-tested-band"><span class="not-tested-chip">Não ensaiado</span><span>Impossibilidade de desligamento — continuidade operacional, conforme solicitação do cliente</span></div>
+            <p>Contatos fixos com desgaste.</p>
             <dl class="poa-fields">
-              <div><dt>Ação</dt><dd>Programar os ensaios pendentes na próxima intervenção</dd></div>
+              <div><dt>Ação</dt><dd>Substituir os contatos na próxima intervenção com desligamento</dd></div>
+              <div><dt>Prazo</dt><dd class="tabular">08/12/2026</dd></div>
+              <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+              <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+            </dl>
+          </div>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Contatos com desgaste — DJ-01"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+        <article class="point-of-attention-card" aria-labelledby="pontos-6-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Iluminação de emergência — Cabine primária"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">6 de 7 · criado do item 11 das Verificações do local</span>
+              <h3 class="poa-title" id="pontos-6-t">Iluminação de emergência — Cabine primária</h3>
+            </div>
+            <p>Luminária de emergência inoperante — 2 das 4 luminárias do corredor de acesso não acendem no teste.</p>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>Substituir a luminária de emergência da cabine</dd></div>
+              <div><dt>Prazo</dt><dd class="tabular">08/10/2026</dd></div>
+              <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="1">P1 · Curto prazo</span></dd></div>
+              <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+            </dl>
+          </div>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Iluminação de emergência — Cabine primária"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+        <article class="point-of-attention-card" aria-labelledby="pontos-7-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Contato fechado acima do aceitável — DJ-C05"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">7 de 7 · criado do ensaio Resistência ôhmica de contato de DJ-C05</span>
+              <h3 class="poa-title" id="pontos-7-t">Contato fechado acima do aceitável — DJ-C05</h3>
+              <div class="poa-flag-row"><span class="helper" data-tone="amber" data-flag="">Origem resolvida</span><button class="btn btn-text" data-open="#pontos-dlg-remove" aria-haspopup="dialog">Remover ponto</button></div>
+            </div>
+            <p>Resistência ôhmica de contato: T1-T2 310 µΩ, acima do aceitável (&lt;250 µΩ).</p>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>Limpar e reapertar os contatos do polo e repetir o ensaio. Se o valor continuar alto, substituir os contatos.</dd></div>
               <div><dt>Prazo</dt><dd>—</dd></div>
               <div><dt>Prioridade</dt><dd>—</dd></div>
               <div><dt>Responsável</dt><dd>—</dd></div>
             </dl>
-            <div class="row-wrap">
-              <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))" data-go="#/ficha/DJ-C14"><svg class="ico" aria-hidden="true"><use href="#i-open"/></svg>Abrir ficha DJ-C14</button>
-              <span class="btn-reason">O motivo é editado na ficha; o ponto sai daqui se a ficha voltar a ser ensaiada</span>
-            </div>
           </div>
-          <button class="overflow-trigger" data-toast="Entrada automática: só a ficha muda este ponto" aria-label="Mais opções de Disjuntor TIE DJ-C14"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Contato fechado acima do aceitável — DJ-C05"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
         </article>
 
       </div>
@@ -310,7 +350,9 @@
                 <tr><td data-label="Nº" class="tabular">2</td><td data-label="Ponto de atenção">Diagrama unifilar emoldurado (PIE)</td><td data-label="Local/TAG">Cabines Primária e Transformação</td><td data-label="Prioridade"><span class="priority-pill" data-p="2">P2 · Médio prazo</span></td><td data-label="Prazo" class="tabular">08/12/2026</td><td data-label="Ação recomendada">Atualizar, emoldurar e fixar o diagrama unifilar nas duas cabines</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="cell-dim">—</td></tr>
                 <tr><td data-label="Nº" class="tabular">3</td><td data-label="Ponto de atenção">Isolação abaixo de 400 MΩ sob chuva</td><td data-label="Local/TAG">Cubículo Enel · CB-ENT, PR-ENT</td><td data-label="Prioridade"><span class="priority-pill" data-p="3">P3 · Longo prazo</span></td><td data-label="Prazo" class="tabular">06/03/2027</td><td data-label="Ação recomendada">Repetir os ensaios de isolação em condição seca e comparar com estes valores</td><td data-label="Responsável">Fasor Engenharia — Bruno</td><td data-label="Imagens" class="tabular">13, 14</td></tr>
                 <tr><td data-label="Nº" class="tabular">4</td><td data-label="Ponto de atenção">Fusíveis com aquecimento</td><td data-label="Local/TAG">1° Subsolo · Coluna 12 · SEC-C12</td><td data-label="Prioridade"><span class="priority-pill" data-p="1">P1 · Curto prazo</span></td><td data-label="Prazo" class="tabular">08/10/2026</td><td data-label="Ação recomendada">Substituir o fusível da fase B e verificar o contato da base na próxima intervenção com desligamento</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="tabular">31</td></tr>
-                <tr><td data-label="Nº" class="tabular">5</td><td data-label="Ponto de atenção">Disjuntor TIE não ensaiado</td><td data-label="Local/TAG">1° Subsolo · Coluna 14 · DJ-C14</td><td data-label="Prioridade"><span class="priority-pill" data-p="4">P4 · Próxima manutenção</span></td><td data-label="Prazo" class="tabular">08/09/2027</td><td data-label="Ação recomendada">Programar os ensaios pendentes na próxima intervenção</td><td data-label="Responsável">Fasor Engenharia — Bruno</td><td data-label="Imagens" class="cell-dim">—</td></tr>
+                <tr><td data-label="Nº" class="tabular">5</td><td data-label="Ponto de atenção">Contatos com desgaste</td><td data-label="Local/TAG">1° Subsolo · Coluna 9 · DJ-01</td><td data-label="Prioridade"><span class="priority-pill" data-p="2">P2 · Médio prazo</span></td><td data-label="Prazo" class="tabular">08/12/2026</td><td data-label="Ação recomendada">Substituir os contatos na próxima intervenção com desligamento</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="cell-dim">—</td></tr>
+                <tr><td data-label="Nº" class="tabular">6</td><td data-label="Ponto de atenção">Iluminação de emergência</td><td data-label="Local/TAG">Cabine primária — 1° Subsolo</td><td data-label="Prioridade"><span class="priority-pill" data-p="1">P1 · Curto prazo</span></td><td data-label="Prazo" class="tabular">08/10/2026</td><td data-label="Ação recomendada">Substituir a luminária de emergência da cabine</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="cell-dim">—</td></tr>
+                <tr><td data-label="Nº" class="tabular">7</td><td data-label="Ponto de atenção">Contato fechado acima do aceitável</td><td data-label="Local/TAG">1° Subsolo · Coluna 5 · DJ-C05</td><td data-label="Prioridade">—</td><td data-label="Prazo" class="tabular">—</td><td data-label="Ação recomendada">Limpar e reapertar os contatos do polo e repetir o ensaio. Se o valor continuar alto, substituir os contatos.</td><td data-label="Responsável">—</td><td data-label="Imagens" class="cell-dim">—</td></tr>
               </tbody>
             </table>
           </div>
@@ -337,4 +379,17 @@
       <button class="btn btn-primary" data-close="#pontos-draft" data-open="#pontos-edit" data-toast="Novo ponto — no protótipo, o card de edição mostra o ponto 4"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar ponto de atenção</button>
     </div>
   </div>
+  <!-- Story 24.1 (2026-11-10), for Story 24.7: "Remover ponto" beside "Origem resolvida" opens the removal confirmation the app already has
+       (copy.points.removeTitle and removeDescription, verbatim), then the Toast with "Desfazer" -->
+  <div class="dialog-scrim" id="pontos-dlg-remove" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pontos-rm-title" aria-describedby="pontos-rm-desc">
+      <h2 class="dialog-title" id="pontos-rm-title">Remover este ponto de atenção?</h2>
+      <p class="t-body" id="pontos-rm-desc">Ele sai da seção 8. Um toque em Desfazer o traz de volta.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-destructive" data-close data-toast="Ponto removido" data-toast-action="Desfazer">Remover ponto</button>
+      </div>
+    </div>
+  </div>
+
 </section>

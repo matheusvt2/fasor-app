@@ -47,6 +47,12 @@
 [data-route="/templates/tipos/no-break-comando"] .tipo-help-head { display: flex; flex-direction: column; gap: 2px; }
 [data-route="/templates/tipos/no-break-comando"] .tipo-help-head h3 { font-size: var(--t-body-size); font-weight: 600; line-height: var(--t-body-lh); }
 [data-route="/templates/tipos/no-break-comando"] .tipo-help .observation-field { min-height: 72px; }
+/* Story 24.1 (2026-11-10), for Story 24.18: the two inputs of a "nominal ± %" criterion, side by side in the Valor cell (stacked on the phone) */
+[data-route="/templates/tipos/no-break-comando"] .tipo-nominal { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--sp-2); min-width: 220px; }
+[data-route="/templates/tipos/no-break-comando"] .tipo-nominal .field-label { font-size: var(--t-meta-size); white-space: nowrap; }
+.frame-phone [data-route="/templates/tipos/no-break-comando"] .tipo-nominal { grid-template-columns: 1fr; min-width: 0; }
+[data-route="/templates/tipos/no-break-comando"] .data-table td[data-label="Regra"] .input { white-space: nowrap; }   /* "nominal ± %" stays on one line */
+[data-route="/templates/tipos/no-break-comando"] .measurement-table tr.row-helper td { border-top: 0; }
 </style>
 <section class="screen" data-route="/templates/tipos/no-break-comando" data-title="Tipo de equipamento" data-shell="app" data-rail="false">
 
@@ -239,9 +245,12 @@
               <td class="cell-src" data-label="Fonte"><div class="input">ABNT NBR 5410</div><span class="helper">Edição: 2004</span></td>
             </tr>
             <tr>
+              <!-- Story 24.1 (2026-11-10), for Story 24.18: the rule "nominal ± %" (authored word) with its two inputs, "Valor nominal" and "Tolerância (%)" (authored).
+                   The row was drawn as "±" over "5 % de 125 Vcc" until this date; "±" stays for the ratio test's deviation only. The sheet reads the criterion as
+                   "125 Vcc ± 5 %": see the Pré-visualização tab, where a reading out of the range shows it in its helper. -->
               <td data-label="Critério">Tensão de saída<span class="helper" style="display:block">Tensões medidas</span></td>
-              <td data-label="Regra"><div class="field combobox"><div class="input">±</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div></td>
-              <td class="cell-crit" data-label="Valor"><div class="input tabular is-focus">5 % de 125 Vcc</div></td>
+              <td data-label="Regra"><div class="field combobox"><div class="input">nominal ± %</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div></td>
+              <td class="cell-crit" data-label="Valor"><div class="tipo-nominal"><div class="field"><span class="field-label">Valor nominal</span><div class="input tabular">125 Vcc</div></div><div class="field"><span class="field-label">Tolerância (%)</span><div class="input tabular is-focus">5</div></div></div></td>
               <td class="cell-src" data-label="Fonte"><div class="input">Manual do fabricante</div><span class="helper">Edição: rev. 3, 2024</span></td>
             </tr>
             <tr>
@@ -252,7 +261,7 @@
             </tr>
           </tbody>
         </table>
-        <p class="section-note" style="margin-top: var(--sp-3)">Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · ± · aprovado ou reprovado.</p>
+        <p class="section-note" style="margin-top: var(--sp-3)">Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · nominal ± % · ± · aprovado ou reprovado.</p>
       </section>
     </div>
 
@@ -270,7 +279,9 @@
         </ul>
         <table class="measurement-table" aria-label="Tensões medidas"><thead><tr><th scope="col">Medição</th><th scope="col" class="col-value">Valor medido</th></tr></thead><tbody>
           <tr><td class="cell-point">Tensão de entrada</td><td class="cell-value"><div class="measurement-field"><span class="mf-value"></span><span class="mf-unit">Vca</span></div></td></tr>
-          <tr><td class="cell-point">Tensão de saída</td><td class="cell-value"><div class="measurement-field"><span class="mf-value"></span><span class="mf-unit">Vcc</span></div></td></tr>
+          <!-- Story 24.1 (2026-11-10), for Story 24.18: how the sheet reads a "nominal ± %" criterion; 133 Vcc is typed in the preview only (nothing is saved) -->
+          <tr><td class="cell-point">Tensão de saída</td><td class="cell-value"><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">133</span><span class="mf-unit">Vcc</span></div></td></tr>
+          <tr class="row-helper"><td colspan="2" class="cell-helper"><span class="mf-helper"><span>Fora do aceitável (125 Vcc ± 5 %)</span></span></td></tr>
           <tr><td class="cell-point">Tensão de flutuação do banco</td><td class="cell-value"><div class="measurement-field"><span class="mf-value"></span><span class="mf-unit">Vcc</span></div></td></tr>
         </tbody></table>
       </div>

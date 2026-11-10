@@ -303,7 +303,7 @@
         <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Registro fotográfico"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
       </li>
       <li class="sum-row has-pend">
-        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="8" aria-label="Número de Pontos de atenção — digite outro para mover" data-toast="Pontos de atenção movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/pontos"><span class="sum-body"><span class="sum-title">Pontos de atenção</span><span class="sum-status">4 pontos + 1 automático · 1 sem ação</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="8" aria-label="Número de Pontos de atenção — digite outro para mover" data-toast="Pontos de atenção movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/pontos"><span class="sum-body"><span class="sum-title">Pontos de atenção</span><span class="sum-status">7 pontos · 1 sem ação</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
         <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Pontos de atenção"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
       </li>
 
@@ -512,77 +512,82 @@
         <p class="camera-sub" id="lo-cam-sub">Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.</p>
       </div>
 
-      <p class="palette-group">Ou escolha o tipo · TAG sugerida por tipo + coluna</p>
+      <!-- Story 24.1 (2026-11-10), for Story 24.8: each row suggests PREFIX-NN, the type's prefix and the smallest two-digit number free in the obra (the seccionadora's prefix is SC);
+           the local's name no longer enters the TAG. The group line read "… TAG sugerida por tipo + coluna" until this date (the new wording is authored).
+           The Disjuntor MT row opens the new sheet #/ficha/DJ-01. Sample numbers: the obra's TR1 and TR2 are taken as 01 and 02. -->
+      <p class="palette-group">Ou escolha o tipo · TAG sugerida por tipo e número</p>
 
       <div class="lo-type" id="lo-type-cbent">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cbent" aria-expanded="false" aria-controls="lo-type-cbent-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">5 itens · Isolação · CB-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cbent" aria-expanded="false" aria-controls="lo-type-cbent-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">5 itens · Isolação · CE-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-cbent-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CB-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/CB-ENT" data-toast="CB-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CE-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/CB-ENT" data-toast="CE-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
       </div>
       <div class="lo-type" id="lo-type-pr">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-pr" aria-expanded="false" aria-controls="lo-type-pr-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio (entrada / saída)</span><span class="pi-meta">6 campos de placa · 5 itens · PR-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-pr" aria-expanded="false" aria-controls="lo-type-pr-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio (entrada / saída)</span><span class="pi-meta">6 campos de placa · 5 itens · PR-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-pr-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">PR-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="PR-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">PR-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="PR-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
       </div>
       <div class="lo-type" id="lo-type-sec">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-sec" aria-expanded="false" aria-controls="lo-type-sec-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">9 campos · 14 itens · Isolação aberto/fechado · Contato · SEC-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-sec" aria-expanded="false" aria-controls="lo-type-sec-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">9 campos · 14 itens · Isolação aberto/fechado · Contato · SC-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-sec-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">SEC-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="SEC-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">SC-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="SC-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
           <span class="helper">Subtipo padrão do template: manual (NA em 9. Motor e 10. Fusíveis) · a ficha abre vazia, placa por foto.</span>
         </div>
       </div>
       <div class="lo-type" id="lo-type-dj">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-dj" aria-expanded="false" aria-controls="lo-type-dj-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span><span class="pi-meta">12 campos · 15 itens · Isolação aberto/fechado · Contato · DJ-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-dj" aria-expanded="false" aria-controls="lo-type-dj-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span><span class="pi-meta">12 campos · 15 itens · Isolação aberto/fechado · Contato · DJ-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-dj-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">DJ-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/DJ-C14" data-toast="DJ-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">DJ-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/DJ-01" data-toast="DJ-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
       </div>
       <div class="lo-type" id="lo-type-tp">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tp" aria-expanded="false" aria-controls="lo-type-tp-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação de transformação · TP-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tp" aria-expanded="false" aria-controls="lo-type-tp-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação de transformação · TP-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-tp-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TP-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/TP-C16" data-toast="TP-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TP-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/TP-C16" data-toast="TP-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
       </div>
       <div class="lo-type" id="lo-type-tc">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tc" aria-expanded="false" aria-controls="lo-type-tc-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação · TC-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tc" aria-expanded="false" aria-controls="lo-type-tc-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação · TC-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-tc-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TC-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/TP-C16" data-toast="TC-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TC-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/TP-C16" data-toast="TC-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
       </div>
       <div class="lo-type" id="lo-type-cbsai">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cbsai" aria-expanded="false" aria-controls="lo-type-cbsai-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">5 itens · Isolação · CBS-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cbsai" aria-expanded="false" aria-controls="lo-type-cbsai-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">5 itens · Isolação · CS-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-cbsai-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CBS-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/CB-ENT" data-toast="CBS-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CS-01 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/CB-ENT" data-toast="CS-01 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
       </div>
+      <!-- Story 24.1 (2026-11-10), for Story 24.19: the company published a copy of the Transformador de força. The copy stands where the library type stood among
+           the eight, with its "Tipo da empresa" mark; the library's transformer is not offered while the copy is published. Its name is invented. -->
       <div class="lo-type" id="lo-type-tr">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tr" aria-expanded="false" aria-controls="lo-type-tr-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação por TAP · TR-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tr" aria-expanded="false" aria-controls="lo-type-tr-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força — base 2026</span><span class="pi-meta">Tipo da empresa · 14 campos · 17 itens · Isolação · Relação por TAP · TR-03</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-tr-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TR-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="TR-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TR-03 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="TR-03 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
         </div>
@@ -591,13 +596,24 @@
       <!-- The one library type (Story 14.5, sprint-change-proposal § 10) after the eight; printed under "Outros equipamentos" -->
       <p class="palette-group">Outros equipamentos</p>
       <div class="lo-type" id="lo-type-cta">
-        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cta" aria-expanded="false" aria-controls="lo-type-cta-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave de transferência automática</span><span class="pi-meta">17 itens · até 6 ensaios · CTA-GER</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cta" aria-expanded="false" aria-controls="lo-type-cta-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave de transferência automática</span><span class="pi-meta">17 itens · até 6 ensaios · CTA-01</span></span><span class="plus" aria-hidden="true">+</span></button>
         <div class="type-confirm" id="lo-type-cta-confirm">
           <div class="confirm-row">
-            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e local</span><div class="input"><span class="sv">CTA-GER · Geradores, direto no local</span><button class="confirm-btn" data-close data-go="#/biblioteca/cta" data-toast="CTA-GER criada em Geradores, direto no local">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e local</span><div class="input"><span class="sv">CTA-01 · Geradores, direto no local</span><button class="confirm-btn" data-close data-go="#/biblioteca/cta" data-toast="CTA-01 criada em Geradores, direto no local">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
             <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
           </div>
           <span class="helper">Chave ASCO: tensão, polos, neutro e transição escolhidos na ficha.</span>
+        </div>
+      </div>
+
+      <!-- Story 24.1 (2026-11-10), for Story 24.13: the library type No-break de comando, offered on a seed v14 relatório under "Outros equipamentos"; TAG prefix NB -->
+      <div class="lo-type" id="lo-type-nb">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-nb" aria-expanded="false" aria-controls="lo-type-nb-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>No-break de comando</span><span class="pi-meta">18 campos · 6 itens · sem ensaios · NB-01</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-nb-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e local</span><div class="input"><span class="sv">NB-01 · Cabine primária, direto no local</span><button class="confirm-btn" data-close data-go="#/ficha/NB-01" data-toast="NB-01 criada na Cabine primária, direto no local">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
         </div>
       </div>
 
