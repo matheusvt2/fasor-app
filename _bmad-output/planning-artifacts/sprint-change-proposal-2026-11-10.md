@@ -1,6 +1,6 @@
 # Sprint change proposal: Bruno's answers on the product, Epic 24 (2026-11-10)
 
-Prepared in the correct-course workflow on 2026-11-10, in batch mode. Bruno answered questions 18, 19, 22 to 30 and 32 to 34 of the 2026-11-07 list on 2026-11-10. Matheus took seven decisions the same day. This proposal records them and turns them into Epic 24. Where a point is still undecided it is listed as an open item (section 6), never guessed. Status: **draft, waits for Matheus's approval of the story list** (section 4.1) before the stories are written in `epics.md` and before anything is built.
+Prepared in the correct-course workflow on 2026-11-10, in batch mode. Bruno answered questions 18, 19, 22 to 30 and 32 to 34 of the 2026-11-07 list on 2026-11-10. Matheus took seven decisions the same day. This proposal records them and turns them into Epic 24. Where a point is still undecided it is listed as an open item (section 6), never guessed. Status: **story list approved by Matheus on 2026-11-10** ("sim"), with two additions he asked for the same day: the four low findings of the hands-on pass go into Epic 24, and the ledger of deferred work was swept for rows that fit its batches (section 4.1). The stories are written in `epics.md` with John (`bmad-agent-pm`) and built by Amelia (`bmad-agent-dev`). Nothing is built before the planning PR is merged.
 
 **Sources (gitignored, pt-BR, absent on other machines).** Bruno's words stay in these files. This document cites them by question number.
 
@@ -43,7 +43,7 @@ Prepared in the correct-course workflow on 2026-11-10, in batch mode. Bruno answ
 
 - **Epic 23** is done, deployed (`9add87b5`) and released (v0.8.0). Nothing in it is reopened. Its seed v13 is frozen (AD-21).
 - **Epic 22**'s conclusion rules (Stories 22.4 to 22.6) are the ones Bruno corrects. They stay as they are for every relatório on seed v13 or older.
-- **Epic 24** is new: 18 stories, on one seed v14, for new relatórios only.
+- **Epic 24** is new: 20 stories, on one seed v14, for new relatórios only.
 - **Out of Epic 24.** The No-break's tests: Bruno puts them in a later module.
 
 ### Story impact
@@ -109,24 +109,59 @@ The full text of each story, with its Definition of Ready, acceptance criteria a
 | 24.11 | The transformer: oil items and dry items | 19 | v14 | opus · high |
 | 24.12 | Inspeção de QGBT: retightening, function test, optional thermography | 22 | v14 | opus · medium |
 | 24.13 | A new type: No-break de comando, with no tests | 34 | v14 | opus · high |
-| 24.14 | The previous visit's date in the table header (contract 44) | 23 | v14 | opus · high |
-| 24.15 | Drops and rises against the previous visit, as a note line under the table | 23 | v14 | opus · high |
-| 24.16 | A "nominal ± %" criterion on company types | 30 | company types | opus · high |
-| 24.17 | A copied type hides its original in the field | 32 | company types | opus · medium |
-| 24.18 | A company type that cannot compute its ratio is not published | n/a | company types | opus · medium |
+| 24.14 | Two small sheet fixes from the pass: the oil sampling's "Outro" reason and the ground grid's plate block | n/a | v14 | opus · medium |
+| 24.15 | The previous visit's date in the table header (contract 44) | 23 | v14 | opus · high |
+| 24.16 | Drops and rises against the previous visit, as a note line under the table | 23 | v14 | opus · high |
+| 24.17 | The test's recommendation fills "Ação recomendada" | n/a | v14 | opus · medium |
+| 24.18 | A "nominal ± %" criterion on company types | 30 | company types | opus · high |
+| 24.19 | A copied type hides its original in the field | 32 | company types | opus · medium |
+| 24.20 | A company type that cannot compute its ratio is not published | n/a | company types | opus · medium |
 
-**What each story carries beyond its title.**
+**What each story carries beyond its title.** "Row" means a row of `deferred-work.md`, cited by the line of its `state:` on main `f89b787a`.
 
-- **24.3** also holds Matheus's decisions 1 and 3: a Reprovado ficha prints both restriction boxes empty, and a concluded ficha keeps its stored pair. It takes the folded row on the arrester: the "Desligador íntegro" prerequisite is read only while the nameplate block is on.
-- **24.4** takes the open row on `relatorio/conclusion.ts`: an NC observation typed with line breaks no longer breaks the sentence of the conclusion.
-- **24.8** removes pass finding F14's odd suggestion on a copied transformer type.
-- **24.9** is screen only, and takes from the pass: the TAPS separator named before the error (F9); a sign that the thermal photo was attached and the repeated override text (F11, in part); the TP hints (F16, in part); the two helper wordings of the winding resistance (F17); "Critérios usados" for a contact rise that reads as a pass (F19); the template list that says "Nenhum template" when templates exist but cannot be read (F1).
-- **24.11** also makes the oil-only fields read-only on a dry unit, the mirror of e23p's fix.
-- **24.13** adds the cable's missing fake plate fixture (a folded row) with the No-break's own.
-- **24.14** stores the service date at issue from now on. Older visits show their issue date.
-- **24.15** leaves the table as it is and adds one line under it. It covers the print half of pass finding F4 and the contact table of F6. It takes the open row on `print/section-8.ts` (two glued photo references) only if it touches that file.
-- **24.17** settles the row on the base's texts showing only on imported types.
-- **The tap budgets** (J1 11, SM-3 22, accepted on v13 by Matheus on 2026-11-10) are amended with seed v14 in the batch that owns the seed (24.10 to 24.13).
+- **24.3**
+  - Matheus's decisions 1 and 3: a Reprovado ficha prints both restriction boxes empty, and a concluded ficha keeps its stored pair.
+  - The folded row on the arrester (3344): the "Desligador íntegro" prerequisite is read only while the nameplate block is on.
+  - The button "Marcar Com restrições" on a reading out of its criterion (row at 3019): on v14 the kernel says when it may show, since out of criterion is Reprovado only. On v13 and older it stays.
+- **24.4**
+  - Row 3196: an NC observation typed with line breaks no longer breaks the sentence of the conclusion. On v14 only, because the text is built for every seed.
+  - Row at 3125: section 10 replaces "nos itens 8 e 9" also when part of the phrase is in bold. On v14 only.
+- **24.6** also stops offering the same NC phrase twice, once with the final period and once without (row 2552).
+- **24.7**
+  - The Points heading with only automatic points reads as the Sumário already does (row 2352).
+  - A browser test walks a local's NC item as an automatic point (row at 3025). The story says whether a site item also gets the question.
+- **24.8**
+  - **A constraint found in the sweep.** A new relatório of an existing obra reuses its equipment by comparing each stored TAG with the suggested one (`relatorio/instantiate.ts`). If only the suggestion changed, the match would fail, the equipment would be created again and the previous visit would be lost. So the story keeps the reuse working: the match no longer depends on the new suggestion. Its tests cover an obra whose equipment carries the old TAGs.
+  - It closes row 2051 (a CTA's TAG) and pass finding F14's odd suggestion on a copied transformer type.
+  - Row 2727 (the "Blocos" drawer says its target to a screen reader) only if the story touches that drawer.
+- **24.9** is screen only. From the pass:
+  - the TAPS separator named before the error (F9);
+  - a sign that the thermal photo was attached, and the repeated override text (F11, in part);
+  - the TP hints (F16, in part);
+  - the two helper wordings of the winding resistance (F17);
+  - "Critérios usados" for a contact rise that reads as a pass (F19);
+  - "Agrupar por tipo" can be switched where the local is set up, not only from the tree menu inside a sheet (F20). Its default stays as it is (M-2);
+  - the template list that says "Nenhum template" when templates exist but cannot be read (F1).
+
+  From the sweep: three copy keys shown nowhere are removed (row at 3022), and the shared `signIn` test helper waits longer than 5 s for Home (row 1439), since every Epic 24 spec signs in through it.
+- **24.11** also makes the oil-only fields read-only on a dry unit, the mirror of e23p's fix (row 3487, decided with the approval of this list).
+- **24.13** adds the cable's missing fake plate fixture (row 3237) with the No-break's own. The script that draws fake plates is corrected only if the new plates need it (row at 3007, third part).
+- **24.14**
+  - The oil sampling's reason "Outro" takes a text (F10).
+  - The ground grid sheet stops offering "Fotografar placa" and stops calling its data "Dados de placa" (F18). The design value keeps working.
+- **24.15** stores the service date at issue from now on, and orders the previous visits by it (row 3087). A visit with no stored service date uses its issue date, so nothing old changes.
+- **24.16** leaves the table as it is and adds one line under it. It covers the print half of pass finding F4 and the contact table of F6. It takes row 3191 (two glued photo references in section 8) only if it touches that file.
+- **24.17** puts the test's recommendation in the point's "Ação recomendada" and no longer in its text, on v14 (F15). The long row splitting across two pages is checked in the same story.
+- **24.19** settles the row on the base's texts showing only on imported types (3418).
+- **24.20** also refuses a vector group field whose kind or options were changed, not only a removed one (row 3464, item 4). It closes row 3441.
+- **The tap budgets** (row 3262: J1 11, SM-3 22, accepted on v13 by Matheus on 2026-11-10) are amended with seed v14 in the seed batch.
+
+**Left out after the sweep, and why.** The ledger has 315 open rows. Most wait for a decision of Matheus (about 115) or an answer of Bruno (about 50), or belong to infra and carry-over lists. Thirteen fit Epic 24's files and are above. These came close and stay out:
+
+- A ficha with no equipment prints its automatic point twice after "Editar" (row 3037). The fix changes the print of every seed, and two batches of wave 1 edit the same file. It goes to wave 1's fix batch if the build leaves room.
+- Section 10 prints "[ART]" when the ART is blank (row 1047): needs Matheus's wording (M-4).
+- An automatic point linked to another equipment hides the wrong entry (row 3032): needs a rule choice.
+- "±1,2 %" with no space and ">=" beside "≥" (rows 3100, 3153): Bruno's, and they change old print. Asked with B-9.
 
 **Batches.**
 
@@ -134,9 +169,9 @@ The full text of each story, with its Definition of Ready, acceptance criteria a
 | --- | --- | --- | --- | --- |
 | 0 | coordinator, `bmad-ux` | 24.1 | none | Matheus approves the frames in the browser. |
 | 1 | e24a | 24.2, 24.3, 24.4 | 41 | Owns the opening of seed v14 and the v13 lock. The conclusion lane. |
-| 1 | e24b | 24.5, 24.6, 24.7, 24.8, 24.9 | 42 | The screen lane. Needs no seed v14. |
-| 2 | e24s | 24.10, 24.11, 24.12, 24.13 | 43 | The seed lane. After wave 1's gate and fix batch. |
-| 3 | e24p | 24.14, 24.15, 24.16, 24.17, 24.18 | 44 | Print and company types. Side by side with e24s. |
+| 1 | e24b | 24.5, 24.6, 24.7, 24.8, 24.9 | 42 | The screen lane. Needs no seed v14. It edits `points/derived.ts` beside e24a, so it merges second. |
+| 2 | e24s | 24.10, 24.11, 24.12, 24.13, 24.14 | 43 | The seed lane. After wave 1's gate and fix batch. |
+| 3 | e24p | 24.15, 24.16, 24.17, 24.18, 24.19, 24.20 | 44 | Print and company types. Side by side with e24s. |
 
 Each wave ends with its gate on the integrated main, a two-pass integrated review and a fix batch. After the last one: the paid plate eval, the hands-on pass, then the deploy on Matheus's word.
 
@@ -150,7 +185,7 @@ No inline edit in the planning PR. Story 24.3's build PR adds a dated line to th
 
 ### 4.4 Architecture
 
-No inline edit in the planning PR. Story 24.14 carries "the spine gains a dated note under AD-25" (the service date kept in `last_results`) in its Definition of Done.
+No inline edit in the planning PR. Story 24.15 carries "the spine gains a dated note under AD-25" (the service date kept in `last_results`) in its Definition of Done.
 
 ### 4.5 UX
 
@@ -166,9 +201,9 @@ Story 24.1 draws the frames and amends `EXPERIENCE.md` and `DESIGN.md` with date
 
 | Item | Owner | Done when |
 | --- | --- | --- |
-| The stories in `epics.md`, the `source-deltas.md` rows, `sprint-status.yaml`, the KB | Coordinator | Matheus approved the list of 4.1; the planning PR is merged |
+| The stories in `epics.md`, the `source-deltas.md` rows, `sprint-status.yaml`, the KB | John (`bmad-agent-pm`), with the coordinator | The planning PR is merged |
 | Story 24.1 frames | Coordinator with `bmad-ux` | Matheus approves the frames in the browser at 390, 768 and 1280 px |
-| Waves 1 to 3 | Batch orchestrators (`bmad-build-auto`, opus, the story's effort) | Story gate green and pasted in each PR; wave gate green; integrated review accepted |
+| Waves 1 to 3 | Amelia (`bmad-agent-dev`) through the batch orchestrators (`bmad-build-auto`, opus, the story's effort) | Story gate green and pasted in each PR; wave gate green; integrated review accepted |
 | Paid plate eval | Coordinator on Matheus's AWS login | The table recorded before the deploy |
 | Hands-on pass | QA agent in the browser | Its report tracked before the deploy |
 | Deploy and release | Coordinator | Matheus's explicit word |
@@ -197,14 +232,17 @@ One message, sent after Epic 24 is built, so that he answers looking at the resu
 | B-6 | Does the polarization index need its own "Como ensaiar" text? | `deferred-work.md` § e23x |
 | B-7 | The texts the coordinator authored in Epic 23 and the base readings still marked for him | `deferred-work.md` § e23z, § e23p |
 | B-8 | TP and TC offer "ÓLEO MINERAL" where the transformer offers "ÓLEO ISOLANTE": one name for both? | Pass F16 |
+| B-9 | How a tolerance is written in print: "±1,2 %" or "± 1,2 %", ">=" or "≥" | `deferred-work.md` rows 3100, 3153; Story 24.18 |
+| B-10 | A company that already imported the base has no "Como ensaiar" text for the tests seed v14 adds. Does he send a new revision of the base? | `deferred-work.md` row 3433 |
 
 ### For Matheus
 
 | Item | Decision needed | Default until he decides |
 | --- | --- | --- |
-| M-1 | The story list of 4.1, with Story 24.9's small fixes and the batches | None: nothing is written or built before it. |
-| M-2 | The rest of the low pass findings (F10 the "Outro" reason with no text, F15 the recommendation and "Ação recomendada", F18 the plate block on the ground grid sheet, F20 "Agrupar por tipo" off on a new local) | Left out of Epic 24; they go to the carry-over list. |
+| M-1 | ~~The story list of 4.1, with Story 24.9's small fixes and the batches~~ *(2026-11-10, Matheus: approved.)* | n/a |
+| M-2 | ~~The rest of the low pass findings (F10, F15, F18, F20)~~ *(2026-11-10, Matheus: fix them with Epic 24 where they fit; they are in 24.14, 24.17, 24.14 and 24.9.)* One point stays his: whether "Agrupar por tipo" starts switched on for a new local. | It stays off; 24.9 only makes the switch easy to reach. |
 | M-3 | No separate `bmad-architecture` run: the AD-25 note is written in the build PR | As stated. |
+| M-4 | What section 10 prints when the ART is blank (today "[ART]"), since 24.4 edits that section | Left as it is. |
 
 ## Matheus's decisions (2026-11-10)
 
@@ -216,7 +254,11 @@ One message, sent after Epic 24 is built, so that he answers looking at the resu
 6. The previous visit's date: the service date, stored at issue from now on; older visits fall back to the issue date.
 7. Drops and rises print as a note line under the table. The table itself does not change.
 
-Folded in the same day, from the open Epic 23 rows: the arrester's hidden prerequisite (24.3), the cable's fake plate fixture (24.13) and the publish issue for a company type with no vector group field (24.18).
+8. The story list and the batches of section 4.1 are approved.
+9. The four low findings of the hands-on pass left out of the first draft are fixed with Epic 24, and the ledger of deferred work is swept for rows that fit.
+10. The stories are written with John and built by Amelia.
+
+Folded in the same day, from the open Epic 23 rows: the arrester's hidden prerequisite (24.3), the cable's fake plate fixture (24.13) and the publish issue for a company type with no vector group field (24.20).
 
 ## Checklist record
 
@@ -239,4 +281,4 @@ Folded in the same day, from the open Epic 23 rows: the arrester's hidden prereq
 | 4.3 MVP review | Not needed | Post-MVP growth within the product's scope |
 | 4.4 Path | [x] | Direct adjustment, in waves |
 | 5.1 to 5.5 Proposal | [x] | Sections 1 to 6 |
-| 6.1 to 6.5 Final review and handoff | [!] | Waits for Matheus's approval of the story list (M-1) |
+| 6.1 to 6.5 Final review and handoff | [x] | Story list approved by Matheus on 2026-11-10; M-2's default and M-4 stay open |
