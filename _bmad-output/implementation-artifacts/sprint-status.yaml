@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-10-2026 12:00
+last_updated: 11-10-2026 15:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -261,8 +261,8 @@ development_status:
   22-11-a-short-qgbt-inspection-sheet: done  # 2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Ficha simples de QGBT"); wave B, e22s, after 22.7; content is the coordinator's reading
   22-12-the-previous-visits-value-beside-each-reading: done  # 2026-11-07: merged in #268, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Manutencao anterior"); wave B, e22r; notes under contract 32; amends AD-25 and the SPEC non-goal
 
-  epic-23: done  # 2026-11-10 later: 47be2638 deployed (smoke 8 of 8); browser behaviour pass on it (behaviour-pass-e23-2026-11-10.md: items 3 to 8 passed, 1 and 2 failed); fix batch e23p merged (#301, 9add87b5, no contract) for F2, F3, F4 screen half, F5 and F7; Matheus's decisions on the open rows recorded in deferred-work.md; 9add87b5 deployed (smoke 8 of 8) and release v0.8.0 published; open: the retrospective |  # 2026-11-10: every story merged; integrated gate green on 47be2638 (epic-23-context.md); ef099d41 deployed 2026-11-09 (smoke 8 of 8, contract 39), 47be2638 (contract 40, e23z and T3) awaits Matheus's word to deploy | was backlog  # added 2026-11-08 (Bruno's test base rev08; Matheus's decisions A to N of docs/context/epic-23/decisoes-epic-23.md section 5): seed v13 for new relatorios only, older layouts byte-identical; waves 0 (23.1), 1 (e23a, e23b), 2 (e23v, e23h), 3 (e23t, e23e), 4 (e23x); contracts 34 to 39 reserved; starts after fix batch e23f merges; sprint-change-proposal-2026-11-08.md, epic-23-context.md
-  epic-23-retrospective: optional
+  epic-23: done  # 2026-11-10: retrospective accepted-with-open-items (epic-23-retro-2026-11-10.md, E23-A1 to E23-A8) | 2026-11-10 later: 47be2638 deployed (smoke 8 of 8); browser behaviour pass on it (behaviour-pass-e23-2026-11-10.md: items 3 to 8 passed, 1 and 2 failed); fix batch e23p merged (#301, 9add87b5, no contract) for F2, F3, F4 screen half, F5 and F7; Matheus's decisions on the open rows recorded in deferred-work.md; 9add87b5 deployed (smoke 8 of 8) and release v0.8.0 published; open: the retrospective |  # 2026-11-10: every story merged; integrated gate green on 47be2638 (epic-23-context.md); ef099d41 deployed 2026-11-09 (smoke 8 of 8, contract 39), 47be2638 (contract 40, e23z and T3) awaits Matheus's word to deploy | was backlog  # added 2026-11-08 (Bruno's test base rev08; Matheus's decisions A to N of docs/context/epic-23/decisoes-epic-23.md section 5): seed v13 for new relatorios only, older layouts byte-identical; waves 0 (23.1), 1 (e23a, e23b), 2 (e23v, e23h), 3 (e23t, e23e), 4 (e23x); contracts 34 to 39 reserved; starts after fix batch e23f merges; sprint-change-proposal-2026-11-08.md, epic-23-context.md
+  epic-23-retrospective: done  # 2026-11-10: epic-23-retro-2026-11-10.md, headless; machine verdict accepted-with-open-items (all 21 stories done; open: E23-A1 to E23-A8, chiefly the fix batch from the review of e23z and e23p, Matheus's decisions on the e23p contract and a v13 layout lock, the playbook rules on the behaviour pass before a deploy, the production base import, Bruno's list)
   23-1-the-epic-23-sheet-frames-in-the-mocks: done  # added 2026-11-08; wave 0; frames merged #284 (e519f91d); approved by Matheus in the browser 2026-11-08
   23-2-seed-v13-older-layouts-locked-insulation-by-neta-tables: done  # 2026-11-09: e23a, PR #286 (17127590) | added 2026-11-08 (decision A); wave 1, e23a, first; contract 34; layout lock taken after e23f merges; TP-02 out until Bruno B-4
   23-3-the-manufacturers-value-on-each-test: done  # 2026-11-09: e23a, PR #286 (17127590) | added 2026-11-08 (decision G, absorbs 14.13); wave 1, e23a, after 23.2; contract 34; DoR: 23.1 frames approved
@@ -1845,3 +1845,100 @@ action_items:
     owner: "Matheus and Bruno (decision); coordinator (record)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-23-retro-item-172-e23-a1-review-fix-batch"
+    epic: 23
+    action: "E23-A1 Fix batch from the retrospective's review of e23z and e23p, red-first,
+      story gate plus the touched specs: the conclusion paragraph treats an unjudged
+      measurement like a reading to check, with a helper on the cell (R-1); changing
+      a test recommendation in the editor clears its index_recommendation (R-3); the
+      cable-copy test asserts what the product does and the row is written as a narrowing
+      (R-4); a clear on a stored off-plate row is accepted whatever its cells hold,
+      with a two-device api case (R-5); one Playwright case for Atualizar with a pending
+      op while the pull answers 426 (R-7); one more sheet in the PDF test with every
+      capture column filled and long values (R-8); an end-to-end case for Igual a
+      between two v13 transformers (R-9)."
+    owner: "coordinator (batch); suggested as the carry-over batch that opens Epic
+      24"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-173-e23-a2-matheus-decisions"
+    epic: 23
+    action: "E23-A2 Matheus decisions, one dated line each: contract 41 with MIN 41
+      for e23p or the gap accepted (R-2); lock seed v13's layout with goldens before
+      seed v14 opens (R-6); run or waive the Epic 22 retrospective (P-8); leave the
+      two base quotes of PR #295 in the git history or rewrite it (P-7); the open
+      e23p row on the oil fields of a dry unit; the three proposed status transitions
+      of the Epic 21 items (E21-A1, E21-A3 and E21-A4 done)."
+    owner: "Matheus (decision); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-174-e23-a3-process-rules"
+    epic: 23
+    action: "E23-A3 Playbook section 11, one dated line each: no deploy of an integrated
+      main before the behaviour pass of its waves has run with a tracked report, and
+      the deploy checklist lists every open verification row owned by a review or
+      QA pass (P-1); a printed table change carries a test that reads the PDF and
+      a crop in the PR (P-1); a story adding a field to an existing entity lists that
+      entity's readers and writers in its DoR, and the epic context carries the E10-A3
+      cross-story table (P-1); deploy after the wave's fix batch, an earlier deploy
+      names the known findings and Matheus's word first, and a fix after a deploy
+      states its contract choice (P-2); a PR that bumps a reading prompt carries its
+      eval table or does not merge (P-3); the plan says whether a wave may start beside
+      the previous wave's fix batch and each gate record names what else ran on the
+      host (P-4); a gate's record is written when the gate ends, green means no red,
+      a handover cites the record (P-5); a batch that reads the base checks its diff
+      for word runs of the base (P-7)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-175-e23-a4-test-hardening-batch"
+    epic: 23
+    action: "E23-A4 A test-hardening batch with an owner for the tests red under load
+      in two or more gates: 21.1-E2E-002, R8CAP-E2E-010 and 4.8-E2E-005 (first find
+      why the device sent no request for 150 s after the job finished) from Epic 23;
+      setup-surface.test.tsx, reading-arrivals.test.tsx, home-surface.test.tsx and
+      R8LAY-E2E-008 from the Epic 21 row; relatorio-tree-edges.test.tsx from the open
+      e23v row."
+    owner: "coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-176-e23-a5-records"
+    epic: 23
+    action: "E23-A5 Records, no code: a dated line under the deploys-once rule of
+      Epic 23 in epics.md (three deploys and why); a dated line under Stories 23.7,
+      23.17 and 23.18 (the paid eval ran after the first deploy, with its result);
+      what else ran on the host during the wave 2 and wave 3 gates, or not recorded;
+      the read-only preview of Bruno's v5 relatorio after the deploy, run and recorded
+      or dropped with the reason."
+    owner: "coordinator (draft); Matheus (approve the epics.md lines)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-177-e23-a6-production-base-import"
+    epic: 23
+    action: "E23-A6 Import Bruno's test base in production as the company's office
+      user (Story 23.12, M-1 (b)); then check on one relatorio that the copies print
+      in their base group and that Como ensaiar shows offline; record both in epic-23-context.md."
+    owner: "Matheus (the import); coordinator (the check and the record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-178-e23-a7-list-for-bruno"
+    epic: 23
+    action: "E23-A7 One list for Bruno: F8 of the behaviour pass (is a rise of exactly
+      50 % already Reprovado), the Malha's extra point, the IP rows' help texts, and
+      the fourteen Epic 23 ledger rows owned by Bruno (authored texts, narrowings,
+      the TC's accuracy limit factors); with it Epic 21's four vector groups and the
+      star-star plate (E21-A2, E21-A5)."
+    owner: "Matheus (passes it on); coordinator (drafts the list and records the answers)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-179-e23-a8-handover-to-epic-24"
+    epic: 23
+    action: "E23-A8 Hand over to Epic 24, named in the retrospective and planned there:
+      F6, the print half of F4 and F9 to F20 of the behaviour pass; the three decisions
+      folded in (the arrester's prerequisite, the cable's fake plate fixture, the
+      publish issue); the tap budget documents with seed v14; hiding a library type
+      that has a company copy; whether a cable copy carries a role (R-4); the two
+      open e23f print rows and the open e23b and e23g notes."
+    owner: "coordinator (Epic 24 planning)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
