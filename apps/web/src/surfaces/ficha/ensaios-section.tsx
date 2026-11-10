@@ -60,6 +60,7 @@ import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellE
 import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
+import { useToast } from '../../state/toast.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import { TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -776,12 +777,19 @@ function MeasurementTable({
  */
 /**
  * Fix batch e23z (item 3, Bruno 2026-11-09): "Apagar leitura" on a TTR row whose tap left TAPS ("Fora da placa"). It
- * writes a put of null on each filled cell of the row (`storedRowFilledCols`), in one batch with "Desfazer"; the fold
- * takes only such a clear on that row, and the row leaves the table once it holds nothing. None on a row of the plate.
+ * writes a put of null on each filled cell of the row (`storedRowFilledCols`) in one batch; the fold takes only such a
+ * clear on that row, and the row leaves the table once it holds nothing. Bruno: only clearing, nothing new written, so
+ * the toast carries no "Desfazer" (its inverse would write the readings back, which the fold refuses). None on a row
+ * of the plate.
  */
 function ClearTapRowButton({ api, testKey, row }: { api: FichaApi; testKey: string; row: EvaluatedRow }) {
-  const t = copy.ficha.ensaios;
   if (row.tap === null || row.tap.onPlate) return null;
+  return <OffPlateClearButton api={api} testKey={testKey} row={row} />;
+}
+
+function OffPlateClearButton({ api, testKey, row }: { api: FichaApi; testKey: string; row: EvaluatedRow }) {
+  const t = copy.ficha.ensaios;
+  const { showToast } = useToast();
   const clear = () => {
     void api
       .edit((blocks, by) => {
@@ -790,7 +798,7 @@ function ClearTapRowButton({ api, testKey, row }: { api: FichaApi; testKey: stri
         return cols.length === 0 ? null : cols.map((col) => testCellOp(by, api.relatorioId, api.blockId, testKey, row.row, col, null));
       })
       .then((batch) => {
-        if (batch !== null) api.undoable(t.clearedTapRowToast, batch);
+        if (batch !== null) showToast(t.clearedTapRowToast);
       })
       .catch(() => undefined);
   };

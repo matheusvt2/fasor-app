@@ -2,7 +2,7 @@
 title: 'e23z: the final Epic 23 fixes (W3-1 to W3-7, Bruno 6 and 7, DESLOCAMENTO ANGULAR kept, the eval synthetic set)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '45323676fa82706ada3d6297e3b10f20881b2095'
 review_loop_iteration: 0
 followup_review_recommended: false

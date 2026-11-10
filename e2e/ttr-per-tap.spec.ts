@@ -403,7 +403,7 @@ test('@p0 e23z-E2E-002 (fix batch e23z, item 3) a tap dropped from TAPS with rea
   await expect(tapRow(page, 11400).locator('.tap-mark')).toHaveText(TAP_OFF_PLATE_TEXT);
   for (const volts of [13800, 13200, 12600, 12000]) await expect(tapRow(page, volts).getByRole('button', { name: 'Apagar leitura' })).toHaveCount(0);
 
-  // "Apagar leitura": three puts of null, one batch, the toast with "Desfazer"; the row leaves the table.
+  // "Apagar leitura": three puts of null, one batch, a toast with no "Desfazer" (only clearing); the row leaves the table.
   await tapRow(page, 11400).getByRole('button', { name: 'Apagar leitura' }).click();
   const clears = async () => (await outbox(page)).filter((row) => [3, 4, 5].some((col) => row.path === cellPath(11400, col)) && row.value === null);
   await expect.poll(async () => (await clears()).length).toBe(3);
@@ -411,7 +411,7 @@ test('@p0 e23z-E2E-002 (fix batch e23z, item 3) a tap dropped from TAPS with rea
   expect(batch[0]!.batch_id).not.toBeNull();
   expect(batch.every((row) => row.batch_id === batch[0]!.batch_id)).toBe(true);
   await expect(toast(page)).toContainText('Leitura apagada');
-  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
+  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toHaveCount(0);
   await expect(tapRow(page, 11400)).toHaveCount(0);
   expect((await kernelRows(page, blockId)).map((row) => row.row)).toEqual([13800, 13200, 12600, 12000]);
   const cleared = (await blockRow(page, blockId)).sheet.test[TEST_KEY]!.cells['11400']!;
