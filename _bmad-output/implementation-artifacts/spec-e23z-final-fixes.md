@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
 warnings: ['batched', 'oversized', 'multiple-goals']
 batched_reason: 'The second pass of the Epic 23 wave 3 integrated review (W3-1 to W3-7), Bruno''s 2026-11-09 answers 6 and 7, the DESLOCAMENTO ANGULAR decision and the coordinator''s eval fix: the final fix batch, one gate, one PR, as the coordinator launched it.'
-deferred: []
+deferred:
+  - summary: >-
+      A company draft that lost ligacao_secundaria before e23z can still publish a ratio table read by vector group.
+    evidence: |-
+      removeDraftEntryRefusal guards removals from e23z on; validateTypeDraft raises no issue for a draft already missing the field (e23g's prune). Matheus decides whether publish refuses it.
+    location: >-
+      packages/domain/src/types/validate.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -201,3 +208,21 @@ deferred: []
 - Wrap every unit, api or e2e run in `lockf -t 20000 /tmp/fasor-verify.lock` and log it under `.scratch-e23z/`.
 - Any wait is a bounded loop of at most 55 s per tool call.
 - If the gate is still running when the code is written, report "not run: load rule" for the commands; the orchestrator runs them.
+
+## Spec Change Log
+
+- 2026-11-10, implementation return: item 3's "Desfazer" would write the readings back, a non-null put the fold refuses. The orchestrator settled it on Bruno's "só apagar; nada novo é escrito": the clear toasts "Leitura apagada" with no "Desfazer" (commit e02a07bf). KEEP: the one-batch null puts and the fold's null-only acceptance.
+- 2026-11-10, review: contract 40 and MIN 40 taken, as the launch allowed. On 39, an old bundle derives the points and the floor differently and its fold refuses the off-plate clear (contract 37 precedent). This replaces the spec's "no contract number".
+
+## Review Triage Log
+
+### 2026-11-10 — Review pass
+- verdicts: 7 findings: high 0, medium 3, low 4, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: "Apagar leitura" on the 390 px card, the only surface on a phone, was never exercised. Action: e23z-E2E-002 now clears an off-plate card at 390x844 and asserts the three null puts, the store and the card leaving.
+  - `[low]` `[patch]` VG: an IP-only failure on a copy with no `index_recommendation` (falls back to `recommendation`) was untested. Action: added a unit case.
+  - `[low]` `[patch]` VG: the over-cap refusal of an IP row in the import was untested. Action: added a unit case (refused, no key, still publishable).
+  - `[low]` `[reject]` EC: the spec says the clear has an undo toast and the code has none. The difference is deliberate (Spec Change Log); the fix would only edit this build's spec.
+  - `[medium]` `[patch]` EC: `printGroupWordsOf('cabos_saida')` named the Transformadores group, which a company block (no role) never prints in. Action: it returns the seccionadoras words, with a unit assertion.
+  - `[low]` `[defer]` EC: a draft that lost `ligacao_secundaria` before this change can still publish a vector-group ratio table. The state predates this story; it goes to the ledger (`deferred-work.md` § e23z, Matheus).
+  - `[medium]` `[patch]` EC: the fold widening and the derivation changes leave a version-39 bundle disagreeing with the server. Action: contract 40 and MIN 40, with an api integration case (a 39 pull answered 426) and the pins updated.
