@@ -1436,7 +1436,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `signIn` setup helper waits 5 s for Home ("Relatórios por status"); under host load 12.2-E2E-006 failed there 2 of 5 repeats, then passed 3 of 3 isolated.
   evidence: `e2e/support/merged-fixtures.ts` `signIn`; `e2e/journey-forward.spec.ts:172`; PR #116 body.
   class: debt
-  state: open (owner: the next carry-over batch)
+  state: open (owner: the next carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.9
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
   summary: The unhandled timer error of `apps/web/src/components/number-input.test.tsx:21` (PR #105) could not be reproduced on demand, not even with `--detectAsyncLeaks`; PR #116 makes the harness clear its timers on unmount, which removes the only timer that outlived a test. Close it once a wave gate shows no such error.
   evidence: `apps/web/src/components/number-input.test.tsx` `Harness`; PR #116 body.
@@ -2048,7 +2048,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Left by the kernel slice (b). The suggested TAG of a CTA follows the existing rule with the new prefix only (`CTA`): on a coluna it is "CTA-C05", and placed directly on a local named "Geradores" it is "CTA-GERADORES". The approved mocks show "CTA-GER" there, which is example data: no rule abbreviates a local's name, and the TAG rule is unchanged by decision (`epic-14-context.md`, shared item "TAG rule"). The technician can type any TAG. Decide only if short TAGs for equipment placed directly on a local are wanted; that would be a change to the rule for all nine types.
   evidence: spec "Phase 1 result", last bullet; `packages/domain/src/relatorio/tag.ts` (prefix map, rule untouched); mocks `63-ficha-cta.html:116-124`, `40-relatorio-overview.html:304`, `mockups/key-print-section-9.html:171`.
   class: question
-  state: open (owner: Matheus; no action unless the first real job asks for it)
+  state: open (owner: Matheus; no action unless the first real job asks for it); assigned 2026-11-10 to Epic 24, Story 24.8 (the new TAG rule, TYPE-NN, answers it when built)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: § 8.5 item 1, as it reaches the CTA. With tensão = MT the E2 criterion of a CTA is the firm's own seeded insulation criterion (the `isolacao` entry of `SEEDED_CRITERIA`, "> 400 MΩ", source "aceitável na ficha"), read from there and never repeated in the type, so one relatório judges all its MV equipment by one criterion. `sprint-change-proposal-2026-10-08.md` § 8.5 item 1 records that this value is well below the NETA figure for the 15 kV class and that the matter concerns every MV sheet, not only the CTA; it changes nothing now. If the firm's criterion changes, the CTA in MT follows it with no change to the type. With tensão = BT the criterion is the type's own (`>= 100 MΩ` at 1.000 Vcc).
@@ -2349,7 +2349,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: With only automatic points the Sumário's row 8 reads "N automáticos" (Matheus, 2026-10-23), but the Points surface heading still reads "Pontos de atenção (0 + N automáticos)"; the same wording rule belongs there.
   evidence: PR #174 open question; `apps/web/src/surfaces/points/points-surface.tsx` heading, kernel text in `points/summary.ts`.
   class: bug
-  state: ~~open (owner: the next fix batch)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E15-A1: fx15q, fx17r and the 2026-10-29 fix batches did not take it, and `pointsHeadingText` (`packages/domain/src/points/summary.ts:147-151`) still answers "(0 + N automáticos)" with no live point)
+  state: ~~open (owner: the next fix batch)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E15-A1: fx15q, fx17r and the 2026-10-29 fix batches did not take it, and `pointsHeadingText` (`packages/domain/src/points/summary.ts:147-151`) still answers "(0 + N automáticos)" with no live point); assigned 2026-11-10 to Epic 24, Story 24.7
 
 ## Deferred from: Epic 16 integrated QA browser pass (2026-10-26)
 
@@ -2549,7 +2549,7 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` § "Re-chec
   summary: The chip row "Observações sugeridas do item N" offers a learned NC phrase twice: the registry's normalized name (no closing period) and this device's recent text (with the period); recents and learned phrases are not deduplicated across the trailing period or the registry normalization (production re-check 2026-10-29, G8 steps, P3).
   evidence: `prod-pass-2026-10-28.md` § Re-check, TR-1 item 1 after the 66-character observation on TR-TEST synced; chip sources in `packages/domain/src/registry/nc-phrase-row.ts` (Stories 9.5 and 14.12).
   class: bug
-  state: open (owner: the next ficha batch; dedupe a recent against the learned phrases with the registry's normalization)
+  state: open (owner: the next ficha batch; dedupe a recent against the learned phrases with the registry's normalization); assigned 2026-11-10 to Epic 24, Story 24.6
 - source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09-18/EXPERIENCE.md`
   summary: Home with many relatórios buries the Templates and Cadastros shortcuts under the card list (Matheus, 2026-10-29); Sally's options and recommendation (fold Emitido behind its chip, shortcuts above the list) in `backlog-2026-10-29-home-nav-and-telemetry.md` § 1, with two questions for Bruno.
   evidence: `20-home.html` section order (status chips, cards, "Atalhos"); production Home on 2026-10-29 already puts the shortcuts below the fold at 390 px with two relatórios.
@@ -2724,7 +2724,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - **E15-R1, the rail's site card is named without its counter.** `apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:67` sets the button's `aria-label` to the label, NC badge and name, which replaces the content, so "N de M" (`site.railCounter`) and the state word are never announced (the mock and the Sumário card carry the counter); both trees compose the "· ncBadge" in `apps/web` (also `relatorio-tree-sumario.tsx:116`) against Story 15.2's rule that every text is composed in `packages/domain`. Fix: the kernel site node exposes one accessible name used by both trees.
   state: open (owner: the next epic's carry-over batch)
 - **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
-  state: open (owner: the next epic's carry-over batch)
+  state: open (owner: the next epic's carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.8 (only if the story edits `block-palette.tsx`; else it stays open)
 - **E16-R1, an `unchanged` ready names an older revision.** `apps/web/src/surfaces/export/use-generate.ts:456-458`: the "anterior às alterações" banner and row tags are suppressed only while generating, so an `unchanged` answer whose revision is not pulled yet shows "Revisão N pronta" over "(revisão N-1). Alterações desde então geram a revisão N" (Story 16.2 AC 3). Fix: gate both on `readyHeld`, with a dialog test that delivers the job before the revision.
   state: ~~open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)~~ done (2026-11-03, batch s184: `beforeEdits`, and with it `beforeEditsBanner`, also require `readyHeld`; `export-dialog.test.tsx` "E16-R1" delivers an `unchanged` answer before its revision: no banner and no row tag, then the revision lands and both show; red without the gate)
 - **E16-R2, a cabine environment display shot prints nowhere yet holds a photo number.** A temperature or humidity "Ler visor" shot on a local (`apps/web/src/surfaces/ficha/read-display.tsx:733`, `displayEnvTarget`) has no block and no item; Story 16.3 took display shots out of section 7 for sheets only and Story 17.4 kept this one unprinted and numbered last (`packages/domain/src/print/photo-order.ts:83-86`, `:112-113`; pinned by `section-9.test.ts:1169`). The evidence of AMBIENTE DE ENSAIO leaves the document and the gallery shows a "Foto N" no "Imagem N" carries. Options: print it under the cabine's characteristics or environment part, or leave it out of the numbering and say so in the gallery.
@@ -3007,6 +3007,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (R-8, owner: a later reading batch)
   summary: Two group entries in one structuring answer fail the whole plate reading (the unique-key refine, unchanged by e21f); a nested `vector_diagram` answered as a JSON string is ignored; `make-plate-fixtures.ts` hard-codes the Yyn0 facts for any drawn plate and uses `value: null` to mean "omit".
   evidence: `contract/ocr.ts:167-173`; `providers/vector-diagram.ts:118`; `apps/api/src/scripts/make-plate-fixtures.ts:217,287,293`.
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.13 (the third part only, the plate script, and only if the new plates need it)
 - source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (P-3, owner: E21-A4, a test-hardening batch)
   summary: Four tests went red under load in two or more gates and passed alone each time: `apps/web/src/state/reading-arrivals.test.tsx` (the caption toast), `apps/web/src/surfaces/home/home-surface.test.tsx` (12.2 "Continuar"), `apps/web/src/surfaces/relatorio/setup-surface.test.tsx` (the exclusion typing) and R8LAY-E2E-008 (`e2e/review-layout-interaction-2026-10-08.spec.ts`, the "Novo relatório" dialog within 5 s).
   evidence: PR #254 § Story gate (load 23.5); PR #255 § Earlier gate (load 26); `epic-21-context.md` § Integrated gate (load 4.5 to 5.2, with the review stack beside it); `docs/kbs/log.md` chore T2 (R8LAY-E2E-008 red once in 5); `epic-12-retro-2026-09-25.md:73` (`home-surface.test.tsx`).
@@ -3019,12 +3020,15 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The out cell's "Marcar com restrições" action (`measurement-field.tsx`, `measurement-test-section.tsx`) still writes only the restriction; under Story 22.4 the floor already gives Reprovado · Com restrições, so the action is redundant on the effective pair. Not removed (outside the spec's Code Map).
   evidence: `apps/web/src/surfaces/ficha/measurement-field.tsx` `markRestricted`; `measurement-test-section.tsx` `markRestricted`.
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.3 (on seed v14 the kernel says when the action may show; on v1 to v13 it stays)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The `blocking` severity and the Export dialog's blocking-row UI (`copy.export.blockingMeta`, `editInSetup`) stay with no rule emitting a blocking row; the parecer copy keys `parecerHelper`, `parecerConfirmed` and `parecerConfirmedToast` are no longer rendered.
   evidence: `packages/domain/src/relatorio/pre-issue.ts` `PreIssueSeverity`; `apps/web/src/surfaces/export/export-dialog.tsx`; `apps/web/src/copy/pt-br.ts` `setup`.
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.9 (the three unused parecer copy keys; the `blocking` severity and the Export dialog's keys are still in use and stay)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The e2e walk of a local's NC site item as a derived entry (Pontos card, "Abrir verificações", Editar) is not written; the kernel covers it (`points/derived-kinds.test.ts`, `relatorio/site-checklist.test.ts`) and `e2e/verificacoes-local.spec.ts` asserts the origin `nc` point written from the item.
   evidence: `e2e/points.spec.ts` 22.5-E2E-001 (sheet NC and out reading only).
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.7
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A point of origin `nc` or `reading` relinked to another equipment or local (Story 20.4 pick, or a later `point/{id}/equipment_id` put) keeps its `item_key`/`test_key` but changes its owner, so it suppresses the new owner's entry and the original entry prints again; needs an immutable source (the block id at create) or a relink guard when `origin !== 'manual'`.
   evidence: `packages/domain/src/points/derived.ts` `pointSource`; review findings EC3 and VG8 of the e22c pass.
@@ -3084,7 +3088,7 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
   summary: Re-issuing an older relatório X after a newer relatório Y of the same equipment was issued makes X the top `last_results` entry with Y as its prior: X's sheet and MANUT. ANTERIOR would show Y's later values as "previous", and a later relatório Z would read X's older values. The chain is ordered by issue, not by the visit's service date. Settled by ordering the chain by the visit's service date in `lastResults`.
   evidence: `packages/domain/src/print/last-results.ts` `lastResults`, `previousResultsFor`.
   class: defect
-  state: open (owner: the Epic 22 wave B integrated review)
+  state: open (owner: the Epic 22 wave B integrated review); assigned 2026-11-10 to Epic 24, Story 24.15 (the visits ordered by the service date kept at issue)
 
 ## Deferred from: Epic 22 batch e22s (2026-11-06)
 
@@ -3125,6 +3129,7 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N7)
   summary: Section 10 replaces the fixed reference "nos itens 8 e 9" only when it sits whole inside one rich run; a template's own Conclusão text that styles part of the phrase (a bold "8 e 9") keeps the literal numbers. Owner: the next batch touching `print/section-10.ts`, joining the runs before the replacement.
   evidence: `packages/domain/src/print/section-10.ts` `positioned`; review N7.
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.4 (on seed v14 only)
 
 ## Deferred from: Epic 22 fix batch e22g (2026-11-07)
 
@@ -3188,12 +3193,12 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Two glued photo references e23f left as they are, both only reachable when the text is typed or pasted without the editor's spacing (F-09 spaces every chip it inserts): the bullet's lead-in path appends the label with no space after a lead-in word glued to the token ("ver[[foto]]" prints "verImagem 1", `resolveBulletPhotoTokens` `leadsIn`), and a word glued after a token prints "Imagem 1texto" in the bullet and the cell; a removed photo's word glues the same way ("Porta.imagem removida"). Low; owner: the next batch touching `print/section-8.ts`.
   evidence: `packages/domain/src/print/section-8.ts` `resolveBulletPhotoTokens`, `resolvePhotoTokens`; `e23f-print-fixes.test.ts` pins today's output of the removed word.
   class: defect
-  state: open (owner: the next batch touching `print/section-8.ts`)
+  state: open (owner: the next batch touching `print/section-8.ts`); assigned 2026-11-10 to Epic 24, Story 24.17 (the proposal offers it to Story 24.16 only if that story touches `print/section-8.ts`; Story 24.17 edits the file in the same batch; on seed v14 only)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23f-fixes.md` (review loop, Edge Case Hunter 7; pre-existing)
   summary: An NC row's observation typed with line breaks reaches the conclusion's NC clause with them, and section 9 prints the conclusion text line by line (`cellParagraphs` splits each `\n` into a paragraph), so the sentence breaks in the middle. Pre-existing (the clause always took the observation as typed); outside e23f's three deltas. Fix candidate: the clause joins the observation's lines with "; ".
   evidence: `packages/domain/src/relatorio/conclusion.ts` `ncClauseText`; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`.
   class: defect
-  state: open (owner: the next batch touching `relatorio/conclusion.ts`)
+  state: open (owner: the next batch touching `relatorio/conclusion.ts`); assigned 2026-11-10 to Epic 24, Story 24.4 (on seed v14 only: the text is composed for every seed)
 
 ## Deferred from: Epic 23 batch e23a (2026-11-08)
 
@@ -3234,7 +3239,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The cables gain a nameplate on seed v13 but no default fake plate fixture. On the compose stack (`fake` providers) a cable plate photographed in the app (re-encoded bytes) finds no fixture and its reading fails permanently; only the committed `images/plate-cabos-v13.png` replays, for its own bytes. Adding a cable default is a fixture decision the spec ruled out for this batch.
   evidence: `apps/api/src/jobs/reading/kinds/plate.ts` `fakeDefaults`; `apps/api/src/jobs/reading/fixtures/README.md` § The seven seed v13 plates.
   class: gap
-  state: ~~open (owner: Matheus)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): add the cable's default fake plate fixture. Open (owner: Epic 24, wave 2)
+  state: ~~open (owner: Matheus)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): add the cable's default fake plate fixture. Open (owner: Epic 24, wave 2); assigned 2026-11-10 to Epic 24, Story 24.13
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (baseline `5f86c821`, e23a's first commit `027d916c`)
   summary: Three unit tests failed at the baseline because e23a's first commit made `SEED_VERSION` v13 without updating them: `templates/text.test.ts` (the seed name "Semente v13"), `print/print-fit.test.ts` (v13 excluded with v12 from the fit sweep) and `types/company-types.test.ts` (a v12 duplicate asserted on `seed_version: 'v12'`). This batch fixed them to pass its gate; e23a may fix the same lines, so the merge of the two batches must keep one version of each.
   evidence: the three test files, each failing when run alone on the baseline with this batch's changes stashed.
@@ -3259,7 +3264,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The e2e journeys that count taps against a measured budget or baseline (`tap-budget.spec.ts` TAP_BUDGET J1 and J3, `tap-budget-signal.spec.ts` SM-3, `journey-taps.spec.ts` and `journeys-12-3-12-4.spec.ts` J1 to J3) and the reading pipelines that count the transformer default fixture's eleven suggestions (`plate.spec.ts` 8.6-E2E-001, `plate-reading.spec.ts` 8.4-E2E-001, `reading-wait.spec.ts` 13.5-E2E-001, `panel-capture-pipeline.spec.ts` 9.2-E2E-004) are pinned to seed v12, the seed they were measured or written on; so are the tests built on v12's text TAP ATUAL. On v13 the seccionadora's required TIPO DE SECCIONADORA is not in a plate copied from an earlier visit, so J1 needs one more pick (two taps), and the default transformer fixture gives ten suggestions (its text TAP ATUAL is dropped as `unknown_key`). The budgets were not re-measured on v13.
   evidence: the specs named, each with its dated comment; `e2e/tap-budget.spec.ts` `TAP_BUDGET`.
   class: verification
-  state: ~~open (owner: the Epic 23 QA, with the v13 re-measure of the field journeys)~~ re-measured (2026-11-10, Epic 23 QA, at 768 px on desktop-chrome, each journey run on a v13 relatório with the one change it needs: TIPO DE SECCIONADORA picked SEM CARGA in J1, a native select counted two taps, its tap and its option): `tap-budget.spec.ts` J1 (plate copied from a v2 visit) 9 taps, 36 keystrokes on v12, 11 and 36 on v13; J3 7 and 47 on both. `journey-taps.spec.ts` J1 (plate typed) 21 and 83 on v12, 23 and 83 on v13; J3 7 and 47 on both. `journeys-12-3-12-4.spec.ts` J1 21 and 83 on v12, 23 and 83 on v13; J3 7 and 47 on both (2 and 11 of them the per-unit fields, so the target of at most 5 holds); J2 10 and 47 on both (one chip, nothing typed in the observation). `tap-budget-signal.spec.ts` SM-3: 20 taps, 9 keystrokes on v12, 22 and 9 on v13, over its 20-tap budget by the same two taps. On v13 the copied plate leaves 1 missing on Placa and the sheet shows 12 missing on Ensaios before the pick (the HH fuses apply while TIPO DE SECCIONADORA is empty) and 9 after it, as on v12. Only J1 and SM-3 change, by that pick alone. The transformer's default plate gives 10 pending suggestions on a v13 sheet (11 on v12), now pinned beside the v12 count in `job.integration.test.ts` "E78-Q2 on seed v13". The e2e pins stay on v12, unchanged; ~~open only for one decision (owner: Matheus): whether the budgets move to v13, which means TAP_BUDGET J1 11 taps and SIGNAL_BUDGET 22 taps, or a plate copied from a pre-v13 visit should fill TIPO DE SECCIONADORA some other way~~ decided (2026-11-10, Matheus): the limits measured on seed v13 are accepted, TAP_BUDGET J1 11 taps and SIGNAL_BUDGET (SM-3) 22 taps. The budget documents are amended with seed v14 in Epic 24. Open (owner: Epic 24, with seed v14)
+  state: ~~open (owner: the Epic 23 QA, with the v13 re-measure of the field journeys)~~ re-measured (2026-11-10, Epic 23 QA, at 768 px on desktop-chrome, each journey run on a v13 relatório with the one change it needs: TIPO DE SECCIONADORA picked SEM CARGA in J1, a native select counted two taps, its tap and its option): `tap-budget.spec.ts` J1 (plate copied from a v2 visit) 9 taps, 36 keystrokes on v12, 11 and 36 on v13; J3 7 and 47 on both. `journey-taps.spec.ts` J1 (plate typed) 21 and 83 on v12, 23 and 83 on v13; J3 7 and 47 on both. `journeys-12-3-12-4.spec.ts` J1 21 and 83 on v12, 23 and 83 on v13; J3 7 and 47 on both (2 and 11 of them the per-unit fields, so the target of at most 5 holds); J2 10 and 47 on both (one chip, nothing typed in the observation). `tap-budget-signal.spec.ts` SM-3: 20 taps, 9 keystrokes on v12, 22 and 9 on v13, over its 20-tap budget by the same two taps. On v13 the copied plate leaves 1 missing on Placa and the sheet shows 12 missing on Ensaios before the pick (the HH fuses apply while TIPO DE SECCIONADORA is empty) and 9 after it, as on v12. Only J1 and SM-3 change, by that pick alone. The transformer's default plate gives 10 pending suggestions on a v13 sheet (11 on v12), now pinned beside the v12 count in `job.integration.test.ts` "E78-Q2 on seed v13". The e2e pins stay on v12, unchanged; ~~open only for one decision (owner: Matheus): whether the budgets move to v13, which means TAP_BUDGET J1 11 taps and SIGNAL_BUDGET 22 taps, or a plate copied from a pre-v13 visit should fill TIPO DE SECCIONADORA some other way~~ decided (2026-11-10, Matheus): the limits measured on seed v13 are accepted, TAP_BUDGET J1 11 taps and SIGNAL_BUDGET (SM-3) 22 taps. The budget documents are amended with seed v14 in Epic 24. Open (owner: Epic 24, with seed v14); assigned 2026-11-10 to Epic 24, Story 24.10, batch e24s (the tap budgets get their seed v14 run with the numbers accepted on v13)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (review pass of 2026-11-09)
   summary: The NA band of a measurement-grammar test (`measurement-test-section.tsx`) has no browser coverage: the kernel is tested and the e2e drives the seeded grammar only.
   evidence: no seeded v13 test carries `applies_when`; only a company draft put reaches that branch today.
@@ -3341,7 +3346,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: A v13 arrester whose nameplate sub-block is switched off while it still stores DESLIGADOR ÍNTEGRO NÃO stays Reprovado by a plate value the sheet no longer shows (W2-2 reads the prerequisite "unconditionally", Story 23.6's AC).
   evidence: `packages/domain/src/relatorio/restriction.ts` `failedPrerequisites` (no sub-block check).
   class: decision
-  state: ~~open (owner: Matheus with Bruno: keep it, or read the prerequisite only while the nameplate sub-block is on)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): read the prerequisite only while the nameplate sub-block is on. Open (owner: Epic 24, wave 1)
+  state: ~~open (owner: Matheus with Bruno: keep it, or read the prerequisite only while the nameplate sub-block is on)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): read the prerequisite only while the nameplate sub-block is on. Open (owner: Epic 24, wave 1); assigned 2026-11-10 to Epic 24, Story 24.3 (on seed v14 only)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (Design Notes, W2-1)
   summary: `last_results` keeps two entries (top and `prior`). A re-issue of A after two later visits (B, then C over B) cannot see that A is older: A's sheets read C as their previous visit. With one later visit (top's `prior` is A) they read none, never the later one, and the issue job never writes A over a later top. A full order needs a deeper chain or the visit date in the entry, a projection shape change and a contract.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`; `schemas/entities.ts` `lastResultsSchema`.
@@ -3415,7 +3420,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the base's texts show only on sheets of the imported company type copies, not on the library's seeded types (a company overlay on seeded types would need an entity, an op family and a contract). A relatório must use the imported copies for "Como ensaiar" and the recommendation to appear.
   evidence: `packages/domain/src/types/test-base-import.ts` `planTestBaseImport`.
   class: decision
-  state: ~~open (owner: Matheus, with Bruno)~~ closed (2026-11-10, Matheus: accepted, no change): the base's texts stay on the imported types only. Epic 24 hides the library type when a copy of it exists, which removes the confusion.
+  state: ~~open (owner: Matheus, with Bruno)~~ closed (2026-11-10, Matheus: accepted, no change): the base's texts stay on the imported types only. Epic 24 hides the library type when a copy of it exists, which removes the confusion.; assigned 2026-11-10 to Epic 24, Story 24.19
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (rows before e23e)
   summary: GE-01 (`termografia`) and AT-01/AT-02 (`malha_aterramento`) attach only once e23e's seed lands; until then they are listed as "Sem ensaio no app". After the e23e merge, add explicit kernel assertions that they attach (the spec's Tasks).
   evidence: `packages/domain/src/types/test-base-import.test.ts` (reads the kernel definition, holds before and after).
@@ -3438,7 +3443,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: a company draft can publish while a ratio table reads by vector group with no plate field left to read. This happens when the draft lost `ligacao_secundaria` before e23z (pruned by `removeDraftEntry` since e23g, or by a draft put from an older build). The ratio never computes. The editor's refusal guards removals from now on only, and `validateTypeDraft` raises no issue.
   evidence: `packages/domain/src/types/draft-edit.ts` `removeDraftEntryRefusal`; `packages/domain/src/types/validate.ts`.
   class: decision
-  state: ~~open (owner: Matheus: add a publish issue, or leave such drafts to the office)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): raise a publish issue. Open (owner: Epic 24, wave 3)
+  state: ~~open (owner: Matheus: add a publish issue, or leave such drafts to the office)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): raise a publish issue. Open (owner: Epic 24, wave 3); assigned 2026-11-10 to Epic 24, Story 24.20
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (Design Notes, W3-3 narrowing)
   summary: only a copy created from e23z on carries `base_block_type` and prints in its base type's group. A copy duplicated or imported earlier keeps printing in "Outros equipamentos" until it is duplicated again. Nothing backfills: published versions are immutable.
   evidence: `packages/domain/src/types/duplicate.ts` `duplicateSeededDefinition`; `packages/domain/src/print/group-for-print.ts`.
@@ -3461,7 +3466,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   - Item 4: only removing the field is refused. Changing its kind or options is not.
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (`unjudged`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`); `packages/domain/src/types/draft-edit.ts`.
   class: note
-  state: open (owner: the Epic 23 retrospective)
+  state: open (owner: the Epic 23 retrospective); assigned 2026-11-10 to Epic 24, Story 24.20 (item 4 only: a vector-group field whose kind or options were changed)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR texts:
   - "Apagar leitura" and "Leitura apagada";
@@ -3484,7 +3489,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: on a v13 oil unit the dry fields (TEMPERATURA DO ENROLAMENTO, CLASSE TÉRMICA) are drawn read-only and empty with the reason, and a crossing to oil clears them. The oil fields of a dry unit keep today's screen: editable, excused, cleared at the crossing to dry. A plate-reading suggestion on a dry field of an oil unit is not drawn on that field (the field is read-only); "Confirmar todos" can still write it, kept unseen and printed "-".
   evidence: `packages/domain/src/relatorio/oil-rule.ts` `dryFieldExcusedReason`; `apps/web/src/surfaces/ficha/nameplate-section.tsx`.
   class: decision
-  state: open (owner: Matheus: align the oil fields of a dry unit the same way, or keep them)
+  state: open (owner: Matheus: align the oil fields of a dry unit the same way, or keep them); assigned 2026-11-10 to Epic 24, Story 24.11 (decided by Matheus with the approval of the story list: the oil fields of a dry unit read-only, the mirror of e23p's fix)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md` (P2, sizes)
   summary: the v13 transformer's insulation table now prints at 7,5 pt (one criterion), 7 pt (ACEITÁVEL per row, or MANUT. ANTERIOR) and 6 pt (both), every word whole; the disjuntor's and the seccionadora's paired tables print as on `b307ced1` (the behaviour pass's F13, reported, not fixed).
   evidence: `packages/domain/src/print/section-9.ts` `WHOLE_FIT_TABLES`; `relatorio/three-levels.test.ts`; `print/criteria-tables-print.test.ts`.
