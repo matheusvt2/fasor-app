@@ -1,8 +1,8 @@
 ---
-title: 'e24h: a point of attention exists only when the technician creates it (no automatic points; contract 41)'
+title: 'e24h: a point of attention exists only when the technician creates it (no automatic points), and an observation never forces a restriction (H9; contract 41)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'done'
+status: 'in-progress'
 baseline_revision: '72ed1f51733c8abfdfd16fb209bc5c8171737215'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -95,6 +95,33 @@ deferred: []
 - Given every fixture of the domain tests, when the parecer verdict and every ficha's effective pair are computed, then they equal `72ed1f51`'s.
 - Given the layout-lock goldens, when regenerated, then their normalized text diff holds only the removed automatic points, the empty note, the parecer points count and page numbers.
 - Given the gate, when it runs, then lint, static, test:unit, test:api and the touched specs on `desktop-chrome` and `durability-desktop-chrome` are green, except `docx.test.ts` 4.8-UNIT-006 (Porto Seguro skeleton, D3), which is red with exactly the diff reported.
+
+## H9 (added 2026-11-10 by the coordinator): an observation never forces a restriction
+
+**Source and decision.** Bruno (through Matheus, 2026-11-10, in chat, urgent): the app no longer lets him write a ficha's "Observações" with the conclusion Aprovado · Sem restrições; it must be free, an observation is often only a comment; the same holds for the relatório's conclusion (the parecer, section 10). Matheus decided: fix it now, for every relatório on every seed (the half of Story 24.3 planned for v14 only is done here). Contract stays 41 (not deployed yet); no seed data change; the kernel owns the rule, the web renders. Do not edit `epics.md`, `source-deltas.md`, `epic-24-context.md` or the proposal.
+
+**Matrix (each row a test red on `d58d8be7`).**
+
+| Input / State | Expected |
+|---|---|
+| a tested ficha, every row C, every reading within, text in OBSERVAÇÕES | `conclusionFloor` Aprovado · Sem restrições with `reasons: []`; `isLooserThanFloor('sem_restricoes')` false (the segment enabled); `conclusionFloorReasonText` null (no line names the observation); `conclusionSuggestion` Aprovado · Sem restrições |
+| same, the text in a C (or NA) checklist row's observation instead | same |
+| an NC row (with or without its observation), a restricted reading, an out reading, a failed ratio, a failed prerequisite, a Não ensaiado defect reason | floor and reasons exactly as on `d58d8be7` (minus `observation` where it was listed beside them) |
+| the technician picks Com restrições | OBSERVAÇÕES still required (`observationRequired`, `sheet-progress` counts it missing) as today |
+| a ficha stored Aprovado · Sem restrições with an observation (concluded before) | stored pair untouched; `effectiveConclusionPair`, `chosenConclusionPair`, `printedConclusionPair` read Sem restrições; `conclusionAdjusted` false |
+| a ficha stored Aprovado · Com restrições with an observation | stays Com restrições everywhere |
+| a relatório whose fichas are all Aprovado · Sem restrições with observations, no NC, no site NC, no stored point | `derivedParecer` / `effectiveParecer` "Apto"; the parecer summary names no restriction for them |
+| same plus one stored point | "Apto com restrições" as today |
+
+**Tasks.**
+- `relatorio/conclusion.ts` -- remove the `observation` floor reason (`anyObservation`, the push at :185, the type member and its word "observação registrada" if nothing else reads them); update the doc comments (struck old text, dated e24h). `relatorio/ficha.ts` :221 comment. Any other reader of the reason (grep `'observation'` as a `ConclusionFloorReason`, `FLOOR_REASON_WORDS`).
+- `relatorio/parecer.ts` -- check every path that reads an observation directly or through the floor (`restricted`, `withRestriction`, the summary, the Critérios item, the reason line); with the floor fixed they follow; bring any direct reader in line and fix the doc comment at :108.
+- Copy: remove or correct any text that says an observation brings a restriction (grep `apps/web/src/copy`, `packages/domain/src` for "observação registrada", "observaç" near "restri"); mark `// authored (e24h, listed for Bruno)`.
+- Tests: the Story 22.4 observation cases and the conclusion specs rewritten to the new rule, one line each in "Changed tests". New unit cases for every matrix row. E2e (`@p0`, as a person, in an existing conclusion spec or `e2e/observation-free.spec.ts`): write an observation on a clean ficha, see "Aprovado · Sem restrições" offered (suggestion) and enabled, conclude it (store asserted: the stored pair), the PDF preview prints X on SEM RESTRIÇÕES for that ficha, and the relatório's Parecer reads Apto.
+- Goldens: layout-lock v5, v11, v12 may be regenerated only where the change is this rule (a restriction mark or box, a parecer word or sentence following from it), with before/after text in `.scratch-e24h/golden-diff-h9/`. If the Porto Seguro skeleton changes because of H9, do NOT regenerate it: write the exact changed lines to `.scratch-e24h/golden-diff-h9/porto-seguro.diff` and stop on that part.
+- Docs: add H9 rows to this batch's `deferred-work.md` section (what changed for stored pairs; anything left) and a KB line.
+
+**Where a stored Sem restrições with an observation now reads differently** (filled by the implementation): every reader of `effectiveConclusionPair` / `chosenConclusionPair` / `printedConclusionPair`.
 
 ## Changed tests
 
