@@ -138,8 +138,8 @@ export function printBlockTypeOf(definition: Pick<BlockDefinition, 'base_block_t
 /**
  * Fix batch e23z (W3-3): the editor's "Grupo na impressão" of a company type whose base is one of the
  * eight, the group's words without the cabine (`GROUP_WORDS`); null for any other type, where the
- * editor keeps its own copy ("Outros equipamentos"). The cabos de saída print with the transformers
- * when their function is alimentação, else with the seccionadoras.
+ * editor keeps its own copy ("Outros equipamentos"). A company block carries no role
+ * (`defaultBlockConfigIn`), so a copy of the cabos de saída prints with the seccionadoras.
  */
 export function printGroupWordsOf(baseBlockType: string | null | undefined): string | null {
   if (baseBlockType === null || baseBlockType === undefined || !isBaseEquipmentBlockType(baseBlockType)) return null;
@@ -152,9 +152,6 @@ export function printGroupWordsOf(baseBlockType: string | null | undefined): str
       return words('tps_tcs');
     case 'transformador_forca':
       return words('transformadores');
-    case 'cabos_saida':
-      // authored (e23z, listed for Bruno): the two groups of a cabo de saída, by its function.
-      return `${words('seccionadoras')}, ou ${words('transformadores')} na função alimentação`;
     default:
       return words('seccionadoras');
   }

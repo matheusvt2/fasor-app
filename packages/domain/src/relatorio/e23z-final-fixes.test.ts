@@ -277,6 +277,8 @@ describe('e23z-UNIT W3-3 a company copy of one of the eight prints in its base\'
     expect(printGroupWordsOf('transformador_forca')).toBe('Transformadores e Cabos de Alimentação');
     expect(printGroupWordsOf('tc')).toBe("TP's e TC's dos Cubículos de MT");
     expect(printGroupWordsOf('para_raio')).toBe('Seccionadoras dos Cubículos de MT');
+    // A company block carries no role, so a cabos de saída copy groups with the seccionadoras (`byType`).
+    expect(printGroupWordsOf('cabos_saida')).toBe('Seccionadoras dos Cubículos de MT');
     expect(printGroupWordsOf('malha_aterramento')).toBeNull();
     expect(printGroupWordsOf(undefined)).toBeNull();
   });
@@ -339,6 +341,23 @@ describe('e23z-UNIT W3-7 the base\'s IP rows reach the derived point', () => {
     const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${block.id}:isolacao`)!;
     expect(entry.text.startsWith(`${rec('TR-SE-03')}. `)).toBe(true);
     expect(entry.text).not.toContain(rec('TR-SE-02'));
+  });
+
+  it('IP out on a copy whose insulation recommends but has no IP row\'s text: the point starts with the test\'s recommendation', () => {
+    const snapshot = v13Snapshot();
+    const draft = trSe();
+    delete (draft.tests.find((test) => test.key === 'isolacao') as { index_recommendation?: string }).index_recommendation;
+    const block = asCopy(snapshot, 'transformador_forca', draft, 14);
+    editBlock(snapshot, block, (next) => {
+      next.sheet.nameplate.tipo_de_isolacao = cell('EPÓXI');
+      next.sheet.nameplate.tensao_nominal_at = cell(measured('13.8', 'kV'));
+      next.sheet.nameplate.tensao_nominal_bt = cell(measured('380', 'V'));
+      next.sheet.test.isolacao = { cells: {} };
+      return cells(next, 'isolacao', { '0/1': measured('100', 'GΩ'), '0/4': measured('0.8', null) });
+    });
+    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${block.id}:isolacao`)!;
+    expect(entry.text.startsWith(`${rec('TR-SE-02')}. `)).toBe(true);
+    expect(entry.text).not.toContain(rec('TR-SE-03'));
   });
 
   it('IP out and a reading out: the recommendation, then the IP row\'s, each once', () => {

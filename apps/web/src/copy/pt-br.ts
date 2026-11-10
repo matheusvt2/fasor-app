@@ -1613,7 +1613,7 @@ export const copy = {
       // of a restricted reading's helper; the reason after it is the kernel's (`EvaluatedCell.restriction.text`).
       restrictedLead: 'Com restrição:',
       // Fix batch e23z (item 3, Bruno 2026-11-09): a tap row the plate no longer lists ("Fora da placa") can be cleared;
-      // the button and its undo toast. authored (e23z, listed for Bruno).
+      // the button and its toast (no "Desfazer": only clearing). authored (e23z, listed for Bruno).
       clearTapRow: 'Apagar leitura',
       // authored (e23z, listed for Bruno).
       clearedTapRowToast: 'Leitura apagada',

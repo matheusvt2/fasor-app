@@ -94,6 +94,18 @@ describe('e23z-INT item 3 a TTR row off the plate takes a clear through the rout
     const third = await h.push(companyA, [put(11400, 3, null, clears[0]!.op_id)]);
     expect(third.rejected.map((rejected) => rejected.code)).toEqual(['op_invalid']);
   });
+
+  it('speaks contract 40: a version-39 pull is answered 426 contract_outdated, the current one is answered', async () => {
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(40);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(40);
+    for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      const old = await h.authed(companyA, path, { headers: { 'x-contract-version': '39' } });
+      expect(old.status, path).toBe(426);
+      expect(((await old.json()) as { code?: string }).code).toBe('contract_outdated');
+    }
+    const current = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': String(CONTRACT_VERSION) } });
+    expect(current.status).toBe(200);
+  });
 });
 
 describe('23.9-INT the applicability override through the route (contract 35)', () => {

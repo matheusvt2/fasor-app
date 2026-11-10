@@ -318,6 +318,19 @@ describe('Story 23.12: texts over the cap', () => {
     expect(copy.publishable).toBe(true);
   });
 
+  // Fix batch e23z (W3-7): the IP row's text over the cap is refused the same way; its recommendation stays out.
+  it('an IP row (TR-SE-03) whose recommendation is over the cap is refused, and the insulation test carries no index_recommendation', () => {
+    const raw = JSON.parse(FIXTURE_TEXT) as { ensaios: Record<string, unknown>[] };
+    raw.ensaios = raw.ensaios.map((row) => (row['id'] === 'TR-SE-03' ? { ...row, recomendacao_reprovado: 'i'.repeat(TEST_TEXT_MAX_LENGTH + 1) } : row));
+    const parsed = parseTestBaseText(JSON.stringify(raw));
+    if (!parsed.ok) throw new Error('the changed base does not parse');
+    const plan = planTestBaseImport(parsed.file, EMPTY_DEFINITION_CONTEXT);
+    const copy = plan.copies.find((one) => one.equipmentId === 'TR-SE')!;
+    expect(plan.refused).toContain('TR-SE-03');
+    expect((testOf(copy.duplicate.draft, 'isolacao') as { index_recommendation?: string }).index_recommendation).toBeUndefined();
+    expect(copy.publishable).toBe(true);
+  });
+
   it('a composed criterion over the cap, each level under it, is left out and the row refused; the copy is still published', () => {
     const level = 'c'.repeat(400);
     const { plan, copy } = djWith({ criterio_aprovado: level, criterio_restricao: level, criterio_reprovado: level });
