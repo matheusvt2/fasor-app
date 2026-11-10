@@ -2,7 +2,7 @@
 title: 'e24h: a point of attention exists only when the technician creates it (no automatic points; contract 41)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '72ed1f51733c8abfdfd16fb209bc5c8171737215'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -119,6 +119,7 @@ deferred: []
 - `apps/web/src/surfaces/relatorio/setup-surface.test.tsx`: the reason line drops "e 1 ponto de atenção".
 - `apps/web/src/surfaces/relatorio/sumario-surface.test.tsx`: row 9 (points) reads "Nenhum ponto de atenção" (was "1 automático").
 - `apps/api/src/sync/sync.integration.test.ts`: 1.5-API-005, 40 joins the refused list, 41 answered, a 40 push accepted.
+- `apps/api/src/jobs/generate/docx-company-type.test.ts` (found by the story gate): the mixed-case "Tensão de flutuação do banco" came from the automatic out-of-criterion row of section 8's action plan; the test now reads section 9's "TENSÃO DE FLUTUAÇÃO DO BANCO" and asserts the automatic row is gone.
 - `apps/api/src/sync/three-levels.integration.test.ts`: the restricao point through the route is the one section 8 entry (was "replaces the derived entry").
 - `apps/api/src/jobs/generate/golden/layout-lock-{v5,v11,v12}/document.xml` and `pdf-text.json`: regenerated with `GOLDEN_UPDATE=1` after the normalized text diff showed only the removed automatic bullets and rows, the empty note, the parecer's points sentence and Critérios item, and page numbers.
 - `e2e/points-on-click.spec.ts` (new, `@p0`, `queue` lane in `e2e/support/groups.ts`): H8.
@@ -142,5 +143,18 @@ deferred: []
 
 - Narrow runs while iterating: `podman compose --profile tools run --rm --user root tools pnpm exec vitest run --project <kernel project> <file>`; one Playwright spec: `pnpm exec tsx scripts/e2e.ts e2e/<spec>.ts --project desktop-chrome --project durability-desktop-chrome`; api file: `pnpm --filter @app/api exec vitest run <file>`; each under `lockf -t 20000 /tmp/fasor-verify.lock`.
 - The orchestrator runs the story gate.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-10 — Review pass
+- layers: Edge Case Hunter and Verification Gap ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 4 findings — high 0, medium 0, low 2, false 2, maybe-false 0
+- findings:
+  - `[low]` `[reject]` EC: `parecerReasonText` could read "O relatório exige no mínimo Apto com restrições: ." if the verdict were raised by `hasPointSource` alone (before, an automatic entry counted as a point and named it) — unreachable today: every finding kind `sheetEntries` builds also sets a `computeFloor` reason (NC, out, index, choice, ratio, measurement, prerequisite, restricted) or a site NC, and `points-on-click.test.ts` pins each kind's reason line; the fix adds a guard branch. Listed as a residual risk (the two rules must keep matching).
+  - `[false]` `[reject]` VG other: `docx.test.ts` 4.8-UNIT-006 is red — by design (D3, the launch's STOP on the Porto Seguro golden); the diff is exactly the 18 automatic rows and the parecer count (`.scratch-e24h/golden-diff/porto-seguro-skeleton.diff`), reported for Matheus's decision.
+  - `[false]` `[reject]` VG other: the `|| hasPointSource(snapshot)` clause of `derivedParecer` decides no tested case — it keeps the verdict equal to `72ed1f51`'s by construction (H3) whatever the floor rules do later; no bad outcome.
+  - `[low]` `[reject]` VG other: `.point-of-attention-card.is-auto` rules stay in `points.css` and `app.css`, and `allDerivedPoints` still composes texts nothing reads — no behaviour; the CSS mirrors `72-pontos.html`'s automatic card and the texts are the kernel's prefill candidates, both left for Epic 24's design of automatic points (D4).
 
 ## Auto Run Result

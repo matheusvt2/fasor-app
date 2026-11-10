@@ -45,7 +45,10 @@ describe('Story 14.6: company types in section 9 of the DOCX', () => {
     expect(text).toContain('MODELO');
     expect(text).toContain('NB-3000');
     expect(text).toContain('BORNES E CONEXÕES DAS BATERIAS');
-    expect(text).toContain('Tensão de flutuação do banco');
+    // Fix batch e24h: the measurement table's row, as section 9 prints it. The mixed-case label was the automatic
+    // out-of-criterion entry's action-plan row in section 8, which no longer prints (no point was created).
+    expect(text).toContain('TENSÃO DE FLUTUAÇÃO DO BANCO');
+    expect(text).not.toContain('Tensão de flutuação do banco');
   });
 });
 
