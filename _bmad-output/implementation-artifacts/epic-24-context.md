@@ -16,6 +16,8 @@ On every seed, on screen only:
 - the suggested conclusion reads as a preview;
 - the automatic NC phrase follows its item, and an edited one is kept with a warning;
 - the app asks before it removes a point of attention;
+- *(2026-11-10, evening)* a point of attention exists only when the technician creates it (fix batch e24h, first and alone), and a failed test offers the create action (Story 24.17);
+- *(2026-11-10, evening)* an equipment keeps its history when its TAG is renamed (Story 24.21);
 - a new sheet is suggested the TAG TYPE-NN;
 - a company type may take a "nominal ± %" criterion, and a published copy hides its original.
 
@@ -29,17 +31,17 @@ Cite Bruno by question number. Never copy his sentences into a tracked file, a P
 
 ## Stories
 
-The text of each, with its DoR, ACs and DoD, is in `epics.md` § Epic 24. The overridden records are the eleven `source-deltas.md` rows of 2026-11-10.
+The text of each, with its DoR, ACs and DoD, is in `epics.md` § Epic 24. The overridden records are the eleven `source-deltas.md` rows of 2026-11-10. *(2026-11-10, evening: and two more rows of the same date, on automatic points and on the reuse key.)*
 
 | Story | Title | Dev model · Effort | Applies to | Depends on |
 | --- | --- | --- | --- | --- |
 | 24.1 | The Epic 24 frames in the mocks | opus · medium | n/a | none |
-| 24.2 | Seed v14 opens and the v13 layout is locked | opus · high | v14 | the planning PR merged |
+| 24.2 | Seed v14 opens and the v13 layout is locked | opus · high | v14 | the planning PR merged *(2026-11-10, evening: and fix batches e24h and e24f merged)* |
 | 24.3 | Out of criterion gives Reprovado only; a restriction is the technician's choice; an observation gives none | opus · max | v14 | 24.1, 24.2 |
 | 24.4 | Section 10 names the finding | opus · high | v14 | 24.2, 24.3 |
 | 24.5 | The suggested conclusion reads as a preview | opus · medium | all | 24.1 |
 | 24.6 | The NC phrase follows its item, and warns when it was edited | opus · high | all | 24.1 |
-| 24.7 | An item back to Conforme: the app asks about its point | opus · high | all | 24.1, 24.6 (the same row component) |
+| 24.7 | An item back to Conforme: the app asks about its point | opus · high | all *(2026-11-10, evening: stored points only)* | 24.1, 24.6 (the same row component) *(2026-11-10, evening: and fix batch e24h merged)* |
 | 24.8 | The TAG: the plate's first, else type and a two-digit number | opus · high | new sheets | 24.1 |
 | 24.9 | Small screen fixes from the hands-on pass | opus · medium | all | 24.1 |
 | 24.10 | TP and TC with their own checklists | opus · medium | v14 | wave 1 merged |
@@ -49,10 +51,11 @@ The text of each, with its DoR, ACs and DoD, is in `epics.md` § Epic 24. The ov
 | 24.14 | Two small sheet fixes: the oil sampling's "Outro" and the ground grid's plate block | opus · medium | v14 | 24.1, 24.10 |
 | 24.15 | The previous visit's date in the table header | opus · high | the date kept on every seed; the header on v14 | 24.1, wave 1 merged |
 | 24.16 | Drops and rises as a note line under the table | opus · high | v14 | 24.1, 24.15 |
-| 24.17 | The test's recommendation fills "Ação recomendada" | opus · medium | v14 | 24.1, wave 1 merged |
+| 24.17 | The test's recommendation fills "Ação recomendada" | opus · ~~medium~~ high *(2026-11-10, evening)* | ~~v14~~ *(2026-11-10, evening)* the create action on every seed; the recommendation in the action, the whole row and the photo references on v14 | 24.1, wave 1 merged *(2026-11-10, evening: and fix batch e24h merged)* |
 | 24.18 | A "nominal ± %" criterion on company types | opus · high | company types | 24.1 |
 | 24.19 | A copied type hides its original in the field | opus · medium | company types, every seed | 24.1 |
 | 24.20 | A company type that cannot compute its ratio is not published | opus · medium | company types | none |
+| 24.21 | An equipment keeps its history when its TAG is renamed *(2026-11-10, evening, Matheus on M-5; batch e24b, after 24.8)* | opus · high | every equipment created from now on, on any seed | 24.8 |
 
 ## Decisions (Matheus, 2026-11-10)
 
@@ -66,6 +69,8 @@ The text of each, with its DoR, ACs and DoD, is in `epics.md` § Epic 24. The ov
 8. The story list and the batches are approved.
 9. The four low findings of the pass (F10, F15, F18, F20) are fixed in this epic, and the ledger was swept for rows that fit.
 10. The stories are written with John and built by Amelia.
+11. *(2026-11-10, evening.)* One more story, 24.21: an equipment keeps its history when its TAG is renamed (M-5 of the proposal). The equipment stores, at its creation, the key the reuse matches on. Equipment created before the story keeps matching by its TAG.
+12. *(2026-11-10, evening; Bruno through Matheus, in chat, urgent.)* No point of attention is automatic. A point exists only when the technician creates it. All five automatic kinds stop (`not_tested`, `nc`, `reading`, `reprovado`, `restricao`), for every relatório on every seed. It is built now as fix batch e24h and deployed alone, before the rest of the epic. How automatic points should work is thought through later and is not built. It overrides Bruno's earlier answer to question 28.
 
 Folded in the same day from the open Epic 23 rows: the arrester's hidden prerequisite (24.3), the cable's fake plate fixture (24.13), the publish issue for a company type with no vector-group field (24.20), and the read-only oil fields on a dry unit (24.11).
 
@@ -76,7 +81,7 @@ Verified on 2026-11-10 in worktree `e24-planning` (`dbcdb720`, product code of m
 - **Current versions.**
   - `SEED_VERSION = 'v13'` (`seed/definitions.ts:64`); `SEED_VERSIONS` holds v1 to v13 (`:128`).
   - `V13_HASH` is `ff1737055c046a1f8a3fb9099bae3306b338b8af50be5502b347837602bd30ff` (`seed/seed.test.ts:2155`). Seed v13 is deployed and frozen.
-  - `CONTRACT_VERSION = 40` (`contract/version.ts:469`) and `MIN_CONTRACT_VERSION = 40` (`:738`).
+  - `CONTRACT_VERSION = 40` (`contract/version.ts:469`) and `MIN_CONTRACT_VERSION = 40` (`:738`). *(2026-11-10, evening: 41 and 41 once fix batch e24h merges, before any story batch starts.)*
 - **The seed v14 gate.**
   - A verdict or a printed page changes on v14 only. The change is reached through a key of the v14 seed, never through a version number.
   - Story 24.2 adds one optional seed-level key, `rules`, to `reportSeedSchema` (`seed/schema.ts:999`). It is absent on v1 to v13, as `recurring_findings` and `site_checklist` are absent on the seeds before them, so every shipped hash holds.
@@ -92,7 +97,7 @@ Verified on 2026-11-10 in worktree `e24-planning` (`dbcdb720`, product code of m
     | `results_reference_across_runs` | 24.4 | "nos itens 8 e 9" replaced across formatted runs |
     | `previous_visit_date` | 24.15 | the dated MANUT. ANTERIOR header and history texts |
     | `history_note` | 24.16 | the note line under a table |
-    | `recommendation_as_action` | 24.17 | the recommendation in "Ação recomendada"; rows kept whole; spaced photo references |
+    | `recommendation_as_action` | 24.17 | the recommendation in "Ação recomendada" *(2026-11-10, evening: of a point the technician creates from a test)*; rows kept whole; spaced photo references |
 
   - The existing version-number gates stay as they are: `RISE_FROM_SEED` (`relatorio/restriction.ts:189`), `isLegacySeed` (`relatorio/reading-evaluation.ts:192-196`), `MANUFACTURER_CHECK_FROM` (`ops/apply.ts:511-532`).
   - A company type is not tied to a seed: `findDefinitionIn` ignores the seed for a `type:` key (`seed/definitions.ts:383-389`). Its sheets follow the flags of the relatório they sit in.
@@ -112,12 +117,21 @@ Verified on 2026-11-10 in worktree `e24-planning` (`dbcdb720`, product code of m
 - **Prerequisite:** `relatorio/restriction.ts` `failedPrerequisites`, read by the floor, the points, the conclusion text and the parecer.
 - **Parecer and section 10:** `relatorio/parecer.ts` (`derivedParecer`, `parecerCounts`, `reprovadoSentence`, `composeParecer`, its basis), `print/section-10.ts` (`section10Layout`, `FIXED_RESULTS_REFERENCE`, `validityLine`).
 - **Points:** `points/derived.ts` (`derivedPoints` `:372`, `resolvedOriginPoints` `:390`, `derivedPointSeed` `:559`), `points/summary.ts` (`pointsSummaryText` `:126`, `pointsHeadingText` `:152`), `points/checks.ts` (`ncRowPointPositions` `:186`), `relatorio/ops.ts` `removePointOp` (`:59`). The screen: `apps/web/src/surfaces/points/points-surface.tsx`.
-  - **Both wave 1 batches edit `points/derived.ts`**: e24a for the prerequisite and the v14 pair, e24b for the question and the heading. e24b merges second and merges main first.
+  - *(2026-11-10, evening.)* **These lines are those of main `72ed1f51`, before fix batch e24h.** e24h removes the list of automatic entries and what only that list read (by its spec: `derivedPoints`, `derivedPointSeed`, the grouping, the "Possível duplicado" pairs, the "automático" part of the two summary texts). It keeps the findings inside the kernel for the parecer and for `resolvedOriginPoints`. Every batch reads this file again on the main it starts from.
+  - *(2026-11-10, evening.)* **Where a point can be created by a tap today:** an NC row of a sheet and of a local (`apps/web/src/surfaces/ficha/checklist-section.tsx:560`, shared `ChecklistRow`), the band of a sheet marked Não ensaiado (`not-tested-band.tsx:65`), and "Adicionar" on the Pontos screen. **Nowhere on a reading.** Story 24.17 adds that.
+  - **Both wave 1 batches edit `points/derived.ts`**: e24a for the prerequisite and the v14 pair, e24b for the question ~~and the heading~~ *(2026-11-10, evening: the heading is e24h's)*. e24b merges second and merges main first. *(2026-11-10, evening: fix batch e24h edits the file first, and batch e24p edits it last, for Story 24.17's create action.)*
 - **NC phrase:** `relatorio/ficha.ts` `clearsNcObservation` (`:223`), `insertPhrase` (`:233`), `recentChecklistObservations` (`:192`); `registry/nc-phrase-row.ts` `ncChipPhrases` (`:39`), `typedPieces` (`:124`); the row in `apps/web/src/surfaces/ficha/checklist-section.tsx` (`ChecklistRow`, shared by a sheet and a local).
 - **TAG:** `relatorio/tag.ts` (`TAG_PREFIX` `:13`, `suggestTag` `:98`). Callers: `relatorio/instantiate.ts:337,346`, `relatorio/tree.ts:699,828`, `relatorio/move.ts:68`, `relatorio/panel.ts:238`, `apps/web/src/surfaces/relatorio/tree-actions.ts:333`, `block-palette-field.tsx:277`.
-  - **The TAG reuse constraint.** `instantiateTemplate` binds a template position to the obra's live equipment whose TAG equals the TAG suggested for that position, same type (`instantiate.ts:337-338`). Story 24.8 keeps the old rule as a frozen function, matches by the old TAG first and the new one second, and its tests cover an obra whose equipment carries the old TAGs.
+  - **The TAG reuse constraint.** `instantiateTemplate` binds a template position to the obra's live equipment whose TAG equals the TAG suggested for that position, same type (`instantiate.ts:337-338`). Story 24.8 keeps the old rule as a frozen function, matches by the old TAG first and the new one second, and its tests cover an obra whose equipment carries the old TAGs. *(2026-11-10, evening: Story 24.21, next in the batch, moves the match to a stored key and retires the second candidate. The batch may build the match once, in 24.21's form.)*
   - The layout-lock, Porto Seguro and replay fixtures and `e2e/support/relatorio-seed.ts` get their TAGs from `suggestTag`. They pass the old rule, so no golden moves.
-  - A renamed TAG is not found by the reuse today (ledger row at line 647). Story 24.8 does not change that.
+  - A renamed TAG is not found by the reuse today (ledger row at line 647). Story 24.8 does not change that. *(2026-11-10, evening: Story 24.21 does, for equipment created from then on.)*
+  - *(2026-11-10, evening.)* **The reuse key (Story 24.21).**
+    - The equipment row (`schemas/entities.ts:381-390`) gains one optional, write-once key. Its value is the TAG the frozen old rule gives the placement: prefix, local code, place.
+    - Equipment is created in two places, and both write it: `instantiateTemplate` (`instantiate.ts:345-350`) and `newEquipmentBlock` (`relatorio/tree.ts:879`; the palette, "Duplicar" and "Fotografar equipamento" through `createPair`, `apps/web/src/surfaces/relatorio/tree-actions.ts:310-350`).
+    - The match, per placement: a stored key first; then, for a row with no key, its TAG (today's match); else a new equipment.
+    - A template block has no id, and "Salvar como template" gives each node a new ref (`templates/from-relatorio.ts`). So the key cannot be a reference to the template.
+    - A device can put only `tag` and `removed_at` on an equipment (`EQUIPMENT_FIELDS`, `ops/path.ts:49`). The key gets no put path.
+    - The Porto Seguro snapshot golden holds equipment rows. Fixtures pass the old TAG rule, and under it no key is written, so no golden moves.
 - **Checklists** (as resolved on v13):
   - TP and TC: seven items each, the same list (`seed/v10.ts:39-50`, `seed/v12.ts:143`). No item names an open secondary or short-circuit terminals.
   - Transformador de força: 14 items, seven of them oil items (`seed/v1.ts:256-320`, `seed/v9.ts:27-54`). No dry-only item. `oil_rule` keys: `field`, `oil_values`, `items`, `fields`, `full_values`, `dry_fields` (`seed/schema.ts:487-512`); helpers in `relatorio/oil-rule.ts`.
@@ -148,7 +162,7 @@ Each is written under its story in `epics.md`.
 - **24.3.** An NC row and a restricted reading keep flooring Aprovado · Com restrições on v14. The technician's justification is OBSERVAÇÕES. The observation is required under any Reprovado on v14. Row 3344 applies on v14 only.
 - **24.6.** Several tapped chips count as automatic. The warning is a line on the row, not a dialog.
 - **24.7.** The question is asked for N.A. as for Conforme. A point resolved by a reading or a verdict gets a remove action on its card, not a question while typing.
-- **24.8.** "The plate's TAG first" is the technician's typing, prompted by the helper. Only SEC becomes SC. A renamed TAG is still not found by the next relatório of the obra.
+- **24.8.** "The plate's TAG first" is the technician's typing, prompted by the helper. Only SEC becomes SC. ~~A renamed TAG is still not found by the next relatório of the obra.~~ *(2026-11-10, evening, Matheus: decided; Story 24.21.)*
 - **24.9.** With unreadable templates and none readable, "Criar template padrão" stays hidden.
 - **24.10.** The TC gains no item on its secondary (B-11). The TP's fuse wording is a hint.
 - **24.11.** Forced ventilation is item 5, renamed and made a dry item. The new items are appended. Nothing is printed about the laboratory's report.
@@ -157,16 +171,28 @@ Each is written under its story in `epics.md`.
 - **24.14.** The "Outro" text is required while it shows. The grid's block is "Dados da malha".
 - **24.15.** The service date kept is `service_end`, else `service_start`.
 - **24.16.** "Relevant" is what the three v13 rules flag.
+- **24.17** *(2026-11-10, evening)*. A test that fails, a reading in its restriction band and a ficha the technician reproved offer "Criar ponto de atenção". Nobody decided this action; without it a failed test reaches section 8 only by a point typed by hand. One action per test. A restricted reading's point starts with no recommendation. The action exists on every seed. The story stays in wave 3, so a failed reading has no create action between the deploy of e24h and the deploy of the epic.
 - **24.18.** The nominal is typed in the criterion. Both ends are within.
 - **24.19.** The original is hidden in the composer's palette too. The copy takes the original's place.
+- **24.21** *(2026-11-10, evening)*.
+  - The key is the old rule's TAG of the placement, not a reference to the template's block.
+  - An equipment from before the story gets no key, not even when a new relatório binds it. Renaming it later still loses its history. This covers every obra that exists today, and it is the next decision if those obras matter.
+  - Story 24.8's second candidate is retired, so nothing is bound on a guess.
+  - With two equipment on one key, the oldest binds, and nothing reports the other.
+  - An equipment added from the palette gets a key too.
+  - The key cannot be seen or corrected by hand.
 
 ## Where the code changed a story
 
-- **24.6** carries contract 42 in the proposal. The code shows no fold change in it. The number stays reserved for batch e24b.
+- **24.6** carries contract 42 in the proposal. The code shows no fold change in it. The number stays reserved for batch e24b. *(2026-11-10, evening: the batch's number is 43, and Story 24.21 takes it.)*
 - **24.11** was planned with two more oil items. The second, the oil sampling, already exists as the v13 test `coleta_oleo`. The story adds one oil item and keeps the test.
 - **24.16** was offered row 3191, which is in `print/section-8.ts`. Story 24.17 edits that file in the same batch and takes the row, on v14 only.
 - **24.8** found that the fixtures and the goldens also take their TAGs from the suggestion. They pass the old rule.
 - **24.20** found that the editor cannot recreate the vector-group field (a new field gets a new key). The issue's sentence names the two ways out the editor has.
+- *(2026-11-10, evening)* **24.17** found that no reading has a create action. After fix batch e24h the only way a failed test reached a stored point ("Editar" on its automatic entry) is gone. The story now builds the action, and its effort is high.
+- *(2026-11-10, evening)* **24.21** found that a template block has no id and that "Salvar como template" renames every node. So the key is the old rule's TAG of the placement, which is what the reuse compares today.
+- *(2026-11-10, evening)* **24.21** found that the approved direction leaves out every equipment that exists today: none has a key, and the story gives it none. A later rename of those still loses the history (its second reading).
+- *(2026-11-10, evening)* **Decision 12** found that the parecer gives Apto com restrições when any point exists, the automatic ones included (`relatorio/parecer.ts:177`). Fix batch e24h keeps every verdict by reading the findings there, with no point listed. Its spec says how.
 
 ## Open items
 
@@ -174,16 +200,43 @@ Each is written under its story in `epics.md`.
 - **B-11, raised while writing the stories:** should the TC's list ask an item on its secondary (never open, the short-circuit terminals)? The product has none today (Story 24.10).
 - **Authored sentences.** Every story lists its authored pt-BR sentences in its PR. They go to Bruno with B-7.
 - **Matheus: M-2** ("Agrupar por tipo" stays off on a new local) and **M-4** (the blank ART prints "[ART]") keep their defaults. **M-3:** the AD-25 note is written in Story 24.15's PR.
-- **Matheus: the readings above**, chiefly the renamed TAG (24.8) and the composer's palette (24.19).
+- **Matheus: the readings above**, chiefly ~~the renamed TAG (24.8)~~ *(2026-11-10, evening: decided, Story 24.21)* and the composer's palette (24.19). *(2026-11-10, evening: and, new, the create action on a reading (24.17; M-6 of the proposal) and the equipment from before the story (24.21; M-7).)*
+- *(2026-11-10, evening)* **Matheus: the open questions of fix batch e24h** (M-8 of the proposal), as its spec stood on the evening of 2026-11-10: whether an NC row with no point is named again before issuing, a confirmed parecer text that reads stale after the update, and the Porto Seguro golden.
+- *(2026-11-10, evening)* **Later, not planned:** how automatic points should work (decision 12).
+
+## Fix batch e24h
+
+*(2026-11-10, evening, coordinator, on Matheus's decision 12.)* Bruno reported on 2026-11-10, through Matheus and in chat, that points of attention appear when an NC is entered although nobody tapped "Criar ponto de atenção". He asks for an urgent correction: a point exists only when the technician creates it. There is no file with his words.
+
+Matheus decided the same day: all five automatic kinds stop (`not_tested`, `nc`, `reading`, `reprovado`, `restricao`, `points/derived.ts`), for every relatório on every seed. How automatic points should work is thought through later and is not built now.
+
+It is a fix batch, not a story:
+
+- **Name and place.** "Points on click", branch `e24h-points-on-click`, spec `spec-e24h-points-on-click.md`. It runs first and alone, and it is deployed alone, on Matheus's word, before the rest of Epic 24.
+- **Contract 41, with minimum 41.** A bundle on 40 would still list, count and print automatic points that the server no longer prints.
+- **What it does.** Nothing lists, counts, flags or prints an automatic point: the Pontos screen, the Sumário, the pre-issue checks, the site checklist, section 8, and the points count of section 10.
+- **What stays.** "Criar ponto de atenção" on an NC row and on a Não ensaiado band, and "Adicionar" on the Pontos screen, work as today. Verdicts and the parecer do not change. No data is deleted: a point already stored keeps its origin and its "Origem resolvida" flag. No new button and no new screen.
+- **What it overrides.** The automatic "Não ensaiado" entry (Story 6.6, and its count in Story 15.2, finding F34), Story 22.5, the automatic point of a restricted reading (Story 23.6) and the automatic half of Story 23.11. Each has a dated note in `epics.md`, and `source-deltas.md` has the row.
+- **Old print changes once, here.** Section 8 of an older relatório loses its automatic entries. The spec names the goldens that move and carries their diff. From then on the rule "older relatórios print byte-identical" is measured from main after e24h.
+
+What it means for the stories (each has its dated note in `epics.md`):
+
+| Story | What changed |
+| --- | --- |
+| 24.1 | Three more frames: the Pontos screen with stored points only, the create action on a reading, the editor it opens. The UX documents strike every sentence that says a point enters by itself. |
+| 24.2 | Contract 42 over 41. The v13 lock is taken after e24h. Its fixture carries a stored point where it needs section 8 to print a recommendation. |
+| 24.3, 24.4, 24.11, 24.12, 24.13, 24.16 | No row and no reading "derives" a point. Each criterion now says what the row offers, or that section 8 holds the finding only in a point someone created. |
+| 24.7 | The question and the remove action concern stored points only. The heading fix (row 2352) is e24h's. The browser walk of a local's NC item is of a point created by the tap. |
+| 24.17 | It now builds the create action on a failed test, on a restricted reading and on a ficha the technician reproved. On v14 the recommendation fills the action of the point that tap starts. Effort high. |
 
 ## Fix batch e24f
 
-*(2026-11-10, coordinator, on Matheus's "yes" to the retrospective's proposal.)* The Epic 23 retrospective (`epic-23-retro-2026-11-10.md`) left seven review findings (E23-A1) and a list of tests that go red under load (E23-A4). They run as one fix batch beside wave 0, the way e23f ran beside Story 23.1. It is built red-first and passes the story gate plus the specs it touches.
+*(2026-11-10, coordinator, on Matheus's "yes" to the retrospective's proposal.)* The Epic 23 retrospective (`epic-23-retro-2026-11-10.md`) left seven review findings (E23-A1) and a list of tests that go red under load (E23-A4). They run as one fix batch beside wave 0, the way e23f ran beside Story 23.1. It is built red-first and passes the story gate plus the specs it touches. *(2026-11-10, evening: it starts after fix batch e24h merges, because both touch the same texts. It still runs beside Story 24.1 and merges before e24a starts.)*
 
 From E23-A1:
 
 - **R-1.** The conclusion paragraph says the values are within the criteria when one measured reading was judged by no criterion. It must treat that reading as one to check, and the cell gets a helper. This is the main item: it is a wrong sentence in a document the engineer signs.
-- **R-3.** Changing a test's recommendation in the type editor clears the imported recommendation of the polarization index, which today prints with no way to see or edit it.
+- **R-3.** ~~Changing a test's recommendation in the type editor clears the imported recommendation of the polarization index, which today prints with no way to see or edit it.~~ *(2026-11-10, evening, reworded after decision 12.)* The imported recommendation of the polarization index can be neither seen nor edited in the type editor. After e24h it no longer prints by itself: it reaches section 8 only inside a point someone created, either one written before e24h from an automatic entry, or the point Story 24.17's create action will start. The fix is the same: changing a test's recommendation in the type editor clears the imported index recommendation, so that no new point starts with a text nobody can see.
 - **R-4.** The test of a cable copy printing before its transformer asserts what the product really does, and the row is written as a narrowing.
 - **R-5.** A second "Apagar leitura" on the same row from another device is accepted, not left as dead outbox rows. One api case with two devices.
 - **R-7.** One Playwright case: "Atualizar" with unsynced work while the pull answers 426.
@@ -195,7 +248,7 @@ From E23-A4, the tests red under load in two or more gates: 21.1-E2E-002, R8CAP-
 Rules for the batch:
 
 - It changes seed v13 behaviour only where the finding is a defect (R-1, R-3, R-5). The v13 layout lock of Story 24.2 is taken after it merges, so the lock holds the corrected print.
-- If its spec finds a fold change (R-5 may be one), it takes contract 41, and the reserved numbers of e24a to e24p move up by one.
+- If its spec finds a fold change (R-5 may be one), it takes contract ~~41~~ 42 *(2026-11-10, evening: e24h has 41)*, and the reserved numbers of e24a to e24p move up by one *(2026-11-10, evening: to 43, 44, 45 and 46)*.
 - The deferred half of R-9 (a hidden dry value kept in the store, a swallowed commit error) stays in the ledger.
 
 ## Batch plan
@@ -204,17 +257,18 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
 
 | Wave | Tag | Branch | Stories | Dev model · Effort | Contract (reserved) | Base |
 | --- | --- | --- | --- | --- | --- | --- |
+| *(2026-11-10, evening)* first | e24h | `e24h-points-on-click` | none: the fix batch "points on click" (decision 12) | opus · high | 41, minimum 41 | main `72ed1f51`; alone; deployed alone on Matheus's word |
 | 0 | coordinator | `docs/e24-frames` | 24.1 | opus · medium (`bmad-ux`) | none | main after the planning PR |
-| 0 | e24f | `e24f-retro-fixes` | none: the Epic 23 retrospective's fix batch (E23-A1, E23-A4) | opus · high | none expected | main after the planning PR, beside Story 24.1 |
-| 1 | e24a | `e24a-conclusion-rules` | 24.2, 24.3, 24.4 | opus · high, max, high | 41 | main after 24.1 is approved and e24f has merged |
-| 1 | e24b | `e24b-screen-lane` | 24.5, 24.6, 24.7, 24.8, 24.9 | opus · medium, high, high, high, medium | 42 | main after 24.1 is approved |
-| 2 | e24s | `e24s-seed-v14-sheets` | 24.10, 24.11, 24.12, 24.13, 24.14 | opus · medium, high, medium, high, medium | 43 | main after wave 1's gate and fix batch |
-| 3 | e24p | `e24p-print-company-types` | 24.15, 24.16, 24.17, 24.18, 24.19, 24.20 | opus · high, high, medium, high, medium, medium | 44 | main after wave 1's gate and fix batch, beside e24s |
+| 0 | e24f | `e24f-retro-fixes` | none: the Epic 23 retrospective's fix batch (E23-A1, E23-A4) | opus · high | none expected | main after the planning PR, beside Story 24.1 *(2026-11-10, evening: and after e24h has merged)* |
+| 1 | e24a | `e24a-conclusion-rules` | 24.2, 24.3, 24.4 | opus · high, max, high | ~~41~~ 42 *(2026-11-10, evening)* | main after 24.1 is approved and e24f has merged |
+| 1 | e24b | `e24b-screen-lane` | 24.5, 24.6, 24.7, 24.8, *(2026-11-10, evening)* 24.21, 24.9 | opus · medium, high, high, high, *(2026-11-10, evening)* high, medium | ~~42~~ 43 *(2026-11-10, evening: Story 24.21 takes it)* | main after 24.1 is approved |
+| 2 | e24s | `e24s-seed-v14-sheets` | 24.10, 24.11, 24.12, 24.13, 24.14 | opus · medium, high, medium, high, medium | ~~43~~ 44 *(2026-11-10, evening)* | main after wave 1's gate and fix batch |
+| 3 | e24p | `e24p-print-company-types` | 24.15, 24.16, 24.17, 24.18, 24.19, 24.20 | opus · high, high, ~~medium~~ high *(2026-11-10, evening)*, high, medium, medium | ~~44~~ 45 *(2026-11-10, evening)* | main after wave 1's gate and fix batch, beside e24s |
 
 ### Merge order
 
-1. The planning PR, then Story 24.1's frames and fix batch e24f side by side. e24f merges before e24a starts: both edit the conclusion text.
-2. e24a, then e24b. e24b merges main first: both edit `points/derived.ts`.
+1. The planning PR, then Story 24.1's frames and fix batch e24f side by side. e24f merges before e24a starts: both edit the conclusion text. *(2026-11-10, evening: fix batch e24h comes before all of them. It merges and is deployed alone. This planning change merges beside it; e24h does not edit the planning files. e24f starts after e24h merges.)*
+2. e24a, then e24b. e24b merges main first: both edit `points/derived.ts`. *(2026-11-10, evening: inside e24b, Story 24.21 is built right after 24.8.)*
 3. Wave 1's gate, its two-pass review and its fix batch.
 4. e24s, then e24p. e24p merges main first and re-pins `V14_HASH`.
 5. The gate of waves 2 and 3, its review and its fix batch.
@@ -227,11 +281,11 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
   - Every later batch adds to v14 in place, in its own fenced section, with its strip helper in `seed.test.ts`. This is safe because v14 is not deployed until the epic's single deploy. `V14_HASH` is re-pinned by each batch, and the PR that merges second re-pins it on the merged main.
   - e24b adds nothing to the seed.
 - **Contracts.**
-  - Numbers are reserved in merge order: e24a 41, e24b 42, e24s 43, e24p 44.
-  - A batch whose spec finds no fold change takes no number, and the coordinator renumbers the unlaunched batches down. Planning found none in e24b.
+  - Numbers are reserved in merge order: ~~e24a 41, e24b 42, e24s 43, e24p 44~~ *(2026-11-10, evening)* e24h 41 (taken), e24a 42, e24b 43, e24s 44, e24p 45.
+  - A batch whose spec finds no fold change takes no number, and the coordinator renumbers the unlaunched batches down. ~~Planning found none in e24b.~~ *(2026-11-10, evening: Story 24.21 adds a key to the equipment row, so e24b takes its number.)*
   - `MIN_CONTRACT_VERSION` follows each bump unless a PR shows a reason not to. Each bump has an api integration test through the sync route.
 - **Shared files and expected conflicts.**
-  - `points/derived.ts`: e24a and e24b (wave 1). e24b merges second.
+  - `points/derived.ts`: e24a and e24b (wave 1). e24b merges second. *(2026-11-10, evening: e24h first, before any of them; e24p last, for Story 24.17.)*
   - `relatorio/conclusion.ts`: e24a (the v14 rule, the NC clause) and e24b (the preview's kernel answer, "Critérios usados"). e24b merges second.
   - `apps/web/src/surfaces/ficha/conclusao-section.tsx`: e24a (no restriction under Reprovado) and e24b (the preview state).
   - `apps/web/src/surfaces/ficha/checklist-section.tsx`: Stories 24.6 and 24.7, both in e24b, in that order.
@@ -240,6 +294,8 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
   - `print/section-9.ts`: e24a (the boxes), e24s (the reason line, the new sheets), e24p (the header and the note line).
   - `print/section-8.ts`: e24p only (Story 24.17).
   - `relatorio/tag.ts`: e24b (the rule), then e24s (the prefix NB).
+  - *(2026-11-10, evening)* `relatorio/instantiate.ts`, `relatorio/tree.ts` `newEquipmentBlock` and `schemas/entities.ts` (the equipment row): Stories 24.8 and 24.21, both in e24b, in that order.
+  - *(2026-11-10, evening)* `apps/web/src/surfaces/ficha/measurement-field.tsx`, `measurement-test-section.tsx` and `conclusao-section.tsx`: e24a ("Marcar Com restrições", no restriction under Reprovado), e24b (the preview), then e24p (Story 24.17's create action).
   - `relatorio/tree.ts` `paletteTypeGroups`: e24s (the new type is data) and e24p (the hidden original).
   - `types/definition.ts`, `types/validate.ts`: e24s (`dry_items`, the text value, the two definition keys) and e24p (the operator, the publish issue).
   - `apps/api/src/jobs/reading/providers/bedrock.ts`: e24s only, one prompt version.
@@ -264,4 +320,4 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
   - The paid plate eval, its table recorded.
   - The hands-on pass in the browser on the integrated main, on a v14 relatório and on a v13 one, its report tracked under `_bmad-output/test-artifacts/manual/`.
   - The "before the deploy" rows of `deferred-work.md`.
-- **Deploy.** Once, on Matheus's word. Seed v14 freezes there.
+- **Deploy.** Once, on Matheus's word. Seed v14 freezes there. *(2026-11-10, evening: fix batch e24h has its own deploy before it, alone, on Matheus's word, after its own gate.)*

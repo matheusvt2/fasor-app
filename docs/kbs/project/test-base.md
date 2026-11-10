@@ -75,7 +75,7 @@ CM, AT, CP and GE have no seeded type today. The others map to the seeded eight.
 - **Manufacturer value prevails over table values.** Not built: criteria are seeded constants.
 - **A reading over the instrument limit is "> limite" and approved, with a standard observation.** Built in Story 22.10, except the standard observation.
 - **Automatic temperature correction.** Not built.
-- **Every Reprovado appears in the ficha, the points of attention and the relatório's conclusion.** Built in Stories 22.4 to 22.6.
+- **Every Reprovado appears in the ficha, the points of attention and the relatório's conclusion.** Built in Stories 22.4 to 22.6. *(2026-11-10: no longer in the points of attention by itself. A point exists only when the technician creates it: fix batch e24h, Matheus's decision on Bruno's report. The ficha and the conclusion still show it.)*
 - **Never fill a measured value automatically.** Consistent with the product: readings are Suggestions the technician confirms.
 
 ## Where the base and Epic 22 differ
