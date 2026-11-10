@@ -2,10 +2,10 @@
 title: 'e23z: the final Epic 23 fixes (W3-1 to W3-7, Bruno 6 and 7, DESLOCAMENTO ANGULAR kept, the eval synthetic set)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: '45323676fa82706ada3d6297e3b10f20881b2095'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -226,3 +226,26 @@ deferred:
   - `[medium]` `[patch]` EC: `printGroupWordsOf('cabos_saida')` named the Transformadores group, which a company block (no role) never prints in. Action: it returns the seccionadoras words, with a unit assertion.
   - `[low]` `[defer]` EC: a draft that lost `ligacao_secundaria` before this change can still publish a vector-group ratio table. The state predates this story; it goes to the ledger (`deferred-work.md` § e23z, Matheus).
   - `[medium]` `[patch]` EC: the fold widening and the derivation changes leave a version-39 bundle disagreeing with the server. Action: contract 40 and MIN 40, with an api integration case (a 39 pull answered 426) and the pins updated.
+
+## Auto Run Result
+
+- **Status:** done. Branch `e23z-final-fixes`, merged head `89a65c3d` (main `e77885d7` merged in).
+- **Implemented:**
+  - W3-1 to W3-7;
+  - Bruno's items 6 and 7;
+  - item 4 (DESLOCAMENTO ANGULAR kept);
+  - the coordinator's item 6 (eval synthetic set);
+  - contract 40 and MIN 40.
+  - Item 5: the PR #295 thermography row is W3-6.
+- **Files:** kernel in `packages/domain`:
+  - `measurement-evaluation`, `derived`, `conclusion`, `group-for-print`;
+  - the company type schemas, `duplicate`, `block-definition`;
+  - `test-base-import`, `test-help`, `tap-rows`, `apply`, `draft-edit`, `version`;
+  - the `v13` comments.
+  - Web: `applicability-band`, `ensaios-section`, `type-editor-parts`, `pt-br`. Api: `scripts/eval-samples.ts`.
+  - Tests: `e23z-final-fixes.test.ts`, and the import, contract and sync tests. E2e: `ttr-per-tap`, `thermography`, `test-recommendation`, `test-base-import`, `type-editor`.
+  - Docs: `epics.md` dated lines, the AD-15 spine note, the `deferred-work.md` rows, the KB.
+- **Review:** 7 findings. 4 patched (3 medium, 1 low) plus 1 low patched alongside them, 1 deferred, 1 rejected (see the triage log).
+- **Follow-up review:** recommended, because two or more medium entries were patched. The unverified risk is contract 40 and MIN 40: the integration case shows a 39 pull answered 426, but no behavior pass has checked the client's "Atualizar" flow against a production 39 bundle.
+- **Verification:** the story gate on `89a65c3d` was green: lint, static, test:api 957/6 skipped, test:unit 6109/6109, 60 touched specs 334/334. Goldens byte-equal.
+- **Residual risks:** the narrowings in Design Notes and the `deferred-work.md` rows, and the item 2 reading for Bruno.
