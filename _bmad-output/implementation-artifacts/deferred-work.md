@@ -3244,7 +3244,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The plate prompt moved to `bedrock-structuring-6` (field notes for TAPS, TAP ATUAL, MATERIAL DO ENROLAMENTO, the √3 secondary and the dash ratio) and `bedrock-eval.ts` gained the seven synthetic v13 plates, but the paid evaluation was not run: providers stayed `fake`. It is due before the Epic 23 deploy, against the prompt-5 baseline.
   evidence: `apps/api/src/jobs/reading/providers/bedrock.ts` `BEDROCK_STRUCTURING_PROMPT_VERSION`, `plateFieldNotes`; `apps/api/src/scripts/bedrock-eval.ts`.
   class: verification
-  state: open (owner: the coordinator, before the Epic 23 deploy)
+  state: ~~open (owner: the coordinator, before the Epic 23 deploy)~~ done (2026-11-10, coordinator, on Matheus's AWS login): prompt 6 was never measured alone; the eval ran on `bedrock-structuring-8`, which carries 6's field notes, with the v13 plates in the synthetic set. Its log stamps 05:50 to 05:54 UTC on 2026-11-10, so it ran after the deploy of `ef099d41` (which already served prompt 8) and before the deploy of `47be2638` (no prompt change). Against the prompt-5 baseline of 2026-11-07: the real set holds for Haiku (5 of 6, tf3 still gives no group) and rises to 6 of 6 for Nova Pro; the synthetic set grew from 33 to 82 fields, so its 97,6 % (Haiku) and 98,8 % (Nova Pro) do not compare one to one. The table is in `epic-23-context.md` § Deploy.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (screens from `60-ficha.html` #/ficha/TR1 and #/ficha/SEC-C05)
   summary: Only the mock rules this batch renders are translated into `app.css` (`.v13-line`, `.tap-cell`, `.tap-mark`, `.tap-optional`, `.ficha-ttr-taps`, the tap cards, `.v13-na*`, `.band-text`, `.band-sub`, `.v13-applied-band`, `.is-applied`). The TR1 frame's manufacturer value (`.v13-mfr`, Story 23.3), the oil-sampling choice (`.v13-choice`, `.v13-reason`) and "Como ensaiar" (Story 23.10) keep their rules untranslated until their stories render them.
   evidence: `apps/web/src/styles/app.css` (the e23b block); `mockups/prototype/screens/60-ficha.html` CSS lines 236 to 305.
@@ -3366,7 +3366,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The batch changes how a v13 sheet is judged (TP-02, the contact rise, the prerequisite off, the re-issue order) with no contract bump, as launched (38 and 39 reserved). Safe only because v13 is not deployed: wave 3's contracts move `MIN_CONTRACT_VERSION` past 37 before the one deploy, so no contract-37 bundle meets a server that judges otherwise.
   evidence: `packages/domain/src/contract/version.ts` (37, unchanged); epic-23-context M-2.
   class: decision
-  state: open (owner: the coordinator: keep MIN following wave 3's bump; if an earlier deploy is asked, this batch's change needs its own number)
+  state: ~~open (owner: the coordinator: keep MIN following wave 3's bump; if an earlier deploy is asked, this batch's change needs its own number)~~ closed (2026-11-10, coordinator): MIN followed wave 3, 38 at e23t (`fc0aa508`) and 39 at e23e (`7f29b243`); the first v13 deploy, `ef099d41`, went out at contract 39, MIN 39, so no contract-37 bundle meets it.
 
 ## Deferred from: Epic 23 batch e23t (2026-11-09)
 
@@ -3402,7 +3402,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: on a thermography NA by its own value the band's button reads "Seguir a placa" once applied, though the condition reads the test's value, not the plate (the band is Story 23.9's). The paid eval of `bedrock-structuring-8` (the synthetic TC plate `plate-tc-funcao-v13.png`) is the coordinator's before the deploy.
   evidence: `apps/web/src/surfaces/ficha/applicability-band.tsx`; `apps/api/src/scripts/bedrock-eval.ts`.
   class: note
-  state: ~~open (owner: the Epic 23 wave 3 integrated review)~~ the band's wording closed 2026-11-10 by fix batch e23z (W3-6); the paid eval of `bedrock-structuring-8` stays open (owner: the coordinator, before the deploy)
+  state: ~~open (owner: the Epic 23 wave 3 integrated review)~~ the band's wording closed 2026-11-10 by fix batch e23z (W3-6); ~~the paid eval of `bedrock-structuring-8` stays open (owner: the coordinator, before the deploy)~~ the paid eval of `bedrock-structuring-8` done 2026-11-10 (coordinator, on Matheus's AWS login; after the deploy of `ef099d41`, before that of `47be2638`; see the e23b eval row and `epic-23-context.md` § Deploy)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (review pass of 2026-11-09, rejected finding)
   summary: the v13 TC's EXATIDÃO offers 5P20 and 10P20 only (Story 23.18), so a plate read 5P10, 5P30 or 10P10 lands on 5P20 or 10P20: judged the same (± 1 %, ± 3 %), but the stored and printed accuracy limit factor differs from the plate. Question for Bruno: should the select offer the other factors?
   evidence: `packages/domain/src/relatorio/accuracy-class.ts` `accuracyClassOption`; `packages/domain/src/seed/v13.ts` (the TC's classes).

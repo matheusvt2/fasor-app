@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-07-2026 13:32
+last_updated: 11-10-2026 12:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -261,29 +261,29 @@ development_status:
   22-11-a-short-qgbt-inspection-sheet: done  # 2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Ficha simples de QGBT"); wave B, e22s, after 22.7; content is the coordinator's reading
   22-12-the-previous-visits-value-beside-each-reading: done  # 2026-11-07: merged in #268, fixes #273; was ready-for-dev  # added 2026-11-06 (Matheus: "Manutencao anterior"); wave B, e22r; notes under contract 32; amends AD-25 and the SPEC non-goal
 
-  epic-23: backlog  # added 2026-11-08 (Bruno's test base rev08; Matheus's decisions A to N of docs/context/epic-23/decisoes-epic-23.md section 5): seed v13 for new relatorios only, older layouts byte-identical; waves 0 (23.1), 1 (e23a, e23b), 2 (e23v, e23h), 3 (e23t, e23e), 4 (e23x); contracts 34 to 39 reserved; starts after fix batch e23f merges; sprint-change-proposal-2026-11-08.md, epic-23-context.md
+  epic-23: done  # 2026-11-10: every story merged; integrated gate green on 47be2638 (epic-23-context.md); ef099d41 deployed 2026-11-09 (smoke 8 of 8, contract 39), 47be2638 (contract 40, e23z and T3) awaits Matheus's word to deploy | was backlog  # added 2026-11-08 (Bruno's test base rev08; Matheus's decisions A to N of docs/context/epic-23/decisoes-epic-23.md section 5): seed v13 for new relatorios only, older layouts byte-identical; waves 0 (23.1), 1 (e23a, e23b), 2 (e23v, e23h), 3 (e23t, e23e), 4 (e23x); contracts 34 to 39 reserved; starts after fix batch e23f merges; sprint-change-proposal-2026-11-08.md, epic-23-context.md
   epic-23-retrospective: optional
   23-1-the-epic-23-sheet-frames-in-the-mocks: done  # added 2026-11-08; wave 0; frames merged #284 (e519f91d); approved by Matheus in the browser 2026-11-08
   23-2-seed-v13-older-layouts-locked-insulation-by-neta-tables: done  # 2026-11-09: e23a, PR #286 (17127590) | added 2026-11-08 (decision A); wave 1, e23a, first; contract 34; layout lock taken after e23f merges; TP-02 out until Bruno B-4
   23-3-the-manufacturers-value-on-each-test: done  # 2026-11-09: e23a, PR #286 (17127590) | added 2026-11-08 (decision G, absorbs 14.13); wave 1, e23a, after 23.2; contract 34; DoR: 23.1 frames approved
   23-4-a-reading-above-the-instruments-limit-under-the-table-criteria: done  # 2026-11-09: e23a, PR #286 (17127590) | added 2026-11-08 (decision F); wave 1, e23a, after 23.2; note placement is the coordinator's reading (B-9)
-  23-5-temperature-correction-20c-insulation-75c-winding-resistance: backlog  # added 2026-11-08 (decision B); wave 2, e23v; DoR: 23.1 frames approved (print, M-5) and 23.7 merged
-  23-6-three-levels-comparisons-and-the-previous-visit-judges: backlog  # added 2026-11-08 (decision C); wave 2, e23v; contract 36; DoR: 23.1 frames approved, wave 1 merged; vague terms out (B-1), contact vs previous out (B-6), CONDICOES word is the coordinator's reading (B-8)
+  23-5-temperature-correction-20c-insulation-75c-winding-resistance: done  # 2026-11-09: e23v, PR #290 (967d898a), contract 36 | was backlog  # added 2026-11-08 (decision B); wave 2, e23v; DoR: 23.1 frames approved (print, M-5) and 23.7 merged
+  23-6-three-levels-comparisons-and-the-previous-visit-judges: done  # 2026-11-09: e23v, PR #290 (967d898a), contract 36; fixes e23w #293 (6acf9ca7), e23z #298 (47be2638) | was backlog  # added 2026-11-08 (decision C); wave 2, e23v; contract 36; DoR: 23.1 frames approved, wave 1 merged; vague terms out (B-1), contact vs previous out (B-6), CONDICOES word is the coordinator's reading (B-8)
   23-7-seed-v13-nameplate-fields-decision-k: done  # 2026-11-09: e23b, PR #287 (6be0a5ec) | added 2026-11-08 (decision K); wave 1, e23b, stacked on e23a's first commit; contract 35; paid eval before the deploy
   23-8-the-ttr-has-one-row-per-tap-of-the-plate: done  # 2026-11-09: e23b, PR #287 (6be0a5ec) | added 2026-11-08 (decision K); wave 1, e23b, after 23.7; Yd keeps sqrt3/2 until Bruno B-2
   23-9-a-test-applies-from-the-nameplate-automatic-na-and-override: done  # 2026-11-09: e23b, PR #287 (6be0a5ec) | added 2026-11-08 (decision J); wave 1, e23b, after 23.7; contract 35; DoR: 23.1 frames approved
-  23-10-como-ensaiar-on-each-test-on-screen-only-offline: backlog  # added 2026-11-08 (decision M); wave 2, e23h; contract 37; DoR: 23.1 frames approved; mechanism only, seeded texts wait for 23.12 (M-1)
-  23-11-the-tests-recommendation-is-the-derived-points-initial-text: ready-for-dev  # added 2026-11-08 (decision M); wave 2, e23h, after 23.10; contract 37; starts from main after e23f and merges after e23v
-  23-12-the-bases-help-and-recommendation-texts-in-the-seed: backlog  # added 2026-11-08 (decision M); wave 4, e23x; M-1 decided 2026-11-08: private load path (import of the JSON as company data)
-  23-13-test-voltage-defaults-on-every-insulation-row: ready-for-dev  # added 2026-11-08 (decision D); wave 3, e23e; high-voltage notice unchanged until Bruno B-5
-  23-14-contact-resistance-manufacturer-default-pole-deviation: ready-for-dev  # added 2026-11-08 (decision L); wave 2, e23v, after 23.6; contact vs previous visit out (B-6)
-  23-15-winding-resistance-on-the-transformer: ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t, first; contract 38
-  23-16-the-polarization-index-judged: ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t
-  23-17-the-insulating-liquid-and-oil-sampling: ready-for-dev  # added 2026-11-08 (decision H); wave 3, e23t; TIPO DE ISOLACAO reading open to Matheus (M-4); Tipo ANP judges nothing until Bruno B-3; paid eval before the deploy
-  23-18-tc-and-tp-polarity-the-tcs-function-and-the-s-classes: ready-for-dev  # added 2026-11-08 (decision E); wave 3, e23e, first; contract 39 shared with 23.21; paid eval before the deploy
-  23-19-hh-fuse-resistance-on-the-seccionadora: ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t, after 23.15
-  23-20-thermography-on-the-eight-types: ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e
-  23-21-a-new-type-malha-de-aterramento: ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e, last; contract 39; placement at a local is the coordinator's reading (M-6)
+  23-10-como-ensaiar-on-each-test-on-screen-only-offline: done  # 2026-11-09: e23h, PR #291 (8c097ffa), contract 37 | was backlog  # added 2026-11-08 (decision M); wave 2, e23h; contract 37; DoR: 23.1 frames approved; mechanism only, seeded texts wait for 23.12 (M-1)
+  23-11-the-tests-recommendation-is-the-derived-points-initial-text: done  # 2026-11-09: e23h, PR #291 (8c097ffa), contract 37; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision M); wave 2, e23h, after 23.10; contract 37; starts from main after e23f and merges after e23v
+  23-12-the-bases-help-and-recommendation-texts-in-the-seed: done  # 2026-11-09: e23x, PR #296 (ef099d41), no contract; fix e23z #298 (47be2638) | was backlog  # added 2026-11-08 (decision M); wave 4, e23x; M-1 decided 2026-11-08: private load path (import of the JSON as company data)
+  23-13-test-voltage-defaults-on-every-insulation-row: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39 | was ready-for-dev  # added 2026-11-08 (decision D); wave 3, e23e; high-voltage notice unchanged until Bruno B-5
+  23-14-contact-resistance-manufacturer-default-pole-deviation: done  # 2026-11-09: e23v, PR #290 (967d898a), contract 36; B-6 rise e23w #293 (6acf9ca7) | was ready-for-dev  # added 2026-11-08 (decision L); wave 2, e23v, after 23.6; contact vs previous visit out (B-6)
+  23-15-winding-resistance-on-the-transformer: done  # 2026-11-09: e23t, PR #294 (fc0aa508), contract 38; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t, first; contract 38
+  23-16-the-polarization-index-judged: done  # 2026-11-09: e23t, PR #294 (fc0aa508), contract 38 | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t
+  23-17-the-insulating-liquid-and-oil-sampling: done  # 2026-11-09: e23t, PR #294 (fc0aa508), contract 38 | was ready-for-dev  # added 2026-11-08 (decision H); wave 3, e23t; TIPO DE ISOLACAO reading open to Matheus (M-4); Tipo ANP judges nothing until Bruno B-3; paid eval before the deploy
+  23-18-tc-and-tp-polarity-the-tcs-function-and-the-s-classes: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39 | was ready-for-dev  # added 2026-11-08 (decision E); wave 3, e23e, first; contract 39 shared with 23.21; paid eval before the deploy
+  23-19-hh-fuse-resistance-on-the-seccionadora: done  # 2026-11-09: e23t, PR #294 (fc0aa508), contract 38; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23t, after 23.15
+  23-20-thermography-on-the-eight-types: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e
+  23-21-a-new-type-malha-de-aterramento: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e, last; contract 39; placement at a local is the coordinator's reading (M-6)
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus

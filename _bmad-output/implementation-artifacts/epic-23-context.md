@@ -178,7 +178,7 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
     (since v12).
 - **Contract and seed:** none. Goldens unchanged.
 - **Record (2026-11-09).**
-  - PR #289 (open, not merged; its head is on the PR). Story gate on `03307e4c` under the lock:
+  - PR #289 (~~open, not merged; its head is on the PR~~ *(2026-11-10: merged as `982bebb9`)*). Story gate on `03307e4c` under the lock:
     - lock wait 0 s; load 1.98 at the start and 3.99 at the end; only the e23g stack up at the start, e23v's (wave 2) by
       the end;
     - lint 0, static 0, test:api 926 passed / 6 skipped (goldens unchanged), test:unit 5837 of 5837;
@@ -216,7 +216,7 @@ orchestrator on the coordinator's word; the record is the list at the end of thi
 - **Scope.** The second pass of the wave 2 integrated review on `8c097ffa` (W2-1 to W2-4, W2-K1, W2-K2), the wave 2 gate red W2-G1, and Bruno's 2026-11-09 answers B-4 (TP-02) and B-6 (contact rise).
 - **Contract and seed:** no contract (37 stays). Seed v13 changed in place (the TP's Table 100.5 key, `history_rise_out_pct` on the contact tests); `V13_HASH` re-pinned to `91fe99b1…`. Goldens unchanged.
 - **Record (2026-11-09).**
-  - PR #293 (open, not merged; its head is on the PR).
+  - PR #293 (~~open, not merged; its head is on the PR~~ *(2026-11-10: merged as `6acf9ca7`)*).
   - Story gate on `49d1fdd7` (main `32bd1845`, unchanged since the branch), each stage under the lock:
     - load `{ 3.15 8.36 11.12 }` at the start and `{ 5.46 7.05 7.94 }` at the end, with a peak of 21 during the e2e stage (the host's `contactsd` at 127 % CPU besides the VM); the e23t stack was up throughout, and its gate and fix gate held the lock;
     - lock wait 0 s for lint, static, test:api and test:unit; 5144 s for the e2e stage (behind e23t's gate);
@@ -352,12 +352,84 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
 
 ### Wave 2
 
-*(Filled by the coordinator.)*
+~~*(Filled by the coordinator.)*~~ *(2026-11-10, coordinator.)*
+
+- **Merges.**
+  - Fix batch e23g, PR #289, merged as `982bebb9` (no contract).
+  - e23v, PR #290, head `842c5b9a`, merged as `967d898a` (contract 36).
+  - e23h, PR #291, head `b3af9bf4`, merged as `8c097ffa` (contract 37). It merged main `967d898a` (e23v) in first and kept e23v's `V13_HASH`.
+  - Docs PR #292 (Bruno's 2026-11-09 answers, B-1 to B-7) merged as `32bd1845` while the gate ran; it changes no code.
+- **Integrated gate** on `8c097ffa`.
+  - Lock wait 1 s. Load `{ 4.16 4.20 4.36 }` at the start and `{ 6.04 5.82 6.69 }` at the end.
+  - `pnpm test:e2e:full` ran 7505 s and failed. The parallel group had 461 tests: 452 passed, 5 failed, 4 skipped. The serial group had 175: 174 passed, 1 failed. Total 636: 626 passed, 6 failed, 4 skipped.
+  - The six reds re-ran alone under the lock. Five passed: `@p0` 4.2-E2E-001, `@p1` 4.2-E2E-002, `@p1` F-13, `@p1` F-21 and `@p0` 14.3-E2E-001. They are counted load-bound under E15-A4, with both runs recorded.
+  - The sixth, `@p1` 13.5-E2E-004 (`reading-wait.spec.ts:384`), was red alone too. It went to fix batch e23w as W2-G1. The bisect found a race in the test (the engine arms the next tick when a cycle ends), not a 60 s poll regression. The test was fixed and the product left unchanged.
+  - `pnpm test:e2e:matrix` ran 987 s and passed: 152 passed, 16 skipped, 0 failed.
+  - `pnpm test:e2e` (`@p0`) was not run separately; `test:e2e:full` runs every `@p0` test.
+- **Integrated review.** The second pass, a code read of `8c097ffa`, found W2-1 to W2-4 (three medium, one low) and carried W2-K1 and W2-K2 from the batches. All of them, with the gate red W2-G1, went to fix batch e23w (§ "Fix batch e23w").
+- **Fix batch e23w**, PR #293, merged as `6acf9ca7` (no contract; `V13_HASH` re-pinned).
 
 ### Wave 3
 
-*(Filled by the coordinator.)*
+~~*(Filled by the coordinator.)*~~ *(2026-11-10, coordinator.)*
+
+- **Merges.**
+  - e23t, PR #294, head `9f4caba7`, merged as `fc0aa508` (contract 38). It merged main `6acf9ca7` (e23w) in first, re-pinned `V13_HASH` and ran its merge gate (`spec-e23t-transformer-tests.md`).
+  - e23e, PR #295, head `784bfee6`, merged as `7f29b243` (contract 39).
+  - e23x (Story 23.12, M-1 (b)), PR #296, head `6a7e641e`, merged as `ef099d41` (no contract).
+- **Integrated gate** on `ef099d41`.
+  - Lock wait 1 s. Load `{ 5.19 7.02 7.28 }` at the start and `{ 5.44 5.36 5.64 }` at the end.
+  - `pnpm test:e2e:full` ran 3216 s and failed on one test. The parallel group passed: 464 tests, 460 passed, 4 skipped. The serial group had 187: 186 passed, 1 failed. Total 651: 646 passed, 1 failed, 4 skipped.
+  - The red was `@p0` 21.1-E2E-002 (`seed-v11.spec.ts:95`). It re-ran alone under the lock with `--repeat-each 2` and passed 2 of 2. The lock wait was 744 s, and the load was `{ 17.43 13.68 11.54 }` at the start. It is counted load-bound under E15-A4, with both runs recorded.
+  - `pnpm test:e2e:matrix` ran 738 s and passed: 152 passed, 16 skipped, 0 failed.
+  - `pnpm test:e2e` (`@p0`) was not run separately.
+  - This run is the baseline of chore T3 (serial group 30.8 min, total 53.6 min; `spec-t3-serial-split.md`).
+- **Integrated review.** The second pass, a code read, found W3-1 to W3-7: W3-1 and W3-3 medium confirmed, W3-2 medium plausible, W3-4 to W3-6 low confirmed and W3-7 low plausible. W3-3 is the seam between e23x's copies and print grouping. All seven went to fix batch e23z.
+- **After the gate.**
+  - Chore T3 (the serial group in two lanes), PR #297, merged as `e77885d7` (no contract).
+  - Fix batch e23z, PR #298, merged as `47be2638` (contract 40). Its record is in `spec-e23z-final-fixes.md`.
+
+### Final gate
+
+*(2026-11-10, coordinator.)* This is the integrated gate on `47be2638`, which holds every Epic 23 merge, T3 and e23z.
+
+- Lock wait 0 s. Load `{ 2.85 4.21 4.94 }` at the start and `{ 5.08 6.23 5.32 }` at the end.
+- `pnpm test:e2e:full` ran 2411 s and passed, with T3's lanes:
+  - parallel: 464 tests, 460 passed, 4 skipped;
+  - queue: 150 of 150;
+  - solo: 42 of 42;
+  - total: 656 tests, 652 passed, 0 failed, 4 skipped.
+- `pnpm test:e2e:matrix` ran 654 s and passed: 168 tests, 152 passed, 16 skipped, 0 failed.
+- `pnpm test:e2e` (`@p0`) was not run separately.
 
 ### Deploy
 
-*(Filled by the coordinator.)*
+~~*(Filled by the coordinator.)*~~ *(2026-11-10, coordinator.)*
+
+- **First deploy.** `ef099d41` (contract 39, MIN 39) went to production on 2026-11-09 at 23:56, through `infra/bin/deploy`.
+  - The smoke passed 8 of 8.
+  - The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`.
+  - The image tag before it was `ae3d37e0`.
+  - It went out after wave 3's gate and before wave 3's fix batch. So the production bundle carries the W3 findings that e23z fixes.
+- **Second deploy.** `47be2638` (contract 40: e23z and T3) is not deployed. It waits for Matheus's word.
+  - Bruno's base is imported in production only after it, because W3-3's print grouping of the copies lands with e23z.
+- **Paid plate eval** of `bedrock-structuring-8`, on Matheus's AWS login (profile `fasor-admin`), Textract, Bedrock `us-east-1`. The log is stamped 2026-11-10 05:50 to 05:54 UTC, which is after the first deploy.
+
+  | Set | Haiku 4.5 | Nova Pro |
+  | --- | --- | --- |
+  | Synthetic, 15 plates | 97,6 % (80 of 82 fields), 0 failed | 98,8 % (81 of 82), 0 failed |
+  | Real, 6 plates (`docs/media/real-plates-2026-11-06/`) | 5 of 6 | 6 of 6 |
+  | Mean USD per reading, synthetic | 0.0062 | 0.0041 |
+  | Mean USD per reading, real | 0.0097 | 0.0069 |
+
+  - Citations were valid at 100 % on both models.
+  - The vector group was read right on every synthetic plate by both models. On the real set, Haiku gives no group for tf3, the blurred, rotated photo, as it did on prompt 5; Nova Pro reads all six as Dyn1.
+- **The "before the deploy" rows** of `deferred-work.md` are closed with dates:
+  - the e23b eval row and the e23e row, by the eval above;
+  - the e23w contract row, since MIN followed wave 3 to 39.
+- **Still open** (handover of 2026-11-10):
+  - the second deploy;
+  - the browser behavior pass, never run: the PDF of the v13 insulation table at 8 pt, the TP insulation, the contact rise, thermography, the Malha and the base import;
+  - the release v0.8.0, on Matheus's word;
+  - the optional read-only count, in production, of the company copies made before `base_block_type`;
+  - the Epic 23 retrospective.
