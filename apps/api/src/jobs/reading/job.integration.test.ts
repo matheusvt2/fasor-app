@@ -351,6 +351,25 @@ describe('8.4-INT reading job attempts', () => {
     expect(run).toMatchObject({ attempt: 1, outcome: 'ok', ocr_provider: 'fake', model: 'fake', prompt_version: 'fake-1' });
   }, 60_000);
 
+  // Epic 23 QA (deferred row of batch e23b, the v13 count beside the v12 one above): on a seed v13
+  // sheet the same default plate gives ten pending suggestions; its text TAP ATUAL is dropped
+  // `unknown_key` (v13 reads TAPS and a numeric TAP ATUAL, `fixtures/README.md`).
+  it('E78-Q2 on seed v13: the same re-encoded transformer plate reads to done with ten pending suggestions, none on TAP ATUAL or TAPS', async () => {
+    const { relatorioId, blocks } = await relatorio('v13');
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    expect(block.seed_version).toBe('v13');
+    const plate = join(repoRoot, 'services/ocr/tests/fixtures/plate-transformador.jpg');
+    const bytes = new Uint8Array(await sharp(readFileSync(plate)).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer());
+    const id = await photo(relatorioId, block, bytes, 'image/jpeg');
+    await send(id);
+    await waitFor('the fallback reading', async () => (await status(id)) === 'done');
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(10);
+    expect(mine.every((s) => s.status === 'pending')).toBe(true);
+    expect(mine.filter((s) => /\/nameplate\/(tap_atual|tap_atual_kv|taps)$/.test(s.target_path))).toEqual([]);
+    expect(mine.find((s) => s.target_path.endsWith('/data_fabricacao'))!.value).toBe('2024-08');
+  }, 60_000);
+
   it('21.2: a v11 transformer plate printing "Dyn1" suggests it citing its word; one drawing a Yyn0 diagram offers "Yyn0" in verify, citing no token over the whole image', async () => {
     const { relatorioId, blocks } = await relatorio('v11');
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
