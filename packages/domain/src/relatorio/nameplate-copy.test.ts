@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { BASE_EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
-import { emptySheet, type BlockRow, type Cell, type EquipmentRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { emptySheet, type BlockRow, type Cell, type EquipmentRow, type JsonValue } from '../schemas/entities.ts';
+import { getDefinition, SEED_VERSIONS } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
-import { camposCopiadosText, lastNameplateCopy, nameplateCopyFields, nameplateIsEmpty, nameplateTagPrefill, suggestNameplateCopy } from './nameplate-copy.ts';
+import {
+  camposCopiadosText,
+  DAY_MEASURED_NAMEPLATE_KEYS,
+  isDayMeasuredField,
+  lastNameplateCopy,
+  nameplateCopyFields,
+  nameplateIsEmpty,
+  nameplateTagPrefill,
+  suggestNameplateCopy,
+} from './nameplate-copy.ts';
 
 const REL = '019966b0-0052-7000-8000-000000000001';
 const OTHER_REL = '019966b0-0052-7000-8000-000000000002';
@@ -173,5 +182,72 @@ describe('12.3-UNIT per-unit fields and the TAG prefill (D-3, J-09)', () => {
     // The para-raio's plate has no TAG field.
     const paraRaio = block(2, {}, { block_type: 'para_raio', config: defaultBlockConfig('v2', 'para_raio'), seed_version: 'v2' });
     expect(nameplateTagPrefill({ blocks: [paraRaio], equipment: [equipment(2)], equipment_types: undefined }, paraRaio.id)).toBeNull();
+  });
+});
+
+describe('e23p-P1 the fields measured on the day are never copied (behaviour pass F2)', () => {
+  const sample = (field: FieldDef): unknown => {
+    switch (field.kind) {
+      case 'number':
+        return field.list === true ? [{ raw: '13.8', unit: field.unit ?? null, state: 'measured' }] : { raw: '40', unit: field.unit ?? null, state: 'measured' };
+      case 'date':
+        return '2020-01-01';
+      case 'select':
+        return field.options![0];
+      default:
+        return `valor ${field.key}`;
+    }
+  };
+  /** The v13 types that carry a day-measured field, and which. */
+  const CARRIERS: readonly [string, readonly string[]][] = [
+    ['transformador_forca', ['temperatura_oleo_c', 'temperatura_enrolamento_c']],
+    ['disjuntor_mt', ['contador_operacoes']],
+    ['para_raio', ['desligador_integro']],
+    ['malha_aterramento', ['condicao_solo']],
+  ];
+
+  it('lists the five keys by name', () => {
+    expect([...DAY_MEASURED_NAMEPLATE_KEYS].sort()).toEqual(['condicao_solo', 'contador_operacoes', 'desligador_integro', 'temperatura_enrolamento_c', 'temperatura_oleo_c']);
+    expect(isDayMeasuredField('temperatura_oleo_c')).toBe(true);
+    expect(isDayMeasuredField('metodo_medicao')).toBe(false);
+    expect(isDayMeasuredField('tap_atual_kv')).toBe(false);
+  });
+
+  it('"Copiar da última visita" skips them on each v13 type that carries one, and counts the rest', () => {
+    for (const [type, keys] of CARRIERS) {
+      const definition = getDefinition('v13', 'cabine_primaria', type);
+      expect(definition.nameplate.filter((field) => isDayMeasuredField(field.key)).map((field) => field.key), type).toEqual(keys);
+      const fields = Object.fromEntries(definition.nameplate.map((field) => [field.key, sample(field) as JsonValue]));
+      const row = equipment(1, { last_nameplate: { relatorio_id: OTHER_REL, revision_number: 1, issued_at: '2026-03-01T10:00:00.000Z', seed_version: 'v13', block_type: type, fields } });
+      const copied = lastNameplateCopy(row, definition).map((entry) => entry.fieldKey);
+      for (const key of keys) expect(copied, `${type} ${key}`).not.toContain(key);
+      expect(copied, type).toEqual(definition.nameplate.filter((field) => !keys.includes(field.key)).map((field) => field.key));
+      // The toast counts N-2 on the transformer (N-1 elsewhere).
+      expect(camposCopiadosText(copied.length), type).toBe(camposCopiadosText(definition.nameplate.length - keys.length));
+    }
+  });
+
+  it('"Igual à ⟨TAG⟩?" skips them too, on each v13 type that carries one', () => {
+    for (const [type, keys] of CARRIERS) {
+      const definition = getDefinition('v13', 'cabine_primaria', type);
+      const source = block(1, Object.fromEntries(definition.nameplate.map((field) => [field.key, sample(field)])), { block_type: type, seed_version: 'v13' });
+      const copied = nameplateCopyFields(source, definition).map((entry) => entry.fieldKey);
+      for (const key of keys) expect(copied, `${type} ${key}`).not.toContain(key);
+      expect(copied, type).toEqual(definition.nameplate.filter((field) => field.per_unit !== true && !keys.includes(field.key)).map((field) => field.key));
+    }
+  });
+
+  it('no seed before v13 carries any of the five keys, so v1 to v12 copy as before', () => {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v13')) {
+      for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
+        let definition;
+        try {
+          definition = getDefinition(version, 'cabine_primaria', type);
+        } catch {
+          continue;
+        }
+        expect(definition.nameplate.filter((field) => isDayMeasuredField(field.key)).map((field) => field.key), `${version} ${type}`).toEqual([]);
+      }
+    }
   });
 });

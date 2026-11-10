@@ -38,6 +38,21 @@ function sameText(a: unknown, b: unknown): boolean {
   return typeof a === 'string' && typeof b === 'string' && a.trim().toLocaleLowerCase('pt-BR') === b.trim().toLocaleLowerCase('pt-BR');
 }
 
+/**
+ * Fix batch e23p (P1, the behaviour pass's F2): the seed v13 nameplate fields measured or seen on the
+ * day of the visit, not read off the plate: TEMPERATURA DO ÓLEO and TEMPERATURA DO ENROLAMENTO (the
+ * insulation and winding tests correct by them), CONTADOR DE OPERAÇÕES, DESLIGADOR ÍNTEGRO (the
+ * arrester's prerequisite) and CONDIÇÃO DO SOLO. Neither copy chip copies them, so a second visit
+ * is never judged by the first one's temperature. By key, so a company copy of a base type follows;
+ * no seed before v13 has any of them.
+ */
+export const DAY_MEASURED_NAMEPLATE_KEYS: ReadonlySet<string> = new Set(['temperatura_oleo_c', 'temperatura_enrolamento_c', 'contador_operacoes', 'desligador_integro', 'condicao_solo']);
+
+/** True for a nameplate field measured on the day (`DAY_MEASURED_NAMEPLATE_KEYS`), which no chip copies. */
+export function isDayMeasuredField(key: string): boolean {
+  return DAY_MEASURED_NAMEPLATE_KEYS.has(key);
+}
+
 /** True when the block holds no filled nameplate cell. */
 export function nameplateIsEmpty(block: Pick<BlockRow, 'sheet'>): boolean {
   return !Object.values(block.sheet.nameplate).some(isCellFilled);
@@ -52,7 +67,7 @@ export function nameplateIsEmpty(block: Pick<BlockRow, 'sheet'>): boolean {
 export function nameplateCopyFields(source: Pick<BlockRow, 'sheet'>, definition: BlockDefinition): { fieldKey: string; value: JsonValue }[] {
   const out: { fieldKey: string; value: JsonValue }[] = [];
   for (const field of definition.nameplate) {
-    if (field.per_unit === true) continue;
+    if (field.per_unit === true || isDayMeasuredField(field.key)) continue;
     const cell = source.sheet.nameplate[field.key];
     if (cell === undefined || !isCellFilled(cell)) continue;
     if (field.kind !== 'select') {
@@ -112,7 +127,7 @@ export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'
   if (fields === undefined) return [];
   const out: { fieldKey: string; value: unknown }[] = [];
   for (const field of definition.nameplate) {
-    if (!Object.hasOwn(fields, field.key)) continue;
+    if (!Object.hasOwn(fields, field.key) || isDayMeasuredField(field.key)) continue;
     const value = fields[field.key];
     if (!isCellFilled({ value: value as JsonValue, source_suggestion_id: null, op_id: '' })) continue;
     if (field.kind === 'select') {

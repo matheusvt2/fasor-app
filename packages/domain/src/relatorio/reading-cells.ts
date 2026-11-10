@@ -111,8 +111,11 @@ export interface EvaluatedCell {
    * Story 23.6 (`restriction`): why a reading within its criterion is restricted (`verdict`
    * `restricted`): the short reason the points and the conclusion name, and the helper's sentence
    * after the screen's "Com restrição:"; null on a cell no rule restricts.
+   * Fix batch e23p (P3): `pointReason`, set when the history rule flags the cell, is `reason` with
+   * each history finding followed by both corrected values ("queda de mais de 50 % desde a manutenção
+   * anterior (de 30 GΩ para 10 GΩ, a 20 °C)"); only the derived point reads it.
    */
-  restriction?: { reason: string; text: string } | null;
+  restriction?: { reason: string; text: string; pointReason?: string } | null;
   /**
    * Seed v13, batch e23t (Story 23.16): on an `index` cell only. `kind` names the index (`ip`, the
    * polarization index the test's `polarization_index` judges; `dar`, the absorption index, captured

@@ -2,6 +2,8 @@ import {
   buildSnapshot,
   cellAddressesOf,
   conclusionFloorReasonText,
+  derivedPointKindLabel,
+  derivedPoints,
   EMPTY_DEFINITION_CONTEXT,
   entityKey,
   evaluateTest,
@@ -56,6 +58,8 @@ interface EntityRecord {
 const entities = (page: Page) => readStore<EntityRecord>(page, database, 'entities');
 const toast = (page: Page) => page.getByTestId('toast');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
+const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
+const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
 const AT = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
@@ -152,12 +156,25 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   expect(judged.restriction!.text).toContain('(10 GΩ a 20 °C');
   await expect(cell.locator('.measurement-field')).toHaveAttribute('data-state', 'restricted');
   await expect(cell.locator('.mf-helper[data-tone="restricted"]')).toHaveText(`Com restrição: ${judged.restriction!.text}`);
-  // Story 22.12's line stays beside it: the previous value as it was measured.
-  await expect(cell.locator('.mf-helper[data-previous]')).toContainText('Anterior: 10 GΩ (rev. 1, ');
+  // ~~Story 22.12's line stays beside it: the previous value as it was measured.~~
+  // Fix batch e23p (P3): Story 22.12's line stays beside it, the previous value as it was measured and then the
+  // corrected one the history rule judged by.
+  await expect(cell.locator('.mf-helper[data-previous]')).toContainText('Anterior: 10 GΩ, 10 GΩ a 20 °C (rev. 1, ');
   const reason = conclusionFloorReasonText(block, TRANSFORMER, visit)!;
   expect(reason).toBe('A ficha exige no mínimo Aprovado · Com restrições: leitura com restrição.');
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
   await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+
+  // Fix batch e23p (P3): the derived restricao point names both corrected values, on the Pontos de atenção surface.
+  const entry = derivedPoints(snapshot).find((one) => one.key === `restricao:${trB.id}:isolacao`)!;
+  expect(entry.text).toContain(': queda de mais de 50 % desde a manutenção anterior (de 10 GΩ para 4 GΩ, a 20 °C)');
+  await page.goto(`/relatorio/${b.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await row8(page).getByRole('button', { name: /^Pontos de atenção/ }).click();
+  await expect(page).toHaveURL(/\/pontos$/);
+  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('restricao') }) });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
 
   // B's DOCX: the insulation table with the 20 °C column and MANUT. ANTERIOR, and the restricted test in section 8.
   const structure = await issue(page, b.relatorioId, 1);
@@ -168,4 +185,6 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   expect(data[0]![labels.indexOf('20 °C')]).toBe('4');
   expect(data[0]!.at(-1)).toBe('10 GΩ');
   expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio com restrição: ') && paragraph.includes('valor dentro do critério, com restrição'))).toBe(true);
+  // Fix batch e23p (P3): while the point is not written, section 8's bullet is its text, both values named.
+  expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio com restrição: ') && paragraph.includes('(de 10 GΩ para 4 GΩ, a 20 °C)'))).toBe(true);
 });

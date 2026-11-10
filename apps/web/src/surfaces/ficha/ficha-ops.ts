@@ -1,6 +1,7 @@
 import {
   choiceValue,
   oilCrossingClearedCount,
+  oilCrossingToastText,
   oilCrossingPuts,
   safeParsePath,
   locationEnvPath,
@@ -16,6 +17,7 @@ import {
   sheetTestPath,
   sheetTestValuePath,
   type Author,
+  type OilCrossingPut,
   type BlockRow,
   type InstrumentHeader,
   type JsonValue,
@@ -59,21 +61,24 @@ export function withOilCrossing(
   /** e22h: `equipment_types` named on purpose, so a company sheet's oil rule (its version's) is read. */
   snapshot: { readonly blocks: readonly BlockRow[]; readonly files: RelatorioSnapshot['files']; readonly equipment_types: RelatorioSnapshot['equipment_types'] },
   drafts: readonly OpDraft[],
-): { drafts: OpDraft[]; cleared: number } {
+): { drafts: OpDraft[]; cleared: number; toast: string } {
   const written = new Set(drafts.map((draft) => draft.path));
   const extra: OpDraft[] = [];
+  const puts: OilCrossingPut[] = [];
   let cleared = 0;
   for (const draft of drafts) {
     const path = draft.kind === 'put' ? safeParsePath(draft.path) : null;
     if (path === null || path.family !== 'sheet/nameplate') continue;
     const crossing = oilCrossingPuts(snapshot, path.block_id, path.field_key, draft.value).filter((entry) => !written.has(entry.path));
     cleared += oilCrossingClearedCount(crossing, snapshot);
+    puts.push(...crossing);
     for (const entry of crossing) {
       written.add(entry.path);
       extra.push(put(author, relatorioId, entry.path, entry.value));
     }
   }
-  return { drafts: [...drafts, ...extra], cleared };
+  // Fix batch e23p (P4): the kernel's toast, naming the dry fields a crossing to an oil unit cleared.
+  return { drafts: [...drafts, ...extra], cleared, toast: oilCrossingToastText(puts, snapshot) };
 }
 
 /** `sheet/{blockId}/checklist/{itemKey}/result` put: "C", "NC", "NA", or null to clear. */

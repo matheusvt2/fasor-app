@@ -1,4 +1,4 @@
-import { getDefinition, SEED_VERSION, type BlockRow } from '@app/domain';
+import { dryFieldExcusedReason, EMPTY_DEFINITION_CONTEXT, getDefinition, oilCrossingToastText, screenLabel, SEED_VERSION, type BlockRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -18,6 +18,9 @@ import { syncNowAndReturn } from './support/sync.ts';
  * photo on that item, ÓLEO to Á SECO clears the three in one batch (the item NA, VOL. ÓLEO empty,
  * the photo still on the sheet but no longer on the item) with "N itens de óleo apagados", and
  * "Desfazer" restores all three; a reload and a sync keep it, the server rows agreeing.
+ * e23p-E2E-002 (fix batch e23p, P4; seed v13): an oil unit draws TEMPERATURA DO ENROLAMENTO and CLASSE
+ * TÉRMICA read-only and empty with the kernel's reason; EPÓXI with CLASSE TÉRMICA picked, then ÓLEO
+ * ISOLANTE, clears it in the same batch with the kernel's toast, and "Desfazer" restores it.
  * 14.11-E2E-002: the disjuntor's MEIO DE EXTINÇÃO (read from the kernel: since seed v7, Story
  * 14.14, "Vácuo" and "Óleo") and its one oil item; the seccionadora's list (AR, SF6); a TP's ÓLEO. Each test resets this worker's Empresa B (E6-Q7).
  */
@@ -281,4 +284,60 @@ test('@p0 14.11-E2E-004 fix batch fxpw G10: a pending VOL. ÓLEO suggestion leav
   await expect(banner).toHaveCount(0);
   expect(await status()).toBe('pending');
   expect((await outbox(page)).some((op) => op.path.startsWith(`suggestion/${suggestionId}`))).toBe(false);
+});
+
+test('@p0 e23p-E2E-002 a v13 transformer: ÓLEO ISOLANTE draws TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA read-only with the reason; EPÓXI with CLASSE TÉRMICA picked, then ÓLEO ISOLANTE, clears it in one batch with the toast, and "Desfazer" restores it', async ({ page }) => {
+  test.setTimeout(240_000);
+  const { sheet } = await openSheet(page, 'transformador_forca');
+  const blockId = sheet.blockId;
+  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+  const dryKeys = definition.oil_rule!.dry_fields!;
+  expect([...dryKeys]).toEqual(['temperatura_enrolamento_c', 'classe_termica']);
+  const labelOf = (key: string) => screenLabel(definition.nameplate.find((one) => one.key === key)!.label);
+  /** A field drawn read-only (`aria-readonly`), found by its label. */
+  const readOnly = (key: string) => page.locator('#ficha-nameplate').getByRole('textbox', { name: labelOf(key), exact: true });
+  const readOnlyHelper = (key: string) => page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: labelOf(key), exact: true }) }).locator('.helper');
+
+  // EPÓXI: both dry fields are editable; CLASSE TÉRMICA picked.
+  await pick(page, 'tipo_de_isolacao', 'EPÓXI');
+  for (const key of dryKeys) await expect(field(page, key), key).toBeVisible();
+  await pick(page, 'classe_termica', 'F (155)');
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `sheet/${blockId}/nameplate/classe_termica`).at(-1)?.value).toBe('F (155)');
+
+  // ÓLEO ISOLANTE: one batch puts null on CLASSE TÉRMICA, with the kernel's toast.
+  const before = await blockOf(page, blockId);
+  const crossing = [{ path: `sheet/${blockId}/nameplate/classe_termica`, value: null }];
+  const expected = oilCrossingToastText(crossing, { blocks: [before], files: [], equipment_types: undefined });
+  expect(expected).toBe('1 campo de unidade a seco apagado');
+  await pick(page, 'tipo_de_isolacao', OIL_VALUE);
+  await expect(toast(page)).toContainText(expected);
+  {
+    const ops = await outbox(page);
+    const insulation = ops.filter((op) => op.path === `sheet/${blockId}/nameplate/tipo_de_isolacao`).at(-1)!;
+    expect(ops.filter((op) => op.batch_id === insulation.batch_id).map((op) => [op.path, op.value])).toEqual([
+      [`sheet/${blockId}/nameplate/tipo_de_isolacao`, OIL_VALUE],
+      [`sheet/${blockId}/nameplate/classe_termica`, null],
+    ]);
+  }
+  await expect.poll(async () => (await blockOf(page, blockId)).sheet.nameplate.classe_termica?.value ?? null).toBeNull();
+
+  // Both dry fields drawn read-only, "—", with the kernel's reason under them; never missing, no N/A.
+  const oil = await blockOf(page, blockId);
+  for (const key of dryKeys) {
+    const reason = dryFieldExcusedReason(oil, key, EMPTY_DEFINITION_CONTEXT);
+    expect(reason, key).toBe('Não se aplica: TIPO DE ISOLAÇÃO é ÓLEO ISOLANTE.');
+    await expect(readOnly(key), key).toHaveAttribute('aria-readonly', 'true');
+    await expect(readOnly(key), key).toHaveText(/—/);
+    await expect(readOnlyHelper(key), key).toHaveText(reason!);
+    await expect(field(page, key), key).toHaveCount(0);
+    await expect(missingMarker(page, key), key).toHaveCount(0);
+    await expect(naControl(page, labelOf(key)), key).toHaveCount(0);
+  }
+
+  // "Desfazer" restores EPÓXI and CLASSE TÉRMICA, editable again.
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  await expect(select(page, 'tipo_de_isolacao')).toHaveValue('EPÓXI');
+  await expect(select(page, 'classe_termica')).toHaveValue('F (155)');
+  await expect.poll(async () => (await blockOf(page, blockId)).sheet.nameplate.classe_termica?.value).toBe('F (155)');
+  await expect(readOnly('classe_termica')).toHaveCount(0);
 });

@@ -12,11 +12,13 @@ import { defaultBlockConfig } from '../seed/template.ts';
 import { idSequence, opFactory, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER, type OpFactory } from '../test-support.ts';
 import { isDryBlock, isNameplateFieldExcused, nameplateAcceptsNotApplicable, nameplateMissingKeys, oilNaChipItems } from './dry-insulation.ts';
 import {
+  dryFieldExcusedReason,
   isOilFieldExcused,
   isOilItem,
   isOilUnit,
   oilCrossingClearedCount,
   oilCrossingPuts,
+  oilCrossingToastText,
   oilDerivedNaKeys,
   oilItemsClearedText,
   oilRuleOf,
@@ -649,5 +651,91 @@ describe('fix batch fxpw G10: a pending suggestion on a nameplate field the oil 
     expect(shown(dry, [vol])).toEqual([]);
     expect(livePendingSuggestions([dry], [vol, serie], [], EMPTY_DEFINITION_CONTEXT)).toEqual([serie]);
     expect(shown(dry, [vol, serie])).toEqual(['n_serie']);
+  });
+});
+
+describe('e23p-P4 the dry fields of a v13 oil unit (behaviour pass F5)', () => {
+  const v13 = () => stateWith('transformador_forca', { seedVersion: 'v13' });
+
+  it('ÓLEO ISOLANTE: TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA carry the kernel\'s reason, never missing; a stored value is kept', () => {
+    const { state, f } = v13();
+    const oil = puts(state, f, [
+      [plate('tipo_de_isolacao'), 'ÓLEO ISOLANTE'],
+      [plate('classe_termica'), 'F (155)'],
+    ]);
+    const block = blockOf(oil);
+    for (const key of ['temperatura_enrolamento_c', 'classe_termica']) {
+      expect(dryFieldExcusedReason(block, key, EMPTY_DEFINITION_CONTEXT), key).toBe('Não se aplica: TIPO DE ISOLAÇÃO é ÓLEO ISOLANTE.');
+      expect(isOilFieldExcused(block, key, EMPTY_DEFINITION_CONTEXT), key).toBe(true);
+      expect(nameplateMissingKeys({ blocks: [block], equipment: [], equipment_types: undefined }, BLOCK).has(key), key).toBe(false);
+    }
+    // The value stays in the store (it shows again if the unit becomes dry).
+    expect(block.sheet.nameplate.classe_termica?.value).toBe('F (155)');
+    // No other field has a reason: an oil field, the rule's own field.
+    for (const key of ['temperatura_oleo_c', 'vol_oleo', 'tipo_de_isolacao', 'material_enrolamento']) expect(dryFieldExcusedReason(block, key, EMPTY_DEFINITION_CONTEXT), key).toBeNull();
+  });
+
+  it('a dry unit, an unknown unit and a v12 transformer give no reason', () => {
+    const { state, f } = v13();
+    expect(dryFieldExcusedReason(blockOf(state), 'classe_termica', EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    const dry = puts(state, f, [[plate('tipo_de_isolacao'), 'EPÓXI']]);
+    expect(dryFieldExcusedReason(blockOf(dry), 'classe_termica', EMPTY_DEFINITION_CONTEXT)).toBeNull();
+    const v12 = stateWith('transformador_forca', { seedVersion: 'v12' });
+    const oil12 = puts(v12.state, v12.f, [[plate('tipo_de_isolacao'), 'ÓLEO ISOLANTE']]);
+    expect(oilRuleOf(blockOf(oil12), EMPTY_DEFINITION_CONTEXT)?.dry_fields).toBeUndefined();
+    expect(dryFieldExcusedReason(blockOf(oil12), 'classe_termica', EMPTY_DEFINITION_CONTEXT)).toBeNull();
+  });
+
+  it('EPÓXI with CLASSE TÉRMICA and the winding temperature filled, switched to ÓLEO ISOLANTE: one batch clears both, the toast names both parts, the undo restores them', () => {
+    const { state, f } = v13();
+    const dry = puts(state, f, [
+      [plate('tipo_de_isolacao'), 'EPÓXI'],
+      [plate('classe_termica'), 'F (155)'],
+      [plate('temperatura_enrolamento_c'), num('60', '°C')],
+      [item('termometro'), 'C'],
+    ]);
+    const snapshot = { blocks: [blockOf(dry)], files: [], equipment_types: undefined };
+    const crossing = oilCrossingPuts(snapshot, BLOCK, 'tipo_de_isolacao', 'ÓLEO ISOLANTE');
+    expect(crossing).toEqual([
+      { path: item('termometro'), value: null },
+      { path: plate('temperatura_enrolamento_c'), value: null },
+      { path: plate('classe_termica'), value: null },
+    ]);
+    expect(oilCrossingToastText(crossing, snapshot)).toBe('1 item de óleo apagado e 2 campos de unidade a seco apagados');
+    expect(oilCrossingToastText(crossing.slice(1, 2), snapshot)).toBe('1 campo de unidade a seco apagado');
+    // Without a dry field cleared the toast is the one it was.
+    expect(oilCrossingToastText(crossing.slice(0, 1), snapshot)).toBe(oilItemsClearedText(1));
+    // The batch folds and its undo restores both fields.
+    const batch = '019966b0-0213-7000-8000-0000000000e3';
+    const ops: Op[] = [];
+    const before = new Map<string, unknown>();
+    let next = dry;
+    for (const [path, value] of [[plate('tipo_de_isolacao'), 'ÓLEO ISOLANTE'] as [string, unknown], ...crossing.map((entry) => [entry.path, entry.value] as [string, unknown])]) {
+      const current = cellAt(next, parsePath(path));
+      const op = f.op({ path, value: value as JsonValue, prev_op_id: current?.merge?.head_op_id ?? current?.op_id ?? null, batch_id: batch });
+      before.set(op.op_id, readPath(next, op));
+      ops.push(op);
+      next = applyOp(next, op);
+    }
+    expect(blockOf(next).sheet.nameplate.classe_termica?.value ?? null).toBeNull();
+    expect(blockOf(next).sheet.nameplate.temperatura_enrolamento_c?.value ?? null).toBeNull();
+    let undone = next;
+    for (const op of invertBatch(ops, before, { newId: idSequence('019966b0-0215-7000-8000-'), now: T0 })) undone = applyOp(undone, op);
+    expect(blockOf(undone).sheet.nameplate.tipo_de_isolacao?.value).toBe('EPÓXI');
+    expect(blockOf(undone).sheet.nameplate.classe_termica?.value).toBe('F (155)');
+    expect(blockOf(undone).sheet.nameplate.temperatura_enrolamento_c?.value).toEqual(num('60', '°C'));
+  });
+
+  it('no dry field is cleared on a crossing to a dry unit, from or to an unknown one, or with none filled', () => {
+    const { state, f } = v13();
+    const oil = puts(state, f, [
+      [plate('tipo_de_isolacao'), 'ÓLEO ISOLANTE'],
+      [plate('classe_termica'), 'F (155)'],
+    ]);
+    const toDry = oilCrossingPuts({ blocks: [blockOf(oil)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'EPÓXI');
+    expect(toDry.map((entry) => entry.path)).not.toContain(plate('classe_termica'));
+    // Unknown (TIPO DE ISOLAÇÃO empty) to oil: no crossing, nothing cleared.
+    const unknown = puts(state, f, [[plate('classe_termica'), 'F (155)']]);
+    expect(oilCrossingPuts({ blocks: [blockOf(unknown)], files: [], equipment_types: undefined }, BLOCK, 'tipo_de_isolacao', 'ÓLEO ISOLANTE')).toEqual([]);
   });
 });
