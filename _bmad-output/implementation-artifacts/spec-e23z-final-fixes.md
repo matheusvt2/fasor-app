@@ -2,8 +2,8 @@
 title: 'e23z: the final Epic 23 fixes (W3-1 to W3-7, Bruno 6 and 7, DESLOCAMENTO ANGULAR kept, the eval synthetic set)'
 type: 'bugfix'
 created: '2026-11-09'
-status: 'ready-for-dev'
-baseline_revision: 'ef099d41'
+status: 'in-progress'
+baseline_revision: '45323676fa82706ada3d6297e3b10f20881b2095'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -191,3 +191,13 @@ deferred: []
 
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit -- <path>` while iterating, after GATE_DONE only.
 - Final: lint, static, test:api, test:unit, then `pnpm exec tsx scripts/e2e.ts <specs> --project desktop-chrome --project durability-desktop-chrome`, and the ttr durability spec on the matrix. Each runs under `lockf -t 20000 /tmp/fasor-verify.lock`.
+
+**Load rule (binding).**
+- Another gate holds `/tmp/fasor-verify.lock`. Until `/private/tmp/claude-502/-Users-matheusvilella-Documents-estudos-fasor-app/4b366af1-2a1f-4c68-adfe-40511ad7328a/scratchpad/wave3-gate/gate.log` contains `GATE_DONE`:
+  - do not run `podman compose up`;
+  - do not run any container, test or typecheck;
+  - implement and reason from the code.
+- Once it contains `GATE_DONE`, run `podman compose up -d postgres minio api` in the worktree (env and override already in place, images `app-api-e23z`/`app-tools-e23z`) and stop with `podman compose stop`, never `-v`.
+- Wrap every unit, api or e2e run in `lockf -t 20000 /tmp/fasor-verify.lock` and log it under `.scratch-e23z/`.
+- Any wait is a bounded loop of at most 55 s per tool call.
+- If the gate is still running when the code is written, report "not run: load rule" for the commands; the orchestrator runs them.
