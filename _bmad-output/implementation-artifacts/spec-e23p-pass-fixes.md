@@ -2,7 +2,7 @@
 title: 'e23p: the behaviour-pass fixes (copied temperatures, the v13 insulation table in print, the previous value shown corrected, dry-only fields on an oil unit, the ground grid criterion)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b307ced129f855dfc6759d5f1d246a1ff3d94577'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -142,3 +142,13 @@ deferred: []
 
 - Iterate with narrow runs: `podman compose --profile tools run --rm --user root tools pnpm exec vitest run --project <kernel project> <file>`, one Playwright spec with `pnpm exec tsx scripts/e2e.ts e2e/<spec>.ts --project desktop-chrome --project durability-desktop-chrome`, the api file with `pnpm --filter @app/api exec vitest run <file>` (check the repo's script names), each under `lockf -t 20000 /tmp/fasor-verify.lock`.
 - The orchestrator runs the story gate.
+
+## Auto Run Result
+
+- **Status:** done. Branch `e23p-pass-fixes` from main `b307ced1` (main unchanged since).
+- **Implemented:** P1 (`DAY_MEASURED_NAMEPLATE_KEYS`, neither copy chip copies the five day-measured keys); P2 (`print/text-metrics.ts` `printTextEm` and `WHOLE_FIT_TABLES` in `print/section-9.ts`: the v13 transformer's insulation table, printed alone with its "20 °C" column, fits every column against the page by Arial's widths; 7,5 pt one criterion, 7 pt per-row ACEITÁVEL or MANUT. ANTERIOR, 6 pt both; paired tables and v1 to v12 unchanged); P3 (`previousHelperText` with the previous corrected value; `restriction.pointReason`, read only by the `restricao` points); P4 (`dryFieldExcusedReason`, the dry fields of an oil unit drawn read-only with the reason; `oilCrossingPuts` clears them on a crossing to oil, toast `oilCrossingToastText` with "Desfazer"); P5 (`maxFieldCriterionText`, "≤ N Ω, valor de projeto").
+- **Files:** kernel `relatorio/nameplate-copy`, `print/text-metrics` (new), `print/section-9`, `print/last-results`, `relatorio/restriction`, `relatorio/reading-cells`, `relatorio/conclusion`, `relatorio/measurement-evaluation`, `relatorio/oil-rule`, `points/derived`; web `nameplate-section`, `nameplate-suggestions`, `ficha-ops`; api test `v13-insulation-print.integration.test.ts` (new); unit tests `nameplate-copy`, `text-metrics`, `three-levels`, `criteria-tables-print`, `oil-rule`, `e23t-transformer-tests`, `e23e-tc-thermo-ground`; e2e `v13-nameplate`, `oil-dry`, `previous-visit-judges`, `ground-grid`; docs `deferred-work.md`, KB `architecture/kernel-and-seed.md`, `log.md`; PDF crops in `e23p-pdf-crops/`.
+- **Review:** 13 findings (Edge Case Hunter 10, Verification Gap 3): 1 medium entry patched (the history comparison placed after its own reason, with two-rule tests; three rows of one root cause), 1 low deferred (already a ledger row), 9 rejected (see the triage log).
+- **Follow-up review:** not recommended (one medium entry patched, no high).
+- **Verification:** story gate on `1d41b639`, lock wait 0 s, load `{ 3.86 5.25 7.33 }` to `{ 5.25 6.77 7.09 }`: lint 0, static 0, test:api 959 passed / 6 skipped, test:unit 6133 of 6136 (the three reds in `telemetry/flush.test.ts` and `setup-surface.test.tsx`, untouched files, passed alone under the lock 69 of 69, load `{ 4.32 6.48 6.98 }`), 21 touched specs 108 of 108 (parallel 76, queue 28, solo 4). Goldens: no `M`. The PDF test fails on `b307ced1`'s `section-9.ts` ("SECUNDÁRI"/"O", "22,"/"6").
+- **Residual risks:** the P1 list and the P4 reading (Design Notes) await Matheus; the derived point's new comparison also prints in section 8 while the point is unwritten; F13 (paired tables) reported, not fixed.
