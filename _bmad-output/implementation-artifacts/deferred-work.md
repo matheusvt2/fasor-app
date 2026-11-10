@@ -3489,7 +3489,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: on a v13 oil unit the dry fields (TEMPERATURA DO ENROLAMENTO, CLASSE TÉRMICA) are drawn read-only and empty with the reason, and a crossing to oil clears them. The oil fields of a dry unit keep today's screen: editable, excused, cleared at the crossing to dry. A plate-reading suggestion on a dry field of an oil unit is not drawn on that field (the field is read-only); "Confirmar todos" can still write it, kept unseen and printed "-".
   evidence: `packages/domain/src/relatorio/oil-rule.ts` `dryFieldExcusedReason`; `apps/web/src/surfaces/ficha/nameplate-section.tsx`.
   class: decision
-  state: open (owner: Matheus: align the oil fields of a dry unit the same way, or keep them); assigned 2026-11-10 to Epic 24, Story 24.11 (decided by Matheus with the approval of the story list: the oil fields of a dry unit read-only, the mirror of e23p's fix)
+  state: ~~open (owner: Matheus: align the oil fields of a dry unit the same way, or keep them)~~ decided (2026-11-10, Matheus, E23-A2 item 5: yes, read-only); assigned 2026-11-10 to Epic 24, Story 24.11 (decided by Matheus with the approval of the story list: the oil fields of a dry unit read-only, the mirror of e23p's fix)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md` (P2, sizes)
   summary: the v13 transformer's insulation table now prints at 7,5 pt (one criterion), 7 pt (ACEITÁVEL per row, or MANUT. ANTERIOR) and 6 pt (both), every word whole; the disjuntor's and the seccionadora's paired tables print as on `b307ced1` (the behaviour pass's F13, reported, not fixed).
   evidence: `packages/domain/src/print/section-9.ts` `WHOLE_FIT_TABLES`; `relatorio/three-levels.test.ts`; `print/criteria-tables-print.test.ts`.
@@ -3512,12 +3512,12 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Fix batch e23p changed what a device derives and writes (the day-measured plate fields never copied, the dry fields cleared at the crossing to oil, the derived point's text, the Malha's criterion text) and took no contract number, after contract 40 was already in production. A device still on the `47be2638` bundle passes every pull and keeps the old behaviour until its next launch with an empty outbox.
   evidence: `packages/domain/src/contract/version.ts:469,738` (40 and MIN 40, untouched in `47be2638..9add87b5`); `apps/web/src/sw/use-shell-update.ts:8-9`; the MIN comments for 37 and 40 in `version.ts`; the e23w contract row above.
   class: decision
-  state: open (owner: Matheus: contract 41 with MIN 41, or the gap accepted here with a date)
+  state: ~~open (owner: Matheus: contract 41 with MIN 41, or the gap accepted here with a date)~~ closed (2026-11-10, Matheus: the gap is accepted). A device on the older bundle takes the changes at its next reload. Epic 24's first batch (e24a) takes contract 41 with MIN 41, which forces the update. A read-only count in production the same day found no relatório on seed v13, so no device had v13 work to derive differently.
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-6, owner: E23-A2)
   summary: Seed v13 has no layout lock. The goldens cover v5, v11 and v12 and the Porto Seguro fixture, so "goldens byte-equal" in a gate says nothing about how a v13 relatório prints. e23p's promise that the disjuntor's and the seccionadora's paired insulation tables print as before is pinned only by type size and by words that fit the kernel's own width model.
   evidence: `packages/domain/fixtures/layout-lock/op-log.ts:40` (`LAYOUT_LOCK_VERSIONS`); `apps/api/src/jobs/generate/golden/` (no v13 folder); `epic-23-context.md` § Coordinator decisions, "Only v13 fixtures may gain goldens".
   class: decision
-  state: open (owner: Matheus: lock v13 as it prints in production before seed v14 opens, or not)
+  state: ~~open (owner: Matheus: lock v13 as it prints in production before seed v14 opens, or not)~~ decided (2026-11-10, Matheus: yes). Open (owner: Epic 24, Story 24.2)
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-9, the deferred half)
   summary: Two low items. A dry-only value hidden on an oil transformer stays in the store and is written to `last_nameplate` with no filter, so a later "Copiar da última visita" carries CLASSE TÉRMICA along, still hidden; nothing prints or judges by it. The off-plate clear swallows a commit error with no message.
   evidence: `packages/domain/src/print/last-nameplate.ts:38-41`; `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`, `.catch(() => undefined)`).
@@ -3527,7 +3527,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Three tests went red under load in two or more gates of Epic 23 and passed alone each time: 21.1-E2E-002 (`e2e/seed-v11.spec.ts`; e23t's story gate, the wave 3 gate, T3's run 1), R8CAP-E2E-010 (`e2e/review-photo-failures.spec.ts`; e23t's story gate, e23p's full run) and 4.8-E2E-005 (`e2e/export.spec.ts`; e23w's story gate, T3's run 2, where the job finished in 1.6 s and the device sent no request for 150 s). `setup-surface.test.tsx`, already in the Epic 21 retrospective's row above, was red again in e23p's story gate. That row still has no state and no owner batch.
   evidence: `epic-23-context.md` § Fix batch e23w, § Wave 3, § Fix batch e23p; `spec-e23t-transformer-tests.md` Auto Run Result (gate reds); `spec-t3-serial-split.md:151-152`.
   class: flake
-  state: open (owner: E23-A4)
+  state: open (owner: E23-A4); assigned 2026-11-10 to fix batch e24f (Matheus: yes), `epic-24-context.md` § Fix batch e24f
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (Behavior verification, owner: E23-A5)
   summary: The read-only preview of Bruno's v5 relatório after the deploy, planned in `epic-23-context.md` § Coordinator decisions ("Bruno's v5 relatório"), has no run on record for any of the three Epic 23 deploys. The v5 layout-lock golden covers the same risk in tests; the production check is the one that was planned.
   evidence: `epic-23-context.md:341` against § Deploy.

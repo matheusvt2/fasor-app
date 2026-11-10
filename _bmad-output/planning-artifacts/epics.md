@@ -7582,7 +7582,7 @@ So that the new rules reach only the relatórios created after them.
   - an NC observation typed in two lines;
   - a company-type sheet whose reading out of its criterion carries a recommendation (section 8);
   - a template's own Conclusão text with part of "nos itens 8 e 9" in bold.
-- **The goldens are taken on main at the start of wave 1**, before any other Epic 24 change. The v5, v11 and v12 goldens are not regenerated.
+- **The goldens are taken on main at the start of wave 1**, before any other Epic 24 change. *(2026-11-10, coordinator: and after fix batch e24f has merged, so the lock holds the print with the retrospective's fixes; `epic-24-context.md` § Fix batch e24f.)* The v5, v11 and v12 goldens are not regenerated.
 - **Contract 41.** A 40 client cannot resolve a v14 definition. `MIN_CONTRACT_VERSION` moves to 41 unless the PR shows why not.
 - **Out of scope:** every rule change. At the end of this story a v14 relatório concludes and prints exactly as a v13 one.
 

@@ -282,3 +282,48 @@ Folded in the same day, from the open Epic 23 rows: the arrester's hidden prereq
 | 4.4 Path | [x] | Direct adjustment, in waves |
 | 5.1 to 5.5 Proposal | [x] | Sections 1 to 6 |
 | 6.1 to 6.5 Final review and handoff | [x] | Story list approved by Matheus on 2026-11-10; M-2's default and M-4 stay open |
+
+## After the stories were written (2026-11-10)
+
+John (`bmad-agent-pm`) wrote Stories 24.1 to 24.20 in `epics.md` the same day, checking each acceptance criterion against the code. The Epic 23 retrospective ended meanwhile (`epic-23-retro-2026-11-10.md`). This section records what changed. The sections above stay as approved.
+
+### Where the code changed a story
+
+Each has a dated note in its story. The full list is in `epic-24-context.md` § "Where the code changed a story".
+
+- **24.6.** The NC phrase rule needs no change in the fold, so batch e24b may need no contract number. If its spec agrees, the later batches move down by one.
+- **24.8.** The fixtures of the goldens take their TAGs from the suggestion. So the old rule stays as a frozen function, used by the reuse match and by the fixtures. The goldens do not change.
+- **24.10.** The product has no TC item about its secondary. None was added; it is question B-11 for Bruno.
+- **24.11.** "Oil sampling done" already exists as the v13 test. A checklist item for the same fact could contradict it. The story adds one oil item (TANQUE E ALETAS) and keeps the test.
+- **24.17** takes the two glued photo references (row 3191), on v14 only, since it is the story that edits that file.
+- **24.18 to 24.20.** Company types have no seed, so these three are not seed-gated. A company sheet follows the rules of its relatório.
+- **24.20.** The editor cannot recreate the vector group field. The publish issue names the two ways out: remove the ratio test, or start again from "Duplicar".
+
+### One point that needs Matheus (M-5)
+
+**A renamed TAG loses the previous visit.** This is already true today (an open ledger row): when a technician renames an equipment's TAG, the next relatório of the obra does not find it, creates it again, and the sheet starts with no previous visit. With Bruno's rule (the plate's TAG typed over the suggestion) renaming becomes the common case, so MANUT. ANTERIOR and the 50 % rules would stop working for most equipment.
+
+The coordinator's recommendation: one more story in batch e24b, **24.21 "An equipment keeps its history when its TAG is renamed"**. The equipment stores, at its creation, the key the reuse matches on, and the reuse reads that key and no longer the visible TAG. Equipment created before it keeps matching by its TAG as today. It is a small change in the fold, so it takes e24b's contract number. Until Matheus decides, it is not written and Story 24.8 keeps the limit as an explicit note.
+
+### The Epic 23 retrospective
+
+Matheus read its result on 2026-11-10 and decided:
+
+- **A fix batch, e24f**, runs beside wave 0 with the retrospective's seven review findings and its list of tests that go red under load (`epic-24-context.md` § Fix batch e24f). It merges before e24a starts. Its main item is a conclusion sentence that says the values are within the criteria when one reading was judged by no criterion.
+- The contract gap of fix batch e23p is accepted; contract 41 comes with e24a.
+- Seed v13's layout is locked before seed v14 opens (already Story 24.2).
+- The Epic 22 retrospective is waived.
+- Two short quotes of the base stay in the git history.
+- The oil fields of a dry unit become read-only (already Story 24.11).
+- The finished Epic 21 action items are marked done.
+
+A third read-only count in production the same day found no relatório on seed v13, in any status. So no issued document carries the defects the hands-on pass found.
+
+### New open items
+
+| Item | Question | Owner |
+| --- | --- | --- |
+| M-5 | Story 24.21 for the renamed TAG, as recommended above | Matheus |
+| B-11 | Should the TC's list ask an item on its secondary (never open, the short-circuit terminals)? | Bruno, with B-1 to B-10 |
+
+John's other readings are listed in `epic-24-context.md` § "Coordinator's readings (open to Matheus)". Each one is the most conservative choice and is taken unless Matheus corrects it before its batch starts.

@@ -176,6 +176,28 @@ Each is written under its story in `epics.md`.
 - **Matheus: M-2** ("Agrupar por tipo" stays off on a new local) and **M-4** (the blank ART prints "[ART]") keep their defaults. **M-3:** the AD-25 note is written in Story 24.15's PR.
 - **Matheus: the readings above**, chiefly the renamed TAG (24.8) and the composer's palette (24.19).
 
+## Fix batch e24f
+
+*(2026-11-10, coordinator, on Matheus's "yes" to the retrospective's proposal.)* The Epic 23 retrospective (`epic-23-retro-2026-11-10.md`) left seven review findings (E23-A1) and a list of tests that go red under load (E23-A4). They run as one fix batch beside wave 0, the way e23f ran beside Story 23.1. It is built red-first and passes the story gate plus the specs it touches.
+
+From E23-A1:
+
+- **R-1.** The conclusion paragraph says the values are within the criteria when one measured reading was judged by no criterion. It must treat that reading as one to check, and the cell gets a helper. This is the main item: it is a wrong sentence in a document the engineer signs.
+- **R-3.** Changing a test's recommendation in the type editor clears the imported recommendation of the polarization index, which today prints with no way to see or edit it.
+- **R-4.** The test of a cable copy printing before its transformer asserts what the product really does, and the row is written as a narrowing.
+- **R-5.** A second "Apagar leitura" on the same row from another device is accepted, not left as dead outbox rows. One api case with two devices.
+- **R-7.** One Playwright case: "Atualizar" with unsynced work while the pull answers 426.
+- **R-8.** The PDF test of the insulation table gains a sheet with every capture column filled and long values.
+- **R-9.** One end-to-end case for "Igual à" between two v13 transformers, for the day-measured fields.
+
+From E23-A4, the tests red under load in two or more gates: 21.1-E2E-002, R8CAP-E2E-010, 4.8-E2E-005 (first find why the device sent no request for 150 s after the job finished), `setup-surface.test.tsx`, `reading-arrivals.test.tsx`, `home-surface.test.tsx`, R8LAY-E2E-008 and `relatorio-tree-edges.test.tsx`.
+
+Rules for the batch:
+
+- It changes seed v13 behaviour only where the finding is a defect (R-1, R-3, R-5). The v13 layout lock of Story 24.2 is taken after it merges, so the lock holds the corrected print.
+- If its spec finds a fold change (R-5 may be one), it takes contract 41, and the reserved numbers of e24a to e24p move up by one.
+- The deferred half of R-9 (a hidden dry value kept in the store, a swallowed commit error) stays in the ledger.
+
 ## Batch plan
 
 There are at most two batch stacks up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`. The coordinator hands out a free port base before each launch (`podman ps --filter name=fasor-`).
@@ -183,14 +205,15 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
 | Wave | Tag | Branch | Stories | Dev model · Effort | Contract (reserved) | Base |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | coordinator | `docs/e24-frames` | 24.1 | opus · medium (`bmad-ux`) | none | main after the planning PR |
-| 1 | e24a | `e24a-conclusion-rules` | 24.2, 24.3, 24.4 | opus · high, max, high | 41 | main after 24.1 is approved |
+| 0 | e24f | `e24f-retro-fixes` | none: the Epic 23 retrospective's fix batch (E23-A1, E23-A4) | opus · high | none expected | main after the planning PR, beside Story 24.1 |
+| 1 | e24a | `e24a-conclusion-rules` | 24.2, 24.3, 24.4 | opus · high, max, high | 41 | main after 24.1 is approved and e24f has merged |
 | 1 | e24b | `e24b-screen-lane` | 24.5, 24.6, 24.7, 24.8, 24.9 | opus · medium, high, high, high, medium | 42 | main after 24.1 is approved |
 | 2 | e24s | `e24s-seed-v14-sheets` | 24.10, 24.11, 24.12, 24.13, 24.14 | opus · medium, high, medium, high, medium | 43 | main after wave 1's gate and fix batch |
 | 3 | e24p | `e24p-print-company-types` | 24.15, 24.16, 24.17, 24.18, 24.19, 24.20 | opus · high, high, medium, high, medium, medium | 44 | main after wave 1's gate and fix batch, beside e24s |
 
 ### Merge order
 
-1. The planning PR, then Story 24.1's frames.
+1. The planning PR, then Story 24.1's frames and fix batch e24f side by side. e24f merges before e24a starts: both edit the conclusion text.
 2. e24a, then e24b. e24b merges main first: both edit `points/derived.ts`.
 3. Wave 1's gate, its two-pass review and its fix batch.
 4. e24s, then e24p. e24p merges main first and re-pins `V14_HASH`.
