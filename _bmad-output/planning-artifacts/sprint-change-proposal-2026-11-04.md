@@ -153,12 +153,12 @@ Approved by Matheus on 2026-11-09 ("pode fazer 1 e 2 ja"). Spec: `_bmad-output/i
 
 | Class | Spec files | Tests | Time | Share | Generation job time |
 | --- | --- | --- | --- | --- | --- |
-| Issue or preview a document (queue and LibreOffice; 11 also load the fixed-id fixture) | 46 | 124 | 20.9 min | 69 % | 5.9 min (78 jobs) |
+| Issue or preview a document (queue and LibreOffice; 10 also load the fixed-id fixture, the 11th is `usage-events-documents`) | 46 | 124 | 20.9 min | 69 % | 5.9 min (78 jobs) |
 | Time a tap against a render, or measure the CPU (8 tap specs, `tap-budget-signal`, `review-layout-interaction-2026-10-08`, `usage-events-documents`) | 11 | 42 | 5.2 min | 17 % | 0.04 min |
 | Real reading jobs (`*-pipeline`, `plate-every-type`) | 4 | 18 | 3.9 min | 13 % | none (3.1 min of reading waits) |
 | Hold the generate request at the network (`loading-states`) | 1 | 3 | 0.1 min | 0.3 % | none |
 
-So a document test is about 28 % generation and 72 % UI work (sign-in 1.6 min, pushed drafts 0.9 min, sync 0.9 min across the group, then the screens). AD-15 still serializes the 5.9 min of jobs; two workers overlap the rest. A longest-first schedule of the 133 tests that need no quiet CPU on two workers gives 12.5 min at the measured speed and 16.2 min with every test 30 % slower under the extra load. The 42 timing tests add 5.2 min alone. The estimate is a serial phase of 18 to 21 min against 30.6 min: **9 to 13 min saved**, above the 5 min bar set before building.
+So a document test is about 28 % generation and 72 % UI work (sign-in 1.6 min, pushed drafts 0.9 min, sync 0.9 min across the group, then the screens). AD-15 still serializes the 5.9 min of jobs; two workers overlap the rest. A longest-first schedule of the 145 tests that need no quiet CPU on two workers gives 12.5 min at the measured speed and 16.2 min with every test 30 % slower under the extra load. The 42 timing tests add 5.2 min alone. The estimate is a serial phase of 18 to 21 min against 30.6 min: **9 to 13 min saved**, above the 5 min bar set before building.
 
 **Lanes.** The serial group becomes two lanes, run after the parallel group in this order:
 
