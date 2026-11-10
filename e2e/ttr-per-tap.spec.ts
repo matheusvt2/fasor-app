@@ -376,3 +376,65 @@ test('@p0 23g-E2E-001 (fix batch e23g, R2-1 and R2-3) five taps, TAP ATUAL the t
   await expect.poll(() => stepMissing(page, 'Ensaios')).toBe(after.missing);
   await expect(line.locator('span').first()).toHaveText(`${tapTableLine(await kernelRows(page, blockId))!.label} ${tapTableLine(await kernelRows(page, blockId))!.count}`);
 });
+
+test('@p0 e23z-E2E-002 (fix batch e23z, item 3) a tap dropped from TAPS with readings: "Apagar leitura" on its row (and, at 390, on its card) writes a put of null on each filled cell in one batch, toasts "Leitura apagada", and the row leaves the table; the synced ops are accepted', async ({ page }) => {
+  test.setTimeout(240_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const { relatorioId, blockId, drafts } = transformerRelatorio();
+  await pushDrafts(page, database, drafts);
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const cellPath = (volts: number, col: number) => `sheet/${blockId}/test/${TEST_KEY}/cell/${volts}/${col}`;
+
+  // Five taps; the last two read, then dropped from TAPS: their rows stay, "Fora da placa", with their readings.
+  await typeIn(page, 'taps', '13,8; 13,2; 12,6; 12; 11,4');
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/taps`)).toEqual(measured('13.8;13.2;12.6;12;11.4', 'kV'));
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await typeCaptures(page, 12000, ['54,72', '54,69', '54,71']);
+  await expect.poll(() => lastValue(page, cellPath(12000, 5))).toEqual(measured('54.71', null));
+  await typeCaptures(page, 11400, ['51,98', '51,93', '51,96']);
+  await expect.poll(() => lastValue(page, cellPath(11400, 5))).toEqual(measured('51.96', null));
+  // A row of the plate offers no "Apagar leitura".
+  await expect(tapRow(page, 11400).getByRole('button', { name: 'Apagar leitura' })).toHaveCount(0);
+  await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
+  await typeIn(page, 'taps', '13,8; 13,2; 12,6');
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/taps`)).toEqual(measured('13.8;13.2;12.6', 'kV'));
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await expect(tapRow(page, 11400).locator('.tap-mark')).toHaveText(TAP_OFF_PLATE_TEXT);
+  for (const volts of [13800, 13200, 12600]) await expect(tapRow(page, volts).getByRole('button', { name: 'Apagar leitura' })).toHaveCount(0);
+
+  // "Apagar leitura": three puts of null, one batch, a toast with no "Desfazer" (only clearing); the row leaves the table.
+  await tapRow(page, 11400).getByRole('button', { name: 'Apagar leitura' }).click();
+  const clears = async () => (await outbox(page)).filter((row) => [3, 4, 5].some((col) => row.path === cellPath(11400, col)) && row.value === null);
+  await expect.poll(async () => (await clears()).length).toBe(3);
+  const batch = await clears();
+  expect(batch[0]!.batch_id).not.toBeNull();
+  expect(batch.every((row) => row.batch_id === batch[0]!.batch_id)).toBe(true);
+  await expect(toast(page)).toContainText('Leitura apagada');
+  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toHaveCount(0);
+  await expect(tapRow(page, 11400)).toHaveCount(0);
+  expect((await kernelRows(page, blockId)).map((row) => row.row)).toEqual([13800, 13200, 12600, 12000]);
+  const cleared = (await blockRow(page, blockId)).sheet.test[TEST_KEY]!.cells['11400']!;
+  expect([3, 4, 5].map((col) => cleared[String(col)]!.value)).toEqual([null, null, null]);
+
+  // At 390 px the rows are cards, the only surface: the off-plate card offers "Apagar leitura", no card of the plate does.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const card = (volts: number) => page.locator(`.ficha-mt[data-table-key="${TEST_KEY}"] [data-tap-card="${volts}"]`);
+  await expect(card(12000).locator('.tap-mark')).toHaveText(TAP_OFF_PLATE_TEXT);
+  await expect(card(12000).getByRole('button', { name: 'Apagar leitura' })).toBeVisible();
+  for (const volts of [13800, 13200, 12600]) await expect(card(volts).getByRole('button', { name: 'Apagar leitura' })).toHaveCount(0);
+  await card(12000).getByRole('button', { name: 'Apagar leitura' }).click();
+  const cardClears = async () => (await outbox(page)).filter((row) => [3, 4, 5].some((col) => row.path === cellPath(12000, col)) && row.value === null);
+  await expect.poll(async () => (await cardClears()).length).toBe(3);
+  await expect(card(12000)).toHaveCount(0);
+  expect((await kernelRows(page, blockId)).map((row) => row.row)).toEqual([13800, 13200, 12600]);
+  const clearedCard = (await blockRow(page, blockId)).sheet.test[TEST_KEY]!.cells['12000']!;
+  expect([3, 4, 5].map((col) => clearedCard[String(col)]!.value)).toEqual([null, null, null]);
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  // Synced: the server's fold accepts the clears (acked, none dead).
+  await syncNowAndReturn(page);
+  await expect.poll(async () => [...new Set((await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}`)).map((row) => row.status))]).toEqual(['acked']);
+});

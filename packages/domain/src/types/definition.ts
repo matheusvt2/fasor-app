@@ -15,6 +15,7 @@ import {
   relativeToLowestCriterionSchema,
 } from '../seed/measurement.ts';
 import { checklistItemSchema, checkSeedV6Definition, fieldDefSchema, testDefSchema, type OilRule } from '../seed/schema.ts';
+import { equipmentBlockTypeSchema } from '../schemas/block-config.ts';
 
 /*
  * Story 14.6 (contract 33; AD-21 note of 2026-11-06, item 2): the definition of a company
@@ -289,6 +290,12 @@ const companyTypeDefinitionShape = {
    * already come with `testDefSchema`.
    */
   oil_rule: companyOilRuleSchema.optional(),
+  /*
+   * Fix batch e23z (W3-3): the seeded type a copy was duplicated from (`duplicateSeededDefinition`), so
+   * it prints in its base's group and numbers its tests as its base. Never editable; absent on a new
+   * type and on a copy made before the key (which keeps printing in "Outros equipamentos").
+   */
+  base_block_type: equipmentBlockTypeSchema.optional(),
 };
 
 /** A version's definition: strict (AD-21 item 2), what `applyOp` checks on publish. */
@@ -321,6 +328,8 @@ export const companyTypeVersionDefinitionSchema = z.object({
   config_fields: z.array(jsonObject).optional(),
   criteria: z.array(jsonObject),
   oil_rule: jsonObject.optional(),
+  // Fix batch e23z (W3-3): structural only, as the other keys (the strict schema judged it on publish).
+  base_block_type: z.string().optional(),
 }) as unknown as z.ZodType<CompanyTypeDefinition>;
 
 type DeepPartial<T> = T extends readonly (infer U)[] ? DeepPartial<U>[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
@@ -348,4 +357,6 @@ export const companyTypeDraftSchema = z.object({
   criteria: looseItems.optional(),
   // Fix batch e22h (S1): the copy's oil rule, kept as written (the strict schema checks it).
   oil_rule: z.record(z.string(), z.json()).optional(),
+  // Fix batch e23z (W3-3): the copy's base type, kept as written (the strict schema checks it).
+  base_block_type: z.string().optional(),
 }) as unknown as z.ZodType<CompanyTypeDraft>;

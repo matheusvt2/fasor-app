@@ -11,8 +11,8 @@ import { derivedPoints, derivedPointSeed } from './derived.ts';
 
 /*
  * Story 23.11 (batch e23h): a `reading` derived entry starts with its test's recommendation, in
- * both grammars; without one it is byte-equal to the generic text; the `reprovado` entry never
- * takes one. The company-types fixture: block 1 (version 1) reads 131 Vcc on the flutuação row,
+ * both grammars; without one it is byte-equal to the generic text; ~~the `reprovado` entry never
+ * takes one~~ (fix batch e23z, item 2: the `reprovado` entry starts with the in-force tests' ones). The company-types fixture: block 1 (version 1) reads 131 Vcc on the flutuação row,
  * below its 132 Vcc criterion; here its insulation also reads 50 MΩ, below 100 MΩ. Synthetic texts.
  */
 
@@ -75,13 +75,15 @@ describe('23.11-UNIT the recommendation as the derived point\'s initial text', (
     expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes(`Verificar o carregador. ${generic[1]!.text}`))).toBe(true);
   });
 
-  it('a Reprovado the engineer chose with no failing test keeps its own text, its version recommending or not', () => {
+  // Fix batch e23z (item 2, Bruno 2026-11-09): the Reprovado entry now starts with the in-force tests' recommendations.
+  it('a Reprovado the engineer chose with no failing test keeps its own text with no recommendation, and starts with each in-force test\'s once its version recommends', () => {
     const chosen: RelatorioSnapshot = {
       ...base,
       blocks: base.blocks.map((block) => (block.id === BLOCK_2_ID ? { ...block, sheet: { ...block.sheet, conclusion: { ...block.sheet.conclusion, result: cell('reprovado') } } } : block)),
     };
     const reprovado = (snapshot: RelatorioSnapshot) => derivedPoints(snapshot).filter((entry) => entry.kind === 'reprovado' && entry.block_id === BLOCK_2_ID);
     expect(reprovado(chosen).map((entry) => entry.text)).toEqual(['Concluído como Reprovado na ficha']);
-    expect(reprovado(recommending(chosen, VERSION_2_ID, { isolacao: 'Trocar', tensoes_medidas: 'Trocar' })).map((entry) => entry.text)).toEqual(['Concluído como Reprovado na ficha']);
+    expect(reprovado(recommending(chosen, VERSION_2_ID, { isolacao: 'Trocar', tensoes_medidas: 'Trocar' })).map((entry) => entry.text)).toEqual(['Trocar. Concluído como Reprovado na ficha']);
+    expect(reprovado(recommending(chosen, VERSION_2_ID, { isolacao: 'Trocar', tensoes_medidas: 'Revisar o banco.' })).map((entry) => entry.text)).toEqual(['Trocar. Revisar o banco. Concluído como Reprovado na ficha']);
   });
 });

@@ -1,9 +1,10 @@
 import { headNounAgreement } from '../photos/caption.ts';
 import { LIBRARY_GROUP_LABEL, locationTree, saysColuna, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
-import { isCompanyBlockType, roleSchema, type Role } from '../schemas/block-config.ts';
+import { isBaseEquipmentBlockType, isCompanyBlockType, roleSchema, type Role } from '../schemas/block-config.ts';
 import type { BlockRow, RelatorioRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { isLibraryType, siteChecklistOf } from '../seed/definitions.ts';
+import { blockDefinitionIn, isLibraryType, siteChecklistOf, snapshotDefinitionContext } from '../seed/definitions.ts';
+import type { BlockDefinition } from '../seed/schema.ts';
 
 /*
  * Story 7.1 (FR-68, FR-72, AR-15; EXPERIENCE.md › Section 9 default scheme): the order and
@@ -57,6 +58,13 @@ import { isLibraryType, siteChecklistOf } from '../seed/definitions.ts';
  * type. A sheet under the painel outside any coluna (no client writes one) keeps the
  * painel-only title (`painelTypeGroupTitle`). Pairing stays inside a coluna. With the flag
  * off nothing changes: the coluna is not a subsection.
+ *
+ * Fix batch e23z (W3-3): a company copy of one of the eight (Duplicar or the base import, carrying
+ * `base_block_type`) prints as its base type (`printBlockTypeOf`): in its base's group, with that
+ * group's pairing (TP/TC, cables before their transformer) and order. A copy of a library type (a
+ * Malha de aterramento copy last in "Outros equipamentos" included) reads its base for the order
+ * inside "Outros equipamentos". A copy published before this change carries no base, and a new type
+ * has none: both print in "Outros equipamentos", as before.
  */
 
 export type PrintScheme = RelatorioRow['export']['scheme'];
@@ -97,7 +105,11 @@ export interface PrintGrouping {
   warnings: PrintGroupWarning[];
 }
 
-type GroupSnapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment'>;
+// Fix batch e23z (W3-3): the company type versions, to read a copy's base type (absent: no company type is known).
+type GroupSnapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>;
+/** Fix batch e23z (W3-3): the type a sheet prints as, by block id (`printBlockTypeOf`). */
+type PrintTypes = ReadonlyMap<string, string>;
+const typeIn = (types: PrintTypes, node: TreeEquipmentNode): string => types.get(node.blockId) ?? node.blockType;
 type TypeGroup = Exclude<PrintGroupKind, 'cabine' | 'painel'>;
 
 /**
@@ -113,6 +125,37 @@ const GROUP_WORDS: readonly { kind: TypeGroup; words: string }[] = [
   // Story 14.5: the library types, after the four groups of the eight ("Outros equipamentos dos Geradores").
   { kind: 'outros', words: LIBRARY_GROUP_LABEL },
 ];
+
+/**
+ * Fix batch e23z (W3-3): the type a sheet prints as. A seeded type is itself; a company type is its
+ * copy's base (`base_block_type`, one of the equipment types), else its own `type:` key.
+ */
+export function printBlockTypeOf(definition: Pick<BlockDefinition, 'base_block_type'> | null | undefined, blockType: string): string {
+  if (!isCompanyBlockType(blockType)) return blockType;
+  return definition?.base_block_type ?? blockType;
+}
+
+/**
+ * Fix batch e23z (W3-3): the editor's "Grupo na impressão" of a company type whose base is one of the
+ * eight, the group's words without the cabine (`GROUP_WORDS`); null for any other type, where the
+ * editor keeps its own copy ("Outros equipamentos"). A company block carries no role
+ * (`defaultBlockConfigIn`), so a copy of the cabos de saída prints with the seccionadoras.
+ */
+export function printGroupWordsOf(baseBlockType: string | null | undefined): string | null {
+  if (baseBlockType === null || baseBlockType === undefined || !isBaseEquipmentBlockType(baseBlockType)) return null;
+  const words = (kind: TypeGroup) => GROUP_WORDS.find((group) => group.kind === kind)!.words;
+  switch (baseBlockType) {
+    case 'disjuntor_mt':
+      return words('disjuntores');
+    case 'tp':
+    case 'tc':
+      return words('tps_tcs');
+    case 'transformador_forca':
+      return words('transformadores');
+    default:
+      return words('seccionadoras');
+  }
+}
 
 /** A leading ordinal or number ("1°", "2ª", "3") is not the head noun of a cabine name. */
 const LEADING_ORDINAL = /^\d+[°ºª]?$/;
@@ -241,13 +284,13 @@ function baseSubsections(root: RootRuns): PrintSubsection[] {
 }
 
 /** A location's n-th TP, then its n-th TC; the unpaired ones after them; locations in the order the tree reaches them. */
-function tpTcPairs(nodes: readonly TreeEquipmentNode[]): string[] {
+function tpTcPairs(nodes: readonly TreeEquipmentNode[], types: PrintTypes): string[] {
   const byLocation = new Map<string, TreeEquipmentNode[]>();
   for (const node of nodes) byLocation.set(node.locationId, [...(byLocation.get(node.locationId) ?? []), node]);
   const out: string[] = [];
   for (const group of byLocation.values()) {
-    const tps = group.filter((node) => node.blockType === 'tp');
-    const tcs = group.filter((node) => node.blockType === 'tc');
+    const tps = group.filter((node) => typeIn(types, node) === 'tp');
+    const tcs = group.filter((node) => typeIn(types, node) === 'tc');
     const paired = new Set<string>();
     for (let i = 0; i < Math.min(tps.length, tcs.length); i++) {
       out.push(tps[i]!.blockId, tcs[i]!.blockId);
@@ -293,13 +336,13 @@ function transformerPairs(
  * quadro moves to just after it, the moved ones and every other sheet keeping their tree
  * order; a run with no quadro, or no inspection before its last quadro, is unchanged.
  */
-function afterFullQuadros(outros: readonly TreeEquipmentNode[]): TreeEquipmentNode[] {
-  const last = outros.findLastIndex((node) => node.blockType === 'quadro_eletrico');
+function afterFullQuadros(outros: readonly TreeEquipmentNode[], types: PrintTypes): TreeEquipmentNode[] {
+  const last = outros.findLastIndex((node) => typeIn(types, node) === 'quadro_eletrico');
   if (last === -1) return [...outros];
-  const moved = outros.filter((node, i) => i < last && node.blockType === 'inspecao_qgbt');
+  const moved = outros.filter((node, i) => i < last && typeIn(types, node) === 'inspecao_qgbt');
   if (moved.length === 0) return [...outros];
   const kept = outros.filter((node) => !moved.includes(node));
-  const at = kept.findLastIndex((node) => node.blockType === 'quadro_eletrico');
+  const at = kept.findLastIndex((node) => typeIn(types, node) === 'quadro_eletrico');
   return [...kept.slice(0, at + 1), ...moved, ...kept.slice(at + 1)];
 }
 
@@ -308,10 +351,10 @@ function afterFullQuadros(outros: readonly TreeEquipmentNode[]): TreeEquipmentNo
  * aterramento sheets after every other sheet of the group (the run's other library and company
  * types), each keeping its tree order; a run with no Malha is unchanged.
  */
-function malhasLast(outros: readonly TreeEquipmentNode[]): TreeEquipmentNode[] {
-  const malhas = outros.filter((node) => node.blockType === 'malha_aterramento');
+function malhasLast(outros: readonly TreeEquipmentNode[], types: PrintTypes): TreeEquipmentNode[] {
+  const malhas = outros.filter((node) => typeIn(types, node) === 'malha_aterramento');
   if (malhas.length === 0) return [...outros];
-  return [...outros.filter((node) => node.blockType !== 'malha_aterramento'), ...malhas];
+  return [...outros.filter((node) => typeIn(types, node) !== 'malha_aterramento'), ...malhas];
 }
 
 /**
@@ -325,6 +368,7 @@ function byType(
   base: PrintSubsection,
   nodes: readonly TreeEquipmentNode[],
   blocks: ReadonlyMap<string, BlockRow>,
+  types: PrintTypes,
   cabineTransformers: ReadonlySet<string>,
   warnings: PrintGroupWarning[],
   painel: { title: string; coluna: string | null } | null = null,
@@ -338,12 +382,14 @@ function byType(
   for (const node of nodes) {
     // Story 14.5: a library type of the block's own seed version prints in "Outros equipamentos".
     // Story 14.6 (AD-15 note of 2026-11-06): so does every block of a company type.
+    // Fix batch e23z (W3-3): a company copy of one of the eight prints in its base's group; any other company type here.
     const row = blocks.get(node.blockId);
-    if (isCompanyBlockType(node.blockType) || (row !== undefined && isLibraryType(row.seed_version, node.blockType))) {
+    const type = typeIn(types, node);
+    if (isCompanyBlockType(type) || (isCompanyBlockType(node.blockType) && !isBaseEquipmentBlockType(type)) || (row !== undefined && isLibraryType(row.seed_version, type))) {
       outros.push(node);
       continue;
     }
-    switch (node.blockType) {
+    switch (type) {
       case 'disjuntor_mt':
         disjuntores.push(node);
         break;
@@ -369,9 +415,9 @@ function byType(
   const ids: Record<TypeGroup, string[]> = {
     seccionadoras: seccionadoras.map((node) => node.blockId),
     disjuntores: disjuntores.map((node) => node.blockId),
-    tps_tcs: tpTcPairs(tpsTcs),
+    tps_tcs: tpTcPairs(tpsTcs, types),
     transformadores: transformerPairs(transformers, cables, blocks, base.cabineId, cabineTransformers, warnings),
-    outros: malhasLast(afterFullQuadros(outros)).map((node) => node.blockId),
+    outros: malhasLast(afterFullQuadros(outros, types), types).map((node) => node.blockId),
   };
   const titleOf = (words: string): string => {
     if (painel === null) return `${words} ${ofCabine(base.title)}`;
@@ -388,16 +434,16 @@ function byType(
  * painel as with the flag off (Story 14.4), and it is what a local holding no sheet at all
  * emits on a relatório with a site list.
  */
-function byTypeRuns(root: RootRuns, blocks: ReadonlyMap<string, BlockRow>, warnings: PrintGroupWarning[]): PrintSubsection[] {
+function byTypeRuns(root: RootRuns, blocks: ReadonlyMap<string, BlockRow>, types: PrintTypes, warnings: PrintGroupWarning[]): PrintSubsection[] {
   const all = [...root.direct, ...root.paineis.flatMap((run) => run.nodes)];
-  const cabineTransformers = new Set(all.filter((node) => node.blockType === 'transformador_forca').map((node) => node.blockId));
+  const cabineTransformers = new Set(all.filter((node) => typeIn(types, node) === 'transformador_forca').map((node) => node.blockId));
   const { cabineId } = root.subsection;
   return [
-    ...(root.direct.length === 0 ? [root.subsection] : byType(root.subsection, root.direct, blocks, cabineTransformers, warnings)),
+    ...(root.direct.length === 0 ? [root.subsection] : byType(root.subsection, root.direct, blocks, types, cabineTransformers, warnings)),
     ...root.paineis.flatMap((run): PrintSubsection[] => [
       { cabineId, kind: 'painel', title: run.title, blockIds: [], painelId: run.id },
       ...run.colunas.flatMap((part) =>
-        byType(root.subsection, part.nodes, blocks, cabineTransformers, warnings, { title: run.title, coluna: part.coluna }).map((group) => ({ ...group, painelId: run.id })),
+        byType(root.subsection, part.nodes, blocks, types, cabineTransformers, warnings, { title: run.title, coluna: part.coluna }).map((group) => ({ ...group, painelId: run.id })),
       ),
     ]),
   ];
@@ -414,7 +460,10 @@ export function groupForPrint(snapshot: GroupSnapshot, scheme: PrintScheme = sna
   if (scheme === 'ordem_de_campo') return { scheme, subsections: base.flatMap(baseSubsections), warnings: [] };
   const flagged = new Set(snapshot.locations.filter((location) => location.kind === 'cabine' && location.agrupar_por_tipo).map((location) => location.id));
   const blocks = new Map(snapshot.blocks.map((block) => [block.id, block]));
+  // Fix batch e23z (W3-3): each company sheet's print type, from its definition in the snapshot's company types.
+  const ctx = snapshotDefinitionContext(snapshot);
+  const types = new Map(snapshot.blocks.filter((block) => isCompanyBlockType(block.block_type)).map((block) => [block.id, printBlockTypeOf(blockDefinitionIn(ctx, block), block.block_type)] as const));
   const warnings: PrintGroupWarning[] = [];
-  const subsections = base.flatMap((root) => (flagged.has(root.subsection.cabineId) ? byTypeRuns(root, blocks, warnings) : baseSubsections(root)));
+  const subsections = base.flatMap((root) => (flagged.has(root.subsection.cabineId) ? byTypeRuns(root, blocks, types, warnings) : baseSubsections(root)));
   return { scheme, subsections, warnings };
 }

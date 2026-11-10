@@ -118,3 +118,10 @@ Matheus decided M-1 (b): the base's procedure and recommendation texts never ent
 - **Texts.** Kept as the file has them; an empty, blank or dash-only value is left out; the criterion is composed "Aprovado: …", "Com restrições: …", "Reprovado: …", one per line; no NR-10 column. A text over 1000 characters is never cut: the heading is left out and the row listed as refused.
 - **Idempotent.** A copy whose seeded source and name the company already holds (not removed) is "já importado"; a discarded or renamed copy is planned again. Later edits are never overwritten.
 - **How to import.** Locally: sign in as the office user, Modelos, "Importar base de ensaios", choose `docs/context/Fasor_Base_Ensaios_MT_rev08.json` (gitignored). In production: the same action, by the company's office user, with the file Bruno sends. Tests use the synthetic `packages/domain/fixtures/test-base/base-ensaios-sintetica.json` (rev08's shape and IDs, invented text).
+
+## Fix batch e23z (2026-11-10, contract 40)
+
+- The IP rows (TR-OL-03, TR-SE-03) attach to the insulation test as its IP row (`TEST_BASE_INDEX_ROWS`), filling `index_recommendation` only.
+- A copy made by "Duplicar" or by the import carries `base_block_type` and prints in its base type's group.
+- A Reprovado chosen by hand starts with the in-force tests' recommendations (`reprovadoRecommendations` in `points/derived.ts`).
+- Narrowings and Bruno's open readings: `deferred-work.md` § "Epic 23 fix batch e23z".

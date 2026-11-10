@@ -188,7 +188,9 @@ describe('Story 23.12: the plan over a company with no copies', () => {
   });
 
   it('lists the unmapped rows and the rows whose test the seed lacks as unattached', () => {
-    for (const id of ['CM-02', 'CP-02', 'TR-OL-03', 'DJ-04']) expect(plan.unattached).toContain(id);
+    for (const id of ['CM-02', 'CP-02', 'DJ-04']) expect(plan.unattached).toContain(id);
+    // Fix batch e23z (W3-7): the IP rows attach to the insulation test that judges the index.
+    for (const id of ['TR-OL-03', 'TR-SE-03']) expect(plan.unattached).not.toContain(id);
     for (const [rowId, testKey] of Object.entries(TEST_BASE_ROW_TESTS)) {
       const row = rowOf(file, rowId);
       const blockTypes = row.equipamento === 'TODOS' ? Object.values(TEST_BASE_EQUIPMENT_TYPES).flat() : (TEST_BASE_EQUIPMENT_TYPES[row.equipamento] ?? []);
@@ -313,6 +315,19 @@ describe('Story 23.12: texts over the cap', () => {
     expect(test.recommendation).toBeUndefined();
     expect(test.help?.['procedure']).toBeDefined();
     expect(plan.refused).toContain('DJ-02');
+    expect(copy.publishable).toBe(true);
+  });
+
+  // Fix batch e23z (W3-7): the IP row's text over the cap is refused the same way; its recommendation stays out.
+  it('an IP row (TR-SE-03) whose recommendation is over the cap is refused, and the insulation test carries no index_recommendation', () => {
+    const raw = JSON.parse(FIXTURE_TEXT) as { ensaios: Record<string, unknown>[] };
+    raw.ensaios = raw.ensaios.map((row) => (row['id'] === 'TR-SE-03' ? { ...row, recomendacao_reprovado: 'i'.repeat(TEST_TEXT_MAX_LENGTH + 1) } : row));
+    const parsed = parseTestBaseText(JSON.stringify(raw));
+    if (!parsed.ok) throw new Error('the changed base does not parse');
+    const plan = planTestBaseImport(parsed.file, EMPTY_DEFINITION_CONTEXT);
+    const copy = plan.copies.find((one) => one.equipmentId === 'TR-SE')!;
+    expect(plan.refused).toContain('TR-SE-03');
+    expect((testOf(copy.duplicate.draft, 'isolacao') as { index_recommendation?: string }).index_recommendation).toBeUndefined();
     expect(copy.publishable).toBe(true);
   });
 

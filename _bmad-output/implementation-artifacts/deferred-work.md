@@ -3287,7 +3287,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: a company copy of the transformer that removes its DESLOCAMENTO ANGULAR (`ligacao_secundaria`) field keeps a TTR read by vector group (`ratio_factor: 'vector_group'`) with no field to pick the group from: VAL CALCULADO never computes and the step counts the group missing for good, the R2-2 class for a seeded-grammar key. `removeDraftEntry` does not prune `ratio_factor`.
   evidence: `packages/domain/src/types/draft-edit.ts` `removeDraftEntry`; `relatorio/reading-cells.ts` `ratioGroupOf` reads `VECTOR_GROUP_FIELD`; `relatorio/vector-group.ts` `vectorGroupFieldLabel` falls back to "LIGAÇÃO SECUNDÁRIA" when the field is gone.
   class: decision
-  state: open (owner: Matheus: refuse that removal, or drop the table's `ratio_factor` with it)
+  state: ~~open (owner: Matheus: refuse that removal, or drop the table's `ratio_factor` with it)~~ closed 2026-11-10 by fix batch e23z (item 4, Matheus: refuse): `removeDraftEntryRefusal` and the editor's toast; a draft that already lost the field is a new row under § "Epic 23 fix batch e23z"
 
 ## Deferred from: Epic 23 batch e23v (2026-11-09)
 
@@ -3402,7 +3402,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: on a thermography NA by its own value the band's button reads "Seguir a placa" once applied, though the condition reads the test's value, not the plate (the band is Story 23.9's). The paid eval of `bedrock-structuring-8` (the synthetic TC plate `plate-tc-funcao-v13.png`) is the coordinator's before the deploy.
   evidence: `apps/web/src/surfaces/ficha/applicability-band.tsx`; `apps/api/src/scripts/bedrock-eval.ts`.
   class: note
-  state: open (owner: the Epic 23 wave 3 integrated review)
+  state: ~~open (owner: the Epic 23 wave 3 integrated review)~~ the band's wording closed 2026-11-10 by fix batch e23z (W3-6); the paid eval of `bedrock-structuring-8` stays open (owner: the coordinator, before the deploy)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (review pass of 2026-11-09, rejected finding)
   summary: the v13 TC's EXATIDÃO offers 5P20 and 10P20 only (Story 23.18), so a plate read 5P10, 5P30 or 10P10 lands on 5P20 or 10P20: judged the same (± 1 %, ± 3 %), but the stored and printed accuracy limit factor differs from the plate. Question for Bruno: should the select offer the other factors?
   evidence: `packages/domain/src/relatorio/accuracy-class.ts` `accuracyClassOption`; `packages/domain/src/seed/v13.ts` (the TC's classes).
@@ -3431,3 +3431,44 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/types/test-base-import.ts` `alreadyHeld`, `planTestBaseImport`.
   class: decision
   state: open (owner: Matheus; harmless for the first production import, which runs after the single v13 deploy with e23e's tests)
+
+## Deferred from: Epic 23 fix batch e23z (2026-11-10)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (review, Edge Case Hunter)
+  summary: a company draft can publish while a ratio table reads by vector group with no plate field left to read. This happens when the draft lost `ligacao_secundaria` before e23z (pruned by `removeDraftEntry` since e23g, or by a draft put from an older build). The ratio never computes. The editor's refusal guards removals from now on only, and `validateTypeDraft` raises no issue.
+  evidence: `packages/domain/src/types/draft-edit.ts` `removeDraftEntryRefusal`; `packages/domain/src/types/validate.ts`.
+  class: decision
+  state: open (owner: Matheus: add a publish issue, or leave such drafts to the office)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (Design Notes, W3-3 narrowing)
+  summary: only a copy created from e23z on carries `base_block_type` and prints in its base type's group. A copy duplicated or imported earlier keeps printing in "Outros equipamentos" until it is duplicated again. Nothing backfills: published versions are immutable.
+  evidence: `packages/domain/src/types/duplicate.ts` `duplicateSeededDefinition`; `packages/domain/src/print/group-for-print.ts`.
+  class: decision
+  state: open (owner: Matheus; the first production base import runs on a build with e23z, so its copies carry the key)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (Design Notes, W3-7 narrowing)
+  summary: the base's IP rows (TR-OL-03, TR-SE-03) give the insulation test only its `index_recommendation`. Their "Como ensaiar" texts are not merged into the test's help, and the type editor neither shows nor edits `index_recommendation`. In rev08 the IP rows carry the same recommendation as the 1-minute rows.
+  evidence: `packages/domain/src/types/test-base-import.ts` `TEST_BASE_INDEX_ROWS`; `apps/web/src/surfaces/templates/type-editor-parts.tsx`.
+  class: decision
+  state: open (owner: Matheus, with Bruno)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (item 2 reading; I/O matrix)
+  summary: how this batch reads Bruno's item 6 (2026-11-09). A Reprovado chosen by hand starts with the recommendations of the sheet's restricted tests when any test is restricted, else of every in-force test that has one. Texts are taken once each, in definition order. Bruno decides whether he wants only one test's recommendation, or none when no test is restricted.
+  evidence: `packages/domain/src/points/derived.ts` `reprovadoRecommendations`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (W3-2, item 3 and item 4 narrowings)
+  summary: three narrowings.
+  - W3-2: a measured cell the deviation between phases cannot judge only withholds the floor. The sheet shows no "Conferir" helper on that cell; the medium-unknown note stays.
+  - Item 3: the clear has no "Desfazer", because only clearing is allowed. A cleared reading is typed again once its tap is back on the plate.
+  - Item 4: only removing the field is refused. Changing its kind or options is not.
+  evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (`unjudged`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`); `packages/domain/src/types/draft-edit.ts`.
+  class: note
+  state: open (owner: the Epic 23 retrospective)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (authored strings, listed for Bruno)
+  summary: the batch's authored pt-BR texts:
+  - "Apagar leitura" and "Leitura apagada";
+  - "Desfazer a aplicação", "Aplicação desfeita — não se aplica" and "Não conta como faltando e não sai no relatório.";
+  - "O campo {label} não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio.";
+  - the editor's "Grupo na impressão", which shows the base type's group words;
+  - how several recommendations are joined in a hand-chosen Reprovado's point.
+  evidence: every `authored (e23z, listed for Bruno)` in `apps/web/src/copy/pt-br.ts`, `packages/domain/src/types/draft-edit.ts`, `packages/domain/src/print/group-for-print.ts`, `packages/domain/src/points/derived.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)

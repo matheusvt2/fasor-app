@@ -37,6 +37,8 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'tc-polarity.spec.ts', lane: 'queue', why: 'Story 23.18: issues revisions through the shared queue and LibreOffice to read POLARIDADE, CONDIÇÕES and the note of the DOCX' },
   { file: 'thermography.spec.ts', lane: 'queue', why: 'Story 23.20: issues a revision through the shared queue and LibreOffice to read the thermography tables and the thermal photo line of the DOCX' },
   { file: 'ground-grid.spec.ts', lane: 'queue', why: 'Story 23.21: issues a revision through the shared queue and LibreOffice to read where the Malha de aterramento prints in the DOCX' },
+  // Fix batch e23z (W3-3): e23z-E2E-004 issues a revision to read where the imported copies print in section 9.
+  { file: 'test-base-import.spec.ts', lane: 'queue', why: 'Fix batch e23z (W3-3): issues a revision through the shared queue and LibreOffice to read the section 9 groups the imported copies print in' },
   {
     file: 'document-pages.spec.ts',
     lane: 'queue',

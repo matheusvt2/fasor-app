@@ -3415,6 +3415,8 @@ So that the office can add types without a code release and no relatório ever c
 
 *(2026-11-07, built as batch e22t with 14.7 and 14.8 in Epic 22 wave C, PR #274 merged as `1fdea0d7`; contract 33, minimum 33; seeds v1 to v12 and the Porto Seguro goldens unchanged. Fix batch e22h (PR #276, `7ba788cf`), from the wave C integrated review: the definition context is required in every kernel helper (B1); a block names its version row by `type_version_id`, and "Reenviar" renumbers a refused publish with the blocks that name it (S2); Duplicar keeps the criterion bands, the class field, the oil rule and the vector-group field (S1); stored versions are read with a tolerant reader (N3); the api test binds `published_by` to the actor (N5). Narrowings: `±` has no nominal value (a band is written with `between`); `pass_fail` judges nothing and is offered only on an unused row; a version naming a type the company does not hold is refused `op_target_missing`; moving a company block never renames its TAG; template blocks of a company type are checked structurally only; the renumber runs on "Reenviar", not by itself, and a refused older publish renumbered after a later one becomes the latest (low, known open); the Bedrock prompt names a company type by its raw key; panel capture offers seeded types only. Open for Bruno: the TAG pattern (PREFIX-CODE or the mock's "NB-01"), `±` with a nominal value, "≥" or ">=" in printed bands.)*
 
+*(2026-11-10, fix batch e23z, W3-3: ~~every block of a company type prints in "Outros equipamentos"~~ a company copy of one of the eight carries `base_block_type` from "Duplicar" or the base import, and prints where its base type prints in a cabine grouped by type (its group, the TP/TC pairs, the cables before their transformer), with its measurement tests unnumbered as the base. A copy of a library type stays in "Outros equipamentos", a Malha copy last. A new type, and a copy created before this change, print as before. The seeded types print unchanged.)*
+
 ### Story 14.7: The type editor
 
 *(2026-10-09: renumbered from 14.6.)*
@@ -3454,6 +3456,8 @@ So that the job's unusual equipment has a sheet before the visit.
 **Definition of Done, in addition:** a Playwright spec creates a type from a copy, publishes it, edits it into a second version and retires it, at 768 and 1280 px.
 
 *(2026-11-07, built in batch e22t, PR #274 merged as `1fdea0d7`. Fix batch e22h (PR #276, `7ba788cf`): typed text is written on blur, tab change and unmount (B2); the flow runs at 1280 and 768 (`@p0`) and 390 (`@p1`); no sideways scroll on the type list at 390 (S4) nor from the preview (N12). Narrowings: a banded criterion is read-only in Critérios, and a class-field criterion's row edits only the no-class fallback; the head and rows carry no save time, author or use count; no instrument picker or column editing for a measurement test; Pré-visualização is markup plus the tri-state control, not the live sheet; "Aposentar" also sits in the action bar; the format picker offers the three seeded formats plus "Tabela de medições"; `/templates/tipos/:id` maps to the existing `templates` telemetry screen. Open for Matheus: the editor's phone frame. Authored for Bruno: the `types` and `typeEditor` strings listed in PR #274.)*
+
+*(2026-11-10, fix batch e23z: "Grupo na impressão" names the base type's group for a copy of one of the eight. Removing the plate field `ligacao_secundaria` (DESLOCAMENTO ANGULAR) is refused while a ratio table of the type reads by vector group. The reason shows in a toast (authored: "O campo {label} não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio."). Matheus's decision on the e23g ledger row; only removal is refused, not a change of the field's kind or options.)*
 
 ### Story 14.8: Office types in templates, the field and the document: the no-break de comando end to end
 
@@ -6812,6 +6816,8 @@ So that the relatório shows the ratio across the changer, as the base asks.
 
 *(2026-11-09, built in batch e23b, PR #287 merged as `6be0a5ec`. Narrowings: a tap row is keyed by the tap's voltage in whole V, not its position; unmeasured, unmarked tap rows print "-"; a tap dropped from the plate keeps its row flagged "Fora da placa" and refuses every write (clearing such a reading is open to Bruno); Yd keeps √3/2 until Bruno's B-2.)*
 
+*(2026-11-10, fix batch e23z, Bruno 2026-11-09 item 7, "prefiro poder apagar": ~~a tap dropped from the plate keeps its row flagged "Fora da placa" and refuses every write~~ such a row offers "Apagar leitura", which writes a put of null on each filled cell in one batch; the fold accepts only that clear on the row (a null put or a remove), and the row leaves the table. The toast "Leitura apagada" carries no "Desfazer": only clearing, nothing new is written. Contract 40.)*
+
 ### Story 23.9: A test applies from the nameplate: automatic NA with its reason, and the technician's override (contract 35)
 
 **Dev model:** opus · **Effort:** max · v13 tests carry an applicability condition over nameplate fields, evaluated in the kernel; unmet, the test shows NA with its reason and counts nothing missing; one stored per-test override ("Aplicar este ensaio") reverts it; the base's Obrigatório and Opcional as the initial state; a new op field (contract 35)
@@ -6871,6 +6877,8 @@ So that I neither fill a test that does not apply nor lose one that does.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
 
 *(2026-11-09, built in batch e23b, PR #287 merged as `6be0a5ec`. Narrowings: one condition per test; NA hides cells on screen only; DESLIGADOR ÍNTEGRO is SIM/NÃO and the base's "sem desligador" maps to N/A, open to Bruno.)*
+
+*(2026-11-10, fix batch e23z, W3-6: on a test whose condition reads its own value (the thermography's "Equipamento em carga"), the applied band's button reads "Desfazer a aplicação" ~~"Seguir a placa"~~, its toast "Aplicação desfeita — não se aplica", and the NA band's sub-line drops "Pela placa.". A plate condition reads as before. Authored, for Bruno.)*
 
 ### Story 23.10: "Como ensaiar" on each test: on screen only, offline, editable in the type editor (contract 37)
 
@@ -6959,6 +6967,8 @@ So that I edit a fitting text instead of writing one from the generic sentence.
 - A Playwright spec from the editor to the DOCX.
 - `docs/kbs/log.md`.
 
+*(2026-11-10, fix batch e23z, Bruno 2026-11-09 item 6: ~~the `reprovado` entry's text unchanged~~ a Reprovado chosen by hand (the floor not Reprovado) starts with the recommendations of the sheet's in-force tests: those of the restricted tests when any test is restricted, else every in-force test's, distinct, in definition order, then the existing text. Reading open for Bruno. W3-7: an IP failure starts with the test's `index_recommendation` when it has one. Contract 40.)*
+
 ### Story 23.12: The base's help and recommendation texts in the seed
 
 **Dev model:** opus · **Effort:** medium · fills the `help` and `recommendation` keys of every v13 seeded test from Bruno's base rows, by the path Matheus chooses (M-1); a test per row that the text is present; no code path changes
@@ -6993,6 +7003,8 @@ The texts are Bruno's, and the wording is not edited by the build.
 - If (a): `seed.test.ts` pins.
 - If (b): the import is idempotent and tenant-scoped, with an api test.
 - `docs/kbs/project/test-base.md` and `docs/kbs/log.md`.
+
+*(2026-11-10, fix batch e23z, W3-7: the base's IP rows (TR-OL-03, TR-SE-03) attach to the insulation test as its IP row: the copy's test takes `index_recommendation`, and the preview no longer lists them "Sem ensaio no app". Narrowings: the IP row's help is not merged into "Como ensaiar", and the editor does not show `index_recommendation`. W3-3: the imported copies print in their base type's group, see Story 14.6.)*
 
 ### Story 23.13: Test-voltage defaults on every insulation row (decision D)
 
@@ -7119,6 +7131,8 @@ So that a loose connection or a damaged winding shows in the relatório.
 - The touched durability specs on the matrix projects.
 - Every spec asserting the sub-block list read from the kernel (E14-A3).
 - `docs/kbs/log.md`.
+
+*(2026-11-10, fix batch e23z, W3-1 and W3-2: a stored `restricao` point stays standing while a measurement test holds a restricted cell, even if another cell is out, or while a restriction rule (the history move, a restricted band) flags a cell now out. A measured cell the deviation between phases cannot judge leaves no floor: the medium unknown, a cell at zero, or a lone phase. The sheet then gets no Aprovado · Sem restrições (Story 14.9's rule). Contract 40.)*
 
 ### Story 23.16: The polarization index judged
 
@@ -7290,6 +7304,8 @@ So that a damaged fuse shows before it fails in service.
 - A Playwright spec through the DOCX.
 - `docs/kbs/log.md`.
 
+*(2026-11-10, fix batch e23z, W3-1, W3-2 and W3-4: as Story 23.15. A fuse at zero leaves no floor; a company copy of the seccionadora keeps "HH" in the conclusion clause.)*
+
 ### Story 23.20: Thermography on the eight types
 
 **Dev model:** opus · **Effort:** high · a new v13 test on each of the eight seeded types: ΔT between similar components and over ambient per point, judged by the base's TERMOGRAFIA_NETA_100_18 table (NETA MTS-2023 Table 100.18) into its classes; applied when the equipment is in load (Story 23.9 over a test value); thermal photos attach as display shots do
@@ -7337,6 +7353,8 @@ So that the relatório tells a possible deficiency from an urgent one.
 - The `SPEC.md` Non-goals line.
 - `docs/kbs/log.md`.
 
+*(2026-11-10, fix batch e23z, W3-1 and W3-6: a band restriction stands for a stored point while another cell is out; the applied band of a value condition, see Story 23.9.)*
+
 ### Story 23.21: A new type: Malha de aterramento
 
 **Dev model:** opus · **Effort:** high · a v13 library type `malha_aterramento` with its nameplate (design value, measurement method, soil condition), the grid resistance (rev08 AT-01: at most the design value, else the base's default) and the continuity and equipotentialization test (rev08 AT-02), photos and conclusion; added at a local, printed under "Outros equipamentos"; a new closed-enum type (contract 39)
@@ -7382,6 +7400,8 @@ So that its resistance and its continuity are in the relatório with a verdict.
 - The `SPEC.md` Non-goals line.
 - The `source-deltas.md` row.
 - `docs/kbs/log.md`.
+
+*(2026-11-10, fix batch e23z, W3-3: a company copy of the Malha prints last in "Outros equipamentos", as the Malha does.)*
 
 ## Backlog: deferred stories
 

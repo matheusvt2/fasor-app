@@ -2,7 +2,8 @@ import { photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
 import { conclusionFloor, effectiveConclusionPair, restrictedItems } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
-import { restrictedMeasurements, worstMeasurements } from '../relatorio/measurement-evaluation.ts';
+import { restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
+import type { TestEvaluation } from '../relatorio/reading-cells.ts';
 import { worstReadings } from '../relatorio/readings.ts';
 import { failedPrerequisites } from '../relatorio/restriction.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
@@ -15,7 +16,7 @@ import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { recommendedPointText, testRecommendationOf } from '../seed/test-help.ts';
+import { recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
 
 /*
  * Story 6.6 (FR-31, E3-A9 bullet 4): every equipment sheet marked Não ensaiado lists
@@ -34,7 +35,9 @@ import { recommendedPointText, testRecommendationOf } from '../seed/test-help.ts
  * - `reprovado`: a sheet whose effective result is Reprovado (Story 22.4) for a reason the two
  *   above and the Não ensaiado entry do not cover (the engineer chose Reprovado).
  * Story 23.11 (batch e23h): a `reading` entry starts with its test's recommendation, when the
- * definition gives one (`recommendedPointText`); the `reprovado` and `nc` texts never do.
+ * definition gives one (`recommendedPointText`); the `reprovado` and `nc` texts never do. Fix batch e23z (item 2,
+ * Bruno 2026-11-09): a `reprovado` entry does too, with its in-force tests' recommendations (`reprovadoRecommendations`);
+ * (W3-7) a failed polarization index starts with its test's `index_recommendation`.
  * A live point written from the same source replaces the entry (`origin` `nc` with its
  * `item_key`, `reading` with its `test_key`, `reprovado`), keyed by the equipment (or the
  * local, for a site NC); removing that point brings the entry back. A sheet with no equipment
@@ -173,6 +176,13 @@ function sheetEntries(
     const value = reading === undefined ? null : reading.testKey === 'relacao_transformacao' ? `desvio de ${reading.valueText}` : reading.valueText;
     // Fix batch e23w (B-6): a pole out by its rise since the previous visit names the rise.
     const outText = reading === undefined ? null : `${value} em ${reading.where} (${reading.rise ?? `critério: ${reading.criterionText}`})`;
+    // Fix batch e23z (W3-7): the test's recommendation for a failed reading, prerequisite or choice; for a failed IP its
+    // `index_recommendation` (the base's IP row), else the same recommendation; each once.
+    const recommendation = testRecommendationOf({ tests: definition.tests }, testKey);
+    const recommendations = [
+      reading !== undefined || prerequisite !== null || choice.length > 0 ? recommendation : null,
+      index.length > 0 ? (testIndexRecommendationOf({ tests: definition.tests }, testKey) ?? recommendation) : null,
+    ];
     out.push({
       ...base,
       ...common,
@@ -182,10 +192,7 @@ function sheetEntries(
       // authored (Story 23.6, listed for Bruno): a failed prerequisite before the out reading, "; " between them.
       // authored (Story 23.11, open for Bruno): the test's recommendation first, when it has one (`recommendedPointText`);
       // a `reading` entry is a failed test (an out reading, a failed prerequisite, or both), never a `restricao` one.
-      text: recommendedPointText(
-        testRecommendationOf({ tests: definition.tests }, testKey),
-        `${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`,
-      ),
+      text: recommendedPointText(recommendations, `${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`),
     });
   }
   // Batch e23t (Story 23.15): the measurement tests judged under the same visit context.
@@ -210,6 +217,9 @@ function sheetEntries(
     for (const test of evaluations) {
       if (test.restrictionStands === true || restrictedItems(test).length > 0) standing.add(`restricao:${block.equipment_id}:${test.testKey}`);
     }
+    // Fix batch e23z (W3-1): the same for the measurement tests, a restricted cell standing beside an out one too.
+    for (const test of restrictedMeasurements(measurements)) standing.add(`restricao:${block.equipment_id}:${test.testKey}`);
+    for (const test of liveMeasurements(measurements)) if (test.restrictionStands === true) standing.add(`restricao:${block.equipment_id}:${test.testKey}`);
   }
   // Batch e23v (Story 23.6, seed v13): one entry per test with a restricted reading and no `reading` entry.
   for (const test of evaluations) {
@@ -248,10 +258,33 @@ function sheetEntries(
       kind: 'reprovado',
       key: `reprovado:${block.id}`,
       // authored (Story 22.5, open for Bruno): a Reprovado entry with no sheet observation.
-      text: observation === '' ? 'Concluído como Reprovado na ficha' : observation,
+      // Fix batch e23z (item 2, Bruno 2026-11-09; authored (e23z, listed for Bruno)): the in-force tests' recommendations
+      // first (`reprovadoRecommendations`), as a `reading` entry starts with its test's.
+      text: recommendedPointText(reprovadoRecommendations(definition, evaluations, measurements), observation === '' ? 'Concluído como Reprovado na ficha' : observation),
     });
   }
   return out;
+}
+
+/** Fix batch e23z: the measurement tests that count (switched on, run, not NA by the plate), as `liveTests` reads them. */
+function liveMeasurements(measurements: readonly MeasurementTestEvaluation[]): MeasurementTestEvaluation[] {
+  return measurements.filter((test) => test.enabled && !test.skipped && test.applicability.state !== 'na');
+}
+
+/**
+ * Fix batch e23z (item 2, Bruno's answer of 2026-11-09 to Story 23.11): what a Reprovado chosen by hand starts with.
+ * The restricted tests' recommendations when any in-force test is restricted (the sheet's identifiable reason), else
+ * every in-force test's, in definition order (the seeded grammars, then the measurement tests); `recommendedPointText`
+ * keeps each once. None on a sheet whose tests carry none (every seeded type), so its text is byte-equal to before.
+ */
+function reprovadoRecommendations(definition: BlockDefinition, evaluations: readonly TestEvaluation[], measurements: readonly MeasurementTestEvaluation[]): (string | null)[] {
+  const live = liveMeasurements(measurements);
+  const restrictedTables = new Set(restrictedMeasurements(measurements).map((test) => test.testKey as string));
+  const restricted = new Set([...evaluations.filter((test) => restrictedItems(test).length > 0).map((test) => test.testKey as string), ...restrictedTables]);
+  const inForce = [...evaluations.map((test) => test.testKey as string), ...live.map((test) => test.testKey as string)];
+  const picked = restricted.size > 0 ? inForce.filter((key) => restricted.has(key)) : inForce;
+  const order = [...definition.tests.map((test) => test.key as string), ...(definition.measurement_tests ?? []).map((test) => test.key as string)];
+  return order.filter((key) => picked.includes(key)).map((key) => testRecommendationOf({ tests: definition.tests, measurement_tests: definition.measurement_tests }, key));
 }
 
 /** Every entry before suppression, in tree order. Fix batch e23w (W2-3): `standing` collects the restricted tests' sources that stand. */

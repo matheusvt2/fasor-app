@@ -103,6 +103,11 @@ export function isEquipmentBlockType(value: string): value is EquipmentBlockType
   return (EQUIPMENT_BLOCK_TYPES as readonly string[]).includes(value);
 }
 
+/** Fix batch e23z (W3-3): one of the eight FO.SERV-03 equipment types (`BASE_EQUIPMENT_BLOCK_TYPES`). */
+export function isBaseEquipmentBlockType(value: string): value is BaseEquipmentBlockType {
+  return (BASE_EQUIPMENT_BLOCK_TYPES as readonly string[]).includes(value);
+}
+
 /** Story 14.6: the type of an equipment sheet, a seeded equipment type or a company type. */
 export function isEquipmentKind(value: string): value is BlockTypeKey {
   return isEquipmentBlockType(value) || isCompanyBlockType(value);

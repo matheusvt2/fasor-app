@@ -13,6 +13,7 @@ import {
   readingRowLabel,
   snapshotDefinitionContext,
   screenLabel,
+  storedRowFilledCols,
   sheetRunEnterKeyHint,
   sheetRunTarget,
   tableDictationLabel,
@@ -45,7 +46,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
-import { SegmentedControl } from '../../components/index.ts';
+import { SegmentedControl, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
@@ -59,6 +60,7 @@ import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellE
 import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
+import { useToast } from '../../state/toast.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import { TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -624,6 +626,7 @@ function MeasurementTable({
                       <span className="tap-cell">
                         <span>{text === '' ? '—' : text}</span>
                         {markOf(row) === null ? null : <span className="tap-mark">{markOf(row)}</span>}
+                        {readOnly ? null : <ClearTapRowButton api={api} testKey={test.testKey} row={row} />}
                       </span>
                     </td>
                   ) : (
@@ -703,7 +706,7 @@ function MeasurementTable({
           <div className="measurement-cards">
             {table.rows.map((row) =>
               row.tap !== null ? (
-                <TapCard key={row.row} row={row} table={table} optional={optional(row)} mark={markOf(row)} field={field} derivedText={derivedText} />
+                <TapCard key={row.row} row={row} table={table} optional={optional(row)} mark={markOf(row)} field={field} derivedText={derivedText} clear={readOnly ? null : <ClearTapRowButton api={api} testKey={test.testKey} row={row} />} />
               ) : (
               <div key={row.row} className="measurement-card">
                 <p className="card-point">{screenLabel(row.label)}</p>
@@ -772,6 +775,40 @@ function MeasurementTable({
  * with its mark, the plate's values in one line ("V primário 12,6 kV · V secundário 380 V ·
  * Calculado 57,43"), the three captures in a row (`.card-fields`), then the Condição.
  */
+/**
+ * Fix batch e23z (item 3, Bruno 2026-11-09): "Apagar leitura" on a TTR row whose tap left TAPS ("Fora da placa"). It
+ * writes a put of null on each filled cell of the row (`storedRowFilledCols`) in one batch; the fold takes only such a
+ * clear on that row, and the row leaves the table once it holds nothing. Bruno: only clearing, nothing new written, so
+ * the toast carries no "Desfazer" (its inverse would write the readings back, which the fold refuses). None on a row
+ * of the plate.
+ */
+function ClearTapRowButton({ api, testKey, row }: { api: FichaApi; testKey: string; row: EvaluatedRow }) {
+  if (row.tap === null || row.tap.onPlate) return null;
+  return <OffPlateClearButton api={api} testKey={testKey} row={row} />;
+}
+
+function OffPlateClearButton({ api, testKey, row }: { api: FichaApi; testKey: string; row: EvaluatedRow }) {
+  const t = copy.ficha.ensaios;
+  const { showToast } = useToast();
+  const clear = () => {
+    void api
+      .edit((blocks, by) => {
+        const block = blocks.find((candidate) => candidate.id === api.blockId);
+        const cols = block === undefined ? [] : storedRowFilledCols(block, testKey, row.row);
+        return cols.length === 0 ? null : cols.map((col) => testCellOp(by, api.relatorioId, api.blockId, testKey, row.row, col, null));
+      })
+      .then((batch) => {
+        if (batch !== null) showToast(t.clearedTapRowToast);
+      })
+      .catch(() => undefined);
+  };
+  return (
+    <TextButton onPress={clear} data-clear-tap-row={row.row}>
+      {t.clearTapRow}
+    </TextButton>
+  );
+}
+
 function TapCard({
   row,
   table,
@@ -779,6 +816,7 @@ function TapCard({
   mark,
   field,
   derivedText,
+  clear,
 }: {
   row: EvaluatedRow;
   table: EvaluatedTable;
@@ -786,6 +824,8 @@ function TapCard({
   mark: string | null;
   field: (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') => ReactNode;
   derivedText: (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => string;
+  /** Fix batch e23z (item 3): "Apagar leitura" of a row off the plate; null on a read-only sheet. */
+  clear: ReactNode;
 }) {
   const t = copy.ficha.ensaios;
   const calculated = table.columns.find((column) => column.derivedKind === 'calculated');
@@ -799,6 +839,7 @@ function TapCard({
       <p className="card-point">
         {screenLabel(row.label)}
         {mark === null ? null : <span className="tap-mark">{mark}</span>}
+        {clear}
       </p>
       <p className="card-dims">{dims.join(t.tapCardSeparator)}</p>
       <div className="card-fields">

@@ -18,7 +18,9 @@ import {
   ncPhrasesFull,
   parseDecimalPtBr,
   plateCriterionOf,
+  printGroupWordsOf,
   removeDraftEntry,
+  removeDraftEntryRefusal,
   removeDraftMeasurementRow,
   SEED_VERSION,
   setDraftNoun,
@@ -45,6 +47,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button, Chip, FormDialog, OverflowMenu, SegmentedControl, TextButton, Toggle, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { useToast } from '../../state/toast.tsx';
 
 /*
  * Story 14.7: the tab panels of the type editor (`43-tipo-equipamento.html`). Each control hands
@@ -293,8 +296,18 @@ function ChipList({ words, onChange, full = false, addLabel, addWord, removeLabe
   );
 }
 
-/** Subir · Descer · Remover of one entry of a list. */
-function rowMenu(edit: DraftEdit, part: DraftListPart, index: number, count: number, onRemoved: () => void): { items: OverflowMenuAction[]; destructiveItems: OverflowMenuAction[] } {
+/**
+ * Subir · Descer · Remover of one entry of a list. Fix batch e23z (item 4): `refuse`, when given, shows the kernel's
+ * reason a removal is refused (`removeDraftEntryRefusal`, read on `draft`) and nothing is written.
+ */
+function rowMenu(
+  edit: DraftEdit,
+  part: DraftListPart,
+  index: number,
+  count: number,
+  onRemoved: () => void,
+  refuse?: { draft: CompanyTypeDraft | null; show: (text: string) => void },
+): { items: OverflowMenuAction[]; destructiveItems: OverflowMenuAction[] } {
   const items: OverflowMenuAction[] = [];
   if (index > 0) items.push({ id: 'up', label: t.moveUp, onAction: () => edit((d) => moveDraftEntry(d, part, index, index - 1)) });
   if (index < count - 1) items.push({ id: 'down', label: t.moveDown, onAction: () => edit((d) => moveDraftEntry(d, part, index, index + 1)) });
@@ -305,6 +318,11 @@ function rowMenu(edit: DraftEdit, part: DraftListPart, index: number, count: num
         id: 'remove',
         label: t.remove,
         onAction: () => {
+          const reason = refuse === undefined ? null : removeDraftEntryRefusal(refuse.draft, part, index);
+          if (reason !== null) {
+            refuse!.show(reason);
+            return;
+          }
           onRemoved();
           edit((d) => removeDraftEntry(d, part, index));
         },
@@ -328,7 +346,8 @@ export function IdentityPanel({ draft, issues, edit, nextVersion }: PanelProps &
         <TextField label={t.prefixLabel} value={text(draft?.tag_prefix)} helper={suggestedTagHelperText(draft?.tag_prefix)} issues={issuesAt(issues, ['tag_prefix'])} onCommit={(value) => edit((d) => setDraftText(d, 'tag_prefix', value))} />
         <div className="field">
           <span className="field-label">{t.printGroupLabel}</span>
-          <div className="input is-readonly">{t.printGroupValue}</div>
+          {/* Fix batch e23z (W3-3): a copy of one of the eight prints in its base's group (the kernel's words). */}
+          <div className="input is-readonly">{printGroupWordsOf(typeof draft?.base_block_type === 'string' ? draft.base_block_type : null) ?? t.printGroupValue}</div>
         </div>
         <TextField className="field span-2" label={t.printTitleLabel} value={text(draft?.print_title)} helper={t.printTitleHelper} issues={issuesAt(issues, ['print_title'])} onCommit={(value) => edit((d) => setDraftText(d, 'print_title', value))} />
         <TextField label={t.singularLabel} value={text(noun.singular)} issues={issuesAt(issues, ['noun', 'singular'])} onCommit={(value) => edit((d) => setDraftNoun(d, { singular: value }))} />
@@ -410,6 +429,7 @@ function RowList({ label, rows, open, setOpen }: { label: string; rows: readonly
 export function NameplatePanel({ draft, issues, edit }: PanelProps) {
   const fields = listOf(draft, 'nameplate');
   const [open, setOpen] = useState<string | null>(null);
+  const { showToast } = useToast();
   const rows: ListRow[] = fields.map((field, index) => {
     const name = text(field.label).trim() === '' ? `${t.fieldLabel} ${index + 1}` : text(field.label);
     const kind = field.kind as DraftFieldKind | undefined;
@@ -419,7 +439,7 @@ export function NameplatePanel({ draft, issues, edit }: PanelProps) {
       name,
       secondary: fieldSummaryText(field),
       issues: issuesAt(issues, ['nameplate', index]),
-      menu: rowMenu(edit, 'nameplate', index, fields.length, () => setOpen(null)),
+      menu: rowMenu(edit, 'nameplate', index, fields.length, () => setOpen(null), { draft, show: (reason) => showToast(reason) }),
       editLabel: t.editFieldLabel(name),
       editor: (
         <div className="field-grid">

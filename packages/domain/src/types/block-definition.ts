@@ -88,6 +88,8 @@ export function asBlockDefinition(row: VersionRowLike): BlockDefinition {
     criteria,
     tag_prefix: definition.tag_prefix,
     noun: definition.noun,
+    // Fix batch e23z (W3-3): a copy's seeded base, what it prints as (`printBlockTypeOf`).
+    ...(definition.base_block_type === undefined ? {} : { base_block_type: definition.base_block_type }),
     type_id: row.type_id,
     type_version: row.version,
     type_version_id: row.id,

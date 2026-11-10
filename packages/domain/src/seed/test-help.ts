@@ -47,6 +47,8 @@ interface TestTextsLike {
   key: string;
   help?: unknown;
   recommendation?: unknown;
+  /** Fix batch e23z (W3-7): the recommendation of a failed polarization index (a seeded-grammar test only). */
+  index_recommendation?: unknown;
 }
 interface DefinitionTextsLike {
   tests: readonly TestTextsLike[];
@@ -101,6 +103,15 @@ export function testRecommendationOf(definition: DefinitionTextsLike, testKey: s
 }
 
 /**
+ * Fix batch e23z (W3-7): the recommendation of a test's failed polarization index (`index_recommendation`, the base's
+ * IP row filled by the import), as written; null when the test has none (or a blank one).
+ */
+export function testIndexRecommendationOf(definition: DefinitionTextsLike, testKey: string): string | null {
+  const recommendation = testOf(definition, testKey)?.index_recommendation;
+  return filled(recommendation) ? recommendation : null;
+}
+
+/**
  * A text already terminated: its last character before any closing quotes, parentheses or
  * brackets is ".", "!", "?", "…", ":" or ";" ("Trocar (urgente.)", "Ver manual:").
  */
@@ -110,10 +121,18 @@ const TERMINATED = /[.!?…:;]['"”’)\]]*$/;
  * Story 23.11: a `reading` derived point's text with its test's recommendation first: the
  * recommendation (a period appended unless it is already terminated, `TERMINATED`), a space, then
  * the composed reference of the reading; the composed text alone, byte-equal, with no recommendation.
+ * Fix batch e23z (W3-7, Bruno's answer 6): a list of recommendations, each blank one dropped, each
+ * once (compared trimmed) in the order given, each terminated, joined by a space before the
+ * composed text; a single text reads exactly as before.
  */
-export function recommendedPointText(recommendation: string | null, composed: string): string {
-  const head = recommendation?.trim() ?? '';
-  if (head === '') return composed;
+export function recommendedPointText(recommendations: string | null | readonly (string | null)[], composed: string): string {
+  const list = typeof recommendations === 'string' || recommendations === null ? [recommendations] : recommendations;
+  const heads: string[] = [];
+  for (const one of list) {
+    const head = one?.trim() ?? '';
+    if (head !== '' && !heads.includes(head)) heads.push(head);
+  }
+  if (heads.length === 0) return composed;
   // authored (Story 23.11, open for Bruno): the join of the recommendation and the reading's reference.
-  return `${TERMINATED.test(head) ? head : `${head}.`} ${composed}`;
+  return [...heads.map((head) => (TERMINATED.test(head) ? head : `${head}.`)), composed].join(' ');
 }

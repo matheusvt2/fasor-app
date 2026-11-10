@@ -3,7 +3,7 @@ import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, typeV
 import type { MeasurementTest } from '../seed/measurement.ts';
 import type { BlockDefinition, TableDef, TestDef } from '../seed/schema.ts';
 import { isApplicabilityValue } from '../relatorio/applicability.ts';
-import { tapRowAccepted } from '../relatorio/tap-rows.ts';
+import { tapRowAccepted, tapRowClearable } from '../relatorio/tap-rows.ts';
 import { isChoiceCellValue, manufacturerRefusal } from '../relatorio/reading-evaluation.ts';
 import {
   blockRowSchema,
@@ -573,7 +573,8 @@ function assertApplicability(block: BlockRow, condition: unknown, op: Op, path: 
  * Story 23.8 (seed v13, contract 35): a test whose single table names `rows_from` (the
  * transformer's TTR from TAPS) takes a row only when it is a tap, in whole V, of the block's
  * current list, or, the list empty, one of the seeded rows (`tapRowAccepted`): a row the plate
- * no longer lists keeps its readings but is never written again.
+ * no longer lists keeps its readings but is never written again. Fix batch e23z (item 3): it takes only a
+ * clear (a `remove`, or a put of null) while it holds a filled cell (`tapRowClearable`), "Apagar leitura".
  */
 function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }, op: Op): void {
   const { row, col } = path;
@@ -589,7 +590,11 @@ function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: 
   };
   const [single] = test.tables;
   if (test.tables.length === 1 && single !== undefined && single.rows_from !== undefined) {
-    if (!tapRowAccepted(block, definition, single, row)) throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is not a tap of the plate's ${single.rows_from} on ${block.block_type}/${test.key}`);
+    // Fix batch e23z (item 3): a row off the plate holding a reading takes a clear (a remove, a put of null), never a value.
+    const clears = op.kind === 'remove' || (op.kind === 'put' && (op.value ?? null) === null);
+    if (!tapRowAccepted(block, definition, single, row) && !(clears && tapRowClearable(block, definition, single, test.key, row))) {
+      throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is not a tap of the plate's ${single.rows_from} on ${block.block_type}/${test.key}`);
+    }
     columnOf(single);
     return;
   }

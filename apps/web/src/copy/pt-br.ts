@@ -1612,6 +1612,11 @@ export const copy = {
       // Batch e23v (Story 23.6; `60-ficha.html` #/ficha/TR1 `.mf-helper[data-tone="restricted"]`, verbatim): the bold lead
       // of a restricted reading's helper; the reason after it is the kernel's (`EvaluatedCell.restriction.text`).
       restrictedLead: 'Com restrição:',
+      // Fix batch e23z (item 3, Bruno 2026-11-09): a tap row the plate no longer lists ("Fora da placa") can be cleared;
+      // the button and its toast (no "Desfazer": only clearing). authored (e23z, listed for Bruno).
+      clearTapRow: 'Apagar leitura',
+      // authored (e23z, listed for Bruno).
+      clearedTapRowToast: 'Leitura apagada',
     },
     // Story 23.9 (`60-ficha.html` #/ficha/SEC-C05, DESIGN.md › Not-applicable test): a test the nameplate
     // makes not applicable; the reason and the applied sentence are the kernel's (`testApplicability`).
@@ -1625,6 +1630,14 @@ export const copy = {
       // The mock's toasts of the two buttons (`data-toast`).
       appliedToast: 'Ensaio aplicado — os campos abrem e ele sai no relatório',
       followedToast: 'Voltou a seguir a placa — não se aplica',
+      // Fix batch e23z (W3-6): a test whose condition reads its own value (the thermography's "Equipamento em carga"),
+      // where no plate decides: the NA band's sub-line, the applied band's button and its toast.
+      // authored (e23z, listed for Bruno).
+      bandSubValue: 'Não conta como faltando e não sai no relatório.',
+      // authored (e23z, listed for Bruno).
+      undoApply: 'Desfazer a aplicação',
+      // authored (e23z, listed for Bruno).
+      undoneToast: 'Aplicação desfeita — não se aplica',
     },
     // Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the header pill of a library type's sheet, verbatim.
     libraryPill: 'Tipo da biblioteca',

@@ -5,6 +5,7 @@ import {
   companyBlockType,
   definitionContext,
   EMPTY_DEFINITION_CONTEXT,
+  groupForPrint,
   initialOrderKey,
   newEquipmentBlock,
   parseTestBaseText,
@@ -25,7 +26,12 @@ import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './su
 import { readStore } from './support/outbox.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { syncNow } from './support/sync.ts';
+import { syncNow, syncNowAndReturn } from './support/sync.ts';
+import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { escapeDialog } from './support/dialogs.ts';
+import { downloadBytes, downloadFrom } from './support/download.ts';
+import { deviceSnapshot } from './support/e23t-flow.ts';
+import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 
 /*
  * Story 23.12 (batch e23x, M-1 (b)): the base's help and recommendation texts through a private
@@ -37,6 +43,8 @@ import { syncNow } from './support/sync.ts';
  * (office ops, born at v1): its insulation "Como ensaiar" lists DJ-02's headings, a reading below
  * the criterion is typed, and the Pontos entry starts with DJ-02's recommendation. Nothing is
  * generated, so the file stays in the parallel group. Empresa B is this worker's own (E6-Q7).
+ * ~~Nothing is generated, so the file stays in the parallel group.~~ (2026-11-09, fix batch e23z: e23z-E2E-004
+ * issues a revision, so the file runs in the serial group.)
  */
 
 let account: SeedAccount;
@@ -206,4 +214,99 @@ test('@p0 23.12-E2E-001 the base imported on Tipos makes the company copies with
   const text = entry.locator('.not-tested-band > .not-tested-chip + span');
   await expect(text).toContainText(STARTS);
   expect((await text.textContent())!.startsWith(STARTS), (await text.textContent())!).toBe(true);
+});
+
+/*
+ * Fix batch e23z (W3-3): the imported copies of the eight print as their base. After the import, a relatório cut down
+ * to one cabine grouped by type holds a sheet of the imported TR-SE transformer, TC and TP copies (office ops, born
+ * at v1). The issued DOCX's section 9 prints them under "TP's e TC's" (the TP before its TC) and "Transformadores e
+ * Cabos de Alimentação", never under "Outros equipamentos", the groups and titles the kernel's over the device's rows;
+ * no measurement table carries an "E1 ·" number.
+ */
+test('@p0 e23z-E2E-004 W3-3 imported copies of the transformer, the TC and the TP print in their base groups of section 9, not under "Outros equipamentos"', async ({ page }) => {
+  test.setTimeout(360_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await openTypeList(page);
+  await chooseBase(page);
+  await importDialog(page).getByRole('button', { name: 'Importar' }).click();
+  await expect(toast(page)).toHaveText(testBaseImportedText(PLAN.copies.length));
+  await expect.poll(async () => (await importedRows(page)).versions.length).toBe(PLAN.copies.length);
+  const rows = await importedRows(page);
+  await syncNow(page);
+  const versionOf = (equipmentId: string) => rows.versions.find((row) => row.definition.label === PLAN.copies.find((copy) => copy.equipmentId === equipmentId)!.label)!;
+  const picked = (['TP', 'TC', 'TR-SE'] as const).map(versionOf);
+  for (const version of picked) expect(version.definition.base_block_type).toBeDefined();
+  const definitions = definitionContext(picked, rows.types.filter((type) => picked.some((version) => version.type_id === type.id)));
+
+  // One cabine, grouped by type, with only the three copies.
+  const built = newRelatorioDrafts(account);
+  const created = (prefix: string) => built.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);
+  const cabine = created('location/').find((row) => row.kind === 'cabine')!;
+  const drafts = built.drafts.filter((draft) => {
+    if (draft.kind !== 'create') return true;
+    const value = draft.value as Record<string, unknown>;
+    if (draft.path.startsWith('location/')) return value.id === cabine.id;
+    if (draft.path.startsWith('block/')) return value.location_id === null;
+    if (draft.path.startsWith('equipment/')) return false;
+    return true;
+  });
+  const sheets = picked.map((version, i) =>
+    newEquipmentBlock({
+      blockId: newId(),
+      equipmentId: newId(),
+      relatorioId: built.relatorioId,
+      projectId: built.projectId,
+      locationId: cabine.id as string,
+      type: companyBlockType(version.type_id),
+      tag: `COPIA-${i + 1}`,
+      seedVersion: SEED_VERSION,
+      orderKey: initialOrderKey(900 + i),
+      typeVersion: { version: 1, id: version.id },
+      definitions,
+    }),
+  );
+  await pushDrafts(page, database, [
+    ...drafts,
+    emCampoDraft(account, built.relatorioId),
+    officeDraft(account, { relatorioId: built.relatorioId }, `location/${cabine.id as string}/agrupar_por_tipo`, true),
+    ...sheets.flatMap((pair) => [
+      officeDraft(account, { projectId: built.projectId }, `equipment/${pair.equipment.id}`, pair.equipment, 'create'),
+      officeDraft(account, { relatorioId: built.relatorioId }, `block/${pair.block.id}`, pair.block, 'create'),
+    ]),
+  ]);
+  const relatorioId = built.relatorioId;
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+
+  // The kernel's groups over the device's rows: the TP and TC copies paired, the transformer copy with the transformers.
+  const grouping = groupForPrint(await deviceSnapshot(page, database, relatorioId));
+  expect(grouping.subsections.map((one) => ({ kind: one.kind, blockIds: one.blockIds }))).toEqual([
+    { kind: 'tps_tcs', blockIds: [sheets[0]!.block.id, sheets[1]!.block.id] },
+    { kind: 'transformadores', blockIds: [sheets[2]!.block.id] },
+  ]);
+
+  // The DOCX: section 9's level-2 headings are those groups, in order, and no "Outros equipamentos".
+  await syncNowAndReturn(page);
+  await setParecer(page, relatorioId);
+  const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  await expect(modal).toBeVisible();
+  const generate = modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
+  await expect(generate).toBeEnabled({ timeout: 30_000 });
+  await generate.click();
+  await confirmIssue(modal);
+  await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: 150_000 });
+  const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
+  const structure = extractStructure(await downloadBytes(download));
+  await escapeDialog(page, modal);
+  const level1 = structure.headings.filter((heading) => heading.level === 1).map((heading) => heading.text);
+  const tests = level1.find((heading) => /^\d+ RELATÓRIOS DOS ENSAIOS$/.test(heading));
+  expect(tests, JSON.stringify(level1)).toBeDefined();
+  const number = tests!.split(' ')[0]!;
+  const level2 = structure.headings.filter((heading) => heading.level === 2 && heading.text.startsWith(`${number}.`)).map((heading) => heading.text);
+  expect(level2).toEqual(grouping.subsections.map((one, i) => `${number}.${i + 1} ${one.title}`));
+  expect(level2.some((heading) => heading.includes('Outros equipamentos'))).toBe(false);
+  expect(structure.tables.some((table) => /^E\d+ · /.test(table[0]?.[0] ?? ''))).toBe(false);
 });

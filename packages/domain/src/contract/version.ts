@@ -454,7 +454,19 @@
  * The seed and company schemas gain optional keys only, so v1 to v12 parse to the bytes they shipped
  * with and a row written before 39 parses to the same bytes. MIN follows to 39 (below).
  */
-export const CONTRACT_VERSION = 39;
+/*
+ * 40 (2026-11-10, fix batch e23z, the final Epic 23 fixes): no new op, path or schema family. The
+ * fold takes a put of null (or a remove) on a TTR row whose tap left TAPS while it still holds a
+ * reading ("Apagar leitura", `tapRowClearable`); a non-null put there stays refused. The kernel
+ * derives differently on seed v13: a measured cell a deviation-between-phases test cannot judge
+ * withholds Aprovado · Sem restrições (`unjudged`), a restricted measurement point stands while a rule
+ * still flags a cell (`restrictionStands`), a Reprovado chosen by hand starts with the in-force tests'
+ * recommendations, and a failed IP starts with its test's `index_recommendation`. A company type's
+ * definition gains the optional `base_block_type` (Duplicar of a seeded type; print group and test
+ * numbering as its base) and a seeded-grammar test the optional `index_recommendation`, so a row
+ * written before 40 parses to the same bytes. MIN follows to 40 (below).
+ */
+export const CONTRACT_VERSION = 40;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -715,7 +727,15 @@ export const CONTRACT_VERSION = 39;
  * instrument's voltage where the server prints decision D's default, and judge a 0,3S TC at the
  * seeded ± 0,5 %. Its pull answers `426 contract_outdated` and it updates.
  */
-export const MIN_CONTRACT_VERSION = 39;
+/*
+ * 40 (2026-11-10, fix batch e23z): a version-39 (or older) bundle's fold refuses the off-plate clear
+ * the server's fold accepts, so the device would see its "Apagar leitura" refused; and its kernel
+ * would not judge a v13 sheet as the server's does: an Aprovado floor where the server gives none, a
+ * restricted point shown "Origem resolvida", the generic Reprovado and IP point texts where the
+ * server derives the recommendations, a copy of the eight under "Outros equipamentos" where the
+ * server prints it in its base's group. Its pull answers `426 contract_outdated` and it updates.
+ */
+export const MIN_CONTRACT_VERSION = 40;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

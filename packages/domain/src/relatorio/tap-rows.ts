@@ -230,6 +230,31 @@ export function tapRowAccepted(block: Pick<BlockRow, 'sheet'>, definition: Pick<
   return taps === null ? row < table.rows.length : taps.some((tap) => tap.volts === row);
 }
 
+/**
+ * Fix batch e23z (item 3, Bruno 2026-11-09): the columns of a `rows_from` table's row that a
+ * technician may clear: a row the plate no longer lists (not `tapRowAccepted`) that still holds a
+ * filled cell, those cells' columns ascending; none for any other row. The fold accepts only a
+ * `remove` or a put of null on such a row ("Apagar leitura"); a non-null put stays refused.
+ */
+export function tapRowClearableCols(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, table: Pick<TableDef, 'rows_from' | 'rows'>, testKey: string, row: number): number[] {
+  if (table.rows_from === undefined || tapRowAccepted(block, definition, table, row)) return [];
+  return storedRowFilledCols(block, testKey, row);
+}
+
+/** Fix batch e23z (item 3): the columns of one stored row of a test that hold a filled cell, ascending: what "Apagar leitura" clears. */
+export function storedRowFilledCols(block: Pick<BlockRow, 'sheet'>, testKey: string, row: number): number[] {
+  const cells = block.sheet.test[testKey]?.cells[String(row)] ?? {};
+  return Object.entries(cells)
+    .filter(([key, cell]) => /^\d+$/.test(key) && isCellFilled(cell))
+    .map(([key]) => Number(key))
+    .sort((a, b) => a - b);
+}
+
+/** Fix batch e23z (item 3): whether a row of a `rows_from` table is off the plate and still holds a reading to clear. */
+export function tapRowClearable(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, table: Pick<TableDef, 'rows_from' | 'rows'>, testKey: string, row: number): boolean {
+  return tapRowClearableCols(block, definition, table, testKey, row).length > 0;
+}
+
 /** What a plan entry's evaluated row carries (null for a seeded row, which is v12's own); `unit` is the list field's. */
 export function evaluatedTapOf(entry: TapRowPlan, unit: string | null): EvaluatedTap | null {
   if (entry.kind === 'seeded') return null;

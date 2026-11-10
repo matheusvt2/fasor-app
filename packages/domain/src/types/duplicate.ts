@@ -111,11 +111,13 @@ export function duplicateSeededDefinition(seedVersion: string, blockType: Equipm
     ...(seed.config_fields === undefined ? {} : { config_fields: seed.config_fields }),
     criteria: keys.map(materialized),
     ...(seed.oil_rule === undefined ? {} : { oil_rule: seed.oil_rule }),
+    // Fix batch e23z (W3-3): the copy prints in its base's group and numbers its tests as its base.
+    base_block_type: blockType,
   };
   return { derived_from: { seed_version: seedVersion, block_type: blockType }, draft };
 }
 
-/** "Duplicar" on a published version of a company type: its definition, renamed as a copy. */
+/** "Duplicar" on a published version of a company type: its definition, renamed as a copy (fix batch e23z: its `base_block_type` with it). */
 export function duplicateCompanyType(version: Pick<EquipmentTypeVersionRow, 'type_id' | 'version' | 'definition'>): TypeDuplicate {
   const definition = structuredClone(version.definition);
   return { derived_from: { type_id: version.type_id, version: version.version }, draft: { ...definition, label: `${definition.label}${COPY_SUFFIX}` } };

@@ -10,9 +10,11 @@ import {
   plateCriterionOf,
   libraryTypeListRows,
   libraryTypesHeading,
+  printGroupWordsOf,
   publishBlockedText,
   publishedText,
   removeDraftEntry,
+  removeDraftEntryRefusal,
   retireTypeTitle,
   SEED_VERSION,
   setDraftNoun,
@@ -466,4 +468,51 @@ test('@p0 23g-E2E-002 (fix batch e23g, R2-2): a copy of the v13 transformer lose
   await expect(reason(page)).toHaveCount(0);
   await expect(publishButton(page)).toHaveText('Publicar versão 1');
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+});
+
+test('@p0 e23z-E2E-005 (fix batch e23z, item 4 and W3-3): a copy of the v13 transformer shows its base\'s print group; "Remover" on DESLOCAMENTO ANGULAR is refused with the kernel\'s reason while the ratio test reads it, and works once the test is removed', async ({ page, seed }) => {
+  test.setTimeout(150_000);
+  const account = seed.companies[1];
+  const database = deviceDatabaseName(account.userId);
+  await resetEmpresaB(account);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await openTypeList(page);
+  const copy = duplicateSeededType(SEED_VERSION, 'transformador_forca');
+  const typeId = await duplicateLibraryType(page, 'transformador_forca');
+  await expect(page.locator('.tipo-head h2')).toHaveText(copy.draft.label);
+  const storedDraft = async () => (await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, typeId)).type?.draft ?? null;
+  await expect.poll(storedDraft).toEqual(copy.draft);
+  expect(copy.draft.base_block_type).toBe('transformador_forca');
+
+  // W3-3: "Grupo na impressão" reads the base's group, the kernel's words.
+  await expect(page.locator('.field', { has: page.locator('.field-label', { hasText: 'Grupo na impressão' }) }).locator('.input.is-readonly')).toHaveText(printGroupWordsOf('transformador_forca')!);
+
+  // Item 4: Remover on the vector-group field is refused, the toast gives the kernel's reason, nothing is written.
+  await editorTab(page, 'Placa');
+  const field = copy.draft.nameplate.find((entry) => entry.key === 'ligacao_secundaria')!;
+  const at = copy.draft.nameplate.indexOf(field);
+  const refusal = removeDraftEntryRefusal(copy.draft, 'nameplate', at)!;
+  expect(refusal).toContain(field.label);
+  const before = (await readStore<OutboxRow>(page, database, 'outbox')).filter((op) => op.path === `equipment_type/${typeId}/draft`).length;
+  await page.getByRole('button', { name: `Mais opções de ${field.label}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Remover' }).click();
+  await expect(toast(page)).toHaveText(refusal);
+  await expect(page.locator('.registry-row .rr-primary').filter({ hasText: new RegExp(`^${field.label}$`) })).toHaveCount(1);
+  expect((await readStore<OutboxRow>(page, database, 'outbox')).filter((op) => op.path === `equipment_type/${typeId}/draft`).length).toBe(before);
+  expect(await storedDraft()).toEqual(copy.draft);
+
+  // The ratio test removed first: the field goes, as the kernel removes it.
+  await editorTab(page, 'Ensaios');
+  const ratio = copy.draft.tests.find((test) => test.key === 'relacao_transformacao')!;
+  let expected: CompanyTypeDraft = removeDraftEntry(copy.draft, 'tests', copy.draft.tests.indexOf(ratio));
+  await page.getByRole('button', { name: `Mais opções de ${ratio.label}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Remover' }).click();
+  await expect.poll(storedDraft).toEqual(expected);
+  await editorTab(page, 'Placa');
+  expected = removeDraftEntry(expected, 'nameplate', (expected.nameplate ?? []).findIndex((entry) => entry.key === 'ligacao_secundaria'));
+  await page.getByRole('button', { name: `Mais opções de ${field.label}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Remover' }).click();
+  await expect(page.locator('.registry-row .rr-primary').filter({ hasText: new RegExp(`^${field.label}$`) })).toHaveCount(0);
+  await expect.poll(storedDraft).toEqual(expected);
 });
