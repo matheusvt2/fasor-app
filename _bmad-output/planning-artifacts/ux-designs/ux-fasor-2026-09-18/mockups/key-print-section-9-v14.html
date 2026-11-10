@@ -1,0 +1,147 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Seção 9 impressa, seed v14</title>
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<style>/* Governs: Story 24.1 (2026-11-10), the printed frame of a seed v14 sheet. It draws only the four deltas from key-print-section-9-v13.html:
+   the MANUT. ANTERIOR header with the previous visit's date (Story 24.15, decision 6), one note line under a table naming what moved since
+   the previous visit (Story 24.16, decision 7), the CONCLUSÃO row of a Reprovado ficha with both restriction boxes empty (Story 24.3,
+   decision 1) and a section 8 row whose "Ação recomendada" holds the test's recommendation (Story 24.17). Every v1 to v13 sheet prints as
+   before. Table style from key-print-section-9.html and key-print-section-9-v13.html. Page-only: the printed A4 page is paper, black on
+   white in every theme. The base text is 9 pt = 10 px here. Sample values and recommendation text are invented. */
+.print-page { box-sizing: border-box; width: 794px; padding: 30px 48px 22px; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; }
+.print-page * { box-sizing: border-box; }
+.pp-body { display: flex; flex-direction: column; gap: 7px; }
+.pp-sheet { margin: 0; padding: 4px 8px; background: #BFBFBF; border: 1px solid #000; font-size: 10.5px; font-weight: 700; text-align: center; }
+.pt { width: 100%; border-collapse: collapse; }
+.pt th, .pt td { border: 1px solid #000; padding: 2px 5px; vertical-align: middle; text-align: center; font-weight: 400; }
+.pt .pt-title th { background: #BFBFBF; font-weight: 700; }
+.pt .pt-cols th { background: #E7E7E7; font-weight: 700; }
+.pt-meas td:nth-child(-n+3) { text-align: left; }
+.pt-85 { font-size: 9.4px; }   /* 8,5 pt: v12's table, one step down (62,4 em at 9 pt) */
+.pt-75 { font-size: 8.3px; }   /* 7,5 pt: v13's table, three steps down (69,3 em at 9 pt) */
+/* Mock-only marks, never printed: omitted parts and the M-5 delta */
+.pp-omit-line { margin: 0; padding: 3px 6px; border: 1px dashed #8A9099; background: repeating-linear-gradient(135deg, #F4F5F6 0 6px, #EBEDEF 6px 12px); color: #5B616B; font-style: italic; text-align: center; font-size: 9px; }
+.pt .is-delta { outline: 2px dashed #1F5FA8; outline-offset: -3px; }
+.pt-70 { font-size: 7.8px; }   /* 7 pt: the v13 size of the transformer's insulation table with MANUT. ANTERIOR (accepted by Matheus on 2026-11-10); the dated header keeps it */
+.pp-note { margin: -4px 0 0; padding: 2px 5px; font-size: 9px; text-align: left; }
+.pt-conc td { width: 25%; text-align: left; }
+.pbox { display: inline-flex; align-items: center; justify-content: center; width: 10px; height: 10px; margin-right: 4px; border: 1px solid #000; font-size: 8px; font-weight: 700; line-height: 1; vertical-align: -1px; }
+.pt-plan { font-size: 9px; }
+.pt-plan td { text-align: left; vertical-align: top; }
+.pt-plan td:first-child { text-align: center; }
+.pp-note.is-delta { outline: 2px dashed #1F5FA8; outline-offset: -1px; }
+.mock-row.is-print { gap: var(--sp-6); }
+.mock-note { font-size: 13px; color: var(--ink-secondary); max-width: 794px; margin: var(--sp-2) 0 0; }
+.mock-legend { display: inline-block; width: 22px; height: 12px; outline: 2px dashed #1F5FA8; outline-offset: -3px; vertical-align: -1px; margin-right: 6px; }
+.src-table { width: 794px; border-collapse: collapse; font-size: 13px; background: var(--surface-raised); color: var(--ink-primary); }
+.src-table th, .src-table td { border: 1px solid var(--border-strong); padding: 6px 10px; text-align: left; vertical-align: top; }
+.src-table th { background: var(--surface-base); font-weight: 600; }
+</style></head>
+<body class="mock-page">
+<h1 class="mock-title">Seção 9 impressa — o que muda numa ficha v14</h1>
+<p class="mock-sub">Story 24.1 (2026-11-10) para o Matheus aprovar. Numa ficha de seed v14 mudam só quatro coisas em relação à v13: a data da visita anterior no cabeçalho MANUT. ANTERIOR, uma linha de nota sob a tabela que teve queda ou alta desde a visita anterior, a linha CONCLUSÃO de uma ficha reprovada com as duas caixas de restrição vazias, e a ação recomendada do ensaio na coluna "Ação recomendada" da seção 8. Toda ficha v1 a v13 continua imprimindo como hoje. Valores e textos de exemplo. <span class="mock-legend" aria-hidden="true"></span>contorno tracejado azul = o que muda (só no mock, não imprime).</p>
+
+<div class="mock-row is-print">
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha v13 — como imprime hoje</b><span class="sep">·</span>A4 retrato, trecho do DISJUNTOR MT DJ-01<span class="sep">·</span>MANUT. ANTERIOR sem data, nenhuma nota, reprovado com restrição</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">DISJUNTOR MT DJ-01</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS e ENSAIO DE ISOLAÇÃO, como hoje</p>
+<table class="pt"><thead><tr class="pt-title"><th colspan="6">RESISTÊNCIA ÔHMICA DE CONTATO</th></tr>
+<tr class="pt-cols"><th>INSTRUM./FABRIC.</th><th>TIPO</th><th>Nº SÉRIE</th><th>RBC</th><th>CORRENTE</th><th>ACEITÁVEL</th></tr></thead>
+<tbody><tr><td>Fabricante F</td><td>MOD-3M</td><td>000456</td><td>00000/26</td><td>10 A</td><td>&lt; 250 µΩ</td></tr></tbody></table>
+<table class="pt pt-meas"><thead>
+<tr class="pt-cols"><th colspan="3">CONTATO FECHADO</th><th></th><th></th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>VALORES (µΩ)</th><th>MANUT. ANTERIOR</th></tr></thead>
+<tbody>
+<tr><td>T1-T2</td><td>FASE A</td><td>MASSA</td><td>61</td><td>40 µΩ</td></tr>
+<tr><td>T3-T4</td><td>FASE B</td><td>MASSA</td><td>42</td><td>41 µΩ</td></tr>
+<tr><td>T5-T6</td><td>FASE C</td><td>MASSA</td><td>60</td><td>38 µΩ</td></tr>
+</tbody></table>
+<table class="pt"><thead><tr class="pt-title"><th>OBSERVAÇÕES</th></tr></thead><tbody><tr><td style="text-align:left">Contatos dos polos A e C com resistência em alta desde a última manutenção.</td></tr></tbody></table>
+<table class="pt pt-conc"><thead><tr class="pt-title"><th colspan="4">CONCLUSÃO</th></tr></thead><tbody>
+<tr><td><span class="pbox"></span>APROVADO</td><td><span class="pbox is-on">X</span>REPROVADO</td><td><span class="pbox"></span>SEM RESTRIÇÕES</td><td><span class="pbox is-on">X</span>COM RESTRIÇÕES (VER OBSERVAÇÕES)</td></tr>
+<tr><td colspan="4"><b>CONCLUSÃO:</b> O disjuntor DJ-01 (Fabricante C, 17,5 kV, 630 A) apresentou resistência ôhmica de contato de 61 µΩ no polo T1-T2 e de 60 µΩ no polo T5-T6, com alta de mais de 50 % desde a manutenção anterior.</td></tr>
+</tbody></table>
+  </div></div>
+</div>
+
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha v14 — data, nota e conclusão</b><span class="sep">·</span>A4 retrato, o mesmo trecho<span class="sep">·</span>Stories 24.15, 24.16 e 24.3</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">DISJUNTOR MT DJ-01</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS e ENSAIO DE ISOLAÇÃO, como na v13</p>
+<table class="pt"><thead><tr class="pt-title"><th colspan="6">RESISTÊNCIA ÔHMICA DE CONTATO</th></tr>
+<tr class="pt-cols"><th>INSTRUM./FABRIC.</th><th>TIPO</th><th>Nº SÉRIE</th><th>RBC</th><th>CORRENTE</th><th>ACEITÁVEL</th></tr></thead>
+<tbody><tr><td>Fabricante F</td><td>MOD-3M</td><td>000456</td><td>00000/26</td><td>10 A</td><td>&lt; 250 µΩ</td></tr></tbody></table>
+<table class="pt pt-meas"><thead>
+<tr class="pt-cols"><th colspan="3">CONTATO FECHADO</th><th></th><th></th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>VALORES (µΩ)</th><th class="is-delta">MANUT. ANTERIOR<br>14/03/2026</th></tr></thead>
+<tbody>
+<tr><td>T1-T2</td><td>FASE A</td><td>MASSA</td><td>61</td><td>40 µΩ</td></tr>
+<tr><td>T3-T4</td><td>FASE B</td><td>MASSA</td><td>42</td><td>41 µΩ</td></tr>
+<tr><td>T5-T6</td><td>FASE C</td><td>MASSA</td><td>60</td><td>38 µΩ</td></tr>
+</tbody></table>
+<p class="pp-note is-delta">Em relação à manutenção anterior: T1-T2, subiu 53 % (40 µΩ); T5-T6, subiu 58 % (38 µΩ).</p>
+<table class="pt"><thead><tr class="pt-title"><th>OBSERVAÇÕES</th></tr></thead><tbody><tr><td style="text-align:left">Contatos dos polos A e C com resistência em alta desde a última manutenção.</td></tr></tbody></table>
+<table class="pt pt-conc"><thead><tr class="pt-title"><th colspan="4">CONCLUSÃO</th></tr></thead><tbody>
+<tr><td><span class="pbox"></span>APROVADO</td><td><span class="pbox is-on">X</span>REPROVADO</td><td class="is-delta"><span class="pbox"></span>SEM RESTRIÇÕES</td><td class="is-delta"><span class="pbox"></span>COM RESTRIÇÕES (VER OBSERVAÇÕES)</td></tr>
+<tr><td colspan="4"><b>CONCLUSÃO:</b> O disjuntor DJ-01 (Fabricante C, 17,5 kV, 630 A) apresentou resistência ôhmica de contato de 61 µΩ no polo T1-T2 e de 60 µΩ no polo T5-T6, com alta de mais de 50 % desde a manutenção anterior.</td></tr>
+</tbody></table>
+  </div></div>
+</div>
+</div>
+
+<div class="mock-row is-print">
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha v14 — a tabela de isolação do transformador</b><span class="sep">·</span>A4 retrato, trecho do TRANSFORMADOR DE FORÇA TR1<span class="sep">·</span>data só com mês e ano, nota da queda, 7 pt como na v13<span class="sep">·</span>Stories 24.15 e 24.16</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">TRANSFORMADOR DE FORÇA TR1</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO e VERIFICAÇÕES GERAIS, como na v13</p>
+<table class="pt"><thead><tr class="pt-title"><th colspan="7">ENSAIO DE ISOLAÇÃO</th></tr>
+<tr class="pt-cols"><th>INSTRUM./FABRIC.</th><th>TIPO</th><th>Nº SÉRIE</th><th>RBC</th><th>TENSÃO ENSAIO</th><th>TEMPERATURA</th><th>ACEITÁVEL</th></tr></thead>
+<tbody><tr><td>Fabricante B</td><td>MOD-10</td><td>000123</td><td>00000/26</td><td>10 kV</td><td>40 °C (ÓLEO)</td><td>&gt; 1,0 GΩ</td></tr></tbody></table>
+<table class="pt pt-meas pt-70"><thead>
+<tr class="pt-cols"><th colspan="3">PONTO DE ENSAIO/CONEXÃO</th><th></th><th colspan="3">VALORES (GΩ)</th><th>CORRIGIDO (GΩ)</th><th colspan="2">QUALIDADE ISOLAÇÃO</th><th></th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>TENSÃO (kV)</th><th>30 SEGUNDOS</th><th>1 MINUTO</th><th>ESTAB./10MIN</th><th>1 MIN A 20 °C</th><th>ABSORÇÃO</th><th>POLARIZAÇÃO</th><th class="is-delta">MANUT. ANTERIOR<br>03/2026</th></tr></thead>
+<tbody>
+<tr><td>PRIMÁRIO</td><td>MASSA</td><td>SECUNDÁRIO</td><td>10</td><td>-</td><td>2,0</td><td>-</td><td>7,9</td><td>-</td><td>-</td><td>16,4 GΩ</td></tr>
+<tr><td>PRIMÁRIO</td><td>SECUNDÁRIO</td><td>MASSA</td><td>10</td><td>-</td><td>2,6</td><td>-</td><td>10,3</td><td>-</td><td>-</td><td>10,9 GΩ</td></tr>
+<tr><td>SECUNDÁRIO</td><td>MASSA</td><td>PRIMÁRIO</td><td>1</td><td>-</td><td>1,9</td><td>-</td><td>7,5</td><td>-</td><td>-</td><td>7,8 GΩ</td></tr>
+</tbody></table>
+<p class="pp-note is-delta">Em relação à manutenção anterior: PRIMÁRIO · MASSA, caiu mais de 50 % (7,9 GΩ a 20 °C; antes 16,4 GΩ a 20 °C).</p>
+<p class="pp-omit-line">Trecho omitido no mock: ENSAIO DE RELAÇÃO DE TRANSFORMAÇÃO, OBSERVAÇÕES, CONCLUSÃO e fotos, como na v13</p>
+  </div></div>
+</div>
+
+<div class="mock-item">
+  <p class="mock-caption"><b>Seção 8 de um relatório v14 — a ação recomendada do ensaio</b><span class="sep">·</span>A4 retrato, uma linha do plano de ação<span class="sep">·</span>Story 24.17</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">8. PONTOS DE ATENÇÃO</p>
+<p class="pp-omit-line">Trecho omitido no mock: os pontos em texto e as outras linhas do plano de ação, como hoje</p>
+<table class="pt pt-plan"><thead>
+<tr class="pt-cols"><th>Nº</th><th>PONTO DE ATENÇÃO</th><th>LOCAL/TAG</th><th>PRIORIDADE</th><th>PRAZO</th><th>AÇÃO RECOMENDADA</th><th>RESPONSÁVEL</th><th>IMAGENS</th></tr></thead>
+<tbody>
+<tr><td>7</td><td>Resistência ôhmica de contato: T1-T2 61 µΩ, alta de 53 % desde a manutenção anterior (40 µΩ).</td><td>1° SUBSOLO · COLUNA 9 · DJ-01</td><td>P1</td><td>08/10/2026</td><td class="is-delta">Limpar e reapertar os contatos do polo e repetir o ensaio. Se o valor continuar alto, substituir os contatos.</td><td>—</td><td>Imagem 41</td></tr>
+</tbody></table>
+  </div></div>
+</div>
+</div>
+
+<div class="mock-row">
+<div class="mock-item" style="width: 794px">
+  <p class="mock-caption"><b>As quatro mudanças</b><span class="sep">·</span>o que imprime em cada caso<span class="sep">·</span>Stories 24.3, 24.15, 24.16 e 24.17</p>
+  <table class="src-table">
+    <thead><tr><th scope="col">Mudança</th><th scope="col">Ficha v14 imprime</th><th scope="col">Ficha v1 a v13</th></tr></thead>
+    <tbody>
+      <tr><td>Cabeçalho MANUT. ANTERIOR (Story 24.15)</td><td>A data da visita anterior sob o título: dd/mm/aaaa, ou mm/aaaa quando a visita só tem mês. É a data do serviço; uma visita emitida antes desta história imprime a data de emissão. A tabela mantém o tamanho de letra da v13.</td><td>MANUT. ANTERIOR sem data</td></tr>
+      <tr><td>Nota sob a tabela (Story 24.16)</td><td>Uma linha, depois das outras notas do ensaio e na mesma página da tabela: "Em relação à manutenção anterior: ⟨linha⟩, ⟨motivo⟩; ⟨linha⟩, ⟨motivo⟩." Só entram as linhas que uma das três regras da v13 marcou (queda da isolação, alta do contato, variação do enrolamento). A tabela não muda: sem marca, sem cor, sem coluna.</td><td>Nenhuma nota</td></tr>
+      <tr><td>Linha CONCLUSÃO (Story 24.3)</td><td>Ficha reprovada: X em REPROVADO, SEM RESTRIÇÕES e COM RESTRIÇÕES vazias. "Com restrições" só existe com Aprovado.</td><td>Reprovado imprime X também em COM RESTRIÇÕES</td></tr>
+      <tr><td>Seção 8, "Ação recomendada" (Story 24.17)</td><td>Num ponto que o técnico criou a partir de um ensaio reprovado: o achado em "Ponto de atenção" e a recomendação do ensaio em "Ação recomendada". Uma linha que cabe na página não se divide em duas.</td><td>A recomendação fica no começo do texto do ponto e a ação imprime "—"</td></tr>
+    </tbody>
+  </table>
+  <p class="mock-note">Um achado sem ponto não imprime linha na seção 8: desde 2026-11-10 um ponto de atenção só existe quando o técnico o cria (decisão 12). As palavras do motivo na nota são as do sistema; aqui são exemplo. O texto das notas e a forma da data são autorais e vão para a revisão do Bruno.</p>
+</div>
+</div>
+</body></html>

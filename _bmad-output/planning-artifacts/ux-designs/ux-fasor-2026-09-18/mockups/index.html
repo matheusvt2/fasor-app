@@ -174,6 +174,20 @@
     </article>
 
     <article class="idx-card">
+      <h3><a href="key-print-section-9-v14.html">Seção 9 impressa, seed v14 (Epic 24, Story 24.1)</a></h3>
+      <span class="file">key-print-section-9-v14.html</span>
+      <ul class="frames">
+        <li><b>Ficha v13</b> · A4 retrato · o DISJUNTOR MT DJ-01 como imprime hoje: MANUT. ANTERIOR sem data, nenhuma nota, reprovado com restrição</li>
+        <li><b>Ficha v14</b> · A4 retrato · a data da visita anterior no cabeçalho MANUT. ANTERIOR (Story 24.15), a linha de nota sob a tabela (Story 24.16) e a CONCLUSÃO de uma ficha reprovada com as duas caixas de restrição vazias (Story 24.3); o que muda contornado (só no mock)</li>
+        <li><b>Transformador v14</b> · A4 retrato · a tabela de isolação com a data só de mês e ano e a nota da queda, 7 pt como na v13</li>
+        <li><b>Seção 8 de um relatório v14</b> · uma linha do plano de ação com a recomendação do ensaio em "Ação recomendada" (Story 24.17)</li>
+        <li><b>As quatro mudanças</b> · o que imprime em cada caso, v14 e v1 a v13</li>
+      </ul>
+      <p class="spine"><b>EXPERIENCE</b> § Capture-to-Document › Capture shape vs. print shape (emenda de 2026-11-10) · Stories 24.3, 24.15, 24.16 e 24.17 · decisões 1, 6 e 7 de <code>epic-24-context.md</code> · <code>MOCK-GUIDE.md</code> § 2026-11-10</p>
+      <a class="open" href="key-print-section-9-v14.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
       <h3><a href="key-account.html">Conta (Account)</a></h3>
       <span class="file">key-account.html</span>
       <ul class="frames">
@@ -229,6 +243,26 @@
       </ul>
       <p class="spine"><b>DESIGN</b> § Components › Sheet (sete linhas de 2026-11-08) · <b>EXPERIENCE</b> § Component Patterns › Sheet, § State Patterns (emendas de 2026-11-08), § IA › Tipo de equipamento · <code>epics.md</code> § Story 23.1 · <code>MOCK-GUIDE.md</code> § 2026-11-08</p>
       <a class="open" href="prototype/index.html#/ficha/TR1">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="prototype/index.html#/ficha/DJ-01">Epic 24 — conclusão, pontos de atenção e as fichas v14 (Story 24.1)</a></h3>
+      <span class="file">prototype/screens/60-ficha.html (DJ-01, NB-01, TR-02, MA-01, TR1) · 61-verificacoes-local.html · 72-pontos.html · 40-relatorio-overview.html · 41-templates.html · 42-template-composer.html · 43-tipo-equipamento.html</span>
+      <ul class="frames">
+        <li><b>Conclusão como prévia</b> · <code>#/ficha/CB-ENT</code> › Conclusão (e toda ficha) · celular 390, tablet retrato 768, desktop 1280, claro e escuro (barra do protótipo) · a linha "Prévia da conclusão", os dois grupos no estado de prévia e a linha de aviso; "Confirmar" grava (Story 24.5)</li>
+        <li><b>Ficha v14 reprovada</b> · <code>#/ficha/DJ-01</code> › Conclusão · Reprovado, Aprovado desativado, nenhuma escolha de restrição, a linha do motivo e OBSERVAÇÕES obrigatória (Story 24.3)</li>
+        <li><b>Leitura fora do critério</b> · <code>#/ficha/DJ-01</code> › Resistência ôhmica de contato · sem "Marcar Com restrições"; "Criar ponto de atenção" sob a tabela, o editor que ele abre e o lugar com o nome do ponto depois (Stories 24.3 e 24.17)</li>
+        <li><b>Criar ponto nos outros dois lugares</b> · <code>#/ficha/TR1</code> › Ensaio de isolação (leitura com restrição) · <code>#/ficha/TR-02</code> › Conclusão (ficha reprovada pelo técnico) (Story 24.17)</li>
+        <li><b>Item que volta a Conforme</b> · <code>#/ficha/DJ-01</code> › Verificações · item 2: observação editada mantida, com o aviso e "Apagar observação" (Story 24.6); item 3: toque em C abre a pergunta "Remover o ponto de atenção deste item?" (Story 24.7) · o mesmo em <code>#/local/1-subsolo/verificacoes</code>, itens 2 e 11</li>
+        <li><b>Pontos de atenção</b> · <code>#/relatorio/porto-seguro/pontos</code> · só pontos gravados, título "Pontos de atenção (7)", nenhum cartão automático; o ponto 7 com "Origem resolvida" e "Remover ponto" (decisão 12, Story 24.7)</li>
+        <li><b>TAG sugerida</b> · <code>#/ficha/DJ-01</code> › Dados de placa · "DJ-01" e a ajuda que pede a TAG da placa (Story 24.8) · a paleta em <code>#/relatorio/porto-seguro</code> › "Adicionar equipamento no local" sugere TIPO-NN</li>
+        <li><b>No-break de comando</b> · <code>#/ficha/NB-01</code> · dezoito campos de placa, seis itens, sem ensaios (Story 24.13)</li>
+        <li><b>Paleta</b> · <code>#/relatorio/porto-seguro</code> › "Adicionar equipamento no local" · a cópia da empresa no lugar do Transformador de força da biblioteca (Story 24.19); No-break de comando em "Outros equipamentos"</li>
+        <li><b>Critério "nominal ± %"</b> · <code>#/templates/tipos/no-break-comando</code> › Critérios e Pré-visualização · a regra, o valor nominal, a tolerância e como a ficha lê (Story 24.18)</li>
+        <li><b>Controles pequenos</b> · <code>#/ficha/TR-02</code> (ajuda de TAPS com o separador, campos de óleo somente leitura numa unidade a seco, "Foto térmica · 2") · <code>#/ficha/DJ-01</code> › Coleta de óleo ("Outro" com o texto) · <code>#/ficha/MA-01</code> ("Dados da malha", sem "Fotografar placa") · <code>#/templates/porto-seguro</code> › "Adicionar local" ("Agrupar por tipo") · <code>#/templates</code> (templates que não puderam ser lidos) (Stories 24.9, 24.11 e 24.14)</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Sheet, Photos &amp; findings (emendas de 2026-11-10) · <b>EXPERIENCE</b> § Component Patterns, § State Patterns, § IA (emendas de 2026-11-10) · <code>epics.md</code> § Story 24.1 · <code>MOCK-GUIDE.md</code> § 2026-11-10</p>
+      <a class="open" href="prototype/index.html#/ficha/DJ-01">Abrir</a>
     </article>
 
     <article class="idx-card">
