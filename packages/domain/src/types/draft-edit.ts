@@ -4,6 +4,7 @@ import { equipmentTypesOf, findDefinition } from '../seed/definitions.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { plural } from '../text/plural.ts';
 import type { TestHelpKey } from '../seed/test-help.ts';
+import { VECTOR_GROUP_FIELD } from '../relatorio/vector-group.ts';
 import { COMPANY_CRITERION_OPERATORS, criterionTypeOf, type CompanyCriterionOperator, type CompanyTypeDraft } from './definition.ts';
 
 /*
@@ -203,6 +204,24 @@ function pruneCriteria(draft: Draft): void {
 }
 
 /**
+ * Fix batch e23z (item 4, Matheus's decision on the e23g ledger row): why an entry may not be removed, else null. The
+ * nameplate field holding the vector group (`VECTOR_GROUP_FIELD`, DESLOCAMENTO ANGULAR on a v12 or later transformer)
+ * while a test's table computes the ratio by it (`ratio_factor: 'vector_group'`): removing the test first lifts it.
+ * Only removal is refused; changing the field's kind or options is not.
+ */
+export function removeDraftEntryRefusal(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): string | null {
+  if (part !== 'nameplate') return null;
+  const source = asDraft(draft);
+  const field = listOf(source, 'nameplate')[index];
+  if (field === undefined || field.key !== VECTOR_GROUP_FIELD) return null;
+  const reads = listOf(source, 'tests').some((test) => (Array.isArray(test.tables) ? (test.tables as Entry[]) : []).some((table) => table.ratio_factor === 'vector_group'));
+  if (!reads) return null;
+  const label = textOf(field.label).trim() === '' ? VECTOR_GROUP_FIELD : textOf(field.label).trim();
+  // authored (e23z, listed for Bruno).
+  return `O campo ${label} não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio.`;
+}
+
+/**
  * One entry removed; a removed field or item leaves no test or oil rule naming it, a removed test
  * leaves no criterion only it named. Fix batch e23g (R2-2), the v13 keys: a removed nameplate field
  * leaves the oil rule's `dry_fields` (the key goes when empty), no field's `pick_from`, no table's
@@ -211,6 +230,8 @@ function pruneCriteria(draft: Draft): void {
  */
 export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): CompanyTypeDraft {
   const next = asDraft(draft);
+  // Fix batch e23z (item 4): a removal the kernel refuses leaves the draft as it is.
+  if (removeDraftEntryRefusal(draft, part, index) !== null) return back(next);
   const list = listOf(next, part);
   const [removed] = list.splice(index, 1);
   if (removed === undefined) return back(next);

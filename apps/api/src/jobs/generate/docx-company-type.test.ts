@@ -49,6 +49,28 @@ describe('Story 14.6: company types in section 9 of the DOCX', () => {
   });
 });
 
+describe('Fix batch e23z (W3-3): a company copy of one of the eight prints in its base\'s group', () => {
+  it('the no-break\'s versions carrying a base of the eight print under that group, the type without one stays in "Outros equipamentos"', async () => {
+    const plain = buildSnapshot(replay(companyTypes.log), RELATORIO_ID);
+    const noBreak = plain.equipment_types![0]!.type_id;
+    const based: RelatorioSnapshot = {
+      ...plain,
+      equipment_types: plain.equipment_types!.map((row) => (row.type_id === noBreak ? { ...row, definition: { ...row.definition, base_block_type: 'disjuntor_mt' as const } } : row)),
+    };
+    const layout = layoutSpec(based, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const structure = extractStructure(await buildDocx(layout, { tocPages: placeholderPages(layout) }));
+    const from = structure.paragraphs.lastIndexOf(SECTION_9);
+    const to = structure.paragraphs.findIndex((p, i) => i > from && p.startsWith('10 CONCLUSÃO'));
+    const section = structure.paragraphs.slice(from, to);
+    const groups = section.filter((p) => /^9\.\d+ /.test(p));
+    expect(groups).toEqual(['9.1 Disjuntores dos Cubículos de MT da Cabine principal', '9.2 Outros equipamentos da Cabine principal']);
+    const at = (text: string) => section.indexOf(text);
+    expect(at('NO-BREAK DE COMANDO NB-01')).toBeGreaterThan(at(groups[0]!));
+    expect(at('NO-BREAK DE COMANDO NB-02')).toBeLessThan(at(groups[1]!));
+    expect(at('FONTE AUXILIAR FA-01')).toBeGreaterThan(at(groups[1]!));
+  });
+});
+
 describe('Story 23.10 (batch e23h): "Como ensaiar" is never printed', () => {
   /** A distinctive synthetic text per heading and test, so any leak into the document is found. */
   const marker = (testKey: string, key: string) => `COMO-ENSAIAR-${testKey}-${key}-e23h`;

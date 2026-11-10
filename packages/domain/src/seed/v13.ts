@@ -512,13 +512,13 @@ function withTransformerAndSwitchingTests(seed: ReportSeed): ReportSeed {
  * appended after its other columns (OK or INVERTIDA, INVERTIDA failing the row), required as the
  * base's "Obrigatório"; under the ratio table the note that a ratio check is not an accuracy test;
  * the TC's FUNÇÃO DO TC (required, appended), its notice under the insulation test while it reads
- * FATURAMENTO (TC-02's "só com autorização da concessionária"), and its EXATIDÃO with the S classes
+ * FATURAMENTO (TC-02 says, in English, that a billing TC is tested only with the utility's consent), and its EXATIDÃO with the S classes
  * and the protection classes with their accuracy limit factor (v12's 5P and 10P read as 5P20 and
  * 10P20).
  *
  * Story 23.20 (decision I; Base rev08 GE-01, NETA MTS-2023 Table 100.18): the thermography, the last
  * measurement test of each of the eight, switchable and on, applicable while "Equipamento em carga"
- * reads Sim (GE-01's "Aplica-se: Equipamento em carga", read as needing the value), its rows the
+ * reads Sim (GE-01 applies to energized equipment, read as needing the value), its rows the
  * points GE-01 names and its two ΔT columns optional (a point the equipment lacks stays "-"), each
  * column judged by its band table; a row takes the worse of its two cells.
  *

@@ -168,7 +168,8 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   const cells = evaluatedCells(evaluations);
   // Story 14.5: the cells of the measurement tests count as the seeded tables' captures do.
   // Batch e23t (Story 23.15): the measurement tests judged under the same visit context.
-  const tableCells = measurementCells(sheetMeasurements(block, definition, visit));
+  const tableTests = sheetMeasurements(block, definition, visit);
+  const tableCells = measurementCells(tableTests);
   const plainCells = evaluatedCells(evaluations.filter((test) => test.testKey !== 'relacao_transformacao'));
   const failures: ConclusionFloorReason[] = [];
   if (plainCells.some((cell) => cell.verdict === 'out')) failures.push('reading');
@@ -186,6 +187,9 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
   if (tableCells.some((cell) => cell.toCheck)) return null;
+  // Fix batch e23z (W3-2): nor a measured cell a test judged by the deviation between phases could not judge (a cell at
+  // zero or below, a lone phase, every cell while the medium is unknown); `unjudged` is set only on a live test.
+  if (tableTests.some((test) => test.unjudged === true)) return null;
   const measured = cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)) || tableCells.some((cell) => isReadingValue(cell.state));
   if (!measured && !anyAnswered(block)) return null;
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO

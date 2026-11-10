@@ -67,6 +67,35 @@ describe('23.8-INT a cell of the v13 TTR through the route (contract 35)', () =>
   });
 });
 
+describe('e23z-INT item 3 a TTR row off the plate takes a clear through the route (no contract)', () => {
+  it('a put of null on each filled cell of a tap dropped from TAPS is applied; a non-null put on it is refused', async () => {
+    const seeded = await h.seedRelatorio(companyA);
+    const transformer = seeded.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    const relatorio_id = seeded.relatorioId;
+    const put = (row: number, col: number, value: unknown, prev_op_id: string | null = null) =>
+      h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(transformer.id, 'relacao_transformacao', row, col), relatorio_id, value, prev_op_id });
+    const taps = (value: string) => h.clientOp(companyA, { kind: 'put', path: sheetNameplatePath(transformer.id, 'taps'), relatorio_id, value: measured(value, 'kV') });
+    // Five taps, the last read on two captures, then dropped from TAPS.
+    const five = taps('13.8;13.2;12.6;12;11.4');
+    const read = [put(11400, 3, measured('51.9', null)), put(11400, 4, measured('51.9', null))];
+    const four = taps('13.8;13.2;12.6;12');
+    const first = await h.push(companyA, [five, ...read, four]);
+    expect(first.rejected).toEqual([]);
+    // A value on the dropped row is refused; the clears of its two filled cells are applied.
+    const value = put(11400, 3, measured('60', null), read[0]!.op_id);
+    // As a device writes them: each names the cell's head op.
+    const clears = [put(11400, 3, null, read[0]!.op_id), put(11400, 4, null, read[1]!.op_id)];
+    const second = await h.push(companyA, [value, ...clears]);
+    expect(second.rejected).toEqual([{ op_id: value.op_id, code: 'op_invalid' }]);
+    expect(second.applied.map((applied) => applied.op_id)).toEqual(clears.map((op) => op.op_id));
+    const row = await h.rowOf<BlockRow>(companyA, 'block', transformer.id);
+    expect([3, 4].map((col) => row!.sheet.test.relacao_transformacao!.cells['11400']![String(col)]!.value)).toEqual([null, null]);
+    // Cleared, the row holds nothing: even a clear is refused now.
+    const third = await h.push(companyA, [put(11400, 3, null, clears[0]!.op_id)]);
+    expect(third.rejected.map((rejected) => rejected.code)).toEqual(['op_invalid']);
+  });
+});
+
 describe('23.9-INT the applicability override through the route (contract 35)', () => {
   it('accepts "applied" and null on a test with a condition, refuses another value and a test without one', async () => {
     const definition = fusedCopy();

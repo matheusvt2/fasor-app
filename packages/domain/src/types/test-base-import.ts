@@ -94,6 +94,16 @@ export const TEST_BASE_ROW_TESTS: Readonly<Record<string, string>> = Object.free
   'GE-01': 'termografia',
 });
 
+/**
+ * Fix batch e23z (W3-7): base row ID to the test whose polarization index it describes. The row attaches only to a
+ * test carrying `polarization_index` (Story 23.16 judges the IP inside the insulation test), and fills only that
+ * test's `index_recommendation`: its "Como ensaiar" is not merged into the test's own (a narrowing).
+ */
+export const TEST_BASE_INDEX_ROWS: Readonly<Record<string, string>> = Object.freeze({
+  'TR-OL-03': 'isolacao',
+  'TR-SE-03': 'isolacao',
+});
+
 /** The base's "no value": absent, null, or made only of whitespace and dashes (-, –, —). */
 function isNoValue(value: string | null | undefined): value is null | undefined {
   if (value === undefined || value === null) return true;
@@ -201,6 +211,8 @@ interface TestLike {
   key: string;
   help?: unknown;
   recommendation?: unknown;
+  index_recommendation?: unknown;
+  polarization_index?: unknown;
 }
 
 /** The draft's test of `key`, in `tests` then `measurement_tests`; null when the type has none. */
@@ -213,6 +225,11 @@ function draftTest(draft: CompanyTypeDefinition, key: string): TestLike | null {
 /** The test keys a seeded definition carries in both grammars. */
 function testKeysOf(definition: { tests: readonly { key: string }[]; measurement_tests?: readonly { key: string }[] | undefined }): Set<string> {
   return new Set([...definition.tests.map((test) => test.key), ...(definition.measurement_tests ?? []).map((test) => test.key)]);
+}
+
+/** Fix batch e23z (W3-7): the seeded-grammar test keys that judge a polarization index. */
+function indexTestKeysOf(definition: { tests: readonly { key: string; polarization_index?: unknown }[] }): Set<string> {
+  return new Set(definition.tests.filter((test) => test.polarization_index !== undefined).map((test) => test.key));
 }
 
 /** Whether the company already holds this copy: a non-removed type of the same seeded source and name. */
@@ -242,9 +259,15 @@ export function planTestBaseImport(file: TestBaseFile, ctx: DefinitionContext, s
       const definition = findDefinition(seedVersion, blockType);
       if (definition === null) continue;
       const keys = testKeysOf(definition);
+      const indexKeys = indexTestKeysOf(definition);
+      // Fix batch e23z (W3-7): an IP row attaches to the test judging the index.
+      const indexKey = (row: TestBaseRow): string | null => {
+        const key = TEST_BASE_INDEX_ROWS[row.id];
+        return key !== undefined && indexKeys.has(key) ? key : null;
+      };
       const attaches = (row: TestBaseRow) => {
         const key = TEST_BASE_ROW_TESTS[row.id];
-        return key !== undefined && keys.has(key);
+        return (key !== undefined && keys.has(key)) || indexKey(row) !== null;
       };
       const own = ownRows.filter(attaches);
       if (own.length === 0) continue;
@@ -260,9 +283,18 @@ export function planTestBaseImport(file: TestBaseFile, ctx: DefinitionContext, s
       duplicate.draft.label = label;
       const placed: TestBaseAttachedRow[] = [];
       for (const row of rows) {
-        const testKey = TEST_BASE_ROW_TESTS[row.id]!;
+        const index = indexKey(row);
+        const testKey = index ?? TEST_BASE_ROW_TESTS[row.id]!;
         const test = draftTest(duplicate.draft, testKey);
         if (test === null) continue;
+        if (index !== null) {
+          // Fix batch e23z (W3-7): the IP row's recommendation only; a text over the cap is refused as any.
+          const recommendation = testBaseRecommendationOf(row);
+          if (recommendation !== null && recommendation.length > TEST_TEXT_MAX_LENGTH) refused.add(row.id);
+          else if (recommendation !== null) test.index_recommendation = recommendation;
+          placed.push({ rowId: row.id, testKey });
+          continue;
+        }
         const texts = rowTexts(row);
         if (texts.refused) refused.add(row.id);
         if (Object.keys(texts.help).length > 0) test.help = texts.help;

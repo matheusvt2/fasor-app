@@ -203,6 +203,30 @@
       }
     },
     {
+      "id": "TR-SE-03",
+      "equipamento": "TR-SE",
+      "ensaio": "Ensaio sintético TR-SE-03",
+      "grandeza": "Grandeza sintética TR-SE-03",
+      "unidade": "u",
+      "obrigatorio": "Sim",
+      "status": "sintético",
+      "aplica_se": "Aplicação sintética TR-SE-03",
+      "objetivo": "Objetivo sintético TR-SE-03: verificar o item de teste inventado",
+      "instrumento": "Instrumento sintético TR-SE-03",
+      "tensao_corrente_ensaio": "Tensão sintética TR-SE-03",
+      "pontos_medicao": "Ligações sintéticas TR-SE-03: ponto A contra ponto B",
+      "procedimento": "Procedimento sintético TR-SE-03: passo um inventado.\nPasso dois inventado.",
+      "criterio_aprovado": "aprovado sintético TR-SE-03",
+      "criterio_restricao": "restrição sintética TR-SE-03",
+      "criterio_reprovado": "reprovado sintético TR-SE-03",
+      "norma": "Norma sintética TR-SE-03",
+      "recomendacao_reprovado": "Recomendação sintética TR-SE-03: repetir o ensaio inventado",
+      "regra": {
+        "tipo": "sintética",
+        "linha": "TR-SE-03"
+      }
+    },
+    {
       "id": "TR-SE-04",
       "equipamento": "TR-SE",
       "ensaio": "Ensaio sintético TR-SE-04",

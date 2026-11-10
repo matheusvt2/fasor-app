@@ -1,6 +1,7 @@
 import {
   companyBlockType,
   definitionContext,
+  derivedPoints,
   duplicateSeededType,
   getDefinition,
   initialOrderKey,
@@ -23,6 +24,7 @@ import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
+import { deviceSnapshot } from './support/e23t-flow.ts';
 
 /*
  * Story 23.11 (batch e23h): the recommendation as the derived point's initial text, driven as a
@@ -177,4 +179,78 @@ test('@p0 23.11-E2E-001 a recommendation typed in the type editor starts the der
   const to = next === undefined ? structure.paragraphs.length : structure.paragraphs.lastIndexOf(next);
   const section = structure.paragraphs.slice(from, to);
   expect(section.some((paragraph) => paragraph.includes(STARTS)), JSON.stringify(section)).toBe(true);
+});
+
+/*
+ * Fix batch e23z (item 2, Bruno's answer of 2026-11-09): a Reprovado chosen by hand, with no reading out of
+ * criterion, starts its derived entry with the in-force tests' recommendations (here the copy's one, on its main
+ * insulation table), then the existing text ("Concluído como Reprovado na ficha"). The words are the kernel's
+ * over the device's own rows.
+ */
+test('@p0 e23z-E2E-003 item 2: Reprovado chosen by hand on a sheet whose in-force test recommends: the Pontos entry starts with the recommendation, then "Concluído como Reprovado na ficha"', async ({ page }) => {
+  test.setTimeout(240_000);
+  const written = async (path: string) => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === path).map((row) => row.value);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+
+  // The type: "Duplicar" of the library CTA, the recommendation typed on its main insulation table, published.
+  await openTypeList(page);
+  const typeId = await duplicateLibraryType(page, CTA);
+  await typeInto(page.getByRole('textbox', { name: 'Nome do tipo' }), NAME);
+  await editorTab(page, 'Ensaios');
+  await page.locator(`li.registry-row[data-entry-key="measurement_tests:${E2_INDEX}"]`).locator('button.rr-text').click();
+  await typeInto(page.locator('li.def-edit').getByRole('textbox', { name: 'Recomendação se reprovado' }), RECOMMENDATION);
+  await expect
+    .poll(async () => ((await written(`equipment_type/${typeId}/draft`)).at(-1) as { measurement_tests?: { recommendation?: string }[] } | undefined)?.measurement_tests?.[E2_INDEX]?.recommendation)
+    .toBe(RECOMMENDATION);
+  await publishButton(page).click();
+  await expect(toast(page)).toHaveText(publishedText(1));
+  await syncNow(page);
+  const rows = await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, typeId);
+  const version = rows.versions[0]!;
+  const definitions = definitionContext(rows.versions, rows.type === undefined ? [] : [rows.type]);
+
+  // A relatório with one sheet of it, born at v1 (office ops).
+  const built = newRelatorioDrafts(account);
+  const local = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === LOCAL)!.value as { id: string };
+  const pair = newEquipmentBlock({
+    blockId: newId(),
+    equipmentId: newId(),
+    relatorioId: built.relatorioId,
+    projectId: built.projectId,
+    locationId: local.id,
+    type: companyBlockType(typeId),
+    tag: 'CTA-REP',
+    seedVersion: SEED_VERSION,
+    orderKey: initialOrderKey(999),
+    typeVersion: { version: 1, id: version.id },
+    definitions,
+  });
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    officeDraft(account, { projectId: built.projectId }, `equipment/${pair.equipment.id}`, pair.equipment, 'create'),
+    officeDraft(account, { relatorioId: built.relatorioId }, `block/${pair.block.id}`, pair.block, 'create'),
+  ]);
+  const relatorioId = built.relatorioId;
+  const blockId = pair.block.id;
+
+  // The sheet: MT, no reading typed, Reprovado chosen by hand.
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
+  await expect(sheetTitle(page)).toContainText(NAME, { timeout: 30_000 });
+  const tensao = page.locator('section[data-section="configuracao"]').getByRole('radiogroup', { name: 'Tensão' }).getByRole('radio', { name: 'MT', exact: true });
+  await tensao.click();
+  await expect(tensao).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Reprovado' }).click();
+  await expect.poll(() => written(`sheet/${blockId}/conclusion/result`)).toContainEqual('reprovado');
+
+  // The kernel's entry over the device's rows starts with the recommendation; the Pontos card draws it.
+  const entry = derivedPoints(await deviceSnapshot(page, database, relatorioId)).find((one) => one.key === `reprovado:${blockId}`)!;
+  expect(entry.text).toBe(`${STARTS}Concluído como Reprovado na ficha`);
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: 'Reprovado' }) });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('.not-tested-band > .not-tested-chip + span')).toHaveText(entry.text);
 });

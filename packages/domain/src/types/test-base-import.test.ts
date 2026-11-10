@@ -188,7 +188,9 @@ describe('Story 23.12: the plan over a company with no copies', () => {
   });
 
   it('lists the unmapped rows and the rows whose test the seed lacks as unattached', () => {
-    for (const id of ['CM-02', 'CP-02', 'TR-OL-03', 'DJ-04']) expect(plan.unattached).toContain(id);
+    for (const id of ['CM-02', 'CP-02', 'DJ-04']) expect(plan.unattached).toContain(id);
+    // Fix batch e23z (W3-7): the IP rows attach to the insulation test that judges the index.
+    for (const id of ['TR-OL-03', 'TR-SE-03']) expect(plan.unattached).not.toContain(id);
     for (const [rowId, testKey] of Object.entries(TEST_BASE_ROW_TESTS)) {
       const row = rowOf(file, rowId);
       const blockTypes = row.equipamento === 'TODOS' ? Object.values(TEST_BASE_EQUIPMENT_TYPES).flat() : (TEST_BASE_EQUIPMENT_TYPES[row.equipamento] ?? []);

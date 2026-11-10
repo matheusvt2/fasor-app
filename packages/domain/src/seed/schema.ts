@@ -437,6 +437,13 @@ export const testDefSchema = z.object({
    */
   help: testHelpSchema.optional(),
   recommendation: testRecommendationSchema.optional(),
+  /**
+   * Fix batch e23z (W3-7): the recommendation a `reading` derived point starts with when the test's
+   * polarization index fails (the base's IP row, TR-OL-03 and TR-SE-03, filled only by the base
+   * import on a company copy; never shown in the editor). Optional and never defaulted (no seed
+   * carries it), the same cap as `recommendation`.
+   */
+  index_recommendation: testRecommendationSchema.optional(),
   /*
    * Seed v13, batch e23t (Story 23.16). Optional and never defaulted, so v1 to v12 parse to the
    * bytes they shipped with; a test without it judges no index.
@@ -858,6 +865,12 @@ export type BlockDefinition = Omit<SeedBlockDefinition, 'block_type' | 'checklis
   tag_prefix?: string;
   /** A company type's noun, for the composed texts (a seeded type's are the kernel's tables). */
   noun?: { singular: string; plural: string; gender: 'm' | 'f' };
+  /**
+   * Fix batch e23z (W3-3): the seeded type a company copy was duplicated from (Duplicar or the base
+   * import), what it prints as (`printBlockTypeOf`) and numbers its measurement tests by; absent on a
+   * seeded type, on a new type and on a copy published before the key.
+   */
+  base_block_type?: EquipmentBlockType;
   /** The company type's id and the published version this definition is. */
   type_id?: string;
   type_version?: number;

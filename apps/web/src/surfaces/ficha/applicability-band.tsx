@@ -17,14 +17,17 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * relatório's edit queue with "Desfazer". Nothing here judges the plate.
  */
 
-/** Writes the override of `testKey` ('applied', or null to follow the plate), with the mock's toast and "Desfazer". */
-function useApplicabilityWrite(api: FichaApi, testKey: string): (value: typeof APPLICABILITY_APPLIED | null) => void {
+/**
+ * Writes the override of `testKey` ('applied', or null to follow the plate), with the mock's toast and "Desfazer".
+ * Fix batch e23z (W3-6): `byValue`, a condition over the test's own value, toasts the undone application, not the plate.
+ */
+function useApplicabilityWrite(api: FichaApi, testKey: string, byValue = false): (value: typeof APPLICABILITY_APPLIED | null) => void {
   const t = copy.ficha.applicability;
   return (value) => {
     void api
       .edit((_blocks, by) => [testApplicabilityOp(by, api.relatorioId, api.blockId, testKey, value)])
       .then((batch) => {
-        if (batch !== null) api.undoable(value === null ? t.followedToast : t.appliedToast, batch);
+        if (batch !== null) api.undoable(value === null ? (byValue ? t.undoneToast : t.followedToast) : t.appliedToast, batch);
       })
       .catch(() => undefined);
   };
@@ -65,7 +68,8 @@ export function NotApplicableTest({
       <div className="v13-na-band" role="status">
         <span className="band-text">
           <b>{NA_REASON_LEAD}</b> {applicability.phrase}
-          <span className="band-sub">{t.bandSub}</span>
+          {/* Fix batch e23z (W3-6): a condition over the test's own value is not the plate's. */}
+          <span className="band-sub">{applicability.value === undefined ? t.bandSub : t.bandSubValue}</span>
         </span>
         {readOnly ? null : (
           <Button variant="secondary" onPress={() => write(APPLICABILITY_APPLIED)}>
@@ -78,17 +82,21 @@ export function NotApplicableTest({
   );
 }
 
-/** The band over a test applied by hand: "Aplicado por você. A placa diz …" and "Seguir a placa" (none on a read-only sheet). */
+/**
+ * The band over a test applied by hand: "Aplicado por você. A placa diz …" and "Seguir a placa" (none on a read-only
+ * sheet). Fix batch e23z (W3-6): under a condition over the test's own value, "Desfazer a aplicação", naming no plate.
+ */
 export function AppliedBand({ api, testKey, applicability }: { api: FichaApi; testKey: string; applicability: TestApplicability }) {
   const t = copy.ficha.applicability;
   const readOnly = useSheetReadOnly();
-  const write = useApplicabilityWrite(api, testKey);
+  const byValue = applicability.value !== undefined;
+  const write = useApplicabilityWrite(api, testKey, byValue);
   return (
     <div className="v13-applied-band" role="status" data-applicability="applied">
       <span className="band-text">
         <b>{t.appliedLead}</b> {applicability.appliedText}
       </span>
-      {readOnly ? null : <TextButton onPress={() => write(null)}>{t.followPlate}</TextButton>}
+      {readOnly ? null : <TextButton onPress={() => write(null)}>{byValue ? t.undoApply : t.followPlate}</TextButton>}
     </div>
   );
 }

@@ -110,3 +110,43 @@ test('@p0 23.20-E2E-001 thermography on a para-raio and a TC in load (out, restr
   const paragraphs = extractStructure(Buffer.from(await (await page.request.get(`/api/revisions/${revision.row.id}/docx`)).body())).paragraphs;
   expect(paragraphs.some((paragraph) => /^Imagem \d+: /.test(paragraph) && paragraph.includes('ensaios de termografia'))).toBe(true);
 });
+
+/*
+ * Fix batch e23z (W3-6): a test applied by hand under a condition over its own value names no plate. On a
+ * disjuntor, "Equipamento em carga" Não: the NA band's sub-line drops "Pela placa."; "Aplicar este ensaio"
+ * shows the applied band with "Desfazer a aplicação" (never "Seguir a placa"); tapping it toasts "Aplicação
+ * desfeita — não se aplica" and writes the override back to null. A plate condition (the seccionadora's HH
+ * fuses with TIPO DE SECCIONADORA SEM CARGA) keeps "Seguir a placa".
+ */
+test('@p0 e23z-E2E-001 W3-6 thermography applied by hand under its own value: the band and its button name no plate; a plate condition keeps "Seguir a placa"', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, (all) => [{ blockType: 'chave_seccionadora', key: 'tipo_seccionadora', value: 'SEM CARGA' }].filter((write) => all.some((sheet) => sheet.blockType === write.blockType)));
+  const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+  const sc = sheets.find((sheet) => sheet.blockType === 'chave_seccionadora')!;
+  const path = `sheet/${dj.blockId}/test/${KEY}/applicability`;
+
+  await openStep(page, relatorioId, dj.blockId, 'Ensaios');
+  await answerLoad(page, dj.blockId, 'Não');
+  const section = testSection(page, KEY);
+  await expect(section).toHaveAttribute('data-applicability', 'na');
+  await expect(section.locator('.v13-na-band .band-sub')).toHaveText('Não conta como faltando e não sai no relatório.');
+  await section.getByRole('button', { name: 'Aplicar este ensaio' }).click();
+  await expect.poll(async () => (await outboxValues(database, page, path)).at(-1)).toBe('applied');
+  const applied = (await kernelOf(page, database, relatorioId, dj.blockId)).measurement(KEY).applicability;
+  expect(applied).toMatchObject({ state: 'applied', value: VALUE });
+  const band = page.locator(`section[data-test-key="${KEY}"] .v13-applied-band`);
+  await expect(band).toContainText(applied.appliedText!);
+  await expect(band.getByRole('button', { name: 'Seguir a placa' })).toHaveCount(0);
+  await band.getByRole('button', { name: 'Desfazer a aplicação' }).click();
+  await expect(page.locator('.toast').filter({ hasText: 'Aplicação desfeita — não se aplica' })).toBeVisible();
+  await expect.poll(async () => (await outboxValues(database, page, path)).at(-1)).toBeNull();
+  await expect(testSection(page, KEY)).toHaveAttribute('data-applicability', 'na');
+
+  // The plate condition: the HH fuses NA by TIPO DE SECCIONADORA, applied by hand, still "Seguir a placa".
+  await openStep(page, relatorioId, sc.blockId, 'Ensaios');
+  const fuses = testSection(page, 'resistencia_fusiveis');
+  await expect(fuses).toHaveAttribute('data-applicability', 'na');
+  await expect(fuses.locator('.v13-na-band .band-sub')).toHaveText('Pela placa. Não conta como faltando e não sai no relatório.');
+  await fuses.getByRole('button', { name: 'Aplicar este ensaio' }).click();
+  await expect(page.locator('section[data-test-key="resistencia_fusiveis"] .v13-applied-band').getByRole('button', { name: 'Seguir a placa' })).toBeVisible();
+});

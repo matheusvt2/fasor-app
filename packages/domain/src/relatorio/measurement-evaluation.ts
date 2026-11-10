@@ -1,6 +1,6 @@
 import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseOverRangePtBr, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell, JsonValue } from '../schemas/entities.ts';
-import { isEquipmentBlockType } from '../schemas/block-config.ts';
+import { isBaseEquipmentBlockType, isEquipmentBlockType } from '../schemas/block-config.ts';
 import { formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type {
   ConfigField,
@@ -329,6 +329,22 @@ export interface MeasurementTestEvaluation {
   temperature?: TestTemperatureView;
   /** Stories 23.15 and 23.19: the kernel's requests under the table (the material, TIPO DE ISOLAÇÃO), in order. */
   notes?: string[];
+  /*
+   * Fix batch e23z. Both absent on every test of v5 to v12 (no rule there restricts, no test there judges by the
+   * deviation between phases).
+   */
+  /**
+   * W3-1 (the seeded W2-3 rule, `TestEvaluation.restrictionStands`): a restriction rule still flags a cell now out
+   * of its criterion (the history rule's move, a deviation past the restricted band, a band table's level past its
+   * restricted one), so a point written from the test's `restricao` entry is not "Origem resolvida".
+   */
+  restrictionStands?: true;
+  /**
+   * W3-2 (Epic 14 QA Q-3, Story 14.9): a live test judged by the deviation between phases holds a measured number
+   * cell no criterion judged (a cell at zero or below, a group with one positive cell, every cell while the medium is
+   * unknown): `conclusionFloor` withholds Aprovado · Sem restrições while it stands.
+   */
+  unjudged?: true;
 }
 
 // --- stored values -----------------------------------------------------------------------------
@@ -702,7 +718,9 @@ function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCr
  * group with fewer than two such cells judges none; a cell at zero or below is no reference and is
  * left without a verdict.
  */
-function applyPhaseDeviation(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], criterion: Extract<MeasurementCriterion, { type: 'phase_deviation' }>): void {
+function applyPhaseDeviation(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], criterion: Extract<MeasurementCriterion, { type: 'phase_deviation' }>): boolean {
+  // Fix batch e23z (W3-1): a cell out past the restricted band passed through it, so the restriction stands.
+  let stands = false;
   for (const group of deviationGroups(rows, columns, criterion.across)) {
     const measured = group.filter((entry) => judged(entry.cell));
     const unit = measured[0]?.cell.unit ?? null;
@@ -733,8 +751,10 @@ function applyPhaseDeviation(rows: readonly EvaluatedMeasurementRow[], columns: 
       const bound = criterion.restricted_max_pct ?? criterion.within_max_pct;
       const helper = `${numberText(shownPercent(pct, bound, false))} % acima da menor fase (${lowestText}) — critério ≤ ${pctText(bound)} %`;
       mark(entry.cell, false, criterion, helper, pct / bound - 1);
+      if (criterion.restricted_max_pct !== undefined) stands = true;
     }
   }
+  return stands;
 }
 
 /**
@@ -764,9 +784,12 @@ function upperFirst(text: string): string {
  * the bound it passed and the action). A cell at zero or below is within (no rise); a row's two
  * columns are judged apart, so the row reads the worse (out > restricted > within).
  */
-function applyBands(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], criterion: Extract<MeasurementCriterion, { type: 'bands' }>): void {
+function applyBands(rows: readonly EvaluatedMeasurementRow[], columns: readonly EvaluatedMeasurementColumn[], criterion: Extract<MeasurementCriterion, { type: 'bands' }>): boolean {
   const column = columns.find((candidate) => candidate.key === criterion.column);
-  if (column === undefined || column.kind !== 'number') return;
+  if (column === undefined || column.kind !== 'number') return false;
+  // Fix batch e23z (W3-1): a cell out on a table holding a restricted level passed through it, so the restriction stands.
+  const restrictedLevel = criterion.bands.some((band) => band.level === 'restricted');
+  let stands = false;
   for (const row of rows) {
     const cell = row.cells[column.col];
     // Review fix: a reading above the instrument's limit ("> 150 °C") is above every bound, the last band's level.
@@ -786,8 +809,10 @@ function applyBands(rows: readonly EvaluatedMeasurementRow[], columns: readonly 
       const bound = criterion.bands[(at === -1 ? criterion.bands.length - 1 : at) - 1]?.up_to ?? 0;
       const action = band.action === undefined ? '' : `: ${band.action}`;
       mark(cell, false, criterion, `${upperFirst(band.class)} (${shown}, acima de ${withUnit(numberText(bound), cell.unit)})${action}`, bound > 0 ? (value - bound) / bound : 1);
+      if (restrictedLevel) stands = true;
     }
   }
+  return stands;
 }
 
 /** Story 23.21: a plate number in the criterion's unit, or null (empty, an "N/A", not a positive number, no unit to compare). */
@@ -851,8 +876,11 @@ interface MeasurementContext {
  * every company type (a copy that adds a measurement table included) keep their numbers. The one rule
  * of the title, the conflict view, the merge line and the conclusion's criteria line.
  */
-export function measurementTestsUnnumbered(definition: { block_type?: string | undefined; tests?: readonly unknown[] | undefined } | null | undefined): boolean {
-  return definition?.block_type !== undefined && isEquipmentBlockType(definition.block_type) && (definition.tests ?? []).length > 0;
+export function measurementTestsUnnumbered(definition: { block_type?: string | undefined; base_block_type?: string | undefined; tests?: readonly unknown[] | undefined } | null | undefined): boolean {
+  if (definition === null || definition === undefined || (definition.tests ?? []).length === 0) return false;
+  // Fix batch e23z (W3-3): a company copy of one of the eight (`base_block_type`) keeping seeded tests reads as its base.
+  if (definition.base_block_type !== undefined && isBaseEquipmentBlockType(definition.base_block_type)) return true;
+  return definition.block_type !== undefined && isEquipmentBlockType(definition.block_type);
 }
 
 /** Each measured number cell's value at 75 °C (`corrected`), null on every other cell; the test's temperature view and requests. */
@@ -884,23 +912,30 @@ function applyWindingCorrection(block: Pick<BlockRow, 'sheet'>, test: Measuremen
  * judged only when both carry a corrected value (a previous visit on v12 or uncorrected is shown,
  * never judged).
  */
-function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, rows: readonly EvaluatedMeasurementRow[], context: MeasurementContext, criterion: MeasurementCriterion): void {
+function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, rows: readonly EvaluatedMeasurementRow[], context: MeasurementContext, criterion: MeasurementCriterion): boolean {
   const pct = test.history_deviation_pct;
   const entry: PreviousResults | null = context.visit.previous;
-  if (pct === undefined || entry === null) return;
+  if (pct === undefined || entry === null) return false;
+  // Fix batch e23z (W3-1): the rule also reads a cell out by its criterion (its verdict unchanged); true when it flags one.
+  let stands = false;
   const slots = { tests: context.definition.tests ?? [], measurement_tests: context.definition.measurement_tests ?? [], nameplate: context.definition.nameplate };
   const byAddress: ReadonlyMap<string, LastResultReading> = previousReadingsByAddress(entry, slots, block);
   for (const row of rows) {
     for (const cell of row.cells) {
       const now = cell.corrected ?? null;
-      // Like every restriction rule, it runs only on a cell already within (never an unjudged one: medium unknown, a lone phase).
-      if (now === null || cell.verdict !== 'within') continue;
+      // Like every restriction rule, it runs only on a cell already judged within or out (never an unjudged one: medium
+      // unknown, a lone phase); an open circuit holds no corrected value, so it never counts.
+      if (now === null || (cell.verdict !== 'within' && cell.verdict !== 'out')) continue;
       const before = byAddress.get(readingAddressKey(cell.address))?.corrected ?? null;
       if (before === null) continue;
       const was = scaleToUnit(Number(before.raw), before.unit, now.unit);
       if (was === null || !(was > 0)) continue;
       const moved = roundPct((Math.abs(Number(now.raw) - was) / was) * 100);
       if (!(moved > pct)) continue;
+      if (cell.verdict === 'out') {
+        stands = true;
+        continue;
+      }
       // authored (Story 23.15, listed for Bruno): the history rule's reason and helper.
       markRestricted(
         cell,
@@ -910,6 +945,7 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
       );
     }
   }
+  return stands;
 }
 
 // --- the evaluation -------------------------------------------------------------------------------
@@ -1097,6 +1133,8 @@ function evaluate(
   markOverRange(rows, criteria);
 
   let reference: MeasurementReference | null = null;
+  // Fix batch e23z (W3-1): whether a restriction rule flags a cell now out.
+  let stands = false;
   // Seed v13 (batch e23t, Story 23.15): the values at 75 °C, the temperature line and the material's request.
   const winding = applyWindingCorrection(block, test, rows, context);
   const notes: string[] = [...(winding?.notes ?? [])];
@@ -1116,8 +1154,10 @@ function evaluate(
       else if (criterion.type === 'relative_to_lowest') applyRelative(rows, columns, criterion);
       else if (criterion.type === 'equals_column') applyEquals(rows, criterion);
       else if (criterion.type === 'phase_deviation') {
-        if (criterion.medium === undefined || criterion.medium === medium) applyPhaseDeviation(rows, columns, criterion);
-      } else if (criterion.type === 'bands') applyBands(rows, columns, criterion);
+        if ((criterion.medium === undefined || criterion.medium === medium) && applyPhaseDeviation(rows, columns, criterion)) stands = true;
+      } else if (criterion.type === 'bands') {
+        if (applyBands(rows, columns, criterion)) stands = true;
+      }
       else if (criterion.type === 'max_field') {
         const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
         applyMaxField(rows, criterion, limit, byDefault);
@@ -1131,7 +1171,7 @@ function evaluate(
     }
     // The criterion in force for the block's medium (the deviation judging's pick) names the restriction, else the first in force.
     const named = deviation ?? criteria[0];
-    if (named !== undefined) applyHistory(block, test, rows, context, named);
+    if (named !== undefined && applyHistory(block, test, rows, context, named)) stands = true;
   } else {
     // A test switched off or not run requires nothing: its cells keep what they hold and are neither missing nor judged.
     for (const row of rows) for (const cell of row.cells) cell.missing = false;
@@ -1145,6 +1185,12 @@ function evaluate(
     // The value that says the test was not run is the one thing a skipped test still asks for; it is filled by definition.
     if (!enabled || skipped || applicability.state === 'na') value.missing = false;
   }
+  // Fix batch e23z (W3-2): a live test judged by the deviation between phases with a measured number cell left with no
+  // verdict (and not to check) is unjudged: the floor withholds Aprovado · Sem restrições.
+  const unjudged =
+    live &&
+    criteria.some((criterion) => criterion.type === 'phase_deviation') &&
+    rows.some((row) => row.cells.some((cell) => cell.kind === 'number' && cell.fixed === null && cell.state === 'measured' && cell.verdict === null && !cell.toCheck));
 
   // Seed v13 (batch e23t): a criterion read by medium is in force only on that medium (both while it is unknown).
   const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
@@ -1176,6 +1222,8 @@ function evaluate(
     ...(unnumbered ? { unnumbered: true as const } : {}),
     ...(winding === null ? {} : { temperature: winding.view }),
     ...(notes.length === 0 ? {} : { notes }),
+    ...(live && stands ? { restrictionStands: true as const } : {}),
+    ...(unjudged ? { unjudged: true as const } : {}),
   };
 }
 
