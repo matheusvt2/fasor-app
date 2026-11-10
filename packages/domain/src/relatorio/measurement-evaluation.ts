@@ -212,10 +212,11 @@ export interface EvaluatedMeasurementCell {
    * Stories 23.15 and 23.19 (a `phase_deviation` criterion's restricted band, the history rule):
    * why the cell is restricted (`verdict` `restricted`): the short reason the points and the
    * conclusion name, and the helper's sentence after the screen's "Com restrição:".
-   * Fix batch e23p (P3): `compared`, set by the history rule, names both corrected values ("de 2,3 Ω
-   * para 3,5 Ω, a 75 °C"); only the derived point reads it.
+   * Fix batch e23p (P3): `pointReason`, set when the history rule flags the cell, is `reason` with the
+   * history finding followed by both corrected values ("variação de mais de 2 % desde a manutenção
+   * anterior (de 2,3 Ω para 3,5 Ω, a 75 °C)"); only the derived point reads it.
    */
-  restriction?: { reason: string; text: string; compared?: string } | null;
+  restriction?: { reason: string; text: string; pointReason?: string } | null;
 }
 
 export interface EvaluatedMeasurementRow {
@@ -703,14 +704,16 @@ function groupName(entry: { row: EvaluatedMeasurementRow; cell: EvaluatedMeasure
  */
 function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string, compared?: string): void {
   if (cell.verdict === 'out') return;
+  // Fix batch e23p (P3): the point's reason, a comparison right after its own reason; merged as the reasons are.
+  const point = compared === undefined ? reason : `${reason} (${compared})`;
   if (cell.verdict === 'restricted' && cell.restriction != null) {
-    // Fix batch e23p (P3): the comparisons merge as the reasons do.
-    const merged = [cell.restriction.compared, compared].filter((one): one is string => one !== undefined);
-    cell.restriction = { reason: `${cell.restriction.reason}; ${reason}`, text: `${cell.restriction.text} ${text}`, ...(merged.length === 0 ? {} : { compared: merged.join('; ') }) };
+    const merged = `${cell.restriction.reason}; ${reason}`;
+    const pointReason = `${cell.restriction.pointReason ?? cell.restriction.reason}; ${point}`;
+    cell.restriction = { reason: merged, text: `${cell.restriction.text} ${text}`, ...(pointReason === merged ? {} : { pointReason }) };
     return;
   }
   cell.verdict = 'restricted';
-  cell.restriction = { reason, text, ...(compared === undefined ? {} : { compared }) };
+  cell.restriction = { reason, text, ...(point === reason ? {} : { pointReason: point }) };
   cell.criterionText = criterionTextOf(criterion);
   cell.sourceName = criterion.source.name;
 }
@@ -1445,7 +1448,7 @@ export function restrictedMeasurements(evaluations: readonly MeasurementTestEval
     const restricted = test.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.fixed === null && cell.verdict === 'restricted' && cell.restriction != null ? [{ row, cell, restriction: cell.restriction }] : [])));
     if (restricted.length === 0) continue;
     const items = restricted.map(({ row, cell, restriction }) => `${measurementWhere(test, row, cell)}: ${restriction.reason}`);
-    const pointItems = restricted.map(({ restriction }, i) => (restriction.compared === undefined ? items[i]! : `${items[i]!} (${restriction.compared})`));
+    const pointItems = restricted.map(({ row, cell, restriction }) => `${measurementWhere(test, row, cell)}: ${restriction.pointReason ?? restriction.reason}`);
     const hasOut = test.rows.some((row) => row.cells.some((cell) => cell.fixed === null && cell.verdict === 'out'));
     out.push({ testKey: test.testKey, title: test.title, label: test.label, items, pointItems, hasOut });
   }

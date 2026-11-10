@@ -14,7 +14,7 @@ import { TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { addDraftTest, removeDraftEntry } from '../types/draft-edit.ts';
 import { duplicateSeededType } from '../types/duplicate.ts';
 import { validateTypeDraft } from '../types/validate.ts';
-import { composeConclusion, conclusionFloor, conclusionFloorReasonText, conclusionTextState, effectiveConclusionPair } from './conclusion.ts';
+import { composeConclusion, conclusionFloor, conclusionFloorReasonText, conclusionTextState, effectiveConclusionPair, restrictedItems, restrictedPointItems } from './conclusion.ts';
 import { composeParecer, derivedParecer, parecerCounts } from './parecer.ts';
 import { preIssue } from './pre-issue.ts';
 import { evaluateSheetReadings, evaluateTest, worstReadings, type TestEvaluation } from './readings.ts';
@@ -382,7 +382,10 @@ describe('e23p-P3 the previous value shown corrected, and the derived point nami
     );
     const visit = visitContextOf(snapshot, tf);
     const test = evaluateTest(tf, definition, definition.tests.find((one) => one.key === 'isolacao')!, visit);
-    expect(captures(test)[0]!.restriction).toMatchObject({ reason: 'queda de mais de 50 % desde a manutenção anterior', compared: 'de 30 GΩ para 10 GΩ, a 20 °C' });
+    expect(captures(test)[0]!.restriction).toMatchObject({
+      reason: 'queda de mais de 50 % desde a manutenção anterior',
+      pointReason: 'queda de mais de 50 % desde a manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C)',
+    });
     const point = derivedPoints(snapshot).find((one) => one.key === `restricao:${tf.id}:isolacao`)!;
     expect(point.text.startsWith('Ensaio de isolação: valor dentro do critério, com restrição (')).toBe(true);
     expect(point.text.endsWith(': queda de mais de 50 % desde a manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C))')).toBe(true);
@@ -392,6 +395,29 @@ describe('e23p-P3 the previous value shown corrected, and the derived point nami
     expect(composed).not.toContain('para 10 GΩ');
     const printed = section9Layout(snapshot, 9, 'RESULTADOS')!.subsections.flatMap((subsection) => subsection.sheets).find((one) => one.blockId === tf.id)!;
     expect(JSON.stringify(printed)).not.toContain('para 10 GΩ');
+  });
+
+  it('a cell flagged by the drop and by the comparison with the largest row: the values follow the drop\'s reason only', () => {
+    // The seeded transformer carries the history rule alone; this definition adds the comparison with the largest row.
+    const both = structuredClone(definition);
+    const insulation = both.tests.find((one) => one.key === 'isolacao')!;
+    insulation.restriction = { ...insulation.restriction!, below_largest_pct: 50 };
+    const block = readings(
+      plate(sheet('transformador_forca'), { tipo_de_isolacao: 'ÓLEO MINERAL', ligacao_secundaria: 'Dyn1', temperatura_oleo_c: measured('20', '°C') }),
+      'isolacao',
+      { '0/1': measured('30', 'GΩ'), '1/1': measured('10', 'GΩ'), '2/1': measured('30', 'GΩ') },
+    );
+    const bKey = isolacaoKeys.find((slot) => slot.row === 1)!.key;
+    const visit: VisitContext = { ambientC: null, previous: entry({ [bKey]: { raw: '30', unit: 'GΩ', state: 'measured', corrected: { raw: '30', unit: 'GΩ' } } }) };
+    const test = evaluateTest(block, both, both.tests.find((one) => one.key === 'isolacao')!, visit);
+    expect(captures(test).map((one) => one.verdict)).toEqual(['within', 'restricted', 'within']);
+    const restriction = captures(test)[1]!.restriction!;
+    expect(restriction.reason).toBe('queda de mais de 50 % desde a manutenção anterior; abaixo de 50 % da maior leitura');
+    expect(restriction.pointReason).toBe('queda de mais de 50 % desde a manutenção anterior (de 30 GΩ para 10 GΩ, a 20 °C); abaixo de 50 % da maior leitura');
+    const [item] = restrictedPointItems(test);
+    expect(item).toMatch(/: queda de mais de 50 % desde a manutenção anterior \(de 30 GΩ para 10 GΩ, a 20 °C\); abaixo de 50 % da maior leitura$/);
+    // The paragraph's items keep the reason alone.
+    expect(restrictedItems(test)[0]).toMatch(/: queda de mais de 50 % desde a manutenção anterior; abaixo de 50 % da maior leitura$/);
   });
 
   it('the contact rise (out) already names both values in its reading point: unchanged', () => {

@@ -215,8 +215,8 @@ describe('23.15-UNIT winding resistance: the deviation between phases by medium 
     expect(cellAt(judged, 0, 0).restriction).toEqual({
       reason: 'variação de mais de 2 % desde a manutenção anterior',
       text: 'Variou mais de 2 % desde a manutenção anterior (1 Ω a 75 °C, rev. 2, 01/10/2026): a conclusão sobe para Com restrições.',
-      // Fix batch e23p (P3): both corrected values, for the derived point.
-      compared: 'de 1 Ω para 1,025 Ω, a 75 °C',
+      // Fix batch e23p (P3): both corrected values after the reason, for the derived point.
+      pointReason: 'variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C)',
     });
     expect(verdictsOf(measurement(block, 'resistencia_enrolamento', previous(false)), 0)).toEqual(['within', 'within', 'within']);
     // Exactly 2 % is within.
@@ -538,6 +538,22 @@ function previousWinding(block: BlockRow, raw: string): PreviousResults {
     readings: Object.fromEntries(keys.map((slot) => [slot.key, { raw, unit: 'Ω', state: 'measured' as const, corrected: { raw, unit: 'Ω' } }])),
   };
 }
+
+describe('e23p-P3 a winding cell in the restricted band whose value also moved since the previous visit', () => {
+  it('dry, 75 °C: phase C 3 % above the lowest (restricted band) and 3 % above its previous 1 Ω: the history rule reads only a cell still within, so the point names the band alone, never the values beside it', () => {
+    const block = atRow(transformer('dry', { temperatura_enrolamento_c: measured('75', '°C') }), ohm('1'), ohm('1'), ohm('1.03'));
+    const test = measurement(block, 'resistencia_enrolamento', { ambientC: null, previous: previousWinding(block, '1') });
+    expect(verdictsOf(test, 0)).toEqual(['within', 'within', 'restricted']);
+    const restriction = cellAt(test, 0, 2).restriction!;
+    expect(restriction.reason).toBe('desvio de 3 % sobre a menor fase');
+    expect(restriction.pointReason).toBeUndefined();
+    const [restricted] = restrictedMeasurements([test]);
+    expect(restricted!.pointItems).toEqual(['AT, tap atual, Fase C: desvio de 3 % sobre a menor fase']);
+    expect(restricted!.pointItems).toEqual(restricted!.items);
+    // Phases A and B, unchanged since the previous visit and within the band, carry no restriction at all.
+    expect([cellAt(test, 0, 0).restriction ?? null, cellAt(test, 0, 1).restriction ?? null]).toEqual([null, null]);
+  });
+});
 
 describe('e23t review fixes: the history rule runs only on a cell within, named by the criterion in force', () => {
   it('medium unknown (no deviation judged): a corrected value 2,5 % off the previous visit is not restricted', () => {

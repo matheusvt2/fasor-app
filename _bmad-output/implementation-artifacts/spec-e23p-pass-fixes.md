@@ -2,7 +2,7 @@
 title: 'e23p: the behaviour-pass fixes (copied temperatures, the v13 insulation table in print, the previous value shown corrected, dry-only fields on an oil unit, the ground grid criterion)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b307ced129f855dfc6759d5f1d246a1ff3d94577'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -112,6 +112,24 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-10 — Review pass
+- layers: Edge Case Hunter and Verification Gap ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 13 findings — high 0, medium 1, low 11, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VG: the history comparison is untested where a cell carries two restrictions (`markRestricted`'s merge, `applyRestrictions`' join) — action: one unit case per path (insulation drop plus below-largest; winding phase band plus history), with the placement fix below.
+  - `[low]` `[patch]` VG other / EC: with two findings the comparison follows the whole joined reason, so it reads as the other rule's values — action: each comparison attached to its own reason in the point text; `reason` and the print unchanged. Grouped with the row above (same root: how `compared` is joined).
+  - `[maybe-false]` `[reject]` VG other: the paired disjuntor/seccionadora tables are pinned by size and whole words, not columns — the pair path passes `single = false`, so `fittedColumns` runs the unchanged branch (`wholeFit` false); a column pin would settle it, and if true it would be low.
+  - `[low]` `[reject]` EC: a dry field typed while TIPO DE ISOLAÇÃO is empty, then ÓLEO ISOLANTE, is not cleared (no crossing from an unknown unit) — the value is kept and hidden, as the spec states for a value already stored, and mirrors the oil fields (an unknown unit never crosses); the fix adds a branch to the crossing rule.
+  - `[low]` `[reject]` EC: a copy chip can bring a stale dry value onto an oil sheet — the value is hidden and prints "-"; a crossing clears dry fields before they are issued, so a stale one is rare; the fix adds a new guard.
+  - `[low]` `[reject]` EC: `pairShape` true with unequal column counts prints a lone corrected table under e23w's rule — both halves share one definition and one appended-column decision, so the counts never differ on the seeded types.
+  - `[low]` `[reject]` EC: a whole-fit table that still overflows at 5 pt gives no signal — the four shapes fit at 6 pt or above, pinned by unit tests and the PDF test.
+  - `[low]` `[reject]` EC: `referenceOf` could label a previous corrected value with another seed's temperature — only v13 stores `corrected` and its references are fixed (20 °C, 75 °C).
+  - `[low]` `[reject]` EC: `maxFieldCriterionText` says "valor de projeto" for a company copy whose field is renamed — the e23e out helper already uses the same literal; a renamed field is an editor case outside the pass.
+  - `[low]` `[defer]` EC: a pending plate-reading suggestion on a dry field of an oil unit is not drawn and "Confirmar todos" could write it hidden — already a `deferred-work.md` row of this batch (the value prints "-").
+  - `[low]` `[reject]` EC: the PDF test identifies the four tables by position — the fixture's tree order is fixed (no "Agrupar por tipo"), the test passes, and section 9 never reorders the tree (AD-16).
+  - `[low]` `[reject]` EC: the fragment check misses a suffix break such as "S" + "ECUNDÁRIO" — the count check of every expected word catches any break.
+  - `[low]` `[patch]` EC: the same misplaced comparison, reported from the edge-case side (`applyRestrictions`, `markRestricted`) — patched with the VG rows above (same root cause).
 
 ## Design Notes
 

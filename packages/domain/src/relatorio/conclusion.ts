@@ -478,8 +478,7 @@ export function restrictedPointItems(test: TestEvaluation): string[] {
     table.rows.flatMap((row) =>
       row.cells.flatMap((cell) => {
         if (cell.verdict !== 'restricted' || cell.restriction == null) return [];
-        const item = `${readingRowLabel(table.rows, row)}: ${cell.restriction.reason}`;
-        return [cell.restriction.compared === undefined ? item : `${item} (${cell.restriction.compared})`];
+        return [`${readingRowLabel(table.rows, row)}: ${cell.restriction.pointReason ?? cell.restriction.reason}`];
       }),
     ),
   );

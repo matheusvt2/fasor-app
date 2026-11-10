@@ -166,11 +166,13 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         continue;
       }
       cell.verdict = 'restricted';
-      const compared = findings.flatMap((finding) => (finding.compared === undefined ? [] : [finding.compared]));
+      // Fix batch e23p (P3): the point's reason, each history finding's comparison right after its own reason.
+      const reason = findings.map((finding) => finding.reason).join('; ');
+      const pointReason = findings.map((finding) => (finding.compared === undefined ? finding.reason : `${finding.reason} (${finding.compared})`)).join('; ');
       cell.restriction = {
-        reason: findings.map((finding) => finding.reason).join('; '),
+        reason,
         text: `${findings.map((finding) => finding.detail).join('; ')}. ${CLOSING}`,
-        ...(compared.length === 0 ? {} : { compared: compared.join('; ') }),
+        ...(pointReason === reason ? {} : { pointReason }),
       };
     }
   }
