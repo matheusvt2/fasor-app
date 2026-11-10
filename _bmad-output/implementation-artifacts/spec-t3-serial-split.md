@@ -2,7 +2,7 @@
 title: 'Chore T3: split the e2e serial group by resource, with per-worker fixture copies'
 type: 'chore'
 created: '2026-11-09'
-status: 'in-review'
+status: 'done'
 baseline_revision: '4992dd8877017be75f50ff976a2cd3f1ce69649c'
 route: 'auto'
 dev_model: 'opus'
@@ -138,3 +138,16 @@ const copyId = (companyId: string, original: string) => derive(`e2e-copy:${compa
 - `podman compose --profile tools run --rm --user root tools pnpm test:unit` -- expected: green, `scripts/e2e.test.ts` included
 - `lockf -t 20000 /tmp/fasor-verify.lock podman compose --profile tools run --rm --user root tools pnpm exec vitest run --project api apps/api/src/db/test-fixtures.integration.test.ts` (or the api suite's equivalent filter) -- expected: green
 - `lockf -t 20000 /tmp/fasor-verify.lock podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts <the 11 fixture specs> --project desktop-chrome --project durability-desktop-chrome` -- expected: green on the queue lane's two workers, leak check clean
+
+## Auto Run Result
+
+Status: done
+
+- **Change:** the serial group is now two lanes after the parallel group: `queue` (51 specs, two workers, `fullyParallel`, each worker on its own copy of the small Porto Seguro fixture under company-derived ids) and `solo` (11 timing specs, one worker, last). AD-15 unchanged.
+- **Files:** `apps/api/src/db/{sample-relatorio,test-fixtures}.ts` (shared remap, `smallFixtureCopy`, scoped copy seed and removal) and their integration test; `e2e/support/{groups,export-fixture,global-setup}.ts`, `playwright.config.ts`, `scripts/e2e.ts` (lanes); `scripts/e2e.test.ts` (lane, config, id and guard tests); the 11 fixture specs (ids from the copy; `photo-numbers` `closeDialog` through `escapeDialog`, the E9-Q13 focus race); `AGENTS.md`, `docs/kbs/workflow/e2e-testing.md`, `docs/kbs/log.md`.
+- **Review:** 7 findings; 3 patched (per-lane config test, pinned derived ids, no direct fixture seed in e2e), 2 deferred, 2 rejected as false. `followup_review_recommended: false` (two medium patches are test-only additions; no unverified risk named).
+- **Verification (head 671de807):** lint clean (26 old warnings), static clean, test:unit 6085 of 6085 (402 files), test:api 951 passed 6 skipped (on 7afd21b7), the 11 fixture specs green on the queue lane.
+- **Full runs against the wave 3 baseline (main ef099d41: serial 30.8 min, total 53.6 min):**
+  - run 1 (7afd21b7, load 4.45 to 3.35): parallel 21.6, queue 17.5, solo 5.7, total 44.9 min; 1 red, seed-v11 21.1-E2E-002, the same failure as on main's baseline.
+  - run 2 (671de807, load 8.03 to 3.31): parallel 21.8, queue 17.4, solo 5.3, total 44.5 min; 1 red, export 4.8-E2E-005 (no "Revisão 1 pronta" in 150 s: the job finished in 1.6 s, the device sent no request for 150 s). It failed the same way on one worker during Epic 23 (`epic-23-context.md`); 3 of 3 green alone on the two-worker queue lane (`--repeat-each 3`), so it stays in `queue`, counted load-bound.
+- **Residual risks:** the two deferred items; the queue lane measured 17.4 to 17.5 min, above the 12.5 to 16.2 min estimate.
