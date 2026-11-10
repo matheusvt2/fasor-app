@@ -1773,6 +1773,8 @@ So that fixing one caption costs a tap, not a sentence.
 
 **Dev model:** opus · **Effort:** medium · points with photo tokens, derived untested entries and reorder
 
+*(2026-11-10, Matheus, on Bruno's report through him: **the second half of the title is overridden.** A sheet marked Não ensaiado no longer lists itself in section 8, on any seed. "Criar ponto de atenção" on its band stays and writes the point. Fix batch e24h (`spec-e24h-points-on-click.md`, contract 41) builds it; `source-deltas.md`, row of 2026-11-10 on automatic points.)*
+
 As a field engineer,
 I want to create a point of attention from an NC row with its photo already linked, or from the points surface, and insert recurring findings from chips,
 So that section 8 is written on site and never forgets an untested equipment.
@@ -4011,6 +4013,8 @@ So that the structure reads without counting indentation.
 
 **Dev model:** opus · **Effort:** high · the Sumário and rail presentations rebuilt from the approved mocks, kernel row texts, the CSS translation per the `.frame-*` rule, Playwright at 390 and 1280
 
+*(2026-11-10, Matheus, on Bruno's report through him: **the automatic point of finding F34 is overridden.** No point of attention is automatic. Row 8 of the Sumário and the heading of the Pontos screen count stored points only, with no "+ N automático" part. Fix batch e24h (`spec-e24h-points-on-click.md`, contract 41) builds it; `source-deltas.md`, row of 2026-11-10 on automatic points. The tree levels of this story stay.)*
+
 As Bruno on a phone,
 I want the relatório tree and the composer skeleton to look like the approved mocks,
 So that the structure reads without counting indentation and the NC and type of each sheet are visible on the row.
@@ -5904,6 +5908,8 @@ So that no ficha with an NC, an observation or a failed test prints as approved 
 
 **Dev model:** opus · **Effort:** high · new derived point kinds (NC checklist row, out-of-criterion test, Reprovado sheet) beside Não ensaiado, their suppression by a point written from the same source, the Pontos screen and section 8's print; shares contract 31 with 22.4
 
+*(2026-11-10, Matheus, on Bruno's report through him: **overridden.** No point of attention is automatic: a point exists only when the technician creates it ("Criar ponto de atenção" on an NC row or on a Não ensaiado band, "Adicionar" on the Pontos screen). The `nc`, `reading` and `reprovado` entries of this story are no longer listed, counted, flagged or printed, for every relatório on every seed. Points already stored stay, with their origin and their "Origem resolvida" flag. Verdicts and the parecer do not change. Fix batch e24h (`spec-e24h-points-on-click.md`, contract 41) builds it. How automatic points should work is thought through later. `source-deltas.md`, row of 2026-11-10 on automatic points.)*
+
 As Bruno,
 I want every NC and every reprovação listed in PONTOS DE ATENÇÃO without creating them one by one,
 So that the client sees every problem in the section meant for it.
@@ -6637,6 +6643,8 @@ So that a warm winding is not approved, or failed, on a raw number.
 
 **Dev model:** opus · **Effort:** max · `ReadingVerdict` gains `restricted` on v13 definitions; the bands the base states in numbers (rev08 TR-OL-02 history, TR-OL-05 and TR-SE-05 bands, CB-02 between phases and history, PR-02 against the largest unit and its disconnector prerequisite); a restricted reading raises the floor to Com restrições and derives a point; `last_results` judges when both visits are corrected; vague terms excluded
 
+*(2026-11-10, Matheus, on Bruno's report through him: **the automatic point of a restricted reading is overridden**, with the other four automatic kinds (fix batch e24h; `source-deltas.md`, row of 2026-11-10 on automatic points). The three levels, the comparisons and every verdict of this story stay.)*
+
 As Bruno reading a cable whose phase B is far below A and C,
 I want that reading to restrict the sheet, even inside the minimum,
 So that the relatório flags what the standard calls an investigation case.
@@ -6937,6 +6945,8 @@ So that I connect and run it right without leaving the sheet.
 ### Story 23.11: The test's recommendation is the initial text of its derived point (contract 37)
 
 **Dev model:** opus · **Effort:** medium · an optional `recommendation` per test definition; a derived point of an out-of-criterion test or a Reprovado sheet starts with its test's recommendation, the generic kernel text staying the fallback; editable in the type editor; shares contract 37 with Story 23.10
+
+*(2026-11-10, Matheus, on Bruno's report through him: **the automatic half is overridden.** No derived point exists any more to start with the recommendation (fix batch e24h; `source-deltas.md`, row of 2026-11-10 on automatic points). What stays: the `recommendation` key, its field in the type editor, and every point already stored with the recommendation in its text. The recommendation reaches a new point through the create action of Story 24.17.)*
 
 As Bruno reviewing the points of a failed test,
 I want each point to start with the recommendation the base gives for that test,
@@ -7433,7 +7443,7 @@ So that its resistance and its continuity are in the relatório with a verdict.
 
 ## Epic 24: Bruno's answers on the product: a conclusion by his rules, the TAG, the checklists, the previous visit in print and company types (seed v14; Bruno and Matheus, 2026-11-10)
 
-Bruno answered questions 18, 19, 22 to 30 and 32 to 34 of the 2026-11-07 list on 2026-11-10. He agrees with part of how the product concludes a ficha, names equipment, lists its checks and compares visits. He corrects the rest. Matheus took ten decisions the same day. This epic builds them.
+Bruno answered questions 18, 19, 22 to 30 and 32 to 34 of the 2026-11-07 list on 2026-11-10. He agrees with part of how the product concludes a ficha, names equipment, lists its checks and compares visits. He corrects the rest. Matheus took ten decisions the same day. This epic builds them. *(2026-11-10, evening: two more, decisions 11 and 12 below.)*
 
 The sources are gitignored, pt-BR and absent on other machines:
 - Bruno's answers and a table comparing each request with the code: `docs/context/epic-23/respostas-bruno-produto-2026-11-10.md`;
@@ -7452,12 +7462,14 @@ This epic cites Bruno by question number ("Bruno, 2026-11-10, question 25"), nev
 8. The story list and the batches are approved.
 9. The four low findings of the hands-on pass (F10, F15, F18, F20) are fixed in this epic, and the ledger of deferred work was swept for rows that fit.
 10. The stories are written with John (`bmad-agent-pm`) and built by Amelia (`bmad-agent-dev`).
+11. *(2026-11-10, evening.)* One more story, 24.21: an equipment keeps its history when its TAG is renamed. It settles the open point M-5 of the proposal.
+12. *(2026-11-10, evening; Bruno through Matheus, in chat, urgent.)* No point of attention is automatic. A point exists only when the technician creates it. All five automatic kinds stop (Não ensaiado, NC, a reading out of its criterion, Reprovado, a restriction), for every relatório on every seed. It is built now as fix batch e24h, outside the stories of this epic, and deployed alone before the rest. How automatic points should work is thought through later and is not built. This overrides Bruno's earlier answer to question 28, where an automatic point was fine under conditions.
 
 **Rules every story keeps:**
 - **Seed v14, new relatórios only (AD-21).** Seed v14 derives from v13, with `V13_HASH` pinned as shipped. A change to a verdict or to a printed page is reached through a key of the v14 seed: a definition key, or a key of the seed-level `rules` object that Story 24.2 adds. A v1 to v13 seed carries none of these keys, so it gives today's result in every reader. No relatório migrates its seed. No rule compares version numbers.
 - **Screen-only behaviour applies to every seed.** The preview wording, the question about the point, the NC phrase warning, the TAG suggestion and the small screen fixes change no verdict and no printed page.
 - **The stored pair stays.** A ficha already concluded keeps the pair it stored. Nothing is recomputed, on any seed.
-- **The printed layout of every older relatório stays byte-identical.** Bruno likes the current relatório. Story 24.2 adds v13 goldens to the layout lock. Every later story keeps the v5, v11, v12 and v13 goldens and the Porto Seguro goldens unchanged. Goldens and fixtures change by additions only. A v14 sheet prints only the delta its story names.
+- **The printed layout of every older relatório stays byte-identical.** Bruno likes the current relatório. Story 24.2 adds v13 goldens to the layout lock. Every later story keeps the v5, v11, v12 and v13 goldens and the Porto Seguro goldens unchanged. Goldens and fixtures change by additions only. A v14 sheet prints only the delta its story names. *(2026-11-10, evening: "byte-identical" is measured from main after fix batch e24h. e24h is the one deliberate change to old print: on every seed, section 8 and the points count of the parecer hold stored points only. Its PR carries the diff of the goldens it moves.)*
 - **A test that pins v13 stays on v13.** A test or spec that asserts a v13 verdict or a v13 printed page is pinned to v13 by an addition (`seedVersion: 'v13'`). It is never rewritten to the v14 result. The v14 behaviour gets new tests.
 - **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` computes every status, count, text, order and verdict, once. `apps/web` renders from IndexedDB and writes ops only. `apps/api` applies ops and renders documents. `applyOp` is the only reducer.
 - **Strings (AGENTS.md "Where a new user-facing string goes").**
@@ -7466,20 +7478,22 @@ This epic cites Bruno by question number ("Bruno, 2026-11-10, question 25"), nev
   - Component chrome goes in `apps/web/src/copy/ui.ts`.
   - Seeded content (item labels, NC phrases, field labels) lives in the seed. Every new NC phrase is added to `docs/nc-chip-phrases.md` in the same PR (`scripts/nc-chip-phrases.test.ts` checks it).
   - Every pt-BR sentence a story authors is marked `// authored (Story 24.x, listed for Bruno)` and listed in the PR.
+- **A point of attention exists only by the technician's tap** *(2026-11-10, evening, decision 12)*. No story of this epic lists, counts, flags or prints a point nobody created. Where a story below said that a row or a reading "derives" a point, a dated note beside it says what holds now.
 - **Not guessed.** A point nobody decided is written under its story as "Coordinator's reading, open to Matheus", with the most conservative reading built.
 - **Out of this epic:**
   - the No-break's tests (Bruno, question 34: a later module);
   - the open items B-1 to B-10 of the proposal, which Bruno answers after the epic is built;
-  - the rows the sweep left out (3037, 1047, 3032, 3100, 3153), for the reasons the proposal gives.
+  - the rows the sweep left out (3037, 1047, 3032, 3100, 3153), for the reasons the proposal gives. *(2026-11-10, evening: rows 3037 and 3032 are about automatic points. Fix batch e24h supersedes the first and narrows the second; `deferred-work.md` says how.)*
 - **Raised while writing the stories, for Bruno:** B-11, whether the TC's list should ask an item on its secondary (Story 24.10). It joins B-1 to B-10.
 
 **Waves and gates** (detail in `implementation-artifacts/epic-24-context.md`):
+- *(2026-11-10, evening.)* **First and alone: fix batch e24h**, "points on click" (branch `e24h-points-on-click`, spec `spec-e24h-points-on-click.md`, contract 41 with minimum 41). It is not a story of this epic. It is deployed alone, on Matheus's word, before the rest. Fix batch e24f starts after e24h merges, because both touch the same texts.
 - **Wave 0.** Story 24.1, the frames, drawn by the coordinator with `bmad-ux`. Matheus approves them in the browser.
 - **Wave 1** starts from main after the planning PR merges and 24.1 is approved.
-  - e24a: 24.2, 24.3, 24.4. The conclusion lane. It owns the opening of seed v14 and the v13 layout lock. Contract 41.
-  - e24b: 24.5, 24.6, 24.7, 24.8, 24.9. The screen lane. It needs no seed v14. It edits `points/derived.ts` beside e24a, so it merges second. Contract 42.
-- **Wave 2.** e24s: 24.10, 24.11, 24.12, 24.13, 24.14. The seed lane. After wave 1's gate and fix batch. Contract 43.
-- **Wave 3.** e24p: 24.15, 24.16, 24.17, 24.18, 24.19, 24.20. Print and company types. Side by side with e24s. Contract 44.
+  - e24a: 24.2, 24.3, 24.4. The conclusion lane. It owns the opening of seed v14 and the v13 layout lock. Contract ~~41~~ 42 *(2026-11-10, evening: e24h takes 41, so every reserved number moves up by one)*.
+  - e24b: 24.5, 24.6, 24.7, 24.8, 24.9 *(2026-11-10, evening: and 24.21, after 24.8)*. The screen lane. It needs no seed v14. It edits `points/derived.ts` beside e24a, so it merges second. Contract ~~42~~ 43 *(2026-11-10, evening: Story 24.21 changes the fold and takes it)*.
+- **Wave 2.** e24s: 24.10, 24.11, 24.12, 24.13, 24.14. The seed lane. After wave 1's gate and fix batch. Contract ~~43~~ 44 *(2026-11-10, evening)*.
+- **Wave 3.** e24p: 24.15, 24.16, 24.17, 24.18, 24.19, 24.20. Print and company types. Side by side with e24s. Contract ~~44~~ 45 *(2026-11-10, evening)*.
 - Contract numbers are reserved in merge order. A batch whose spec finds no fold change takes none, and the coordinator renumbers the later batches before they launch.
 - The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Each wave ends with a two-pass integrated review and a fix batch.
 
@@ -7488,7 +7502,7 @@ This epic cites Bruno by question number ("Bruno, 2026-11-10, question 25"), nev
 - Each wave gate green on the integrated main, and its integrated review accepted.
 - The paid plate eval run on Matheus's AWS login for the prompt change of Story 24.13 (E21-A4), its table recorded.
 - **The hands-on pass in the browser runs before the deploy, not after it** (the process change taken from Epic 23). A QA agent walks a v14 relatório and a v13 relatório on the integrated main. Its report is tracked under `_bmad-output/test-artifacts/manual/` before the deploy.
-- One deploy, after the last wave gate, its review, the eval and the pass, on Matheus's word. Seed v14 freezes at that deploy.
+- One deploy, after the last wave gate, its review, the eval and the pass, on Matheus's word. Seed v14 freezes at that deploy. *(2026-11-10, evening: fix batch e24h is deployed before it, alone, on Matheus's word. It changes no seed.)*
 - After the deploy, one message to Bruno with the open items B-1 to B-10 and every authored sentence of the epic.
 
 ### Story 24.1: The Epic 24 frames in the mocks
@@ -7501,7 +7515,7 @@ So that the batches build from frames, not from a guess (E14-A4).
 
 **Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
 - `mockups/prototype/screens/60-ficha.html` line 991 draws the suggestion as one amber banner, "Sugestão: …" with the reason and an "Aceitar" button, over two unselected radiogroups. The build differs: a Suggestion field labelled "Sugestão" with the pill "Sugerido" and "Confirmar", over radiogroups that already show the floor's pair as selected (`apps/web/src/surfaces/ficha/conclusao-section.tsx:428-457`).
-- Nothing draws: a preview state of the conclusion; a question about a point of attention; a warning on a kept NC observation; a Reprovado ficha with no restriction choice; a No-break de comando sheet; a palette where a copy stands in its original's place; a "nominal ± %" criterion in the type editor (`43-tipo-equipamento.html`).
+- Nothing draws: a preview state of the conclusion; a question about a point of attention; a warning on a kept NC observation; a Reprovado ficha with no restriction choice; a No-break de comando sheet; a palette where a copy stands in its original's place; a "nominal ± %" criterion in the type editor (`43-tipo-equipamento.html`). *(2026-11-10, evening: nor a create action on a reading. And `72-pontos.html` still draws automatic cards and the heading "4 + 1 automático", which fix batch e24h removes from the product.)*
 - `key-print-section-9-v13.html` is the last printed frame. It draws MANUT. ANTERIOR with no date and no note line under a table.
 
 *(Definition of Ready, met 2026-11-10: the proposal's frame list in its "Artifact conflicts" table, and this story's list. The look follows `DESIGN.md`. No new colour token is drawn unless a frame shows the need and names it, per `MOCK-GUIDE.md`.)*
@@ -7517,6 +7531,9 @@ So that the batches build from frames, not from a guess (E14-A4).
 - an NC row set back to Conforme whose observation was edited: the observation kept, a warning line under it and its "Apagar observação" action (Story 24.6), on a sheet row and on a local's row;
 - the question asked when an NC row with a stored point goes back to Conforme, as a dialog with its two answers (Story 24.7);
 - a point flagged "Origem resolvida" on the Pontos screen, with its remove action beside the flag (Story 24.7);
+- *(2026-11-10, evening)* the Pontos screen as fix batch e24h leaves it: stored points only, the heading "Pontos de atenção (N)", no automatic card, no "Possível duplicado" flag (`72-pontos.html` redrawn);
+- *(2026-11-10, evening)* "Criar ponto de atenção" on a test that fails, on a test with a restricted reading and on the Conclusão step of a ficha the technician reproved; and the same three places once the point exists, naming it (Story 24.17);
+- *(2026-11-10, evening)* the point editor opened from that action on a v14 sheet: the finding in the text and the test's recommendation in "Ação recomendada" (Story 24.17);
 - the TAG field of a new sheet with a suggested "DJ-01" and its helper (Story 24.8);
 - a No-break de comando sheet: its plate with the battery fields, its six items, no test step content (Story 24.13);
 - the palette "Adicionar equipamento" where a company copy stands in its library original's place (Story 24.19);
@@ -7539,11 +7556,11 @@ So that the batches build from frames, not from a guess (E14-A4).
 - the MANUT. ANTERIOR header with the previous visit's date (Story 24.15);
 - one note line under a table naming a drop and a rise (Story 24.16);
 - the CONCLUSÃO row of a Reprovado ficha with both restriction boxes empty (Story 24.3);
-- a section 8 row whose "Ação recomendada" holds the test's recommendation (Story 24.17)
+- a section 8 row whose "Ação recomendada" holds the test's recommendation (Story 24.17) *(2026-11-10, evening: the row is a point the technician created; a finding with no point prints no row)*
 
 **Given** the approved frames
 **When** the PR merges
-**Then** `DESIGN.md` and `EXPERIENCE.md` carry dated amendments (strike-through, never a rewrite), and `MOCK-GUIDE.md` and `index.html` list the frames
+**Then** `DESIGN.md` and `EXPERIENCE.md` carry dated amendments (strike-through, never a rewrite), and `MOCK-GUIDE.md` and `index.html` list the frames *(2026-11-10, evening: among the amendments, every sentence of the two documents that says a point enters by itself is struck, with the rule of decision 12 beside it)*
 
 **Definition of Done, in addition:**
 - Matheus approves the frames in the browser at 390, 768 and 1280 px, with one dialog open.
@@ -7553,9 +7570,13 @@ So that the batches build from frames, not from a guess (E14-A4).
 
 *(2026-11-10, John: the proposal's frame list names screens only. The printed frame and the small controls are added here, because the print is the epic's highest risk and E14-A4 asks for a frame before each new control. They add no story.)*
 
+*(2026-11-10, evening, John, after decision 12: three frames are added (the Pontos screen with stored points only, the create action on a reading, the editor it opens). No frame of the list showed an automatic entry, so none is dropped. The question of Story 24.7 was already drawn over a stored point. Story 24.21 has no screen and needs no frame.)*
+
 ### Story 24.2: Seed v14 opens and the v13 layout is locked (contract 41)
 
-**Dev model:** opus · **Effort:** high · seed v14 derived from v13 with `V13_HASH` pinned as shipped; the seed-level `rules` object, optional and empty of effect at the opening; the layout-lock goldens of a v13 relatório that covers what Epic 24 changes on v14; contract 41 with its `MIN_CONTRACT_VERSION` decision
+**Dev model:** opus · **Effort:** high · seed v14 derived from v13 with `V13_HASH` pinned as shipped; the seed-level `rules` object, optional and empty of effect at the opening; the layout-lock goldens of a v13 relatório that covers what Epic 24 changes on v14; contract ~~41~~ 42 *(2026-11-10, evening)* with its `MIN_CONTRACT_VERSION` decision
+
+*(2026-11-10, evening: fix batch e24h takes contract 41. This story's contract is 42, over 41. The heading keeps its words.)*
 
 As Bruno reading a relatório issued before this epic,
 I want it to conclude and print exactly as it did,
@@ -7564,7 +7585,7 @@ So that the new rules reach only the relatórios created after them.
 **Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
 - `SEED_VERSION` is `'v13'` (`seed/definitions.ts:64`), and `SEED_VERSIONS` holds v1 to v13 (`:128`). Seed v13 is deployed (`9add87b5`) and released (v0.8.0), so it is frozen (AD-21).
 - `seed.test.ts` pins `V13_HASH` `ff1737055c046a1f8a3fb9099bae3306b338b8af50be5502b347837602bd30ff` (`:2155`).
-- The contract is 40 with minimum 40 (`contract/version.ts:469` and `:738`).
+- The contract is 40 with minimum 40 (`contract/version.ts:469` and `:738`). *(2026-11-10, evening: 41 with minimum 41 once fix batch e24h merges, which is before this story starts.)*
 - The layout lock covers v5, v11 and v12 only: `LAYOUT_LOCK_VERSIONS` (`packages/domain/fixtures/layout-lock/op-log.ts:40`), the goldens under `apps/api/src/jobs/generate/golden/layout-lock-{v5,v11,v12}/`, compared by `docx-layout-lock.test.ts` ("23.2-UNIT-LOCK") and `layout-lock.integration.test.ts` ("23.2-INT-LOCK"). There is no v13 golden.
 - The lock fixture holds no `last_results`, so no golden prints MANUT. ANTERIOR.
 - The conclusion rules, the parecer and sections 8 and 10 have no seed gate (`relatorio/conclusion.ts`, `relatorio/parecer.ts`). `reportSeedSchema` (`seed/schema.ts:999`) has optional seed-level keys already (`recurring_findings`, `site_checklist`).
@@ -7580,10 +7601,10 @@ So that the new rules reach only the relatórios created after them.
   - an arrester whose nameplate sub-block is off and whose stored DESLIGADOR ÍNTEGRO is NÃO (it prints Reprovado);
   - a second visit with `last_results` on the insulation, contact and winding-resistance tables, with a contact rise out and an insulation drop restricted;
   - an NC observation typed in two lines;
-  - a company-type sheet whose reading out of its criterion carries a recommendation (section 8);
+  - a company-type sheet whose reading out of its criterion carries a recommendation ~~(section 8)~~ *(2026-11-10, evening: with a stored point written from that reading, its text holding the recommendation as Story 23.11 stored it, so that section 8 prints it. After fix batch e24h a finding with no stored point prints nothing)*;
   - a template's own Conclusão text with part of "nos itens 8 e 9" in bold.
-- **The goldens are taken on main at the start of wave 1**, before any other Epic 24 change. *(2026-11-10, coordinator: and after fix batch e24f has merged, so the lock holds the print with the retrospective's fixes; `epic-24-context.md` § Fix batch e24f.)* The v5, v11 and v12 goldens are not regenerated.
-- **Contract 41.** A 40 client cannot resolve a v14 definition. `MIN_CONTRACT_VERSION` moves to 41 unless the PR shows why not.
+- **The goldens are taken on main at the start of wave 1**, before any other Epic 24 change. *(2026-11-10, coordinator: and after fix batch e24f has merged, so the lock holds the print with the retrospective's fixes; `epic-24-context.md` § Fix batch e24f.)* The v5, v11 and v12 goldens are not regenerated. *(2026-11-10, evening: fix batch e24h comes before both. By its spec it regenerates the v5, v11 and v12 goldens once, for the automatic points they no longer print, and it asks Matheus about the Porto Seguro golden. This story takes the goldens as e24h left them and regenerates none.)*
+- **Contract ~~41~~ 42** *(2026-11-10, evening)*. A ~~40~~ 41 client cannot resolve a v14 definition. `MIN_CONTRACT_VERSION` moves to ~~41~~ 42 unless the PR shows why not.
 - **Out of scope:** every rule change. At the end of this story a v14 relatório concludes and prints exactly as a v13 one.
 
 **Acceptance Criteria:**
@@ -7604,7 +7625,7 @@ So that the new rules reach only the relatórios created after them.
 **When** it is created from a template, in the app or by the server's template upgrade
 **Then** it is born on v14, and a relatório that existed before keeps its seed
 
-**Given** a client on contract 40
+**Given** a client on contract ~~40~~ 41 *(2026-11-10, evening)*
 **When** it syncs
 **Then** it is refused with 426 and the update notice
 
@@ -7683,7 +7704,7 @@ So that "Com restrições" means what I chose, and half my fichas stop printing 
 
 **Given** a v14 ficha with one NC row and a reading out of its criterion
 **When** it concludes
-**Then** it is Reprovado with no restriction, and the NC row still derives its point of attention
+**Then** it is Reprovado with no restriction~~, and the NC row still derives its point of attention~~ *(2026-11-10, evening, decision 12: no row derives a point. A point the technician created from the NC row stays as it is, and the row still offers "Criar ponto de atenção" when it has none)*
 
 **Given** a v14 ficha where the technician chose Reprovado over a clean floor
 **When** the choice is written
@@ -7701,7 +7722,7 @@ So that "Com restrições" means what I chose, and half my fichas stop printing 
 **When** its nameplate sub-block is on
 **Then** the floor is Reprovado
 **And when** the sub-block is switched off
-**Then** the prerequisite is not read by the floor, the points, the conclusion text or the parecer; on a v13 arrester it is still read
+**Then** the prerequisite is not read by the floor, ~~the points,~~ the conclusion text or the parecer; on a v13 arrester it is still read *(2026-11-10, evening, decision 12: no point is derived from it on any seed. On v14 with the sub-block off it is also not a finding: Story 24.17 offers no "Criar ponto de atenção" for it, and a point written from it reads "Origem resolvida")*
 
 **Given** a v14 relatório with one Reprovado ficha
 **When** the parecer is derived
@@ -7761,7 +7782,7 @@ So that the client reads the finding in the conclusion and never a positive conc
 
 **Given** a v14 relatório where DJ-01 has a contact reading of 310 µΩ against 250 µΩ
 **When** section 10 prints
-**Then** the Parecer box is titled Não apto, its text names DJ-01 with the test, the value, the pole and the criterion, the same finding stands in DJ-01's conclusion in section 9 and in its point in section 8, and the third fixed bullet is absent
+**Then** the Parecer box is titled Não apto, its text names DJ-01 with the test, the value, the pole and the criterion, the same finding stands in DJ-01's conclusion in section 9 ~~and in its point in section 8~~, and the third fixed bullet is absent *(2026-11-10, evening, decision 12: section 8 holds a point for the finding only when the technician created one)*
 
 **Given** a v14 relatório with two reprovadas, one by two failed tests and one by a failed ratio row
 **When** the summary is composed
@@ -7790,7 +7811,7 @@ So that the client reads the finding in the conclusion and never a positive conc
 **Definition of Done, in addition:**
 - Kernel "24.4-UNIT": the sentence over each finding kind, several fichas, several findings, the ficha with none; the basis of a v13 summary unchanged; `ncClauseText` and `section10Layout` on v14 and v13.
 - "24.4-INT": the DOCX of a v14 relatório, section 10's box text and bullets.
-- `e2e/parecer-names-finding.spec.ts`: "24.4-E2E-001 @p0" a reading out on a v14 sheet, through Etapa 6's band, to the DOCX's sections 8, 9 and 10; "24.4-E2E-002" the two-line NC observation and the bold reference through the DOCX.
+- `e2e/parecer-names-finding.spec.ts`: "24.4-E2E-001 @p0" a reading out on a v14 sheet, through Etapa 6's band, to the DOCX's sections ~~8,~~ 9 and 10 *(2026-11-10, evening: section 8 is asserted empty of it)*; "24.4-E2E-002" the two-line NC observation and the bold reference through the DOCX.
 - Every authored sentence listed in the PR for Bruno.
 - The `source-deltas.md` row's "planned" replaced by the built record.
 - `docs/kbs/log.md`.
@@ -7857,6 +7878,8 @@ So that nobody takes a proposal for my conclusion.
 
 **Dev model:** opus · **Effort:** high · screen only, every seed: an NC row set to Conforme or to N.A. drops its observation while that is still only the offered phrases; an edited observation is kept with a warning and a one-tap removal; the chips stop offering one phrase twice; sheet rows and local rows
 
+*(2026-11-10, evening: fix batch e24h takes contract 41. Batch e24b's contract is 43, and Story 24.21 is the one that uses it. The heading keeps its words.)*
+
 As Bruno correcting an item I marked NC by mistake,
 I want the automatic phrase to leave with the NC, and my own words to stay with a warning,
 So that a ficha keeps no leftover phrase and loses nothing I wrote.
@@ -7876,7 +7899,7 @@ So that a ficha keeps no leftover phrase and loses nothing I wrote.
 - **Automatic:** the observation is removed in the same batch as the result.
 - **Edited:** the observation is kept, and the row shows a warning line (authored: "Observação mantida: o texto foi editado.") with the action "Apagar observação". The action removes it in one tap and offers "Desfazer". The warning shows on that device until the row's observation or result changes again.
 - **The chips (row 2552).** `ncChipPhrases` drops a phrase whose text, without its final period and normalised, an earlier chip already offers.
-- **Contract 42** is reserved for batch e24b. This story's reading writes only ops that exist (a result put, an observation remove), so it needs no fold change. The batch takes the number only if its spec finds one.
+- **Contract ~~42~~ 43** *(2026-11-10, evening)* is reserved for batch e24b. This story's reading writes only ops that exist (a result put, an observation remove), so it needs no fold change. ~~The batch takes the number only if its spec finds one.~~ *(2026-11-10, evening: Story 24.21, in the same batch, changes the fold and takes the number.)*
 
 **Acceptance Criteria:**
 
@@ -7922,25 +7945,34 @@ So that a ficha keeps no leftover phrase and loses nothing I wrote.
 
 *(2026-11-10, John: the proposal gives this story contract 42. The code shows no fold change in it: the rule compares the stored observation with the row's phrases and writes existing ops. The number stays reserved for batch e24b under the epic's rule, and the title keeps it until the batch's spec decides.)*
 
+*(2026-11-10, evening, John: the batch's number is now 43, and Story 24.21 takes it. This story still changes no fold.)*
+
 *Coordinator's reading, open to Matheus:*
 - *An observation of several tapped chips counts as automatic. Today only "exactly one chip" does.*
 - *The warning is a line on the row with one action, not a dialog. The technician is told and loses no tap.*
 
 ### Story 24.7: An item back to Conforme: the app asks whether to remove its point of attention
 
-**Dev model:** opus · **Effort:** high · screen only, every seed: a question when an NC row with a stored point leaves NC, on a sheet and on a local; a remove action on every point flagged "Origem resolvida"; the Points heading with only automatic points; the browser walk of a local's NC item
+**Dev model:** opus · **Effort:** high · screen only, every seed: a question when an NC row with a stored point leaves NC, on a sheet and on a local; a remove action on every point flagged "Origem resolvida"; ~~the Points heading with only automatic points; the browser walk of a local's NC item~~ *(2026-11-10, evening: the heading is fix batch e24h's; the browser walk is of a point created by the tap on a local's NC item)*
 
 As Bruno setting an item back to Conforme,
 I want the app to ask me about the point of attention I made from it,
 So that section 8 does not keep a point whose cause is gone, unless I say so.
 
+*(2026-11-10, evening, after decision 12: no point is automatic. Fix batch e24h, deployed before this story, removes every automatic entry. This story keeps its question and its remove action. Both now concern stored points only:*
+- *a point the technician created from the row ("Criar ponto de atenção"), found by its origin link: `origin: 'nc'`, the row's `item_key`, the same equipment or local;*
+- *a point written before e24h by "Editar" on an automatic entry, which carries the same link;*
+- *for the remove action, a point created from a reading or from a verdict (Story 24.17).*
+
+*A point added by hand on the Pontos screen has no link and is never asked about. What no longer holds is struck below.)*
+
 **Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
-- A derived (automatic) entry leaves by itself when its source is gone (`points/derived.ts` `derivedPoints`).
+- ~~A derived (automatic) entry leaves by itself when its source is gone (`points/derived.ts` `derivedPoints`).~~ *(2026-11-10, evening: after fix batch e24h there is no automatic entry.)*
 - A stored point written from a source (`origin` `nc`, `reading`, `reprovado` or `restricao`) stays, flagged "Origem resolvida" (`resolvedOriginPoints`, `derived.ts:390-405`; `copy.points.originResolved`, `pt-br.ts:1339`). The flag is an amber line on the card. The card's only removal is "Remover" in its overflow (`points-surface.tsx:306-420`).
 - On the sheet, an NC row names its point ("Ponto de atenção N") through `ncRowPointPositions` (`points/checks.ts:186-198`). Nothing is asked when the row leaves NC.
 - `removePointOp` (`relatorio/ops.ts:59-61`) removes a point, and the Pontos screen offers "Desfazer".
-- With no live point and three automatic ones the Pontos heading reads "Pontos de atenção (0 + 3 automáticos)" (`pointsHeadingText`, `points/summary.ts:152-157`), where the Sumário reads "3 automáticos" (`pointsSummaryText`, `:126-141`) (row 2352).
-- No browser test walks a local's NC item as an automatic entry (row at 3025).
+- ~~With no live point and three automatic ones the Pontos heading reads "Pontos de atenção (0 + 3 automáticos)" (`pointsHeadingText`, `points/summary.ts:152-157`), where the Sumário reads "3 automáticos" (`pointsSummaryText`, `:126-141`) (row 2352).~~ *(2026-11-10, evening: fix batch e24h rewrites both, over stored points only: "Pontos de atenção (N)". Row 2352 is superseded.)*
+- ~~No browser test walks a local's NC item as an automatic entry (row at 3025).~~ *(2026-11-10, evening: `e2e/verificacoes-local.spec.ts` asserts the point written from a local's NC item. No browser test walks the question on a local's row. This story adds it, and that is the new reading of the row at 3025.)*
 
 *(Definition of Ready, met 2026-11-10 by Bruno's question 28, second condition, and decision 2. Blocked until Story 24.1's question and card frames are approved.)*
 - **The question** is asked on the row, when its result changes from NC to C or to N.A. and a live point of `origin: 'nc'` names that row (same equipment or local, same `item_key`). It is a `ConfirmDialog`:
@@ -7950,7 +7982,7 @@ So that section 8 does not keep a point whose cause is gone, unless I say so.
 - **The result is written either way.** "Remover ponto" removes each such point in the same batch. "Manter ponto" keeps it, flagged "Origem resolvida" as today.
 - **A local's item gets the same question** (the proposal leaves it to this story): it is the same row and the same origin.
 - **Every other resolved point** (a reading corrected, a Reprovado lifted, a restriction gone, a change made on another device or before this story) is not asked about while typing. Its card on the Pontos screen gains "Remover ponto" beside the "Origem resolvida" flag. It opens the existing removal dialog, with "Desfazer" after.
-- **The heading (row 2352).** `pointsHeadingText` with no live point reads as the Sumário does: "Pontos de atenção (3 automáticos)".
+- ~~**The heading (row 2352).** `pointsHeadingText` with no live point reads as the Sumário does: "Pontos de atenção (3 automáticos)".~~ *(2026-11-10, evening: done by fix batch e24h, in its own form.)*
 - **Nothing is removed without an answer.** No point is removed by a sync, a merge or a recompute.
 
 **Acceptance Criteria:**
@@ -7961,15 +7993,23 @@ So that section 8 does not keep a point whose cause is gone, unless I say so.
 
 **Given** that question
 **When** the technician answers "Remover ponto"
-**Then** the point is removed in the same batch as the result, the Pontos screen and section 8 no longer hold it, and no automatic entry comes back for the row
+**Then** the point is removed in the same batch as the result, the Pontos screen and section 8 no longer hold it~~, and no automatic entry comes back for the row~~ *(2026-11-10, evening: nothing comes back; the row offers "Criar ponto de atenção" again only if it is set to NC again)*
 
 **Given** that question
 **When** the technician answers "Manter ponto", or closes the dialog
 **Then** the point stays, flagged "Origem resolvida"
 
-**Given** an NC row with no stored point, only its automatic entry
+**Given** an NC row with no stored point~~, only its automatic entry~~
 **When** it is set to Conforme
-**Then** nothing is asked and the entry leaves
+**Then** nothing is asked ~~and the entry leaves~~ *(2026-11-10, evening)*
+
+**Given** an NC row and a point added by hand on the Pontos screen for the same equipment (origin `manual`) *(2026-11-10, evening)*
+**When** the row is set to Conforme
+**Then** nothing is asked, and the point stays with no flag
+
+**Given** a point written before fix batch e24h by "Editar" on an automatic NC entry *(2026-11-10, evening)*
+**When** its row is set to Conforme
+**Then** the question is asked about it, as about a point created by the tap
 
 **Given** a local's NC item with a stored point
 **When** it is set to Conforme on "Verificações do local"
@@ -7979,18 +8019,22 @@ So that section 8 does not keep a point whose cause is gone, unless I say so.
 **When** the Pontos screen renders
 **Then** its card shows "Origem resolvida" with "Remover ponto" beside it, the action asks the existing confirmation, and "Desfazer" restores the point
 
-**Given** a relatório with no live point and three automatic entries
-**When** the Pontos screen renders
-**Then** its heading reads "Pontos de atenção (3 automáticos)"
+~~**Given** a relatório with no live point and three automatic entries~~
+~~**When** the Pontos screen renders~~
+~~**Then** its heading reads "Pontos de atenção (3 automáticos)"~~ *(2026-11-10, evening: fix batch e24h's.)*
 
-**Given** a local whose site item is NC
-**When** the technician opens Pontos, follows "Abrir verificações de ⟨local⟩", comes back and taps "Editar" on the entry
-**Then** the entry is replaced by a point of origin `nc`, and removing that point brings the entry back
+~~**Given** a local whose site item is NC~~
+~~**When** the technician opens Pontos, follows "Abrir verificações de ⟨local⟩", comes back and taps "Editar" on the entry~~
+~~**Then** the entry is replaced by a point of origin `nc`, and removing that point brings the entry back~~
+
+**Given** a local whose site item is NC *(2026-11-10, evening: the walk by the tap)*
+**When** the technician taps "Criar ponto de atenção" on the item's row and saves
+**Then** one point of origin `nc` is stored with the item's key and the local, the Pontos screen lists it, and setting the item back to Conforme asks the question about it
 
 **Definition of Done, in addition:**
-- Kernel "24.7-UNIT": the points a row's change asks about (sheet, local, two points, a manual point never asked about); the heading over 0, 1 and N automatic entries with and without live points.
+- Kernel "24.7-UNIT": the points a row's change asks about (sheet, local, two points, a manual point never asked about *(2026-11-10, evening: a point written from an automatic entry before e24h asked about)*)~~; the heading over 0, 1 and N automatic entries with and without live points~~.
 - Web unit tests of the dialog's three exits and of the card's action.
-- `e2e/point-question.spec.ts`: "24.7-E2E-001 @p0" both answers on a sheet through the DOCX's section 8; "24.7-E2E-002" the resolved `reading` point removed from the Pontos screen and restored; "24.7-E2E-003" the local's NC item walked as an automatic entry (row at 3025), with the question on the local's row.
+- `e2e/point-question.spec.ts`: "24.7-E2E-001 @p0" both answers on a sheet through the DOCX's section 8; "24.7-E2E-002" the resolved `reading` point removed from the Pontos screen and restored; "24.7-E2E-003" ~~the local's NC item walked as an automatic entry (row at 3025), with the question on the local's row~~ *(2026-11-10, evening)* the local's NC item: the point created by the tap, then the question on the local's row with both answers (row at 3025, in its new reading).
 - The touched durability specs on the matrix projects.
 - The `source-deltas.md` row's "planned" replaced by the built record.
 - `docs/kbs/log.md`.
@@ -8022,11 +8066,11 @@ So that no equipment is named after the utility or the room.
 - **Prefixes.** The seccionadora's becomes SC. The others stay: CE, PR, DJ, TP, TC, CS, TR, CTA, QD, QGBT, MA. A company type keeps its `tag_prefix`. NB arrives with Story 24.13.
 - **The plate's TAG first.** The TAG stays always editable. The field's helper asks for the TAG of the plate, of the single-line diagram or the one used on site, and says the app's value is a suggestion (authored, listed for Bruno). The plate reading does not read a TAG, and its prompt does not change.
 - **Existing TAGs never change.** The rule applies to a sheet created from now on, on any seed.
-- **The reuse keeps working.** `instantiateTemplate` matches a position against the obra's equipment by two candidates, in this order: the TAG the old rule gives the position (the old rule and its prefix table are kept as a frozen function, used for this match and by fixtures only), then the TAG the new rule gives it. A match needs the same type. A created equipment gets the new suggestion.
+- **The reuse keeps working.** `instantiateTemplate` matches a position against the obra's equipment by two candidates, in this order: the TAG the old rule gives the position (the old rule and its prefix table are kept as a frozen function, used for this match and by fixtures only), then the TAG the new rule gives it. A match needs the same type. A created equipment gets the new suggestion. *(2026-11-10, evening: Story 24.21, next in this batch, moves this match to a key stored on the equipment and retires the second candidate. The batch may build the match once, in Story 24.21's form. Every criterion of this story holds in that form.)*
 - **Fixtures keep their TAGs.** `instantiateTemplate` takes the TAG rule as an input, the new one by default. The layout-lock, Porto Seguro and replay fixtures and `e2e/support/relatorio-seed.ts` pass the old rule, by an addition, so no golden and no existing spec's TAG changes.
 - **A move** no longer offers a TAG rename: the suggestion does not depend on the local.
 - **Rows.** It closes row 2051 and pass finding F14's odd suggestion. Row 2727 (the "Blocos" drawer says its target to a screen reader) is fixed here only if the batch edits `apps/web/src/surfaces/templates/block-palette.tsx`; else it stays open.
-- **Out of scope:** an equipment whose TAG was renamed is still not found by the reuse (ledger row at line 647).
+- ~~**Out of scope:** an equipment whose TAG was renamed is still not found by the reuse (ledger row at line 647).~~ *(2026-11-10, evening, Matheus on M-5: it is Story 24.21, in this batch, right after this story.)*
 
 **Acceptance Criteria:**
 
@@ -8081,7 +8125,7 @@ So that no equipment is named after the utility or the room.
 *Coordinator's reading, open to Matheus:*
 - *"The plate's TAG first" is the technician's typing, prompted by the helper. The app reads no TAG from a photo.*
 - *The types Bruno did not list (CE, CS, CTA, QD, MA) keep their prefix. Only SEC becomes SC.*
-- *A renamed TAG is still not found by the next relatório of the obra. With the plate's TAG typed over the suggestion this becomes the common case: the next relatório creates a new equipment and its sheet starts with no previous visit. Fixing it needs a key that survives a rename (for example the suggested TAG stored on the equipment at its creation), which is a product decision and a contract change. It is not in this story.*
+- ~~*A renamed TAG is still not found by the next relatório of the obra. With the plate's TAG typed over the suggestion this becomes the common case: the next relatório creates a new equipment and its sheet starts with no previous visit. Fixing it needs a key that survives a rename (for example the suggested TAG stored on the equipment at its creation), which is a product decision and a contract change. It is not in this story.*~~ *(2026-11-10, evening, Matheus: decided. Story 24.21 builds the key.)*
 
 ### Story 24.9: Small screen fixes from the hands-on pass
 
@@ -8171,6 +8215,8 @@ So that I read what a field expects before I get it wrong.
 
 **Dev model:** opus · **Effort:** medium · seed v14: the TP keeps FUSÍVEIS with a hint; the TC loses FUSÍVEIS; the batch's fenced section of `seed/v14.ts` opens; the tap budgets get their v14 run; v1 to v13 unchanged
 
+*(2026-11-10, evening: fix batch e24h takes contract 41. Batch e24s's contract is 44. The heading keeps its words.)*
+
 As Bruno inspecting a TC,
 I want its list without the fuse item, and the TP's list with it,
 So that each sheet asks only what its equipment has.
@@ -8190,7 +8236,7 @@ So that each sheet asks only what its equipment has.
 - **Copies.** "Duplicar" and the base import take the v14 lists from the day v14 is the current seed. A company copy made before keeps its own list.
 - **The seed lane.** This is batch e24s's first story. It opens the batch's fenced section in `seed/v14.ts`, and `V14_HASH` is re-pinned by each batch until the deploy.
 - **The tap budgets (row 3262).** The four journey specs gain a seed v14 run with the numbers accepted on v13. The v12 runs stay.
-- **Contract 43** is the batch's, for the keys and the type Stories 24.11 to 24.14 append. This story appends none.
+- **Contract ~~43~~ 44** *(2026-11-10, evening)* is the batch's, for the keys and the type Stories 24.11 to 24.14 append. This story appends none.
 
 **Acceptance Criteria:**
 
@@ -8255,7 +8301,7 @@ So that the same sheet serves both kinds of unit without asking the wrong thing.
 - **The dry subtypes** keep their `na_defaults` (the oil items, now eight).
 - **The oil sampling** stays the v13 test. No checklist item is added for it.
 - **Oil fields on a dry unit (row 3487).** Wherever a definition carries `oil_rule.fields` (every seed from v6), an oil-only field on a dry unit is drawn read-only and empty with its reason, as the dry fields are on an oil unit. The stored value is kept. Print is unchanged: it already prints "-".
-- **Contract 43** covers the three item keys and the `dry_items` key in a company definition.
+- **Contract ~~43~~ 44** *(2026-11-10, evening)* covers the three item keys and the `dry_items` key in a company definition.
 
 **Acceptance Criteria:**
 
@@ -8269,7 +8315,7 @@ So that the same sheet serves both kinds of unit without asking the wrong thing.
 
 **Given** a v14 oil unit where the technician answers NC on VENTILAÇÃO FORÇADA
 **When** the answer is stored
-**Then** it wins over the derived N.A., and the row derives its point of attention
+**Then** it wins over the derived N.A.~~, and the row derives its point of attention~~ *(2026-11-10, evening, decision 12: and the row offers "Criar ponto de atenção", as any NC row; no point exists without the tap)*
 
 **Given** a v14 dry unit with the three dry items answered
 **When** TIPO DE ISOLAÇÃO changes to ÓLEO ISOLANTE
@@ -8328,7 +8374,7 @@ So that the sheet records the main service of the visit.
   - 12, TESTE DE FUNCIONAMENTO (`teste_de_funcionamento`, a new key), with the hint "ACIONAMENTO MANUAL DOS DISJUNTORES, MULTIMEDIDOR, SINALIZAÇÃO, DPS" (authored) and three or four NC phrases authored by the batch.
 - **Thermography on v14.** The type gains the v13 `termografia` test as it is: the same rows, columns, bands, "Foto térmica" and switch, with the default it has on the eight types. It stays optional: off, or not applicable until "Equipamento em carga" is Sim.
 - **The Quadro elétrico (QGBT/QD)** does not change.
-- **Contract 43** covers the new item key.
+- **Contract ~~43~~ 44** *(2026-11-10, evening)* covers the new item key.
 
 **Acceptance Criteria:**
 
@@ -8345,8 +8391,10 @@ So that the sheet records the main service of the visit.
 **Then** the reading is judged by the same bands as on the eight types, and the DOCX prints the thermography table
 
 **Given** REAPERTO GERAL answered NC with a chip
-**When** the Pontos screen renders
-**Then** the row derives its point of attention, as any NC row
+~~**When** the Pontos screen renders~~
+~~**Then** the row derives its point of attention, as any NC row~~
+**When** the technician taps "Criar ponto de atenção" on the row *(2026-11-10, evening, decision 12)*
+**Then** a point of origin `nc` starts with the item's text, as on any NC row; with no tap the Pontos screen lists nothing for it
 
 **Given** a v13 and a v12 Inspeção de QGBT
 **When** they render and print
@@ -8366,7 +8414,7 @@ So that the sheet records the main service of the visit.
 
 ### Story 24.13: A new type: No-break de comando, with no tests
 
-**Dev model:** opus · **Effort:** high · a v14 library type `no_break_comando` with its plate (the unit and its battery bank), six checklist items, observations, conclusion and photos, no test; added at a local, printed under "Outros equipamentos"; a new closed-enum type (contract 43); the plate prompt and its paid eval; the cable's missing fake plate fixture
+**Dev model:** opus · **Effort:** high · a v14 library type `no_break_comando` with its plate (the unit and its battery bank), six checklist items, observations, conclusion and photos, no test; added at a local, printed under "Outros equipamentos"; a new closed-enum type (contract ~~43~~ 44 *(2026-11-10, evening)*); the plate prompt and its paid eval; the cable's missing fake plate fixture
 
 As Bruno inspecting the command no-break of a cabine,
 I want a sheet for it, with its plate, its batteries and its checks,
@@ -8406,7 +8454,7 @@ So that the equipment that feeds the relays has its place in the relatório.
 - **Plate reading.** The prompt gains what the battery fields need, once (`bedrock-structuring-9`). The paid eval runs on Matheus's login before the deploy (E21-A4). A synthetic No-break plate fixture and its `fakeDefaults` entry are added.
 - **The cable (row 3237).** The cable types gain their default fake plate fixture in the same change.
 - **The plate script (row at 3007, third part).** `make-plate-fixtures.ts` is corrected only if the new plates need it.
-- **Contract 43**, for the appended type and item keys.
+- **Contract ~~43~~ 44** *(2026-11-10, evening)*, for the appended type and item keys.
 - **Out of scope:** any test of the no-break (Bruno: a later module), and the Disjuntor MT's item 16.
 
 **Acceptance Criteria:**
@@ -8421,7 +8469,7 @@ So that the equipment that feeds the relays has its place in the relatório.
 
 **Given** the sheet with its plate filled, item 4 NC with a chip, and the rest Conforme
 **When** it is concluded
-**Then** the floor is Aprovado · Com restrições, item 4 derives a point of attention, and the conclusion text names the item and says nothing about measured values
+**Then** the floor is Aprovado · Com restrições, ~~item 4 derives a point of attention,~~ and the conclusion text names the item and says nothing about measured values *(2026-11-10, evening, decision 12: item 4 offers "Criar ponto de atenção"; no point exists without the tap)*
 
 **Given** that relatório
 **When** the DOCX is generated
@@ -8443,7 +8491,7 @@ So that the equipment that feeds the relays has its place in the relatório.
 **When** the palette lists both
 **Then** each is told apart by its "Tipo da empresa" mark, and every spec picks the one it means without ambiguity
 
-**Given** a client on contract 42
+**Given** a client on contract ~~42~~ 43 *(2026-11-10, evening)*
 **When** it syncs a relatório holding the type
 **Then** it is refused with 426
 
@@ -8486,7 +8534,7 @@ So that the relatório says why, and the ground grid sheet stops asking me to ph
 - **The grammar.** A measurement test value may be of kind `text`. The fold accepts a string for it. No other test uses it.
 - **The grid's block.** A definition may carry two optional keys: the title of its plate block, and a flag that it has no plate to photograph. On v14 the Malha de aterramento sets them: the block reads "Dados da malha" (authored, listed for Bruno) on the sheet and in the composer, and "Fotografar placa" is not offered.
 - **Unchanged on the grid:** its fields, the copy chips, the design value's role, and its printed table.
-- **Contract 43** covers the text value and the two keys in a company definition.
+- **Contract ~~43~~ 44** *(2026-11-10, evening)* covers the text value and the two keys in a company definition.
 
 **Acceptance Criteria:**
 
@@ -8534,6 +8582,8 @@ So that the relatório says why, and the ground grid sheet stops asking me to ph
 
 **Dev model:** opus · **Effort:** high · every seed, from now on: the service date is kept in `last_results` at issue, and the visits are ordered by it; seed v14: the MANUT. ANTERIOR header prints the previous visit's date, and the printed history texts name it; v1 to v13 print unchanged
 
+*(2026-11-10, evening: fix batch e24h takes contract 41. Batch e24p's contract is 45. The heading keeps its words.)*
+
 As Bruno comparing a reading with the last visit's,
 I want the date of that visit in the column's header,
 So that I know how old the value I compare with is.
@@ -8552,7 +8602,7 @@ So that I know how old the value I compare with is.
 - **The header on v14.** The column's header prints the previous visit's date under "MANUT. ANTERIOR": a day as dd/mm/aaaa, a month as mm/aaaa (authored layout, from Story 24.1's frame). The tables keep the type sizes they have on v13.
 - **The printed history texts on v14** (a drop, a rise, a variation) name the same date as the header.
 - **On screen, every seed,** the "Anterior" helper shows the visit's date.
-- **Contract 44**, for the entry's new optional key, with the `MIN_CONTRACT_VERSION` decision in the PR.
+- **Contract ~~44~~ 45** *(2026-11-10, evening)*, for the entry's new optional key, with the `MIN_CONTRACT_VERSION` decision in the PR.
 - **The spine** gains a dated note under AD-25 (Matheus's M-3: written in the build PR).
 
 **Acceptance Criteria:**
@@ -8621,7 +8671,7 @@ So that I see at a glance what moved since the last visit.
   - the transformer's insulation, a drop of more than 50 % of the corrected value, restricted (`seed/v13.ts:233`, `relatorio/restriction.ts:108-168`);
   - the breaker's and the switch's contact resistance, a rise of more than 50 %, out (`v13.ts:238-242`, `applyHistoryRise`);
   - the winding resistance, a variation of more than 2 % of the corrected value, restricted (`v13.ts:370`, `measurement-evaluation.ts:933-972`).
-- Their words reach the row's helper on screen, the conclusion paragraph and the derived point. The printed table shows no sign of them.
+- Their words reach the row's helper on screen, the conclusion paragraph and the derived point. The printed table shows no sign of them. *(2026-11-10, evening, decision 12: after fix batch e24h there is no derived point. The words reach a point only when the technician creates one: Story 24.17.)*
 - So a contact table prints "ACEITÁVEL <250 µΩ" over a 61 µΩ row that the rise reproved (pass finding F6). An insulation row prints its measured values while the conclusion speaks of a drop judged on the corrected ones (pass finding F4, the print half).
 - A seeded test already prints note lines under its last table: `limitNote` and `printNote`, as paragraph parts kept with the table (`print/section-9.ts:1174-1178`; api `partsChildren`). A measurement test prints none.
 
@@ -8637,7 +8687,7 @@ So that I see at a glance what moved since the last visit.
 
 **Given** a v14 breaker whose pole A went from 40 µΩ to 61 µΩ since the previous v13 or v14 visit
 **When** its DOCX is generated
-**Then** one line under the contact table names pole A, the rise and 40 µΩ, the table's cells and header are as on v13, and the conclusion and section 8 name the same rise
+**Then** one line under the contact table names pole A, the rise and 40 µΩ, the table's cells and header are as on v13, and the conclusion ~~and section 8 name~~ names the same rise *(2026-11-10, evening, decision 12: section 8 names it only in a point the technician created)*
 
 **Given** a v14 transformer whose corrected AT insulation fell by more than half
 **When** its DOCX is generated
@@ -8672,52 +8722,116 @@ So that I see at a glance what moved since the last visit.
 
 ### Story 24.17: The test's recommendation fills "Ação recomendada"
 
-**Dev model:** opus · **Effort:** medium · seed v14: a derived point's recommendation goes to its action, on the Pontos screen, in a point written from it and in section 8's "Ação recomendada" column; the long row checked against a page break; two glued photo references; v1 to v13 unchanged
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-11-10, evening, John: the story now also builds the create action on a reading)* · ~~seed v14: a derived point's recommendation goes to its action, on the Pontos screen, in a point written from it and in section 8's "Ação recomendada" column;~~ *(2026-11-10, evening:)* every seed: "Criar ponto de atenção" on a test that fails, on a restricted reading and on a ficha the technician reproved; seed v14: the point it starts holds the finding in its text and the test's recommendation in its action, which section 8 prints under "Ação recomendada"; the long row checked against a page break; two glued photo references; v1 to v13 ~~unchanged~~ points start as Story 23.11 stored them, and their print is unchanged
 
 As Bruno reading the action plan,
 I want the recommendation of a failed test in the "Ação recomendada" column,
 So that the column says what to do and the finding's text says what was found.
 
+*(2026-11-10, evening, after decision 12: no point is automatic. This story was written over the automatic entry of a failed test. Fix batch e24h removes that entry and its "Editar", which was the only way a reading reached a stored point. So the recommendation has no point to fill unless the reading gets a create action, and this story now builds it. The text that no longer holds is struck. The new text is dated.)*
+
 **Today (verified 2026-11-10 on `dbcdb720`, product code of main `f89b787a`):**
 - A test may carry a `recommendation` (`seed/test-help.ts`). No shipped seed sets one: they come from company types, the imported base among them.
-- A derived entry of kind `reading` or `reprovado` puts the recommendation inside its text, before the composed finding (`recommendedPointText`, `test-help.ts:128-139`; `points/derived.ts:181-195`, `:264`).
-- In section 8's table a derived entry prints "—" under "Ação recomendada" (`print/section-8.ts:256-259`). "Editar" on the entry writes a point whose text holds both and whose action is empty (`derivedPointSeed`, `derived.ts:559-575`). (Pass finding F15.)
+- ~~A derived entry of kind `reading` or `reprovado` puts the recommendation inside its text, before the composed finding (`recommendedPointText`, `test-help.ts:128-139`; `points/derived.ts:181-195`, `:264`).~~
+- ~~In section 8's table a derived entry prints "—" under "Ação recomendada" (`print/section-8.ts:256-259`). "Editar" on the entry writes a point whose text holds both and whose action is empty (`derivedPointSeed`, `derived.ts:559-575`). (Pass finding F15.)~~
 - Section 8's body rows can split across two pages: only the header row is kept whole (`apps/api/src/jobs/generate/sections/section-8.ts:38-40`).
 - A photo reference typed with no space around it prints glued, "verImagem 1" or "Imagem 1texto" (row 3191; `resolveBulletPhotoTokens`, `resolvePhotoTokens`).
 
-*(Definition of Ready, met 2026-11-10 by decision 9, pass finding F15. Blocked until Story 24.1's printed frame is approved.)*
-- **On v14** a derived entry's text is the composed finding alone, and its action is the recommendation (several joined as today's text joins them).
-- **Where it shows on v14:**
-  - the Pontos screen's card, in the action's place;
-  - a point written from the entry ("Editar", "Criar ponto de atenção"): its `action` holds the recommendation and its `text` the finding;
-  - section 8's bullet, the finding then the action, as a manual point prints;
-  - section 8's table, "Ação recomendada".
+**Today, after fix batch e24h** *(2026-11-10, evening; read on main `72ed1f51` and in e24h's spec, `spec-e24h-points-on-click.md`; the batch checks it again on the main it starts from)*:
+- Nothing lists or prints a finding that has no stored point. The kernel still computes the findings (a test that fails, a restricted test, a Reprovado the technician chose) for two readers: the parecer and the "Origem resolvida" flag (`points/derived.ts`).
+- "Criar ponto de atenção" exists in three places: on an NC row of a sheet and of a local (`apps/web/src/surfaces/ficha/checklist-section.tsx:560`), and on the band of a sheet marked Não ensaiado (`not-tested-band.tsx:65`).
+- **It exists nowhere on a reading**: not on a reading out of its criterion, not on a restricted one, not on the Conclusão step. A person records such a finding only by typing it, with "Adicionar" on the Pontos screen.
+- The point row already carries what a point written from a test needs: the origins `reading`, `restricao` and `reprovado`, and `test_key` (`schemas/entities.ts:698-722`, contracts 31 and 36).
+- A point written before e24h from an automatic entry holds the recommendation at the start of its text and an empty action (Story 23.11; `recommendedPointText`, `seed/test-help.ts:128-139`).
+- So a test's recommendation, and the imported polarization-index one, reach no point and no page.
+
+*(Definition of Ready, met 2026-11-10 by decision 9, pass finding F15. ~~Blocked until Story 24.1's printed frame is approved.~~)* *(2026-11-10, evening: and by decision 12. Blocked until Story 24.1's frames of the create action, of its editor and of the printed row are approved, and until fix batch e24h has merged.)*
+- ~~**On v14** a derived entry's text is the composed finding alone, and its action is the recommendation (several joined as today's text joins them).~~
+- ~~**Where it shows on v14:**~~
+  - ~~the Pontos screen's card, in the action's place;~~
+  - ~~a point written from the entry ("Editar", "Criar ponto de atenção"): its `action` holds the recommendation and its `text` the finding;~~
+  - ~~section 8's bullet, the finding then the action, as a manual point prints;~~
+  - ~~section 8's table, "Ação recomendada".~~
+- *(2026-11-10, evening.)* **The create action, on every seed.** "Criar ponto de atenção", the action an NC row has, is offered in three more places:
+  - on a test that fails: a reading out of its criterion, a ratio row INSATISFATÓRIO, a measurement cell out, a failed polarization index, a failed choice (a polarity INVERTIDA) or a failed prerequisite. There is one action per test, because one point stands for one test;
+  - on a test with a reading in its restriction band and no failure (seed v13 and later, Story 23.6);
+  - on the Conclusão step of a ficha whose Reprovado is the technician's own choice, with no failed test behind it. A Reprovado caused by a test has its action on that test.
+
+  A read-only sheet offers none.
+- *(2026-11-10, evening.)* **What the tap does.** It opens the point editor, as on an NC row. The kernel starts the point: the sheet's equipment, the finding's text, the origin (`reading`, `restricao` or `reprovado`) and the test's key. The point is stored when the editor closes, as on an NC row. **Nothing is stored without the tap.**
+- *(2026-11-10, evening.)* **One point per finding.** While a live point with that origin and key exists for the equipment, the place of the action names the point ("Ponto de atenção N"), as an NC row does, and offers no second one. Removing the point brings the action back.
+- *(2026-11-10, evening.)* **The finding's text** is the text the automatic entry had: the test's title with the value, where, and the criterion or the rise; a restricted test with its rows and their reasons; a chosen Reprovado with the sheet's observation.
+- *(2026-11-10, evening.)* **The recommendation on v14.** The point starts with the finding alone in its text and the recommendation in its action: the test's recommendation for a test that fails, the index recommendation for a failed polarization index, and for a chosen Reprovado the recommendations of its tests, picked and joined as Story 23.11's text does. Both fields stay editable. Section 8 prints the point as it prints any stored point: the finding under "Ponto de atenção", the action under "Ação recomendada", and the bullet with the finding then the action.
+- *(2026-11-10, evening.)* **The recommendation on v1 to v13.** The point starts as Story 23.11 stored it: the recommendation first, inside the text, and an empty action.
 - **With no recommendation** nothing changes: the action stays "—".
 - **The long row.** On v14 a body row of the action plan that fits on a page is not split across two. A row taller than a page still splits.
 - **Row 3191.** On v14 a photo reference glued to a word prints with its space, in the bullet and in the table.
 - **Stored points stay.** A point written before this story keeps its text and its action.
+- *(2026-11-10, evening.)* **No fold change.** The origins, `test_key` and `action` already exist on the point row. The story writes only ops that exist.
 
 **Acceptance Criteria:**
 
-**Given** a v14 relatório with a company-type sheet whose reading out of its criterion carries a recommendation
-**When** the Pontos screen renders
-**Then** the automatic entry's text is the finding and its action is the recommendation
+~~**Given** a v14 relatório with a company-type sheet whose reading out of its criterion carries a recommendation~~
+~~**When** the Pontos screen renders~~
+~~**Then** the automatic entry's text is the finding and its action is the recommendation~~
 
-**Given** that entry
-**When** the engineer taps "Editar" and saves
-**Then** the point written has the finding as its text and the recommendation as its action, and both are editable
+~~**Given** that entry~~
+~~**When** the engineer taps "Editar" and saves~~
+~~**Then** the point written has the finding as its text and the recommendation as its action, and both are editable~~
+
+~~**Given** that relatório~~
+~~**When** the DOCX is generated~~
+~~**Then** section 8's table prints the recommendation under "Ação recomendada" and the finding under "Ponto de atenção", and the bullet prints the finding then the recommendation~~
+
+~~**Given** a v14 Reprovado ficha whose in-force tests carry two recommendations~~
+~~**When** its entry renders and prints~~
+~~**Then** both stand in the action, in the tests' order~~
+
+~~**Given** a v14 entry with no recommendation~~
+~~**When** it prints~~
+~~**Then** "Ação recomendada" is "—", as today~~
+
+*(2026-11-10, evening: the five criteria above are replaced by the ten below.)*
+
+**Given** a sheet on any seed with a reading out of its criterion and no point written from that test
+**When** the test renders
+**Then** it offers "Criar ponto de atenção", and the Pontos screen, the Sumário and section 8 hold nothing for that reading
+
+**Given** a v14 relatório with a company-type sheet whose reading out of its criterion carries a recommendation
+**When** the technician taps "Criar ponto de atenção" on the test
+**Then** the editor opens with the finding as its text and the recommendation as its "Ação recomendada", both editable, and closing it stores one point of origin `reading` with the test's key and the sheet's equipment
+
+**Given** that stored point
+**When** the test renders again
+**Then** the place of the action names the point and offers no second one, and removing the point brings the action back
 
 **Given** that relatório
 **When** the DOCX is generated
 **Then** section 8's table prints the recommendation under "Ação recomendada" and the finding under "Ponto de atenção", and the bullet prints the finding then the recommendation
 
-**Given** a v14 Reprovado ficha whose in-force tests carry two recommendations
-**When** its entry renders and prints
-**Then** both stand in the action, in the tests' order
+**Given** a v14 sheet with a reading in its restriction band and no failure
+**When** the technician taps the action on that test
+**Then** a point of origin `restricao` starts with the restricted rows and their reasons as its text and an empty action
 
-**Given** a v14 entry with no recommendation
-**When** it prints
-**Then** "Ação recomendada" is "—", as today
+**Given** a v14 ficha the technician concluded Reprovado with nothing out, whose in-force tests carry two recommendations
+**When** the technician taps the action on the Conclusão step
+**Then** a point of origin `reprovado` starts with the sheet's observation as its text and both recommendations in its action, in the tests' order
+
+**Given** a v14 transformer of a company type whose polarization index fails and whose test carries the imported index recommendation
+**When** the technician taps the action on the insulation test
+**Then** the action of the point holds the index recommendation
+
+**Given** a v14 test that fails and carries no recommendation
+**When** its point is created and printed
+**Then** the action starts empty and "Ação recomendada" prints "—", as today
+
+**Given** a sheet with no failed test, no restricted reading and no Reprovado chosen by the technician, or a sheet that is read-only
+**When** it renders
+**Then** no test and no Conclusão step offers the action
+
+**Given** a v13 relatório with the same company-type sheet
+**When** the technician taps the action on the failed test
+**Then** the point starts with the recommendation and then the finding in its text, and an empty action, as Story 23.11 stored it
 
 **Given** a v14 action plan whose long row would cross a page end
 **When** the PDF is generated
@@ -8732,12 +8846,21 @@ So that the column says what to do and the finding's text says what was found.
 **Then** the recommendation stays in the text, the action is "—", the glued reference prints as today, and the layout-lock goldens hold
 
 **Definition of Done, in addition:**
-- Kernel "24.17-UNIT": the entry's text and action on v14 and v13 for `reading` and `reprovado`; `derivedPointSeed`; section 8's rows and bullets; the photo reference rule on v14 with v13's output pinned.
+- Kernel "24.17-UNIT": ~~the entry's text and action on v14 and v13 for `reading` and `reprovado`; `derivedPointSeed`;~~ *(2026-11-10, evening)* what a point starts with, for each kind of finding (a reading out, a ratio row, a measurement cell, an index, a choice, a prerequisite, a restricted test, a chosen Reprovado), on v14 and on v13: its text, its action, its origin and its key; where the action is offered and where it is not; the one-point rule; section 8's rows and bullets for such points; the photo reference rule on v14 with v13's output pinned.
+- *(2026-11-10, evening.)* Web unit tests of the action in its three places, of its state once the point exists, and of a read-only sheet.
 - "24.17-INT": the DOCX of a v14 relatório, the table and the bullet, and the PDF's page of the long row.
-- `e2e/recommendation-action.spec.ts` "24.17-E2E-001 @p0": a company type with a recommendation, the entry, "Editar", through the DOCX. `e2e/test-recommendation.spec.ts` is pinned to v13.
+- `e2e/recommendation-action.spec.ts` "24.17-E2E-001 @p0": a company type with a recommendation, ~~the entry, "Editar",~~ *(2026-11-10, evening)* a reading out of its criterion, nothing on the Pontos screen, the tap, the editor's two fields, the stored point, through the DOCX. *(2026-11-10, evening.)* "24.17-E2E-002": the restricted reading and the chosen Reprovado. `e2e/test-recommendation.spec.ts` is pinned to v13.
 - The touched durability specs on the matrix projects.
+- *(2026-11-10, evening.)* Every authored sentence listed in the PR for Bruno, and a dated line in `EXPERIENCE.md` on the create action of a reading.
 - The `source-deltas.md` row's "planned" replaced by the built record.
 - `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus (2026-11-10, evening):*
+- *A test that fails, a reading in its restriction band and a ficha the technician reproved each offer "Criar ponto de atenção", the action an NC row has. Nobody decided this action. Without it, after fix batch e24h, a failed test reaches section 8 only when someone types a point by hand on the Pontos screen, and a test's recommendation reaches nothing.*
+- *The action is one per test, not one per row, because the point's key is the test (`test_key`).*
+- *A restricted reading's point starts with no recommendation, as its automatic text never had one. The base's recommendation is written for a reproved test.*
+- *The action exists on every seed. Only the place of the recommendation depends on the seed: the action on v14, the text before it.*
+- *The story stays in wave 3 (batch e24p). Between the deploy of e24h and the deploy of this epic, a failed reading has no create action. If that gap is too long, the action can move to wave 1 as a story of its own, and the v14 half stays here.*
 
 ### Story 24.18: A "nominal ± %" criterion on company types
 
@@ -8761,7 +8884,7 @@ So that I type the nominal value once and the app works out the range.
 - **The editor.** The rule's word is "nominal ± %" (authored, in the kernel's rule words). The row shows two inputs, "Valor nominal" and "Tolerância (%)" (authored). The tab's line of rules gains the word.
 - **The text.** The criterion reads "220 V ± 5 %" on the sheet's helper and in the printed ACEITÁVEL (authored form). How a tolerance is written in print is Bruno's open item B-9; this is the form until he answers.
 - **Who gets it.** A type version published with the rule. Every version already published, and every sheet made with one, is untouched.
-- **Contract 44** covers the new operator and field in a company definition. An older client is refused.
+- **Contract ~~44~~ 45** *(2026-11-10, evening)* covers the new operator and field in a company definition. An older client is refused.
 - **Out of scope:** a nominal read from a plate field; the rule on a seeded type.
 
 **Acceptance Criteria:**
@@ -8794,7 +8917,7 @@ So that I type the nominal value once and the app works out the range.
 **When** they evaluate and print
 **Then** nothing changes, and the layout-lock and Porto Seguro goldens hold
 
-**Given** a client on contract 43
+**Given** a client on contract ~~43~~ 44 *(2026-11-10, evening)*
 **When** it syncs a company holding a version with the rule
 **Then** it is refused with 426
 
@@ -8903,7 +9026,7 @@ So that no technician finds a ratio table that stays empty on site.
 - **The editor's refusal.** Changing the kind or the options of that field while a ratio table reads it is refused, with the removal's toast pattern and its own sentence.
 - **The strict schema** refuses the same draft on the server, so an older build cannot publish it either.
 - **Published versions stay.** A version already published in that state keeps its number and its sheets. The issue shows when its draft is next opened.
-- **Contract 44** covers the stricter publish rule.
+- **Contract ~~44~~ 45** *(2026-11-10, evening)* covers the stricter publish rule.
 
 **Acceptance Criteria:**
 
@@ -8941,6 +9064,136 @@ So that no technician finds a ratio table that stays empty on site.
 - `e2e/type-editor.spec.ts` gains "24.20-E2E-001 @p0": the refusal of the change, a draft seeded in the broken state showing the issue, the way out, the publish.
 - The `deferred-work.md` rows 3441 and 3464 (item 4) closed in the PR.
 - `docs/kbs/log.md`.
+
+### Story 24.21: An equipment keeps its history when its TAG is renamed (contract 43)
+
+**Dev model:** opus · **Effort:** high · every seed, no screen: one optional key on the equipment row, written once at its creation by "Novo relatório" and by the palette; the reuse of an obra's equipment matches on that key and no longer on the visible TAG; equipment from before the story has no key and still matches by its TAG; fixtures and goldens byte-equal; contract 43 with its `MIN_CONTRACT_VERSION` decision
+
+As Bruno opening this year's relatório of an obra whose equipment I renamed to the plate's TAG,
+I want each sheet to open on the same equipment, with its previous visit,
+So that MANUT. ANTERIOR, the 50 % rules and "Copiar da última visita" keep working after a rename.
+
+*(2026-11-10, evening: written on Matheus's decision on the open point M-5 of `sprint-change-proposal-2026-11-10.md`, "pode criar uma história a mais". Batch e24b, right after Story 24.8. It takes the batch's contract number.)*
+
+**Today (verified 2026-11-10 on main `72ed1f51`):**
+- **The reuse reads the visible TAG.** A new relatório of an obra gives each placement of its template a base TAG: `suggestTag` over the TAGs this run already bound or created (`relatorio/instantiate.ts:337`). It binds the first live equipment of the same type, not yet bound in this run, whose TAG equals that base (`:338`). With none it creates the equipment, with a TAG free in the obra (`:345-350`).
+- So an equipment whose TAG was renamed (the sheet's TAG field, "Renomear TAG") is not found. Nor is one that got a suffix at its creation because its base was taken. The next relatório creates it again, and the new sheet has no `last_results` and no `last_nameplate`: no MANUT. ANTERIOR, no rule against the previous visit, no "Copiar da última visita". This is the open ledger row "Q4 reuse matches only the base TAG" (`deferred-work.md`, near line 647, `spec-epic-4-fix-qa.md`, open since 2026-09-24).
+- With Story 24.8 the technician types the plate's TAG over the suggestion most of the time. The rename becomes the common case.
+- **The equipment row** holds `id`, `project_id`, `tag`, `type`, `last_nameplate`, `last_results` and `removed_at` (`schemas/entities.ts:381-390`). A device can put only its `tag` and its `removed_at` (`EQUIPMENT_FIELDS`, `ops/path.ts:49`).
+- **Equipment is created in two places.** `instantiateTemplate` (`instantiate.ts:345-350`), for "Novo relatório". And `newEquipmentBlock` (`relatorio/tree.ts:879`), which the palette, "Duplicar" and "Fotografar equipamento" reach through `createPair` (`apps/web/src/surfaces/relatorio/tree-actions.ts:310-350`).
+- **A template block has no id.** A placement is a node of the skeleton (`skeleton_location_ref`), a type, and its place among the blocks of that type at that node, counted over each entry's `quantity` (`schemas/block-config.ts:441-446`). A node may hold several entries of one type (`templates/compose.ts` `setQuantity`).
+- **A node's ref does not survive a saved template.** "Salvar como template" gives each node a new ref, the id of the relatório's location (`templates/from-relatorio.ts`). The node's name survives.
+- **The old TAG rule already names a placement in a way that survives both.** It is the type's prefix, the local's code taken from its name, and a suffix for the second and later of that type there: "DJ-C05", "DJ-C05-2". A transformer is "TR-n" across the obra (`relatorio/tag.ts:98-118`). Story 24.8 keeps this rule as a frozen function.
+- A removed equipment is never reused and never counts as taken (`instantiate.ts:312`).
+- The Porto Seguro snapshot golden holds equipment rows (`packages/domain/fixtures/porto-seguro/snapshot.golden.json`). The layout-lock, Porto Seguro and replay fixtures and `e2e/support/relatorio-seed.ts` create their equipment through `instantiateTemplate`.
+
+*(Definition of Ready, met 2026-11-10, evening, by Matheus's decision on M-5 and by the direction he approved in the proposal: the equipment stores, at its creation, the key the reuse matches on.)*
+- **The key.** The equipment row gains one optional field, `reuse_key` (the batch may rename it in its spec; the mechanism is fixed). It is a string, never defaulted, and absent on every row written before, so an old row parses to the same bytes. Its value is the TAG the frozen old rule of Story 24.8 gives the placement: prefix, local code, place. It is what the reuse compares today, kept apart from the visible TAG. No screen shows it, no document prints it, and no text is built from it.
+- **Where it is written.** Once, in the `equipment` create, by the kernel:
+  - by `instantiateTemplate`, with the placement's key (see "The run");
+  - by `newEquipmentBlock`, for the palette, "Duplicar" and "Fotografar equipamento", with the old rule's TAG for the type at the block's local, free among the keys of the obra's live equipment. So an equipment added on site is found again after "Salvar como template".
+- **It never changes.** No op path writes it after the create, and the fold refuses one. A rename writes `tag` only. A move to another local, a reorder, a remove and a restore keep the key.
+- **A row's match key** is its stored key. A row with none uses its TAG, trimmed and uppercased (`normalizeTag`). One kernel function answers it, and every reader below uses it.
+- **The run.** `instantiateTemplate` walks the placements in today's order. For each one:
+  1. Its key is the frozen old rule's TAG for the type at the node, free among the keys this run already bound or created. The visible TAGs do not enter. So a template gives the same keys in every relatório of the obra, whatever the TAGs became.
+  2. It binds the live equipment of the same type, not yet bound in this run, whose stored key equals it.
+  3. With none, it binds the live equipment of the same type, not yet bound, that has no stored key and whose TAG equals it. This is today's match, and it serves the equipment from before the story.
+  4. With none, it creates the equipment: the key stored, and the TAG suggested by Story 24.8's new rule, free among the obra's live TAGs.
+- **Story 24.8's second candidate is retired.** Story 24.8 matches by the old rule's TAG and then by the new rule's. With the key, every equipment born under the new rule is found by step 2. A row with no key was born under the old rule. If its TAG looks like "DJ-01", a person typed it, and binding it by its place in the template would be a guess. The batch builds the match once, in this form.
+- **When two equipment could claim one key:**
+  - a stored key wins over a TAG (step 2 comes before step 3);
+  - among several rows of one type with the same stored key (two devices that each created the obra's first relatório offline), the one with the smallest id binds. Ids are UUIDv7, so it is the oldest. The others stay in the obra, in no sheet of the new relatório;
+  - the same holds in step 3 for two rows with the same TAG;
+  - nothing reports a doubled key. The integrity check keeps reporting a doubled TAG, as today.
+- **What a template edit does.** Each case behaves as today, now read from the key:
+  - a block removed, or a quantity lowered: the placements that are gone bind nothing. Their equipment stays live in the obra, in no sheet of the new relatório, and is found again if the placement comes back;
+  - a quantity raised: the new placement gets the next key of that type at that local, finds no row and creates one;
+  - a block moved to another local, or a local renamed in the template: the key changes with the local's code. The placement creates a new equipment, which starts with no previous visit. The old one stays in the obra;
+  - another type placed where one was: no match, because the type must be the same;
+  - the first of two blocks of one type at one local removed, or an earlier transformer removed: the later one takes the earlier key, and so the earlier equipment's history. This is a limit of today's rule, and it stays.
+- **Fixtures keep their rows.** `instantiateTemplate` writes the key when it runs under the new TAG rule, which is its default. A caller that passes the old rule (Story 24.8's input: the layout-lock, Porto Seguro and replay fixtures, `e2e/support/relatorio-seed.ts`, and every seed script `grep` finds) gets rows with no key, byte-equal to today's. Such rows match by their TAG (step 3), which is what those fixtures and specs test today.
+- **Contract 43**, batch e24b's, for the new optional key of the equipment row. A bundle on contract 42 would drop the key when it folds the create, and its next relatório would miss the equipment. `MIN_CONTRACT_VERSION` moves to 43 unless the PR shows why not.
+- **Out of scope:**
+  - an equipment renamed before this story: it has no key, and its TAG no longer matches;
+  - giving a key to equipment that exists today;
+  - any screen that shows or edits the key;
+  - binding a sheet by hand to another equipment of the obra.
+
+**Acceptance Criteria:**
+
+**Given** an obra whose first relatório was created after this story, from a template with a cable at "Cubículo Enel", a seccionadora and a breaker at "Coluna 5" and a transformer, issued once, and whose breaker was then renamed "52-1" and transformer "TF-A"
+**When** a second relatório is created from the same template
+**Then** every placement binds the same equipment, no equipment is created, the TAGs "52-1" and "TF-A" stand, and each sheet shows its "Anterior" value, "Copiar da última visita" and, in print, MANUT. ANTERIOR
+
+**Given** that second relatório, and a contact reading on "52-1" more than 50 % above the first visit's
+**When** the sheet evaluates
+**Then** the rise is judged against the first visit, as it would be with no rename
+
+**Given** an obra whose equipment was created before this story (SEC-C05, DJ-C05, CE-ENEL and TR-1, none with a key, each with `last_results`)
+**When** a second relatório is created from the same template
+**Then** every placement binds its equipment by its TAG, none is created, no op is written to those rows, and each sheet shows its previous visit
+
+**Given** that older obra, with DJ-C05 renamed "52-1" before the relatório is created
+**When** the relatório is created
+**Then** the breaker's placement creates a new equipment with a key, as today's rule would: the limit for equipment from before the story stays
+
+**Given** an obra with keyed equipment and a template that gained a second breaker at "Coluna 5"
+**When** a relatório is created
+**Then** the first placements bind their equipment, and the new one creates an equipment with the second breaker's key and the next free suggested TAG
+
+**Given** a template whose breaker block was removed, and later added again at the same local
+**When** a relatório is created from each version
+**Then** the first has no sheet for the breaker and leaves its equipment live in the obra, and the second binds that equipment again, with its history
+
+**Given** a template whose breaker moved from "Coluna 5" to "Coluna 6"
+**When** a relatório is created
+**Then** the placement creates a new equipment with no previous visit, and the old one stays in the obra, unbound
+
+**Given** a breaker added from the palette at "Coluna 5" with the TAG typed "QM8", the relatório saved with "Salvar como template", and a relatório created from that template
+**When** it is created
+**Then** both breakers of "Coluna 5" bind their own equipment, and none is created
+
+**Given** two live equipment of one type with the same stored key
+**When** a relatório is created, twice
+**Then** both runs bind the one with the smallest id, the other is in no sheet, and nothing is created for that placement
+
+**Given** a keyed equipment, and an equipment of the same type with no key whose TAG equals that key
+**When** a relatório is created
+**Then** the placement binds the keyed one
+
+**Given** two keyed breakers, at "Coluna 5" and "Coluna 6", and the first renamed to the TAG the old rule would give the second ("DJ-C06")
+**When** a relatório is created
+**Then** each placement binds its own equipment: the visible TAG is not read for a keyed row
+
+**Given** a keyed equipment that is renamed, moved to another local, removed and restored
+**When** its row is read after each step
+**Then** its key is unchanged, and a put to a key path is refused by the fold
+
+**Given** the layout-lock (v5, v11, v12 and v13), Porto Seguro and replay fixtures
+**When** they are built and their goldens compared
+**Then** no equipment row of a fixture carries a key, and every golden is byte-equal
+
+**Given** a client on contract 42
+**When** it syncs
+**Then** it is refused with 426 and the update notice
+
+**Definition of Done, in addition:**
+- Kernel "24.21-UNIT": a row's match key, stored and absent; the run over each obra of the criteria; the keys of two relatórios of one template equal whatever the TAGs; the palette's key, free among the keys, with rows from before counted by their TAG; both tie-breaks; the fold (a create keeps the key, an old row parses to the same bytes, no put path); `instantiateTemplate` with the old rule passed gives drafts byte-equal to today's.
+- "24.21-API-001": an equipment create with the key through the sync route, read back by a second device; the 426 for contract 42; a cross-tenant check.
+- `e2e/equipment-history.spec.ts`: "24.21-E2E-001 @p0" an obra created through "Novo relatório", a TAG renamed on the sheet, the relatório issued, a second one created through the screen, its previous values on the renamed sheet and in the DOCX; "24.21-E2E-002" a breaker added from the palette, "Salvar como template", a relatório from it. The obra with TAGs from before the story is Story 24.8's "24.8-E2E-002", which keeps passing.
+- The touched durability specs on the matrix projects: the story changes the op fold.
+- The glossary's TAG entry and the spine's AD-25 gain dated lines: the reuse reads a stored key, and the TAG is the label the technician sees.
+- The ledger row "Q4 reuse matches only the base TAG" is closed with the built record. Its half about equipment from before the story stays, as a narrowing.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The key is the old rule's TAG of the placement (type, local, place), not a reference to the template's block. A template block has no id, and "Salvar como template" gives every node a new ref, so a reference would lose the history at the first saved template. The price: a block moved to another local, or a local renamed in the template, starts a new equipment. That is today's behaviour.*
+- *An equipment from before the story gets no key, not even when a new relatório binds it. So renaming it later still loses its history at the next relatório. This covers every obra that exists today. Closing it needs one more write on an old row (the key given at its first bind, or at its rename), and that write must not move an Emitido relatório to Em revisão. It is not built. It is the next decision if the obras of today matter.*
+- *Story 24.8's second candidate (an equipment with no key bound by the new rule's TAG) is retired, so nothing is bound on a guess.*
+- *With two equipment on one key, the oldest binds, and nothing tells the user about the other.*
+- *An equipment added from the palette gets a key too, so that "Salvar como template" finds it.*
+- *The key cannot be seen or corrected. A wrong binding is fixed as today: by removing the sheet and adding the equipment again.*
 
 ## Backlog: deferred stories
 

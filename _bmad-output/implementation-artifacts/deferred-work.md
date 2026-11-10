@@ -647,7 +647,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Q4 reuse matches only the base TAG the template position would get. An equipment renamed in an earlier relatório, or one that got a suffix at creation from a cross-type TAG collision, is not reused, and the next relatório mints a new row for that position.
   evidence: The coordinator fixed the key (base TAG plus type) on 2026-09-24. `instantiate.ts` compares `normalizeTag(row.tag)` with the base TAG computed over this run's TAGs only. A rename-aware key, or one keyed on location path and ordinal, needs a new product decision. Found by the review pass of 2026-09-24 (Blind Hunter and Edge Case Hunter).
   class: design
-  state: open (owner: Epic 5's equipment work, when nameplates make an equipment's identity visible)
+  state: ~~open (owner: Epic 5's equipment work, when nameplates make an equipment's identity visible)~~ open; assigned 2026-11-10 (evening, Matheus on M-5 of `sprint-change-proposal-2026-11-10.md`) to Epic 24, Story 24.21: the equipment stores a key at its creation and the reuse matches on it, so a rename or a suffix no longer loses the equipment. An equipment created before the story has no key, still matches by its TAG and is not covered
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-4-fix-qa.md`
   summary: Removing an equipment sheet frees (tombstones) its `equipment` row unless another live block this device holds references it (Epic 4 QA Q4, `removeSheetOps` over `projectBlockRows`). A later relatório of the obra now reuses the project's equipment, so an equipment shared with a relatório this device never pulled (another device's, not yet opened here) can still be tombstoned by a remove made here; the other relatório's block then points at a removed equipment row until someone restores it.
@@ -858,7 +858,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Open questions for Bruno, conservative choice taken. (1) Stored `origin: not_tested` points print as their own bullets and are not merged like derived groups. (2) A point's Ação recomendada prints after its text in the same bullet. (3) A photo the server does not hold keeps its number in section 7 and prints "(foto não disponível no servidor)" in place of the image. (4) A sheet's copied `cert_number` with an empty registry value is not a mismatch. Authored printed strings awaiting his review: `PHOTO_UNAVAILABLE_TEXT`, `REMOVED_PHOTO_REF_TEXT` ("imagem removida"), the derived-group sentence (one and many), the certificate placeholder "Certificado não anexado: ⟨código⟩ — ⟨nome⟩ (nº ⟨certificado⟩)", `certificatesCountText` and the two gallery lines ("Números da revisão N", "Números provisórios — serão definidos na revisão N+1").
   evidence: The spec's Design Notes ("For Bruno" and "Open questions").
   class: design
-  state: open (owner: Bruno, with the Epic 7 review)
+  state: open (owner: Bruno, with the Epic 7 review); 2026-11-10 (evening): question (1) and the derived-group sentence are superseded by fix batch e24h (no automatic points), since only stored points print, each as its own bullet. Questions (2) to (4) and the other strings stay open
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-2-7-3-photo-record-points-certificates.md`
   summary: The small Porto Seguro fixture's sheets carry `config.sub_blocks: {}`, so their test sub-blocks count as switched off and section 11 lists none of the instruments their headers name (only instruments checked at setup print). The full fixture is unaffected. Either the small fixture should enable the tests its sheets fill, or a stored header on a switched-off test should still count; the spec's rule (only enabled tests) was kept.
@@ -2349,7 +2349,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: With only automatic points the Sumário's row 8 reads "N automáticos" (Matheus, 2026-10-23), but the Points surface heading still reads "Pontos de atenção (0 + N automáticos)"; the same wording rule belongs there.
   evidence: PR #174 open question; `apps/web/src/surfaces/points/points-surface.tsx` heading, kernel text in `points/summary.ts`.
   class: bug
-  state: ~~open (owner: the next fix batch)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E15-A1: fx15q, fx17r and the 2026-10-29 fix batches did not take it, and `pointsHeadingText` (`packages/domain/src/points/summary.ts:147-151`) still answers "(0 + N automáticos)" with no live point); assigned 2026-11-10 to Epic 24, Story 24.7
+  state: ~~open (owner: the next fix batch)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E15-A1: fx15q, fx17r and the 2026-10-29 fix batches did not take it, and `pointsHeadingText` (`packages/domain/src/points/summary.ts:147-151`) still answers "(0 + N automáticos)" with no live point); ~~assigned 2026-11-10 to Epic 24, Story 24.7~~ superseded 2026-11-10 (evening) by fix batch e24h (no automatic points): the heading and the Sumário's row 8 count stored points only, so neither has an "automáticos" part; e24h closes it
 
 ## Deferred from: Epic 16 integrated QA browser pass (2026-10-26)
 
@@ -3017,6 +3017,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: "Possível duplicado" pairs every live manual point of an equipment or local with every NC entry of it; it does not read the point's photos or text, so an unrelated manual point of the same equipment is flagged too (the coordinator's reading; open for Bruno).
   evidence: `packages/domain/src/points/derived.ts` `possibleDuplicatePoints`.
+  state: superseded 2026-11-10 by fix batch e24h (no automatic points): with no NC entry there is no pair, so the flag and its pre-issue row go
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The out cell's "Marcar com restrições" action (`measurement-field.tsx`, `measurement-test-section.tsx`) still writes only the restriction; under Story 22.4 the floor already gives Reprovado · Com restrições, so the action is redundant on the effective pair. Not removed (outside the spec's Code Map).
   evidence: `apps/web/src/surfaces/ficha/measurement-field.tsx` `markRestricted`; `measurement-test-section.tsx` `markRestricted`.
@@ -3028,17 +3029,17 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The e2e walk of a local's NC site item as a derived entry (Pontos card, "Abrir verificações", Editar) is not written; the kernel covers it (`points/derived-kinds.test.ts`, `relatorio/site-checklist.test.ts`) and `e2e/verificacoes-local.spec.ts` asserts the origin `nc` point written from the item.
   evidence: `e2e/points.spec.ts` 22.5-E2E-001 (sheet NC and out reading only).
-  state: open; assigned 2026-11-10 to Epic 24, Story 24.7
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.7; 2026-11-10 (evening): superseded in this form by fix batch e24h (no automatic points), since there is no entry to walk. What remains, still in Story 24.7: the browser walk of the point created by the tap on a local's NC item, and of the question on the local's row (24.7-E2E-003)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A point of origin `nc` or `reading` relinked to another equipment or local (Story 20.4 pick, or a later `point/{id}/equipment_id` put) keeps its `item_key`/`test_key` but changes its owner, so it suppresses the new owner's entry and the original entry prints again; needs an immutable source (the block id at create) or a relink guard when `origin !== 'manual'`.
   evidence: `packages/domain/src/points/derived.ts` `pointSource`; review findings EC3 and VG8 of the e22c pass.
   class: bug
-  state: open (owner: the Epic 22 wave A integrated review)
+  state: ~~open (owner: the Epic 22 wave A integrated review)~~ partly superseded 2026-11-10 by fix batch e24h (no automatic points): no entry is suppressed and none prints again. What remains, open (owner: batch e24b's spec, Story 24.7): a relinked point keeps its `item_key` or `test_key` under its new owner, so "Origem resolvida" and Story 24.7's question read it against the wrong row
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A derived entry of a sheet with no equipment (`equipment_id` null) is never suppressed (Story 6.6's rule), so "Editar" or "Criar ponto" on it writes a point that prints beside the entry.
   evidence: `packages/domain/src/points/derived.ts` `entrySource`; review findings EC4, EC5, EC13.
   class: bug
-  state: open (owner: the Epic 22 wave A integrated review)
+  state: ~~open (owner: the Epic 22 wave A integrated review)~~ superseded 2026-11-10 by fix batch e24h (no automatic points): no entry prints, so nothing prints beside the point
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A stricter parecer verdict, once tapped, stays stored after the fichas clear (the stored LWW object has no "follow the derived verdict" state), so the effective verdict can stay stricter than the fichas with no way back but tapping the derived one, which also stores it.
   evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx` verdict tap; `relatorio/parecer.ts` `effectiveParecer`; review finding EC8.
@@ -3338,7 +3339,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: only the `reading` origin takes the recommendation. A `reprovado` entry derives only for a Reprovado the floor does not explain (the engineer's own choice, no failing test), so no test is its reason; a test-caused Reprovado derives a `reading` entry, which carries it. If Bruno wants the recommendation on a Reprovado chosen by hand, that is a new rule.
   evidence: `packages/domain/src/points/derived.ts` `sheetEntries` (the `reprovado` entry only when `conclusionFloor` is not Reprovado); `points/derived-recommendation.test.ts`.
   class: decision
-  state: open (owner: Bruno, question 36, with the authored join)
+  state: open (owner: Bruno, question 36, with the authored join); 2026-11-10 (evening): superseded in this form by fix batch e24h (no automatic points), since no entry derives. What remains for Bruno: which points a test's recommendation should fill, now over the create action of Story 24.17
 
 ## Deferred from: Epic 23 fix batch e23w (2026-11-09)
 
@@ -3453,12 +3454,12 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the base's IP rows (TR-OL-03, TR-SE-03) give the insulation test only its `index_recommendation`. Their "Como ensaiar" texts are not merged into the test's help, and the type editor neither shows nor edits `index_recommendation`. In rev08 the IP rows carry the same recommendation as the 1-minute rows.
   evidence: `packages/domain/src/types/test-base-import.ts` `TEST_BASE_INDEX_ROWS`; `apps/web/src/surfaces/templates/type-editor-parts.tsx`.
   class: decision
-  state: ~~open (owner: Matheus, with Bruno)~~ decided (2026-11-10, Matheus: accepted, no change): the IP rows' "Como ensaiar" texts do not enter the insulation test's help. Open only for the question to Bruno (owner: Matheus, the next list of questions for Bruno)
+  state: ~~open (owner: Matheus, with Bruno)~~ decided (2026-11-10, Matheus: accepted, no change): the IP rows' "Como ensaiar" texts do not enter the insulation test's help. Open only for the question to Bruno (owner: Matheus, the next list of questions for Bruno); 2026-11-10 (evening): after fix batch e24h (no automatic points) the index recommendation no longer prints by itself. It reaches print only inside a point someone created (fix batch e24f item R-3, reworded in `epic-24-context.md`; Story 24.17)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (item 2 reading; I/O matrix)
   summary: how this batch reads Bruno's item 6 (2026-11-09). A Reprovado chosen by hand starts with the recommendations of the sheet's restricted tests when any test is restricted, else of every in-force test that has one. Texts are taken once each, in definition order. Bruno decides whether he wants only one test's recommendation, or none when no test is restricted.
   evidence: `packages/domain/src/points/derived.ts` `reprovadoRecommendations`.
   class: decision
-  state: open (owner: Bruno, through Matheus)
+  state: open (owner: Bruno, through Matheus); 2026-11-10 (evening): after fix batch e24h (no automatic points) nothing starts a point by itself. Story 24.17 keeps this picking rule for the point its create action starts on a Reprovado chosen by hand; Bruno's decision is still open
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (W3-2, item 3 and item 4 narrowings)
   summary: three narrowings.
   - W3-2: a measured cell the deviation between phases cannot judge only withholds the floor. The sheet shows no "Conferir" helper on that cell; the medium-unknown note stays.
@@ -3512,7 +3513,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Fix batch e23p changed what a device derives and writes (the day-measured plate fields never copied, the dry fields cleared at the crossing to oil, the derived point's text, the Malha's criterion text) and took no contract number, after contract 40 was already in production. A device still on the `47be2638` bundle passes every pull and keeps the old behaviour until its next launch with an empty outbox.
   evidence: `packages/domain/src/contract/version.ts:469,738` (40 and MIN 40, untouched in `47be2638..9add87b5`); `apps/web/src/sw/use-shell-update.ts:8-9`; the MIN comments for 37 and 40 in `version.ts`; the e23w contract row above.
   class: decision
-  state: ~~open (owner: Matheus: contract 41 with MIN 41, or the gap accepted here with a date)~~ closed (2026-11-10, Matheus: the gap is accepted). A device on the older bundle takes the changes at its next reload. Epic 24's first batch (e24a) takes contract 41 with MIN 41, which forces the update. A read-only count in production the same day found no relatório on seed v13, so no device had v13 work to derive differently.
+  state: ~~open (owner: Matheus: contract 41 with MIN 41, or the gap accepted here with a date)~~ closed (2026-11-10, Matheus: the gap is accepted). A device on the older bundle takes the changes at its next reload. Epic 24's first batch (e24a) takes contract 41 with MIN 41, which forces the update. *(2026-11-10, evening: contract 41 with MIN 41 comes with fix batch e24h, before e24a, which takes 42.)* A read-only count in production the same day found no relatório on seed v13, so no device had v13 work to derive differently.
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-6, owner: E23-A2)
   summary: Seed v13 has no layout lock. The goldens cover v5, v11 and v12 and the Porto Seguro fixture, so "goldens byte-equal" in a gate says nothing about how a v13 relatório prints. e23p's promise that the disjuntor's and the seccionadora's paired insulation tables print as before is pinned only by type size and by words that fit the kernel's own width model.
   evidence: `packages/domain/fixtures/layout-lock/op-log.ts:40` (`LAYOUT_LOCK_VERSIONS`); `apps/api/src/jobs/generate/golden/` (no v13 folder); `epic-23-context.md` § Coordinator decisions, "Only v13 fixtures may gain goldens".
@@ -3557,7 +3558,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   class: note
   state: open (owner: Matheus)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (contract 41)
-  summary: e24h takes contract 41 and MIN 41, the number `epic-24-context.md` reserved for e24a; the unlaunched Epic 24 batches move up by one.
+  summary: e24h takes contract 41 and MIN 41, the number `epic-24-context.md` first reserved for e24a; the unlaunched Epic 24 batches move up by one.
   evidence: `packages/domain/src/contract/version.ts` (41 and MIN 41).
   class: note
-  state: open (owner: the coordinator)
+  state: ~~open (owner: the coordinator)~~ closed 2026-11-10: main's planning delta (#305) already records 41 and 41 for e24h in `epic-24-context.md` and `docs/kbs/architecture/kernel-and-seed.md`.

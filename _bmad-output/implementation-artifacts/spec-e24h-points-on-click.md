@@ -2,7 +2,7 @@
 title: 'e24h: a point of attention exists only when the technician creates it (no automatic points; contract 41)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-review'
+status: 'done'
 baseline_revision: '72ed1f51733c8abfdfd16fb209bc5c8171737215'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -158,3 +158,11 @@ deferred: []
   - `[low]` `[reject]` VG other: `.point-of-attention-card.is-auto` rules stay in `points.css` and `app.css`, and `allDerivedPoints` still composes texts nothing reads — no behaviour; the CSS mirrors `72-pontos.html`'s automatic card and the texts are the kernel's prefill candidates, both left for Epic 24's design of automatic points (D4).
 
 ## Auto Run Result
+
+- **Status:** done. Branch `e24h-points-on-click` from main `72ed1f51`, main `d1dd19ee` (docs only, #305) merged before the PR.
+- **Implemented:** H1 the kernel lists, counts and prints stored live points only (`sectionEightEntries`, `pointsSummary`, `pointsHeadingText(live)`, `resolveSection8`, `resolveActionPlan`, the parecer's counts); the `points_possible_duplicate` row and "Ver pontos" go; the Points screen draws no automatic card. H2 the three create paths unchanged. H3 `derivedParecer` reads `livePoints || hasPointSource` (equal to `72ed1f51` by construction, pinned on seven fixtures and each kind). H4 no data change; `resolvedOriginPoints` unchanged. H5 layout-lock v5/v11/v12 regenerated; Porto Seguro skeleton not (D3). H6 contract 41, MIN 41. H7 the four strings. H8 `points-on-click.test.ts` (15 of 17 red on `72ed1f51`) and `e2e/points-on-click.spec.ts` `@p0`.
+- **Files:** kernel `points/derived`, `points/summary`, `print/section-8`, `relatorio/parecer`, `relatorio/pre-issue`, `relatorio/sumario`, `relatorio/reading-evaluation`, `relatorio/reading-cells`, `relatorio/site-checklist`, `contract/version`, `schemas/entities`, `seed/test-help` (comments); api renderer comment `sections/section-8`; web `points-surface`, `export-dialog`, `generate-action`, `relatorio-tree`, `tree-actions`, `use-ficha-actions`, `not-tested-band`, `copy/pt-br`; goldens layout-lock v5/v11/v12; tests in "Changed tests"; docs `deferred-work.md` § e24h, KB `architecture/kernel-and-seed.md`, `log.md`.
+- **Review:** 4 findings (Edge Case Hunter 1, Verification Gap 3 other): 2 low, 2 false, all rejected (triage log); no patch.
+- **Follow-up review:** not recommended (no patch).
+- **Verification:** story gate on `6e14ef55`, lock wait 0 s, load `{ 2.06 5.46 6.49 }` to `{ 5.25 6.02 6.12 }`: lint 0 (27 s), static 0 (39 s), test:api 957 passed / 2 failed / 6 skipped (549 s), test:unit 6143 of 6143 (311 s), 22 touched specs 142 of 142 (parallel 83, queue 54, solo 5; 692 s). The two api reds: `docx-company-type.test.ts` (pinned the automatic action-plan row; rewritten) and `docx.test.ts` 4.8-UNIT-006 (Porto Seguro, D3). Re-run under the lock after the rewrite: lint 0; the two files 37 of 38, the one red 4.8-UNIT-006 only.
+- **Residual risks:** the Etapa 6 reason line stays well formed only while every finding kind also sets a conclusion-floor reason or a site NC (pinned per kind); 4.8-UNIT-006 is red until Matheus decides the Porto Seguro golden; the open questions D5.
