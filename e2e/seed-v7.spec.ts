@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, paletteItems, SEED_VERSION, SELV_VOLTAGE_NOTICE, TEST_VOLTAGE_NOT_CHECKED, type BlockRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, oilFieldExcusedReason, paletteItems, screenLabel, SEED_VERSION, SELV_VOLTAGE_NOTICE, TEST_VOLTAGE_NOT_CHECKED, type BlockRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -58,6 +58,9 @@ const OIL_ITEM = DISJUNTOR.oil_rule!.items[0]!;
 const FULL = DISJUNTOR.oil_rule!.full_values![0]!;
 /** "Ar": the first non-oil medium. */
 const NON_OIL = MEDIA.find((option) => !DISJUNTOR.oil_rule!.oil_values.includes(option) && option !== FULL)!;
+/** VOL. ÓLEO as the sheet labels it, and the medium's label the read-only reason names. */
+const VOL_LABEL = screenLabel(DISJUNTOR.nameplate.find((f) => f.key === 'vol_oleo')!.label);
+const MEDIUM_LABEL = DISJUNTOR.nameplate.find((f) => f.key === DISJUNTOR.oil_rule!.field)!.label;
 const QD = 'quadro_eletrico';
 const QD_DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', QD);
 const SELV_HELP = QD_DEFINITION.nameplate.find((f) => f.key === 'circuito_selv_pelv')!.help!;
@@ -118,7 +121,16 @@ test('@p0 14.14-E2E-001 offline, a disjuntor on "Outro" shows its oil item and V
   await pick(page, 'meio_de_extincao', NON_OIL);
   await expect(toast(page)).toContainText('2 itens de óleo apagados');
   await expect(checked(page, OIL_ITEM)).toHaveAttribute('data-value', 'na');
-  await expect(volume).toHaveValue('');
+  // Batch e24s (Story 24.11, every seed with an oil rule, screen only): VOL. ÓLEO of a non-oil unit is drawn
+  // read-only and empty with the kernel's reason, no longer as an empty input (fix batch e24z).
+  await expect(volume).toHaveCount(0);
+  const volumeReadOnly = page.locator('#ficha-nameplate').getByRole('textbox', { name: VOL_LABEL, exact: true });
+  await expect(volumeReadOnly).toHaveAttribute('aria-readonly', 'true');
+  await expect(volumeReadOnly.locator('.mf-value')).toHaveText('—');
+  await expect(volumeReadOnly.locator('.mf-value')).toHaveClass(/is-empty/);
+  const reason = oilFieldExcusedReason(await blockOf(page, blockId), 'vol_oleo', EMPTY_DEFINITION_CONTEXT);
+  expect(reason).toBe(`Não se aplica: ${MEDIUM_LABEL} é ${NON_OIL}.`);
+  await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: VOL_LABEL, exact: true }) }).locator('.helper')).toHaveText(reason!);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   {
     const ops = await outbox(page);

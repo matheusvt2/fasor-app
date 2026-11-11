@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, getSeed, instrumentHeaderOf, SEED_VERSION, type FieldDef, type InstrumentRow, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, getSeed, instrumentHeaderOf, SEED_VERSION, tagRenamedText, type FieldDef, type InstrumentRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -151,6 +151,8 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('Rotativa');
   await expect(page.getByLabel('Identificação', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('Nº série', { exact: true })).toHaveValue('');
+  // "Keeps TAG" (checked again after fix batch e24y, by e24z): the source's stored TAG cell is not copied, no plate
+  // TAG cell is written, and the field still shows this sheet's equipment TAG, which it follows.
   await expect(tag).toHaveValue(target.tag);
   const copied = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${target.blockId}/nameplate/`));
   expect(copied.map((row) => row.path.split('/').at(-1)).sort()).toEqual(['fabricacao', 'tipo']);
@@ -177,14 +179,32 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await expect(tag).toHaveValue('SEC-NOVA');
   expect((await outbox(page)).some((row) => row.path === `sheet/${target.blockId}/nameplate/tag`)).toBe(false);
 
-  // A TAG typed on the plate is the plate's own from then on, and survives a reload.
+  // Fix batch e24y (P3 and review Y2) changed this step, which fix batch e24z follows: a TAG typed in the plate's
+  // field and left renames the equipment through the rename path (the rename's toast and undo), and with no plate
+  // cell stored none is written: the field keeps following the equipment. The sheet title, the tree and the field
+  // after a reload read the new TAG.
   await tag.fill('PLACA-01');
   await tag.press('Tab');
-  await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${target.blockId}/nameplate/tag`)?.value).toBe('PLACA-01');
-  await expect(tag).not.toHaveAccessibleDescription('Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.');
+  await expect(toast(page)).toContainText(tagRenamedText('PLACA-01'));
+  await expect(page.getByRole('button', { name: 'TAG PLACA-01 — renomear' })).toBeVisible();
+  await expect(page.locator('.sheet-header .sheet-title')).toContainText('PLACA-01');
+  const renameOp = async () => (await outbox(page)).filter((row) => /^equipment\/[^/]+\/tag$/.test(row.path) && row.value === 'PLACA-01');
+  await expect.poll(async () => (await renameOp()).length).toBe(1);
+  expect((await outbox(page)).some((row) => row.path === `sheet/${target.blockId}/nameplate/tag`)).toBe(false);
+  await expect(tag).toHaveValue('PLACA-01');
+  // Not asserted (fix batch e24z): the field keeps the app's helper "Sugestão do app. Troque pela TAG da placa, ..."
+  // after this commit, because with no cell stored it still shows the equipment's TAG through the prefill rule
+  // (`nameplateTagPrefill`, kept by e24y's N3). Whether the helper should go once the technician typed the TAG is a
+  // ledger row for Matheus (`deferred-work.md` § e24z).
   await page.reload();
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue('PLACA-01');
   await expect(page.getByLabel('Identificação', { exact: true })).toBeVisible();
+  // The tree names the equipment by its new TAG.
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await openSection9(page);
+  await expandLocation(page, 'Cubículo Enel');
+  await expect(page.locator('li.s9-eq .block-tag', { hasText: /^PLACA-01$/ })).toBeVisible();
 });
 
 test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on the next sheet; "Próxima ficha" writes nothing, "Concluir ficha" writes it with the conclusion; the reload shows it stored', async ({ page }) => {
