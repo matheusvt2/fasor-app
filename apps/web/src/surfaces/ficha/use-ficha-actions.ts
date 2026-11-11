@@ -169,7 +169,7 @@ export function useFichaActions({
         // (`useProjectEquipment`, the same source as Story 5.8's "Confirmar"), '' when none.
         const tag = fresh.equipment_id === null ? '' : (rows.equipment.find((row) => row.id === fresh.equipment_id)?.tag ?? '');
         // Batch e23v (Stories 23.5 and 23.6): judged under the visit context of the same fresh rows.
-        const visit = visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh);
+        const visit = visitContextOf({ locations: rows.locations, equipment: rows.equipment, relatorio }, fresh);
         const text = conclusionTextOnConclude(fresh, definition, tag, visit);
         // Batch e24a (Story 24.3): the kernel's pair writes; on seed v14 a Reprovado also clears a stored restriction.
         const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? conclusionPairWrites(fresh, definition, visit) : null;

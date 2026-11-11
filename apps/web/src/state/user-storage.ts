@@ -16,6 +16,12 @@ const USER_LOCAL_PREFIXES = ['relatorio-'] as const;
 export const LEGEND_KEY = 'ficha:legend-first';
 
 /**
+ * sessionStorage: fix batch e24x (A5), a checklist row's kept warning ("Observação mantida"), by
+ * relatório, block or local, and item (`checklist-section.tsx`).
+ */
+export const KEPT_KEY_PREFIX = 'ficha:kept:';
+
+/**
  * E20-A1 (R-4c): what clears with the keys in memory: a module holding a user's answer in flight
  * (`altitude-reading.ts`) registers here, so a late answer after a sign-out is never kept.
  */
@@ -53,7 +59,16 @@ export function clearUserStorage(): void {
     // Blocked storage holds nothing the app wrote.
   }
   try {
-    globalThis.sessionStorage?.removeItem(LEGEND_KEY);
+    const session = globalThis.sessionStorage;
+    if (session !== undefined) {
+      session.removeItem(LEGEND_KEY);
+      const kept: string[] = [];
+      for (let i = 0; i < session.length; i++) {
+        const key = session.key(i);
+        if (key !== null && key.startsWith(KEPT_KEY_PREFIX)) kept.push(key);
+      }
+      for (const key of kept) session.removeItem(key);
+    }
   } catch {
     // As above.
   }

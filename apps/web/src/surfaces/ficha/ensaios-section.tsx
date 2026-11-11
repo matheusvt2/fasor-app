@@ -1,5 +1,6 @@
 import {
   choiceCellValue,
+  relatorioVisitDate,
   evaluateSheetMeasurements,
   evaluatedCells,
   instrumentRangeFor,
@@ -203,10 +204,12 @@ export function EnsaiosSection({
   // block's rows; `slots` names them and changes only with them, never on a cell edit.
   const sheet = block.sheet;
   const slots = readingSlotsOf(definition, block).map(readingAddressKey).join(' ');
+  // Fix batch e24x (D3): never a visit later than this relatório's own.
+  const visitDate = relatorioVisitDate(snapshot.relatorio.setup);
   const previous = useMemo(
-    () => previousHelpers({ last_results: lastResults }, { block_type: blockType, sheet }, definition, snapshot.relatorio.id),
+    () => previousHelpers({ last_results: lastResults }, { block_type: blockType, sheet }, definition, snapshot.relatorio.id, visitDate),
     // `sheet` is read for its rows alone, which `slots` follows.
-    [lastResults, blockType, definition, snapshot.relatorio.id, slots],
+    [lastResults, blockType, definition, snapshot.relatorio.id, visitDate, slots],
   );
   // Story 14.8: a company sheet's tests resolve through the snapshot's type versions.
   const definitions = snapshotDefinitionContext(snapshot);

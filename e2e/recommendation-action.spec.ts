@@ -282,6 +282,22 @@ test('24.17-E2E-002 v14: a restricted reading starts a restricao point with its 
   await openStep(page, relatorioId, cable.blockId, 'Ensaios');
   await expect(placeOf(testSection(page, 'isolacao')).getByRole('button', { name: 'Criar ponto de atenção' })).toBeVisible();
 
+  // Fix batch e24x (D1): typed into, the editor's autosave stores the point and the editor stays open; "Concluir" closes it, the focus on the point's name.
+  await placeOf(testSection(page, 'isolacao')).getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const editor = editorOf(page);
+  await expect(editor).toBeVisible();
+  const creates = (await pointCreates(page)).length;
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Repetir a medição na fase C');
+  await expect.poll(async () => (await pointCreates(page)).length, { timeout: 15_000 }).toBe(creates + 1);
+  // Past the autosave, the point stands on the sheet and the editor is still open.
+  await expect(placeOf(testSection(page, 'isolacao')).locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole('textbox', { name: 'Ação recomendada' })).toHaveValue('Repetir a medição na fase C');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(placeOf(testSection(page, 'isolacao')).locator('.nc-point-ref')).toBeFocused();
+  await expect.poll(async () => (await storedPoints(page)).filter((point) => point.removed_at === null).map((point) => [point.origin, point.test_key, point.action])).toEqual([['restricao', 'isolacao', 'Repetir a medição na fase C']]);
+
   // --- the TP: nothing out, the observation, Reprovado chosen; the action under the pair ---
   await openStep(page, relatorioId, tp.blockId, 'Conclusão');
   const conclusao = page.locator('#ficha-conc');
@@ -297,6 +313,7 @@ test('24.17-E2E-002 v14: a restricted reading starts a restricao point with its 
   await placeOf(conclusao).getByRole('button', { name: 'Criar ponto de atenção' }).click();
   const reproved = await concludeEditor(page, chosen!);
   expect(reproved.value).toMatchObject({ origin: 'reprovado', text: OBSERVATION, action: null });
-  await expect(placeOf(conclusao).locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
+  // The cable's point of the D1 step above stands first in section 8.
+  await expect(placeOf(conclusao).locator('.nc-point-ref')).toHaveText('Ponto de atenção 2');
   await expect(placeOf(conclusao).locator('.nc-point-ref')).toBeFocused();
 });

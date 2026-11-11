@@ -135,6 +135,8 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     pointOwner: { locationId: location.id },
     // Story 14.12: a site item learns nothing and offers no learned phrase (answer 7 scopes them per equipment type).
     chips: ncChipPhrases({ seeded: row.nc_phrases, learned: [], blockType: null, itemKey: row.key, recents: recentSiteObservations(snapshot, row.key, row.nc_phrases, location.id) }),
+    // Fix batch e24x (A1): the site item's own seed phrases are the only automatic ones.
+    seedPhrases: row.nc_phrases,
   };
 }
 

@@ -4,6 +4,7 @@ import {
   locationChoices,
   locationPathText,
   paletteItems,
+  paletteMetaText,
   suggestTag,
   tagVerdict,
   takesBlocks,
@@ -224,10 +225,12 @@ export function FieldPalette({ target, seedVersion, definitions, locations, bloc
   );
 }
 
-/** A type row's meta: its TAG, a library type's summary before it; Story 24.19: a company type's marked "Tipo da empresa", wherever it stands. */
+/**
+ * A type row's meta: its TAG, a library type's summary before it; Story 24.19: a company type's marked "Tipo da empresa",
+ * wherever it stands. Fix batch e24x (C3): the kernel composes it, so an empty summary never doubles the separator.
+ */
 function paletteItemMeta(item: PaletteItem): string {
-  const meta = item.summary === null ? item.tag : copy.sumario.palette.libraryMeta(item.summary, item.tag);
-  return item.company ? copy.sumario.palette.companyMeta(meta) : meta;
+  return paletteMetaText(item.company, [item.summary, item.tag]) ?? item.tag;
 }
 
 function ItemBody({ item }: { item: PaletteItem }) {

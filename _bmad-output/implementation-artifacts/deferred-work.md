@@ -3662,7 +3662,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Story 24.6 counts the recents (other sheets' observations of the item) as offered phrases, so an observation the technician typed that equals another sheet's typed observation ("Repetir padrão" included) reads as automatic and is removed with no warning when the row leaves NC.
   evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`; `apps/web/src/surfaces/ficha/checklist-section.tsx` `sheetRowTarget` (`leaveChips`).
   class: decision
-  state: open (owner: Matheus: keep the recents in the rule, or judge against the seed and learned phrases only)
+  state: ~~open (owner: Matheus: keep the recents in the rule, or judge against the seed and learned phrases only)~~ closed (2026-11-11, fix batch e24x, A1, on Matheus's decision 17): the rule judges against the item's seed phrases only; an observation equal to a recent or a learned phrase is kept with the warning (`spec-e24x-review-fixes.md`).
 - source_spec: `spec-e24b-screen-lane.md` (review ECH-6, ECH-7)
   summary: "Foto térmica · N" counts the sheet's photos with no item whose caption is the thermography's context caption: a sheet renamed after its shots counts 0, and a sheet-camera photo with that caption counts. No stored marker of a thermal shot exists; one needs a file field (a contract). Screen only.
   evidence: `packages/domain/src/photos/text.ts` `thermalPhotoText`.
@@ -3739,7 +3739,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: in the template composer a library type hidden by a published copy leaves the palette, and with it the only "Editar padrões" entry of that type: a template that already places it (the standard template places five transformers) keeps its rows and its quantities (the skeleton list's grid), but its defaults for that type cannot be edited while the copy is published. Retiring the copy brings the entry back. Whether the composer should keep a placed original's row (for its defaults and its count) is the same product choice as the coordinator's reading on the composer's palette.
   evidence: `apps/web/src/surfaces/templates/block-palette.tsx` (`onEditDefaults` only on a palette row of a placed seeded type); `packages/domain/src/relatorio/tree.ts` `paletteTypeGroups`.
   class: decision
-  state: open (owner: Matheus, with the 24.19 reading on the composer's palette)
+  state: ~~open (owner: Matheus, with the 24.19 reading on the composer's palette)~~ closed (2026-11-11, fix batch e24x, on Matheus's decision 17): while a template places it, the hidden original stands right after its copies in the composer's palette with "Editar padrões", its count, and a stepper disabled by the type list's hidden line (`types/palette-meta.ts` `composerHiddenTypes`; `spec-e24x-review-fixes.md` Design Notes D4).
 
 ## Deferred from: Epic 24 batch e24p (2026-11-11)
 
@@ -3747,17 +3747,17 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: before a relatório is issued, its sheet reads the equipment's top entry as its previous visit whatever the dates: while relatório A (service in March) is still open and relatório B (service in September) is already issued, A's sheets and A's preview show B's later values as "Anterior" and MANUT. ANTERIOR. The story orders the stored chain at issue (A becomes B's `prior`, never the top) and says nothing about what an open relatório reads; `previousResultsFor` takes no service date of its own relatório.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/print/visit-date.ts` `compareVisits`.
   class: decision
-  state: open (owner: Matheus: should an open relatório read no previous visit, or the prior, when the stored top is a later visit by date)
+  state: ~~open (owner: Matheus: should an open relatório read no previous visit, or the prior, when the stored top is a later visit by date)~~ closed (2026-11-11, fix batch e24x, D3): the coordinator took it as a defect (a signed document naming a later visit as the previous one), listed for Matheus: a sheet reads no visit later than its own relatório's service date; with the top later it reads the top's prior when that is not later, else nothing; with its own dates unknown, as before (`previousResultsFor`'s `visitDate`, passed by the visit context, the "Anterior" helper and section 9).
 - source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.15)
   summary: a re-issue whose service dates were edited after its first issue is not re-ordered: on a re-issue of the top relatório the date order is not compared with its prior, and when the top's `prior` is the re-issued relatório (fix batch e23w's first rule) its new date is not compared with the top. Reached only by editing the service dates of an issued relatório and issuing it again.
   evidence: `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line and the W2-1 branch above it).
   class: defect
   state: open (owner: the next batch touching `print/last-results.ts`; low)
 - source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.17)
-  summary: on seed v14 the action a point starts with joins several recommendations (a chosen Reprovado over several tests, a failed index beside its test's), and each recommendation may hold up to the action's own cap (1000 characters): a join longer than the cap shows over the editor's count and the create is refused until the technician shortens it. Not reachable with the imported base's lengths seen so far.
+  summary: on seed v14 the action a point starts with joins several recommendations (a chosen Reprovado over several tests, a failed index beside its test's), and each recommendation may hold up to the action's own cap (1000 characters): ~~a join longer than the cap shows over the editor's count and the create is refused until the technician shortens it~~ (2026-11-11, fix batch e24x, D2: past the cap the action starts empty and the recommendations start the text, Story 23.11's form, or the finding stands alone past the text's cap; no create the server refuses is offered). Not reachable with the imported base's lengths seen so far.
   evidence: `packages/domain/src/points/derived.ts` `sheetPointFindings`; `value-limits` point action cap (medium).
   class: note
-  state: open (owner: Matheus, with Bruno's base; low)
+  state: ~~open (owner: Matheus, with Bruno's base; low)~~ closed (2026-11-11, fix batch e24x, D2).
 - source_spec: `spec-e24p-print.md` (Design Notes D2; Story 24.16)
   summary: the note line under a table names each flagged cell with the kernel's reason as it stands ("alta de 53 % sobre 40 µΩ da manutenção anterior, rev. 1 de 14/03/2026, acima do limite de 50 %"; "queda de mais de 50 % desde a manutenção anterior (de 16,4 GΩ para 7,9 GΩ, a 20 °C)"), as the story says; the approved frame's sample was shorter ("subiu 53 % (40 µΩ)"). A risen pole is named where the conclusion names it ("T1-T2–Fase A").
   evidence: `packages/domain/src/print/history-note.ts`; `key-print-section-9-v14.html` (sample text).
@@ -3788,6 +3788,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `e24p-pdf-crops/v14-dated-header-and-rise-note.png`, `e24p-pdf-crops/v14-insulation-dated-header-and-drop-note.png`.
   class: note
   state: open (owner: Matheus, with the note's wording; low) *(2026-11-11, fix batch e24y: still open. P1's no-break space joins a value to its unit inside the paired tables and the measurement tables only; the note line is a paragraph whose reasons are the kernel's own texts, so the same rule there would make them differ from the conclusion's and the point's.)*
+
 ## Deferred from: Epic 24 batch e24s (2026-11-11)
 
 - source_spec: `spec-e24s-seed-v14-sheets.md` (Story 24.13)
@@ -3825,6 +3826,64 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/ops/value-limits.ts` (`sheet/test/value`); `packages/domain/src/ops/apply.ts` `assertTestValueShape`; 24.14-API-001.
   class: note
   state: closed (2026-11-11, batch e24s; the production over-cap count of 2026-11-04 found no stored value over a cap, so no replayed op reaches the fold's check over 200)
+
+## Deferred from: Epic 24 fix batch e24x, the integrated review's fixes, part 1 (2026-11-11)
+
+- source_spec: `spec-e24x-review-fixes.md` (integrated review B2, ledger only)
+  summary: remove a sheet, add the same type from the palette, restore the removed sheet: two live equipment on one `reuse_key`; the next relatório binds the oldest, and nothing reports the other.
+  evidence: `apps/web/src/surfaces/relatorio/tree-actions.ts:792`; `packages/domain/src/relatorio/tag.ts:211` (`reuseKeyFor`).
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (B4, stopped by its Boundaries)
+  summary: binding an obra's equipment to a template block of another type of the same family (the library breaker and its published copy) is one line in `instantiateTemplate` (`free`), but the previous visit refuses it: `previousResultsFor` returns no previous visit when the equipment's last entry (`last_results.block_type`) is of another type than the sheet's ("the equipment changed type"), so the copy's sheet would show no "Anterior", print no MANUT. ANTERIOR and judge no history rule, the opposite of the I/O row. Reading across a family there needs the company's type definitions in `previousResultsFor` and so in `visitContextOf`, which 6 of its 14 callers (the ficha's live queries, the conclusion writes, `sheetProgress`, the merge view) do not hold today, and its memo keys on the block type alone. Also, a copy's TAG prefix is `TAG_PREFIX` while the library row's key used `LEGACY_TAG_PREFIX`, so a seccionadora copy (SC) never finds a library seccionadora's key (SEC), and a copy whose prefix was edited finds none. Nothing was changed for B4.
+  evidence: `packages/domain/src/relatorio/instantiate.ts` (`free`, the reuse run); `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/relatorio/visit-context.ts` `visitContextOf`; `packages/domain/src/types/duplicate.ts` `seededTagPrefix`.
+  class: decision
+  state: open (owner: Matheus: thread the definitions through the visit context for a family-aware previous visit, or keep the binding to one type)
+- source_spec: `spec-e24x-review-fixes.md` (A1, Design Notes N1, listed for Matheus)
+  summary: with the seed's phrases alone automatic (decision 17), a learned or a recent chip tapped and left untouched is now kept with the warning when its row leaves NC (one tap on "Apagar observação" removes it, with "Desfazer"), where Story 24.6 removed it; and a seed phrase typed letter by letter still reads as automatic and is removed (no stored provenance tells a tap from typing; one would be a contract).
+  evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (B1, Design Notes N2)
+  summary: with the uplink floor at 1 KB/s a push whose answer never comes holds its sync cycle up to ~~about 69 min at 4 MiB (was 572 s)~~ *(2026-11-11, review: 360 s per attempt, the body's share capped at 300 s, the server's request limit; about 18 min over the three attempts of one cycle)*; a body-less request still ends after 60 s. A doubling per attempt was not taken.
+  evidence: `apps/web/src/sync/client.ts` `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S`, `requestHeadersTimeoutMs`.
+  class: note
+  state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e24x-review-fixes.md` (D4, ledger only; e24p Design Notes D4)
+  summary: a top entry from before Story 24.15 (no `service_date`; service 2026-11-03, issued 2026-11-10) is dated by its issue day, so a re-test with service 2026-11-08 issued after the deploy compares as older than it and is filed as its prior: the earlier visit stays on top and the re-test's sheets read nothing newer.
+  evidence: `packages/domain/src/print/visit-date.ts` `visitDateOf`, `compareVisits`; `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line).
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (review X6)
+  summary: a reading above the instrument's limit inside a range criterion withholds the ficha's floor and the paragraph reads "a conferir", but its cell carries no helper saying why: e24f R-1's "Conferir: leitura sem comparação com as outras fases, sem critério aplicado" names the other phases and does not fit. Proposed sentence for Bruno: "Conferir: o limite do instrumento está dentro da faixa do critério; meça com outra escala." Not authored in code.
+  evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (the over-range cells an absolute criterion leaves unjudged); `relatorio/conclusion.ts` `overRangeUnjudged`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (review X8)
+  summary: D1 on the Não ensaiado band (the editor kept open through its autosave, the focus on "Desfazer") has a web test over a live snapshot but no end-to-end step.
+  evidence: `apps/web/src/surfaces/ficha/point-place.test.tsx`; `e2e/points.spec.ts`.
+  class: test-gap
+  state: open (owner: the next batch touching the band; low)
+- source_spec: `spec-e24x-review-fixes.md` (review X8)
+  summary: nothing tests what the sheet shows for a reading "a conferir" because of C1 (a limit inside a range): no helper exists for it (X6), and no web test pins the cell.
+  evidence: `apps/web/src/surfaces/ficha/measurement-test-section.tsx`.
+  class: test-gap
+  state: open (owner: with X6's sentence)
+- source_spec: `spec-e24x-review-fixes.md` (review X8)
+  summary: no test runs three hung push attempts of one sync cycle against the capped bound (about 18 min).
+  evidence: `apps/web/src/sync/engine.ts` (`withRetry` of the push); `apps/web/src/sync/client.test.ts`.
+  class: test-gap
+  state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e24x-review-fixes.md` (review X8)
+  summary: no test re-issues a top entry from before Story 24.15 (no `service_date`) after the reading relatório's service date, where D3 and D4 meet.
+  evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`.
+  class: test-gap
+  state: open (owner: the next batch touching the previous visit; low)
+- source_spec: `spec-e24x-review-fixes.md` (review X8)
+  summary: decision 17's composer row (the hidden original kept for its defaults) is untested at 390 px and with several published copies of one type.
+  evidence: `apps/web/src/surfaces/templates/block-palette.tsx`; `packages/domain/src/types/palette-meta.ts` `composerHiddenTypes`.
+  class: test-gap
+  state: open (owner: the next batch touching the composer; low)
 
 ## Deferred from: Epic 24 fix batch e24y (2026-11-11)
 

@@ -158,6 +158,14 @@ describe('e22h S1: a copy published untouched judges as its source on the same r
     for (const type of equipmentTypesOf(SEED)) expect(validateTypeDraft(duplicateSeededType(SEED, type).draft), type).toEqual([]);
   });
 
+  it('fix batch e24x (G2): every type of seed v14 copies to a draft that publishes as it is, its strict schema too', () => {
+    for (const type of equipmentTypesOf('v14')) {
+      const draft = duplicateSeededType('v14', type).draft;
+      expect(validateTypeDraft(draft), type).toEqual([]);
+      expect(companyTypeDefinitionSchema.safeParse(draft).success, type).toBe(true);
+    }
+  });
+
   it('the TC and TP copies keep their oil rule too, and every copy carries the seed bands, class field and rule as data', () => {
     for (const type of ['quadro_eletrico', 'tc', 'tp', 'transformador_forca', 'disjuntor_mt'] as const) {
       const seeded = getDefinition(SEED, 'cabine_primaria', type);

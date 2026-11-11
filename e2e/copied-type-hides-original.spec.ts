@@ -8,6 +8,7 @@ import {
   publishedText,
   retireTypeTitle,
   SEED_VERSION,
+  STANDARD_TEMPLATE_NAME,
   type EquipmentTypeRow,
   type EquipmentTypeVersionRow,
 } from '@app/domain';
@@ -176,4 +177,37 @@ test('24.19-E2E-002 the composer\'s palette lists the copy where the transformer
   await expect
     .poll(async () => (await outbox(page)).filter((row) => !before.has(row.path) && row.kind === 'create' && row.path.startsWith('block/')).map((row) => (row.value as EntityRecord['row']).block_type))
     .toEqual([TR]);
+});
+
+test('@p1 e24x-E2E-002 the standard template places transformers: its composer keeps "Editar padrões" for the hidden transformer right after the copy, with nothing to add', async ({ page }) => {
+  test.setTimeout(240_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await publishCopy(page);
+
+  await page.goto('/templates');
+  await page.getByRole('button', { name: `Abrir template ${STANDARD_TEMPLATE_NAME}`, exact: true }).click();
+  await expect(page).toHaveURL(/\/templates\/[0-9a-f-]{36}$/);
+  await page.getByRole('button', { name: /^Coluna 9/ }).first().click();
+  const composer = page.getByRole('complementary', { name: 'Paleta de blocos' });
+  const rows = composer.locator('.palette-item.is-stepper');
+  const names = await rows.locator('.pi-text > span:first-child').allTextContents();
+  const at = names.indexOf(COPY_LABEL);
+  expect(at).toBeGreaterThanOrEqual(0);
+  const hidden = rows.nth(at + 1);
+  await expect(hidden).toHaveAttribute('data-hidden-type', '');
+  await expect(hidden.locator('.pi-text > span:first-child')).toHaveText(blockTypeLabel(SEED_VERSION, TR));
+  const meta = hidden.locator('.pi-meta');
+  await expect(meta).toHaveText(hiddenTypeText([COPY_LABEL])!);
+  const metaId = await meta.getAttribute('id');
+  // No stepper adds more of it: its buttons are disabled, described by the hidden line.
+  const steppers = hidden.locator('.quantity-stepper .step');
+  await expect(steppers).toHaveCount(2);
+  for (const button of await steppers.all()) {
+    await expect(button).toHaveAttribute('aria-disabled', 'true');
+    await expect(button).toHaveAttribute('aria-describedby', metaId!);
+  }
+  await hidden.getByRole('button', { name: `Editar padrões de ${blockTypeLabel(SEED_VERSION, TR)}`, exact: true }).click();
+  await expect(page.getByRole('dialog', { name: new RegExp(blockTypeLabel(SEED_VERSION, TR)) })).toBeVisible();
 });

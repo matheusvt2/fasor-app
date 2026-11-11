@@ -273,9 +273,17 @@ test('24.9-E2E-004 a table with two readings confirmed from the display and one 
     return box.x + box.width;
   };
   const units = [first, second, third].map((address) => table.locator(`.ficha-cell[data-cell="isolacao:${address.row}:${address.col}"] .mf-unit`));
-  const edges = await Promise.all(units.map(rightOf));
-  expect(Math.max(...edges) - Math.min(...edges), JSON.stringify(edges)).toBeLessThanOrEqual(0.5);
   const values = [first, second, third].map((address) => table.locator(`.ficha-cell[data-cell="isolacao:${address.row}:${address.col}"] .mf-value`));
-  const valueEdges = await Promise.all(values.map(rightOf));
-  expect(Math.max(...valueEdges) - Math.min(...valueEdges), JSON.stringify(valueEdges)).toBeLessThanOrEqual(0.5);
+  // Fix batch e24x (C4): the unit column aligns from 768 px up (decision 15), at 1280 px and at 768 px, with no sideways scroll.
+  for (const width of [1280, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(units[0]!).toBeVisible();
+    const edges = await Promise.all(units.map(rightOf));
+    expect(Math.max(...edges) - Math.min(...edges), `${width}: ${JSON.stringify(edges)}`).toBeLessThanOrEqual(0.5);
+    const valueEdges = await Promise.all(values.map(rightOf));
+    expect(Math.max(...valueEdges) - Math.min(...valueEdges), `${width}: ${JSON.stringify(valueEdges)}`).toBeLessThanOrEqual(0.5);
+    const widths = await table.evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth, page: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
+    expect(widths.scroll, `${width}: ${JSON.stringify(widths)}`).toBe(widths.client);
+    expect(widths.page, `${width}: ${JSON.stringify(widths)}`).toBeLessThanOrEqual(widths.viewport);
+  }
 });

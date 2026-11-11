@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFINITION_1 } from '../../fixtures/company-types/op-log.ts';
 import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
 import { makeOp } from '../ops/op.ts';
-import { effectiveConclusionPair } from '../relatorio/conclusion.ts';
+import { composeConclusion, conclusionFloor, effectiveConclusionPair } from '../relatorio/conclusion.ts';
+import { worstReadings } from '../relatorio/reading-run.ts';
 import { evaluateSheetMeasurements } from '../relatorio/measurement-evaluation.ts';
 import { cellAddressesOf, evaluatedCells, evaluateSheetReadings } from '../relatorio/reading-evaluation.ts';
 import { companyBlockType } from '../schemas/block-config.ts';
@@ -204,6 +205,8 @@ describe('24.18-UNIT: the judgement and the text', () => {
   it('judges a reading above the instrument\'s limit as the range row does', () => {
     const cell = cellOf(nominalDefinition(), { raw: '250', unit: 'V', state: 'over_range' });
     const range = cellOf(betweenDefinition(), { raw: '250', unit: 'V', state: 'over_range' });
+    // Fix batch e24x (C1): a limit above the upper end proves the reading out of the range.
+    expect(cell.verdict).toBe('out');
     expect(cell.verdict).toBe(range.verdict);
     expect(cell.overRange).toEqual(range.overRange);
   });
@@ -231,6 +234,100 @@ describe('24.18-UNIT: the judgement and the text', () => {
     expect(at('550').verdict).toBe('within');
     expect(at('449').verdict).toBe('out');
     expect(at('449').helperText).toBe('Fora do aceitável (500 MΩ ±10 %)');
+  });
+});
+
+/** DEFINITION_1 with its insulation row ruled 100 MΩ ±20 % (80 to 120 MΩ): a seeded-grammar test judged by a range. */
+function insulationRangeType() {
+  const definition = structuredClone(DEFINITION_1);
+  definition.criteria[0] = { ...definition.criteria[0]!, operator: 'nominal_pct', value: 100, tolerance_pct: 20, type: 'deviation_between' };
+  return asBlockDefinition({ id: VERSION_ID, type_id: TYPE_ID, version: 1, definition });
+}
+
+/** A sheet of `insulationRangeType` holding only the given insulation captures (the measurement table empty). */
+function insulationSheet(definition: ReturnType<typeof insulationRangeType>, readings: readonly { raw: string; state: 'measured' | 'over_range' }[]): BlockRow {
+  const row = blockWith({ raw: '0', unit: 'V', state: 'measured' });
+  delete row.sheet.test.tensoes_medidas;
+  const cells: Record<string, Record<string, unknown>> = {};
+  readings.forEach((reading, n) => {
+    const address = cellAddressesOf(definition, 'isolacao', row)[n]!;
+    cells[String(address.row)] = { ...cells[String(address.row)], [String(address.col)]: stored({ raw: reading.raw, unit: 'MΩ', state: reading.state }) };
+  });
+  row.sheet.test.isolacao = { cells } as never;
+  return row;
+}
+
+describe('e24x-UNIT C1 a reading above the instrument\'s limit on a range criterion', () => {
+  const definitionOf = (definition: CompanyTypeDefinition) => asBlockDefinition(versionRow(definition));
+  const TO_CHECK = 'valores medidos com leitura a conferir';
+  const WITHIN = 'valores medidos dentro dos critérios de aceitação';
+
+  it('a measurement row (220 V ±5 %, entre 209 e 231 V): a limit at or above the upper end is out, the floor fails the ficha and the paragraph names it', () => {
+    for (const definition of [nominalDefinition(), betweenDefinition()]) {
+      for (const raw of ['250', '231']) {
+        const block = blockWith({ raw, unit: 'V', state: 'over_range' });
+        const cell = cellOf(definition, { raw, unit: 'V', state: 'over_range' });
+        expect(cell.verdict, raw).toBe('out');
+        expect(conclusionFloor(block, definitionOf(definition))?.pair.result, raw).toBe('reprovado');
+        expect(effectiveConclusionPair(block, definitionOf(definition)).result, raw).toBe('reprovado');
+        const text = composeConclusion(block, definitionOf(definition), 'NB-01').text;
+        expect(text, raw).toContain(`> ${raw} V`);
+        expect(text, raw).not.toContain(WITHIN);
+      }
+    }
+  });
+
+  it('a measurement row: a limit inside the range (> 220 V) has no verdict, no floor, and the paragraph reads "a conferir"', () => {
+    for (const definition of [nominalDefinition(), betweenDefinition()]) {
+      const block = blockWith({ raw: '220', unit: 'V', state: 'over_range' });
+      expect(cellOf(definition, { raw: '220', unit: 'V', state: 'over_range' }).verdict).toBeNull();
+      expect(conclusionFloor(block, definitionOf(definition))).toBeNull();
+      const text = composeConclusion(block, definitionOf(definition), 'NB-01').text;
+      expect(text).toContain(TO_CHECK);
+      expect(text).not.toContain(WITHIN);
+    }
+  });
+
+  it('a seeded-grammar test (100 MΩ ±20 %): "> 200 MΩ" is out and fails the ficha; "> 100 MΩ" has no verdict, no floor and reads "a conferir"', () => {
+    const definition = insulationRangeType();
+    const out = insulationSheet(definition, [{ raw: '200', state: 'over_range' }]);
+    expect(evaluatedCells(evaluateSheetReadings(out, definition)).find((cell) => cell.state === 'over_range')!.verdict).toBe('out');
+    expect(conclusionFloor(out, definition)?.pair.result).toBe('reprovado');
+    // The out clause names the limit as the instrument's ("acima de 200 MΩ (limite do instrumento)").
+    expect(composeConclusion(out, definition, 'NB-01').text).toContain('acima de 200 MΩ (limite do instrumento)');
+    expect(composeConclusion(out, definition, 'NB-01').text).not.toContain('dentro dos critérios');
+    // At the upper end exactly: the true value is above it, so out.
+    const atEnd = insulationSheet(definition, [{ raw: '120', state: 'over_range' }]);
+    expect(evaluatedCells(evaluateSheetReadings(atEnd, definition)).find((cell) => cell.state === 'over_range')!.verdict).toBe('out');
+    const inside = insulationSheet(definition, [{ raw: '100', state: 'over_range' }, { raw: '100', state: 'measured' }]);
+    expect(evaluatedCells(evaluateSheetReadings(inside, definition)).find((cell) => cell.state === 'over_range')!.verdict).toBeNull();
+    expect(conclusionFloor(inside, definition)).toBeNull();
+    const text = composeConclusion(inside, definition, 'NB-01').text;
+    expect(text).toContain(TO_CHECK);
+    expect(text).not.toContain(WITHIN);
+    // Alone, with no other capture judged, it still reads "a conferir", never "dentro dos critérios".
+    const alone = insulationSheet(definition, [{ raw: '100', state: 'over_range' }]);
+    expect(composeConclusion(alone, definition, 'NB-01').text).toContain(TO_CHECK);
+  });
+});
+
+describe('e24x-UNIT C2 the worst reading of a range criterion is the one furthest outside its nearer end', () => {
+  const worstOf = (readings: readonly string[]) => {
+    const definition = insulationRangeType();
+    const block = insulationSheet(definition, readings.map((raw) => ({ raw, state: 'measured' as const })));
+    return worstReadings(evaluateSheetReadings(block, definition)).find((reading) => reading.testKey === 'isolacao')!;
+  };
+
+  it('20 MΩ (60 below the lower end of 80) is worse than 125 MΩ (5 above the upper end of 120)', () => {
+    expect(worstOf(['20', '125'])).toMatchObject({ valueText: '20 MΩ', verdict: 'out' });
+    expect(worstOf(['125', '20'])).toMatchObject({ valueText: '20 MΩ', verdict: 'out' });
+    expect(worstOf(['78', '150'])).toMatchObject({ valueText: '150 MΩ', verdict: 'out' });
+  });
+
+  it('a reading inside the range ranks below any outside one; inside, the nearer an end the worse', () => {
+    expect(worstOf(['100', '125'])).toMatchObject({ valueText: '125 MΩ', verdict: 'out' });
+    expect(worstOf(['100', '85'])).toMatchObject({ valueText: '85 MΩ', verdict: 'within' });
+    expect(worstOf(['118', '100'])).toMatchObject({ valueText: '118 MΩ', verdict: 'within' });
   });
 });
 

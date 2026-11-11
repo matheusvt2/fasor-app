@@ -49,10 +49,12 @@ export function isOverRangeRaw(raw: unknown): raw is string {
   return typeof raw === 'string' && POSITIVE_DECIMAL.test(raw) && Number(raw) > 0;
 }
 
-/** The criterion an over-range limit is judged by: its operator, value and unit. */
+/** The criterion an over-range limit is judged by: its operator, value and unit (and a range's upper end). */
 export interface OverRangeCriterion {
   operator: string;
   value: number;
+  /** Fix batch e24x (C1): the upper end of a company criterion's `between` (a "nominal ± %" row reads as one). */
+  value_max?: number | undefined;
   unit: string | null;
 }
 
@@ -60,9 +62,19 @@ export interface OverRangeCriterion {
  * The verdict of a limit the instrument passed against a criterion: `>`/`>=` within iff the limit
  * (in the criterion's unit) reaches the criterion's value, `<`/`<=` out; null when the units do not
  * compare or the operator is any other (a `±` never reaches here: its cells refuse the state).
+ * Fix batch e24x (C1): a `between` (both ends within) is out when the limit is at or above its
+ * upper end (the true value is above the limit, so above the range), and null otherwise: a limit
+ * inside the range cannot tell, and the readers treat that reading as one to check.
  */
 export function overRangeVerdict(limit: number, unit: string | null, criterion: OverRangeCriterion): 'within' | 'out' | null {
   if (criterion.operator === '<' || criterion.operator === '<=') return scaleToUnit(limit, unit, criterion.unit) === null ? null : 'out';
+  if (criterion.operator === 'between') {
+    if (criterion.value_max === undefined) return null;
+    const scaled = scaleToUnit(limit, unit, criterion.unit);
+    if (scaled === null) return null;
+    // The same float allowance as below: a limit equal to the upper end is at it.
+    return scaled >= criterion.value_max - Math.abs(criterion.value_max) * 1e-12 ? 'out' : null;
+  }
   if (criterion.operator !== '>' && criterion.operator !== '>=') return null;
   const scaled = scaleToUnit(limit, unit, criterion.unit);
   if (scaled === null) return null;

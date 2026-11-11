@@ -157,7 +157,8 @@ const VALUE_RULES = {
     fields: { result: shortStrings, restriction: shortStrings, text: textCell(TEXT_CAPS.long), text_status: shortStrings, text_basis: textCell(TEXT_CAPS.long) },
   },
   'sheet/observations': { kind: 'value', rule: textCell(TEXT_CAPS.long) },
-  equipment: { kind: 'row', fields: { tag: short, type: short } },
+  // Fix batch e24x (B3): Story 24.21's write-once `reuse_key` (no put path writes it) is a medium text in the create.
+  equipment: { kind: 'row', fields: { tag: short, type: short, reuse_key: medium } },
   'equipment/field': { kind: 'fields', fields: { tag: short }, otherwise: schema },
   'equipment/last_nameplate': SERVER_ONLY,
   'equipment/last_results': SERVER_ONLY,

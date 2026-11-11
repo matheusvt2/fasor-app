@@ -181,5 +181,15 @@ describe('e24f-UNIT R-1 a v11 ratio table waiting for its vector group, beside a
     expect(conclusionFloor(grouped, TRAFO)!.pair).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
     expect(composeConclusion(grouped, TRAFO, 'TR-1').text).toContain(WITHIN);
   });
+
+  it('e24x-UNIT A3: a table waiting for its group with no measured capture beside a judged reading reads "dentro dos critérios"; the floor is unchanged', () => {
+    const waiting = trafo(null);
+    // The ratio table keeps its V PRIMÁRIO and V SECUNDÁRIO and holds no capture.
+    const rows = waiting.sheet.test.relacao_transformacao!.cells;
+    for (const row of Object.values(rows)) for (const col of ['3', '4', '5']) delete row[col];
+    expect(composeConclusion(waiting, TRAFO, 'TR-1').text).toContain(WITHIN);
+    expect(composeConclusion(waiting, TRAFO, 'TR-1').text).not.toContain(TO_CHECK);
+    expect(conclusionFloor(waiting, TRAFO)).toBeNull();
+  });
 });
 

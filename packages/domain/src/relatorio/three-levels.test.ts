@@ -378,7 +378,8 @@ describe('e23p-P3 the previous value shown corrected, and the derived point nami
     });
     const atKey = isolacaoKeys.find((slot) => slot.row === 0)!.key;
     snapshot.equipment = snapshot.equipment.map((row) =>
-      row.id === tf.equipment_id ? { ...row, last_results: { ...entry({ [atKey]: { raw: '30', unit: 'GΩ', state: 'measured', corrected: { raw: '30', unit: 'GΩ' } } }), prior: null } } : row,
+      // Fix batch e24x (D3): the previous visit issued before the lock relatório's service (2026-11-04); one issued after it is no previous visit.
+      row.id === tf.equipment_id ? { ...row, last_results: { ...entry({ [atKey]: { raw: '30', unit: 'GΩ', state: 'measured', corrected: { raw: '30', unit: 'GΩ' } } }), issued_at: '2026-10-05T15:00:00.000Z', prior: null } } : row,
     );
     const visit = visitContextOf(snapshot, tf);
     const test = evaluateTest(tf, definition, definition.tests.find((one) => one.key === 'isolacao')!, visit);

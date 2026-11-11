@@ -1,4 +1,4 @@
-import { scaleToUnit } from '../seed/criteria.ts';
+import { nominalBounds, scaleToUnit, type CriterionSeed } from '../seed/criteria.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { CellAddress, EvaluatedCell, EvaluatedRow, EvaluatedTable, ReadingVerdict, TestEvaluation, TestKey } from './reading-cells.ts';
 import { deviationPct, formatDeviation, sameAddress } from './reading-evaluation.ts';
@@ -161,6 +161,25 @@ export function whereOf(table: EvaluatedTable, row: EvaluatedRow, cell: Evaluate
   return row.connection.filter((text) => text !== '').slice(0, 2).join('–');
 }
 
+/** Fix batch e24x (C2): the two ends of a range criterion (a company `between`, a "nominal ± %" row); null for any other. */
+function rangeOf(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max'> & { tolerance_pct?: number | undefined }): { min: number; max: number } | null {
+  if (criterion.operator === 'between') return criterion.value_max === undefined ? null : { min: criterion.value, max: criterion.value_max };
+  if (criterion.operator === 'nominal_pct') return criterion.tolerance_pct === undefined ? null : nominalBounds(criterion.value, criterion.tolerance_pct);
+  return null;
+}
+
+/**
+ * Fix batch e24x (C2): how bad a reading is against a range: outside, its distance from the nearer
+ * end, relative to that end (20 against 80 to 120 is 0,75; 125 is about 0,04), above zero; inside,
+ * at most zero, the nearer an end the higher, so any reading outside ranks above any inside.
+ */
+function rangeScore(scaled: number, range: { min: number; max: number }): number {
+  const relative = (distance: number, end: number) => (end === 0 ? distance : distance / Math.abs(end));
+  if (scaled < range.min) return relative(range.min - scaled, range.min);
+  if (scaled > range.max) return relative(scaled - range.max, range.max);
+  return -Math.min(relative(scaled - range.min, range.min), relative(range.max - scaled, range.max));
+}
+
 /** The worst reading of every enabled test that holds at least one measured capture. */
 export function worstReadings(evaluations: readonly TestEvaluation[]): WorstReading[] {
   const out: WorstReading[] = [];
@@ -187,16 +206,19 @@ export function worstReadings(evaluations: readonly TestEvaluation[]): WorstRead
             // Batch e23a (Stories 23.2, 23.3): a row judged by its own criterion ranks by its reading over
             // that criterion, so the worst is the one furthest below its minimum (or above its maximum).
             const own = row.criterion;
-            if (own === null || !(own.value > 0)) continue;
+            if (own === null) continue;
+            const range = rangeOf(own);
+            if (range === null && !(own.value > 0)) continue;
             const scaled = scaleToUnit(value, cell.unit, own.unit);
             if (scaled === null) continue;
-            score = own.operator.startsWith('>') ? -(scaled / own.value) : scaled / own.value;
+            score = range !== null ? rangeScore(scaled, range) : own.operator.startsWith('>') ? -(scaled / own.value) : scaled / own.value;
             valueText = shown;
           } else {
             const scaled = scaleToUnit(value, cell.unit, criterion!.unit);
             if (scaled === null) continue;
-            // Insulation: the lowest is the worst; contact resistance: the highest.
-            score = criterion!.operator.startsWith('>') ? -scaled : scaled;
+            const range = rangeOf(criterion!);
+            // Insulation: the lowest is the worst; contact resistance: the highest; fix batch e24x (C2): a range, the furthest outside.
+            score = range !== null ? rangeScore(scaled, range) : criterion!.operator.startsWith('>') ? -scaled : scaled;
             valueText = shown;
           }
           // An out-of-criterion reading always outranks a within one; batch e23v: a restricted one sits between them.

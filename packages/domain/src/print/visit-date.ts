@@ -15,6 +15,15 @@ import type { PreviousResults } from './reading-slots.ts';
 /** What dates a visit: its service date when kept, else its issue instant. */
 export type VisitDated = Pick<PreviousResults, 'issued_at'> & Partial<Pick<PreviousResults, 'service_date'>>;
 
+/**
+ * Fix batch e24x (D3): a relatório's own visit date, as the issue keeps it (`lastResults`): its
+ * `service_end`, else its `service_start`; null with neither (or a blank one).
+ */
+export function relatorioVisitDate(setup: { service_start?: string | null; service_end?: string | null } | null | undefined): string | null {
+  const date = setup?.service_end ?? setup?.service_start ?? null;
+  return date === null || date === '' ? null : date;
+}
+
 /** The visit's date as an AD-11 `date` value: its `service_date` (`YYYY-MM-DD` or `YYYY-MM`), else the issue instant's calendar day. */
 export function visitDateOf(entry: VisitDated): string {
   if (entry.service_date !== undefined) return entry.service_date;

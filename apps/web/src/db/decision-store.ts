@@ -116,6 +116,8 @@ export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
     const decisions = openDecisions({
       definitions,
       relatorioId: relatorio.id,
+      // Fix batch e24x (D3): the composed text reads the previous visit the ficha reads.
+      relatorio,
       blocks: own,
       locations,
       equipment: projectEquipment,

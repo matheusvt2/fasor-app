@@ -12,7 +12,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { historyNoteText, measurementHistoryItems, testHistoryItems } from './history-note.ts';
-import { lastResults, previousHelperText, previousResultsFor, readingSlotsOf } from './last-results.ts';
+import { lastResults, previousHelpers, previousHelperText, previousResultsFor, readingSlotsOf } from './last-results.ts';
 import { withoutPrior } from './reading-slots.ts';
 import { readingFitWidthEm, section9Layout, wordsWiderThanColumns, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
 import { compareVisits, previousHeaderText, previousVisitDateText, visitDateOf, visitDateText } from './visit-date.ts';
@@ -529,5 +529,58 @@ describe('24.16-UNIT a reading out by its criterion that a previous-visit rule a
     expect(items.map((item) => item.reason)).toContain(outCell.historyOut);
     expect(notesOf(sheetOf(out, 'transformador_forca'))).toContain(historyNoteText(items));
     for (const sheet of sheetsOf(windingOut(v13))) expect(notesOf(sheet), sheet.title).toEqual([]);
+  });
+});
+
+/*
+ * Fix batch e24x (D3; the coordinator took e24p's open row as a defect): a sheet never reads a visit
+ * later than its own relatório's service date as its previous one. With the top entry later, it
+ * reads the top's prior when that is not later, else nothing; with its own date unknown, as before.
+ * The screen helper, the judgement (the visit context) and the print agree.
+ */
+describe('e24x-UNIT D3 a sheet never reads a later visit as its previous one', () => {
+  const block = { block_type: 'cabos_saida' };
+
+  it('B (September) issued, A (March) open or issued late: A reads nothing; with an older prior, A reads that prior; C and B as before', () => {
+    const b = issue(null, rid('b'), day('2026-09-30'), '2026-10-01T15:00:00.000Z')!;
+    expect(previousResultsFor({ last_results: b }, block, rid('a'), '2026-03-14')).toBeNull();
+    // A's own date unknown: as before (the top).
+    expect(previousResultsFor({ last_results: b }, block, rid('a'), null)).toMatchObject({ relatorio_id: rid('b') });
+    expect(previousResultsFor({ last_results: b }, block, rid('a'))).toMatchObject({ relatorio_id: rid('b') });
+    // A later visit, and one on the same day, still read B.
+    expect(previousResultsFor({ last_results: b }, block, rid('c'), '2026-11-10')).toMatchObject({ relatorio_id: rid('b') });
+    expect(previousResultsFor({ last_results: b }, block, rid('c'), '2026-09-30')).toMatchObject({ relatorio_id: rid('b') });
+    // An older prior (January) under B: A (March) reads it.
+    const p = issue(null, rid('e'), day('2026-01-10'), '2026-01-12T15:00:00.000Z')!;
+    const bp = issue(p, rid('b'), day('2026-09-30'), '2026-10-01T15:00:00.000Z')!;
+    expect(previousResultsFor({ last_results: bp }, block, rid('a'), '2026-03-14')).toMatchObject({ relatorio_id: rid('e') });
+    expect(Object.hasOwn(previousResultsFor({ last_results: bp }, block, rid('a'), '2026-03-14')!, 'prior')).toBe(false);
+    // A prior later than A too (A in 2025): nothing.
+    expect(previousResultsFor({ last_results: bp }, block, rid('a'), '2025-12-01')).toBeNull();
+  });
+
+  it('A issued late over B: A\'s issue keeps A\'s own readings judged with no previous visit, and B stays on top with A as its prior', () => {
+    const b = issue(null, rid('b'), day('2026-09-30'), '2026-10-01T15:00:00.000Z')!;
+    const snapshotA = relatorioOf(rid('a'), day('2026-03-14'), b);
+    expect(visitContextOf(snapshotA, snapshotA.blocks[0]!).previous).toBeNull();
+    const afterA = issue(b, rid('a'), day('2026-03-14'), '2026-10-02T15:00:00.000Z')!;
+    expect(afterA).toMatchObject({ relatorio_id: rid('b'), prior: { relatorio_id: rid('a') } });
+  });
+
+  it('the layout lock\'s v14 relatório: a previous visit dated after its service is not printed, judged or shown; with its own dates unknown it is, as before', () => {
+    const later = withPrevious(v14, 'transformador_forca', dated('2027-01-15'));
+    const { block, equipment } = blockOf(later, 'transformador_forca');
+    const definition = getDefinition('v14', 'cabine_primaria', 'transformador_forca');
+    expect(previousHeaders(sheetOf(later, 'transformador_forca'))).toEqual([]);
+    expect(visitContextOf(later, block).previous).toBeNull();
+    expect(previousHelpers(equipment, block, definition, later.relatorio.id, '2026-11-04').size).toBe(0);
+    // Before its service: as the lock prints it.
+    const before = withPrevious(v14, 'transformador_forca', dated('2025-11-05'));
+    expect(previousHeaders(sheetOf(before, 'transformador_forca')).length).toBeGreaterThan(0);
+    expect(visitContextOf(before, blockOf(before, 'transformador_forca').block).previous).not.toBeNull();
+    // The relatório's own dates unknown: the later visit reads as before.
+    const unknown = { ...later, relatorio: { ...later.relatorio, setup: { ...later.relatorio.setup, service_start: null, service_end: null } } };
+    expect(previousHeaders(sheetOf(unknown, 'transformador_forca')).length).toBeGreaterThan(0);
+    expect(visitContextOf(unknown, blockOf(unknown, 'transformador_forca').block).previous).not.toBeNull();
   });
 });
