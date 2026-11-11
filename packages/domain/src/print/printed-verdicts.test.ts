@@ -162,9 +162,9 @@ describe('25.4-UNIT (c) the edges of the matrix', () => {
 
     let snapshot = edit(base, tp.id, (block) => ({ ...block, not_tested: { reason: 'impossibilidade_desligamento', text: null, at: ISSUED_AT, by: block.created_by ?? 'system:generate' } }));
     snapshot = edit(snapshot, tc.id, (block) => {
+      // A new config object: rows are immutable, and `enabledSubBlocksOf` memoizes by the config object.
       const config = block.config as { sub_blocks: Record<string, { enabled: boolean }> };
-      config.sub_blocks.conclusion = { enabled: false };
-      return block;
+      return { ...block, config: { ...config, sub_blocks: { ...config.sub_blocks, conclusion: { enabled: false } } } };
     });
     const verdicts = printedVerdicts(snapshot);
     expect(verdicts.printed_conclusions).not.toHaveProperty(tp.id);
