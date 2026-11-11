@@ -1,8 +1,8 @@
 import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType, type TypeVersionRef } from '../schemas/block-config.ts';
 import type { EquipmentTypeRow, EquipmentTypeVersionRow } from '../schemas/entities.ts';
-import { equipmentTypesOf, findDefinition, findDefinitionIn, isLibraryType, latestTypeVersion, versionRowIn, type DefinitionContext } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, findDefinition, findDefinitionIn, isLibraryType, latestTypeVersion, versionRowIn, type DefinitionContext } from '../seed/definitions.ts';
 import { TAG_PREFIX } from '../relatorio/tag.ts';
-import { LIBRARY_GROUP_LABEL } from '../relatorio/tree.ts';
+import { blockTypeLabelIn, hidingCopies, LIBRARY_GROUP_LABEL } from '../relatorio/tree.ts';
 import { plural } from '../text/plural.ts';
 import { companyBlockType, companyTypeIdOf } from '../schemas/block-config.ts';
 import type { CompanyTypeDraft } from './definition.ts';
@@ -113,21 +113,37 @@ export interface LibraryTypeListRow {
   type: EquipmentBlockType;
   name: string;
   secondary: string;
+  /** Story 24.19: the second line of a type a published company copy hides in the palettes (`hiddenTypeText`); null otherwise. */
+  hiddenText: string | null;
+}
+
+/**
+ * Story 24.19: the line under a library type its published copies hide in the palettes, naming them
+ * ("Oculto nas paletas: a cópia Transformador de força (cópia) está publicada."); null with none.
+ */
+export function hiddenTypeText(copyLabels: readonly string[]): string | null {
+  if (copyLabels.length === 0) return null;
+  // authored (e24c, listed for Bruno): Story 24.19's hidden line, one copy and several.
+  if (copyLabels.length === 1) return `Oculto nas paletas: a cópia ${copyLabels[0]!} está publicada.`;
+  return `Oculto nas paletas: as cópias ${copyLabels.slice(0, -1).join(', ')} e ${copyLabels.at(-1)!} estão publicadas.`;
 }
 
 /**
  * The seeded types a seed version ships, in palette order, each "Biblioteca · TAG SEC · manual,
  * epóxi ou a seco" (its subtypes, when it has some) or "Biblioteca · TAG CTA · Outros equipamentos"
- * (a library type, Story 14.5).
+ * (a library type, Story 14.5). Story 24.19: with the company's types (`ctx`), a type its published
+ * copies hide in the palettes (`hidingCopies`) carries the line that says so.
  */
-export function libraryTypeListRows(seedVersion: string): LibraryTypeListRow[] {
+export function libraryTypeListRows(seedVersion: string, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): LibraryTypeListRow[] {
+  const hidden = hidingCopies(ctx, seedVersion);
   return equipmentTypesOf(seedVersion).map((type) => {
     const definition = findDefinition(seedVersion, type);
     const subtypes = (definition?.subtypes ?? []).map((subtype) => subtype.label.toLowerCase());
     const variants = subtypes.length === 0 ? null : subtypes.length === 1 ? subtypes[0]! : `${subtypes.slice(0, -1).join(', ')} ou ${subtypes.at(-1)!}`;
     // authored (Story 14.7, from `41-templates.html`).
     const parts = ['Biblioteca', `TAG ${TAG_PREFIX[type]}`, isLibraryType(seedVersion, type) ? LIBRARY_GROUP_LABEL : variants];
-    return { type, name: definition?.label ?? type, secondary: parts.filter((part): part is string => part !== null).join(SEP) };
+    const copies = (hidden.get(type) ?? []).map((copy) => blockTypeLabelIn(ctx, seedVersion, copy));
+    return { type, name: definition?.label ?? type, secondary: parts.filter((part): part is string => part !== null).join(SEP), hiddenText: hiddenTypeText(copies) };
   });
 }
 

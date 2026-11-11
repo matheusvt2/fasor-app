@@ -568,7 +568,9 @@ export const copy = {
     // The product's name is the caller's (the PRODUTO constant).
     note: (product: string) =>
       `Um tipo de equipamento define a ficha: placa, verificações, ensaios e critérios. Os tipos da biblioteca vêm com o ${product} e não mudam; para ajustar um, duplique e edite a cópia. Publicar congela uma versão: relatórios já criados mantêm a versão que usaram.`,
-    libraryNote: 'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. O tipo da biblioteca continua nas paletas.',
+    // ~~'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. O tipo da biblioteca continua nas paletas.'~~
+    // (2026-11-11, Story 24.19: a published copy hides its library type in the palettes) authored (e24c, listed for Bruno).
+    libraryNote: 'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. Enquanto a cópia estiver publicada, o tipo da biblioteca sai das paletas.',
     edit: 'Editar',
     duplicate: 'Duplicar',
     retire: 'Aposentar',
@@ -673,7 +675,9 @@ export const copy = {
     // Critérios
     criteriaHeading: 'Critérios de aceitação deste tipo',
     criteriaNote: 'Os valores padrão que a ficha usa para sugerir Conforme ou Fora do limite. Todo critério precisa de uma fonte, que sai na legenda da tabela impressa. Mudar um valor vale a partir da versão publicada.',
-    criteriaRules: 'Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · ± · aprovado ou reprovado.',
+    // ~~'Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · ± · aprovado ou reprovado.'~~
+    // (2026-11-11, Story 24.18) `43-tipo-equipamento.html` line 264 (Story 24.1 frame), verbatim; authored (e24c, listed for Bruno).
+    criteriaRules: 'Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · nominal ± % · ± · aprovado ou reprovado.',
     colCriterion: 'Critério',
     colRule: 'Regra',
     colValue: 'Valor',
@@ -681,6 +685,11 @@ export const copy = {
     // authored (Story 14.7): the inputs' accessible names and the second bound of "entre".
     valueLabel: (name: string) => `Valor de ${name}`,
     valueMaxLabel: (name: string) => `Valor máximo de ${name}`,
+    // authored (e24c, listed for Bruno): Story 24.18's two inputs of a "nominal ± %" row (`43-tipo-equipamento.html` line 253) and their accessible names.
+    nominalLabel: 'Valor nominal',
+    toleranceLabel: 'Tolerância (%)',
+    nominalOf: (name: string) => `Valor nominal de ${name}`,
+    toleranceOf: (name: string) => `Tolerância (%) de ${name}`,
     ruleLabel: (name: string) => `Regra de ${name}`,
     sourceLabel: (name: string) => `Fonte de ${name}`,
     editionLabel: (name: string) => `Edição da fonte de ${name}`,
@@ -1053,6 +1062,8 @@ export const copy = {
       // Story 14.5 (`40-relatorio-overview.html` line 474, the library type's `.pi-meta`): what the
       // type holds (the kernel's summary), then the TAG it would be born with: "17 itens · até 6 ensaios · CTA-GER".
       libraryMeta: (summary: string, tag: string) => `${summary} · ${tag}`,
+      // Story 24.19 (`40-relatorio-overview.html` `#lo-type-tr`, the `.pi-meta` of a company type): the mark before the meta, wherever the row stands.
+      companyMeta: (meta: string) => `Tipo da empresa · ${meta}`,
       // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled);
       // its "TAG" is the dialogs' `tagDialogs.tagLabel`.
       localLabel: 'Local',

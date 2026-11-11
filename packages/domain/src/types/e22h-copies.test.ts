@@ -246,7 +246,8 @@ describe('e22h S1: a broken plate reference is said in pt-BR, and removing its f
 });
 
 describe('e22h N1: pass_fail only on a row no test names, ± only on the ratio deviation', () => {
-  const comparisons = ['>', '<', '>=', '<=', 'between'];
+  // Story 24.18 (2026-11-11): "nominal ± %" follows "entre" wherever it may, never on the ratio's deviation.
+  const comparisons = ['>', '<', '>=', '<=', 'between', 'nominal_pct'];
   // DEFINITION_1's measurement table with its row made a choice (as the batch review's test built it).
   const choiceTable: CompanyTypeDefinition = {
     ...DEFINITION_1,
@@ -271,7 +272,7 @@ describe('e22h N1: pass_fail only on a row no test names, ± only on the ratio d
     expect(criterionRulesFor(null, 'x')).toEqual([...comparisons, '±', 'pass_fail']);
     const tc = duplicateSeededType(SEED, 'tc').draft;
     const ratioKey = tc.tests.find((test) => test.key === 'relacao_transformacao')!.criterion_key;
-    expect(criterionRulesFor(tc, ratioKey)).toEqual([...comparisons, '±']);
+    expect(criterionRulesFor(tc, ratioKey)).toEqual(['>', '<', '>=', '<=', 'between', '±']);
   });
 
   it('the strict schema refuses pass_fail and ± on a choice row in pt-BR; ± on the ratio publishes', () => {

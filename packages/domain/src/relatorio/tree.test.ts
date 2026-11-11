@@ -343,7 +343,7 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
     const snapshot = relatorio();
     const items = paletteItems('v1', { kind: 'coluna', name: 'Coluna 5' }, snapshot.equipment, EMPTY_DEFINITION_CONTEXT);
     expect(items).toHaveLength(8);
-    expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SC-01', library: false, summary: null });
+    expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SC-01', library: false, company: false, summary: null });
     expect(items.find((i) => i.type === 'para_raio')!.tag).toBe('PR-01');
     expect(locationChoices(snapshot.locations).map((c) => c.label)).toEqual([
       'Cabine B',

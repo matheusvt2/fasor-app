@@ -1920,7 +1920,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   state: open (owner: the next mock pass, Sally)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx` "the cabine's \"Adicionar bloco\" follows the last sheet's coluna; a cabine with no coluna takes the block itself, \"criada em ⟨cabine⟩\"" fails on this batch's base (`f60fd938`, Story 14.2's branch) with no change of this batch: it finds no menu item named "Adicionar equipamento" (`Unable to find role="menuitem" and name "Adicionar equipamento"`). It was left as found; the full `test:unit` of this batch is green apart from it (3724 of 3725 on 2026-10-13).
+  summary: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx` "the cabine's "Adicionar bloco" follows the last sheet's coluna; a cabine with no coluna takes the block itself, "criada em ⟨cabine⟩"" fails on this batch's base (`f60fd938`, Story 14.2's branch) with no change of this batch: it finds no menu item named "Adicionar equipamento" (`Unable to find role="menuitem" and name "Adicionar equipamento"`). It was left as found; the full `test:unit` of this batch is green apart from it (3724 of 3725 on 2026-10-13).
   evidence: `apps/web/src/surfaces/relatorio/relatorio-tree-edges.test.tsx`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu` (`add-block` label); `test-results/e14b/unit.log` of 2026-10-13.
   class: bug
   state: ~~open (owner: batch e14a, Story 14.2; else the coordinator before the wave gate)~~ closed (2026-10-14, E14-A2, from the note beside it) *(2026-10-13, batch e14b gate: closed. The test passes on the merge of Story 14.2's second pass, `50e4afff`: `pnpm test:unit` shows no failure in `relatorio-tree-edges.test.tsx`.)*
@@ -3422,7 +3422,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the base's texts show only on sheets of the imported company type copies, not on the library's seeded types (a company overlay on seeded types would need an entity, an op family and a contract). A relatório must use the imported copies for "Como ensaiar" and the recommendation to appear.
   evidence: `packages/domain/src/types/test-base-import.ts` `planTestBaseImport`.
   class: decision
-  state: ~~open (owner: Matheus, with Bruno)~~ closed (2026-11-10, Matheus: accepted, no change): the base's texts stay on the imported types only. Epic 24 hides the library type when a copy of it exists, which removes the confusion.; assigned 2026-11-10 to Epic 24, Story 24.19
+  state: ~~open (owner: Matheus, with Bruno)~~ closed (2026-11-10, Matheus: accepted, no change): the base's texts stay on the imported types only. Epic 24 hides the library type when a copy of it exists, which removes the confusion.; assigned 2026-11-10 to Epic 24, Story 24.19 *(2026-11-11, batch e24c, Story 24.19: built. A published, non-retired copy whose definition names the library type as its `base_block_type` hides it in both palettes and in "Fotografar equipamento" and stands in its place (`hidingCopies`), so a relatório is offered the imported copy and its texts; the type list says the library type is hidden.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23x-base-texts.md` (rows before e23e)
   summary: GE-01 (`termografia`) and AT-01/AT-02 (`malha_aterramento`) attach only once e23e's seed lands; until then they are listed as "Sem ensaio no app". After the e23e merge, add explicit kernel assertions that they attach (the spec's Tasks).
   evidence: `packages/domain/src/types/test-base-import.test.ts` (reads the kernel definition, holds before and after).
@@ -3445,7 +3445,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: a company draft can publish while a ratio table reads by vector group with no plate field left to read. This happens when the draft lost `ligacao_secundaria` before e23z (pruned by `removeDraftEntry` since e23g, or by a draft put from an older build). The ratio never computes. The editor's refusal guards removals from now on only, and `validateTypeDraft` raises no issue.
   evidence: `packages/domain/src/types/draft-edit.ts` `removeDraftEntryRefusal`; `packages/domain/src/types/validate.ts`.
   class: decision
-  state: ~~open (owner: Matheus: add a publish issue, or leave such drafts to the office)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): raise a publish issue. Open (owner: Epic 24, wave 3); assigned 2026-11-10 to Epic 24, Story 24.20
+  state: ~~open (owner: Matheus: add a publish issue, or leave such drafts to the office)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): raise a publish issue. ~~Open (owner: Epic 24, wave 3); assigned 2026-11-10 to Epic 24, Story 24.20~~ closed (2026-11-11, batch e24c, Story 24.20, contract 44): `vectorGroupPublishIssue` is one publish issue on the ratio test (the field missing, its kind or its options changed) that holds "Publicar", and the push route refuses such a version create `op_invalid`; outside the strict schema (D3 of `spec-e24c-company-types.md`), so a version published broken before still folds on a fresh device and its sheet works
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (Design Notes, W3-3 narrowing)
   summary: only a copy created from e23z on carries `base_block_type` and prints in its base type's group. A copy duplicated or imported earlier keeps printing in "Outros equipamentos" until it is duplicated again. Nothing backfills: published versions are immutable.
   evidence: `packages/domain/src/types/duplicate.ts` `duplicateSeededDefinition`; `packages/domain/src/print/group-for-print.ts`.
@@ -3465,7 +3465,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: three narrowings.
   - W3-2: a measured cell the deviation between phases cannot judge only withholds the floor. The sheet shows no "Conferir" helper on that cell; the medium-unknown note stays.
   - Item 3: the clear has no "Desfazer", because only clearing is allowed. A cleared reading is typed again once its tap is back on the plate.
-  - Item 4: only removing the field is refused. Changing its kind or options is not.
+  - Item 4: only removing the field is refused. Changing its kind or options is not. *(2026-11-11, batch e24c, Story 24.20: a change of its kind, or options that are no longer exactly the codes, is refused too while a ratio table reads it (`updateDraftFieldRefusal`, the removal's toast pattern); its label and unit still change.)*
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (`unjudged`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`); `packages/domain/src/types/draft-edit.ts`.
   class: note
   state: ~~open (owner: the Epic 23 retrospective)~~ closed (2026-11-10, the Epic 23 retrospective, headless): the clear with no "Desfazer" (item 3) and the refusal of only the field's removal (item 4) are accepted as designed. The missing helper on a cell the deviation between phases cannot judge (W3-2) goes to E23-A1 with finding R-1 of `epic-23-retro-2026-11-10.md`. *(2026-11-10, fix batch e24f, R-1: the cell carries a "Conferir:" helper and the paragraph reads "com leitura a conferir".)* *(2026-11-10, Epic 24 planning, the same day: item 4 is taken further by Story 24.20, which also refuses a vector-group field whose kind or options were changed.)*
@@ -3678,3 +3678,31 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `mockups/prototype/screens/40-relatorio-overview.html`; `packages/domain/src/relatorio/panel.ts` `panelProvenance`.
   class: note
   state: open (owner: the coordinator, with the next mock pass)
+
+## Deferred from: Epic 24 batch e24c (2026-11-11)
+
+- source_spec: `spec-e24c-company-types.md` (Design Notes D2; Story 24.18)
+  summary: the printed form of a tolerance is Bruno's open item B-9. Until he answers, "nominal ± %" reads "220 V ±5 %" (the sign glued to the tolerance, a space before "%"), as the ratio's "±0,5 %" prints today; the story and the mock wrote "220 V ± 5 %".
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
+  class: decision
+  state: open (owner: Bruno, with B-9, through Matheus)
+- source_spec: `spec-e24c-company-types.md` (Design Notes D3; Story 24.20)
+  summary: the story asked "the strict schema refuses the same draft on the server". The rule is a publish rule instead: the editor's issue and the push route's refusal (`checkClientOp`, `op_invalid`). The strict schema runs in the fold of every pulled version create, so a rule there would stop a fresh device's sync on a version already published broken (possible before e23z). An older build cannot publish such a type either, because contract 44 refuses its pull.
+  evidence: `packages/domain/src/types/validate.ts` `vectorGroupPublishIssue`; `apps/api/src/sync/rules.ts` `checkClientOp`.
+  class: note
+  state: open (owner: Matheus, to accept the narrowing)
+- source_spec: `spec-e24c-company-types.md` (Story 24.19, the coordinator's readings)
+  summary: the original is hidden in the template composer's palette too, and the copy takes the original's place in the list instead of sitting at the end of "Outros equipamentos" (both coordinator's readings, built as written). A copy whose base the relatório's seed does not ship (a library type first shipped by a later seed) hides nothing there and stays at the end of "Outros equipamentos".
+  evidence: `packages/domain/src/relatorio/tree.ts` `hidingCopies`, `paletteTypeGroups`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24c-company-types.md` (authored strings, listed for Bruno)
+  summary: the batch's authored pt-BR texts: the rule word "nominal ± %" and the line of rules with it after "entre"; the inputs "Valor nominal" and "Tolerância (%)"; the issues "informe a tolerância (%).", "a tolerância (%) precisa ser maior que zero.", "só a regra "nominal ± %" tem tolerância.", "informe o valor nominal." and "a regra "nominal ± %" julga uma leitura, não o desvio da relação de transformação; escolha outra regra."; the palette mark "Tipo da empresa · …"; the hidden line "Oculto nas paletas: a cópia … está publicada." (several: "as cópias … e … estão publicadas."); the new `libraryNote`; Story 24.20's issue ("… a relação de transformação é calculada pelo grupo de ligação do campo … da placa, que não está mais na placa como a lista dos grupos. Remova este ensaio, ou comece de novo com "Duplicar".", summary "… sem o campo …") and its refusal toast ("O campo … não pode mudar de tipo nem de opções: …").
+  evidence: every `// authored (e24c, listed for Bruno)` in `packages/domain/src` and `apps/web/src/copy/pt-br.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `spec-e24c-company-types.md` (Story 24.18 AC "ACEITÁVEL prints 220 V ± 5 %"; Tasks 7)
+  summary: a measurement table prints no criterion since Story 22.2 (its ACEITÁVEL line was removed), and `print/section-9.ts` is outside this batch, so a "nominal ± %" row of a measurement table in V prints its reading and the ficha's marks as a range row does, but no "220 V ±5 %". ACEITÁVEL prints the rule's text on a seeded-grammar test (insulation, contact, ratio), whose criterion units are the seed's (MΩ, µΩ, %): `24.18-E2E-001` reads "100 µΩ ±20 %" there. Printing a measurement row's criterion is a print change for a later batch.
+  evidence: `packages/domain/src/print/section-9.ts` `measurementTestPart`, `instrumentPart`; `e2e/nominal-tolerance.spec.ts`.
+  class: decision
+  state: open (owner: Matheus: print a measurement table's criteria, or accept)

@@ -2,7 +2,7 @@
 title: 'e24c, company types: a "nominal ± %" criterion, a copy hides its original, a type that cannot compute its ratio is not published (Stories 24.18 to 24.20)'
 type: 'feature'
 created: '2026-11-11'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: '1c63235e9113855c30afaf228708177566c218ed'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -127,6 +127,13 @@ Every one marked `// authored (e24c, listed for Bruno)` in place, final wording 
 - The hidden line, one copy and several (for example `Oculto nas paletas: a cópia Transformador de força (cópia) está publicada.`).
 - `libraryNote`, new text.
 - The 24.20 issue (names the field's label, the two ways out: remove the ratio test, or start again with "Duplicar") and its publish-bar summary; the 24.20 refusal toast.
+
+Final wording, as built (2026-11-11, implementer):
+- Rule word `nominal ± %`; the criterion text `220 V ±5 %` (B-9); inputs `Valor nominal`, `Tolerância (%)` (accessible names `Valor nominal de {critério}`, `Tolerância (%) de {critério}`); the rules line `Regras: maior que · menor que · maior ou igual a · menor ou igual a · entre · nominal ± % · ± · aprovado ou reprovado.`
+- Issues: `{critério}: informe a tolerância (%).` (summary `{critério} sem tolerância`); `{critério}: a tolerância (%) precisa ser maior que zero.` (`{critério} com tolerância zero ou negativa`); `{critério}: só a regra "nominal ± %" tem tolerância.` (`{critério} com tolerância`); `{critério}: informe o valor nominal.` (`{critério} sem valor nominal`); `{critério}: a regra "nominal ± %" julga uma leitura, não o desvio da relação de transformação; escolha outra regra.` (`{critério} com regra nominal ± %`).
+- The palette mark `Tipo da empresa · {meta}`; the hidden line `Oculto nas paletas: a cópia {nome} está publicada.` and `Oculto nas paletas: as cópias {A}, {B} e {C} estão publicadas.`
+- `libraryNote`: `Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. Enquanto a cópia estiver publicada, o tipo da biblioteca sai das paletas.`
+- The 24.20 issue `{ensaio}: a relação de transformação é calculada pelo grupo de ligação do campo {rótulo} da placa, que não está mais na placa como a lista dos grupos. Remova este ensaio, ou comece de novo com "Duplicar".`, summary `Ensaios › {ensaio} sem o campo {rótulo}`; the refusal toast `O campo {rótulo} não pode mudar de tipo nem de opções: a relação de transformação calcula por ele. Remova antes o ensaio.`
 
 ## Verification
 
