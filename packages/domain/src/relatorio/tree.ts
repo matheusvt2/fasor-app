@@ -785,16 +785,40 @@ export interface PaletteTypeGroup {
 }
 
 /**
+ * Story 24.19: the seeded types of a seed version (one of the eight or a library type) that a
+ * company copy hides, each with its copies: the company types `offeredTypes` offers (published,
+ * neither retired nor removed) whose latest definition names that type as its `base_block_type`, in
+ * `offeredTypes`' label order. A copy of a copy carries its base, so it hides the same type; a copy
+ * whose base the seed version does not ship hides nothing.
+ */
+export function hidingCopies(ctx: DefinitionContext, seedVersion: string): Map<BlockTypeKey, BlockTypeKey[]> {
+  const shipped = new Set<string>(equipmentTypesOf(seedVersion));
+  const out = new Map<BlockTypeKey, BlockTypeKey[]>();
+  for (const type of offeredTypes(ctx, seedVersion)) {
+    if (!isCompanyBlockType(type)) continue;
+    const base = findDefinitionIn(ctx, seedVersion, type, latestTypeVersion(ctx, type.slice('type:'.length)) ?? undefined)?.base_block_type;
+    if (base === undefined || !shipped.has(base)) continue;
+    out.set(base, [...(out.get(base) ?? []), type]);
+  }
+  return out;
+}
+
+/**
  * Story 14.6 (AD-21 item 6): with a definition context holding the company's types, the library
  * group also offers the published, non-retired company types, after the seeded library types, in
  * label order (`offeredTypes`). Without one (the default) the groups are exactly as before.
+ * Story 24.19: a seeded type a company copy hides (`hidingCopies`) is not offered; its copies stand
+ * where it stood, and leave the tail of the library group.
  */
 export function paletteTypeGroups(seedVersion: string, ctx: DefinitionContext): PaletteTypeGroup[] {
   const types = equipmentTypesOf(seedVersion);
   const library: BlockTypeKey[] = types.filter((type) => isLibraryType(seedVersion, type));
-  const company = offeredTypes(ctx, seedVersion).filter((type) => isCompanyBlockType(type));
-  const groups: PaletteTypeGroup[] = [{ key: 'seeded', label: null, types: types.filter((type) => !library.includes(type)) }];
-  if (library.length + company.length > 0) groups.push({ key: 'library', label: LIBRARY_GROUP_LABEL, types: [...library, ...company] });
+  const hidden = hidingCopies(ctx, seedVersion);
+  const placed = new Set([...hidden.values()].flat());
+  const inPlace = (list: readonly BlockTypeKey[]): BlockTypeKey[] => list.flatMap((type) => hidden.get(type) ?? [type]);
+  const company = offeredTypes(ctx, seedVersion).filter((type) => isCompanyBlockType(type) && !placed.has(type));
+  const groups: PaletteTypeGroup[] = [{ key: 'seeded', label: null, types: inPlace(types.filter((type) => !library.includes(type))) }];
+  if (library.length + company.length > 0) groups.push({ key: 'library', label: LIBRARY_GROUP_LABEL, types: [...inPlace(library), ...company] });
   return groups;
 }
 
@@ -807,7 +831,9 @@ export interface PaletteItem {
   tag: string;
   /** Story 14.5: a library type, drawn after the eight under `LIBRARY_GROUP_LABEL`. */
   library: boolean;
-  /** Story 14.5: what a library type holds, "17 itens · até 6 ensaios"; null on the eight. */
+  /** Story 24.19: a company type, wherever it stands (its row is marked "Tipo da empresa"). */
+  company: boolean;
+  /** Story 14.5: what a library type holds, "17 itens · até 6 ensaios"; null on the eight (Story 24.19: a company copy among them has its own). */
   summary: string | null;
 }
 
@@ -829,7 +855,8 @@ export function paletteItems(seedVersion: string, location: TagLocation, equipme
         label: blockTypeLabelIn(ctx, seedVersion, type, typeVersion),
         tag: suggestTag(type, equipment, definition),
         library: group.key === 'library',
-        summary: group.key === 'library' ? libraryTypeSummaryText(seedVersion, type, ctx, typeVersion) : null,
+        company: isCompanyBlockType(type),
+        summary: group.key === 'library' || isCompanyBlockType(type) ? libraryTypeSummaryText(seedVersion, type, ctx, typeVersion) : null,
       };
     }),
   );

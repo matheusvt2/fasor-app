@@ -224,6 +224,12 @@ export function FieldPalette({ target, seedVersion, definitions, locations, bloc
   );
 }
 
+/** A type row's meta: its TAG, a library type's summary before it; Story 24.19: a company type's marked "Tipo da empresa", wherever it stands. */
+function paletteItemMeta(item: PaletteItem): string {
+  const meta = item.summary === null ? item.tag : copy.sumario.palette.libraryMeta(item.summary, item.tag);
+  return item.company ? copy.sumario.palette.companyMeta(meta) : meta;
+}
+
 function ItemBody({ item }: { item: PaletteItem }) {
   return (
     <>
@@ -232,7 +238,7 @@ function ItemBody({ item }: { item: PaletteItem }) {
       </svg>
       <span className="pi-text">
         <span>{item.label}</span>
-        <span className="pi-meta">{item.summary === null ? item.tag : copy.sumario.palette.libraryMeta(item.summary, item.tag)}</span>
+        <span className="pi-meta">{paletteItemMeta(item)}</span>
       </span>
       <span className="plus" aria-hidden="true">
         +

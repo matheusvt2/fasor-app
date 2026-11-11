@@ -391,6 +391,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
                   locations: snapshot.locations,
                   equipment,
                   online,
+                  definitions,
                 }),
                 onResume: (photoId: string, target: PaletteTarget) => {
                   setPalette(null);
@@ -407,6 +408,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           seedVersion={context.seedVersion}
           locations={snapshot.locations}
           equipment={equipment}
+          definitions={definitions}
           onConfirm={(input) => actions.createBlock({ ...input, tag: null })}
           focusAfter={(target) => locationChevron(rootRef.current, target.locationId)}
         />

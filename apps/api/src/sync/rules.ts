@@ -30,6 +30,7 @@ import {
   type OpRejectCode,
   type RelatorioRow,
   type StatusMoveInput,
+  vectorGroupPublishIssue,
 } from '@app/domain';
 import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import type { CompanyId } from '../db/repositories/company-id.ts';
@@ -90,9 +91,13 @@ interface Target {
  * move (20.7), the removal of an Emitido relatório (20.10), the responsible user (`op_value_invalid`)
  * and, e20f, every other row the op names (`op_target_missing`), then
  * the attribution history and the lower bound of its instants (20.8). A refused op writes nothing.
+ * Story 24.20: first, a published version whose ratio table can never compute
+ * (`vectorGroupPublishIssue`) is refused `op_invalid`, the code a strict-schema refusal of a publish
+ * gets; the rule is the push route's, not the fold's, so a version published before it still folds.
  */
 export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target, deps: ClientCheckDeps): Promise<OpRejectCode | null> {
   const { op, path } = target;
+  if (path.family === 'equipment_type_version' && op.kind === 'create' && op.value !== null && typeof op.value === 'object' && vectorGroupPublishIssue((op.value as { definition?: object }).definition) !== null) return 'op_invalid';
   if (!(await targetHolds(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
   const project = createProjectOf(op, path);
   if (project !== null && !(await projectExists(tx, companyId, project, deps.cache))) return 'op_target_missing';

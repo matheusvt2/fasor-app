@@ -510,7 +510,19 @@
  * ficha's findings, an NC observation's lines enter its clause on one line and the fixed "nos itens 8
  * e 9" is replaced across formatted runs. MIN follows to 44 (below).
  */
-export const CONTRACT_VERSION = 44;
+/*
+ * 45 (2026-11-11, Stories 24.18 to 24.20, batch e24c): a company type's criteria row takes the
+ * operator `nominal_pct` with the new optional `tolerance_pct` (a nominal value and a tolerance in
+ * percent above zero, judged as the range it gives, both ends within), so a version's definition
+ * carries a shape the strict schema before 45 refuses. A version published before 45 parses to the
+ * same bytes. The server's push route also refuses (`op_invalid`, as a strict-schema refusal) a
+ * version create whose ratio table reads by the vector group with no valid vector-group field on its
+ * plate (`vectorGroupPublishIssue`); the rule is outside the strict schema, so a version already
+ * published in that state still folds on a fresh device. A published company copy of a seeded type
+ * hides that type in both palettes and in "Fotografar equipamento", derived on the device (no fold
+ * change). MIN follows to 45 (below).
+ */
+export const CONTRACT_VERSION = 45;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -810,7 +822,15 @@ export const CONTRACT_VERSION = 44;
  * rules (a Reprovado with a restriction, the parecer's sentence by reason). Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 44;
+/*
+ * 45 (2026-11-11, Stories 24.18 to 24.20, batch e24c): a version-44 (or older) bundle's strict
+ * schema refuses a criteria row with `nominal_pct` and `tolerance_pct`, so a pulled page carrying a
+ * version published with the rule would fail to fold (`materializeEntity` throws on a pulled op its
+ * fold refuses); its editor would also publish a type whose ratio table can never compute and offer
+ * a library type a published copy hides. Its pull answers `426 contract_outdated` and it updates;
+ * its pushes are still accepted, and the server refuses its publish of such a type.
+ */
+export const MIN_CONTRACT_VERSION = 45;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

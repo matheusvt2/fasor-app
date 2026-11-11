@@ -4,7 +4,7 @@ import { equipmentTypesOf, findDefinition } from '../seed/definitions.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { plural } from '../text/plural.ts';
 import type { TestHelpKey } from '../seed/test-help.ts';
-import { VECTOR_GROUP_FIELD } from '../relatorio/vector-group.ts';
+import { isVectorGroupOptions, VECTOR_GROUP_FIELD } from '../relatorio/vector-group.ts';
 import { COMPANY_CRITERION_OPERATORS, criterionTypeOf, type CompanyCriterionOperator, type CompanyTypeDraft } from './definition.ts';
 
 /*
@@ -101,12 +101,48 @@ export function addDraftField(draft: CompanyTypeDraft | null): { draft: CompanyT
   return { draft: back(next), index: fields.length - 1 };
 }
 
-/** A field's label, kind, unit (blank removes it) or options; a kind change keeps only what the new kind carries. */
-export function updateDraftField(draft: CompanyTypeDraft | null, index: number, patch: { label?: string; kind?: DraftFieldKind; unit?: string; options?: string[] }): CompanyTypeDraft {
+/** Whether a test's table of the draft computes the ratio by the vector group (`ratio_factor: 'vector_group'`). */
+function readsVectorGroup(draft: Draft): boolean {
+  return listOf(draft, 'tests').some((test) => (Array.isArray(test.tables) ? (test.tables as Entry[]) : []).some((table) => table.ratio_factor === 'vector_group'));
+}
+
+/** The label a refusal names the vector-group field by: its own, else its key. */
+const vectorFieldLabel = (field: Entry): string => (textOf(field.label).trim() === '' ? VECTOR_GROUP_FIELD : textOf(field.label).trim());
+
+/**
+ * Story 24.20: why a change of a nameplate field may not apply, else null. The valid vector-group
+ * field (`VECTOR_GROUP_FIELD`, a select of exactly the codes) while a test's table computes the ratio
+ * by it: a change of its kind, or options that are no longer exactly the codes, would leave the ratio
+ * unable to compute. Its label and its unit still change.
+ */
+export function updateDraftFieldRefusal(draft: CompanyTypeDraft | null, index: number, patch: { label?: string; kind?: DraftFieldKind; unit?: string; options?: string[] }): string | null {
+  const source = asDraft(draft);
+  const field = listOf(source, 'nameplate')[index];
+  if (field === undefined || field.key !== VECTOR_GROUP_FIELD) return null;
+  const options = Array.isArray(field.options) ? (field.options as string[]) : undefined;
+  if (field.kind !== 'select' || !isVectorGroupOptions(options) || !readsVectorGroup(source)) return null;
+  const kindChange = patch.kind !== undefined && patch.kind !== field.kind;
+  const optionsChange = patch.options !== undefined && !isVectorGroupOptions(patch.options);
+  if (!kindChange && !optionsChange) return null;
+  // authored (e24c, listed for Bruno): Story 24.20's refusal toast.
+  return `O campo ${vectorFieldLabel(field)} não pode mudar de tipo nem de opções: a relação de transformação calcula por ele. Remova antes o ensaio.`;
+}
+
+/**
+ * A field's label, kind, unit (blank removes it) or options; a kind change keeps only what the new
+ * kind carries. Story 24.20: a kind or options change `updateDraftFieldRefusal` refuses is left out
+ * (the label and the unit of the same patch still apply).
+ */
+export function updateDraftField(draft: CompanyTypeDraft | null, index: number, requested: { label?: string; kind?: DraftFieldKind; unit?: string; options?: string[] }): CompanyTypeDraft {
   const next = asDraft(draft);
   const fields = listOf(next, 'nameplate');
   const field = fields[index];
   if (field === undefined) return back(next);
+  const patch = { ...requested };
+  if (updateDraftFieldRefusal(draft, index, requested) !== null) {
+    delete patch.kind;
+    delete patch.options;
+  }
   if (patch.label !== undefined) field.label = patch.label;
   if (patch.kind !== undefined && patch.kind !== field.kind) {
     field.kind = patch.kind;
@@ -207,18 +243,17 @@ function pruneCriteria(draft: Draft): void {
  * Fix batch e23z (item 4, Matheus's decision on the e23g ledger row): why an entry may not be removed, else null. The
  * nameplate field holding the vector group (`VECTOR_GROUP_FIELD`, DESLOCAMENTO ANGULAR on a v12 or later transformer)
  * while a test's table computes the ratio by it (`ratio_factor: 'vector_group'`): removing the test first lifts it.
- * Only removal is refused; changing the field's kind or options is not.
+ * ~~Only removal is refused; changing the field's kind or options is not.~~ (2026-11-11, Story 24.20: a change of its
+ * kind or options is refused too, `updateDraftFieldRefusal`.)
  */
 export function removeDraftEntryRefusal(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): string | null {
   if (part !== 'nameplate') return null;
   const source = asDraft(draft);
   const field = listOf(source, 'nameplate')[index];
   if (field === undefined || field.key !== VECTOR_GROUP_FIELD) return null;
-  const reads = listOf(source, 'tests').some((test) => (Array.isArray(test.tables) ? (test.tables as Entry[]) : []).some((table) => table.ratio_factor === 'vector_group'));
-  if (!reads) return null;
-  const label = textOf(field.label).trim() === '' ? VECTOR_GROUP_FIELD : textOf(field.label).trim();
+  if (!readsVectorGroup(source)) return null;
   // authored (e23z, listed for Bruno).
-  return `O campo ${label} não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio.`;
+  return `O campo ${vectorFieldLabel(field)} não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio.`;
 }
 
 /**
@@ -639,6 +674,8 @@ export const CRITERION_RULE_WORDS: Readonly<Record<CompanyCriterionOperator, str
   '>=': 'maior ou igual a',
   '<=': 'menor ou igual a',
   between: 'entre',
+  // authored (e24c, listed for Bruno): Story 24.18's rule word.
+  nominal_pct: 'nominal ± %',
   '±': '±',
   pass_fail: 'aprovado ou reprovado',
 };
@@ -660,14 +697,37 @@ export function criterionUsedByText(draft: CompanyTypeDraft | null, index: numbe
 }
 
 /**
- * A criterion's name, rule, value, maximum or source. A rule change sets the criterion's type and
- * gives `entre` a maximum (the value, until typed) or takes it away; a source change is copied onto
- * every measurement criterion that names the row, so the type carries one source per criterion.
+ * Story 24.18: a draft criterion row as the sheet and the print will write it ("entre 198 e 242 Vca",
+ * "220 V ±5 %"); null while its rule or its numbers are not typed yet.
+ */
+export function draftCriterionText(criterion: Readonly<Record<string, unknown>> | undefined): string | null {
+  if (criterion === undefined) return null;
+  const operator = criterion.operator;
+  const value = criterion.value;
+  if (typeof operator !== 'string' || typeof value !== 'number') return null;
+  if (operator === 'between' && typeof criterion.value_max !== 'number') return null;
+  if (operator === 'nominal_pct' && typeof criterion.tolerance_pct !== 'number') return null;
+  return formatCriterionValue({
+    operator,
+    value,
+    ...(typeof criterion.value_max === 'number' ? { value_max: criterion.value_max } : {}),
+    ...(operator === 'nominal_pct' ? { tolerance_pct: criterion.tolerance_pct as number } : {}),
+    unit: typeof criterion.unit === 'string' && criterion.unit !== '' ? criterion.unit : null,
+  });
+}
+
+/**
+ * A criterion's name, rule, value, maximum, tolerance or source. A rule change sets the criterion's
+ * type and gives `entre` a maximum (the value, until typed) or takes it away; a source change is
+ * copied onto every measurement criterion that names the row, so the type carries one source per
+ * criterion. Story 24.18: a change to "nominal ± %" keeps the value as the nominal, drops the
+ * maximum and leaves the tolerance to be typed (its issue asks for it); a change away from it drops
+ * the tolerance, and to `entre` leaves the maximum unset, so the row asks for its two bounds.
  */
 export function updateDraftCriterion(
   draft: CompanyTypeDraft | null,
   index: number,
-  patch: { label?: string; operator?: CompanyCriterionOperator; value?: number | null; value_max?: number | null; source_name?: string; source_edition?: string },
+  patch: { label?: string; operator?: CompanyCriterionOperator; value?: number | null; value_max?: number | null; tolerance_pct?: number | null; source_name?: string; source_edition?: string },
 ): CompanyTypeDraft {
   const next = asDraft(draft);
   const criteria = listOf(next, 'criteria');
@@ -675,10 +735,13 @@ export function updateDraftCriterion(
   if (criterion === undefined) return back(next);
   if (patch.label !== undefined) criterion.label = patch.label;
   if (patch.operator !== undefined) {
+    const from = criterion.operator;
     criterion.operator = patch.operator;
     criterion.type = criterionTypeOf(patch.operator);
-    if (patch.operator === 'between') criterion.value_max = typeof criterion.value_max === 'number' ? criterion.value_max : typeof criterion.value === 'number' ? criterion.value : 0;
+    if (patch.operator === 'between' && from === 'nominal_pct') delete criterion.value_max;
+    else if (patch.operator === 'between') criterion.value_max = typeof criterion.value_max === 'number' ? criterion.value_max : typeof criterion.value === 'number' ? criterion.value : 0;
     else delete criterion.value_max;
+    if (patch.operator !== 'nominal_pct') delete criterion.tolerance_pct;
     // A pass/fail reading passes at 1 (aprovado): the rule's value, which the tab never asks for.
     if (patch.operator === 'pass_fail') criterion.value = 1;
   }
@@ -690,6 +753,10 @@ export function updateDraftCriterion(
   if (patch.value_max !== undefined && criterion.operator === 'between') {
     if (patch.value_max === null) delete criterion.value_max;
     else criterion.value_max = patch.value_max;
+  }
+  if (patch.tolerance_pct !== undefined && criterion.operator === 'nominal_pct') {
+    if (patch.tolerance_pct === null) delete criterion.tolerance_pct;
+    else criterion.tolerance_pct = patch.tolerance_pct;
   }
   if (patch.source_name !== undefined || patch.source_edition !== undefined) {
     const source = criterion.source !== null && typeof criterion.source === 'object' ? (criterion.source as Entry) : { name: '', edition: null };

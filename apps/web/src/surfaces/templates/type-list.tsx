@@ -78,7 +78,8 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
 
   const types = useMemo(() => [...ctx.types.values()], [ctx]);
   const company = useMemo(() => companyTypeListRows(types, ctx), [types, ctx]);
-  const library = useMemo(() => libraryTypeListRows(SEED_VERSION), []);
+  // Story 24.19: a library type a published copy hides in the palettes says so on a second line.
+  const library = useMemo(() => libraryTypeListRows(SEED_VERSION, ctx), [ctx]);
   const byId = useMemo(() => new Map(types.map((type) => [type.id, type])), [types]);
 
   /** "Duplicar": the new type's create, then its editor. Two quick taps make one copy. */
@@ -246,6 +247,11 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
             <div className="rr-text rr-lib">
               <span className="rr-primary">{row.name}</span>
               <span className="rr-secondary">{row.secondary}</span>
+              {row.hiddenText === null ? null : (
+                <span className="rr-secondary" data-hidden-type="">
+                  {row.hiddenText}
+                </span>
+              )}
             </div>
             <div className="rr-actions">
               <TextButton onPress={() => void duplicate(() => duplicateSeededType(SEED_VERSION, row.type as EquipmentBlockType))}>

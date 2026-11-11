@@ -34,6 +34,8 @@ export const criterionSeedSchema = z.object({
   value: z.number(),
   /** Story 14.6: the upper bound of a `between` criterion (a company type's only; no seeded one has it). */
   value_max: z.number().optional(),
+  /** Story 24.18: the tolerance in percent of a `nominal_pct` criterion around its nominal `value` (a company type's only). */
+  tolerance_pct: z.number().optional(),
   unit: z.string().nullable(),
   type: criterionTypeSchema,
   source: z.object({ name: z.string().min(1), edition: z.string().nullable() }),
@@ -116,14 +118,31 @@ export interface MeasuredValue {
 }
 
 /**
+ * Story 24.18: the range a `nominal_pct` criterion judges, nominal × (1 ∓ tolerance/100), each end
+ * rounded to 12 significant digits (13,8 ± 5 % is 13,11 to 14,49, with no float noise at the ends)
+ * and ordered, so a negative nominal gives its range too.
+ */
+export function nominalBounds(value: number, tolerancePct: number): { min: number; max: number } {
+  const end = (factor: number) => Number((value * factor).toPrecision(12));
+  const a = end(1 - tolerancePct / 100);
+  const b = end(1 + tolerancePct / 100);
+  return { min: Math.min(a, b), max: Math.max(a, b) };
+}
+
+/**
  * AGENTS.md "derived text goes in `packages/domain`": the Critérios de aceitação table's
  * `.cell-crit` text, e.g. `>400 MΩ` or `±0,5 %` (pt-BR decimal comma, a space before the unit).
  */
-export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'>): string {
+export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'> & { tolerance_pct?: number | undefined }): string {
   // Story 23.2 (seed v13): a criterion that carries its own text (a NETA row) reads as it.
   if (criterion.text !== undefined) return criterion.text;
   const value = String(criterion.value).replace('.', ',');
   const withUnit = (text: string) => (criterion.unit === null ? text : `${text} ${criterion.unit}`);
+  // authored (e24c, listed for Bruno): Story 24.18's nominal and tolerance, "220 V ±5 %" (B-9 open:
+  // the sign glued to the tolerance and a space before "%", as the ratio's "±0,5 %" prints today).
+  if (criterion.operator === 'nominal_pct') {
+    return criterion.tolerance_pct === undefined ? withUnit(value) : `${withUnit(value)} ±${String(criterion.tolerance_pct).replace('.', ',')} %`;
+  }
   // authored (Story 14.6): a company type's two operators the seeds never use, as the editor's mock words them.
   if (criterion.operator === 'between' && criterion.value_max !== undefined) return withUnit(`entre ${value} e ${String(criterion.value_max).replace('.', ',')}`);
   if (criterion.operator === 'pass_fail') return 'aprovado ou reprovado';
@@ -142,7 +161,7 @@ export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' |
  * is outside `OHM_SCALE`), this throws instead of silently comparing raw, unscaled numbers
  * under two different units — a comparison that would be meaningless, not merely imprecise.
  */
-export function compareCriterion(measured: MeasuredValue, criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit'>): boolean {
+export function compareCriterion(measured: MeasuredValue, criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit'> & { tolerance_pct?: number | undefined }): boolean {
   if (criterion.operator === '±') {
     return Math.abs(measured.value) <= criterion.value;
   }
@@ -170,6 +189,12 @@ export function compareCriterion(measured: MeasuredValue, criterion: Pick<Criter
     case 'between':
       if (criterion.value_max === undefined) throw new Error('compareCriterion: between names no value_max');
       return value >= criterion.value && value <= criterion.value_max;
+    // Story 24.18: the range around the nominal, both ends inclusive, as `between` over `nominalBounds`.
+    case 'nominal_pct': {
+      if (criterion.tolerance_pct === undefined) throw new Error('compareCriterion: nominal_pct names no tolerance_pct');
+      const { min, max } = nominalBounds(criterion.value, criterion.tolerance_pct);
+      return value >= min && value <= max;
+    }
     default:
       throw new Error(`compareCriterion: unknown operator "${criterion.operator}"`);
   }

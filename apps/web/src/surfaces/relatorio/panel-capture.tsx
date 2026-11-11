@@ -12,7 +12,8 @@ import {
   panelTypeChips,
   suggestionRowSchema,
   toIso,
-  type EquipmentBlockType,
+  type BlockTypeKey,
+  type DefinitionContext,
   type EquipmentRow,
   type JsonValue,
   type LocationRow,
@@ -93,10 +94,12 @@ export function panelAwaitingRows(input: {
   locations: readonly LocationRow[];
   equipment: readonly EquipmentRow[];
   online: boolean;
+  /** Story 24.19: the company's types, so a read type a published copy hides proposes the copy. */
+  definitions: DefinitionContext;
 }): PanelAwaitingRow[] {
   return panelPhotosAwaiting(input.photos, input.locationId).map((photo) => {
     const suggestion = panelSuggestionOf(input.pending, photo.id);
-    const proposal = panelProposal({ seedVersion: input.seedVersion, locations: input.locations, equipment: input.equipment, paletteLocationId: input.locationId, suggestion, pickedType: null });
+    const proposal = panelProposal({ seedVersion: input.seedVersion, locations: input.locations, equipment: input.equipment, paletteLocationId: input.locationId, suggestion, pickedType: null, definitions: input.definitions });
     // Review F-13: which text the row shows is the kernel's choice.
     return { photoId: photo.id, text: panelAwaitingRowText({ online: input.online, photo, suggestion, proposal }) };
   });
@@ -104,7 +107,9 @@ export function panelAwaitingRows(input: {
 
 /** What "Confirmar" asks the tree to create. */
 export interface PanelConfirm {
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
+  /** Story 24.19: a company copy's block is placed at the version the proposal names (its latest). */
+  typeVersion?: number;
   locationId: string;
   anchorBlockId: string | null;
   photo: PanelPhotoInput;
@@ -115,6 +120,8 @@ export interface PanelCaptureProps {
   seedVersion: string;
   locations: readonly LocationRow[];
   equipment: readonly EquipmentRow[];
+  /** Story 24.19: the company's types (`useDefinitionContext`): a copy hides its original in the chips and the proposal. */
+  definitions: DefinitionContext;
   onConfirm: (input: PanelConfirm) => void;
   /**
    * Where the focus goes when the camera closes with no shot or the dialog is cancelled (the
@@ -145,7 +152,7 @@ function panelWaitText(waiting: string, startedAt: string, nowIso: string): stri
   return wait.cancellable ? wait.text : waiting;
 }
 
-export function PanelCapture({ relatorioId, seedVersion, locations, equipment, onConfirm, focusAfter, ref }: PanelCaptureProps) {
+export function PanelCapture({ relatorioId, seedVersion, locations, equipment, definitions, onConfirm, focusAfter, ref }: PanelCaptureProps) {
   const t = copy.sumario.panel;
   const session = useSession();
   const db = session.database;
@@ -167,7 +174,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     }),
     [],
   );
-  const [picked, setPicked] = useState<EquipmentBlockType | null>(null);
+  const [picked, setPicked] = useState<BlockTypeKey | null>(null);
   const [expanded, setExpanded] = useState(false);
   const titleId = useId();
   const chipsLabelId = useId();
@@ -272,10 +279,11 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
       'panel-capture',
     );
 
-  const proposal = panelProposal({ seedVersion, locations, equipment, paletteLocationId: shot.target.locationId, suggestion, pickedType: picked });
+  const proposal = panelProposal({ seedVersion, locations, equipment, paletteLocationId: shot.target.locationId, suggestion, pickedType: picked, definitions });
   const first = suggestion?.value.block_type ?? null;
-  const { chips, other } = panelTypeChips(seedVersion, first, expanded);
-  const current = picked ?? first;
+  const { chips, other } = panelTypeChips(seedVersion, first, expanded, definitions);
+  // Story 24.19: the chip of the proposed type is the read type's, or the one copy that hides it.
+  const current = picked ?? proposal?.type ?? first;
   // E9-Q10: the kernel says why no proposal is there yet (reading, offline, failed, nothing read).
   const readingLine = panelReadingLine({ online: session.online, photo, suggestion });
   // Story 13.5: from 10 s the waiting line says how long ("Lendo… 12 s"); no cancel here (the
@@ -289,6 +297,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     setShot(null);
     onConfirm({
       type: proposal.type,
+      ...(proposal.typeVersion === undefined ? {} : { typeVersion: proposal.typeVersion }),
       locationId: proposal.location.id,
       anchorBlockId: proposal.location.id === target.locationId ? target.anchorBlockId : null,
       photo: {

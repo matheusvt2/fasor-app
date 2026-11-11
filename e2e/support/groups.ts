@@ -110,6 +110,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Fix batch e24h (H9): previews the draft PDF through the shared queue and LibreOffice to read a ficha\'s CONCLUSÃO marks',
   },
+  // Batch e24c (Story 24.18): 24.18-E2E-001 previews the draft PDF to read a "nominal ± %" criterion.
+  {
+    file: 'nominal-tolerance.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.18 (batch e24c): previews the draft PDF through the shared queue and LibreOffice to read the criterion "220 V ±5 %"',
+  },
   // Fix batch e24h (2026-11-10): e24h-E2E-001 previews the draft PDF twice to read section 8.
   {
     file: 'points-on-click.spec.ts',

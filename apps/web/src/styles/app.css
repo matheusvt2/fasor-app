@@ -358,6 +358,8 @@ body {
   [data-route="/templates/tipos/:id"] .data-table td { display: block; }
   [data-route="/templates/tipos/:id"] .data-table thead { display: none; }
   [data-route="/templates/tipos/:id"] .data-table td::before { content: attr(data-label); display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+  /* Batch e24c (Story 24.18): `.frame-phone [data-route="/templates/tipos/no-break-comando"] .tipo-nominal` (43-tipo-equipamento.html line 53), verbatim */
+  [data-route="/templates/tipos/:id"] .tipo-nominal { grid-template-columns: 1fr; min-width: 0; }
   /* `.frame-phone [data-route="/templates/porto-seguro"] .composer-main` (42-template-composer.html) */
   [data-route="/templates/:id"] .composer-main { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand` (42-template-composer.html) */

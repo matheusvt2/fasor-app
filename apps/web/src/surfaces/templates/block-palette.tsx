@@ -89,7 +89,9 @@ export function BlockPaletteContent({
   const paletteMeta = (type: BlockTypeKey): string | null => {
     const version = latestCompanyTypeVersion(definitions, type);
     const parts = [libraryTypeSummaryText(seedVersion, type, definitions, version), naming.versionTextOf(type)].filter((part): part is string => part !== null && part !== '');
-    return parts.length === 0 ? null : parts.join(' · ');
+    if (parts.length === 0) return null;
+    // Story 24.19: a company type's row is marked "Tipo da empresa", wherever it stands (a copy among the eight too).
+    return isCompanyBlockType(type) ? copy.sumario.palette.companyMeta(parts.join(' · ')) : parts.join(' · ');
   };
   const drawer = onClose !== undefined;
   const moreBelow = useMoreBelowCue(drawer);
@@ -168,7 +170,7 @@ export function BlockPaletteContent({
                 // A new node is a new stepper: no count carries over from the previous one.
                 key={`${current?.ref ?? ''}:${type}`}
                 type={type}
-                meta={group.key === 'library' ? paletteMeta(type) : null}
+                meta={group.key === 'library' || isCompanyBlockType(type) ? paletteMeta(type) : null}
                 value={current === null ? 0 : (current.quantities[type] ?? 0)}
                 isDisabled={current === null}
                 disabledReasonId={reasonId}
