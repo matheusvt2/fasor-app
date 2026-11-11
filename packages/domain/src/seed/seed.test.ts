@@ -299,7 +299,8 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     expect(all.size).toBe(44);
     expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
     // Batch e24s (seed v14, contract 46) appended four: the transformer's three and the Inspeção de QGBT's function test.
-    expect(ITEM_KEYS).toHaveLength(83);
+    // Batch e24s (Story 24.13) then the No-break de comando's six.
+    expect(ITEM_KEYS).toHaveLength(89);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -1957,7 +1958,7 @@ describe('seed v12 (Stories 22.7 to 22.9 and 22.11): v11 with oil transformers, 
     expect(Object.keys(SEED_VERSIONS).slice(0, 12)).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12']);
     expect(equipmentTypesOf('v12')).toEqual([...equipmentTypesOf('v11'), 'inspecao_qgbt']);
     // Batch e23e (Story 23.21): the Malha de aterramento of seed v13 follows it.
-    expect(EQUIPMENT_BLOCK_TYPES.at(-2)).toBe('inspecao_qgbt');
+    expect(EQUIPMENT_BLOCK_TYPES.indexOf('inspecao_qgbt')).toBe(EQUIPMENT_BLOCK_TYPES.indexOf('malha_aterramento') - 1);
     for (const version of Object.keys(SEED_VERSIONS).slice(0, 11)) expect(equipmentTypesOf(version), version).not.toContain('inspecao_qgbt');
   });
 
@@ -2193,7 +2194,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
 // e24a first commit (2026-11-11): v14 opens equal to v13, with no `rules`.
 // e24a (Stories 24.3 and 24.4): the five rule flags (`withoutE24a` below).
 // e24s (Stories 24.10 to 24.12): the TP and TC lists, the transformer's oil and dry items, the Inspeção de QGBT (`withoutE24s` below).
-const V14_HASH = '86a839b5481f530c0024cef1b2b792127642ec781cc59b75df0bdfdb2d9ba5ef';
+// e24s (Stories 24.13 and 24.14): the No-break de comando, the oil sampling's "Outro" text, the Malha's plate block.
+const V14_HASH = 'b65c9fde535a1724a8406e3a203e07960ad831a934b613850557e9fca563735d';
 
 /** Batch e24a's rule flags (Stories 24.3 and 24.4), in the order `seed/v14.ts` sets them. */
 const E24A_FLAGS = ['conclusion_restriction_by_choice', 'prerequisite_needs_nameplate', 'parecer_names_finding', 'nc_clause_on_one_line', 'results_reference_across_runs'] as const;
@@ -2217,7 +2219,8 @@ const E24S_INSPECTION_ITEMS = ['reaperto_geral', 'teste_de_funcionamento'];
  * the TP's FUSÍVEIS hint and the TC's FUSÍVEIS (the TP's item, the same one, back at item 3); Story
  * 24.11 the transformer's item 5 label, its three appended items, its oil rule's new oil item and
  * `dry_items`, its dry subtypes' new NA default; Story 24.12 the Inspeção de QGBT's two appended
- * items and its thermography.
+ * items and its thermography; Story 24.13 the No-break de comando; Story 24.14 the oil sampling's
+ * text value and the Malha's two plate-block keys.
  */
 function withoutE24s(seed: ReportSeed): ReportSeed {
   const out = structuredClone(seed);
@@ -2237,6 +2240,15 @@ function withoutE24s(seed: ReportSeed): ReportSeed {
   inspection.checklist = inspection.checklist!.filter((item) => !E24S_INSPECTION_ITEMS.includes(item.key));
   inspection.sub_blocks = inspection.sub_blocks.filter((key) => key !== 'termografia');
   delete inspection.measurement_tests;
+  // Story 24.13.
+  delete (out.blocks as Partial<typeof out.blocks>).no_break_comando;
+  // Story 24.14.
+  for (const type of ['transformador_forca', 'disjuntor_mt'] as const) {
+    const sampling = out.blocks[type].measurement_tests!.find((one) => one.key === 'coleta_oleo')!;
+    sampling.values = sampling.values!.filter((value) => value.key !== 'motivo_texto');
+  }
+  delete out.blocks.malha_aterramento!.nameplate_title;
+  delete out.blocks.malha_aterramento!.nameplate_photo;
   return out;
 }
 
@@ -2250,7 +2262,8 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     expect(SEED_VERSION).toBe('v14');
     expect(SEED_VERSIONS.v14!.version).toBe('v14');
     expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v14']);
-    expect(equipmentTypesOf('v14')).toEqual(equipmentTypesOf('v13'));
+    // Batch e24s (Story 24.13): v14 adds the No-break de comando after the types of v13.
+    expect(equipmentTypesOf('v14')).toEqual([...equipmentTypesOf('v13'), 'no_break_comando']);
   });
 
   it('differs from v13 by exactly its stories, and v1 to v13 hash as they shipped', () => {
@@ -2419,6 +2432,120 @@ describe('24.12-UNIT seed v14, batch e24s (Story 24.12): the Inspeção de QGBT\
       expect(at(version).checklist, version).toHaveLength(10);
       expect(at(version).measurement_tests, version).toBeUndefined();
       expect(at(version).sub_blocks, version).toEqual(['nameplate', 'checklist', 'observations', 'conclusion']);
+    }
+  });
+});
+
+describe('24.13-UNIT seed v14, batch e24s (Story 24.13): the No-break de comando', () => {
+  const noBreak = () => getDefinition('v14', 'cabine_primaria', 'no_break_comando');
+
+  it('is a library type of v14 alone, last of the palette types, with its print title and four sub-blocks, no test and no subtype', () => {
+    const definition = noBreak();
+    expect(blockDefinitionSchema.safeParse(definition).success).toBe(true);
+    expect(definition).toMatchObject({ label: 'No-break de comando', print_title: 'NO-BREAK DE COMANDO', library: true, tests: [], subtypes: [], conclusion: true });
+    expect(definition.sub_blocks).toEqual(['nameplate', 'checklist', 'observations', 'conclusion']);
+    expect(definition.measurement_tests).toBeUndefined();
+    expect(isLibraryType('v14', 'no_break_comando')).toBe(true);
+    expect(findDefinition('v13', 'no_break_comando')).toBeNull();
+    expect(equipmentTypesOf('v14').at(-1)).toBe('no_break_comando');
+  });
+
+  it('asks the eighteen plate fields in Bruno\'s order, the battery bank\'s carrying "BATERIAS:"', () => {
+    const fields = noBreak().nameplate;
+    expect(fields.map((field) => field.label)).toEqual([
+      'FABRICANTE',
+      'MODELO',
+      'Nº SÉRIE',
+      'POTÊNCIA NOMINAL',
+      'POTÊNCIA ATIVA',
+      'TENSÃO DE ENTRADA',
+      'TIPO DE ENTRADA',
+      'TENSÃO DE SAÍDA',
+      'TIPO DE SAÍDA',
+      'FREQUÊNCIA',
+      'AUTONOMIA NOMINAL',
+      'BATERIAS: FABRICANTE',
+      'BATERIAS: MODELO',
+      'BATERIAS: TIPO',
+      'BATERIAS: QUANTIDADE',
+      'BATERIAS: TENSÃO POR UNIDADE',
+      'BATERIAS: CAPACIDADE',
+      'BATERIAS: DATA DE FABRICAÇÃO OU INSTALAÇÃO',
+    ]);
+    const by = (key: string) => fields.find((field) => field.key === key)!;
+    expect([by('potencia_nominal').unit, by('potencia_ativa').unit, by('potencia_ativa').optional]).toEqual(['VA', 'W', true]);
+    expect([by('tipo_de_entrada').options, by('tipo_de_saida').options]).toEqual([
+      ['Vca', 'Vcc'],
+      ['Vca', 'Vcc'],
+    ]);
+    expect(by('fabricante').kind).toBe('manufacturer');
+    expect(by('baterias_data_de_fabricacao_ou_instalacao').kind).toBe('date');
+    expect(fields.filter((field) => field.optional === true).map((field) => field.key)).toEqual(['potencia_ativa']);
+  });
+
+  it('asks six items, BATERIAS and CARGAS ALIMENTADAS IDENTIFICADAS with their hints, each with three or four phrases', () => {
+    const list = noBreak().checklist!;
+    expect(list.map((item) => [item.key, item.label])).toEqual([
+      ['limpeza_ventilacao_e_ventiladores', 'LIMPEZA, VENTILAÇÃO E VENTILADORES'],
+      ['display_alarmes_e_leds', 'DISPLAY, ALARMES E LEDS'],
+      ['reaperto_das_conexoes', 'REAPERTO DAS CONEXÕES'],
+      ['baterias', 'BATERIAS'],
+      ['aterramento_bypass_e_identificacao', 'ATERRAMENTO, BYPASS E IDENTIFICAÇÃO'],
+      ['cargas_alimentadas_identificadas', 'CARGAS ALIMENTADAS IDENTIFICADAS'],
+    ]);
+    expect(list.filter((item) => item.hint !== undefined).map((item) => [item.key, item.hint])).toEqual([
+      ['baterias', 'ESTUFAMENTO, VAZAMENTO, OXIDAÇÃO NOS BORNES, VIDA ÚTIL'],
+      ['cargas_alimentadas_identificadas', 'RELÉS, BOBINAS DE ABERTURA'],
+    ]);
+    for (const item of list) {
+      expect(item.nc_phrases.length, item.key).toBeGreaterThanOrEqual(3);
+      expect(item.nc_phrases.length, item.key).toBeLessThanOrEqual(4);
+      expect(new Set(item.nc_phrases).size, item.key).toBe(item.nc_phrases.length);
+    }
+    // The Disjuntor MT keeps its own item NO-BREAK DE COMANDO.
+    expect(getDefinition('v14', 'cabine_primaria', 'disjuntor_mt').checklist!.some((item) => item.key === 'no_break_de_comando')).toBe(true);
+  });
+});
+
+describe('24.14-UNIT seed v14, batch e24s (Story 24.14): the oil sampling\'s "Outro" text and the Malha\'s plate block', () => {
+  const at = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type);
+  const sampling = (version: string, type: string) => at(version, type).measurement_tests!.find((test) => test.key === 'coleta_oleo')!;
+
+  it('the transformer\'s and the Disjuntor MT\'s sampling gain "Descreva o motivo", a text value under Motivo "Outro"; v13 none', () => {
+    for (const type of ['transformador_forca', 'disjuntor_mt']) {
+      const values = sampling('v14', type).values!;
+      expect(values.at(-1), type).toEqual({ key: 'motivo_texto', label: 'Descreva o motivo', kind: 'text', when: { value: 'motivo', equals: 'outro' } });
+      expect(values.slice(0, -1), type).toEqual(sampling('v13', type).values);
+      expect(sampling('v13', type).values!.some((value) => value.kind === ('text' as never)), type).toBe(false);
+    }
+  });
+
+  it('the value grammar takes `text` on a value only, with no unit nor options; a column or a row refuses it', () => {
+    const test = sampling('v14', 'transformador_forca');
+    expect(measurementTestSchema.safeParse(test).success).toBe(true);
+    const withUnit = structuredClone(test);
+    (withUnit.values!.at(-1) as { unit?: string }).unit = 'V';
+    expect(measurementTestSchema.safeParse(withUnit).success).toBe(false);
+    const column = structuredClone(test);
+    (column.columns[0] as { kind: string }).kind = 'text';
+    expect(measurementTestSchema.safeParse(column).success).toBe(false);
+    // A text value is no choice another value depends on.
+    const under = structuredClone(test);
+    under.values!.push({ key: 'outro_texto', label: 'Outro texto', kind: 'number', when: { value: 'motivo_texto', equals: 'x' } } as never);
+    expect(measurementTestSchema.safeParse(under).success).toBe(false);
+  });
+
+  it('the v14 Malha titles its first block "Dados da malha" and offers no plate photo; its fields, tests and print title are v13\'s', () => {
+    const v14 = at('v14', 'malha_aterramento');
+    expect([v14.nameplate_title, v14.nameplate_photo]).toEqual(['Dados da malha', false]);
+    expect({ ...v14, nameplate_title: undefined, nameplate_photo: undefined }).toEqual(at('v13', 'malha_aterramento'));
+    expect(Object.hasOwn(at('v13', 'malha_aterramento'), 'nameplate_title')).toBe(false);
+    expect(blockDefinitionSchema.safeParse(v14).success).toBe(true);
+    expect(blockDefinitionSchema.safeParse({ ...v14, nameplate_photo: true }).success).toBe(false);
+    expect(blockDefinitionSchema.safeParse({ ...v14, nameplate_title: '' }).success).toBe(false);
+    // No other v14 definition sets either key.
+    for (const type of equipmentTypesOf('v14').filter((one) => one !== 'malha_aterramento')) {
+      expect(Object.hasOwn(at('v14', type), 'nameplate_title') || Object.hasOwn(at('v14', type), 'nameplate_photo'), type).toBe(false);
     }
   });
 });
@@ -3011,7 +3138,8 @@ describe('seed v13, batch e23e (Stories 23.13, 23.18, 23.20 and 23.21): test-vol
 
   it('appends its keys to the shared lists after batch e23t\'s', () => {
     expect(SUB_BLOCK_KEYS.slice(-6)).toEqual(['resistencia_enrolamento', 'coleta_oleo', 'resistencia_fusiveis', 'termografia', 'resistencia_malha', 'continuidade_malha']);
-    expect(EQUIPMENT_BLOCK_TYPES.slice(-2)).toEqual(['inspecao_qgbt', 'malha_aterramento']);
+    // Batch e24s (Story 24.13): the No-break de comando of seed v14 follows them.
+    expect(EQUIPMENT_BLOCK_TYPES.slice(-3)).toEqual(['inspecao_qgbt', 'malha_aterramento', 'no_break_comando']);
     expect(Object.keys(v13.blocks).at(-1)).toBe('malha_aterramento');
   });
 

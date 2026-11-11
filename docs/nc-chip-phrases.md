@@ -265,3 +265,18 @@ Block types: `inspecao_qgbt`.
 | 10 | IDENTIFICAÇÃO DE CIRCUITOS | `identificacao_de_circuitos` | circuitos sem identificação · identificação ilegível · identificação divergente do diagrama |
 | 11 | REAPERTO GERAL | `reaperto_geral` | conexão frouxa encontrada · sinais de aquecimento na conexão · terminal oxidado |
 | 12 | TESTE DE FUNCIONAMENTO | `teste_de_funcionamento` | disjuntor não opera no acionamento manual · multimedidor inoperante ou com leitura divergente · sinalização incoerente com o estado do circuito · DPS com indicação de falha |
+
+## No-break de comando (library type, seed v14, Story 24.13)
+
+*(2026-11-11, batch e24s, seed `v14`; Bruno's question 34.)* Six items, one per group of Bruno's list; the parts of a group are its hint (items 4 and 6, shown on the sheet only) and its phrases. Labels, hints and phrases are authored, pending Bruno's review; row 3 reuses the phrases of the Quadro elétrico's REAPERTO GERAL. The Disjuntor MT's item NO-BREAK DE COMANDO is unchanged.
+
+Block types: `no_break_comando`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA, VENTILAÇÃO E VENTILADORES | `limpeza_ventilacao_e_ventiladores` | acúmulo de poeira no gabinete · ventilação obstruída · ventilador inoperante ou com ruído anormal |
+| 2 | DISPLAY, ALARMES E LEDS | `display_alarmes_e_leds` | display apagado ou ilegível · alarme ativo no painel · LED de status indicando falha |
+| 3 | REAPERTO DAS CONEXÕES | `reaperto_das_conexoes` | conexão frouxa encontrada · sinais de aquecimento na conexão · terminal oxidado |
+| 4 | BATERIAS | `baterias` | bateria estufada · vazamento de eletrólito · oxidação nos bornes da bateria · bateria com vida útil vencida |
+| 5 | ATERRAMENTO, BYPASS E IDENTIFICAÇÃO | `aterramento_bypass_e_identificacao` | aterramento desconectado · chave de bypass inoperante · no-break sem identificação |
+| 6 | CARGAS ALIMENTADAS IDENTIFICADAS | `cargas_alimentadas_identificadas` | cargas alimentadas sem identificação · relé sem alimentação do no-break · bobina de abertura sem alimentação do no-break |

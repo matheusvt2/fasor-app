@@ -532,7 +532,14 @@
  * (`companyOilRuleSchema`), so a published copy of the v14 transformer keeps it. Optional and never
  * defaulted: every seed of v1 to v13 and every definition published before 46 parses to the same
  * bytes. On every seed with an oil rule an oil field of a non-oil unit is drawn read-only with its
- * reason, derived on the device; no fold changes for it. MIN follows to 46 (below).
+ * reason, derived on the device; no fold changes for it. The closed type enum
+ * (`EQUIPMENT_BLOCK_TYPES`) gains `no_break_comando` (the v14 No-break de comando, Story 24.13) and the
+ * item enum its six items, so a block of that type folds only on a v14 relatório. A measurement test's
+ * value may be of kind `text` (seed v14's oil sampling "Descreva o motivo" under "Outro", Story 24.14):
+ * `sheet/{id}/test/{key}/value/{value}` folds a string up to `TEXT_CAPS.medium` for it (the family's
+ * cap rises to medium; every other value keeps its strings short, checked against the definition), and
+ * the definition gains the optional `nameplate_title` and `nameplate_photo: false` (the v14 Malha's
+ * "Dados da malha", no plate photo), carried by a company definition too. MIN follows to 46 (below).
  */
 export const CONTRACT_VERSION = 46;
 
@@ -847,8 +854,10 @@ export const CONTRACT_VERSION = 46;
  * lacks the v14 transformer's and Inspeção de QGBT's new item keys and its oil rule schema strips
  * `dry_items`, so a pulled answer on one of those items fails to fold and a company type published
  * from the v14 transformer reads with no dry items (an oil unit would ask VENTILAÇÃO FORÇADA and the
- * resin and coil items as missing). Its pull answers `426 contract_outdated` and it updates; its
- * pushes are still accepted.
+ * resin and coil items as missing); its type enum lacks `no_break_comando`, so a pulled block of it fails
+ * to fold; its value grammar has no `text` kind, so it cannot parse seed v14 nor fold the oil sampling's
+ * text a newer device writes; and it would offer "Fotografar placa" on a v14 Malha. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
 export const MIN_CONTRACT_VERSION = 46;
 

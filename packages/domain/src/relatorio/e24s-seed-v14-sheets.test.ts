@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { applyOp, cellAt, entityKey, type EntityKey, type EntityState } from '../ops/apply.ts';
-import { blockPath, fileFieldPath, parsePath, sheetChecklistPath, sheetNameplatePath } from '../ops/path.ts';
+import { blockPath, fileFieldPath, parsePath, sheetChecklistPath, sheetNameplatePath, sheetTestValuePath } from '../ops/path.ts';
+import { TEXT_CAPS, textCapOf } from '../ops/value-limits.ts';
+import { CAPTION_EQUIPMENT_WORDS } from '../photos/caption.ts';
+import { totalsText } from '../templates/text.ts';
 import { section9Layout, type PrintSheet, type PrintTable, type SheetPart } from '../print/section-9.ts';
 import type { EquipmentBlockType, Subtype } from '../schemas/block-config.ts';
 import { relatorioRowSchema, type BlockRow, type Cell, type EntityRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
@@ -22,7 +25,9 @@ import { choiceValue, evaluateSheetMeasurements, measurementCounts } from './mea
 import { lastNameplateCopy, nameplateCopyFields } from './nameplate-copy.ts';
 import { dryFieldExcusedReason, isMediumItem, isOilFieldExcused, oilCrossingClearedCount, oilCrossingPuts, oilCrossingToastText, oilDerivedNaKeys, oilFieldExcusedReason } from './oil-rule.ts';
 import { checklistResultIsStored, checklistResultOf, sheetProgress } from './sheet-progress.ts';
-import { newEquipmentBlock } from './tree.ts';
+import { nameplatePhotoOffered, nameplateTitleOf } from './nameplate-block.ts';
+import { LEGACY_TAG_PREFIX, suggestTag, TAG_PREFIX } from './tag.ts';
+import { newEquipmentBlock, paletteTypeGroups } from './tree.ts';
 
 /*
  * Batch e24s (Stories 24.10 to 24.12, seed v14; Bruno's questions 18, 19 and 22 of 2026-11-10): the
@@ -534,5 +539,140 @@ describe('24.12-UNIT the v14 Inspeção de QGBT: twelve items and the optional t
     // The same reading on the TP's thermography is judged alike.
     const tp = inLoad(testCells(sheet('tp', 'v14'), 'termografia', { '0/0': measured('10', '°C') }), 'sim');
     expect(thermo(tp)!.rows[0]!.cells[0]!.verdict).toBe('restricted');
+  });
+});
+
+// ===================================================================================================
+// Story 24.13
+// ===================================================================================================
+
+describe('24.13-UNIT the No-break de comando: palette, TAG, composer, caption, conclusion and print', () => {
+  const noBreak = () => checklist(sheet('no_break_comando', 'v14'));
+
+  it('is offered under "Outros equipamentos" of a v14 palette only, its TAG NB-NN, its composer and caption words', () => {
+    const library = paletteTypeGroups('v14', ctx).find((group) => group.key === 'library')!;
+    expect(library.types).toContain('no_break_comando');
+    expect(paletteTypeGroups('v13', ctx).flatMap((group) => group.types)).not.toContain('no_break_comando');
+    expect(suggestTag('no_break_comando', [])).toBe('NB-01');
+    expect(TAG_PREFIX.no_break_comando).toBe('NB');
+    expect(LEGACY_TAG_PREFIX.no_break_comando).toBe('NB');
+    expect(totalsText({ no_break_comando: 2 }, ctx)).toBe('2 no-breaks de comando');
+    expect(CAPTION_EQUIPMENT_WORDS.no_break_comando).toEqual({ name: 'no-break de comando', gender: 'm', number: 'singular' });
+    expect(duplicateSeededType('v14', 'no_break_comando').draft).toMatchObject({ tag_prefix: 'NB', noun: { singular: 'no-break de comando', gender: 'm' }, base_block_type: 'no_break_comando' });
+  });
+
+  it('item 4 NC with a chip and the rest Conforme: Aprovado · Com restrições; the conclusion names item 4 and nothing measured', () => {
+    const block = checklist(sheet('no_break_comando', 'v14'), { baterias: { result: 'NC', observation: 'bateria estufada' } });
+    expect(conclusionFloor(block)?.pair).toEqual({ result: 'aprovado', restriction: 'com_restricoes' });
+    const text = composeConclusion(block, definitionOf(block), 'NB-01').text;
+    expect(text).toContain('O no-break de comando');
+    expect(text).toContain('bateria estufada (item 4, NC)');
+    expect(text).not.toContain('valores medidos');
+    expect(composeConclusion(noBreak(), definitionOf(noBreak()), 'NB-01').text).not.toContain('valores medidos');
+  });
+
+  it('prints under "Outros equipamentos" after the other library types and before the Malha, with its plate, six rows and its print title', () => {
+    // Grouped by type, the cabine prints "Outros equipamentos" with the Malha last (Story 23.21's rule).
+    const grouped = snapshotOf('v14', [plate(noBreak(), { modelo: 'NBC-3000' })]);
+    const snapshot = { ...grouped, locations: grouped.locations.map((location) => (location.kind === 'cabine' ? { ...location, agrupar_por_tipo: true } : location)) };
+    const printed = printedSheet(snapshot, 'no_break_comando');
+    expect(printed.title.startsWith('NO-BREAK DE COMANDO')).toBe(true);
+    expect(checklistRows(printed).map((row) => row[0])).toEqual(definitionOf(noBreak()).checklist!.map((item, n) => `${n + 1}. ${item.label}`));
+    expect(JSON.stringify(tables(printed)[0])).toContain('NBC-3000');
+    const order = section9Layout(snapshot, 9, 'RELATÓRIOS DOS ENSAIOS')!
+      .subsections.flatMap((s) => s.sheets)
+      .map((one) => snapshot.blocks.find((block) => block.id === one.blockId)!.block_type);
+    expect(order.indexOf('no_break_comando')).toBeLessThan(order.indexOf('malha_aterramento'));
+    expect(order.indexOf('no_break_comando')).toBeGreaterThan(order.indexOf('inspecao_qgbt'));
+  });
+});
+
+// ===================================================================================================
+// Story 24.14
+// ===================================================================================================
+
+const sampling = (block: BlockRow) => evaluateSheetMeasurements(block, definitionOf(block)).find((test) => test.testKey === 'coleta_oleo')!;
+const textValue = (block: BlockRow) => sampling(block).values.find((value) => value.key === 'motivo_texto');
+/** An oil transformer of `version` whose sampling reads "Não coletado" with `reason` (and `text`, when given). */
+function notCollected(version: string, reason: string | null, text?: unknown): BlockRow {
+  let block = testCells(plate(transformer(version), { tipo_de_isolacao: OLEO }), 'coleta_oleo', { '0/0': choiceValue('nao_coletado') });
+  if (reason !== null) block = testValue(block, 'coleta_oleo', 'motivo', choiceValue(reason));
+  if (text !== undefined) block = testValue(block, 'coleta_oleo', 'motivo_texto', text);
+  return block;
+}
+
+describe('24.14-UNIT the oil sampling\'s "Outro" text', () => {
+  it('shows only under "Outro", counts missing while empty, and leaves (kept, not counted) when the reason or the result changes', () => {
+    expect(textValue(notCollected('v14', 'outro'))).toMatchObject({ kind: 'text', shown: true, missing: true });
+    expect(measurementCounts([sampling(notCollected('v14', 'outro'))]).missing).toBe(1);
+    expect(textValue(notCollected('v14', 'outro', 'tampa de coleta travada'))).toMatchObject({ shown: true, missing: false, raw: 'tampa de coleta travada', displayText: 'tampa de coleta travada' });
+    const changed = notCollected('v14', 'sem_ponto_de_coleta', 'tampa de coleta travada');
+    expect(textValue(changed)).toMatchObject({ shown: false, missing: false });
+    expect(changed.sheet.test.coleta_oleo!.values!.motivo_texto!.value).toBe('tampa de coleta travada');
+    // The chain is followed: "Coletado" hides Motivo, so the text under it hides too, whatever Motivo still stores.
+    const collected = testCells(notCollected('v14', 'outro', 'tampa de coleta travada'), 'coleta_oleo', { '0/0': choiceValue('coletado') });
+    expect(sampling(collected).values.map((value) => [value.key, value.shown])).toEqual([
+      ['motivo', false],
+      ['motivo_texto', false],
+    ]);
+    expect(measurementCounts([sampling(collected)]).missing).toBe(0);
+    // v13 has no text value.
+    expect(textValue(notCollected('v13', 'outro'))).toBeUndefined();
+  });
+
+  it('the values line and section 9 say the text after the word as typed; v13 prints the word alone', () => {
+    const typed = notCollected('v14', 'outro', 'Tampa de coleta travada');
+    expect(sampling(typed).valuesLine?.text).toBe('Motivo: Outro, Tampa de coleta travada');
+    const line = (block: BlockRow) => {
+      const printed = printedSheet(snapshotOf(block.seed_version, [block]), 'transformador_forca');
+      const table = tables(printed).find((one) => one.rows[0]!.cells[0]!.text === 'COLETA DE ÓLEO')!;
+      return texts(table)
+        .flat()
+        .find((text) => text.startsWith('MOTIVO:'));
+    };
+    expect(line(typed)).toBe('MOTIVO: OUTRO, Tampa de coleta travada');
+    expect(line(notCollected('v14', 'sem_ponto_de_coleta', 'Tampa de coleta travada'))).toBe('MOTIVO: SEM PONTO DE COLETA');
+    expect(line(notCollected('v13', 'outro'))).toBe('MOTIVO: OUTRO');
+  });
+});
+
+describe('24.14-UNIT the fold takes a text value up to the medium cap, and nothing else', () => {
+  const textPath = sheetTestValuePath(BLOCK, 'coleta_oleo', 'motivo_texto');
+  it('a string up to 1000 characters folds; longer, or not a string, is refused; a choice value keeps its short cap', () => {
+    const { state, f } = folded('v14');
+    const ok = putAll(state, f, [[textPath, 'x'.repeat(TEXT_CAPS.medium)]]);
+    expect(blockOf(ok).sheet.test.coleta_oleo!.values!.motivo_texto!.value).toHaveLength(TEXT_CAPS.medium);
+    expect(() => putAll(state, f, [[textPath, 'x'.repeat(TEXT_CAPS.medium + 1)]])).toThrow();
+    expect(() => putAll(state, f, [[textPath, { raw: 'x', unit: null, state: 'measured' }]])).toThrow();
+    expect(() => putAll(state, f, [[sheetTestValuePath(BLOCK, 'coleta_oleo', 'motivo'), { raw: 'x'.repeat(TEXT_CAPS.short + 1), unit: null, state: 'measured' }]])).toThrow();
+    const cleared = putAll(ok, f, [[textPath, null]]);
+    expect(blockOf(cleared).sheet.test.coleta_oleo!.values!.motivo_texto!.value).toBeNull();
+    expect(textCapOf(textPath)).toBe(TEXT_CAPS.medium);
+    // v13 declares no such value.
+    const old = folded('v13');
+    expect(() => putAll(old.state, old.f, [[textPath, 'x']])).toThrow();
+  });
+});
+
+describe('24.14-UNIT the Malha\'s plate block: its title and no plate photo, read from the definition', () => {
+  it('v14 "Dados da malha" and no photo; v13 and every other type the surface\'s title and a photo; a company copy carries both', () => {
+    const v14 = getDefinition('v14', 'cabine_primaria', 'malha_aterramento');
+    expect([nameplateTitleOf(v14), nameplatePhotoOffered(v14)]).toEqual(['Dados da malha', false]);
+    const v13 = getDefinition('v13', 'cabine_primaria', 'malha_aterramento');
+    expect([nameplateTitleOf(v13), nameplatePhotoOffered(v13)]).toEqual([null, true]);
+    expect(nameplatePhotoOffered(getDefinition('v14', 'cabine_primaria', 'no_break_comando'))).toBe(true);
+    const draft = duplicateSeededType('v14', 'malha_aterramento').draft;
+    expect([draft.nameplate_title, draft.nameplate_photo]).toEqual(['Dados da malha', false]);
+    const definition = companyTypeDefinitionSchema.parse(draft);
+    const adapted = asBlockDefinition({ id: id(82), type_id: id(83), version: 1, definition });
+    expect([nameplateTitleOf(adapted), nameplatePhotoOffered(adapted)]).toEqual(['Dados da malha', false]);
+  });
+
+  it('the grid still fails above VALOR DE PROJETO, and its tables print as v13\'s with the same values', () => {
+    const grid = (version: string) =>
+      testCells(plate(sheet('malha_aterramento', version), { valor_projeto_ohm: measured('2', 'Ω'), metodo_medicao: 'ALICATE TERRÔMETRO', condicao_solo: 'SECO' }), 'resistencia_malha', { '0/0': measured('3', 'Ω') });
+    for (const version of ['v13', 'v14']) expect(conclusionFloor(grid(version))?.pair.result, version).toBe('reprovado');
+    const printedOf = (version: string) => tables(printedSheet(snapshotOf(version, [grid(version)]), 'malha_aterramento')).map(texts);
+    expect(printedOf('v14')).toEqual(printedOf('v13'));
   });
 });

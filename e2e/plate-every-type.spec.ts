@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { BASE_EQUIPMENT_BLOCK_TYPES, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, getDefinition, accuracyClassOption, initialOrderKey, isLibraryType, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, getDefinition, accuracyClassOption, initialOrderKey, isLibraryType, nameplatePhotoOffered, newEquipmentBlock, parseAccuracyClass, SEED_VERSION, TAG_PREFIX, type EquipmentBlockType } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -159,8 +159,14 @@ const LIBRARY_PLATES: Record<string, string> = {
   inspecao_qgbt: resolve(FIXTURES, 'images/plate-quadro-eletrico.png'),
   // Batch e23e (Story 23.21, seed v13): the Malha de aterramento's design data (`kinds/plate.ts`).
   malha_aterramento: resolve(FIXTURES, 'images/plate-malha-aterramento.png'),
+  // Batch e24s (Story 24.13, seed v14): the No-break de comando's plate (`kinds/plate.ts`).
+  no_break_comando: resolve(FIXTURES, 'images/plate-no-break-comando.png'),
 };
-const LIBRARY_TYPES = equipmentTypesOf(SEED_VERSION).filter((type) => isLibraryType(SEED_VERSION, type));
+/**
+ * The library types of the current seed that offer a plate photo. Batch e24s (Story 24.14): the v14 Malha de
+ * aterramento has no plate to photograph (`nameplate_photo: false`, `seed-v14-sheet-fixes.spec.ts`); its plate stays for v13.
+ */
+const LIBRARY_TYPES = equipmentTypesOf(SEED_VERSION).filter((type) => isLibraryType(SEED_VERSION, type) && nameplatePhotoOffered(getDefinition(SEED_VERSION, 'cabine_primaria', type)));
 
 /**
  * Resets Empresa B, signs in, pushes a relatório of the standard template with one sheet of the
@@ -200,10 +206,21 @@ async function openLibrarySheet(page: Page, cabine: string, type: EquipmentBlock
   return { blockId: block.id };
 }
 
-test('@p1 14.9-E2E-005 every library type of the current seed has its committed plate here', () => {
+test('@p1 14.9-E2E-005 every library type of the current seed that offers a plate photo has its committed plate here', () => {
   expect(LIBRARY_TYPES.length).toBeGreaterThan(0);
-  expect([...LIBRARY_TYPES].sort()).toEqual(Object.keys(LIBRARY_PLATES).sort());
+  expect(LIBRARY_TYPES).toContain('no_break_comando');
+  for (const type of LIBRARY_TYPES) expect(Object.keys(LIBRARY_PLATES), type).toContain(type);
 });
+
+// Batch e24s (Story 24.13; the ledger row of the cable's missing default): on the current seed the cables have a nameplate and,
+// now, a default plate (the v13 cable plate), so a cable plate photographed on the local stack reads instead of failing.
+for (const type of ['cabos_entrada', 'cabos_saida'] as const) {
+  test(`@p1 24.13-E2E-002 ${type}: a cable plate imported through "Fotografar placa" is read by the real job from the cables' default fixture`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const { blockId } = await openSheetOfType(page, account, database, { cabine: CABLES[type]!, typeLabel: getDefinition(SEED_VERSION, 'cabine_primaria', type).label });
+    await readPlateThroughTheTile(page, type, resolve(FIXTURES, 'images/plate-cabos-v13.png'), blockId);
+  });
+}
 
 for (const type of LIBRARY_TYPES) {
   test(`@p1 14.5-E2E-004 ${type}: the library type's plate imported through "Fotografar placa" is read by the real job and its suggestions arrive without a manual sync`, async ({ page }) => {

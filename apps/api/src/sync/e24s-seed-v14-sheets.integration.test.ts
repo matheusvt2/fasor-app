@@ -38,8 +38,11 @@ afterAll(() => h.cleanup());
 
 const measured = (raw: string, unit: string | null) => ({ raw, unit, state: 'measured' });
 
-/** The equipment and block creates of one Inspeção de QGBT at the relatório's local, on `seedVersion`. */
-function inspectionCreates(seeded: { relatorioId: string; projectId: string; locationId: string }, seedVersion: string) {
+/**
+ * The equipment and block creates of one block of `type` (an Inspeção de QGBT by default) at the relatório's local, on
+ * `seedVersion`; a type that version does not ship is built on v14 and sent with the older version, as an old client would.
+ */
+function inspectionCreates(seeded: { relatorioId: string; projectId: string; locationId: string }, seedVersion: string, type: 'inspecao_qgbt' | 'no_break_comando' = 'inspecao_qgbt') {
   const built = newEquipmentBlock({
     definitions: EMPTY_DEFINITION_CONTEXT,
     blockId: newId(),
@@ -47,11 +50,12 @@ function inspectionCreates(seeded: { relatorioId: string; projectId: string; loc
     relatorioId: seeded.relatorioId,
     projectId: seeded.projectId,
     locationId: seeded.locationId,
-    type: 'inspecao_qgbt',
-    tag: 'IQ-01',
-    seedVersion,
+    type,
+    tag: type === 'inspecao_qgbt' ? 'IQ-01' : 'NB-01',
+    seedVersion: type === 'no_break_comando' ? 'v14' : seedVersion,
     orderKey: 'z0',
   });
+  built.block = { ...built.block, seed_version: seedVersion };
   return {
     block: built.block,
     equipment: h.clientOp(companyA, { kind: 'create', scope: 'project', project_id: seeded.projectId, path: `equipment/${built.equipment.id}`, value: built.equipment as unknown as JsonValue }),
@@ -171,6 +175,60 @@ describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\
     const answer = h.clientOp(companyA, { kind: 'put', path: sheetChecklistPath(blockId, 'limpeza_das_bobinas', 'result'), relatorio_id: seeded.relatorioId, value: 'C' });
     expect((await h.push(companyA, [block, answer])).rejected).toEqual([]);
     expect((await h.rowOf<BlockRow>(companyA, 'block', blockId))!.sheet.checklist.limpeza_das_bobinas!.result!.value).toBe('C');
+  });
+
+  it('24.13-API-001 a v14 No-break de comando takes its plate and its six items; a v13 relatório refuses the block op_invalid', async () => {
+    const v14 = await h.seedRelatorio(companyA);
+    const noBreak = inspectionCreates(v14, 'v14', 'no_break_comando');
+    expect((await h.push(companyA, [noBreak.equipment, noBreak.create])).rejected).toEqual([]);
+    const put = (path: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path, relatorio_id: v14.relatorioId, value: value as JsonValue });
+    const writes = [
+      put(sheetNameplatePath(noBreak.block.id, 'modelo'), 'NBC-3000'),
+      put(sheetNameplatePath(noBreak.block.id, 'potencia_nominal'), measured('3000', 'VA')),
+      put(sheetNameplatePath(noBreak.block.id, 'tipo_de_saida'), 'Vcc'),
+      put(sheetNameplatePath(noBreak.block.id, 'baterias_capacidade'), measured('7', 'Ah')),
+      ...['limpeza_ventilacao_e_ventiladores', 'display_alarmes_e_leds', 'reaperto_das_conexoes', 'aterramento_bypass_e_identificacao', 'cargas_alimentadas_identificadas'].map((key) =>
+        put(sheetChecklistPath(noBreak.block.id, key, 'result'), 'C'),
+      ),
+      put(sheetChecklistPath(noBreak.block.id, 'baterias', 'result'), 'NC'),
+      put(sheetChecklistPath(noBreak.block.id, 'baterias', 'observation'), 'bateria estufada'),
+    ];
+    expect((await h.push(companyA, writes)).rejected).toEqual([]);
+    const stored = (await h.rowOf<BlockRow>(companyA, 'block', noBreak.block.id))!;
+    expect(stored.block_type).toBe('no_break_comando');
+    expect(stored.sheet.checklist.baterias!.result!.value).toBe('NC');
+    expect(stored.sheet.nameplate.baterias_capacidade!.value).toEqual(measured('7', 'Ah'));
+
+    const v13 = await h.seedRelatorio(companyA, new Date(), 'v13');
+    const old = inspectionCreates(v13, 'v13', 'no_break_comando');
+    const result = await h.push(companyA, [old.equipment, old.create]);
+    expect(result.rejected.map((one) => [one.op_id, one.code])).toEqual([[old.create.op_id, 'op_invalid']]);
+  });
+
+  it('24.14-API-001 the oil sampling\'s "Descreva o motivo" folds a text up to 1000 characters and refuses a longer one or a v13 one', async () => {
+    const v14 = await h.seedRelatorio(companyA);
+    const transformer = v14.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    const path = sheetTestValuePath(transformer.id, 'coleta_oleo', 'motivo_texto');
+    const put = (relatorio_id: string, at: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path: at, relatorio_id, value: value as JsonValue });
+    const typed = 'Tampa de coleta travada; '.repeat(40).slice(0, 1000);
+    const writes = [
+      put(v14.relatorioId, sheetNameplatePath(transformer.id, 'tipo_de_isolacao'), 'ÓLEO ISOLANTE'),
+      put(v14.relatorioId, sheetTestCellPath(transformer.id, 'coleta_oleo', 0, 0), choiceValue('nao_coletado')),
+      put(v14.relatorioId, sheetTestValuePath(transformer.id, 'coleta_oleo', 'motivo'), choiceValue('outro')),
+      put(v14.relatorioId, path, typed),
+    ];
+    expect((await h.push(companyA, writes)).rejected).toEqual([]);
+    expect((await h.rowOf<BlockRow>(companyA, 'block', transformer.id))!.sheet.test.coleta_oleo!.values!.motivo_texto!.value).toBe(typed);
+    const tooLong = put(v14.relatorioId, path, `${typed}x`);
+    const refused = await h.push(companyA, [tooLong]);
+    expect(refused.rejected.map((one) => one.op_id)).toEqual([tooLong.op_id]);
+    expect((await h.rowOf<BlockRow>(companyA, 'block', transformer.id))!.sheet.test.coleta_oleo!.values!.motivo_texto!.value).toBe(typed);
+
+    const v13 = await h.seedRelatorio(companyA, new Date(), 'v13');
+    const old = v13.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    const oldText = put(v13.relatorioId, sheetTestValuePath(old.id, 'coleta_oleo', 'motivo_texto'), 'texto');
+    const result = await h.push(companyA, [oldText]);
+    expect(result.rejected.map((one) => [one.op_id, one.code])).toEqual([[oldText.op_id, 'op_invalid']]);
   });
 
   it('speaks contract 46: a version-45 pull is answered 426 contract_outdated on every stream, the current one is answered', async () => {

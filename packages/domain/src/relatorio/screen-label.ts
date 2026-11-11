@@ -45,6 +45,8 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'ANP',
   // Seed v14 (batch e24s, Story 24.12): the surge protective device, in the Inspeção de QGBT's function test hint.
   'DPS',
+  // Seed v14 (batch e24s, Story 24.13): the No-break de comando's item DISPLAY, ALARMES E LEDS.
+  'LEDs',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));

@@ -1,6 +1,6 @@
 import { BASE_EQUIPMENT_BLOCK_TYPES, companyTypeIdOf, isCompanyBlockType, isEquipmentBlockType, sameTypeVersion, typeVersionIdOf, typeVersionOf } from '../schemas/block-config.ts';
 import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, typeVersionText, type DefinitionContext } from '../seed/definitions.ts';
-import type { MeasurementTest } from '../seed/measurement.ts';
+import type { MeasurementTest, MeasurementValueKind } from '../seed/measurement.ts';
 import type { BlockDefinition, TableDef, TestDef } from '../seed/schema.ts';
 import { isApplicabilityValue } from '../relatorio/applicability.ts';
 import { tapRowAccepted, tapRowClearable } from '../relatorio/tap-rows.ts';
@@ -30,6 +30,8 @@ import { mergeCell } from '../merge/policy.ts';
 import { readingKindPutStatus } from '../reading/retarget.ts';
 import type { Op } from './op.ts';
 import { familyDef, formatPath, parsePath, targetOf, type OpPath } from './path.ts';
+// Batch e24s: read at call time only (value-limits imports this module), never at load.
+import { TEXT_CAPS } from './value-limits.ts';
 
 /*
  * AD-3: `applyOp` is the only code that turns an op into state, on both sides.
@@ -496,9 +498,11 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
     if (measurement === undefined) throw new SeedPathError(formatPath(path), `${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
     if (path.family === 'sheet/test/cell') assertMeasurementCell(block, measurement, path);
     else if (path.family === 'sheet/test/value') {
-      if (!(measurement.values ?? []).some((value) => value.key === path.value_key)) {
+      const declared = (measurement.values ?? []).find((value) => value.key === path.value_key);
+      if (declared === undefined) {
         throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${measurement.key} declares no value "${path.value_key}"`);
       }
+      assertTestValueShape(declared.kind, op.value, formatPath(path));
     } else if (path.field === 'applicability') {
       assertApplicability(block, measurement.applies_when, op, path);
     } else if (path.field !== 'instrument' || measurement.instrument_of === undefined) {
@@ -506,6 +510,21 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
     }
   }
   return false;
+}
+
+/**
+ * Batch e24s (Story 24.14, contract 46): a `text` value takes a string up to `TEXT_CAPS.medium` (or null, which clears
+ * it), never anything else; every other value keeps its strings within `TEXT_CAPS.short`, as before the family's cap rose.
+ */
+function assertTestValueShape(kind: MeasurementValueKind, value: unknown, where: string): void {
+  if (kind === 'text') {
+    if (value !== null && value !== undefined && typeof value !== 'string') throw new SeedPathError(where, 'sheet/test/value: a text value is a string');
+    if (typeof value === 'string' && value.length > TEXT_CAPS.medium) throw new SeedPathError(where, `sheet/test/value: a text value holds ${value.length} characters, over ${TEXT_CAPS.medium}`);
+    return;
+  }
+  const long = (candidate: unknown): boolean =>
+    typeof candidate === 'string' ? candidate.length > TEXT_CAPS.short : candidate !== null && typeof candidate === 'object' && Object.values(candidate).some(long);
+  if (long(value)) throw new SeedPathError(where, `sheet/test/value: a ${kind} value holds a string over ${TEXT_CAPS.short} characters`);
 }
 
 // --- batch e23a: Story 23.3 (contract 34) ----------------------------------------------------

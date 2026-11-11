@@ -92,11 +92,14 @@ describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions i
  * (`rulesOff`, the domain's `seedRule` mocked above): every v14 difference comes through a flag,
  * and nothing else of v14 moves; the v14 print with its flags on is `e24a-v14-print.integration.test.ts`'s.
  *
- * Batch e24s (Stories 24.10 to 24.12): v14 changes, by design, what some sheets ask and print
- * (`E24S_TYPES`), so the fixture writes a different number of answers there. The comparison keeps
- * its purpose: every sheet of every other type, and every other section, lays out as v13's; the
- * named types' sheets are the only ones that differ, each of them does, and their v14 deltas are
- * pinned by `e24s-seed-v14-sheets.test.ts` (packages/domain).
+ * Batch e24s (Stories 24.10 to 24.14): v14 changes, by design, what some sheets ask and print
+ * (`E24S_TYPES`), so the fixture writes a different number of answers there, and it offers one type
+ * more, the No-break de comando (Story 24.13), whose sheet the fixture adds by rule. The comparison
+ * keeps its purpose: every sheet of every other type lays out as v13's; the named types' sheets are
+ * the only ones that differ, each of them does, the No-break's is the one sheet v13 lacks, and the
+ * rest of the document differs by that one sheet alone (its title in section 9). Their v14 deltas
+ * are pinned by `e24s-seed-v14-sheets.test.ts` (packages/domain). Story 24.14's keys (the oil
+ * sampling's "Outro" text, the Malha's plate block title and photo) change no print of this fixture.
  */
 
 /**
@@ -124,8 +127,10 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
   };
 
   /** The layout of the version's fixture, split: its section 9 sheets by masked block id with their type, and the rest. */
+  /** Batch e24s (Story 24.13): v14 without the type v13 does not offer, so the two fixtures allocate the same ids. */
+  const COMPARED = { withoutTypes: ['no_break_comando'] };
   const layoutOf = (version: string) => {
-    const snapshot = layoutLockSnapshot(version);
+    const snapshot = layoutLockSnapshot(version, COMPARED);
     const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
     const typeOf = new Map(snapshot.blocks.map((block) => [block.id, block.block_type]));
     const sheets = new Map<string, { type: string; json: string }>();
@@ -139,11 +144,11 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
     return { rest: masked(version, JSON.stringify(layout)), sheets };
   };
 
-  it('v13 and v14 give one layout once ids and the version are masked, but for the sheets of the types batch e24s changes', () => {
+  it('v13 and v14 give one layout once ids and the version are masked, but for the sheets of the types batch e24s changes and its new No-break', () => {
     // The mock is the one the domain reads: v14's flags are off here and on outside this block.
     expect(seedRule('v14', 'conclusion_restriction_by_choice')).toBe(false);
     const v13 = layoutLockFixture('v13');
-    const v14 = layoutLockFixture('v14');
+    const v14 = layoutLockFixture('v14', undefined, COMPARED);
     // Batch e24s: the TC answers one item less, the transformer three more, the Inspeção de QGBT two more.
     expect(v14.log.length - v13.log.length).toBe(-1 + 3 + 2);
     expect(layoutLockSnapshot('v14').relatorio.seed_version).toBe('v14');
@@ -156,6 +161,17 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
     // Only the named types differ, and each of them does (the list is not stale).
     expect(new Set(differing)).toEqual(E24S_TYPES);
     for (const [key, sheet] of a.sheets) if (!E24S_TYPES.has(sheet.type)) expect(b.sheets.get(key)!.json, sheet.type).toBe(sheet.json);
+  });
+
+  it('batch e24s (Story 24.13): v14 as the fixture builds it whole holds one sheet more than v13, the No-break de comando\'s', () => {
+    // A company type's key carries the version's ids: read as its kind.
+    const types = (version: string) =>
+      layoutLockSnapshot(version)
+        .blocks.filter((block) => block.equipment_id !== null)
+        .map((block) => (block.block_type.startsWith('type:') ? 'type:' : block.block_type));
+    const v14 = types('v14');
+    expect(v14.filter((type) => type === 'no_break_comando')).toHaveLength(1);
+    expect(v14.filter((type) => type !== 'no_break_comando')).toEqual(types('v13'));
   });
 
   it('control: with its flags on, as v14 ships, its layout is not v13\'s (the comparison above is not vacuous)', () => {

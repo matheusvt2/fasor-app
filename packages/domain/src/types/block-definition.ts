@@ -111,6 +111,9 @@ export function asBlockDefinition(row: VersionRowLike): BlockDefinition {
     noun: definition.noun,
     // Fix batch e23z (W3-3): a copy's seeded base, what it prints as (`printBlockTypeOf`).
     ...(definition.base_block_type === undefined ? {} : { base_block_type: definition.base_block_type }),
+    // Batch e24s (Story 24.14): the plate block's title and its "no plate to photograph" a copy carries.
+    ...(definition.nameplate_title === undefined ? {} : { nameplate_title: definition.nameplate_title }),
+    ...(definition.nameplate_photo === undefined ? {} : { nameplate_photo: definition.nameplate_photo }),
     type_id: row.type_id,
     type_version: row.version,
     type_version_id: row.id,

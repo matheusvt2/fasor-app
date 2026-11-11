@@ -182,7 +182,9 @@ const VALUE_RULES = {
   'relatorio/preview_file_id': SERVER_ONLY,
   audit_run: SERVER_ONLY,
   'audit_run/field': SERVER_ONLY,
-  'sheet/test/value': { kind: 'value', rule: plainCell },
+  // Batch e24s (Story 24.14, contract 46): a measurement test's `text` value (the oil sampling's "Descreva o motivo") is typed
+  // or dictated as a checklist observation is, so the family takes medium; every other value keeps short (`applyOp`'s seed check).
+  'sheet/test/value': { kind: 'value', rule: { kind: 'plain_cell', cap: TEXT_CAPS.medium } },
   'relatorio/removed_at': { kind: 'value', rule: schema },
   // Story 14.6 (contract 33): a type's draft and a version's definition are structured values
   // (every string at most long, the whole bounded by `VALUE_MAX_BYTES`); the rest is the row schema's.

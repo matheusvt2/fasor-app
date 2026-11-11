@@ -1,0 +1,829 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "NO-BREAK",
+        "bbox": [
+          73,
+          70,
+          306,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "DE",
+        "bbox": [
+          319,
+          70,
+          374,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "COMANDO",
+        "bbox": [
+          386,
+          70,
+          617,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "FABRICANTE",
+        "bbox": [
+          72,
+          156,
+          230,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "Voltrix",
+        "bbox": [
+          640,
+          156,
+          736,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "MODELO",
+        "bbox": [
+          72,
+          202,
+          182,
+          223
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "NBC-3000",
+        "bbox": [
+          642,
+          202,
+          784,
+          223
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "Nº",
+        "bbox": [
+          72,
+          248,
+          101,
+          268
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          243,
+          185,
+          269
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "NB-220415",
+        "bbox": [
+          642,
+          248,
+          799,
+          269
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "POTÊNCIA",
+        "bbox": [
+          72,
+          289,
+          201,
+          315
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "NOMINAL",
+        "bbox": [
+          213,
+          294,
+          333,
+          315
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "3000",
+        "bbox": [
+          641,
+          294,
+          712,
+          315
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "VA",
+        "bbox": [
+          722,
+          295,
+          760,
+          314
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "POTÊNCIA",
+        "bbox": [
+          72,
+          335,
+          201,
+          361
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "ATIVA",
+        "bbox": [
+          211,
+          341,
+          284,
+          360
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "2700",
+        "bbox": [
+          642,
+          340,
+          712,
+          361
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "W",
+        "bbox": [
+          723,
+          341,
+          750,
+          360
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          382,
+          175,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "DE",
+        "bbox": [
+          187,
+          387,
+          220,
+          406
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "ENTRADA",
+        "bbox": [
+          232,
+          387,
+          354,
+          406
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "220",
+        "bbox": [
+          642,
+          386,
+          693,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "V",
+        "bbox": [
+          703,
+          387,
+          723,
+          406
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          432,
+          129,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "DE",
+        "bbox": [
+          141,
+          433,
+          174,
+          452
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "ENTRADA",
+        "bbox": [
+          186,
+          433,
+          308,
+          452
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "Vca",
+        "bbox": [
+          640,
+          433,
+          691,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          474,
+          175,
+          499
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "DE",
+        "bbox": [
+          187,
+          479,
+          220,
+          498
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "SAÍDA",
+        "bbox": [
+          231,
+          473,
+          310,
+          499
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t30",
+        "text": "125",
+        "bbox": [
+          642,
+          478,
+          693,
+          499
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t31",
+        "text": "V",
+        "bbox": [
+          703,
+          479,
+          723,
+          498
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t32",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          524,
+          129,
+          545
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t33",
+        "text": "DE",
+        "bbox": [
+          141,
+          525,
+          174,
+          544
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t34",
+        "text": "SAÍDA",
+        "bbox": [
+          185,
+          519,
+          264,
+          545
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t35",
+        "text": "Vcc",
+        "bbox": [
+          640,
+          525,
+          690,
+          545
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t36",
+        "text": "FREQUÊNCIA",
+        "bbox": [
+          72,
+          565,
+          238,
+          594
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t37",
+        "text": "60",
+        "bbox": [
+          641,
+          570,
+          675,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t38",
+        "text": "Hz",
+        "bbox": [
+          687,
+          571,
+          721,
+          590
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t39",
+        "text": "AUTONOMIA",
+        "bbox": [
+          70,
+          616,
+          231,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t40",
+        "text": "NOMINAL",
+        "bbox": [
+          243,
+          616,
+          363,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t41",
+        "text": "30",
+        "bbox": [
+          641,
+          616,
+          675,
+          637
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t42",
+        "text": "min",
+        "bbox": [
+          687,
+          616,
+          738,
+          636
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t43",
+        "text": "BATERIAS:",
+        "bbox": [
+          72,
+          662,
+          202,
+          683
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t44",
+        "text": "TIPO",
+        "bbox": [
+          211,
+          662,
+          271,
+          683
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t45",
+        "text": "VRLA",
+        "bbox": [
+          640,
+          663,
+          717,
+          682
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t46",
+        "text": "BATERIAS:",
+        "bbox": [
+          72,
+          708,
+          202,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t47",
+        "text": "QUANTIDADE",
+        "bbox": [
+          213,
+          708,
+          385,
+          732
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t48",
+        "text": "10",
+        "bbox": [
+          642,
+          708,
+          675,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t49",
+        "text": "BATERIAS:",
+        "bbox": [
+          72,
+          754,
+          202,
+          775
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t50",
+        "text": "TENSÃO",
+        "bbox": [
+          211,
+          750,
+          317,
+          775
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t51",
+        "text": "POR",
+        "bbox": [
+          329,
+          754,
+          380,
+          775
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t52",
+        "text": "UNIDADE",
+        "bbox": [
+          392,
+          755,
+          509,
+          775
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t53",
+        "text": "12",
+        "bbox": [
+          642,
+          754,
+          674,
+          774
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t54",
+        "text": "V",
+        "bbox": [
+          684,
+          755,
+          704,
+          774
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t55",
+        "text": "BATERIAS:",
+        "bbox": [
+          72,
+          800,
+          202,
+          821
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t56",
+        "text": "CAPACIDADE",
+        "bbox": [
+          213,
+          800,
+          378,
+          821
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t57",
+        "text": "7",
+        "bbox": [
+          641,
+          801,
+          656,
+          820
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t58",
+        "text": "Ah",
+        "bbox": [
+          666,
+          800,
+          703,
+          820
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "fabricante",
+        "value": "Voltrix",
+        "ocr_token_ids": [
+          "t4"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "modelo",
+        "value": "NBC-3000",
+        "ocr_token_ids": [
+          "t6"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "NB-220415",
+        "ocr_token_ids": [
+          "t9"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "potencia_nominal",
+        "value": {
+          "raw": "3000",
+          "unit": "VA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t12",
+          "t13"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "potencia_ativa",
+        "value": {
+          "raw": "2700",
+          "unit": "W",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t16",
+          "t17"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_de_entrada",
+        "value": {
+          "raw": "220",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t21",
+          "t22"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_de_entrada",
+        "value": "Vca",
+        "ocr_token_ids": [
+          "t26"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_de_saida",
+        "value": {
+          "raw": "125",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t30",
+          "t31"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo_de_saida",
+        "value": "Vcc",
+        "ocr_token_ids": [
+          "t35"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "frequencia",
+        "value": {
+          "raw": "60",
+          "unit": "Hz",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t37",
+          "t38"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "autonomia_nominal",
+        "value": {
+          "raw": "30",
+          "unit": "min",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t41",
+          "t42"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "baterias_tipo",
+        "value": "VRLA",
+        "ocr_token_ids": [
+          "t45"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "baterias_quantidade",
+        "value": {
+          "raw": "10",
+          "unit": null,
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t48"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "baterias_tensao_por_unidade",
+        "value": {
+          "raw": "12",
+          "unit": "V",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t53",
+          "t54"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "baterias_capacidade",
+        "value": {
+          "raw": "7",
+          "unit": "Ah",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t57",
+          "t58"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

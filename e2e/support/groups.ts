@@ -211,6 +211,16 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     why: 'issues a revision through the shared queue and LibreOffice to read a v14 oil and a dry transformer\'s 17 rows in the DOCX',
   },
   {
+    file: 'no-break.spec.ts',
+    lane: 'queue',
+    why: 'reads a plate on the one reading queue and worker and issues a revision through the shared queue and LibreOffice to read the No-break de comando in the DOCX',
+  },
+  {
+    file: 'seed-v14-sheet-fixes.spec.ts',
+    lane: 'queue',
+    why: 'issues revisions through the shared queue and LibreOffice to read the oil sampling\'s reason line and the v14 Malha de aterramento in the DOCX',
+  },
+  {
     file: 'seed-v14-qgbt-inspecao.spec.ts',
     lane: 'queue',
     why: 'issues a revision through the shared queue and LibreOffice to read the v14 Inspeção de QGBT\'s twelve rows and its thermography in the DOCX',

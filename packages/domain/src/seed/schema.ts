@@ -849,6 +849,13 @@ export const blockDefinitionSchema = z
     print_title: z.string().min(1).optional(),
     /** The oil rule (`relatorio/oil-rule.ts`): a non-oil unit shows its oil items NA and its oil fields excused. */
     oil_rule: oilRuleSchema.optional(),
+    /*
+     * Seed v14, batch e24s (Story 24.14). Optional and never defaulted, so v1 to v13 parse to their bytes.
+     */
+    /** The title of the plate block on the sheet and in the composer instead of "Dados de placa" (the Malha's "Dados da malha"). */
+    nameplate_title: z.string().min(1).optional(),
+    /** The plate block has no plate to photograph: no "Fotografar placa" and no retake row. Absent: a photo is offered. */
+    nameplate_photo: z.literal(false).optional(),
   })
   .superRefine(checkMeasurementDefinition)
   .superRefine(checkSeedV6Definition);
