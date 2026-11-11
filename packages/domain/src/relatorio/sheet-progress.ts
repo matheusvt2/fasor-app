@@ -1,6 +1,6 @@
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, seedRule, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition, OilRule } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
@@ -8,6 +8,7 @@ import { cabineOf, cabineProgress } from './cabine.ts';
 import { chosenConclusionPair, effectiveConclusionPair, observationRequiredFor, restrictionApplies } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { measurementCounts } from './measurement-evaluation.ts';
+import { nameplateTitleOf } from './nameplate-block.ts';
 import { oilDerivedNaKeysUnder, oilRuleOf } from './oil-rule.ts';
 import { evaluatedCells, evaluatedChoices } from './readings.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
@@ -77,9 +78,24 @@ function stepShown(step: SheetStep, enabled: ReadonlySet<string>): boolean {
  * step "pronta". Placa stays on the cabine's first sheet (`cabineFirst`) whatever its plate,
  * since the cabine's fields are filled there.
  */
-export function shownSheetSteps(block: Pick<BlockRow, 'config'>, options: { cabineFirst?: boolean } = {}): SheetStep[] {
+export function shownSheetSteps(
+  block: Pick<BlockRow, 'config'> & Partial<Pick<BlockRow, 'seed_version'>>,
+  options: { cabineFirst?: boolean; definition?: Pick<BlockDefinition, 'checklist'> | null } = {},
+): SheetStep[] {
   const enabled = enabledSubBlocksOf(block);
-  return SHEET_STEPS.filter((step) => stepShown(step, enabled) || (step === 'placa' && options.cabineFirst === true));
+  // Fix batch e24y (F10, seed v14 `empty_steps_hidden`): a checklist step whose definition holds no item (the
+  // Malha de aterramento) shows nothing on the sheet, so it is neither drawn nor named "pronta".
+  const empty = options.definition != null && typeof block.seed_version === 'string' && seedRule(block.seed_version, 'empty_steps_hidden') && (options.definition.checklist ?? []).length === 0;
+  return SHEET_STEPS.filter((step) => (step === 'verificacoes' && empty ? false : stepShown(step, enabled) || (step === 'placa' && options.cabineFirst === true)));
+}
+
+/**
+ * Fix batch e24y (F10): the name a step reads by where the definition gives its block a title of its
+ * own (the v14 Malha's "Dados da malha", `nameplate_title`): the stepper's step and the Sheet header
+ * read it; null where the surface's own step name stands (every other step, every older definition).
+ */
+export function sheetStepTitle(step: SheetStep, definition: Pick<BlockDefinition, 'nameplate_title'> | null | undefined): string | null {
+  return step === 'placa' ? nameplateTitleOf(definition) : null;
 }
 
 /** One step's counts: what is missing, and (Ensaios only) the readings out of their criterion. */
@@ -327,13 +343,43 @@ export function sheetProgressText(p: StepMissing): string {
   return total === 0 ? 'Completa' : plural(total, 'obrigatório faltando', 'obrigatórios faltando');
 }
 
-/** How each step reads in the Sheet header sentence once done, and whether its noun is singular. */
-const SUMMARY_DONE: Record<SheetStep, { noun: string; singular: boolean }> = {
+/** How each step reads in the Sheet header sentence once done, and whether its noun is singular (and masculine). */
+interface DoneNoun {
+  noun: string;
+  singular: boolean;
+  masculine?: boolean;
+}
+const SUMMARY_DONE: Record<SheetStep, DoneNoun> = {
   placa: { noun: 'placa', singular: true },
   verificacoes: { noun: 'verificações', singular: false },
   ensaios: { noun: 'leituras', singular: false },
   conclusao: { noun: 'conclusão', singular: true },
 };
+
+/**
+ * Fix batch e24y (F10): a plate block's own title as the Sheet header's noun: lower case, its number
+ * and gender read from its first word's ending ("Dados da malha": "dados", masculine plural).
+ */
+function titleNoun(title: string): DoneNoun {
+  const noun = title.charAt(0).toLocaleLowerCase('pt-BR') + title.slice(1);
+  const head = (noun.split(/\s/u)[0] ?? '').toLocaleLowerCase('pt-BR');
+  if (head.endsWith('os')) return { noun, singular: false, masculine: true };
+  if (head.endsWith('as') || head.endsWith('es') || head.endsWith('ões')) return { noun, singular: false };
+  if (head.endsWith('o')) return { noun, singular: true, masculine: true };
+  return { noun, singular: true };
+}
+
+/** The done noun of a step, the plate block's own title where it has one. */
+function doneNoun(step: SheetStep, plateTitle: string | null): DoneNoun {
+  return step === 'placa' && plateTitle !== null ? titleNoun(plateTitle) : SUMMARY_DONE[step];
+}
+
+/** "pronta", "prontas", "pronto", "prontos": one singular noun agrees with it; several, or a plural, take the plural, masculine with any masculine noun. */
+function doneAdjective(nouns: readonly DoneNoun[]): string {
+  const singular = nouns.length === 1 && nouns[0]!.singular;
+  const masculine = nouns.some((noun) => noun.masculine === true);
+  return `pront${masculine ? 'o' : 'a'}${singular ? '' : 's'}`;
+}
 
 /** One piece of the Sheet header sentence: plain text, or a missing count the header emphasises (`.n-missing`). */
 export interface SheetSummaryPart {
@@ -363,13 +409,15 @@ function countParts(n: number, one: string, many: string): SheetSummaryPart[] {
  * Placa step names its plate fields and its cabine fields apart (E12-Q10), the plate first:
  * "2 campos da placa, 6 campos do local".
  */
-function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?: number; observation?: number }): SheetSummaryPart[][] {
+function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?: number; observation?: number }, plateTitle: string | null = null): SheetSummaryPart[][] {
   switch (step) {
     case 'placa': {
       const cabine = Math.min(counts.cabine ?? 0, counts.missing);
       const plate = counts.missing - cabine;
       const parts: SheetSummaryPart[][] = [];
-      if (plate > 0) parts.push(countParts(plate, 'campo da placa', 'campos da placa'));
+      // authored (e24y, listed for Bruno): a plate block with a title of its own, "2 campos de dados da malha".
+      const where = plateTitle === null ? 'da placa' : `de ${titleNoun(plateTitle).noun}`;
+      if (plate > 0) parts.push(countParts(plate, `campo ${where}`, `campos ${where}`));
       // authored (Story 14.2): on screen the root location is the "local".
       if (cabine > 0) parts.push(countParts(cabine, 'campo do local', 'campos do local'));
       return parts;
@@ -413,12 +461,12 @@ function capitalise(text: string): string {
  * leituras"). A step the stepper does not show (`shown`) is never named. "Ficha completa"
  * once nothing is missing (authored copy, an open question for Bruno and Matheus).
  */
-export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] = SHEET_STEPS): SheetSummaryPart[] {
+export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] = SHEET_STEPS, plateTitle: string | null = null): SheetSummaryPart[] {
   const steps = SHEET_STEPS.filter((step) => shown.includes(step));
   const done = steps.filter((step) => p.steps[step].missing === 0);
   const missing = steps.filter((step) => p.steps[step].missing > 0);
   if (missing.length === 0) return [{ text: 'Ficha completa', kind: 'text' }];
-  const items = missing.flatMap((step) => summaryMissingParts(step, p.steps[step]));
+  const items = missing.flatMap((step) => summaryMissingParts(step, p.steps[step], plateTitle));
   // The verb agrees with the first thing missing: a count of 1, or a noun part not flagged
   // plural ("a conclusão"), is singular; p020 P-4: "as observações" carries `plural`.
   const lead = items[0]![0]!;
@@ -426,13 +474,16 @@ export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] 
   const verb = singular ? 'falta' : 'faltam';
   const missingParts = joinPartsPtBr(items);
   if (done.length === 0) return [{ text: `${capitalise(verb)} `, kind: 'text' }, ...missingParts];
-  const adjective = done.length === 1 && SUMMARY_DONE[done[0]!].singular ? 'pronta' : 'prontas';
-  return [{ text: `${capitalise(listPtBr(done.map((step) => SUMMARY_DONE[step].noun)))} ${adjective} · ${verb} `, kind: 'text' }, ...missingParts];
+  // Fix batch e24y (F10): the plate block's own title is a noun of its own gender ("Dados da malha prontos").
+  const nouns = done.map((step) => doneNoun(step, plateTitle));
+  // authored (e24y, listed for Bruno): "pronto" and "prontos" after a masculine title.
+  const adjective = doneAdjective(nouns);
+  return [{ text: `${capitalise(listPtBr(nouns.map((noun) => noun.noun)))} ${adjective} · ${verb} `, kind: 'text' }, ...missingParts];
 }
 
 /** `sheetSummaryParts` as one string. */
-export function sheetSummaryText(p: SummaryCounts, shown: readonly SheetStep[] = SHEET_STEPS): string {
-  return sheetSummaryParts(p, shown)
+export function sheetSummaryText(p: SummaryCounts, shown: readonly SheetStep[] = SHEET_STEPS, plateTitle: string | null = null): string {
+  return sheetSummaryParts(p, shown, plateTitle)
     .map((part) => part.text)
     .join('');
 }

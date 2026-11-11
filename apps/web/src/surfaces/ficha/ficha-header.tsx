@@ -19,6 +19,7 @@ export function FichaHeader({
   concludedBy,
   progress,
   shown = SHEET_STEPS,
+  plateTitle = null,
   menu,
   notTested = false,
   library = false,
@@ -34,6 +35,8 @@ export function FichaHeader({
   progress: SheetProgress;
   /** The steps the Section stepper shows; a step it does not show is never named. */
   shown?: readonly SheetStep[];
+  /** Fix batch e24y (F10): the plate block's own title (`sheetStepTitle`, the v14 Malha's "Dados da malha"), which the sentence names its step by. */
+  plateTitle?: string | null;
   menu: OverflowMenuAction[];
   /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
   notTested?: boolean;
@@ -92,7 +95,7 @@ export function FichaHeader({
         {notTested ? null : (
           <p className="sheet-summary" data-testid="ficha-progress">
             {/* E12-Q8: the missing counts in `.n-missing`, as `key-equipment-sheet-v09.html` draws them. */}
-            {sheetSummaryParts(progress, shown).map((part, index) =>
+            {sheetSummaryParts(progress, shown, plateTitle).map((part, index) =>
               part.kind === 'missing' ? (
                 <span key={index} className="n-missing">
                   {part.text}
