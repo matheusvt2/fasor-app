@@ -176,6 +176,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'generates a revision through the shared queue and LibreOffice to read the seed v12 TENSÃO (kV) column, ACEITÁVEL by accuracy class and the defect reason in the DOCX',
   },
+  // Story 24.2: 24.2-E2E-001 generates the DOCX of a v14 relatório and of a v13 one beside it.
+  {
+    file: 'seed-v14.spec.ts',
+    lane: 'queue',
+    why: 'generates two revisions through the shared queue and LibreOffice, a v14 relatório\'s and a v13 one\'s, to read their filled sheets in the DOCX',
+  },
   // Story 22.11: 22.11-E2E-001 generates the DOCX the Inspeção de QGBT is read from.
   {
     file: 'qgbt-inspecao.spec.ts',

@@ -486,7 +486,15 @@
  * phases could not judge carries a "Conferir:" helper. The type editor's write of a test's
  * recommendation also deletes its `index_recommendation`. MIN follows to 42 (below).
  */
-export const CONTRACT_VERSION = 42;
+/*
+ * 43 (2026-11-11, Story 24.2, batch e24a): no new op or path family. Seed v14 opens, equal to v13,
+ * and becomes the version a new Template is created with (`SEED_VERSION`); the server's boot step
+ * moves every template to it (`templateSeedUpgrade`), so every relatório created afterwards is born
+ * on v14 and every one already made keeps its seed. The seed schema gains the optional seed-level
+ * `rules` (a strict object of optional `true` flags, read by `seedRule`), absent on v1 to v14 at
+ * this opening, so every shipped seed parses to the bytes it shipped with. MIN follows to 43 (below).
+ */
+export const CONTRACT_VERSION = 43;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -771,7 +779,14 @@ export const CONTRACT_VERSION = 42;
  * criterion judged where the server composes "com leitura a conferir". Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 42;
+/*
+ * 43 (2026-11-11, Story 24.2, batch e24a): a version-42 (or older) bundle ships no seed v14, so it
+ * cannot resolve a single definition of a v14 relatório or of a template the server moved to v14:
+ * a pulled block create or template put naming `v14` fails to fold, and the sheets it could show
+ * would have no nameplate, checklist or tests. Its pull answers `426 contract_outdated` and it
+ * updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 43;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

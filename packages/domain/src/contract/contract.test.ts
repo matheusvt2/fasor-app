@@ -107,9 +107,10 @@ describe('contract constants', () => {
   // e23z (the final Epic 23 fixes, 2026-11-10): 40, after e23e's 39; MIN follows.
   // e24h (points on click, 2026-11-10): 41, after e23z's 40; MIN follows.
   // e24f (the Epic 23 retrospective's fixes, 2026-11-10): 42, after e24h's 41; MIN follows.
-  it('speaks version 42 and refuses version 41 (fix batch e24f: a version-41 bundle refuses a second off-plate clear it pulls)', () => {
-    expect(CONTRACT_VERSION).toBe(42);
-    expect(MIN_CONTRACT_VERSION).toBe(42);
+  // e24a (Story 24.2, seed v14, 2026-11-11): 43, after e24f's 42; MIN follows.
+  it('speaks version 43 and refuses version 42 (Story 24.2: a version-42 bundle ships no seed v14)', () => {
+    expect(CONTRACT_VERSION).toBe(43);
+    expect(MIN_CONTRACT_VERSION).toBe(43);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
