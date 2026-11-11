@@ -24,7 +24,7 @@ import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 
 /*
- * Story 24.21 (batch e24b, contract 42), 24.21-API-001: the equipment's `reuse_key` travels in its
+ * Story 24.21 (batch e24b, contract 43), 24.21-API-001: the equipment's `reuse_key` travels in its
  * create through `POST /api/sync/ops`, the server stores it with the row, and a second device that
  * pulls the project stream folds the same key; nothing can put it afterwards (no path parses
  * `equipment/{id}/reuse_key`), a rename keeps it, a client on contract 41 is refused at pull, and

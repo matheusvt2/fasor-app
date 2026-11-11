@@ -10,7 +10,7 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
 /*
- * Story 24.21 (batch e24b, contract 42): an equipment keeps its history when its TAG is renamed.
+ * Story 24.21 (batch e24b, contract 43): an equipment keeps its history when its TAG is renamed.
  * Its create stores, once, the frozen TAG rule's name of the template placement (`reuse_key`), and
  * a new relatório of the obra binds each placement by that key, never by the visible TAG. So a
  * transformer born "TR-01" and renamed "TF-A" on its sheet is the same equipment in the next

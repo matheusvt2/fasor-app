@@ -388,7 +388,7 @@ export const equipmentRowSchema = z.object({
   last_results: lastResultsSchema.nullable().optional(),
   removed_at: nullableIso,
   /*
-   * Story 24.21 (contract 42): the key the reuse of the obra's equipment matches a template
+   * Story 24.21 (contract 43): the key the reuse of the obra's equipment matches a template
    * placement on (`equipmentMatchKey`, `relatorio/tag.ts`), written once in the create and never
    * put (`EQUIPMENT_FIELDS` has no path for it): the frozen rule's TAG of the placement, kept apart
    * from the TAG the technician renames. Optional and never defaulted, so a row written before

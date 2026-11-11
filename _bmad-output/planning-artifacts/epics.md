@@ -5849,6 +5849,8 @@ So that the relatório reads like a finished document.
 
 ### Story 22.4: The ficha's conclusion follows Bruno's rules (contract 31)
 
+*(2026-11-10, coordinator: one rule of this story is overridden. Text in OBSERVAÇÕES, or in the observation of a row that is not NC, no longer gives Com restrições: an observation never forces a restriction, on every seed (Bruno through Matheus, 2026-11-10; fix batch e24h, item H9, `spec-e24h-points-on-click.md`). The floor's other sources stay. Row in `source-deltas.md`.)*
+
 **Dev model:** opus · **Effort:** high · a kernel floor for the conclusion pair (NC or observation gives Com restrições; an out-of-criterion value or a defect Não ensaiado gives Reprovado), the effective pair as the stricter of floor and stored value, segments below the floor disabled, "Concluir ficha" writing the floor; amends FR-29 and NFR-10
 
 As Bruno,
@@ -7597,7 +7599,7 @@ So that the new rules reach only the relatórios created after them.
 - **The v13 layout lock.** `LAYOUT_LOCK_VERSIONS` gains `'v13'`. The v13 fixture is synthetic and covers what Epic 24 changes on v14, so each change has its v13 pin:
   - one sheet of every type v13 offers;
   - a ficha Reprovado by a reading out of its criterion (it prints Reprovado and COM RESTRIÇÕES);
-  - a ficha Com restrições by an observation alone;
+  - ~~a ficha Com restrições by an observation alone;~~ *(2026-11-10, later: fix batch e24h's H9 ended that rule on every seed.)* a ficha stored Aprovado · Com restrições by the technician's choice, with its observation, and a ficha Aprovado · Sem restrições that carries an observation;
   - an arrester whose nameplate sub-block is off and whose stored DESLIGADOR ÍNTEGRO is NÃO (it prints Reprovado);
   - a second visit with `last_results` on the insulation, contact and winding-resistance tables, with a contact rise out and an insulation drop restricted;
   - an NC observation typed in two lines;
@@ -7645,6 +7647,8 @@ So that the new rules reach only the relatórios created after them.
 - `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
 
 ### Story 24.3: Out of criterion gives Reprovado only; a restriction is the technician's choice; an observation gives none
+
+*(2026-11-10, later, coordinator: the observation half of this story is already built, for every seed and not only v14. Bruno reported the same day, through Matheus, that he could not write an observation on a ficha Aprovado · Sem restrições, and Matheus decided it is fixed at once for every relatório: an observation never forces a restriction, on every seed (Bruno through Matheus, 2026-11-10; fix batch e24h, item H9, `spec-e24h-points-on-click.md`). What stays in this story: the reading out of its criterion gives Reprovado only, on v14; the restriction boxes of a Reprovado ficha; the technician's choice; the arrester's prerequisite; the "Marcar Com restrições" action. The acceptance criterion on a v14 ficha with observations stays as a check that the rule holds on v14 too. Where a sentence below says an observation gives Com restrições on v13 or older, it no longer does.)*
 
 **Dev model:** opus · **Effort:** max · the v14 conclusion rule in `relatorio/conclusion.ts`: a failure floors Reprovado with no restriction; an observation is no reason; the effective, chosen and printed pairs, the progress count, the required observation, the reason line, the suggestion and "Marcar Com restrições" follow it; the arrester's prerequisite read only with the nameplate on; v1 to v13 untouched
 
@@ -7728,7 +7732,7 @@ So that "Com restrições" means what I chose, and half my fichas stop printing 
 **When** the parecer is derived
 **Then** it is Não apto, the ficha is counted under the reprovadas and never under "com restrições"
 
-**Given** a v13, a v12 and a v5 relatório, each with a ficha concluded Reprovado · Com restrições and a ficha Com restrições by an observation
+**Given** a v13, a v12 and a v5 relatório, each with a ficha concluded Reprovado · Com restrições and a ficha ~~Com restrições by an observation~~ *(2026-11-10, later: H9)* stored Aprovado · Com restrições by the technician's choice
 **When** they render and print after this story
 **Then** every pair, reason line, count and printed box is as before, the stored pairs are untouched, and the layout-lock and Porto Seguro goldens hold
 

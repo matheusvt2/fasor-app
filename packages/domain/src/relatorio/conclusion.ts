@@ -585,8 +585,23 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   // Epic 14 QA Q-3: a zero or negative reading to check is never "within the criteria".
   // authored: Epic 14 QA Q-3 (open for Bruno).
   const toCheck = 'valores medidos com leitura a conferir';
+  // Fix batch e24f (R-1): a measured reading no criterion judged is a reading to check, never "within the criteria":
+  // a live measurement test the deviation between phases left `unjudged` (R-1a), or, beside a judged capture, a
+  // seeded test with no criterion holding a measured capture (R-1b, the floor's Story 14.9 case), or a ratio table waiting
+  // for its vector group while the plate can be filled (the floor's e21g D6 case). The basis is unchanged.
+  const unjudgedTable = measurements.some((test) => test.unjudged === true);
+  const unjudgedCapture =
+    judged &&
+    (evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && isReadingValue(cell.state))) ||
+      (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing))));
   const plainReadings =
-    outClauses.length > 0 ? listPtBr(outClauses) : tableCells.some((cell) => cell.toCheck) ? toCheck : judged ? 'valores medidos dentro dos critérios de aceitação' : unjudged;
+    outClauses.length > 0
+      ? listPtBr(outClauses)
+      : tableCells.some((cell) => cell.toCheck) || unjudgedTable || unjudgedCapture
+        ? toCheck
+        : judged
+          ? 'valores medidos dentro dos critérios de aceitação'
+          : unjudged;
   const readings = restricted.length === 0 ? plainReadings : `${plainReadings}, ${listPtBr(restricted)}`;
   const hasReadings = judged || measured;
   const ncs = ncItems(block, definition);

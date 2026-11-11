@@ -10,7 +10,7 @@ import { parsePath, PathError } from './path.ts';
 import { replay } from './replay.ts';
 
 /*
- * Story 24.21 (batch e24b, contract 42): the equipment's `reuse_key` is written once, in its
+ * Story 24.21 (batch e24b, contract 43): the equipment's `reuse_key` is written once, in its
  * create, and nothing writes it after: a rename, a move of its sheet, a remove and a restore keep
  * it, and a put to `equipment/{id}/reuse_key` has no path. A row written before parses to the same
  * bytes.

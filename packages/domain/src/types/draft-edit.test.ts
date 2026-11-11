@@ -277,6 +277,28 @@ describe('Stories 23.10 and 23.11 (batch e23h): the "Como ensaiar" and recommend
     expect(setDraftTestHelp(draft(), 'measurement_tests', 2, 'objective', 'X')).toEqual(draft());
   });
 
+  it('e24f-UNIT R-3 any write of the recommendation also clears the imported index recommendation; an untouched test keeps it', () => {
+    const imported = (): CompanyTypeDraft => {
+      const copy = duplicateSeededType(SEED_VERSION, 'transformador_forca').draft;
+      const index = copy.tests.findIndex((test) => test.key === 'isolacao');
+      (copy.tests[index] as Record<string, unknown>).index_recommendation = 'Recomendação importada do índice.';
+      return copy;
+    };
+    const testsOf = (draft: CompanyTypeDraft) => draft.tests! as Record<string, unknown>[];
+    const at = testsOf(imported()).findIndex((test) => test.key === 'isolacao');
+    for (const value of ['Nova recomendação.', '', '  ']) {
+      const next = setDraftTestRecommendation(imported(), 'tests', at, value);
+      expect('index_recommendation' in testsOf(next)[at]!, JSON.stringify(value)).toBe(false);
+    }
+    // Another test written: the insulation test keeps its index recommendation; a test without one is otherwise unchanged.
+    const other = testsOf(imported()).findIndex((test) => test.key !== 'isolacao');
+    const touched = setDraftTestRecommendation(imported(), 'tests', other, 'Outra.');
+    expect(testsOf(touched)[at]!.index_recommendation).toBe('Recomendação importada do índice.');
+    expect({ ...testsOf(touched)[other], recommendation: undefined }).toEqual({ ...testsOf(imported())[other], recommendation: undefined });
+    // A draft not edited keeps it.
+    expect(testsOf(imported())[at]!.index_recommendation).toBe('Recomendação importada do índice.');
+  });
+
   it('a draft written through the edits publishes with both keys (the strict schema takes them)', () => {
     let next: CompanyTypeDraft = duplicateSeededType(SEED_VERSION, 'para_raio').draft;
     next = setDraftTestHelp(next, 'tests', 0, 'objective', 'Objetivo de exemplo.');

@@ -3011,6 +3011,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (P-3, owner: E21-A4, a test-hardening batch)
   summary: Four tests went red under load in two or more gates and passed alone each time: `apps/web/src/state/reading-arrivals.test.tsx` (the caption toast), `apps/web/src/surfaces/home/home-surface.test.tsx` (12.2 "Continuar"), `apps/web/src/surfaces/relatorio/setup-surface.test.tsx` (the exclusion typing) and R8LAY-E2E-008 (`e2e/review-layout-interaction-2026-10-08.spec.ts`, the "Novo relatório" dialog within 5 s).
   evidence: PR #254 § Story gate (load 23.5); PR #255 § Earlier gate (load 26); `epic-21-context.md` § Integrated gate (load 4.5 to 5.2, with the review stack beside it); `docs/kbs/log.md` chore T2 (R8LAY-E2E-008 red once in 5); `epic-12-retro-2026-09-25.md:73` (`home-surface.test.tsx`).
+  state: closed (2026-11-10, fix batch e24f, E23-A4) for the three unit tests, each hardened on its cause, written in `spec-e24f-retro-fixes.md` § Auto Run Result (setup-surface: the edit pasted whole, a keystroke race of the product reported in the e24f rows below; reading-arrivals and home-surface: a render chain of live queries given the test's budget). R8LAY-E2E-008 is not closed by a fix: its press is now repeated until the dialog opens, and the lost press it met stays open in the e24f rows below.
 
 ## Deferred from: e22c (2026-11-06)
 
@@ -3316,7 +3317,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: One web test failed once in the full unit run under load and passed alone (`relatorio-tree-edges.test.tsx` "Desfazer after a move focuses the row's Position box", 9,5 s): the relatório tree, untouched by this batch.
   evidence: `.scratch-e23v/unit-all-1.log`, `.scratch-e23v/unit-tree-edges.log` (11 of 11 alone).
   class: flake
-  state: open (owner: the next carry-over batch, E15-A4)
+  state: ~~open (owner: the next carry-over batch, E15-A4)~~ closed (2026-11-10, fix batch e24f, E23-A4): "Desfazer" was read at once after the announcement, before its toast renders; the test now waits for it (`spec-e24f-retro-fixes.md` § Auto Run Result)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23v-three-levels.md` (Review Triage Log 2026-11-09, Edge Case Hunter)
   summary: The parecer names a para-raio Reprovado only by its failed prerequisite (DESLIGADOR ÍNTEGRO NÃO) in the reasonless group ("Reprovado (PR-1)."), as if the engineer had chosen Reprovado. A fix needs a reason group, an authored word and a parecer-basis key present only when used.
   evidence: `packages/domain/src/relatorio/parecer.ts` (the `byReason` loop: ratio, reading, defect, other).
@@ -3454,7 +3455,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the base's IP rows (TR-OL-03, TR-SE-03) give the insulation test only its `index_recommendation`. Their "Como ensaiar" texts are not merged into the test's help, and the type editor neither shows nor edits `index_recommendation`. In rev08 the IP rows carry the same recommendation as the 1-minute rows.
   evidence: `packages/domain/src/types/test-base-import.ts` `TEST_BASE_INDEX_ROWS`; `apps/web/src/surfaces/templates/type-editor-parts.tsx`.
   class: decision
-  state: ~~open (owner: Matheus, with Bruno)~~ decided (2026-11-10, Matheus: accepted, no change): the IP rows' "Como ensaiar" texts do not enter the insulation test's help. Open only for the question to Bruno (owner: Matheus, the next list of questions for Bruno); 2026-11-10 (evening): after fix batch e24h (no automatic points) the index recommendation no longer prints by itself. It reaches print only inside a point someone created (fix batch e24f item R-3, reworded in `epic-24-context.md`; Story 24.17)
+  state: ~~open (owner: Matheus, with Bruno)~~ decided (2026-11-10, Matheus: accepted, no change): the IP rows' "Como ensaiar" texts do not enter the insulation test's help. Open only for the question to Bruno (owner: Matheus, the next list of questions for Bruno); 2026-11-10 (evening): after fix batch e24h (no automatic points) the index recommendation no longer prints by itself. It reaches print only inside a point someone created (fix batch e24f item R-3, reworded in `epic-24-context.md`; Story 24.17). *(2026-11-10, fix batch e24f, R-3: any write of the test's "Recomendação se reprovado" in the editor deletes its `index_recommendation`; an untouched copy keeps it.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (item 2 reading; I/O matrix)
   summary: how this batch reads Bruno's item 6 (2026-11-09). A Reprovado chosen by hand starts with the recommendations of the sheet's restricted tests when any test is restricted, else of every in-force test that has one. Texts are taken once each, in definition order. Bruno decides whether he wants only one test's recommendation, or none when no test is restricted.
   evidence: `packages/domain/src/points/derived.ts` `reprovadoRecommendations`.
@@ -3467,7 +3468,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   - Item 4: only removing the field is refused. Changing its kind or options is not.
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (`unjudged`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`); `packages/domain/src/types/draft-edit.ts`.
   class: note
-  state: ~~open (owner: the Epic 23 retrospective)~~ closed (2026-11-10, the Epic 23 retrospective, headless): the clear with no "Desfazer" (item 3) and the refusal of only the field's removal (item 4) are accepted as designed. The missing helper on a cell the deviation between phases cannot judge (W3-2) goes to E23-A1 with finding R-1 of `epic-23-retro-2026-11-10.md`. *(2026-11-10, Epic 24 planning, the same day: item 4 is taken further by Story 24.20, which also refuses a vector-group field whose kind or options were changed.)*
+  state: ~~open (owner: the Epic 23 retrospective)~~ closed (2026-11-10, the Epic 23 retrospective, headless): the clear with no "Desfazer" (item 3) and the refusal of only the field's removal (item 4) are accepted as designed. The missing helper on a cell the deviation between phases cannot judge (W3-2) goes to E23-A1 with finding R-1 of `epic-23-retro-2026-11-10.md`. *(2026-11-10, fix batch e24f, R-1: the cell carries a "Conferir:" helper and the paragraph reads "com leitura a conferir".)* *(2026-11-10, Epic 24 planning, the same day: item 4 is taken further by Story 24.20, which also refuses a vector-group field whose kind or options were changed.)*
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR texts:
   - "Apagar leitura" and "Leitura apagada";
@@ -3528,7 +3529,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Three tests went red under load in two or more gates of Epic 23 and passed alone each time: 21.1-E2E-002 (`e2e/seed-v11.spec.ts`; e23t's story gate, the wave 3 gate, T3's run 1), R8CAP-E2E-010 (`e2e/review-photo-failures.spec.ts`; e23t's story gate, e23p's full run) and 4.8-E2E-005 (`e2e/export.spec.ts`; e23w's story gate, T3's run 2, where the job finished in 1.6 s and the device sent no request for 150 s). `setup-surface.test.tsx`, already in the Epic 21 retrospective's row above, was red again in e23p's story gate. That row still has no state and no owner batch.
   evidence: `epic-23-context.md` § Fix batch e23w, § Wave 3, § Fix batch e23p; `spec-e23t-transformer-tests.md` Auto Run Result (gate reds); `spec-t3-serial-split.md:151-152`.
   class: flake
-  state: open (owner: E23-A4); assigned 2026-11-10 to fix batch e24f (Matheus: yes), `epic-24-context.md` § Fix batch e24f
+  state: ~~open (owner: E23-A4); assigned 2026-11-10 to fix batch e24f (Matheus: yes), `epic-24-context.md` § Fix batch e24f~~ closed (2026-11-10, fix batch e24f): 4.8-E2E-005 and 21.1-E2E-002 wait on the revision poll, which answers `busy` while a sync cycle runs; a JSON request with no answer held the cycle with no timeout, so the product now ends one whose answer's headers never come as a network failure, after 60 s plus its body at 8 KB/s (`requestHeadersTimeoutMs`, `apps/web/src/sync/client.ts`); R8CAP-E2E-010 retries its "Criar" press while the field's list re-mounts and reads the tray once the reloaded sheet is drawn; `setup-surface.test.tsx` as in the Epic 21 row above. Causes and runs in `spec-e24f-retro-fixes.md` § Auto Run Result
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (Behavior verification, owner: E23-A5)
   summary: The read-only preview of Bruno's v5 relatório after the deploy, planned in `epic-23-context.md` § Coordinator decisions ("Bruno's v5 relatório"), has no run on record for any of the three Epic 23 deploys. The v5 layout-lock golden covers the same risk in tests; the production check is the one that was planned.
   evidence: `epic-23-context.md:341` against § Deploy.
@@ -3571,4 +3572,80 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Story 24.3 planned "an observation floors nothing" for seed v14 only, behind the `conclusion_restriction_by_choice` flag; H9 does it on every seed now, so 24.3 keeps only the Reprovado-without-restriction half. Its text in `epics.md` and `epic-24-context.md` is the planner's to amend (not edited here).
   evidence: `epic-24-context.md` § Decisions, the 24.3 row of the flags table.
   class: decision
-  state: open (owner: the coordinator, with Story 24.3's amendment)
+  state: ~~open (owner: the coordinator, with Story 24.3's amendment)~~ closed (2026-11-10, coordinator): Story 24.3 carries its dated note in `epics.md`, with the row in `source-deltas.md` and the H9 paragraph of `epic-24-context.md` § Fix batch e24h
+
+## Deferred from: the e24h hands-on pass (2026-11-10)
+
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H3)
+  summary: Once a point was created from an NC item, the item shows "Ponto de atenção N" and "Criar ponto de atenção" stays, so a second identical point can be saved with no warning. On the "Não ensaiado" band the button disappears and nothing on the ficha says a point exists.
+  evidence: the pass's screenshots `66-wip-second-point-same-item-dialog.png` and `17-wip-A8-band-after-point.png` (gitignored).
+  class: note
+  state: open (owner: Epic 24, Story 24.7, batch e24b, if it touches the two create paths; else the wave 1 fix batch)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H5)
+  summary: The Sumário's points line undercounts "sem ação": a point created from the "Não ensaiado" band is counted as "1 não ensaiada" and left out of "sem ação" though it has no action.
+  evidence: `packages/domain/src/points/summary.ts`; the pass's screenshot `59-new-A9-sumario.png` (gitignored).
+  class: note
+  state: open (owner: the next batch touching `points/summary.ts`)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H6)
+  summary: The Export dialog's "Antes de emitir" lists the last sends of other devices with no "Outro aparelho" label and leaves out this device's line, so the last send reads as days old on a relatório created minutes ago. The Sync screen shows the same lines with the label.
+  evidence: the pass's screenshots `60-new-C1-export-dialog.png` and `64-sync-status.png` (gitignored).
+  class: note
+  state: open (owner: the next batch touching the Export dialog)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H7)
+  summary: "Controle do documento" in the Export dialog says "FO.SERV-03 · Revisão 01" and names the user's company as Contratada, while the issued PDF prints "Revisão 00" and the letterhead company. It may be local data only.
+  evidence: the pass's `new-rev1.pdf`, page 2, against `60-new-C1-export-dialog.png` (gitignored).
+  class: verification
+  state: open (owner: the next batch touching the Export dialog: check it on a company with real document-control data first)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H8)
+  summary: A ficha stored Aprovado · Com restrições whose stored reading is judged out of its criterion shows Reprovado · Com restrições with "Conclusão ajustada pela ficha" and "Confirmar". On a transformer it is an over-range reading ("> 10 GΩ") judged below a minimum of 25 000 MΩ. Older than e24h: a revision of 2026-11-09 already listed the reading.
+  evidence: the pass's screenshots `27-B7-ficha-before.png` and `28-B7-para-raio-before.png` (gitignored); Story 23.4's instrument-limit rule.
+  class: decision
+  state: open (owner: Bruno, with the next list of questions: is an over-range reading below the table's minimum a failure?)
+
+## Deferred from: Epic 24 fix batch e24f (2026-11-10)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (R-4, the narrowing as built)
+  summary: A company copy of cabos de saída carries no role (the block config schema refuses one on a company type and no screen writes one), so it prints in the seccionadoras subsection, unpaired, and no copy feeds a transformer: W3-3's "cables before their transformer" holds for the seeded cables only. The e23z test now asserts this. Whether a copy should carry a role is Epic 24's question (E23-A8).
+  evidence: `packages/domain/src/print/group-for-print.ts` (`cabos_saida` without `alimentacao`); `packages/domain/src/relatorio/e23z-final-fixes.test.ts` (W3-3).
+  class: narrowing
+  state: open (owner: Matheus, Epic 24 planning)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (R-1, Design Notes D1)
+  summary: The conclusion basis is unchanged by R-1, so a paragraph confirmed before the fix with "dentro dos critérios de aceitação" over an unjudged reading keeps printing its confirmed words; only the composed text changed. A production count found no relatório on seed v13 (R-1a's path); R-1b's path is a company copy of the Quadro elétrico with a second test.
+  evidence: `packages/domain/src/relatorio/conclusion.ts` (`composeConclusion`, the basis).
+  class: decision
+  state: open (owner: Matheus: keep the confirmed texts, or another reading)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (authored strings listed for Bruno)
+  summary: Two authored pt-BR sentences: the helper of a measured cell the deviation between phases could not judge, "Conferir: leitura sem comparação com as outras fases, sem critério aplicado"; and, reused on two new paths, the paragraph's existing "valores medidos com leitura a conferir".
+  evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` `UNJUDGED_DEVIATION_HELPER`; `packages/domain/src/relatorio/conclusion.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, setup-surface)
+  summary: A text field of the setup (and any `useTextField`, and the exclusions list) commits after 500 ms idle and resyncs from the store when the stored value differs from the last one it saw. A key typed after an idle commit and before that commit's live-query echo is overwritten by the echo. On a loaded host the test lost keys this way; on a slow tablet a pause and a fast key could do the same. Not fixed (outside the batch's behaviour scope).
+  evidence: `apps/web/src/surfaces/relatorio/setup/setup-fields.ts` `useTextField`; `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx` (the exclusions' resync); `apps/web/src/input/field-commit.ts` `FIELD_COMMIT_IDLE_MS`.
+  class: defect
+  state: open (owner: the next batch touching the setup fields)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (R-5)
+  summary: The fold's branch for a `remove` on a tap row's cell is pinned by a kernel test only: the op schema accepts a `remove` on a `removed_at` path only, so no push carries one on a cell. The two-device case runs through the push route with null puts.
+  evidence: `packages/domain/src/ops/op.ts` (the remove refinement); `packages/domain/src/ops/apply.ts` `assertCellGeometry`.
+  class: note
+  state: open (owner: none needed; recorded)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (R-9)
+  summary: The spec's I/O row asks that "Igual à ⟨TAG⟩?" counts the copied fields in its toast; the product's toast reads "Copiado de ⟨TAG⟩" with no count (only "Copiar da última visita" counts). The new case asserts the product's words and counts the copied fields from the outbox; no behaviour was changed.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` `copySame`; `apps/web/src/copy/pt-br.ts` `nameplate.copiedFrom`; `e2e/v13-nameplate.spec.ts` e24f-E2E-002.
+  class: decision
+  state: open (owner: Matheus: a count in that toast too, or as is)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8CAP-E2E-010)
+  summary: FABRICAÇÃO's combobox list was re-mounted between the "Criar ⟨nome⟩" option's resolution and the press, twice in three runs at load 6 to 10 (Playwright: "element was detached from the DOM"), while the sheet re-rendered under the sync engine's retries of a held upload. The test now retries the press. Whether a tap on a slow tablet is lost the same way is not known; not fixed (outside the batch's behaviour scope).
+  evidence: `.scratch-e24f/e2e-repeat-2.log`, `e2e-repeat-3.log` (worktree, not tracked); `apps/web/src/components/registry-picker-field.tsx`.
+  class: risk
+  state: open (owner: the next batch touching the registry picker)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8LAY-E2E-008)
+  summary: "Novo relatório" pressed on a Home that already shows its status board can be lost while the launch still re-renders (the dialog never opened in the load reds). The test now repeats the press until the dialog opens, so this lost press, which a user would meet too, no longer fails any test. The cause is not found; nothing in the product changed.
+  evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-008; `apps/web/src/surfaces/home/home-surface.tsx` (the "Novo relatório" button).
+  class: flake
+  state: open (owner: the next batch touching the Home launch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, 4.8-E2E-005)
+  summary: Only the JSON requests' wait for their answer's headers is bounded (`requestHeadersTimeoutMs`). `send()` (the photo uploads, the thumbnail and file downloads) still has no bound, so the sync cycle, and every poll gated on it, can still be held by an upload or a thumbnail whose answer never comes.
+  evidence: `apps/web/src/sync/client.ts` `send`; `apps/web/src/sync/engine.ts` (the upload and thumbnail phases).
+  class: note
+  state: open (owner: the next batch touching sync)

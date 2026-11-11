@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { applyOp, entityKey, SeedPathError, type EntityState } from '../ops/apply.ts';
+import type { Op } from '../ops/op.ts';
 import { groupForPrint, printBlockTypeOf, printGroupWordsOf } from '../print/group-for-print.ts';
 import { resolvedOriginPoints } from '../points/derived.ts';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
@@ -10,7 +11,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { definitionContext, EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { recommendedPointText } from '../seed/test-help.ts';
-import { opFactory, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
+import { idSequence, opFactory, T0, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { asBlockDefinition } from '../types/block-definition.ts';
 import type { CompanyTypeDefinition } from '../types/definition.ts';
 import { removeDraftEntry, removeDraftEntryRefusal } from '../types/draft-edit.ts';
@@ -225,24 +226,30 @@ describe('e23z-UNIT W3-3 a company copy of one of the eight prints in its base\'
     companySheet(2, versions[1]!, 'a2'), // TP copy
     companySheet(3, versions[2]!, 'a3'), // Malha copy
     companySheet(4, versions[3]!, 'a4'), // transformer copy
-    companySheet(5, versions[4]!, 'a5'), // cable copy, alimentação, feeding the transformer
+    // Fix batch e24f (R-4): ~~a cable copy given role alimentação and feeds_block_id by hand~~ (no path writes
+    // either on a company block); the copy as the product makes it.
+    companySheet(5, versions[4]!, 'a5'), // cable copy, as created: no role, feeding nothing
     companySheet(6, versions[5]!, 'a6'), // transformer copy made before the key
   ];
-  sheets[4]!.block.config = { ...(sheets[4]!.block.config as object), role: 'alimentacao' } as BlockRow['config'];
-  sheets[4]!.block.feeds_block_id = sheets[3]!.block.id;
   const snapshot = (scheme: 'por_local_e_tipo' | 'ordem_de_campo' = 'por_local_e_tipo') =>
     ({ relatorio: { ...RELATORIO, export: { scheme } }, locations: [cabine], blocks: sheets.map((one) => one.block), equipment: sheets.map((one) => one.equipment), equipment_types: versions }) as unknown as RelatorioSnapshot;
   const block = (n: number) => id(1000 + n);
 
-  it('TP and TC copies pair in TP\'s e TC\'s, the cable copy before its transformer copy, an old copy and the Malha copy (last) in Outros equipamentos', () => {
+  // Fix batch e24f (R-4): the narrowing as built (deferred-work.md, e24f): a company copy of cabos de saída carries no
+  // role, so it prints with the seccionadoras, unpaired, and the transformer copy prints alone.
+  it('TP and TC copies pair in TP\'s e TC\'s; a cable copy (no role) prints with the seccionadoras, unpaired, the transformer copy alone; an old copy and the Malha copy (last) in Outros equipamentos', () => {
     const grouping = groupForPrint(snapshot());
     expect(grouping.subsections.map((one) => ({ kind: one.kind, blockIds: one.blockIds }))).toEqual([
+      { kind: 'seccionadoras', blockIds: [block(5)] },
       { kind: 'tps_tcs', blockIds: [block(2), block(1)] },
-      { kind: 'transformadores', blockIds: [block(5), block(4)] },
+      { kind: 'transformadores', blockIds: [block(4)] },
       { kind: 'outros', blockIds: [block(6), block(3)] },
     ]);
+    expect(sheets[4]!.block.feeds_block_id).toBeNull();
+    expect('role' in (sheets[4]!.block.config as object)).toBe(false);
     expect(grouping.warnings).toEqual([]);
-    expect(grouping.subsections[1]!.title).toBe('Transformadores e Cabos de Alimentação da Cabine principal');
+    expect(grouping.subsections[0]!.title).toBe('Seccionadoras dos Cubículos de MT da Cabine principal');
+    expect(grouping.subsections[2]!.title).toBe('Transformadores e Cabos de Alimentação da Cabine principal');
   });
 
   it('ordem_de_campo and a cabine without "Agrupar por tipo": unchanged', () => {
@@ -349,17 +356,49 @@ describe('e23z-UNIT item 3 a TTR row off the plate takes a clear, never a value'
     const head = (row: number, col: number) => (state.get(entityKey('block', block.id)) as BlockRow).sheet.test.relacao_transformacao?.cells[String(row)]?.[String(col)]?.op_id ?? null;
     const put = (col: number, value: JsonValue, row = 12600) => f.op({ path: `sheet/${block.id}/test/relacao_transformacao/cell/${row}/${col}`, value, prev_op_id: head(row, col) });
     expect(() => applyOp(state, put(3, measured('62.9', null)))).toThrow(SeedPathError);
-    expect(() => applyOp(state, put(3, null, 12601))).toThrow(SeedPathError);
+    // Fix batch e24f (R-5, contract 42): ~~a null put on a row never stored is refused~~; a clear off the plate is
+    // accepted whatever the row holds, and on a row with no filled cell it changes nothing.
+    expect(applyOp(state, put(3, null, 12601)).get(entityKey('block', block.id))).toBe(block);
     expect(rowsOf(block)).toContain(12600);
     for (const col of [3, 4, 5]) state = applyOp(state, put(col, null));
     const cleared = state.get(entityKey('block', block.id)) as BlockRow;
     expect(rowsOf(cleared)).not.toContain(12600);
     expect(rowsOf(cleared)).toEqual([13800, 13200, 12000, 11400]);
-    // Cleared, the row is refused again, value or null.
+    // Cleared, the row is refused a value again; fix batch e24f (R-5): ~~and a null~~ a null is a no-op.
     expect(() => applyOp(state, put(3, measured('70', null)))).toThrow(SeedPathError);
-    expect(() => applyOp(state, put(3, null))).toThrow(SeedPathError);
+    expect(applyOp(state, put(3, null)).get(entityKey('block', block.id))).toBe(cleared);
     // A row of the plate takes values as before.
     expect(() => applyOp(state, put(3, measured('62.9', null), 13200))).not.toThrow();
+  });
+
+  it('e24f-UNIT R-5 a second "Apagar leitura" from another device: each null put and a remove accepted with nothing changed; a value still refused', () => {
+    const block = dropped();
+    const deviceA = opFactory(T0, idSequence('019966b0-0e24-7000-800a-'));
+    const deviceB = opFactory(T0, idSequence('019966b0-0e24-7000-800b-'));
+    const key = entityKey('block', block.id);
+    const start: EntityState = new Map([[key, block]]);
+    // Both devices saw the row filled: each op names the cell's head op of that state.
+    const headOf = (row: number, col: number) => block.sheet.test.relacao_transformacao?.cells[String(row)]?.[String(col)]?.op_id ?? null;
+    const clear = (f: ReturnType<typeof opFactory>, col: number) => f.op({ path: `sheet/${block.id}/test/relacao_transformacao/cell/12600/${col}`, value: null, prev_op_id: headOf(12600, col) });
+    let server = start;
+    for (const col of [3, 4, 5]) server = applyOp(server, clear(deviceA, col));
+    const afterA = server.get(key) as BlockRow;
+    expect(rowsOf(afterA)).not.toContain(12600);
+    // Device B's three null puts (synced later): accepted, the row deep-equal before and after.
+    for (const col of [3, 4, 5]) {
+      const before = server.get(key);
+      server = applyOp(server, clear(deviceB, col));
+      expect(server.get(key), `col ${col}`).toBe(before);
+    }
+    expect(server.get(key)).toEqual(afterA);
+    // A remove on the emptied row: accepted, no-op. (The op schema takes a remove on a removed_at path only, so this
+    // kind reaches the fold from no push; the fold's branch is pinned here alone.)
+    const remove = { ...clear(deviceB, 3), kind: 'remove' } as Op;
+    expect(applyOp(server, remove).get(key)).toBe(server.get(key));
+    // A non-null put on the off-plate row stays refused, on the filled row and on the emptied one.
+    const value = () => deviceB.op({ path: `sheet/${block.id}/test/relacao_transformacao/cell/12600/3`, value: measured('70', null), prev_op_id: null });
+    expect(() => applyOp(start, value())).toThrow(SeedPathError);
+    expect(() => applyOp(server, value())).toThrow(SeedPathError);
   });
 });
 
