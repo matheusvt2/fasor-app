@@ -27,6 +27,18 @@
 [data-route="/templates"] .type-row .rr-primary { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 [data-route="/templates"] .type-row .rr-lib { cursor: default; }
 [data-route="/templates"] .type-sub { margin-top: var(--sp-5); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: var(--sp-2); }
+/* Story 25.1 Part B (2026-11-11; MOCK-GUIDE.md § 2026-11-11), for Story 25.23: "Atualizar base de ensaios" beside the import (both drawn
+   here for the first time; the import is Story 23.12's, built in the type list) and its preview, a Confirm dialog shell that scrolls inside.
+   Each text the office edited and the new revision changed is one row with a Segmented choice. Existing classes; layout on existing tokens. */
+[data-route="/templates"] #tpl-tipos .section-head { flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); }
+[data-route="/templates"] .e25-base-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+[data-route="/templates"] #tpl-dlg-base-update .confirm-dialog { max-width: 640px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/templates"] .e25-diff-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/templates"] .e25-diff-list li { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/templates"] .e25-diff-list .e25-diff-where { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/templates"] .e25-diff-list .segmented { max-width: 420px; }
+.frame-phone [data-route="/templates"] #tpl-dlg-base-update { padding: 0; align-items: stretch; }
+.frame-phone [data-route="/templates"] #tpl-dlg-base-update .confirm-dialog { width: 100%; max-width: none; border-radius: 0; }
 </style>
 <section class="screen" data-route="/templates" data-title="Templates" data-shell="app" data-rail="false">
   <div class="tpl-content">
@@ -91,7 +103,7 @@
          "Tipos de equipamento" list. Library types are read-only with "Duplicar" only; company types carry Rascunho · Publicado ·
          Aposentado and their version. Reached only from Templates, never from a field surface (UX-DR70). Copy authored. -->
     <section class="section tpl-group" aria-labelledby="tpl-h-tipos" id="tpl-tipos">
-      <div class="section-head"><h2 id="tpl-h-tipos">Tipos de equipamento</h2></div>
+      <div class="section-head"><h2 id="tpl-h-tipos">Tipos de equipamento</h2><div class="e25-base-actions"><button class="btn btn-text" data-toast="Importar base de ensaios — escolha o arquivo JSON da base"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Importar base de ensaios</button><button class="btn btn-text" data-open="#tpl-dlg-base-update" aria-haspopup="dialog"><svg class="ico" aria-hidden="true"><use href="#i-cycle"/></svg>Atualizar base de ensaios</button></div></div>
       <p class="section-note">Um tipo de equipamento define a ficha: placa, verificações, ensaios e critérios. Os tipos da biblioteca vêm com o PRODUTO e não mudam; para ajustar um, duplique e edite a cópia. Publicar congela uma versão: relatórios já criados mantêm a versão que usaram.</p>
 
       <p class="type-sub" id="tpl-h-tipos-empresa">Da empresa (3)</p>
@@ -168,6 +180,28 @@
   </div><!-- /tpl-content -->
 
   <!-- 2026-11-06, Story 14.7: "Aposentar" asks for confirmation (copy authored). -->
+  <!-- Story 25.1 Part B (2026-11-11), for Story 25.23: the update's preview, after the file was chosen (the same file format as the import).
+       What it adds, what it replaces by itself (a text nobody edited since the last update), and each text the office edited that the new
+       revision changes, kept unless the office chooses the base's. Nothing is published: each touched type gets a draft. Counts and names
+       are invented samples; the lines are the kernel's in the build. -->
+  <div class="dialog-scrim" id="tpl-dlg-base-update" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="tpl-dlg-base-update-t">
+      <p class="dialog-title" id="tpl-dlg-base-update-t">Atualizar base de ensaios</p>
+      <p class="t-body">Atualiza 3 tipos da empresa com esta base. Nada é publicado: cada tipo ganha um rascunho para você conferir e publicar.</p>
+      <p class="t-body">Acrescenta 2 ensaios que os tipos ainda não têm e os textos de 5 ensaios que estavam vazios, entre eles o "Como ensaiar" do índice de polarização.</p>
+      <p class="t-body">Substitui 1 texto que ninguém editou desde a última atualização.</p>
+      <p class="field-label">Editados pela empresa e diferentes nesta base (2)</p>
+      <ul class="e25-diff-list">
+        <li><span class="e25-diff-where">Transformador de força — base 2026 · Ensaio de isolação · Recomendação se reprovado</span><div class="segmented" role="radiogroup" aria-label="Recomendação se reprovado do ensaio de isolação"><button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Manter o da empresa</button><button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Usar o da base</button></div></li>
+        <li><span class="e25-diff-where">Chave seccionadora — base 2026 · Resistência ôhmica de contato · Como ensaiar</span><div class="segmented" role="radiogroup" aria-label="Como ensaiar da resistência de contato"><button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Manter o da empresa</button><button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Usar o da base</button></div></li>
+      </ul>
+      <p class="t-body">Cria 1 tipo que a empresa ainda não tem, como na importação: Disjuntor MT.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="3 tipos atualizados e 1 importado da base de ensaios · rascunhos para publicar">Atualizar</button>
+      </div>
+    </div>
+  </div>
   <div class="dialog-scrim" id="tpl-dlg-aposentar" hidden>
     <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="tpl-dlg-aposentar-t">
       <p class="dialog-title" id="tpl-dlg-aposentar-t">Aposentar No-break de comando?</p>

@@ -27,6 +27,12 @@
 .frame-tablet [data-route="/relatorio/porto-seguro/setup"] .instrument-list .cert-link,
 .frame-phone [data-route="/relatorio/porto-seguro/setup"] .instrument-list .cert-link { display: none; }
 .frame-phone [data-route="/relatorio/porto-seguro/setup"] .instrument-list .ip-code { min-width: 32px; }
+/* Story 25.1 Part B (2026-11-11; MOCK-GUIDE.md § 2026-11-11), for Story 25.13: an instrument used on a live sheet shows as marked from the
+   sheets (derived, not a stored tick) with the count of sheets, and cannot be unticked while used; one ticked and used on no sheet carries a
+   warning line. Existing classes; the used line in label ink-secondary, the warning in fora-do-limite (the .ip-expired ink). */
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list .e25-used { margin: var(--sp-1) 0 0 calc(28px + var(--sp-3)); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list .e25-unused { margin: var(--sp-1) 0 0 calc(28px + var(--sp-3)); }
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list .checkbox[aria-disabled="true"] { cursor: default; }
 [data-route="/relatorio/porto-seguro/setup"] .preview-box { background: var(--surface-base); border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
 [data-route="/relatorio/porto-seguro/setup"] .preview-box .var { background: var(--focus-fill); border-radius: 2px; padding: 0 3px; }
 /* Combobox list opens under the input (data-open); keep the chevron on the input while the list is visible */
@@ -216,7 +222,7 @@
         <p class="section-note">Marque os instrumentos desta obra: o certificado de cada um entra na seção 11 e o seletor de instrumento das fichas já começa por eles. Em campo, o cadastro inteiro continua disponível.</p>
         <ul class="instrument-list instrument-picker">
           <li>
-            <button class="checkbox" role="checkbox" aria-checked="true" aria-describedby="setup-i2e-cal">
+            <button class="checkbox" role="checkbox" aria-checked="true" aria-disabled="true" aria-describedby="setup-i2e-cal" data-toast="Usado em 12 fichas: troque o instrumento nas fichas para desmarcar">
               <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
               <span class="ip-code">2E</span>
               <span class="ip-text">
@@ -226,9 +232,10 @@
               <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
             </button>
             <p class="ip-expired" id="setup-i2e-cal" role="status">Calibração do 2E vencida em 28/08/2027. Pode continuar — listada na verificação antes de emitir.</p>
+            <p class="e25-used">Usado em 12 fichas</p>
           </li>
           <li>
-            <button class="checkbox" role="checkbox" aria-checked="true">
+            <button class="checkbox" role="checkbox" aria-checked="true" aria-disabled="true" aria-describedby="setup-i3m-used" data-toast="Usado em 8 fichas: troque o instrumento nas fichas para desmarcar">
               <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
               <span class="ip-code">3M</span>
               <span class="ip-text">
@@ -237,6 +244,7 @@
               </span>
               <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
             </button>
+            <p class="e25-used" id="setup-i3m-used">Usado em 8 fichas</p>
           </li>
           <li>
             <button class="checkbox" role="checkbox" aria-checked="true">
@@ -248,6 +256,18 @@
               </span>
               <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
             </button>
+            <p class="ip-expired e25-unused" role="status">Marcado, sem uso nas fichas. Desmarque se não foi usado: ele sai da seção 11.</p>
+          </li>
+          <li>
+            <button class="checkbox" role="checkbox" aria-checked="true" aria-disabled="true" aria-describedby="setup-i7e-used" data-toast="Usado em 1 ficha: troque o instrumento na ficha para desmarcar">
+              <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+              <span class="ip-code">7E</span>
+              <span class="ip-text">
+                <span class="ip-name">Megôhmetro digital DMG10Ki</span>
+                <span class="ip-detail">Instrum · série IN919021-31002 · sem data de calibração · sem certificado</span>
+              </span>
+            </button>
+            <p class="e25-used" id="setup-i7e-used">Usado em 1 ficha</p>
           </li>
           <li>
             <button class="checkbox" role="checkbox" aria-checked="false">

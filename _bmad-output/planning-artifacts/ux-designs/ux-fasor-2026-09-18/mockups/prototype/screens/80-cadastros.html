@@ -76,6 +76,10 @@
 [data-route="/cadastros"] #cad-panel-empresa:has(#cad-wm-switch[aria-checked="true"]) .brand-preview .bp-wm-note { display: inline; }
 [data-route="/cadastros"] .brand-preview .bp-note { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
 [data-route="/cadastros"] .empresa-save { margin-top: var(--sp-5); }
+/* Story 25.1 Part B (2026-11-11; MOCK-GUIDE.md § 2026-11-11), for Stories 25.12 and 25.13: a registry row says what it lacks (in the
+   .rr-expired ink, amber), a shared certificate names the other row (amber), a shared model is the lighter line (ink-secondary). Existing tokens. */
+[data-route="/cadastros"] .e25-rr-warn { display: block; margin-top: 2px; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+[data-route="/cadastros"] .e25-rr-light { display: block; margin-top: 2px; font-size: var(--t-label-size); line-height: var(--t-label-lh); color: var(--ink-secondary); }
 </style>
 <section class="screen" data-route="/cadastros" data-title="Cadastros" data-shell="app" data-rail="false">
 
@@ -239,6 +243,7 @@
             <div class="rr-text">
               <span class="rr-primary"><strong>2E</strong> — Megôhmetro digital DMG10Ki</span>
               <span class="rr-secondary">Instrum · série IN919021-25945 · RBC 37428/26 · Válida até 28/08/2027 · 37428-26.pdf</span>
+              <span class="e25-rr-light">Mesmo modelo de 7E: confira</span>
             </div>
             <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
           </li>
@@ -246,6 +251,26 @@
             <div class="rr-text">
               <span class="rr-primary"><strong>3M</strong> — Microhmímetro HTMO-10</span>
               <span class="rr-secondary">Hi-Tech · série G282926 · RBC 37276/26 · Válida até 20/08/2027 · 37276-26.pdf</span>
+              <span class="e25-rr-warn">Mesmo certificado de 6M</span>
+            </div>
+            <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+          </li>
+          <!-- Story 25.1 Part B (2026-11-11), for Stories 25.12 and 25.13: 6M shares 3M's certificate number (each names the other); 7E has no
+               calibration date and no certificate file, and shares 2E's model (the lighter line). The fields stay optional. -->
+          <li class="registry-row" tabindex="0" data-toast="Só o instrumento 2E abre no painel de edição" aria-label="6M, Microhmímetro HTMO-10, mesmo certificado de 3M, editar">
+            <div class="rr-text">
+              <span class="rr-primary"><strong>6M</strong> — Microhmímetro HTMO-10</span>
+              <span class="rr-secondary">Hi-Tech · série G290114 · RBC 37276/26 · Válida até 20/08/2027 · 37276-26.pdf</span>
+              <span class="e25-rr-warn">Mesmo certificado de 3M</span>
+            </div>
+            <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+          </li>
+          <li class="registry-row" tabindex="0" data-toast="Só o instrumento 2E abre no painel de edição" aria-label="7E, Megôhmetro digital DMG10Ki, sem data de calibração, editar">
+            <div class="rr-text">
+              <span class="rr-primary"><strong>7E</strong> — Megôhmetro digital DMG10Ki</span>
+              <span class="rr-secondary">Instrum · série IN919021-31002</span>
+              <span class="e25-rr-warn">Sem data de calibração · sem certificado</span>
+              <span class="e25-rr-light">Mesmo modelo de 2E: confira</span>
             </div>
             <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
           </li>
@@ -259,7 +284,7 @@
         </ul>
 
         <div class="pager">
-          <span>1–4 de 4 instrumentos</span>
+          <span>1–6 de 6 instrumentos</span>
           <div class="pager-btns">
             <button class="btn btn-text" aria-disabled="true" aria-label="Página anterior"><svg class="ico" aria-hidden="true"><use href="#i-chev-left"/></svg>Anterior</button>
             <button class="btn btn-text" aria-disabled="true" aria-label="Próxima página">Próxima<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
