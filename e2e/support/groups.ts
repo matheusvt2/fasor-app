@@ -387,6 +387,17 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 24.9: issues revisions through the shared queue and LibreOffice (a second visit for the contact rise; the grouping by type from the DOCX)',
   },
+  // Batch e24p (Stories 24.15 and 24.16): each issues two or more revisions of one obra to read MANUT. ANTERIOR's date and the note lines of the DOCX.
+  {
+    file: 'previous-visit-date.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.15: issues revisions of one obra through the shared queue and LibreOffice (the visit kept by its service date, an older visit issued late) to read the dated MANUT. ANTERIOR of the DOCX',
+  },
+  {
+    file: 'previous-visit-note.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.16: issues two revisions of one obra through the shared queue and LibreOffice (relatório A, whose issue writes last_results, then B) to read the note lines under the tables of the DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

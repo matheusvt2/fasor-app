@@ -360,6 +360,13 @@ const lastResultsEntryShape = {
   relatorio_id: uuidV7Schema,
   revision_number: z.number().int().positive(),
   issued_at: isoTimestampSchema,
+  /*
+   * Batch e24p (Story 24.15, contract 46): the visit's service date, a day or a month (AD-11), as the
+   * issue job keeps it from the relatório's `service_end`, else its `service_start`
+   * (`print/visit-date.ts`). Optional and never defaulted, so an entry written before 46 parses to
+   * the same bytes and its visit is dated by `issued_at`.
+   */
+  service_date: dateValueSchema.optional(),
   seed_version: z.string(),
   block_type: z.string(),
   readings: z.record(z.string(), lastResultReadingSchema),

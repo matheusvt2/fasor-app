@@ -1,4 +1,3 @@
-import { formatDateOfInstant } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { evaluateSheetMeasurements, measurementCells } from '../relatorio/measurement-evaluation.ts';
 import { isReadingValue, overRangeText } from '../relatorio/over-range.ts';
@@ -20,6 +19,7 @@ import {
   type PreviousResults,
   type SlotDefinition,
 } from './reading-slots.ts';
+import { compareVisits, visitDateText } from './visit-date.ts';
 
 /*
  * Story 22.12 (contract 32, AD-25's second projection): the readings an issued revision leaves on
@@ -109,12 +109,25 @@ export function blockReadings(block: BlockRow, definition: BlockDefinition, visi
  * - E is unrelated to X, this is a re-issue (revision > 1) and E was issued after X's first
  *   issue: E is a later visit, and nothing is written for that equipment;
  * - otherwise as before (X on top, prior E).
+ *
+ * Batch e24p (Story 24.15, every seed): each entry keeps its visit's service date (`service_date`:
+ * the relatório's `service_end`, else its `service_start`; no key when both are empty), and the
+ * visits are ordered by their dates (`compareVisits`) where at least one of the two carries a
+ * service date. After the "E's prior is X" rule, over a value E of another relatório:
+ * - X's visit is older than E's: X never becomes the top; it is written as E's `prior` when E holds
+ *   no prior or an older one (equal dates keep today's order: X, issued now, is the newer), else
+ *   nothing is written for that equipment;
+ * - X's visit is newer than E's: X on top, prior E, a re-issue included (the dates decide, not the
+ *   issue order the e23w skip stands in for);
+ * - equal dates, or no service date on either: today's rules, unchanged.
  */
 export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string; firstIssuedAt?: string }): LastResultsEntry[] {
   const out: LastResultsEntry[] = [];
   const done = new Set<string>();
   // Story 14.6: a company sheet's definition is the version its block references (the snapshot's `equipment_types`).
   const ctx = snapshotDefinitionContext(snapshot);
+  // Batch e24p (Story 24.15): the visit's service date, its last day else its first.
+  const serviceDate = snapshot.relatorio.setup.service_end ?? snapshot.relatorio.setup.service_start ?? null;
   for (const block of snapshot.blocks) {
     if (block.removed_at !== null || block.equipment_id === null || !isEquipmentBlock(block) || block.not_tested !== null) continue;
     if (done.has(block.equipment_id)) continue;
@@ -128,6 +141,7 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
       relatorio_id: snapshot.relatorio.id,
       revision_number: input.revisionNumber,
       issued_at: input.issuedAt,
+      ...(serviceDate === null ? {} : { service_date: serviceDate }),
       seed_version: block.seed_version,
       block_type: block.block_type,
       readings,
@@ -137,7 +151,13 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
       out.push({ equipmentId: block.equipment_id, value: { ...existing, prior: own } });
       continue;
     }
-    if (existing !== null && existing.relatorio_id !== snapshot.relatorio.id && input.revisionNumber > 1 && input.firstIssuedAt !== undefined && Date.parse(existing.issued_at) > Date.parse(input.firstIssuedAt)) continue;
+    // Batch e24p (Story 24.15): an older visit never becomes the top; a newer one by date takes it, even on a re-issue.
+    const order = existing === null || existing.relatorio_id === snapshot.relatorio.id ? 0 : compareVisits(own, existing);
+    if (existing !== null && order < 0) {
+      if (existing.prior === null || compareVisits(existing.prior, own) <= 0) out.push({ equipmentId: block.equipment_id, value: { ...existing, prior: own } });
+      continue;
+    }
+    if (order === 0 && existing !== null && existing.relatorio_id !== snapshot.relatorio.id && input.revisionNumber > 1 && input.firstIssuedAt !== undefined && Date.parse(existing.issued_at) > Date.parse(input.firstIssuedAt)) continue;
     const prior = existing === null ? null : existing.relatorio_id === snapshot.relatorio.id ? existing.prior : withoutPrior(existing);
     out.push({ equipmentId: block.equipment_id, value: { ...own, prior } });
   }
@@ -154,15 +174,17 @@ export function previousReadingText(reading: LastResultReading): string {
 
 /**
  * The line under a capture cell: "Anterior: 4,9 GΩ (rev. 1, 05/11/2026)".
+ * Batch e24p (Story 24.15, every seed): the date is the visit's (`visitDateText`: its service date
+ * when the entry keeps one, else its issue date, as before).
  * Fix batch e23p (P3, the behaviour pass's F4): with the test's reference temperature (`referenceC`,
  * null for an uncorrected test) and the reading's corrected value, the value the history rule judges
  * by follows the measured one: "Anterior: 12 GΩ, 30 GΩ a 20 °C (rev. 1, 05/11/2026)". A reading with
  * no `corrected` (a v12 visit, an uncorrected test) reads as before.
  */
-export function previousHelperText(entry: Pick<PreviousResults, 'revision_number' | 'issued_at'>, reading: LastResultReading, referenceC: number | null = null): string {
+export function previousHelperText(entry: Pick<PreviousResults, 'revision_number' | 'issued_at'> & Partial<Pick<PreviousResults, 'service_date'>>, reading: LastResultReading, referenceC: number | null = null): string {
   // authored (e23p, listed for Bruno): the previous corrected value beside the measured one.
   const corrected = referenceC === null || reading.corrected === undefined ? '' : `, ${correctedText(reading.corrected.raw, reading.corrected.unit)} a ${referenceC} °C`;
-  return `Anterior: ${previousReadingText(reading)}${corrected} (rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`;
+  return `Anterior: ${previousReadingText(reading)}${corrected} (rev. ${entry.revision_number}, ${visitDateText(entry)})`;
 }
 
 /** Fix batch e23p (P3): a test's reference temperature by key: a table test's `temperature_correction.to_c`, a measurement test's `winding_correction.to_c`. */

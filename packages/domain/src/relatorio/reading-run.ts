@@ -153,7 +153,8 @@ export interface WorstReading {
   rise?: string;
 }
 
-function whereOf(table: EvaluatedTable, row: EvaluatedRow, cell: EvaluatedCell): string {
+/** Where a reading is, as the conclusion names its worst one (batch e24p, Story 24.16: and the history note a risen pole). */
+export function whereOf(table: EvaluatedTable, row: EvaluatedRow, cell: EvaluatedCell): string {
   const captures = table.columns.filter((c) => c.role === 'capture').length;
   if (captures > 1) return cell.column;
   if (table.ratio) return row.label;

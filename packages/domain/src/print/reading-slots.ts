@@ -80,6 +80,8 @@ export function withoutPrior(entry: LastResults): PreviousResults {
     relatorio_id: entry.relatorio_id,
     revision_number: entry.revision_number,
     issued_at: entry.issued_at,
+    // Batch e24p (Story 24.15): the visit's service date, only where the entry keeps one (no key otherwise, so older entries keep their bytes).
+    ...(entry.service_date === undefined ? {} : { service_date: entry.service_date }),
     seed_version: entry.seed_version,
     block_type: entry.block_type,
     readings: entry.readings,

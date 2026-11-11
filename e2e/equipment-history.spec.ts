@@ -1,4 +1,4 @@
-import { cellAddressesOf, formatDateOfInstant, getDefinition, SEED_VERSION, type EquipmentRow, type LastResults, type TemplateRow } from '@app/domain';
+import { cellAddressesOf, getDefinition, previousHeaderText, SEED_VERSION, visitDateText, type EquipmentRow, type LastResults, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, type DocxStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -153,13 +153,14 @@ test('@p0 24.21-E2E-001 a transformer born TR-01 through "Novo relatório" and r
   await expect(page.getByRole('button', { name: 'Copiar da última visita (TF-A)' })).toBeVisible();
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   const cell = page.locator(`.ficha-cell[data-cell="isolacao:${FIRST.row}:${FIRST.col}"]`).filter({ visible: true });
-  await expect(cell.locator('.mf-helper[data-previous]')).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${formatDateOfInstant(last.issued_at)})`);
+  // Batch e24p (Story 24.15): the helper names the visit's date (its service date), the v14 header carries it too.
+  await expect(cell.locator('.mf-helper[data-previous]')).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${visitDateText(last)})`);
   await expect(cell.locator('input.mf-value')).toHaveValue('');
 
   // B's DOCX prints MANUT. ANTERIOR with A's value on TF-A's insulation table.
   const printedB = await issue(page, b);
   expect(printedB.paragraphs).toContain('TRANSFORMADOR DE FORÇA TF-A');
-  const withPrevious = printedB.tables.filter((table) => table[0]?.[0] === 'PONTO DE ENSAIO/CONEXÃO' && table[1]?.at(-1) === 'MANUT. ANTERIOR');
+  const withPrevious = printedB.tables.filter((table) => table[0]?.[0] === 'PONTO DE ENSAIO/CONEXÃO' && table[1]?.at(-1) === previousHeaderText(last, SEED_VERSION));
   expect(withPrevious).toHaveLength(1);
   expect(withPrevious[0]![2]!.at(-1)).toBe('4,9 GΩ');
 });

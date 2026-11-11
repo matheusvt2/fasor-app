@@ -145,6 +145,8 @@ export * from './print/revisions.ts';
 export * from './print/section-10.ts';
 export * from './print/last-nameplate.ts';
 export * from './print/last-results.ts';
+export * from './print/visit-date.ts';
+export * from './print/history-note.ts';
 export * from './print/sm-c1.ts';
 export * from './print/section-7.ts';
 export * from './print/caption-ordinal.ts';

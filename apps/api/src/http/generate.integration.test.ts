@@ -453,6 +453,26 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(((await own.json()) as { ops: Op[] }).ops.some((op) => op.path.endsWith('/last_results'))).toBe(false);
   });
 
+  it('24.15-INT, 24.15-API-001: each entry the issue wrote keeps the visit\'s service date beside issued_at; a version-45 pull of the obra is refused, the current one reads it; company B never does', async () => {
+    const pullProject = async (company: Company, version = String(CONTRACT_VERSION)) =>
+      authed(company, `/api/sync/projects/${SMALL_FIXTURE_PROJECT_ID}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: version } });
+    const res = await pullProject(companyA);
+    expect(res.status, await res.clone().text()).toBe(200);
+    const projected = ((await res.json()) as { ops: Op[] }).ops.filter((op) => op.path.endsWith('/last_results'));
+    expect(projected.length).toBeGreaterThan(0);
+    // The fixture's service ends on 2026-09-06 (`service_end`, else `service_start`): every entry keeps it, as a date, beside the instant.
+    for (const op of projected) {
+      const value = op.value as { issued_at: string; service_date?: string };
+      expect(value.service_date).toBe('2026-09-06');
+      expect(value.issued_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    }
+    // A bundle on 45 would strip the key: its pull of the obra answers 426.
+    const old = await pullProject(companyA, '45');
+    expect(old.status).toBe(426);
+    expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+    expect((await pullProject(companyB)).status).toBe(404);
+  });
+
   it('Story 22.10: a test cell put in over_range with a raw that is no positive decimal is refused alone (op_value_invalid); a well-formed one is a valid value', async () => {
     const cellPut = (value: unknown) =>
       makeOp(
