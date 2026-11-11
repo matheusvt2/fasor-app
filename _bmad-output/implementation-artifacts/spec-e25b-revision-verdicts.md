@@ -2,7 +2,8 @@
 title: 'e25b: the revision keeps the verdicts it printed (Story 25.4)'
 type: 'feature'
 created: '2026-11-11'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '4da9493b7b381dc7839369aee665497e2b9ec587'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

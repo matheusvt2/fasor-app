@@ -554,7 +554,19 @@
  * the definition gains the optional `nameplate_title` and `nameplate_photo: false` (the v14 Malha's
  * "Dados da malha", no plate photo), carried by a company definition too. MIN follows to 47 (below).
  */
-export const CONTRACT_VERSION = 47;
+/*
+ * 48 (2026-11-11, Story 25.4, batch e25b): no new op or path family. The `revision` row (a
+ * server-only create the generate job writes at issue) gains two optional keys the job computes
+ * once from the frozen snapshot it rendered (`printedVerdicts`): `printed_parecer`, the verdict
+ * section 10 printed (null when the section does not print), and `printed_conclusions`, each
+ * ficha's pair as section 9's CONCLUSÃO row printed it, by block id (empty when no sheet prints
+ * one). The technician's stored choices (`relatorio/setup/parecer`, `sheet/{id}/conclusion/*`) are
+ * never written. Never defaulted: a revision written before 48 parses to the same bytes, and
+ * absent means not recorded, so a raw reader (`relatorioVerdicts`) falls back to the effective
+ * values, never to Apto or Aprovado. No device reader reads the keys and nothing on screen or in
+ * print changes. MIN follows to 48 (below).
+ */
+export const CONTRACT_VERSION = 48;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -880,7 +892,15 @@ export const CONTRACT_VERSION = 47;
  * text a newer device writes; and it would offer "Fotografar placa" on a v14 Malha. Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 47;
+/*
+ * 48 (2026-11-11, Story 25.4, batch e25b): a version-47 (or older) bundle's revision schema strips
+ * `printed_parecer` and `printed_conclusions` when it folds a revision create, so its store would
+ * hold the revision without the verdicts it printed. No device reader reads them and nothing on
+ * screen changes, but such a device would keep the stripped row after it updates (a pulled op is
+ * not folded again). Its pull answers `426 contract_outdated` and it updates first; its pushes are
+ * still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 48;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -10,6 +10,7 @@ import {
   nextRevisionNumber,
   objectKey,
   PDF_MIME,
+  printedVerdicts,
   toIso,
   type Clock,
   type DocumentLayout,
@@ -497,6 +498,9 @@ async function commitRevision(
     docx_file_id: outputs.docxId,
     pdf_file_id: outputs.pdfId,
     created_at: now,
+    // Story 25.4 (contract 48): the parecer and the pairs this document printed, computed once by the
+    // kernel from the snapshot it rendered; the technician's stored choices are never written.
+    ...printedVerdicts(frozen.snapshot),
   };
   // AD-25: the issued plates, projected onto their equipment rows (project scope) in the
   // same batch as the revision, so "Copiar da última visita" appears on the next visit.

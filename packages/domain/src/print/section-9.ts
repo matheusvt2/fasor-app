@@ -1478,6 +1478,15 @@ const photosPart = (photos: PrintPhoto[]): SheetPart[] => (photos.length === 0 ?
 
 // --- one sheet -------------------------------------------------------------------------------------
 
+/**
+ * Story 25.4: whether section 9 prints a CONCLUSÃO row for a sheet: a tested sheet (not marked Não
+ * ensaiado) of a known definition whose conclusion sub-block is on. The one rule `sheetOf` prints by
+ * and `printedVerdicts` records by, so the issued revision's pairs never drift from the document.
+ */
+export function printsConclusionRow(block: BlockRow, definition: BlockDefinition | null): boolean {
+  return block.not_tested === null && definition !== null && enabledSubBlocksOf(block).has('conclusion');
+}
+
 function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): PrintSheet | null {
   const block = ctx.blocks.get(blockId);
   if (block === undefined) return null;
@@ -1513,7 +1522,7 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   parts.push(...measurementParts(block, definition, previous, visit));
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
-  if (enabled.has('conclusion')) {
+  if (printsConclusionRow(block, definition)) {
     // Story 22.3: CONCLUSÃO never sits alone at the top of a page; it keeps with the part before it.
     if (parts.length > 0) parts.push({ ...parts.pop()!, keepWithNext: true });
     parts.push(...conclusionParts(block, definition, tag, visit));
