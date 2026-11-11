@@ -2,7 +2,7 @@
 title: 'e24p, print: the previous visit''s date in the table header, drops and rises as a note line, the recommendation under "Ação recomendada" with the create action on a reading (Stories 24.15 to 24.17)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'ea6676d2794b2859d5780b4d06bd155aef12e53e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -125,3 +125,19 @@ Two implementation parts, in order, each ending with lint, static, its unit test
 - `pnpm exec vitest run packages/domain/src/print packages/domain/src/points packages/domain/src/seed packages/domain/src/relatorio` -- green.
 - `podman compose restart api` then `pnpm test:api` -- green; layout-lock v5/v11/v12/v13 byte-equal.
 - `pnpm exec tsx scripts/e2e.ts <new and touched specs> --project desktop-chrome --project durability-desktop-chrome` -- green.
+
+## Spec Change Log
+
+No bad_spec loopback.
+
+## Review Triage Log
+
+### 2026-11-11 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (model opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 5 findings — high 0, medium 2, low 2, false 0, maybe-false 0 (one claim row grouped with its finding: same root cause)
+- findings:
+  - `[low]` `[reject]` the v14 seeded action joins several recommendations and can exceed the action's 1000-character cap, so the create is refused until shortened — real but needs several long recommendations on one sheet (not seen in the base); the editor shows the count over the cap and the refusal toast; the fix (truncate or fall back) adds a branch. Recorded in `deferred-work.md` (e24p).
+  - `[low]` `[reject]` a re-issue whose service dates were edited after its first issue is not re-ordered against its prior (self re-issue, and the e23w "E's prior is X" path) — reached only by editing an issued relatório's dates and issuing again; the fix adds branches to both paths. Recorded in `deferred-work.md` (e24p).
+  - `[medium]` `[patch]` a reading out of its criterion that the insulation-drop or winding-variation rule also flags carries no history marker, so the v14 note leaves it out although the rule flagged it — patched (`87d6a58d`): an optional history field on the evaluated cell, read only by the note's collectors; 24.16-UNIT cases for both rules on v14 and none on v13.
+  - `[medium]` `[patch]` (claim, grouped with the row above) the note's header comment says it names what the three rules flag while out cells were missed — fixed by the same patch.
+  - `[medium]` `[patch]` no test asserts the focus after "Concluir" on the new place (to the point's name) — patched: `toBeFocused` on `.nc-point-ref` after the create in 24.17-E2E-001 and after the Conclusão-step create in 24.17-E2E-002.
