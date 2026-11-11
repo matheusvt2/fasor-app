@@ -226,7 +226,7 @@ test('@p0 14.8-E2E-002 a company sheet of a duplicated library type: plate sugge
 
   // --- the suggested conclusion, confirmed ---
   await goToStep(page, 'Conclusão', 'conclusao');
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => (await written(page, `sheet/${first}/conclusion/result`)).at(-1)).toBe('reprovado');

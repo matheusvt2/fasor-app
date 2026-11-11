@@ -57,7 +57,8 @@ async function signInSteps(page: Page, email: string): Promise<void> {
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   // Home's own <h1> now lives in the App bar and is visually-hidden there
   // (`key-home.html`), so the marker that Home has painted is the status board.
-  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  // Story 24.9 (row 1439): under host load Home can take longer than the default 5 s to paint.
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 15_000 });
 }
 
 /** How far the page scrolls sideways, in CSS px; 0 or less means it does not (retro A5). */

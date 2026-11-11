@@ -14,11 +14,13 @@ import { emptyTemplate } from '../templates/list.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate, RELATORIO_SECTION_TYPES } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
+import { newBlockOrderKey, newEquipmentBlock } from './tree.ts';
 
 const TEMPLATE_ID = '019966b0-0043-7000-8000-000000000001';
 const deps = () => ({ newId: idSequence('019966b0-0044-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY });
 const project = { id: TEST_PROJECT };
-const inputs = { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT };
+// Story 24.8: the cases below were written for the TAG rule before it, so they pass it (`tagRule: 'legacy'`); 24.8-UNIT and 24.21-UNIT run the current rule.
+const inputs = { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' as const };
 
 function drafts(template: TemplateRow = standardTemplate({ id: TEMPLATE_ID })) {
   return instantiateTemplate(template, project, inputs, deps());
@@ -430,5 +432,260 @@ describe('14.2-UNIT instantiateTemplate: Local › Painel › Coluna', () => {
     // Had it been placed, the fold would have refused it.
     const ops = made.drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0047-7000-8000-'), now: T0 }), seq: i + 1 }));
     expect(() => replay(ops)).not.toThrow();
+  });
+});
+
+/*
+ * Stories 24.8 and 24.21 (batch e24b): the TAG of a created equipment is `PREFIX-NN` (Story
+ * 24.8), and the reuse matches a placement on the key stored at the equipment's creation, the
+ * frozen rule's TAG of the placement (Story 24.21); a row from before the story has no key and
+ * matches by its TAG. The obra's template: a cable at "Cubículo Enel", a seccionadora and a
+ * breaker at "Coluna 5" of "1° Subsolo", a transformer on "1° Subsolo".
+ */
+const E24 = (n: number) => `019966b0-0060-7000-8000-${n.toString(16).padStart(12, '0')}`;
+const current = { ...inputs, tagRule: 'current' as const };
+
+function obraTemplate(options: { breakers?: number; breakerAt?: 'Coluna 5' | 'Coluna 6' | null } = {}): TemplateRow {
+  let skeleton = addCabine([], 'enel', 'Cubículo Enel');
+  skeleton = addCabine(skeleton, 'sub', '1° Subsolo');
+  skeleton = addColuna(skeleton, 'sub', 'sub/c5', 'Coluna 5');
+  skeleton = addColuna(skeleton, 'sub', 'sub/c6', 'Coluna 6');
+  let row: TemplateRow = { ...emptyTemplate(TEMPLATE_ID, SEED_VERSION), skeleton };
+  row = { ...row, blocks: setQuantity(row, 'enel', 'cabos_entrada', 1, EMPTY_DEFINITION_CONTEXT) };
+  row = { ...row, blocks: setQuantity(row, 'sub/c5', 'chave_seccionadora', 1, EMPTY_DEFINITION_CONTEXT) };
+  const breakerAt = options.breakerAt === undefined ? 'Coluna 5' : options.breakerAt;
+  if (breakerAt !== null) row = { ...row, blocks: setQuantity(row, breakerAt === 'Coluna 5' ? 'sub/c5' : 'sub/c6', 'disjuntor_mt', options.breakers ?? 1, EMPTY_DEFINITION_CONTEXT) };
+  row = { ...row, blocks: setQuantity(row, 'sub', 'transformador_forca', 1, EMPTY_DEFINITION_CONTEXT) };
+  return row;
+}
+
+const LAST_RESULTS = {
+  relatorio_id: E24(900),
+  revision_number: 1,
+  issued_at: '2026-09-30T12:00:00.000Z',
+  seed_version: 'v13',
+  block_type: 'disjuntor_mt',
+  readings: { 'resistencia_contato|r|valor': { raw: '40', unit: 'µΩ', state: 'measured' as const } },
+  prior: null,
+};
+
+/** The obra of 24.8's and 24.21's criteria whose equipment was created before Story 24.21: no key, the old TAGs, each with `last_results`. */
+function oldObra(): EquipmentRow[] {
+  return [
+    { id: E24(1), project_id: TEST_PROJECT, tag: 'CE-ENEL', type: 'cabos_entrada', last_nameplate: null, last_results: { ...LAST_RESULTS, block_type: 'cabos_entrada' }, removed_at: null },
+    { id: E24(2), project_id: TEST_PROJECT, tag: 'SEC-C05', type: 'chave_seccionadora', last_nameplate: null, last_results: { ...LAST_RESULTS, block_type: 'chave_seccionadora' }, removed_at: null },
+    { id: E24(3), project_id: TEST_PROJECT, tag: 'DJ-C05', type: 'disjuntor_mt', last_nameplate: null, last_results: LAST_RESULTS, removed_at: null },
+    { id: E24(4), project_id: TEST_PROJECT, tag: 'TR-1', type: 'transformador_forca', last_nameplate: null, last_results: { ...LAST_RESULTS, block_type: 'transformador_forca' }, removed_at: null },
+  ];
+}
+
+const run = (template: TemplateRow, existingEquipment: readonly EquipmentRow[], prefix = '019966b0-0061-7000-8000-', extra: { tagRule?: 'current' | 'legacy' } = {}) =>
+  instantiateTemplate(template, project, { ...current, ...extra, existingEquipment }, { ...deps(), newId: idSequence(prefix) });
+
+/** The placements' bound equipment in skeleton order, as [block type, equipment id]. */
+const bindings = (all: readonly { path: string; value: unknown }[]) => sheetsOf(all).map((b) => [b.block_type, b.equipment_id] as const);
+
+describe('24.8-UNIT instantiateTemplate: a created equipment is suggested PREFIX-NN', () => {
+  it('a new obra: CE-01, SC-01, DJ-01, TR-01, each with its placement key', () => {
+    const created = valuesOf<EquipmentRow>(run(obraTemplate(), []).drafts, 'equipment');
+    expect(created.map((e) => [e.type, e.tag, e.reuse_key])).toEqual([
+      ['cabos_entrada', 'CE-01', 'CE-ENEL'],
+      // A local's own blocks come before its colunas' (`canonicalSkeleton`).
+      ['transformador_forca', 'TR-01', 'TR-1'],
+      ['chave_seccionadora', 'SC-01', 'SEC-C05'],
+      ['disjuntor_mt', 'DJ-01', 'DJ-C05'],
+    ]);
+    // The standard template: no TAG twice, the local enters none, every key distinct.
+    const standard = valuesOf<EquipmentRow>(instantiateTemplate(standardTemplate({ id: TEMPLATE_ID }), project, current, deps()).drafts, 'equipment');
+    expect(integrityFindings({ equipment: standard })).toEqual([]);
+    expect(standard.every((e) => /^[A-Z]+-\d{2}$/.test(e.tag))).toBe(true);
+    expect(standard.filter((e) => e.type === 'chave_seccionadora').map((e) => e.tag).slice(0, 3)).toEqual(['SC-01', 'SC-02', 'SC-03']);
+    expect(new Set(standard.map((e) => e.reuse_key)).size).toBe(94);
+  });
+
+  it('the obra with the old TAGs (SEC-C05, DJ-C05, CE-ENEL, TR-1): every position binds its equipment by its TAG, nothing is created', () => {
+    const second = run(obraTemplate(), oldObra());
+    expect(second.drafts.some((d) => d.path.startsWith('equipment/'))).toBe(false);
+    expect(bindings(second.drafts)).toEqual([
+      ['cabos_entrada', E24(1)],
+      ['transformador_forca', E24(4)],
+      ['chave_seccionadora', E24(2)],
+      ['disjuntor_mt', E24(3)],
+    ]);
+  });
+
+  it('the obra created under the new rule (SC-01, DJ-01, TR-01): a second relatório binds the same equipment, none created', () => {
+    const first = valuesOf<EquipmentRow>(run(obraTemplate(), []).drafts, 'equipment');
+    const second = run(obraTemplate(), first, '019966b0-0062-7000-8000-');
+    expect(valuesOf(second.drafts, 'equipment')).toEqual([]);
+    expect(bindings(second.drafts).map(([, id]) => id)).toEqual(first.map((e) => e.id));
+  });
+
+  it('the obra with old TAGs and a template that gained a breaker: the old positions bind, the new one creates DJ-01', () => {
+    const second = run(obraTemplate({ breakers: 2 }), oldObra());
+    const created = valuesOf<EquipmentRow>(second.drafts, 'equipment');
+    expect(created.map((e) => [e.tag, e.reuse_key])).toEqual([['DJ-01', 'DJ-C05-2']]);
+    expect(bindings(second.drafts)).toEqual([
+      ['cabos_entrada', E24(1)],
+      ['transformador_forca', E24(4)],
+      ['chave_seccionadora', E24(2)],
+      ['disjuntor_mt', E24(3)],
+      ['disjuntor_mt', created[0]!.id],
+    ]);
+  });
+
+  it('the number is free in the obra: "TR-1" and "TR-2" give TR-03, whatever the type that holds the prefix', () => {
+    const existing: EquipmentRow[] = [
+      { id: E24(10), project_id: TEST_PROJECT, tag: 'TR-1', type: 'tc', last_nameplate: null, removed_at: null },
+      { id: E24(11), project_id: TEST_PROJECT, tag: 'TR-2', type: 'tc', last_nameplate: null, removed_at: null },
+    ];
+    const created = valuesOf<EquipmentRow>(run(obraTemplate(), existing).drafts, 'equipment');
+    expect(created.find((e) => e.type === 'transformador_forca')!.tag).toBe('TR-03');
+  });
+
+  it('with the old rule passed, the drafts are the rule before Story 24.8: the old TAGs and no key on any row', () => {
+    const legacy = run(obraTemplate({ breakers: 2 }), [], '019966b0-0061-7000-8000-', { tagRule: 'legacy' });
+    const created = valuesOf<EquipmentRow>(legacy.drafts, 'equipment');
+    expect(created.map((e) => e.tag)).toEqual(['CE-ENEL', 'TR-1', 'SEC-C05', 'DJ-C05', 'DJ-C05-2']);
+    expect(created.every((e) => !('reuse_key' in e))).toBe(true);
+    expect(Object.keys(created[0]!)).toEqual(['id', 'project_id', 'tag', 'type', 'last_nameplate', 'removed_at']);
+    // The second relatório under the old rule binds by TAG, as before.
+    const second = run(obraTemplate({ breakers: 2 }), created, '019966b0-0062-7000-8000-', { tagRule: 'legacy' });
+    expect(valuesOf(second.drafts, 'equipment')).toEqual([]);
+  });
+});
+
+describe('24.21-UNIT the reuse matches the key stored at the equipment creation', () => {
+  /** The first relatório of the obra under the current rule, then the TAGs renamed as `renames` says. */
+  function keyedObra(renames: Record<string, string> = {}): EquipmentRow[] {
+    return valuesOf<EquipmentRow>(run(obraTemplate(), []).drafts, 'equipment').map((row) => (renames[row.tag] === undefined ? row : { ...row, tag: renames[row.tag]! }));
+  }
+
+  it('a breaker renamed "52-1" and a transformer "TF-A": every placement binds the same equipment, none is created, the TAGs stand', () => {
+    const obra = keyedObra({ 'DJ-01': '52-1', 'TR-01': 'TF-A' });
+    const second = run(obraTemplate(), obra, '019966b0-0062-7000-8000-');
+    expect(valuesOf(second.drafts, 'equipment')).toEqual([]);
+    expect(bindings(second.drafts).map(([, id]) => id)).toEqual(obra.map((e) => e.id));
+    expect(obra.map((e) => e.tag)).toEqual(['CE-01', 'TF-A', 'SC-01', '52-1']);
+  });
+
+  it('the keys of two relatórios of one template are equal whatever the TAGs became', () => {
+    const first = keyedObra();
+    const renamed = first.map((row, n) => ({ ...row, tag: `X-${n}` }));
+    const again = valuesOf<EquipmentRow>(run(obraTemplate(), [], '019966b0-0062-7000-8000-').drafts, 'equipment');
+    expect(again.map((e) => e.reuse_key)).toEqual(first.map((e) => e.reuse_key));
+    expect(valuesOf(run(obraTemplate(), renamed, '019966b0-0063-7000-8000-').drafts, 'equipment')).toEqual([]);
+  });
+
+  it('an old obra with DJ-C05 renamed "52-1" before the relatório: the breaker placement creates a new keyed equipment', () => {
+    const obra = oldObra().map((row) => (row.tag === 'DJ-C05' ? { ...row, tag: '52-1' } : row));
+    const second = run(obraTemplate(), obra);
+    const created = valuesOf<EquipmentRow>(second.drafts, 'equipment');
+    expect(created.map((e) => [e.type, e.tag, e.reuse_key])).toEqual([['disjuntor_mt', 'DJ-01', 'DJ-C05']]);
+    expect(bindings(second.drafts).map(([, id]) => id)).toEqual([E24(1), E24(4), E24(2), created[0]!.id]);
+  });
+
+  it('a template that gained a second breaker at "Coluna 5": the first placements bind, the new one gets the key DJ-C05-2 and the next free TAG', () => {
+    const obra = keyedObra();
+    const second = run(obraTemplate({ breakers: 2 }), obra, '019966b0-0062-7000-8000-');
+    const created = valuesOf<EquipmentRow>(second.drafts, 'equipment');
+    expect(created.map((e) => [e.tag, e.reuse_key])).toEqual([['DJ-02', 'DJ-C05-2']]);
+    expect(bindings(second.drafts).map(([, id]) => id)).toEqual([...obra.map((e) => e.id), created[0]!.id]);
+  });
+
+  it('a breaker block removed, then added again at the same local: unbound, then bound again with its history', () => {
+    const obra = keyedObra({ 'DJ-01': '52-1' });
+    const without = run(obraTemplate({ breakerAt: null }), obra, '019966b0-0062-7000-8000-');
+    expect(valuesOf(without.drafts, 'equipment')).toEqual([]);
+    expect(bindings(without.drafts).map(([, id]) => id)).not.toContain(obra[3]!.id);
+    const back = run(obraTemplate(), obra, '019966b0-0063-7000-8000-');
+    expect(valuesOf(back.drafts, 'equipment')).toEqual([]);
+    expect(bindings(back.drafts).find(([type]) => type === 'disjuntor_mt')![1]).toBe(obra[3]!.id);
+  });
+
+  it('a breaker moved from "Coluna 5" to "Coluna 6" in the template: a new equipment with no previous visit, the old one unbound', () => {
+    const obra = keyedObra();
+    const moved = run(obraTemplate({ breakerAt: 'Coluna 6' }), obra, '019966b0-0062-7000-8000-');
+    const created = valuesOf<EquipmentRow>(moved.drafts, 'equipment');
+    expect(created.map((e) => [e.type, e.tag, e.reuse_key, e.last_results])).toEqual([['disjuntor_mt', 'DJ-02', 'DJ-C06', undefined]]);
+    expect(bindings(moved.drafts).map(([, id]) => id)).not.toContain(obra[3]!.id);
+  });
+
+  it('a breaker added from the palette at "Coluna 5" as "QM8", saved with "Salvar como template": both breakers bind their own equipment', () => {
+    const first = run(obraTemplate(), []);
+    const ops = first.drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0064-7000-8000-'), now: T0 }), seq: i + 1 }));
+    let state = replay(ops);
+    const snapshot = buildSnapshot(state, first.relatorioId);
+    const coluna5 = snapshot.locations.find((l) => l.name === 'Coluna 5')!;
+    const pair = newEquipmentBlock({
+      blockId: E24(50),
+      equipmentId: E24(51),
+      relatorioId: first.relatorioId,
+      projectId: TEST_PROJECT,
+      locationId: coluna5.id,
+      type: 'disjuntor_mt',
+      tag: 'QM8',
+      seedVersion: SEED_VERSION,
+      orderKey: newBlockOrderKey(snapshot.blocks, coluna5.id, null),
+      definitions: EMPTY_DEFINITION_CONTEXT,
+      placement: { location: { kind: 'coluna', name: 'Coluna 5' }, equipment: snapshot.equipment },
+    });
+    expect(pair.equipment).toMatchObject({ tag: 'QM8', reuse_key: 'DJ-C05-2' });
+    const base = { company_id: TEST_COMPANY, prev_op_id: null, batch_id: null, meta: null, actor_id: TEST_USER, device_id: 'tablet-test' };
+    const palette = [
+      makeOp({ ...base, scope: 'project', project_id: TEST_PROJECT, relatorio_id: null, kind: 'create', path: `equipment/${E24(51)}`, value: pair.equipment as never }, { newId: idSequence('019966b0-0065-7000-8000-'), now: T0 }),
+      makeOp({ ...base, scope: 'relatorio', project_id: null, relatorio_id: first.relatorioId, kind: 'create', path: `block/${E24(50)}`, value: pair.block as never }, { newId: idSequence('019966b0-0066-7000-8000-'), now: T0 }),
+    ];
+    for (const op of palette) state = applyOp(state, op);
+    const after = buildSnapshot(state, first.relatorioId);
+    expect(after.equipment.find((e) => e.id === E24(51))!.reuse_key).toBe('DJ-C05-2');
+    const saved = templateFromRelatorio(after, { id: '019966b0-0067-7000-8000-000000000001', name: 'Salvo' });
+    const next = instantiateTemplate(saved, project, { ...current, existingEquipment: after.equipment }, { ...deps(), newId: idSequence('019966b0-0068-7000-8000-') });
+    expect(valuesOf(next.drafts, 'equipment')).toEqual([]);
+    const breakers = bindings(next.drafts).filter(([type]) => type === 'disjuntor_mt').map(([, id]) => id);
+    expect(breakers).toEqual([after.equipment.find((e) => e.reuse_key === 'DJ-C05')!.id, E24(51)]);
+  });
+
+  it('two live equipment of one type with the same stored key: both runs bind the smallest id, nothing is created for that placement', () => {
+    const obra = keyedObra();
+    const twin: EquipmentRow = { ...obra[3]!, id: E24(20), tag: 'DJ-09' };
+    const larger: EquipmentRow = { ...obra[3]!, id: '019966b0-ffff-7000-8000-000000000001' };
+    for (const prefix of ['019966b0-0062-7000-8000-', '019966b0-0063-7000-8000-']) {
+      const made = run(obraTemplate(), [larger, ...obra.filter((row) => row !== obra[3]), twin], prefix);
+      expect(valuesOf(made.drafts, 'equipment'), prefix).toEqual([]);
+      expect(bindings(made.drafts).find(([type]) => type === 'disjuntor_mt')![1]).toBe(E24(20));
+    }
+  });
+
+  it('two rows from before the story with one TAG: the smallest id binds', () => {
+    const obra = oldObra();
+    const twin: EquipmentRow = { ...obra.find((row) => row.tag === 'DJ-C05')!, id: E24(0) };
+    const made = run(obraTemplate(), [...obra, twin]);
+    expect(bindings(made.drafts).find(([type]) => type === 'disjuntor_mt')![1]).toBe(E24(0));
+  });
+
+  it('a keyed equipment wins over an unkeyed one whose TAG equals the key', () => {
+    const obra = keyedObra();
+    const unkeyed: EquipmentRow = { id: E24(0), project_id: TEST_PROJECT, tag: 'DJ-C05', type: 'disjuntor_mt', last_nameplate: null, removed_at: null };
+    const made = run(obraTemplate(), [unkeyed, ...obra], '019966b0-0062-7000-8000-');
+    expect(bindings(made.drafts).find(([type]) => type === 'disjuntor_mt')![1]).toBe(obra[3]!.id);
+  });
+
+  it('two keyed breakers at "Coluna 5" and "Coluna 6", the first renamed "DJ-C06": each placement binds its own', () => {
+    let template = obraTemplate();
+    template = { ...template, blocks: setQuantity(template, 'sub/c6', 'disjuntor_mt', 1, EMPTY_DEFINITION_CONTEXT) };
+    const first = valuesOf<EquipmentRow>(run(template, []).drafts, 'equipment');
+    const c5 = first.find((e) => e.reuse_key === 'DJ-C05')!;
+    const c6 = first.find((e) => e.reuse_key === 'DJ-C06')!;
+    const obra = first.map((row) => (row.id === c5.id ? { ...row, tag: 'DJ-C06' } : row));
+    const made = run(template, obra, '019966b0-0062-7000-8000-');
+    expect(valuesOf(made.drafts, 'equipment')).toEqual([]);
+    expect(bindings(made.drafts).filter(([type]) => type === 'disjuntor_mt').map(([, id]) => id)).toEqual([c5.id, c6.id]);
+  });
+
+  it('a removed keyed equipment is never bound: its placement creates a new one', () => {
+    const obra = keyedObra().map((row) => (row.type === 'disjuntor_mt' ? { ...row, removed_at: '2026-10-01T10:00:00.000Z' } : row));
+    const created = valuesOf<EquipmentRow>(run(obraTemplate(), obra, '019966b0-0062-7000-8000-').drafts, 'equipment');
+    expect(created.map((e) => [e.tag, e.reuse_key])).toEqual([['DJ-01', 'DJ-C05']]);
   });
 });

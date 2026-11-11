@@ -4,6 +4,7 @@ import {
   enabledSubBlocksOf,
   measurementWhere,
   putBlockOp,
+  thermalPhotoText,
   type BlockDefinition,
   type BlockRow,
   type EvaluatedMeasurementCell,
@@ -203,7 +204,11 @@ function MeasurementTestSection({
           {/* Batch e23e (Story 23.20): the thermography's "Foto térmica", the sheet camera with the test's context caption. */}
           {test.testKey === THERMOGRAPHY_TEST && photoTarget !== undefined && !readOnly ? (
             <div className="mt-actions" data-thermal-actions="">
-              <ThermalPhotoButton relatorioId={api.relatorioId} target={() => photoTarget(test.testKey)} />
+              <ThermalPhotoButton
+                relatorioId={api.relatorioId}
+                target={() => photoTarget(test.testKey)}
+                label={thermalPhotoText(snapshot.files, block.id, photoTarget(test.testKey).caption)}
+              />
             </div>
           ) : null}
           {/* Batch e23t (Story 23.17, `60-ficha.html` #/ficha/TR1 "Coleta de óleo"): a one-cell choice test is the frame's `.v13-choice`. */}
@@ -445,7 +450,8 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
   return (
     <div className="ficha-mt" data-table-key={test.testKey}>
       <div className="mt-title-row">
-        <span className="mt-criterion">{test.criterionText}</span>
+        {/* Story 24.9 (F17): the screen's line names each criterion by its medium while the medium is unknown. */}
+        <span className="mt-criterion">{test.screenCriterionText ?? test.criterionText}</span>
         <details className="ficha-details mt-source">
           <summary>
             <svg className="ico" aria-hidden="true">

@@ -316,9 +316,18 @@ function PointCard({
             {title}
           </h3>
           {flag === null ? null : (
-            <span className="helper" data-tone="amber" data-flag="">
-              {flag}
-            </span>
+            // Story 24.7 (`72-pontos.html` `#pontos-7-t` `.poa-flag-row`): "Remover ponto" beside the flag opens the
+            // existing removal confirmation, with "Desfazer" after; the Overflow's "Remover" stays.
+            <div className="poa-flag-row">
+              <span className="helper" data-tone="amber" data-flag="">
+                {flag}
+              </span>
+              {editable ? (
+                <TextButton aria-haspopup="dialog" onPress={onRemove}>
+                  {t.removePoint}
+                </TextButton>
+              ) : null}
+            </div>
           )}
         </div>
         {point.text.trim() === '' ? null : <PointText text={point.text} numbers={numbers} />}

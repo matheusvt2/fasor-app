@@ -207,7 +207,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   // The eight FO.SERV-03 types with their TAGs, then (Epic 14 QA Q-1) each library type the
   // relatório's seed ships under its heading, read from the kernel, never a literal count.
   const types = paletteTypes(await relatorioSeedVersion(page, database, relatorioId));
-  await expect(typeRows(palette, types.seeded).locator('.pi-meta')).toHaveText(['CE-C01', 'PR-C01', 'SEC-C01-2', 'DJ-C01', 'TP-C01', 'TC-C01', 'CS-C01', 'TR-9']);
+  await expect(typeRows(palette, types.seeded).locator('.pi-meta')).toHaveText(['CE-01', 'PR-01', 'SC-01', 'DJ-01', 'TP-01', 'TC-01', 'CS-01', 'TR-09']);
   await expect(palette.locator('.pf-field')).toHaveCount(types.seeded.length + types.library.length);
   if (types.library.length > 0) {
     await expect(palette.locator('.palette-library')).toHaveText(LIBRARY_GROUP_LABEL);
@@ -216,9 +216,9 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   }
   await palette.getByRole('button', { name: /Disjuntor MT/ }).click();
   await expect(palette).toBeHidden();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
-  await expect(toast(page)).toContainText('DJ-C01 criada na Coluna 1');
-  await expect(eqRow(page, 'DJ-C01').locator('.s9-eq-open')).toBeFocused();
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-01']);
+  await expect(toast(page)).toContainText('DJ-01 criada na Coluna 1');
+  await expect(eqRow(page, 'DJ-01').locator('.s9-eq-open')).toBeFocused();
   await expect(syncBadge(page)).not.toHaveAttribute('data-pending', '0');
   const created = await readStore<{ path: string; batch_id: string; kind: string }>(page, database, 'outbox');
   expect(created.map((op) => [op.path.split('/')[0], op.kind])).toEqual([
@@ -231,7 +231,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await page.reload();
   await openSection9(page);
   await page.getByRole('button', { name: /^(Expandir|Recolher) 1° Subsolo$/ }).click();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-01']);
   await syncNowAndReturn(page);
   await openSection9(page);
   if ((await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).count()) > 0) await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
@@ -241,45 +241,45 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await secBox.fill('9');
   await secBox.press('Enter');
   await expect(announcer(page)).toHaveText('SEC-C01 movido para a posição 2 de 2');
-  await expect(tagsIn(col1)).toHaveText(['DJ-C01', 'SEC-C01']);
+  await expect(tagsIn(col1)).toHaveText(['DJ-01', 'SEC-C01']);
   await expect(toast(page)).toContainText('SEC-C01 movido para a posição 2 de 2');
   await expect(secBox).toBeFocused();
   // Overflow "Descer".
-  await menuOf(page, 'DJ-C01').click();
+  await menuOf(page, 'DJ-01').click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
-  await expect(announcer(page)).toHaveText('DJ-C01 movido para a posição 2 de 2');
+  await expect(announcer(page)).toHaveText('DJ-01 movido para a posição 2 de 2');
   // The new order has rendered before the next key reads the row's position (a person reads it first).
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
-  await expect(menuOf(page, 'DJ-C01')).toBeFocused();
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-01']);
+  await expect(menuOf(page, 'DJ-01')).toBeFocused();
   // Alt+ArrowUp.
-  await eqRow(page, 'DJ-C01').locator('.s9-eq-open').focus();
+  await eqRow(page, 'DJ-01').locator('.s9-eq-open').focus();
   await page.keyboard.press('Alt+ArrowUp');
-  await expect(announcer(page)).toHaveText('DJ-C01 movido para a posição 1 de 2');
-  await expect(tagsIn(col1)).toHaveText(['DJ-C01', 'SEC-C01']);
+  await expect(announcer(page)).toHaveText('DJ-01 movido para a posição 1 de 2');
+  await expect(tagsIn(col1)).toHaveText(['DJ-01', 'SEC-C01']);
   // A mouse drag from the handle below SEC-C01.
-  const handle = page.getByRole('button', { name: 'Reordenar DJ-C01' });
+  const handle = page.getByRole('button', { name: 'Reordenar DJ-01' });
   const from = (await handle.boundingBox())!;
   const below = (await eqRow(page, 'SEC-C01').boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, below.y + below.height + 8, { steps: 8 });
   await page.mouse.up();
-  await expect(announcer(page)).toHaveText('DJ-C01 movido para a posição 2 de 2');
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
+  await expect(announcer(page)).toHaveText('DJ-01 movido para a posição 2 de 2');
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-01']);
 
   // Duplicar: a taken TAG is refused inline, then a new one.
   await menuOf(page, 'SEC-C01').click();
   await page.getByRole('menuitem', { name: 'Duplicar' }).click();
   const duplicate = page.getByRole('dialog', { name: 'Duplicar SEC-C01' });
   const tagField = duplicate.getByRole('textbox', { name: 'TAG' });
-  await expect(tagField).toHaveValue('SEC-C01-2');
+  await expect(tagField).toHaveValue('SC-01');
   await tagField.fill('sec-c02');
   await tagField.press('Tab');
   await expect(duplicate.getByRole('alert')).toHaveText('TAG já existe nesta obra — SEC-C02 em 1° Subsolo › Coluna 2');
   await expect(duplicate.getByRole('button', { name: 'Duplicar' })).toHaveAttribute('aria-disabled', 'true');
   await tagField.fill('SEC-C01-9');
   await duplicate.getByRole('button', { name: 'Duplicar' }).click();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-9', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-9', 'DJ-01']);
   await expect(toast(page)).toContainText('SEC-C01-9 criada na Coluna 1');
 
   // Renomear TAG keeps the block.
@@ -289,19 +289,19 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   const renameTag = page.getByRole('dialog', { name: 'Renomear TAG SEC-C01-9' });
   await renameTag.getByRole('textbox', { name: 'TAG' }).fill('SEC-C01-B');
   await renameTag.getByRole('button', { name: 'Salvar' }).click();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-01']);
   expect(await blockIdOf(page, 'SEC-C01-B')).toBe(dupId);
 
   // Remover an empty block: no Confirm; the focus goes to the row now in its slot.
   await menuOf(page, 'SEC-C01-B').click();
   await page.getByRole('menuitem', { name: 'Remover' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-01']);
   await expect(toast(page)).toContainText('Ficha removida');
-  await expect(eqRow(page, 'DJ-C01').locator('.s9-eq-open')).toBeFocused();
+  await expect(eqRow(page, 'DJ-01').locator('.s9-eq-open')).toBeFocused();
   // Desfazer: it comes back and its Overflow trigger takes the focus.
   await page.getByRole('button', { name: 'Desfazer' }).click();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-01']);
   await expect(menuOf(page, 'SEC-C01-B')).toBeFocused();
 
   // A block made non-empty on another device (not tested) asks before it goes.
@@ -318,14 +318,14 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   const confirm = page.getByRole('dialog', { name: 'Remover ficha SEC-C01?' });
   await expect(confirm.getByRole('button', { name: 'Cancelar' })).toBeFocused();
   await confirm.getByRole('button', { name: 'Remover ficha' }).click();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01-B', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01-B', 'DJ-01']);
   await expect(eqRow(page, 'SEC-C01-B').locator('.s9-eq-open')).toBeFocused();
   // "Restaurar ficha removida" brings it back; its Overflow trigger takes the focus.
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
   await page.getByRole('menuitem', { name: 'Restaurar ficha removida' }).click();
   const restore = page.getByRole('dialog', { name: 'Restaurar ficha removida' });
   await restore.getByRole('button', { name: 'Restaurar SEC-C01 — 1° Subsolo › Coluna 1' }).click();
-  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-C01']);
+  await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-01']);
   await expect(menuOf(page, 'SEC-C01')).toBeFocused();
   await expect(toast(page)).toContainText('Ficha restaurada');
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
@@ -346,7 +346,7 @@ test('@p0 4.5-E2E-002 at 1280: the office palette asks TAG and Local prefilled a
   await expect(type.locator('.palette-item')).toHaveAttribute('aria-expanded', 'true');
   const tag = type.getByRole('textbox', { name: 'TAG' });
   const local = type.getByRole('combobox', { name: 'Local' });
-  await expect(tag).toHaveValue('SEC-C01-2');
+  await expect(tag).toHaveValue('SC-01');
   await expect(local.locator('option:checked')).toHaveText('1° Subsolo › Coluna 1');
   await tag.fill('sec-c05 ');
   await tag.press('Tab');

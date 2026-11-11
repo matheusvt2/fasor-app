@@ -43,7 +43,7 @@ import { instrumentRangeFor } from '../relatorio/instrument-pick.ts';
 import { composeParecer, derivedParecer } from '../relatorio/parecer.ts';
 import { preIssue } from '../relatorio/pre-issue.ts';
 import { sheetProgress, shownSheetSteps } from '../relatorio/sheet-progress.ts';
-import { suggestTag, tagPrefixOf } from '../relatorio/tag.ts';
+import { legacySuggestTag, suggestTag, tagPrefixOf } from '../relatorio/tag.ts';
 import { blockTypeLabelIn, locationTree, newEquipmentBlock, paletteItems, paletteTypeGroups, treeNodes } from '../relatorio/tree.ts';
 import { learnedOptionCandidates } from '../registry/nc-phrase-row.ts';
 import { blockConfigSchema, companyBlockType, EQUIPMENT_BLOCK_TYPES, isCompanyBlockType, templateBlockSchema, typeVersionOf } from '../schemas/block-config.ts';
@@ -473,7 +473,7 @@ describe('Story 14.6: the resolver context', () => {
     expect(groups.at(-1)!.types.at(-1)).toBe(TYPE_1);
     expect(paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT)).toEqual(paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT));
     const item = paletteItems(SEED_VERSION, { kind: 'cabine', name: 'Cubículo Enel' }, [], ctx).find((row) => row.type === TYPE_1)!;
-    expect(item).toMatchObject({ typeVersion: 2, label: 'No-break de comando 125 Vcc', tag: 'NB-ENEL', library: true });
+    expect(item).toMatchObject({ typeVersion: 2, label: 'No-break de comando 125 Vcc', tag: 'NB-01', library: true });
     expect(blockTypeLabelIn(ctx, SEED_VERSION, TYPE_1, 1)).toBe('No-break de comando');
   });
 
@@ -481,7 +481,9 @@ describe('Story 14.6: the resolver context', () => {
     const v1 = getDefinitionIn(ctx, SEED_VERSION, TYPE_1, 1);
     expect(tagPrefixOf(TYPE_1, v1)).toBe('NB');
     expect(() => tagPrefixOf(TYPE_1)).toThrow();
-    expect(suggestTag(TYPE_1, { kind: 'coluna', name: 'Coluna 5' }, [{ tag: 'NB-C05', removed_at: null }], v1)).toBe('NB-C05-2');
+    // Story 24.8: NB-NN, free in the obra; the rule before (`legacySuggestTag`) keeps the type's prefix too.
+    expect(suggestTag(TYPE_1, [{ tag: 'NB-01', removed_at: null }], v1)).toBe('NB-02');
+    expect(legacySuggestTag(TYPE_1, { kind: 'coluna', name: 'Coluna 5' }, [{ tag: 'NB-C05', removed_at: null }], v1)).toBe('NB-C05-2');
   });
 
   it('builds a company block\'s default config at its version', () => {
@@ -581,7 +583,7 @@ describe('Story 14.6: templates, totals and the NC learner', () => {
     const { drafts } = instantiateTemplate(
       template,
       { id: PROJECT_ID },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: ctx },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: ctx, tagRule: 'legacy' },
       { newId: opId, actorId: USER_ID, companyId: COMPANY_ID },
     );
     const blocks = drafts.filter((draft) => draft.path.startsWith('block/')).map((draft) => draft.value as unknown as BlockRow).filter((block) => isCompanyBlockType(block.block_type));
@@ -805,15 +807,18 @@ describe('Story 14.6 review: blocks born at a version', () => {
         projectId: PROJECT_ID,
         locationId: CABINE_ID,
         type: TYPE_1,
-        tag: suggestTag(TYPE_1, location, [], definition),
+        tag: suggestTag(TYPE_1, [], definition),
         seedVersion: SEED_VERSION,
         orderKey: `b${version}`,
         typeVersion: version,
         definitions: ctx,
+        // Story 24.21: the reuse key takes the company type's own prefix at the local.
+        placement: { location, equipment: [] },
       });
       expect(typeVersionOf(block.config)).toEqual({ version, id: version === 1 ? VERSION_1_ID : VERSION_2_ID });
       expect(Object.keys((block.config as { sub_blocks: object }).sub_blocks)).toEqual(definition.sub_blocks);
-      expect(equipment.tag.startsWith('NB-')).toBe(true);
+      expect(equipment.tag).toBe('NB-01');
+      expect(equipment.reuse_key).toBe('NB-PRINCIPAL');
       expect(fold([op('create', 'relatorio', `block/${blockId}`, block)], both).get(entityKey('block', blockId))).toMatchObject({ block_type: TYPE_1 });
     }
   });

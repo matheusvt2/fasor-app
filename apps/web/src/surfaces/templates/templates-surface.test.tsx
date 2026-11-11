@@ -171,6 +171,22 @@ describe('Templates: empty state', () => {
     }
   });
 
+  it('24.9 (F1): two templates that fail their schema and none that reads: the surface says how many could not be read, never "Nenhum template"', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      database = await freshDb();
+      const other = '019966b0-0249-7000-8000-0000000000f2';
+      for (const id of [GONE, other]) await database.entities.put(toRecord(`template:${id}`, { id, name: 'Antigo', seed_version: 'v0', removed_at: null } as unknown as TemplateRow));
+      renderSurface();
+      const notice = await screen.findByText('2 templates não puderam ser lidos neste aparelho.');
+      expect(notice).toHaveAttribute('role', 'status');
+      expect(screen.queryByText('Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Criar template padrão' })).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('commits one template/{id} create of the standard template, then lists it', async () => {
     database = await freshDb();
     renderSurface();

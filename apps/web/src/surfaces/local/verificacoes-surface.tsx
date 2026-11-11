@@ -132,6 +132,7 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
       itemKey: row.key,
     }),
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, { locationId: location.id }, photoIds, row.key)),
+    pointOwner: { locationId: location.id },
     // Story 14.12: a site item learns nothing and offers no learned phrase (answer 7 scopes them per equipment type).
     chips: ncChipPhrases({ seeded: row.nc_phrases, learned: [], blockType: null, itemKey: row.key, recents: recentSiteObservations(snapshot, row.key, row.nc_phrases, location.id) }),
   };
@@ -162,7 +163,7 @@ function VerificacoesBody({
   useStickyBarScrollPadding();
 
   const api: ChecklistRowApi = useMemo(
-    () => ({ relatorioId, author: editor.author, commit: (drafts: OpDraft[]) => editor.commit(drafts), edit: (build: Build) => editor.edit(build) }),
+    () => ({ relatorioId, author: editor.author, commit: (drafts: OpDraft[]) => editor.commit(drafts), edit: (build: Build) => editor.edit(build), undoable: editor.undoable }),
     [relatorioId, editor],
   );
   // Epic 14 QA Q-5: the "Do local" block writes through the same edit queue, with no sheet.

@@ -304,11 +304,11 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
     .map((row) => ({ blockId: row.id, blockType: row.block_type, locationId: row.location_id!, tag: tagOf.get(row.equipment_id ?? '') ?? '' }))
     .sort((a, b) => a.tag.localeCompare(b.tag));
   expect(sheets.map((sheet) => [sheet.tag, sheet.blockType, sheet.locationId])).toEqual([
-    ['SEC-C01', 'chave_seccionadora', colunaRows[0]!.id],
-    ['SEC-C02', 'chave_seccionadora', colunaRows[1]!.id],
-    ['SEC-C03', 'chave_seccionadora', colunaRows[2]!.id],
-    ['TR-1', 'transformador_forca', localRow.id],
-    ['TR-2', 'transformador_forca', localRow.id],
+    ['SC-01', 'chave_seccionadora', colunaRows[0]!.id],
+    ['SC-02', 'chave_seccionadora', colunaRows[1]!.id],
+    ['SC-03', 'chave_seccionadora', colunaRows[2]!.id],
+    ['TR-01', 'transformador_forca', localRow.id],
+    ['TR-02', 'transformador_forca', localRow.id],
   ]);
   const sheetOf = (tag: string) => sheets.find((sheet) => sheet.tag === tag)!;
 
@@ -319,29 +319,29 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await expect(localLi.locator(':scope > .s9-loc-row .s9-loc-meta')).toContainText('Transformação');
   await expect(localLi.locator(':scope > .s9-loc-row .progress-counter')).toHaveText('0 de 5');
   await expect(localLi.locator(':scope > .s9-col-direct .s9-col-name')).toHaveText('Equipamentos no local');
-  await expect(page.getByRole('list', { name: `Equipamentos direto em ${LOCAL}` }).locator(':scope > li.s9-eq .block-tag')).toHaveText(['TR-1', 'TR-2']);
+  await expect(page.getByRole('list', { name: `Equipamentos direto em ${LOCAL}` }).locator(':scope > li.s9-eq .block-tag')).toHaveText(['TR-01', 'TR-02']);
   await expect(painelNames(page, LOCAL)).toHaveText(['Painel 1']);
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-pnl-row .s9-pnl-meta')).toHaveText('3 colunas');
   await expandLocation(page, painelInTree('Painel 1', LOCAL));
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-cols > li.s9-coluna > .s9-col .s9-col-name')).toHaveText(['Coluna 1', 'Coluna 2', 'Coluna 3']);
   await expandLocation(page, colunaInTree('Coluna 1', 'Painel 1', LOCAL));
-  await expect(coluna(page, 'Coluna 1').locator('.block-tag')).toHaveText(['SEC-C01']);
+  await expect(coluna(page, 'Coluna 1').locator('.block-tag')).toHaveText(['SC-01']);
 
   // The creation reaches the server; the office fills one sheet on the local and one in a coluna.
   await syncNowAndReturn(page);
   await pushDrafts(page, database, [
     emCampoDraft(account, relatorioId),
     ...localFields(scope, localRow.id),
-    ...completeSheet(scope, sheetOf('TR-1').blockId, 'transformador_forca'),
-    ...completeSheet(scope, sheetOf('SEC-C01').blockId, 'chave_seccionadora'),
+    ...completeSheet(scope, sheetOf('TR-01').blockId, 'transformador_forca'),
+    ...completeSheet(scope, sheetOf('SC-01').blockId, 'chave_seccionadora'),
   ]);
   await syncNowAndReturn(page);
 
   // Both are concluded by the tap; the sheet in the coluna names its whole path.
-  await concludeSheet(page, relatorioId, sheetOf('TR-1').blockId, LOCAL);
-  await expect(page).toHaveURL(new RegExp(`/ficha/${sheetOf('TR-2').blockId}$`));
-  await concludeSheet(page, relatorioId, sheetOf('SEC-C01').blockId, `${LOCAL} › Painel 1 › Coluna 1`);
-  await expect(page).toHaveURL(new RegExp(`/ficha/${sheetOf('SEC-C02').blockId}$`));
+  await concludeSheet(page, relatorioId, sheetOf('TR-01').blockId, LOCAL);
+  await expect(page).toHaveURL(new RegExp(`/ficha/${sheetOf('TR-02').blockId}$`));
+  await concludeSheet(page, relatorioId, sheetOf('SC-01').blockId, `${LOCAL} › Painel 1 › Coluna 1`);
+  await expect(page).toHaveURL(new RegExp(`/ficha/${sheetOf('SC-02').blockId}$`));
 
   // A reload reads it all back from the device.
   await page.goto(`/relatorio/${relatorioId}`);
@@ -356,8 +356,8 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
   await expect(local(page, LOCAL).locator(':scope > .s9-loc-row .progress-counter')).toHaveText('2 de 5');
   await expect(local(page, LOCAL).locator(':scope > .s9-col-direct .s9-col-meta')).toHaveText('1 de 2');
   await expect(painel(page, 'Painel 1').locator(':scope > .s9-pnl-row .progress-counter')).toHaveText('1 de 3');
-  await expect(eqRow(page, 'TR-1').locator('.s9-state')).toHaveAttribute('data-state', 'ok');
-  await expect(eqRow(page, 'SEC-C01').locator('.s9-state')).toHaveAttribute('data-state', 'ok');
+  await expect(eqRow(page, 'TR-01').locator('.s9-state')).toHaveAttribute('data-state', 'ok');
+  await expect(eqRow(page, 'SC-01').locator('.s9-state')).toHaveAttribute('data-state', 'ok');
 
   // "Gerar relatório": revision 1, its DOCX read back.
   await setParecer(page, relatorioId);
@@ -396,12 +396,12 @@ test('@p0 14.2-E2E-001 at 1280: a template of one local (Transformação) with t
     'CARACTERÍSTICAS DA SE',
     'AMBIENTE DE ENSAIO',
     'VERIFICAÇÕES DO LOCAL',
-    'TRANSFORMADOR DE FORÇA TR-1',
-    'TRANSFORMADOR DE FORÇA TR-2',
+    'TRANSFORMADOR DE FORÇA TR-01',
+    'TRANSFORMADOR DE FORÇA TR-02',
     'PAINEL 1',
-    'CHAVE SECCIONADORA SEC-C01',
-    'CHAVE SECCIONADORA SEC-C02',
-    'CHAVE SECCIONADORA SEC-C03',
+    'CHAVE SECCIONADORA SC-01',
+    'CHAVE SECCIONADORA SC-02',
+    'CHAVE SECCIONADORA SC-03',
   ];
   const at = expected.map((text) => section.indexOf(text));
   expect(at.every((index) => index > -1), `every part of section 9 is printed: ${JSON.stringify(at)}`).toBe(true);
@@ -455,7 +455,7 @@ async function pushPainelRelatorio(page: Page): Promise<{ relatorioId: string }>
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: projectId },
-    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-10-14', service_end: '2026-10-15', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   // Born Em campo, as a relatório being filled on site is (status flow 2026-10-10).
@@ -789,7 +789,7 @@ test('@p0 14.2-E2E-002 at 768: the composer and the tree add a local through the
   const seccionadora = fieldPalette.getByRole('button', { name: /Chave seccionadora/ });
   const seccionadoraTag = (await seccionadora.locator('.pi-meta').innerText()).trim();
   // The TAG names the coluna alone, never the painel.
-  expect(seccionadoraTag).toMatch(/^SEC-C02(-\d+)?$/);
+  expect(seccionadoraTag).toMatch(/^SC-\d{2}$/);
   await seccionadora.click();
   await expect(fieldPalette).toBeHidden();
   await expect(toast(page)).toContainText(`${seccionadoraTag} criada na Coluna 2`);
@@ -956,7 +956,7 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
     await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${where}`);
     const item = fieldPalette.getByRole('button', { name: /Disjuntor MT/ });
     const tag = (await item.locator('.pi-meta').innerText()).trim();
-    expect(tag).toMatch(/^DJ-C0\d(-\d+)?$/);
+    expect(tag).toMatch(/^DJ-\d{2}$/);
     await item.click();
     await expect(fieldPalette).toBeHidden();
     await expect(toast(page)).toContainText(`${tag} criada na ${colunaName}`);

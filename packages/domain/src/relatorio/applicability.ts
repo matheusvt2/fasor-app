@@ -188,8 +188,9 @@ function valueApplicability(block: Pick<BlockRow, 'sheet'>, definition: Pick<Blo
     state: applied ? 'applied' : 'na',
     reason: `${NA_REASON_LEAD} ${phrase}`,
     phrase,
-    // authored (Story 23.20, listed for Bruno): the applied band's sentence of a condition over the test's own value.
-    appliedText: `Aplicado mesmo assim: ${phrase}`,
+    // ~~authored (Story 23.20, listed for Bruno): the applied band's sentence of a condition over the test's own value,
+    // "Aplicado mesmo assim: ⟨phrase⟩"~~ Story 24.9 (F11): one lead ("Aplicado por você.", the band's) and the reason once.
+    appliedText: phrase,
     value: condition.value,
   };
 }

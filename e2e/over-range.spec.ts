@@ -164,8 +164,8 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   await expect(contact.locator('.mf-helper[role="status"]')).toContainText('Acima do aceitável (<250 µΩ)');
   // Story 22.4's floor: Reprovado · Com restrições.
   await stepper(page).getByRole('button', { name: /^Conclusão/ }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Reprovado' })).toHaveClass(/\bis-floor\b/);
+  await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveClass(/\bis-floor\b/);
 
   // The TP's ratio: "OL" refused with the authored line, nothing written, no "> limite".
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${tp.blockId}`);

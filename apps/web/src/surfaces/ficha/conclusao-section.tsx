@@ -5,6 +5,7 @@ import {
   conclusionBasisMatches,
   conclusionAdjustWrites,
   conclusionFloorReasonText,
+  conclusionPreview,
   conclusionRestrictionOf,
   conclusionResultOf,
   conclusionStoredText,
@@ -81,6 +82,7 @@ function ConclusionPair<T extends string>({
   readOnly,
   isDisabled,
   describedBy,
+  preview = false,
 }: {
   label: string;
   segments: readonly Segment<T>[];
@@ -93,8 +95,13 @@ function ConclusionPair<T extends string>({
   readOnly: boolean;
   /** Story 22.4: a segment looser than the floor, drawn disabled and skipped by the arrows. */
   isDisabled: (value: T) => boolean;
-  /** Story 22.4: the reason line's id while a segment is disabled. */
+  /** Story 22.4: the reason line's id while a segment is disabled; Story 24.5: and the preview line's. */
   describedBy?: string | undefined;
+  /**
+   * Story 24.5 (`60-ficha.html` `.e24-conc`): the half is the kernel's preview (`conclusionPreview`):
+   * no segment is checked, the floor's segment (`value`) carries `.is-floor` and the mock's preview look.
+   */
+  preview?: boolean;
 }) {
   const refs = useRef(new Map<T, HTMLButtonElement | null>());
   const selected = segments.findIndex((segment) => segment.value === value);
@@ -157,9 +164,9 @@ function ConclusionPair<T extends string>({
           key={segment.value}
           type="button"
           role="radio"
-          className="seg"
+          className={preview && segment.value === value ? 'seg is-floor' : 'seg'}
           data-value={segment.attr}
-          aria-checked={segment.value === value}
+          aria-checked={!preview && segment.value === value}
           disabled={isDisabled(segment.value)}
           tabIndex={index === tabbable ? 0 : -1}
           ref={(element) => {
@@ -209,6 +216,7 @@ export function ConclusaoSection({
   const obsSuggestedId = useId();
   const concHeading = useId();
   const floorReasonId = useId();
+  const previewLineId = useId();
   const readOnly = useSheetReadOnly();
   const enabled = enabledSubBlocksOf(block);
 
@@ -221,6 +229,12 @@ export function ConclusaoSection({
   const suggestion = conclusionSuggestion(block, definition, visit);
   const floorReason = conclusionFloorReasonText(block, definition, visit);
   const adjusted = conclusionAdjusted(block, definition, visit);
+  // Story 24.5: which half shows the floor as a preview, the kernel's answer; none on a read-only sheet.
+  const preview = readOnly ? { result: false, restriction: false } : conclusionPreview(block, definition, visit);
+  const previewing = preview.result || preview.restriction;
+  /** The ids describing a group: the reason line while segments are disabled, the preview line while the group is a preview. */
+  const describedBy = (inPreview: boolean) =>
+    [floorReason === null || readOnly ? null : floorReasonId, inPreview ? previewLineId : null].filter((id) => id !== null).join(' ') || undefined;
   const looser = (value: ConclusionResult | ConclusionRestriction) => !readOnly && isLooserThanFloor(block, value, definition, visit);
   const composed = useMemo(() => composeConclusion(block, definition, tag, visit), [block, definition, tag, visit]);
   const textState = conclusionTextState(block, composed);
@@ -453,7 +467,7 @@ export function ConclusaoSection({
           </div>
           {suggestion === null || readOnly ? null : (
             <div className="ficha-conc-sug-host">
-              <SuggestionField label={t.suggestionLabel} onConfirm={applySuggestion}>
+              <SuggestionField label={t.suggestionLabel} pill={ui.suggestionField.preview} onConfirm={applySuggestion}>
                 {conclusionSuggestionText(suggestion)}
               </SuggestionField>
             </div>
@@ -468,7 +482,8 @@ export function ConclusaoSection({
               missing={result === null}
               readOnly={readOnly}
               isDisabled={looser}
-              describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
+              describedBy={describedBy(preview.result)}
+              preview={preview.result}
             />
             {restrictionShown ? (
               <ConclusionPair
@@ -480,7 +495,8 @@ export function ConclusaoSection({
                 missing={result !== null && restriction === null}
                 readOnly={readOnly}
                 isDisabled={looser}
-                describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
+                describedBy={describedBy(preview.restriction)}
+                preview={preview.restriction}
               />
             ) : null}
             {floorReason === null || readOnly ? null : (
@@ -488,6 +504,11 @@ export function ConclusaoSection({
                 {floorReason}
               </span>
             )}
+            {previewing ? (
+              <span className="conclusion-hint e24-preview-line" id={previewLineId}>
+                {t.previewLine}
+              </span>
+            ) : null}
             {adjusted && !readOnly ? (
               <span className="conclusion-hint" role="status">
                 {t.adjustedNote}{' '}

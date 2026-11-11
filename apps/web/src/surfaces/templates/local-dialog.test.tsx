@@ -157,3 +157,30 @@ describe('14.2 LocalDialog: "Função e nome"', () => {
     expect(onSubmit).toHaveBeenCalledWith({ funcao: null, name: 'Cubículo da concessionária' });
   });
 });
+
+describe('24.9 (F20): "Agrupar por tipo" in the local\'s dialog of a relatório', () => {
+  it('"Adicionar local": a switch, off on a new local; switched on, the answer carries it', async () => {
+    const { onSubmit } = open({ agrupar: false });
+    const toggle = screen.getByRole('switch', { name: 'Agrupar por tipo' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle.closest('.toggle-row')).not.toBeNull();
+    await userEvent.click(screen.getByRole('radio', { name: 'Primária' }));
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar local' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ funcao: 'primaria', agrupar: true }));
+  });
+
+  it('"Função e nome" opens on the local\'s value; a dialog with no `agrupar` (the template composer) has no switch and answers none', async () => {
+    const edit = open({ mode: 'edit', initial: { funcao: 'primaria', name: 'Cabine primária' }, agrupar: true });
+    expect(screen.getByRole('switch', { name: 'Agrupar por tipo' })).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('switch', { name: 'Agrupar por tipo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(edit.onSubmit).toHaveBeenCalledWith({ funcao: 'primaria', name: 'Cabine primária', agrupar: false });
+    cleanup();
+    const plain = open({ mode: 'edit', initial: { funcao: 'primaria', name: 'Cabine primária' } });
+    expect(screen.queryByRole('switch')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(plain.onSubmit).toHaveBeenCalledWith({ funcao: 'primaria', name: 'Cabine primária' });
+  });
+});

@@ -556,6 +556,12 @@ function MeasurementTable({
           </div>
         )}
       </div>
+      {/* Story 24.9 (F16): the kernel's fallback sentences under "Aceitável …", without opening "Fonte do critério". */}
+      {(test.fallbackLines ?? []).map((text) => (
+        <p key={text} className="helper" data-criterion-fallback="">
+          {text}
+        </p>
+      ))}
       {notice}
       {line === null ? null : (
         <p className="v13-line" data-taps-line="">

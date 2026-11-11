@@ -1,6 +1,6 @@
 import { defaultLocalName, FUNCAO_MAX_LENGTH, FUNCAO_OPTIONS, localDialogDescription, textCapOf, type FuncaoKey } from '@app/domain';
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
-import { Button, CharCount, FormDialog } from '../../components/index.ts';
+import { Button, CharCount, FormDialog, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import './local-dialog.css';
 
@@ -24,6 +24,8 @@ const NAME_CAP = textCapOf('location', 'name');
 export interface LocalDialogResult {
   funcao: string | null;
   name: string;
+  /** Story 24.9 (F20): "Agrupar por tipo", only from a dialog that shows the switch (`agrupar`). */
+  agrupar?: boolean;
 }
 
 export interface LocalDialogProps {
@@ -33,6 +35,11 @@ export interface LocalDialogProps {
   initial?: { funcao: string | null; name: string };
   /** Epic 14 QA Q-17: the template's or relatório's seed version, for the description (`localDialogDescription`). */
   seedVersion: string;
+  /**
+   * Story 24.9 (F20; `42-template-composer.html` `#tc-dlg-local`, 2026-11-10): the "Agrupar por tipo" switch and its
+   * value as the dialog opens (off on a new local, M-2); none, no switch. A relatório's tree passes it.
+   */
+  agrupar?: boolean;
   onSubmit: (result: LocalDialogResult) => void;
   onClose: () => void;
 }
@@ -42,7 +49,7 @@ type Choice = FuncaoKey | typeof OUTRA | null;
 
 const isKey = (value: string): value is FuncaoKey => FUNCAO_OPTIONS.some((option) => option.key === value);
 
-export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: LocalDialogProps) {
+export function LocalDialog({ mode, initial, seedVersion, agrupar: initialAgrupar, onSubmit, onClose }: LocalDialogProps) {
   const t = copy.localDialog;
   const stored = initial?.funcao ?? null;
   const [choice, setChoice] = useState<Choice>(stored === null ? null : isKey(stored) ? stored : OUTRA);
@@ -51,6 +58,8 @@ export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: L
   // The name follows the Função until it is typed in; a local being edited keeps its own.
   const [nameEdited, setNameEdited] = useState(mode === 'edit');
   const [tried, setTried] = useState(false);
+  const [agrupar, setAgrupar] = useState(initialAgrupar ?? false);
+  const agruparLabelId = useId();
   const descriptionId = useId();
   const funcaoLabelId = useId();
   const otherId = useId();
@@ -117,7 +126,7 @@ export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: L
   const submit = () => {
     setTried(true);
     if (reason !== undefined) return;
-    onSubmit({ funcao, name: name.trim() });
+    onSubmit({ funcao, name: name.trim(), ...(initialAgrupar === undefined ? {} : { agrupar }) });
   };
   const onFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter') return;
@@ -228,6 +237,14 @@ export function LocalDialog({ mode, initial, seedVersion, onSubmit, onClose }: L
           </span>
         )}
       </div>
+      {initialAgrupar === undefined ? null : (
+        <div className="toggle-row">
+          <span className="toggle-label" id={agruparLabelId}>
+            {t.agrupar}
+          </span>
+          <Toggle isSelected={agrupar} onChange={setAgrupar} aria-labelledby={agruparLabelId} />
+        </div>
+      )}
       <div className="dialog-actions">
         <Button variant="secondary" onPress={onClose}>
           {t.cancel}

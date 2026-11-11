@@ -188,6 +188,10 @@ test('@p0 22.5-E2E-002 e24h: an old manual point of the NC row\'s equipment read
   await expect.poll(async () => (await storedPoints(page)).filter((point) => point.origin === 'nc').length).toBe(1);
   expect((await storedPoints(page)).find((point) => point.origin === 'nc')).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), item_key: FIRST_ITEM.key });
   await row.getByRole('radio', { name: 'Conforme', exact: true }).click();
+  // Story 24.7 (batch e24b): the row asks about its point; "Manter ponto" keeps it, flagged "Origem resolvida".
+  const question = page.getByRole('dialog', { name: 'Remover o ponto de atenção deste item?' });
+  await question.getByRole('button', { name: 'Manter ponto' }).click();
+  await expect(question).toHaveCount(0);
   await expect(row.getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   const resolved = cards(page).filter({ hasText: 'oxidação nos terminais' });

@@ -22,7 +22,7 @@ import { instantiateTemplate } from './instantiate.ts';
 import { blockOf, CTA, CTA_BLOCK, CTA_EQUIPMENT, ctaBlock, ctaDefinition, ctaLocal, ctaRelatorio, ctaRows, ctaState, E1, E2, E6 } from './measurement-test-support.ts';
 import { panelProposal, panelTypeChips, type PanelSuggestion } from './panel.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
-import { suggestTag, TAG_PREFIX } from './tag.ts';
+import { legacySuggestTag, suggestTag, TAG_PREFIX } from './tag.ts';
 import { blockTypeLabel, LIBRARY_GROUP_LABEL, libraryTypeSummaryText, paletteItems, paletteTypeGroups } from './tree.ts';
 
 /*
@@ -57,19 +57,21 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
     const v5 = paletteItems('v5', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(v5.map((item) => item.type)).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES, CTA]);
     expect(v5.slice(0, 8)).toEqual(v4);
-    expect(v5[8]).toEqual({ type: CTA, label: 'Chave de transferência automática', tag: 'CTA-C05', library: true, summary: '17 itens · até 6 ensaios' });
-    // Directly on a local, and with the TAG taken.
+    expect(v5[8]).toEqual({ type: CTA, label: 'Chave de transferência automática', tag: 'CTA-01', library: true, summary: '17 itens · até 6 ensaios' });
+    // Directly on a local, and with the TAG taken. Story 24.8 (row 2051): the local no longer enters the TAG (was CTA-GERADORES).
     const local = { kind: 'cabine' as const, name: 'Geradores' };
-    expect(paletteItems('v5', local, [], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-GERADORES');
-    expect(paletteItems('v5', local, [{ tag: 'CTA-GERADORES', removed_at: null }], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-GERADORES-2');
+    expect(paletteItems('v5', local, [], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-01');
+    expect(paletteItems('v5', local, [{ tag: 'CTA-01', removed_at: null }], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-02');
   });
 
   it('the TAG follows the existing rule with the prefix CTA; the type label and the summary are the seed\'s', () => {
     expect(TAG_PREFIX[CTA]).toBe('CTA');
-    expect(suggestTag(CTA, { kind: 'coluna', name: 'Coluna 5' }, [])).toBe('CTA-C05');
+    // Story 24.8: CTA-NN, free in the obra; the rule before is kept frozen (`legacySuggestTag`).
+    expect(suggestTag(CTA, [])).toBe('CTA-01');
+    expect(legacySuggestTag(CTA, { kind: 'coluna', name: 'Coluna 5' }, [])).toBe('CTA-C05');
     // On a local the code is the local's short name, as for the eight ("CE-ENEL").
-    expect(suggestTag(CTA, { kind: 'cabine', name: 'Cubículo Enel' }, [])).toBe('CTA-ENEL');
-    expect(suggestTag(CTA, { kind: 'cabine', name: 'Geradores' }, [{ tag: 'cta-geradores', removed_at: null }])).toBe('CTA-GERADORES-2');
+    expect(legacySuggestTag(CTA, { kind: 'cabine', name: 'Cubículo Enel' }, [])).toBe('CTA-ENEL');
+    expect(legacySuggestTag(CTA, { kind: 'cabine', name: 'Geradores' }, [{ tag: 'cta-geradores', removed_at: null }])).toBe('CTA-GERADORES-2');
     expect(blockTypeLabel('v5', CTA)).toBe('Chave de transferência automática');
     // On a version that does not ship it the label falls back to the key, as for any unknown type.
     expect(blockTypeLabel('v4', CTA)).toBe(CTA);
@@ -89,7 +91,7 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
     const input = { locations: [local], equipment: [], paletteLocationId: local.id, suggestion, pickedType: null };
     expect(panelProposal({ ...input, seedVersion: 'v4' })).toBeNull();
     // No column was read, so the location is the palette's own and the suggestion is not confirmed as read.
-    expect(panelProposal({ ...input, seedVersion: 'v5' })).toMatchObject({ type: CTA, typeLabel: 'Chave de transferência automática', tag: 'CTA-GERADORES', matched: false });
+    expect(panelProposal({ ...input, seedVersion: 'v5' })).toMatchObject({ type: CTA, typeLabel: 'Chave de transferência automática', tag: 'CTA-01', matched: false });
     // The engineer's own pick stands, and the read type that could not be offered is discarded with it.
     expect(panelProposal({ ...input, seedVersion: 'v4', pickedType: 'tp' })).toMatchObject({ type: 'tp', trust: null, suggestionStatus: 'discarded' });
     expect(panelTypeChips('v5', CTA, false).chips.map((chip) => chip.type)).toEqual([CTA, 'cabos_entrada', 'para_raio', 'chave_seccionadora']);
@@ -208,7 +210,7 @@ describe('a template with the type', () => {
     const { relatorioId, drafts } = instantiateTemplate(
       template,
       { id: TEST_PROJECT },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
       { newId: idSequence('019966b0-0148-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
     );
     const ops = drafts.map((draft, index) => ({ ...makeOp({ ...draft, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0149-7000-8000-'), now: T0 }), seq: index + 1 }));
@@ -231,7 +233,7 @@ describe('a template with the type', () => {
     const tp = instantiateTemplate(
       { ...v5(), blocks: setQuantity(v5(), 'c5', 'tp', 1, EMPTY_DEFINITION_CONTEXT) },
       { id: TEST_PROJECT },
-      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
       { newId: idSequence('019966b0-0148-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
     );
     const created = tp.drafts.find((draft) => parsePath(draft.path).family === 'block' && (draft.value as { block_type: string }).block_type === 'tp')!;

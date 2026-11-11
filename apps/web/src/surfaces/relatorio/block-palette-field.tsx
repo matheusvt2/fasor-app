@@ -274,7 +274,8 @@ function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipme
     setLocationId(id);
     // `locationChoices` offers only locations that take blocks (never a painel).
     const next = locations.filter(takesBlocks).find((row) => row.id === id);
-    if (!edited && next !== undefined) setTag(suggestTag(item.type, { kind: next.kind, name: next.name }, equipment, definition));
+    // Story 24.8: the suggestion no longer reads the local (`PREFIX-NN`), so it stays the same.
+    if (!edited && next !== undefined) setTag(suggestTag(item.type, equipment, definition));
   };
   const confirm = () => {
     if (verdict !== null) return;

@@ -110,7 +110,7 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   const b = instantiateTemplate(
     standardTemplate({ id: newId(), seedVersion: 'v13' }),
     { id: a.projectId },
-    { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const djB = blockRows(b.drafts).find((row) => row.equipment_id === equipmentId)!;
@@ -151,9 +151,10 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   const reason = conclusionFloorReasonText(block, DISJUNTOR, visit)!;
   expect(reason).toBe('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  // Story 24.5: the preview line is a `.conclusion-hint` too.
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
   // The engineer takes the suggestion: the pair section 9 prints (e22f N2: only a chosen pair prints its marks).
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');

@@ -487,14 +487,30 @@
  * recommendation also deletes its `index_recommendation`. MIN follows to 42 (below).
  */
 /*
- * 43 (2026-11-11, Story 24.2, batch e24a): no new op or path family. Seed v14 opens, equal to v13,
- * and becomes the version a new Template is created with (`SEED_VERSION`); the server's boot step
- * moves every template to it (`templateSeedUpgrade`), so every relatório created afterwards is born
- * on v14 and every one already made keeps its seed. The seed schema gains the optional seed-level
- * `rules` (a strict object of optional `true` flags, read by `seedRule`), absent on v1 to v14 at
- * this opening, so every shipped seed parses to the bytes it shipped with. MIN follows to 43 (below).
+ * 43 (2026-11-11, Stories 24.8 and 24.21, batch e24b):
+ * the equipment row gains the optional `reuse_key`, the frozen TAG rule's name of the template
+ * placement the equipment was created at, written once in its `equipment/{id}` create (by "Novo
+ * relatório" and by the palette, "Duplicar" and "Fotografar equipamento") and never put: no path
+ * writes it, so the fold refuses `equipment/{id}/reuse_key`. A new relatório of the obra binds a
+ * placement to the live equipment whose key equals the placement's, then, for a row with no key,
+ * whose TAG does, so a renamed TAG keeps its history. Optional and never defaulted: a row written
+ * before 43 parses to the same bytes and matches by its TAG. The suggested TAG of a new sheet
+ * becomes `PREFIX-NN` (SC for the seccionadora) and a move offers no rename; both are derived on
+ * the device and change no fold. MIN follows to 43 (below).
  */
-export const CONTRACT_VERSION = 43;
+/*
+ * 44 (2026-11-11, Stories 24.2 to 24.4, batch e24a): no new op or path family. Seed v14 opens and
+ * becomes the version a new Template is created with (`SEED_VERSION`); the server's boot step moves
+ * every template to it (`templateSeedUpgrade`), so every relatório created afterwards is born on v14
+ * and every one already made keeps its seed. The seed schema gains the optional seed-level `rules`
+ * (a strict object of optional `true` flags, read by `seedRule`), absent on v1 to v13, so every
+ * shipped seed parses to the bytes it shipped with. v14 turns five on: a reading out of its criterion
+ * makes the ficha Reprovado and nothing else and "Com restrições" is the technician's choice, the
+ * arrester's prerequisite is read only while its plate is on, the parecer names each reprovada
+ * ficha's findings, an NC observation's lines enter its clause on one line and the fixed "nos itens 8
+ * e 9" is replaced across formatted runs. MIN follows to 44 (below).
+ */
+export const CONTRACT_VERSION = 44;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -780,13 +796,21 @@ export const CONTRACT_VERSION = 43;
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
 /*
- * 43 (2026-11-11, Story 24.2, batch e24a): a version-42 (or older) bundle ships no seed v14, so it
- * cannot resolve a single definition of a v14 relatório or of a template the server moved to v14:
- * a pulled block create or template put naming `v14` fails to fold, and the sheets it could show
- * would have no nameplate, checklist or tests. Its pull answers `426 contract_outdated` and it
- * updates; its pushes are still accepted.
+ * 43 (2026-11-11, Stories 24.8 and 24.21, batch e24b): a version-42 (or older) bundle's equipment
+ * schema strips `reuse_key` when it folds an equipment create, so the rows it holds carry no key and
+ * its next relatório of the obra matches by the visible TAG: a renamed equipment is missed and
+ * created again, with no previous visit; and it would still suggest the TAGs of the rule before. Its
+ * pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 43;
+/*
+ * 44 (2026-11-11, Stories 24.2 to 24.4, batch e24a): a version-43 (or older) bundle ships no seed v14
+ * and reads no rule flag, so it cannot resolve a single definition of a v14 relatório or of a
+ * template the server moved to v14: a pulled block create or template put naming `v14` fails to fold,
+ * and the sheets it could show would have no nameplate, checklist or tests, nor judge them by v14's
+ * rules (a Reprovado with a restriction, the parecer's sentence by reason). Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 44;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

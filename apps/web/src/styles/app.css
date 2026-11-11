@@ -563,6 +563,26 @@ body {
   opacity: 0.4;
 }
 
+/* Story 24.5: the Conclusão step as a preview. Mirrors `60-ficha.html` (Story 24.1, 2026-11-10)
+   `[data-route="/ficha/:tag"] .ficha-conc-sug-host`, `.ficha-conc-sug-host .sv` and
+   `.e24-conc:not(.is-accepted) .conclusion-pair:not(:has(.seg[aria-checked="true"])) .seg.is-floor[data-value=…]`,
+   declarations verbatim; the mock's route scope and its `.is-accepted` toggle are mock-only (the
+   app draws `.is-floor` only on a half the kernel's `conclusionPreview` names, and no row or line
+   once the pair is stored). */
+.ficha-conc-sug-host { margin-bottom: var(--sp-3); }
+.ficha-conc-sug-host .sv { font-weight: 600; }
+.conclusion-pair:not(:has(.seg[aria-checked="true"])) .seg.is-floor[data-value="aprovado"] { background: var(--surface-raised); color: var(--aprovado); outline: 2px dashed currentColor; outline-offset: -6px; }
+.conclusion-pair:not(:has(.seg[aria-checked="true"])) .seg.is-floor[data-value="reprovado"] { background: var(--surface-raised); color: var(--reprovado); outline: 2px dashed currentColor; outline-offset: -6px; }
+.conclusion-pair:not(:has(.seg[aria-checked="true"])) .seg.is-floor[data-value="sem-restricoes"] { background: var(--surface-raised); color: var(--nao-aplica); outline: 2px dashed currentColor; outline-offset: -6px; }
+.conclusion-pair:not(:has(.seg[aria-checked="true"])) .seg.is-floor[data-value="com-restricoes"] { background: var(--surface-raised); color: var(--fora-do-limite); outline: 2px dashed currentColor; outline-offset: -6px; }
+
+/* Story 24.6: a row back to C or N.A. that keeps an edited observation. Mirrors `60-ficha.html` and
+   `61-verificacoes-local.html` (Story 24.1, 2026-11-10) `.e24-kept-line` and `.e24-kept-line .btn-text`,
+   declarations verbatim; the mock's `.checklist-row.e24-kept .row-expand { display: flex }` is what
+   `components.css` already draws for an open row, and its `.is-cleared` toggle is mock-only. */
+.e24-kept-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin: 0; }
+.e24-kept-line .btn-text { min-height: var(--touch-min); padding: 0 var(--sp-2); }
+
 /* ---------- App bar ----------
    The mock's wordmark and avatar are `<button>`s (ink text via the `.frame button` reset);
    in the app they navigate, so they are links, and a link would otherwise take the UA's
@@ -836,6 +856,17 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 .ficha-suggestion-confirmed { display: flex; align-items: flex-end; min-width: 0; }
 .ficha-suggestion-confirmed > :first-child { flex: 1; min-width: 0; }
 .ficha-suggestion-confirmed[data-state="confirmed"] > .crop-thumb { margin-bottom: calc((var(--touch-field) - 24px) / 2); }
+/* Story 24.9 (Matheus on the Story 24.1 frames, 2026-11-10: "está desalinhado, alinhar"): in a measurement table where a
+   confirmed reading shows its crop glyph after the unit, a row with no crop keeps the same slot empty, so every value
+   and every unit sits in one column. Mirrors `60-ficha.html` `[data-route="/ficha/:tag"] .suggestion-field[data-state="confirmed"]
+   .measurement-field .crop-thumb` and `.measurement-table:has(…) .measurement-field:not(:has(.crop-thumb))::after`
+   (dated 2026-11-10), declarations verbatim; the mock's `.is-confirmed` and `.all-confirmed` toggles are mock-only.
+   From the tablet width only (the story's 768 and 1280 px): below it the moved glyph and the empty slot pushed a 390 px
+   table past the screen (9.4-E2E-011, every table fits), so the phone keeps the layout it had. */
+@media (min-width: 768px) {
+  .suggestion-field[data-state="confirmed"] .measurement-field .crop-thumb { order: 9; margin-right: var(--sp-2); }
+  .measurement-table:has(.suggestion-field[data-state="confirmed"] .crop-thumb) .measurement-field:not(:has(.crop-thumb))::after { content: ""; flex: none; order: 9; width: 24px; margin: 0 var(--sp-2); }
+}
 
 /* Stories 8.2 and 8.6, the plate photo above the nameplate (`60-ficha.html` lines ~313-328,
    `components.css` `.plate-crop`, `.photo-row`). */

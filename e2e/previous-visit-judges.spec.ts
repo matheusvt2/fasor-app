@@ -113,7 +113,7 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   const b = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: a.projectId },
-    { service_start: '2026-11-08', service_end: '2026-11-09', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-11-08', service_end: '2026-11-09', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const trB = blockRows(b.drafts).find((row) => row.equipment_id === equipmentId)!;
@@ -160,7 +160,7 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   const reason = conclusionFloorReasonText(block, TRANSFORMER, visit)!;
   expect(reason).toBe('A ficha exige no mínimo Aprovado · Com restrições: leitura com restrição.');
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
 
   // ~~Fix batch e23p (P3): the derived restricao point names both corrected values, on the Pontos de atenção surface.~~
   // Fix batch e24h (2026-11-10): no automatic point; Pontos lists nothing until the technician creates one.

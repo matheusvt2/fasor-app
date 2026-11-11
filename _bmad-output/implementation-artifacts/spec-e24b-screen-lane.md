@@ -1,0 +1,218 @@
+---
+title: 'e24b, the screen lane: the conclusion preview, the NC phrase, the point question, the TAG rule, a renamed TAG keeps its history, small screen fixes (Stories 24.5 to 24.9, 24.21)'
+type: 'feature'
+created: '2026-11-10'
+status: 'done'
+baseline_revision: '1528183f3abfc76b842dcf3fc79bce86142db1ae'
+review_loop_iteration: 0
+followup_review_recommended: false
+dev_model: opus
+dev_effort: high
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-24-context.md'
+warnings: ['batched', 'multiple-goals', 'oversized']
+batched_reason: 'Wave 1 screen lane of Epic 24 as the coordinator cut it: six stories on the ficha, the Pontos screen, the TAG and the reuse of equipment, every seed, one contract bump (24.21), one review, one gate, one PR.'
+deferred:
+  - summary: >-
+      A recent observation (another sheet's typed text) counts as an offered phrase, so an equal typed observation is cleared with no warning when its row leaves NC.
+    evidence: |-
+      Story 24.6 names the recents among the offered phrases; review ECH-4.
+    location: >-
+      packages/domain/src/relatorio/ficha.ts ncObservationOnLeave
+    severity: medium
+  - summary: >-
+      The thermal photo count matches the context caption, so a sheet renamed after its shots counts 0, and a sheet-camera photo with that caption counts.
+    evidence: |-
+      No stored marker of a thermal shot; review ECH-6, ECH-7.
+    location: >-
+      packages/domain/src/photos/text.ts thermalPhotoText
+    severity: medium
+  - summary: >-
+      A reuse key keeps its placement's local and place: a sheet moved then saved as a template, or a sibling removed, misses its equipment at the next relatório.
+    evidence: |-
+      Story 24.21's stated limits of a place-based key; review ECH-8, ECH-11; spec D3, D4.
+    location: >-
+      packages/domain/src/relatorio/instantiate.ts
+    severity: medium
+---
+
+<intent-contract>
+
+## Intent
+
+**Problem:** Bruno's answers of 2026-11-10 (questions 24, 27, 28, 29) and the hands-on pass ask for six screen-level changes on every seed: the suggested conclusion reads as if concluded (24.5); an NC phrase stays behind when the row goes back to C/NA (24.6); a point created from a row stays when its cause is gone, with no question (24.7); the suggested TAG is named after the local (24.8); a renamed TAG loses the equipment's history at the next relatório (24.21); seven small rough edges (24.9).
+
+**Approach:** Build each story as `epics.md` § Epic 24 writes it (24.5 :7819-7876, 24.6 :7877-7953, 24.7 :7954-8045, 24.8 :8046-8129, 24.9 :8130-8218, 24.21 :9073-9198; read each one whole, with its dated notes; a dated note wins over the sentence it amends). The kernel decides every list, text, count and verdict; the web renders from IndexedDB and writes existing ops. 24.8 and 24.21 are built once, in 24.21's form (one match function, a stored write-once `reuse_key`). One contract bump for 24.21's row field.
+
+## Boundaries & Constraints
+
+**Always:**
+- Red first: each AC below gets a test that fails on `1528183f` before the code (kernel unit first, then the web unit, then the story's e2e). Test ids as the stories' DoD names them (`24.5-UNIT`, `24.5-E2E-001 @p0`, ...). A new `@p0` e2e asserts the committed state (IndexedDB store or outbox), not only the screen.
+- AD-1/AD-13: which half is a preview, which observation is automatic, which points a row asks about, the TAG and the reuse key, the counts and every derived text are kernel functions in `packages/domain`; `apps/web` never computes them. Static copy in `apps/web/src/copy/pt-br.ts`, component chrome in `copy/ui.ts`, derived text in the kernel (AGENTS.md "Where a new user-facing string goes"). Every pt-BR sentence authored here is marked `// authored (e24b, listed for Bruno)` and listed in the spec's "Authored sentences".
+- Screens from the approved mocks with the mock's class names (`prototype/screens/60-ficha.html` rules :319-370 and :77-78, `61-verificacoes-local.html`, `72-pontos.html`, `41-templates.html`, `42-template-composer.html`; grep, never read whole). `tokens.css`/`components.css` unchanged; each mock rule mirrored in `apps/web/src/styles/app.css` with a comment naming it (AGENTS.md "Mock container selectors").
+- Nothing an existing relatório prints changes: layout-lock goldens v5, v11, v12 and the Porto Seguro golden stay byte-identical; fixtures change by additions only; `V13_HASH` and every seed file unchanged.
+- The binding rules of main after e24h: a point exists only when a person creates it; an observation never floors anything, on every seed (H9). Where a story sentence assumes an automatic point or an observation floor, the e24h rule wins (see D6).
+- Every container run: `podman compose run --rm --user root tools ...` from the worktree (project `fasor-e24b`, `.env` present). Every `test:unit`, `test:api` or Playwright run under the host lock, started with nohup, logged under `.scratch-e24b/`, polled in bounded calls of at most 55 s: `(nohup lockf -t 20000 /tmp/fasor-verify.lock sh -c 'podman compose run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/x.spec.ts --project desktop-chrome --project durability-desktop-chrome' > .scratch-e24b/x.log 2>&1; echo EXIT=$? >> .scratch-e24b/x.log) &`. `podman compose restart api` after any change under `packages/domain` or `apps/api`, before `test:api` or an e2e. Narrow runs while iterating (`pnpm exec vitest run --project @app/web <file>`, one spec with `--grep`).
+
+**Never:**
+- No seed change, no golden regeneration (a golden that moves is a defect: stop and report), no new op family beyond 24.21's create field, no put path for `reuse_key`.
+- Never edit `epics.md`, `source-deltas.md` for the contract number, `epic-24-context.md`, the sprint change proposal. Never use docker, touch the main checkout or its stack, run `down -v`, or run Playwright outside the lock.
+- No product decision beyond the stories and their "Coordinator's reading" (build those as written, list them in the PR).
+
+## I/O & Edge-Case Matrix
+
+| Story | Input / State | Expected |
+|---|---|---|
+| 24.5 | open ficha, floor A·Sem, nothing stored, any seed | row "Prévia da conclusão" + pill "Prévia" + "Confirmar"; both groups preview (no `aria-checked`, floor segment `.is-floor`); line "Prévia: só vale depois de Confirmar ou de Concluir ficha." described by both groups |
+| 24.5 | result stored by a tap, restriction from floor | row gone; only the restriction group in preview; the line still describes it |
+| 24.5 | "Confirmar" / "Concluir ficha" / Não ensaiado / no floor / `conclusionAdjusted` | no preview anywhere; stored pair written as today; section 9 prints no mark for a preview pair |
+| 24.6 | NC row, observation = one chip, or two chips joined by `insertPhrase`, final period aside; → C or → NA | observation removed in the same batch; no warning |
+| 24.6 | observation typed, or chip + typed words; → C or → NA | kept; line "Observação mantida: o texto foi editado." (`role="status"`) + "Apagar observação" (removes, toast "Desfazer" restores); same on a local's row |
+| 24.6 | learned phrase "X" and recent "X." | chip offered once |
+| 24.6 | "Limpar", C→NC, NC cleared, blank observation | as today, no warning |
+| 24.7 | sheet/local NC row with live point(s) `origin: 'nc'`, same owner and `item_key` (created by the tap, or pre-e24h "Editar"); → C or → NA | ConfirmDialog "Remover o ponto de atenção deste item?", description names the point(s) by section 8 position (kernel), "Manter ponto" focused first, "Remover ponto" destructive; the row shows the new result behind it; Remover → result + point removals (+ 24.6's observation clear) in ONE batch; Manter/close → result (+ clear) only, point flagged "Origem resolvida" |
+| 24.7 | NC row with no stored point, or a `manual` point of the same equipment | nothing asked |
+| 24.7 | point in `resolvedOriginPoints` (any origin) on Pontos | card shows "Origem resolvida" + "Remover ponto" → existing removal confirmation → "Desfazer" restores |
+| 24.8 | no breaker; add Disjuntor MT | "DJ-01", then "DJ-02"; helper "Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local." |
+| 24.8 | live "TR-1","TR-2" | "TR-03"; seccionadora "SC-01"; CTA on "Geradores" "CTA-01"; company copy prefix TR → next free "TR-NN" (shares the numbers); 100+ → three digits; removed rows never count |
+| 24.8 | sheet moved | no rename offered (`moveTagSuggestion` null) |
+| 24.21 | keyed obra (created after this batch), TAGs renamed "52-1", "TF-A"; second relatório | every placement binds its equipment (step 2), none created, TAGs stand, "Anterior"/"Copiar da última visita"/MANUT. ANTERIOR shown, a contact rise judged against the first visit |
+| 24.21 | old obra (SEC-C05, DJ-C05, CE-ENEL, TR-1, no key, `last_results`) | binds by TAG (step 3), no op on those rows; DJ-C05 renamed before → that placement creates a new keyed row |
+| 24.21 | template +1 breaker / block removed then re-added / moved to Coluna 6 / palette "QM8" + "Salvar como template" / two rows one key / keyed vs unkeyed same string / keyed renamed to another's legacy TAG | as 24.21's ACs: new key `DJ-C05-2` created; unbound then rebound; new equipment; both bind their own; smallest id; keyed wins; each binds its own |
+| 24.21 | a put to `equipment/{id}/reuse_key`; rename, move, remove, restore | refused by path parse; key unchanged |
+| 24.21 | layout-lock, Porto Seguro, replay fixtures, `e2e/support/relatorio-seed.ts` | built with the legacy rule: no `reuse_key` on any row, drafts byte-equal, goldens byte-equal |
+| 24.21 | pull at the previous contract | 426 `contract_outdated`; current answered; old push accepted |
+| 24.9 | each of F9, F11, F16, F17, F19, F20, F1, row 3022, row 1439, table alignment | as 24.9's ACs; the printed text of every value pinned unchanged |
+
+</intent-contract>
+
+## Code Map
+
+- **24.5** `packages/domain/src/relatorio/conclusion.ts` -- `conclusionFloor` :134, `effectiveConclusionPair` :220, `chosenConclusionPair` :239, `printedConclusionPair` :255, `conclusionAdjusted` :264, `conclusionSuggestion` :316 (add `conclusionPreview(block, definition, visit): { result: boolean; restriction: boolean }`: a half is a preview when the sheet is tested, a floor exists and that half's cell is not filled; place it right after `conclusionSuggestion`, kept small: e24f and e24a edit this file). `apps/web/src/surfaces/ficha/conclusao-section.tsx` :215-217 (effective pair), :427-458 (SuggestionField + two `ConclusionPair`); `apps/web/src/components/suggestion-field.tsx` :92 (needs a pill-text prop; `ui.ts` :117-123); `copy.ficha.conclusao` (`pt-br.ts` ~:1681, `suggestionLabel`). The `ConclusionPair` component (grep in `surfaces/ficha/`) gets a preview value: no checked segment, the floor's segment `.is-floor`, `missing` still false.
+- **24.6** `relatorio/ficha.ts` `clearsNcObservation` :223, `insertPhrase` :233, `recentChecklistObservations` :191; `registry/nc-phrase-row.ts` `ncChipPhrases` :39 (dedupe by `normalizeRegistryName` of the phrase without its final period), `typedPieces` :124 (the rule: no typed piece, offered phrases taken with and without a final period). Replace `clearsNcObservation` by `ncObservationOnLeave(from, to, observation, chips): 'clear' | 'keep' | null` (`keep` = the warning). `apps/web/src/surfaces/ficha/checklist-section.tsx` `ChecklistRow` :362, `choose` :437-442 (shared by `surfaces/local/verificacoes-surface.tsx` :45); the kept look `.e24-kept`, `.e24-kept-line` (`60-ficha.html` :365-368, item 2 of DJ-01 :799).
+- **24.7** `points/checks.ts` `ncRowPointPositions` :186 (the owner + `item_key` match, `NcRowOwner`), `livePoints` :15; add `pointsAskedOnLeave(points, owner, itemKey, from, to): PointRow[]` and the description text (kernel; mock `60-ficha.html` :1525-1535: "O ponto de atenção 5 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Origem resolvida”."; N.A. and plural forms authored). `relatorio/ops.ts` `removePointOp` :59. `points/derived.ts` `resolvedOriginPoints` :378 (read only). `apps/web/src/components/confirm-dialog.tsx` :34 (cancel focused first). `apps/web/src/surfaces/points/points-surface.tsx` :87, :197 (flag → `.poa-flag-row` with "Remover ponto", `72-pontos.html` `#pontos-7-t`, `#pontos-dlg-remove`). The row holds the chosen value as pending while the dialog is open and writes on the answer.
+- **24.8 / 24.21** `relatorio/tag.ts` -- `TAG_PREFIX` :13 (SEC → SC), `suggestTag` :98. Keep today's rule frozen as `legacySuggestTag(type, location, existing, definition)` with a frozen `LEGACY_TAG_PREFIX` (SEC); new `suggestTag(type, existing, definition)` = `PREFIX-NN`, NN the smallest free from 1 among live TAGs matching `^PREFIX-0*(\d+)$` (normalized), padded to 2 (3 from 100). Add `equipmentMatchKey(row)` (`reuse_key` else `normalizeTag(tag)`). `schemas/entities.ts` `equipmentRowSchema` :381 -- `reuse_key: z.string().optional()` (never defaulted). `ops/path.ts` `EQUIPMENT_FIELDS` :49 unchanged (no put path). `relatorio/instantiate.ts` :300-355 -- the run of 24.21 (keys over this run's keys via `legacySuggestTag`; step 2 keyed rows by key, smallest id; step 3 unkeyed rows by normalized TAG, smallest id; step 4 create with key + new `suggestTag` over `taken`); `PriorEquipment` :82 gains `reuse_key`; `InstantiateInputs` gains `tagRule?: 'current' | 'legacy'` (legacy: created TAG by `legacySuggestTag`, no key written: byte-equal drafts). `relatorio/tree.ts` `duplicateTagSuggestion` :687, `paletteItems` :817, `newEquipmentBlock` :879 (optional `placement?: { location: TagLocation; equipment: readonly (TagEquipment & { reuse_key?: string })[] }`: with it, the key = `legacySuggestTag` free among the obra's live match keys; without it, no key). `relatorio/move.ts` `moveTagSuggestion` :59 → always null (doc why); `relatorio/panel.ts` :238. `merge/conflicts.ts` :535 (comment only). `contract/version.ts` (paragraphs at :470 and :748 style, `CONTRACT_VERSION` :478, `MIN_CONTRACT_VERSION` :755). Web: `surfaces/relatorio/tree-actions.ts` `createPair` :308-350 (pass `placement`), `block-palette-field.tsx` :277, `relatorio-tree.tsx` :455, `move-block-dialog.tsx` :44, `surfaces/project/new-relatorio-dialog.tsx` (passes `existingEquipment` with `reuse_key`), the TAG field helper `copy.ficha.nameplate` (`pt-br.ts` :1490 "Do bloco · editável"). Legacy-rule callers (by addition): `packages/domain/fixtures/layout-lock/op-log.ts`, `e2e/support/relatorio-seed.ts` :144, `apps/api/src/jobs/generate/page-layout.test-support.ts`, `apps/api/src/sync/rules.test-support.ts`, and every unit/api/e2e test that asserts a legacy TAG out of `instantiateTemplate` (pass `tagRule: 'legacy'` rather than rewriting the assertion; list them). Contract tests: `contract/contract.test.ts` :105-111, `apps/api/src/sync/sync.integration.test.ts` "1.5-API-005 contract skew" :1119 (precedent: `git show 1528183f -- apps/api/src/sync/sync.integration.test.ts`).
+- **24.9** each item's file is named in the story's "Today" list (`relatorio/tap-rows.ts` :360, `photo-openers.tsx` :66-97, `applicability-band.tsx` :97 / `relatorio/applicability.ts` :192, `reading-evaluation.ts` :383-391 / `ensaios-section.tsx` :530-545, `measurement-evaluation.ts` :748-760 and :1245, `conclusion.ts` :610-611 / `readingClause` :447, `local-dialog.tsx` / `relatorio-tree-shared.tsx` :134, `db/home-store.ts` :47-66 / `templates-surface.tsx` :200, `pt-br.ts` :1798-1800, `e2e/support/merged-fixtures.ts` :49-61); the alignment rule `60-ficha.html` :77-78; the mock texts in MOCK-GUIDE § 2026-11-10 rows "TAPS helper" … "Templates that cannot be read". Lines are those of `dbcdb720`; grep the symbol.
+
+## Tasks & Acceptance
+
+The work is done in two parts, each by one implementation pass, in this order. Part A: 24.8 + 24.21. Part B: 24.5, 24.6, 24.7, 24.9 (24.6 before 24.7: same row component). Each part ends with lint, static, its unit tests and its e2e specs green under the lock, and a WIP commit.
+
+**Execution (Part A):**
+- `relatorio/tag.ts`, `tag.test.ts` -- legacy rule frozen (today's `tag.test.ts` cases run against `legacySuggestTag` unchanged), new `suggestTag`, `equipmentMatchKey`, `reuseKeyFor(type, location, equipment, definition)` -- 24.8 rule and 24.21 key.
+- `schemas/entities.ts`, `ops/apply.ts` (check only: the create keeps the key, an old row parses to the same bytes) -- the optional field.
+- `relatorio/instantiate.ts` + `instantiate.test.ts` (`24.8-UNIT`, `24.21-UNIT`) -- the run, `tagRule`, the three obras of 24.8 and every obra of 24.21's ACs, both tie-breaks, drafts byte-equal under `tagRule: 'legacy'`.
+- `relatorio/tree.ts`, `move.ts`, `panel.ts` + tests -- new suggestion everywhere, `newEquipmentBlock` placement key, move offers no rename.
+- `contract/version.ts` + `contract.test.ts` + `sync.integration.test.ts` -- `CONTRACT_VERSION` = the value on main + 1 (42 on `1528183f`; the orchestrator renumbers at PR time if e24a merged first), `MIN_CONTRACT_VERSION` the same, two paragraphs in the 41 style (24.21: a bundle on the previous contract strips `reuse_key` when it folds an equipment create, so its next relatório misses the equipment).
+- `apps/api/src/sync/equipment-reuse-key.integration.test.ts` (new, `24.21-API-001`) -- a create with the key through the sync route read back by a second device, a put to `equipment/{id}/reuse_key` refused, cross-tenant refused.
+- Web -- `tree-actions.ts`, `block-palette-field.tsx`, `relatorio-tree.tsx`, `move-block-dialog.tsx`, `new-relatorio-dialog.tsx`, the TAG helper copy; web unit tests that assert a suggested TAG follow the new rule.
+- Fixtures/e2e -- legacy rule passed by the fixture builders above; `e2e/tag-suggestion.spec.ts` (`24.8-E2E-001 @p0`, `24.8-E2E-002 @p0`), `e2e/equipment-history.spec.ts` (`24.21-E2E-001 @p0`, `24.21-E2E-002`); update every spec that creates a relatório through the screen and asserts a suggested TAG (`grep -rln "SEC-\|DJ-C\|CE-ENEL\|TR-1\b\|CTA-\|renameTo\|Renomear para" e2e/`; 4.1-E2E-003 first); run the touched durability specs on the matrix.
+- Row 2727 (`block-palette.tsx`): fixed only if Part A edits that file.
+
+**Execution (Part B):**
+- 24.5 -- `conclusionPreview` + `24.5-UNIT` (v5 and v13 fichas: stored, half-stored, floor-only, not tested, no floor); `conclusao-section.tsx`, `suggestion-field.tsx`, the `ConclusionPair` component, `pt-br.ts`/`ui.ts` copy; `app.css` mirror of `60-ficha.html` :319-354 (preview segments and line); web unit tests per state; `e2e/conclusion-preview.spec.ts` (`24.5-E2E-001 @p0` at 768 px with the preview PDF, `24.5-E2E-002` at 390/1280 + dark + half-stored + accessible description).
+- 24.6 -- kernel rule + chips dedupe + `24.6-UNIT`; `ChecklistRow` (clear, kept warning, "Apagar observação" with "Desfazer"); `app.css` mirror of :365-368; web unit tests on a sheet and a local; `e2e/nc-phrase-follows-item.spec.ts` (`24.6-E2E-001 @p0` through the preview PDF's section 9, `24.6-E2E-002`); `ficha.durability.spec.ts` and `verificacoes-local.durability.spec.ts` on the matrix.
+- 24.7 -- `pointsAskedOnLeave` + text + `24.7-UNIT`; `ChecklistRow` pending choice + ConfirmDialog; Pontos card action; web unit tests (three exits, the card action); `e2e/point-question.spec.ts` (`24.7-E2E-001 @p0` both answers through the DOCX section 8, `-002` resolved `reading` point removed and restored, `-003` the local's NC item: point created by the tap, then the question with both answers); touched durability specs on the matrix.
+- 24.9 -- each item with its kernel test pinning the printed text beside the screen text (`24.9-UNIT`), web unit tests of the local dialog switch and the Templates notice, the three copy keys removed, `signIn` waits up to 15 s, the alignment rule in `app.css`; `e2e/pass-screen-fixes.spec.ts` (`24.9-E2E-001 @p0`, `-002`, `-003`, plus the alignment check comparing the units' right edges in one table).
+
+**Acceptance Criteria:**
+- Given each matrix row and each story AC in `epics.md`, when its test runs on `1528183f`, then it fails, and after the change it passes.
+- Given the layout-lock (v5, v11, v12), Porto Seguro and replay fixtures, when built and compared, then every golden is byte-equal and no equipment row carries `reuse_key`.
+- Given the story gate, when it runs, then lint, static, test:unit, test:api and every touched spec on `desktop-chrome` and `durability-desktop-chrome` are green, and the touched durability specs are green on the matrix projects.
+
+## Design Notes
+
+- **D1, one match (24.8 with 24.21).** Story 24.8's two-candidate match is not built: the batch builds 24.21's form directly (its dated note allows it). 24.8's AC "an obra with old TAGs" is 24.21's step 3; its AC "an obra created under the new rule" is step 2.
+- **D2, the legacy rule's role.** `legacySuggestTag` is used for: the placement key (instantiate and palette), and fixtures/tests through `tagRule: 'legacy'`. Nothing on screen shows it.
+- **D3, no rename on move.** The suggestion no longer depends on the local, so `moveTagSuggestion` returns null and the move dialog shows no rename checkbox; the key keeps the old local's code (a moved sheet's equipment keeps its key; a block moved in the template creates a new equipment, 24.21's stated limit).
+- **D4, palette key order limit.** A palette breaker added at a coluna already holding one gets the key `DJ-C05-2`; a template saved from that relatório places the two breakers in their tree order, so if the added one sits before the original, their keys swap at the next relatório. Not fixed (the placement has no stable id); recorded as a known limit.
+- **D5, row 3037 (a relinked point keeps its `item_key`).** Story 24.7 asks by owner + `item_key`, as the story defines; a point relinked to another equipment is asked about by its new owner's row of the same item. An immutable source (the block id at create) or a relink guard is a product decision: not built, the row stays open for Matheus.
+- **D6, H9 over 24.6's fifth AC.** After e24h's H9 an observation floors nothing on any seed, so a kept observation on a v13 ficha no longer floors Com restrições; the test asserts "floors nothing" on v13.
+- **D7, the contract number.** ~~Main is at 41; e24a holds 42 if it merges first.~~ *(2026-11-11: fix batch e24f merged first with 42; the batch took 43 with minimum 43.)* The batch takes main + 1 at PR time and says so in the PR; it does not edit the planning files for the number.
+
+## Verification
+
+**Commands:**
+- `podman compose run --rm --user root tools pnpm lint` and `pnpm static` -- clean.
+- Under the lock: `pnpm test:unit`, `pnpm test:api` -- green.
+- Under the lock: `pnpm exec tsx scripts/e2e.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` -- green; the touched durability specs again with the three matrix projects.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-11 — Review pass
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them). One finding came from the Part B implementer's own report (row 21).
+- verdicts: 21 findings — high 0, medium 9, low 10, false 2, maybe-false 0
+- findings:
+  - `medium` `patch` VG-1 `thermalPhotoText`'s filter tested by no kernel case -- added `photos/text.test.ts` 24.9-UNIT F11 (removed shot, item photo, other caption, other block, a document, zero and null caption).
+  - `medium` `patch` VG-2 `screenCriterionText` present only with the medium unknown, not tested -- added `e23t-transformer-tests.test.ts` 24.9-UNIT F17 (unknown, oil, dry; printed line unchanged).
+  - `medium` `patch` VG-3 `fallbackLines` filter and absence not tested -- added `criteria-tables.test.ts` 24.9-UNIT F16 (missing TIPO gives one line; a complete plate gives none).
+  - `low` `reject` VG-4 legacy run now binds the smallest id on a TAG tie where list order decided before -- no fixture passes such a tie (all pass an empty or untied list), goldens byte-equal; the comment now says so (`instantiate.ts`).
+  - `medium` `patch` ECH-1 the asked points leave while the question is open: dialog closes, pending result never written -- `checklist-section.tsx` effect writes the chosen result alone when nothing is left to ask.
+  - `medium` `patch` ECH-2 text still being saved (`typed.text` ahead of the store) when C is tapped: kept with no warning -- the rule now judges the typed text; a typed piece shows the warning; a pending all-chip text is not cleared (its own commit would bring it back).
+  - `low` `reject` ECH-3 "Desfazer" after "Remover ponto" also reverts the result and the cleared observation -- one batch per the story ("in the same batch"); undo restores the whole consistent state (row NC with its point), never a half.
+  - `medium` `defer` ECH-4 an observation equal to another sheet's typed observation (a recent) reads as automatic and is cleared -- the story names the recents as offered phrases ("the seed's, the learned ones, the recents"); a different reading is Matheus's (deferred-work row).
+  - `low` `reject` ECH-5 an observation with no letter or digit ("?", "-") reads as automatic -- unlikely in use; the fix adds a branch to the kernel rule.
+  - `medium` `defer` ECH-6 "Foto térmica · N" counts by the context caption, so a sheet renamed after its shots counts 0 -- no stored marker of a thermal shot exists; one needs a file field (contract); screen only, nothing prints from it (deferred-work row).
+  - `low` `defer` ECH-7 a sheet-camera photo on the Ensaios step with the thermography's caption is counted -- same root as ECH-6.
+  - `medium` `defer` ECH-8 a sheet moved, then "Salvar como template": the key keeps the old local's code and the placement at the new local misses -- 24.21's stated limit for a moved placement; D3; deferred-work row.
+  - `low` `reject` ECH-9 two devices offline palette-add one type at one local: one key twice -- 24.21's reading: the oldest binds, nothing reports the other (coordinator's reading, listed in the PR).
+  - `low` `reject` ECH-10 `PREFIX-01` from two offline devices anywhere in the obra -- Story 24.8's rule; the integrity check reports a doubled TAG as today (AC "two live equipment with the same TAG").
+  - `low` `defer` ECH-11 keyed `DJ-C05` removed and `DJ-C05-2` live; a template with one breaker misses `DJ-C05-2` -- 24.21's stated limit of place-based keys (same family as "the later takes the earlier key"); deferred-work row.
+  - `low` `patch` ECH-12 a blank `reuse_key` would match nothing and hide the TAG -- schema `z.string().trim().min(1).optional()`; test in `equipment-reuse-key.test.ts`.
+  - `false` `reject` ECH-13 a conclusion cell with an unknown non-null value -- the fold validates the conclusion cells against their enums; no such cell can be stored.
+  - `low` `reject` ECH-14 `moveTagQuestion`, `renameToText`, `MoveTagSuggestion` and the dialog's rename branch now dead -- harmless; removing them touches the dialog and its tests (more than a deletion); left for a cleanup.
+  - `low` `patch` ECH-15 `equipmentMatchKey`'s doc claims every reader uses it -- doc corrected (`tag.ts`).
+  - `false` `reject` ECH-16 legacy "byte for byte" claim -- same as VG-4; comment narrowed.
+  - `medium` `patch` IMPL-1 (Part B report) a typed observation is learned by the server after its push, so once synced it reads as an offered phrase and leaving NC removes it with no warning -- verified in `apps/api/src/sync/apply.ts` `learnPushedOptions`; patched: the row judges against the phrases learned before its observation's last write (`learnedBefore`, `registry/nc-phrase-row.ts`; `leaveChips` on the row target), boundary test `relatorio/observation-on-leave.test.ts`.
+
+Patched, not re-reviewed (E14-A5): ECH-1, ECH-2, ECH-12, IMPL-1.
+
+## Authored sentences
+
+Part A (24.8, 24.21):
+- `copy.sumario.palette.chooseTypeOnly` (`apps/web/src/copy/pt-br.ts`): "Escolha o tipo · TAG sugerida por tipo e número" -- authored (e24b, listed for Bruno): the mock's new `chooseType` wording without "Ou" (the palette with no camera row).
+- Verbatim from the mocks, not authored here: the TAG field helper "Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local." (`60-ficha.html`), and `chooseType` "Ou escolha o tipo · TAG sugerida por tipo e número" (`40-relatorio-overview.html` :518, authored in Story 24.1).
+- Kernel, no new sentence: the "Fotografar equipamento" provenance line for the TAG (`panelProvenance`, `relatorio/panel.ts`) now reads, for every type, the existing transformer line "tipo · próximo número livre" (the "tipo + coluna · ..." lines no longer describe the rule). The detect frame of `40-relatorio-overview.html` :662 still shows "tipo + coluna · nenhuma SEC-C09 no relatório" (a 24.1 frame not updated; for the reviewer).
+
+Part B (24.5, 24.6, 24.7, 24.9), each marked `authored (e24b, listed for Bruno)` in place:
+- 24.5 `copy.ficha.conclusao.suggestionLabel` "Prévia da conclusão" (was "Sugestão"), `ui.suggestionField.preview` "Prévia", `copy.ficha.conclusao.previewLine` "Prévia: só vale depois de Confirmar ou de Concluir ficha." (the story's words, as the mock draws them).
+- 24.6 `copy.ficha.checklist.keptLine` "Observação mantida: o texto foi editado.", `keptClear` "Apagar observação", `keptCleared` (toast) "Observação apagada" (the story's and the mock's words).
+- 24.7 `copy.ficha.checklist.pointKeep` "Manter ponto", `pointRemove` "Remover ponto"; kernel `pointQuestionText` (`points/checks.ts`): the mock's title "Remover o ponto de atenção deste item?" and description "O ponto de atenção N foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Origem resolvida”."; authored: the N.A. form "…, que agora está marcado como Não se aplica. …", the plural title "Remover os pontos de atenção deste item?", the plural description "Os pontos de atenção 5 e 6 foram criados a partir deste item, … Se mantiver, eles ficam com a marca “Origem resolvida”." and the toasts "Ponto de atenção N removido" / "Pontos de atenção N e M removidos" (the mock's toast for one).
+- 24.9 F9 `tapsHelperText` "Na ordem da placa, separados por ;" (+ " · 5 taps"; the story's words). F11 `thermalPhotoText` "Foto térmica · 2" (kernel; the copy key `ficha.measurement.thermalPhoto` struck) and the value condition's `appliedText` now the reason alone, so the band reads "Aplicado por você. Equipamento fora de carga." (the story's words). F17 the out helper "Desvio de 5,01 % sobre a menor fase (Fase A: 1 Ω), acima de 5 %: a ficha fica Reprovado." (authored outcome "a ficha fica Reprovado.", after the mock's polarity helper) and the screen criterion line "Óleo: … · Seco: …" (the story's form). F19 "Critérios usados" item "R_cont ⟨polo⟩ 61 µΩ · alta de 52,5 % sobre 40 µΩ da manutenção anterior, …" (the rise reason that already exists, no new sentence). F20 `copy.localDialog.agrupar` "Agrupar por tipo" (the mock's label). F1 `unreadableTemplatesText` "2 templates não puderam ser lidos neste aparelho." (the mock's) and the singular "1 template não pôde ser lido neste aparelho." (authored). F16 shows the existing kernel fallback sentences; no new sentence.
+
+## Changed tests
+
+Part A (24.8, 24.21). New: `packages/domain/src/ops/equipment-reuse-key.test.ts` (24.21-UNIT fold), `apps/api/src/sync/equipment-reuse-key.integration.test.ts` (24.21-API-001), `e2e/tag-suggestion.spec.ts` (24.8-E2E-001 @p0, 24.8-E2E-002 @p0), `e2e/equipment-history.spec.ts` (24.21-E2E-001 @p0, 24.21-E2E-002); both specs added to the queue lane of `e2e/support/groups.ts`. New cases in `relatorio/tag.test.ts` (24.8-UNIT, 24.21-UNIT) and `relatorio/instantiate.test.ts` (24.8-UNIT, 24.21-UNIT).
+- Legacy rule passed (`tagRule: 'legacy'`, assertions unchanged): `packages/domain/fixtures/layout-lock/op-log.ts`, `e2e/support/relatorio-seed.ts` (both builders), `apps/api/src/jobs/generate/page-layout.test-support.ts`, `apps/api/src/sync/rules.test-support.ts`, `relatorio/removal.test-support.ts`; the tests `relatorio/instantiate.test.ts` (the 4.1/Q4/14.2 cases through its `inputs`), `relatorio/move.test.ts`, `points/link.test.ts`, `points/points-on-click.test.ts`, `relatorio/sumario.test.ts`, `relatorio/library-type.test.ts` (both instantiations), `types/company-types.test.ts` (the 14.6 instantiation); the e2e builders in `contact-rise`, `export`, `local-painel-coluna` (`pushPainelRelatorio`), `previous-visit`, `previous-visit-judges`, `review-field-defects`, `tree-levels`.
+- Frozen rule kept, call renamed to `legacySuggestTag`: `relatorio/tag.test.ts` (4.1-UNIT), `library-type.test.ts`, `quadro-eletrico.test.ts`, `company-types.test.ts` (each with a new-rule line added).
+- Asserting the new rule (a palette, "Duplicar", panel or screen-created TAG): `relatorio/tree.test.ts`, `tree-painel.test.ts` (matrix "TAG collision across painéis" now SC-01, SC-02, SC-03), `panel.test.ts`, `library-type.test.ts` (panel proposal), `quadro-eletrico.test.ts` and `company-types.test.ts` (palette items, the copy's `reuse_key`); web `new-relatorio-dialog.test.tsx`, `block-palette-field.test.tsx` (the removed fixture row is SC-01; the office confirm keeps its suggestion when the local changes), `relatorio-tree-edges.test.tsx` (adds the `reuse_key` of a palette create), `relatorio-tree-edits.test.tsx`, `relatorio-tree-painel.test.tsx`; e2e 4.1-E2E-003 (`relatorio.spec.ts`), `cta.spec.ts`, `local-painel-coluna.spec.ts` (14.2-E2E-001 and two palette regexes), `qgbt.spec.ts`, `tree.spec.ts` (4.5-E2E-001, -002), `durability.spec.ts` (4.5-E2E-004), `panel-capture.spec.ts`, `reading-wait.spec.ts`, `conflicts.spec.ts`, `merge.spec.ts`; the palette heading in `ai-features-off.spec.ts`, `panel-capture.spec.ts`, `block-palette-field.test.tsx`; the TAG helper in `sheet-knows-12-3-12-4.spec.ts`.
+- A move offers no rename: `relatorio/move.test.ts` (moveTagSuggestion is null; movePlan with `rename: true` writes none), `apps/api/src/sync/move-block.integration.test.ts` (the batch's TAG put is now a literal), `e2e/move-block.spec.ts` (11.2-E2E-001, -002, -004, -005).
+- Contract 42: `contract/contract.test.ts`, `sync.integration.test.ts` 1.5-API-005.
+
+Part B (24.5, 24.6, 24.7, 24.9). New: `e2e/conclusion-preview.spec.ts` (24.5-E2E-001 @p0, 24.5-E2E-002), `e2e/nc-phrase-follows-item.spec.ts` (24.6-E2E-001 @p0, 24.6-E2E-002), `e2e/point-question.spec.ts` (24.7-E2E-001 @p0, -002, -003), `e2e/pass-screen-fixes.spec.ts` (24.9-E2E-001 @p0, -002, -003, -004 the alignment check), all four in the queue lane of `e2e/support/groups.ts`; `packages/domain/src/points/point-question.test.ts` (24.7-UNIT); web `surfaces/ficha/checklist-row.test.tsx` (24.6 and 24.7 on a sheet's row: the three exits), `surfaces/points/points-resolved-remove.test.tsx` (24.7, the card's action).
+- New cases: `relatorio/conclusion.test.ts` (24.5-UNIT, v5 and v13), `registry/nc-phrase-row.test.ts` (24.6-UNIT: the rule, the chips with and without the final period), `templates/list.test.ts` (24.9-UNIT F1), `relatorio/e23w-wave2-fixes.test.ts` (24.9-UNIT F19, the printed paragraph pinned beside it); web `conclusao-section.test.tsx` (24.5 per state), `local/verificacoes-surface.test.tsx` (24.6 and 24.7 on a local's row), `templates/local-dialog.test.tsx` (24.9 F20 switch), `templates/templates-surface.test.tsx` (24.9 F1 notice).
+- Changed for the new rule: `relatorio/e22f-wave-a-fixes.test.ts` (e22f N3 now `ncObservationOnLeave`: two chips and NC to N.A. clear), `relatorio/seed-v13-e23b.test.ts` (TAPS helper), `relatorio/e23e-tc-thermo-ground.test.ts` (the applied text is the reason alone), `relatorio/e23t-transformer-tests.test.ts` (the out helper, two cases).
+- e2e for 24.5 (the row's name "Sugestão" is now "Prévia da conclusão"; a floor half not stored reads `.is-floor`, not `aria-checked`): `sheet-knows-12-3-12-4`, `journey-taps`, `qgbt`, `company-type-sheet`, `journeys-12-3-12-4`, `qgbt-inspecao`, `observation-free`, `contact-rise`, `cta`, `ground-grid`, `tap-budget`, `tap-budget-signal`, `ratio-feeds-conclusion` (also `.is-floor`), `review-concluir-text`, `ficha` (the pill "Prévia", three `.is-floor`), `criteria-tables` and `over-range` (`.is-floor`). `e2e/support/merged-fixtures.ts` `signIn` waits 15 s (row 1439). The preview line is a `.conclusion-hint` too (the mock's class): `ficha` (22.4-E2E), `observation-free`, `contact-rise` select `.conclusion-hint:not(.e24-preview-line)`; `ratio-feeds-conclusion`'s group description now ends with the preview line. Found by the touched-spec run and left over from Part A: `qgbt-inspecao` 22.11-E2E-001 expected the palette's "QGBT-C01", now `QGBT-NN` (24.8).
+
+## Additional touched-spec fixes after the gate
+
+- `e2e/previous-visit-judges.spec.ts`, `three-levels.spec.ts`, `winding-resistance.spec.ts`, `polarization-index.spec.ts`, `tc-polarity.spec.ts`, `contact-pole-deviation.spec.ts`, `fuse-resistance.spec.ts`: the floor's reason line is selected as `.conclusion-hint:not(.e24-preview-line)` (Story 24.5: the preview line carries the mock's `.conclusion-hint` too).
+- `e2e/points-derived.spec.ts` 22.5-E2E-002: the row set back to C now asks (Story 24.7); the test answers "Manter ponto".
+- `e2e/panel-capture-pipeline.spec.ts` 9.2-E2E-004: the panel proposal reads "Criar SC-NN · …" (Story 24.8).
+- `apps/web/src/styles/app.css`: the Story 24.9 alignment rule (the crop glyph after the unit, the empty slot on a row with none) applies from 768 px only. At 390 px it pushed the dictation table past the screen (9.4-E2E-011, every table fits, red in the extra run); the story asks the alignment at 768 and 1280 px, so the phone keeps the layout it had. A deviation from the mock rule, which applies at every width.
+
+## Auto Run Result
+
+Status: done.
+
+**Summary.** Stories 24.5, 24.6, 24.7, 24.8, 24.21 and 24.9 built on every seed (Part A, then Part B, then one review loop), merged with main after fix batch e24f (`8bddd986`), contract 43 with minimum 43.
+
+**Files.** Kernel: `relatorio/tag.ts` (PREFIX-NN, the frozen rule, the match key), `relatorio/instantiate.ts` (the reuse run, `tagRule`), `relatorio/tree.ts` (`newEquipmentBlock` placement key, palette), `relatorio/move.ts` (no rename), `relatorio/panel.ts`, `schemas/entities.ts` (`reuse_key`), `contract/version.ts`, `relatorio/conclusion.ts` (`conclusionPreview`, F19), `relatorio/ficha.ts` (`ncObservationOnLeave`), `registry/nc-phrase-row.ts` (chips without the final period, `learnedBefore`), `points/checks.ts` (`pointsAskedOnLeave`, `pointQuestionText`), `photos/text.ts`, `relatorio/tap-rows.ts`, `relatorio/applicability.ts`, `relatorio/reading-evaluation.ts`, `relatorio/measurement-evaluation.ts`, `templates/list.ts`. Web: `checklist-section.tsx`, `conclusao-section.tsx`, `suggestion-field.tsx`, `points-surface.tsx`, `tree-actions.ts`, `block-palette-field.tsx`, `move-block-dialog.tsx`, `local-dialog.tsx`, `templates-surface.tsx`, `photo-openers.tsx`, `ensaios-section.tsx`, `measurement-test-section.tsx`, `app.css`, `copy/pt-br.ts`, `copy/ui.ts`. Api: `equipment-reuse-key.integration.test.ts`, the contract skew test. E2e: six new specs and the touched ones (Changed tests).
+
+**Review.** 21 findings (Review Triage Log): 7 patched (3 medium kernel tests, 2 medium web, 1 medium kernel rule, 1 low schema) plus 2 doc comments, 4 deferred (ledger section "Deferred from: Epic 24 batch e24b"), the rest rejected with reasons. Follow-up review recommended: false (no high patched; the patched mediums are tests and two narrow guards, each with a test or an e2e that covers its surface).
+
+**Verification (story gate, `.scratch-e24b/gate/`).** Load 2.87 at the start, 4.07 at the end; lock wait 0 s; e24a's stack up beside it. lint 0 errors (34 s); static clean (32 s); test:unit 413 files, 6243 tests passed (242 s); test:api 123 files passed, 1 skipped, 962 tests passed, 6 skipped (423 s); touched specs on desktop-chrome and durability-desktop-chrome 248 tests: 244 passed, 3 skipped, 1 failed (23.6-E2E-003, a stale `.conclusion-hint` selector, fixed above and re-run green); matrix (five durability specs on three projects) 66 tests: 59 passed, 7 skipped. Extra run of the specs that read the changed surfaces (19 specs): 59 tests, 57 passed, 2 failed (fixed above and re-run). See the PR body for the re-runs.
+
+**Residual risks.** The ledger rows of this batch: recents as offered phrases, the thermal count by caption, place-based keys; the relinked point (row of e22c) and the equipment from before the batch stay Matheus's decisions.

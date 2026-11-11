@@ -413,13 +413,13 @@ describe('14.2-UNIT the palette, the choices and the move', () => {
 
   it('duplicateTagSuggestion and paletteItems never name a painel', () => {
     expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(PNL_MT), tag: 'SEC-X' }, snapshot.locations, snapshot.equipment)).toBe('SEC-X');
-    expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(MT_C5), tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SEC-C05-3');
+    expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(MT_C5), tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SC-01');
     const items = paletteItems('v1', { kind: 'cabine', name: 'Cabine de transformação' }, snapshot.equipment, EMPTY_DEFINITION_CONTEXT);
-    expect(items.find((item) => item.type === 'transformador_forca')!.tag).toBe('TR-3');
-    expect(items.find((item) => item.type === 'disjuntor_mt')!.tag).toBe('DJ-TRANSFORMACAO');
+    expect(items.find((item) => item.type === 'transformador_forca')!.tag).toBe('TR-03');
+    expect(items.find((item) => item.type === 'disjuntor_mt')!.tag).toBe('DJ-01');
   });
 
-  it('matrix "TAG collision across painéis": the palette opened on each of two painéis holding a "Coluna 5" gives SEC-C05 then SEC-C05-2, and the tree flags no duplicate', () => {
+  it('matrix "TAG collision across painéis": the palette opened on each of two painéis holding a "Coluna 5" gives SC-01 then SC-02 (Story 24.8: PREFIX-NN, was SEC-C05 then SEC-C05-2), and the tree flags no duplicate', () => {
     // One local, two painéis, a "Coluna 5" in each, no sheet yet: the palette path of the tree
     // (`paletteLocationFor` on the painel, `paletteItems` on the coluna it gives, `newEquipmentBlock`).
     const P_A = 7001;
@@ -447,15 +447,15 @@ describe('14.2-UNIT the palette, the choices and the move', () => {
       equipment.push(pair.equipment);
       return tag;
     };
-    expect([tapSeccionadora(P_A, 1), tapSeccionadora(P_B, 2)]).toEqual(['SEC-C05', 'SEC-C05-2']);
+    expect([tapSeccionadora(P_A, 1), tapSeccionadora(P_B, 2)]).toEqual(['SC-01', 'SC-02']);
     expect(blocks.map((block) => block.location_id)).toEqual([id(A_C5), id(B_C5_NEW)]);
     const drawn = treeNodes(locationTree({ locations, blocks, equipment })).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
     expect(drawn.map((node) => [node.tag, node.locationId, node.duplicate])).toEqual([
-      ['SEC-C05', id(A_C5), false],
-      ['SEC-C05-2', id(B_C5_NEW), false],
+      ['SC-01', id(A_C5), false],
+      ['SC-02', id(B_C5_NEW), false],
     ]);
     // A third tap, on the first painel again, goes on counting across both.
-    expect(tapSeccionadora(P_A, 3)).toBe('SEC-C05-3');
+    expect(tapSeccionadora(P_A, 3)).toBe('SC-03');
   });
 
   it('panelLocation: a photo taken in a coluna of a painel finds the named coluna among that painel own colunas; a painel is never the place', () => {

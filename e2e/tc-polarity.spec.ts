@@ -80,7 +80,7 @@ test('@p0 23.18-E2E-001 a v13 TC 0,3S of FATURAMENTO: the notice over a fillable
   await page.setViewportSize({ width: 1280, height: 900 });
 
   await openStep(page, relatorioId, tc.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(judged.floorReason!);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(judged.floorReason!);
 
   // The DOCX: POLARIDADE right before CONDIÇÕES, Fase R INVERTIDA and INSATISFATÓRIO; ACEITÁVEL ±0,3 %; the note under the ratio.
   const snapshot = await deviceSnapshot(page, database, relatorioId);

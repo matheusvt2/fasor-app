@@ -89,7 +89,7 @@ async function openPalette(page: Page): Promise<Locator> {
   const order = await palette.locator('.pal-camera, .palette-group:not(.palette-where), .pf-field').evaluateAll((nodes) =>
     nodes.map((node) => (node.classList.contains('pal-camera') ? 'camera' : node.classList.contains('palette-group') ? node.textContent : 'type')),
   );
-  expect(order).toEqual(['camera', ...paletteRowOrder(seedVersion, 'Ou escolha o tipo · TAG sugerida por tipo + coluna')]);
+  expect(order).toEqual(['camera', ...paletteRowOrder(seedVersion, 'Ou escolha o tipo · TAG sugerida por tipo e número')]);
   return palette;
 }
 
@@ -118,14 +118,14 @@ async function photoRecord(page: Page, photoId: string): Promise<EntityRecord['r
   return records.find((record) => record.entity === 'file' && record.id === photoId)!.row;
 }
 
-test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SEC-C09-2 · Chave seccionadora · Coluna 9?", and one tap creates the block with the photo as its plate, in one batch', async ({ page, context }) => {
+test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SC-02 · Chave seccionadora · Coluna 9?", and one tap creates the block with the photo as its plate, in one batch', async ({ page, context }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 768);
-  // SEC-C09 is taken first (a Chave seccionadora placed on Coluna 9 from its palette), so the read one is SEC-C09-2.
+  // SC-01 is taken first (a Chave seccionadora placed on Coluna 9 from its palette), so the read one is SC-02 (Story 24.8: PREFIX-NN, free in the obra).
   await menuOf(page, 'Coluna 9 de 1° Subsolo').click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   await page.getByRole('dialog', { name: 'Adicionar bloco' }).getByRole('button', { name: /^Chave seccionadora/ }).click();
-  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09']);
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SC-01']);
   await holdPhotoBytes(page);
   const photoId = await shootPanel(page, await openPalette(page));
 
@@ -150,7 +150,7 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SEC-C09-2 · Cha
   await context.setOffline(false);
 
   const field = dialog.locator('.suggestion-field');
-  await expect(field.locator('.sv-main')).toHaveText('Criar SEC-C09-2 · Chave seccionadora · Coluna 9?', { timeout: 60_000 });
+  await expect(field.locator('.sv-main')).toHaveText('Criar SC-02 · Chave seccionadora · Coluna 9?', { timeout: 60_000 });
   await expect(field.locator('.sv-sub')).toHaveText('1° Subsolo › Coluna 9');
   await expect(field).toHaveAttribute('data-state', 'suggested');
   await expect(field.locator('.suggested-pill')).toHaveText('Sugerido');
@@ -159,7 +159,7 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SEC-C09-2 · Cha
   await expect(dialog.getByRole('list', { name: 'Origem de cada sugestão' }).locator('li')).toHaveText([
     'Tipofrente do painel',
     'Colunaetiqueta "C09" na foto',
-    'TAGtipo + coluna · SEC-C09 já existe',
+    'TAGtipo · próximo número livre',
   ]);
   await expect(dialog.getByText('Tipo errado? Toque no certo')).toBeVisible();
   const chips = dialog.locator('.chip-row.chips-recent .chip');
@@ -169,11 +169,11 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SEC-C09-2 · Cha
 
   await field.getByRole('button', { name: 'Confirmar' }).click();
   await expect(dialog).toBeHidden();
-  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09', 'SEC-C09-2']);
-  await expect(page.locator('.toast')).toContainText('SEC-C09-2 criada na Coluna 9');
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SC-01', 'SC-02']);
+  await expect(page.locator('.toast')).toContainText('SC-02 criada na Coluna 9');
 
   const { ops, blockId, equipmentTag } = await confirmBatch(page, photoId);
-  expect(equipmentTag).toBe('SEC-C09-2');
+  expect(equipmentTag).toBe('SC-02');
   expect(ops.map((op) => [op.kind, op.path.replace(/^(equipment|block)\/.*/, '$1'), op.value])).toEqual([
     ['create', 'equipment', expect.anything()],
     ['create', 'block', expect.anything()],
@@ -205,15 +205,15 @@ test('@p0 9.2-E2E-002 offline: the type chips alone create the block (type plus 
   await dialog.getByRole('button', { name: 'Disjuntor MT' }).click();
   await expect(dialog.getByRole('button', { name: 'Disjuntor MT' })).toHaveAttribute('aria-pressed', 'true');
   const field = dialog.locator('.suggestion-field');
-  await expect(field.locator('.sv-main')).toHaveText('Criar DJ-C01 · Disjuntor MT · Coluna 1?');
+  await expect(field.locator('.sv-main')).toHaveText('Criar DJ-01 · Disjuntor MT · Coluna 1?');
   await expect(dialog.locator('.prov-list')).toHaveCount(0);
   await field.getByRole('button', { name: 'Confirmar' }).click();
   await expect(dialog).toBeHidden();
-  await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01', 'DJ-C01']);
+  await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01', 'DJ-01']);
 
   const { ops, blockId } = await confirmBatch(page, photoId);
   expect(ops.map((op) => [op.kind, op.path.replace(/^(equipment|block)\/.*/, '$1'), op.value])).toEqual([
-    ['create', 'equipment', expect.objectContaining({ tag: 'DJ-C01', type: 'disjuntor_mt' })],
+    ['create', 'equipment', expect.objectContaining({ tag: 'DJ-01', type: 'disjuntor_mt' })],
     ['create', 'block', expect.objectContaining({ block_type: 'disjuntor_mt' })],
     ['put', `file/${photoId}/block_id`, blockId],
     ['put', `file/${photoId}/caption`, 'placa de identificação'],
@@ -302,10 +302,10 @@ test('@p1 9.2-E2E-005 online, a panel reading that ends with nothing, or fails, 
   await expect(dialog.getByText('Toque no tipo do equipamento')).toBeVisible();
   await dialog.getByRole('button', { name: 'Disjuntor MT' }).click();
   const field = dialog.locator('.suggestion-field');
-  await expect(field.locator('.sv-main')).toHaveText('Criar DJ-C01 · Disjuntor MT · Coluna 1?');
+  await expect(field.locator('.sv-main')).toHaveText('Criar DJ-01 · Disjuntor MT · Coluna 1?');
   await field.getByRole('button', { name: 'Confirmar' }).click();
   await expect(dialog).toBeHidden();
-  await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01', 'DJ-C01']);
+  await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01', 'DJ-01']);
   const { blockId } = await confirmBatch(page, photoId);
   expect(await photoRecord(page, photoId)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued', block_id: blockId });
 });
@@ -326,10 +326,10 @@ test('@p1 9.2-E2E-006 "Desfazer" right after a photo-backed create removes the b
   });
   await cycle(page);
   const field = dialog.locator('.suggestion-field');
-  await expect(field.locator('.sv-main')).toHaveText('Criar SEC-C09 · Chave seccionadora · Coluna 9?', { timeout: 60_000 });
+  await expect(field.locator('.sv-main')).toHaveText('Criar SC-01 · Chave seccionadora · Coluna 9?', { timeout: 60_000 });
   await field.getByRole('button', { name: 'Confirmar' }).click();
   await expect(dialog).toBeHidden();
-  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09']);
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SC-01']);
   const { blockId } = await confirmBatch(page, photoId);
 
   await page.locator('.toast').getByRole('button', { name: 'Desfazer' }).click();

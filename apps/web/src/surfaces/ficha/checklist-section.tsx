@@ -9,10 +9,14 @@ import {
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
+  learnedBefore,
   ncChipPhrases,
   withPhotoTokens,
   ncRowPointText,
-  clearsNcObservation,
+  ncObservationOnLeave,
+  pointQuestionText,
+  pointsAskedOnLeave,
+  removePointOp,
   ncRowPointPositions,
   ncRowPointsText,
   recentChecklistObservations,
@@ -24,14 +28,17 @@ import {
   type BlockRow,
   type ChecklistItem,
   type EquipmentRow,
+  type NcRowOwner,
+  type PointRow,
   type OpDraft,
   type RegistryRow,
   type RelatorioSnapshot,
   type SuggestionRow,
   snapshotDefinitionContext,
 } from '@app/domain';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
+import { ConfirmDialog } from '../../components/confirm-dialog.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
@@ -302,11 +309,19 @@ export interface ChecklistRowTarget {
   pointSeed: (photoIds: readonly string[]) => PointSeed;
   /** E6-Q11: the row's point mark ("Ponto de atenção 3"), given the ids of the item's photos; null with none. */
   pointMark: (photoIds: readonly string[]) => string | null;
+  /** Story 24.7: what the row's points belong to (the sheet's equipment, the local), so leaving NC asks about them. */
+  pointOwner: NcRowOwner;
   /**
    * Story 14.12: the row's NC chips in the order they are offered, the kernel's one list
    * (`ncChipPhrases`): the item's seed phrases, the company's learned ones, the recents.
    */
   chips: readonly string[];
+  /**
+   * Story 24.6: the phrases the row offered when its observation was written, which
+   * `ncObservationOnLeave` judges against (`learnedBefore`: a phrase learned from this very
+   * observation after its push never makes it automatic); `chips` when absent.
+   */
+  leaveChips?: readonly string[];
 }
 
 /** The target of one item of a sheet's checklist: its cells on the block, its ops on `sheet/{blockId}/checklist/…`. */
@@ -319,6 +334,7 @@ export function sheetRowTarget(
 ): ChecklistRowTarget {
   const observationCell = block.sheet.checklist[item.key]?.observation;
   const definitions = snapshotDefinitionContext(snapshot);
+  const recents = recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id);
   return {
     entityId: block.id,
     result: checklistResultOf(block, item.key, definitions),
@@ -340,18 +356,14 @@ export function sheetRowTarget(
       itemKey: item.key,
     }),
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds, item.key)),
-    chips: ncChipPhrases({
-      seeded: item.nc_phrases,
-      learned,
-      blockType: block.block_type,
-      itemKey: item.key,
-      recents: recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id),
-    }),
+    pointOwner: { equipmentId: block.equipment_id },
+    chips: ncChipPhrases({ seeded: item.nc_phrases, learned, blockType: block.block_type, itemKey: item.key, recents }),
+    leaveChips: ncChipPhrases({ seeded: item.nc_phrases, learned: learnedBefore(learned, observationCell?.op_id), blockType: block.block_type, itemKey: item.key, recents }),
   };
 }
 
 /** What a row writes through: the relatório, the author and the two write paths of `FichaApi`. */
-export type ChecklistRowApi = Pick<FichaApi, 'relatorioId' | 'author' | 'commit' | 'edit'>;
+export type ChecklistRowApi = Pick<FichaApi, 'relatorioId' | 'author' | 'commit' | 'edit' | 'undoable'>;
 
 /**
  * One Checklist row (`60-ficha.html`, `61-verificacoes-local.html`). `observationLine`
@@ -425,21 +437,87 @@ export function ChecklistRow({
   // The reason line goes once text exists (EXPERIENCE.md › Observation field); a
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
+  // Story 24.6: the row left NC keeping an edited observation: the warning shows on this device
+  // until the row's observation or result changes again.
+  const [kept, setKept] = useState<{ observation: string; result: TriStateValue | null } | null>(null);
+  const showKept = !readOnly && kept !== null && kept.observation === stored && typed.text === stored && kept.result === result;
+  const keptLineId = useId();
   const expanded = nc || observationOpen || (stored.trim() !== '' && !observationLine);
   const rowPoints = nc ? target.pointMark(photoIds) : null;
   // Story 14.3: the observation of an answered C or NA row as one line, until its field is opened.
-  const obsLine = observationLine && !nc && !observationOpen && stored.trim() !== '';
+  const obsLine = observationLine && !nc && !observationOpen && stored.trim() !== '' && !showKept;
   const openObservation = () => {
     setObservationOpen(true);
     requestAnimationFrame(() => area.current?.focus());
   };
 
-  const choose = (value: TriStateValue | null) => {
-    // e22f N3: NC back to C clears the observation in the same batch while it is still the
-    // chip's NC phrase, unedited (nothing typed since, `typed.text` the stored text).
-    const clear = typed.text === stored && clearsNcObservation(result, value, stored, chips);
-    void api.edit((_blocks, by) => [target.resultOp(by, value), ...(clear ? [target.observationOp(by, null)] : [])]).catch(() => undefined);
+  // Story 24.7: the result chosen while the question about the row's points is open, shown behind it.
+  const [question, setQuestion] = useState<{ value: TriStateValue; points: PointRow[] } | null>(null);
+  const answered = useRef(false);
+
+  /**
+   * Writes a result, one batch: Story 24.6, an NC row set to C or N.A. drops its observation
+   * while it is still only the offered phrases (`ncObservationOnLeave` `clear`; nothing typed
+   * since, `typed.text` the stored text) and keeps an edited one with the warning; Story 24.7,
+   * with the points "Remover ponto" removes.
+   */
+  const write = (value: TriStateValue | null, remove: readonly PointRow[] = []) => {
+    // Review of e24b: a text still being saved (`typed.text` ahead of the store) is judged as typed:
+    // kept with the warning when it holds a typed piece, never cleared here (its own commit would
+    // land after the clear and bring it back).
+    const pending = typed.text !== stored;
+    const judged = ncObservationOnLeave(result, value, pending ? typed.text : stored, target.leaveChips ?? chips);
+    const leave = pending && judged === 'clear' ? null : judged;
+    setKept(leave === 'keep' ? { observation: pending ? typed.text : stored, result: value } : null);
+    const removed = remove.length === 0 ? null : pointQuestionText(snapshot.points, remove, value === 'NA' ? 'NA' : 'C');
+    void api
+      .edit((_blocks, by) => [
+        target.resultOp(by, value),
+        ...(leave === 'clear' ? [target.observationOp(by, null)] : []),
+        ...remove.map((point) => removePointOp(by, api.relatorioId, point.id)),
+      ])
+      .then((batch) => {
+        if (remove.length > 0 && removed !== null) api.undoable(removed.removed, batch);
+      })
+      .catch(() => undefined);
   };
+
+  const choose = (value: TriStateValue | null) => {
+    // Story 24.7: an NC row with a stored point written from it asks first; the result waits for the answer.
+    const asked = readOnly || value === null ? [] : pointsAskedOnLeave(snapshot.points, target.pointOwner, item.key, result, value);
+    if (asked.length > 0 && value !== null) {
+      answered.current = false;
+      setQuestion({ value, points: asked });
+      return;
+    }
+    write(value);
+  };
+
+  /** Story 24.7: the question's answer; "Manter ponto" and a close write the result alone (the point keeps "Origem resolvida"). */
+  const answer = (remove: boolean) => {
+    if (question === null || answered.current) return;
+    answered.current = true;
+    write(question.value, remove ? question.points : []);
+    setQuestion(null);
+  };
+
+  /** Story 24.6: "Apagar observação" removes the kept observation, with "Desfazer". */
+  const clearKept = () => {
+    setKept(null);
+    void api
+      .edit((_blocks, by) => [target.observationOp(by, null)])
+      .then((batch) => api.undoable(t.keptCleared, batch))
+      .catch(() => undefined);
+  };
+  const questionText = question === null ? null : pointQuestionText(snapshot.points, question.points, question.value === 'NA' ? 'NA' : 'C');
+  // Review of e24b: the asked points left meanwhile (removed or moved on another device): nothing is
+  // left to ask, so the chosen result is written alone instead of waiting behind a closed dialog.
+  useEffect(() => {
+    if (question === null || questionText !== null || answered.current) return;
+    answered.current = true;
+    write(question.value);
+    setQuestion(null);
+  });
 
   /** "Usar": the dictated text appended at the end, as a chip inserts. */
   const applyDictated = () => {
@@ -471,7 +549,7 @@ export function ChecklistRow({
   menu.push({ id: 'observation', label: t.observation, onAction: openObservation });
 
   return (
-    <li className="checklist-row" data-item-key={item.key} data-missing-field={result === null ? '' : undefined}>
+    <li className={showKept ? 'checklist-row e24-kept' : 'checklist-row'} data-item-key={item.key} data-missing-field={result === null ? '' : undefined}>
       <div className="row-main">
         <span className="row-label">
           <span className="row-num">{number}.</span>
@@ -479,7 +557,7 @@ export function ChecklistRow({
           {/* Story 14.9 (Bruno 2026-10-20 answer 4): a reminder for the technician, never printed. */}
           {item.hint === undefined ? null : <span className="helper row-hint">{screenLabel(item.hint)}</span>}
         </span>
-        <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} telemetry="ficha.mark" />
+        <TriStateControl value={question === null ? result : question.value} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} telemetry="ficha.mark" />
         <OverflowMenu name={label} items={menu} />
       </div>
       {obsLine ? (
@@ -493,7 +571,7 @@ export function ChecklistRow({
           )}
         </div>
       ) : null}
-      {expanded ? (
+      {expanded || showKept ? (
         <div className="row-expand">
           {nc && !readOnly ? (
             <div className="chip-row" role="group" aria-label={t.chipsLabel(number)}>
@@ -529,7 +607,7 @@ export function ChecklistRow({
               data-required={required ? '' : undefined}
               data-missing-field={required ? '' : undefined}
               aria-invalid={required || undefined}
-              aria-describedby={required ? reasonId : undefined}
+              aria-describedby={required ? reasonId : showKept ? keptLineId : undefined}
               onChange={(event) => {
                 discardDraft();
                 dictation.discard();
@@ -544,6 +622,12 @@ export function ChecklistRow({
               </span>
             ) : null}
           </div>
+          {showKept ? (
+            <p className="helper e24-kept-line" data-tone="amber" role="status" id={keptLineId}>
+              <span>{t.keptLine}</span>
+              <TextButton onPress={clearKept}>{t.keptClear}</TextButton>
+            </p>
+          ) : null}
           {dictation.pending === null || readOnly ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
           {nc && !readOnly && photos !== undefined ? (
             <RowPhotoAction
@@ -568,6 +652,20 @@ export function ChecklistRow({
           ) : null}
         </div>
       ) : null}
+      {questionText === null ? null : (
+        <ConfirmDialog
+          title={questionText.title}
+          description={questionText.description}
+          cancelLabel={t.pointKeep}
+          confirmLabel={t.pointRemove}
+          isDestructive
+          isOpen
+          onConfirm={() => answer(true)}
+          onOpenChange={(open) => {
+            if (!open) answer(false);
+          }}
+        />
+      )}
       {photos === undefined ? null : (
         <RowPhotoList
           tiles={photos.tiles.filter((tile) => tile.item_key === item.key)}

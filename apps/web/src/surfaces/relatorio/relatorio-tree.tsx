@@ -498,7 +498,6 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           blockId={dialog.node.blockId}
           locations={snapshot.locations}
           blocks={snapshot.blocks}
-          equipment={equipment}
           onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
           onSubmit={(targetId, rename) => {
             const node = dialog.node;
@@ -511,6 +510,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
         <LocalDialog
           mode="add"
           seedVersion={context.seedVersion}
+          agrupar={false}
           onClose={() => closeDialog(() => footRef.current?.querySelector<HTMLElement>('button') ?? null)}
           onSubmit={(chosen) => {
             setDialog(null);
@@ -523,6 +523,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           mode="edit"
           seedVersion={context.seedVersion}
           initial={{ funcao: dialog.node.funcao, name: dialog.node.name }}
+          agrupar={dialog.node.agruparPorTipo === true}
           onClose={() => closeDialog(() => locationChevron(rootRef.current, dialog.node.id))}
           onSubmit={(chosen) => {
             const node = dialog.node;

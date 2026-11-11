@@ -423,43 +423,43 @@ test('@p0 10.3-E2E-003 the same TAG created on both tablets: the Sumário Banner
   const { devices, relatorioId } = await twoDevices(page, browser, seed);
   const { ana, eduardo } = devices;
   const tcRows = async (device: Device) =>
-    (await entities<EquipmentRow>(device)).filter((record) => record.entity === 'equipment' && record.row.tag.startsWith('TC-C01')).map((record) => record.row);
+    (await entities<EquipmentRow>(device)).filter((record) => record.entity === 'equipment' && record.row.tag.startsWith('TC-01')).map((record) => record.row);
   try {
     for (const device of [eduardo, ana]) {
       await openTreeForPalette(device.page, relatorioId);
       await device.context.setOffline(true);
-      await addBlock(device.page, 'TC-C01');
+      await addBlock(device.page, 'TC-01');
     }
     const [eEquipment] = await tcRows(eduardo);
     const [aEquipment] = await tcRows(ana);
-    expect([eEquipment!.tag, aEquipment!.tag]).toEqual(['TC-C01', 'TC-C01']);
+    expect([eEquipment!.tag, aEquipment!.tag]).toEqual(['TC-01', 'TC-01']);
     await syncAll(devices);
 
-    await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(['TC-C01 foi criada em dois aparelhos']);
+    await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(['TC-01 foi criada em dois aparelhos']);
     await ana.page.goto(`/relatorio/${relatorioId}`);
     const banner = conflictBanner(ana.page);
-    await expect(banner.locator('.banner-text')).toHaveText('TC-C01 foi criada em dois aparelhos');
+    await expect(banner.locator('.banner-text')).toHaveText('TC-01 foi criada em dois aparelhos');
     await expect(banner.getByRole('button')).toHaveText(['Renomear uma', 'Manter as duas']);
     // "Renomear uma" opens the rename dialog on the later one (Ana's, pushed second); Cancelar leaves it.
     await banner.getByRole('button', { name: 'Renomear uma' }).click();
-    const rename = ana.page.getByRole('dialog', { name: 'Renomear TAG TC-C01' });
+    const rename = ana.page.getByRole('dialog', { name: 'Renomear TAG TC-01' });
     await expect(rename).toBeVisible();
     await rename.getByRole('button', { name: 'Cancelar' }).click();
     await expect(rename).toBeHidden();
 
     await banner.getByRole('button', { name: 'Manter as duas' }).click();
-    await expect(toast(ana.page)).toContainText('A sua ficha passou a TC-C01-2');
+    await expect(toast(ana.page)).toContainText('A sua ficha passou a TC-01-2');
     await expect(conflictBanner(ana.page)).toHaveCount(0);
 
     await syncNow(ana.page);
     await syncNow(eduardo.page);
     const server = (await serverRow(ana.account.companyId, 'equipment', aEquipment!.id)) as unknown as EquipmentRow;
-    expect(server.tag).toBe('TC-C01-2');
-    expect(((await serverRow(ana.account.companyId, 'equipment', eEquipment!.id)) as unknown as EquipmentRow).tag).toBe('TC-C01');
+    expect(server.tag).toBe('TC-01-2');
+    expect(((await serverRow(ana.account.companyId, 'equipment', eEquipment!.id)) as unknown as EquipmentRow).tag).toBe('TC-01');
     for (const device of [ana, eduardo]) {
       const rows = await tcRows(device);
       expect(rows.find((row) => row.id === aEquipment!.id)).toEqual(server);
-      expect(rows.find((row) => row.id === eEquipment!.id)!.tag).toBe('TC-C01');
+      expect(rows.find((row) => row.id === eEquipment!.id)!.tag).toBe('TC-01');
     }
     await expect(decisionRows(eduardo.page)).toHaveCount(0);
   } finally {
@@ -476,12 +476,12 @@ test('@p0 10.3-E2E-006 the same TAG created on both tablets: "Renomear uma" from
   const { devices, relatorioId } = await twoDevices(page, browser, seed);
   const { ana, eduardo } = devices;
   const tcRows = async (device: Device) =>
-    (await entities<EquipmentRow>(device)).filter((record) => record.entity === 'equipment' && record.row.tag.startsWith('TC-C01')).map((record) => record.row);
+    (await entities<EquipmentRow>(device)).filter((record) => record.entity === 'equipment' && record.row.tag.startsWith('TC-01')).map((record) => record.row);
   try {
     for (const device of [eduardo, ana]) {
       await openTreeForPalette(device.page, relatorioId);
       await device.context.setOffline(true);
-      await addBlock(device.page, 'TC-C01');
+      await addBlock(device.page, 'TC-01');
     }
     const [eEquipment] = await tcRows(eduardo);
     const [aEquipment] = await tcRows(ana);
@@ -490,12 +490,12 @@ test('@p0 10.3-E2E-006 the same TAG created on both tablets: "Renomear uma" from
     // Eduardo is on Sync status: "Renomear uma" leads to the Sumário, the dialog on the later one (Ana's).
     await eduardo.page.setViewportSize({ width: 1280, height: 900 });
     const row = decisionRows(eduardo.page);
-    await expect(row.locator('.banner-text')).toHaveText('TC-C01 foi criada em dois aparelhos');
+    await expect(row.locator('.banner-text')).toHaveText('TC-01 foi criada em dois aparelhos');
     await row.getByRole('button', { name: 'Renomear uma' }).click();
     await expect(eduardo.page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-    const rename = eduardo.page.getByRole('dialog', { name: 'Renomear TAG TC-C01' });
+    const rename = eduardo.page.getByRole('dialog', { name: 'Renomear TAG TC-01' });
     await expect(rename).toBeVisible();
-    await rename.getByRole('textbox', { name: 'TAG' }).fill('TC-C01-B');
+    await rename.getByRole('textbox', { name: 'TAG' }).fill('TC-01-B');
     await rename.getByRole('button', { name: 'Salvar' }).click();
     await expect(rename).toBeHidden();
     await expect(conflictBanner(eduardo.page)).toHaveCount(0);
@@ -505,11 +505,11 @@ test('@p0 10.3-E2E-006 the same TAG created on both tablets: "Renomear uma" from
     await syncNow(ana.page);
     await expect(decisionRows(ana.page)).toHaveCount(0);
     const server = (await serverRow(ana.account.companyId, 'equipment', aEquipment!.id)) as unknown as EquipmentRow;
-    expect(server.tag).toBe('TC-C01-B');
+    expect(server.tag).toBe('TC-01-B');
     for (const device of [ana, eduardo]) {
       const rows = await tcRows(device);
       expect(rows.find((equipment) => equipment.id === aEquipment!.id)).toEqual(server);
-      expect(rows.find((equipment) => equipment.id === eEquipment!.id)!.tag).toBe('TC-C01');
+      expect(rows.find((equipment) => equipment.id === eEquipment!.id)!.tag).toBe('TC-01');
     }
     await ana.page.goto(`/relatorio/${relatorioId}`);
     await expect(ana.page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
@@ -603,14 +603,14 @@ test('@p1 10.3-E2E-005 a block added on the other tablet appears in the tree and
   const { ana, eduardo } = devices;
   try {
     await openTreeForPalette(eduardo.page, relatorioId);
-    await addBlock(eduardo.page, 'TP-C01');
+    await addBlock(eduardo.page, 'TP-01');
     await syncNow(eduardo.page);
     await syncNow(ana.page);
-    await expect(mergeRows(ana.page).filter({ hasText: 'Eduardo adicionou TP-C01 em Coluna 1' })).toHaveAttribute('data-rule', 'block_added');
+    await expect(mergeRows(ana.page).filter({ hasText: 'Eduardo adicionou TP-01 em Coluna 1' })).toHaveAttribute('data-rule', 'block_added');
     await expect(decisionRows(ana.page)).toHaveCount(0);
     await expect(syncWord(ana.page)).toHaveText('Sincronizado');
     await openTree(ana.page, relatorioId);
-    await expect(ana.page.locator('li.s9-eq .block-tag', { hasText: /^TP-C01$/ })).toBeVisible();
+    await expect(ana.page.locator('li.s9-eq .block-tag', { hasText: /^TP-01$/ })).toBeVisible();
   } finally {
     await eduardo.context.close();
   }

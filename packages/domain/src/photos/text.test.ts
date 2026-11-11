@@ -8,6 +8,7 @@ import {
   sheetPhotosHeading,
   storageLowBannerText,
   storageRefusedBannerText,
+  thermalPhotoText,
   uploadPillText,
 } from './text.ts';
 
@@ -89,5 +90,25 @@ describe('R8CAP-UNIT the camera saving line (review 2026-10-08, DB-4)', () => {
     expect(cameraSavingText(1)).toBe('Salvando a foto…');
     expect(cameraSavingText(2)).toBe('Salvando as fotos…');
     expect(cameraSavingText(12)).toBe('Salvando as fotos…');
+  });
+});
+
+describe('24.9-UNIT F11 (review of e24b): "Foto térmica" counts the live shots of the sheet taken through it', () => {
+  const block = '019966b0-0300-7000-8000-000000000001';
+  const caption = 'Termografia · TR-01';
+  const shot = (over: Record<string, unknown> = {}) => ({ kind: 'photo', removed_at: null, block_id: block, item_key: null, caption, ...over }) as never;
+  it('two shots count; a removed shot, an item photo, another caption, another block and a document never do', () => {
+    const files = [
+      shot(),
+      shot(),
+      shot({ removed_at: '2026-11-10T12:00:00.000Z' }),
+      shot({ item_key: 'estado_geral' }),
+      shot({ caption: 'Placa · TR-01' }),
+      shot({ block_id: '019966b0-0300-7000-8000-000000000002' }),
+      shot({ kind: 'document' }),
+    ];
+    expect(thermalPhotoText(files, block, caption)).toBe('Foto térmica · 2');
+    expect(thermalPhotoText([], block, caption)).toBe('Foto térmica');
+    expect(thermalPhotoText(files, block, null)).toBe('Foto térmica');
   });
 });

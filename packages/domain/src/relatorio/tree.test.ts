@@ -264,9 +264,9 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
     expect(equipmentPathText(snapshot.blocks, snapshot.locations, id(2007))).toBeNull();
   });
 
-  it('duplicateTagSuggestion: the next free TAG of the type in the location, the own TAG when unknown', () => {
+  it('duplicateTagSuggestion (Story 24.8): the next free TAG of the type in the obra, the own TAG when unknown', () => {
     const snapshot = relatorio();
-    expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(3), tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SEC-C05-2');
+    expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(3), tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SC-01');
     expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: 'nope', tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SEC-C05');
     expect(duplicateTagSuggestion({ blockType: 'section_2', locationId: id(3), tag: 'X' }, snapshot.locations, snapshot.equipment)).toBe('X');
   });
@@ -343,8 +343,8 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
     const snapshot = relatorio();
     const items = paletteItems('v1', { kind: 'coluna', name: 'Coluna 5' }, snapshot.equipment, EMPTY_DEFINITION_CONTEXT);
     expect(items).toHaveLength(8);
-    expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SEC-C05-2', library: false, summary: null });
-    expect(items.find((i) => i.type === 'para_raio')!.tag).toBe('PR-C05');
+    expect(items.find((i) => i.type === 'chave_seccionadora')).toEqual({ type: 'chave_seccionadora', label: 'Chave seccionadora', tag: 'SC-01', library: false, summary: null });
+    expect(items.find((i) => i.type === 'para_raio')!.tag).toBe('PR-01');
     expect(locationChoices(snapshot.locations).map((c) => c.label)).toEqual([
       'Cabine B',
       'Cabine B › Coluna 4',

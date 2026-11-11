@@ -96,7 +96,7 @@ async function readings(page: Page, c: TapCounter): Promise<void> {
 
 /** The suggested pair confirmed with one tap. */
 async function confirmPair(page: Page, c: TapCounter, restriction: 'Sem restrições' | 'Com restrições'): Promise<void> {
-  await c.tap('Confirmar the suggestion', page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' }), () =>
+  await c.tap('Confirmar the suggestion', page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' }), () =>
     expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: restriction })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
   );
 }

@@ -6,7 +6,6 @@ import {
   paletteItems,
   screenLabel,
   SEED_VERSION,
-  suggestTag,
   type BlockRow,
   type EquipmentRow,
   type LocationRow,
@@ -199,12 +198,13 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
     .map((record) => record.row as BlockRow)
     .filter((row) => row.relatorio_id === relatorioId && row.location_id !== null)
     .map((row) => ({ blockId: row.id, blockType: row.block_type, locationId: row.location_id, tag: tagOf.get(row.equipment_id ?? '') ?? '' }));
-  const localTag = suggestTag(QD, { kind: 'cabine', name: LOCAL }, []);
+  // Story 24.8: PREFIX-NN in placement order, the local's QD first, then the coluna's.
+  const localTag = 'QD-01';
   expect(localTag.startsWith('QD-')).toBe(true);
   expect(sheets.map((sheet) => [sheet.tag, sheet.blockType, sheet.locationId]).sort()).toEqual(
     [
       [localTag, QD, localRow.id],
-      ['QD-C01', QD, colunaRow.id],
+      ['QD-02', QD, colunaRow.id],
     ].sort(),
   );
   const blockId = sheets.find((sheet) => sheet.locationId === localRow.id)!.blockId;
@@ -300,7 +300,7 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   // The conclusion: Story 22.4, the out reading sets the floor Reprovado · Com restrições (the NC
   // item alone would give Aprovado · Com restrições); Aprovado is disabled; its text names both.
   await goToStep(page, 'Conclusão', 'conclusao');
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado', exact: true })).toBeDisabled();
   await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText(
@@ -362,7 +362,7 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   expect(level2[0]).toMatch(new RegExp(`^${number}\\.1 ${OUTROS}`));
   const sheetTitle = `QGBT/QD's ${localTag}`;
   expect(structure.paragraphs).toContain(sheetTitle);
-  expect(structure.paragraphs).toContain("QGBT/QD's QD-C01");
+  expect(structure.paragraphs).toContain("QGBT/QD's QD-02");
   const titled = (title: string) => structure.tables.filter((table) => table[0]?.[0] === title);
   const plate = titled('DADOS DO EQUIPAMENTO').find((table) => table[1]?.[0] === 'IDENTIFICAÇÃO' && table[1]?.[1] === 'QD-01')!;
   expect(plate[3]).toEqual(['CORRENTE DE CURTO', '50 kA', 'TENSÃO NOMINAL', '380 V', 'IP', 'IP55']);

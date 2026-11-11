@@ -1058,6 +1058,9 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
     // Story 23.3: under the manufacturer's line, what the table would ask without it (a reminder).
     const underneath = manufacturer !== null && test.criterion_table !== undefined ? tableHelpersWithout(block, definition, test, rowCount) : [];
     evaluation.sourceLines = [...new Set([...rowCriteria.flatMap((one) => (one.helper === null ? [] : [one.helper])), ...underneath])];
+    // Story 24.9 (F16): the fallback's request ("Sem o tipo de isolação na placa, vale …") shows under the criterion, not only in "Fonte do critério".
+    const fallback = [...new Set(rowCriteria.flatMap((one) => (one.kind === 'fallback' && one.helper !== null ? [one.helper] : [])))];
+    if (fallback.length > 0) evaluation.fallbackLines = fallback;
   }
   if (test.instrument_limit_note === true) evaluation.limitNote = limitNoteOf(tables);
   // Batch e23v (Stories 23.5 and 23.6, seed v13): the temperature's texts, and a prerequisite the plate fails.

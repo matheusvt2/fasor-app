@@ -20,7 +20,7 @@ import {
   printedConclusionPair,
   printedConclusionText,
 } from './conclusion.ts';
-import { clearsNcObservation, sheetOrder } from './ficha.ts';
+import { ncObservationOnLeave, sheetOrder } from './ficha.ts';
 import { instantiateTemplate } from './instantiate.ts';
 import { composeParecer, derivedParecer, effectiveParecer, parecerLooser, parecerReasonText } from './parecer.ts';
 import { blockingRows, preIssue } from './pre-issue.ts';
@@ -259,18 +259,19 @@ describe('e22f N1: a Reprovado sheet is named once in the summary', () => {
   });
 });
 
-describe('e22f N3: an NC row set back to C clears only its unedited chip phrase', () => {
+// Story 24.6 amends e22f N3: two chips and NC to N.A. clear too; a typed piece keeps (`ncObservationOnLeave` replaced `clearsNcObservation`).
+describe('e22f N3 (amended by Story 24.6): an NC row set back to C clears its unedited chip phrases', () => {
   const chips = ['Oxidação nos terminais', 'Acúmulo de poeira'];
   it.each([
-    ['NC', 'C', 'Oxidação nos terminais', true],
-    ['NC', 'C', '  Acúmulo de poeira ', true],
-    ['NC', 'C', 'Oxidação nos terminais, Acúmulo de poeira', false],
-    ['NC', 'C', 'Oxidação nos terminais do polo B', false],
-    ['NC', 'C', '', false],
-    ['NC', 'NA', 'Oxidação nos terminais', false],
-    ['C', 'C', 'Oxidação nos terminais', false],
-    ['NC', null, 'Oxidação nos terminais', false],
+    ['NC', 'C', 'Oxidação nos terminais', 'clear'],
+    ['NC', 'C', '  Acúmulo de poeira ', 'clear'],
+    ['NC', 'C', 'Oxidação nos terminais, Acúmulo de poeira', 'clear'],
+    ['NC', 'C', 'Oxidação nos terminais do polo B', 'keep'],
+    ['NC', 'C', '', null],
+    ['NC', 'NA', 'Oxidação nos terminais', 'clear'],
+    ['C', 'C', 'Oxidação nos terminais', null],
+    ['NC', null, 'Oxidação nos terminais', null],
   ] as const)('%s to %s with "%s": %s', (from, to, observation, expected) => {
-    expect(clearsNcObservation(from, to, observation, chips)).toBe(expected);
+    expect(ncObservationOnLeave(from, to, observation, chips)).toBe(expected);
   });
 });

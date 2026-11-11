@@ -16,7 +16,7 @@ import {
 } from '../schemas/entities.ts';
 import { canonicalSkeleton, sectionNumber, withoutOrphans } from '../templates/compose.ts';
 import { listPtBr, plural } from '../text/plural.ts';
-import { normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
+import { legacySuggestTag, normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
 
 /*
  * Story 4.1 (FR-13, AR-5): a relatório is born as ONE client batch — the `relatorio`
@@ -35,6 +35,8 @@ import { normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
  * this run, gives the block its `equipment_id` and no `equipment` create is emitted.
  * Otherwise the equipment is created as before, its TAG free among the prior rows and this
  * run's. Removed rows are never reused and never count as taken.
+ * Story 24.21 (batch e24b): the base TAG became the placement's reuse key, stored on the row it
+ * creates and matched before the TAG, so a renamed equipment is still found; see the run below.
  *
  * Section blocks (Story 4.3): the template's section blocks plus the two the template
  * never carries, 7 (photos) and 9 (equipment sheets), which the renderer generates; all
@@ -80,7 +82,15 @@ function creationPosition(number: number): number {
 }
 
 /** What the creation reads of the project's equipment: enough to bind a block to a live row and keep new TAGs unique. */
-export type PriorEquipment = Pick<EquipmentRow, 'id' | 'tag' | 'type' | 'removed_at'>;
+export type PriorEquipment = Pick<EquipmentRow, 'id' | 'tag' | 'type' | 'removed_at' | 'reuse_key'>;
+
+/**
+ * Story 24.8: the TAG rule a run names its created equipment with. `current` (the default) is
+ * Story 24.8's `PREFIX-NN` with the placement's `reuse_key` stored (Story 24.21); `legacy` is the
+ * frozen rule before it with no key written, for the fixtures and goldens, so their drafts stay
+ * byte-equal to the ones they were built with.
+ */
+export type TagRule = 'current' | 'legacy';
 
 export interface InstantiateInputs {
   service_start: string | null;
@@ -99,6 +109,8 @@ export interface InstantiateInputs {
    * included. e22h B1: required; a caller with no company type passes `EMPTY_DEFINITION_CONTEXT`.
    */
   definitions: DefinitionContext;
+  /** Story 24.8: the TAG rule of the created equipment (`TagRule`); `current` when absent. */
+  tagRule?: TagRule;
 }
 
 export interface InstantiateDeps {
@@ -306,12 +318,20 @@ export function instantiateTemplate(
   });
 
   // Equipment and its blocks, per node in skeleton order, per template block on that node.
-  // `produced` holds the TAGs this run has created or bound: a position's base TAG is
-  // computed over it alone, so a second relatório of the obra asks for the TAGs the first
-  // one got (Q4). `taken` adds the prior rows, so a created TAG stays free project-wide.
-  const prior = inputs.existingEquipment.filter((row) => row.removed_at === null);
+  // Story 24.21: each placement's key is the frozen rule's TAG over the keys this run has
+  // already bound or created (`runKeys`), so a template gives the same keys in every relatório
+  // of the obra whatever the TAGs became. It binds a live row of the type, not yet bound, whose
+  // stored key equals it (step 2), else one with no stored key whose TAG equals it (step 3, the
+  // match before the story); the smallest id wins a tie. With none it creates the row with the
+  // key stored and Story 24.8's TAG, free among the obra's live TAGs and this run's (`taken`).
+  // Under `tagRule: 'legacy'` the created row carries no key and the frozen rule's TAG, and the
+  // run's keys are the bound and created TAGs: the drafts of the rule before, byte for byte, for
+  // a prior list with no keyed row and no two live rows of one type sharing a TAG (such a tie now
+  // binds the smallest id, under either rule, where the order of the list decided before).
+  const legacy = inputs.tagRule === 'legacy';
+  const prior = inputs.existingEquipment.filter((row) => row.removed_at === null).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const bound = new Set<string>();
-  const produced: TagEquipment[] = [];
+  const runKeys: TagEquipment[] = [];
   const taken: TagEquipment[] = [...inputs.existingEquipment];
   const blockCount = new Map<string, number>();
   const omitted: OmittedPlacement[] = [];
@@ -334,18 +354,29 @@ export function instantiateTemplate(
       for (let i = 0; i < block.quantity; i++) {
         const n = blockCount.get(locationId) ?? 0;
         blockCount.set(locationId, n + 1);
-        const base = normalizeTag(suggestTag(block.block_type, location, produced, definition));
-        const match = prior.find((row) => !bound.has(row.id) && row.type === block.block_type && normalizeTag(row.tag) === base);
+        const key = normalizeTag(legacySuggestTag(block.block_type, location, runKeys, definition));
+        const free = (row: PriorEquipment): boolean => !bound.has(row.id) && row.type === block.block_type;
+        const match =
+          prior.find((row) => free(row) && row.reuse_key !== undefined && normalizeTag(row.reuse_key) === key) ??
+          prior.find((row) => free(row) && row.reuse_key === undefined && normalizeTag(row.tag) === key);
         let equipmentId: string;
         if (match !== undefined) {
           equipmentId = match.id;
           bound.add(match.id);
-          produced.push({ tag: match.tag, removed_at: null });
+          runKeys.push({ tag: legacy ? match.tag : key, removed_at: null });
         } else {
           equipmentId = deps.newId();
-          const tag = suggestTag(block.block_type, location, taken, definition);
-          const equipmentRow: EquipmentRow = { id: equipmentId, project_id: project.id, tag, type: block.block_type, last_nameplate: null, removed_at: null };
-          produced.push(equipmentRow);
+          const tag = legacy ? legacySuggestTag(block.block_type, location, taken, definition) : suggestTag(block.block_type, taken, definition);
+          const equipmentRow: EquipmentRow = {
+            id: equipmentId,
+            project_id: project.id,
+            tag,
+            type: block.block_type,
+            last_nameplate: null,
+            removed_at: null,
+            ...(legacy ? {} : { reuse_key: key }),
+          };
+          runKeys.push({ tag: legacy ? tag : key, removed_at: null });
           taken.push(equipmentRow);
           drafts.push({ ...projectScope, kind: 'create', path: `equipment/${equipmentId}`, value: equipmentRow as unknown as JsonValue });
         }

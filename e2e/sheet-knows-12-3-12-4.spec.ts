@@ -140,7 +140,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   // J-09: the TAG field shows the block's TAG, counted as filled, nothing written.
   const tag = page.getByLabel('TAG', { exact: true });
   await expect(tag).toHaveValue(target.tag);
-  await expect(tag).toHaveAccessibleDescription('Do bloco · editável');
+  await expect(tag).toHaveAccessibleDescription('Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.');
   await expect(tag).not.toHaveAttribute('data-missing-field');
   expect(await stepMissing(page, 'Placa')).toBe(SECC_PLATE.filter((f) => f.optional !== true).length - 1);
 
@@ -181,7 +181,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await tag.fill('PLACA-01');
   await tag.press('Tab');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${target.blockId}/nameplate/tag`)?.value).toBe('PLACA-01');
-  await expect(tag).not.toHaveAccessibleDescription('Do bloco · editável');
+  await expect(tag).not.toHaveAccessibleDescription('Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.');
   await page.reload();
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue('PLACA-01');
   await expect(page.getByLabel('Identificação', { exact: true })).toBeVisible();
@@ -539,7 +539,7 @@ test('@p0 12.4-E2E-001an NC item observation becomes the suggested sheet observa
   await expect(observation).toHaveAccessibleDescription('Montada dos itens NC · confirmada com o texto da conclusão');
 
   // Com restrições: the pair suggestion, then no red "required" while the suggestion stands.
-  await page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByText('Obrigatória com restrições')).toHaveCount(0);
   await expect(suggested.getByRole('button', { name: 'Confirmar' })).toHaveAttribute('data-missing-field', '');

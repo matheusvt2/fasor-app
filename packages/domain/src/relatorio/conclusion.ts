@@ -375,6 +375,25 @@ export function conclusionSuggestion(block: BlockRow, definition: DefinitionArg 
   return conclusionFloor(block, definition, visit)?.pair ?? null;
 }
 
+/** Story 24.5: which half of the pair the Conclusão step shows as a preview. */
+export interface ConclusionPreview {
+  result: boolean;
+  restriction: boolean;
+}
+
+/**
+ * Story 24.5 (every seed, screen only): a half is a preview while the sheet is tested, a floor
+ * exists and that half's cell is not filled: the step shows the floor's segment in the preview
+ * state until the half is stored (a tap, "Confirmar", "Concluir ficha"). Nothing prints from it.
+ * Batch e24a (Story 24.3, seed v14): under an effective Reprovado there is no restriction to
+ * preview (`restrictionApplies`), as there is none to show, choose or print.
+ */
+export function conclusionPreview(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): ConclusionPreview {
+  if (block.not_tested !== null || conclusionFloor(block, definition, visit) === null) return { result: false, restriction: false };
+  const restriction = !isCellFilled(block.sheet.conclusion.restriction) && restrictionApplies(block, effectiveConclusionPair(block, definition, visit).result);
+  return { result: !isCellFilled(block.sheet.conclusion.result), restriction };
+}
+
 /** The suggestion row's words: "Aprovado · Sem restrições?"; batch e24a (Story 24.3, seed v14): "Reprovado?". */
 export function conclusionSuggestionText(pair: ConclusionPair): string {
   return `${pairWords(pair)}?`;
@@ -769,7 +788,12 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const text = `${subject} ${body}.${recommend ? ` ${RECOMMENDATION}` : ''}`;
 
   const criteriaItems = [
-    ...worst.map((reading) => `${TEST_WORDS[reading.testKey].symbol} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`),
+    // Story 24.9 (F19): a pole out by its rise names the rise with the previous value ("Critérios usados" is screen only), as the paragraph does.
+    ...worst.map((reading) =>
+      reading.rise !== undefined
+        ? `${TEST_WORDS[reading.testKey].symbol} ${reading.where} ${reading.valueText} · ${reading.rise}`
+        : `${TEST_WORDS[reading.testKey].symbol} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`,
+    ),
     ...tableOut.map((reading) => {
       const test = measurements.find((candidate) => candidate.testKey === reading.testKey)!;
       // Batch e23t (Story 23.15): a FO.SERV-03 type's measurement test has no number; it is named by its label.

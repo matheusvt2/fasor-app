@@ -99,3 +99,6 @@
    Responsável); in its Form dialog the dialog keeps inside the scrim and scrolls itself,
    so "Concluir" stays reachable. */
 .point-editor-dialog { max-height: 100%; overflow-y: auto; }
+/* Story 24.7: the "Origem resolvida" flag with "Remover ponto" beside it, the mock's `72-pontos.html` rules (Story 24.1, 2026-11-10), verbatim */
+[data-route="/relatorio/:id/pontos"] .poa-flag-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-1); }
+[data-route="/relatorio/:id/pontos"] .poa-flag-row .btn-text { min-height: var(--touch-min); padding: 0 var(--sp-2); }

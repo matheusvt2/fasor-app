@@ -39,7 +39,7 @@ test('@p0 23.19-E2E-001 HH fuses at 10, 10 and 12 mΩ: the third fails (Reprovad
   await expect(cellOf(page, KEY, 2, 0).locator('.mf-helper[role="status"]')).toContainText(fuses.rows[2]!.cells[0]!.helperText!);
   expect(judged.floorReason).toBe('A ficha exige no mínimo Reprovado · Com restrições: medição fora do critério.');
   await openStep(page, relatorioId, sc.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(judged.floorReason!);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(judged.floorReason!);
 
   // SEM CARGA: not applicable, the band naming the plate; nothing of it counts.
   await openStep(page, relatorioId, sc.blockId, 'Placa');
