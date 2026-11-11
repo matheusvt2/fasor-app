@@ -81,6 +81,8 @@ Not in scope: M04, M08, M15, M28 (done), and what fix batch e24y is doing (M33's
 
 *(2026-11-11, later.)* Matheus also decided the ten questions M-1 to M-10 of the proposal ("pode mergear e seguir"): the list, the waves and the batches are approved; an NC item may carry several points; Story 25.4 keeps the printed verdicts on the revision; no "Salvo às hh:mm" per field; N/A per cell on v15 only; **the conclusion and section 10 name every reading out of criterion on v15 (it joins Story 25.10)**; **a restriction chosen by hand over a clean sheet prints no recommendation that points at nothing (it joins Story 25.7)**; the AI check runs only on a tap; a stale text blocks on every seed; two deploys. The table is in `sprint-change-proposal-2026-11-11.md` § "The ten questions, decided".
 
+*(2026-11-11, evening.)* Story 25.1's frames are merged (Part A #320, Part B #321). Matheus released the waves with "Pode seguir com as ondas". Three things in the frames differ from the stories' text and bind the batches: "Atualizar base de ensaios" is drawn on the Templates type list (`41-templates.html`), where the import is today, not in Cadastros (Story 25.23); the frames of Stories 25.17, 25.19 and 25.21 are the coordinator's reading until Bruno answers; the printed breaker pair with "20 °C (corrigido)" is fitted at 6,5 pt (Story 25.20).
+
 ## Facts the batches share
 
 Verified on 2026-11-11 on main `76c74711`. Paths are under `packages/domain/src/` unless they name another package. Line numbers move: read each file again on your base.
