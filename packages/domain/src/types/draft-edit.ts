@@ -125,7 +125,7 @@ export function updateDraftFieldRefusal(draft: CompanyTypeDraft | null, index: n
   const optionsChange = patch.options !== undefined && !isVectorGroupOptions(patch.options);
   if (!kindChange && !optionsChange) return null;
   // authored (e24c, listed for Bruno): Story 24.20's refusal toast.
-  return `O campo ${vectorFieldLabel(field)} não pode mudar de tipo nem de opções: a relação de transformação calcula por ele. Remova antes o ensaio.`;
+  return `O campo ${vectorFieldLabel(field)} não pode mudar de tipo nem de opções: a relação de transformação é calculada a partir dele. Remova antes o ensaio.`; // authored (e24y, corrected by Bruno 2026-11-11): was "calcula por ele"
 }
 
 /**
@@ -253,7 +253,7 @@ export function removeDraftEntryRefusal(draft: CompanyTypeDraft | null, part: Dr
   if (field === undefined || field.key !== VECTOR_GROUP_FIELD) return null;
   if (!readsVectorGroup(source)) return null;
   // authored (e23z, listed for Bruno).
-  return `O campo ${vectorFieldLabel(field)} não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio.`;
+  return `O campo ${vectorFieldLabel(field)} não pode ser removido: a relação de transformação é calculada a partir dele. Remova antes o ensaio.`; // authored (e24y, corrected by Bruno 2026-11-11): was "calcula por ele"
 }
 
 /**

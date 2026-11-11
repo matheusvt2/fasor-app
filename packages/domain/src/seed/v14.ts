@@ -32,6 +32,7 @@ function cabinePrimariaV14(): ReportSeed {
   withE24sSheetFixes(seed);
   // Fix batch e24y (the hands-on pass of 2026-11-11), after every section above.
   withE24yRules(seed);
+  withE24yUnnumbered(seed);
   return seed;
 }
 
@@ -310,6 +311,18 @@ function withE24yRules(seed: ReportSeed): void {
     history_needs_like_with_like: true,
     empty_steps_hidden: true,
   };
+}
+
+/**
+ * Fix batch e24y (P9, Bruno's answer of 2026-11-11): the v14 Inspeção de QGBT's thermography is titled
+ * "TERMOGRAFIA", as the eight types title theirs, on the sheet and in print (`measurement_tests_unnumbered`,
+ * read by `measurementTestsUnnumbered`). The Malha and every other library type keep "E1 ·".
+ * `seed.test.ts` strips it (`withoutE24y`).
+ */
+function withE24yUnnumbered(seed: ReportSeed): void {
+  const inspection = seed.blocks.inspecao_qgbt;
+  if (inspection === undefined) throw new Error('seed v14: v13 lacks the Inspeção de QGBT');
+  inspection.measurement_tests_unnumbered = true;
 }
 
 export const CABINE_PRIMARIA_V14: ReportSeed = cabinePrimariaV14();

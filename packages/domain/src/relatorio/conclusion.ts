@@ -424,9 +424,13 @@ export function conclusionPreview(block: BlockRow, definition: DefinitionArg = u
   return { result: !isCellFilled(block.sheet.conclusion.result), restriction };
 }
 
-/** The suggestion row's words: "Aprovado · Sem restrições?"; batch e24a (Story 24.3, seed v14): "Reprovado?". */
+/**
+ * The suggestion row's words: "Marcar como Aprovado · Sem restrições?"; batch e24a (Story 24.3, seed v14):
+ * "Marcar como Reprovado?". Screen only (the preview pill of the Conclusão step).
+ */
 export function conclusionSuggestionText(pair: ConclusionPair): string {
-  return `${pairWords(pair)}?`;
+  // authored (e24y, corrected by Bruno 2026-11-11): "Marcar como …?" (was "Reprovado?"; the other pairs alike, the coordinator's reading).
+  return `Marcar como ${pairWords(pair)}?`;
 }
 
 /**

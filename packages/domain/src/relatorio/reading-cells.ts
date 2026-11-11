@@ -205,7 +205,7 @@ export interface EvaluatedChoice {
   displayText: string;
   verdict: 'within' | 'out' | null;
   missing: boolean;
-  /** The sheet's helper under an out row ("Polaridade invertida: a ficha fica Reprovado.", fix batch e24h), else null. */
+  /** The sheet's helper under an out row ("Polaridade invertida: a ficha fica como Reprovado.", fix batch e24h), else null. */
   helperText: string | null;
   /** The answer as the conclusion and the points name it ("polaridade invertida"), on an out cell only; else null. */
   outText: string | null;

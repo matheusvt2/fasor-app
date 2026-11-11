@@ -151,10 +151,10 @@ describe('24.18-UNIT: the schema', () => {
 });
 
 describe('24.18-UNIT: the judgement and the text', () => {
-  it('writes "220 V ±5 %" (B-9 open), with a comma for decimals and without a unit when the row has none', () => {
-    expect(formatCriterionValue({ operator: 'nominal_pct', value: 220, tolerance_pct: 5, unit: 'V' })).toBe('220 V ±5 %');
-    expect(formatCriterionValue({ operator: 'nominal_pct', value: 13.8, tolerance_pct: 2.5, unit: 'kV' })).toBe('13,8 kV ±2,5 %');
-    expect(formatCriterionValue({ operator: 'nominal_pct', value: 220, tolerance_pct: 5, unit: null })).toBe('220 ±5 %');
+  it('writes "220 V ± 5 %" (Bruno, 2026-11-11), with a comma for decimals and without a unit when the row has none', () => {
+    expect(formatCriterionValue({ operator: 'nominal_pct', value: 220, tolerance_pct: 5, unit: 'V' })).toBe('220 V ± 5 %');
+    expect(formatCriterionValue({ operator: 'nominal_pct', value: 13.8, tolerance_pct: 2.5, unit: 'kV' })).toBe('13,8 kV ± 2,5 %');
+    expect(formatCriterionValue({ operator: 'nominal_pct', value: 220, tolerance_pct: 5, unit: null })).toBe('220 ± 5 %');
     expect(CRITERION_RULE_WORDS.nominal_pct).toBe('nominal ± %');
   });
 
@@ -182,12 +182,12 @@ describe('24.18-UNIT: the judgement and the text', () => {
   it('reads as a range row with its own text for every reader', () => {
     const definition = asBlockDefinition(versionRow(nominalDefinition()));
     const criterion = definition.measurement_tests![0]!.criteria[0]!;
-    expect(criterion).toMatchObject({ seeded_criterion: { operator: 'between', value: 209, value_max: 231, unit: 'V', text: '220 V ±5 %' } });
+    expect(criterion).toMatchObject({ seeded_criterion: { operator: 'between', value: 209, value_max: 231, unit: 'V', text: '220 V ± 5 %' } });
     expect(JSON.stringify(definition)).not.toContain('tolerance_pct');
-    expect(formatCriterionValue(definition.criteria!.find((row) => row.key === 'alimentacao')!)).toBe('220 V ±5 %');
+    expect(formatCriterionValue(definition.criteria!.find((row) => row.key === 'alimentacao')!)).toBe('220 V ± 5 %');
   });
 
-  it('judges 209 V and 231 V within and 208,9 V and 231,1 V out, each helper naming "220 V ±5 %", as the range row judges them', () => {
+  it('judges 209 V and 231 V within and 208,9 V and 231,1 V out, each helper naming "220 V ± 5 %", as the range row judges them', () => {
     for (const [raw, verdict] of [['209', 'within'], ['231', 'within'], ['208.9', 'out'], ['231.1', 'out']] as const) {
       const cell = cellOf(nominalDefinition(), { raw, unit: 'V', state: 'measured' });
       expect(cell.verdict, raw).toBe(verdict);
@@ -195,9 +195,9 @@ describe('24.18-UNIT: the judgement and the text', () => {
       expect(cell.verdict, raw).toBe(range.verdict);
       expect(cell.excess, raw).toBe(range.excess);
       if (verdict === 'out') {
-        expect(cell.criterionText).toBe('220 V ±5 %');
-        expect(cell.helperText).toContain('220 V ±5 %');
-        expect(cell.helperText).toBe(range.helperText!.replace('entre 209 e 231 V', '220 V ±5 %'));
+        expect(cell.criterionText).toBe('220 V ± 5 %');
+        expect(cell.helperText).toContain('220 V ± 5 %');
+        expect(cell.helperText).toBe(range.helperText!.replace('entre 209 e 231 V', '220 V ± 5 %'));
       }
     }
   });
@@ -233,7 +233,7 @@ describe('24.18-UNIT: the judgement and the text', () => {
     expect(at('450').verdict).toBe('within');
     expect(at('550').verdict).toBe('within');
     expect(at('449').verdict).toBe('out');
-    expect(at('449').helperText).toBe('Fora do aceitável (500 MΩ ±10 %)');
+    expect(at('449').helperText).toBe('Fora do aceitável (500 MΩ ± 10 %)');
   });
 });
 
@@ -262,7 +262,7 @@ describe('e24x-UNIT C1 a reading above the instrument\'s limit on a range criter
   const TO_CHECK = 'valores medidos com leitura a conferir';
   const WITHIN = 'valores medidos dentro dos critérios de aceitação';
 
-  it('a measurement row (220 V ±5 %, entre 209 e 231 V): a limit at or above the upper end is out, the floor fails the ficha and the paragraph names it', () => {
+  it('a measurement row (220 V ± 5 %, entre 209 e 231 V): a limit at or above the upper end is out, the floor fails the ficha and the paragraph names it', () => {
     for (const definition of [nominalDefinition(), betweenDefinition()]) {
       for (const raw of ['250', '231']) {
         const block = blockWith({ raw, unit: 'V', state: 'over_range' });
@@ -343,7 +343,7 @@ describe('24.18-UNIT: the draft edits', () => {
     const typed = updateDraftCriterion(updateDraftCriterion(next, 1, { value: 220 }), 1, { tolerance_pct: 5 });
     expect(typed.criteria![1]).toMatchObject({ operator: 'nominal_pct', value: 220, tolerance_pct: 5 });
     expect(validateTypeDraft(typed)).toEqual([]);
-    expect(draftCriterionText(typed.criteria![1])).toBe('220 V ±5 %');
+    expect(draftCriterionText(typed.criteria![1])).toBe('220 V ± 5 %');
     expect(draftCriterionText(next.criteria![1])).toBeNull();
     expect(updateDraftCriterion(typed, 1, { tolerance_pct: null }).criteria![1]).not.toHaveProperty('tolerance_pct');
   });

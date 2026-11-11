@@ -856,6 +856,11 @@ export const blockDefinitionSchema = z
     nameplate_title: z.string().min(1).optional(),
     /** The plate block has no plate to photograph: no "Fotografar placa" and no retake row. Absent: a photo is offered. */
     nameplate_photo: z.literal(false).optional(),
+    /**
+     * Fix batch e24y (P9, seed v14): the library type's measurement tests print without "E{n} ·", as the
+     * eight types' do (the v14 Inspeção de QGBT's "TERMOGRAFIA"). Absent: a library type numbers them.
+     */
+    measurement_tests_unnumbered: z.literal(true).optional(),
   })
   .superRefine(checkMeasurementDefinition)
   .superRefine(checkSeedV6Definition);

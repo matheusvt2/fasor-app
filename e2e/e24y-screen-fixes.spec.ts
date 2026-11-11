@@ -1,7 +1,7 @@
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, newEquipmentBlock, nameplateTitleOf, SEED_VERSION } from '@app/domain';
+import { conclusionSuggestionText, EMPTY_DEFINITION_CONTEXT, getDefinition, newEquipmentBlock, nameplateTitleOf, SEED_VERSION } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceSnapshot, setUpRelatorio, stepper } from './support/e23t-flow.ts';
+import { deviceSnapshot, openStep, setUpRelatorio, stepper } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { expandLocation, section9Chevron } from './support/tree.ts';
@@ -85,7 +85,7 @@ test('@p0 e24y-E2E-002 at 390 px a v14 Malha de aterramento steps "Dados da malh
   await expect(summary).not.toContainText('erificaç');
 });
 
-test('@p0 e24y-E2E-003 at 1280 px the last type of "Adicionar bloco", expanded, shows its TAG, Local and "Confirmar"; "Chave de transferência automática" keeps its gap before the "+" at 1280 and 768 px', async ({ page }) => {
+test('@p0 e24y-E2E-003 "Chave de transferência automática" keeps its gap before the "+" at 1280 and 768 px', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId } = await setUpRelatorio(page, account, database);
   await page.goto(`/relatorio/${relatorioId}`);
@@ -97,7 +97,22 @@ test('@p0 e24y-E2E-003 at 1280 px the last type of "Adicionar bloco", expanded, 
   await expect(cta).toBeVisible();
   expect(await gapBeforePlus(cta)).toBeGreaterThanOrEqual(8);
 
-  // F6: the last type, expanded, scrolls its box into the list's view.
+  // F17 at 768 px: the field row.
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 768, height: 1024 });
+  const field = await openPalette(page);
+  const row = field.locator('.palette-type').filter({ hasText: 'Chave de transferência automática' }).locator('.pf-field');
+  await expect(row).toBeVisible();
+  expect(await gapBeforePlus(row)).toBeGreaterThanOrEqual(8);
+});
+
+test('@p0 e24y-E2E-006 at 1280 px the last type of "Adicionar bloco", expanded, shows its TAG, Local and "Confirmar" in the list\'s view (F6)', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId } = await setUpRelatorio(page, account, database);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  const palette = await openPalette(page);
+  // The last type, the last type, expanded, scrolls its box into the list's view.
   const last = palette.locator('.pf-office').last();
   await last.locator('.palette-item').click();
   const confirm = last.getByRole('button', { name: 'Confirmar' });
@@ -110,14 +125,6 @@ test('@p0 e24y-E2E-003 at 1280 px the last type of "Adicionar bloco", expanded, 
     })
     .toBe(true);
   await expect(last.getByRole('textbox', { name: 'TAG' })).toBeInViewport();
-
-  // F17 at 768 px: the field row.
-  await page.keyboard.press('Escape');
-  await page.setViewportSize({ width: 768, height: 1024 });
-  const field = await openPalette(page);
-  const row = field.locator('.palette-type').filter({ hasText: 'Chave de transferência automática' }).locator('.pf-field');
-  await expect(row).toBeVisible();
-  expect(await gapBeforePlus(row)).toBeGreaterThanOrEqual(8);
 });
 
 test('@p0 e24y-E2E-004 at 390 px the point editor\'s "P4 · Próxima manutenção" pill stays on one line, as "P0 · Imediata" does', async ({ page }) => {
@@ -137,4 +144,28 @@ test('@p0 e24y-E2E-004 at 390 px the point editor\'s "P4 · Próxima manutençã
   await expect(hint).toHaveText('próxima intervenção');
   const hintBox = await hint.boundingBox();
   expect(hintBox!.width).toBeGreaterThan(40);
+});
+
+test('@p0 e24y-E2E-005 at 390 px the preview pill "Marcar como …?" fits its row on one line, the longest pair ("Reprovado · Com restrições") included', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [], 'v13');
+  const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+  // One insulation reading typed, so the sheet has a pair to suggest.
+  const insulation = getDefinition('v13', 'cabine_primaria', 'disjuntor_mt').tests.find((one) => one.key === 'isolacao')!;
+  const capture = insulation.tables[0]!.value_columns.findIndex((column) => column.role === 'capture');
+  await pushDrafts(page, database, [officeDraft(account, { relatorioId }, `sheet/${dj.blockId}/test/isolacao/cell/0/${capture}`, { raw: '1', unit: 'GΩ', state: 'measured' })]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openStep(page, relatorioId, dj.blockId, 'Conclusão');
+  const value = page.locator('#ficha-conc .ficha-conc-sug-host .sv');
+  await expect(value).toHaveText(/^Marcar como .+\?$/u, { timeout: 30_000 });
+  const linesOf = (text: string | null) =>
+    value.evaluate((element, replaced) => {
+      if (replaced !== null) element.textContent = replaced;
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+    }, text);
+  // The pill the sheet shows, then the same element holding the longest pair's words (the kernel's `conclusionSuggestionText`).
+  expect(await linesOf(null)).toBe(1);
+  expect(await linesOf(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' }))).toBe(1);
 });

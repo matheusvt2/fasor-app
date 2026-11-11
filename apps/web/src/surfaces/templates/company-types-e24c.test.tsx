@@ -126,7 +126,7 @@ describe('24.18 the Critérios row of "nominal ± %"', () => {
     await userEvent.type(within(row).getByRole('textbox', { name: `Tolerância (%) de ${name}` }), '5');
     await userEvent.tab();
     expect(last()!.criteria![at]).toMatchObject({ operator: 'nominal_pct', value: 220, tolerance_pct: 5 });
-    expect(row.querySelector('.nominal-text')).toHaveTextContent('220 Vcc ±5 %');
+    expect(row.querySelector('.nominal-text')).toHaveTextContent('220 Vcc ± 5 %');
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: `Regra de ${name}` }), 'entre');
     expect(last()!.criteria![at]).toMatchObject({ operator: 'between', value: 220 });
@@ -145,7 +145,7 @@ describe('24.18 the Ensaios tab words a measurement row ruled "nominal ± %"', (
     const test = DEFINITION_1.measurement_tests![0]!;
     await userEvent.click(screen.getByRole('button', { name: new RegExp(`^${test.label}`) }));
     const table = screen.getByRole('table', { name: 'Linhas da tabela de medições' });
-    expect(table.querySelector(`tr[data-row-key="${test.rows[0]!.key}"] td.cell-crit`)).toHaveTextContent('220 V ±5 %');
+    expect(table.querySelector(`tr[data-row-key="${test.rows[0]!.key}"] td.cell-crit`)).toHaveTextContent('220 V ± 5 %');
   });
 });
 
@@ -206,10 +206,10 @@ describe('24.19 a published copy hides its original', () => {
     );
     const library = await screen.findByRole('list', { name: /^Da biblioteca/ });
     const row = library.querySelector<HTMLElement>('[data-block-type="transformador_forca"]')!;
-    await waitFor(() => expect(row.querySelector('[data-hidden-type]')).toHaveTextContent(`Oculto nas paletas: a cópia ${trCopy.label} está publicada.`));
+    await waitFor(() => expect(row.querySelector('[data-hidden-type]')).toHaveTextContent(`Oculto na lista de tipos: a cópia ${trCopy.label} está publicada.`));
     expect(row.querySelector('[data-hidden-type]')).toHaveClass('rr-secondary');
     expect(library.querySelectorAll('[data-hidden-type]')).toHaveLength(1);
-    expect(screen.getByText(/^Para renomear um tipo da biblioteca/)).toHaveTextContent('Enquanto a cópia estiver publicada, o tipo da biblioteca sai das paletas.');
+    expect(screen.getByText(/^Para renomear um tipo da biblioteca/)).toHaveTextContent('Enquanto a cópia estiver publicada, o tipo da biblioteca sai da lista de tipos.');
   });
 
   it('the composer\'s palette lists the copy where the transformer stood, marked "Tipo da empresa", and offers no stepper of the transformer', async () => {

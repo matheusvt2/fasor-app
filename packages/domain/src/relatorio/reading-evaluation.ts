@@ -937,7 +937,8 @@ function evaluateChoice(block: BlockRow, testKey: TestKey, row: number, column: 
   const text = `${column.header} ${option.label.toLocaleLowerCase('pt-BR')}`;
   // authored (Story 23.18, from the mock `60-ficha.html` #/ficha/TP-C16): the helper under a row whose polarity fails.
   // authored (e24h, listed for Bruno): "…: a ficha fica Reprovado." (was "…: a ficha fica Reprovado e gera um ponto de atenção.").
-  return { col: column.col, raw: option.value, displayText: option.label, verdict: 'out', missing: false, helperText: `${text}: a ficha fica Reprovado.`, outText: text.toLocaleLowerCase('pt-BR') };
+  // authored (e24y, corrected by Bruno 2026-11-11): "…: a ficha fica como Reprovado." (was "…: a ficha fica Reprovado.").
+  return { col: column.col, raw: option.value, displayText: option.label, verdict: 'out', missing: false, helperText: `${text}: a ficha fica como Reprovado.`, outText: text.toLocaleLowerCase('pt-BR') };
 }
 
 /** Story 23.18: the choice cells out of a test's tables, as the conclusion and the points name them ("Fase R", "polaridade invertida"). */

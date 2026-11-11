@@ -360,7 +360,8 @@ export function tapsLineText(n: number): string {
 /** The helper under a `list` field: "Na ordem da placa, separados por ; · 5 taps" for a stored list, "Na ordem da placa, separados por ;" while it holds none. */
 export function tapsHelperText(value: unknown): string {
   const entries = readNumberListRaw(measuredRaw(value));
-  const lead = 'Na ordem da placa, separados por ;';
+  // authored (e24y, corrected by Bruno 2026-11-11) (was "separados por ;").
+  const lead = 'Na ordem da placa, separados por ponto e vírgula (;)';
   return entries === null ? lead : `${lead} · ${plural(entries.length, 'tap', 'taps')}`;
 }
 

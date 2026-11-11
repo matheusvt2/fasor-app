@@ -84,7 +84,8 @@ export function companyTypeSecondaryText(type: EquipmentTypeRow, ctx: Definition
   const prefix = prefixOf(type, ctx);
   const from = derivedFromText(type, ctx);
   // authored (Story 14.7, from `41-templates.html`; the mock's author and date are not carried).
-  if (status === 'aposentado') return ['Fora das paletas', 'os relatórios e templates que o usam continuam funcionando', openDraftText(type)].filter((part): part is string => part !== null).join(SEP);
+  // authored (e24y, corrected by Bruno 2026-11-11): "Fora da lista de tipos" (was "Fora das paletas").
+  if (status === 'aposentado') return ['Fora da lista de tipos', 'os relatórios e templates que o usam continuam funcionando', openDraftText(type)].filter((part): part is string => part !== null).join(SEP);
   const parts: (string | null)[] =
     status === 'rascunho'
       ? ['Nunca publicado', issuesToPublishText(validateTypeDraft(type.draft).length)]
@@ -124,8 +125,9 @@ export interface LibraryTypeListRow {
 export function hiddenTypeText(copyLabels: readonly string[]): string | null {
   if (copyLabels.length === 0) return null;
   // authored (e24c, listed for Bruno): Story 24.19's hidden line, one copy and several.
-  if (copyLabels.length === 1) return `Oculto nas paletas: a cópia ${copyLabels[0]!} está publicada.`;
-  return `Oculto nas paletas: as cópias ${copyLabels.slice(0, -1).join(', ')} e ${copyLabels.at(-1)!} estão publicadas.`;
+  // authored (e24y, corrected by Bruno 2026-11-11): "Oculto na lista de tipos" (was "Oculto nas paletas").
+  if (copyLabels.length === 1) return `Oculto na lista de tipos: a cópia ${copyLabels[0]!} está publicada.`;
+  return `Oculto na lista de tipos: as cópias ${copyLabels.slice(0, -1).join(', ')} e ${copyLabels.at(-1)!} estão publicadas.`;
 }
 
 /**
@@ -234,7 +236,8 @@ export function retireTypeTitle(name: string): string {
 /** The Aposentar Confirm's body; it says the open draft is kept when one is ("O rascunho da versão 3 fica guardado."). */
 export function retireTypeBody(type: Pick<EquipmentTypeRow, 'latest_version' | 'draft'>): string {
   // authored (Story 14.7, from `41-templates.html`; the mock's counts of relatórios and templates are not carried).
-  const base = 'O tipo sai das paletas do template e da ficha. Os relatórios e templates que já o usam continuam funcionando e imprimindo como estão.';
+  // authored (e24y, corrected by Bruno 2026-11-11): "sai da lista de tipos" (was "sai das paletas").
+  const base = 'O tipo sai da lista de tipos do template e da ficha. Os relatórios e templates que já o usam continuam funcionando e imprimindo como estão.';
   return type.draft === null || type.latest_version === 0 ? base : `${base} O rascunho da versão ${type.latest_version + 1} fica guardado.`;
 }
 

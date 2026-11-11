@@ -106,7 +106,7 @@ describe('24.7 "Remover ponto" beside "Origem resolvida" on the Pontos screen', 
     await open();
     const card = cardOf('Ponto de item resolvido');
     const flagRow = card.querySelector('.poa-flag-row')!;
-    expect(within(flagRow as HTMLElement).getByText('Origem resolvida')).toHaveAttribute('data-flag');
+    expect(within(flagRow as HTMLElement).getByText('Item alterado')).toHaveAttribute('data-flag');
     // A manual point has no flag and no such action.
     expect(cardOf('Ponto à mão').querySelector('.poa-flag-row')).toBeNull();
 

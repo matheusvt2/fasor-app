@@ -154,10 +154,10 @@ describe('24.19-UNIT: the type list', () => {
   it('says a library type is hidden in the palettes while one copy or several are published', () => {
     expect(libraryTypeListRows(SEED_VERSION).every((row) => row.hiddenText === null)).toBe(true);
     const one = libraryTypeListRows(SEED_VERSION, context([{ n: 1, definition: trCopy }]));
-    expect(one.find((row) => row.type === TR)!.hiddenText).toBe(`Oculto nas paletas: a cópia ${trCopy.label} está publicada.`);
+    expect(one.find((row) => row.type === TR)!.hiddenText).toBe(`Oculto na lista de tipos: a cópia ${trCopy.label} está publicada.`);
     expect(one.filter((row) => row.hiddenText !== null)).toHaveLength(1);
     const two = libraryTypeListRows(SEED_VERSION, context([{ n: 1, definition: trCopy }, { n: 2, definition: trCopyB }]));
-    expect(two.find((row) => row.type === TR)!.hiddenText).toBe(`Oculto nas paletas: as cópias ${trCopyB.label} e ${trCopy.label} estão publicadas.`);
+    expect(two.find((row) => row.type === TR)!.hiddenText).toBe(`Oculto na lista de tipos: as cópias ${trCopyB.label} e ${trCopy.label} estão publicadas.`);
     expect(libraryTypeListRows(SEED_VERSION, context([{ n: 1, definition: trCopy, retired: true }])).find((row) => row.type === TR)!.hiddenText).toBeNull();
   });
 });

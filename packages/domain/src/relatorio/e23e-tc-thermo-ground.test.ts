@@ -155,7 +155,7 @@ describe('23.18-UNIT polarity, function and the S classes (Base rev08 TC-03, TP-
       verdict: 'out',
       missing: false,
       // Fix batch e24h: the helper no longer promises a point (was "… e gera um ponto de atenção.").
-      helperText: 'Polaridade invertida: a ficha fica Reprovado.',
+      helperText: 'Polaridade invertida: a ficha fica como Reprovado.',
       outText: 'polaridade invertida',
     });
     expect(row.condicao).toBe('INSATISFATÓRIO');

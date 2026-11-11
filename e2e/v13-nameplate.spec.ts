@@ -129,7 +129,7 @@ test('@p0 23.7-E2E-001 the v13 transformador de força: TAPS typed as a list (an
 
   // A repeated value is no list: the helper says so and nothing is written.
   await typeIn(page, 'taps', '12; 12');
-  await expect(field(page, 'taps').locator('.helper')).toHaveText('Lista não reconhecida: dois ou mais valores diferentes, separados por ;');
+  await expect(field(page, 'taps').locator('.helper')).toHaveText('Lista não reconhecida: dois ou mais valores diferentes, separados por ponto e vírgula (;)');
   expect(await value()).toBeUndefined();
 
   // Five taps, separated by ";": stored as the dot-decimal list in kV, shown with "·", counted by the helper.

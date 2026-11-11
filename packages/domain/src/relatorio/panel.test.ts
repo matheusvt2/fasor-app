@@ -143,7 +143,7 @@ describe('9.2-UNIT the panel proposal', () => {
     expect(offline).toMatchObject({ tag: 'DJ-01', trust: null, suggestionStatus: null });
     expect(panelProvenance(offline, null)).toEqual([
       { label: 'Tipo', text: 'escolhido por você' },
-      { label: 'Coluna', text: 'não lida na foto · local onde a paleta abriu' },
+      { label: 'Coluna', text: 'não lida na foto · local onde a lista de tipos abriu' },
       { label: 'TAG', text: 'tipo · próximo número livre' },
     ]);
   });

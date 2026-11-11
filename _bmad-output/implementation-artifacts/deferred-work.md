@@ -3815,7 +3815,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The v14 Inspeção de QGBT, a library type, numbers its measurement tests, so its thermography prints as "E1 · TERMOGRAFIA" where the eight types print "TERMOGRAFIA" under their own numbering. Kept: it is how a library type's measurement test prints (the CTA's "E1 · RESISTÊNCIA DE CONTATO", `measurement-print.test.ts`).
   evidence: `packages/domain/src/print/section-9.ts` (the library type's test numbering); `e2e/seed-v14-qgbt-inspecao.spec.ts`.
   class: note
-  state: open (owner: the Epic 24 hands-on pass: check it reads as intended)
+  state: ~~open (owner: the Epic 24 hands-on pass: check it reads as intended)~~ *(2026-11-11, fix batch e24y, P9, on Bruno's answer: closed. The v14 Inspeção de QGBT carries `measurement_tests_unnumbered`, so its test is titled "TERMOGRAFIA" on the sheet and in print; the Malha and every other library type keep "E1 ·".)*
 - source_spec: `spec-e24s-seed-v14-sheets.md` (Stories 24.11 and 24.12)
   summary: `screenLabel` learned three words for the v14 labels: "DPS" is an acronym, "O" is a lowered one-letter word ("Torque conforme o fabricante"), and "NA" inside a phrase reads as the preposition ("Trincas na resina") while the column "NA" alone stays. No v1 to v13 label holds "O" or an inner "NA" (`screen-label.test.ts`); screen only, print unchanged.
   evidence: `packages/domain/src/relatorio/screen-label.ts` (`ONE_LETTER_WORDS`, `PREPOSITION_ACRONYMS`).
@@ -3932,3 +3932,18 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (`commitPlateTag`); `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx`.
   class: decision
   state: open (owner: Matheus: whether a confirmed TAG suggestion should rename too)
+- source_spec: `spec-e24y-pass-fixes.md` (P8g, the coordinator's correction of Bruno's answer of 2026-11-11)
+  summary: the override band's wording ("Aplicado por você. Equipamento fora de carga.") is kept: the band marks a test applied over the app's N.A., and Bruno's replacement says the opposite. Bruno read it as an N.A. mark.
+  evidence: `apps/web/src/copy/pt-br.ts` (the override band); `docs/context/epic-24/respostas-bruno-2026-11-11.md` (gitignored).
+  class: decision
+  state: open (owner: Matheus: ask Bruno again with the screen in front of him)
+- source_spec: `spec-e24y-pass-fixes.md` (P10)
+  summary: only the "nominal ± %" criterion of company types (Story 24.18, new in Epic 24) takes the space after the sign ("220 V ± 5 %"). The ratio's and the accuracy classes' "±0,5 %", "±1,2 %" and the criteria ">=" (a company type's operator) print as before, because a v1 to v13 relatório prints them and `formatCriterionValue` knows no seed: a change would move the v5 to v13 goldens. Changing them on v14 only needs the seed carried into every criterion text, a larger change than the batch's.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
+  class: decision
+  state: open (owner: Matheus: the v14-only form of "±" and "≥", or keep)
+- source_spec: `spec-e24y-pass-fixes.md` (P8c, P8d)
+  summary: what was found while changing Bruno's words: "Origem resolvida" is screen only (the Pontos flag and the point question's description), so nothing printed moves; "paleta" also stood in two sentences the spec's lines did not list, changed the same way ("lista de tipos aberta de dentro da ficha" in the field palette's office note; "local onde a lista de tipos abriu" in the panel's reason line); "Toque em um tipo da lista para adicionar." avoids "tipo da lista de tipos".
+  evidence: `apps/web/src/copy/pt-br.ts`; `packages/domain/src/relatorio/panel.ts`; every `// authored (e24y, corrected by Bruno 2026-11-11)`.
+  class: note
+  state: open (owner: Bruno, through Matheus, with the authored list)

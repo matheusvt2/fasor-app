@@ -161,7 +161,7 @@ describe('Epic 14 QA Q-3: a zero or negative reading on E1 is refused at input, 
     // The 0 corrected: the suggestion and the "within" wording come back.
     const fixed = ctaBlock({ polos: '3' }, column(E1, 'lado_normal', { polo_a: micro('39'), polo_b: micro('40'), polo_c: micro('41') }));
     expect(anyMeasurementToCheck(evaluate(fixed))).toBe(false);
-    expect(conclusionSuggestionText(conclusionSuggestion(fixed)!)).toBe('Aprovado · Sem restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(fixed)!)).toBe('Marcar como Aprovado · Sem restrições?');
     expect(composeConclusion(fixed, definition, CTA_TAG).text).toMatch(/dentro dos critérios/);
   });
 
@@ -780,9 +780,9 @@ describe('the conclusion reads the measurement tests', () => {
   it('Story 22.4: suggests "Reprovado · Com restrições?" with an out reading, "Sem restrições?" with neither, nothing on an untouched sheet', () => {
     expect(conclusionSuggestion(ctaBlock())).toBeNull();
     const within = ctaBlock({ polos: '4' }, NORMAL);
-    expect(conclusionSuggestionText(conclusionSuggestion(within)!)).toBe('Aprovado · Sem restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(within)!)).toBe('Marcar como Aprovado · Sem restrições?');
     const out = ctaBlock({ polos: '4' }, [...NORMAL, ...EMERGENCIA]);
-    expect(conclusionSuggestionText(conclusionSuggestion(out)!)).toBe('Reprovado · Com restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(out)!)).toBe('Marcar como Reprovado · Com restrições?');
     // A choice out of its criterion fails too, and so does a setting left different.
     expect(conclusionSuggestion(ctaBlock({}, [{ test: E6, row: 'normal_a', col: 'classe', value: choice('grave') }]))).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
     // A test value alone is not a measurement: nothing is suggested yet.
@@ -790,7 +790,7 @@ describe('the conclusion reads the measurement tests', () => {
     // An out reading of a test switched off, or of one not run, restricts nothing.
     const off: BlockRow = { ...out, config: blockConfigWithSubBlock(out.config, 'cta_resistencia_contato', false) };
     expect(conclusionSuggestion(off)).toBeNull();
-    expect(conclusionSuggestionText(conclusionSuggestion(blockOf(filled().state))!)).toBe('Reprovado · Com restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(blockOf(filled().state))!)).toBe('Marcar como Reprovado · Com restrições?');
   });
 
   it('the composed text names the NC item and each out reading with its criterion and source', () => {

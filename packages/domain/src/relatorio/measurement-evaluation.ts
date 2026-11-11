@@ -712,7 +712,8 @@ function applyChoicePass(rows: readonly EvaluatedMeasurementRow[], criterion: Ex
 // authored (Stories 23.15 and 23.19, listed for Bruno): the helper and reason texts of the deviation between phases.
 const RESTRICTED_CLOSING = 'a conclusão sobe para Com restrições.';
 // authored (e24b, listed for Bruno): Story 24.9 (F17), the out helper's outcome, as the restricted helper ends with its own.
-const OUT_CLOSING = 'a ficha fica Reprovado.';
+// authored (e24y, corrected by Bruno 2026-11-11) (was "a ficha fica Reprovado.").
+const OUT_CLOSING = 'a ficha fica como Reprovado.';
 const OPEN_CIRCUIT_HELPER = 'Acima do limite do instrumento: circuito aberto';
 
 /** "2", "2,5". */
@@ -942,7 +943,11 @@ interface MeasurementContext {
  * every company type (a copy that adds a measurement table included) keep their numbers. The one rule
  * of the title, the conflict view, the merge line and the conclusion's criteria line.
  */
-export function measurementTestsUnnumbered(definition: { block_type?: string | undefined; base_block_type?: string | undefined; tests?: readonly unknown[] | undefined } | null | undefined): boolean {
+export function measurementTestsUnnumbered(
+  definition: { block_type?: string | undefined; base_block_type?: string | undefined; tests?: readonly unknown[] | undefined; measurement_tests_unnumbered?: true | undefined } | null | undefined,
+): boolean {
+  // Fix batch e24y (P9, seed v14): a library type the seed titles like the eight (the Inspeção de QGBT's "TERMOGRAFIA").
+  if (definition?.measurement_tests_unnumbered === true) return true;
   if (definition === null || definition === undefined || (definition.tests ?? []).length === 0) return false;
   // Fix batch e23z (W3-3): a company copy of one of the eight (`base_block_type`) keeping seeded tests reads as its base.
   if (definition.base_block_type !== undefined && isBaseEquipmentBlockType(definition.base_block_type)) return true;

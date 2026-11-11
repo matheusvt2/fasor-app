@@ -31,10 +31,10 @@ import { syncNow } from './support/sync.ts';
 /*
  * Story 24.18 (batch e24c): a company type's criteria row "nominal ± %". Driven as a person does at
  * 1280 px: the library Inspeção de QGBT is duplicated, a measurement table with one row in V is added,
- * its criterion ruled "nominal ± %" with 220 and 5 and a source, and the kernel's text "220 V ±5 %"
+ * its criterion ruled "nominal ± %" with 220 and 5 and a source, and the kernel's text "220 V ± 5 %"
  * shows under the two inputs; the type is published. A relatório (Em campo) gets one sheet of it on
  * Geradores (the plate and the items filled from the office); 209 V is typed, within, then 231,1 V,
- * out with its helper naming "220 V ±5 %"; the suggested conclusion is confirmed (Reprovado, as any
+ * out with its helper naming "220 V ± 5 %"; the suggested conclusion is confirmed (Reprovado, as any
  * out reading floors it); the draft PDF ("Pré-visualizar") prints the reading and the mark as a range
  * row does. A measurement table prints no criterion (Story 22.2) and `print/section-9.ts` is not this
  * batch's, so the printed ACEITÁVEL is read on a contact-resistance test (a seeded grammar) ruled
@@ -57,8 +57,9 @@ const NAME = 'Quadro de alimentação 220 V';
 const ROW = 'Tensão de alimentação';
 const LOCAL = 'Geradores';
 const TAG = 'QAL-01';
-const TEXT = '220 V ±5 %';
-const INSULATION_TEXT = '100 µΩ ±20 %';
+// Fix batch e24y (P10, Bruno 2026-11-11): a space after the sign (was '220 V ±5 %').
+const TEXT = '220 V ± 5 %';
+const INSULATION_TEXT = '100 µΩ ± 20 %';
 
 interface OutboxRow {
   path: string;

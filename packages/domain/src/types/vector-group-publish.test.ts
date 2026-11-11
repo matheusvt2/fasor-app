@@ -112,7 +112,7 @@ describe('24.20-UNIT: the publish issue', () => {
 
 describe('24.20-UNIT: the editor refuses the change of the field', () => {
   it('refuses a kind change or options that are no longer the codes, with its toast; the draft is unchanged', () => {
-    const toast = `O campo ${field.label} não pode mudar de tipo nem de opções: a relação de transformação calcula por ele. Remova antes o ensaio.`;
+    const toast = `O campo ${field.label} não pode mudar de tipo nem de opções: a relação de transformação é calculada a partir dele. Remova antes o ensaio.`;
     expect(updateDraftFieldRefusal(copy, fieldAt, { kind: 'text' })).toBe(toast);
     expect(updateDraftFieldRefusal(copy, fieldAt, { options: field.options!.slice(1) })).toBe(toast);
     expect(updateDraftFieldRefusal(copy, fieldAt, { options: [...field.options!, 'Xx0'] })).toBe(toast);

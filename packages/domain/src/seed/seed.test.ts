@@ -2197,8 +2197,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
 // e24s (Stories 24.10 to 24.12): the TP and TC lists, the transformer's oil and dry items, the Inspeção de QGBT (`withoutE24s` below).
 // e24s (Stories 24.13 and 24.14): the No-break de comando, the oil sampling's "Outro" text, the Malha's plate block.
 // e24s merged after e24p (main e5fdde82): both batches' keys, re-pinned on the merge.
-// Fix batch e24y (P1, P5, F10): its three rule flags (`withoutE24y` below), re-pinned once for all three.
-const V14_HASH = 'ee32d8a9a80d7cf59d1bafde508fca354c7d857f6bf8c7e67d4356156e8814cb';
+// Fix batch e24y (P1, P5, F10): its three rule flags; P9: the inspection's `measurement_tests_unnumbered` (`withoutE24y` below).
+const V14_HASH = 'aec1d7de45b39bab6bad49d72ab91c3d14fa97977b536329615b63a5c67f04c1';
 
 /** Batch e24a's rule flags (Stories 24.3 and 24.4), in the order `seed/v14.ts` sets them. */
 const E24A_FLAGS = ['conclusion_restriction_by_choice', 'prerequisite_needs_nameplate', 'parecer_names_finding', 'nc_clause_on_one_line', 'results_reference_across_runs'] as const;
@@ -2233,6 +2233,8 @@ function withoutE24y(seed: ReportSeed): ReportSeed {
   if (out.rules === undefined) return out;
   for (const flag of E24Y_FLAGS) delete out.rules[flag];
   if (Object.keys(out.rules).length === 0) delete out.rules;
+  // P9: the Inspeção de QGBT's unnumbered measurement tests.
+  delete out.blocks.inspecao_qgbt!.measurement_tests_unnumbered;
   return out;
 }
 
