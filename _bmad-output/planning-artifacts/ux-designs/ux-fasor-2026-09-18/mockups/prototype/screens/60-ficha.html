@@ -136,7 +136,8 @@
 /* Conclusion: until 2026-11-10 an amber suggestion line with "Aceitar" pre-selected both pairs; Story 24.1 redrew the step as a preview (the block at the end of this style) */
 /* D5 — Texto da conclusão: generated from the sheet's own data once a result is picked (data-open on the result radios); Confirmar / Editar / Substituir; criteria line for audit */
 [data-route="/ficha/:tag"] #ficha-conc-text .generated-actions { margin-top: var(--sp-2); }
-/* Page-only: proto.js toggles .is-confirmed (mirror of data-state="confirmed" in components.css): neutral fill, hairline border, pill and Confirmar gone */
+/* Page-only: proto.js toggles .is-confirmed (mirror of data-state="confirmed" in components.css): neutral fill, hairline border, pill and Confirmar gone
+   (2026-11-11, Story 25.1 Part A: the fill and the border are overridden by the Story 25.1 block at the end of this style; the text reads as text) */
 [data-route="/ficha/:tag"] #ficha-conc-text-sf.is-confirmed > .generated-text { background: var(--surface-base); border-color: var(--border-hairline); }
 [data-route="/ficha/:tag"] #ficha-conc-text-sf.is-confirmed .suggested-pill, [data-route="/ficha/:tag"] #ficha-conc-text-sf.is-confirmed .confirm-action, [data-route="/ficha/:tag"] #ficha-conc-text-sf.is-confirmed .helper-sug { display: none; }
 [data-route="/ficha/:tag"] #ficha-conc-text-sf .helper-ok { display: none; }
@@ -371,6 +372,15 @@
 /* The oil sampling's "Outro" opens its text (Story 24.14) */
 [data-route="/ficha/:tag"] .e24-outro { display: none; }
 [data-route="/ficha/:tag"] .v13-reason:has(.chip[data-value="outro"][aria-pressed="true"]) .e24-outro { display: flex; }
+/* ---------- Story 25.1 Part A (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11), for Story 25.2: the Texto da conclusão before
+   "Editar" reads as text, not as a field. The rule: a border means the text can be typed into, so only the field "Editar" opens
+   (#ficha-conc-own, the Observation field: 2px border-strong, 96px min) has one. Suggested: the paragraph on the amber fill with the
+   "Sugerido" pill and "Confirmar", no border. Confirmed: a plain paragraph in body on the screen's surface, no fill, no border, no
+   padding, aligned with its label, then the Criteria line, the "Confirmado" helper and "Editar". Until this date both states drew a
+   bordered box (2px amber, then a hairline on surface-base) that the app copies (M02: a text that could not be typed into looked like a
+   field). Existing tokens only; components.css unchanged (candidate to promote: the two rules below on .suggestion-field.is-generated). */
+[data-route="/ficha/:tag"] #ficha-conc-text-sf > .generated-text { border: 0; min-height: 0; }
+[data-route="/ficha/:tag"] #ficha-conc-text-sf.is-confirmed > .generated-text { background: transparent; padding: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); }
 </style>
 
 <section class="screen" data-route="/ficha/:tag" data-title=":tag" data-shell="app" data-rail="true" data-sync="pending" data-sync-label="2 pendentes" data-examples="CB-ENT,SEC-ENT,SEC-C05,DJ-C14,TP-C16,TR1,DJ-01,NB-01,TR-02,MA-01" data-count-tap>
@@ -1266,10 +1276,12 @@
 <span class="conclusion-hint e24-preview-line" id="ficha-conc-prev-line">Prévia: só vale depois de Confirmar ou de Concluir ficha.</span>
 </div>
 <!-- D5: text composed on the device from the sheet's values (template, not a model); appears once the result is picked -->
+<!-- Story 25.1 Part A (2026-11-11), for Story 25.2: before "Editar" the text is a paragraph labelled by "Texto da conclusão", never a
+     textbox: the role="textbox" drawn here until this date is dropped. "Editar" opens the field (#ficha-conc-own). -->
 <div id="ficha-conc-text" style="margin-top: var(--sp-4)" hidden>
 <div class="field suggestion-field is-generated" id="ficha-conc-text-sf" data-state="suggested">
 <span class="field-label">Texto da conclusão</span>
-<div class="generated-text" role="textbox" aria-multiline="true" aria-describedby="ficha-conc-crit" aria-label="Texto gerado"><span class="sv"><span data-only-tag="SEC-ENT SEC-C05">A seccionadora <span data-bind="tag">SEC-C05</span> (Celtta, 15 kV, 630 A) apresentou resistência de isolação mínima de 330 MΩ entre fases (critério: ≥ 400 MΩ, aceitável na ficha) e contatos com desgaste (item 8, NC). Recomenda-se a substituição dos contatos antes da próxima manutenção.</span><span data-only-tag="CB-ENT">Os cabos de entrada CB-ENT do Cubículo Enel apresentaram resistência de isolação mínima de 1,2 GΩ entre fases e massa (critério: > 100 MΩ, aceitável na ficha) e nenhum item não conforme na verificação. Equipamento apto à operação.</span><span data-only-tag="TP-C16">O transformador de potencial TP-C16 apresentou relação de transformação dentro de ±0,5 % nas fases R e S (Fase T ainda não ensaiada) e nenhum item não conforme na verificação. Equipamento apto à operação.</span><span data-only-tag="NB-01">O no-break de comando NB-01 (Fabricante D, 1.000 VA) apresentou 1 item não conforme na verificação (item 4, baterias). Recomenda-se a substituição das baterias antes da próxima manutenção.</span><span data-only-tag="MA-01">A malha de aterramento MA-01 apresentou resistência de 4,2 Ω (critério: ≤ 10 Ω, valor de projeto). Equipamento apto à operação.</span></span></div>
+<div class="generated-text" id="ficha-conc-gen" aria-describedby="ficha-conc-crit"><span class="sv"><span data-only-tag="SEC-ENT SEC-C05">A seccionadora <span data-bind="tag">SEC-C05</span> (Celtta, 15 kV, 630 A) apresentou resistência de isolação mínima de 330 MΩ entre fases (critério: ≥ 400 MΩ, aceitável na ficha) e contatos com desgaste (item 8, NC). Recomenda-se a substituição dos contatos antes da próxima manutenção.</span><span data-only-tag="CB-ENT">Os cabos de entrada CB-ENT do Cubículo Enel apresentaram resistência de isolação mínima de 1,2 GΩ entre fases e massa (critério: > 100 MΩ, aceitável na ficha) e nenhum item não conforme na verificação. Equipamento apto à operação.</span><span data-only-tag="TP-C16">O transformador de potencial TP-C16 apresentou relação de transformação dentro de ±0,5 % nas fases R e S (Fase T ainda não ensaiada) e nenhum item não conforme na verificação. Equipamento apto à operação.</span><span data-only-tag="NB-01">O no-break de comando NB-01 (Fabricante D, 1.000 VA) apresentou 1 item não conforme na verificação (item 4, baterias). Recomenda-se a substituição das baterias antes da próxima manutenção.</span><span data-only-tag="MA-01">A malha de aterramento MA-01 apresentou resistência de 4,2 Ω (critério: ≤ 10 Ω, valor de projeto). Equipamento apto à operação.</span></span></div>
 <span class="suggested-pill">Sugerido</span>
 <p class="criteria-line" id="ficha-conc-crit"><span class="cl-label">Critérios usados</span><span data-only-tag="SEC-ENT SEC-C05">R_iso A–B 330 MΩ · critério ≥ 400 MΩ · item 8 NC</span><span data-only-tag="CB-ENT">R_iso mín. 1,2 GΩ · critério > 100 MΩ · 0 itens NC</span><span data-only-tag="TP-C16">Relação R, S dentro de ±0,5 % · Fase T vazia · 0 itens NC</span><span data-only-tag="NB-01">item 4 NC</span><span data-only-tag="MA-01">Resistência 4,2 Ω · critério ≤ 10 Ω</span></p>
 <div class="generated-actions">
