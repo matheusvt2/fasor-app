@@ -182,7 +182,7 @@ const VALUE_RULES = {
   'relatorio/preview_file_id': SERVER_ONLY,
   audit_run: SERVER_ONLY,
   'audit_run/field': SERVER_ONLY,
-  // Batch e24s (Story 24.14, contract 46): a measurement test's `text` value (the oil sampling's "Descreva o motivo") is typed
+  // Batch e24s (Story 24.14, contract 47): a measurement test's `text` value (the oil sampling's "Descreva o motivo") is typed
   // or dictated as a checklist observation is, so the family takes medium; every other value keeps short (`applyOp`'s seed check).
   'sheet/test/value': { kind: 'value', rule: { kind: 'plain_cell', cap: TEXT_CAPS.medium } },
   'relatorio/removed_at': { kind: 'value', rule: schema },

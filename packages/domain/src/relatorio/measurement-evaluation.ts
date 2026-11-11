@@ -34,6 +34,7 @@ import { enabledSubBlocksOf } from './sheet-state.ts';
 import { formatDateOfInstant } from '../format/datetime.ts';
 import { canonicalDecimal } from '../parse/pt-br-number.ts';
 import { previousReadingsByAddress, readingAddressKey, type LastResultReading, type PreviousResults } from '../print/reading-slots.ts';
+import { previousVisitDateText } from '../print/visit-date.ts';
 import {
   correctedRaw,
   correctedText,
@@ -216,8 +217,17 @@ export interface EvaluatedMeasurementCell {
    * Fix batch e23p (P3): `pointReason`, set when the history rule flags the cell, is `reason` with the
    * history finding followed by both corrected values ("variação de mais de 2 % desde a manutenção
    * anterior (de 2,3 Ω para 3,5 Ω, a 75 °C)"); only the derived point reads it.
+   * Batch e24p (Story 24.16): `history`, set only when the history rule flags the cell, is that
+   * rule's reason with both corrected values, which the history note under the printed table names.
    */
-  restriction?: { reason: string; text: string; pointReason?: string } | null;
+  restriction?: { reason: string; text: string; pointReason?: string; history?: string } | null;
+  /**
+   * Batch e24p (Story 24.16, review fix): on a cell already out by its criterion that the history
+   * rule (the winding variation) also flags, the rule's reason with both corrected values, as
+   * `restriction.history` holds it on a restricted cell. The verdict and `restriction` stay as they
+   * were; only the history note reads it.
+   */
+  historyOut?: string;
 }
 
 export interface EvaluatedMeasurementRow {
@@ -723,18 +733,22 @@ function groupName(entry: { row: EvaluatedMeasurementRow; cell: EvaluatedMeasure
  * Marks `cell` restricted (out > restricted > within): a cell already out keeps its verdict; a
  * restricted one keeps its first reason and gains the other's.
  */
-function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string, compared?: string): void {
+function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string, compared?: string, history = false): void {
   if (cell.verdict === 'out') return;
   // Fix batch e23p (P3): the point's reason, a comparison right after its own reason; merged as the reasons are.
   const point = compared === undefined ? reason : `${reason} (${compared})`;
+  // Batch e24p (Story 24.16): a previous-visit rule's reason, kept apart for the history note.
+  const own = history ? point : null;
   if (cell.verdict === 'restricted' && cell.restriction != null) {
     const merged = `${cell.restriction.reason}; ${reason}`;
     const pointReason = `${cell.restriction.pointReason ?? cell.restriction.reason}; ${point}`;
-    cell.restriction = { reason: merged, text: `${cell.restriction.text} ${text}`, ...(pointReason === merged ? {} : { pointReason }) };
+    const before = cell.restriction.history ?? null;
+    const histories = [before, own].filter((one): one is string => one !== null).join('; ');
+    cell.restriction = { reason: merged, text: `${cell.restriction.text} ${text}`, ...(pointReason === merged ? {} : { pointReason }), ...(histories === '' ? {} : { history: histories }) };
     return;
   }
   cell.verdict = 'restricted';
-  cell.restriction = { reason, text, ...(point === reason ? {} : { pointReason: point }) };
+  cell.restriction = { reason, text, ...(point === reason ? {} : { pointReason: point }), ...(own === null ? {} : { history: own }) };
   cell.criterionText = criterionTextOf(criterion);
   cell.sourceName = criterion.source.name;
 }
@@ -909,6 +923,8 @@ interface MeasurementContext {
   visit: VisitContext;
   /** `measurementTestsUnnumbered` of the definition. */
   unnumbered: boolean;
+  /** Batch e24p (Story 24.15): the block's seed version, which dates the history text (`previousVisitDateText`); absent, the issue date. */
+  seedVersion?: string;
 }
 
 /**
@@ -961,6 +977,8 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
   let stands = false;
   const slots = { tests: context.definition.tests ?? [], measurement_tests: context.definition.measurement_tests ?? [], nameplate: context.definition.nameplate };
   const byAddress: ReadonlyMap<string, LastResultReading> = previousReadingsByAddress(entry, slots, block);
+  // Batch e24p (Story 24.15): the previous visit's date as the block's seed names it (the visit's date on v14).
+  const dateText = context.seedVersion === undefined ? formatDateOfInstant(entry.issued_at) : previousVisitDateText(entry, context.seedVersion);
   for (const row of rows) {
     for (const cell of row.cells) {
       const now = cell.corrected ?? null;
@@ -975,6 +993,9 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
       if (!(moved > pct)) continue;
       if (cell.verdict === 'out') {
         stands = true;
+        // Batch e24p (Story 24.16, review fix): an out cell the variation rule flags keeps its verdict; the note names it.
+        // authored (Story 23.15 and e23p, listed for Bruno): the rule's reason with both corrected values, as on a restricted cell.
+        cell.historyOut = `variação de mais de ${pctText(pct)} % desde a manutenção anterior (de ${correctedText(before.raw, before.unit)} para ${correctedText(now.raw, now.unit)}, a ${WINDING_REFERENCE_C} °C)`;
         continue;
       }
       // authored (Story 23.15, listed for Bruno): the history rule's reason and helper.
@@ -982,9 +1003,10 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
         cell,
         criterion,
         `variação de mais de ${pctText(pct)} % desde a manutenção anterior`,
-        `Variou mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(before.raw, before.unit)} a ${WINDING_REFERENCE_C} °C, rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)}): ${RESTRICTED_CLOSING}`,
+        `Variou mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(before.raw, before.unit)} a ${WINDING_REFERENCE_C} °C, rev. ${entry.revision_number}, ${dateText}): ${RESTRICTED_CLOSING}`,
         // authored (e23p, listed for Bruno): both corrected values, as the derived point names them.
         `de ${correctedText(before.raw, before.unit)} para ${correctedText(now.raw, now.unit)}, a ${WINDING_REFERENCE_C} °C`,
+        true,
       );
     }
   }
@@ -1320,7 +1342,7 @@ const NONE: readonly MeasurementTestEvaluation[] = Object.freeze([]);
  * type with no measurement test (every FO.SERV-03 type) answers none.
  */
 export function evaluateSheetMeasurements(
-  block: Pick<BlockRow, 'config' | 'sheet'>,
+  block: Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>,
   definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'tests' | 'oil_rule' | 'block_type'>>,
   visit: VisitContext = NO_VISIT_CONTEXT,
 ): readonly MeasurementTestEvaluation[] {
@@ -1330,7 +1352,7 @@ export function evaluateSheetMeasurements(
   // Story 23.9: a test's applicability reads the plate; a caller that hands no nameplate reads every test as applicable.
   const plate = { nameplate: definition.nameplate ?? [], tests: definition.tests ?? [], measurement_tests: tests };
   // Batch e23t (Stories 23.15 to 23.19): the plate, the oil rule and (batch e23v's) visit context a v13 test reads.
-  const context: MeasurementContext = { definition: { ...plate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) }, visit, unnumbered: measurementTestsUnnumbered(definition) };
+  const context: MeasurementContext = { definition: { ...plate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) }, visit, unnumbered: measurementTestsUnnumbered(definition), ...(block.seed_version === undefined ? {} : { seedVersion: block.seed_version }) };
   return tests.map((test, index) => evaluate(block, test, index + 1, config, testApplicability(block, plate, test.key), context));
 }
 

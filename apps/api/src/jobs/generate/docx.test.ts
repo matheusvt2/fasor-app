@@ -1008,6 +1008,21 @@ describe('11.10-UNIT section 8 action-plan table', () => {
     expect(table.match(/<w:cantSplit\/>/g) ?? []).toHaveLength(1);
   }, 60_000);
 
+  it('24.17-UNIT seed v14 (`keepRowsWhole`): every body row is kept whole too; the header alone repeats', async () => {
+    const base = fixtureSnapshot();
+    const snapshot: RelatorioSnapshot = { ...base, relatorio: { ...base.relatorio, seed_version: 'v14' } };
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const section = layout.sections.find((s): s is Extract<LayoutSection, { kind: 'points' }> => s.kind === 'points')!;
+    expect(section.keepRowsWhole).toBe(true);
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const xml = sectionXml(readZipEntries(docx).get('word/document.xml')!.toString('utf8'), 8);
+    const table = xml.slice(xml.indexOf('<w:tbl>'));
+    const rows = [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((row) => row[1]!);
+    expect(rows).toHaveLength(1 + section.table.length);
+    for (const row of rows) expect(row).toContain('<w:cantSplit/>');
+    expect(table.match(/<w:tblHeader\/>/g) ?? []).toHaveLength(1);
+  }, 60_000);
+
   /**
    * Advance widths of Arial Bold in 1/1000 em (the Helvetica-Bold AFM; Liberation Sans Bold,
    * which prints in the api image, is metric-compatible) for the header's characters. An

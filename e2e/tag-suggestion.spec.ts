@@ -1,4 +1,4 @@
-import { cellAddressesOf, formatDateOfInstant, getDefinition, SEED_VERSION, type EquipmentRow, type LastResults } from '@app/domain';
+import { cellAddressesOf, getDefinition, previousHeaderText, SEED_VERSION, visitDateText, type EquipmentRow, type LastResults } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, type DocxStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -183,12 +183,13 @@ test('@p0 24.8-E2E-002 an obra with the old TAGs issued once; a second relatóri
   await expect(page.getByRole('button', { name: 'Copiar da última visita (TR-1)' })).toBeVisible();
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   const cell = page.locator(`.ficha-cell[data-cell="isolacao:${FIRST.row}:${FIRST.col}"]`).filter({ visible: true });
-  await expect(cell.locator('.mf-helper[data-previous]')).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${formatDateOfInstant(last.issued_at)})`);
+  // Batch e24p (Story 24.15): the helper names the visit's date (its service date), the v14 header carries it too.
+  await expect(cell.locator('.mf-helper[data-previous]')).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${visitDateText(last)})`);
 
   // B's DOCX prints MANUT. ANTERIOR on the transformer's insulation table, under its old TAG.
   const structure = await issue(page, b);
   expect(structure.paragraphs).toContain('TRANSFORMADOR DE FORÇA TR-1');
-  const withPrevious = structure.tables.filter((table) => table[0]?.[0] === 'PONTO DE ENSAIO/CONEXÃO' && table[1]?.at(-1) === 'MANUT. ANTERIOR');
+  const withPrevious = structure.tables.filter((table) => table[0]?.[0] === 'PONTO DE ENSAIO/CONEXÃO' && table[1]?.at(-1) === previousHeaderText(last, SEED_VERSION));
   expect(withPrevious).toHaveLength(1);
   expect(withPrevious[0]![2]!.at(-1)).toBe('4,9 GΩ');
 });

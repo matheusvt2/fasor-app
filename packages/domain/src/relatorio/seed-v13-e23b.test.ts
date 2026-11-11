@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatCalendarDate } from '../format/datetime.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { applyOp, entityKey, SeedPathError, type EntityState } from '../ops/apply.ts';
 import { replay } from '../ops/replay.ts';
@@ -422,7 +423,10 @@ describe('23.8-UNIT the TTR per tap in print, and v12 unchanged', () => {
     expect(rows.map((row) => row.at(-1))).toEqual(['51,96 · 51,96 · 51,96', '-', '57,43 · 57,43 · 57,43', '-', '62,9 · 62,9 · 62,9']);
     // The sheet's "Anterior: …" line under the tap's own cell.
     const helpers = previousHelpers({ last_results: earlier }, visitB, definitionOf(visitB), next.relatorio.id);
-    expect(helpers.get('relacao_transformacao/12600/4')).toBe('Anterior: 57,43 (rev. 1, 08/11/2026)');
+    // Batch e24p (Story 24.15, every seed): the helper names the visit's date, the service date the issue kept (was the issue date, 08/11/2026).
+    expect(entry!.value.service_date).toBe(next.relatorio.setup.service_end ?? next.relatorio.setup.service_start);
+    expect(helpers.get('relacao_transformacao/12600/4')).toBe(`Anterior: 57,43 (rev. 1, ${formatCalendarDate(entry!.value.service_date!)})`);
+    expect(helpers.get('relacao_transformacao/12600/4')).toBe('Anterior: 57,43 (rev. 1, 06/09/2026)');
     expect(helpers.has('relacao_transformacao/13200/3')).toBe(false);
     // Without the block (a v12 reader) the seeded row alone has a slot, as before.
     expect(previousHelpers({ last_results: earlier }, { block_type: 'transformador_forca' }, definitionOf(visitB), next.relatorio.id).size).toBe(0);

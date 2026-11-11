@@ -35,6 +35,8 @@ import { previousReadingsByAddress, previousResultsFor, previousRowText, type La
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
 import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
 import { printTextEm } from './text-metrics.ts';
+import { measurementHistoryNote, testHistoryNote } from './history-note.ts';
+import { PREVIOUS_HEADER, previousHeaderText } from './visit-date.ts';
 
 /*
  * Story 7.1 (FR-68, AR-11, NFR-17), Story 7.2 AC2 and E12-A2: section 9 as data. Every sheet
@@ -1082,11 +1084,12 @@ function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
 
 // --- MANUT. ANTERIOR (Story 22.12) ----------------------------------------------------------------
 
-/** Story 22.12: the header of the previous visit's column, the last column of a reading table. */
-const PREVIOUS_HEADER = 'MANUT. ANTERIOR';
-
-/** The previous visit's readings of a sheet by `readingAddressKey`, or null when its equipment has none from another relatório. */
-type PreviousReadings = ReadonlyMap<string, LastResultReading> | null;
+/**
+ * The previous visit's readings of a sheet by `readingAddressKey`, or null when its equipment has
+ * none from another relatório. Batch e24p (Story 24.15): with the MANUT. ANTERIOR header its tables
+ * print (`previousHeaderText`: the visit's date on a second line on v14, the header alone on v1 to v13).
+ */
+type PreviousReadings = { readings: ReadonlyMap<string, LastResultReading>; header: string } | null;
 
 /**
  * Story 22.12: a reading table with MANUT. ANTERIOR appended as its last column, nothing else
@@ -1094,8 +1097,8 @@ type PreviousReadings = ReadonlyMap<string, LastResultReading> | null;
  * empty shaded cell), a band or a line across the table spans one more, and each other row gets
  * its cell, `texts` in order ('' past their end: a reference or a group row). Columns re-fitted.
  */
-export function withPreviousColumn(printed: PrintTable, texts: readonly string[]): PrintTable {
-  return withAppendedColumn(printed, PREVIOUS_HEADER, texts);
+export function withPreviousColumn(printed: PrintTable, texts: readonly string[], header: string = PREVIOUS_HEADER): PrintTable {
+  return withAppendedColumn(printed, header, texts);
 }
 
 /**
@@ -1133,7 +1136,8 @@ function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefi
   // An entry none of whose keys this definition holds (every row renamed by a later seed) is no previous visit to print.
   // Story 23.8: the block's tap rows read the readings of their taps.
   const readings = previousReadingsByAddress(entry, definition, block);
-  return readings.size === 0 ? null : readings;
+  // Batch e24p (Story 24.15): the header names the visit's date on a seed that turns `previous_visit_date` on.
+  return readings.size === 0 ? null : { readings, header: previousHeaderText(entry, block.seed_version) };
 }
 
 function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>, previous: PreviousReadings): SheetPart[] {
@@ -1152,7 +1156,7 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
     const captures = tableDef.value_columns.flatMap((column, col) => (column.role === 'capture' ? [col] : []));
     // Story 23.8: a `rows_from` table's rows are its evaluated ones (a tap row is keyed by its volts).
     const indices = tableDef.rows_from === undefined ? tableDef.rows.map((_, r) => start + r) : (evaluation.tables[i]?.rows ?? []).map((row) => row.row);
-    return indices.map((row) => previousRowText(previous, captures.map((col) => ({ testKey: test.key, row, col }))));
+    return indices.map((row) => previousRowText(previous.readings, captures.map((col) => ({ testKey: test.key, row, col }))));
   });
   // e22g (review N1): MANUT. ANTERIOR is decided per table, printed only where a row of that
   // table has a previous value; the two halves of a side-by-side pair decide together, so the
@@ -1164,14 +1168,16 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
     const perRow = evaluation.perRow === true;
     const printed = perRow ? withAppendedColumn(plain, ACCEPTABLE_LABEL, evaluation.tables[i]!.rows.map((row) => row.criterionText ?? DASH), PER_ROW_TEXT_STEPS_HALF_POINTS) : plain;
     const texts = previousTexts[i];
-    if (texts === null || texts === undefined || !(holds[i] || (pairShape && holds.some(Boolean)))) return printed;
-    return perRow ? withAppendedColumn(printed, PREVIOUS_HEADER, texts, PER_ROW_TEXT_STEPS_HALF_POINTS) : withPreviousColumn(printed, texts);
+    if (previous === null || texts === null || texts === undefined || !(holds[i] || (pairShape && holds.some(Boolean)))) return printed;
+    // Batch e24p (Story 24.15): the header names the previous visit's date on v14 (a second line, the weights and size kept).
+    return perRow ? withAppendedColumn(printed, previous.header, texts, PER_ROW_TEXT_STEPS_HALF_POINTS) : withPreviousColumn(printed, texts, previous.header);
   });
   const paired = pairShape && tables[0]!.columns.length === tables[1]!.columns.length;
   // Story 22.3: the instrument header and every table but the last keep with the next, so a test never parts from its header.
   // Story 23.4 (seed v13): the instrument-limit note, a paragraph right after the test's last table, kept with it.
   // Batch e23e (Story 23.18, seed v13): the test's print note (the ratio check is not an accuracy test), the same way.
-  const notes = [evaluation.limitNote ?? null, evaluation.printNote ?? null].filter((text): text is string => text !== null);
+  // Batch e24p (Story 24.16, seed v14): the rows a previous-visit rule flagged, one line after the test's other notes.
+  const notes = [evaluation.limitNote ?? null, evaluation.printNote ?? null, testHistoryNote(block.seed_version, evaluation)].filter((text): text is string => text !== null);
   const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart =>
     i < all.length - 1 || notes.length > 0 ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one },
   );
@@ -1300,22 +1306,32 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
   // Story 22.12: each shown row's previous number cells, in column order (the reference and group rows take none).
   const texts = test.rows.map((row) =>
     previousRowText(
-      previous,
+      previous.readings,
       row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null).map((cell) => cell.address),
     ),
   );
   // e22g (review N1): no column of "-" on a table none of whose rows has a previous value.
   if (texts.every((text) => text === DASH)) return { kind: 'table', table: printed };
-  return { kind: 'table', table: withPreviousColumn(printed, texts) };
+  // Batch e24p (Story 24.15): the header names the previous visit's date on v14.
+  return { kind: 'table', table: withPreviousColumn(printed, texts, previous.header) };
+}
+
+/**
+ * Batch e24p (Story 24.16, seed v14): a measurement test's parts, its table and, under it, the note
+ * slot of the rows its history rule flagged (`measurementHistoryNote`), the table kept with the line.
+ * Every other test, and every test of v1 to v13, prints its table alone, as before.
+ */
+function measurementTestParts(block: BlockRow, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart[] {
+  const part = measurementTestPart(block, test, previous);
+  if (part === null) return [];
+  const note = measurementHistoryNote(block.seed_version, test);
+  return note === null ? [part] : [{ ...part, keepWithNext: true }, { kind: 'paragraph', text: note }];
 }
 
 /** The measurement tests of a sheet that print, in the definition's order. */
 function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings, visit: VisitContext): SheetPart[] {
   // Batch e23t (Story 23.15): judged and corrected under the sheet's visit context, as on screen.
-  return evaluateSheetMeasurements(block, definition, visit).flatMap((test) => {
-    const part = measurementTestPart(block, test, previous);
-    return part === null ? [] : [part];
-  });
+  return evaluateSheetMeasurements(block, definition, visit).flatMap((test) => measurementTestParts(block, test, previous));
 }
 
 // --- OBSERVAÇÕES and CONCLUSÃO ----------------------------------------------------------------

@@ -523,14 +523,27 @@
  * change). MIN follows to 45 (below).
  */
 /*
- * 46 (2026-11-11, Stories 24.10 to 24.14, batch e24s): seed v14's sheets. The closed item enum
+ * 46 (2026-11-11, Stories 24.15 and 24.16, batch e24p): no new op or path family. An equipment's
+ * `last_results` entry (and its `prior`) gains the optional `service_date`, the visit's service date
+ * the issue job keeps from the relatório's `service_end`, else its `service_start` (a day or a month,
+ * AD-11); never defaulted, so an entry written before 46 parses to the same bytes and its visit is
+ * dated by `issued_at`. `lastResults` orders two visits by their dates where at least one carries a
+ * service date, so an older visit issued late never becomes the previous visit of a newer one. The
+ * "Anterior" helper names the visit's date on every seed. Seed v14 turns on three rule flags:
+ * `previous_visit_date` (the MANUT. ANTERIOR header and the history texts name the visit's date),
+ * `history_note` (a note line under a table names the rows a previous-visit rule flagged) and
+ * `recommendation_as_action` (Story 24.17, read by a later part of the batch). MIN follows to 46
+ * (below).
+ */
+/*
+ * 47 (2026-11-11, Stories 24.10 to 24.14, batch e24s): seed v14's sheets. The closed item enum
  * (`ITEM_KEYS`) gains `tanque_e_aletas`, `limpeza_das_bobinas`, `trincas_na_resina` (the v14
  * transformer, Story 24.11) and `teste_de_funcionamento` (the v14 Inspeção de QGBT, Story 24.12), so a
  * `sheet/{id}/checklist/{item_key}` put on one of them folds only here; the oil rule gains the
  * optional `dry_items` (the mirror of `items`: an oil unit shows them NA, derived, and a crossing to
  * oil clears their answers in the same batch), carried by a company definition too
  * (`companyOilRuleSchema`), so a published copy of the v14 transformer keeps it. Optional and never
- * defaulted: every seed of v1 to v13 and every definition published before 46 parses to the same
+ * defaulted: every seed of v1 to v13 and every definition published before 47 parses to the same
  * bytes. On every seed with an oil rule an oil field of a non-oil unit is drawn read-only with its
  * reason, derived on the device; no fold changes for it. The closed type enum
  * (`EQUIPMENT_BLOCK_TYPES`) gains `no_break_comando` (the v14 No-break de comando, Story 24.13) and the
@@ -539,9 +552,9 @@
  * `sheet/{id}/test/{key}/value/{value}` folds a string up to `TEXT_CAPS.medium` for it (the family's
  * cap rises to medium; every other value keeps its strings short, checked against the definition), and
  * the definition gains the optional `nameplate_title` and `nameplate_photo: false` (the v14 Malha's
- * "Dados da malha", no plate photo), carried by a company definition too. MIN follows to 46 (below).
+ * "Dados da malha", no plate photo), carried by a company definition too. MIN follows to 47 (below).
  */
-export const CONTRACT_VERSION = 46;
+export const CONTRACT_VERSION = 47;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -850,7 +863,15 @@ export const CONTRACT_VERSION = 46;
  * its pushes are still accepted, and the server refuses its publish of such a type.
  */
 /*
- * 46 (2026-11-11, Stories 24.10 to 24.14, batch e24s): a version-45 (or older) bundle's item enum
+ * 46 (2026-11-11, Stories 24.15 and 24.16, batch e24p): a version-45 (or older) bundle's equipment
+ * schema strips `service_date` from a pulled `last_results` entry, so its "Anterior" helper would
+ * name the issue date where the server's print names the visit's, and its kernel ships none of the
+ * three v14 flags: its preview of a v14 relatório would print MANUT. ANTERIOR without the date and
+ * no history note line. Its pull answers `426 contract_outdated` and it updates; its pushes are
+ * still accepted.
+ */
+/*
+ * 47 (2026-11-11, Stories 24.10 to 24.14, batch e24s): a version-46 (or older) bundle's item enum
  * lacks the v14 transformer's and Inspeção de QGBT's new item keys and its oil rule schema strips
  * `dry_items`, so a pulled answer on one of those items fails to fold and a company type published
  * from the v14 transformer reads with no dry items (an oil unit would ask VENTILAÇÃO FORÇADA and the
@@ -859,7 +880,7 @@ export const CONTRACT_VERSION = 46;
  * text a newer device writes; and it would offer "Fotografar placa" on a v14 Malha. Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 46;
+export const MIN_CONTRACT_VERSION = 47;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

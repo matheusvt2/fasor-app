@@ -513,7 +513,7 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
 }
 
 /**
- * Batch e24s (Story 24.14, contract 46): a `text` value takes a string up to `TEXT_CAPS.medium` (or null, which clears
+ * Batch e24s (Story 24.14, contract 47): a `text` value takes a string up to `TEXT_CAPS.medium` (or null, which clears
  * it), never anything else; every other value keeps its strings within `TEXT_CAPS.short`, as before the family's cap rose.
  */
 function assertTestValueShape(kind: MeasurementValueKind, value: unknown, where: string): void {

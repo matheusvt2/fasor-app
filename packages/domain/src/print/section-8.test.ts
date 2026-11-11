@@ -199,6 +199,8 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       kind: 'points',
       bullets: ['Ver Imagem 2 e Imagem 1.'],
       table: [{ number: '1', point: 'Ver Imagem 2 e Imagem 1.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '2, 1' }],
+      // Batch e24p (Story 24.17): the standard template is born on seed v14, whose action plan keeps its rows whole.
+      keepRowsWhole: true,
     });
   });
 
@@ -328,5 +330,61 @@ describe('11.10-UNIT action-plan table', () => {
     const snapshot = addPoint(withNotTested(fresh(), { 0: notTested('solicitacao_cliente') }), { text: 'Manual.' });
     const layout = section8Layout(snapshot, heading)!;
     expect(layout.table).toHaveLength(layout.bullets.length);
+  });
+});
+
+/*
+ * 24.17-UNIT (batch e24p, Story 24.17, seed v14 `recommendation_as_action`): a point written from a
+ * test prints as any stored point (the finding under "Ponto de atenção", the action under "Ação
+ * recomendada", the bullet the finding then the action); the action plan keeps its rows whole
+ * (`keepRowsWhole`); a photo reference glued to a word prints with its space, before and after, in
+ * the bullet and in the table, a removed photo's text the same. The v13 output is pinned as it was.
+ */
+describe('24.17-UNIT section 8 on seed v14: the action, the whole rows, the spaced references', () => {
+  const asSeed = (snapshot: RelatorioSnapshot, version: string): RelatorioSnapshot => ({ ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: version } });
+  const one = new Map([[A, 1]]);
+  const FINDING = 'Ensaio de isolação: 300 MΩ em Fase A–Massa (critério: >400 MΩ)';
+  const ACTION = 'Limpar e secar o circuito antes de uma nova medição.';
+
+  it('a point written from a test: the finding in the cell and the bullet, the recommendation under "Ação recomendada" and after the finding', () => {
+    for (const version of ['v14', 'v13']) {
+      const snapshot = addPoint(asSeed(fresh(), version), { text: FINDING, action: ACTION, origin: 'reading', test_key: 'isolacao' });
+      const [row] = resolveActionPlan(snapshot, one);
+      expect(row, version).toMatchObject({ point: FINDING, action: ACTION });
+      expect(resolveSection8(snapshot, one)[0]!.text, version).toBe(`${FINDING}. ${ACTION}`);
+    }
+    // With no recommendation the action prints "—", as today.
+    expect(resolveActionPlan(addPoint(asSeed(fresh(), 'v14'), { text: FINDING, action: null, origin: 'reading' }), one)[0]!.action).toBe('—');
+  });
+
+  it('keepRowsWhole on v14 only', () => {
+    expect(section8Layout(addPoint(asSeed(fresh(), 'v14'), { text: 'Manual.' }), heading)!.keepRowsWhole).toBe(true);
+    for (const version of ['v13', 'v12', 'v5']) expect(Object.hasOwn(section8Layout(addPoint(asSeed(fresh(), version), { text: 'Manual.' }), heading)!, 'keepRowsWhole'), version).toBe(false);
+  });
+
+  it('v14: a reference glued to a word on either side prints with one space, in the bullet and in the table; a removed photo the same', () => {
+    const glued = `ver${photoToken(A)}texto`;
+    const snapshot = addPoint(asSeed(fresh(), 'v14'), { text: glued, action: `Trocar${photoToken(GONE)}depois` });
+    const [row] = resolveActionPlan(snapshot, one);
+    expect(row!.point).toBe('ver Imagem 1 texto');
+    expect(row!.action).toBe(`Trocar ${REMOVED_PHOTO_REF_TEXT} depois`);
+    expect(resolveSection8(snapshot, one)[0]!.text).toBe(`ver Imagem 1 texto. Trocar ${REMOVED_PHOTO_REF_TEXT} depois`);
+    expect(resolveBulletPhotoTokens(`Ver:${photoToken(A)}(detalhe)`, one, true)).toBe('Ver: Imagem 1 (detalhe)');
+    expect(resolvePhotoTokens(`Porta.${photoToken(A)}texto`, one, true)).toBe('Porta. Imagem 1 texto');
+    // A reference already spaced, closed by a mark or led in by a parenthesis keeps its bytes.
+    expect(resolveBulletPhotoTokens(`Ver ${photoToken(A)}.`, one, true)).toBe('Ver Imagem 1.');
+    expect(resolveBulletPhotoTokens(`Substituir (${photoToken(A)}).`, one, true)).toBe('Substituir (Imagem 1).');
+    expect(resolveBulletPhotoTokens(`Porta danificada ${photoToken(A)}`, one, true)).toBe('Porta danificada, conforme Imagem 1');
+    expect(resolvePhotoTokens(`Conforme ${photoToken(A)} e ${photoToken(B)}; ver ${photoToken(GONE)}.`, numbering, true)).toBe('Conforme Imagem 5 e Imagem 12; ver imagem removida.');
+  });
+
+  it('v13 prints the glued references as before (pinned)', () => {
+    const snapshot = addPoint(asSeed(fresh(), 'v13'), { text: `ver${photoToken(A)}texto`, action: `Trocar${photoToken(GONE)}depois` });
+    const [row] = resolveActionPlan(snapshot, one);
+    expect(row!.point).toBe('ver Imagem 1texto');
+    expect(row!.action).toBe(`Trocar${REMOVED_PHOTO_REF_TEXT}depois`);
+    expect(resolveSection8(snapshot, one)[0]!.text).toBe(`verImagem 1texto. Trocar${REMOVED_PHOTO_REF_TEXT}depois`);
+    expect(resolveBulletPhotoTokens(`ver${photoToken(A)}texto`, one)).toBe('verImagem 1texto');
+    expect(resolvePhotoTokens(`Porta.${photoToken(A)}texto`, one)).toBe('Porta. Imagem 1texto');
   });
 });

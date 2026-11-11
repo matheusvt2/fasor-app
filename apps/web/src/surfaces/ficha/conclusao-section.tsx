@@ -31,7 +31,7 @@ import {
   type ConclusionResult,
   type VisitContext,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { CharCount } from '../../components/index.ts';
 import { GeneratedTextField } from '../../components/generated-text-field.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
@@ -197,6 +197,7 @@ export function ConclusaoSection({
   onFocus,
   section9,
   visit,
+  pointPlace,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -208,6 +209,11 @@ export function ConclusaoSection({
   section9: SectionMention;
   /** Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (`visitContextOf`, from `useFichaData`), which every judgement here reads. */
   visit: VisitContext;
+  /**
+   * Batch e24p (Story 24.17, `60-ficha.html` `#ficha-tr02-conc-point`): "Criar ponto de atenção" under the
+   * pair, for a Reprovado the technician chose (and a failed prerequisite whose test is off); `point-place.tsx`.
+   */
+  pointPlace?: ReactNode;
 }) {
   const t = copy.ficha.conclusao;
   const obsHeading = useId();
@@ -518,6 +524,7 @@ export function ConclusaoSection({
               </span>
             ) : null}
           </div>
+          {pointPlace}
           {result === null ? null : (
             <div className="ficha-conc-text">
               <GeneratedTextField

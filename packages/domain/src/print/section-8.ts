@@ -6,6 +6,7 @@ import { extractPhotoRefs, pointTextTokens } from '../points/refs.ts';
 import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { seedRule } from '../seed/definitions.ts';
 import type { NumberingSnapshot } from './photo-order.ts';
 
 /*
@@ -25,6 +26,12 @@ import type { NumberingSnapshot } from './photo-order.ts';
  * action-plan table: one row per bullet in bullet order, numbered 1..n continuously, with the
  * point's resolved text, where it sits, its priority, deadline, action, owner and the numbers of
  * the photos it cites; "—" for every missing value.
+ *
+ * Batch e24p (Story 24.17, seed v14 `recommendation_as_action`): a stored point prints as any stored
+ * point (the finding under "Ponto de atenção", the action under "Ação recomendada", the bullet the
+ * finding then the action); a body row that fits on a page is kept whole (`keepRowsWhole`); a photo
+ * reference glued to a word prints with one space on that side, in the bullet and in the table.
+ * v1 to v13 print as before.
  */
 
 /** authored: what a token prints when its photo is not numbered (removed since it was cited) (open for Bruno). */
@@ -60,6 +67,12 @@ export interface LayoutSectionPoints {
   table: ActionPlanRow[];
   /** Story 20.3: the section prints after the tests section and starts a page (set by `layoutSpec`). */
   startsPage?: true;
+  /**
+   * Batch e24p (Story 24.17, seed v14 `recommendation_as_action`): a body row of the action-plan
+   * table that fits on a page is never split across two (the renderer's `cantSplit`); a row taller
+   * than a page still splits. Absent on v1 to v13, whose rows split as before.
+   */
+  keepRowsWhole?: true;
 }
 
 type Section8Snapshot = Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'blocks' | 'equipment' | 'points' | 'files'>;
@@ -78,17 +91,30 @@ function cell(value: string | null | undefined): string {
  */
 const GLUED_BEFORE_REF = /[\p{L}\p{N}.,;:!?)\]%°"\u201d\u2019\u00bb]$/u;
 
-/** A text with each photo token replaced by "Imagem N" (spaced from a word or mark glued before it), or `REMOVED_PHOTO_REF_TEXT` for a photo the numbering lacks. */
-export function resolvePhotoTokens(text: string, numbering: ReadonlyMap<string, number>): string {
+/**
+ * Batch e24p (Story 24.17, seed v14; deferred row of e23f decision 4): what a word glued after a
+ * reference starts with, so "Imagem 1texto" prints "Imagem 1 texto": a letter, a digit or an
+ * opening parenthesis.
+ */
+const GLUED_AFTER_REF = /^[\p{L}\p{N}(]/u;
+
+/**
+ * A text with each photo token replaced by "Imagem N" (spaced from a word or mark glued before it), or `REMOVED_PHOTO_REF_TEXT` for a photo the numbering lacks.
+ * Batch e24p (Story 24.17): `spaced` (seed v14) also spaces a word glued after a reference, and the removed text on both sides as a reference.
+ */
+export function resolvePhotoTokens(text: string, numbering: ReadonlyMap<string, number>, spaced = false): string {
   let out = '';
+  let justRef = false;
   for (const token of pointTextTokens(text)) {
     if (token.kind === 'text') {
-      out += token.text;
+      out += spaced && justRef && GLUED_AFTER_REF.test(token.text) ? ` ${token.text}` : token.text;
+      justRef = false;
       continue;
     }
     const n = numbering.get(token.id);
-    if (n === undefined) out += REMOVED_PHOTO_REF_TEXT;
+    if (n === undefined) out += `${spaced && GLUED_BEFORE_REF.test(out) ? ' ' : ''}${REMOVED_PHOTO_REF_TEXT}`;
     else out += `${GLUED_BEFORE_REF.test(out) ? ' ' : ''}${photoRefLabel(n)}`;
+    justRef = true;
   }
   return out;
 }
@@ -113,22 +139,29 @@ function currentSentence(text: string): string {
  * parenthesis); a reference after a full stop takes the full stop after it ("Porta
  * danificada. [[foto]]" prints "Porta danificada, conforme Imagem 1."), and "etc." keeps its
  * period ("… etc., conforme Imagem 1"). A removed photo's token prints as `resolvePhotoTokens`
- * prints it. The action-plan table keeps `resolvePhotoTokens`.
+ * prints it. The action-plan table keeps `resolvePhotoTokens`. Batch e24p (Story 24.17): `spaced`
+ * (seed v14) puts one space between a reference (or the removed text) and a word glued to it on
+ * either side ("ver[[foto]]texto" prints "ver Imagem 1 texto").
  */
-export function resolveBulletPhotoTokens(text: string, numbering: ReadonlyMap<string, number>): string {
+export function resolveBulletPhotoTokens(text: string, numbering: ReadonlyMap<string, number>, spaced = false): string {
   let out = '';
   /** The last thing printed is a reference, with at most spaces after it. */
   let afterRef = false;
+  /** Batch e24p: the last thing printed is a reference (or the removed text), nothing after it. */
+  let justRef = false;
   for (const token of pointTextTokens(text)) {
     if (token.kind === 'text') {
       // A full stop moved after a reference is not printed twice.
-      out += /[.!?]$/.test(out) && /^[.!?]/.test(token.text) ? token.text.slice(1) : token.text;
+      const part = /[.!?]$/.test(out) && /^[.!?]/.test(token.text) ? token.text.slice(1) : token.text;
+      out += spaced && justRef && GLUED_AFTER_REF.test(part) ? ` ${part}` : part;
       if (token.text.trim() !== '') afterRef = false;
+      justRef = false;
       continue;
     }
+    justRef = true;
     const n = numbering.get(token.id);
     if (n === undefined) {
-      out += REMOVED_PHOTO_REF_TEXT;
+      out += `${spaced && GLUED_BEFORE_REF.test(out) ? ' ' : ''}${REMOVED_PHOTO_REF_TEXT}`;
       afterRef = false;
       continue;
     }
@@ -146,7 +179,8 @@ export function resolveBulletPhotoTokens(text: string, numbering: ReadonlyMap<st
     const lastWord = /(\p{L}+)$/u.exec(trimmed)?.[1]?.toLocaleLowerCase('pt-BR') ?? null;
     const leadsIn = trimmed === '' || REFERENCE_WORDS.test(currentSentence(out)) || (lastWord !== null && CONNECTIVES.has(lastWord)) || /[(,;:\u2014-]$/.test(trimmed);
     if (leadsIn) {
-      out += label;
+      // Batch e24p (seed v14): a lead-in word glued to the token ("ver[[foto]]") takes its space.
+      out += `${spaced && GLUED_BEFORE_REF.test(out) ? ' ' : ''}${label}`;
     } else if (/[.!?]$/.test(trimmed) && !/\betc\.$/i.test(trimmed)) {
       // authored: the clause that cites a photo after a sentence (open for Bruno).
       out = `${trimmed.slice(0, -1)}, conforme ${label}${trimmed.slice(-1)}`;
@@ -163,11 +197,17 @@ function sentence(text: string): string {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+/** Batch e24p (Story 24.17): section 8 of a relatório whose seed turns on `recommendation_as_action` (v14) spaces its photo references and keeps its rows whole. */
+function v14Points(snapshot: Pick<RelatorioSnapshot, 'relatorio'>): boolean {
+  return seedRule(snapshot.relatorio.seed_version, 'recommendation_as_action');
+}
+
 /** Every bullet of section 8 in print order: the live points. */
 export function resolveSection8(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): Section8Bullet[] {
+  const spaced = v14Points(snapshot);
   return livePoints(snapshot.points).map((point) => {
     const parts = [point.text, point.action ?? '']
-      .map((part) => resolveBulletPhotoTokens(part, numbering).trim())
+      .map((part) => resolveBulletPhotoTokens(part, numbering, spaced).trim())
       .filter((part) => part !== '');
     // F-05: the action starts a sentence of its own after the point's text.
     return { kind: 'point' as const, text: parts.length === 2 ? `${sentence(parts[0]!)} ${parts[1]!}` : (parts[0] ?? ''), point_id: point.id };
@@ -193,13 +233,14 @@ function pointLocal(point: Pick<PointRow, 'equipment_id' | 'location_id'>, snaps
  * points (fix batch e24h: ~~then the derived groups~~ only they), numbered 1..n.
  */
 export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): ActionPlanRow[] {
+  const spaced = v14Points(snapshot);
   return livePoints(snapshot.points).map((point, i) => ({
     number: String(i + 1),
-    point: cell(resolvePhotoTokens(point.text, numbering)),
+    point: cell(resolvePhotoTokens(point.text, numbering, spaced)),
     local: pointLocal(point, snapshot),
     priority: point.priority === null ? ACTION_PLAN_NONE : priorityLabel(point.priority),
     deadline: cell(formatCalendarDate(point.deadline)),
-    action: cell(resolvePhotoTokens(point.action ?? '', numbering)),
+    action: cell(resolvePhotoTokens(point.action ?? '', numbering, spaced)),
     owner: cell(point.owner),
     images: pointImages(point, numbering),
   }));
@@ -210,5 +251,13 @@ export function section8Layout(snapshot: Section8Snapshot & NumberingSnapshot, h
   const numbering = numberPhotos(snapshot);
   const bullets = resolveSection8(snapshot, numbering).map((bullet) => bullet.text);
   if (bullets.length === 0) return null;
-  return { number: heading.number, title: heading.title, kind: 'points', bullets, table: resolveActionPlan(snapshot, numbering) };
+  return {
+    number: heading.number,
+    title: heading.title,
+    kind: 'points',
+    bullets,
+    table: resolveActionPlan(snapshot, numbering),
+    // Batch e24p (Story 24.17, seed v14): the renderer keeps each body row whole.
+    ...(v14Points(snapshot) ? { keepRowsWhole: true as const } : {}),
+  };
 }

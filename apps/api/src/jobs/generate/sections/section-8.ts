@@ -34,10 +34,11 @@ function columnWidths(): number[] {
   return widths;
 }
 
-function row(cells: readonly string[], widths: readonly number[], header: boolean): TableRow {
+function row(cells: readonly string[], widths: readonly number[], header: boolean, keepWhole = false): TableRow {
   return new TableRow({
-    // Only the header row: it never splits and repeats on every page.
-    ...(header ? { cantSplit: true, tableHeader: true } : {}),
+    // The header row never splits and repeats on every page. Batch e24p (Story 24.17, seed v14,
+    // `keepRowsWhole`): a body row never splits either (a row taller than a page still breaks).
+    ...(header ? { cantSplit: true, tableHeader: true } : keepWhole ? { cantSplit: true } : {}),
     children: cells.map(
       (value, i) =>
         new TableCell({
@@ -70,14 +71,14 @@ export function lineRuns(value: string, first: (line: string) => TextRun, next: 
 
 const cellsOf = (plan: ActionPlanRow): string[] => [plan.number, plan.point, plan.local, plan.priority, plan.deadline, plan.action, plan.owner, plan.images];
 
-/** The action-plan table: the header row, then one row per section 8 bullet. */
-export function actionPlanTable(rows: readonly ActionPlanRow[]): Table {
+/** The action-plan table: the header row, then one row per section 8 bullet (each kept whole with `keepRowsWhole`, batch e24p). */
+export function actionPlanTable(rows: readonly ActionPlanRow[], keepRowsWhole = false): Table {
   const widths = columnWidths();
   return new Table({
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
-    rows: [row(ACTION_PLAN_COLUMNS, widths, true), ...rows.map((plan) => row(cellsOf(plan), widths, false))],
+    rows: [row(ACTION_PLAN_COLUMNS, widths, true), ...rows.map((plan) => row(cellsOf(plan), widths, false, keepRowsWhole))],
   });
 }
 
@@ -85,5 +86,5 @@ export function section8Children(section: LayoutSectionPoints): (Paragraph | Tab
   const bullets = section.bullets.map(
     (bullet) => new Paragraph({ children: lineRuns(bullet, (line) => text(line), (line) => new TextRun({ text: line, break: 1 })), bullet: { level: 0 }, spacing: { after: 80 } }),
   );
-  return [...bullets, actionPlanTable(section.table)];
+  return [...bullets, actionPlanTable(section.table, section.keepRowsWhole === true)];
 }

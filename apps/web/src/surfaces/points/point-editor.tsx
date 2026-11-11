@@ -101,6 +101,10 @@ export interface PointSeed {
   /** Story 22.5: the source of a point written from a derived entry (`origin` `nc` with its item, `reading` with its test). */
   itemKey?: string | null;
   testKey?: string | null;
+  /** Batch e24p (Story 24.17, seed v14): the "Ação recomendada" a point written from a test starts with (its recommendations). */
+  action?: string;
+  /** Batch e24p (Story 24.17): the kernel's helper under that action ("Da recomendação do ensaio · editável"); none without one. */
+  actionHelper?: string | null;
 }
 
 /** Where a point the editor wrote to sits in section 8 once it closed. */
@@ -153,8 +157,10 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   }, []);
 
   const initialText = point?.text ?? seed.text;
+  // Batch e24p (Story 24.17): a new point written from a test may start with its action too.
+  const initialAction = point === null ? (seed.action ?? '') : (point.action ?? '');
   const [text, setText] = useState(initialText);
-  const [action, setAction] = useState(point?.action ?? '');
+  const [action, setAction] = useState(initialAction);
   const [owner, setOwner] = useState(point?.owner ?? '');
   const [picking, setPicking] = useState(false);
 
@@ -174,7 +180,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     setLinkState(next);
   };
   /** What the fields hold now (read by the commits, the draft source and the close). */
-  const values = useRef<PointValues>({ text: initialText, action: point?.action ?? '', owner: point?.owner ?? '' });
+  const values = useRef<PointValues>({ text: initialText, action: initialAction, owner: point?.owner ?? '' });
   /** What the store holds, as far as this editor wrote or read it. */
   const stored = useRef<PointValues>({ text: point?.text ?? '', action: point?.action ?? '', owner: point?.owner ?? '' });
   /** The person changed something here (a seeded new point untouched is created only by "Concluir"). */
@@ -617,6 +623,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const helperId = useId();
   const photosLabelId = useId();
   const actionId = useId();
+  const actionHelperId = useId();
+  // Batch e24p (Story 24.17): a new point seeded with an action names where it came from.
+  const actionHelper = point === null && (seed.action ?? '') !== '' ? (seed.actionHelper ?? null) : null;
   const priorityLabelId = useId();
   const priorityHelperId = useId();
   const deadlineHelperId = useId();
@@ -715,10 +724,17 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
             className="observation-field poa-action"
             value={action}
             maxLength={POINT_ACTION_CAP ?? undefined}
+            aria-describedby={actionHelper === null ? undefined : actionHelperId}
             onChange={(event) => changeAction(event.target.value)}
             onBlur={() => actionCommit.blur()}
           />
           <CharCount length={action.length} cap={POINT_ACTION_CAP} />
+          {/* Batch e24p (Story 24.17, `60-ficha.html` `#ficha-dlg-ponto-editor`): where a seeded action came from. */}
+          {actionHelper === null ? null : (
+            <span className="helper" id={actionHelperId}>
+              {actionHelper}
+            </span>
+          )}
         </div>
 
         <div className="field">

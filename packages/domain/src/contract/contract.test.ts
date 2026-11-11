@@ -110,10 +110,11 @@ describe('contract constants', () => {
   // e24b (Stories 24.8 and 24.21, 2026-11-11): 43, after e24f's 42; MIN follows.
   // e24a (Stories 24.2 to 24.4, seed v14 and its rule flags, 2026-11-11): 44, after e24b's 43; MIN follows.
   // e24c (Stories 24.18 to 24.20, 2026-11-11): 45, after e24a's 44; MIN follows.
-  // e24s (Stories 24.10 to 24.14, seed v14's sheets, 2026-11-11): 46, after e24c's 45; MIN follows.
-  it('speaks version 46 and refuses version 45 (batch e24s: a version-45 bundle lacks the v14 item keys and strips `dry_items`)', () => {
-    expect(CONTRACT_VERSION).toBe(46);
-    expect(MIN_CONTRACT_VERSION).toBe(46);
+  // e24p (Stories 24.15 and 24.16, 2026-11-11): 46, after e24c's 45; MIN follows.
+  // e24s (Stories 24.10 to 24.14, seed v14's sheets, 2026-11-11): 47, after e24p's 46; MIN follows.
+  it('speaks version 47 and refuses version 46 (batch e24s: a version-46 bundle lacks the v14 item keys and the No-break type, and strips `dry_items`)', () => {
+    expect(CONTRACT_VERSION).toBe(47);
+    expect(MIN_CONTRACT_VERSION).toBe(47);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

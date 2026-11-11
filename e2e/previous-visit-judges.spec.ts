@@ -7,7 +7,6 @@ import {
   evaluateTest,
   getDefinition,
   instantiateTemplate,
-  SEED_VERSION,
   standardTemplate,
   visitContextOf,
   type Entity,
@@ -57,7 +56,7 @@ const entities = (page: Page) => readStore<EntityRecord>(page, database, 'entiti
 const toast = (page: Page) => page.getByTestId('toast');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
-const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+const TRANSFORMER = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
 const AT = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
 async function deviceSnapshot(page: Page, relatorioId: string): Promise<RelatorioSnapshot> {
@@ -96,7 +95,8 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   await signIn(page, account.email);
 
   // Relatório A: the AT row at 10 GΩ, issued (nothing judged out, so the parecer is tapped before issuing).
-  const a = newRelatorioDrafts(account);
+  // Batch e24p (Story 24.15): both relatórios are pinned to seed v13, whose MANUT. ANTERIOR header (undated) and history texts (the issue date) this spec reads.
+  const a = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const trA = a.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const blockRows = (drafts: readonly OpDraft[]) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
   const equipmentId = blockRows(a.drafts).find((row) => row.id === trA.blockId)!.equipment_id!;
@@ -111,7 +111,7 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   // Relatório B of the same obra, its TAGs bound to the obra's equipment, its transformer's plate at 20 °C.
   const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
   const b = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), seedVersion: 'v13' }),
     { id: a.projectId },
     { service_start: '2026-11-08', service_end: '2026-11-09', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },

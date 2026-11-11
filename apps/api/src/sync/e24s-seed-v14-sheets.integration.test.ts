@@ -24,7 +24,7 @@ import { newId } from '../ids.ts';
 import { companyA, routeHarness } from './rules.test-support.ts';
 
 /*
- * Batch e24s (Stories 24.10 to 24.12; contract 46) through `POST /api/sync/ops`: on a v14 relatório
+ * Batch e24s (Stories 24.10 to 24.14; contract 47) through `POST /api/sync/ops`: on a v14 relatório
  * the transformer's new items and the Inspeção de QGBT's function test and thermography are
  * accepted, and refused on a v13 relatório whose lists lack them; a company type duplicated from
  * the v14 transformer publishes with its `dry_items` stored whole; a version-44
@@ -63,7 +63,7 @@ function inspectionCreates(seeded: { relatorioId: string; projectId: string; loc
   };
 }
 
-describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\'s new items through the route (contract 46)', () => {
+describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\'s new items through the route (contract 47)', () => {
   it('a v14 transformer takes TANQUE E ALETAS, LIMPEZA DAS BOBINAS and TRINCAS NA RESINA; a v13 one refuses them op_invalid', async () => {
     const v14 = await h.seedRelatorio(companyA);
     const transformer = v14.blocks.find((block) => block.blockType === 'transformador_forca')!;
@@ -231,11 +231,11 @@ describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\
     expect(result.rejected.map((one) => [one.op_id, one.code])).toEqual([[oldText.op_id, 'op_invalid']]);
   });
 
-  it('speaks contract 46: a version-45 pull is answered 426 contract_outdated on every stream, the current one is answered', async () => {
-    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(46);
-    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(46);
+  it('speaks contract 47: a version-46 pull is answered 426 contract_outdated on every stream, the current one is answered', async () => {
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(47);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(47);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
-      const old = await h.authed(companyA, path, { headers: { 'x-contract-version': '45' } });
+      const old = await h.authed(companyA, path, { headers: { 'x-contract-version': '46' } });
       expect(old.status, path).toBe(426);
       expect(((await old.json()) as { code?: string }).code).toBe('contract_outdated');
     }

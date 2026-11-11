@@ -62,14 +62,22 @@ interface Finding {
   reason: string;
   detail: string;
   compared?: string;
+  /** Batch e24p (Story 24.16): set on a finding of a previous-visit rule (the history note's rows). */
+  history?: true;
 }
 
-function historyFinding(pct: number, entry: PreviousResults, previous: NonNullable<LastResultReading['corrected']>, now: { raw: string; unit: string | null }): Finding {
+/** Batch e24p (Story 24.15): the previous visit's date a history text names: `dateText` when the caller gave it (the block's seed), else the issue date (v1 to v13). */
+function previousDateOf(entry: PreviousResults, previous: Pick<RestrictionPrevious, 'dateText'>): string {
+  return previous.dateText ?? formatDateOfInstant(entry.issued_at);
+}
+
+function historyFinding(pct: number, entry: PreviousResults, previous: NonNullable<LastResultReading['corrected']>, now: { raw: string; unit: string | null }, dateText: string): Finding {
   return {
     reason: `queda de mais de ${pctText(pct)} % desde a manutenção anterior`,
-    detail: `caiu mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(previous.raw, previous.unit)} a ${INSULATION_REFERENCE_C} °C, rev. ${entry.revision_number}, ${formatDateOfInstant(entry.issued_at)})`,
+    detail: `caiu mais de ${pctText(pct)} % desde a manutenção anterior (${correctedText(previous.raw, previous.unit)} a ${INSULATION_REFERENCE_C} °C, rev. ${entry.revision_number}, ${dateText})`,
     // authored (e23p, listed for Bruno): both corrected values, as the derived point names them.
     compared: `de ${correctedText(previous.raw, previous.unit)} para ${correctedText(now.raw, now.unit)}, a ${INSULATION_REFERENCE_C} °C`,
+    history: true,
   };
 }
 
@@ -85,6 +93,12 @@ function poleFinding(pct: number, name: string, cell: EvaluatedCell): Finding {
 export interface RestrictionPrevious {
   entry: PreviousResults | null;
   byAddress: ReadonlyMap<string, LastResultReading>;
+  /**
+   * Batch e24p (Story 24.15): the previous visit's date as the history texts name it
+   * (`previousVisitDateText` of the block's seed: the visit's date on v14, the issue date on v1 to
+   * v13); absent, the issue date.
+   */
+  dateText?: string;
 }
 
 /** One reading of a column, in the column's unit, as the comparisons take it. */
@@ -117,7 +131,7 @@ function historyOf(cell: EvaluatedCell, pct: number, previous: RestrictionPrevio
   const now = Number(corrected.raw);
   if (was === null || !(was > 0) || !Number.isFinite(now)) return null;
   const drop = ((was - now) / was) * 100;
-  return drop > pct * (1 + EPSILON) ? historyFinding(pct, previous.entry, before, corrected) : null;
+  return drop > pct * (1 + EPSILON) ? historyFinding(pct, previous.entry, before, corrected, previousDateOf(previous.entry, previous)) : null;
 }
 
 /**
@@ -140,6 +154,7 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
       const cell = row.cells.find((candidate) => candidate.address.col === col && candidate.role === 'capture');
       if (cell === undefined) continue;
       cell.restriction = null;
+      delete cell.historyOut;
       if ((cell.verdict !== 'within' && cell.verdict !== 'out') || cell.state !== 'measured') continue;
       const own = readings.find((reading) => reading.cell === cell);
       const findings: Finding[] = [];
@@ -163,8 +178,12 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         }
       }
       if (findings.length === 0) continue;
+      // Batch e24p (Story 24.16): the previous-visit rule's part of the point's reason, which the history note names.
+      const history = findings.filter((finding) => finding.history === true).map((finding) => (finding.compared === undefined ? finding.reason : `${finding.reason} (${finding.compared})`)).join('; ');
       if (cell.verdict === 'out') {
         stands = true;
+        // Batch e24p (Story 24.16, review fix): an out cell the drop rule flags keeps its verdict; the note names it.
+        if (history !== '') cell.historyOut = history;
         continue;
       }
       cell.verdict = 'restricted';
@@ -175,6 +194,7 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         reason,
         text: `${findings.map((finding) => finding.detail).join('; ')}. ${CLOSING}`,
         ...(pointReason === reason ? {} : { pointReason }),
+        ...(history === '' ? {} : { history }),
       };
     }
   }
@@ -219,7 +239,7 @@ export function applyHistoryRise(test: TestDef, rows: readonly EvaluatedRow[], c
       if (!(rise > pct * (1 + EPSILON))) continue;
       // authored (e23w, listed for Bruno): a pole out by its rise since the previous visit, as the helper, the points and the conclusion name it.
       // The rise is shown rounded up to one decimal, so a rise just past the limit never reads as the limit (review fix).
-      const reason = `alta de ${pctText(Math.ceil(rise * 10 - EPSILON) / 10)} % sobre ${previousReadingValueText(before)} da manutenção anterior, rev. ${entry.revision_number} de ${formatDateOfInstant(entry.issued_at)}, acima do limite de ${pctText(pct)} %`;
+      const reason = `alta de ${pctText(Math.ceil(rise * 10 - EPSILON) / 10)} % sobre ${previousReadingValueText(before)} da manutenção anterior, rev. ${entry.revision_number} de ${previousDateOf(entry, previous)}, acima do limite de ${pctText(pct)} %`;
       cell.verdict = 'out';
       cell.rise = { reason };
       cell.helperText = `Acima do aceitável: ${reason}`;

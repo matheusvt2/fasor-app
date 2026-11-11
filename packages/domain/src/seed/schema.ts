@@ -1033,6 +1033,12 @@ export const seedRulesSchema = z
     nc_clause_on_one_line: z.literal(true).optional(),
     /** Story 24.4: the fixed results reference of a Conclusão text is replaced across its formatted runs. */
     results_reference_across_runs: z.literal(true).optional(),
+    /** Story 24.15: the MANUT. ANTERIOR header prints the previous visit's date, and the history texts name it. */
+    previous_visit_date: z.literal(true).optional(),
+    /** Story 24.16: one note line under a readings table names the rows a previous-visit rule flagged. */
+    history_note: z.literal(true).optional(),
+    /** Story 24.17: a point written from a test holds its recommendation as the action; action-plan rows kept whole; spaced photo references in section 8. */
+    recommendation_as_action: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

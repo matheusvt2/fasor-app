@@ -218,6 +218,8 @@ describe('23.15-UNIT winding resistance: the deviation between phases by medium 
       text: 'Variou mais de 2 % desde a manutenção anterior (1 Ω a 75 °C, rev. 2, 01/10/2026): a conclusão sobe para Com restrições.',
       // Fix batch e23p (P3): both corrected values after the reason, for the derived point.
       pointReason: 'variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C)',
+      // Batch e24p (Story 24.16): the history rule's part, which the v14 note line names (v13 prints none).
+      history: 'variação de mais de 2 % desde a manutenção anterior (de 1 Ω para 1,025 Ω, a 75 °C)',
     });
     expect(verdictsOf(measurement(block, 'resistencia_enrolamento', previous(false)), 0)).toEqual(['within', 'within', 'within']);
     // Exactly 2 % is within.

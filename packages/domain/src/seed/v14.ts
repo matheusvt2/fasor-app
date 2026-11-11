@@ -23,7 +23,8 @@ const v13 = CABINE_PRIMARIA_V13;
 function cabinePrimariaV14(): ReportSeed {
   const seed = structuredClone(v13);
   withE24aRules(seed);
-  // Batch e24s (Stories 24.10 to 24.12), each section after e24a's flags.
+  withE24pRules(seed);
+  // Batch e24s (Stories 24.10 to 24.14), each section after the flags of e24a and e24p.
   withE24sTpTc(seed);
   withE24sTransformer(seed);
   withE24sQgbtInspection(seed);
@@ -52,6 +53,28 @@ function withE24aRules(seed: ReportSeed): void {
     parecer_names_finding: true,
     nc_clause_on_one_line: true,
     results_reference_across_runs: true,
+  };
+}
+
+// --- batch e24p (Stories 24.15 to 24.17): the previous visit's date, the history note, the recommendation as action ---
+
+/**
+ * Batch e24p (Story 24.15): the MANUT. ANTERIOR header prints the previous visit's date on a second
+ * line, and the printed history texts (an insulation drop, a contact rise, a winding variation) name
+ * that date (`previous_visit_date`). Story 24.16: one note line under a readings table names the rows
+ * a previous-visit rule flagged, with their reasons and values (`history_note`). Story 24.17: a point
+ * of attention written from a test holds the test's recommendation in its action, section 8 keeps an
+ * action-plan row whole and spaces a photo reference from the text around it
+ * (`recommendation_as_action`). Each flag is read by `seedRule`; `seed.test.ts` strips them
+ * (`withoutE24p`). The stored service date, the visit order, the "Anterior" helper's date and the
+ * create action apply on every seed and read no flag.
+ */
+function withE24pRules(seed: ReportSeed): void {
+  seed.rules = {
+    ...seed.rules,
+    previous_visit_date: true,
+    history_note: true,
+    recommendation_as_action: true,
   };
 }
 
