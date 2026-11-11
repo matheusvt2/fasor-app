@@ -1,4 +1,4 @@
-import { errorResponseSchema, findDefinition, RELATORIO_MAX_BYTES, relatorioBudgetRowBytes, SEED_VERSION, serializedBytes, SYNC_PUSH_MAX_BYTES, TEXT_CAPS, VALUE_MAX_BYTES, VALUE_MAX_ITEMS, type Entity } from '@app/domain';
+import { errorResponseSchema, findDefinition, RELATORIO_MAX_BYTES, reuseKeyFor, relatorioBudgetRowBytes, SEED_VERSION, serializedBytes, SYNC_PUSH_MAX_BYTES, TEXT_CAPS, VALUE_MAX_BYTES, VALUE_MAX_ITEMS, type Entity } from '@app/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { entities } from '../db/schema.ts';
 import { shortStringsOfBytes } from '@app/domain/fixtures/value-caps';
@@ -58,6 +58,31 @@ describe('S4: a value outside its field\'s cap, type or range', () => {
     const result = await h.push(companyA, [fine, oversized]);
     expect(result.applied.map((a) => a.op_id)).toEqual([fine.op_id]);
     expect(result.rejected).toEqual([{ op_id: oversized.op_id, code: 'op_value_invalid' }]);
+  });
+
+  it('fix batch e24x (B3): an equipment create whose reuse_key holds 1 001 characters is refused op_value_invalid; the longest key the reuse builds is applied', async () => {
+    const { projectId } = await h.seedRelatorio(companyA);
+    const equipment = (reuseKey: string) => {
+      const id = newId();
+      return {
+        id,
+        op: h.clientOp(companyA, {
+          kind: 'create',
+          scope: 'project',
+          project_id: projectId,
+          path: `equipment/${id}`,
+          value: { id, project_id: projectId, tag: 'DJ-01', type: 'disjuntor_mt', last_nameplate: null, removed_at: null, reuse_key: reuseKey },
+        }),
+      };
+    };
+    const over = equipment('K'.repeat(TEXT_CAPS.medium + 1));
+    const longest = equipment(reuseKeyFor('type:019966c1-0000-7000-8000-0000000000ff', { kind: 'cabine', name: 'Z'.repeat(TEXT_CAPS.short) }, [], { tag_prefix: 'ABCDEF' }));
+    const result = await h.push(companyA, [over.op, longest.op]);
+    expect(result.rejected).toEqual([{ op_id: over.op.op_id, code: 'op_value_invalid' }]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([longest.op.op_id]);
+    expect(await h.logged(over.op.op_id)).toBe(false);
+    expect(await h.rowOf(companyA, 'equipment', over.id)).toBeUndefined();
+    expect(await h.rowOf<{ reuse_key?: string }>(companyA, 'equipment', longest.id)).toMatchObject({ reuse_key: `ABCDEF-${'Z'.repeat(TEXT_CAPS.short)}` });
   });
 });
 
