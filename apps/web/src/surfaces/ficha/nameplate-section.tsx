@@ -8,9 +8,12 @@ import {
   nameplateAcceptsNotApplicable,
   nameplateFieldInput,
   nameplateMissingKeys,
+  nameplatePhotoOffered,
+  nameplateTitleOf,
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
+  oilFieldExcusedReason,
   oilItemsNaText,
   oilNaChipItems,
   oilNaChipText,
@@ -248,7 +251,9 @@ export function NameplateSection({
   };
   // The retake's photo id is assigned up front, so the cancel above can spare it by id.
   const retakeTarget = (): CaptureTarget => ({ ...plateTarget(), fileId: newId() });
-  const retake: PlateRetake | null = readOnly || !aiFeatures ? null : { relatorioId: api.relatorioId, target: retakeTarget, onShot: cancelOlderPlates };
+  // Batch e24s (Story 24.14): a block with no plate to photograph (the v14 Malha's) offers neither the camera nor its retake.
+  const photoOffered = nameplatePhotoOffered(definition);
+  const retake: PlateRetake | null = readOnly || !aiFeatures || !photoOffered ? null : { relatorioId: api.relatorioId, target: retakeTarget, onShot: cancelOlderPlates };
 
   /** The focused field's region on the plate: its pending suggestion's, else its confirmed source's (this photo only). */
   const focusedBox = (() => {
@@ -386,13 +391,13 @@ export function NameplateSection({
   return (
     <section className={grouped ? 'section nameplate-extraction' : 'section'} id="ficha-nameplate" aria-labelledby={headingId}>
       <div className="section-head">
-        <h2 id={headingId}>{t.title}</h2>
+        <h2 id={headingId}>{nameplateTitleOf(definition) ?? t.title}</h2>
       </div>
       {plate !== null && region !== null && !readOnly ? (
         <PlateCrop photoId={plate.id} region={region} focused={focusedBox} onOpen={() => suggestions.openPhoto(plate.id, region)} />
       ) : null}
       {grouped ? <SuggestionGroupHead model={suggestions} /> : null}
-      {plate === null && !readOnly && aiFeatures ? <PlateCameraGroup relatorioId={api.relatorioId} target={plateTarget} chips={chipRow} /> : chipRow}
+      {plate === null && !readOnly && aiFeatures && photoOffered ? <PlateCameraGroup relatorioId={api.relatorioId} target={plateTarget} chips={chipRow} /> : chipRow}
       {plate !== null && view !== null && view !== 'ready' ? (
         <>
           <PlatePhotoRow
@@ -413,7 +418,8 @@ export function NameplateSection({
           if (isFieldHidden(block, field.key, definitions)) return null;
           // Fix batch e23p (P4): a dry field of an oil unit is drawn read-only and empty, with the kernel's reason; a value
           // stored there stays in the store, unseen, and shows again if the unit becomes dry.
-          const dryReason = dryFieldExcusedReason(block, field.key, definitions);
+          // Batch e24s (Story 24.11): so is an oil field of a non-oil unit, on every seed with an oil rule.
+          const dryReason = dryFieldExcusedReason(block, field.key, definitions) ?? oilFieldExcusedReason(block, field.key, definitions);
           if (dryReason !== null) return <ReadOnlyField key={field.key} field={field} value={null} helper={dryReason} />;
           const stored = block.sheet.nameplate[field.key];
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;

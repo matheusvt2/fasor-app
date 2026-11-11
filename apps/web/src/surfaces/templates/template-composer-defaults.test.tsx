@@ -280,6 +280,18 @@ describe('3.5 composer: sub-block defaults per type', () => {
     });
     expect(await outboxPaths()).toEqual([`template/${ID}/blocks`, `template/${ID}/blocks`]);
   });
+
+  it('batch e24s (Story 24.14): on seed v14 the Malha de aterramento\'s first row reads its own title, "Dados da malha"; the TP keeps "Dados de placa"', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await user.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const stepper = within(palette()).getByRole('group', { name: 'Malhas de aterramento, 0' });
+    await user.click(within(stepper).getByRole('button', { name: 'Mais um' }));
+    await user.click(await within(palette()).findByRole('button', { name: 'Editar padrões de Malha de aterramento' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Padrões de Malha de aterramento' });
+    expect([...dialog.querySelectorAll('.toggle-row .toggle-label')].map((el) => el.textContent)[0]).toBe('Dados da malha');
+    expect(within(dialog).queryByText('Dados de placa')).toBeNull();
+  });
 });
 
 describe('E9 sweep B11: section actions after a pull reordered the sections', () => {

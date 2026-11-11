@@ -1,5 +1,5 @@
 import { getDefinition, type OpDraft } from '@app/domain';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { expectConcludeConfirmsText } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -41,6 +41,19 @@ export const TAP_BUDGET = {
   J1: { taps: 9, keys: 36 },
   J3: { taps: 7, keys: 47 },
 } as const;
+
+/**
+ * 2026-11-11, batch e24s (Story 24.10; Matheus's decision of 2026-11-10 on the ledger row of the tap
+ * budgets): the limits measured on seed v13 and accepted for it, run on seed v14 beside the v12 run
+ * above. J1 picks TIPO DE SECCIONADORA (required since v13, absent from a plate copied from an
+ * earlier visit): a native select counted as two taps, its tap and its option, so 11 taps; J3 as on v12.
+ */
+export const TAP_BUDGET_V14 = {
+  J1: { taps: 11, keys: 36 },
+  J3: { taps: 7, keys: 47 },
+} as const;
+
+type Budget = { readonly J1: { readonly taps: number; readonly keys: number }; readonly J3: { readonly taps: number; readonly keys: number } };
 
 let account: SeedAccount;
 let database: string;
@@ -140,10 +153,15 @@ async function conclude(page: Page, c: TapCounter, nextBlockId: string): Promise
   });
 }
 
-/** Records one journey's count as an annotation and on the console; the counter and the spec's own tally must agree. */
-async function report(page: Page, label: string, c: TapCounter): Promise<{ taps: number; keys: number }> {
-  const counted = await readCount(page);
-  const text = `${counted.taps} taps, ${counted.keys} keystrokes (budget ${TAP_BUDGET[label as keyof typeof TAP_BUDGET].taps} taps, ${TAP_BUDGET[label as keyof typeof TAP_BUDGET].keys} keystrokes)`;
+/**
+ * Records one journey's count as an annotation and on the console; the counter and the spec's own tally must agree.
+ * `picks`: the options of native selects the journey picked (`c.pick`), each a tap the browser's popup takes outside
+ * the page, so the page listener never sees it; they are added to its count.
+ */
+async function report(page: Page, label: keyof Budget, c: TapCounter, budget: Budget, picks = 0): Promise<{ taps: number; keys: number }> {
+  const listened = await readCount(page);
+  const counted = { taps: listened.taps + picks, keys: listened.keys };
+  const text = `${counted.taps} taps, ${counted.keys} keystrokes (budget ${budget[label].taps} taps, ${budget[label].keys} keystrokes)`;
   test.info().annotations.push({ type: `5.1-E2E-001 ${label}`, description: text });
   console.log(`5.1-E2E-001 ${label}: ${text}`);
   expect(counted, `${label}: the page listener and the spec's taps agree`).toEqual({ taps: c.taps, keys: c.keys });
@@ -168,6 +186,22 @@ function plateValue(kind: string, key: string, unit: string | undefined, options
 
 test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copied from the last visit and J3 the next seccionadora stay within TAP_BUDGET, every tap on the first try', async ({ page, context }) => {
   test.setTimeout(240_000);
+  await budgetRun(page, context, 'v12', TAP_BUDGET);
+});
+
+// 2026-11-11, batch e24s (Story 24.10): the same journeys on seed v14, within the limits accepted on v13.
+test('@p0 24.10-E2E-002 the tap budget on seed v14 at 768 px, offline: J1 with the plate copied from the last visit and TIPO DE SECCIONADORA picked, and J3, stay within TAP_BUDGET_V14, every tap on the first try', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await budgetRun(page, context, 'v14', TAP_BUDGET_V14);
+});
+
+/**
+ * One run of J1 and J3 on a relatório of `seedVersion`. On v12 the plate the budget was measured on; from v13 on
+ * the seccionadora asks TIPO DE SECCIONADORA, which a plate copied from a v2 visit lacks: J1 picks it (SEM CARGA,
+ * so the HH fuses do not apply), its tap and its option.
+ */
+async function budgetRun(page: Page, context: BrowserContext, seedVersion: 'v12' | 'v14', budget: Budget): Promise<void> {
+  const picksType = seedVersion !== 'v12';
   await context.addInitScript(installCounter);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
@@ -175,7 +209,7 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
 
   // Batch e23b: on seed v12, the plate the budget was measured on (v13 adds TIPO DE SECCIONADORA, required,
   // which a plate copied from an earlier visit leaves to pick: `deferred-work.md` › Epic 23 batch e23b).
-  const built = newRelatorioDrafts(account, { seedVersion: 'v12' });
+  const built = newRelatorioDrafts(account, { seedVersion });
   const scope = { relatorioId: built.relatorioId };
   const enel = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel');
   expect(enel).toHaveLength(2);
@@ -212,15 +246,24 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   const lastVisit = page.getByRole('group', { name: 'Copiar dados de placa' }).getByRole('button', { name: `Copiar da última visita (${secEnel.tag})` });
   await expect(lastVisit).toBeVisible({ timeout: 30_000 });
-  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 9 faltando' })).toBeVisible();
+  // From v13 the HH fuses apply while TIPO DE SECCIONADORA is empty (three more readings).
+  await expect(stepper(page).getByRole('button', { name: `Ensaios, ${picksType ? 12 : 9} faltando` })).toBeVisible();
   await context.setOffline(true);
   await resetCount(page);
 
   const j1 = tapCounter(page, EFFECT_MS);
   await j1.tap('Copiar da última visita', lastVisit, async () => {
     await expect(toast(page)).toContainText('copiados', { timeout: EFFECT_MS });
-    await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+    await expect(stepper(page).getByRole('button', { name: `Placa, ${picksType ? 1 : 0} faltando` })).toBeVisible({ timeout: EFFECT_MS });
   });
+  if (picksType) {
+    // A native select: its tap, then the option (two taps, as on the tablet).
+    const tipo = page.locator('#ficha-nameplate [data-field-key="tipo_seccionadora"] select');
+    await j1.tap('Tipo de seccionadora', tipo, () => expect(tipo).toBeFocused({ timeout: EFFECT_MS }));
+    await j1.pick('Tipo de seccionadora SEM CARGA', tipo, 'SEM CARGA');
+    await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+    await expect(stepper(page).getByRole('button', { name: 'Ensaios, 9 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+  }
   await j1.tap('Marcar os restantes como Conforme', bulk(page, 'Marcar os restantes como Conforme'), async () => {
     await expect(toast(page)).toContainText('marcados Conforme', { timeout: EFFECT_MS });
     await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
@@ -229,7 +272,7 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
   await readings(page, j1);
   await confirmPair(page, j1);
   await conclude(page, j1, secEnel2.blockId);
-  const j1Count = await report(page, 'J1', j1);
+  const j1Count = await report(page, 'J1', j1, budget, picksType ? 1 : 0);
   await expectConcludeConfirmsText(page, database, secEnel.blockId, `A seccionadora ${secEnel.tag}`);
 
   // --- J3 SEC-ENEL-2: "Igual à", its own unit, "Repetir", the suggested instruments --------
@@ -254,12 +297,12 @@ test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copie
   await readings(page, j3);
   await confirmPair(page, j3);
   await conclude(page, j3, after(built.sheets, secEnel2).blockId);
-  const j3Count = await report(page, 'J3', j3);
+  const j3Count = await report(page, 'J3', j3, budget);
   await expectConcludeConfirmsText(page, database, secEnel2.blockId, `A seccionadora ${secEnel2.tag}`);
   await context.setOffline(false);
 
-  expect(j1Count.taps, 'J1 taps').toBeLessThanOrEqual(TAP_BUDGET.J1.taps);
-  expect(j1Count.keys, 'J1 keystrokes').toBeLessThanOrEqual(TAP_BUDGET.J1.keys);
-  expect(j3Count.taps, 'J3 taps').toBeLessThanOrEqual(TAP_BUDGET.J3.taps);
-  expect(j3Count.keys, 'J3 keystrokes').toBeLessThanOrEqual(TAP_BUDGET.J3.keys);
-});
+  expect(j1Count.taps, 'J1 taps').toBeLessThanOrEqual(budget.J1.taps);
+  expect(j1Count.keys, 'J1 keystrokes').toBeLessThanOrEqual(budget.J1.keys);
+  expect(j3Count.taps, 'J3 taps').toBeLessThanOrEqual(budget.J3.taps);
+  expect(j3Count.keys, 'J3 keystrokes').toBeLessThanOrEqual(budget.J3.keys);
+}

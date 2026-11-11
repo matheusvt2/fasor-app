@@ -91,7 +91,27 @@ describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions i
  * (Stories 24.3 and 24.4): v14 now carries rule flags, so the comparison reads them off
  * (`rulesOff`, the domain's `seedRule` mocked above): every v14 difference comes through a flag,
  * and nothing else of v14 moves; the v14 print with its flags on is `e24a-v14-print.integration.test.ts`'s.
+ *
+ * Batch e24s (Stories 24.10 to 24.14): v14 changes, by design, what some sheets ask and print
+ * (`E24S_TYPES`), so the fixture writes a different number of answers there, and it offers one type
+ * more, the No-break de comando (Story 24.13), whose sheet the fixture adds by rule. The comparison
+ * keeps its purpose: every sheet of every other type lays out as v13's; the named types' sheets are
+ * the only ones that differ, each of them does, the No-break's is the one sheet v13 lacks, and the
+ * rest of the document differs by that one sheet alone (its title in section 9). Their v14 deltas
+ * are pinned by `e24s-seed-v14-sheets.test.ts` (packages/domain). Story 24.14's keys (the oil
+ * sampling's "Outro" text, the Malha's plate block title and photo) change no print of this fixture.
  */
+
+/**
+ * The types whose v14 sheet prints differently from v13's by design (batch e24s): the TC without
+ * FUSÍVEIS (Story 24.10), the transformer's 17 items (Story 24.11) and the Inspeção de QGBT's 12
+ * items (Story 24.12). The TP's FUSÍVEIS hint shows on the sheet only, so the TP prints as v13's.
+ */
+const E24S_TYPES: ReadonlySet<string> = new Set(['tc', 'transformador_forca', 'inspecao_qgbt']);
+/** The print titles of the parts batch e24s changes on those sheets: the checklist, and the v14 inspection's thermography (its own). */
+const CHECKLIST_PART = 'VERIFICAÇÕES GERAIS';
+const INSPECTION_THERMOGRAPHY = 'TERMOGRAFIA';
+
 describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays out as the v13 one, its rule flags off', () => {
   beforeEach(() => {
     rulesOff.v14 = true;
@@ -100,30 +120,79 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
     rulesOff.v14 = false;
   });
 
-  /** The layout as JSON, the version's ids, op ids and name masked (`019a6100-00VV-…`, `019a6100-01VV-…`, `vVV`). */
-  const normalized = (version: string) => {
+  /** The version's ids, op ids and name masked (`019a6100-00VV-…`, `019a6100-01VV-…`, `vVV`). */
+  const masked = (version: string, json: string) => {
     const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
-    const layout = layoutSpec(layoutLockSnapshot(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
-    return JSON.stringify(layout)
+    return json
       .replaceAll(`019a6100-00${hex}-`, '019a6100-00VV-')
       .replaceAll(`019a6100-01${hex}-`, '019a6100-01VV-')
       .replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
   };
 
-  it('v13 and v14 give one layout once ids and the version are masked; dates are fixed and equal', () => {
+  /** The layout of the version's fixture, split: its section 9 sheets by masked block id with their type, and the rest. */
+  /** Batch e24s (Story 24.13): v14 without the type v13 does not offer, so the two fixtures allocate the same ids. */
+  const COMPARED = { withoutTypes: ['no_break_comando'] };
+  const layoutOf = (version: string) => {
+    const snapshot = layoutLockSnapshot(version, COMPARED);
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
+    const typeOf = new Map(snapshot.blocks.map((block) => [block.id, block.block_type]));
+    const sheets = new Map<string, { type: string; json: string; core: string }>();
+    for (const section of layout.sections) {
+      if (section.kind !== 'sheets') continue;
+      for (const subsection of section.subsections) {
+        for (const sheet of subsection.sheets) {
+          // The sheet without the parts batch e24s changes by design: its VERIFICAÇÕES GERAIS table and (the v14 Inspeção de
+          // QGBT's) its thermography. The fixture's NC answer is every list's item 2, so a conclusion naming it reads the same
+          // number on both versions and needs no mask.
+          const changed = typeOf.get(sheet.blockId) === 'inspecao_qgbt' ? [CHECKLIST_PART, INSPECTION_THERMOGRAPHY] : [CHECKLIST_PART];
+          const kept = sheet.parts.filter((part) => part.kind !== 'table' || !changed.some((title) => part.table.rows[0]?.cells[0]?.text.includes(title)));
+          sheets.set(masked(version, sheet.blockId), {
+            type: typeOf.get(sheet.blockId)!,
+            json: masked(version, JSON.stringify(sheet)),
+            core: masked(version, JSON.stringify({ ...sheet, parts: kept })),
+          });
+        }
+        subsection.sheets = subsection.sheets.map((sheet) => ({ ...sheet, parts: [] }));
+      }
+    }
+    return { rest: masked(version, JSON.stringify(layout)), sheets };
+  };
+
+  it('v13 and v14 give one layout once ids and the version are masked, but for the sheets of the types batch e24s changes and its new No-break', () => {
     // The mock is the one the domain reads: v14's flags are off here and on outside this block.
     expect(seedRule('v14', 'conclusion_restriction_by_choice')).toBe(false);
     const v13 = layoutLockFixture('v13');
-    const v14 = layoutLockFixture('v14');
-    expect(v14.log).toHaveLength(v13.log.length);
-    expect(v14.log.map((op) => op.client_ts)).toEqual(v13.log.map((op) => op.client_ts));
+    const v14 = layoutLockFixture('v14', undefined, COMPARED);
+    // Batch e24s: the TC answers one item less, the transformer three more, the Inspeção de QGBT two more.
+    expect(v14.log.length - v13.log.length).toBe(-1 + 3 + 2);
     expect(layoutLockSnapshot('v14').relatorio.seed_version).toBe('v14');
-    expect(normalized('v14')).toBe(normalized('v13'));
+    const a = layoutOf('v13');
+    const b = layoutOf('v14');
+    // Every section but the sheets' parts, the sheets' titles and order included.
+    expect(b.rest).toBe(a.rest);
+    expect([...b.sheets.keys()]).toEqual([...a.sheets.keys()]);
+    const differing = [...a.sheets].filter(([key, sheet]) => b.sheets.get(key)!.json !== sheet.json).map(([, sheet]) => sheet.type);
+    // Only the named types differ, and each of them does (the list is not stale).
+    expect(new Set(differing)).toEqual(E24S_TYPES);
+    for (const [key, sheet] of a.sheets) if (!E24S_TYPES.has(sheet.type)) expect(b.sheets.get(key)!.json, sheet.type).toBe(sheet.json);
+    // The named types differ only in the parts batch e24s changes: their plate, tests, observations and conclusion are v13's.
+    for (const [key, sheet] of a.sheets) if (E24S_TYPES.has(sheet.type)) expect(b.sheets.get(key)!.core, `${sheet.type} outside its checklist`).toBe(sheet.core);
+  });
+
+  it('batch e24s (Story 24.13): v14 as the fixture builds it whole holds one sheet more than v13, the No-break de comando\'s', () => {
+    // A company type's key carries the version's ids: read as its kind.
+    const types = (version: string) =>
+      layoutLockSnapshot(version)
+        .blocks.filter((block) => block.equipment_id !== null)
+        .map((block) => (block.block_type.startsWith('type:') ? 'type:' : block.block_type));
+    const v14 = types('v14');
+    expect(v14.filter((type) => type === 'no_break_comando')).toHaveLength(1);
+    expect(v14.filter((type) => type !== 'no_break_comando')).toEqual(types('v13'));
   });
 
   it('control: with its flags on, as v14 ships, its layout is not v13\'s (the comparison above is not vacuous)', () => {
     rulesOff.v14 = false;
     expect(seedRule('v14', 'conclusion_restriction_by_choice')).toBe(true);
-    expect(normalized('v14')).not.toBe(normalized('v13'));
+    expect(layoutOf('v14').rest).not.toBe(layoutOf('v13').rest);
   });
 });

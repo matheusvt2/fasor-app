@@ -75,7 +75,11 @@ export function isOilUnit(block: StateBlock, ctx: DefinitionContext): boolean | 
 
 const NONE: ReadonlySet<string> = new Set();
 
-/** The checklist items a non-oil unit shows NA while their own result is not filled; none otherwise. */
+/**
+ * The checklist items a non-oil unit shows NA while their own result is not filled; none otherwise.
+ * Seed v14, batch e24s (Story 24.11): the mirror too, an oil unit's dry items (`dry_items`); an
+ * unknown unit shows every item asked.
+ */
 export function oilDerivedNaKeys(block: Partial<StateBlock>, ctx: DefinitionContext): ReadonlySet<string> {
   return oilDerivedNaKeysUnder(oilRuleOf(block, ctx), block);
 }
@@ -83,12 +87,25 @@ export function oilDerivedNaKeys(block: Partial<StateBlock>, ctx: DefinitionCont
 /** `oilDerivedNaKeys` with the block's rule already in hand (a reader holding the block's definition). */
 export function oilDerivedNaKeysUnder(rule: OilRule | null, block: Partial<StateBlock>): ReadonlySet<string> {
   if (rule === null || block.sheet === undefined) return NONE;
-  return oilStateOf(rule, block.sheet.nameplate[rule.field], block.config) === false ? new Set(rule.items) : NONE;
+  const state = oilStateOf(rule, block.sheet.nameplate[rule.field], block.config);
+  if (state === false) return new Set(rule.items);
+  // Batch e24s (Story 24.11): an oil unit shows the rule's dry items NA (none on v6 to v13, which have no `dry_items`).
+  if (state === true && rule.dry_items !== undefined) return new Set(rule.dry_items);
+  return NONE;
 }
 
 /** True when the block's rule names `itemKey` (the rule, not the config's NA defaults, decides it). */
 export function isOilItem(block: Partial<RuleBlock>, itemKey: string, ctx: DefinitionContext): boolean {
   return oilRuleOf(block, ctx)?.items.includes(itemKey as OilRule['items'][number]) ?? false;
+}
+
+/**
+ * Seed v14, batch e24s (Story 24.11): true when the block's rule decides `itemKey`, as an oil item
+ * (`items`) or as a dry one (`dry_items`): its NA may be derived, never an answer of its own.
+ */
+export function isMediumItem(block: Partial<RuleBlock>, itemKey: string, ctx: DefinitionContext): boolean {
+  const rule = oilRuleOf(block, ctx);
+  return rule !== null && (rule.items.includes(itemKey) || (rule.dry_items?.includes(itemKey) ?? false));
 }
 
 /**
@@ -121,6 +138,28 @@ export function dryFieldExcusedReason(block: StateBlock, fieldKey: string, ctx: 
   const label = definition?.nameplate.find((field) => field.key === rule.field)?.label ?? rule.field;
   // authored (e23p, listed for Bruno): the reason under a dry field of an oil unit.
   return `Não se aplica: ${label} é ${value.trim()}.`;
+}
+
+/**
+ * Batch e24s (Story 24.11, Matheus's decision on the ledger row of the read-only oil fields): why an
+ * oil field (`fields`) of a non-oil unit is not filled, the mirror of `dryFieldExcusedReason`: "Não
+ * se aplica: TIPO DE ISOLAÇÃO é EPÓXI." (with the rule's field empty, the dry subtype's label names
+ * the unit). Null for every other field, an oil unit and an unknown one, and for a `full_values`
+ * unit (read as oil). Read on every definition with an oil rule (seed v6 on), so the sheet draws the
+ * field read-only and empty; a value stored there is kept, never shown, and printed "-"
+ * (`isOilFieldExcused`, unchanged).
+ */
+export function oilFieldExcusedReason(block: StateBlock, fieldKey: string, ctx: DefinitionContext): string | null {
+  const rule = oilRuleOf(block, ctx);
+  if (rule === null || !rule.fields.includes(fieldKey) || isOilUnit(block, ctx) !== false) return null;
+  const definition = blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
+  const stored = block.sheet.nameplate[rule.field]?.value;
+  const subtype = subtypeOf(block.config);
+  const value = typeof stored === 'string' && stored.trim() !== '' ? stored.trim() : (definition?.subtypes.find((one) => one.key === subtype)?.label ?? null);
+  if (value === null) return null;
+  const label = definition?.nameplate.find((field) => field.key === rule.field)?.label ?? rule.field;
+  // authored (e23p, listed for Bruno): the same reason as under a dry field of an oil unit.
+  return `Não se aplica: ${label} é ${value}.`;
 }
 
 /**
@@ -177,7 +216,15 @@ export function oilCrossingPuts(
   for (const key of rule.fields) if (isCellFilled(block.sheet.nameplate[key])) puts.push({ path: sheetNameplatePath(block.id, key), value: null });
   // Fix batch e23p (P4): a crossing to an oil unit also clears every filled dry field (seed v13's `dry_fields`).
   if (after) for (const key of rule.dry_fields ?? []) if (isCellFilled(block.sheet.nameplate[key])) puts.push({ path: sheetNameplatePath(block.id, key), value: null });
-  const items = new Set<string>(rule.items);
+  // Batch e24s (Story 24.11): and the result and observation of every answered dry item (seed v14's `dry_items`), the
+  // mirror of the oil items above; a crossing to a non-oil unit leaves them, a dry unit asks them.
+  const dryItems = after ? (rule.dry_items ?? []) : [];
+  for (const itemKey of dryItems) {
+    const entry = block.sheet.checklist[itemKey];
+    if (isCellFilled(entry?.result)) puts.push({ path: sheetChecklistPath(block.id, itemKey, 'result'), value: null });
+    if (isCellFilled(entry?.observation)) puts.push({ path: sheetChecklistPath(block.id, itemKey, 'observation'), value: null });
+  }
+  const items = new Set<string>([...rule.items, ...dryItems]);
   for (const file of snapshot.files) {
     if (file.kind !== 'photo' || file.removed_at !== null || file.block_id !== block.id || file.item_key === null || !items.has(file.item_key)) continue;
     puts.push({ path: fileFieldPath(file.id, 'item_key'), value: null });
@@ -224,13 +271,27 @@ export function oilCrossingToastText(
     const block = snapshot.blocks.find((row) => row.id === segments[1]);
     return block !== undefined && (oilRuleOf(block, ctx)?.dry_fields?.includes(segments[3]!) ?? false);
   };
+  // Batch e24s (Story 24.11): a dry item's result, observation or photo tie (seed v14's `dry_items`), counted apart.
+  const photoOf = new Map(snapshot.files.flatMap((file) => (file.kind === 'photo' ? [[file.id, file] as const] : [])));
+  const isDryItem = (put: OilCrossingPut): boolean => {
+    const segments = put.path.split('/');
+    const photo = segments[0] === 'file' ? photoOf.get(segments[1]!) : undefined;
+    const blockId = segments[0] === 'sheet' && segments[2] === 'checklist' ? segments[1] : photo?.block_id;
+    const itemKey = segments[0] === 'sheet' && segments[2] === 'checklist' ? segments[3] : (photo?.item_key ?? undefined);
+    const block = snapshot.blocks.find((row) => row.id === blockId);
+    return block !== undefined && itemKey !== undefined && (oilRuleOf(block, ctx)?.dry_items?.includes(itemKey) ?? false);
+  };
   const dry = puts.filter(isDry);
+  const dryItems = oilCrossingClearedCount(puts.filter(isDryItem), snapshot);
   const oil = oilCrossingClearedCount(
-    puts.filter((put) => !isDry(put)),
+    puts.filter((put) => !isDry(put) && !isDryItem(put)),
     snapshot,
   );
-  if (dry.length === 0) return oilItemsClearedText(oil);
   // authored (e23p, listed for Bruno): the dry fields a crossing to an oil unit cleared.
-  const dryText = plural(new Set(dry.map((put) => put.path)).size, 'campo de unidade a seco apagado', 'campos de unidade a seco apagados');
-  return oil > 0 ? `${oilItemsClearedText(oil)} e ${dryText}` : dryText;
+  const dryText = dry.length === 0 ? null : plural(new Set(dry.map((put) => put.path)).size, 'campo de unidade a seco apagado', 'campos de unidade a seco apagados');
+  // authored (e24s, listed for Bruno): the dry items a crossing to an oil unit cleared.
+  const dryItemsText = dryItems === 0 ? null : plural(dryItems, 'item de unidade a seco apagado', 'itens de unidade a seco apagados');
+  if (dryText === null && dryItemsText === null) return oilItemsClearedText(oil);
+  const parts = [...(oil > 0 ? [oilItemsClearedText(oil)] : []), ...(dryItemsText === null ? [] : [dryItemsText]), ...(dryText === null ? [] : [dryText])];
+  return parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(', ')} e ${parts.at(-1)!}`;
 }

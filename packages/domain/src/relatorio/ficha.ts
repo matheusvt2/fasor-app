@@ -22,7 +22,7 @@ import { wordRowByName } from '../registry/instrument-row.ts';
 import { typedPieces } from '../registry/nc-phrase-row.ts';
 import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
-import { isOilItem } from './oil-rule.ts';
+import { isMediumItem } from './oil-rule.ts';
 import { isReadingValue } from './over-range.ts';
 import { checklistResultIsStored, checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
@@ -177,8 +177,8 @@ export function repeatChecklistPattern(
     if (checklistResultOf(target, item.key, ctx) !== null) continue;
     const value = checklistResultOf(source, item.key, ctx);
     if (value === null) continue;
-    // Story 14.11: an oil item's NA the source's oil rule only derives is not an answer to copy.
-    if (isOilItem(source, item.key, ctx) && !checklistResultIsStored(source, item.key, ctx)) continue;
+    // Story 14.11: an oil item's NA the source's oil rule only derives is not an answer to copy (batch e24s: nor a dry item's).
+    if (isMediumItem(source, item.key, ctx) && !checklistResultIsStored(source, item.key, ctx)) continue;
     out.push({ itemKey: item.key, value });
   }
   return out;

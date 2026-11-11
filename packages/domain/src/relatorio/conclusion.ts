@@ -505,6 +505,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
   inspecao_qgbt: { noun: 'A inspeção do QGBT', plural: false },
   // authored (Story 23.21, listed for Bruno).
   malha_aterramento: { noun: 'A malha de aterramento', plural: false },
+  // authored (e24s, listed for Bruno).
+  no_break_comando: { noun: 'O no-break de comando', plural: false },
 };
 
 // authored: the recommendation that follows a restricted or failed result.

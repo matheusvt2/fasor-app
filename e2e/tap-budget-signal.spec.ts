@@ -1,5 +1,5 @@
 import { getDefinition, type OpDraft } from '@app/domain';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { expectConcludeConfirmsText } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -26,6 +26,14 @@ import { tapCounter, type TapCounter } from './support/taps.ts';
  */
 
 export const SIGNAL_BUDGET = { taps: 20, keys: 15 } as const;
+
+/**
+ * 2026-11-11, batch e24s (Story 24.10; Matheus's decision of 2026-11-10 on the ledger row of the tap
+ * budgets): the SM-3 limit measured on seed v13 and accepted for it, 22 taps, run on seed v14 beside the
+ * v12 run. The two taps over 20 are TIPO DE SECCIONADORA (required since v13, absent from a plate copied
+ * from an earlier visit), a native select: its tap and its option.
+ */
+export const SIGNAL_BUDGET_V14 = { taps: 22, keys: 15 } as const;
 
 test.use({
   launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
@@ -116,6 +124,22 @@ function plateValue(kind: string, key: string, unit: string | undefined, options
 
 test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied plate and its readings from "Ler visor" in at most 20 taps and 15 keystrokes', async ({ page, context }) => {
   test.setTimeout(300_000);
+  await signalRun(page, context, 'v12', SIGNAL_BUDGET);
+});
+
+// 2026-11-11, batch e24s (Story 24.10): the same walk on seed v14, within the limit accepted on v13.
+test('@p0 24.10-E2E-003 SM-3 on seed v14: with signal and TIPO DE SECCIONADORA picked in at most 22 taps and 15 keystrokes', async ({ page, context }) => {
+  test.setTimeout(300_000);
+  await signalRun(page, context, 'v14', SIGNAL_BUDGET_V14);
+});
+
+/**
+ * One SM-3 walk on a relatório of `seedVersion`. From v13 on the seccionadora asks TIPO DE SECCIONADORA, which a
+ * plate copied from a v2 visit lacks: it is picked (SEM CARGA, so the HH fuses do not apply), its tap and its option;
+ * the option is the browser's popup, out of the page listener, so it is added to the listener's count.
+ */
+async function signalRun(page: Page, context: BrowserContext, seedVersion: 'v12' | 'v14', budget: { readonly taps: number; readonly keys: number }): Promise<void> {
+  const picksType = seedVersion !== 'v12';
   await context.addInitScript(installCounter);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
@@ -123,7 +147,7 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
 
   // Batch e23b: on seed v12, the plate the budget was measured on (v13 adds TIPO DE SECCIONADORA, required,
   // which a plate copied from an earlier visit leaves to pick: `deferred-work.md` › Epic 23 batch e23b).
-  const built = newRelatorioDrafts(account, { seedVersion: 'v12' });
+  const built = newRelatorioDrafts(account, { seedVersion });
   const scope = { relatorioId: built.relatorioId };
   const enel = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel');
   const [secEnel, secEnel2] = enel as [SeededSheet, SeededSheet];
@@ -156,14 +180,22 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   const lastVisit = page.getByRole('group', { name: 'Copiar dados de placa' }).getByRole('button', { name: `Copiar da última visita (${secEnel.tag})` });
   await expect(lastVisit).toBeVisible({ timeout: 30_000 });
-  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 9 faltando' })).toBeVisible();
+  // From v13 the HH fuses apply while TIPO DE SECCIONADORA is empty (three more readings).
+  await expect(stepper(page).getByRole('button', { name: `Ensaios, ${picksType ? 12 : 9} faltando` })).toBeVisible();
   await setCount(page, { taps: 0, keys: 0 });
 
   const c = tapCounter(page, EFFECT_MS);
   await c.tap('Copiar da última visita', lastVisit, async () => {
     await expect(toast(page)).toContainText('copiados', { timeout: EFFECT_MS });
-    await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+    await expect(stepper(page).getByRole('button', { name: `Placa, ${picksType ? 1 : 0} faltando` })).toBeVisible({ timeout: EFFECT_MS });
   });
+  if (picksType) {
+    const tipo = page.locator('#ficha-nameplate [data-field-key="tipo_seccionadora"] select');
+    await c.tap('Tipo de seccionadora', tipo, () => expect(tipo).toBeFocused({ timeout: EFFECT_MS }));
+    await c.pick('Tipo de seccionadora SEM CARGA', tipo, 'SEM CARGA');
+    await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+    await expect(stepper(page).getByRole('button', { name: 'Ensaios, 9 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+  }
   await c.tap('Marcar os restantes como Conforme', bulk(page, 'Marcar os restantes como Conforme'), async () => {
     await expect(toast(page)).toContainText('marcados Conforme', { timeout: EFFECT_MS });
     await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
@@ -216,13 +248,14 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
     await expect(page).toHaveURL(new RegExp(`/ficha/${secEnel2.blockId}$`), { timeout: EFFECT_MS });
   });
 
-  const counted = await readCount(page);
-  const text = `${counted.taps} taps, ${counted.keys} keystrokes (budget ${SIGNAL_BUDGET.taps} taps, ${SIGNAL_BUDGET.keys} keystrokes)`;
-  test.info().annotations.push({ type: '9.1-E2E-005 SM-3 with signal', description: text });
-  console.log(`9.1-E2E-005 SM-3 with signal: ${text}`);
+  const listened = await readCount(page);
+  const counted = { taps: listened.taps + (picksType ? 1 : 0), keys: listened.keys };
+  const text = `${counted.taps} taps, ${counted.keys} keystrokes (budget ${budget.taps} taps, ${budget.keys} keystrokes)`;
+  test.info().annotations.push({ type: `9.1-E2E-005 SM-3 with signal (${seedVersion})`, description: text });
+  console.log(`9.1-E2E-005 SM-3 with signal (${seedVersion}): ${text}`);
   expect(counted, 'the page listener and the spec agree').toEqual({ taps: c.taps, keys: c.keys });
-  expect(counted.taps).toBeLessThanOrEqual(SIGNAL_BUDGET.taps);
-  expect(counted.keys).toBeLessThanOrEqual(SIGNAL_BUDGET.keys);
+  expect(counted.taps).toBeLessThanOrEqual(budget.taps);
+  expect(counted.keys).toBeLessThanOrEqual(budget.keys);
   // Review 2026-10-08 Decision 1: the conclude confirmed the composed text (read after the counted tap).
   await expectConcludeConfirmsText(page, database, secEnel.blockId, `A seccionadora ${secEnel.tag}`);
 
@@ -233,4 +266,4 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
     expect(put?.value, cell.name).toEqual({ ...cell.value, state: 'measured' });
     expect(put?.meta?.source_suggestion_id, cell.name).toEqual(expect.any(String));
   }
-});
+}

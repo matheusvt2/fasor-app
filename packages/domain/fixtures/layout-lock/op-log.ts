@@ -165,11 +165,13 @@ function sheetWrites(version: string, blockId: string, definition: BlockDefiniti
   return writes;
 }
 
-function templateOf(version: string, company: CompanyType | null = null): TemplateRow {
+function templateOf(version: string, company: CompanyType | null = null, withoutTypes: readonly string[] = []): TemplateRow {
   const ref = 'cabine-sintetica';
   const blocks: TemplateBlock[] = [
     ...SECTION_BLOCK_TYPES.map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: null, section_text: null })),
-    ...equipmentTypesOf(version).map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: ref, section_text: null })),
+    ...equipmentTypesOf(version)
+      .filter((type) => !withoutTypes.includes(type))
+      .map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: ref, section_text: null })),
   ];
   if (company !== null) {
     // Story 24.2: the template's own Conclusão text, a second arrester and the company type's sheet.
@@ -208,6 +210,11 @@ export interface LayoutLockFixture {
  */
 export interface LayoutLockOptions {
   epic24?: boolean;
+  /**
+   * Batch e24s (Story 24.13): types the template leaves out, so a v14 relatório compares with the v13 one sheet for
+   * sheet without the No-break de comando v13 does not offer (24.2-UNIT-SAME). Absent: every type the version offers.
+   */
+  withoutTypes?: readonly string[];
 }
 
 export function layoutLockFixture(version: string, actor: LayoutLockActor = DEFAULT_ACTOR, options: LayoutLockOptions = {}): LayoutLockFixture {
@@ -234,7 +241,7 @@ export function layoutLockFixture(version: string, actor: LayoutLockActor = DEFA
   };
   const company = EPIC24_EXTRAS.has(version) && options.epic24 !== false ? companyTypeOf(version, actor) : null;
   const { relatorioId, drafts } = instantiateTemplate(
-    templateOf(version, company),
+    templateOf(version, company, options.withoutTypes),
     { id: projectId },
     { service_start: '2026-11-03', service_end: '2026-11-04', existingEquipment: [], responsible_user_id: null, definitions: company?.ctx ?? EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: actor.actorId, companyId: actor.companyId },

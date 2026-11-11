@@ -30,13 +30,14 @@ export type BaseEquipmentBlockType = (typeof BASE_EQUIPMENT_BLOCK_TYPES)[number]
  * Every equipment block type any seed version ships: the eight, then (seed v5, Story 14.5,
  * contract 19) the Chave de transferência automática, then (seed v6, Story 14.9, contract 21)
  * the Quadro elétrico (QGBT/QD), then (seed v12, Story 22.11, contract 32) the Inspeção de
- * QGBT, then (seed v13, Story 23.21, batch e23e, contract 39) the Malha de aterramento. A closed,
+ * QGBT, then (seed v13, Story 23.21, batch e23e, contract 39) the Malha de aterramento, then (seed
+ * v14, Story 24.13, batch e24s, contract 47) the No-break de comando. A closed,
  * append-only list; which of
  * them a relatório or a template offers is its seed version's (`equipmentTypesOf`): a type
  * its version does not ship has no definition there (`getDefinition` throws, `findDefinition`
  * answers null) and the fold refuses a block of it.
  */
-export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica', 'quadro_eletrico', 'inspecao_qgbt', 'malha_aterramento'] as const;
+export const EQUIPMENT_BLOCK_TYPES = [...BASE_EQUIPMENT_BLOCK_TYPES, 'chave_transferencia_automatica', 'quadro_eletrico', 'inspecao_qgbt', 'malha_aterramento', 'no_break_comando'] as const;
 
 /**
  * The FO.SERV-03 sections a Template carries as blocks. Sections 7 (photos) and 9
@@ -253,6 +254,21 @@ export const ITEM_KEYS = [
   'vasamento',
   'fiacao_secundaria',
   'buchas',
+  // Appended (seed v14, batch e24s, contract 47): the transformer's oil item and two dry items
+  // (Story 24.11) and the Inspeção de QGBT's function test (Story 24.12) (`docs/nc-chip-phrases.md`,
+  // "Seed v14"); the inspection's REAPERTO GERAL is the Quadro elétrico's `reaperto_geral`.
+  'tanque_e_aletas',
+  'limpeza_das_bobinas',
+  'trincas_na_resina',
+  'teste_de_funcionamento',
+  // Appended (seed v14, batch e24s, contract 47): the six items of the No-break de comando (Story 24.13);
+  // the Disjuntor MT's `no_break_de_comando` is another key, its item 16.
+  'limpeza_ventilacao_e_ventiladores',
+  'display_alarmes_e_leds',
+  'reaperto_das_conexoes',
+  'baterias',
+  'aterramento_bypass_e_identificacao',
+  'cargas_alimentadas_identificadas',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);

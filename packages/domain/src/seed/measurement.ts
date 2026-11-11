@@ -31,6 +31,10 @@ const label = z.string().min(1);
 export const measurementKindSchema = z.enum(['number', 'choice']);
 export type MeasurementKind = z.infer<typeof measurementKindSchema>;
 
+/** Seed v14, batch e24s (Story 24.14): what a test value holds; a value alone may be `text`. */
+export const measurementValueKindSchema = z.enum(['number', 'choice', 'text']);
+export type MeasurementValueKind = z.infer<typeof measurementValueKindSchema>;
+
 /**
  * One option of a choice. `phrase` is how the option reads inside the test's values line
  * ("tempos por instrumento") where its bare label ("Instrumento") would not say what it is of.
@@ -137,11 +141,23 @@ export const measurementValueSchema = z
     key: seedKey,
     label,
     ...typed,
+    /**
+     * Seed v14, batch e24s (Story 24.14): a value may also be `text`, typed or dictated as an observation
+     * (the oil sampling's "Descreva o motivo"), stored as a string up to the kernel's cap; never a column's
+     * or a row's kind. No unit, no options.
+     */
+    kind: measurementValueKindSchema,
     optional: z.literal(true).optional(),
     when: whenValueSchema.optional(),
     group: z.string().min(1).optional(),
   })
-  .superRefine(kindRefinements);
+  .superRefine((value, ctx) => {
+    if (value.kind === 'text') {
+      if (value.unit !== undefined || value.options !== undefined) ctx.addIssue({ code: 'custom', path: ['kind'], message: 'a text value has no unit nor options' });
+      return;
+    }
+    kindRefinements({ ...value, kind: value.kind }, ctx);
+  });
 export type MeasurementValue = z.infer<typeof measurementValueSchema>;
 
 /** Where a criterion comes from. Required on every criterion of this grammar. */

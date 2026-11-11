@@ -79,6 +79,12 @@ export const plateHandler: ReadingKindHandler = {
     // default: the v13 cable plate (images/plate-cabos-v13.png) replays for its own bytes only.
     // images/plate-malha-aterramento.png (batch e23e, Story 23.21, seed v13): the Malha de aterramento's design data.
     { block_type: 'malha_aterramento', sha256: 'c4f1e667a5780f05252532bc8ba0c533d341a196674a192bd66c06bfd60cf4a7' },
+    // Batch e24s (Story 24.13, seed v14; the ledger row of the cable's missing default): the cables replay the v13 cable plate
+    // (images/plate-cabos-v13.png), so a cable plate photographed on the local stack reads instead of failing permanently.
+    { block_type: 'cabos_entrada', sha256: 'cb18ca3f038a32f556f658b34c70a7a97a3b84e93a9678469ca739dc2e2bad07' },
+    { block_type: 'cabos_saida', sha256: 'cb18ca3f038a32f556f658b34c70a7a97a3b84e93a9678469ca739dc2e2bad07' },
+    // images/plate-no-break-comando.png (batch e24s, Story 24.13, seed v14): the No-break de comando's plate and battery bank.
+    { block_type: 'no_break_comando', sha256: 'dd788cc3042e333d9a814a4596f809b819c7bfeb5fd2aecdc87fc372bbcb209e' },
   ],
 
   async prepare({ db, companyId, relatorioId, photo }) {

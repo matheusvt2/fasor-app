@@ -557,6 +557,8 @@ export const copy = {
       inspecao_qgbt: 'Inspeção de QGBT',
       // Story 23.21 (seed v13): the fourth library type, the seed's label. authored (Story 23.21, listed for Bruno)
       malha_aterramento: 'Malha de aterramento',
+      // Story 24.13 (seed v14): the fifth library type, the seed's label. authored (e24s, listed for Bruno)
+      no_break_comando: 'No-break de comando',
     },
   },
   // Story 14.7 (`41-templates.html` § Tipos de equipamento): the list's static words. Every
@@ -1677,6 +1679,8 @@ export const copy = {
       samplingHelper: 'Só registra a coleta; a análise do óleo é do laboratório.',
       samplingReasonHelper: 'Não coletado não muda a conclusão da ficha.',
       samplingReasonGroup: 'Motivo da não coleta',
+      // authored (e24s, listed for Bruno): the Dictation button of a test's text value.
+      dictateReason: 'Ditar o motivo',
       // ~~authored (Story 23.20, listed for Bruno): the thermography's action that opens the sheet camera with the test's context.
       // thermalPhoto: 'Foto térmica'~~ Story 24.9 (F11): the control's words carry the kernel's count (`thermalPhotoText`).
     },

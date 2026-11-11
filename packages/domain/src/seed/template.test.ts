@@ -153,6 +153,7 @@ describe('standardTemplate', () => {
       quadro_eletrico: 0,
       inspecao_qgbt: 0,
       malha_aterramento: 0,
+      no_break_comando: 0,
     });
     expect(templateBlockTotal(template)).toBe(94);
     // A block whose node left the skeleton is not counted, in the total either.

@@ -207,6 +207,9 @@ Each is written under its story in `epics.md`.
 - *(2026-11-11)* **Still open to Matheus:** a release for the hotfix `1528183f`; whether a measurement table prints its criterion (the 24.18 narrowing; until he decides, it does not); a confirmed parecer text that reads stale after e24h (M-8); M-2 and M-4 keep their defaults.
 - *(2026-11-11)* **For Bruno, added to the one message:** the tolerance's printed form "220 V ±5 %" (with B-9); the sentences batches e24a, e24b and e24c authored, listed in PRs #310, #311 and #312; and that issuing again a relatório from before e24h prints it without its automatic points (finding H1 of the e24h pass).
 
+- *(2026-11-11, later)* **Closed:** the release for the hotfix (v0.8.1, published on Matheus's word). **Moved to Bruno** on Matheus's word ("2. ok"): whether a measurement table prints its criterion (the 24.18 narrowing); until he answers, it does not.
+- *(2026-11-11, later)* **New, open to Matheus:** D3 of the integrated review taken as a defect (an older visit issued late); the readings batch e24s built (listed under "Batches built"); the oil fields read-only on a non-oil unit on every seed; the sentence case of two labels; the note line's length (24.16); a reading back within its criterion asks nothing (24.17); E3, the inspection's thermography title in print.
+
 ## Fix batch e24h
 
 *(2026-11-10, evening, coordinator, on Matheus's decision 12.)* Bruno reported on 2026-11-10, through Matheus and in chat, that points of attention appear when an NC is entered although nobody tapped "Criar ponto de atenção". He asks for an urgent correction: a point exists only when the technician creates it. There is no file with his words.
@@ -232,7 +235,7 @@ It is a fix batch, not a story:
 - **Matrix** on `1528183f`: 168 tests, 150 passed, 2 failed, 16 skipped, 1295,5 s. Lock wait 482 s, load `{ 11.19 11.24 9.71 }` at the start, with two batch stacks beside the main one. The reds were 14.5-E2E-003 and R8DRY-E2E-002 on `durability-webkit`, each a 5 s wait. Their two spec files passed alone under the lock with `--repeat-each 2`, 12 of 12, at load `{ 3.15 4.10 5.48 }`.
 - **Hands-on pass** on `1528183f`: every check of the two rules passed. Report: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md`. Its finding H1 is the rule itself seen from the user's side: a relatório issued before the change prints without its automatic points when it is issued again.
 - **Load rule broken once.** The main stack stayed up for the pass while e24f and e24b ran, three stacks in all. The main stack's Postgres restarted three times, and the matrix's two reds came at that load. The main stack is stopped while batches run.
-- **Deploy.** `1528183f` went to production on 2026-11-10 (2026-11-11 02:27 UTC) through `infra/bin/deploy`, on Matheus's word ("quando terminar já pode fazer o deploy"). Health was up on every component. The smoke passed 8 of 8. The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`. The image tag before it was `9add87b5`. No release was published; it waits for Matheus's word.
+- **Deploy.** `1528183f` went to production on 2026-11-10 (2026-11-11 02:27 UTC) through `infra/bin/deploy`, on Matheus's word ("quando terminar já pode fazer o deploy"). Health was up on every component. The smoke passed 8 of 8. The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`. The image tag before it was `9add87b5`. ~~No release was published; it waits for Matheus's word.~~ *(2026-11-11: release v0.8.1 was published on `1528183f` on Matheus's word, "pode publicar a v0.8.1".)*
 
 What it means for the stories (each has its dated note in `epics.md`):
 
@@ -276,6 +279,8 @@ Rules for the batch:
 | e24b | #310 | `1c63235e` (2026-11-11) | 43, minimum 43 | 24.5, 24.6, 24.7, 24.8, 24.21, 24.9 | lint and static clean; test:unit 6243 of 6243; test:api 962 passed; touched specs 244 passed; touched durability specs on the three matrix browsers, 59 passed |
 | e24a | #311, head `1bd82b67` | `dee6d567` (2026-11-11) | 44, minimum 44 | 24.2, 24.3, 24.4 | lint and static clean; test:unit 6322 of 6322; test:api 973 passed, 6 skipped; 46 touched specs, 170 of 170 |
 | e24c | #312, head `e9be454d` | `ea6676d2` (2026-11-11) | 45, minimum 45 | 24.18, 24.19, 24.20 | lint and static clean; test:unit 6360 of 6361 (the red is e24b's `verificacoes-surface.test.tsx`, under load; it passed alone twice); test:api 977 passed, 6 skipped; 33 touched specs, 166 passed, 0 failed, 3 skipped |
+| e24p | #314, head `f306c042` | `e5fdde82` (2026-11-11) | 46, minimum 46 | 24.15, 24.16, 24.17 | lint and static clean; test:unit 6415 of 6415; test:api 983 passed, 6 skipped; 23 touched specs, 102 of 102 |
+| e24s | #315, head `5698d3e4` | `716e26b8` (2026-11-11) | 47, minimum 47 | 24.10, 24.11, 24.12, 24.13, 24.14 | lint and static clean; test:api 993 passed, 6 skipped; test:unit 6489 passed and 5 failed under load (the 4 files alone, 108 of 108); 54 spec files, 224 of 227 (the 3 reds alone, 3 of 3); 3 durability specs on the matrix, 21 of 21 |
 
 What each one left for the integrated review and for the people:
 
@@ -299,6 +304,20 @@ What each one left for the integrated review and for the people:
   - A library type hidden by a copy gets a second grey line in Tipos de equipamento. In the composer it loses its only "Editar padrões" entry while a template still places it: this goes to the fix batch (below).
   - A residual risk, with no ledger row: any later tightening of `companyTypeDefinitionSchema` can block the sync of a new device.
   - No golden moved and no seed data changed.
+- **e24p** *(added 2026-11-11)*. The print half: Stories 24.15 to 24.17.
+  - The service date is kept in each `last_results` entry on every seed, and the visits are ordered by it. On v14 the previous column's header carries the date, and one note line after a test's table names the drops and rises.
+  - Three v14 flags: `previous_visit_date`, `history_note`, `recommendation_as_action`.
+  - "Criar ponto de atenção" on a failed test, a restricted reading and a ficha the technician reproved. On v14 the test's recommendation fills the action of the point that tap starts.
+  - Crops of the printed pages: `e24p-pdf-crops/`.
+  - Left open to Matheus by the batch: the note line's length (the kernel's reasons are longer than the frame's sample), and a reading back within its criterion asks nothing (the point keeps "Origem resolvida").
+- **e24s** *(added 2026-11-11)*. Seed v14's sheets: Stories 24.10 to 24.14.
+  - No new `rules` flag: every delta is data of the v14 seed or an optional definition key (`oil_rule.dry_items`, the value kind `text`, `nameplate_title`, `nameplate_photo`), stripped by `withoutE24s` in `seed.test.ts`.
+  - The plate prompt is now `bedrock-structuring-9`. Reading a No-break plate from a photo is proven with the fake provider only. The paid eval is due before the deploy, on Matheus's word (what it checks: "Integrated review" below).
+  - On every seed with an oil rule an oil field of a non-oil unit is read-only on screen, with its reason. Print is unchanged.
+  - A new acronym rule lowers "Torque conforme o fabricante" and "Trincas na resina" to sentence case on screen.
+  - Crops: `e24s-pdf-crops/`. No golden moved: `layout-lock/op-log.ts` gained the option `withoutTypes`, and the Porto Seguro test its type-count map.
+  - Ledger rows it left: the Conflict view and the sheet stepper still say "Dados de placa" / "Placa" on the v14 Malha; the inspection's thermography prints as "E1 · TERMOGRAFIA"; the job test "a photo with no fixture fails permanently" reads a cable.
+  - The coordinator's readings it built as written, open to Matheus: the TC gets no item on its secondary (B-11); forced ventilation is item 5, renamed; the function test is one item with a hint; the No-break has six items, VA and W as two fields and the battery fields labelled "BATERIAS:"; the "Outro" text is required while it shows; "Dados da malha" on v14 only.
 
 ## Fix batch after the integrated review (planned)
 
@@ -306,6 +325,44 @@ What each one left for the integrated review and for the people:
 
 - An observation the technician typed is always treated as edited: when its item goes back to Conforme or N.A. it is kept and the warning shows, even when the text equals a phrase typed on another sheet (Story 24.6, batch e24b).
 - In the template composer, a library type hidden by a published copy keeps a way to "Editar padrões" while a template still places it (Story 24.19, batch e24c).
+
+## Integrated review (2026-11-11)
+
+*(2026-11-11, coordinator.)* The review ran as read-only passes on fixed commits while the last batches were still building, so its findings could go to one fix batch: three reviewers on `b07d3397` (e24f, e24b, e24a, e24c), one on `e5fdde82` (e24p's diff) and one on `52ddc91a` (e24s's diff). Each read with three lenses (adversarial, edge cases, verification gaps) and checked every finding against the code.
+
+What they found sound: no path of a v1 to v13 relatório reaches a v14 branch; the contract comments of 42 to 47 say what changed; no golden and no fixture op moved; every v14 delta is seed data, a `rules` flag read by `seedRule`, or an optional key.
+
+| Id | Level | Where | What fails | Goes to |
+| --- | --- | --- | --- | --- |
+| D1 | high | `apps/web/src/surfaces/ficha/point-place.tsx` | The point editor opened by Story 24.17's "Criar ponto de atenção" closes itself at the first autosave. The typed text is kept. The batch's tests tapped "Concluir" without typing. | e24x |
+| A1 | medium | `packages/domain/src/registry/nc-phrase-row.ts` (`learnedBefore`) | A hand-typed observation is cleared with no warning after a later chip tap or on a fast tablet clock. It is decision 17's item. | e24x |
+| B1 | medium | `apps/web/src/sync/client.ts` | The headers time limit aborts every push on an uplink under 8 KB/s. No op is lost or doubled. | e24x |
+| C1 | medium | `packages/domain/src/relatorio/over-range.ts` | A reading above the instrument's limit on a `between` or "nominal ± %" row gets no verdict. | e24x |
+| D2 | medium | `packages/domain/src/points/derived.ts` | A recommendation over the 1,000 cap is stored as the action on the device and refused by the server at sync. | e24x |
+| D3 | medium | `packages/domain/src/print/reading-slots.ts` | An older visit issued late prints the later visit as MANUT. ANTERIOR. The batch had left it to Matheus; the coordinator took it as a defect, for him to confirm. | e24x |
+| E1 | medium | `packages/domain/src/relatorio/conclusion.ts` | The v14 Inspeção de QGBT says ", sem valores medidos registrados" when its thermography is off, not applicable or unanswered. v13 does not. | e24x |
+| A2 | low | `apps/web/src/surfaces/ficha/checklist-section.tsx` | A chip's text still being saved is neither cleared nor warned when the item goes to Conforme. | e24x |
+| A3 | low | `relatorio/conclusion.ts` | "com leitura a conferir" with an empty ratio table. | e24x |
+| A4 | low | `relatorio/conclusion.ts` | The v14 line join leaves ":;". | e24x |
+| A5 | low | `checklist-section.tsx` | "Observação mantida" is lost on leaving the ficha. | e24x |
+| B2 | low | `apps/web/src/surfaces/relatorio/tree-actions.ts` | Two live equipment on one `reuse_key` after remove, add and restore. | e24x (it reports why it stopped) |
+| B3 | low | `packages/domain/src/ops/value-limits.ts` | `reuse_key` has no cap of its own. | e24x |
+| B4 | low | `packages/domain/src/relatorio/instantiate.ts` | A company copy never binds its base type's equipment, and Story 24.19 makes the copy the only placeable type. | e24x (it reports why it stopped) |
+| C2 | low | `relatorio/reading-run.ts` | On a two-sided criterion the worst reading is always the highest. | e24x |
+| C3 | low | `apps/web/src/surfaces/templates/block-palette.tsx` | A company type with nothing to summarize gets no "Tipo da empresa" mark; the field palette doubles a separator. | e24x |
+| C4 | low, test | `e2e/pass-screen-fixes.spec.ts` | The unit column's alignment is asserted at 1280 px only. | e24x |
+| D4 | low | `print/visit-date.ts`, `print/last-results.ts` | With entries from before Story 24.15 a newer visit can be filed as the prior of an older one. | ledger |
+| D5 | low | `points/derived.ts` | A test can get a second point. | e24x |
+| E2 | low, record | `source-deltas.md` | Two rows said contract 45 for what shipped on 47. | corrected in this change |
+| E3 | low | print | The inspection's thermography prints as "E1 · TERMOGRAFIA". | ledger; Matheus or Bruno |
+
+Test gaps sent to e24x: the effect that closes the point question and the pending-text branch (24.6, 24.7); the tap on "Criar ponto de atenção" of REAPERTO GERAL (24.12); the "every seeded type duplicates to a valid draft" loops on v14; a template holding an Inspeção de QGBT or a dry transformer moved from v13 to v14; the oil and dry durability specs on the matrix.
+
+Gaps not sent, kept here: no test presses "Ditar o motivo" (24.14); with the No-break in, the layout lock compares only the list of block types (24.13); two types named "No-break de comando" is covered by a selector change only.
+
+**The paid plate eval of `bedrock-structuring-9`** (not run; it needs Matheus's word). On the sample `plate-no-break-comando` in `apps/api/src/scripts/eval-samples.ts`: the 15 printed values come back; the battery maker, model and date stay empty, with no leak of the unit's own maker and model; the battery quantity is 10 from "10 x 12 V 7 Ah", with 12 V and 7 Ah in their fields; 3000 VA and 2700 W are not swapped; the input and output types read "Vca" and "Vcc". Every other sample scores as under prompt 8.
+
+**What follows.** Fix batch e24x (`spec-e24x-review-fixes.md`, in build on 2026-11-11) merges main and takes contract 48 if it needs a number. Then: the integrated gate on main, a read of e24x's patches, the hands-on pass in the browser with its report under `_bmad-output/test-artifacts/manual/`, the paid eval and the v14 golden, and the deploy on Matheus's word. An early hands-on pass on `716e26b8` runs beside the fix batch; its findings go to e24x or to a second fix batch.
 
 ## Batch plan
 

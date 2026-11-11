@@ -71,6 +71,7 @@ import { renderVariants } from '../storage/variants.ts';
  * Batch e23t (Story 23.17, prompt `bedrock-structuring-7`) adds two seed v13 transformer plates: the ANP class B
  * alone (TIPO (ANP) B, the kernel composing the insulation and a mineral liquid) and a silicone liquid.
  * Batch e23e (Story 23.18, prompt `bedrock-structuring-8`) adds a seed v13 TC printing FUNÇÃO DO TC and the class 0,3S.
+ * Batch e24s (Story 24.13, prompt `bedrock-structuring-9`) adds the seed v14 No-break de comando's plate with its battery bank.
  *
  * Options: `--models a,b` (default: the four candidates and Nova Pro), `--ocr textract|fake|ocr-svc`,
  * `--dir <folder>`, `--verbose` (one line per reading). The regions are BEDROCK_REGION and

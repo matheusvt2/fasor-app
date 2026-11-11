@@ -158,10 +158,10 @@ describe('4.1-API relatório creation as one batch', () => {
 
 describe('24.2-API-001 seed v14 through the sync route', () => {
   it(
-    'a relatório created from the standard template is born on v14, every sheet on v14; a version-43 client is refused its stream with 426, a current one reads it (contract 46 since batch e24p)',
+    'a relatório created from the standard template is born on v14, every sheet on v14; a version-46 client is refused its stream with 426, a current one reads it (contract 47 since batch e24s)',
     async () => {
       expect(SEED_VERSION).toBe('v14');
-      expect(MIN_CONTRACT_VERSION).toBe(46);
+      expect(MIN_CONTRACT_VERSION).toBe(47);
       const projectId = newId();
       const projectDraft: OpDraft = {
         kind: 'create',
@@ -207,7 +207,7 @@ describe('24.2-API-001 seed v14 through the sync route', () => {
       expect(new Set(sheets.map((block) => block.seed_version))).toEqual(new Set(['v14']));
 
       // The previous contract ships no seed v14: its pull is refused with the update notice's code.
-      const old = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '43' } });
+      const old = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '46' } });
       expect(old.status).toBe(426);
       expect(((await old.json()) as { code: string }).code).toBe('contract_outdated');
       const current = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) } });

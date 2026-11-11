@@ -121,6 +121,34 @@ export const SYNTHETIC: Sample[] = [
       values: { identificacao: 'TC-04', fabricacao: 'Velquor', relacao: '300-5 A', exatidao: '0,3S', funcao_tc: 'FATURAMENTO' },
     },
   },
+  // Batch e24s (Story 24.13, prompt `bedrock-structuring-9`): the v14 No-break de comando's plate with part of its battery
+  // bank; the batteries' maker, model and date are not printed and must stay empty. Not run here: the paid eval is the coordinator's.
+  {
+    name: 'plate-no-break-comando (synthetic, seed v14, Story 24.13)',
+    path: join(repoRoot, 'apps/api/src/jobs/reading/fixtures/images/plate-no-break-comando.png'),
+    expected: {
+      kind: 'plate',
+      block_type: 'no_break_comando',
+      seed_version: 'v14',
+      values: {
+        fabricante: 'Voltrix',
+        modelo: 'NBC-3000',
+        n_serie: 'NB-220415',
+        potencia_nominal: '3000',
+        potencia_ativa: '2700',
+        tensao_de_entrada: '220',
+        tipo_de_entrada: 'Vca',
+        tensao_de_saida: '125',
+        tipo_de_saida: 'Vcc',
+        frequencia: '60',
+        autonomia_nominal: '30',
+        baterias_tipo: 'VRLA',
+        baterias_quantidade: '10',
+        baterias_tensao_por_unidade: '12',
+        baterias_capacidade: '7',
+      },
+    },
+  },
   // Story 23.7 (seed v13): one plate per type with the fields v13 adds (fixtures README); the list and the √3 as printed.
   {
     name: 'plate-transformador-v13 (synthetic, seed v13, Story 23.7)',

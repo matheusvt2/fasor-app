@@ -175,7 +175,8 @@ test('@p0 14.8-E2E-001 a copy of the library CTA with one criterion and one item
   await addLocal(page, { funcao: 'Distribuição', name: LOCAL });
   await expect(localCard(page, LOCAL)).toHaveCount(1);
   await palette(page).getByRole('group', { name: 'Transformadores, 0' }).getByRole('button', { name: 'Mais um' }).click();
-  const companyStepper = palette(page).locator('.palette-item.is-stepper', { hasText: NAME_V1 });
+  // Batch e24s (Story 24.13): v14 ships a library type of the same name; the company's row is the one marked "Tipo da empresa".
+  const companyStepper = palette(page).locator('.palette-item.is-stepper', { hasText: NAME_V1 }).filter({ hasText: 'Tipo da empresa' });
   await expect(companyStepper.locator('.pi-meta')).not.toContainText('versão');
   await palette(page).getByRole('group', { name: `${NAME_V1}, 0` }).getByRole('button', { name: 'Mais um' }).click();
   // Placed, the palette row says the version the template records (AD-21 item 5).

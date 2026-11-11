@@ -46,6 +46,7 @@ describe('4.1-UNIT suggestTag, kept frozen as legacySuggestTag by Story 24.8', (
       'disjuntor_mt',
       'inspecao_qgbt',
       'malha_aterramento',
+      'no_break_comando',
       'para_raio',
       'quadro_eletrico',
       'tc',

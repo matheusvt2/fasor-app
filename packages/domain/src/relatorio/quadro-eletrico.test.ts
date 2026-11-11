@@ -128,9 +128,11 @@ describe('the type in the palettes, its TAG and its words', () => {
   });
 
   it('the template totals name it after the CTA (the Inspeção de QGBT of seed v12 after it, the Malha de aterramento of seed v13 last), the stepper label, the caption word and the conclusion noun (masculine)', () => {
-    expect(TOTALS_ORDER.at(-3)).toBe(QD);
-    expect(TOTALS_ORDER.at(-2)).toBe('inspecao_qgbt');
-    expect(TOTALS_ORDER.at(-1)).toBe('malha_aterramento');
+    // Batch e24s (Story 24.13): the No-break de comando of seed v14 after them.
+    expect(TOTALS_ORDER.at(-4)).toBe(QD);
+    expect(TOTALS_ORDER.at(-3)).toBe('inspecao_qgbt');
+    expect(TOTALS_ORDER.at(-2)).toBe('malha_aterramento');
+    expect(TOTALS_ORDER.at(-1)).toBe('no_break_comando');
     const zero = Object.fromEntries(TOTALS_ORDER.map((type) => [type, 0])) as Record<(typeof TOTALS_ORDER)[number], number>;
     expect(totalsText({ ...zero, [QD]: 1 }, EMPTY_DEFINITION_CONTEXT)).toBe('1 quadro elétrico');
     expect(totalsText({ ...zero, [CTA]: 1, [QD]: 3 }, EMPTY_DEFINITION_CONTEXT)).toBe('1 chave de transferência automática · 3 quadros elétricos');

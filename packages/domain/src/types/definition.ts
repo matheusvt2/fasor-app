@@ -284,12 +284,17 @@ export const companyOilRuleSchema = z
     full_values: z.array(z.string().min(1)).min(1).optional(),
     // Seed v13 (Story 23.7): a copy of a v13 transformer keeps the fields its oil unit excuses (`oilRuleSchema`).
     dry_fields: z.array(key).min(1).optional(),
+    // Seed v14, batch e24s (Story 24.11): a copy of a v14 transformer keeps the items its oil unit shows NA (`oilRuleSchema`).
+    dry_items: z.array(key).min(1).optional(),
   })
   .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
     message: 'full_values and oil_values are disjoint',
   })
   .refine((rule) => rule.dry_fields === undefined || rule.dry_fields.every((field) => !rule.fields.includes(field)), {
     message: 'dry_fields and fields are disjoint',
+  })
+  .refine((rule) => rule.dry_items === undefined || rule.dry_items.every((item) => !rule.items.includes(item)), {
+    message: 'dry_items and items are disjoint',
   });
 
 /** The keys of a version's definition, each part with its own shape (AD-21 item 2). */
@@ -317,6 +322,9 @@ const companyTypeDefinitionShape = {
    * type and on a copy made before the key (which keeps printing in "Outros equipamentos").
    */
   base_block_type: equipmentBlockTypeSchema.optional(),
+  // Seed v14, batch e24s (Story 24.14): a copy of the v14 Malha keeps its plate block's title and its "no plate to photograph".
+  nameplate_title: notBlank.optional(),
+  nameplate_photo: z.literal(false).optional(),
 };
 
 /** A version's definition: strict (AD-21 item 2), what `applyOp` checks on publish. */
@@ -351,6 +359,9 @@ export const companyTypeVersionDefinitionSchema = z.object({
   oil_rule: jsonObject.optional(),
   // Fix batch e23z (W3-3): structural only, as the other keys (the strict schema judged it on publish).
   base_block_type: z.string().optional(),
+  // Batch e24s (Story 24.14): structural only.
+  nameplate_title: z.string().optional(),
+  nameplate_photo: z.boolean().optional(),
 }) as unknown as z.ZodType<CompanyTypeDefinition>;
 
 type DeepPartial<T> = T extends readonly (infer U)[] ? DeepPartial<U>[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
@@ -380,4 +391,7 @@ export const companyTypeDraftSchema = z.object({
   oil_rule: z.record(z.string(), z.json()).optional(),
   // Fix batch e23z (W3-3): the copy's base type, kept as written (the strict schema checks it).
   base_block_type: z.string().optional(),
+  // Batch e24s (Story 24.14): the copy's plate block title and photo flag, kept as written (the strict schema checks them).
+  nameplate_title: z.string().optional(),
+  nameplate_photo: z.boolean().optional(),
 }) as unknown as z.ZodType<CompanyTypeDraft>;

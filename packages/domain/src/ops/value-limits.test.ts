@@ -211,7 +211,9 @@ describe('opValueIssue: types and ranges (Story 20.9)', () => {
   it('a seed-defined cell (a nameplate, a test cell, a test value) takes any shape whose strings are short', () => {
     expect(issue(put(`sheet/${BLOCK}/nameplate/potencia`, { raw: '1500', unit: 'kVA', state: 'measured' }))).toBeNull();
     expect(issue(put(`sheet/${BLOCK}/test/isolacao/cell/0/1`, { raw: chars(201), unit: null, state: 'measured' }))).not.toBeNull();
-    expect(issue(put(`sheet/${BLOCK}/test/cta_tempos/value/metodo`, chars(201)))).not.toBeNull();
+    // Batch e24s (Story 24.14): a test value's family takes medium (a `text` value); the fold keeps every other value short (`applyOp`).
+    expect(issue(put(`sheet/${BLOCK}/test/cta_tempos/value/metodo`, chars(1000)))).toBeNull();
+    expect(issue(put(`sheet/${BLOCK}/test/cta_tempos/value/metodo`, chars(1001)))).not.toBeNull();
   });
 
   it('a create checks its row\'s typed strings: the obra name, a point\'s text, a registry row', () => {

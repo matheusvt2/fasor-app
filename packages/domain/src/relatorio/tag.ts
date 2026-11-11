@@ -34,6 +34,7 @@ export const LEGACY_TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
   quadro_eletrico: 'QD',
   inspecao_qgbt: 'QGBT',
   malha_aterramento: 'MA',
+  no_break_comando: 'NB',
 };
 
 export const TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
@@ -54,6 +55,8 @@ export const TAG_PREFIX: Readonly<Record<EquipmentBlockType, string>> = {
   inspecao_qgbt: 'QGBT',
   // Story 23.21 (seed v13, batch e23e): the Malha de aterramento.
   malha_aterramento: 'MA',
+  // Story 24.13 (seed v14, batch e24s): the No-break de comando.
+  no_break_comando: 'NB',
 };
 
 /**

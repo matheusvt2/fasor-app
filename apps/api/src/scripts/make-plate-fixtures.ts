@@ -57,6 +57,9 @@ import sharp from 'sharp';
  * Batch e23e adds a seed v13 TC printing FUNÇÃO DO TC and the class "0,3S" (`tc_funcao_v13`, Story
  * 23.18, no default) and the Malha de aterramento's design data (`malha_aterramento`, Story 23.21,
  * the type's default: VALOR DE PROJETO, MÉTODO DE MEDIÇÃO and CONDIÇÃO DO SOLO).
+ *
+ * Batch e24s (Story 24.13) adds the seed v14 No-break de comando's plate (`no_break_comando`, the type's
+ * default): the unit's fields and part of its battery bank's.
  */
 
 /** `FIXTURES_DIR` of `providers/fake.ts`, without loading the reading kinds. */
@@ -82,7 +85,7 @@ interface PlateRow {
 }
 
 interface PlateSpec {
-  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca' | 'cabos_entrada' | 'malha_aterramento';
+  blockType: 'para_raio' | 'chave_seccionadora' | 'disjuntor_mt' | 'tp' | 'tc' | 'chave_transferencia_automatica' | 'quadro_eletrico' | 'transformador_forca' | 'cabos_entrada' | 'malha_aterramento' | 'no_break_comando';
   /** The seed version whose definition the plate is laid out on (default: the one a new relatório is created with). */
   seedVersion?: string;
   /** The argument that selects the plate when it is not its block type (Story 21.2: two transformer plates). */
@@ -443,6 +446,29 @@ const PLATES: PlateSpec[] = [
       { key: 'valor_projeto_ohm', tokens: ['2', 'Ω'], value: num('2', 'Ω') },
       { key: 'metodo_medicao', tokens: ['QUEDA', 'DE', 'POTENCIAL', '(62', '%)'], value: 'QUEDA DE POTENCIAL (62 %)' },
       { key: 'condicao_solo', tokens: ['ÚMIDO'], value: 'ÚMIDO' },
+    ],
+  },
+  // Batch e24s (Story 24.13, seed v14): a command no-break's plate with its battery bank, the type's default plate.
+  {
+    blockType: 'no_break_comando',
+    seedVersion: 'v14',
+    file: 'plate-no-break-comando.png',
+    rows: [
+      { key: 'fabricante', tokens: ['Voltrix'], value: 'Voltrix' },
+      { key: 'modelo', tokens: ['NBC-3000'], value: 'NBC-3000' },
+      { key: 'n_serie', tokens: ['NB-220415'], value: 'NB-220415' },
+      { key: 'potencia_nominal', tokens: ['3000', 'VA'], value: num('3000', 'VA') },
+      { key: 'potencia_ativa', tokens: ['2700', 'W'], value: num('2700', 'W') },
+      { key: 'tensao_de_entrada', tokens: ['220', 'V'], value: num('220', 'V') },
+      { key: 'tipo_de_entrada', tokens: ['Vca'], value: 'Vca' },
+      { key: 'tensao_de_saida', tokens: ['125', 'V'], value: num('125', 'V') },
+      { key: 'tipo_de_saida', tokens: ['Vcc'], value: 'Vcc' },
+      { key: 'frequencia', tokens: ['60', 'Hz'], value: num('60', 'Hz') },
+      { key: 'autonomia_nominal', tokens: ['30', 'min'], value: num('30', 'min') },
+      { key: 'baterias_tipo', tokens: ['VRLA'], value: 'VRLA' },
+      { key: 'baterias_quantidade', tokens: ['10'], value: { raw: '10', unit: null, state: 'measured' } },
+      { key: 'baterias_tensao_por_unidade', tokens: ['12', 'V'], value: num('12', 'V') },
+      { key: 'baterias_capacidade', tokens: ['7', 'Ah'], value: num('7', 'Ah') },
     ],
   },
 ];
