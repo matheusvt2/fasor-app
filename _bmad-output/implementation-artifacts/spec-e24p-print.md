@@ -2,10 +2,10 @@
 title: 'e24p, print: the previous visit''s date in the table header, drops and rises as a note line, the recommendation under "Ação recomendada" with the create action on a reading (Stories 24.15 to 24.17)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'ea6676d2794b2859d5780b4d06bd155aef12e53e'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -141,3 +141,20 @@ No bad_spec loopback.
   - `[medium]` `[patch]` a reading out of its criterion that the insulation-drop or winding-variation rule also flags carries no history marker, so the v14 note leaves it out although the rule flagged it — patched (`87d6a58d`): an optional history field on the evaluated cell, read only by the note's collectors; 24.16-UNIT cases for both rules on v14 and none on v13.
   - `[medium]` `[patch]` (claim, grouped with the row above) the note's header comment says it names what the three rules flag while out cells were missed — fixed by the same patch.
   - `[medium]` `[patch]` no test asserts the focus after "Concluir" on the new place (to the point's name) — patched: `toBeFocused` on `.nc-point-ref` after the create in 24.17-E2E-001 and after the Conclusão-step create in 24.17-E2E-002.
+
+## Auto Run Result
+
+Status: done. Branch `e24p-print`, on main `ea6676d2` (unchanged at the PR).
+
+**Summary.**
+- Story 24.15 (`a2bce7f3`): `last_results` entries keep `service_date` (every seed); `lastResults` orders visits by `compareVisits` (row 3087); the helper names the visit's date (every seed); on v14 (`previous_visit_date`) MANUT. ANTERIOR carries the date on a second line and the three history texts name it. Contract 46, minimum 46.
+- Story 24.16 (`a2bce7f3`, `87d6a58d`): on v14 (`history_note`) one note line under a table names each cell a previous-visit rule flagged, an out one included (`historyOut`), the measurement test given the slot.
+- Story 24.17 (`d58825b0`, `cfd7f27a`): `sheetPointFindings` and `ficha/point-place.tsx`: "Criar ponto de atenção" under a failed or restricted test (the NA band for a failed prerequisite) and on the Conclusão step, every seed, one per test; on v14 (`recommendation_as_action`) the finding in the text and the recommendations in the action with the frame's helper, action-plan rows kept whole, glued references spaced (row 3191).
+
+**Files (main ones).** Kernel: `print/visit-date.ts` (new), `print/history-note.ts` (new), `print/last-results.ts`, `print/reading-slots.ts`, `print/section-9.ts`, `print/section-8.ts`, `points/derived.ts`, `seed/test-help.ts`, `relatorio/restriction.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/reading-cells.ts`, `schemas/entities.ts`, `seed/schema.ts`, `seed/v14.ts` (`withE24pRules`), `seed/seed.test.ts` (`withoutE24p`, `V14_HASH`), `contract/version.ts`. Api: `jobs/generate/sections/section-8.ts` (`cantSplit`), `e24p-v14-print.integration.test.ts`. Web: `ficha/point-place.tsx` (new), `ensaios-section.tsx`, `measurement-test-section.tsx`, `conclusao-section.tsx`, `ficha-surface.tsx`, `ficha.css`, `points/point-editor.tsx`. e2e: `previous-visit-date.spec.ts`, `previous-visit-note.spec.ts`, `recommendation-action.spec.ts` (new); `previous-visit*.spec.ts` and `test-recommendation.spec.ts` pinned to v13; `equipment-history.spec.ts`, `tag-suggestion.spec.ts` (the helper's date).
+
+**Review.** One pass, two layers, 5 findings: 2 medium patched (`87d6a58d` the out reading in the note, with boundary tests on v14 and v13; `cfd7f27a` the focus assertions), 1 claim grouped with the first, 2 low rejected and written to the ledger (an over-cap joined action; a re-issue with edited dates). Patched counts: high 0, medium 2, low 0. Follow-up review recommended: true, because the `historyOut` field the review patch added to the evaluated cells was not re-reviewed (no other reader is expected to read it; the integrated review reads the patched list).
+
+**Verification.** Story gate on `a2d631c8` (code of `cfd7f27a`): lint 0 errors (26 old warnings), static clean, test:api 983 passed / 6 skipped (layout-lock v5, v11, v12, v13 byte-equal), test:unit 6415 of 6415, 23 touched specs on desktop-chrome and durability-desktop-chrome 102 of 102 (parallel 40, queue 57, solo 5). Load `{ 9.82 10.43 7.68 }` at the start, `{ 5.58 6.54 7.28 }` at the end; lock wait about 6 min (batch e24s's test:unit ahead); e24s's stack up beside. No matrix run: no op fold, commit path or live query on the ficha changed (the ficha reads a kernel function over the snapshot it already holds). No golden or fixture file changed. PDF crops in `e24p-pdf-crops/`.
+
+**Residual risks.** The `deferred-work.md` section "Epic 24 batch e24p": an open relatório reads a later visit before its issue; a re-issue with edited dates; an over-cap joined action; the note's wording (D2) and its wrap between a value and its unit; "GUARD" broken in the seccionadora's side-by-side tables (pre-existing on v13); D5 and the coordinator's readings for Matheus. Contract 46 is also claimed by batch e24s's branch: the second to merge takes 47.
