@@ -154,6 +154,7 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
       const cell = row.cells.find((candidate) => candidate.address.col === col && candidate.role === 'capture');
       if (cell === undefined) continue;
       cell.restriction = null;
+      delete cell.historyOut;
       if ((cell.verdict !== 'within' && cell.verdict !== 'out') || cell.state !== 'measured') continue;
       const own = readings.find((reading) => reading.cell === cell);
       const findings: Finding[] = [];
@@ -177,16 +178,18 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         }
       }
       if (findings.length === 0) continue;
+      // Batch e24p (Story 24.16): the previous-visit rule's part of the point's reason, which the history note names.
+      const history = findings.filter((finding) => finding.history === true).map((finding) => (finding.compared === undefined ? finding.reason : `${finding.reason} (${finding.compared})`)).join('; ');
       if (cell.verdict === 'out') {
         stands = true;
+        // Batch e24p (Story 24.16, review fix): an out cell the drop rule flags keeps its verdict; the note names it.
+        if (history !== '') cell.historyOut = history;
         continue;
       }
       cell.verdict = 'restricted';
       // Fix batch e23p (P3): the point's reason, each history finding's comparison right after its own reason.
       const reason = findings.map((finding) => finding.reason).join('; ');
       const pointReason = findings.map((finding) => (finding.compared === undefined ? finding.reason : `${finding.reason} (${finding.compared})`)).join('; ');
-      // Batch e24p (Story 24.16): the previous-visit rule's part of the point's reason, which the history note names.
-      const history = findings.filter((finding) => finding.history === true).map((finding) => (finding.compared === undefined ? finding.reason : `${finding.reason} (${finding.compared})`)).join('; ');
       cell.restriction = {
         reason,
         text: `${findings.map((finding) => finding.detail).join('; ')}. ${CLOSING}`,

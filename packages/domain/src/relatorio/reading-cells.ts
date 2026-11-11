@@ -120,6 +120,13 @@ export interface EvaluatedCell {
    */
   restriction?: { reason: string; text: string; pointReason?: string; history?: string } | null;
   /**
+   * Batch e24p (Story 24.16, review fix): on a cell already out by its criterion that the
+   * previous-visit rule (the insulation drop) also flags, the rule's reason with both corrected
+   * values, as `restriction.history` holds it on a restricted cell. The verdict and `restriction`
+   * stay as they were; only the history note reads it.
+   */
+  historyOut?: string;
+  /**
    * Seed v13, batch e23t (Story 23.16): on an `index` cell only. `kind` names the index (`ip`, the
    * polarization index the test's `polarization_index` judges; `dar`, the absorption index, captured
    * and never judged; `plain`, an index no rule names); `notApplicable` an IP whose row's capture is

@@ -476,3 +476,55 @@ describe('24.16-UNIT drops and rises against the previous visit as one note line
     expect(plain.parts[alone + 1]?.kind).not.toBe('paragraph');
   });
 });
+
+/*
+ * Review fix (Story 24.16): "relevant" is what the three rules flag, so a reading already out by its
+ * criterion that the insulation-drop or the winding-variation rule also flags is named in the note too.
+ * Its verdict and `restriction` stay as they were (`historyOut` holds the rule's reason).
+ */
+describe('24.16-UNIT a reading out by its criterion that a previous-visit rule also flags is in the note line', () => {
+  /** The transformer's insulation row 0 at 1 MΩ: out by its criterion, and far below the previous visit's. */
+  const insulationOut = (snapshot: RelatorioSnapshot) => {
+    const definition = getDefinition('v14', 'cabine_primaria', 'transformador_forca');
+    const capture = definition.tests.find((test) => test.key === 'isolacao')!.tables[0]!.value_columns.findIndex((column) => column.role === 'capture');
+    return withBlock(snapshot, 'transformador_forca', (block) => {
+      block.sheet.test.isolacao!.cells['0'] = { ...block.sheet.test.isolacao!.cells['0'], [String(capture)]: cell({ raw: '1', unit: 'MΩ', state: 'measured' }) };
+      return block;
+    });
+  };
+
+  it('a dropped insulation reading that is out: the note names it with both corrected values on v14; nothing on v13', () => {
+    const out = insulationOut(v14);
+    const { block } = blockOf(out, 'transformador_forca');
+    const test = evaluateSheetReadings(block, getDefinition('v14', 'cabine_primaria', 'transformador_forca'), visitContextOf(out, block)).find((one) => one.testKey === 'isolacao')!;
+    const first = test.tables[0]!.rows[0]!.cells.find((one) => one.role === 'capture')!;
+    expect(first.verdict).toBe('out');
+    expect(first.restriction ?? null).toBeNull();
+    expect(first.historyOut).toMatch(/^queda de mais de 50 % desde a manutenção anterior \(de 30\.000 GΩ para .+, a 20 °C\)$/u);
+    const items = testHistoryItems(test);
+    expect(items[0]).toEqual({ where: 'Primário/Massa', reason: first.historyOut });
+    expect(notesOf(sheetOf(out, 'transformador_forca'))).toEqual([historyNoteText(items)]);
+    for (const sheet of sheetsOf(insulationOut(v13))) expect(notesOf(sheet), sheet.title).toEqual([]);
+  });
+
+  it('a varied winding phase that is out: the note names it with both corrected values on v14; nothing on v13', () => {
+    /** The previous visit 10 % lower, and phase C of the first row 30 % above the stored reading: out between phases. */
+    const windingOut = (snapshot: RelatorioSnapshot) =>
+      withBlock(withPrevious(snapshot, 'transformador_forca', windingMoved), 'transformador_forca', (block) => {
+        const row = block.sheet.test.resistencia_enrolamento!.cells['0']!;
+        const stored = row['2']!.value as { raw: string; unit: string; state: string };
+        row['2'] = cell({ ...stored, raw: String(Math.round(Number(stored.raw) * 1.3 * 10_000) / 10_000) });
+        return block;
+      });
+    const out = windingOut(v14);
+    const { block } = blockOf(out, 'transformador_forca');
+    const winding = evaluateSheetMeasurements(block, getDefinition('v14', 'cabine_primaria', 'transformador_forca'), visitContextOf(out, block)).find((test) => test.testKey === 'resistencia_enrolamento')!;
+    const outCell = winding.rows.flatMap((row) => row.cells).find((one) => one.fixed === null && one.verdict === 'out')!;
+    expect(outCell).toBeDefined();
+    expect(outCell.historyOut).toMatch(/^variação de mais de 2 % desde a manutenção anterior \(de .+ para .+, a 75 °C\)$/u);
+    const items = measurementHistoryItems(winding);
+    expect(items.map((item) => item.reason)).toContain(outCell.historyOut);
+    expect(notesOf(sheetOf(out, 'transformador_forca'))).toContain(historyNoteText(items));
+    for (const sheet of sheetsOf(windingOut(v13))) expect(notesOf(sheet), sheet.title).toEqual([]);
+  });
+});

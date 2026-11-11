@@ -45,6 +45,8 @@ export function testHistoryItems(evaluation: Pick<TestEvaluation, 'tables'>): Hi
         // A risen pole is out, named as the conclusion names its worst reading; a dropped cell is restricted, named as its restricted items.
         if (cell.rise !== undefined) out.push({ where: whereOf(table, row, cell), reason: cell.rise.reason });
         else if (cell.restriction?.history !== undefined) out.push({ where: readingRowLabel(table.rows, row), reason: cell.restriction.history });
+        // Review fix: a cell out by its criterion that the drop rule also flags, named as a restricted one is.
+        else if (cell.historyOut !== undefined) out.push({ where: readingRowLabel(table.rows, row), reason: cell.historyOut });
       }
     }
   }
@@ -56,7 +58,8 @@ export function measurementHistoryItems(test: Pick<MeasurementTestEvaluation, 'c
   const out: HistoryNoteItem[] = [];
   for (const row of test.rows) {
     for (const cell of row.cells) {
-      const reason = cell.fixed === null ? (cell.restriction?.history ?? null) : null;
+      // Review fix: a cell out by its criterion that the variation rule also flags (`historyOut`) counts too.
+      const reason = cell.fixed === null ? (cell.restriction?.history ?? cell.historyOut ?? null) : null;
       if (reason !== null) out.push({ where: measurementWhere(test, row, cell), reason });
     }
   }

@@ -220,6 +220,13 @@ export interface EvaluatedMeasurementCell {
    * rule's reason with both corrected values, which the history note under the printed table names.
    */
   restriction?: { reason: string; text: string; pointReason?: string; history?: string } | null;
+  /**
+   * Batch e24p (Story 24.16, review fix): on a cell already out by its criterion that the history
+   * rule (the winding variation) also flags, the rule's reason with both corrected values, as
+   * `restriction.history` holds it on a restricted cell. The verdict and `restriction` stay as they
+   * were; only the history note reads it.
+   */
+  historyOut?: string;
 }
 
 export interface EvaluatedMeasurementRow {
@@ -969,6 +976,9 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
       if (!(moved > pct)) continue;
       if (cell.verdict === 'out') {
         stands = true;
+        // Batch e24p (Story 24.16, review fix): an out cell the variation rule flags keeps its verdict; the note names it.
+        // authored (Story 23.15 and e23p, listed for Bruno): the rule's reason with both corrected values, as on a restricted cell.
+        cell.historyOut = `variação de mais de ${pctText(pct)} % desde a manutenção anterior (de ${correctedText(before.raw, before.unit)} para ${correctedText(now.raw, now.unit)}, a ${WINDING_REFERENCE_C} °C)`;
         continue;
       }
       // authored (Story 23.15, listed for Bruno): the history rule's reason and helper.
