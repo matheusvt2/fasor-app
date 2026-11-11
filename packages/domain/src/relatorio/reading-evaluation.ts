@@ -13,6 +13,7 @@ import { enabledSubBlocksOf } from './sheet-state.ts';
 import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
 import { previousReadingsByAddress } from '../print/reading-slots.ts';
 import { previousVisitDateText } from '../print/visit-date.ts';
+import { seedRule } from '../seed/definitions.ts';
 import { applyHistoryRise, applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
 import { correctedRaw, correctedText, mediumOf, temperatureFactor, temperatureView, testTemperature } from './temperature-correction.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
@@ -1024,6 +1025,9 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
   const criterion = rowCriteria === null ? effectiveCriterion(block, test) : first;
   // Batch e23v (Stories 23.5 and 23.6, seed v13): the test's temperature, and the previous visit its history rule reads.
   const temperature = testTemperature(block, definition, test, visit);
+  // Fix batch e24y (P5, seed v14 `history_needs_like_with_like`): readings corrected from the cabine's ambient (the plate's
+  // temperature not typed) are not like the previous visit's, so the drop rule compares none of them.
+  const unlike = temperature !== null && !('missing' in temperature) && temperature.source === 'ambient' && seedRule(block.seed_version, 'history_needs_like_with_like');
   const judging: TableJudging =
     test.temperature_correction === undefined && test.restriction === undefined
       ? PLAIN_JUDGING
@@ -1034,7 +1038,12 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
             (test.restriction?.history_drop_pct === undefined && test.restriction?.history_rise_out_pct === undefined) || visit.previous === null
               ? NO_PREVIOUS
               : // Batch e24p (Story 24.15): the history texts name the visit's date on a seed that turns `previous_visit_date` on.
-                { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block), dateText: previousVisitDateText(visit.previous, block.seed_version) },
+                {
+                  entry: visit.previous,
+                  byAddress: previousReadingsByAddress(visit.previous, definition, block),
+                  dateText: previousVisitDateText(visit.previous, block.seed_version),
+                  ...(unlike ? { uncomparable: true as const } : {}),
+                },
           stands: { value: false },
         };
   // Seed v13, batch e23t (Story 23.16): the IP is required on a unit of the medium its rule names.

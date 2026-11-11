@@ -35,6 +35,7 @@ import { formatDateOfInstant } from '../format/datetime.ts';
 import { canonicalDecimal } from '../parse/pt-br-number.ts';
 import { previousReadingsByAddress, readingAddressKey, type LastResultReading, type PreviousResults } from '../print/reading-slots.ts';
 import { previousVisitDateText } from '../print/visit-date.ts';
+import { seedRule } from '../seed/definitions.ts';
 import {
   correctedRaw,
   correctedText,
@@ -225,7 +226,8 @@ export interface EvaluatedMeasurementCell {
    * Batch e24p (Story 24.16, review fix): on a cell already out by its criterion that the history
    * rule (the winding variation) also flags, the rule's reason with both corrected values, as
    * `restriction.history` holds it on a restricted cell. The verdict and `restriction` stay as they
-   * were; only the history note reads it.
+   * were; only the history note reads it. Fix batch e24y (P4): also on a cell the deviation between
+   * phases already restricted, whose own restriction carries no history.
    */
   historyOut?: string;
 }
@@ -973,6 +975,14 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
   const pct = test.history_deviation_pct;
   const entry: PreviousResults | null = context.visit.previous;
   if (pct === undefined || entry === null) return false;
+  // Fix batch e24y (P5, seed v14 `history_needs_like_with_like`): a winding corrected from the cabine's ambient, standing in for
+  // a plate temperature not typed (TEMPERATURA DO ÓLEO, or DO ENROLAMENTO on a dry unit, which "Copiar da última visita" never
+  // copies), is not like the previous visit's value, corrected from its plate: nothing is compared.
+  if (test.winding_correction !== undefined && context.seedVersion !== undefined && seedRule(context.seedVersion, 'history_needs_like_with_like')) {
+    const plate = { nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) };
+    const temperature = windingTemperature(block, plate, test.winding_correction, context.visit);
+    if (!('missing' in temperature) && temperature.source === 'ambient') return false;
+  }
   // Fix batch e23z (W3-1): the rule also reads a cell out by its criterion (its verdict unchanged); true when it flags one.
   let stands = false;
   const slots = { tests: context.definition.tests ?? [], measurement_tests: context.definition.measurement_tests ?? [], nameplate: context.definition.nameplate };
@@ -982,18 +992,21 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
   for (const row of rows) {
     for (const cell of row.cells) {
       const now = cell.corrected ?? null;
-      // Like every restriction rule, it runs only on a cell already judged within or out (never an unjudged one: medium
-      // unknown, a lone phase); an open circuit holds no corrected value, so it never counts.
-      if (now === null || (cell.verdict !== 'within' && cell.verdict !== 'out')) continue;
+      // Like every restriction rule, it runs only on a cell already judged (never an unjudged one: medium unknown, a lone
+      // phase); an open circuit holds no corrected value, so it never counts. Fix batch e24y (P4): a cell another rule
+      // already restricted (the deviation between phases) is read too, for the note only.
+      if (now === null || (cell.verdict !== 'within' && cell.verdict !== 'out' && cell.verdict !== 'restricted')) continue;
       const before = byAddress.get(readingAddressKey(cell.address))?.corrected ?? null;
       if (before === null) continue;
       const was = scaleToUnit(Number(before.raw), before.unit, now.unit);
       if (was === null || !(was > 0)) continue;
       const moved = roundPct((Math.abs(Number(now.raw) - was) / was) * 100);
       if (!(moved > pct)) continue;
-      if (cell.verdict === 'out') {
-        stands = true;
+      if (cell.verdict === 'out' || cell.verdict === 'restricted') {
+        if (cell.verdict === 'out') stands = true;
         // Batch e24p (Story 24.16, review fix): an out cell the variation rule flags keeps its verdict; the note names it.
+        // Fix batch e24y (P4): so does a cell the deviation between phases already restricted: its restriction, its reason
+        // and its verdict stay as they are (no v1 to v13 text moves), and the note line reads the variation here.
         // authored (Story 23.15 and e23p, listed for Bruno): the rule's reason with both corrected values, as on a restricted cell.
         cell.historyOut = `variação de mais de ${pctText(pct)} % desde a manutenção anterior (de ${correctedText(before.raw, before.unit)} para ${correctedText(now.raw, now.unit)}, a ${WINDING_REFERENCE_C} °C)`;
         continue;
