@@ -26,6 +26,7 @@ import {
   type RecurringFinding,
   type ReportType,
   type SeedBundle,
+  type SeedRuleFlag,
   type SiteChecklist,
   type TextBlock,
 } from './schema.ts';
@@ -43,6 +44,7 @@ import { CABINE_PRIMARIA_V10 } from './v10.ts';
 import { CABINE_PRIMARIA_V11 } from './v11.ts';
 import { CABINE_PRIMARIA_V12 } from './v12.ts';
 import { CABINE_PRIMARIA_V13 } from './v13.ts';
+import { CABINE_PRIMARIA_V14 } from './v14.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -61,7 +63,7 @@ import { CABINE_PRIMARIA_V13 } from './v13.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v13';
+export const SEED_VERSION = 'v14';
 
 /**
  * The named variables section boilerplate may carry, resolved at generation. Seed v8 (UX pass
@@ -126,6 +128,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v11: bundle('v11', CABINE_PRIMARIA_V11),
   v12: bundle('v12', CABINE_PRIMARIA_V12),
   v13: bundle('v13', CABINE_PRIMARIA_V13),
+  v14: bundle('v14', CABINE_PRIMARIA_V14),
 });
 
 /**
@@ -198,6 +201,23 @@ export function findSeed(seedVersion: string): ReportSeed | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Batch e24a (Story 24.2, seed v14): whether the seed version turns on one rule flag of its
+ * seed-level `rules` (`seedRulesSchema`). The one reader of a flag: a rule that changes a verdict
+ * or a printed page is reached through it, never through a version-number comparison (AD-21). A
+ * block passes its own `seed_version` (a company block carries its relatório's); the parecer and
+ * the sections of the relatório pass the relatório's. False for a version that carries no `rules`
+ * (v1 to v13), a flag it does not name, or a version this bundle does not ship.
+ */
+export function seedRule(seedVersion: string, flag: SeedRuleFlag): boolean {
+  return seedRulesOf(findSeed(seedVersion), flag);
+}
+
+/** `seedRule` over a seed already resolved (or null for none): the flag is on only when the seed names it `true`. */
+export function seedRulesOf(seed: Pick<ReportSeed, 'rules'> | null, flag: SeedRuleFlag): boolean {
+  return seed?.rules?.[flag] === true;
 }
 
 /**

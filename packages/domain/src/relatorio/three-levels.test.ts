@@ -523,7 +523,7 @@ describe('23.6-UNIT the conclusion, the points and the worst reading read the le
 
 /** The synthetic v13 relatório of the layout-lock fixture, cloned so a test edits its rows freely. */
 function v13Snapshot(): RelatorioSnapshot {
-  return structuredClone(layoutLockSnapshot('v13'));
+  return structuredClone(layoutLockSnapshot('v13', { epic24: false }));
 }
 
 const blockOf = (snapshot: RelatorioSnapshot, type: string) => snapshot.blocks.find((block) => block.block_type === type && block.removed_at === null)!;

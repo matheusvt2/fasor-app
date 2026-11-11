@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { layoutSpec } from '@app/domain';
-import { LAYOUT_LOCK_ISSUED_AT, LAYOUT_LOCK_VERSIONS, layoutLockSnapshot } from '@app/domain/fixtures/layout-lock';
+import { LAYOUT_LOCK_ISSUED_AT, LAYOUT_LOCK_VERSIONS, layoutLockFixture, layoutLockSnapshot } from '@app/domain/fixtures/layout-lock';
 import { describe, expect, it } from 'vitest';
 import { buildDocx } from './docx.ts';
 import { readZipEntries } from './docx-structure.test-support.ts';
@@ -14,6 +14,11 @@ import { placeholderPages } from './toc.ts';
  * every later Epic 23 PR keeps these, and the Porto Seguro goldens, unchanged; a drift here is a
  * defect against the protection, never a golden update. They were taken on main a3b0ec0e (fix
  * batch e23f merged) with `GOLDEN_UPDATE=1`. The PDF text half is `layout-lock.integration.test.ts`.
+ *
+ * Story 24.2, the Epic 24 layout lock (24.2-UNIT-LOCK): v13 joins, its synthetic relatório carrying
+ * what Epic 24 changes on v14 (`epic24Extras` of the fixture); its golden is taken on main after
+ * fix batches e24h and e24f, before any rule of Stories 24.3 and 24.4. Every later Epic 24 PR keeps
+ * the v5, v11, v12 and v13 goldens and the Porto Seguro goldens byte-equal.
  */
 
 const GOLDEN_DIR = resolve(__dirname, 'golden');
@@ -28,7 +33,7 @@ async function partsOf(version: string): Promise<Map<string, string>> {
   return parts;
 }
 
-describe('23.2-UNIT-LOCK the DOCX of the locked seed versions is byte-equal to its golden', () => {
+describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_VERSIONS)(
     '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
     async (version) => {
@@ -66,4 +71,30 @@ describe('23.2-UNIT-LOCK the DOCX of the locked seed versions is byte-equal to i
     const [a, b] = await Promise.all([partsOf('v12'), partsOf('v12')]);
     expect(a.get('word/document.xml') === b.get('word/document.xml')).toBe(true);
   }, 120_000);
+});
+
+/**
+ * Story 24.2 (24.2-UNIT-SAME): at its opening seed v14 changes no rule, so a v14 relatório with the
+ * same answers as the v13 one concludes and prints the same: their layouts differ in nothing but
+ * the ids the fixture derives from the version, its op ids and the version's own name.
+ */
+describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays out as the v13 one', () => {
+  /** The layout as JSON, the version's ids, op ids and name masked (`019a6100-00VV-…`, `019a6100-01VV-…`, `vVV`). */
+  const normalized = (version: string) => {
+    const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
+    const layout = layoutSpec(layoutLockSnapshot(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
+    return JSON.stringify(layout)
+      .replaceAll(`019a6100-00${hex}-`, '019a6100-00VV-')
+      .replaceAll(`019a6100-01${hex}-`, '019a6100-01VV-')
+      .replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
+  };
+
+  it('v13 and v14 give one layout once ids and the version are masked; dates are fixed and equal', () => {
+    const v13 = layoutLockFixture('v13');
+    const v14 = layoutLockFixture('v14');
+    expect(v14.log).toHaveLength(v13.log.length);
+    expect(v14.log.map((op) => op.client_ts)).toEqual(v13.log.map((op) => op.client_ts));
+    expect(layoutLockSnapshot('v14').relatorio.seed_version).toBe('v14');
+    expect(normalized('v14')).toBe(normalized('v13'));
+  });
 });
