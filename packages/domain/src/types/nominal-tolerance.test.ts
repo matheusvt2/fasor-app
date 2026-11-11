@@ -293,7 +293,9 @@ describe('e24x-UNIT C1 a reading above the instrument\'s limit on a range criter
     const out = insulationSheet(definition, [{ raw: '200', state: 'over_range' }]);
     expect(evaluatedCells(evaluateSheetReadings(out, definition)).find((cell) => cell.state === 'over_range')!.verdict).toBe('out');
     expect(conclusionFloor(out, definition)?.pair.result).toBe('reprovado');
-    expect(composeConclusion(out, definition, 'NB-01').text).toContain('> 200 MΩ');
+    // The out clause names the limit as the instrument's ("acima de 200 MΩ (limite do instrumento)").
+    expect(composeConclusion(out, definition, 'NB-01').text).toContain('acima de 200 MΩ (limite do instrumento)');
+    expect(composeConclusion(out, definition, 'NB-01').text).not.toContain('dentro dos critérios');
     // At the upper end exactly: the true value is above it, so out.
     const atEnd = insulationSheet(definition, [{ raw: '120', state: 'over_range' }]);
     expect(evaluatedCells(evaluateSheetReadings(atEnd, definition)).find((cell) => cell.state === 'over_range')!.verdict).toBe('out');

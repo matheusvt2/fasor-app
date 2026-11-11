@@ -205,7 +205,7 @@ test('@p1 e24x-E2E-002 the standard template places transformers: its composer k
   const steppers = hidden.locator('.quantity-stepper .step');
   await expect(steppers).toHaveCount(2);
   for (const button of await steppers.all()) {
-    await expect(button).toBeDisabled();
+    await expect(button).toHaveAttribute('aria-disabled', 'true');
     await expect(button).toHaveAttribute('aria-describedby', metaId!);
   }
   await hidden.getByRole('button', { name: `Editar padrões de ${blockTypeLabel(SEED_VERSION, TR)}`, exact: true }).click();

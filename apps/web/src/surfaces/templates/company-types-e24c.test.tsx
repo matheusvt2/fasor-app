@@ -245,7 +245,7 @@ describe('24.19 a published copy hides its original', () => {
     expect(meta).toHaveTextContent(hiddenTypeText([trCopy.label])!);
     // Nothing new to place: the stepper is disabled, its reason the hidden line.
     for (const button of within(hidden).getAllByRole('button').filter((one) => one.getAttribute('aria-label') !== 'Editar padrões de Transformador de força')) {
-      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute('aria-disabled', 'true');
       expect(button).toHaveAttribute('aria-describedby', meta.id);
     }
     // The way back to the transformer's defaults.
