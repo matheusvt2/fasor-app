@@ -133,6 +133,18 @@ Same rules as the items above (verify first, red first, no golden may move; if o
 - D4 -- ledger row only.
 - Acceptance: the red runs of D1 (unit over a live snapshot, and the e2e step), D2, D3, D5 on the baseline code; green after; the e2e specs of Stories 24.15 and 24.17 join the touched specs.
 
+## Additions of 2026-11-11 (coordinator, second): E1 and G1 to G4, from the review of batch e24s (after merging main `7b68f225`)
+
+Same rules (verify first, red first, no golden may move). Contract: main is 47; take 48 (MIN 48) only if a fix changes the fold or a synced row's shape. E2 (a contract number in `source-deltas.md`) and E3 (the inspection's thermography prints "E1 · TERMOGRAFIA") are not this batch's.
+
+| Id | Input / State | Expected |
+|---|---|---|
+| E1 (medium) | v14 Inspeção de QGBT (it now carries one measurement test, the thermography), twelve items Conforme, the thermography off, not applicable or unanswered (the default path) (`relatorio/conclusion.ts:785-788`: "nothing to measure" is `definition.tests.length === 0 && (definition.measurement_tests ?? []).length === 0`) | the sentence has no ", sem valores medidos registrados", as v13 (e22g N5): a type has nothing to measure on a sheet when no measurement test is enabled and applicable there; the v13 sentence does not move; the v14 sentence is pinned in a test (`e24s-seed-v14-sheets.test.ts:515-527` only says three cases read alike) |
+| G1 | Story 24.12 AC 4, `e2e/seed-v14-qgbt-inspecao.spec.ts:91` (only checks "Criar ponto de atenção" is visible) | the e2e taps it on REAPERTO GERAL (the point stored) and checks Pontos is empty without the tap |
+| G2 | the "every seeded type duplicates to a valid draft" loops pinned to v12 (`types/company-types.test.ts:274`, `types/e22h-copies.test.ts:158`) | they also run on v14 (the No-break and the v14 Inspeção copies validated) |
+| G3 | template move v13 to v14 (`seed/template.test.ts` pinned to v12 to v13) | a test moves a template holding an Inspeção de QGBT and one holding a dry transformer to v14 |
+| G4 | Story 24.11 DoD | `e2e/oil-dry.durability.spec.ts` and `e2e/dry-transformer.durability.spec.ts` run on the matrix projects in this batch's gate (the orchestrator's run), result reported |
+
 ## Spec Change Log
 
 ## Review Triage Log
