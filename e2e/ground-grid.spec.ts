@@ -58,7 +58,8 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
   await page.getByRole('button', { name: `Adicionar equipamento no local ${LOCAL}`, exact: true }).click();
   const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(fieldPalette.locator('.palette-where')).toHaveText(`Em: ${LOCAL}`);
-  const types = paletteTypes(SEED_VERSION);
+  // Pinned to v13's palette, the relatório's: the Malha last (v14 adds the No-break de comando after it, batch e24s).
+  const types = paletteTypes(RELATORIO_SEED);
   expect(types.library.at(-1)).toBe(TYPE);
   const row = typeRows(fieldPalette, [TYPE]);
   await expect(row.locator('.pi-text > span').first()).toHaveText(DEFINITION.label);

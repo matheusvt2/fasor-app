@@ -502,14 +502,24 @@ export const oilRuleSchema = z
      * mirror of `fields`. Optional and never defaulted, so v6 to v12 parse as they shipped.
      */
     dry_fields: z.array(seedKey).min(1).optional(),
+    /**
+     * Seed v14, batch e24s (Story 24.11): the checklist items an oil unit shows NA (the
+     * transformer's VENTILAÇÃO FORÇADA, LIMPEZA DAS BOBINAS and TRINCAS NA RESINA, a dry unit's),
+     * the mirror of `items`: derived, never written, a stored answer wins, and a crossing to an oil
+     * unit clears them. Optional and never defaulted, so v6 to v13 parse as they shipped.
+     */
+    dry_items: z.array(itemKeySchema).min(1).optional(),
   })
   .refine((rule) => rule.full_values === undefined || rule.full_values.every((value) => !rule.oil_values.includes(value)), {
     message: 'full_values and oil_values are disjoint',
   })
   .refine((rule) => rule.dry_fields === undefined || rule.dry_fields.every((key) => !rule.fields.includes(key)), {
     message: 'dry_fields and fields are disjoint',
+  })
+  .refine((rule) => rule.dry_items === undefined || rule.dry_items.every((key) => !rule.items.includes(key)), {
+    message: 'dry_items and items are disjoint',
   });
-export type OilRule = Omit<z.infer<typeof oilRuleSchema>, 'items'> & { items: string[] };
+export type OilRule = Omit<z.infer<typeof oilRuleSchema>, 'items' | 'dry_items'> & { items: string[]; dry_items?: string[] };
 
 /**
  * Seed v6: what the oil rule and the band criterion name exists on the definition. Story 14.6:
@@ -540,6 +550,8 @@ export function checkSeedV6Definition(
     else if (!(rule.full_values ?? []).every((value) => select.options!.includes(value))) issue(['oil_rule', 'full_values'], 'a full value is not an option of its field');
     const items = new Set((definition.checklist ?? []).map((item) => item.key));
     if (!rule.items.every((key) => items.has(key))) issue(['oil_rule', 'items'], 'an oil item is not on the checklist');
+    // Seed v14, batch e24s (Story 24.11): the mirror's items are on the checklist too.
+    if (!(rule.dry_items ?? []).every((key) => items.has(key))) issue(['oil_rule', 'dry_items'], 'a dry item is not on the checklist');
     if (!rule.fields.every((key) => field(key) !== undefined)) issue(['oil_rule', 'fields'], 'an oil field is not on the nameplate');
   }
   // Seed v12 (Stories 22.8 and 22.9): a row's winding is a number field, a class field a select.
@@ -837,6 +849,13 @@ export const blockDefinitionSchema = z
     print_title: z.string().min(1).optional(),
     /** The oil rule (`relatorio/oil-rule.ts`): a non-oil unit shows its oil items NA and its oil fields excused. */
     oil_rule: oilRuleSchema.optional(),
+    /*
+     * Seed v14, batch e24s (Story 24.14). Optional and never defaulted, so v1 to v13 parse to their bytes.
+     */
+    /** The title of the plate block on the sheet and in the composer instead of "Dados de placa" (the Malha's "Dados da malha"). */
+    nameplate_title: z.string().min(1).optional(),
+    /** The plate block has no plate to photograph: no "Fotografar placa" and no retake row. Absent: a photo is offered. */
+    nameplate_photo: z.literal(false).optional(),
   })
   .superRefine(checkMeasurementDefinition)
   .superRefine(checkSeedV6Definition);

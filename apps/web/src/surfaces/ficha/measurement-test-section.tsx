@@ -1,9 +1,12 @@
 import {
+  appendObservation,
   blockConfigWithSubBlock,
   choiceValue,
   enabledSubBlocksOf,
   measurementWhere,
   putBlockOp,
+  sheetTestValuePath,
+  textCapOf,
   thermalPhotoText,
   type BlockDefinition,
   type BlockRow,
@@ -22,7 +25,8 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { wrapsOnPhone } from './configuracao-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
-import { ReadOnlyField, SheetField } from './ficha-fields.tsx';
+import { ReadOnlyField, SheetField, useTypedText } from './ficha-fields.tsx';
+import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
 import { conclusionOp, testCellOp, testChoiceCellOp, testValueOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
@@ -289,6 +293,8 @@ function SingleChoiceTest({ api, test, readOnly }: { api: FichaApi; test: Measur
   const row = test.rows[0]!;
   const cell = row.cells[0]!;
   const reasons = test.values.filter((value) => value.shown && value.kind === 'choice');
+  // Batch e24s (Story 24.14): a text the kernel shows under a reason (seed v14's "Descreva o motivo" under "Outro").
+  const texts = test.values.filter((value) => value.shown && value.kind === 'text');
   const choose = (value: EvaluatedMeasurementValue, optionKey: string) => {
     void api.edit((_blocks, by) => [testValueOp(by, api.relatorioId, api.blockId, test.testKey, value.key, choiceValue(optionKey))]).catch(() => undefined);
   };
@@ -322,6 +328,56 @@ function SingleChoiceTest({ api, test, readOnly }: { api: FichaApi; test: Measur
           <p className="helper">{t.samplingReasonHelper}</p>
         </div>
       ))}
+      {texts.map((value) => (
+        <TextTestValue key={value.key} api={api} testKey={test.testKey} value={value} readOnly={readOnly} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Batch e24s (Story 24.14): a test value of kind `text`, typed or dictated as an observation is, written as a
+ * plain string (`sheet/{b}/test/{t}/value/{key}`, null when emptied), capped by the kernel. Missing while the
+ * kernel says so (shown and empty).
+ */
+function TextTestValue({ api, testKey, value, readOnly }: { api: FichaApi; testKey: string; value: EvaluatedMeasurementValue; readOnly: boolean }) {
+  const t = copy.ficha.measurement;
+  const fieldId = useId();
+  const cap = textCapOf(sheetTestValuePath(api.blockId, testKey, value.key));
+  const typed = useTypedText(
+    value.state === 'measured' ? value.raw : '',
+    (text) => (api.author === null ? undefined : api.commit([testValueOp(api.author, api.relatorioId, api.blockId, testKey, value.key, text.trim() === '' ? null : text)])),
+    { entityId: api.blockId, field: `valor-${testKey}-${value.key}`.replace(/_/g, '-') },
+    { cap },
+  );
+  const dictation = useProseDictation();
+  if (readOnly) return <ReadOnlyField field={{ kind: 'text', label: value.label }} value={value.state === 'measured' ? value.raw : null} />;
+  const applyDictated = () => {
+    const text = dictation.pending;
+    dictation.discard();
+    if (text !== null) typed.set(appendObservation(typed.text, text));
+  };
+  return (
+    <div className="field v13-reason" data-value-key={value.key} data-missing-field={value.missing ? '' : undefined}>
+      <div className="section-head">
+        <label className="field-label" htmlFor={fieldId}>
+          {value.label}
+        </label>
+        <DictationButton label={t.dictateReason} onStart={dictation.discard} onResult={dictation.offer} />
+      </div>
+      <textarea
+        id={fieldId}
+        className="observation-field"
+        value={typed.text}
+        maxLength={cap ?? undefined}
+        aria-invalid={value.missing || undefined}
+        onChange={(event) => {
+          dictation.discard();
+          typed.change(event.target.value);
+        }}
+        onBlur={() => typed.blur()}
+      />
+      {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
     </div>
   );
 }
@@ -334,6 +390,12 @@ function AppliedBody({ applied, children }: { applied: boolean; children: ReactN
 // --- the test's values ------------------------------------------------------------------------
 
 function TestValue({ api, testKey, value, readOnly }: { api: FichaApi; testKey: string; value: EvaluatedMeasurementValue; readOnly: boolean }) {
+  // Batch e24s (Story 24.14): a text value outside the oil sampling's frame is the same text field.
+  if (value.kind === 'text') return <TextTestValue api={api} testKey={testKey} value={value} readOnly={readOnly} />;
+  return <ChoiceOrNumberValue api={api} testKey={testKey} value={value} readOnly={readOnly} />;
+}
+
+function ChoiceOrNumberValue({ api, testKey, value, readOnly }: { api: FichaApi; testKey: string; value: EvaluatedMeasurementValue; readOnly: boolean }) {
   const t = copy.ficha;
   const labelId = useId();
   const stored = value.state === 'measured' ? { raw: value.raw, unit: value.unit, state: 'measured' as const } : null;

@@ -159,7 +159,10 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   await pick(page, 'tipo_de_isolacao', 'Á SECO');
   await expect(toast(page)).toContainText('2 itens de óleo apagados');
   await expect(checked(page, 'termometro')).toHaveAttribute('data-value', 'na');
-  await expect(volume).toHaveValue('');
+  // Batch e24s (Story 24.11): VOL. ÓLEO of the dry unit is drawn read-only and empty with the kernel's reason.
+  await expect(volume).toHaveCount(0);
+  await expect(page.locator('#ficha-nameplate').getByRole('textbox', { name: 'Vol. óleo', exact: true })).toHaveAttribute('aria-readonly', 'true');
+  await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper')).toHaveText('Não se aplica: TIPO DE ISOLAÇÃO é Á SECO.');
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   await expect(row(page, 'termometro').locator('.photo-list .photo-row')).toHaveCount(0);
   // The photo stays on the sheet: in its strip, untied from the item, never removed.

@@ -8,6 +8,7 @@ import type {
   MeasurementColumn,
   MeasurementCriterion,
   MeasurementKind,
+  MeasurementValueKind,
   MeasurementOption,
   MeasurementRow,
   MeasurementTest,
@@ -250,7 +251,8 @@ export interface MeasurementReference {
 export interface EvaluatedMeasurementValue {
   key: string;
   label: string;
-  kind: MeasurementKind;
+  /** Seed v14, batch e24s (Story 24.14): a value may be `text` (the oil sampling's "Descreva o motivo"), its `raw` the text as typed. */
+  kind: MeasurementValueKind;
   unit: string | null;
   options: readonly MeasurementOption[];
   optional: boolean;
@@ -286,6 +288,11 @@ export interface MeasurementLinePart {
   text: string;
   /** What `text` is: a choice's wording (printed in caps, as a label is) or a number with its unit (printed as written). */
   kind: MeasurementKind;
+  /**
+   * Seed v14, batch e24s (Story 24.14): the text of a `text` value shown under this choice, as typed, said after it
+   * ("Motivo: Outro, <texto>"; printed "MOTIVO: OUTRO, <texto>", the text never in caps). Absent otherwise.
+   */
+  typed?: string;
 }
 
 export interface MeasurementTestEvaluation {
@@ -383,12 +390,22 @@ function readChoice(cell: Cell | undefined, options: readonly MeasurementOption[
   return { state: 'measured', raw: v.raw, unit: null };
 }
 
-function read(cell: Cell | undefined, kind: MeasurementKind, options: readonly MeasurementOption[]): Stored | null {
+/** Seed v14, batch e24s (Story 24.14): a text value as stored, a string; blank reads as unanswered. */
+function readText(cell: Cell | undefined): Stored | null {
+  const value = cell?.value;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  // As typed (the field echoes it); the line and the print trim it.
+  return { state: 'measured', raw: value, unit: null };
+}
+
+function read(cell: Cell | undefined, kind: MeasurementValueKind, options: readonly MeasurementOption[]): Stored | null {
+  if (kind === 'text') return readText(cell);
   return kind === 'choice' ? readChoice(cell, options) : readStored(cell);
 }
 
-function displayOf(stored: Stored | null, kind: MeasurementKind, options: readonly MeasurementOption[]): string {
+function displayOf(stored: Stored | null, kind: MeasurementValueKind, options: readonly MeasurementOption[]): string {
   if (stored === null) return EMPTY;
+  if (kind === 'text') return stored.raw.trim();
   if (stored.state === 'not_measured') return NOT_MEASURED;
   if (stored.state === 'over_range') return overRangeDisplay(stored.raw);
   if (stored.state === 'invalid') return stored.raw;
@@ -1064,7 +1081,7 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
   return (test.values ?? []).map((value): EvaluatedMeasurementValue => {
     const held = heldBy(value);
     const state: ReadingState = held?.state ?? 'empty';
-    const unit = value.kind === 'choice' ? null : (held?.unit ?? value.unit ?? null);
+    const unit = value.kind === 'number' ? (held?.unit ?? value.unit ?? null) : null;
     const shown = value.when === undefined || shownUnder(value.when, test, heldBy, block);
     const text = displayOf(held, value.kind, value.options ?? []);
     return {
@@ -1084,12 +1101,17 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
   });
 }
 
-/** Whether the value `when` names holds its option: another test value's, or (seed v13, batch e23t) a choice cell's of the table. */
+/**
+ * Whether the value `when` names holds its option: another test value's, or (seed v13, batch e23t) a choice cell's of the table.
+ * Batch e24s (Story 24.14): the chain is followed, so a value under a value that is itself hidden is hidden (the oil
+ * sampling's text under Motivo "Outro", Motivo under Amostra "Não coletado"), whatever the hidden one still stores.
+ */
 function shownUnder(
   when: NonNullable<MeasurementValue['when']>,
   test: MeasurementTest,
   heldBy: (value: MeasurementValue) => Stored | null,
   block: Pick<BlockRow, 'sheet'>,
+  depth = 0,
 ): boolean {
   if ('cell' in when) {
     const r = test.rows.findIndex((row) => row.key === when.cell.row);
@@ -1103,7 +1125,10 @@ function shownUnder(
   }
   const depends = (test.values ?? []).find((candidate) => candidate.key === when.value);
   const held = depends === undefined ? null : heldBy(depends);
-  return held !== null && held.state === 'measured' && held.raw === when.equals;
+  if (held === null || held.state !== 'measured' || held.raw !== when.equals) return false;
+  // A chain longer than the values is a cycle: hidden.
+  if (depends!.when === undefined) return true;
+  return depth < (test.values ?? []).length && shownUnder(depends!.when, test, heldBy, block, depth + 1);
 }
 
 /** A choice's wording inside the values line: the option's `phrase`, else its label. */
@@ -1130,15 +1155,22 @@ function valuesLineOf(test: MeasurementTest, values: readonly EvaluatedMeasureme
       parts.push({ label: value.label, text: value.displayText, kind: 'number' });
       continue;
     }
-    const details = live
-      .filter((candidate) => {
-        const under = defs.get(candidate.key)?.when;
-        return candidate.kind === 'number' && under !== undefined && !('cell' in under) && under.value === value.key;
-      })
-      .map((candidate) => candidate.displayText);
-    parts.push({ label: value.label, text: details.length === 0 ? phraseOf(value) : `${phraseOf(value)} (${details.join(', ')})`, kind: 'choice' });
+    // Batch e24s (Story 24.14): a text value under a choice of the line is said after it, never as a part of its own.
+    if (value.kind === 'text' && parent !== undefined && live.some((candidate) => candidate.key === parent && candidate.kind === 'choice')) continue;
+    const under = (candidate: EvaluatedMeasurementValue) => {
+      const when = defs.get(candidate.key)?.when;
+      return when !== undefined && !('cell' in when) && when.value === value.key;
+    };
+    const details = live.filter((candidate) => candidate.kind === 'number' && under(candidate)).map((candidate) => candidate.displayText);
+    const typed = live.filter((candidate) => candidate.kind === 'text' && under(candidate)).map((candidate) => candidate.raw.trim());
+    parts.push({
+      label: value.label,
+      text: details.length === 0 ? phraseOf(value) : `${phraseOf(value)} (${details.join(', ')})`,
+      kind: 'choice',
+      ...(typed.length === 0 ? {} : { typed: typed.join(', ') }),
+    });
   }
-  return parts.length === 0 ? null : { parts, text: parts.map((part) => `${part.label}: ${part.text}`).join(' · ') };
+  return parts.length === 0 ? null : { parts, text: parts.map((part) => `${part.label}: ${part.text}${part.typed === undefined ? '' : `, ${part.typed}`}`).join(' · ') };
 }
 
 function groupsOf(values: readonly EvaluatedMeasurementValue[], skipped: boolean): MeasurementValueGroup[] {
@@ -1624,7 +1656,7 @@ export function measurementStoredText(
 ): string | null {
   const test = testOf(definition, testKey)?.test;
   if (test === undefined) return null;
-  let kind: MeasurementKind;
+  let kind: MeasurementValueKind;
   let options: readonly MeasurementOption[];
   let unit: string | null;
   if ('valueKey' in at) {

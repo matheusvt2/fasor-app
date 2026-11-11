@@ -40,6 +40,8 @@ export const CAPTION_EQUIPMENT_WORDS: Readonly<Record<EquipmentBlockType, SeedWo
   inspecao_qgbt: { name: 'quadro geral de baixa tensão', gender: 'm', number: 'singular' },
   // authored (Story 23.21, listed for Bruno).
   malha_aterramento: { name: 'malha de aterramento', gender: 'f', number: 'singular' },
+  // authored (e24s, listed for Bruno).
+  no_break_comando: { name: 'no-break de comando', gender: 'm', number: 'singular' },
 };
 
 /** The seed atividade a test table on screen names ("ensaios de resistência de isolação"). */

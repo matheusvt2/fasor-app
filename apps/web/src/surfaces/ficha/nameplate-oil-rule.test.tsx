@@ -203,17 +203,19 @@ describe('14.11 the oil rule on the nameplate', () => {
     expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] .field-na-row')).not.toBeNull();
   });
 
-  it('QA G1 (fx17r review): a dry unit whose VOL. ÓLEO already stores N/A still reads "N/A", with no unit, no error, no control and no missing marker', async () => {
+  // ~~QA G1 (fx17r review): a dry unit whose VOL. ÓLEO already stores N/A still reads "N/A", with no unit, no error, no control
+  // and no missing marker.~~ Batch e24s (Story 24.11, 2026-11-11): an oil field of a dry unit is drawn read-only and empty with the
+  // kernel's reason, whatever it stores (the N/A is kept, unseen), as a dry field of an oil unit is; still no control and no missing marker.
+  it('QA G1 (fx17r review), batch e24s: a dry unit whose VOL. ÓLEO stores N/A draws it read-only and empty with the reason, with no control and no missing marker', async () => {
     draw(block({ nameplate: { tipo_de_isolacao: cell('Á SECO'), vol_oleo: cell({ raw: '', unit: null, state: 'not_applicable' }) } }));
     await settle();
-    const vol = document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"]')!;
-    const input = vol.querySelector('input')!;
-    expect(input.value).toBe('N/A');
-    expect(input.getAttribute('aria-invalid')).not.toBe('true');
-    expect(vol.querySelector('.mf-unit')).toBeNull();
-    expect(vol.querySelector('.field-na-row')).toBeNull();
+    expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"]')).toBeNull();
+    const vol = screen.getByRole('textbox', { name: 'Vol. óleo' });
+    expect(vol.getAttribute('aria-readonly')).toBe('true');
+    expect(vol.textContent).toContain('—');
+    expect(vol.closest('.field')!.querySelector('.helper')!.textContent).toBe('Não se aplica: TIPO DE ISOLAÇÃO é Á SECO.');
     expect(screen.queryByRole('button', { name: 'Marcar Vol. óleo como não aplicável' })).toBeNull();
-    expect(document.querySelector('#ficha-nameplate [data-field-key="vol_oleo"] [data-missing-field]')).toBeNull();
+    expect(document.querySelector('#ficha-nameplate [data-missing-field]')?.textContent ?? '').not.toContain('Vol. óleo');
   });
 
   it('ÓLEO to Á SECO picked by hand: one batch with the item, VOL. ÓLEO and the photo tie, and "Desfazer" on "2 itens de óleo apagados" (the item with its photo, and VOL. ÓLEO)', async () => {

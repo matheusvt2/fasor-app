@@ -256,7 +256,7 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
   it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 7 (Story 23.17)', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-8');
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-9');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -272,7 +272,7 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-8');
+    expect(result.prompt_version).toBe('bedrock-structuring-9');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
@@ -512,7 +512,7 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
     expect(result.output.values).toHaveLength(others.length + 1);
     expect(Object.keys(result.output)).toEqual(['values']);
-    expect(result.prompt_version).toBe('bedrock-structuring-8');
+    expect(result.prompt_version).toBe('bedrock-structuring-9');
   });
 
   it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {
@@ -640,6 +640,27 @@ describe('23.18 (batch e23e, seed v13): the structuring prompt says what FUNÇÃ
     ] as const) {
       const other = plateFieldNotes(fieldsOf(version, type));
       expect(other.some((note) => /funcao_tc|keeps the S/.test(note)), `${version} ${type}`).toBe(false);
+    }
+  });
+});
+
+describe('24.13 (batch e24s, seed v14): the structuring prompt says the battery fields are the battery bank\'s', () => {
+  const fieldsOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate;
+
+  it('a v14 No-break de comando names its seven battery fields and the bank\'s quantity; every other type and version asks neither', () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-9');
+    const notes = plateFieldNotes(fieldsOf('v14', 'no_break_comando'));
+    const bank = notes.find((note) => note.includes('describe the battery bank'))!;
+    for (const field of fieldsOf('v14', 'no_break_comando').filter((one) => one.key.startsWith('baterias_'))) expect(bank).toContain(field.key);
+    expect(notes).toContain('The field baterias_quantidade is the number of batteries in the bank (for example "10 x 12 V 7 Ah" gives 10), a plain number with no unit.');
+    const text = structuringPrompt({ ...plateInput, fields: fieldsOf('v14', 'no_break_comando') });
+    expect(text.indexOf('describe the battery bank')).toBeLessThan(text.indexOf('OCR words:'));
+    for (const [version, type] of [
+      ['v14', 'transformador_forca'],
+      ['v14', 'disjuntor_mt'],
+      ['v13', 'malha_aterramento'],
+    ] as const) {
+      expect(plateFieldNotes(fieldsOf(version, type)).some((note) => note.includes('battery')), `${version} ${type}`).toBe(false);
     }
   });
 });

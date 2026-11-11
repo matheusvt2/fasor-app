@@ -216,6 +216,7 @@ describe('3.4-UNIT quantities per node', () => {
       quadro_eletrico: 0,
       inspecao_qgbt: 0,
       malha_aterramento: 0,
+      no_break_comando: 0,
     });
     valid({ ...template, blocks });
   });

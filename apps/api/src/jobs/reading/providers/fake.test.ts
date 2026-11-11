@@ -215,6 +215,10 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
     inspecao_qgbt: 'plate-quadro-eletrico.png',
     // Batch e23e (Story 23.21): the library type of seed v13, its design data.
     malha_aterramento: 'plate-malha-aterramento.png',
+    // Batch e24s (Story 24.13): the cables replay the v13 cable plate; the library type of seed v14, its plate.
+    cabos_entrada: 'plate-cabos-v13.png',
+    cabos_saida: 'plate-cabos-v13.png',
+    no_break_comando: 'plate-no-break-comando.png',
   };
   /**
    * e22s: the synthetic plates were laid out on seed v11 (v12 adds TIPO DO ÓLEO and the TP's EXATIDÃO,
@@ -223,17 +227,15 @@ describe('13.7-API every block type with a nameplate has its plate default', () 
    */
   const PLATE_SEED = 'v11';
 
-  it('the plate defaults are exactly the nine nameplate types and the Malha de aterramento, and no cable type', () => {
-    // Story 23.7 (seed v13): the cables gain a nameplate on v13, and no default (the defaults stay as
-    // they were): the nine are the types with a nameplate on v12, the defaults' version. Batch e23e
-    // (Story 23.21): the Malha de aterramento, new on v13, gains its own.
+  it('the plate defaults are exactly the nameplate types of the current seed: the nine of v12, the Malha de aterramento, the cables and the No-break de comando', () => {
+    // Story 23.7 (seed v13): the cables gain a nameplate on v13 ~~, and no default (the defaults stay as
+    // they were)~~; batch e24s (Story 24.13; the ledger row of the cable's missing default): they replay the
+    // v13 cable plate. Batch e23e (Story 23.21): the Malha de aterramento, new on v13, gains its own; batch
+    // e24s the No-break de comando, new on v14.
     expect(nameplateTypesV12).toHaveLength(9);
-    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypesV12, 'malha_aterramento'].sort());
-    expect(nameplateTypes.filter((type) => !nameplateTypesV12.includes(type))).toEqual(['cabos_entrada', 'cabos_saida', 'malha_aterramento']);
-    for (const cable of ['cabos_entrada', 'cabos_saida']) {
-      expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
-      expect(defaultFixtureFor(plate(cable))).toBeUndefined();
-    }
+    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypes].sort());
+    expect(nameplateTypes.filter((type) => !nameplateTypesV12.includes(type))).toEqual(['cabos_entrada', 'cabos_saida', 'malha_aterramento', 'no_break_comando']);
+    for (const cable of ['cabos_entrada', 'cabos_saida']) expect(defaultFixtureFor(plate(cable))).toBe(sha256(join(IMAGES, 'plate-cabos-v13.png')));
     for (const [type, file] of Object.entries(IMAGE_OF)) {
       expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[type], type).toBe(sha256(join(IMAGES, file)));
       expect(defaultFixtureFor(plate(type))).toBe(DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]);
@@ -296,7 +298,8 @@ describe('9.1-API the default fixture is chosen by kind, block type and table, m
     expect(defaultFixtureFor(display(null, 'env'))).toBe(SHA.termo);
     expect(defaultFixtureFor(display('tp', 'nothing'))).toBe(SHA.megohmetro);
     expect(defaultFixtureFor(plate('transformador_forca'))).toBe(SHA.plate);
-    expect(defaultFixtureFor(plate('cabos_entrada'))).toBeUndefined();
+    // Batch e24s (Story 24.13): the cables replay the v13 cable plate.
+    expect(defaultFixtureFor(plate('cabos_entrada'))).toBe(sha256(join(IMAGES, 'plate-cabos-v13.png')));
     // A display default never serves a plate, nor a plate default a display.
     for (const sha of Object.values(SHA)) expect(readdirSync(DEFAULT_FIXTURES_DIR)).toContain(`${sha}.json`);
   });

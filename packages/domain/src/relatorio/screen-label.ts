@@ -43,6 +43,10 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'MCOV',
   // Seed v13 (batch e23t, Story 23.17): the agency of TIPO (ANP), a nameplate field.
   'ANP',
+  // Seed v14 (batch e24s, Story 24.12): the surge protective device, in the Inspeção de QGBT's function test hint.
+  'DPS',
+  // Seed v14 (batch e24s, Story 24.13): the No-break de comando's item DISPLAY, ALARMES E LEDS.
+  'LEDs',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));
@@ -59,8 +63,19 @@ export function screenAcronym(word: string): string | null {
 /** One word: letters and digits, with an apostrophe suffix kept on it ("TP's"). */
 const WORD = /[\p{L}\p{N}]+(?:['’]\p{L}+)?/gu;
 
-/** The one-letter word lowered in a caps label: the conjunction "E". Other single letters name a phase or a unit ("FASE A", "V PRIMÁRIO"). */
-const ONE_LETTER_WORDS: ReadonlySet<string> = new Set(['E']);
+/**
+ * The one-letter words lowered in a caps label: the conjunction "E" and (batch e24s, seed v14's
+ * "TORQUE CONFORME O FABRICANTE") the article "O". Other single letters name a phase or a unit
+ * ("FASE A", "V PRIMÁRIO").
+ */
+const ONE_LETTER_WORDS: ReadonlySet<string> = new Set(['E', 'O']);
+
+/**
+ * Batch e24s (Story 24.11, seed v14's TRINCAS NA RESINA): an acronym of the list that is also a
+ * pt-BR preposition, kept only when it is the whole label (the checklist column "NA") and lowered
+ * inside a phrase ("Trincas na resina"). No label of v1 to v13 holds it inside a phrase.
+ */
+const PREPOSITION_ACRONYMS: ReadonlySet<string> = new Set(['NA']);
 
 /**
  * Whether a label is already written in sentence case: it holds a word of two or more
@@ -90,10 +105,12 @@ function isSentenceCase(label: string): boolean {
 export function screenLabel(label: string): string {
   if (isSentenceCase(label)) return label;
   let first = true;
+  const phrase = [...label.matchAll(WORD)].length > 1;
   return label.replace(WORD, (word) => {
     const isFirst = first;
     first = false;
     if (/\p{Ll}/u.test(word)) return word;
+    if (phrase && !isFirst && PREPOSITION_ACRONYMS.has(word)) return word.toLocaleLowerCase('pt-BR');
     const acronym = screenAcronym(word);
     if (acronym !== null) return acronym;
     if (/\p{N}/u.test(word)) return word;

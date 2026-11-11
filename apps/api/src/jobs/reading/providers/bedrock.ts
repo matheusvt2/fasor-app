@@ -78,7 +78,8 @@ export {
 // 6 (Story 23.7, seed v13): TAPS as the plate's whole list in plate order, TAP ATUAL one of them, the winding material, a voltage over √3 and the TC's ratio as printed.
 // 7 (Story 23.17, seed v13): TIPO (ANP) as the oil's class letter and NATUREZA DO LÍQUIDO only when the plate names the liquid; the kernel composes the rest.
 // 8 (Story 23.18, seed v13): FUNÇÃO DO TC by its options (only as printed), and the S classes ("0,3S") and the protection classes with their factor ("5P20") as printed.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-8';
+// 9 (Story 24.13, seed v14): the No-break de comando's battery fields ("BATERIAS: ...") are the battery bank's, read only where the photo shows them, never the unit's.
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-9';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -221,6 +222,15 @@ export function vectorGroupPrompt(key: string): string {
 export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
   const field = (key: string) => fields.find((candidate) => candidate.key === key);
   const notes: string[] = [];
+  // Story 24.13 (seed v14): the No-break de comando's battery bank, whose fields carry "BATERIAS:" in their labels.
+  const batteries = fields.filter((candidate) => candidate.key.startsWith('baterias_'));
+  if (batteries.length > 0) {
+    notes.push(
+      `The fields ${batteries.map((candidate) => candidate.key).join(', ')} describe the battery bank (the labels start with "BATERIAS:"), not the no-break unit: fill them only from words printed for the batteries (a battery label or a "Baterias" section of the plate), and leave them out when the photo shows none. The unit's own maker, model, power and voltages are never the batteries'.`,
+    );
+    const quantity = field('baterias_quantidade');
+    if (quantity !== undefined) notes.push('The field baterias_quantidade is the number of batteries in the bank (for example "10 x 12 V 7 Ah" gives 10), a plain number with no unit.');
+  }
   const oil = field('tipo_do_oleo');
   if (oil !== undefined) {
     if (field('tipo') !== undefined) notes.push('The field tipo is the manufacturer\'s type or model designation (for example "TRICAST"), never the insulating oil.');

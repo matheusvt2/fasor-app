@@ -43,6 +43,8 @@ const SEEDED_NOUNS: Readonly<Record<EquipmentBlockType, TypeNoun>> = {
   inspecao_qgbt: { singular: 'quadro geral de baixa tensão', plural: 'quadros gerais de baixa tensão', gender: 'm' },
   // authored (Story 23.21, listed for Bruno).
   malha_aterramento: { singular: 'malha de aterramento', plural: 'malhas de aterramento', gender: 'f' },
+  // authored (e24s, listed for Bruno).
+  no_break_comando: { singular: 'no-break de comando', plural: 'no-breaks de comando', gender: 'm' },
 };
 
 /** The noun a copy of a seeded type starts with. */
@@ -111,6 +113,9 @@ export function duplicateSeededDefinition(seedVersion: string, blockType: Equipm
     ...(seed.config_fields === undefined ? {} : { config_fields: seed.config_fields }),
     criteria: keys.map(materialized),
     ...(seed.oil_rule === undefined ? {} : { oil_rule: seed.oil_rule }),
+    // Batch e24s (Story 24.14): the v14 Malha's plate block title and its "no plate to photograph".
+    ...(seed.nameplate_title === undefined ? {} : { nameplate_title: seed.nameplate_title }),
+    ...(seed.nameplate_photo === undefined ? {} : { nameplate_photo: seed.nameplate_photo }),
     // Fix batch e23z (W3-3): the copy prints in its base's group and numbers its tests as its base.
     base_block_type: blockType,
   };

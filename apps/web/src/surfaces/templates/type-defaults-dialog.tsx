@@ -3,6 +3,7 @@ import {
   lockedSubBlocksOf,
   naDefaultsCountText,
   naDefaultsFor,
+  nameplateTitleOf,
   screenLabel,
   subBlockSummaryText,
   subtypeSchema,
@@ -85,7 +86,8 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
       <div>
         <p className="table-title">{copy.composer.subBlocksTitle}</p>
         {definition.sub_blocks.map((key) => {
-          const label = copy.composer.subBlockLabels[key as SubBlockKey];
+          // Batch e24s (Story 24.14): a plate block with its own title (the v14 Malha's "Dados da malha") reads it here too.
+          const label = (key === 'nameplate' ? nameplateTitleOf(definition) : null) ?? copy.composer.subBlockLabels[key as SubBlockKey];
           const locked = lockedKeys.includes(key);
           const toggleId = `${rowIdPrefix}-${key}`;
           const summary = subBlockSummaryText(definition, key);

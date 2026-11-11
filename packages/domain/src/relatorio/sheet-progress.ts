@@ -153,7 +153,8 @@ function resultUnder(block: ResultBlock, itemKey: string, rule: OilRule | null):
     const value = cell!.value;
     return value === 'C' || value === 'NC' || value === 'NA' ? value : null;
   }
-  if (rule?.items.includes(itemKey as OilRule['items'][number]) === true) return oilDerivedNaKeysUnder(rule, block).has(itemKey) ? 'NA' : null;
+  // Batch e24s (Story 24.11): a dry item (seed v14's `dry_items`) the same way, NA on an oil unit.
+  if (rule?.items.includes(itemKey as OilRule['items'][number]) === true || rule?.dry_items?.includes(itemKey) === true) return oilDerivedNaKeysUnder(rule, block).has(itemKey) ? 'NA' : null;
   if (cell !== undefined) return null;
   return naDefaultsOf(block).has(itemKey) ? 'NA' : null;
 }

@@ -97,7 +97,8 @@ test('@p0 15.3-E2E-001 v9 sheets: the transformer asks about the oil level once 
   const insulation = plateField(page, 'tipo_de_isolacao').locator('select');
   await insulation.selectOption('Á SECO');
   await expect(insulation).toHaveValue('Á SECO');
-  expect(OIL).toHaveLength(7);
+  // Seven on v9 to v13; batch e24s (Story 24.11): eight on v14, TANQUE E ALETAS appended.
+  expect(OIL).toEqual([...getDefinition('v9', 'cabine_primaria', 'transformador_forca').oil_rule!.items, ...(SEED_VERSION === 'v14' ? ['tanque_e_aletas'] : [])]);
   for (const key of OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
   await expect(checked(page, 'limpeza')).toHaveCount(0);
   await expect(page.getByRole('button', { name: oilNaChipText(OIL.length) })).toHaveCount(0);

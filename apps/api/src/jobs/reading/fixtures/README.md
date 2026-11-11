@@ -53,6 +53,8 @@ back to the default fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_
   *(2026-11-08, Story 23.7: on seed v13 the cables gain a nameplate and the app shows their plate
   tile, but they keep no default: a cable plate photographed through the app still fails
   permanently at its first attempt; the v13 cable plate below replays for its own bytes only.)*
+  *(2026-11-11, batch e24s, Story 24.13: both cable types take the v13 cable plate as their default, so a
+  cable plate photographed through the app reads its four fields.)*
 
 A photo's own fixture always wins over the default (the error and timeout images below).
 
@@ -73,6 +75,8 @@ the thermo-hygrometer has no block type and the table key `env`.
 | plate | `chave_transferencia_automatica` | - | `images/plate-chave-transferencia-automatica.png` |
 | plate | `quadro_eletrico` | - | `images/plate-quadro-eletrico.png` |
 | plate | `malha_aterramento` | - | `images/plate-malha-aterramento.png` (batch e23e, seed v13) |
+| plate | `cabos_entrada`, `cabos_saida` | - | `images/plate-cabos-v13.png` (batch e24s, Story 24.13) |
+| plate | `no_break_comando` | - | `images/plate-no-break-comando.png` (batch e24s, seed v14) |
 | display | `transformador_forca` | `isolacao` | `display-tres-valores.jpg` (1,20 / 1,45 / 1,80 GΩ: only 1 MINUTO is suggested) |
 | display | any | `isolacao` | `display-isolacao.jpg` (147 GΩ) |
 | display | any | `resistencia_contato` | `display-microhmimetro.jpg` (87 µΩ, read at 0.17: Verificar) |
@@ -285,3 +289,13 @@ default (`kinds/plate.ts`), so "Fotografar placa" on a Malha sheet reads it unde
 |---|---|---|
 | `plate-tc-funcao-v13.png` | `83e1fc2c...json` | identificacao `TC-04`; fabricacao `Velquor`; relacao `300-5 A`; exatidao `0,3S` (the kernel lands it on the v13 option `0,3S`; on v12, `0,3`); funcao_tc `FATURAMENTO` |
 | `plate-malha-aterramento.png` | `c4f1e667...json` | valor_projeto_ohm `{raw: 2, unit: Ω}`; metodo_medicao `QUEDA DE POTENCIAL (62 %)`; condicao_solo `ÚMIDO` |
+
+## The seed v14 No-break de comando plate (batch e24s, Story 24.13)
+
+One 1200 x 900 PNG in `images/`, made by `make-plate-fixtures.ts no_break_comando`, the type's default
+(`kinds/plate.ts`), so "Fotografar placa" on a No-break sheet reads it under the `fake` providers. It prints
+the unit's fields and part of its battery bank's; its maker, model and date of the batteries are not on it.
+
+| Image | Fixture | Values |
+|---|---|---|
+| `plate-no-break-comando.png` | `dd788cc3...json` | fabricante `Voltrix`; modelo `NBC-3000`; n_serie `NB-220415`; potencia_nominal `{raw: 3000, unit: VA}`; potencia_ativa `{raw: 2700, unit: W}`; tensao_de_entrada `{raw: 220, unit: V}`; tipo_de_entrada `Vca`; tensao_de_saida `{raw: 125, unit: V}`; tipo_de_saida `Vcc`; frequencia `{raw: 60, unit: Hz}`; autonomia_nominal `{raw: 30, unit: min}`; baterias_tipo `VRLA`; baterias_quantidade `{raw: 10, unit: null}`; baterias_tensao_por_unidade `{raw: 12, unit: V}`; baterias_capacidade `{raw: 7, unit: Ah}` |

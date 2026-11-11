@@ -1275,7 +1275,9 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
   // Batch e23t (Story 23.15): the temperature the values were corrected from, in e23v's print text ("TEMPERATURA: 30 °C (ÓLEO)").
   if (corrected !== null) rows.push(lineRow(`${TEMPERATURE_PRINT_LABEL}: ${corrected.print}`, width));
   if (test.valuesLine !== null) {
-    rows.push(lineRow(test.valuesLine.parts.map((part) => `${printLabel(part.label)}: ${part.kind === 'choice' ? printLabel(part.text) : part.text}`).join(SEP), width));
+    // Batch e24s (Story 24.14): a text typed under a choice follows it as typed ("MOTIVO: OUTRO, <texto>").
+    const said = (part: (typeof test.valuesLine.parts)[number]) => `${part.kind === 'choice' ? printLabel(part.text) : part.text}${part.typed === undefined ? '' : `, ${part.typed}`}`;
+    rows.push(lineRow(test.valuesLine.parts.map((part) => `${printLabel(part.label)}: ${said(part)}`).join(SEP), width));
   }
   const units = test.columns.map((column) => sharedUnit(test, column.col));
   const headers = test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`));
