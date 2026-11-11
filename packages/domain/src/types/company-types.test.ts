@@ -274,6 +274,13 @@ describe('Story 14.6: "Duplicar" and the status words', () => {
     for (const type of equipmentTypesOf('v12')) expect(validateTypeDraft(duplicateSeededType('v12', type).draft), type).toEqual([]);
   });
 
+  it('fix batch e24x (G2): copies every seeded type of v14 (the No-break de comando and the v14 Inspeção de QGBT among them) into a draft that publishes', () => {
+    const types = equipmentTypesOf('v14');
+    expect(types).toContain('no_break_comando');
+    expect(types).toContain('inspecao_qgbt');
+    for (const type of types) expect(validateTypeDraft(duplicateSeededType('v14', type).draft), type).toEqual([]);
+  });
+
   it('copies a published company version, and builds the rows the ops carry', () => {
     const version = { type_id: TYPE_1_ID, version: 2, definition: DEFINITION_2 };
     const copy = duplicateCompanyType(version);
