@@ -98,6 +98,9 @@ describe('8.2-UNIT arrivalStep', () => {
   });
 });
 
+/** Fix batch e24f (E23-A4): the wait of a toast that follows a live query and the watcher's reads, within the 15 s test budget. */
+const LIVE_CHAIN = { timeout: 10_000 };
+
 describe('8.2-UNIT ReadingArrivals', () => {
   it('never announces the rows present at mount; announces a pulled reading once, and "Ver" opens where it waits', async () => {
     const db = openDatabase('reading-arrivals-1');
@@ -276,10 +279,12 @@ describe('Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what an arrival anno
       const rows = [row(nextId(), { target_path: `file/${PHOTO}/caption` }), row(nextId(), { target_path: `file/${PHOTO}/caption` })];
       await db.entities.bulkPut(rows.map((suggestion) => ({ entity: 'suggestion', id: suggestion.id, relatorio_id: suggestion.relatorio_id, project_id: null, removed_at: null, row: suggestion as never })));
     });
-    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('2 legendas sugeridas'));
+    // Fix batch e24f (E23-A4): the toast follows the live query's re-run, the watcher's effect and its read of the screen,
+    // with no timer of the product's in between; on a loaded host that chain outlasts `waitFor`'s 1 s default.
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('2 legendas sugeridas'), LIVE_CHAIN);
     expect(screen.getByTestId('toast')).not.toHaveTextContent('leitura');
     await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
-    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}/fotos`));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}/fotos`), LIVE_CHAIN);
     cleanup();
     session.database?.close();
 

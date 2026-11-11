@@ -534,13 +534,19 @@ export function setDraftTestHelp(draft: CompanyTypeDraft | null, part: 'tests' |
   return back(next);
 }
 
-/** Batch e23h (Story 23.11): a test's "Recomendação se reprovado", kept as typed; a blank value deletes it. */
+/**
+ * Batch e23h (Story 23.11): a test's "Recomendação se reprovado", kept as typed; a blank value deletes it.
+ * Fix batch e24f (R-3): any write also deletes the test's `index_recommendation` (the base import's IP
+ * recommendation, which the editor neither shows nor edits), so no point starts from a text nobody can see; a
+ * test the editor never writes keeps it.
+ */
 export function setDraftTestRecommendation(draft: CompanyTypeDraft | null, part: 'tests' | 'measurement_tests', index: number, value: string): CompanyTypeDraft {
   const next = asDraft(draft);
   const test = listOf(next, part)[index];
   if (test === undefined) return back(next);
   if (value.trim() === '') delete test.recommendation;
   else test.recommendation = value;
+  delete test.index_recommendation;
   return back(next);
 }
 

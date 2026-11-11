@@ -116,6 +116,15 @@ export interface SyncClient {
 /** Story 14.10 lane B: how long the health probe waits before it reads as no answer. */
 export const HEALTH_PROBE_TIMEOUT_MS = 5000;
 
+/**
+ * Fix batch e24f (E23-A4, 4.8-E2E-005): how long a JSON request of `request` (the push, the pulls, the
+ * generate, preview and audit barriers) may take, its body included, before it reads as a `network`
+ * failure. The sync cycle is single-flight and every poll waits on it (the Export dialog's revision poll
+ * answers `busy` while a cycle runs), so a request whose answer never came held the cycle, and every
+ * poll, until a reload. The uploads and downloads (`send`) are not bounded here: their bytes may take longer.
+ */
+export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
+
 /** Story 14.10 lane B: the probe's route (`apps/api/src/http/health.ts`). */
 export const HEALTH_PATH = '/api/health';
 
@@ -194,26 +203,37 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
   }
 
   async function request<T>(route: SyncRoute, schema: ResponseSchema<T>, query?: string, body?: unknown): Promise<T> {
+    // Fix batch e24f (E23-A4, 4.8-E2E-005): a JSON request that never answers is a network failure after
+    // `SYNC_REQUEST_TIMEOUT_MS`, so it never holds the sync cycle (and every poll gated on it) forever.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SYNC_REQUEST_TIMEOUT_MS);
     let response: Response;
-    try {
-      response = await timedFetch(query ? `${route.path}?${query}` : route.path, {
-        method: route.method,
-        credentials: 'same-origin',
-        headers: {
-          accept: 'application/json',
-          [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION),
-          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-    } catch {
-      throw new SyncRequestError({ kind: 'network' });
-    }
     let json: unknown;
     try {
-      json = await response.json();
-    } catch {
-      json = undefined;
+      try {
+        response = await timedFetch(query ? `${route.path}?${query}` : route.path, {
+          method: route.method,
+          credentials: 'same-origin',
+          headers: {
+            accept: 'application/json',
+            [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION),
+            ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          signal: controller.signal,
+        });
+      } catch {
+        throw new SyncRequestError({ kind: 'network' });
+      }
+      try {
+        json = await response.json();
+      } catch {
+        // A body cut by the timeout never completed: the request did not either.
+        if (controller.signal.aborted) throw new SyncRequestError({ kind: 'network' });
+        json = undefined;
+      }
+    } finally {
+      clearTimeout(timer);
     }
     if (!response.ok) {
       const envelope = errorResponseSchema.safeParse(json);

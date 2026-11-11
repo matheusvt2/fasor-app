@@ -6,6 +6,7 @@ import {
   isDayMeasuredField,
   lastNameplateCopy,
   nameplateAcceptsNotApplicable,
+  nameplateCopyFields,
   screenLabel,
   SEED_VERSION,
   tapPickerOf,
@@ -359,5 +360,45 @@ test('@p0 e23p-E2E-001 "Copiar da última visita" on a v13 transformer copies it
   await expect(field(page, 'temperatura_enrolamento_c').locator('input')).toHaveValue('');
   const row = await blockRow(page, sheet.blockId);
   expect([row.sheet.nameplate.temperatura_oleo_c, row.sheet.nameplate.temperatura_enrolamento_c]).toEqual([undefined, undefined]);
+  expect(row.sheet.nameplate.material_enrolamento?.value).toBe('Cu');
+});
+
+test('@p1 e24f-E2E-002 "Igual à ⟨TAG⟩?" between two v13 transformers copies the plate but never the two temperatures measured on the day: no op on them, the copied fields only', async ({ page }) => {
+  test.setTimeout(180_000);
+  // The first transformer of the 1° Subsolo with its plate and both day-measured fields filled (values invented).
+  const plate: Record<string, unknown> = {
+    fabricacao: 'WEG',
+    impedancia_pct: measured('5.5', '%'),
+    material_enrolamento: 'Cu',
+    temperatura_oleo_c: measured('40', '°C'),
+    temperatura_enrolamento_c: measured('45', '°C'),
+  };
+  const subsolo = (sheets: readonly SeededSheet[]) => sheets.filter((one) => one.blockType === 'transformador_forca' && one.locationName === '1° Subsolo');
+  const built = await setUp(page, (scope, sheets) => Object.entries(plate).map(([key, value]) => officeDraft(account, scope, `sheet/${subsolo(sheets)[0]!.blockId}/nameplate/${key}`, value)));
+  const [source, target] = subsolo(built.sheets);
+  expect(target, 'two transformers in the 1° Subsolo').toBeDefined();
+  await openSheet(page, built.relatorioId, target!.blockId);
+
+  // The kernel's copy, from the device's own row of the source: every filled field but the two temperatures.
+  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+  await expect.poll(async () => Object.keys((await blockRow(page, source!.blockId)).sheet.nameplate).length, { timeout: 30_000 }).toBe(Object.keys(plate).length);
+  const copied = nameplateCopyFields(await blockRow(page, source!.blockId), definition).map((entry) => entry.fieldKey);
+  expect([...copied].sort()).toEqual(['fabricacao', 'impedancia_pct', 'material_enrolamento']);
+  const dayKeys = definition.nameplate.map((one) => one.key).filter(isDayMeasuredField);
+  expect(dayKeys).toEqual(expect.arrayContaining(['temperatura_oleo_c', 'temperatura_enrolamento_c']));
+
+  const same = page.getByRole('button', { name: `Igual à ${source!.tag}?` });
+  await expect(same).toBeVisible({ timeout: 30_000 });
+  await same.click();
+  // The product's toast names the source (`copiedFrom`, no count); the copied fields are the outbox's ops.
+  await expect(page.getByTestId('toast')).toContainText(`Copiado de ${source!.tag}`);
+  const plateWrites = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${target!.blockId}/nameplate/`)).map((row) => row.path.split('/').at(-1)!);
+  await expect.poll(async () => [...(await plateWrites())].sort()).toEqual([...copied].sort());
+  // No op on any day-measured field the type has: both temperatures stay empty, on the screen and in the store.
+  expect((await plateWrites()).filter(isDayMeasuredField)).toEqual([]);
+  await expect(field(page, 'temperatura_oleo_c').locator('input')).toHaveValue('');
+  await expect(field(page, 'temperatura_enrolamento_c').locator('input')).toHaveValue('');
+  const row = await blockRow(page, target!.blockId);
+  for (const key of dayKeys) expect(row.sheet.nameplate[key], key).toBeUndefined();
   expect(row.sheet.nameplate.material_enrolamento?.value).toBe('Cu');
 });

@@ -451,8 +451,10 @@ function assertBlockType(state: EntityState, op: Op, path: OpPath): void {
  * values `sheet/test/value` (a key the test does not declare is refused; a seeded test has
  * none). `sheet/test` on a measurement test writes its instrument only, and only when the
  * test offers a picker (`instrument_of`); there is no criterion override.
+ *
+ * Fix batch e24f (R-5): true when the write is accepted and changes nothing (`assertCellGeometry`).
  */
-function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionContext, op: Op): void {
+function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionContext, op: Op): boolean {
   if (
     path.family !== 'sheet/nameplate' &&
     path.family !== 'sheet/checklist' &&
@@ -460,7 +462,7 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
     path.family !== 'sheet/test/cell' &&
     path.family !== 'sheet/test/value'
   ) {
-    return;
+    return false;
   }
   // Story 14.6: a company block's definition is its published version, through the context.
   const definition = isCompanyBlockType(block.block_type)
@@ -483,12 +485,12 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
   } else {
     const test = definition.tests.find((t) => t.key === path.test_key);
     if (test !== undefined) {
-      if (path.family === 'sheet/test/cell') assertCellGeometry(block, definition, test, path, op);
+      if (path.family === 'sheet/test/cell') return assertCellGeometry(block, definition, test, path, op);
       if (path.family === 'sheet/test/value') {
         throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${test.key} declares no value "${path.value_key}"`);
       }
       if (path.family === 'sheet/test' && path.field === 'applicability') assertApplicability(block, test.applies_when, op, path);
-      return;
+      return false;
     }
     const measurement = (definition.measurement_tests ?? []).find((t) => t.key === path.test_key);
     if (measurement === undefined) throw new SeedPathError(formatPath(path), `${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
@@ -503,6 +505,7 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
       throw new SeedPathError(formatPath(path), `sheet/test: ${block.block_type}/${measurement.key} holds no ${path.field}`);
     }
   }
+  return false;
 }
 
 // --- batch e23a: Story 23.3 (contract 34) ----------------------------------------------------
@@ -574,9 +577,11 @@ function assertApplicability(block: BlockRow, condition: unknown, op: Op, path: 
  * transformer's TTR from TAPS) takes a row only when it is a tap, in whole V, of the block's
  * current list, or, the list empty, one of the seeded rows (`tapRowAccepted`): a row the plate
  * no longer lists keeps its readings but is never written again. Fix batch e23z (item 3): it takes only a
- * clear (a `remove`, or a put of null) while it holds a filled cell (`tapRowClearable`), "Apagar leitura".
+ * clear (a `remove`, or a put of null) ~~while it holds a filled cell (`tapRowClearable`)~~, "Apagar leitura".
+ * Fix batch e24f (R-5, contract 42): the clear is taken whatever the row holds; on a row with no filled cell
+ * (`tapRowClearable` false) it is a no-op: true is returned and the write leaves the block as it was.
  */
-function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }, op: Op): void {
+function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }, op: Op): boolean {
   const { row, col } = path;
   const columnOf = (table: TableDef) => {
     const column = table.value_columns[col];
@@ -590,19 +595,23 @@ function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: 
   };
   const [single] = test.tables;
   if (test.tables.length === 1 && single !== undefined && single.rows_from !== undefined) {
-    // Fix batch e23z (item 3): a row off the plate holding a reading takes a clear (a remove, a put of null), never a value.
+    // Fix batch e23z (item 3): a row off the plate takes a clear (a remove, a put of null), never a value.
     const clears = op.kind === 'remove' || (op.kind === 'put' && (op.value ?? null) === null);
-    if (!tapRowAccepted(block, definition, single, row) && !(clears && tapRowClearable(block, definition, single, test.key, row))) {
-      throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is not a tap of the plate's ${single.rows_from} on ${block.block_type}/${test.key}`);
+    if (tapRowAccepted(block, definition, single, row)) {
+      columnOf(single);
+      return false;
     }
+    if (!clears) throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is not a tap of the plate's ${single.rows_from} on ${block.block_type}/${test.key}`);
     columnOf(single);
-    return;
+    // Fix batch e24f (R-5, contract 42): ~~only while it holds a filled cell~~ whatever it holds; with no filled cell
+    // left (a second device's "Apagar leitura" after the first one's synced) the clear changes nothing.
+    return !tapRowClearable(block, definition, single, test.key, row);
   }
   let offset = 0;
   for (const table of test.tables) {
     if (row < offset + table.rows.length) {
       columnOf(table);
-      return;
+      return false;
     }
     offset += table.rows.length;
   }
@@ -682,7 +691,8 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
  * same `ZodError` the whole-row parse threw for a value that is not a JSON value.
  */
 function writeSheet(block: BlockRow, op: Op, path: OpPath, ctx: () => DefinitionContext): BlockRow {
-  assertSeedPath(block, path, ctx, op);
+  // Fix batch e24f (R-5): a clear of a tap row off the plate holding nothing is accepted and changes nothing.
+  if (assertSeedPath(block, path, ctx, op)) return block;
   assertManufacturerValue(block, op, path, ctx);
   const cell = cellSchema.parse(cellOf(block, op, path));
   const next = attributed(putSheet(block, path, cell), op);

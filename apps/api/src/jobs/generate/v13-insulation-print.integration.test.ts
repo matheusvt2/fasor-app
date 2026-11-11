@@ -8,9 +8,12 @@ import {
   generationJobRowSchema,
   getDefinition,
   instantiateTemplate,
+  layoutSpec,
   makeOp,
   previewResponseSchema,
+  READING_FIT_WIDTH_EM,
   readingSlotsOf,
+  section9Layout,
   SECTION_BLOCK_TYPES,
   SERVER_DEVICE_ID,
   sheetNameplatePath,
@@ -20,7 +23,9 @@ import {
   type JsonValue,
   type Op,
   type OpDraft,
+  type PrintTable,
   type TemplateRow,
+  wordsWiderThanColumns,
 } from '@app/domain';
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -34,6 +39,10 @@ import { asCompanyId } from '../../db/repositories/company-id.ts';
 import { entities, ops } from '../../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../../db/seed.ts';
 import { applyOps } from '../../sync/apply.ts';
+import { toSnapshot } from '../../sync/snapshot.ts';
+import { buildDocx } from './docx.ts';
+import { extractStructure } from './docx-structure.test-support.ts';
+import { placeholderPages } from './toc.ts';
 
 /*
  * Fix batch e23p (P2, the behaviour pass's F3): the v13 transformer's insulation table broke
@@ -48,6 +57,11 @@ import { applyOps } from '../../sync/apply.ts';
  * It is previewed through the api (its worker, its LibreOffice), and the PDF's text items are grouped
  * into lines: every word of each insulation table appears whole the expected number of times, and no
  * line holds a strict fragment of one. With `E23P_PDF_OUT=<path>` the PDF is also written there.
+ *
+ * Fix batch e24f (R-8): a fifth transformer with every column the table captures filled with long values
+ * (1 MINUTO and its 20 °C value, ABSORÇÃO, POLARIZAÇÃO, TENSÃO), its plate's voltages (ACEITÁVEL) and a
+ * previous visit (MANUT. ANTERIOR): the kernel's table has no word wider than its column, each long value prints
+ * whole in the PDF, and the DOCX holds the same words.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -60,15 +74,30 @@ const hex = (n: number) => n.toString(16).padStart(12, '0');
 const entityId = (n: number) => `019a6200-00e3-7000-8000-${hex(n)}`;
 const opId = (n: number) => `019a6200-01e3-7000-8000-${hex(n)}`;
 const DEVICE = 'tablet-e23p-insulation';
+const measured = (raw: string, unit: string | null): JsonValue => ({ raw, unit, state: 'measured' });
 const SHAPES = ['a', 'b', 'c', 'd'] as const;
 type Shape = (typeof SHAPES)[number];
+/** Fix batch e24f (R-8): the fifth sheet, after the four shapes, with every column filled with long values. */
+const FULL = SHAPES.length;
+const SHEETS = SHAPES.length + 1;
+/**
+ * Its readings per column the table captures (1 MINUTO in GΩ; ABSORÇÃO and POLARIZAÇÃO typed; TENSÃO in kV). 30 SEGUNDOS and
+ * ESTAB./10MIN are print columns that print "-" (source-deltas), so they are left empty.
+ */
+const FULL_ROW: readonly (readonly [number, JsonValue])[] = [
+  [1, measured('1987.65', 'GΩ')],
+  [3, measured('1.234', null)],
+  [4, measured('10.123', null)],
+  [5, measured('10', 'kV')],
+];
 
-const measured = (raw: string, unit: string | null): JsonValue => ({ raw, unit, state: 'measured' });
 
 interface Fixture {
   relatorioId: string;
   projectId: string;
   log: Op[];
+  /** Fix batch e24f (R-8): the fifth sheet's block. */
+  fullBlockId: string;
 }
 
 /** The op log: the project, the instantiated template (four transformers in one cabine), each sheet's writes, the previous visits. */
@@ -87,7 +116,7 @@ function fixture(): Fixture {
     seed_version: 'v13',
     blocks: [
       ...SECTION_BLOCK_TYPES.map((type) => ({ ...defaultBlockConfig('v13', type), quantity: 1, skeleton_location_ref: null, section_text: null })),
-      { ...defaultBlockConfig('v13', 'transformador_forca'), quantity: SHAPES.length, skeleton_location_ref: ref, section_text: null },
+      { ...defaultBlockConfig('v13', 'transformador_forca'), quantity: SHEETS, skeleton_location_ref: ref, section_text: null },
     ],
     skeleton: [{ ref, kind: 'cabine', parent_ref: null, name: 'Subestação Sintética', agrupar_por_tipo: false }],
     archived_at: null,
@@ -117,14 +146,44 @@ function fixture(): Fixture {
     .filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/'))
     .map((draft) => draft.value as { id: string; block_type: string; equipment_id: string | null })
     .filter((block) => block.block_type === 'transformador_forca' && block.equipment_id !== null);
-  if (sheets.length !== SHAPES.length) throw new Error(`expected ${SHAPES.length} transformer sheets, got ${sheets.length}`);
+  if (sheets.length !== SHEETS) throw new Error(`expected ${SHEETS} transformer sheets, got ${sheets.length}`);
   const definition = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
   const put = (path: string, value: JsonValue): Op =>
     opOf({ kind: 'put', scope: 'relatorio', company_id: companyA.companyId, project_id: null, relatorio_id: relatorioId, path, value, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId });
+  const previousVisit = (block: { equipment_id: string | null }, raw: string, corrected: string): Op => {
+    const readings = Object.fromEntries(
+      readingSlotsOf(definition)
+        .filter((slot) => slot.testKey === 'isolacao')
+        .map((slot) => [slot.key, { raw, unit: 'GΩ', state: 'measured', corrected: { raw: corrected, unit: 'GΩ' } }]),
+    );
+    return opOf(
+      {
+        kind: 'put',
+        scope: 'project',
+        company_id: companyA.companyId,
+        project_id: projectId,
+        relatorio_id: null,
+        path: `equipment/${block.equipment_id}/last_results`,
+        value: { relatorio_id: entityId(900), revision_number: 1, issued_at: '2026-01-15T12:00:00.000Z', seed_version: 'v13', block_type: 'transformador_forca', readings, prior: null },
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: 'system:generate',
+      },
+      SERVER_DEVICE_ID,
+    );
+  };
   sheets.forEach((block, n) => {
-    const shape: Shape = SHAPES[n]!;
     log.push(put(sheetNameplatePath(block.id, 'tipo_de_isolacao'), 'ÓLEO ISOLANTE'));
     log.push(put(sheetNameplatePath(block.id, 'temperatura_oleo_c'), measured('35', '°C')));
+    if (n === FULL) {
+      log.push(put(sheetNameplatePath(block.id, 'tensao_nominal_at'), measured('13.8', 'kV')));
+      log.push(put(sheetNameplatePath(block.id, 'tensao_nominal_bt'), measured('380', 'V')));
+      for (const row of [0, 1, 2]) for (const [col, value] of FULL_ROW) log.push(put(sheetTestCellPath(block.id, 'isolacao', row, col), value));
+      log.push(previousVisit(block, '1876.54', '5432.1'));
+      return;
+    }
+    const shape: Shape = SHAPES[n]!;
     if (shape === 'b' || shape === 'c') {
       log.push(put(sheetNameplatePath(block.id, 'tensao_nominal_at'), measured('13.8', 'kV')));
       log.push(put(sheetNameplatePath(block.id, 'tensao_nominal_bt'), measured('380', 'V')));
@@ -133,31 +192,10 @@ function fixture(): Fixture {
       log.push(put(sheetTestPath(block.id, 'isolacao', 'criterion_override'), { raw: '1000', unit: 'MΩ' }));
     }
     for (const [row, raw] of [[0, '8'], [1, '9'], [2, '0.6']] as const) log.push(put(sheetTestCellPath(block.id, 'isolacao', row, 1), measured(raw, 'GΩ')));
-    if (shape === 'c' || shape === 'd') {
-      // A previous v13 visit with corrected readings, as the issue job writes it.
-      const readings = Object.fromEntries(
-        readingSlotsOf(definition)
-          .filter((slot) => slot.testKey === 'isolacao')
-          .map((slot) => [slot.key, { raw: '12', unit: 'GΩ', state: 'measured', corrected: { raw: '30', unit: 'GΩ' } }]),
-      );
-      log.push(
-        opOf({
-          kind: 'put',
-          scope: 'project',
-          company_id: companyA.companyId,
-          project_id: projectId,
-          relatorio_id: null,
-          path: `equipment/${block.equipment_id}/last_results`,
-          value: { relatorio_id: entityId(900), revision_number: 1, issued_at: '2026-01-15T12:00:00.000Z', seed_version: 'v13', block_type: 'transformador_forca', readings, prior: null },
-          prev_op_id: null,
-          batch_id: null,
-          meta: null,
-          actor_id: 'system:generate',
-        }, SERVER_DEVICE_ID),
-      );
-    }
+    // A previous v13 visit with corrected readings, as the issue job writes it.
+    if (shape === 'c' || shape === 'd') log.push(previousVisit(block, '12', '30'));
   });
-  return { relatorioId, projectId, log };
+  return { relatorioId, projectId, log, fullBlockId: sheets[FULL]!.id };
 }
 
 const built = fixture();
@@ -302,6 +340,9 @@ afterAll(async () => {
   await sql.end();
 });
 
+/** Fix batch e24f (R-8): the PDF tables read by the first test, for the fifth sheet's checks. */
+let pdfTables: string[][] | null = null;
+
 describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word whole in the PDF, in its four shapes', () => {
   it(
     'previewed through LibreOffice, each table holds its words whole the expected number of times and no fragment of one',
@@ -320,7 +361,9 @@ describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word 
       const bytes = Buffer.from(await pdf.arrayBuffer());
       if (process.env.E23P_PDF_OUT !== undefined && process.env.E23P_PDF_OUT !== '') writeFileSync(process.env.E23P_PDF_OUT, bytes);
       const tables = insulationTables(await pdfLines(bytes));
-      expect(tables).toHaveLength(SHAPES.length);
+      // Fix batch e24f (R-8): ~~four tables~~ the four shapes, then the fifth sheet (its own test below).
+      expect(tables).toHaveLength(SHEETS);
+      pdfTables = tables;
       SHAPES.forEach((shape, i) => {
         const words = tables[i]!;
         const expected = EXPECTED[shape];
@@ -333,4 +376,29 @@ describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word 
     },
     200_000,
   );
+
+  it('e24f-INT R-8 every column filled with long values: no word wider than its column in the kernel\'s table, each value whole in the PDF, the same words in the DOCX', async () => {
+    expect(pdfTables, 'the PDF test above ran first').not.toBeNull();
+    const snapshot = await toSnapshot(db, asCompanyId(companyA.companyId), built.relatorioId);
+    const sheet = section9Layout(snapshot, 9, 'RESULTADOS')!
+      .subsections.flatMap((subsection) => subsection.sheets)
+      .find((one) => one.blockId === built.fullBlockId)!;
+    const table: PrintTable = sheet.parts.flatMap((part) => (part.kind === 'table' ? [part.table] : [])).find((one) => one.rows.some((row) => row.cells.some((cell) => cell.text === 'ABSORÇÃO')))!;
+    expect(table, 'the insulation table of the fifth sheet').toBeDefined();
+    expect(wordsWiderThanColumns(table, READING_FIT_WIDTH_EM)).toEqual([]);
+    // Every word holding a digit: the long values, their corrected, ACEITÁVEL and MANUT. ANTERIOR cells.
+    const values = table.rows.flatMap((row) => row.cells.flatMap((cell) => cell.text.split(/\s+/).filter((word) => /\d/.test(word))));
+    for (const long of ['1.987,65', '1,234', '10,123']) expect(values, long).toContain(long);
+    const pdfWords = pdfTables![FULL]!;
+    const countIn = (words: readonly string[], word: string) => words.filter((one) => one === word).length;
+    for (const word of new Set(values)) expect(countIn(pdfWords, word), `PDF: ${word} in ${pdfWords.join(' ')}`).toBeGreaterThanOrEqual(countIn(values, word));
+    // No strict fragment of a value on any PDF line of the table ("1.987,6", "1.98").
+    expect(pdfWords.filter((one) => /\d/.test(one) && !values.includes(one) && values.some((word) => word.startsWith(one)))).toEqual([]);
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-11-10T12:00:00.000Z' });
+    const docx = extractStructure(await buildDocx(layout, { tocPages: placeholderPages(layout) }));
+    const docxWords = docx.tables.find((rows) => rows.some((cells) => cells.includes('ABSORÇÃO')) && rows.some((cells) => cells.some((cell) => cell.includes('1.987,65'))))?.flatMap((rows) => rows.flatMap((cell) => cell.split(/\s+/)));
+    expect(docxWords, 'the DOCX holds the fifth sheet\'s table').toBeDefined();
+    for (const word of new Set(values)) expect(countIn(docxWords!, word), `DOCX: ${word}`).toBeGreaterThanOrEqual(countIn(values, word));
+  }, 60_000);
 });
+

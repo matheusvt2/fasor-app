@@ -180,6 +180,56 @@ test('@p2 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" w
   expect(company.ops.some((o) => o.op_id === pending.op_id)).toBe(true);
 });
 
+test('@p1 e24f-E2E-001 "Atualizar" with work still in the outbox while every pull answers 426 and the push fails: the work survives the reload and syncs once the server answers', async ({
+  page,
+  seed,
+}) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  const user = { ...account, deviceId: await readDeviceId(page, database) };
+
+  const pending = clientCreateOp(user);
+  await seedOutbox(page, database, [pending]);
+
+  // The server's minimum moved past this bundle (every pull answers 426) and the push cannot land (503).
+  const isPull = (url: URL) => url.pathname.startsWith('/api/sync/') && url.pathname !== '/api/sync/ops';
+  const isPush = (url: URL) => url.pathname === '/api/sync/ops';
+  await page.route(isPull, (route) =>
+    route.fulfill({ status: 426, contentType: 'application/json', body: JSON.stringify({ code: 'contract_outdated', message: 'Update the app.' }) }),
+  );
+  await page.route(isPush, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'Down.' }) }));
+  const statusOf = async () => (await readStore<OutboxRecord>(page, database, 'outbox')).find((r) => r.op_id === pending.op_id)?.status;
+  // The launch cycle's push retries and gives up, then its pull answers 426: the shell swaps.
+  const outdated = () =>
+    page.waitForResponse((response) => isPull(new URL(response.url())) && response.status() === 426, { timeout: SYNC_CYCLE_TIMEOUT });
+  const first = outdated();
+  await page.reload();
+  await first;
+  await expect(page.getByRole('heading', { level: 1, name: 'Atualização necessária' })).toBeVisible();
+  // Not acked and not dead: `pending`, or `sent` once a push left with it and failed.
+  const unsynced = /^(pending|sent)$/;
+  expect(await statusOf()).toMatch(unsynced);
+
+  // "Atualizar" reloads the page; the outbox row survives the reload, still unsynced, and the surface comes back.
+  const second = outdated();
+  const reloaded = page.waitForEvent('load');
+  await page.getByRole('button', { name: 'Atualizar' }).click();
+  await reloaded;
+  await second;
+  await expect(page.getByRole('heading', { level: 1, name: 'Atualização necessária' })).toBeVisible();
+  expect(await statusOf()).toMatch(unsynced);
+
+  // The server answers again (the new bundle is the one served): "Atualizar" once more, the op reaches the server and is acked.
+  await page.unroute(isPull);
+  await page.unroute(isPush);
+  await page.getByRole('button', { name: 'Atualizar' }).click();
+  await expect.poll(statusOf, { timeout: SYNC_CYCLE_TIMEOUT }).toBe('acked');
+  await expect(page.getByRole('heading', { level: 1, name: 'Atualização necessária' })).toHaveCount(0);
+  const company = await pullAll(page.request, '/api/sync/company');
+  expect(company.ops.some((o) => o.op_id === pending.op_id)).toBe(true);
+});
+
 test('@p1 1.5-E2E-002 a rejected op is dead, excluded from state and listed with "Reenviar"; the button shows its reason while a cycle runs', async ({
   page,
   seed,
