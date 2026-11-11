@@ -71,6 +71,18 @@ export function ncChipPhrases({
   return out;
 }
 
+/**
+ * Story 24.6 (review of batch e24b): the learned rows that were offered when an observation was
+ * written: those learned before its cell's last write (`opId`; both ids are UUIDv7, so the
+ * order is time). The server learns the typed pieces of an observation after its push, so
+ * without this cut a typed observation would read as an offered phrase once synced, and leaving
+ * NC would remove it with no warning. All rows when the cell holds no op id.
+ */
+export function learnedBefore(learned: readonly RegistryRow[], opId: string | null | undefined): RegistryRow[] {
+  if (opId === null || opId === undefined || opId === '') return [...learned];
+  return learned.filter((row) => row.id < opId);
+}
+
 /** The seed's NC phrases of one type and item in every shipped seed version that defines them, first-seen order. */
 export function seedNcPhrasesOf(blockType: string, itemKey: string): string[] {
   const out: string[] = [];

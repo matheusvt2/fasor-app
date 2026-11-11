@@ -9,6 +9,7 @@ import {
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
+  learnedBefore,
   ncChipPhrases,
   withPhotoTokens,
   ncRowPointText,
@@ -35,7 +36,7 @@ import {
   type SuggestionRow,
   snapshotDefinitionContext,
 } from '@app/domain';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { ConfirmDialog } from '../../components/confirm-dialog.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
@@ -315,6 +316,12 @@ export interface ChecklistRowTarget {
    * (`ncChipPhrases`): the item's seed phrases, the company's learned ones, the recents.
    */
   chips: readonly string[];
+  /**
+   * Story 24.6: the phrases the row offered when its observation was written, which
+   * `ncObservationOnLeave` judges against (`learnedBefore`: a phrase learned from this very
+   * observation after its push never makes it automatic); `chips` when absent.
+   */
+  leaveChips?: readonly string[];
 }
 
 /** The target of one item of a sheet's checklist: its cells on the block, its ops on `sheet/{blockId}/checklist/…`. */
@@ -327,6 +334,7 @@ export function sheetRowTarget(
 ): ChecklistRowTarget {
   const observationCell = block.sheet.checklist[item.key]?.observation;
   const definitions = snapshotDefinitionContext(snapshot);
+  const recents = recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id);
   return {
     entityId: block.id,
     result: checklistResultOf(block, item.key, definitions),
@@ -349,13 +357,8 @@ export function sheetRowTarget(
     }),
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds, item.key)),
     pointOwner: { equipmentId: block.equipment_id },
-    chips: ncChipPhrases({
-      seeded: item.nc_phrases,
-      learned,
-      blockType: block.block_type,
-      itemKey: item.key,
-      recents: recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id),
-    }),
+    chips: ncChipPhrases({ seeded: item.nc_phrases, learned, blockType: block.block_type, itemKey: item.key, recents }),
+    leaveChips: ncChipPhrases({ seeded: item.nc_phrases, learned: learnedBefore(learned, observationCell?.op_id), blockType: block.block_type, itemKey: item.key, recents }),
   };
 }
 
@@ -459,8 +462,13 @@ export function ChecklistRow({
    * with the points "Remover ponto" removes.
    */
   const write = (value: TriStateValue | null, remove: readonly PointRow[] = []) => {
-    const leave = typed.text === stored ? ncObservationOnLeave(result, value, stored, chips) : null;
-    setKept(leave === 'keep' ? { observation: stored, result: value } : null);
+    // Review of e24b: a text still being saved (`typed.text` ahead of the store) is judged as typed:
+    // kept with the warning when it holds a typed piece, never cleared here (its own commit would
+    // land after the clear and bring it back).
+    const pending = typed.text !== stored;
+    const judged = ncObservationOnLeave(result, value, pending ? typed.text : stored, target.leaveChips ?? chips);
+    const leave = pending && judged === 'clear' ? null : judged;
+    setKept(leave === 'keep' ? { observation: pending ? typed.text : stored, result: value } : null);
     const removed = remove.length === 0 ? null : pointQuestionText(snapshot.points, remove, value === 'NA' ? 'NA' : 'C');
     void api
       .edit((_blocks, by) => [
@@ -502,6 +510,14 @@ export function ChecklistRow({
       .catch(() => undefined);
   };
   const questionText = question === null ? null : pointQuestionText(snapshot.points, question.points, question.value === 'NA' ? 'NA' : 'C');
+  // Review of e24b: the asked points left meanwhile (removed or moved on another device): nothing is
+  // left to ask, so the chosen result is written alone instead of waiting behind a closed dialog.
+  useEffect(() => {
+    if (question === null || questionText !== null || answered.current) return;
+    answered.current = true;
+    write(question.value);
+    setQuestion(null);
+  });
 
   /** "Usar": the dictated text appended at the end, as a chip inserts. */
   const applyDictated = () => {

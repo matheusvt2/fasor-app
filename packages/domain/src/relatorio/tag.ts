@@ -189,7 +189,8 @@ export type MatchKeyEquipment = Pick<EquipmentRow, 'tag'> & { reuse_key?: string
 /**
  * Story 24.21: the key the reuse of an obra's equipment compares a placement with: the row's
  * stored `reuse_key` (written once at its creation), else, for a row from before the story, its
- * TAG; both trimmed and uppercased. Every reader of the reuse goes through it.
+ * TAG; both trimmed and uppercased. The palette's key (`reuseKeyFor`) reads it; the run of
+ * `instantiateTemplate` compares the same two values in two steps (a stored key before any TAG).
  */
 export function equipmentMatchKey(row: MatchKeyEquipment): string {
   return normalizeTag(row.reuse_key ?? row.tag);

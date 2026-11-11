@@ -393,8 +393,9 @@ export const equipmentRowSchema = z.object({
    * put (`EQUIPMENT_FIELDS` has no path for it): the frozen rule's TAG of the placement, kept apart
    * from the TAG the technician renames. Optional and never defaulted, so a row written before
    * parses to the same bytes and keeps matching by its TAG. No screen shows it, nothing prints it.
+   * Never blank (review of e24b): an empty key would match no placement and hide the row's TAG.
    */
-  reuse_key: z.string().optional(),
+  reuse_key: z.string().trim().min(1).optional(),
 });
 
 // --- relatorio scope -------------------------------------------------------

@@ -694,3 +694,15 @@ describe('e23t gate fix: the sheet\'s one Enter run joins the seeded tables and 
     expect(sheetRunTarget(run, contactEnd, 'next')).toBe(runTarget(run.readings, contactEnd, 'next'));
   });
 });
+
+describe('24.9-UNIT F17 (review of e24b): the screen names each criterion by its medium only while the medium is unknown', () => {
+  it('unknown medium: "Óleo: … · Seco: …", each label beside its own line, the printed line unchanged; oil or dry: no screen line', () => {
+    const unknown = measurement(transformer(null), 'resistencia_enrolamento');
+    const oil = measurement(transformer('oil'), 'resistencia_enrolamento');
+    const dry = measurement(transformer('dry'), 'resistencia_enrolamento');
+    expect(unknown.screenCriterionText).toBe(`Óleo: ${oil.criterionText} · Seco: ${dry.criterionText}`);
+    expect(unknown.criterionText).toBe(`${oil.criterionText}; ${dry.criterionText}`);
+    expect(oil.screenCriterionText).toBeUndefined();
+    expect(dry.screenCriterionText).toBeUndefined();
+  });
+});

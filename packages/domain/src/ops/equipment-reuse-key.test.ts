@@ -81,4 +81,11 @@ describe('24.21-UNIT the fold keeps the reuse key', () => {
     const keyed = { ...old, reuse_key: 'DJ-C05' };
     expect(equipmentRowSchema.parse(keyed)).toEqual(keyed);
   });
+
+  it('a blank key is refused by the schema, so a create with one never folds (review of e24b)', () => {
+    const old: EquipmentRow = { id: '019966b0-0083-7000-8000-000000000002', project_id: TEST_PROJECT, tag: 'DJ-C05', type: 'disjuntor_mt', last_nameplate: null, removed_at: null };
+    expect(equipmentRowSchema.safeParse({ ...old, reuse_key: '' }).success).toBe(false);
+    expect(equipmentRowSchema.safeParse({ ...old, reuse_key: '   ' }).success).toBe(false);
+    expect(equipmentRowSchema.safeParse({ ...old, reuse_key: 'DJ-C05' }).success).toBe(true);
+  });
 });

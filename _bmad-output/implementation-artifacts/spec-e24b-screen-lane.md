@@ -2,7 +2,7 @@
 title: 'e24b, the screen lane: the conclusion preview, the NC phrase, the point question, the TAG rule, a renamed TAG keeps its history, small screen fixes (Stories 24.5 to 24.9, 24.21)'
 type: 'feature'
 created: '2026-11-10'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1528183f3abfc76b842dcf3fc79bce86142db1ae'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-24-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Wave 1 screen lane of Epic 24 as the coordinator cut it: six stories on the ficha, the Pontos screen, the TAG and the reuse of equipment, every seed, one contract bump (24.21), one review, one gate, one PR.'
-deferred: []
+deferred:
+  - summary: >-
+      A recent observation (another sheet's typed text) counts as an offered phrase, so an equal typed observation is cleared with no warning when its row leaves NC.
+    evidence: |-
+      Story 24.6 names the recents among the offered phrases; review ECH-4.
+    location: >-
+      packages/domain/src/relatorio/ficha.ts ncObservationOnLeave
+    severity: medium
+  - summary: >-
+      The thermal photo count matches the context caption, so a sheet renamed after its shots counts 0, and a sheet-camera photo with that caption counts.
+    evidence: |-
+      No stored marker of a thermal shot; review ECH-6, ECH-7.
+    location: >-
+      packages/domain/src/photos/text.ts thermalPhotoText
+    severity: medium
+  - summary: >-
+      A reuse key keeps its placement's local and place: a sheet moved then saved as a template, or a sibling removed, misses its equipment at the next relatório.
+    evidence: |-
+      Story 24.21's stated limits of a place-based key; review ECH-8, ECH-11; spec D3, D4.
+    location: >-
+      packages/domain/src/relatorio/instantiate.ts
+    severity: medium
 ---
 
 <intent-contract>
@@ -119,6 +140,34 @@ The work is done in two parts, each by one implementation pass, in this order. P
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-11 — Review pass
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them). One finding came from the Part B implementer's own report (row 21).
+- verdicts: 21 findings — high 0, medium 9, low 10, false 2, maybe-false 0
+- findings:
+  - `medium` `patch` VG-1 `thermalPhotoText`'s filter tested by no kernel case -- added `photos/text.test.ts` 24.9-UNIT F11 (removed shot, item photo, other caption, other block, a document, zero and null caption).
+  - `medium` `patch` VG-2 `screenCriterionText` present only with the medium unknown, not tested -- added `e23t-transformer-tests.test.ts` 24.9-UNIT F17 (unknown, oil, dry; printed line unchanged).
+  - `medium` `patch` VG-3 `fallbackLines` filter and absence not tested -- added `criteria-tables.test.ts` 24.9-UNIT F16 (missing TIPO gives one line; a complete plate gives none).
+  - `low` `reject` VG-4 legacy run now binds the smallest id on a TAG tie where list order decided before -- no fixture passes such a tie (all pass an empty or untied list), goldens byte-equal; the comment now says so (`instantiate.ts`).
+  - `medium` `patch` ECH-1 the asked points leave while the question is open: dialog closes, pending result never written -- `checklist-section.tsx` effect writes the chosen result alone when nothing is left to ask.
+  - `medium` `patch` ECH-2 text still being saved (`typed.text` ahead of the store) when C is tapped: kept with no warning -- the rule now judges the typed text; a typed piece shows the warning; a pending all-chip text is not cleared (its own commit would bring it back).
+  - `low` `reject` ECH-3 "Desfazer" after "Remover ponto" also reverts the result and the cleared observation -- one batch per the story ("in the same batch"); undo restores the whole consistent state (row NC with its point), never a half.
+  - `medium` `defer` ECH-4 an observation equal to another sheet's typed observation (a recent) reads as automatic and is cleared -- the story names the recents as offered phrases ("the seed's, the learned ones, the recents"); a different reading is Matheus's (deferred-work row).
+  - `low` `reject` ECH-5 an observation with no letter or digit ("?", "-") reads as automatic -- unlikely in use; the fix adds a branch to the kernel rule.
+  - `medium` `defer` ECH-6 "Foto térmica · N" counts by the context caption, so a sheet renamed after its shots counts 0 -- no stored marker of a thermal shot exists; one needs a file field (contract); screen only, nothing prints from it (deferred-work row).
+  - `low` `defer` ECH-7 a sheet-camera photo on the Ensaios step with the thermography's caption is counted -- same root as ECH-6.
+  - `medium` `defer` ECH-8 a sheet moved, then "Salvar como template": the key keeps the old local's code and the placement at the new local misses -- 24.21's stated limit for a moved placement; D3; deferred-work row.
+  - `low` `reject` ECH-9 two devices offline palette-add one type at one local: one key twice -- 24.21's reading: the oldest binds, nothing reports the other (coordinator's reading, listed in the PR).
+  - `low` `reject` ECH-10 `PREFIX-01` from two offline devices anywhere in the obra -- Story 24.8's rule; the integrity check reports a doubled TAG as today (AC "two live equipment with the same TAG").
+  - `low` `defer` ECH-11 keyed `DJ-C05` removed and `DJ-C05-2` live; a template with one breaker misses `DJ-C05-2` -- 24.21's stated limit of place-based keys (same family as "the later takes the earlier key"); deferred-work row.
+  - `low` `patch` ECH-12 a blank `reuse_key` would match nothing and hide the TAG -- schema `z.string().trim().min(1).optional()`; test in `equipment-reuse-key.test.ts`.
+  - `false` `reject` ECH-13 a conclusion cell with an unknown non-null value -- the fold validates the conclusion cells against their enums; no such cell can be stored.
+  - `low` `reject` ECH-14 `moveTagQuestion`, `renameToText`, `MoveTagSuggestion` and the dialog's rename branch now dead -- harmless; removing them touches the dialog and its tests (more than a deletion); left for a cleanup.
+  - `low` `patch` ECH-15 `equipmentMatchKey`'s doc claims every reader uses it -- doc corrected (`tag.ts`).
+  - `false` `reject` ECH-16 legacy "byte for byte" claim -- same as VG-4; comment narrowed.
+  - `medium` `patch` IMPL-1 (Part B report) a typed observation is learned by the server after its push, so once synced it reads as an offered phrase and leaving NC removes it with no warning -- verified in `apps/api/src/sync/apply.ts` `learnPushedOptions`; patched: the row judges against the phrases learned before its observation's last write (`learnedBefore`, `registry/nc-phrase-row.ts`; `leaveChips` on the row target), boundary test `relatorio/observation-on-leave.test.ts`.
+
+Patched, not re-reviewed (E14-A5): ECH-1, ECH-2, ECH-12, IMPL-1.
 
 ## Authored sentences
 

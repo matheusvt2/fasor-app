@@ -325,7 +325,9 @@ export function instantiateTemplate(
   // match before the story); the smallest id wins a tie. With none it creates the row with the
   // key stored and Story 24.8's TAG, free among the obra's live TAGs and this run's (`taken`).
   // Under `tagRule: 'legacy'` the created row carries no key and the frozen rule's TAG, and the
-  // run's keys are the bound and created TAGs: the drafts of the rule before, byte for byte.
+  // run's keys are the bound and created TAGs: the drafts of the rule before, byte for byte, for
+  // a prior list with no keyed row and no two live rows of one type sharing a TAG (such a tie now
+  // binds the smallest id, under either rule, where the order of the list decided before).
   const legacy = inputs.tagRule === 'legacy';
   const prior = inputs.existingEquipment.filter((row) => row.removed_at === null).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const bound = new Set<string>();
