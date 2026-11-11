@@ -71,7 +71,7 @@ test('@p0 23.14-E2E-001 a v13 disjuntor at 40, 42 and 70 µΩ: the 70 µΩ pole 
   await expect(cellOf(page, poles[2]!).locator('.mf-helper[data-tone="restricted"]')).toHaveText(`Com restrição: ${cells[2]!.restriction!.text}`);
   for (const within of poles.slice(0, 2)) await expect(cellOf(page, within).locator('.measurement-field')).not.toHaveAttribute('data-state');
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-hint')).toHaveText(restricted.reason!);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(restricted.reason!);
 
   // The manufacturer's 60 µΩ: one criterion_override op; the 70 µΩ pole now out, the floor Reprovado.
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
@@ -88,5 +88,5 @@ test('@p0 23.14-E2E-001 a v13 disjuntor at 40, 42 and 70 µΩ: the 70 µΩ pole 
   await expect(cellOf(page, poles[2]!).locator('.mf-helper[role="status"]')).toContainText(judged[2]!.helperText!);
   await expect(cellOf(page, poles[2]!).locator('.mf-helper[data-tone="restricted"]')).toHaveCount(0);
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-hint')).toHaveText(out.reason!);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(out.reason!);
 });

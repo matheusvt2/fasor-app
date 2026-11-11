@@ -64,7 +64,8 @@ test('@p1 9.2-E2E-004 the panel is read by the real job, the corrected type is c
   // No "Sincronizar agora": the upload, the panel job and the pulls run on their own.
   const dialog = page.getByRole('dialog', { name: 'Fotografar equipamento' });
   const line = dialog.locator('.suggestion-field .sv-main');
-  await expect(line).toHaveText(/^Criar SEC-C09(-\d+)? · Chave seccionadora · Coluna 9\?$/, { timeout: 90_000 });
+  // Story 24.8 (batch e24b): the suggestion is PREFIX-NN, SC for the seccionadora, whatever the coluna.
+  await expect(line).toHaveText(/^Criar SC-\d{2,} · Chave seccionadora · Coluna 9\?$/, { timeout: 90_000 });
   await dialog.getByRole('button', { name: 'Outro…' }).click();
   // Every type the relatório's seed ships, by name (Epic 14 QA Q-1: from the kernel, nine on v5).
   await expect(dialog.locator('.chip-row .chip')).toHaveText(typeLabels(await relatorioSeedVersion(page, database, relatorioId)));

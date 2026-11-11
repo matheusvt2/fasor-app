@@ -23,7 +23,7 @@ test.beforeEach(({ seed }) => {
 });
 
 const KEY = 'resistencia_enrolamento';
-const conclusionHint = (page: Page) => page.locator('.conclusion-hint');
+const conclusionHint = (page: Page) => page.locator('.conclusion-hint:not(.e24-preview-line)');
 
 test('@p0 23.15-E2E-001 a v13 oil transformer\'s winding resistance: 3 % between phases restricts, 6 % fails, each phase shown at 75 °C; dry with an open circuit fails; the DOCX prints the table with its 75 °C group', async ({ page }) => {
   test.setTimeout(300_000);

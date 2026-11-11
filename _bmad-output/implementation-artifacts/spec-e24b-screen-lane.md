@@ -2,7 +2,7 @@
 title: 'e24b, the screen lane: the conclusion preview, the NC phrase, the point question, the TAG rule, a renamed TAG keeps its history, small screen fixes (Stories 24.5 to 24.9, 24.21)'
 type: 'feature'
 created: '2026-11-10'
-status: 'in-review'
+status: 'done'
 baseline_revision: '1528183f3abfc76b842dcf3fc79bce86142db1ae'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -128,7 +128,7 @@ The work is done in two parts, each by one implementation pass, in this order. P
 - **D4, palette key order limit.** A palette breaker added at a coluna already holding one gets the key `DJ-C05-2`; a template saved from that relatório places the two breakers in their tree order, so if the added one sits before the original, their keys swap at the next relatório. Not fixed (the placement has no stable id); recorded as a known limit.
 - **D5, row 3037 (a relinked point keeps its `item_key`).** Story 24.7 asks by owner + `item_key`, as the story defines; a point relinked to another equipment is asked about by its new owner's row of the same item. An immutable source (the block id at create) or a relink guard is a product decision: not built, the row stays open for Matheus.
 - **D6, H9 over 24.6's fifth AC.** After e24h's H9 an observation floors nothing on any seed, so a kept observation on a v13 ficha no longer floors Com restrições; the test asserts "floors nothing" on v13.
-- **D7, the contract number.** Main is at 41; e24a holds 42 if it merges first. The batch takes main + 1 at PR time and says so in the PR; it does not edit the planning files for the number.
+- **D7, the contract number.** ~~Main is at 41; e24a holds 42 if it merges first.~~ *(2026-11-11: fix batch e24f merged first with 42; the batch took 43 with minimum 43.)* The batch takes main + 1 at PR time and says so in the PR; it does not edit the planning files for the number.
 
 ## Verification
 
@@ -195,3 +195,23 @@ Part B (24.5, 24.6, 24.7, 24.9). New: `e2e/conclusion-preview.spec.ts` (24.5-E2E
 - New cases: `relatorio/conclusion.test.ts` (24.5-UNIT, v5 and v13), `registry/nc-phrase-row.test.ts` (24.6-UNIT: the rule, the chips with and without the final period), `templates/list.test.ts` (24.9-UNIT F1), `relatorio/e23w-wave2-fixes.test.ts` (24.9-UNIT F19, the printed paragraph pinned beside it); web `conclusao-section.test.tsx` (24.5 per state), `local/verificacoes-surface.test.tsx` (24.6 and 24.7 on a local's row), `templates/local-dialog.test.tsx` (24.9 F20 switch), `templates/templates-surface.test.tsx` (24.9 F1 notice).
 - Changed for the new rule: `relatorio/e22f-wave-a-fixes.test.ts` (e22f N3 now `ncObservationOnLeave`: two chips and NC to N.A. clear), `relatorio/seed-v13-e23b.test.ts` (TAPS helper), `relatorio/e23e-tc-thermo-ground.test.ts` (the applied text is the reason alone), `relatorio/e23t-transformer-tests.test.ts` (the out helper, two cases).
 - e2e for 24.5 (the row's name "Sugestão" is now "Prévia da conclusão"; a floor half not stored reads `.is-floor`, not `aria-checked`): `sheet-knows-12-3-12-4`, `journey-taps`, `qgbt`, `company-type-sheet`, `journeys-12-3-12-4`, `qgbt-inspecao`, `observation-free`, `contact-rise`, `cta`, `ground-grid`, `tap-budget`, `tap-budget-signal`, `ratio-feeds-conclusion` (also `.is-floor`), `review-concluir-text`, `ficha` (the pill "Prévia", three `.is-floor`), `criteria-tables` and `over-range` (`.is-floor`). `e2e/support/merged-fixtures.ts` `signIn` waits 15 s (row 1439). The preview line is a `.conclusion-hint` too (the mock's class): `ficha` (22.4-E2E), `observation-free`, `contact-rise` select `.conclusion-hint:not(.e24-preview-line)`; `ratio-feeds-conclusion`'s group description now ends with the preview line. Found by the touched-spec run and left over from Part A: `qgbt-inspecao` 22.11-E2E-001 expected the palette's "QGBT-C01", now `QGBT-NN` (24.8).
+
+## Additional touched-spec fixes after the gate
+
+- `e2e/previous-visit-judges.spec.ts`, `three-levels.spec.ts`, `winding-resistance.spec.ts`, `polarization-index.spec.ts`, `tc-polarity.spec.ts`, `contact-pole-deviation.spec.ts`, `fuse-resistance.spec.ts`: the floor's reason line is selected as `.conclusion-hint:not(.e24-preview-line)` (Story 24.5: the preview line carries the mock's `.conclusion-hint` too).
+- `e2e/points-derived.spec.ts` 22.5-E2E-002: the row set back to C now asks (Story 24.7); the test answers "Manter ponto".
+- `e2e/panel-capture-pipeline.spec.ts` 9.2-E2E-004: the panel proposal reads "Criar SC-NN · …" (Story 24.8).
+
+## Auto Run Result
+
+Status: done.
+
+**Summary.** Stories 24.5, 24.6, 24.7, 24.8, 24.21 and 24.9 built on every seed (Part A, then Part B, then one review loop), merged with main after fix batch e24f (`8bddd986`), contract 43 with minimum 43.
+
+**Files.** Kernel: `relatorio/tag.ts` (PREFIX-NN, the frozen rule, the match key), `relatorio/instantiate.ts` (the reuse run, `tagRule`), `relatorio/tree.ts` (`newEquipmentBlock` placement key, palette), `relatorio/move.ts` (no rename), `relatorio/panel.ts`, `schemas/entities.ts` (`reuse_key`), `contract/version.ts`, `relatorio/conclusion.ts` (`conclusionPreview`, F19), `relatorio/ficha.ts` (`ncObservationOnLeave`), `registry/nc-phrase-row.ts` (chips without the final period, `learnedBefore`), `points/checks.ts` (`pointsAskedOnLeave`, `pointQuestionText`), `photos/text.ts`, `relatorio/tap-rows.ts`, `relatorio/applicability.ts`, `relatorio/reading-evaluation.ts`, `relatorio/measurement-evaluation.ts`, `templates/list.ts`. Web: `checklist-section.tsx`, `conclusao-section.tsx`, `suggestion-field.tsx`, `points-surface.tsx`, `tree-actions.ts`, `block-palette-field.tsx`, `move-block-dialog.tsx`, `local-dialog.tsx`, `templates-surface.tsx`, `photo-openers.tsx`, `ensaios-section.tsx`, `measurement-test-section.tsx`, `app.css`, `copy/pt-br.ts`, `copy/ui.ts`. Api: `equipment-reuse-key.integration.test.ts`, the contract skew test. E2e: six new specs and the touched ones (Changed tests).
+
+**Review.** 21 findings (Review Triage Log): 7 patched (3 medium kernel tests, 2 medium web, 1 medium kernel rule, 1 low schema) plus 2 doc comments, 4 deferred (ledger section "Deferred from: Epic 24 batch e24b"), the rest rejected with reasons. Follow-up review recommended: false (no high patched; the patched mediums are tests and two narrow guards, each with a test or an e2e that covers its surface).
+
+**Verification (story gate, `.scratch-e24b/gate/`).** Load 2.87 at the start, 4.07 at the end; lock wait 0 s; e24a's stack up beside it. lint 0 errors (34 s); static clean (32 s); test:unit 413 files, 6243 tests passed (242 s); test:api 123 files passed, 1 skipped, 962 tests passed, 6 skipped (423 s); touched specs on desktop-chrome and durability-desktop-chrome 248 tests: 244 passed, 3 skipped, 1 failed (23.6-E2E-003, a stale `.conclusion-hint` selector, fixed above and re-run green); matrix (five durability specs on three projects) 66 tests: 59 passed, 7 skipped. Extra run of the specs that read the changed surfaces (19 specs): 59 tests, 57 passed, 2 failed (fixed above and re-run). See the PR body for the re-runs.
+
+**Residual risks.** The ledger rows of this batch: recents as offered phrases, the thermal count by caption, place-based keys; the relinked point (row of e22c) and the equipment from before the batch stay Matheus's decisions.
