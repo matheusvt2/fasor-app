@@ -39,7 +39,10 @@ const toast = (page: Page) => page.getByTestId('toast');
 const resultGroup = (page: Page) => page.getByRole('radiogroup', { name: 'Resultado' });
 const restrictionGroup = (page: Page) => page.getByRole('radiogroup', { name: 'Restrições' });
 const observationField = (page: Page) => page.getByLabel('Observações da ficha', { exact: true });
-const conclusionHint = (page: Page) => page.locator('.conclusion-control .conclusion-hint').first();
+// The floor's reason line; Story 24.5's preview line shares its class (`.e24-preview-line`).
+const conclusionHint = (page: Page) => page.locator('.conclusion-control .conclusion-hint:not(.e24-preview-line)').first();
+const previewRow = (page: Page) => page.getByRole('group', { name: 'Prévia da conclusão' });
+const PREVIEW_LINE = 'Prévia: só vale depois de Confirmar ou de Concluir ficha.';
 const compact = (text: string) => text.replace(/\s+/g, '');
 
 /** A plate value by kind, as a technician might type it; a select takes its first option. */
@@ -185,13 +188,18 @@ test('@p0 24.3-E2E-001 v14: a reading out of its criterion is Reprovado and noth
   await expect(testSection(page, 'isolacao').getByRole('button', { name: 'Marcar Com restrições' })).toHaveCount(0);
 
   await openStep(page, cable.relatorioId, cable.blockId, 'Conclusão');
-  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado', exact: true })).toHaveAttribute('aria-checked', 'true');
+  // Story 24.5: nothing stored, the floor's Reprovado is the preview, alone (no restriction half).
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado', exact: true })).toHaveClass(/is-floor/);
+  await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado', exact: true })).toBeDisabled();
   await expect(restrictionGroup(page)).toHaveCount(0);
+  await expect(page.locator('.conclusion-control .seg.is-floor')).toHaveCount(1);
   const words = await kernelWords(page, cable);
   expect(words.reason).toBe('A ficha exige no mínimo Reprovado: leitura fora do critério.');
   await expect(conclusionHint(page)).toHaveText(words.reason!);
-  await expect(page.getByRole('group', { name: 'Sugestão' })).toContainText('Reprovado?');
+  await expect(page.locator('.conclusion-control .e24-preview-line')).toHaveText(PREVIEW_LINE);
+  await expect(previewRow(page)).toContainText('Reprovado?');
+  await expect(previewRow(page)).not.toContainText('restrições');
   await expect(observationField(page)).toHaveAttribute('data-required', '');
   await expect(page.getByText('Obrigatória em ficha reprovada')).toBeVisible();
 
@@ -233,9 +241,9 @@ test('@p0 24.3-E2E-002 v14: observations give no restriction: text in OBSERVAÇ�
   await openStep(page, cable.relatorioId, cable.blockId, 'Conclusão');
   await typeObservation(page, cable, 'Cabo novo, instalado nesta parada.');
   await expect(observationField(page)).not.toHaveAttribute('data-required', '');
-  await expect(page.getByRole('group', { name: 'Sugestão' })).toContainText('Aprovado · Sem restrições?');
+  await expect(previewRow(page)).toContainText('Aprovado · Sem restrições?');
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições', exact: true })).toBeEnabled();
-  await expect(page.locator('.conclusion-control .conclusion-hint')).toHaveCount(0);
+  await expect(page.locator('.conclusion-control .conclusion-hint:not(.e24-preview-line)')).toHaveCount(0);
   expect((await kernelWords(page, cable)).reason).toBeNull();
 
   await concluir(page, cable.tag);
@@ -322,8 +330,10 @@ test('@p1 24.3-E2E-005 v13 beside it: the same reading out concludes as before: 
   await typeInsulation(page, cable, [OUT, OUT, OUT, OUT]);
   await expect(cellOf(page, 'isolacao', 0, 1).getByRole('button', { name: 'Marcar Com restrições' })).toBeVisible();
   await openStep(page, cable.relatorioId, cable.blockId, 'Conclusão');
-  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
+  // Story 24.5 as built: nothing stored, both halves of the v13 floor are the preview.
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado', exact: true })).toHaveClass(/is-floor/);
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições', exact: true })).toHaveClass(/is-floor/);
+  await expect(previewRow(page)).toContainText('Reprovado · Com restrições?');
   await expect(conclusionHint(page)).toHaveText('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
   await expect(page.getByText('Obrigatória com restrições')).toBeVisible();
   await typeObservation(page, cable, 'Isolação abaixo do aceitável nas quatro fases.');

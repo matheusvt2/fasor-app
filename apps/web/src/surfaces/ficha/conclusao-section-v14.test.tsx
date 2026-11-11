@@ -83,7 +83,8 @@ const resultGroup = () => screen.getByRole('radiogroup', { name: 'Resultado' });
 describe('24.3 the Conclusão step of a v14 sheet with a reading out of its criterion', () => {
   it('Reprovado shown, Aprovado disabled, no Restrições group, the reason line without "Com restrições", OBSERVAÇÕES required for a reprovada', () => {
     renderSection(cable('v14', '300'));
-    expect(screen.getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');
+    // Story 24.5: nothing stored, so the floor's Reprovado is shown as the preview.
+    expect(screen.getByRole('radio', { name: 'Reprovado' })).toHaveClass('is-floor');
     expect(screen.getByRole('radio', { name: 'Aprovado' })).toBeDisabled();
     expect(screen.queryByRole('radiogroup', { name: 'Restrições' })).toBeNull();
     expect(screen.queryByRole('radio', { name: 'Com restrições' })).toBeNull();
@@ -92,32 +93,84 @@ describe('24.3 the Conclusão step of a v14 sheet with a reading out of its crit
     expect(helper).toHaveAttribute('data-tone', 'red');
     expect(screen.getByRole('textbox', { name: 'Observações da ficha' })).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('textbox', { name: 'Observações da ficha' })).toHaveAccessibleDescription('Obrigatória em ficha reprovada');
-    // The suggestion row offers Reprovado alone.
-    expect(screen.getByRole('group', { name: 'Sugestão' })).toHaveTextContent('Reprovado?');
+    // The preview row offers Reprovado alone.
+    expect(screen.getByRole('group', { name: 'Prévia da conclusão' })).toHaveTextContent('Reprovado?');
   });
 
   it('v13: the Restrições group with Com restrições, the reason line and the helper as before', () => {
     renderSection(cable('v13', '300'));
-    expect(within(screen.getByRole('radiogroup', { name: 'Restrições' })).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(screen.getByRole('radiogroup', { name: 'Restrições' })).getByRole('radio', { name: 'Com restrições' })).toHaveClass('is-floor');
     expect(screen.getByText('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.')).toBeVisible();
     expect(screen.getByText('Obrigatória com restrições')).toBeVisible();
     expect(screen.queryByText('Obrigatória em ficha reprovada')).toBeNull();
-    expect(screen.getByRole('group', { name: 'Sugestão' })).toHaveTextContent('Reprovado · Com restrições?');
+    expect(screen.getByRole('group', { name: 'Prévia da conclusão' })).toHaveTextContent('Reprovado · Com restrições?');
   });
 
   it('the "Reprovado?" suggestion writes the result alone; on v13 the pair', async () => {
     const v14 = cable('v14', '300');
     const builds = renderSection(v14);
-    await userEvent.click(within(screen.getByRole('group', { name: 'Sugestão' })).getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Prévia da conclusão' })).getByRole('button', { name: 'Confirmar' }));
     expect(writes(builds.at(-1)!, v14)).toEqual([['result', 'reprovado']]);
     cleanup();
     const v13 = cable('v13', '300');
     const again = renderSection(v13);
-    await userEvent.click(within(screen.getByRole('group', { name: 'Sugestão' })).getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Prévia da conclusão' })).getByRole('button', { name: 'Confirmar' }));
     expect(writes(again.at(-1)!, v13)).toEqual([
       ['result', 'reprovado'],
       ['restriction', 'com_restricoes'],
     ]);
+  });
+});
+
+describe('24.5 the preview under a v14 Reprovado floor shows no restriction (seed v14, batch e24a)', () => {
+  const PREVIEW_LINE = 'Prévia: só vale depois de Confirmar ou de Concluir ficha.';
+
+  it('v14, nothing stored: "Reprovado?" with the pill "Prévia", Reprovado alone in the preview state, no Restrições group', () => {
+    renderSection(cable('v14', '300'));
+    const row = screen.getByRole('group', { name: 'Prévia da conclusão' });
+    expect(row).toHaveTextContent('Reprovado?');
+    expect(row).not.toHaveTextContent('restrições');
+    expect(row.querySelector('.suggested-pill')).toHaveTextContent('Prévia');
+    expect(resultGroup().querySelector('[aria-checked="true"]')).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Reprovado' })).toHaveClass('is-floor');
+    expect(screen.getByRole('radio', { name: 'Aprovado' })).not.toHaveClass('is-floor');
+    expect(screen.queryByRole('radiogroup', { name: 'Restrições' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Sem restrições' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Com restrições' })).toBeNull();
+    expect(document.querySelectorAll('.seg.is-floor')).toHaveLength(1);
+    expect(screen.getByText(PREVIEW_LINE)).toBeVisible();
+    expect(resultGroup()).toHaveAccessibleDescription(`A ficha exige no mínimo Reprovado: leitura fora do critério. ${PREVIEW_LINE}`);
+  });
+
+  it('v14, Reprovado stored by a tap: no row, nothing in the preview state, no line; on v13 the Com restrições half stays a preview', () => {
+    renderSection(cable('v14', '300', { result: cell('reprovado'), restriction: cell(null) }));
+    expect(screen.queryByRole('group', { name: 'Prévia da conclusão' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByRole('radiogroup', { name: 'Restrições' })).toBeNull();
+    expect(document.querySelector('.seg.is-floor')).toBeNull();
+    expect(screen.queryByText(PREVIEW_LINE)).toBeNull();
+    cleanup();
+    renderSection(cable('v13', '300', { result: cell('reprovado'), restriction: cell(null) }));
+    const restriction = screen.getByRole('radiogroup', { name: 'Restrições' });
+    expect(restriction.querySelector('[aria-checked="true"]')).toBeNull();
+    expect(within(restriction).getByRole('radio', { name: 'Com restrições' })).toHaveClass('is-floor');
+    expect(restriction).toHaveAccessibleDescription(`A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério. ${PREVIEW_LINE}`);
+  });
+
+  it('v13, nothing stored: the preview as Story 24.5 built it, both halves on the floor ("Reprovado · Com restrições?")', () => {
+    renderSection(cable('v13', '300'));
+    const row = screen.getByRole('group', { name: 'Prévia da conclusão' });
+    expect(row).toHaveTextContent('Reprovado · Com restrições?');
+    expect(row.querySelector('.suggested-pill')).toHaveTextContent('Prévia');
+    const restriction = screen.getByRole('radiogroup', { name: 'Restrições' });
+    expect(resultGroup().querySelector('[aria-checked="true"]')).toBeNull();
+    expect(restriction.querySelector('[aria-checked="true"]')).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Reprovado' })).toHaveClass('is-floor');
+    expect(screen.getByRole('radio', { name: 'Com restrições' })).toHaveClass('is-floor');
+    expect(screen.getByRole('radio', { name: 'Sem restrições' })).not.toHaveClass('is-floor');
+    const described = `A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério. ${PREVIEW_LINE}`;
+    expect(resultGroup()).toHaveAccessibleDescription(described);
+    expect(restriction).toHaveAccessibleDescription(described);
   });
 });
 

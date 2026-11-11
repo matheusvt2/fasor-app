@@ -176,9 +176,9 @@ test('@p0 24.4-E2E-001 a v14 breaker\'s contact reading out of its criterion: Et
   await openStep(page, breaker.relatorioId, breaker.blockId, 'Ensaios');
   for (const [row, value] of ['310', '200', '205'].entries()) await typeCell(page, database, breaker.blockId, 'resistencia_contato', row, 0, value);
 
-  // The conclusion set by the suggestion's Confirmar (Reprovado alone) and its composed text confirmed.
+  // The conclusion set by the preview row's Confirmar (Reprovado alone, Story 24.5) and its composed text confirmed.
   await openStep(page, breaker.relatorioId, breaker.blockId, 'Conclusão');
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => (await outbox(database, page)).filter((op) => op.path === `sheet/${breaker.blockId}/conclusion/result`).at(-1)?.value).toBe('reprovado');

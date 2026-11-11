@@ -25,6 +25,7 @@ import {
   conclusionFloorReasonText,
   conclusionPairComplete,
   conclusionPairWrites,
+  conclusionPreview,
   conclusionSuggestion,
   conclusionSuggestionText,
   conclusionTextOnConclude,
@@ -210,6 +211,21 @@ describe('24.3-UNIT B-1 a v14 reading out of its criterion floors Reprovado and 
     expect(conclusionSuggestionText(conclusionSuggestion(block)!)).toBe('Reprovado?');
     expect(conclusionPairComplete(block)).toBe(true);
     expect(markRestrictionOffered(block)).toBe(false);
+  });
+
+  it('Story 24.5\'s preview agrees: on v14 the Reprovado floor previews the result alone ("Reprovado?"), no restriction half; on v13 both halves, as e24b built it', () => {
+    const v14 = outCable('v14');
+    expect(conclusionPreview(v14)).toEqual({ result: true, restriction: false });
+    expect(conclusionSuggestion(v14)).toEqual({ result: 'reprovado', restriction: null });
+    expect(conclusionSuggestionText(conclusionSuggestion(v14)!)).toBe('Reprovado?');
+    // Reprovado stored by a tap: nothing left to preview on v14; v13 previews its Com restrições.
+    expect(conclusionPreview(stored(v14, 'reprovado', null))).toEqual({ result: false, restriction: false });
+    const v13 = outCable('v13');
+    expect(conclusionPreview(v13)).toEqual({ result: true, restriction: true });
+    expect(conclusionSuggestionText(conclusionSuggestion(v13)!)).toBe('Reprovado · Com restrições?');
+    expect(conclusionPreview(stored(v13, 'reprovado', null))).toEqual({ result: false, restriction: true });
+    // An Aprovado floor on v14 previews both halves, as on every seed.
+    expect(conclusionPreview(cleanCable('v14'))).toEqual({ result: true, restriction: true });
   });
 
   it('nothing stored: the header counts the result alone missing on v14 (the Reprovado the screen shows takes no restriction); two on v13, as before', () => {
