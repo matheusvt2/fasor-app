@@ -7483,10 +7483,10 @@ This epic cites Bruno by question number ("Bruno, 2026-11-10, question 25"), nev
 - **A point of attention exists only by the technician's tap** *(2026-11-10, evening, decision 12)*. No story of this epic lists, counts, flags or prints a point nobody created. Where a story below said that a row or a reading "derives" a point, a dated note beside it says what holds now.
 - **Not guessed.** A point nobody decided is written under its story as "Coordinator's reading, open to Matheus", with the most conservative reading built.
 - **Out of this epic:**
-  - the No-break's tests (Bruno, question 34: a later module);
+  - the No-break's tests (Bruno, question 34: a later module); *(2026-11-11: Bruno asked for them the next day (M19), and Matheus decided they enter seed v15, pending his alignment with Bruno: Story 25.17. Nothing changes on v14.)*
   - the open items B-1 to B-10 of the proposal, which Bruno answers after the epic is built;
   - the rows the sweep left out (3037, 1047, 3032, 3100, 3153), for the reasons the proposal gives. *(2026-11-10, evening: rows 3037 and 3032 are about automatic points. Fix batch e24h supersedes the first and narrows the second; `deferred-work.md` says how.)*
-- **Raised while writing the stories, for Bruno:** B-11, whether the TC's list should ask an item on its secondary (Story 24.10). It joins B-1 to B-10.
+- **Raised while writing the stories, for Bruno:** B-11, whether the TC's list should ask an item on its secondary (Story 24.10). It joins B-1 to B-10. *(2026-11-11: Bruno answered B-1 to B-11. What his answers change is Epic 25, on seed v15; `sprint-change-proposal-2026-11-11.md` § 1 maps each answer to its story.)*
 
 **Waves and gates** (detail in `implementation-artifacts/epic-24-context.md`):
 - *(2026-11-10, evening.)* **First and alone: fix batch e24h**, "points on click" (branch `e24h-points-on-click`, spec `spec-e24h-points-on-click.md`, contract 41 with minimum 41). It is not a story of this epic. It is deployed alone, on Matheus's word, before the rest. Fix batch e24f starts after e24h merges, because both touch the same texts.
@@ -9203,6 +9203,1675 @@ So that MANUT. ANTERIOR, the 50 % rules and "Copiar da última visita" keep work
 - *With two equipment on one key, the oldest binds, and nothing tells the user about the other.*
 - *An equipment added from the palette gets a key too, so that "Salvar como template" finds it.*
 - *The key cannot be seen or corrected. A wrong binding is fixed as today: by removing the sheet and adding the equipment again.*
+
+## Epic 25: Bruno's 33 improvements: nothing typed is lost, a ficha that agrees with itself, rows added in the field, the No-break's tests and a print that shows the criterion (seed v15; Bruno and Matheus, 2026-11-11)
+
+On 2026-11-11 Bruno answered the Epic 24 questions and sent a document of 33 improvements, M01 to M33, found while he reviewed two relatórios. Matheus decided the scope the same day ("ok" to the coordinator's list of eleven decisions). This epic builds what is not done yet.
+
+The sources are gitignored, pt-BR and absent on other machines:
+- the 33 improvements, with Bruno's own status table: `docs/context/epic-25/melhorias-identificadas-bruno-2026-11-11.txt`;
+- his answers to the 13 questions of Epic 24, three extra answers and the sentences he corrected: `docs/context/epic-24/respostas-bruno-2026-11-11.md`;
+- two read-only investigations of every item against main, with file paths: `docs/context/epic-25/levantamento-m01-m18-2026-11-11.md` and `levantamento-m19-m33-2026-11-11.md`;
+- his answers of the day before, which say the No-break's tests wait for a later module: `docs/context/epic-23/respostas-bruno-produto-2026-11-10.md`.
+
+This epic cites Bruno by item ("M07") or by answer number ("Bruno, 2026-11-11, answer 4"), never by his sentences. Labels, options, checklist wordings and corrected fixed texts he proposes are product content and are written in the stories. No client and no site is named: the two relatórios he reviewed are "the relatório reviewed on 2026-11-10" and "the second relatório". The plan is `sprint-change-proposal-2026-11-11.md`. "Row" below means a row of `deferred-work.md`, cited by its section.
+
+**Matheus's decisions (2026-11-11, "ok"):**
+1. The Epic 24 deploy is not held for any of this.
+2. Epic 25 starts with saving and sync (M02, M03, M17 and the stored half of M01), alone, with its own deploy. It is data loss and needs no new seed.
+3. A row the technician adds in the field is built once, as a shared capability, and has its own story before the three that use it: the thermography (M23), the ground grid's continuity points (M30) and the No-break's per-battery rows (M19).
+4. The No-break's tests (M19) enter seed v15. Matheus aligns with Bruno that this changed since 2026-11-10. It is an open point of that story's Definition of Ready.
+5. Criterion and result per row in print (M24), with the headers "20 °C (corrigido)" and "75 °C (corrigido)": seed v15 only.
+6. A sheet with no measurement (M07) does not accept Aprovado and suggests "Marcar não ensaiado".
+7. A stale conclusion text (M20) blocks issuing (today it is a warning), and the suggested text names a Reprovado chosen by hand and the tests left unmeasured.
+8. Instruments (M18, M25): warn before generating when the calibration date, the validity or the certificate is missing, without blocking; tick the instruments from the sheets; warn on registry rows that share a model or a certificate.
+9. Oil names (M29, with M11's "A SECO"): Bruno is asked first, because the transformer already has NATUREZA DO LÍQUIDO with a vegetable option.
+10. The Conferência por IA (M16) is the last wave.
+11. Fixed texts, the cover and the headers (M09, M10, M11, M12, M13): seed v15, together.
+
+Also in scope, from his answers and the document: a contact rise of exactly 50 % is "com restrição"; N/A per reading cell and per row (M05); the test's header voltage editable on the sheet (M06); a created point names every reading out of its criterion (M14); a deadline already overdue at issue is warned (M26); the test base applied as an update (M27); the TC's item on its secondary (M22); hints under five oil-transformer items (M21); a warning when a removed local still holds a sheet (M32); the helper sentence of a reading above the instrument's limit inside a range.
+
+**Not in this epic, and why:**
+- **M04, M15 and M28 are done.** An observation forces no restriction on any seed (`relatorio/conclusion.ts` `computeFloor`, fix batch e24h, item H9, in production). The duplicate detector left with the automatic points (`relatorio/pre-issue.ts`, the struck comment near the section 8 rows, fix batch e24h, in production). A range criterion exists as the operator `between` (`types/definition.ts` `COMPANY_CRITERION_OPERATORS`, in production), and "nominal ± %" is Story 24.18, on main.
+- **M08 is marked done by Bruno** in his own table. The ficha's OBSERVAÇÕES is free on every seed (e24h, H9), and on seed v14 section 10 names each finding and each not-tested reason (Story 24.4). One thing differs from what he first asked: Etapa 6 still takes no text of its own (`apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx`). It is question B-15, not a story.
+- **M01's rule is done.** Every reader shows the effective pair, and on v14 a reading out of its criterion gives Reprovado (Story 24.3). What is left is what the store keeps: Story 25.4.
+- **M33 and two parts of M24 belong to fix batch e24y**, in build on 2026-11-11: the sentences Bruno corrected, the QGBT thermography's title, and the tolerance written "220 V ± 5 %" and "≥". No story here repeats them. One sentence is not changed by e24y: the band "Aplicado por você. Equipamento fora de carga." marks a test the technician applied over the app's N.A., and Bruno's replacement says the opposite. It is question B-3.
+- **How automatic points should work** stays for later (Epic 24, decision 12).
+
+**Stories, waves and batches:**
+
+| Story | Title | Items | Applies to | Wave · batch | Contract | Dev model · Effort |
+| --- | --- | --- | --- | --- | --- | --- |
+| 25.1 | The Epic 25 frames in the mocks | all | n/a | 0 · coordinator | no | opus · medium |
+| 25.2 | What is typed is saved: the conclusion text, the manufacturer and the readings | M02 | every seed | 1 · e25a | no | opus · high |
+| 25.3 | A sheet edit is sent by itself | M03 | every seed | 1 · e25a | no | opus · high |
+| 25.4 | The revision keeps the verdicts it printed | M17, M01 | every seed | 1 · e25b | yes | opus · high |
+| 25.5 | Seed v15 opens and the v14 layout is locked | n/a | v15 | 2 · e25c | yes | opus · high |
+| 25.6 | A sheet with no measurement does not accept Aprovado | M07 | v15 | 2 · e25c | the batch's | opus · high |
+| 25.7 | A stale conclusion text blocks issuing, and the text names a Reprovado by hand and the tests left unmeasured | M20 | the block on every seed; the text on v15 | 2 · e25c | the batch's | opus · high |
+| 25.8 | A contact rise of exactly 50 % is "com restrição" | answer 1 | v15 | 2 · e25c | the batch's | opus · medium |
+| 25.9 | N/A on a reading cell and on a row, and the helper of a limit inside a range | M05 | the cell on v15; the helper on every seed | 2 · e25c | the batch's | opus · high |
+| 25.10 | A point created from a test names every reading out of its criterion | M14 | v15, new points | 2 · e25c | the batch's | opus · high |
+| 25.11 | The test's voltage in the instrument header can be changed on the sheet | M06 | every seed | 2 · e25d | none expected | opus · medium |
+| 25.12 | Three warnings before generating: an overdue deadline, an instrument with no calibration data, a sheet under a removed local | M26, M18, M32 | every seed | 2 · e25d | no | opus · medium |
+| 25.13 | The instruments of a relatório follow its sheets, and registry rows that share a certificate are warned | M25 | every seed | 2 · e25d | no | opus · medium |
+| 25.14 | A row the technician adds in the field | M23, M30, M19 | v15 | 3 · e25r | yes | opus · max |
+| 25.15 | The thermography: "Não realizada" with a reason, printed, and points by equipment type | M23 | v15 | 3 · e25r | the batch's | opus · high |
+| 25.16 | The ground grid takes continuity points beyond the five | M30 | v15 | 3 · e25r | the batch's | opus · medium |
+| 25.17 | The No-break de comando is tested | M19 | v15 | 3 · e25r | the batch's | opus · high |
+| 25.18 | The TC asks about its secondary, and the oil transformer's items say what they mean | M22, M21 | v15 | 3 · e25s | yes | opus · medium |
+| 25.19 | One name for the insulating medium, and "A SECO" | M29, M11 | v15 | 3 · e25s | the batch's | opus · high |
+| 25.20 | The criterion and the result print on each row, and the corrected columns say so | M24 | v15 | 4 · e25p | yes | opus · max |
+| 25.21 | The variation note names only what matters | M31 | v15 | 4 · e25p | the batch's | opus · high |
+| 25.22 | The fixed texts, the cover and the headers | M09, M10, M12, M13 | v15; the names on screen on every seed | 4 · e25p | the batch's | opus · high |
+| 25.23 | The test base is updated without importing it again | M27 | company types | 4 · e25t | yes, for the index's text | opus · high |
+| 25.24 | The Conferência por IA says when it is out of date, and three checks stop depending on the model | M16, M20 | every seed | 5 · e25q | yes | opus · high |
+
+"The batch's" means the story rides on the one number its batch takes. Stories that can run side by side: 25.2 and 25.3 beside 25.4; the lane 25.5 to 25.10 beside the lane 25.11 to 25.13; the lane 25.14 to 25.17 beside 25.18 and 25.19; the lane 25.20 to 25.22 beside 25.23. Inside a lane the stories are built in their order.
+
+**Rules every story keeps:**
+- **Seed v15, new relatórios only (AD-21).** Production runs seed v13. Seed v14 is on main and freezes at the Epic 24 deploy. Seed v15 derives from v14, with `V14_HASH` pinned as shipped. A change to a verdict, to seed content or to a printed page is reached through a key of the v15 seed: a definition key, or a flag of the seed-level `rules` object read by `seedRule` (Story 24.2). A v1 to v14 seed carries none of these keys. No relatório migrates its seed. No rule compares version numbers.
+- **Screen-only behaviour applies to every seed.** Saving, sync, the warnings before generating, the editable header voltage and the instrument marks change no verdict and no printed page by themselves.
+- **The printed layout of every older relatório stays byte-identical.** Story 25.5 adds v14 goldens to the layout lock. Every later story keeps the v5, v11, v12, v13 and v14 goldens and the Porto Seguro goldens unchanged. Goldens and fixtures change by additions only. A v15 sheet prints only the delta its story names. A batch that needs to regenerate an older golden stops and asks the coordinator.
+- **A test that pins v14 stays on v14.** It is pinned by an addition (`seedVersion: 'v14'`), never rewritten to the v15 result. The v15 behaviour gets new tests.
+- **A point of attention exists only by the technician's tap** (Epic 24, decision 12). No story lists, counts, flags or prints a point nobody created.
+- **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` computes every status, count, text, order and verdict, once. `apps/web` renders from IndexedDB and writes ops only. `apps/api` applies ops and renders documents. `applyOp` is the only reducer.
+- **Strings (AGENTS.md "Where a new user-facing string goes").** Derived text in `packages/domain`; static surface copy in `apps/web/src/copy/pt-br.ts`; component chrome in `apps/web/src/copy/ui.ts`; seeded content in the seed. Every new NC phrase goes in `docs/nc-chip-phrases.md` in the same PR. Every pt-BR sentence a story authors is marked `// authored (Story 25.x, listed for Bruno)` and listed in the PR.
+- **Not guessed.** A point nobody decided is written under its story, in its Definition of Ready, as open. What is open is not built. Where a story must still choose, the most conservative reading is written as "Coordinator's reading, open to Matheus".
+- **Fix batch e24y comes first.** Every batch reads the files it touches again on the main it starts from. Where e24y changed a sentence, a title or a fit rule, this epic keeps e24y's result.
+
+**Waves and gates** (detail in `implementation-artifacts/epic-25-context.md`):
+- **Wave 0.** Story 25.1, the frames, drawn by the coordinator with `bmad-ux`. Part A (two frames) is approved first, so wave 1 does not wait for the rest.
+- **Wave 1, saving and sync.** No seed. Its own gate, review and deploy, on Matheus's word, after the Epic 24 deploy.
+  - e25a: 25.2, 25.3. Web only. No contract.
+  - e25b: 25.4. One contract number.
+- **Wave 2, seed v15 opens and the sheet rules.** It starts after the Epic 24 deploy has frozen seed v14.
+  - e25c: 25.5, 25.6, 25.7, 25.8, 25.9, 25.10. The rules lane. It owns the opening of seed v15 and the v14 layout lock. One contract number.
+  - e25d: 25.11, 25.12, 25.13. The screen lane. No seed, so it runs beside e25c. No contract expected.
+- **Wave 3, the v15 sheets.**
+  - e25r: 25.14, 25.15, 25.16, 25.17. The added row first, then its three users. One contract number.
+  - e25s: 25.18, 25.19. Seed data, beside e25r. One contract number.
+- **Wave 4, the v15 print, and the test base.**
+  - e25p: 25.20, 25.21, 25.22. One contract number.
+  - e25t: 25.23, beside e25p. One contract number if the polarization index's text needs a key.
+- **Wave 5, the Conferência por IA.** e25q: 25.24. No seed. One contract number.
+- Contract numbers are not reserved. A batch that needs one takes main's number plus one when it merges main before its PR (the rule of 2026-11-11). Main is at 47. The next free number is 48 unless fix batch e24y takes it.
+- At most two batch stacks run at a time. The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Each wave ends with a two-pass integrated review and a fix batch.
+
+*(2026-11-11, John: the proposed split put M18, M25 and M32 in the last wave and M26 in wave 2. The code shows that none of the four needs a seed: they are rows of `relatorio/pre-issue.ts` and marks on two screens. So they form the second lane of wave 2, which would otherwise stand idle while the rules lane builds on seed v15. M27 moved beside the print wave, because the new revision of the base must also bring the texts of the tests wave 3 adds. M11 is built once, with M29, since both rename options of the same select and need the same alias; decision 11 lists it too.)*
+
+**Definition of Done of the epic:**
+- Every story merged with its story gate pasted in its PR.
+- Each wave gate green on the integrated main, and its integrated review accepted.
+- Wave 1 deployed alone, on Matheus's word, with its hands-on pass first: a typed value, a manufacturer and a conclusion text survive leaving the sheet, and an edit reaches the server with nobody opening the Sync screen.
+- The paid checks run on Matheus's AWS login before the last deploy, each table recorded: the plate eval if Story 25.19 changes the options the prompt reads (E21-A4), and the audit prompt of Story 25.24.
+- The hands-on pass in the browser runs before each deploy, on a v15 relatório and on a v14 one. Its report is tracked under `_bmad-output/test-artifacts/manual/`.
+- The last deploy on Matheus's word. Seed v15 freezes there. Wave 5 changes no seed, so it may be deployed with wave 4 or after it.
+- After each deploy, one message to Bruno with the open items of the proposal and every authored sentence.
+
+### Story 25.1: The Epic 25 frames in the mocks
+
+**Dev model:** opus · **Effort:** medium · mock HTML from the existing tokens and components, no app code; Part A (two frames) before wave 1, Part B (the rest) before waves 2 to 5; dated amendments to DESIGN.md and EXPERIENCE.md; `MOCK-GUIDE.md` and `index.html` list the frames
+
+As Matheus approving what the field will see,
+I want each new control of Epic 25 drawn before it is built,
+So that the batches build from frames, not from a guess (E14-A4).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- `mockups/prototype/screens/60-ficha.html` draws the Conclusão text as a bordered box in both states. The app renders it as a `div role="textbox"` with the same border before "Editar" (`apps/web/src/components/generated-text-field.tsx`), so a text that cannot be typed into looks like a field (M02).
+- `85-sync.html` and the Sync badge draw pending, sending, error and offline. Nothing draws work that has waited too long while the device is online.
+- Nothing draws: a sheet with no measurement that refuses Aprovado; a reading cell or a row marked N/A; an editable test voltage in the instrument header; a row the technician adds to a test; a thermography "Não realizada" with its reason; the No-break's tests; a second blocking row before generating; an instrument marked from the sheets; two registry rows that share a certificate; an update of the test base; a Conferência por IA that is out of date.
+- `key-print-section-9-v14.html` is the last printed frame. No frame prints a criterion and a result per row, and the corrected column's header reads "20 °C".
+- The palettes draw "TP — proteção" and "TC — proteção" (`42-template-composer.html`, `40-relatorio-overview.html`), which the app copies verbatim (`apps/web/src/copy/pt-br.ts` `composer.equipmentNames`).
+
+*(Definition of Ready, met 2026-11-11: this story's list. The look follows `DESIGN.md`. No new colour token is drawn unless a frame shows the need and names it, per `MOCK-GUIDE.md`.)*
+
+**Acceptance Criteria:**
+
+**Given** Part A, `60-ficha.html` and `85-sync.html`
+**When** they are redrawn
+**Then** they show, at 390, 768 and 1280 px, light and dark, with no emoji and no Fasor branding:
+- the Conclusão text before "Editar", reading as text and not as a field, and the same text after "Editar", as the field it is (Story 25.2);
+- the Sync badge and the Sync screen when edits have waited more than one minute with a connection, with "Sincronizar agora" beside the line (Story 25.3)
+
+**Given** Part B, the sheet screens (`60-ficha.html`, `63-ficha-cta.html`)
+**When** they are redrawn
+**Then** they show:
+- a v15 sheet whose every reading is "Não medido": Aprovado not offered, the reason line, and the suggestion "Marcar não ensaiado" (Story 25.6);
+- a reading cell's menu with "Não se aplica", a cell shown as N/A, the row action that marks a whole row, and the helper under a reading above the instrument's limit inside a range (Story 25.9);
+- the point editor opened from a test with three readings out of criterion: the text names the three (Story 25.10);
+- the instrument header with its test voltage editable, and the value shown as changed on this sheet (Story 25.11);
+- a measurement test with "Adicionar ponto": an added row with its name, its cells and its remove action (Story 25.14);
+- the v15 thermography: "Realizada" and "Não realizada", the reason list with "Outro" and its text, the points of a transformer and of a breaker (Story 25.15);
+- the Malha de aterramento with a sixth continuity point (Story 25.16);
+- the No-break de comando with its tests: the voltages table, the float voltage with one row per battery and the action that adds them from the plate's count, and the two pass or fail tests (Story 25.17);
+- the TC's checklist with the item on its secondary, and the oil transformer's items with their hints (Story 25.18)
+
+**Given** Part B, the other screens
+**When** they are redrawn
+**Then** they show:
+- `73-exportar.html` and `40-relatorio-overview.html`: a stale conclusion text as a second blocking row with its way out; the warnings for an overdue deadline, an instrument with no calibration data and a sheet under a removed local (Stories 25.7, 25.12);
+- `50-relatorio-setup.html`, Etapa 4: an instrument marked from the sheets, and one ticked and used on no sheet (Story 25.13);
+- `80-cadastros.html`, Instrumentos: a row with no calibration data, and two rows that share a certificate number (Stories 25.12, 25.13); the action that updates the test base, with its preview (Story 25.23);
+- `73-exportar.html`: the Conferência por IA marked out of date with its action, and a finding of a fixed rule beside a finding of the model (Story 25.24);
+- the palettes and the sheet header with "TP" and "TC" (Story 25.22)
+
+**Given** the print of a v15 relatório
+**When** the printed frame is drawn (`key-print-section-9-v15.html`, in the `key-*.html` style)
+**Then** it shows only these deltas from `key-print-section-9-v14.html`, each measured against the page width the renderer has:
+- a winding-resistance table, a thermography table, the Malha's two tables and a company-type table with their criterion and result on each row, the last one with "220 V ± 5 %" (Story 25.20);
+- the headers "20 °C (corrigido)" and "75 °C (corrigido)" on the tables that carry them, the paired insulation tables of the breaker among them (Story 25.20);
+- a reading printed as N/A (Story 25.9), an added thermography point (Story 25.14), the line of a thermography "Não realizada" with its reason (Story 25.15), and the No-break's tests (Story 25.17);
+- the variation note in its short form, and in its one-line-per-equipment form (Story 25.21);
+- the ratio tables' first column headed "TPs" and "TCs", the cover's "Cidade/local" row, section 1's sentence and section 10's validity line (Story 25.22)
+
+**Given** the approved frames
+**When** each part's PR merges
+**Then** `DESIGN.md` and `EXPERIENCE.md` carry dated amendments (strike-through, never a rewrite), and `MOCK-GUIDE.md` and `index.html` list the frames
+
+**Definition of Done, in addition:**
+- Matheus approves Part A in the browser at 390, 768 and 1280 px before wave 1 starts, and Part B before wave 2 starts.
+- The printed frame's tightest tables are checked at the renderer's widths (`print/section-9.ts` `CONTENT_WIDTH_EM`, `READING_FIT_WIDTH_EM`), so the frame draws nothing the page cannot hold.
+- No app code changes.
+- Every authored pt-BR sentence in a frame is listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The frames of the stories whose Definition of Ready is still open (25.17, 25.19, 25.21) are drawn with the coordinator's reading and marked as such in `MOCK-GUIDE.md`. They are redrawn if Bruno answers otherwise.*
+
+### Story 25.2: What is typed is saved: the conclusion text, the manufacturer and the readings
+
+**Dev model:** opus · **Effort:** high · every seed, web only: the conclusion text commits while typing and on leaving the screen, and reads as text before "Editar"; the manufacturer and the readings commit when their field unmounts; an explicit clear of an unregistered manufacturer is written; no fold change, no contract
+
+As Bruno correcting a sheet on the tablet,
+I want what I typed to be saved even when I move to another sheet without tapping outside the field,
+So that the server holds what the screen showed me (M02).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- **One cause for three fields.** `useFieldCommit` disposes the pending value when its field unmounts (`apps/web/src/input/use-field-commit.ts`, the last effect: "drops its timer rather than committing"). The draft store is meant to keep it, but drafts are saved only on `visibilitychange` and `pagehide` (`apps/web/src/state/drafts.tsx`). Moving inside the app fires neither.
+- **The conclusion text.** Before "Editar" it is a bordered `div role="textbox"`, so it looks like a field (`apps/web/src/components/generated-text-field.tsx`). After "Editar" it commits on blur only: `onChange` sets the text and never starts an idle commit.
+- **The manufacturer.** It commits on an option pick, on "Criar" or on a real focus-out (`apps/web/src/components/registry-picker-field.tsx` `commitLeft`). It has no path on unmount. A clear of a name that is not in the registry is ignored (`apps/web/src/surfaces/ficha/ficha-fields.tsx`, the `onChange` guard of the picker), so the screen shows an empty field while the store keeps the name.
+- **The readings.** A number commits on blur or Enter only, by design: an idle commit would parse "3.3" before the technician types "00" (`apps/web/src/components/number-input.tsx`, its header). The hook has a `flushOnUnmount` option. Only the nameplate's number field sets it (`apps/web/src/surfaces/ficha/nameplate-section.tsx`). The Measurement fields do not.
+- The cell menu ("Não medido", "> limite") and the unit choice write at once (`apps/web/src/surfaces/ficha/measurement-field.tsx`). "> limite" with no instrument range only types "> " and waits for a blur.
+- Nothing shows a time of saving per field.
+
+*(Definition of Ready, met 2026-11-11 by decision 2. The read-only look is blocked until Part A of Story 25.1 is approved. The commit changes are not blocked.)*
+- **The conclusion text.** While it is being edited, a pause of 500 ms commits it, and leaving the screen commits it. Before "Editar" it renders as the frame draws it.
+- **The manufacturer.** When its field unmounts with text the technician changed, the text is committed as a leave commits it: a name of the registry is selected, and a new name is created as "Criar" creates it. A field the technician emptied and left writes the clear, also when the stored name was not in the registry. A stored name focused and left untouched still writes nothing.
+- **The readings.** Blur and Enter stay the only commits while the field lives. When the field unmounts with text that parses, it is committed as a blur commits it. Text that does not parse is saved as a draft at that moment, so "Rascunho encontrado — Recuperar" offers it.
+- **Every other control of a reading** that changes the value without typing is checked to write at once: the cell menu, the unit choice, "Copiar da última visita", an accepted display reading. Bruno saw insulation values change with no typing and not reach the server. The path was not reproduced. The batch looks for it first and reports what it finds.
+- **Out of scope:** a "Salvo às hh:mm" line per field. Bruno suggests it. Nobody decided it (M-4).
+
+**Acceptance Criteria:**
+
+**Given** a concluded sheet whose conclusion text is confirmed
+**When** the Conclusão step renders
+**Then** the text reads as plain text with no field border, as the frame draws it, and "Editar" is the only way to type in it
+
+**Given** the conclusion text in editing, with the cursor still in the field
+**When** the technician stops typing for 500 ms
+**Then** the text is committed: the op is in the outbox, and a reload shows the typed text
+
+**Given** the conclusion text in editing, typed 100 ms ago
+**When** the technician opens another sheet from the tree, taps "Voltar" or moves with the stepper
+**Then** the text is committed before the screen leaves
+
+**Given** the manufacturer field with a typed name that the registry holds, the focus still in the field
+**When** the sheet is left by a move inside the app
+**Then** that manufacturer is stored on the sheet
+
+**Given** the same field with a typed name the registry does not hold
+**When** the sheet is left the same way
+**Then** the name is created and stored once, as "Criar" does
+
+**Given** a sheet whose manufacturer is a name that is not in the registry
+**When** the technician empties the field and leaves it
+**Then** the clear is written, and the screen and the store agree
+
+**Given** a reading typed as "548", the focus still in the cell
+**When** the sheet is left by a move inside the app
+**Then** 548 is committed with its unit, as a blur commits it
+
+**Given** a reading typed as text that is no number
+**When** the sheet is left the same way
+**Then** nothing is committed, and on return the sheet offers the draft
+
+**Given** a reading typed as "3.3", then a pause of two seconds, then "00"
+**When** the field is left
+**Then** 3300 is committed, once: no idle commit ran
+
+**Given** any of the cases above
+**When** the device is offline
+**Then** the result is the same: the write is local
+
+**Definition of Done, in addition:**
+- Web tests "25.2-WEB": each field's commit on unmount, the idle commit of the text, the clear, the untouched name, the draft of an unparseable reading.
+- `e2e/typed-values-kept.spec.ts` "25.2-E2E-001 @p0": on a tablet viewport, each of the three fields is typed and the sheet is left with no blur; after a reload and a sync the server holds each value. "25.2-E2E-002": the read-only look and "Editar".
+- The touched durability specs on the matrix projects (the commit path changes).
+- What the batch found on the values that changed with no typing, in its spec.
+- `docs/kbs/log.md`.
+
+### Story 25.3: A sheet edit is sent by itself
+
+**Dev model:** opus · **Effort:** high · every seed, web only: a commit, a return to the app and the Sync screen each ask for a sync cycle; edits are pushed between two file uploads; file uploads and downloads get a time limit; the badge says when edits waited more than one minute online; no fold change, no contract
+
+As Bruno finishing a sheet with a good connection,
+I want my edits to reach the server by themselves,
+So that I never find them still pending minutes later (M03).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- **What starts a cycle:** the launch, the `online` event, a tick every 60 s (`apps/web/src/sync/engine.ts` `SYNC_INTERVAL_MS`), opening a relatório, and `requestSyncCycle` after a photo or a reading (`apps/web/src/state/sync.tsx`; its callers are `use-photo-capture.ts`, `nameplate-section.tsx` and `reading-line.tsx`). A sheet edit asks for nothing. Coming back to the app asks for nothing. Opening the Sync screen asks for nothing; only "Sincronizar agora" does.
+- **A cycle is single-flight:** the push, then every pending file upload, then the pulls. A nudge that finds a cycle running is remembered and runs after it (`engine.ts` `nudge`, `onlineWhileRunning`). So an edit made while photos upload waits for every upload.
+- **Time limits.** A JSON request is aborted when its answer does not come: 60 s plus a share for its body, at a floor of 1 KB/s (`apps/web/src/sync/client.ts` `requestHeadersTimeoutMs`, fix batches e24f and e24x). A file upload or download goes through `send`, which has no limit. A transfer that hangs holds the cycle until the page reloads.
+- Production (`1528183f`) has no limit on the JSON requests either. The limit reaches production with the Epic 24 deploy.
+- The badge's states are computed by `syncBadgeState` (`packages/domain/src/sync/counts.ts`). None depends on how long an op has waited.
+- Many specs read the outbox or a pending badge after an edit and then tap "Sincronizar agora" (the 2026-09-21 decision C-4).
+
+*(Definition of Ready, met 2026-11-11 by decision 2. The badge's new state is blocked until Part A of Story 25.1 is approved.)*
+- **A commit asks for a cycle.** Every local commit that leaves an op in the outbox asks for one, through one place (`apps/web/src/db/commit.ts`), coalesced: several commits within two seconds ask once.
+- **So do two more moments:** the app coming back to the front (`visibilitychange` to visible), and the Sync screen opening.
+- **Edits do not wait for uploads.** While a cycle uploads files, ops committed meanwhile are pushed between two files. One push runs at a time, and ops keep their order.
+- **A transfer has a limit.** A file upload and a file download are aborted when they exceed a bound computed as the JSON requests' bound is, from the file's size. An aborted transfer is retried by the retry table that exists. The cycle goes on to its next phase.
+- **The alert.** When an op has waited more than 60 s while the device is online, the session is valid and sync is not paused, the badge and the Sync screen say so, with "Sincronizar agora" beside the line. The state and its text are computed in `packages/domain/src/sync/`.
+- **Tests.** A spec that needs an op to stay pending goes offline first or pauses the engine, since an edit no longer waits for a tap.
+- **Out of scope:** the 60 s tick, the retry table, the order of the phases, and what a cycle does when the server refuses an op.
+
+**Acceptance Criteria:**
+
+**Given** a device online with an idle engine
+**When** a sheet edit commits
+**Then** a cycle starts within five seconds and the op leaves the outbox, with no tap and no screen change
+
+**Given** ten edits committed within one second
+**When** the engine reacts
+**Then** one cycle runs, not ten
+
+**Given** a cycle that is uploading five photos
+**When** a sheet edit commits during the second upload
+**Then** the edit is pushed before the third upload starts
+
+**Given** the app in the background with pending edits
+**When** it comes back to the front, online
+**Then** a cycle starts
+
+**Given** pending edits
+**When** the Sync screen opens, online
+**Then** a cycle starts, with no tap on "Sincronizar agora"
+
+**Given** a file upload whose answer never comes
+**When** its bound passes
+**Then** the upload is aborted, the cycle goes on to its pulls, the photo stays pending, and the next cycle tries it again
+
+**Given** an op pending for more than 60 s, online, signed in and not paused
+**When** the badge and the Sync screen render
+**Then** they show the alert as the frame draws it, and it goes away when the op is sent
+
+**Given** the device offline, or the session expired, or sync paused
+**When** an op waits more than 60 s
+**Then** the alert does not show: the state that explains the wait shows, as today
+
+**Given** any sequence of commits, nudges and uploads
+**When** the cycles end
+**Then** no op is lost, doubled or sent out of order
+
+**Definition of Done, in addition:**
+- Engine and client unit tests "25.3-WEB" with injected timers: the coalesced nudge, the push between files, the bound of a transfer, three hung attempts of one cycle (the open test gap of fix batch e24x), the alert's clock.
+- Kernel "25.3-UNIT": the badge state and its text.
+- `e2e/sync-by-itself.spec.ts` "25.3-E2E-001 @p0": an edit reaches the server with no tap; "25.3-E2E-002": an edit made while photos upload on a throttled connection is pushed first.
+- Every spec that asserts a pending op, the outbox or the pending badge is found by grep and made to go offline or to pause first. The list is in the PR.
+- The touched durability specs on the matrix projects.
+- The fix batch e24x rows on the push bound (B1 and its test gap) are read; the story says what it closes.
+- `docs/kbs/workflow/e2e-testing.md`, `docs/kbs/architecture/sync.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The alert is one line and one badge state. It is not a toast and it interrupts nothing.*
+- *A push between two files is enough. A push in parallel with an upload in flight was not taken: one file's bound is the longest an edit can wait.*
+
+### Story 25.4: The revision keeps the verdicts it printed
+
+**Dev model:** opus · **Effort:** high · every seed, no screen: at issue the server stores, on the revision, the parecer and each ficha's pair as the document printed them; the stored choices of the technician are not touched; the Conferência por IA is checked to read the effective values; one contract number
+
+As Matheus reading the stored data of an issued relatório,
+I want the store to hold the verdicts the document printed,
+So that no export, count or report reads a value older than the signed one (M17, and the stored half of M01).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- **Every reader derives.** The screen and the document show the effective pair of a ficha (`relatorio/conclusion.ts` `effectiveConclusionPair`, `printedConclusionPair`) and the effective parecer (`relatorio/parecer.ts` `effectiveParecer`). Neither reads the stored value alone.
+- **The stored pair** is written by "Concluir ficha" and by "Confirmar" on "Conclusão ajustada". When a reading changes after that, the stored pair stays as it was.
+- **The stored parecer** (`relatorio.setup.parecer`) is written only by a tap on a verdict in Etapa 6 (`apps/web/src/surfaces/relatorio/setup-surface.tsx`). A relatório nobody tapped holds none, or an old one. This is what Bruno saw on two relatórios: the store said one verdict, and the screen and the document another.
+- **A stored verdict is also a choice.** `effectiveParecer` keeps a stored verdict that is stricter than the derived one, because the engineer chose it. The same holds for a ficha's stored pair against its floor. So writing the effective value over the stored one at issue would turn it into a choice: after the fichas clear, a relatório issued "Não apto" would stay "Não apto" until someone tapped a looser verdict (the open row of `deferred-work.md` § e22c on the stricter parecer).
+- **The revision row** holds its number, its snapshot and its two files (`schemas/entities.ts` `revisionRowSchema`). The issue job writes it, and the `last_results` of each equipment, in `commitRevision` (`apps/api/src/jobs/generate/job.ts`).
+- The server refuses to issue while a blocking row exists (`apps/api/src/http/generate.ts`).
+
+*(Definition of Ready, met 2026-11-11 by decision 2. The mechanism is the coordinator's reading, open to Matheus as M-3.)*
+- **What is stored.** The revision row gains two optional keys, written by the issue job from the snapshot it rendered: the parecer's verdict as section 10 printed it (null when section 10 does not print), and, per ficha, the pair as section 9 printed it. They are never defaulted, so a revision written before parses to the same bytes.
+- **What does not change.** The stored pair of a ficha and the stored parecer keep meaning "what the technician chose". No reader of the app changes. No verdict, no screen and no printed page changes.
+- **The Conferência por IA.** Its payload is checked: it must send the effective pair and the effective parecer, never the stored ones. If it sends a stored one, the story fixes it.
+- **One function** in `packages/domain` gives the verdicts of a relatório for a raw reader: the last revision's when one exists, else the effective ones. The read-only counts and any later export use it.
+- **One contract number**, for the row's two keys.
+- **Out of scope:** rewriting `setup.parecer` or a ficha's stored pair; the row of § e22c (a stricter parecer that stays after the fichas clear), which is Bruno's.
+
+**Acceptance Criteria:**
+
+**Given** a relatório whose stored parecer is "Apto" and whose fichas give "Não apto"
+**When** it is issued
+**Then** the document prints "Não apto", the new revision stores "Não apto", and `setup.parecer` is as it was
+
+**Given** a ficha concluded Aprovado whose reading was later typed out of its criterion
+**When** the relatório is issued
+**Then** the revision stores Reprovado for that ficha, as section 9 printed it, and the ficha's stored pair is as it was
+
+**Given** that relatório after the reading is corrected and the fichas clear
+**When** it is issued again
+**Then** the screen shows the derived verdict, with nothing held by the first issue, and the second revision stores what it printed
+
+**Given** a relatório whose section 10 is switched off
+**When** it is issued
+**Then** the revision stores no parecer
+
+**Given** a revision written before this story
+**When** a device pulls it
+**Then** it parses as before, and the raw reader's function answers with the effective values
+
+**Given** the Conferência por IA on a relatório whose stored and effective verdicts differ
+**When** its payload is built
+**Then** it holds the effective ones
+
+**Given** a client on the contract before this story
+**When** it syncs
+**Then** it is refused with 426 and the update notice
+
+**Given** company A's revision
+**When** company B asks for it
+**Then** it is refused, as every revision read is
+
+**Definition of Done, in addition:**
+- Kernel "25.4-UNIT": the raw reader's function, with and without a revision.
+- "25.4-API-001": the two keys through the issue job and the sync route; the 426; the cross-tenant read.
+- "25.4-INT": the keys equal what the DOCX printed, on a v13 and on a v14 relatório, a v14 Reprovado with no restriction among them.
+- The audit payload's test over a relatório whose stored and effective verdicts differ.
+- No golden and no fixture op moves.
+- The spine gains a dated note under AD-25 (the revision keeps the verdicts it printed).
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/data-model.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The decision asks that the store hold the effective pair and parecer. The story stores them beside the technician's choice, on the revision, and does not write them over it. Writing over it is the smaller change, but it makes an issued verdict hold as a choice in the next revision, which could sign a wrong "Não apto".*
+- *Between two issues the stored choice can still differ from what the screen shows. Nothing prints from it.*
+
+### Story 25.5: Seed v15 opens and the v14 layout is locked
+
+**Dev model:** opus · **Effort:** high · seed v15 derived from v14 with `V14_HASH` pinned as shipped; no rule differs at the opening; the layout-lock goldens of a v14 relatório that covers what Epic 25 changes on v15; one contract number with its `MIN_CONTRACT_VERSION` decision
+
+As Bruno reading a relatório created before this epic,
+I want it to conclude and print exactly as it did,
+So that the new rules and the new print reach only the relatórios created after them.
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- `SEED_VERSION` is `'v14'` (`seed/definitions.ts:66`). Seed v14 is on main and not deployed, so `V14_HASH` is still re-pinned by each batch (`seed/seed.test.ts:2200`). It freezes at the Epic 24 deploy. Fix batch e24y, in build, adds flags to it.
+- The contract is 47 with minimum 47 (`contract/version.ts`).
+- The layout lock covers v5, v11, v12 and v13: `LAYOUT_LOCK_VERSIONS` (`packages/domain/fixtures/layout-lock/op-log.ts:69`), the goldens under `apps/api/src/jobs/generate/golden/layout-lock-{v5,v11,v12,v13}/`. There is no v14 golden yet; `epic-24-context.md` says it is due at the Epic 24 deploy.
+- The seed-level `rules` object and `seedRule(seedVersion, flag)` exist since Story 24.2 (`seed/schema.ts` `seedRulesSchema`, `seed/definitions.ts:214`). Each flag is `true` or absent.
+- How v14 was opened is the model: batch e24a's first commit held only v14 = v13 and the v13 lock; each later batch added a fenced section to `seed/v14.ts` and a strip helper to `seed.test.ts` (`withoutE24a`, `withoutE24p`, `withoutE24s`).
+- The server moves a Template to the newest seed (`templateSeedUpgrade`, Story 14.3), so every relatório created after the deploy is born on the newest seed.
+
+*(Definition of Ready: decision 2 and the proposal's "Technical impact". One point is open: **the Epic 24 deploy has happened**, so `V14_HASH` is final. The story does not start before it.)*
+- **Seed v15** derives from v14. This batch owns `seed/v15.ts`. Its first commit holds only v15 = v14 (a new version, same content, the same flags) and the v14 layout lock.
+- **The v14 layout lock.** `LAYOUT_LOCK_VERSIONS` gains `'v14'` if the Epic 24 deploy did not add it. A golden that already exists is kept byte-equal. The cases below that it lacks are added as a second v14 fixture with its own golden: additions only. The v14 fixture covers what Epic 25 changes on v15, so each change has its v14 pin:
+  - a sheet whose every reading is "Não medido", concluded Aprovado (Story 25.6);
+  - a ficha the technician reproved over readings within their criteria, and a ficha with one test measured and one left "Não medido", each with its confirmed text (Story 25.7);
+  - a breaker whose pole rose exactly 50 % since the previous visit (Story 25.8);
+  - a TP whose third phase is "Não medido" (Story 25.9);
+  - a stored point written from a test with three readings out of criterion (Story 25.10);
+  - a thermography measured on its four points, one with "Equipamento em carga" set to Não, and one left unanswered (Story 25.15);
+  - the Malha de aterramento with its five continuity rows (Story 25.16), and a No-break de comando (Story 25.17);
+  - a TC and an oil transformer with every item answered (Story 25.18), and a transformer of each TIPO DE ISOLAÇÃO (Story 25.19);
+  - a winding-resistance table, the paired insulation tables of a breaker with "20 °C", a company-type table with a "nominal ± %" row, each with a previous visit (Story 25.20);
+  - a second visit whose note line names more than three cells (Story 25.21);
+  - a relatório with Etapa 2's Local filled and the obra's site filled, an exclusion that names the relays, a blank ART, and a TP and a TC with their ratio tables (Story 25.22).
+- **The goldens are taken on main at the start of wave 2**, after fix batch e24y and the Epic 24 deploy, before any other Epic 25 change to print.
+- **One contract number.** A client on the contract before cannot resolve a v15 definition. `MIN_CONTRACT_VERSION` moves unless the PR shows why not.
+- **Out of scope:** every rule change. At the end of this story a v15 relatório concludes and prints exactly as a v14 one.
+
+**Acceptance Criteria:**
+
+**Given** main at the start of wave 2
+**When** the v14 layout-lock goldens are generated
+**Then** they pin the DOCX parts and the PDF text of the v14 fixture, the v5, v11, v12 and v13 goldens and the Porto Seguro goldens are byte-equal to main, and every later Epic 25 PR must keep all of them byte-equal
+
+**Given** seed v15 at its opening
+**When** `seed.test.ts` runs
+**Then** `V14_HASH` is the value v14 shipped with, `SEED_VERSION` is `'v15'`, `Object.keys(SEED_VERSIONS)` is v1 to v15, `equipmentTypesOf('v15')` equals v14's list, and v15 stringifies equal to v14
+
+**Given** a relatório created after this story
+**When** it is created from a template, in the app or by the server's template upgrade
+**Then** it is born on v15, and a relatório that existed before keeps its seed
+
+**Given** a client on the contract before
+**When** it syncs
+**Then** it is refused with 426 and the update notice
+
+**Given** a v15 relatório and a v14 relatório with the same answers
+**When** both conclude and print
+**Then** their verdicts are equal and their documents differ in nothing but their ids and dates
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.5-UNIT": the pins above.
+- `docx-layout-lock.test.ts` and `layout-lock.integration.test.ts` run over v5, v11, v12, v13 and v14 ("25.5-UNIT-LOCK", "25.5-INT-LOCK").
+- Every test that pins `SEED_VERSION` or the version list is updated, found by grep. Every test that asserts a v14 verdict or a v14 page is pinned to v14 by an addition.
+- "25.5-API-001": the 426 through the sync route, and a v15 relatório created through it.
+- `e2e/seed-v15.spec.ts` "25.5-E2E-001 @p0": a new relatório is on v15, fills one sheet of every type and generates its DOCX; a v14 relatório opened beside it still generates.
+- The touched durability specs on the matrix projects.
+- The four journey specs' tap budgets get their v15 run in this batch.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 25.6: A sheet with no measurement does not accept Aprovado
+
+**Dev model:** opus · **Effort:** high · seed v15: a sheet whose tests hold no measured reading and at least one "Não medido" cannot be concluded Aprovado; the Conclusão step says why and offers "Marcar não ensaiado"; the pair, the progress, the print and the parecer follow; v1 to v14 unchanged
+
+As Bruno reviewing a relatório,
+I want a sheet on which nothing was measured to say so,
+So that no equipment prints "Aprovado" with every reading left out (M07).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- A cell marked "Não medido" counts as filled (`relatorio/sheet-progress.ts`, its header). So a sheet whose every cell is "Não medido" completes its Ensaios step.
+- The floor then comes from the checklist alone (`relatorio/conclusion.ts` `computeFloor`). With every item Conforme the sheet concludes Aprovado · Sem restrições, and prints so.
+- "Não ensaiadas" counts only the sheets marked so (`sheet-progress.ts`, `block.not_tested`). The mark is the header's "Marcar não ensaiado", with its reasons (Story 12.4).
+- `nothingToMeasure` (`conclusion.ts`) already knows a type with no test, such as the v14 No-break de comando.
+- On the relatório reviewed on 2026-11-10 a sheet with no measured value was concluded Aprovado with restrictions, and the header showed no sheet as not tested.
+
+*(Definition of Ready, met 2026-11-11 by decision 6. Blocked until Story 25.1's frame is approved.)*
+- **"No measurement"**, on v15: the sheet has at least one live, applicable test with reading cells; no reading cell of any of them holds a measured value or a value above the instrument's limit; and at least one is "Não medido". Cells marked N/A (Story 25.9) are left out of the count. A sheet with nothing to measure is not in this rule.
+- **What changes for such a sheet.** Aprovado is not offered and not accepted. The reason line says why. One action under it opens "Marcar não ensaiado". Reprovado stays possible, with OBSERVAÇÕES as on v14.
+- **A pair already stored.** A sheet concluded Aprovado before its last reading became "Não medido" reads as not concluded: the Conclusão step is missing again, the sheet counts as incomplete, and section 9 prints its CONCLUSÃO boxes empty. Nothing is written by itself.
+- **The parecer** counts the sheet as it counts any sheet with no conclusion.
+- **The gate.** One flag of the v15 `rules`. The batch names it.
+- **Authored, for Bruno:** the reason line, "Nenhum ensaio foi medido nesta ficha. Registre as medições ou marque a ficha como não ensaiada."
+
+**Acceptance Criteria:**
+
+**Given** a v15 breaker with every item Conforme and every reading "Não medido"
+**When** the Conclusão step renders
+**Then** Aprovado is not offered, the reason line shows, and "Marcar não ensaiado" opens the existing dialog with its reasons
+
+**Given** that sheet
+**When** the technician marks it not tested with a reason
+**Then** it counts under "Não ensaiadas" and prints as a not-tested sheet prints today
+
+**Given** a v15 sheet concluded Aprovado with one reading measured
+**When** that reading is set to "Não medido"
+**Then** the sheet reads as not concluded, the Sumário counts it as incomplete, and its preview prints no result
+
+**Given** a v15 sheet with one test measured and another all "Não medido"
+**When** it is concluded
+**Then** Aprovado is accepted: the rule is about a sheet with no measurement at all (Story 25.7 names the test left out)
+
+**Given** a v15 No-break de comando with no test, or a sheet whose tests are all switched off
+**When** it is concluded
+**Then** Aprovado is accepted as today
+
+**Given** a v14 sheet with every reading "Não medido"
+**When** it is concluded and printed
+**Then** it concludes and prints as today, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "25.6-UNIT": the rule over seeded tests and measurement tests, N/A cells, switched-off and not-applicable tests, a type with no test, the stored pair, the progress, the printed pair, the parecer; the same inputs on v14.
+- "25.6-INT": the DOCX of a v15 relatório with such a sheet.
+- `e2e/no-measurement.spec.ts` "25.6-E2E-001 @p0": the sheet above from the tree to "Marcar não ensaiado" and to the Sumário's count.
+- The authored sentence listed in the PR for Bruno.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The sheet is not turned Reprovado by itself. It stays without a conclusion until the technician marks it not tested or reproves it.*
+- *A pass or fail answer (the oil sampling, the polarity) is not a reading. It neither makes nor breaks the rule.*
+
+### Story 25.7: A stale conclusion text blocks issuing, and the text names a Reprovado by hand and the tests left unmeasured
+
+**Dev model:** opus · **Effort:** high · every seed: a concluded sheet whose stored text is stale becomes a blocking row before generating, refused by the server too; seed v15: the composed paragraph names a Reprovado the technician chose and each test left unmeasured; v1 to v14 paragraphs unchanged
+
+As Bruno signing a relatório,
+I want no ficha to print a text that contradicts its result,
+So that a Reprovado never reads "valores medidos dentro dos critérios" (M20).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- `composeConclusion` (`relatorio/conclusion.ts`) builds the paragraph from the pair, the readings out of criterion, the restricted readings and the NC items. It does not know a Reprovado chosen by hand over a clean sheet. It does not name a test whose readings were left "Não medido". So such a ficha reads as within the criteria.
+- A stored text whose inputs moved is `stale` (`conclusionTextState`): the sheet offers "Substituir". A confirmed text that is stale prints nothing in CONCLUSÃO.
+- Before generating, a stale text is a `pending` row, `conclusion_stale` (`relatorio/pre-issue.ts`). Only `parecer_missing` is `blocking` (Story 7.5: "exactly one row may be blocking"). The server refuses to issue while a blocking row exists (`apps/api/src/http/generate.ts`).
+- Fix batch e24y, in build, makes a confirmed text follow a TAG rename, so a rename alone no longer leaves a text stale.
+- The suggested observation numbers items by their place in the checklist (`suggestedSheetObservation`). A typed observation keeps the numbers it was typed with. Nothing compares them: that check belongs to the Conferência por IA (Story 25.24).
+
+*(Definition of Ready, met 2026-11-11 by decision 7. Blocked until Story 25.1's frame of the blocking row is approved.)*
+- **The block, on every seed.** `conclusion_stale` becomes `blocking`. The Export dialog names the sheets. The server refuses the request as it refuses a missing parecer.
+- **The ways out** stay the two that exist: "Substituir", or a new edit of the text, which stores the basis of the moment. If an edit does not store the basis today, the story makes it do so.
+- **The paragraph, on v15**, behind one flag of the v15 `rules`:
+  - a Reprovado stricter than the floor says that the responsible reproved the ficha and points to OBSERVAÇÕES, which a v14 or v15 Reprovado already requires. It never says the values are within the criteria as its only statement;
+  - each live, applicable test with no measured reading and at least one "Não medido" is named as not measured.
+- **Authored, for Bruno:** "Ficha reprovada por avaliação do responsável técnico, conforme as observações." and "Não medido: ⟨ensaio⟩, ⟨ensaio⟩."
+- **Open, not built:** the hands-on pass of 2026-11-11 found the same family on a restriction chosen by hand over a clean sheet: the paragraph recommends correcting "os pontos indicados" when none is indicated (finding F12, in the ledger section of fix batch e24y). Whether it is fixed the same way is open to Matheus (M-7).
+
+**Acceptance Criteria:**
+
+**Given** a relatório on any seed with one concluded sheet whose text is stale
+**When** the Export dialog opens
+**Then** "Gerar relatório" is disabled, the blocking row names the sheet, and it leads to it
+
+**Given** that sheet
+**When** the technician taps "Substituir", or edits the text and leaves it
+**Then** the row goes away and the relatório can be issued
+
+**Given** a device that still shows the old dialog
+**When** it asks the server to issue that relatório
+**Then** the server refuses, as it refuses a missing parecer
+
+**Given** a v15 ficha whose readings are all within their criteria and which the technician concluded Reprovado with an observation
+**When** its text is composed
+**Then** it says the responsible reproved it and points to the observations
+
+**Given** a v15 switch with its insulation measured and its contact resistance left "Não medido"
+**When** its text is composed
+**Then** it names the contact resistance as not measured, and says "dentro dos critérios" only of what was measured
+
+**Given** the same two sheets on v14
+**When** their texts are composed
+**Then** they read as today, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "25.7-UNIT": the two clauses, alone and together, with NC items and with a failed test; the basis moves with them; v14 unchanged; the pre-issue row's severity.
+- "25.7-API-001": the server's refusal.
+- "25.7-INT": the DOCX of the two v15 sheets.
+- `e2e/stale-conclusion-blocks.spec.ts` "25.7-E2E-001 @p0": a text made stale, the blocked dialog, both ways out, the issue.
+- Every spec that issues a relatório with a stale text is found by grep and fixed. The list is in the PR.
+- The authored sentences listed in the PR for Bruno.
+- The `source-deltas.md` rows' "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The block applies to every seed, since it changes no verdict and no printed page. A relatório of an older seed with a stale text must be put right before its next issue (M-9).*
+
+### Story 25.8: A contact rise of exactly 50 % is "com restrição"
+
+**Dev model:** opus · **Effort:** medium · seed v15: on the breaker's and the switch's contact resistance, a rise equal to the limit since the previous visit is restricted; above it stays out; v13 and v14 unchanged
+
+As Bruno comparing a pole with the previous visit,
+I want a rise of exactly 50 % to ask for attention without reproving,
+So that the rule matches the reference I work by (Bruno, 2026-11-11, answer 1).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The breaker's and the switch's contact test carries `restriction.history_rise_out_pct` 50 since seed v13 (`seed/v13.ts`). `applyHistoryRise` (`relatorio/restriction.ts`) puts a pole out when its rise is above 50 %, with a small tolerance for rounding. A rise of exactly 50 % is within.
+- The reason reads "alta de N % sobre ⟨valor⟩ da manutenção anterior, rev. ⟨n⟩ de ⟨data⟩, acima do limite de 50 %". The share is rounded up to one decimal, so a rise just past the limit never reads as the limit.
+- The hands-on pass of 2026-11-10 asked the question (finding F8, question B-1 of the Epic 24 proposal).
+
+*(Definition of Ready, met 2026-11-11 by Bruno's answer 1.)*
+- **On v15**, a rise equal to the limit, inside the same rounding tolerance, makes the pole restricted. Above the limit it is out, as today. The gate is a key of the v15 seed on the same restriction rule.
+- **Authored, for Bruno:** the reason of the restricted pole, in the form of the existing one, ending "no limite de 50 %".
+- The helper, the conclusion, the note line under the table and a point created from the test use that reason.
+
+**Acceptance Criteria:**
+
+**Given** a v15 breaker whose pole went from 40 µΩ to 60 µΩ since the previous v13, v14 or v15 visit
+**When** the sheet is evaluated
+**Then** the pole is restricted, the floor is Aprovado · Com restrições, and the helper, the conclusion and the note line name a rise of 50 % at the limit
+
+**Given** the same pole at 60,4 µΩ
+**When** the sheet is evaluated
+**Then** the pole is out and the ficha Reprovado, as today
+
+**Given** the same pole at 59,6 µΩ
+**When** the sheet is evaluated
+**Then** the rise rule flags nothing
+
+**Given** a v14 breaker with the 40 µΩ to 60 µΩ rise
+**When** it is evaluated and printed
+**Then** it is within, as today, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "25.8-UNIT": the three cases on v15, the two seeds, a pole both at the limit and deviating from the lowest pole.
+- "25.8-INT": the note line of a v15 second visit.
+- The touched specs of the previous visit.
+- The authored sentence listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+### Story 25.9: N/A on a reading cell and on a row, and the helper of a limit inside a range
+
+**Dev model:** opus · **Effort:** high · seed v15: a reading cell takes "Não se aplica", alone or for its whole row; it is filled, never judged and printed "N/A"; every seed, screen only: a reading above the instrument's limit inside a range criterion says why it was not judged
+
+As Bruno filling a set of two TPs,
+I want to mark the third phase as not applicable,
+So that it is neither a gap nor a reading I did not take (M05).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- A test that does not apply by the plate is already N.A. as a whole (`relatorio/applicability.ts`, seed v13).
+- A reading cell has five states: empty, measured, "Não medido", above the limit, invalid (`relatorio/reading-cells.ts` `ReadingState`). There is no N/A. The stored cell's schema already accepts `not_applicable`, which a plate number uses (`schemas/entities.ts`, the value's `state`).
+- "Não medido" counts as filled, so it is not a gap while the sheet is filled. It still reads as a reading that was skipped, and the Conferência por IA points at it.
+- A plate value stored `not_applicable` prints "N/A" (`print/section-9.ts`).
+- A reading above the instrument's limit on a `between` or "nominal ± %" row is not judged, and the paragraph reads "a conferir" (fix batch e24x, C1). Its cell shows no helper that says why (the row X6 of `deferred-work.md` § e24x, and its test gap).
+
+*(Definition of Ready, met 2026-11-11 by M05 and Matheus's scope. Blocked until Story 25.1's frame is approved. One point is open for the helper: Bruno confirms or rewords the sentence, B-6. If he has not answered when the batch starts, the proposed sentence is built and stays listed for him.)*
+- **The state, on v15.** A reading cell of a seeded test and a number cell of a measurement test take "Não se aplica" from the cell's menu. One row action marks every reading cell of the row.
+- **What it means.** The cell is filled. It is not judged. It is left out of every comparison between phases or poles: the others are compared among themselves. It is not a "Não medido" for Story 25.6. It has no previous-visit judgement.
+- **Print.** The cell prints "N/A". A derived cell of a row whose readings are all N/A prints "N/A" too.
+- **The Conferência por IA** reads the cell as not applicable.
+- **The gate.** One flag of the v15 `rules`. On v1 to v14 the menu does not offer it.
+- **The helper, on every seed**, under a reading above the limit that a range criterion could not judge. Proposed for Bruno: "Conferir: o limite do instrumento está dentro da faixa do critério; meça com outra escala."
+
+**Acceptance Criteria:**
+
+**Given** a v15 TP's insulation table
+**When** the technician marks phase T "Não se aplica" from the cell's menu
+**Then** the cell shows N/A, the sheet's count of what is missing does not include it, and phases R and S are judged as before
+
+**Given** a v15 ratio table
+**When** the technician marks a whole row not applicable
+**Then** every reading cell of the row is N/A, and its calculated and condition cells show N/A
+
+**Given** a v15 test judged by the deviation between phases, with one phase N/A
+**When** it is evaluated
+**Then** the two other phases are compared with each other, and nothing reads "a conferir" because of the N/A
+
+**Given** that sheet
+**When** its DOCX is generated
+**Then** each such cell prints "N/A" and no other cell moves
+
+**Given** a v15 sheet whose readings are part N/A and part "Não medido", none measured
+**When** it is concluded
+**Then** Story 25.6's rule applies: the N/A cells do not count as measurements
+
+**Given** a v14 sheet
+**When** a cell's menu opens
+**Then** "Não se aplica" is not offered, and what the fold accepts for a v14 sheet does not change
+
+**Given** a company-type row judged "220 V ± 5 %" and a reading above the instrument's limit, on any seed
+**When** the cell renders
+**Then** the helper shows under it
+
+**Definition of Done, in addition:**
+- Kernel "25.9-UNIT": the state through the evaluation, the progress, the comparisons between phases, the previous visit, the print cell, the audit text; the fold unchanged for a v1 to v14 sheet.
+- "25.9-API-001": the cell through the sync route on v15.
+- "25.9-INT": the DOCX with N/A cells in a seeded table and in a measurement table.
+- `e2e/reading-not-applicable.spec.ts` "25.9-E2E-001 @p0": the cell, the row, the count, the print. A web test pins the helper's cell (it closes the test gap of § e24x).
+- The touched durability specs on the matrix projects.
+- The authored strings listed in the PR for Bruno.
+- The rows X6 and its test gap of `deferred-work.md` § e24x closed.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The N/A cell is offered on v15 only (M-5). It changes nothing unless the technician taps it, so it could be offered on every seed; the rule that printed text changes on new relatórios only was kept.*
+
+### Story 25.10: A point created from a test names every reading out of its criterion
+
+**Dev model:** opus · **Effort:** high · seed v15: the text a point starts with, when it is created from a failed test, lists each reading out of its criterion in row order; a starting priority and a default action wait for Bruno; v1 to v14 points start as today
+
+As Bruno creating a point of attention from a failed test,
+I want it to name every phase that failed,
+So that the action plan does not hide two of three poles (M14).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- A point exists only by a tap (fix batch e24h). "Criar ponto de atenção" under a failed test starts one point per test (`points/derived.ts` `sheetPointFindings`, Story 24.17).
+- Its text names the worst reading out of criterion only (`worstReadings`, `worstMeasurements`). On the relatório reviewed on 2026-11-10 one pole was named and two more were also above the limit.
+- On v14 the test's recommendation fills "Ação recomendada" (`recommendation_as_action`). A seeded test with no imported text has no recommendation, so the action starts empty.
+- The priority, the deadline and the owner start empty. The deadline is suggested from the priority and the point's creation date: P0 the same day, P1 30 days, P2 90, P3 180, P4 the next intervention (`points/priority.ts`).
+- The conclusion paragraph and section 10 also name the worst reading only (the hands-on pass of 2026-11-11, finding F7).
+- An NC row still offers "Criar ponto de atenção" after its point exists (the same pass, finding F4).
+
+*(Definition of Ready. The first half is met 2026-11-11 by M14 and Matheus's scope. Blocked until Story 25.1's frame is approved.)*
+- **On v15**, behind one flag: the text of a point started from a test names every reading of that test out of its criterion, in row order, each with its value, and the criterion once. Restricted readings keep the list they have.
+- **Within the cap.** When the list would pass the text's cap, the readings that do not fit are counted ("e mais N leituras"). Nothing the server refuses is offered (fix batch e24x, D2).
+- **A stored point is never rewritten.** The story changes what a new point starts with.
+- **Authored, for Bruno:** the form "⟨Ensaio⟩ fora do critério (⟨critério⟩): ⟨linha⟩ ⟨valor⟩; ⟨linha⟩ ⟨valor⟩."
+- **Open, not built until answered:**
+  - the priority a point starts with for each kind of finding (a reading out, a restricted reading, an NC item, a sheet not tested, a Reprovado by hand), and a default action where the test has no recommendation: Bruno, B-8;
+  - whether the conclusion and section 10 also name every reading (F7): Matheus, M-6;
+  - whether an NC item may carry more than one point (F4): Matheus, M-2. Until he decides, the row offers the action as today.
+
+**Acceptance Criteria:**
+
+**Given** a v15 switch whose three poles read 273, 266 and 548 µΩ against a limit of 250 µΩ
+**When** the technician taps "Criar ponto de atenção" under the test
+**Then** the editor opens with a text that names the three poles with their values and the criterion once
+
+**Given** that point saved
+**When** the DOCX is generated
+**Then** section 8 prints the three readings in the point's row
+
+**Given** a test with more readings out than the text's cap holds
+**When** the point is started
+**Then** the text ends with the count of those left out, and the save is accepted by the server
+
+**Given** a point stored before, on any seed
+**When** the relatório is opened or printed
+**Then** its text is as it was stored
+
+**Given** a v14 sheet with three readings out
+**When** the point is started
+**Then** it names the worst one, as today
+
+**Definition of Done, in addition:**
+- Kernel "25.10-UNIT": seeded tests and measurement tests, one and several readings, the cap, a failed prerequisite beside readings, v14 unchanged.
+- "25.10-INT": section 8 of a v15 relatório.
+- `e2e/point-names-readings.spec.ts` "25.10-E2E-001 @p0": the tap, the text, the saved point, the DOCX.
+- The authored form listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+### Story 25.11: The test's voltage in the instrument header can be changed on the sheet
+
+**Dev model:** opus · **Effort:** medium · every seed, screen and stored header: the test parameter of a seeded test's instrument header (TENSÃO ENSAIO, CORRENTE) is a field on the sheet; the registry keeps its default; no fold change expected, no contract
+
+As Bruno testing an arrester at 5 kV with an instrument registered at 10 kV,
+I want to type the voltage I used on that sheet,
+So that the document prints the test as it was done (M06).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- Picking an instrument copies its row by value into the test's header, with the registry's default for that test kind as `test_parameter` (`relatorio/instrument-pick.ts` `instrumentHeaderOf`). The header is one stored value of the test (`ops/path.ts` `TEST_FIELDS`, `instrument`).
+- The sheet shows the parameter and offers no way to change it. It prints in the instrument header as TENSÃO ENSAIO on the insulation test and CORRENTE on the contact test (`print/section-9.ts`).
+- Since seed v12 every insulation row has its own TENSÃO, chosen from 0,5, 1, 2,5, 5 and 10 kV (`seed/v12.ts`, `relatorio/row-voltage.ts`). Since v13 it defaults by the winding or class voltage. The header's value is the last fallback of a row with none.
+- A relatório created before v12 has no voltage per row. There the header is the only place.
+- The Quadro's test-voltage notice reads the header (`relatorio/test-voltage.ts`). "Concluir ficha" stores the suggested instrument, the last one used for that test kind.
+
+*(Definition of Ready, met 2026-11-11 by M06 and Matheus's scope. Blocked until Story 25.1's frame is approved.)*
+- **The field.** On a seeded test whose header has a parameter column, the value is a number field with the unit the registry's value has. Committing it stores the header again with the typed value, in the text form the pick writes.
+- **The sign.** A value that differs from the registry's default shows as changed on this sheet, with one action that takes the instrument's default back.
+- **Picking another instrument** takes that instrument's default. The registry is never written from the sheet. The suggestion of the next sheet carries the registry's default, not the typed value.
+- **Print.** The header prints the stored value, as today.
+- **Out of scope:** new options in the per-row select (a seed change), and a measurement test, whose criterion states its own voltage.
+- **No contract expected.** If the fold refuses a header whose parameter differs from the registry's, the batch stops and reports.
+
+**Acceptance Criteria:**
+
+**Given** an arrester sheet whose megohmmeter is registered with 10 kV
+**When** the technician types 5 in the header's TENSÃO ENSAIO and leaves the field
+**Then** the header reads 5 kV, shows as changed on this sheet, and the DOCX prints 5 kV in that header
+
+**Given** that header
+**When** the technician taps the action that takes the instrument's default
+**Then** it reads 10 kV again and the sign goes away
+
+**Given** that header changed to 5 kV
+**When** the technician picks another instrument
+**Then** the header takes that instrument's default
+
+**Given** an insulation row with no voltage of its own, on a seed where the row falls back to the header
+**When** the header changes
+**Then** the row's shown voltage and its notice follow the header
+
+**Given** a relatório on seed v11
+**When** its sheet's header is edited
+**Then** it works the same way, and nothing else on the sheet or in the document moves
+
+**Given** the instrument's registry row
+**When** any sheet's header is edited
+**Then** the registry row is unchanged
+
+**Definition of Done, in addition:**
+- Kernel "25.11-UNIT": the stored text's form, the changed sign, the fallback of a row, the Quadro's notice.
+- Web tests of the field, the sign and the way back.
+- `e2e/header-test-voltage.spec.ts` "25.11-E2E-001 @p0": the arrester above, through the DOCX.
+- The touched durability specs on the matrix projects, if the commit path changes.
+- `docs/kbs/log.md`.
+
+### Story 25.12: Three warnings before generating: an overdue deadline, an instrument with no calibration data, a sheet under a removed local
+
+**Dev model:** opus · **Effort:** medium · every seed, screen only: three rows of the checks before generating, none blocking; the Instrumentos tab says what a row lacks; no fold change, no contract
+
+As Bruno about to issue a relatório,
+I want to be told what would look wrong to the client,
+So that I fix a deadline already past, an instrument with no calibration and a sheet left behind before I sign (M26, M18, M32).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- **Deadlines.** A point's deadline is suggested from its priority and its own creation date, read from its id (`points/priority.ts`). It does not count from the visit. No issue date exists before generating. A point with no deadline is an information row (`points_sem_prazo`). A deadline already past raises nothing.
+- **Instruments.** Every field of an instrument is optional and saves by itself (`schemas/entities.ts`). Before generating, an expired calibration is `pending`; a missing certificate file and a certificate number that differs from the sheet's are `info` (`relatorio/pre-issue.ts`, the section 11 rows). An instrument with no calibration date is skipped: nothing is judged and nothing is said. On the relatório reviewed on 2026-11-10 three instruments had no date, no validity and no certificate.
+- **Removed locals.** Removing a local removes its sheets in the same batch (`relatorio/removal.ts` `locationRemovalPlan`). A sheet that is still live under a removed local, which another device can create, is hidden from the tree, the counts and the print (`schemas/snapshot.ts`, the live structure). Nothing warns about it. Bruno reports two empty sheets left in a removed local; where he saw them is question B-10.
+
+*(Definition of Ready, met 2026-11-11 by decision 8 and Matheus's scope. Blocked until Story 25.1's frames are approved.)*
+- **An overdue deadline.** A live stored point whose deadline is before the day of generating, in America/Sao_Paulo, raises one `pending` row on section 8 that names the points. A deadline given as a month is overdue when the month has passed. The rule that suggests the deadline does not change.
+- **An instrument with no calibration data.** For each instrument section 11 prints: no calibration date, or no interval to compute the validity from, raises a `pending` row that names the instrument and what it lacks. The missing certificate file becomes `pending`. Nothing blocks.
+- **The Instrumentos tab** shows on each row what it lacks, with the same words. The fields stay optional.
+- **A sheet under a removed local.** A live sheet whose local, or a local above it, is removed raises one `pending` row on section 9 that names the sheets and says they do not enter the relatório.
+- **Authored, for Bruno:** "Prazo já vencido: ⟨pontos⟩", "⟨instrumento⟩: sem data de calibração", "⟨instrumento⟩: sem validade de calibração", "Fichas em local removido, fora do relatório: ⟨TAGs⟩".
+- **Out of scope:** counting the deadline from the issue date; making a registry field required; deleting anything.
+
+**Acceptance Criteria:**
+
+**Given** a relatório with a point whose deadline was yesterday
+**When** the Export dialog opens
+**Then** a pending row names the point, and "Gerar relatório" stays enabled
+
+**Given** a point whose deadline is the current month, given as a month
+**When** the dialog opens
+**Then** no row is raised for it
+
+**Given** a relatório whose megohmmeter has no calibration date
+**When** the dialog opens
+**Then** a pending row names the instrument and the missing date, and the relatório can still be issued
+
+**Given** that instrument in Cadastros
+**When** the Instrumentos tab renders
+**Then** its row says what it lacks, as the frame draws it
+
+**Given** a relatório where a second device created a sheet in a local the first device had removed
+**When** both have synced and the dialog opens
+**Then** a pending row names that sheet, and the document prints without it, as today
+
+**Given** a relatório with none of the three
+**When** the dialog opens
+**Then** its rows are the ones of today
+
+**Definition of Done, in addition:**
+- Kernel "25.12-UNIT": each row, its text and its plural, the month deadline, an instrument used on a sheet and not ticked, a local removed above the sheet's own.
+- Web tests of the Instrumentos tab's line.
+- `e2e/warnings-before-generating.spec.ts` "25.12-E2E-001 @p0": the three rows on one relatório, then the issue.
+- The authored sentences listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The three rows are `pending`, the level the dialog counts and names, not `info`.*
+- *If Bruno's answer to B-10 shows a screen that still lists a sheet of a removed local, that is a defect and goes to a fix batch.*
+
+### Story 25.13: The instruments of a relatório follow its sheets, and registry rows that share a certificate are warned
+
+**Dev model:** opus · **Effort:** medium · every seed, screen only: Etapa 4 marks each instrument used on a sheet and warns on one ticked and used on none; Cadastros warns on two instruments that share a certificate number or a model; no fold change, no contract
+
+As Bruno listing the instruments of a relatório,
+I want the list to come from the sheets,
+So that section 11 does not name an instrument I did not use, nor miss one I did (M25).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- Etapa 4 ticks instruments into `setup.instrument_ids` (`apps/web/src/surfaces/relatorio/setup/etapa4-instrumentos.tsx`). Each test copies its instrument's header onto the sheet by value, with the instrument's id (`relatorio/instrument-pick.ts`).
+- Section 11 prints the union of the ticked ones and the ones used on a sheet (`print/section-11.ts` `section11Instruments`). So an instrument used and not ticked already prints. One ticked and never used prints too.
+- Before generating, a certificate number that differs between the sheet and the registry is an information row.
+- Nothing shows, in Etapa 4, which instruments the sheets use. Nothing warns on a ticked instrument that no sheet uses. Nothing compares two registry rows. On the second relatório one instrument was ticked and not used, one was used and not ticked, and one registry row carried another instrument's model and a third one's certificate.
+
+*(Definition of Ready, met 2026-11-11 by decision 8. Blocked until Story 25.1's frames are approved.)*
+- **Etapa 4.** An instrument used on a live sheet shows as marked, with the count of sheets, and cannot be unticked while it is used. It is derived: `setup.instrument_ids` is not written by itself. An instrument ticked and used on no sheet shows a warning line.
+- **Before generating.** A ticked and unused instrument raises one `info` row.
+- **Cadastros.** Two live instruments with the same certificate number, compared trimmed and without case, each show a warning that names the other. Two with the same model show a lighter line. Both are computed in `packages/domain`.
+- **Before generating.** An instrument of the relatório that shares its certificate number with another registry row raises one `pending` row.
+- **Print.** Section 11 does not change.
+- **Authored, for Bruno:** "Usado em ⟨N⟩ fichas", "Marcado, sem uso nas fichas", "Mesmo certificado de ⟨código⟩", "Mesmo modelo de ⟨código⟩: confira".
+
+**Acceptance Criteria:**
+
+**Given** a relatório where a sheet uses an instrument that Etapa 4 did not tick
+**When** Etapa 4 renders
+**Then** the instrument shows as marked from the sheets, with "Usado em 1 ficha", and it cannot be unticked
+
+**Given** an instrument ticked in Etapa 4 that no sheet uses
+**When** Etapa 4 and the Export dialog render
+**Then** both say it is ticked and not used, and unticking it clears both
+
+**Given** two registry instruments with the certificate number "RBC-1234", one typed with spaces around it
+**When** the Instrumentos tab renders
+**Then** each row names the other
+
+**Given** a relatório that uses one of those two
+**When** the Export dialog opens
+**Then** a pending row names the instrument and its twin
+
+**Given** two instruments of the same model with different certificate numbers
+**When** the tab renders
+**Then** each shows the lighter line, and no row is raised before generating
+
+**Given** any relatório
+**When** its DOCX is generated
+**Then** section 11 is as it is today
+
+**Definition of Done, in addition:**
+- Kernel "25.13-UNIT": the used set over live sheets only, the two registry comparisons, the pre-issue rows.
+- Web tests of Etapa 4 and of the Instrumentos tab.
+- `e2e/instruments-from-sheets.spec.ts` "25.13-E2E-001 @p0": the cases above on one relatório.
+- The authored strings listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *"Tick the instruments from the sheets" is a derived mark, not a stored tick. Section 11 already prints what the sheets use.*
+- *Two units of one model are common, so a shared model is a lighter line and raises nothing before generating. A shared certificate is the real sign of a wrong row.*
+
+### Story 25.14: A row the technician adds in the field
+
+**Dev model:** opus · **Effort:** max · seed v15, a shared capability: a measurement test whose definition allows it takes rows the technician adds, names, fills and removes on the sheet; every reader of the test reads them; new op paths in the fold; one contract number; no test uses it until Stories 25.15 to 25.17
+
+As Bruno measuring one more point than the form lists,
+I want to add a row for it on the sheet,
+So that the reading has its place in the table and not in a note (M23, M30, M19; Matheus's decision 3).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The rows of a measurement test are the rows of its definition (`seed/measurement.ts`). A cell is addressed by its row's index in that definition and its column's index (`ops/path.ts`, `sheet/test/cell`). The fold refuses a row outside the definition (`ops/apply.ts` `assertMeasurementCell`). Cells are stored under the test, by row and column.
+- The office can add a row to a company type's draft (`types/draft-edit.ts` `addDraftMeasurementRow`). The technician cannot add one on a sheet.
+- `rows_from` builds rows from the plate, but only on the seeded ratio table, from TAPS (`seed/schema.ts`).
+- The ground grid's extra continuity point was recorded as not built on 2026-11-10 (`deferred-work.md` § e23e, the AT-02 row). Bruno answered on 2026-11-11 that the five points are a minimum (answer 6).
+- Every reader walks the definition's rows: the evaluation, the progress, the conclusion paragraph, a point's finding, the audit text, the conflict view and `measurementTestPart` in print.
+
+*(Definition of Ready, met 2026-11-11 by decision 3. Blocked until Story 25.1's frame is approved.)*
+- **Where.** A measurement test whose definition carries one new optional key. The key holds the action's label, an optional stem for a numbered default name ("Bateria" gives "Bateria 1", "Bateria 2"), an optional plate field whose number says how many rows the sheet expects, and a maximum. A definition without the key takes no added row. No v1 to v14 definition has it.
+- **An added row** has its own id, a name the technician types, and one cell per column of the test. It is stored on the sheet, under its test. It shows after the definition's rows, in the order it was created.
+- **Its name** is required and capped. Two rows of one test may not share a name on one device. A row with no name yet counts as missing.
+- **Its cells** behave as the cells of a definition row: the same menu, the same units, "Não medido", N/A (Story 25.9). An empty cell counts as missing. Each is judged by its column's criteria.
+- **Rename and remove.** The name can be changed at any time. Removing the row removes its readings, with one toast and "Desfazer".
+- **From the plate's count.** When the key names a plate field and that field holds a number, one action adds the rows still missing up to that number, with their numbered names. Nothing is added by itself.
+- **Two devices.** Rows added on two devices while offline are both kept. Nothing merges two rows by their name.
+- **Readers.** The evaluation, the progress, the conclusion paragraph, a point's finding, the audit text, the conflict view and the print read the added rows after the definition's rows.
+- **The fold** takes the row and its cells through new paths, only on a test whose definition carries the key. One contract number.
+- **Out of scope:**
+  - the previous visit of an added row: it prints no MANUT. ANTERIOR and no history rule judges it. It becomes a row of `deferred-work.md`, open to Matheus;
+  - "Copiar da última visita" and "Igual à": they do not copy added rows;
+  - the seeded FO.SERV-03 tables (insulation, contact, ratio);
+  - a switch in the company type editor. The office already adds rows there.
+
+**Acceptance Criteria:**
+
+**Given** a v15 sheet with a test that allows added rows
+**When** the technician taps the action, types a name and fills the cells
+**Then** the row shows after the definition's rows, its cells are judged by the column's criteria, and the sheet's count of what is missing follows it
+
+**Given** an added row with an empty cell, or with no name
+**When** the sheet's progress is read
+**Then** the row counts as missing
+
+**Given** an added row with readings
+**When** the technician removes it
+**Then** the row and its readings go, and "Desfazer" brings both back
+
+**Given** a test whose key names a plate field that reads 10, with three rows already added
+**When** the technician taps the action that adds from the plate
+**Then** seven rows are added, named with the stem and the numbers 4 to 10
+
+**Given** two devices offline that each add a row to the same test
+**When** both sync
+**Then** both rows exist on both devices, each with its readings
+
+**Given** a row added on one device and removed on another while a third fills its cells
+**When** all sync
+**Then** the result is the one the merge rules give for a removed block's cells, and no device stops syncing
+
+**Given** a sheet with added rows
+**When** its DOCX is generated
+**Then** the rows print after the definition's rows, with their names in the first column
+
+**Given** a test whose definition lacks the key, on any seed
+**When** a client sends an added row for it
+**Then** the fold refuses the op
+
+**Given** a client on the contract before
+**When** it syncs a relatório that holds an added row
+**Then** it is refused with 426
+
+**Definition of Done, in addition:**
+- Kernel "25.14-UNIT": the fold's paths and refusals, the caps, the order, the evaluation, the progress, the paragraph, the point's finding, the audit text, the print rows, the merge of two devices.
+- "25.14-API-001": the paths through the sync route, the 426, the refusal on a definition without the key.
+- Web tests of the row's controls at 390, 768 and 1280 px.
+- The Playwright walk of the capability is `e2e/added-row.spec.ts`, built with Story 25.16, the first test that uses it, in the same batch. The batch does not open its PR without it.
+- The touched durability specs on the matrix projects: the fold and a live query of the ficha change.
+- The spine gains a dated note under the measurement table's decision (a sheet may hold rows of its own).
+- The ledger row on the previous visit of an added row.
+- `docs/kbs/architecture/measurement-table.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *An added row is the sheet's, not the equipment's. The next visit starts without it.*
+- *The maximum is 30 rows per test unless a definition says otherwise.*
+
+### Story 25.15: The thermography: "Não realizada" with a reason, printed, and points by equipment type
+
+**Dev model:** opus · **Effort:** high · seed v15: the thermography asks "Realizada" or "Não realizada"; a "Não realizada" asks a reason and prints one line; its points follow the equipment type, and the technician may add one; v13 and v14 sheets unchanged
+
+As Bruno closing a sheet on which no thermography was done,
+I want to say so with its reason, and have it printed,
+So that the client reads why it is missing, and a thermography that was done lists the points of that equipment (M23; Bruno, 2026-11-11, answer 4).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The thermography is one shared measurement test on the eight types since seed v13 (`seed/v13.ts` `TERMOGRAFIA`), and on the Inspeção de QGBT since v14. It has four rows on every type: Conexões, Terminações, Contatos, Buchas. Each row and each of its two ΔT columns is optional.
+- It asks "Equipamento em carga", Sim or Não, and is not applicable until the answer is Sim (`applies_when` on `em_carga`). Left unanswered, or answered Não, it is not missing and nothing prints. The "Não" is stored and never printed.
+- A technician can apply the test over the app's N.A. The band then reads "Aplicado por você. Equipamento fora de carga." (`apps/web/src/copy/pt-br.ts`, `appliedLead`). That sentence is question B-3.
+- A template may switch the test off (`switchable`).
+- The oil sampling asks a closed reason when it is "Não coletado", and since v14 its "Outro" takes a text, printed "MOTIVO: OUTRO, ⟨texto⟩" (Story 24.14).
+
+*(Definition of Ready, met 2026-11-11 by Bruno's answer 4 and decision 3. Blocked until Story 25.1's frames are approved and Story 25.14 is built.)*
+- **The answer, on v15.** The test asks one required choice: "Realizada" or "Não realizada". It replaces "Equipamento em carga". Until it is answered the Ensaios step is missing one answer.
+- **"Não realizada"** asks a reason from a closed list, with "Outro" and its text. The rows are not asked. The sheet can be concluded. The paragraph of the conclusion says the thermography was not done, with the reason. It is not a restriction, and it is not a "Não medido" for Story 25.6.
+- **"Realizada"** asks the rows. They stay optional, as on v13, and are judged by the v13 bands.
+- **Print.** A "Não realizada" prints one line in the test's place: "TERMOGRAFIA: NÃO REALIZADA. MOTIVO: ⟨motivo⟩." A "Realizada" prints its table.
+- **Points by type**, as seed data, from Bruno's answer:
+  - Transformador de força: Buchas MT; Buchas e conexões BT; Tanque ou bobinas.
+  - Disjuntor MT and Chave seccionadora: the input and the output terminals, one row per phase, six rows, with the phase words the type's other tables use.
+  - TP and TC: Terminais do primário; Terminais do secundário.
+  - Inspeção de QGBT: Disjuntor geral; Barramentos; Saídas; Neutro.
+  - Cabos de entrada, Cabos de saída and Para-raio: the four v13 rows, until Bruno answers B-9.
+- **"Adicionar ponto"** on every type, through Story 25.14.
+- **The override band** no longer applies to the v15 thermography: nothing makes it N.A. by itself.
+- **A template that switched it off** asks nothing and prints nothing, as today.
+- **Authored, for Bruno:** the reasons "Equipamento fora de carga", "Sem acesso seguro ao equipamento", "Sem termovisor disponível", "Outro" (B-17); the printed line; the paragraph's clause "Termografia não realizada (⟨motivo⟩)."; the row names above where his answer gives a phrase and not a label.
+
+**Acceptance Criteria:**
+
+**Given** a v15 transformer whose template keeps the thermography on
+**When** the Ensaios step renders
+**Then** the thermography asks "Realizada" or "Não realizada", and the step counts one answer missing until it is given
+
+**Given** the answer "Não realizada" with the reason "Equipamento fora de carga"
+**When** the sheet is concluded and its DOCX generated
+**Then** the sheet concludes with no restriction from it, the paragraph names it with its reason, and the test's place prints the one line
+
+**Given** the answer "Não realizada" with "Outro"
+**When** the text is empty
+**Then** the step counts it missing, and with a text typed the line prints it
+
+**Given** the answer "Realizada" on a v15 transformer
+**When** the rows render
+**Then** they are Buchas MT, Buchas e conexões BT and Tanque ou bobinas, with "Adicionar ponto" under them
+
+**Given** a v15 breaker with "Realizada"
+**When** the rows render
+**Then** they are the six terminal rows by phase, and a ΔT typed on one is judged by the v13 bands
+
+**Given** a v15 thermography with an added point whose ΔT is out
+**When** the sheet is concluded and printed
+**Then** the floor, the paragraph and the table name the added point as any other row
+
+**Given** a v14 sheet with its thermography
+**When** it is filled and printed
+**Then** it asks "Equipamento em carga", shows its four rows and prints as today, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.15-UNIT": the v15 rows of each type, the values, the strip helper of the batch; v14's thermography unchanged.
+- Kernel tests of the progress, the floor, the paragraph and the print line over both answers.
+- "25.15-INT": the DOCX of a v15 relatório with one "Não realizada" and one "Realizada" with an added point.
+- `e2e/thermography-v15.spec.ts` "25.15-E2E-001 @p0": both answers on a transformer and on a breaker, through the DOCX.
+- The tap budgets checked: the required answer adds one tap per sheet.
+- The authored strings listed in the PR for Bruno.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *One choice replaces "Equipamento em carga". "Fora de carga" becomes a reason. Asking both would ask the same thing twice.*
+- *The answer is required on every v15 sheet whose template keeps the test on. A cabine with many sheets pays one tap each. A template can switch the test off where thermography is never done.*
+
+### Story 25.16: The ground grid takes continuity points beyond the five
+
+**Dev model:** opus · **Effort:** medium · seed v15: the Malha de aterramento's continuity test allows added rows (Story 25.14); its five rows stay as the suggested minimum; v13 and v14 sheets unchanged
+
+As Bruno measuring the continuity of a grid,
+I want to add every point I measured,
+So that the five listed points are a start, not a limit (M30; Bruno, 2026-11-11, answer 6).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The test "Continuidade e equipotencialização" has five optional rows: Carcaças, Portas, Neutro do transformador, Para-raios, Blindagens. Each is judged "≤ 0,5 Ω entre pontos" (`seed/v13.ts` `CONTINUIDADE_MALHA`).
+- A point beyond the five goes in Observações (`deferred-work.md` § e23e, the AT-02 row, kept open for Bruno's answer).
+
+*(Definition of Ready, met 2026-11-11 by Bruno's answer 6 and decision 3. Blocked until Story 25.14 is built.)*
+- On v15 the test's definition carries Story 25.14's key, with the action "Adicionar ponto" and no numbered default name.
+- An added point is judged by the same criterion as the five.
+- The five rows stay optional. An added row is not: it exists because it was measured.
+
+**Acceptance Criteria:**
+
+**Given** a v15 Malha de aterramento
+**When** the technician adds the point "Cerca metálica" and types 0,3 Ω
+**Then** the row shows after the five and is within its criterion
+
+**Given** an added point at 0,8 Ω
+**When** the sheet is concluded and printed
+**Then** the floor is Reprovado, the paragraph names the point, and the table prints the row after the five
+
+**Given** a v14 Malha de aterramento
+**When** its continuity test renders
+**Then** it has the five rows and no action, and prints as today
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.16-UNIT": the key on v15 only.
+- "25.16-INT": the DOCX with two added points.
+- `e2e/added-row.spec.ts` "25.14-E2E-001 @p0" and "25.16-E2E-001 @p0": the whole capability on the Malha at a tablet viewport: add, name, fill, rename, remove and "Desfazer", two rows, the sync to a second session, the DOCX.
+- The AT-02 row of `deferred-work.md` § e23e closed.
+- `docs/kbs/log.md`.
+
+### Story 25.17: The No-break de comando is tested
+
+**Dev model:** opus · **Effort:** high · seed v15: the No-break de comando gains its tests (the input and output voltages on mains and on battery, the float voltage of the bank and of each battery, the transfer test, the breaker opened by the relay on battery); the BATERIAS item's hint names the date of the exchange; new test keys in the batch's contract; v14 sheets unchanged
+
+As Bruno testing the no-break that feeds the protection,
+I want its tests on its sheet,
+So that the main one, the breaker opened by the relay while the no-break runs on its batteries, is on record (M19; Matheus's decision 4).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The v14 No-break de comando has its plate of eighteen fields, six items, observations and a conclusion, and `tests: []` (`seed/v14.ts` `NO_BREAK_COMANDO`, Story 24.13). Its plate holds everything M19 lists, among it BATERIAS: QUANTIDADE.
+- On 2026-11-10 Bruno said the tests would wait for a later module (question 34). On 2026-11-11 he asks for them, and names the breaker opened by the relay on battery as the main one. Matheus decided they enter seed v15 and aligns the change with Bruno.
+- The measurement grammar holds what three of the tests need: a table of number cells, a fixed cell, and a pass or fail choice judged by `choice_pass`, as the oil sampling uses (`seed/measurement.ts`).
+- It lacks two things. A seeded criterion is a limit: a range or "nominal ± %" exists on company types only. And no test takes one row per battery; Story 25.14 gives that.
+- Test keys are a closed list (`schemas/block-config.ts` `SUB_BLOCK_KEYS`).
+- Bruno also says the six items are right, and asks that BATERIAS name the swelling, the leak, the oxidation on the terminals and the date of the exchange. The hint names the first three and "VIDA ÚTIL".
+
+*(Definition of Ready. **Open, and the story does not start before both are answered:***
+- ***B-1:** Matheus confirms with Bruno that the tests enter now, against his answer of 2026-11-10.*
+- ***B-2:** Bruno gives the pass rule of each voltage: the output on mains and on battery, the bank's float voltage and each battery's. With no rule, a voltage would be recorded and judged by nothing.*
+
+*What follows is the coordinator's reading, drawn in Story 25.1's frame, to be corrected by those answers. Blocked until Story 25.14 is built.)*
+- **Four tests on v15**, in this order:
+  1. Tensões de entrada e saída: the rows Entrada and Saída, the columns "Em rede" and "Em bateria", in V. The input on battery is a fixed "-".
+  2. Tensão de flutuação: the row "Banco", and one added row per battery, named "Bateria 1" on, offered from BATERIAS: QUANTIDADE (Story 25.14), in V.
+  3. Teste de transferência: OK or FALHOU. FALHOU fails.
+  4. Abertura do disjuntor pelo relé com o no-break em bateria: ABRIU or NÃO ABRIU. NÃO ABRIU fails, and the ficha is Reprovado.
+- **The criteria of 1 and 2** are Bruno's (B-2). If he gives a tolerance around a plate voltage, the seeded grammar gains a criterion of that form in this story.
+- **The item BATERIAS** reads its hint as "ESTUFAMENTO, VAZAMENTO, OXIDAÇÃO NOS BORNES, DATA DA TROCA". Whether it should be one item or one per part is B-13.
+- **The Disjuntor MT's item 16**, NO-BREAK DE COMANDO, stays.
+- **The plate and the plate prompt** do not change.
+- **Authored, for Bruno:** the four test names, their row and column names, the answers' words, the hint.
+
+**Acceptance Criteria:**
+
+**Given** a v15 No-break de comando with BATERIAS: QUANTIDADE 10
+**When** the Ensaios step renders
+**Then** it shows the four tests, and the float voltage offers to add the ten battery rows
+
+**Given** the breaker test answered NÃO ABRIU
+**When** the sheet is concluded
+**Then** the floor is Reprovado, the paragraph names the test, and "Criar ponto de atenção" is offered under it
+
+**Given** the four tests filled within their rules
+**When** the sheet is concluded and printed
+**Then** it concludes Aprovado · Sem restrições, and the sheet prints under "Outros equipamentos" with its four tests after its checklist
+
+**Given** a v15 No-break with every voltage "Não medido" and the two answers empty
+**When** it is concluded
+**Then** Story 25.6's rule applies to its readings, and the two answers count as missing
+
+**Given** a v14 No-break de comando
+**When** it is opened, concluded and printed
+**Then** it has no test, as today, and its conclusion says nothing about measured values
+
+**Given** a client on the contract before
+**When** it syncs a relatório that holds one of the new tests
+**Then** it is refused with 426
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.17-UNIT": the four tests on v15, none on v14.
+- Kernel tests of the evaluation, the floor and the paragraph.
+- "25.17-API-001": the new test keys through the sync route.
+- "25.17-INT": the DOCX of a v15 No-break.
+- `e2e/no-break-tests.spec.ts` "25.17-E2E-001 @p0": from the plate's count to the ten rows, the four tests, the conclusion and the DOCX.
+- The authored strings listed in the PR for Bruno.
+- The `source-deltas.md` row's "planned" replaced by the built record; a dated note beside Epic 24's decision 4.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 25.18: The TC asks about its secondary, and the oil transformer's items say what they mean
+
+**Dev model:** opus · **Effort:** medium · seed v15, seed data: one new item on the TC's list, with Bruno's wording; hints under six items of the transformer's list; a new item key in the batch's contract; v14 lists unchanged
+
+As Bruno inspecting a TC and an oil transformer,
+I want the TC's list to ask about its secondary, and the transformer's items to name what I look for,
+So that the rule of the TC is on the sheet and I recognise my own checks (M22, M21).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The v14 TC asks six items: LIMPEZA, PINTURA E CORROSÃO; VASAMENTO; ATERRAMENTO; CONEXÕES; FIAÇÃO SECUNDÁRIA; BUCHAS (`seed/v10.ts`, `seed/v14.ts` `withE24sTpTc`). None asks whether the secondary is closed or short-circuited. It was question B-11 of Epic 24, and Bruno answered with the wording (answer 11).
+- The v14 transformer asks seventeen items (`seed/v1.ts`, `seed/v9.ts`, `seed/v14.ts`). The five checks Bruno lists in M21 all exist, under the form's own labels: the oil level under ÓLEO ISOLANTE/INDICADOR DE NÍVEL, the leaks under JUNTAS, VEDAÇÕES E VAZAMENTOS, the silica gel under ELEMENTO SECANTE, the oil thermometer under TERMÔMETRO, the Buchholz relay under RELÉ DE GÁS, FUNCIONAMENTO, and the relief valve under VÁLVULA DE ALÍVIO. He did not recognise them.
+- An item may carry a hint, shown on the sheet only (`seed/schema.ts`, the item's `hint`). The labels print as FO.SERV-03 has them.
+- Item keys are a closed list (`schemas/block-config.ts` `ITEM_KEYS`).
+
+*(Definition of Ready, met 2026-11-11 by Bruno's answer 11 and Matheus's scope: no new transformer item. One point is open for the hints: Bruno confirms them, B-5. If he has not answered when the batch starts, the hints below are built and stay listed for him.)*
+- **The TC's new item, on v15**, appended as item 7, with Bruno's wording: "SECUNDÁRIO FECHADO OU CURTO-CIRCUITADO NOS BORNES (NUNCA ABERTO); BORNES DE AFERIÇÃO EM BOM ESTADO". Its three NC phrases are authored by the batch from its two parts.
+- **The TP does not get it.** Its rule is the opposite one (Bruno, 2026-11-10, question 18).
+- **The transformer's hints, on v15**, shown on the sheet only:
+  - ÓLEO ISOLANTE/INDICADOR DE NÍVEL: "NÍVEL DE ÓLEO";
+  - JUNTAS, VEDAÇÕES E VAZAMENTOS: "VAZAMENTOS DE ÓLEO";
+  - ELEMENTO SECANTE: "SÍLICA GEL DO SECADOR";
+  - TERMÔMETRO: "TERMÔMETRO DE ÓLEO";
+  - RELÉ DE GÁS, FUNCIONAMENTO: "RELÉ BUCHHOLZ, QUANDO HOUVER";
+  - VÁLVULA DE ALÍVIO: "VÁLVULA DE ALÍVIO DE PRESSÃO, QUANDO HOUVER".
+- No label, no key and no order of an existing item changes. The print of the transformer's list does not change.
+
+**Acceptance Criteria:**
+
+**Given** a v15 TC
+**When** its checklist renders
+**Then** it asks seven items, the seventh with Bruno's wording, and marking it NC offers its phrases and "Criar ponto de atenção"
+
+**Given** that sheet
+**When** its DOCX is generated
+**Then** the list prints seven rows, the seventh with the item's label
+
+**Given** a v15 TP
+**When** its checklist renders
+**Then** it is the v14 list
+
+**Given** a v15 oil transformer
+**When** its checklist renders
+**Then** the six items show their hints under their labels, and the printed list is the v14 one
+
+**Given** a v14 TC and a v14 transformer
+**When** their lists render and print
+**Then** they are as today
+
+**Given** a client on the contract before
+**When** it syncs a relatório that holds the TC's new item
+**Then** it is refused with 426
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.18-UNIT": the TC's seven items and the six hints on v15; v14 unchanged.
+- "25.18-API-001": the new item key through the sync route.
+- `e2e/seed-v15-lists.spec.ts` "25.18-E2E-001 @p0": the TC's item answered NC with a chip, and the transformer's hints read.
+- `docs/nc-chip-phrases.md`.
+- The tap budgets checked on the TC.
+- The authored phrases and hints listed in the PR for Bruno.
+- B-11 of the Epic 24 proposal and the matching part of the ledger row of § e24s closed.
+- `docs/kbs/log.md`.
+
+### Story 25.19: One name for the insulating medium, and "A SECO"
+
+**Dev model:** opus · **Effort:** high · seed v15: "Á SECO" becomes "A SECO" on the transformer, the TP and the TC, with its alias; the oil option's name on the three types waits for Bruno; every reader of the option keeps working on every seed
+
+As Bruno filling the plate of a TP, a TC or a transformer,
+I want the insulating medium to have the same name on the three,
+So that I do not read two names for one thing (M29, M11).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- TIPO DE ISOLAÇÃO reads EPÓXI, Á SECO and ÓLEO ISOLANTE on the transformer (`seed/v13.ts`), and EPÓXI, Á SECO and ÓLEO MINERAL on the TP and the TC (`seed/v12.ts`). The transformer's subtype is also labelled "Á SECO" (`seed/v1.ts`).
+- "ÓLEO ISOLANTE" was decided on 2026-11-08, because the transformer's liquid has its own field since v13: NATUREZA DO LÍQUIDO, with MINERAL, ÉSTER NATURAL (VEGETAL), ÉSTER SINTÉTICO and SILICONE, and TIPO (ANP) for a mineral liquid (`source-deltas.md`, the row of Story 23.17). ÓLEO and ÓLEO MINERAL are its aliases.
+- Bruno asks for one name, "ÓLEO MINERAL", on the three types, with "ÓLEO VEGETAL" as an option (answer 8). On the transformer that would say twice what NATUREZA DO LÍQUIDO says.
+- No rule hard-codes these words. They read `oil_values`, `option_aliases` or an `applies_when` list. But the readers do not agree on how:
+  - a copy from the last visit maps an old value through `selectOptionFor`, which ignores accents (`relatorio/nameplate-copy.ts`). "Á SECO" lands on "A SECO" by itself. "ÓLEO ISOLANTE" needs an alias, or it is not copied and the medium becomes unknown;
+  - an alias maps to one option. A vegetable-ester unit of an older relatório would land on ÓLEO MINERAL;
+  - `oilStateOf` compares the value exactly (`relatorio/oil-rule.ts`), while `mediumOf` resolves aliases (`relatorio/temperature-correction.ts`);
+  - the oil sampling's condition names the value (`seed/v13.ts`, `coleta_oleo`);
+  - the plate reading composes the first of `oil_values` (`reading/build.ts`);
+  - `relatorio/dry-insulation.ts` reads the dry option by its value;
+  - a company copy keeps the options it was copied with.
+
+*(Definition of Ready. The "A SECO" half is met 2026-11-11 by M11. **The oil half is open: Bruno answers B-4**, by Matheus's decision 9. If he has not answered when the batch starts, only the "A SECO" half is built.)*
+- **"A SECO", on v15.** The option and the transformer's subtype read "A SECO" on the three types. "Á SECO" is its alias, so a value copied from a v1 to v14 sheet, a template moved to v15 and the plate reading land on it. Every reader of the dry option reads through the alias.
+- **The oil option, open.** What Bruno is asked: on the transformer, does TIPO DE ISOLAÇÃO keep one oil option beside NATUREZA DO LÍQUIDO, or does it split into ÓLEO MINERAL and ÓLEO VEGETAL, and then what becomes of NATUREZA DO LÍQUIDO; on the TP and the TC, which have no such field, is ÓLEO VEGETAL added. The story builds his answer with the risks above each closed by a test.
+- **Whatever the answer:** the oil rule, the NETA column, the temperature correction and the oil sampling give on v15 the results they give on v14 for the same unit. A copy from an older visit never changes the liquid of a unit.
+- **The plate prompt.** If the options the prompt reads change, the paid plate eval runs before the deploy (E21-A4).
+
+**Acceptance Criteria:**
+
+**Given** a v15 transformer, TP and TC
+**When** TIPO DE ISOLAÇÃO opens
+**Then** the dry option reads "A SECO"
+
+**Given** a v15 sheet of an equipment whose previous v13 visit stored "Á SECO"
+**When** the technician taps "Copiar da última visita"
+**Then** the field takes "A SECO", and the dry rules apply as they applied on v13
+
+**Given** a v15 dry transformer
+**When** its sheet is evaluated
+**Then** the oil items are N.A., the dry items are asked, and the insulation is judged by the dry column, as on v14
+
+**Given** a v14 sheet
+**When** its plate renders and prints
+**Then** it reads "Á SECO", as today
+
+**Given** Bruno's answer to B-4
+**When** the oil half is built
+**Then** a v15 unit of each liquid gets the same oil rule, NETA column, correction and oil-sampling condition as the same unit on v14, and a vegetable-ester unit copied from an older visit is still a vegetable-ester unit
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.19-UNIT": the options and aliases on v15; v14 unchanged.
+- Kernel tests over each reader named above, on the dry option and, once B-4 is answered, on each liquid.
+- `e2e/seed-v15-insulation.spec.ts` "25.19-E2E-001 @p0": the copy from a v14 visit on the three types, through the DOCX.
+- The paid plate eval's table, if the prompt's options changed.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/architecture/kernel-and-seed.md` and `docs/kbs/log.md`.
+
+### Story 25.20: The criterion and the result print on each row, and the corrected columns say so
+
+**Dev model:** opus · **Effort:** max · seed v15, print only: every measurement test's table gains a CRITÉRIO and a RESULTADO column per row; the corrected columns' headers read "20 °C (corrigido)" and "75 °C (corrigido)"; no word, number or unit breaks; v1 to v14 print byte-identical
+
+As Bruno handing the relatório to a client,
+I want each row of a measured table to show what it was judged by and how it came out,
+So that the reader does not have to look for the criterion elsewhere (M24; Bruno, 2026-11-11, answers 2, 3 and 5; Matheus's decision 5).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The winding resistance, the thermography, the Malha's two tests, the HH fuses, the oil sampling and every company-type table print through `measurementTestPart` (`print/section-9.ts`): a title and the values. Nothing else.
+- **Bruno asked for the opposite on 2026-11-06.** Story 22.2 removed the line "ACEITÁVEL: … · fonte" from these tables at his request (`source-deltas.md`, the row of Story 22.2). He now wants the criterion back, on each row.
+- **No table prints a result per row today.** The seeded FO.SERV-03 tables print ACEITÁVEL in the instrument header, or as a column when their rows are judged by different criteria (batch e23a). The ratio table prints CONDIÇÕES. So "as in the other tables" has no exact model.
+- The kernel already has both values: each criterion's text and each cell's verdict (`relatorio/measurement-evaluation.ts`).
+- A "nominal ± %" row of a company type prints nothing of its criterion (Story 24.18, narrowed). Fix batch e24y writes the tolerance as "220 V ± 5 %" and "≥" where a criterion prints.
+- The corrected columns' headers are `CORRECTED_PRINT_HEADER`, "20 °C", and `WINDING_PRINT_HEADER`, "75 °C" (`relatorio/temperature-correction.ts`).
+- **The "20 °C" column is the tightest of the document.** The page holds 58 em of content and a reading table is fitted to 60 (`print/section-9.ts` `CONTENT_WIDTH_EM`, `READING_FIT_WIDTH_EM`), stepping the type down to 5 pt. The hands-on pass of 2026-11-11 found the breaker's paired insulation tables breaking "20 °C" values in two lines on a second visit. Fix batch e24y fits those v14 tables whole behind a flag and keeps a value with its unit. Seed v15 inherits that flag.
+
+*(Definition of Ready, met 2026-11-11 by decision 5. Blocked until Story 25.1's printed frame is approved with its widths measured.)*
+- **Which tables, on v15.** Every table `measurementTestPart` prints, seeded or of a company type. The seeded insulation, contact and ratio tables keep their columns.
+- **CRITÉRIO**, after the values and after MANUT. ANTERIOR when it prints: the criterion the row was judged by, in the form e24y gives it. A row whose columns are judged by different criteria prints each on its own line, in column order. A row with no criterion prints "-".
+- **RESULTADO**, last: the worst verdict among the row's judged cells. Authored words, for Bruno (B-11): "SATISFATÓRIO", "COM RESTRIÇÃO", "INSATISFATÓRIO". A row with nothing judged prints "-": not measured, N/A, or left "a conferir".
+- **"Tipo da empresa"** stays out of the document (Bruno, answer 3).
+- **The headers, on v15:** "20 °C (corrigido)" and "75 °C (corrigido)", on every table that prints a corrected column, the seeded insulation tables among them. The header may take two lines. A value never does.
+- **The fit.** Every word and every number prints whole, and a value stays with its unit. If a table cannot hold its columns at the smallest type size the renderer allows, the batch stops and reports with a crop. It does not drop a column and does not shrink further.
+- **The gate.** Two flags of the v15 `rules`, one for the columns and one for the headers. The batch names them.
+- **Crops** of each touched table shape, from synthetic data, under `_bmad-output/implementation-artifacts/e25p-pdf-crops/`.
+
+**Acceptance Criteria:**
+
+**Given** a v15 transformer's winding-resistance test with one phase deviating 3 % on an oil unit
+**When** its DOCX and PDF are generated
+**Then** each row prints its criterion and its result, the deviating row reads "COM RESTRIÇÃO", and no cell of the table breaks a word, a number or a unit
+
+**Given** a v15 thermography with two ΔT columns filled on one point
+**When** it prints
+**Then** that row's CRITÉRIO holds both criteria, one per line, and its RESULTADO is the worse of the two
+
+**Given** a v15 company-type table with a row judged "220 V ± 5 %" and a reading of 232 V
+**When** it prints
+**Then** the row prints "220 V ± 5 %" and "INSATISFATÓRIO", and nothing in the document says "Tipo da empresa"
+
+**Given** a v15 table with a row not measured and a row N/A
+**When** it prints
+**Then** both rows print "-" under RESULTADO
+
+**Given** a v15 breaker on its second visit, with its paired insulation tables, MANUT. ANTERIOR and the corrected column
+**When** its PDF is generated
+**Then** the header reads "20 °C (corrigido)", and every value of the column prints on one line
+
+**Given** a v15 winding-resistance table
+**When** it prints
+**Then** its corrected header reads "75 °C (corrigido)"
+
+**Given** a v14 relatório with the same sheets
+**When** it prints
+**Then** no table has the two columns, the headers read "20 °C" and "75 °C", and the v5, v11, v12, v13 and v14 goldens and the Porto Seguro goldens are byte-equal
+
+**Definition of Done, in addition:**
+- Kernel "25.20-UNIT": the two columns over each criterion kind (a limit, a range, "nominal ± %", bands, the deviation between phases, a pass or fail choice), the worst verdict of a row, the headers, each flag off.
+- "25.20-INT": the DOCX parts and the PDF text of a v15 relatório that holds every measurement test of the seed and one company table, on a first and on a second visit; a test that every token of the touched tables is whole on one line.
+- `e2e/print-criterion-per-row.spec.ts` "25.20-E2E-001 @p0": a v15 relatório filled in the browser, its PDF read.
+- The crops, looked at by the coordinator before the batch's PR opens.
+- The authored words listed in the PR for Bruno.
+- The `source-deltas.md` rows' "planned" replaced by the built record.
+- `docs/kbs/architecture/rendering.md`, `docs/kbs/architecture/measurement-table.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *"On each row" is read as two columns, not as a line over or under the table. Where one criterion serves every row it still prints on each.*
+- *The oil sampling and the No-break's pass or fail tests print the columns too, since they go through the same part. If the frame shows them as noise, they are left out there and the story says so.*
+
+### Story 25.21: The variation note names only what matters
+
+**Dev model:** opus · **Effort:** high · seed v15, print only: the note under a table names only the relevant variations, in a short form, and becomes one line per equipment when they are many; what "relevant" and "many" mean is Bruno's; v14 notes unchanged
+
+As Bruno reading the note under a table,
+I want it short and about what changed for real,
+So that a long list of numbers does not hide the one that matters (M31; Bruno, 2026-11-11, extra answer).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- On v14 one paragraph after a test's notes names each cell a previous-visit rule flagged: "Em relação à manutenção anterior: ⟨onde⟩, ⟨motivo⟩; ⟨onde⟩, ⟨motivo⟩." (`print/history-note.ts`, Story 24.16).
+- It already names only what the three rules flag: an insulation drop of more than 50 %, a contact rise of more than 50 %, a winding variation of more than 2 % (`seed/v13.ts`). It has no rule for a change of level, and no short form for a sheet with many.
+- Each reason is the kernel's full sentence, with the revision and the date of the previous visit. It is longer than the sample of the approved frame (`deferred-work.md` § e24p, the note's length, open for Bruno). The line can part a value from its unit (the same section).
+- A previous reading is kept with its value, its unit, its state and its corrected value (`schemas/entities.ts` `lastResultReadingSchema`). Its verdict is not kept.
+
+*(Definition of Ready. **Open, and the story does not start before it is answered: B-7.** Bruno says in numbers what a relevant variation is, whether a change of level means a reading that went from within to restricted or out, and from how many variations the note becomes one line per equipment. What follows is the coordinator's reading, drawn in Story 25.1's frame. Blocked until that frame is approved.)*
+- **Relevant, on v15:** a cell one of the three rules flags, or a cell whose verdict is worse than the same cell's on the previous visit.
+- **The short form:** where, what moved and from which value, with no revision and no date. They are in the column's header since Story 24.15.
+- **Many:** more than three cells on one sheet. Then the notes under its tables give way to one line after the sheet's last table, which names the tests and counts the readings.
+- **A cost the answer may bring.** A change of level needs the previous reading's verdict. The story either judges the previous value by today's criterion, or keeps the verdict at issue, which is one more key of `last_results` and a contract number.
+- **The gate.** One flag of the v15 `rules`.
+
+**Acceptance Criteria:**
+
+**Given** a v15 breaker whose pole A rose 53 % since the previous visit
+**When** its DOCX is generated
+**Then** the note names pole A, the rise and the previous value in the short form, on one line
+
+**Given** a v15 sheet with more variations than the limit Bruno gives
+**When** it prints
+**Then** it prints one line for the equipment in place of the notes under its tables
+
+**Given** a v15 reading that moved less than the rules' limits and kept its level
+**When** it prints
+**Then** the note does not name it
+
+**Given** a note line of any length
+**When** it wraps
+**Then** no value parts from its unit
+
+**Given** a v14 relatório with the same readings
+**When** it prints
+**Then** its notes are as today, and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "25.21-UNIT": the relevant set, the short form over each rule, the one-line form, the wrap, v14 unchanged.
+- "25.21-INT": the DOCX parts and the PDF text of a v15 second visit with few and with many variations.
+- `e2e/previous-visit-note.spec.ts` gains "25.21-E2E-001 @p0".
+- The rows of `deferred-work.md` § e24p on the note's length and on the wrap closed.
+- The authored forms listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+### Story 25.22: The fixed texts, the cover and the headers
+
+**Dev model:** opus · **Effort:** high · seed v15: the cover's "Cidade/local" and section 1 read the obra's site; sections 1 to 6 and 10 take Bruno's corrections; section 3 names the relay only while no exclusion does; the ratio tables read "TPs" and "TCs"; every seed, screen only: the TP and the TC are named "TP" and "TC"; v1 to v14 print byte-identical
+
+As Bruno, who corrected the same sentences by hand in every revision,
+I want the document to come out right,
+So that I stop editing the .docx after each generation (M09, M10, M12, M13; Matheus's decision 11).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- **The cover.** The row "Cidade/local" prints `{obra}` (`seed/sections-v1.ts` `COVER_V1`). `sectionVariables` fills `{obra}` with the setup's Local first, then the obra's site, then its name (`relatorio/section-variables.ts`). So a setup whose Local is a kind of place prints that word as the city. Section 1 uses the same variable: "… de {obra} da {cliente}."
+- **The fixed texts** are in `seed/sections-v1.ts`, which every seed uses: section 2's paragraph on earth resistance, naming NBR 5419, and "falhas eminentes"; section 3's ", incluindo o relé de proteção"; "EPC’s", "EPI’s", "QGBT’s", "(à seco)" and "Conforme NR-10, capítulo 5.1, item 10.5.1:" in sections 4 to 6.
+- **Section 3's exclusions** are the seed's three items, or the relatório's own list (`section3Blocks`).
+- **The validity line** is kernel text: "Este relatório tem validade apenas acompanhada da ⟨ART⟩ ⟨número⟩" (`print/section-10.ts` `validityLine`). A blank number prints "[ART]" (M-4 of the Epic 24 proposal). The number also prints in the document control.
+- **The ratio tables.** The first column is headed "TP's" on the TP and "TPS" on the TC (`seed/v1.ts`, `connection_columns`; the second kept verbatim from the source form).
+- **The names on screen.** The sheet header, the palettes and the type dialogs read "TP — proteção" and "TC — proteção" (`apps/web/src/copy/pt-br.ts` `composer.equipmentNames`). A TP of measurement reads "proteção". They are not printed.
+- A section whose template or relatório holds its own text prints that text (`config.section_text`). Sections 2, 4, 5 and 6 can be edited per relatório.
+- Each of these strings is in the locked goldens of v5, v11, v12 and v13.
+
+*(Definition of Ready, met 2026-11-11 by decision 11 and by M09, M10, M12 and M13. Blocked until Story 25.1's frames are approved. Two points are open and built as written unless answered before the batch starts: B-12, the earth-resistance paragraph against the Malha de aterramento; B-14, section 1's sentence.)*
+- **The cover and section 1, on v15.** `{obra}` reads the obra's site, then its name. The setup's Local no longer feeds it. Wherever else the setup's Local prints, it prints as today.
+- **Section 1, on v15** (authored, for Bruno): "… nas Cabines Primárias de Proteção, Distribuição e Transformação da {cliente}, unidade {obra}."
+- **Section 2, on v15.** The paragraph on earth resistance is removed. "eminentes" reads "iminentes".
+- **Section 3, on v15.** The first paragraph ends ", incluindo o relé de proteção" only while no exclusion of the relatório names a relay, compared without case and without accents.
+- **Sections 4 to 6, on v15.** "EPCs", "EPIs", "QGBTs"; "(a seco)"; "Conforme NR-10, item 10.5.1:".
+- **Section 10, on v15.** The validity line reads "Este relatório tem validade apenas acompanhado da respectiva ART.", with TRT or ART/TRT by the council, as today. It carries no number, so a blank number prints no bracket.
+- **The ratio tables, on v15.** "TPs" on the TP and "TCs" on the TC.
+- **The names on screen, on every seed.** "TP" and "TC", as the seed labels the types.
+- **Own texts stay.** A template's or a relatório's own section text is not rewritten. The message to Bruno says which of his templates hold their own text.
+- **The gate.** The v15 seed gets its own section texts and cover. The kernel texts are reached by flags of the v15 `rules`.
+
+**Acceptance Criteria:**
+
+**Given** a v15 relatório whose obra has a site and whose setup has a Local
+**When** its DOCX is generated
+**Then** the cover's "Cidade/local" prints the site, and section 1 names the client and the site as the unit
+
+**Given** a v15 relatório whose obra has no site
+**When** it is generated
+**Then** both print the obra's name, and the check before generating says what it says today when the variable is missing
+
+**Given** a v15 relatório with the seed's own texts
+**When** it is generated
+**Then** section 2 has no paragraph on earth resistance and reads "iminentes", and sections 4 to 6 read "EPCs", "EPIs", "QGBTs", "(a seco)" and "Conforme NR-10, item 10.5.1:"
+
+**Given** a v15 relatório whose exclusions include "Relés de proteção"
+**When** it is generated
+**Then** section 3's first paragraph ends before the relay
+
+**Given** a v15 relatório with no exclusion that names a relay
+**When** it is generated
+**Then** the paragraph ends ", incluindo o relé de proteção."
+
+**Given** a v15 relatório with the ART filled, and one with it blank
+**When** each is generated
+**Then** both print the same validity line, with no number and no bracket
+
+**Given** a v15 TP and a v15 TC with their ratio tables
+**When** they print
+**Then** the first column is headed "TPs" and "TCs"
+
+**Given** a v15 relatório created from a template that holds its own text for section 4
+**When** it is generated
+**Then** section 4 prints the template's text, unchanged
+
+**Given** a relatório on any seed
+**When** a TP's sheet, the palettes and the type dialogs render
+**Then** they read "TP" and "TC"
+
+**Given** a v14 relatório
+**When** it is generated
+**Then** every text above prints as today, and the v5, v11, v12, v13 and v14 goldens and the Porto Seguro goldens are byte-equal
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "25.22-UNIT": the v15 texts, cover and headers; every older seed's unchanged.
+- Kernel tests of `{obra}`, the validity line and section 3's ending, each flag off.
+- "25.22-INT": the DOCX parts of a v15 relatório, with and without the relay exclusion, with and without the ART.
+- `e2e/fixed-texts-v15.spec.ts` "25.22-E2E-001 @p0": the cover, the sections and the ratio headers read in the DOCX; the names on screen.
+- Every spec that reads "TP — proteção" or "TC — proteção" is found by grep and updated.
+- The authored sentence and the rule of section 3 listed in the PR for Bruno.
+- M-4 of the Epic 24 proposal and the ledger row on the blank ART closed for v15.
+- The `source-deltas.md` rows' "planned" replaced by the built record.
+- `docs/kbs/architecture/rendering.md` and `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The TP and the TC are named plainly. A name by function would need a function field on the TP, which it does not have.*
+- *The earth-resistance paragraph is removed as Bruno asks, also from a relatório that holds a Malha de aterramento, which measures it. B-12 asks him.*
+
+### Story 25.23: The test base is updated without importing it again
+
+**Dev model:** opus · **Effort:** high · no seed: a company that imported the test base applies a newer revision as an update; the tests and texts its types lack are added, what the office edited is kept and shown, the result is a draft to publish; the polarization index gets its own "Como ensaiar"; one contract number for that key
+
+As the office that already imported Bruno's test base,
+I want to apply his new revision over what we have,
+So that the field gets the help texts of the new tests and we keep our own edits (M27; Bruno, 2026-11-11, answers 7 and 10).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The import creates company types as copies of the current seed's types, published as version 1, with the base's texts on each test (`types/test-base-import.ts` `planTestBaseImport`). It shows a preview first.
+- A second import skips every type the company already holds from the same source and name. It never updates one. So the office's edits are safe, and a new text never arrives (`deferred-work.md` § e23x: accepted on 2026-11-10, to be decided again when Bruno sends a new revision).
+- A held copy was made from the seed of its day. It lacks the tests later seeds add.
+- The base's row for the polarization index fills only the index's recommendation (`testBaseRecommendationOf`). The insulation test has no key for a "Como ensaiar" of the index, and the type's schema is strict.
+- Bruno says he sends the new revision and that it should enter as an update. He gives the index's procedure: the readings at 1 and at 10 minutes, the ratio of the two, and the discharge of the equipment at the end.
+- A placed sheet keeps the version of the type it was created with. A published version is never changed.
+
+*(Definition of Ready. Decided by Bruno's answers 7 and 10 and Matheus's scope. **Open: the new revision's file has not arrived.** The story is built against a synthetic revision in the format of rev08. It is not run in production before the real file is read and its format checked. Blocked until Story 25.1's frame is approved.)*
+- **The action.** "Atualizar base de ensaios", beside the import, with a preview. It takes the same file format.
+- **What it adds.** For each held type: the tests the current seed's type has and the held type lacks, with their texts; and the texts of the tests it has, where the held text is empty. For a type the company does not hold: what the import does today.
+- **What it keeps.** A text, a criterion or a test the office changed is never replaced by itself. The preview lists each one that differs from the new revision, and the office chooses per text whether to take the base's.
+- **From this update on**, each text keeps the revision it came from. The next update then replaces by itself a text nobody edited.
+- **The result** is a new draft version of each touched type, for the office to publish, as the import leaves drafts today. No published version and no placed sheet changes.
+- **The polarization index.** The insulation test gains an optional key for the index's own "Como ensaiar", filled from the base's row and shown under the index on the sheet.
+- **Authored, for Bruno:** the action, the preview's lines and the toast, in the form of the import's.
+
+**Acceptance Criteria:**
+
+**Given** a company that imported revision A, and a file of revision B that adds a text for a test the held type has with no text
+**When** the office applies the update
+**Then** the preview names the text, and after confirming, the type has a draft version with it
+
+**Given** a held type whose seed type gained a test since the import
+**When** the update is applied
+**Then** the draft version holds that test with its text
+
+**Given** a held text the office edited, which revision B also changed
+**When** the preview shows
+**Then** it lists the text as different and leaves it unless the office chooses the base's
+
+**Given** an update applied once
+**When** a later revision changes a text nobody edited since
+**Then** the next update replaces it by itself and says so in the preview
+
+**Given** a relatório with sheets placed before the update
+**When** the update is applied and its drafts are published
+**Then** those sheets keep their type version, their criteria and their print
+
+**Given** revision B's row for the polarization index
+**When** the update is applied and a sheet of the new version opens
+**Then** the index shows its own "Como ensaiar"
+
+**Given** a file that is not a revision of the base
+**When** it is chosen
+**Then** nothing is written and the import's refusal line shows
+
+**Given** company A's update
+**When** company B lists its types
+**Then** it sees nothing of it
+
+**Definition of Done, in addition:**
+- Kernel "25.23-UNIT": the plan over each case above, the provenance of a text, a type held from before this story.
+- "25.23-API-001": the new key through the sync route, the 426, the cross-tenant check.
+- `e2e/test-base-update.spec.ts` "25.23-E2E-001 @p0": the import of a synthetic revision A, an office edit, the update with revision B, the preview, the published draft, a sheet of the new version with the index's text.
+- The synthetic revisions are fixtures written for the test. Nothing of the real base enters a tracked file.
+- The row of `deferred-work.md` § e23x on re-import closed.
+- The authored strings listed in the PR for Bruno.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *The update never publishes. The office reads the drafts and publishes them.*
+- *A type imported before this story has no provenance. On its first update every text that differs from the new revision is listed, and none is replaced by itself.*
+
+### Story 25.24: The Conferência por IA says when it is out of date, and three checks stop depending on the model
+
+**Dev model:** opus · **Effort:** high · every seed, no document change: a finished check shows as out of date once the relatório changed after it; three checks become fixed rules of `packages/domain`, always current; the model gains one kind, an observation that does not match its checklist; one contract number; the last wave
+
+As Bruno reading the check before I issue,
+I want it to be about the relatório as it is now, and to catch the plain mistakes every time,
+So that I do not act on old alerts, and the obvious ones do not depend on a model (M16, and the last part of M20; Matheus's decision 10).
+
+**Today (verified 2026-11-11 on main `76c74711`):**
+- The check runs only on a tap (`apps/web/src/surfaces/export/use-audit.ts`). The dialog shows the newest finished run. Nothing says the relatório changed since. The run row keeps its status, its findings, its prompt version and its coverage, and nothing about the state it read (`schemas/entities.ts` `auditRunRowSchema`).
+- The model is asked for four kinds: a conclusion against its NC items, a reading out of family, the parecer against the restrictions, a caption naming an equipment the relatório lacks (`apps/api/src/jobs/audit/prompt.ts`, prompt `audit-1`; `packages/domain/src/audit/`).
+- A finding is information. Nothing else reads it: not a status, not a count, not a row before generating, not the document (Story 13.8).
+- The kernel already computes two of the checks Bruno wants fixed, on the sheet only: a reading far from its neighbours (`relatorio/reading-evaluation.ts`, the cell's `outlier`) and a test voltage above what the winding supports (`relatorio/row-voltage.ts` `rowVoltageNotice`).
+- Each run is a paid call to the model in production. `LLM_PROVIDER` is `fake` everywhere else.
+- On the relatório reviewed on 2026-11-10 the check kept showing alerts about values already corrected, and its first run missed three things: a ficha approved with a reading out of its criterion, the same run of values on different equipment, and a 10 kV test on a 380 V secondary.
+
+*(Definition of Ready, met 2026-11-11 by decision 10. Blocked until Story 25.1's frame is approved. It is the last wave.)*
+- **Out of date.** A run keeps the point of the relatório it read. When an op of the relatório is newer, the dialog marks the result as out of date and offers to run again. The old findings stay readable under the mark.
+- **No run by itself.** The check is never started without a tap (M-8).
+- **Three fixed rules**, computed in `packages/domain` from the snapshot, with no model and no run, shown in the same list and marked as rules:
+  1. a ficha whose stored result is looser than the result its readings give;
+  2. the same run of three or more measured values, in the same order, on the same test of two different equipment;
+  3. a row tested at a voltage above what its winding supports, as the sheet's notice already says.
+- **They stay information.** No rule becomes a row before generating, a status or a count.
+- **One new kind for the model:** an OBSERVAÇÕES or an item's observation that names an item by a number or a description its checklist does not have. The prompt becomes `audit-2`.
+- **Authored, for Bruno:** the mark "Conferência desatualizada: o relatório mudou depois dela", the action, the three rules' sentences and the new kind's label.
+- **One contract number**, for the run's new key and the new kind.
+
+**Acceptance Criteria:**
+
+**Given** a finished check on a relatório
+**When** a reading is changed and the dialog opens again
+**Then** the result is marked out of date, the action runs a new check, and the mark goes away when it finishes
+
+**Given** a finished check and no change since
+**When** the dialog opens
+**Then** no mark shows
+
+**Given** a relatório where any sheet changes
+**When** nobody taps the action
+**Then** no run is started
+
+**Given** a ficha concluded Aprovado whose reading was later typed out of its criterion
+**When** the dialog opens, with or without a run
+**Then** the list shows the first rule for that ficha
+
+**Given** two breakers whose contact readings are the same three values in the same order
+**When** the dialog opens
+**Then** the list shows the second rule, naming both
+
+**Given** a transformer's secondary row of 380 V tested at 10 kV
+**When** the dialog opens
+**Then** the list shows the third rule for that row
+
+**Given** a relatório with none of the three
+**When** the dialog opens
+**Then** the list shows no rule
+
+**Given** an observation that cites "item 9" on a list of seven items, with the fake provider's fixture for it
+**When** the check runs
+**Then** the finding of the new kind points at that sheet
+
+**Given** any finding or rule
+**When** the relatório is generated
+**Then** the document, the counts and the rows before generating are as they are without it
+
+**Given** company A's run
+**When** company B asks for it
+**Then** it is refused
+
+**Definition of Done, in addition:**
+- Kernel "25.24-UNIT": the three rules, the stale test, the new kind's schema.
+- "25.24-API-001": the run's key through the job and the sync route, the 426, the cross-tenant read; the job's test with the fake provider's new fixture.
+- `e2e/audit-stale-and-rules.spec.ts` "25.24-E2E-001 @p0": a run, a change, the mark, a second run; the three rules on one relatório.
+- The paid run of `audit-2` on Matheus's AWS login before the deploy: the four old kinds as under `audit-1`, the new kind on its sample. Its table recorded.
+- The `SPEC.md` line of the emission audit, dated.
+- The authored strings listed in the PR for Bruno.
+- The `source-deltas.md` row's "planned" replaced by the built record.
+- `docs/kbs/log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *Bruno asks that the check run again when a sheet changes, or be marked out of date. The mark was taken. A run on every change would be a paid call per edit, against the monthly ceiling of the Policy.*
+- *The first rule compares the stored result with the floor. The document already prints the stricter one; the rule tells the technician that the ficha was not concluded again.*
 
 ## Backlog: deferred stories
 
