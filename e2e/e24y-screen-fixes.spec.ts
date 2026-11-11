@@ -146,7 +146,7 @@ test('@p0 e24y-E2E-004 at 390 px the point editor\'s "P4 · Próxima manutençã
   expect(hintBox!.width).toBeGreaterThan(40);
 });
 
-test('@p0 e24y-E2E-005 at 390 px the preview pill fits its row on one line, "Marcar como Reprovado?" included; the long form of every pair would not (so only Bruno\'s pill changed)', async ({ page }) => {
+test('@p0 e24y-E2E-005 at 390 px the preview pill holding Bruno\'s "Marcar como Reprovado?" stays inside its row, with no sideways scroll', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [], 'v13');
   const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
@@ -158,16 +158,22 @@ test('@p0 e24y-E2E-005 at 390 px the preview pill fits its row on one line, "Mar
   await openStep(page, relatorioId, dj.blockId, 'Conclusão');
   const value = page.locator('#ficha-conc .ficha-conc-sug-host .sv');
   await expect(value).toHaveText(/\?$/u, { timeout: 30_000 });
-  const linesOf = (text: string | null) =>
-    value.evaluate((element, replaced) => {
-      if (replaced !== null) element.textContent = replaced;
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
-    }, text);
-  // The pill the sheet shows, then the same element holding Bruno's pill (the kernel's `conclusionSuggestionText`); the
-  // coordinator's reading ("Marcar como" on every pair) breaks the longest pair into two lines, so it was not built.
-  expect(await linesOf(null)).toBe(1);
-  expect(await linesOf(conclusionSuggestionText({ result: 'reprovado', restriction: null }))).toBe(1);
-  expect(await linesOf('Marcar como Reprovado · Com restrições?')).toBe(2);
+  // Fix batch e24y (orchestrator, after the dev's rerun): counting the text's line tops is no fit check (the row moves its
+  // Confirmar under a long value, so the unchanged "Aprovado · Sem restrições?" read two lines in one run and one in another).
+  // Checked instead: Bruno's pill (the kernel's `conclusionSuggestionText`) is never clipped, stays inside its row and pushes
+  // nothing sideways. Only his own change is built; "Marcar como" on the other pills is left to Matheus.
+  const text = conclusionSuggestionText({ result: 'reprovado', restriction: null });
+  expect(text).toBe('Marcar como Reprovado?');
+  const fit = await value.evaluate((element, replaced) => {
+    element.textContent = replaced;
+    const host = element.closest('.ficha-conc-sug-host') as HTMLElement;
+    const own = element.getBoundingClientRect();
+    const row = host.getBoundingClientRect();
+    return {
+      clipped: element.scrollWidth > element.clientWidth + 1,
+      inside: own.left >= row.left - 1 && own.right <= row.right + 1,
+      sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    };
+  }, text);
+  expect(fit).toEqual({ clipped: false, inside: true, sideways: false });
 });
