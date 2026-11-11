@@ -3572,7 +3572,35 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Story 24.3 planned "an observation floors nothing" for seed v14 only, behind the `conclusion_restriction_by_choice` flag; H9 does it on every seed now, so 24.3 keeps only the Reprovado-without-restriction half. Its text in `epics.md` and `epic-24-context.md` is the planner's to amend (not edited here).
   evidence: `epic-24-context.md` § Decisions, the 24.3 row of the flags table.
   class: decision
-  state: open (owner: the coordinator, with Story 24.3's amendment)
+  state: ~~open (owner: the coordinator, with Story 24.3's amendment)~~ closed (2026-11-10, coordinator): Story 24.3 carries its dated note in `epics.md`, with the row in `source-deltas.md` and the H9 paragraph of `epic-24-context.md` § Fix batch e24h
+
+## Deferred from: the e24h hands-on pass (2026-11-10)
+
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H3)
+  summary: Once a point was created from an NC item, the item shows "Ponto de atenção N" and "Criar ponto de atenção" stays, so a second identical point can be saved with no warning. On the "Não ensaiado" band the button disappears and nothing on the ficha says a point exists.
+  evidence: the pass's screenshots `66-wip-second-point-same-item-dialog.png` and `17-wip-A8-band-after-point.png` (gitignored).
+  class: note
+  state: open (owner: Epic 24, Story 24.7, batch e24b, if it touches the two create paths; else the wave 1 fix batch)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H5)
+  summary: The Sumário's points line undercounts "sem ação": a point created from the "Não ensaiado" band is counted as "1 não ensaiada" and left out of "sem ação" though it has no action.
+  evidence: `packages/domain/src/points/summary.ts`; the pass's screenshot `59-new-A9-sumario.png` (gitignored).
+  class: note
+  state: open (owner: the next batch touching `points/summary.ts`)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H6)
+  summary: The Export dialog's "Antes de emitir" lists the last sends of other devices with no "Outro aparelho" label and leaves out this device's line, so the last send reads as days old on a relatório created minutes ago. The Sync screen shows the same lines with the label.
+  evidence: the pass's screenshots `60-new-C1-export-dialog.png` and `64-sync-status.png` (gitignored).
+  class: note
+  state: open (owner: the next batch touching the Export dialog)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H7)
+  summary: "Controle do documento" in the Export dialog says "FO.SERV-03 · Revisão 01" and names the user's company as Contratada, while the issued PDF prints "Revisão 00" and the letterhead company. It may be local data only.
+  evidence: the pass's `new-rev1.pdf`, page 2, against `60-new-C1-export-dialog.png` (gitignored).
+  class: verification
+  state: open (owner: the next batch touching the Export dialog: check it on a company with real document-control data first)
+- source_spec: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md` (H8)
+  summary: A ficha stored Aprovado · Com restrições whose stored reading is judged out of its criterion shows Reprovado · Com restrições with "Conclusão ajustada pela ficha" and "Confirmar". On a transformer it is an over-range reading ("> 10 GΩ") judged below a minimum of 25 000 MΩ. Older than e24h: a revision of 2026-11-09 already listed the reading.
+  evidence: the pass's screenshots `27-B7-ficha-before.png` and `28-B7-para-raio-before.png` (gitignored); Story 23.4's instrument-limit rule.
+  class: decision
+  state: open (owner: Bruno, with the next list of questions: is an over-range reading below the table's minimum a failure?)
 
 ## Deferred from: Epic 24 fix batch e24f (2026-11-10)
 
@@ -3621,4 +3649,3 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `apps/web/src/sync/client.ts` `send`; `apps/web/src/sync/engine.ts` (the upload and thumbnail phases).
   class: note
   state: open (owner: the next batch touching sync)
-
