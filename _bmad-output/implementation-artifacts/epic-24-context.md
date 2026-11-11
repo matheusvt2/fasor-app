@@ -229,7 +229,7 @@ It is a fix batch, not a story:
 - **Matrix** on `1528183f`: 168 tests, 150 passed, 2 failed, 16 skipped, 1295,5 s. Lock wait 482 s, load `{ 11.19 11.24 9.71 }` at the start, with two batch stacks beside the main one. The reds were 14.5-E2E-003 and R8DRY-E2E-002 on `durability-webkit`, each a 5 s wait. Their two spec files passed alone under the lock with `--repeat-each 2`, 12 of 12, at load `{ 3.15 4.10 5.48 }`.
 - **Hands-on pass** on `1528183f`: every check of the two rules passed. Report: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md`. Its finding H1 is the rule itself seen from the user's side: a relatório issued before the change prints without its automatic points when it is issued again.
 - **Load rule broken once.** The main stack stayed up for the pass while e24f and e24b ran, three stacks in all. The main stack's Postgres restarted three times, and the matrix's two reds came at that load. The main stack is stopped while batches run.
-- **Deploy.** COORDINATOR-FILLS
+- **Deploy.** `1528183f` went to production on 2026-11-10 (2026-11-11 02:27 UTC) through `infra/bin/deploy`, on Matheus's word ("quando terminar já pode fazer o deploy"). Health was up on every component. The smoke passed 8 of 8. The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`. The image tag before it was `9add87b5`. No release was published; it waits for Matheus's word.
 
 What it means for the stories (each has its dated note in `epics.md`):
 
