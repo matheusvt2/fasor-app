@@ -3967,3 +3967,38 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/relatorio/conclusion.ts` `conclusionSuggestionText`; `e2e/e24y-screen-fixes.spec.ts` (E2E-005); `apps/web/src/surfaces/ficha/use-ficha-steps.ts`.
   class: decision
   state: open (owner: Matheus: the other pills' wording with Bruno; whether the stepper's focus jump should skip a focused field)
+
+## Deferred from: Epic 24 fix batch e24z, the integrated gate's reds (2026-11-11)
+
+What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and test:api (995) green; the matrix 152 passed, 0 failed; `test:e2e:full` 707 of 716 with 5 failed; test:unit 6592 of 6593. A rerun of the reds alone left three red every time; two passed and the unit test passed three times. Fix batch e24z (`e24z-gate-reds`) rewrote the three stale specs, moved one spec to the `solo` lane and fixed the unit test; no product code changed.
+
+- source_spec: the e24 integrated gate on `7773aafa` (fix batch e24z)
+  summary: three specs asserted the behaviour from before a fix batch changed it on purpose, and none was in that batch's touched-spec list. `e2e/review-concluir-text.spec.ts` R8CONC-E2E-003 (a rename made a confirmed text stale) and `e2e/sheet-knows-12-3-12-4.spec.ts` 12.3-E2E-001 (a TAG typed in the plate field stored a plate cell) were changed by e24y (P2; P3 and review Y2), whose list (`spec-e24y-pass-fixes.md` "Touched e2e specs") named neither; `e2e/seed-v7.spec.ts` 14.14-E2E-001 (VOL. ÓLEO an empty input on a non-oil disjuntor) was changed by e24s (Story 24.11), whose list (`spec-e24s-seed-v14-sheets.md` Code Map, e2e) named `oil-dry.spec.ts` but not `seed-v7.spec.ts`. A batch that changes a rule finds the specs that assert it with a grep for the rule's words and selectors (`Substituir`, `nameplate/tag`, `vol_oleo`), not only its own story's specs.
+  evidence: `.scratch-e24z/` logs of the batch; the PR of e24z.
+  class: note
+  state: done (e24z rewrote the three)
+- source_spec: fix batch e24z (12.3-E2E-001)
+  summary: after a TAG typed in the plate's TAG field renames the equipment (e24y P3), the field still carries the app's helper "Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.": with no plate cell stored (review Y2) the field shows the equipment's TAG through the prefill rule, and the helper follows the prefill, not who typed the TAG. The test no longer asserts the helper either way.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (`prefilled`, `helper`); `packages/domain/src/relatorio/nameplate-copy.ts` `nameplateTagPrefill`; `e2e/sheet-knows-12-3-12-4.spec.ts` 12.3-E2E-001.
+  class: decision
+  state: open (owner: Matheus: whether the helper goes once the technician typed the TAG, and what tells the field so without a stored cell)
+- source_spec: fix batch e24z (`verificacoes-surface.test.tsx`, Story 24.6 test)
+  summary: the unit test read the outbox, saw the chip's observation written, and tapped "Conforme" before the surface had re-read the row: `ncObservationOnLeave` then compares the field's text with the stored observation still empty and answers `keep` (e24x A2: a text ahead of the store is kept), so only the result was written (7 ops, not 8). A probe that taps "Conforme" right after the chip shows the same on every run: the phrase kept, with "Observação mantida: o texto foi editado." and "Apagar observação". Not a lost write; the test now opens the surface again before the tap, so it reads the stored row. On a slow device the same tap within the store's echo keeps a chip phrase and calls it edited; the person can clear it with "Apagar observação".
+  evidence: `apps/web/src/surfaces/ficha/checklist-section.tsx` (`write`, `ncObservationOnLeave(result, value, stored, ..., typed.text)`); `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`; the batch's loop (old test: 1 red in 28 runs, 25 alone and 3 beside a whole web run; new test: 28 of 28 green, 25 alone and 3 beside a whole web run).
+  class: note
+  state: open (owner: Matheus, low: whether the warning should say "mantida" without "editado" when the text is a chip phrase still being saved)
+- source_spec: fix batch e24z (`e2e/review-photo-failures.spec.ts` R8CAP-E2E-010)
+  summary: red in the gate's parallel group, green alone. Its waits are not wall-clock windows against a render (a 45 s retry of 15 s waits), so it stays in the parallel group. e24z reproduced it under load (`--repeat-each 6` then 8, three workers, a unit loop beside): 3 red in 14 runs, in two different ways. (1) Twice at the first "Criar": the combobox holds "Fabricante R8CAP", the list is closed and no option ever shows; the retry of `createManufacturer` (e24f) fills the same text again, which changes nothing in the input, so the list never reopens and the retry cannot recover. A test defect: a retry that changes the text (clear, or delete and retype the last letter) would reopen it. (2) Once, as in the gate, at the second "Criar": after the two `syncNowAndReturn`, FABRICAÇÃO was drawn empty with "Celtta" as a fill suggestion ("Sugerido", "Criar Celtta?"), so there was no replace line and no combobox, while the sync badge read "1 pendente"; in the seven passing runs of the probe the outbox and the device row held "Fabricante R8CAP" at both points. Where the stored manufacturer went is not proven. An unproven lead: `RegistryPickerField` releases a held null selection when the leave decides nothing (`commitLeft` `release()`), and leaving the field right after "Criar", before the created entry lands in the options, may be such a leave; if so a stored manufacturer can be cleared by a leave, a product defect. No product code was changed.
+  evidence: the gate log `run2-7773aafa/e2e-full.log` (failure 3); `.scratch-e24z/e2e-r8cap.log` and `e2e-probe.log` of the batch; `e2e/review-photo-failures.spec.ts` (`createManufacturer`); `apps/web/src/components/registry-picker-field.tsx` (`commitLeft`, `heldNull`).
+  class: gap
+  state: open (owner: the next batch touching the manufacturer field or this spec: a probe that dumps the field's ops after each sync, under load; then the retry fix of (1))
+- source_spec: fix batch e24z (`e2e/plate-shot-fallback.spec.ts` 14.10-E2E-003)
+  summary: the test samples the focus every 50 ms in the page for a fixed 6 s and asserts more than 50 samples; in the gate's parallel group the page's timers took 17. It times a wait against a render, so the file moved to the `solo` lane (`e2e/support/groups.ts`).
+  evidence: `e2e/support/plate-focus.ts` `samplePlateFocus`; `e2e/support/groups.ts`.
+  class: note
+  state: done (e24z)
+- source_spec: fix batch e24z (the oil-field family)
+  summary: since e24s an oil field of a non-oil unit is drawn read-only without `data-field-key`, so `missingMarker(page, 'vol_oleo')` toHaveCount(0) on a dry or non-oil unit passes whatever the field shows (`dry-transformer.durability.spec.ts` R8DRY-E2E-001 to -003, `oil-dry.spec.ts` and `seed-v7.spec.ts` beside their read-only checks). Not red, but empty where no read-only check stands beside it.
+  evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `ReadOnlyField`; the specs named.
+  class: gap
+  state: open (owner: the next batch touching those specs; low)
