@@ -7,13 +7,18 @@ import type { BlockRow, Cell, EquipmentTypeVersionRow } from '../schemas/entitie
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { asBlockDefinition } from '../types/block-definition.ts';
 import type { CompanyTypeDefinition } from '../types/definition.ts';
-import { derivedPoints, derivedPointSeed } from './derived.ts';
+import { hasPointSource } from './derived.ts';
 
 /*
- * Story 23.11 (batch e23h): a `reading` derived entry starts with its test's recommendation, in
+ * Fix batch e24h (Matheus, 2026-11-10): no derived entry lists or prints any more, so the cases below
+ * that read an entry's recommended text went with `derivedPoints`; what stays is that a recommended
+ * test out of its criterion, or a Reprovado chosen by hand, prints nothing in section 8 until the
+ * technician creates a point. The recommendation starts no point now (no create path for a reading;
+ * an open question of spec e24h, D4). Struck below: the Story 23.11 rule.
+ * ~~Story 23.11 (batch e23h): a `reading` derived entry starts with its test's recommendation, in
  * both grammars; without one it is byte-equal to the generic text; ~~the `reprovado` entry never
  * takes one~~ (fix batch e23z, item 2: the `reprovado` entry starts with the in-force tests' ones). The company-types fixture: block 1 (version 1) reads 131 Vcc on the flutuação row,
- * below its 132 Vcc criterion; here its insulation also reads 50 MΩ, below 100 MΩ. Synthetic texts.
+ * below its 132 Vcc criterion; here its insulation also reads 50 MΩ, below 100 MΩ. Synthetic texts.~~
  */
 
 const base = buildSnapshot(replay(companyTypes.log), RELATORIO_ID);
@@ -42,48 +47,25 @@ function recommending(snapshot: RelatorioSnapshot, versionId: string, recommenda
   return { ...snapshot, equipment_types: equipmentTypes };
 }
 
-const readingsOf = (snapshot: RelatorioSnapshot) => derivedPoints(snapshot).filter((entry) => entry.kind === 'reading' && entry.block_id === BLOCK_1_ID);
-
-describe('23.11-UNIT the recommendation as the derived point\'s initial text', () => {
+describe('23.11-UNIT a recommended test out of its criterion (fix batch e24h: no automatic point)', () => {
   const plain = withInsulationOut(base);
-  const generic = readingsOf(plain);
 
-  it('the fixture derives one reading entry per grammar, with the generic text', () => {
-    expect(generic.map((entry) => entry.test_key)).toEqual(['isolacao', 'tensoes_medidas']);
-    expect(generic[0]!.text).toMatch(/: 50 MΩ em .+ \(critério: .+\)$/);
-    expect(generic[1]!.text).toMatch(/^Tensões medidas: 131 Vcc em Tensão de flutuação do banco \(critério: .+\)$/);
-  });
-
-  it('each grammar\'s entry starts with its own test\'s recommendation: a period appended when it has none, kept when it has one', () => {
-    const recommended = readingsOf(recommending(plain, VERSION_1_ID, { isolacao: 'Limpar e secar as buchas', tensoes_medidas: 'Verificar o carregador e o banco de baterias.' }));
-    expect(recommended.map((entry) => entry.text)).toEqual([`Limpar e secar as buchas. ${generic[0]!.text}`, `Verificar o carregador e o banco de baterias. ${generic[1]!.text}`]);
-    // One grammar recommending leaves the other's text byte-equal.
-    const one = readingsOf(recommending(plain, VERSION_1_ID, { tensoes_medidas: 'Refazer a medição' }));
-    expect(one[0]!.text).toBe(generic[0]!.text);
-    expect(one[1]!.text).toBe(`Refazer a medição. ${generic[1]!.text}`);
-  });
-
-  it('without a recommendation the text is byte-equal to the generic one (the fixture as published)', () => {
+  it('both grammars out and recommending: the findings stand, section 8 prints none of them', () => {
+    const snapshot = recommending(plain, VERSION_1_ID, { isolacao: 'Limpar e secar as buchas', tensoes_medidas: 'Verificar o carregador e o banco de baterias.' });
     expect(DEFINITION_1.tests.every((test) => test.recommendation === undefined)).toBe(true);
-    expect(readingsOf(recommending(plain, VERSION_1_ID, {})).map((entry) => entry.text)).toEqual(generic.map((entry) => entry.text));
+    expect(hasPointSource(snapshot)).toBe(true);
+    const printed = resolveSection8(snapshot, new Map()).map((bullet) => bullet.text).join(' ');
+    expect(printed).not.toContain('Limpar e secar as buchas');
+    expect(printed).not.toContain('Verificar o carregador');
+    expect(printed).not.toContain('Ensaio fora do critério');
   });
 
-  it('"Editar" starts the point with the recommended text, and section 8 prints it', () => {
-    const snapshot = recommending(plain, VERSION_1_ID, { tensoes_medidas: 'Verificar o carregador' });
-    const entry = readingsOf(snapshot)[1]!;
-    expect(derivedPointSeed(entry)).toMatchObject({ text: `Verificar o carregador. ${generic[1]!.text}`, origin: 'reading', testKey: 'tensoes_medidas' });
-    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes(`Verificar o carregador. ${generic[1]!.text}`))).toBe(true);
-  });
-
-  // Fix batch e23z (item 2, Bruno 2026-11-09): the Reprovado entry now starts with the in-force tests' recommendations.
-  it('a Reprovado the engineer chose with no failing test keeps its own text with no recommendation, and starts with each in-force test\'s once its version recommends', () => {
+  it('a Reprovado the engineer chose, its version recommending: no bullet', () => {
     const chosen: RelatorioSnapshot = {
       ...base,
       blocks: base.blocks.map((block) => (block.id === BLOCK_2_ID ? { ...block, sheet: { ...block.sheet, conclusion: { ...block.sheet.conclusion, result: cell('reprovado') } } } : block)),
     };
-    const reprovado = (snapshot: RelatorioSnapshot) => derivedPoints(snapshot).filter((entry) => entry.kind === 'reprovado' && entry.block_id === BLOCK_2_ID);
-    expect(reprovado(chosen).map((entry) => entry.text)).toEqual(['Concluído como Reprovado na ficha']);
-    expect(reprovado(recommending(chosen, VERSION_2_ID, { isolacao: 'Trocar', tensoes_medidas: 'Trocar' })).map((entry) => entry.text)).toEqual(['Trocar. Concluído como Reprovado na ficha']);
-    expect(reprovado(recommending(chosen, VERSION_2_ID, { isolacao: 'Trocar', tensoes_medidas: 'Revisar o banco.' })).map((entry) => entry.text)).toEqual(['Trocar. Revisar o banco. Concluído como Reprovado na ficha']);
+    const snapshot = recommending(chosen, VERSION_2_ID, { isolacao: 'Trocar', tensoes_medidas: 'Trocar' });
+    expect(resolveSection8(snapshot, new Map()).some((bullet) => bullet.text.includes('Trocar') || bullet.text.includes('Equipamento reprovado'))).toBe(false);
   });
 });

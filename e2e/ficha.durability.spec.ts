@@ -298,7 +298,9 @@ test('@p1 E5-A2-E2E-004 "Marcar não ensaiado" by taps; after a reload the sheet
   await tap(page, dialog.getByRole('radio', { name: 'Solicitação do cliente' }), info);
   await tap(page, dialog.getByRole('button', { name: 'Marcar não ensaiado' }), info);
   await expect(dialog).toBeHidden();
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
+  // Fix batch e24h: the toast no longer says the sheet enters section 9 (no automatic point).
+  await expect(toast(page)).toContainText('Marcada como não ensaiada');
+  await expect(toast(page)).not.toContainText('entra na');
   await expect.poll(async () => (await written(page, `block/${blockId}/not_tested`)).at(-1)).toMatchObject({ reason: 'solicitacao_cliente' });
 
   await page.reload();

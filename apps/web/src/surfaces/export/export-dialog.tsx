@@ -65,8 +65,6 @@ export interface ExportDialogProps {
    * a sheet (or one of its rows) opens the sheet, a photo the gallery. Absent, no "Ver".
    */
   onSeeAuditTarget?: (target: AuditTarget) => void;
-  /** e22f S2: "Ver pontos" beside the possible duplicates' row, the Pontos screen. Absent, no link. */
-  onSeePoints?: () => void;
   /** Test hook: shorter waits than the 3 s poll and 2 s retry of the product. */
   timing?: GenerateTiming;
 }
@@ -87,7 +85,7 @@ const TITLE_ID = 'export-title';
  * words a failure beside its row. Mounted by the Sumário's
  * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`).
  */
-export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, onSeePoints, onSeeAuditTarget, timing = DEFAULT_TIMING }: ExportDialogProps) {
+export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, onSeeAuditTarget, timing = DEFAULT_TIMING }: ExportDialogProps) {
   // Epic 18: the Export dialog's `dialog_open` and `dialog_cancel`, on its own screen.
   const exportCancelled = useDialogTelemetry('export', isOpen, 'export');
   const state = useGenerate(relatorioId, timing);
@@ -490,10 +488,6 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                   {row.kind === 'rejected' ? (
                     <span className="pc-actions">
                       <TextButton onPress={() => void resendDead()}>{copy.export.resend}</TextButton>
-                    </span>
-                  ) : row.kind === 'points_possible_duplicate' && onSeePoints !== undefined ? (
-                    <span className="pc-actions">
-                      <TextButton onPress={onSeePoints}>{copy.export.seePoints}</TextButton>
                     </span>
                   ) : null}
                 </li>

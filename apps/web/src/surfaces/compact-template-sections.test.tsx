@@ -180,10 +180,12 @@ describe('F43 (UX pass 2026-10-22): a compact template, surface by surface', () 
     expect(container.textContent).not.toMatch(NO_FO_SERV_NUMBER);
   });
 
-  it('a ficha marked not tested: its band says it "entra na seção 5"', async () => {
+  // Fix batch e24h (2026-11-10): ~~its band says it "entra na seção 5"~~; no point is created automatically, so the band names no section.
+  it('a ficha marked not tested: its band no longer promises an entry in the points section', async () => {
     database = await compactDb();
     const { container } = renderAt(`/relatorio/${RELATORIO}/ficha/${BLOCK_DISJUNTOR_ID}`, '/relatorio/:id/ficha/:blockId', <FichaSurface />);
-    await waitFor(() => expect(container.querySelector('.not-tested-band')).toHaveTextContent('e entra na seção 5 automaticamente.'));
+    await waitFor(() => expect(container.querySelector('.not-tested-band')).toHaveTextContent('a ficha imprime com os dados de placa e o motivo.'));
+    expect(container.querySelector('.not-tested-band')).not.toHaveTextContent('entra na');
     expect(container.textContent).not.toMatch(NO_FO_SERV_NUMBER);
   });
 });

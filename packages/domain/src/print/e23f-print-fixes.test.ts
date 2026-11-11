@@ -36,6 +36,8 @@ describe('e23f (a) a Reprovado sheet\'s observation lines in section 8', () => {
     return buildSnapshot(replay(ops), relatorioId);
   }
 
+  // Fix batch e24h (2026-11-10): the Reprovado sheet prints no automatic bullet any more; the lines are kept in a
+  // point the technician writes with them, the bullet and the cell alike (was the "Equipamento reprovado" entry).
   it('keeps each line of the observation, the bullet and the cell alike', () => {
     const base = fresh();
     const order = sheetOrder(base);
@@ -47,10 +49,15 @@ describe('e23f (a) a Reprovado sheet\'s observation lines in section 8', () => {
         b.id === trafo.id ? { ...b, sheet: { ...b.sheet, observations: cell(observation), conclusion: { ...b.sheet.conclusion, result: cell('reprovado'), restriction: cell('com_restricoes') } } } : b,
       ),
     };
-    const bullet = resolveSection8(snapshot, new Map()).find((one) => one.text.startsWith('Equipamento reprovado: '))!;
-    expect(bullet.text).toMatch(/\. Item 1: oxidação nos terminais\nItem 3: vazamento de óleo\nItem 12: ruído anormal\nEquipamento sem condições de operação\.$/);
-    const row = resolveActionPlan(snapshot, new Map()).find((one) => one.point.startsWith('Equipamento reprovado: '))!;
-    expect(row.point).toBe(bullet.text);
+    expect(resolveSection8(snapshot, new Map())).toEqual([]);
+    const written: RelatorioSnapshot = {
+      ...snapshot,
+      points: [newPointRow({ id: '019966b0-0e23-7000-8003-000000000001', relatorioId: snapshot.relatorio.id, text: observation, equipmentId: trafo.equipment_id, origin: 'reprovado', action: null }, [])],
+    };
+    const bullet = resolveSection8(written, new Map())[0]!;
+    expect(bullet.text).toBe(observation);
+    const row = resolveActionPlan(written, new Map())[0]!;
+    expect(row.point).toBe(observation);
   });
 });
 

@@ -2,7 +2,6 @@ import {
   buildSnapshot,
   cellAddressesOf,
   conclusionFloorReasonText,
-  derivedPoints,
   EMPTY_DEFINITION_CONTEXT,
   entityKey,
   evaluateTest,
@@ -35,7 +34,8 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * keeps the poles). Relatório B of the same obra reads 61 µΩ on pole A (+52,5 %), 45 and 44: every pole
  * is within 250 µΩ and none deviates 50 % over the lowest, but pole A is out by its rise: the field and
  * its helper say so, the floor reads Reprovado · Com restrições, and B's DOCX prints the disjuntor's
- * CONCLUSÃO Reprovado and section 8's point naming the pole and the rise. Every expected word is the
+ * CONCLUSÃO Reprovado ~~and section 8's point naming the pole and the rise~~ (fix batch e24h, 2026-11-10: no automatic
+ * point; section 8 prints none for the out pole until the technician creates one). Every expected word is the
  * kernel's over the device's own rows. It issues two revisions through the api's one queue and
  * LibreOffice, so it runs in the serial group.
  */
@@ -84,7 +84,7 @@ async function issue(page: Page, relatorioId: string, number: number): Promise<D
   return extractStructure(Buffer.from(await response.body()));
 }
 
-test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório B of the obra at 61 µΩ (+52,5 %): pole A out by its rise, the floor Reprovado, and B\'s DOCX prints the CONCLUSÃO Reprovado and the point naming the pole and the rise', async ({
+test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório B of the obra at 61 µΩ (+52,5 %): pole A out by its rise, the floor Reprovado, and B\'s DOCX prints the CONCLUSÃO Reprovado and no automatic point (fix batch e24h)', async ({
   page,
 }) => {
   test.setTimeout(480_000);
@@ -159,12 +159,11 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   await expect
     .poll(async () => (await readStore<{ path: string; value: unknown }>(page, database, 'outbox')).filter((row) => row.path === `sheet/${djB.id}/conclusion/result`).map((row) => row.value))
     .toEqual(['reprovado']);
-  const point = derivedPoints(snapshot).find((one) => one.key === `reading:${djB.id}:${TEST_KEY}`)!;
-  expect(point.text).toContain(`61 µΩ em T1-T2–Fase A (${rise})`);
 
-  // B's DOCX: the disjuntor's CONCLUSÃO Reprovado (the only sheet with a chosen pair), and section 8's point with the rise.
+  // B's DOCX: the disjuntor's CONCLUSÃO Reprovado (the only sheet with a chosen pair); ~~section 8's point with the rise~~
+  // fix batch e24h: no automatic point.
   const structure = await issue(page, b.relatorioId, 1);
   const concluded = structure.tables.filter((table) => table[0]?.[0] === 'CONCLUSÃO' && table[1]?.includes('X'));
   expect(concluded.map((table) => table[1])).toEqual([['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']]);
-  expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio fora do critério: ') && paragraph.includes(rise))).toBe(true);
+  expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio fora do critério: '))).toBe(false);
 });

@@ -256,7 +256,9 @@ test('@p0 14.8-E2E-002 a company sheet of a duplicated library type: plate sugge
   await dialog.getByLabel('Descreva o motivo').fill('Quadro energizado sem janela de desligamento');
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(dialog).toBeHidden();
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
+  // Fix batch e24h: the toast no longer says the sheet enters section 9 (no automatic point).
+  await expect(toast(page)).toContainText('Marcada como não ensaiada');
+  await expect(toast(page)).not.toContainText('entra na');
   await expect(sheetTitle(page).locator('.not-tested-chip')).toHaveText('Não ensaiado');
   await expect(sheetTitle(page).locator('.lib-pill')).toHaveText('Tipo da empresa');
   await expect

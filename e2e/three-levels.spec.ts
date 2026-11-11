@@ -4,8 +4,6 @@ import {
   conclusionFloorReasonText,
   conclusionSuggestionText,
   derivedParecer,
-  derivedPointKindLabel,
-  derivedPoints,
   entityKey,
   evaluateSheetReadings,
   evaluateTest,
@@ -18,7 +16,6 @@ import {
   type Entity,
   type EntityRow,
   type OpDraft,
-  type PointRow,
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
@@ -64,7 +61,6 @@ const sheetTitle = (page: Page) => page.locator('.sheet-header .sheet-title');
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
 const row10 = (page: Page) => page.locator('li.sum-row[data-row="section_10"]');
-const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const cellOf = (page: Page, testKey: string, address: { row: number; col: number }): Locator =>
   page.locator(`section[data-test-key="${testKey}"] .ficha-cell[data-cell="${testKey}:${address.row}:${address.col}"]`).filter({ visible: true });
 
@@ -111,7 +107,7 @@ async function typeDown(page: Page, testKey: string, first: { row: number; col: 
   }
 }
 
-test('@p0 23.6-E2E-001 a v13 cable at 5, 5 and 1,5 GΩ: phase C restricted on the sheet, the floor Aprovado · Com restrições with its reason, one "Com restrição" entry on Pontos written as a point of origin restricao, the parecer Apto com restrições; a reload keeps all of it', async ({
+test('@p0 23.6-E2E-001 a v13 cable at 5, 5 and 1,5 GΩ: phase C restricted on the sheet, the floor Aprovado · Com restrições with its reason, no automatic point on Pontos (fix batch e24h), the parecer Apto com restrições; a reload keeps all of it', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -155,38 +151,24 @@ test('@p0 23.6-E2E-001 a v13 cable at 5, 5 and 1,5 GΩ: phase C restricted on th
   await expect(page.locator('.conclusion-hint')).toHaveText(reason);
   await expect(page.locator('#ficha-step-conclusao')).toContainText(conclusionSuggestionText({ result: 'aprovado', restriction: 'com_restricoes' }));
 
-  // Pontos: one automatic "Com restrição" entry naming the test and the phase.
-  const entry = derivedPoints(judged.snapshot).find((one) => one.key === `restricao:${cable.blockId}:isolacao`)!;
-  expect(entry.text).toContain('Fase C');
+  // Pontos: ~~one automatic "Com restrição" entry naming the test and the phase~~ (fix batch e24h: no automatic point).
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   // The parecer the fichas give, before any tap: Apto com restrições.
   expect(derivedParecer(judged.snapshot)).toBe('apto_com_restricoes');
   await expect(row10(page).locator('.sum-status')).toHaveText(parecerVerdictLabel('apto_com_restricoes'));
+  await expect(row8(page).locator('.sum-status')).toHaveText('Nenhum ponto de atenção');
   await row8(page).getByRole('button', { name: /^Pontos de atenção/ }).click();
   await expect(page).toHaveURL(/\/pontos$/);
-  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('restricao') }) });
-  await expect(card).toHaveCount(1);
-  await expect(card.locator('.poa-title')).toHaveText(entry.title);
-  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
+  // ~~"Editar": a point seeded with the entry's text, written as origin restricao~~: no point is written by itself.
+  expect((await outbox(page)).filter((row) => row.path.startsWith('point/'))).toEqual([]);
 
-  // "Editar": a point seeded with the entry's text, written as origin restricao with its test.
-  await card.getByRole('button', { name: /^Editar o ponto automático/ }).click();
-  const editor = page.locator('.point-of-attention-card.is-editing');
-  await expect(editor.getByRole('textbox', { name: 'Texto' })).toContainText(entry.text);
-  await editor.getByRole('button', { name: 'Concluir' }).click();
-  await expect(editor).toHaveCount(0);
-  await expect
-    .poll(async () => (await outbox(page)).filter((row) => row.kind === 'create' && row.path.startsWith('point/')).map((row) => row.value as PointRow))
-    .toEqual([expect.objectContaining({ origin: 'restricao', test_key: 'isolacao', equipment_id: (judged.block.equipment_id as string) })]);
-  // The point replaces the entry.
-  await expect(autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('restricao') }) })).toHaveCount(0);
-
-  // A reload before any sync keeps the point, the restricted reading and the floor.
+  // A reload before any sync keeps the restricted reading and the floor, and still no point.
   await page.reload();
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
-  await expect(page.locator('.poa-list > .point-of-attention-card:not(.is-auto)')).toHaveCount(1);
-  await expect(autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('restricao') }) })).toHaveCount(0);
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
   await openStep(page, relatorioId, cable.blockId, 'Ensaios');
   await expect(cellOf(page, 'isolacao', c!).locator('.measurement-field')).toHaveAttribute('data-state', 'restricted');
   await expect(cellOf(page, 'isolacao', c!).locator('.mf-helper[data-tone="restricted"]')).toHaveText(`Com restrição: ${restriction.text}`);
@@ -237,7 +219,7 @@ test('@p0 23.6-E2E-002 a v13 arrester whose DESLIGADOR ÍNTEGRO is NÃO: the flo
   await expect(page.locator('.conclusion-hint')).toHaveCount(0);
 });
 
-test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off and whose DESLIGADOR ÍNTEGRO is NÃO: the floor is still Reprovado by the prerequisite, Pontos lists its "Fora do critério" entry, and the parecer follows', async ({ page }) => {
+test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off and whose DESLIGADOR ÍNTEGRO is NÃO: the floor is still Reprovado by the prerequisite, Pontos lists nothing by itself (fix batch e24h), and the parecer follows', async ({ page }) => {
   test.setTimeout(180_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -273,15 +255,13 @@ test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off
   await expect(page.locator('.conclusion-hint')).toHaveText(reason);
   await expect(page.locator('#ficha-step-conclusao')).toContainText(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' }));
 
-  // Pontos: the test's reading entry, naming the disconnector.
-  const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${arrester.blockId}:isolacao`)!;
-  expect(entry.text).toContain('Ensaio de isolação: pré-requisito não atendido (Desligador íntegro: NÃO)');
+  // Pontos: ~~the test's reading entry, naming the disconnector~~ (fix batch e24h: nothing until the technician creates it).
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(row10(page).locator('.sum-status')).toHaveText(parecerVerdictLabel(derivedParecer(snapshot)!));
+  await expect(row8(page).locator('.sum-status')).toHaveText('Nenhum ponto de atenção');
   await row8(page).getByRole('button', { name: /^Pontos de atenção/ }).click();
   await expect(page).toHaveURL(/\/pontos$/);
-  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('reading') }) });
-  await expect(card).toHaveCount(1);
-  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
 });

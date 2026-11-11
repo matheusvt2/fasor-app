@@ -5,8 +5,8 @@ import { CONTENT_WIDTH_TWIPS, text } from '../docx.ts';
 /*
  * Story 7.3 (AC1): section 8, the points of attention, rendered from the kernel's
  * `LayoutSectionPoints`: one bulleted paragraph per bullet, its text exactly as
- * `resolveSection8` composed it (tokens already "Imagem N", derived groups already a
- * sentence). Story 11.10 (FR-52): directly after the last bullet, the action-plan table
+ * `resolveSection8` composed it (tokens already "Imagem N"; fix batch e24h: the stored points
+ * only, ~~derived groups already a sentence~~). Story 11.10 (FR-52): directly after the last bullet, the action-plan table
  * (`resolveActionPlan`): a header row with the eight column titles, repeated on every page,
  * then one row per bullet (a body row may split across pages; the header never does), hairline-ruled like the document's
  * other tables. Every printed string is the layout's; this module only decides widths, line breaks (e23f),

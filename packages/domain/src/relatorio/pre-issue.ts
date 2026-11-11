@@ -16,7 +16,6 @@ import { isOptionalSectionVariable, resolveSectionText, SECTION_VARIABLE_LABELS 
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
-import { possibleDuplicatePairs, possibleDuplicatesText } from '../points/derived.ts';
 import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
@@ -71,7 +70,6 @@ export type PreIssueKind =
   | 'points_sem_acao'
   | 'point_photo_removed'
   | 'points_sem_prazo'
-  | 'points_possible_duplicate'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
@@ -380,13 +378,9 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   for (const { point, position } of pointsWithRemovedPhotos(snapshot)) {
     rows.push({ id: `point_photo_removed:${point.id}`, row: 'section_8', severity: 'pending', text: pointPhotoRemovedText(position), kind: 'point_photo_removed' });
   }
-  // e22f S2: a manual point written from an NC row before contract 31 prints beside the NC's
-  // derived entry ("Possível duplicado" on the Pontos screen); pending, never blocking, and
-  // nothing is removed on its own: the engineer removes one of each pair.
-  const duplicates = possibleDuplicatePairs(snapshot);
-  if (duplicates > 0) {
-    rows.push({ id: 'points_possible_duplicate', row: 'section_8', severity: 'pending', text: possibleDuplicatesText(duplicates), kind: 'points_possible_duplicate' });
-  }
+  // ~~e22f S2: a manual point written from an NC row before contract 31 prints beside the NC's
+  // derived entry ("Possível duplicado"); pending, never blocking.~~ Fix batch e24h (2026-11-10):
+  // no derived entry prints, so no pair can exist and the row is gone.
   // Story 11.10 (FR-52): live points with no deadline print "—" in the action-plan table;
   // information only, never pending or blocking.
   const semPrazo = pointsSemPrazo(snapshot.points).length;
@@ -557,8 +551,6 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   'photos_pending_upload',
   'photos_upload_error',
   'cert_number_mismatch',
-  // e22f S2: the Export dialog names the possible duplicates with a way to the Pontos screen.
-  'points_possible_duplicate',
   'rejected',
   'last_send',
 ]);

@@ -66,6 +66,7 @@ function expectOnePointAutosaved(ops: readonly OutboxRow[]): string {
 }
 const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
 const cards = (page: Page) => page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)');
+// Fix batch e24h (2026-11-10): no automatic card is drawn any more; the specs below assert there is none.
 const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const toast = (page: Page) => page.getByTestId('toast');
 
@@ -223,7 +224,7 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('.poa-link-value')).toHaveText(`${chave.tag} · Chave seccionadora · Cubículo Enel`);
   await expect(textArea(dialog).locator('.photo-ref')).toHaveText('Imagem 1');
-  // e22f S4: it starts with the row's derived entry text, as "Editar" on that entry does.
+  // e22f S4: it starts with the row's text (fix batch e24h: no derived entry lists any more).
   const entryText = `Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}) não conforme`;
   await expect(textArea(dialog)).toContainText(entryText);
   await textArea(dialog).click();
@@ -236,38 +237,35 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
 
   const pointId = expectOnePointAutosaved(await outbox(page));
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
-  // Story 22.5: the point replaces the row's derived NC entry (its origin and item).
+  // Story 22.5: the point names the row (its origin and item).
   expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
   expect(point.text).toBe(`Contato com sinais de aquecimento ${entryText} ${photoToken(photoId)}`);
 
-  // The Points surface titles it by the equipment; the row's derived entry is gone (replaced).
+  // The Points surface titles it by the equipment; it is the one card (fix batch e24h: no automatic entry).
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(cards(page).first().locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`, { timeout: 30_000 });
   await expect(autoCards(page)).toHaveCount(0);
 });
 
-test('@p0 6.6-E2E-003 an untested sheet lists itself after the manual points; a point written from that sheet replaces it', async ({ page }) => {
+// Fix batch e24h (Matheus, 2026-11-10): ~~an untested sheet lists itself after the manual points; a point written from that
+// sheet replaces it~~. A point exists only when the technician creates it.
+test('@p0 6.6-E2E-003 e24h: an untested sheet lists nothing by itself; "Criar ponto de atenção" on its band writes the one point of origin not_tested', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId, sheets, equipmentOf } = await setUp(page, (scope, all) => [
     ...pointDrafts(scope, [{ text: 'Ponto geral', action: 'Agir' }]).drafts,
     notTestedDraft(scope, enelChaves(all)[0]!.blockId),
   ]);
   const chave = enelChaves(sheets)[0]!;
+  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
   await openPoints(page);
-  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (1 + 1 automático)' })).toBeVisible();
-  const auto = autoCards(page);
-  await expect(auto).toHaveCount(1);
-  // After the manual point, read-only, with its reason and justification.
-  await expect(page.locator('.poa-list > .point-of-attention-card').last()).toHaveClass(/is-auto/);
-  await expect(auto.locator('.poa-order')).toHaveText('Listado automaticamente · após os pontos manuais');
-  await expect(auto.locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
-  await expect(auto.locator('.not-tested-chip')).toHaveText('Não ensaiado');
-  await expect(auto.locator('.not-tested-band')).toContainText('Solicitação do cliente — Os ensaios não foram realizados conforme solicitação do cliente.');
-  await expect(auto.locator('.drag-handle')).toHaveCount(0);
-  await expect(auto.getByRole('textbox')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (1)' })).toBeVisible();
+  await expect(autoCards(page)).toHaveCount(0);
+  await expect(cards(page)).toHaveCount(1);
+  await expect(page.locator('.poa-list')).not.toContainText('Solicitação do cliente');
 
-  await auto.getByRole('button', { name: `Abrir ficha ${chave.tag}` }).click();
-  await expect(page).toHaveURL(new RegExp(`/ficha/${chave.blockId}$`));
+  await page.goto(`/relatorio/${relatorioId}/ficha/${chave.blockId}`);
+  await expect(page.locator('.not-tested-band')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.not-tested-band')).not.toContainText('entra na');
   const create = page.locator('.not-tested-point').getByRole('button', { name: 'Criar ponto de atenção' });
   await create.click();
   const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
@@ -631,8 +629,9 @@ test('@p1 6.6-E2E-011 E6-Q11: removing a photo a point cites names that point in
   await expect(plain).not.toContainText('citada');
 });
 
-// Story 15.2 (F34): the derived entries are counted once, after the live points; row 8 read "5 pontos · 1 sem ação · 3 não ensaiadas" before.
-test('@p0 6.6-E2E-005 Sumário row 8 reads "2 pontos + 3 automáticos · 1 sem ação" for 2 manual points (one without action) and 3 untested sheets', async ({ page }) => {
+// ~~Story 15.2 (F34): the derived entries are counted once, after the live points ("2 pontos + 3 automáticos · 1 sem ação").~~
+// Fix batch e24h (2026-11-10): the untested sheets count nothing.
+test('@p0 6.6-E2E-005 Sumário row 8 reads "2 pontos · 1 sem ação" for 2 manual points (one without action) beside 3 untested sheets', async ({ page }) => {
   test.setTimeout(120_000);
   await setUp(page, (scope, all) => [
     ...pointDrafts(scope, [
@@ -641,18 +640,18 @@ test('@p0 6.6-E2E-005 Sumário row 8 reads "2 pontos + 3 automáticos · 1 sem a
     ]).drafts,
     ...all.slice(0, 3).map((sheet) => notTestedDraft(scope, sheet.blockId)),
   ]);
-  await expect(row8(page).locator('.sum-status')).toHaveText('2 pontos + 3 automáticos · 1 sem ação · 2 pontos sem prazo');
+  await expect(row8(page).locator('.sum-status')).toHaveText('2 pontos · 1 sem ação · 2 pontos sem prazo');
   await openPoints(page);
-  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2 + 3 automáticos)' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2)' })).toBeVisible();
   await expect(cards(page)).toHaveCount(2);
-  await expect(autoCards(page)).toHaveCount(3);
+  await expect(autoCards(page)).toHaveCount(0);
   await expect(cards(page).nth(1).locator('.poa-fields dd').first()).toHaveText('—');
 });
 
-// Fix batch fx15q (Matheus, 2026-10-23): with untested sheets and no manual point, row 8 reads
-// the automatic count alone, never "0 pontos + ...". No existing state of this file holds that
-// shape (every setUp with untested sheets also writes a manual point), so it gets its own test.
-test('@p1 6.6-E2E-016 Sumário row 8 reads "N automáticos" for untested sheets and no manual point', async ({ page }) => {
+// ~~Fix batch fx15q (Matheus, 2026-10-23): with untested sheets and no manual point, row 8 reads
+// the automatic count alone, never "0 pontos + ...".~~ Fix batch e24h (2026-11-10): untested sheets and no
+// manual point read the empty row and the empty Points screen.
+test('@p1 6.6-E2E-016 e24h: Sumário row 8 reads "Nenhum ponto de atenção" for untested sheets and no manual point', async ({ page }) => {
   test.setTimeout(120_000);
   let untested = 0;
   await setUp(page, (scope, all) => {
@@ -661,9 +660,11 @@ test('@p1 6.6-E2E-016 Sumário row 8 reads "N automáticos" for untested sheets 
     return drafts;
   });
   expect(untested).toBe(2);
-  await expect(row8(page).locator('.sum-status')).toHaveText(`${untested} automáticos`);
+  await expect(row8(page).locator('.sum-status')).toHaveText('Nenhum ponto de atenção');
   await openPoints(page);
-  await expect(autoCards(page)).toHaveCount(untested);
+  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção', exact: true })).toBeVisible();
+  await expect(page.locator('.poa-empty')).toHaveText('Nenhum ponto de atenção.');
+  await expect(autoCards(page)).toHaveCount(0);
   await expect(cards(page)).toHaveCount(0);
 });
 

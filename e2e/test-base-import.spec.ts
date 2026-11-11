@@ -80,7 +80,6 @@ interface EntityRecord {
 
 const toast = (page: Page) => page.getByTestId('toast');
 const sheetTitle = (page: Page) => page.locator('.sheet-header .sheet-title');
-const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const importDialog = (page: Page) => page.getByRole('dialog', { name: 'Importar base de ensaios' });
 const outboxCount = async (page: Page) => (await readStore(page, database, 'outbox')).length;
 
@@ -101,7 +100,7 @@ async function importedRows(page: Page): Promise<{ types: EquipmentTypeRow[]; ve
   return { types, versions };
 }
 
-test('@p0 23.12-E2E-001 the base imported on Tipos makes the company copies with its texts: the preview, "Importar", the copies and their versions; a second import writes nothing; at 390 nothing scrolls sideways; the imported disjuntor sheet shows DJ-02 in "Como ensaiar" and its recommendation starts the derived point', async ({
+test('@p0 23.12-E2E-001 the base imported on Tipos makes the company copies with its texts: the preview, "Importar", the copies and their versions; a second import writes nothing; at 390 nothing scrolls sideways; the imported disjuntor sheet shows DJ-02 in "Como ensaiar", and its reading out of criterion lists no automatic point (fix batch e24h)', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -206,14 +205,14 @@ test('@p0 23.12-E2E-001 the base imported on Tipos makes the company copies with
     .poll(async () => (await readStore<{ path: string; value: unknown }>(page, database, 'outbox')).filter((row) => row.path === `sheet/${blockId}/test/isolacao/cell/${first!.row}/${first!.col}`).map((row) => (row.value as { raw?: string }).raw))
     .toEqual([READING]);
 
-  // --- Pontos: the entry starts with DJ-02's recommendation and a period ---
+  // --- Pontos: ~~the entry starts with DJ-02's recommendation and a period~~ (fix batch e24h: a point exists only when
+  // the technician creates it; the recommendation starts no point, an open question of spec e24h D4) ---
   await page.goto(`/relatorio/${built.relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
-  const entry = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: 'Fora do critério' }) });
-  await expect(entry).toHaveCount(1);
-  const text = entry.locator('.not-tested-band > .not-tested-chip + span');
-  await expect(text).toContainText(STARTS);
-  expect((await text.textContent())!.startsWith(STARTS), (await text.textContent())!).toBe(true);
+  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção', exact: true })).toBeVisible();
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
+  await expect(page.locator('.poa-list')).not.toContainText(STARTS);
+  expect((await readStore<{ entity: string }>(page, database, 'entities')).filter((record) => record.entity === 'point')).toEqual([]);
 });
 
 /*

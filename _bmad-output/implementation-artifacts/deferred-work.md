@@ -3534,3 +3534,41 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `epic-23-context.md:341` against § Deploy.
   class: verification
   state: open (owner: the coordinator: run it and record it, or record why it was dropped)
+
+## Deferred from: Epic 24 fix batch e24h (2026-11-10)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (Design Notes, D3)
+  summary: The Porto Seguro skeleton golden carries 18 automatic `reading` rows in section 8's action-plan table (rows 8 to 25, "Ensaio fora do critério: …") and the parecer's "Foram registrados 25 pontos de atenção" sentence; after e24h the fixture prints its 7 stored points and "7 pontos". The golden is not regenerated, so `docx.test.ts` 4.8-UNIT-006 stays red with that diff alone (the proposed skeleton and its diff are in the batch's PR).
+  evidence: `apps/api/src/jobs/generate/golden/porto-seguro-skeleton.json` (action-plan rows 8 to 25); `apps/api/src/jobs/generate/docx.test.ts` 4.8-UNIT-006.
+  class: decision
+  state: open (owner: Matheus: regenerate the skeleton with `GOLDEN_UPDATE=1`, or another reading)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (Design Notes, D5 a)
+  summary: An NC row (of a ficha or a local) with no point of attention is named nowhere before issue now: the Q-4 pre-issue row retired with Story 22.5, when the row was a point by itself. Should the pre-issue list name such a row again? Not built.
+  evidence: `packages/domain/src/relatorio/site-checklist.ts` (the struck 22.5 note); `packages/domain/src/relatorio/pre-issue.ts`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (Design Notes, D4 and D2)
+  summary: A test's "Recomendação se reprovado" starts no point any more: the only path that used it was "Editar" on the automatic card, which went, and no create action exists for a reading out of its criterion, a restricted reading or a Reprovado chosen by hand (a person writes them with "Criar" on the Points screen). The type editor's helper ("Texto inicial do ponto de atenção quando um valor deste ensaio fica fora do critério") stays as written. The findings' texts are still composed in `points/derived.ts` (`sheetEntries`) and read by nothing; Epic 24 plans the create paths.
+  evidence: `packages/domain/src/points/derived.ts` (`sheetEntries`, `recommendedPointText`); `apps/web/src/copy/pt-br.ts` `typeEditor.recommendationHelper`.
+  class: decision
+  state: open (owner: Matheus with Epic 24's planning of automatic points)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (Design Notes, D5 b)
+  summary: A parecer text confirmed while its relatório had automatic points reads stale after the update: the composed summary and its basis now count the stored points only, so "Foram registrados N pontos de atenção" drops the automatic ones. Expected; listed for Matheus.
+  evidence: `packages/domain/src/relatorio/parecer.ts` `composeParecer` (the `points` count and basis key).
+  class: note
+  state: open (owner: Matheus)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (contract 41)
+  summary: e24h takes contract 41 and MIN 41, the number `epic-24-context.md` first reserved for e24a; the unlaunched Epic 24 batches move up by one.
+  evidence: `packages/domain/src/contract/version.ts` (41 and MIN 41).
+  class: note
+  state: ~~open (owner: the coordinator)~~ closed 2026-11-10: main's planning delta (#305) already records 41 and 41 for e24h in `epic-24-context.md` and `docs/kbs/architecture/kernel-and-seed.md`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (H9, an observation never forces a restriction)
+  summary: On every seed, an observation (the sheet's OBSERVAÇÕES or a C/NA row's observation) no longer floors Aprovado · Com restrições: the `observation` floor reason is gone. A ficha whose observation was its floor's only source now reads its stored Sem restrições (or, unset, the floor's Sem) everywhere: the screen, the suggestion, section 9's marks, the paragraph (no recommendation sentence), the parecer (it can fall to Apto). A conclusion text confirmed before reads stale there ("Sugerido: texto atualizado", the `conclusion_stale` pre-issue row) because its basis holds the pair; nothing is rewritten. No stored pair changes; a stored Com restrições stays. Of the fixtures only `replay-small` moves (its verdict holds). The readers are listed in the spec's H9 section.
+  evidence: `packages/domain/src/relatorio/conclusion.ts` (`computeFloor`, `ConclusionFloorReason`); `packages/domain/src/relatorio/observation-free.test.ts`.
+  class: note
+  state: open (owner: Matheus: a production count of the fichas whose stored conclusion text goes stale, if wanted before the deploy)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24h-points-on-click.md` (H9)
+  summary: Story 24.3 planned "an observation floors nothing" for seed v14 only, behind the `conclusion_restriction_by_choice` flag; H9 does it on every seed now, so 24.3 keeps only the Reprovado-without-restriction half. Its text in `epics.md` and `epic-24-context.md` is the planner's to amend (not edited here).
+  evidence: `epic-24-context.md` § Decisions, the 24.3 row of the flags table.
+  class: decision
+  state: open (owner: the coordinator, with Story 24.3's amendment)

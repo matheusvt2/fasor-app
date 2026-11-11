@@ -703,7 +703,8 @@ export const pointRowSchema = z.object({
   /**
    * Story 22.5 (contract 31): `nc`, `reading` and `reprovado` name the derived entry a point
    * was written from ("Editar" on the entry, "Criar ponto de atenção" on an NC row), with its
-   * `item_key` or `test_key`; the point replaces that entry (`points/derived.ts`). Batch e23v
+   * `item_key` or `test_key`; ~~the point replaces that entry~~ (fix batch e24h, 2026-11-10: no entry
+   * lists any more; the origin names the ficha finding, read by "Origem resolvida", `points/derived.ts`). Batch e23v
    * (Story 23.6, contract 36): `restricao`, a test with a reading restricted on seed v13, with its
    * `test_key`.
    */

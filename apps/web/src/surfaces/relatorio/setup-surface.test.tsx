@@ -194,7 +194,8 @@ describe('4.2 SetupSurface', () => {
         ['Não apto', 'false', false],
       ]),
     );
-    expect(group).toHaveAccessibleDescription('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+    // Fix batch e24h: the untested sheet is no point of attention any more (was "… e 1 ponto de atenção.").
+    expect(group).toHaveAccessibleDescription('O relatório exige no mínimo Apto com restrições: 1 não ensaiada.');
     expect(screen.getByText('Resumo do parecer')).toBeVisible();
     expect(container.querySelector('.parecer-box .pb-verdict')).toHaveTextContent('Apto com restrições');
     expect(await axe(container)).toHaveNoViolations();

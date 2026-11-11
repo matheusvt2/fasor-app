@@ -769,8 +769,6 @@ export const copy = {
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
     seeInSumario: 'Ver no sumário',
-    // authored (e22f S2, open for Bruno): the way from the possible duplicates' row to the Pontos screen.
-    seePoints: 'Ver pontos',
     // authored: the Sync status surface's own word for resending rejected changes.
     resend: 'Reenviar',
     docControlLabel: 'Controle do documento',
@@ -1272,8 +1270,8 @@ export const copy = {
     // authored: the vision line's group name.
     suggestedLabel: 'Legenda sugerida',
   },
-  // Story 6.6: the Points surface (`72-pontos.html`) and the point editor. Counts, titles,
-  // order lines and the derived entries' texts are the kernel's (`points/*.ts`).
+  // Story 6.6: the Points surface (`72-pontos.html`) and the point editor. Counts, titles and
+  // order lines are the kernel's (`points/*.ts`).
   points: {
     title: 'Pontos de atenção',
     // `72-pontos.html` `.section-note`, verbatim minus the sentence about the photo draft
@@ -1281,10 +1279,11 @@ export const copy = {
     // F43 (UX pass 2026-10-22): `section` is the kernel's `sectionRefText` ("seção 4" by its Sumário position).
     // authored (F43, coordinator review): with section 8 absent, the first and last sentences say the points do not print.
     // authored (e22f N8, open for Bruno): Story 22.5, the derived entries follow from the fichas (was: "Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo.").
+    // authored (e24h, listed for Bruno): no point is created automatically, both forms (was: "Itens não conformes, ensaios fora do critério, fichas reprovadas e equipamentos marcados como Não ensaiado entram sozinhos ao final, conforme as fichas; Editar grava um ponto que substitui o automático, e um ponto criado de um item não conforme já traz o texto, a foto e o equipamento.").
     sectionNote: (m: Mention) =>
       m.prints
-        ? `A ordem aqui é a ordem da ${m.ref} do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Itens não conformes, ensaios fora do critério, fichas reprovadas e equipamentos marcados como Não ensaiado entram sozinhos ao final, conforme as fichas; Editar grava um ponto que substitui o automático, e um ponto criado de um item não conforme já traz o texto, a foto e o equipamento. A prioridade (P0 a P4) sugere o prazo; a ${m.ref} imprime, depois dos pontos, a tabela do plano de ação.`
-        : `Os pontos de atenção não saem no documento: o relatório não tem a ${m.ref}. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Itens não conformes, ensaios fora do critério, fichas reprovadas e equipamentos marcados como Não ensaiado entram sozinhos ao final, conforme as fichas; Editar grava um ponto que substitui o automático, e um ponto criado de um item não conforme já traz o texto, a foto e o equipamento. A prioridade (P0 a P4) sugere o prazo.`,
+        ? `A ordem aqui é a ordem da ${m.ref} do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz o texto, a foto e o equipamento. A prioridade (P0 a P4) sugere o prazo; a ${m.ref} imprime, depois dos pontos, a tabela do plano de ação.`
+        : `Os pontos de atenção não saem no documento: o relatório não tem a ${m.ref}. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz o texto, a foto e o equipamento. A prioridade (P0 a P4) sugere o prazo.`,
     // Story 6.6 AC, verbatim.
     empty: 'Nenhum ponto de atenção.',
     create: 'Criar',
@@ -1327,15 +1326,8 @@ export const copy = {
     moveUp: 'Subir',
     moveDown: 'Descer',
     remove: 'Remover',
-    notTestedChip: 'Não ensaiado',
-    autoOrder: 'Listado automaticamente · após os pontos manuais',
-    autoReason: 'O motivo é editado na ficha; o ponto sai daqui se a ficha voltar a ser ensaiada',
-    openSheet: (tag: string) => `Abrir ficha ${tag}`,
-    // authored (Story 22.5, open for Bruno): the derived NC, out-reading and Reprovado cards and the two flags.
-    derivedReason: 'Sai daqui quando a ficha deixar de ter o problema; Editar grava um ponto que o substitui',
-    openLocal: (name: string) => `Abrir verificações de ${name}`,
-    editDerivedLabel: (title: string) => `Editar o ponto automático, ${title}`,
-    possibleDuplicate: 'Possível duplicado',
+    // authored (Story 22.5, open for Bruno): a point whose ficha finding no longer stands. Fix batch e24h:
+    // the automatic cards' words (chip, order line, reasons, "Abrir ficha", "Possível duplicado") went with them.
     originResolved: 'Origem resolvida',
     // authored: the parts of the editor no mock names.
     concluir: 'Concluir',
@@ -1418,15 +1410,14 @@ export const copy = {
     // `60-ficha.html` header Overflow's "Marcar não ensaiado" toast, verbatim.
     // F43 (UX pass 2026-10-22): `section` is the kernel's `sectionRefText` ("seção 4" by its Sumário position).
     // authored (F43, coordinator review): the absent form.
-    notTestedToast: (m: Mention) => (m.prints ? `Marcada como não ensaiada — entra na ${m.ref}` : `Marcada como não ensaiada — o motivo ${m.absent}`),
+    // authored (e24h, listed for Bruno): both forms (was: "Marcada como não ensaiada — entra na {ref}" and "Marcada como não ensaiada — o motivo {absent}").
+    notTestedToast: 'Marcada como não ensaiada',
     // The band's sentence around the reason (`key-sheet-states.html` `.band-reason`), split
     // so the reason renders as its own span, verbatim otherwise.
     notTestedBandBefore: 'Não ensaiado — ',
     // authored (F43, coordinator review): the absent form.
-    notTestedBandAfter: (m: Mention) =>
-      m.prints
-        ? `. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo, e entra na ${m.ref} automaticamente.`
-        : `. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo. A entrada nos pontos de atenção ${m.absent}.`,
+    // authored (e24h, listed for Bruno): both forms (was: "…, e entra na {ref} automaticamente." and "… A entrada nos pontos de atenção {absent}.").
+    notTestedBandAfter: '. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo.',
     // `key-sheet-states.html` frame (a) `.not-tested-band .btn-text`.
     desfazer: 'Desfazer',
     // authored: the Confirm dialog that gates "Desfazer" once the mark has reached the server.

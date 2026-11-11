@@ -8,7 +8,9 @@ import { z } from 'zod';
  * - `help`, "Como ensaiar": up to eight optional texts, shown on the sheet from the definition
  *   already on the device (so it opens offline) and never printed;
  * - `recommendation`, "Recomendação se reprovado": the text a `reading` derived point starts
- *   with (`points/derived.ts`), before the composed reference of the reading.
+ *   with (`points/derived.ts`), before the composed reference of the reading. Fix batch e24h
+ *   (2026-11-10): no derived point lists or prints any more, so the recommendation starts no point
+ *   until a create path for a reading exists (an open question, spec e24h D4).
  *
  * Both are optional and never defaulted, so every seed parses to the bytes it shipped with. A
  * text is never trimmed or transformed here: the stored value is the op's raw value

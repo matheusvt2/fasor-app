@@ -1394,7 +1394,9 @@ test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(dialog).toBeHidden();
 
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
+  // Fix batch e24h: the toast no longer says the sheet enters section 9 (no automatic point).
+  await expect(toast(page)).toContainText('Marcada como não ensaiada');
+  await expect(toast(page)).not.toContainText('entra na');
   await expect(page.locator('.sheet-title .not-tested-chip')).toHaveText('Não ensaiado');
   await expect(page.locator('.not-tested-band .band-reason')).toHaveText('Equipamento inacessível na visita');
   await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
@@ -1769,7 +1771,9 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
   await dialog.getByRole('radio', { name: 'Solicitação do cliente' }).click();
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
+  // Fix batch e24h: the toast no longer says the sheet enters section 9 (no automatic point).
+  await expect(toast(page)).toContainText('Marcada como não ensaiada');
+  await expect(toast(page)).not.toContainText('entra na');
 
   await page.goto(`/relatorio/${relatorioId}`);
   const count = summary.getByRole('button', { name: '1 não ensaiada' });
@@ -1787,8 +1791,9 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   const hint = page.locator('.conclusion-hint').first();
-  // A fresh relatório (every other sheet empty): the untested sheet and its derived point give Apto com restrições.
-  await expect(hint).toHaveText('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+  // A fresh relatório (every other sheet empty): the untested sheet gives Apto com restrições (fix batch e24h: ~~and its
+  // derived point~~; it is no point of attention, so the line names it alone).
+  await expect(hint).toHaveText('O relatório exige no mínimo Apto com restrições: 1 não ensaiada.');
   const verdicts = page.getByRole('radiogroup', { name: 'Parecer' });
   await expect(verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(verdicts.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();

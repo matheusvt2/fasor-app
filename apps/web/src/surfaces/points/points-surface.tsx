@@ -1,6 +1,4 @@
 import {
-  derivedPointKindLabel,
-  derivedPointSeed,
   extractPhotoRefs,
   formatCalendarDate,
   moveLandingIndex,
@@ -16,20 +14,18 @@ import {
   sectionRefText,
   pointTextTokens,
   pointTitle,
-  possibleDuplicatePoints,
   priorityLabel,
   priorityTone,
   putPointOp,
   removePointOp,
   resolvedOriginPoints,
   sectionEightEntries,
-  type DerivedPoint,
   type EntityState,
   type PointRow,
   type RelatorioSnapshot,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -54,14 +50,13 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
  * order. The live points first, each a Point of attention card with its order line, title
  * (its equipment, else "Geral"), text with its photo references as "Imagem N", referenced
  * photos and Ação; they reorder three ways (drag handle, Overflow "Subir · Descer",
- * Alt+↑/↓) with one `point/{id}/order_key` op each, announced. Then one read-only `.is-auto`
- * card per sheet marked Não ensaiado (`derivedPoints`, never stored). "Criar" opens a new
- * card in edit mode after the live points; "Editar" opens a card in place.
- * Story 22.5: the derived NC, out-reading and Reprovado entries are `.is-auto` cards too, with
- * the kernel's chip and text; their "Editar" opens a new point after the live ones, seeded with
- * the entry's text and source (`derivedPointSeed`), which replaces the entry once stored. A
- * manual point and an NC entry of the same equipment or local both read "Possível duplicado",
- * and a point whose source no longer stands reads "Origem resolvida" (the kernel's flags).
+ * Alt+↑/↓) with one `point/{id}/order_key` op each, announced. "Criar" opens a new card in edit
+ * mode after the live points; "Editar" opens a card in place. A point written from a ficha finding
+ * whose finding no longer stands reads "Origem resolvida" (the kernel's flag).
+ * ~~Story 6.6 and Story 22.5: one read-only `.is-auto` card per sheet marked Não ensaiado, NC row,
+ * test out of criterion and Reprovado sheet, with an "Editar" that wrote a point replacing it; a
+ * manual point and an NC entry of the same owner read "Possível duplicado".~~ Fix batch e24h
+ * (Matheus, 2026-11-10): a point exists only when the technician creates it; no automatic card.
  */
 export function PointsSurface() {
   const { id = '' } = useParams();
@@ -73,7 +68,7 @@ export function PointsSurface() {
 }
 
 /** E6-Q2: a new point's id is generated as "Criar" opens it, so the card its first autosave stores is the one being edited. */
-type Editing = { kind: 'new'; id: string } | { kind: 'point'; id: string } | { kind: 'derived'; key: string; id: string } | null;
+type Editing = { kind: 'new'; id: string } | { kind: 'point'; id: string } | null;
 
 function Points({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
   const t = copy.points;
@@ -83,18 +78,13 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const edits = useUndoableEdits();
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const entries = useMemo(() => sectionEightEntries(snapshot), [snapshot]);
-  const live = useMemo(() => entries.flatMap((entry) => (entry.kind === 'point' ? [entry.point] : [])), [entries]);
-  const derived = useMemo(() => entries.flatMap((entry) => (entry.kind === 'derived' ? [entry.derived] : [])), [entries]);
+  const live = useMemo(() => entries.map((entry) => entry.point), [entries]);
   const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
 
   const [editing, setEditing] = useState<Editing>(null);
-  const derivedSeed = useRef<ReturnType<typeof derivedPointSeed> | null>(null);
-  // Story 22.5: the kernel's two flags.
-  const duplicates = useMemo(() => possibleDuplicatePoints(snapshot), [snapshot]);
+  // Story 22.5: the kernel's flag (fix batch e24h: "Possível duplicado" retired with the automatic entries).
   const resolved = useMemo(() => resolvedOriginPoints(snapshot), [snapshot]);
-  // The entry an open "Editar" started from, while it is still derived.
-  const editingEntry = editingDerivedEntry(editing, derived);
   // FR-61: a point typed before a reload is offered back here with its editor closed.
   usePointDraftRecovery(relatorioId);
   const [removing, setRemoving] = useState<PointRow | null>(null);
@@ -163,7 +153,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
     });
   }
 
-  const empty = entries.length === 0 && editing?.kind !== 'new' && editing?.kind !== 'derived';
+  const empty = entries.length === 0 && editing?.kind !== 'new';
 
   return (
     <>
@@ -171,7 +161,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
         <section className="section" aria-labelledby={headingId}>
           <div className="section-head">
             <h2 id={headingId} tabIndex={-1} ref={heading}>
-              {pointsHeadingText(live.length, derived.length)}
+              {pointsHeadingText(live.length)}
             </h2>
           </div>
           <p className="section-note">{t.sectionNote(sectionMention(snapshot, 8))}</p>
@@ -179,7 +169,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
           <div className="poa-list" aria-label={t.listLabel(sectionMention(snapshot, 8))} role="group" ref={listRef}>
             {live.map((point, i) =>
               // The new point being edited, once autosaved, is drawn by its editor after the list.
-              (editing?.kind === 'new' || editing?.kind === 'derived') && editing.id === point.id ? null : editing?.kind === 'point' && editing.id === point.id ? (
+              editing?.kind === 'new' && editing.id === point.id ? null : editing?.kind === 'point' && editing.id === point.id ? (
                 <PointEditor
                   key={point.id}
                   variant="card"
@@ -204,7 +194,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
                   numbers={numbers}
                   tiles={tiles}
                   editable={editing === null}
-                  flag={resolved.has(point.id) ? t.originResolved : duplicates.pointIds.has(point.id) ? t.possibleDuplicate : null}
+                  flag={resolved.has(point.id) ? t.originResolved : null}
                   onMove={(to) => move(point, to)}
                   onEdit={() => setEditing({ kind: 'point', id: point.id })}
                   onRemove={() => setRemoving(point)}
@@ -222,34 +212,6 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
                 onDone={(saved) => onDone(saved, true)}
               />
             ) : null}
-            {editing?.kind === 'derived' && derivedSeed.current !== null ? (
-              <PointEditor
-                key={`derived-${editing.key}`}
-                variant="card"
-                relatorioId={relatorioId}
-                snapshot={snapshot}
-                point={null}
-                newPointId={editing.id}
-                seed={derivedSeed.current}
-                onDone={(saved) => onDone(saved, true)}
-              />
-            ) : null}
-            {derived.map((entry) =>
-              editingEntry !== null && editingEntry.key === entry.key ? null : (
-                <DerivedCard
-                  key={entry.key}
-                  relatorioId={relatorioId}
-                  entry={entry}
-                  numbers={numbers}
-                  editable={editing === null}
-                  flag={duplicates.entryKeys.has(entry.key) ? t.possibleDuplicate : null}
-                  onEdit={() => {
-                    derivedSeed.current = derivedPointSeed(entry);
-                    setEditing({ kind: 'derived', key: entry.key, id: newId() });
-                  }}
-                />
-              ),
-            )}
           </div>
         </section>
       </div>
@@ -323,7 +285,7 @@ function PointCard({
   numbers: ReadonlyMap<string, number>;
   tiles: readonly PhotoTile[];
   editable: boolean;
-  /** Story 22.5: "Possível duplicado" or "Origem resolvida", the kernel's flags; null with none. */
+  /** Story 22.5: "Origem resolvida", the kernel's flag; null without it. */
   flag: string | null;
   onMove: (toIndex: number) => Promise<void>;
   onEdit: () => void;
@@ -415,88 +377,6 @@ function PointCard({
         ) : null}
       </div>
       <OverflowMenu name={name} items={items} destructiveItems={[{ id: 'remove', label: t.remove, onAction: onRemove }]} />
-    </article>
-  );
-}
-
-/** The derived entry an open "Editar" started from, while it is still listed. */
-function editingDerivedEntry(editing: Editing, derived: readonly DerivedPoint[]): DerivedPoint | null {
-  if (editing?.kind !== 'derived') return null;
-  return derived.find((entry) => entry.key === editing.key) ?? null;
-}
-
-/**
- * A derived entry, listed by itself after the manual points; read-only (Story 6.6: a sheet
- * marked Não ensaiado). Story 22.5: an NC row, a test out of criterion or a Reprovado sheet,
- * with the kernel's chip and text and an "Editar" that writes a point replacing it.
- */
-function DerivedCard({
-  relatorioId,
-  entry,
-  numbers,
-  editable,
-  flag,
-  onEdit,
-}: {
-  relatorioId: string;
-  entry: DerivedPoint;
-  numbers: ReadonlyMap<string, number>;
-  editable: boolean;
-  flag: string | null;
-  onEdit: () => void;
-}) {
-  const t = copy.points;
-  const navigate = useNavigate();
-  const titleId = useId();
-  const notTested = entry.kind === 'not_tested';
-  const open = () =>
-    void navigate(entry.block_id !== null ? `/relatorio/${relatorioId}/ficha/${entry.block_id}` : `/relatorio/${relatorioId}/local/${entry.location_id ?? ''}/verificacoes`);
-  return (
-    <article className="point-of-attention-card is-auto" aria-labelledby={titleId} data-block-id={entry.block_id ?? undefined} data-derived-kind={entry.kind}>
-      <span className="handle-spacer" aria-hidden="true" />
-      <div className="poa-body">
-        <div>
-          <span className="poa-order">{t.autoOrder}</span>
-          <h3 className="poa-title" id={titleId}>
-            {entry.title}
-          </h3>
-          {flag === null ? null : (
-            <span className="helper" data-tone="amber" data-flag="">
-              {flag}
-            </span>
-          )}
-        </div>
-        <div className="not-tested-band">
-          <span className="not-tested-chip">{derivedPointKindLabel(entry.kind)}</span>
-          {notTested ? (
-            <span>{entry.text}</span>
-          ) : (
-            <span>
-              {pointTextTokens(entry.text).map((token, i) =>
-                token.kind === 'text' ? (
-                  <span key={i}>{token.text}</span>
-                ) : (
-                  <span key={i} className="photo-ref">
-                    {numbers.has(token.id) ? photoRefLabel(numbers.get(token.id)!) : t.removedPhoto}
-                  </span>
-                ),
-              )}
-            </span>
-          )}
-        </div>
-        <div className="row-wrap">
-          <TextButton onPress={open}>{entry.block_id !== null ? t.openSheet(entry.name) : t.openLocal(entry.name)}</TextButton>
-          {!notTested && editable ? (
-            <TextButton aria-label={t.editDerivedLabel(entry.title)} onPress={onEdit}>
-              <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-pencil" />
-              </svg>
-              {t.edit}
-            </TextButton>
-          ) : null}
-          <span className="btn-reason">{notTested ? t.autoReason : t.derivedReason}</span>
-        </div>
-      </div>
     </article>
   );
 }

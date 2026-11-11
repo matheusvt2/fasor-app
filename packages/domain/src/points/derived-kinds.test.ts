@@ -12,15 +12,17 @@ import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { newPointRow } from './checks.ts';
 import { numberPhotos } from '../photos/numbering.ts';
-import { derivedPoints, derivedPointKindLabel, derivedPointSeed, possibleDuplicatePoints, resolvedOriginPoints, withPhotoTokens } from './derived.ts';
+import { hasPointSource, resolvedOriginPoints, withPhotoTokens } from './derived.ts';
 import { photoToken } from './refs.ts';
 import { pointsSummary, pointsSummaryText, sectionEightEntries } from './summary.ts';
 
 /*
- * Story 22.5 (Bruno, 2026-11-06): every NC row (of a sheet or a local), every test out of
+ * ~~Story 22.5 (Bruno, 2026-11-06): every NC row (of a sheet or a local), every test out of
  * criterion and every Reprovado sheet is a derived section 8 entry, after the manual points in
  * tree order; a point written from the same source replaces it, and removing that point brings
- * it back.
+ * it back.~~ Fix batch e24h (Matheus, 2026-11-10): the same scenarios under the new rule: a
+ * finding is no point of attention until the technician creates one; it still floors the parecer
+ * (`hasPointSource`) and still resolves the origin of a point written from it.
  */
 
 function fresh(): RelatorioSnapshot {
@@ -84,91 +86,52 @@ function scenario() {
   return { snapshot, trafo, dj, local, siteKey };
 }
 
-describe('22.5-UNIT the derived kinds', () => {
-  it('two NC rows on a transformer, one NC on a local and an out insulation: four entries after the manual point, in tree order, "automáticos" counting 4 more', () => {
-    const { snapshot, trafo, dj, local, siteKey } = scenario();
-    const entries = derivedPoints(snapshot);
-    // Tree order: the local first (before its equipment), then the disjuntor, then the transformer, as section 9 orders them.
-    expect(entries.map((entry) => entry.kind)).toEqual(['nc', 'reading', 'nc', 'nc']);
-    expect(entries[0]).toMatchObject({ location_id: local.id, item_key: siteKey, block_id: null, equipment_id: null });
-    expect(entries[1]).toMatchObject({ block_id: dj.id, test_key: 'isolacao' });
-    expect(entries[1]!.text).toMatch(/^Ensaio de isolação: 300 MΩ em .+ \(critério: .+\)$/);
-    expect(entries.slice(2).every((entry) => entry.block_id === trafo.id)).toBe(true);
-    expect(entries[2]!.text).toBe(`Item 1 (${findDefinition(trafo.seed_version, trafo.block_type)!.checklist![0]!.label.toLocaleLowerCase('pt-BR')}): oxidação nos terminais`);
-    expect(entries[3]!.text).toMatch(/^Item 2 \(.+\) não conforme$/);
-    expect(sectionEightEntries(snapshot).map((entry) => entry.kind)).toEqual(['point', 'derived', 'derived', 'derived', 'derived']);
+describe('22.5-UNIT the derived kinds (fix batch e24h: no automatic point)', () => {
+  it('two NC rows on a transformer, one NC on a local and an out insulation: section 8 holds the manual point alone', () => {
+    const { snapshot } = scenario();
+    expect(hasPointSource(snapshot)).toBe(true);
+    expect(sectionEightEntries(snapshot).map((entry) => entry.kind)).toEqual(['point']);
     const summary = pointsSummary(snapshot);
-    expect(summary).toMatchObject({ total: 5, derived: 4, derivedNotTested: 0, naoEnsaiadas: 0 });
-    expect(pointsSummaryText(summary)).toBe('1 ponto + 4 automáticos');
-    // Section 8: one bullet and one action-plan row per entry, after the manual one.
+    expect(summary).toEqual({ total: 1, semAcao: 0, naoEnsaiadas: 0 });
+    expect(pointsSummaryText(summary)).toBe('1 ponto');
     const bullets = resolveSection8(snapshot, new Map());
-    expect(bullets).toHaveLength(5);
-    expect(bullets[1]!.text).toMatch(/^Item não conforme: .+ · Verificações do local\. Item 3 \(.+\) não conforme\.$/);
-    expect(bullets[2]!.text).toMatch(/^Ensaio fora do critério: .+\. Ensaio de isolação: 300 MΩ em .+\.$/);
-    expect(bullets[3]!.text).toMatch(/^Item não conforme: .+\. Item 1 \(.+\): oxidação nos terminais\.$/);
-    const plan = resolveActionPlan(snapshot, new Map());
-    expect(plan.map((row) => row.number)).toEqual(['1', '2', '3', '4', '5']);
-    expect(plan[2]).toMatchObject({ point: bullets[2]!.text, action: '—', images: '—' });
-    expect(entries.map((entry) => derivedPointKindLabel(entry.kind))).toEqual(['Não conforme', 'Fora do critério', 'Não conforme', 'Não conforme']);
+    expect(bullets.map((bullet) => bullet.text)).toEqual(['Manual. Agir']);
+    expect(resolveActionPlan(snapshot, new Map()).map((row) => row.number)).toEqual(['1']);
   });
 
-  it('a point written from an NC entry (origin nc, its item_key) replaces it; removing that point brings it back; the source gone flags it "Origem resolvida"', () => {
+  it('a point written from an NC row (origin nc, its item_key) is one entry; the row back to C flags it "Origem resolvida"', () => {
     const { snapshot, trafo } = scenario();
-    const entry = derivedPoints(snapshot).find((e) => e.kind === 'nc' && e.block_id === trafo.id)!;
-    const seed = derivedPointSeed(entry);
-    expect(seed).toEqual({ text: entry.text, equipmentId: trafo.equipment_id, locationId: null, origin: 'nc', itemKey: entry.item_key, testKey: null });
-    const own = point(snapshot, { origin: 'nc', equipment_id: trafo.equipment_id, item_key: entry.item_key, text: seed.text, action: 'Limpar os terminais', deadline: '2026-12-01' });
+    const itemKey = findDefinition(trafo.seed_version, trafo.block_type)!.checklist![0]!.key;
+    const own = point(snapshot, { origin: 'nc', equipment_id: trafo.equipment_id, item_key: itemKey, text: 'Item 1 (x): oxidação nos terminais', action: 'Limpar os terminais', deadline: '2026-12-01' });
     const replaced = withPoints(snapshot, own);
-    expect(derivedPoints(replaced).some((e) => e.key === entry.key)).toBe(false);
-    expect(derivedPoints(replaced)).toHaveLength(3);
+    expect(sectionEightEntries(replaced).map((entry) => entry.kind)).toEqual(['point', 'point']);
     expect(resolvedOriginPoints(replaced).size).toBe(0);
-    // Removed, the entry comes back.
-    expect(derivedPoints(withPoints(snapshot, { ...own, removed_at: T0.toISOString() })).some((e) => e.key === entry.key)).toBe(true);
-    // The row set back to C: no entry; the point stays, "Origem resolvida".
-    const resolved = edit(replaced, trafo.id, (b) => ({ ...b, sheet: { ...b.sheet, checklist: { ...b.sheet.checklist, [entry.item_key!]: { result: cell('C') } } } }));
-    expect(derivedPoints(resolved).some((e) => e.key === entry.key)).toBe(false);
+    const resolved = edit(replaced, trafo.id, (b) => ({ ...b, sheet: { ...b.sheet, checklist: { ...b.sheet.checklist, [itemKey]: { result: cell('C') } } } }));
     expect([...resolvedOriginPoints(resolved)]).toEqual([own.id]);
+    expect(resolveSection8(resolved, new Map())).toHaveLength(2);
   });
 
-  it('a reading point (origin reading, its test_key) replaces the test entry; a sheet with no equipment is never suppressed', () => {
-    const { snapshot, dj } = scenario();
-    const own = point(snapshot, { origin: 'reading', equipment_id: dj.equipment_id, test_key: 'isolacao' });
-    expect(derivedPoints(withPoints(snapshot, own)).some((e) => e.kind === 'reading')).toBe(false);
-    const orphan = edit(snapshot, dj.id, (b) => ({ ...b, equipment_id: null }));
-    expect(derivedPoints(withPoints(orphan, { ...own, equipment_id: null })).some((e) => e.kind === 'reading')).toBe(true);
-  });
-
-  it('an old manual point on the equipment of an NC entry suppresses nothing: both read "Possível duplicado"', () => {
+  it('an old manual point on the equipment of an NC row pairs with nothing: one more entry, no flag', () => {
     const { snapshot, trafo } = scenario();
     // e22f N4: as a client older than contract 31 wrote it, with no `item_key` key at all.
     const old = point(snapshot, { origin: 'manual', equipment_id: trafo.equipment_id, text: 'Terminais oxidados' });
     delete (old as Partial<PointRow>).item_key;
     const both = withPoints(snapshot, old);
-    expect(derivedPoints(both).filter((e) => e.block_id === trafo.id)).toHaveLength(2);
-    const flags = possibleDuplicatePoints(both);
-    expect([...flags.pointIds]).toEqual([old.id]);
-    expect([...flags.entryKeys]).toEqual(derivedPoints(both).filter((e) => e.block_id === trafo.id).map((e) => e.key));
-    // Removing the manual point leaves only the entries, unflagged.
-    expect(possibleDuplicatePoints(withPoints(snapshot, { ...old, removed_at: T0.toISOString() })).entryKeys.size).toBe(0);
+    expect(sectionEightEntries(both)).toHaveLength(2);
+    expect(resolvedOriginPoints(both).size).toBe(0);
   });
 
-  it('a sheet the engineer concluded Reprovado with no failure lists itself as "Equipamento reprovado"; a floor Reprovado (an out reading) does not add one', () => {
-    const { snapshot, trafo, dj } = scenario();
+  it('a sheet the engineer concluded Reprovado prints no "Equipamento reprovado" bullet', () => {
+    const { snapshot, trafo } = scenario();
     const chosen = edit(snapshot, trafo.id, (b) => ({
       ...b,
       sheet: { ...b.sheet, observations: cell('Carcaça com corrosão avançada.'), conclusion: { ...b.sheet.conclusion, result: cell('reprovado'), restriction: cell('com_restricoes') } },
     }));
-    const reprovado = derivedPoints(chosen).filter((e) => e.kind === 'reprovado');
-    expect(reprovado).toHaveLength(1);
-    expect(reprovado[0]).toMatchObject({ block_id: trafo.id, text: 'Carcaça com corrosão avançada.' });
-    expect(resolveSection8(chosen, new Map()).some((bullet) => bullet.text.startsWith('Equipamento reprovado: '))).toBe(true);
-    const floorOnly = edit(snapshot, dj.id, (b) => ({ ...b, sheet: { ...b.sheet, conclusion: { ...b.sheet.conclusion, result: cell('reprovado') } } }));
-    expect(derivedPoints(floorOnly).filter((e) => e.kind === 'reprovado')).toEqual([]);
-    // Suppressed by a point of origin reprovado.
-    expect(derivedPoints(withPoints(chosen, point(chosen, { origin: 'reprovado', equipment_id: trafo.equipment_id }))).some((e) => e.kind === 'reprovado')).toBe(false);
+    expect(resolveSection8(chosen, new Map()).some((bullet) => bullet.text.startsWith('Equipamento reprovado: '))).toBe(false);
+    expect(sectionEightEntries(chosen)).toHaveLength(1);
   });
 
-  it('an NC row with a photo: its entry cites the photo, the section 8 bullet reads "conforme Imagem N", the action-plan row names N', () => {
+  it('an NC row with a photo: no bullet cites it; "Criar ponto de atenção" still starts with its token', () => {
     const { snapshot, trafo } = scenario();
     const item = findDefinition(trafo.seed_version, trafo.block_type)!.checklist![0]!;
     const photoId = '019966b0-2210-7000-8000-000000000001';
@@ -197,23 +160,19 @@ describe('22.5-UNIT the derived kinds', () => {
     };
     const withPhoto = { ...snapshot, files: [...snapshot.files, photo] } as RelatorioSnapshot;
     const numbering = numberPhotos(withPhoto);
-    const n = numbering.get(photoId);
-    expect(n).toBeDefined();
-    const entry = derivedPoints(withPhoto).find((e) => e.kind === 'nc' && e.item_key === item.key)!;
-    expect(entry.text.endsWith(photoToken(photoId))).toBe(true);
-    const bullets = resolveSection8(withPhoto, numbering);
-    const bulletIndex = bullets.findIndex((bullet) => bullet.text.includes('oxidação nos terminais'));
-    expect(bullets[bulletIndex]!.text).toMatch(new RegExp(`oxidação nos terminais, conforme Imagem ${n}\\.$`));
-    expect(resolveActionPlan(withPhoto, numbering)[bulletIndex]!.images).toBe(String(n));
-    // The seed of "Criar ponto de atenção" keeps a photo the entry does not cite yet.
-    expect(withPhotoTokens(entry.text, [photoId, 'other'])).toBe(`${entry.text} ${photoToken('other')}`);
+    expect(numbering.get(photoId)).toBeDefined();
+    expect(resolveSection8(withPhoto, numbering).some((bullet) => bullet.text.includes('oxidação nos terminais'))).toBe(false);
+    expect(resolveActionPlan(withPhoto, numbering).map((row) => row.images)).toEqual(['—']);
+    // The seed of "Criar ponto de atenção" keeps a photo the text does not cite yet.
+    expect(withPhotoTokens('Item 1', [photoId, 'other'])).toBe(`Item 1 ${photoToken(photoId)} ${photoToken('other')}`);
+    expect(withPhotoTokens(`Item 1 ${photoToken(photoId)}`, [photoId])).toBe(`Item 1 ${photoToken(photoId)}`);
     expect(withPhotoTokens(null, [photoId])).toBe(photoToken(photoId));
   });
 
-  it('a v5 relatório gets the derived entries as a v11 one does (the rule is the kernel\'s)', () => {
-    const { snapshot, trafo } = scenario();
+  it('a v5 relatório is under the same rule: its findings floor the parecer, none lists', () => {
+    const { snapshot } = scenario();
     const v5 = { ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: 'v5' }, blocks: snapshot.blocks.map((b) => ({ ...b, seed_version: 'v5' })) };
-    const ofTrafo = derivedPoints(v5).filter((e) => e.block_id === trafo.id);
-    expect(ofTrafo.map((e) => e.kind)).toEqual(['nc', 'nc']);
+    expect(hasPointSource(v5)).toBe(true);
+    expect(sectionEightEntries(v5)).toHaveLength(1);
   });
 });

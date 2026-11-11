@@ -4,7 +4,7 @@ import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import { numberPhotos } from '../photos/numbering.ts';
 import { livePoints, newPointRow } from '../points/checks.ts';
-import { derivedPoints, groupDerivedPoints } from '../points/derived.ts';
+import { hasPointSource } from '../points/derived.ts';
 import { photoToken } from '../points/refs.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
@@ -15,7 +15,6 @@ import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-s
 import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
 import {
   ACTION_PLAN_COLUMNS,
-  derivedGroupText,
   REMOVED_PHOTO_REF_TEXT,
   resolveActionPlan,
   resolveBulletPhotoTokens,
@@ -131,7 +130,7 @@ describe('7.3-UNIT-002 manual points', () => {
     ]);
   });
 
-  it('a stored not_tested point prints as its own bullet, unmerged, and suppresses the derived entry of its equipment', () => {
+  it('a stored not_tested point prints as its own bullet, unmerged (fix batch e24h: the sheet prints nothing else)', () => {
     const base = withNotTested(fresh(), { 0: notTested('solicitacao_cliente') });
     const equipmentId = base.blocks.find((b) => b.id === sheetOrder(base)[0]!.blockId)!.equipment_id;
     const snapshot = addPoint(base, { text: 'Ensaios não realizados a pedido do cliente.', origin: 'not_tested', equipment_id: equipmentId });
@@ -140,34 +139,22 @@ describe('7.3-UNIT-002 manual points', () => {
   });
 });
 
-describe('7.3-UNIT-003 derived entries', () => {
-  it('S8 derived: one bullet per group in tree order, after the manual ones; one sheet and several', () => {
+// ~~7.3-UNIT-003 derived entries~~ (the grouped "Equipamento(s) não ensaiado(s)" bullets, `derivedGroupText`): fix batch
+// e24h (Matheus, 2026-11-10) removed them with the automatic points.
+describe('7.3-UNIT-003 untested sheets print nothing by themselves (fix batch e24h)', () => {
+  it('four untested sheets beside one manual point: one bullet, one row', () => {
     let snapshot = withNotTested(fresh(), {
       0: notTested('impossibilidade_desligamento'),
       1: notTested('impossibilidade_desligamento'),
-      2: notTested('impossibilidade_desligamento'),
+      2: notTested('outro', 'Equipamento sem acesso'),
       4: notTested('solicitacao_cliente'),
     });
+    expect(hasPointSource(snapshot)).toBe(true);
+    expect(resolveSection8(snapshot, numbering)).toEqual([]);
+    expect(section8Layout(snapshot, heading)).toBeNull();
     snapshot = addPoint(snapshot, { text: 'Manual primeiro.' });
-    const entries = derivedPoints(snapshot);
-    const [t1, t2, t3, t5] = entries.map((e) => e.title);
-    const bullets = resolveSection8(snapshot, numbering);
-    expect(bullets.map((b) => b.kind)).toEqual(['point', 'derived', 'derived']);
-    expect(bullets[1]).toEqual({
-      kind: 'derived',
-      text: `Equipamentos não ensaiados: ${t1}, ${t2} e ${t3}. Não foi possível realizar os ensaios elétricos devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações.`,
-      block_ids: entries.slice(0, 3).map((e) => e.block_id),
-      keys: entries.slice(0, 3).map((e) => e.key),
-    });
-    expect(bullets[2]!.text).toBe(`Equipamento não ensaiado: ${t5}. Os ensaios não foram realizados conforme solicitação do cliente.`);
-  });
-
-  it('"Outro" prints its typed text as a sentence; without one, the reason label', () => {
-    const snapshot = withNotTested(fresh(), { 0: notTested('outro', 'Equipamento sem acesso'), 2: notTested('outro', null) });
-    const entries = derivedPoints(snapshot);
-    const groups = groupDerivedPoints(entries);
-    expect(derivedGroupText(groups[0]!, entries)).toBe(`Equipamento não ensaiado: ${entries[0]!.title}. Equipamento sem acesso.`);
-    expect(derivedGroupText(groups[1]!, entries)).toBe(`Equipamento não ensaiado: ${entries[1]!.title}. Outro.`);
+    expect(resolveSection8(snapshot, numbering).map((b) => b.text)).toEqual(['Manual primeiro.']);
+    expect(resolveActionPlan(snapshot, numbering)).toHaveLength(1);
   });
 });
 
@@ -256,20 +243,18 @@ describe('7.3-UNIT-004 section 8 layout', () => {
 describe('7.3-UNIT-005 section 8 on the Porto Seguro fixture', () => {
   const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
 
-  it('lists its seven stored points in order_key order (four manual, three written from untested sheets), then (Story 22.5) one entry per out test', () => {
+  // ~~then (Story 22.5) one entry per out test~~: fix batch e24h, the 18 sheets out of criterion print no bullet.
+  it('lists its seven stored points in order_key order (four manual, three written from untested sheets), and nothing more', () => {
     const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
     const section = layout.sections.find((s) => s.number === 8)!;
     expect(section.kind).toBe('points');
     if (section.kind !== 'points') return;
     const stored = livePoints(snapshot.points);
     expect(stored).toHaveLength(7);
-    expect(section.bullets.slice(0, 7)).toEqual(stored.map((p) => p.text));
-    // The 18 sheets whose readings are out of criterion, in tree order, printed as the Não ensaiado bullets are.
-    expect(section.bullets.slice(7)).toHaveLength(18);
-    expect(section.bullets[7]).toBe('Ensaio fora do critério: CE-ENEL · Cubículo Enel. Ensaio de isolação: 220 MΩ em Fase reserva–Massa/blind. (critério: >400 MΩ).');
-    expect(section.table).toHaveLength(25);
-    expect(section.table[7]).toMatchObject({ number: '8', local: 'CE-ENEL · Cubículo Enel', action: '—', images: '—' });
-    expect(derivedPoints(snapshot).every((entry) => entry.kind === 'reading')).toBe(true);
+    expect(section.bullets).toEqual(stored.map((p) => p.text));
+    expect(section.bullets.some((bullet) => bullet.startsWith('Ensaio fora do critério'))).toBe(false);
+    expect(section.table).toHaveLength(7);
+    expect(hasPointSource(snapshot)).toBe(true);
     expect(stored.map((p) => p.origin)).toEqual(['manual', 'manual', 'manual', 'not_tested', 'not_tested', 'not_tested', 'manual']);
   });
 });
@@ -316,7 +301,8 @@ describe('11.10-UNIT action-plan table', () => {
     expect(resolveActionPlan(snapshot, numbering)[0]).toMatchObject({ priority: 'P4 · Próxima manutenção', deadline: '09/2027' });
   });
 
-  it('derived rows follow the manual ones, numbered continuously, one per bullet with the titles joined', () => {
+  // ~~derived rows follow the manual ones, numbered continuously~~ (fix batch e24h: no derived row).
+  it('untested sheets add no row: the manual points are numbered alone', () => {
     let snapshot = withNotTested(fresh(), {
       0: notTested('impossibilidade_desligamento'),
       1: notTested('impossibilidade_desligamento'),
@@ -324,22 +310,10 @@ describe('11.10-UNIT action-plan table', () => {
     });
     snapshot = addPoint(snapshot, { text: 'Manual um.' });
     snapshot = addPoint(snapshot, { text: 'Manual dois.' });
-    const entries = derivedPoints(snapshot);
     const bullets = resolveSection8(snapshot, numbering);
     const rows = resolveActionPlan(snapshot, numbering);
-    expect(rows.map((r) => r.number)).toEqual(['1', '2', '3', '4']);
+    expect(rows.map((r) => r.number)).toEqual(['1', '2']);
     expect(rows.map((r) => r.point)).toEqual(bullets.map((b) => b.text));
-    expect(rows[2]).toEqual({
-      number: '3',
-      point: bullets[2]!.text,
-      local: `${entries[0]!.title}; ${entries[1]!.title}`,
-      priority: '—',
-      deadline: '—',
-      action: '—',
-      owner: '—',
-      images: '—',
-    });
-    expect(rows[3]!.local).toBe(entries[2]!.title);
   });
 
   it('follows a move: the rows take the new order_key order', () => {
