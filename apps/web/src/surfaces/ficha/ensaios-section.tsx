@@ -104,6 +104,7 @@ export function EnsaiosSection({
   targetFor,
   onCaptionPhoto,
   visit,
+  pointPlace,
 }: {
   api: FichaApi;
   /** Story 9.1: the device's rows, for the display suggestions. */
@@ -121,6 +122,8 @@ export function EnsaiosSection({
   onCaptionPhoto?: Parameters<typeof useDisplaySuggestions>[0]['onCaptionPhoto'];
   /** Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (`visitContextOf`, from `useFichaData`), shared with the conclusion. */
   visit: VisitContext;
+  /** Batch e24p (Story 24.17): the place of "Criar ponto de atenção" under a test (`point-place.tsx`), null where the kernel offers none. */
+  pointPlace?: (testKey: string) => ReactNode;
 }) {
   // Story 23.9: every enabled test in the definition's order, an NA one with its band only; the
   // evaluations are `evaluateSheetReadings`'s (the tests in force), which the run and the cells read.
@@ -234,7 +237,10 @@ export function EnsaiosSection({
                 applicability={section.applicability}
                 // Batch e23h (EXPERIENCE.md "Como ensaiar"): the head of every test with help, an NA one too.
                 headEnd={<TestHelpAction definition={definition} testKey={section.testKey} title={screenLabel(section.title)} />}
-              />
+              >
+                {/* Batch e24p (Story 24.17): a failed prerequisite's action under the band. */}
+                {pointPlace?.(section.testKey)}
+              </NotApplicableTest>
             ) : (
               <TestSection
                 key={section.testKey}
@@ -249,10 +255,21 @@ export function EnsaiosSection({
                 onRun={onRun}
                 display={display}
                 targetFor={targetFor}
+                pointPlace={pointPlace?.(section.testKey)}
               />
             ),
           )}
-          <MeasurementTests api={api} snapshot={snapshot} block={block} definition={definition} evaluations={measurements} instruments={instruments} onRun={onMeasurementRun} photoTarget={targetFor} />
+          <MeasurementTests
+            api={api}
+            snapshot={snapshot}
+            block={block}
+            definition={definition}
+            evaluations={measurements}
+            instruments={instruments}
+            onRun={onMeasurementRun}
+            photoTarget={targetFor}
+            pointPlace={pointPlace}
+          />
         </UnitTapGuardProvider>
       </SheetCellExtrasProvider>
       {display.viewer}
@@ -321,12 +338,15 @@ function TestSection({
   onRun,
   display,
   targetFor,
+  pointPlace,
 }: {
   api: FichaApi;
   snapshot: RelatorioSnapshot;
   block: BlockRow;
   definition: BlockDefinition;
   test: TestEvaluation;
+  /** Batch e24p (Story 24.17): "Criar ponto de atenção" (or the point's name) under the test's tables. */
+  pointPlace?: ReactNode;
   /** Story 23.9: the test's applicability; applied by hand, the applied band sits over the test. */
   applicability: TestApplicability;
   instruments: readonly InstrumentRow[];
@@ -415,6 +435,7 @@ function TestSection({
           {test.classHelper}
         </p>
       )}
+      {pointPlace}
     </>
   );
   return (

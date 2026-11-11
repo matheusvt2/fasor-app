@@ -3090,7 +3090,7 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
   summary: Re-issuing an older relatório X after a newer relatório Y of the same equipment was issued makes X the top `last_results` entry with Y as its prior: X's sheet and MANUT. ANTERIOR would show Y's later values as "previous", and a later relatório Z would read X's older values. The chain is ordered by issue, not by the visit's service date. Settled by ordering the chain by the visit's service date in `lastResults`.
   evidence: `packages/domain/src/print/last-results.ts` `lastResults`, `previousResultsFor`.
   class: defect
-  state: open (owner: the Epic 22 wave B integrated review); assigned 2026-11-10 to Epic 24, Story 24.15 (the visits ordered by the service date kept at issue)
+  state: ~~open (owner: the Epic 22 wave B integrated review); assigned 2026-11-10 to Epic 24, Story 24.15 (the visits ordered by the service date kept at issue)~~ resolved (2026-11-11, batch e24p, Story 24.15): each entry keeps its visit's service date (`service_date`) and `lastResults` orders two visits by their dates when one of them keeps one (`compareVisits`, `print/visit-date.ts`): an older visit issued late becomes the top's `prior`, never the top. An entry from before keeps its issue date and today's order; what an open relatório reads before its issue is a new row in the e24p section.
 
 ## Deferred from: Epic 22 batch e22s (2026-11-06)
 
@@ -3195,7 +3195,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Two glued photo references e23f left as they are, both only reachable when the text is typed or pasted without the editor's spacing (F-09 spaces every chip it inserts): the bullet's lead-in path appends the label with no space after a lead-in word glued to the token ("ver[[foto]]" prints "verImagem 1", `resolveBulletPhotoTokens` `leadsIn`), and a word glued after a token prints "Imagem 1texto" in the bullet and the cell; a removed photo's word glues the same way ("Porta.imagem removida"). Low; owner: the next batch touching `print/section-8.ts`.
   evidence: `packages/domain/src/print/section-8.ts` `resolveBulletPhotoTokens`, `resolvePhotoTokens`; `e23f-print-fixes.test.ts` pins today's output of the removed word.
   class: defect
-  state: open (owner: the next batch touching `print/section-8.ts`); assigned 2026-11-10 to Epic 24, Story 24.17 (the proposal offers it to Story 24.16 only if that story touches `print/section-8.ts`; Story 24.17 edits the file in the same batch; on seed v14 only)
+  state: ~~open (owner: the next batch touching `print/section-8.ts`); assigned 2026-11-10 to Epic 24, Story 24.17 (the proposal offers it to Story 24.16 only if that story touches `print/section-8.ts`; Story 24.17 edits the file in the same batch; on seed v14 only)~~ resolved on seed v14 (2026-11-11, batch e24p, Story 24.17, flag `recommendation_as_action`): a reference or a removed photo's text glued to a word on either side prints with one space, in the bullet and in the table (`resolvePhotoTokens`, `resolveBulletPhotoTokens` with `spaced`); v1 to v13 print as before.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23f-fixes.md` (review loop, Edge Case Hunter 7; pre-existing)
   summary: An NC row's observation typed with line breaks reaches the conclusion's NC clause with them, and section 9 prints the conclusion text line by line (`cellParagraphs` splits each `\n` into a paragraph), so the sentence breaks in the middle. Pre-existing (the clause always took the observation as typed); outside e23f's three deltas. Fix candidate: the clause joins the observation's lines with "; ".
   evidence: `packages/domain/src/relatorio/conclusion.ts` `ncClauseText`; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`.
@@ -3740,3 +3740,51 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `apps/web/src/surfaces/templates/block-palette.tsx` (`onEditDefaults` only on a palette row of a placed seeded type); `packages/domain/src/relatorio/tree.ts` `paletteTypeGroups`.
   class: decision
   state: open (owner: Matheus, with the 24.19 reading on the composer's palette)
+
+## Deferred from: Epic 24 batch e24p (2026-11-11)
+
+- source_spec: `spec-e24p-print.md` (Part A report; Story 24.15)
+  summary: before a relatório is issued, its sheet reads the equipment's top entry as its previous visit whatever the dates: while relatório A (service in March) is still open and relatório B (service in September) is already issued, A's sheets and A's preview show B's later values as "Anterior" and MANUT. ANTERIOR. The story orders the stored chain at issue (A becomes B's `prior`, never the top) and says nothing about what an open relatório reads; `previousResultsFor` takes no service date of its own relatório.
+  evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/print/visit-date.ts` `compareVisits`.
+  class: decision
+  state: open (owner: Matheus: should an open relatório read no previous visit, or the prior, when the stored top is a later visit by date)
+- source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.15)
+  summary: a re-issue whose service dates were edited after its first issue is not re-ordered: on a re-issue of the top relatório the date order is not compared with its prior, and when the top's `prior` is the re-issued relatório (fix batch e23w's first rule) its new date is not compared with the top. Reached only by editing the service dates of an issued relatório and issuing it again.
+  evidence: `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line and the W2-1 branch above it).
+  class: defect
+  state: open (owner: the next batch touching `print/last-results.ts`; low)
+- source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.17)
+  summary: on seed v14 the action a point starts with joins several recommendations (a chosen Reprovado over several tests, a failed index beside its test's), and each recommendation may hold up to the action's own cap (1000 characters): a join longer than the cap shows over the editor's count and the create is refused until the technician shortens it. Not reachable with the imported base's lengths seen so far.
+  evidence: `packages/domain/src/points/derived.ts` `sheetPointFindings`; `value-limits` point action cap (medium).
+  class: note
+  state: open (owner: Matheus, with Bruno's base; low)
+- source_spec: `spec-e24p-print.md` (Design Notes D2; Story 24.16)
+  summary: the note line under a table names each flagged cell with the kernel's reason as it stands ("alta de 53 % sobre 40 µΩ da manutenção anterior, rev. 1 de 14/03/2026, acima do limite de 50 %"; "queda de mais de 50 % desde a manutenção anterior (de 16,4 GΩ para 7,9 GΩ, a 20 °C)"), as the story says; the approved frame's sample was shorter ("subiu 53 % (40 µΩ)"). A risen pole is named where the conclusion names it ("T1-T2–Fase A").
+  evidence: `packages/domain/src/print/history-note.ts`; `key-print-section-9-v14.html` (sample text).
+  class: decision
+  state: open (owner: Bruno, through Matheus, with the authored sentences)
+- source_spec: `spec-e24p-print.md` (Design Notes D5; Story 24.17)
+  summary: a reading back within its criterion does not ask about the point written from its test, as an NC row back to Conforme asks (Story 24.7): the story does not ask for it. The point keeps "Origem resolvida" and the card's "Remover ponto".
+  evidence: `packages/domain/src/points/derived.ts` `resolvedOriginPoints`; `apps/web/src/surfaces/ficha/point-place.tsx`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24p-print.md` (the coordinator's readings of Stories 24.15 to 24.17, built as written)
+  summary: built as the coordinator read them, open to Matheus: the service date kept is `service_end`, else `service_start`; an older visit with no service date is compared by its issue date; "relevant" for the note is what the three v13 rules flag; "Criar ponto de atenção" on a test that fails, a restricted reading and a ficha the technician reproved, one per test, on every seed; a restricted reading's point starts with no recommendation. Also built: a failed prerequisite whose test's sub-block is off offers its action on the Conclusão step (D6); a single recommendation in the v14 action takes a final period, as Story 23.11's join gives it.
+  evidence: `spec-e24p-print.md` Design Notes D4 to D6.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24p-print.md` (authored strings, listed for Bruno)
+  summary: the batch's authored pt-BR text: the note line's opening and form "Em relação à manutenção anterior: ⟨onde⟩, ⟨motivo⟩; ⟨onde⟩, ⟨motivo⟩." (Story 24.16). The header's second line is a date; the editor's helpers "Da recomendação do ensaio · editável" and "Das recomendações dos ensaios · editável" are the frame's.
+  evidence: every `// authored (e24p, listed for Bruno)` in `packages/domain/src`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `spec-e24p-print.md` (the print check of the touched table shapes, Story 24.15)
+  summary: the seccionadora's side-by-side insulation tables with MANUT. ANTERIOR break "GUARD" inside the word ("GUAR" over "D") at their type size. It is already so in the locked v13 golden (`golden/layout-lock-v13/pdf-text.json`), so it is not caused by the dated header (whose date is narrower than "ANTERIOR"); on v14 it prints the same. Fixing it is a layout change of a locked shape.
+  evidence: `apps/api/src/jobs/generate/golden/layout-lock-v13/pdf-text.json` ("LINHA TERRA GUAR D TENSÃO"); `test-results/e24p-pdf/e24p-v14-relatorio.pdf` page 12; `e24p-pdf-crops/v14-dated-header-and-rise-note.png`.
+  class: defect
+  state: open (owner: Matheus: a v14 fit change for that shape, or accept)
+- source_spec: `spec-e24p-print.md` (the PDF crops, Story 24.16)
+  summary: the note line wraps where LibreOffice finds a space, so a value and its unit can part across lines ("limite de 50" / "% ...", "a 20" / "°C"). The kernel's reasons use plain spaces before "%" and "°C" everywhere; a no-break space in the note alone would make its text differ from the same reason elsewhere.
+  evidence: `e24p-pdf-crops/v14-dated-header-and-rise-note.png`, `e24p-pdf-crops/v14-insulation-dated-header-and-drop-note.png`.
+  class: note
+  state: open (owner: Matheus, with the note's wording; low)

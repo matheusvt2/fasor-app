@@ -6,7 +6,6 @@ import {
   initialOrderKey,
   newEquipmentBlock,
   publishedText,
-  SEED_VERSION,
   type EquipmentTypeRow,
   type EquipmentTypeVersionRow,
   type PointRow,
@@ -38,7 +37,15 @@ import { syncNow, syncNowAndReturn } from './support/sync.ts';
  * E7-A6) prints it. It issues a revision through the api's one queue and LibreOffice, so this spec
  * runs in the serial group (`e2e/support/groups.ts`). Synthetic text (M-1). Empresa B is this
  * worker's own (E6-Q7).~~
+ *
+ * Batch e24p (Story 24.17): pinned to seed v13 (`SEED`), whose create action starts a point as Story
+ * 23.11 stored it: on 23.11-E2E-001 the test's "Criar ponto de atenção" opens the editor with the
+ * recommendation then the finding in its text and an empty action; Esc on the untouched editor stores
+ * nothing. The v14 half is `recommendation-action.spec.ts`.
  */
+
+/** Batch e24p (Story 24.17): the seed these cases assert (the v13 rule). */
+const SEED = 'v13';
 
 let account: SeedAccount;
 let database: string;
@@ -48,12 +55,12 @@ test.beforeEach(({ seed }) => {
 });
 
 const CTA = 'chave_transferencia_automatica' as const;
-const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', CTA);
+const DEFINITION = getDefinition(SEED, 'cabine_primaria', CTA);
 const E2 = 'cta_isolamento_principal';
 const E2_INDEX = DEFINITION.measurement_tests!.findIndex((test) => test.key === E2);
 const E2_ROW = DEFINITION.measurement_tests![E2_INDEX]!.rows.findIndex((row) => row.key === 'a_t');
 const E2_COL = DEFINITION.measurement_tests![E2_INDEX]!.columns.findIndex((column) => column.key === 'normal_fechada');
-const ISOLATION = duplicateSeededType(SEED_VERSION, CTA).draft.criteria.find((criterion) => criterion.key === 'isolacao')!;
+const ISOLATION = duplicateSeededType(SEED, CTA).draft.criteria.find((criterion) => criterion.key === 'isolacao')!;
 /** Half the insulation minimum: out of criterion. */
 const READING = String(Math.floor(ISOLATION.value / 2));
 const NAME = 'CTA com recomendação';
@@ -100,7 +107,7 @@ test('@p0 23.11-E2E-001 e24h: a recommendation typed in the type editor is store
   const definitions = definitionContext(rows.versions, rows.type === undefined ? [] : [rows.type]);
 
   // --- a relatório with one sheet of it on Geradores, born at v1 (office ops) ---
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED });
   const local = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === LOCAL)!.value as { id: string };
   const pair = newEquipmentBlock({
     blockId: newId(),
@@ -110,7 +117,7 @@ test('@p0 23.11-E2E-001 e24h: a recommendation typed in the type editor is store
     locationId: local.id,
     type: companyBlockType(typeId),
     tag: 'CTA-REC',
-    seedVersion: SEED_VERSION,
+    seedVersion: SEED,
     orderKey: initialOrderKey(999),
     typeVersion: { version: 1, id: version.id },
     definitions,
@@ -136,6 +143,18 @@ test('@p0 23.11-E2E-001 e24h: a recommendation typed in the type editor is store
   await page.keyboard.type(READING);
   await page.keyboard.press('Tab');
   await expect.poll(() => written(`sheet/${blockId}/test/${E2}/cell/${E2_ROW}/${E2_COL}`)).toEqual([{ raw: READING, unit: 'MΩ', state: 'measured' }]);
+
+  // Batch e24p (Story 24.17, seed v13): the test's "Criar ponto de atenção" starts the point as Story 23.11
+  // stored it, the recommendation then the finding in its text and an empty action; Esc on the untouched
+  // editor stores nothing.
+  await page.locator(`section[data-test-key="${E2}"] .e24-point-place`).getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(editor.locator('.poa-text-area')).toHaveText(new RegExp(`^${STARTS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.+`));
+  const action = editor.getByRole('textbox', { name: 'Ação recomendada' });
+  await expect(action).toHaveValue('');
+  await expect(action).not.toHaveAttribute('aria-describedby');
+  await escapeDialog(page, editor);
+  expect(await storedPoints(page)).toEqual([]);
 
   // --- Pontos: ~~the entry starts with the recommendation; "Editar" stores it~~ (fix batch e24h: nothing lists) ---
   await page.goto(`/relatorio/${relatorioId}/pontos`);
@@ -200,7 +219,7 @@ test('@p0 e23z-E2E-003 e24h: Reprovado chosen by hand on a sheet whose in-force 
   const definitions = definitionContext(rows.versions, rows.type === undefined ? [] : [rows.type]);
 
   // A relatório with one sheet of it, born at v1 (office ops).
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED });
   const local = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === LOCAL)!.value as { id: string };
   const pair = newEquipmentBlock({
     blockId: newId(),
@@ -210,7 +229,7 @@ test('@p0 e23z-E2E-003 e24h: Reprovado chosen by hand on a sheet whose in-force 
     locationId: local.id,
     type: companyBlockType(typeId),
     tag: 'CTA-REP',
-    seedVersion: SEED_VERSION,
+    seedVersion: SEED,
     orderKey: initialOrderKey(999),
     typeVersion: { version: 1, id: version.id },
     definitions,

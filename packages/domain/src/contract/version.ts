@@ -522,7 +522,20 @@
  * hides that type in both palettes and in "Fotografar equipamento", derived on the device (no fold
  * change). MIN follows to 45 (below).
  */
-export const CONTRACT_VERSION = 45;
+/*
+ * 46 (2026-11-11, Stories 24.15 and 24.16, batch e24p): no new op or path family. An equipment's
+ * `last_results` entry (and its `prior`) gains the optional `service_date`, the visit's service date
+ * the issue job keeps from the relatório's `service_end`, else its `service_start` (a day or a month,
+ * AD-11); never defaulted, so an entry written before 46 parses to the same bytes and its visit is
+ * dated by `issued_at`. `lastResults` orders two visits by their dates where at least one carries a
+ * service date, so an older visit issued late never becomes the previous visit of a newer one. The
+ * "Anterior" helper names the visit's date on every seed. Seed v14 turns on three rule flags:
+ * `previous_visit_date` (the MANUT. ANTERIOR header and the history texts name the visit's date),
+ * `history_note` (a note line under a table names the rows a previous-visit rule flagged) and
+ * `recommendation_as_action` (Story 24.17, read by a later part of the batch). MIN follows to 46
+ * (below).
+ */
+export const CONTRACT_VERSION = 46;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -830,7 +843,15 @@ export const CONTRACT_VERSION = 45;
  * a library type a published copy hides. Its pull answers `426 contract_outdated` and it updates;
  * its pushes are still accepted, and the server refuses its publish of such a type.
  */
-export const MIN_CONTRACT_VERSION = 45;
+/*
+ * 46 (2026-11-11, Stories 24.15 and 24.16, batch e24p): a version-45 (or older) bundle's equipment
+ * schema strips `service_date` from a pulled `last_results` entry, so its "Anterior" helper would
+ * name the issue date where the server's print names the visit's, and its kernel ships none of the
+ * three v14 flags: its preview of a v14 relatório would print MANUT. ANTERIOR without the date and
+ * no history note line. Its pull answers `426 contract_outdated` and it updates; its pushes are
+ * still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 46;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

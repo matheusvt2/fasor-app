@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, cellAddressesOf, formatDateOfInstant, getDefinition, instantiateTemplate, SEED_VERSION, standardTemplate, type EquipmentRow, type LastResults } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, cellAddressesOf, getDefinition, instantiateTemplate, standardTemplate, visitDateText, type EquipmentRow, type LastResults } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -37,7 +37,7 @@ interface EntityRecord {
 const entities = (page: Page) => readStore<EntityRecord>(page, database, 'entities');
 const toast = (page: Page) => page.getByTestId('toast');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
-const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+const TRANSFORMER = getDefinition('v13', 'cabine_primaria', 'transformador_forca');
 const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
 /** Issues revision 1 of `relatorioId` from its Sumário and returns the DOCX's tables. */
@@ -65,7 +65,8 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   await signIn(page, account.email);
 
   // Relatório A: the transformer's first insulation row measured, then issued through the real job.
-  const a = newRelatorioDrafts(account);
+  // Batch e24p (Story 24.15): both relatórios are pinned to seed v13, whose MANUT. ANTERIOR header this spec asserts alone.
+  const a = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const trA = a.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const blockRows = (drafts: typeof a.drafts) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
   const equipmentId = blockRows(a.drafts).find((row) => row.id === trA.blockId)!.equipment_id!;
@@ -78,7 +79,7 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   // Relatório B of the same obra: the standard template again, its TAGs bound to the obra's equipment.
   const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
   const b = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), seedVersion: 'v13' }),
     { id: a.projectId },
     { service_start: '2026-11-02', service_end: '2026-11-03', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
@@ -94,7 +95,8 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
     .poll(async () => ((await entities(page)).find((record) => record.entity === 'equipment' && record.id === equipmentId)?.row.last_results as LastResults | null | undefined)?.relatorio_id ?? null, { timeout: 30_000 })
     .toBe(a.relatorioId);
   const last = (await entities(page)).find((record) => record.entity === 'equipment' && record.id === equipmentId)!.row.last_results as LastResults;
-  expect(last).toMatchObject({ revision_number: 1, block_type: 'transformador_forca', prior: null });
+  // Batch e24p (Story 24.15, every seed): the entry keeps A's service date (its end), which the helper names.
+  expect(last).toMatchObject({ revision_number: 1, block_type: 'transformador_forca', prior: null, service_date: '2026-09-08' });
   expect(Object.values(last.readings)).toEqual([{ raw: '4.9', unit: 'GΩ', state: 'measured' }]);
 
   // B's transformer sheet: the helper under the cell, the cell itself empty.
@@ -103,7 +105,8 @@ test('@p0 22.12-E2E-001 relatório A issued with 4,9 GΩ; relatório B of the ob
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   const cell = page.locator(`.ficha-cell[data-cell="isolacao:${FIRST.row}:${FIRST.col}"]`).filter({ visible: true });
   const helper = cell.locator('.mf-helper[data-previous]');
-  await expect(helper).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${formatDateOfInstant(last.issued_at)})`);
+  await expect(helper).toHaveText(`Anterior: 4,9 GΩ (rev. 1, ${visitDateText(last)})`);
+  await expect(helper).toHaveText('Anterior: 4,9 GΩ (rev. 1, 08/09/2026)');
   await expect(helper).not.toHaveAttribute('role');
   // e22g (review S3): the line is drawn in the field helper's neutral colour, never the out-of-limit one.
   const tone = await helper.evaluate((el) => {

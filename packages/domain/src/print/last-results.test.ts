@@ -78,8 +78,14 @@ function sheet(n: number, type: EquipmentBlockType, cells: Record<string, Record
 
 const withLast = (built: Built, last: LastResults | null): Built => ({ ...built, equipment: { ...built.equipment, last_results: last } });
 
-function snapshotOf(sheets: Built[], relatorioId = RELATORIO_B): RelatorioSnapshot {
-  return { ...small, relatorio: { ...small.relatorio, id: relatorioId }, locations: [local()], blocks: sheets.map((s) => s.block), equipment: sheets.map((s) => s.equipment), files: [], points: [], suggestions: [], actors: [] };
+/**
+ * Batch e24p (Story 24.15): the relatório's service dates, none by default, so every case written
+ * before the story (Story 22.12, fix batch e23w) runs on two visits with no service date kept and
+ * pins the order and the bytes of before; the 24.15 cases pass theirs.
+ */
+function snapshotOf(sheets: Built[], relatorioId = RELATORIO_B, service: { start: string | null; end: string | null } = { start: null, end: null }): RelatorioSnapshot {
+  const setup = { ...small.relatorio.setup, service_start: service.start, service_end: service.end };
+  return { ...small, relatorio: { ...small.relatorio, id: relatorioId, setup }, locations: [local()], blocks: sheets.map((s) => s.block), equipment: sheets.map((s) => s.equipment), files: [], points: [], suggestions: [], actors: [] };
 }
 
 const CABOS_KEY = (phase: string) => `isolacao|isolacao:${phase}/MASSA/BLIND./|1 MINUTO`;

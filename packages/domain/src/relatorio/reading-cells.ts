@@ -114,8 +114,18 @@ export interface EvaluatedCell {
    * Fix batch e23p (P3): `pointReason`, set when the history rule flags the cell, is `reason` with
    * each history finding followed by both corrected values ("queda de mais de 50 % desde a manutenção
    * anterior (de 30 GΩ para 10 GΩ, a 20 °C)"); only the derived point reads it.
+   * Batch e24p (Story 24.16): `history`, set only when the previous-visit rule flags the cell, is
+   * that rule's part of `pointReason` (the reason with both corrected values), which the history
+   * note under the printed table names.
    */
-  restriction?: { reason: string; text: string; pointReason?: string } | null;
+  restriction?: { reason: string; text: string; pointReason?: string; history?: string } | null;
+  /**
+   * Batch e24p (Story 24.16, review fix): on a cell already out by its criterion that the
+   * previous-visit rule (the insulation drop) also flags, the rule's reason with both corrected
+   * values, as `restriction.history` holds it on a restricted cell. The verdict and `restriction`
+   * stay as they were; only the history note reads it.
+   */
+  historyOut?: string;
   /**
    * Seed v13, batch e23t (Story 23.16): on an `index` cell only. `kind` names the index (`ip`, the
    * polarization index the test's `polarization_index` judges; `dar`, the absorption index, captured

@@ -12,6 +12,7 @@ import { isTestInForce, testApplicability, type TestApplicability } from './appl
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
 import { previousReadingsByAddress } from '../print/reading-slots.ts';
+import { previousVisitDateText } from '../print/visit-date.ts';
 import { applyHistoryRise, applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
 import { correctedRaw, correctedText, mediumOf, temperatureFactor, temperatureView, testTemperature } from './temperature-correction.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
@@ -1032,7 +1033,8 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
           previous:
             (test.restriction?.history_drop_pct === undefined && test.restriction?.history_rise_out_pct === undefined) || visit.previous === null
               ? NO_PREVIOUS
-              : { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block) },
+              : // Batch e24p (Story 24.15): the history texts name the visit's date on a seed that turns `previous_visit_date` on.
+                { entry: visit.previous, byAddress: previousReadingsByAddress(visit.previous, definition, block), dateText: previousVisitDateText(visit.previous, block.seed_version) },
           stands: { value: false },
         };
   // Seed v13, batch e23t (Story 23.16): the IP is required on a unit of the medium its rule names.

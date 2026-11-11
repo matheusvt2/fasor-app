@@ -190,7 +190,8 @@ describe('e22g B1: the reading tables of every seed version hold every word whol
   const FIXED_SHAPE = /^(CONCLUSÃO|OBSERVAÇÕES|VERIFICAÇÕES.*)$/u;
   const readingTables = (section: LayoutSectionSheets) =>
     tablesOf(section).filter((table) => !FIXED_SHAPE.test(table.rows[0]!.cells[0]!.text) && !(isFitted(table) && !table.rows.some((row) => row.header === true)));
-  const hasPreviousColumn = (table: PrintTable) => table.rows.some((row) => row.cells.some((one) => one.text === 'MANUT. ANTERIOR'));
+  // Batch e24p (Story 24.15): on v14 the header carries the previous visit's date on a second line.
+  const hasPreviousColumn = (table: PrintTable) => table.rows.some((row) => row.cells.some((one) => one.text === 'MANUT. ANTERIOR' || one.text.startsWith('MANUT. ANTERIOR\n')));
 
   for (const version of Object.keys(SEED_VERSIONS)) {
     for (const previous of [false, true]) {

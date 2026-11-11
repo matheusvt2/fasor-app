@@ -11,6 +11,7 @@ import {
   suggestionRowsOf,
   type BlockDefinition,
   sectionMention,
+  sheetPointFindings,
   type BlockRow,
   type EntityState,
   type RelatorioSnapshot,
@@ -38,6 +39,7 @@ import { FichaRail, type RailState } from './ficha-rail.tsx';
 import { useFichaIssuedBanner } from './issued-banner.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
+import { pointPlaces } from './point-place.tsx';
 import { AddPhotosButton } from './photo-openers.tsx';
 import { DropHint } from '../photos/capture-sheet.tsx';
 import { SectionStepper } from './section-stepper.tsx';
@@ -169,6 +171,9 @@ function FichaBody({
     [conflict.banner, suggestionsBanner, issuedBanner],
   );
   useExtraBanner(banner);
+  // Batch e24p (Story 24.17): the kernel's findings a point can be created from on this sheet, and where each sits.
+  const pointFindings = useMemo(() => sheetPointFindings(snapshot, blockId), [snapshot, blockId]);
+  const placeProps = { relatorioId, snapshot, equipmentId: block.equipment_id };
 
   return (
     <>
@@ -244,6 +249,7 @@ function FichaBody({
                 targetFor={(testKey) => photos.targetFor('ensaios', testKey)}
                 onCaptionPhoto={photos.setCaptioning}
                 visit={visit}
+                pointPlace={(testKey) => pointPlaces(pointFindings, { testKey }, placeProps)}
               />
               <ConclusaoSection
                 api={api}
@@ -254,6 +260,7 @@ function FichaBody({
                 onFocus={() => focusIn('conclusao')}
                 section9={sectionMention(snapshot, 9)}
                 visit={visit}
+                pointPlace={pointPlaces(pointFindings, 'conclusao', placeProps)}
               />
               {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}
               <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />
