@@ -2,7 +2,7 @@
 title: 'e24c, company types: a "nominal ± %" criterion, a copy hides its original, a type that cannot compute its ratio is not published (Stories 24.18 to 24.20)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1c63235e9113855c30afaf228708177566c218ed'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-24-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'The company-types half of the planned batch e24p, started early at Matheus request: three stories on the company type editor, the palettes and the publish rule, no seed change, one contract bump, one review, one gate, one PR.'
-deferred: []
+deferred:
+  - summary: >-
+      In the template composer a library type hidden by a published copy loses its only "Editar padrões" entry while a template still places it.
+    evidence: |-
+      onEditDefaults is offered only on a palette row of a placed seeded type; review VG-other and ECH-1; ledger row in the e24c section (owner Matheus).
+    location: >-
+      apps/web/src/surfaces/templates/block-palette.tsx
+    severity: medium
 ---
 
 <intent-contract>
@@ -142,3 +149,21 @@ Final wording, as built (2026-11-11, implementer):
 - `pnpm test:unit` and `pnpm test:api` -- green.
 - `pnpm exec tsx scripts/e2e.ts <touched specs> --project desktop-chrome --project durability-desktop-chrome` -- green: the three new or changed specs plus every spec that drives the type editor, Tipos de equipamento, the palettes, a company-type sheet or its print, and every spec asserting the palette's list (`grep -rln` over `e2e/`).
 - `git diff 1c63235e --name-status -- apps/api/src/jobs/generate/golden packages/domain/fixtures` -- no M or D.
+
+## Review Triage Log
+
+### 2026-11-11 — Review pass
+
+Layers run: Edge Case Hunter and Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them). The diff reviewed is the merged branch against `origin/main` `dee6d567` (code only).
+
+- verdicts: 9 findings — high 0, medium 3, low 5, false 1, maybe-false 0 (VG-other and ECH-1 share one root cause)
+- findings:
+  - `[medium]` `[patch]` VG-1 "Fotografar equipamento" with a published copy was covered at kernel level only; dropping `typeVersion` on confirm or `definitions` in `relatorio-tree.tsx` would pass every test — added `@p1 24.19-E2E-003` to `e2e/panel-capture.spec.ts` (copy chip pressed, no transformer chip, the "Criar TR-NN · copy" line, the outbox block create `type:<id>` with `config.type_version` 1); green under the lock.
+  - `[low]` `[patch]` VG-2 `panelProvenance`'s "Tipo" rule (`proposal.trust !== null`) untested for a copy — the one-copy case of `copied-type-hides.test.ts` now asserts "frente do painel".
+  - `[low]` `[patch]` VG-3 the Ensaios tab's `.cell-crit` of a nominal row untested — a `TestsPanel` case in `company-types-e24c.test.tsx` asserts "220 V ±5 %".
+  - `[medium]` `[defer]` VG-other in the template composer a hidden library type leaves the palette and with it the only "Editar padrões" entry of a template that places it; quantities stay editable through the skeleton grid — a product choice tied to the coordinator's reading on the composer's palette; ledger row in the e24c section, owner Matheus.
+  - `[low]` `[reject]` ECH-2 a tolerance of 100 % or more, or a nominal of 0, gives a range crossing or touching zero — the story asks only "a tolerance above zero"; an office typing 150 % is not everyday use, and a guard adds a rule nobody decided.
+  - `[low]` `[reject]` ECH-3 a nominal so large that `value × (1 + t/100)` overflows to Infinity — a voltage or resistance near 1e308 is not reachable in practice; adding a finite check is a guard for an undemonstrated state.
+  - `[low]` `[reject]` ECH-4 the Placa refusal is checked against the render-time draft, so two edits inside one render could drop a change without a toast — the same pattern as the e23z removal refusal (`rowMenu`), a single human tap per render; moving a toast into a state updater would be a side effect inside it.
+  - `[false]` ECH-5 the "Tipo da empresa" rule lives in the web — the kernel decides which row is a company type (`PaletteItem.company`, `isCompanyBlockType`); the web only places the static word from `pt-br.ts`, the AGENTS.md home of static copy.
+  - `[medium]` `[defer]` ECH-1 the same composer "Editar padrões" loss, filed by the edge-case layer — grouped with VG-other, same ledger row.

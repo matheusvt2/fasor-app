@@ -6,7 +6,7 @@ import { definitionContext, EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, isLibrar
 import type { CompanyTypeDefinition } from '../types/definition.ts';
 import { duplicateCompanyType, duplicateSeededType } from '../types/duplicate.ts';
 import { libraryTypeListRows } from '../types/list.ts';
-import { panelProposal, panelTypeChips, type PanelSuggestion } from './panel.ts';
+import { panelProposal, panelProvenance, panelTypeChips, type PanelSuggestion } from './panel.ts';
 import { hidingCopies, LIBRARY_GROUP_LABEL, paletteItems, paletteTypeGroups } from './tree.ts';
 
 /*
@@ -124,6 +124,9 @@ describe('24.19-UNIT: "Fotografar equipamento"', () => {
     const proposal = panelProposal(input(ctx))!;
     expect(proposal).toMatchObject({ type: type(1), typeVersion: 1, typeLabel: trCopy.label, tag: 'TR-01', trust: 'suggested', suggestionStatus: 'confirmed', matched: true });
     expect(proposal.text).toBe(`Criar TR-01 · ${trCopy.label} · Coluna 9?`);
+    // The copy stands for the read type: its provenance is the reading's.
+    expect(panelProvenance(proposal, suggestion())[0]).toEqual({ label: 'Tipo', text: 'frente do painel' });
+    expect(panelProvenance(panelProposal({ ...input(ctx), pickedType: 'tp' })!, suggestion())[0]!.text).toBe('escolhido por você');
     const chips = panelTypeChips(SEED_VERSION, TR, false, ctx);
     expect(chips.other).toBe(true);
     expect(chips.chips[0]).toEqual({ type: type(1), label: trCopy.label, typeVersion: 1 });

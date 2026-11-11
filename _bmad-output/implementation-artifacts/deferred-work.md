@@ -3735,3 +3735,8 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/print/section-9.ts` `measurementTestPart`, `instrumentPart`; `e2e/nominal-tolerance.spec.ts`.
   class: decision
   state: open (owner: Matheus: print a measurement table's criteria, or accept)
+- source_spec: `spec-e24c-company-types.md` (review, Edge Case Hunter and Verification Gap Reviewer)
+  summary: in the template composer a library type hidden by a published copy leaves the palette, and with it the only "Editar padrões" entry of that type: a template that already places it (the standard template places five transformers) keeps its rows and its quantities (the skeleton list's grid), but its defaults for that type cannot be edited while the copy is published. Retiring the copy brings the entry back. Whether the composer should keep a placed original's row (for its defaults and its count) is the same product choice as the coordinator's reading on the composer's palette.
+  evidence: `apps/web/src/surfaces/templates/block-palette.tsx` (`onEditDefaults` only on a palette row of a placed seeded type); `packages/domain/src/relatorio/tree.ts` `paletteTypeGroups`.
+  class: decision
+  state: open (owner: Matheus, with the 24.19 reading on the composer's palette)

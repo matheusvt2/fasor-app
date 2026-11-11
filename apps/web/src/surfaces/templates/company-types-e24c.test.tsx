@@ -26,7 +26,7 @@ import type { SessionState } from '../../state/session.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { TemplateComposerSurface } from './template-composer.tsx';
 import { TemplatesSurface } from './templates-surface.tsx';
-import { CriteriaPanel, NameplatePanel, type DraftEdit } from './type-editor-parts.tsx';
+import { CriteriaPanel, NameplatePanel, TestsPanel, type DraftEdit } from './type-editor-parts.tsx';
 
 /*
  * Batch e24c (Stories 24.18 to 24.20), web units: the Critérios row of "nominal ± %" (the rule, the
@@ -72,7 +72,7 @@ afterEach(async () => {
 
 // --- the editor's tabs, over a draft held in memory ---------------------------------------------------
 
-function Harness({ start, panel, onDraft }: { start: CompanyTypeDraft; panel: 'criteria' | 'nameplate'; onDraft: (draft: CompanyTypeDraft | null) => void }) {
+function Harness({ start, panel, onDraft }: { start: CompanyTypeDraft; panel: 'criteria' | 'nameplate' | 'tests'; onDraft: (draft: CompanyTypeDraft | null) => void }) {
   const latest = useRef<CompanyTypeDraft | null>(structuredClone(start));
   const [draft, setDraft] = useState(latest.current);
   const edit: DraftEdit = (change) => {
@@ -82,13 +82,13 @@ function Harness({ start, panel, onDraft }: { start: CompanyTypeDraft; panel: 'c
   };
   return (
     <ToastProvider>
-      {panel === 'criteria' ? <CriteriaPanel draft={draft} issues={[]} edit={edit} /> : <NameplatePanel draft={draft} issues={[]} edit={edit} />}
+      {panel === 'criteria' ? <CriteriaPanel draft={draft} issues={[]} edit={edit} /> : panel === 'nameplate' ? <NameplatePanel draft={draft} issues={[]} edit={edit} /> : <TestsPanel draft={draft} issues={[]} edit={edit} />}
       <ToastOutlet />
     </ToastProvider>
   );
 }
 
-function renderTab(start: CompanyTypeDraft, panel: 'criteria' | 'nameplate') {
+function renderTab(start: CompanyTypeDraft, panel: 'criteria' | 'nameplate' | 'tests') {
   let last: CompanyTypeDraft | null = null;
   const writes: CompanyTypeDraft[] = [];
   render(
@@ -133,6 +133,18 @@ describe('24.18 the Critérios row of "nominal ± %"', () => {
     expect(last()!.criteria![at]).not.toHaveProperty('value_max');
     expect(within(row).getByRole('textbox', { name: `Valor máximo de ${name}` })).toHaveValue('');
     expect(row.querySelector('.tipo-nominal')).toBeNull();
+  });
+});
+
+describe('24.18 the Ensaios tab words a measurement row ruled "nominal ± %"', () => {
+  it('the row\'s criterion cell reads the kernel\'s text', async () => {
+    const start = structuredClone(DEFINITION_1) as unknown as CompanyTypeDraft;
+    start.criteria = start.criteria!.map((row) => (row.key === 'tensao_saida' ? { ...row, operator: 'nominal_pct', value: 220, tolerance_pct: 5, unit: 'V' } : row));
+    renderTab(start, 'tests');
+    const test = DEFINITION_1.measurement_tests![0]!;
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(`^${test.label}`) }));
+    const table = screen.getByRole('table', { name: 'Linhas da tabela de medições' });
+    expect(table.querySelector(`tr[data-row-key="${test.rows[0]!.key}"] td.cell-crit`)).toHaveTextContent('220 V ±5 %');
   });
 });
 
