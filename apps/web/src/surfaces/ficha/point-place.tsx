@@ -30,22 +30,24 @@ export function PointPlace({
   const named = ncRowPointsText(finding.positions);
   return (
     <div className={named === null ? 'row-wrap e24-point-place' : 'row-wrap e24-point-place has-point'} data-point-place={finding.testKey ?? 'conclusao'}>
-      {named === null ? (
-        <CreatePointAction
-          relatorioId={relatorioId}
-          snapshot={snapshot}
-          seed={() => ({
-            text: finding.text,
-            equipmentId,
-            origin: finding.origin,
-            testKey: finding.testKey,
-            action: finding.action,
-            actionHelper: finding.actionHelper,
-          })}
-          // The save takes the button away: the focus goes to the point's name in its place.
-          focusAfterSave={() => mark.current}
-        />
-      ) : (
+      {/* Fix batch e24x (D1): always mounted, so the editor its tap opened stays open when its own autosave
+          stores the point (the place then names it); only the button goes. */}
+      <CreatePointAction
+        relatorioId={relatorioId}
+        snapshot={snapshot}
+        seed={() => ({
+          text: finding.text,
+          equipmentId,
+          origin: finding.origin,
+          testKey: finding.testKey,
+          action: finding.action,
+          actionHelper: finding.actionHelper,
+        })}
+        // The save takes the button away: the focus goes to the point's name in its place.
+        focusAfterSave={() => mark.current}
+        hideButton={named !== null}
+      />
+      {named === null ? null : (
         <span className="nc-point-ref" ref={mark} tabIndex={-1}>
           {named}
         </span>

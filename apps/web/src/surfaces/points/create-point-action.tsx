@@ -18,6 +18,7 @@ export function CreatePointAction({
   snapshot,
   seed,
   focusAfterSave,
+  hideButton = false,
 }: {
   relatorioId: string;
   snapshot: RelatorioSnapshot;
@@ -27,18 +28,26 @@ export function CreatePointAction({
    * band); null until the button is gone, so the dialog's own return to it lands first.
    */
   focusAfterSave?: () => HTMLElement | null;
+  /**
+   * Fix batch e24x (D1): the point this action would create already stands (the editor's own
+   * autosave stored it): the button goes, and an open editor stays until "Concluir". The caller
+   * keeps this action mounted, so its dialog is never unmounted under the typing.
+   */
+  hideButton?: boolean;
 }) {
   const t = copy.points;
   const { showToast } = useToast();
   const [open, setOpen] = useState<PointSeed | null>(null);
   return (
     <>
-      <Button variant="secondary" onPress={() => setOpen(seed())}>
-        <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-flag" />
-        </svg>
-        {t.createFromRow}
-      </Button>
+      {hideButton ? null : (
+        <Button variant="secondary" onPress={() => setOpen(seed())}>
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-flag" />
+          </svg>
+          {t.createFromRow}
+        </Button>
+      )}
       {open === null ? null : (
         <PointEditorDialog
           isOpen
@@ -52,7 +61,11 @@ export function CreatePointAction({
             setOpen(null);
             // E6-Q2: Esc and the scrim store what was typed as "Concluir" does, and say so.
             if (saved !== null) showToast(pointSavedText(saved.position, saved.total, printsSection(snapshot, 8), sectionRefText(snapshot, 8)));
-            if (saved !== null && focusAfterSave !== undefined) restoreFocus(focusAfterSave, { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
+            // Fix batch e24x (D1): the target waits for the editor to leave the page, so the dialog's own focus
+            // return (to a button now hidden) never comes after it.
+            if (saved !== null && focusAfterSave !== undefined) {
+              restoreFocus(() => (document.querySelector('.point-editor-dialog') === null ? focusAfterSave() : null), { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
+            }
           }}
         />
       )}

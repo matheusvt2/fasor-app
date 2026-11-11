@@ -20,9 +20,11 @@ import {
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
+import { useLiveQuery } from '../../db/live.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext } from '../../state/sync.tsx';
@@ -32,6 +34,7 @@ import { ConclusaoSection } from './conclusao-section.tsx';
 import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { MeasurementTests } from './measurement-test-section.tsx';
+import { NotTestedBand } from './not-tested-band.tsx';
 import { PointPlace } from './point-place.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -297,5 +300,85 @@ describe('24.17-UNIT web: where the sheet draws the place', () => {
     );
     const control = container.querySelector('#ficha-conc .conclusion-control')!;
     expect(control.nextElementSibling).toBe(screen.getByTestId('place'));
+  });
+});
+
+// --- fix batch e24x (D1): the editor stays open while its autosave creates the point --------------
+
+/** The relatório's live points as the device stores them (the store's echo of the editor's own writes). */
+function useLivePoints(db: AppDatabase): PointRow[] {
+  return (
+    useLiveQuery(async () => (await db.entities.toArray()).filter((record) => record.entity === 'point' && record.removed_at === null).map((record) => record.row as unknown as PointRow), [db]) ?? []
+  );
+}
+
+/** The place over a live snapshot: the finding's positions follow the stored points, as the ficha's `sheetPointFindings` does. */
+function LivePlace({ db }: { db: AppDatabase }) {
+  const points = useLivePoints(db);
+  const positions = points.flatMap((point, i) => (point.origin === 'reading' && point.test_key === 'isolacao' && point.equipment_id === EQUIPMENT ? [i + 1] : []));
+  return <PointPlace relatorioId={RELATORIO} snapshot={{ ...SNAPSHOT, points }} equipmentId={EQUIPMENT} finding={finding({ positions })} />;
+}
+
+const BAND_BLOCK = { ...SNAPSHOT.blocks.find((block) => block.equipment_id === EQUIPMENT)!, not_tested: { reason: 'impossibilidade_desligamento', text: null, at: '2026-11-11T12:00:00.000Z', by: USER } } as BlockRow;
+
+function LiveBand({ db }: { db: AppDatabase }) {
+  const points = useLivePoints(db);
+  return <NotTestedBand api={api} block={BAND_BLOCK} snapshot={{ ...SNAPSHOT, points }} />;
+}
+
+function renderLive(ui: ReactNode) {
+  return render(
+    <MemoryRouter>
+      <SyncContext value={makeSyncState()}>
+        <ToastProvider>
+          <SheetReadOnlyProvider value={false}>{ui}</SheetReadOnlyProvider>
+        </ToastProvider>
+      </SyncContext>
+    </MemoryRouter>,
+  );
+}
+
+const storedCreates = async () => (await database!.outbox.toArray()).filter((op) => op.kind === 'create' && op.path.startsWith('point/'));
+
+describe('e24x-UNIT D1 the point editor stays open while its autosave creates the point', () => {
+  it('a test\'s place: a word typed in Ação, the autosave stores the point, the dialog stays open; "Concluir" closes it with the focus on "Ponto de atenção N", nothing typed lost', async () => {
+    database = await freshDatabase();
+    const { container } = renderLive(<LivePlace db={database} />);
+    const place = container.querySelector<HTMLElement>('.e24-point-place')!;
+    await userEvent.click(within(place).getByRole('button', { name: 'Criar ponto de atenção' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Ação recomendada' }), ' Hoje');
+    // The autosave (500 ms) creates the point while the editor is open, and the place now names it.
+    await waitFor(async () => expect(await storedCreates()).toHaveLength(1));
+    await waitFor(() => expect(container.querySelector('.e24-point-place .nc-point-ref')).not.toBeNull());
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    expect(within(dialog).getByRole('textbox', { name: 'Ação recomendada' })).toHaveValue(`${ACTION} Hoje`);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Concluir' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const mark = container.querySelector<HTMLElement>('.e24-point-place .nc-point-ref')!;
+    await waitFor(() => expect(mark).toHaveFocus());
+    expect(within(container.querySelector<HTMLElement>('.e24-point-place')!).queryByRole('button', { name: 'Criar ponto de atenção' })).toBeNull();
+    const creates = await storedCreates();
+    expect(creates).toHaveLength(1);
+    const stored = await database.entities.get(['point', (creates[0]!.value as unknown as PointRow).id]);
+    expect(stored?.row).toMatchObject({ origin: 'reading', test_key: 'isolacao', action: `${ACTION} Hoje` });
+  });
+
+  it('the Não ensaiado band: the same, the focus on "Desfazer" once the point stands', async () => {
+    database = await freshDatabase();
+    renderLive(<LiveBand db={database} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Criar ponto de atenção' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Ação recomendada' }), 'Agendar');
+    await waitFor(async () => expect(await storedCreates()).toHaveLength(1));
+    // Once the point stands the band offers no action, but the open editor stays.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Criar ponto de atenção', hidden: true })).toBeNull());
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Concluir' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Desfazer' })).toHaveFocus());
+    const creates = await storedCreates();
+    expect(creates).toHaveLength(1);
+    expect(creates[0]!.value as unknown as PointRow).toMatchObject({ origin: 'not_tested', equipment_id: EQUIPMENT });
   });
 });

@@ -34,6 +34,7 @@ export function NotTestedBand({
   if (block.not_tested === null) return null;
   const reason = notTestedReasonText(block);
   if (reason === null) return null;
+  const standing = hasNotTestedPoint(snapshot.points, block.equipment_id);
 
   const undo = () => {
     void api.edit((_blocks, by) => [notTestedOp(by, api.relatorioId, block.id, null)]).catch(() => undefined);
@@ -60,17 +61,18 @@ export function NotTestedBand({
           {t.desfazer}
         </button>
       </div>
-      {hasNotTestedPoint(snapshot.points, block.equipment_id) ? null : (
-        <div className="row-wrap not-tested-point" ref={createRef}>
-          <CreatePointAction
-            relatorioId={api.relatorioId}
-            snapshot={snapshot}
-            seed={() => ({ text: notTestedPointText(block), equipmentId: block.equipment_id, origin: 'not_tested' })}
-            // The saved point takes this button away: the focus stays on the band.
-            focusAfterSave={() => (createRef.current?.isConnected === true ? null : desfazerRef.current)}
-          />
-        </div>
-      )}
+      {/* Fix batch e24x (D1): the action stays mounted (in an unstyled, empty wrapper once the point stands), so the
+          editor its tap opened stays open when its own autosave stores the point; only the button goes. */}
+      <div className={standing ? undefined : 'row-wrap not-tested-point'} ref={standing ? undefined : createRef}>
+        <CreatePointAction
+          relatorioId={api.relatorioId}
+          snapshot={snapshot}
+          seed={() => ({ text: notTestedPointText(block), equipmentId: block.equipment_id, origin: 'not_tested' })}
+          // The saved point takes this button away: the focus stays on the band.
+          focusAfterSave={() => (createRef.current?.isConnected === true ? null : desfazerRef.current)}
+          hideButton={standing}
+        />
+      </div>
       <ConfirmDialog
         isOpen={confirmOpen}
         onOpenChange={setConfirmOpen}
