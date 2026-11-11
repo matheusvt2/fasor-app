@@ -3022,7 +3022,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The out cell's "Marcar com restrições" action (`measurement-field.tsx`, `measurement-test-section.tsx`) still writes only the restriction; under Story 22.4 the floor already gives Reprovado · Com restrições, so the action is redundant on the effective pair. Not removed (outside the spec's Code Map).
   evidence: `apps/web/src/surfaces/ficha/measurement-field.tsx` `markRestricted`; `measurement-test-section.tsx` `markRestricted`.
-  state: open; assigned 2026-11-10 to Epic 24, Story 24.3 (on seed v14 the kernel says when the action may show; on v1 to v13 it stays)
+  state: ~~open; assigned 2026-11-10 to Epic 24, Story 24.3 (on seed v14 the kernel says when the action may show; on v1 to v13 it stays)~~ closed (2026-11-11, batch e24a, Story 24.3): `markRestrictionOffered(block)` in `relatorio/conclusion.ts`; on seed v14 the action is never offered on a reading out of its criterion, on v1 to v13 it shows as before
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The `blocking` severity and the Export dialog's blocking-row UI (`copy.export.blockingMeta`, `editInSetup`) stay with no rule emitting a blocking row; the parecer copy keys `parecerHelper`, `parecerConfirmed` and `parecerConfirmedToast` are no longer rendered.
   evidence: `packages/domain/src/relatorio/pre-issue.ts` `PreIssueSeverity`; `apps/web/src/surfaces/export/export-dialog.tsx`; `apps/web/src/copy/pt-br.ts` `setup`.
@@ -3131,7 +3131,7 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22f-wave-a-fixes.md` (integrated review of wave A, N7)
   summary: Section 10 replaces the fixed reference "nos itens 8 e 9" only when it sits whole inside one rich run; a template's own Conclusão text that styles part of the phrase (a bold "8 e 9") keeps the literal numbers. Owner: the next batch touching `print/section-10.ts`, joining the runs before the replacement.
   evidence: `packages/domain/src/print/section-10.ts` `positioned`; review N7.
-  state: open; assigned 2026-11-10 to Epic 24, Story 24.4 (on seed v14 only)
+  state: ~~open; assigned 2026-11-10 to Epic 24, Story 24.4 (on seed v14 only)~~ closed (2026-11-11, batch e24a, Story 24.4, on seed v14 only): `referenceAcrossRuns` in `print/section-10.ts` replaces the reference across the joined runs (flag `results_reference_across_runs`); the replaced phrase takes the marks of the run where it starts; v1 to v13 keep the per-run replacement and print the literal "8 e 9" as pinned by the v13 layout lock
 
 ## Deferred from: Epic 22 fix batch e22g (2026-11-07)
 
@@ -3200,7 +3200,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: An NC row's observation typed with line breaks reaches the conclusion's NC clause with them, and section 9 prints the conclusion text line by line (`cellParagraphs` splits each `\n` into a paragraph), so the sentence breaks in the middle. Pre-existing (the clause always took the observation as typed); outside e23f's three deltas. Fix candidate: the clause joins the observation's lines with "; ".
   evidence: `packages/domain/src/relatorio/conclusion.ts` `ncClauseText`; `apps/api/src/jobs/generate/sections/section-9.ts` `cellParagraphs`.
   class: defect
-  state: open (owner: the next batch touching `relatorio/conclusion.ts`); assigned 2026-11-10 to Epic 24, Story 24.4 (on seed v14 only: the text is composed for every seed)
+  state: ~~open (owner: the next batch touching `relatorio/conclusion.ts`); assigned 2026-11-10 to Epic 24, Story 24.4 (on seed v14 only: the text is composed for every seed)~~ closed (2026-11-11, batch e24a, Story 24.4, on seed v14 only): an NC observation's lines enter the clause joined by "; ", each without its final period, ";" or "," (flag `nc_clause_on_one_line`); v1 to v13 compose as before, pinned by the v13 layout lock's two-line observation
 
 ## Deferred from: Epic 23 batch e23a (2026-11-08)
 
@@ -3348,7 +3348,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: A v13 arrester whose nameplate sub-block is switched off while it still stores DESLIGADOR ÍNTEGRO NÃO stays Reprovado by a plate value the sheet no longer shows (W2-2 reads the prerequisite "unconditionally", Story 23.6's AC).
   evidence: `packages/domain/src/relatorio/restriction.ts` `failedPrerequisites` (no sub-block check).
   class: decision
-  state: ~~open (owner: Matheus with Bruno: keep it, or read the prerequisite only while the nameplate sub-block is on)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): read the prerequisite only while the nameplate sub-block is on. Open (owner: Epic 24, wave 1); assigned 2026-11-10 to Epic 24, Story 24.3 (on seed v14 only)
+  state: ~~open (owner: Matheus with Bruno: keep it, or read the prerequisite only while the nameplate sub-block is on)~~ decided (2026-11-10, Matheus: yes, inside Epic 24, no extra batch): read the prerequisite only while the nameplate sub-block is on. ~~Open (owner: Epic 24, wave 1); assigned 2026-11-10 to Epic 24, Story 24.3 (on seed v14 only)~~ Closed (2026-11-11, batch e24a, Story 24.3, on seed v14 only): `prerequisiteFailure` answers null while the nameplate sub-block is off (flag `prerequisite_needs_nameplate`), so the floor, the conclusion text, the parecer and "Origem resolvida" ignore it; a v13 arrester is read as before (the v13 layout lock pins one, reprovado by its prerequisite alone)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (Design Notes, W2-1)
   summary: `last_results` keeps two entries (top and `prior`). A re-issue of A after two later visits (B, then C over B) cannot see that A is older: A's sheets read C as their previous visit. With one later visit (top's `prior` is A) they read none, never the later one, and the issue job never writes A over a later top. A full order needs a deeper chain or the visit date in the entry, a projection shape change and a contract.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`; `schemas/entities.ts` `lastResultsSchema`.
@@ -3519,7 +3519,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Seed v13 has no layout lock. The goldens cover v5, v11 and v12 and the Porto Seguro fixture, so "goldens byte-equal" in a gate says nothing about how a v13 relatório prints. e23p's promise that the disjuntor's and the seccionadora's paired insulation tables print as before is pinned only by type size and by words that fit the kernel's own width model.
   evidence: `packages/domain/fixtures/layout-lock/op-log.ts:40` (`LAYOUT_LOCK_VERSIONS`); `apps/api/src/jobs/generate/golden/` (no v13 folder); `epic-23-context.md` § Coordinator decisions, "Only v13 fixtures may gain goldens".
   class: decision
-  state: ~~open (owner: Matheus: lock v13 as it prints in production before seed v14 opens, or not)~~ decided (2026-11-10, Matheus: yes). Open (owner: Epic 24, Story 24.2)
+  state: ~~open (owner: Matheus: lock v13 as it prints in production before seed v14 opens, or not)~~ decided (2026-11-10, Matheus: yes). ~~Open (owner: Epic 24, Story 24.2)~~ Closed (2026-11-11, batch e24a, Story 24.2): `golden/layout-lock-v13/` taken on main `8bddd986` (e24h and e24f merged) before any Epic 24 rule change, from the synthetic v13 relatório of `fixtures/layout-lock/op-log.ts`
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (R-9, the deferred half)
   summary: Two low items. A dry-only value hidden on an oil transformer stays in the store and is written to `last_nameplate` with no filter, so a later "Copiar da última visita" carries CLASSE TÉRMICA along, still hidden; nothing prints or judges by it. The off-plate clear swallows a commit error with no message.
   evidence: `packages/domain/src/print/last-nameplate.ts:38-41`; `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`, `.catch(() => undefined)`).
@@ -3678,6 +3678,35 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `mockups/prototype/screens/40-relatorio-overview.html`; `packages/domain/src/relatorio/panel.ts` `panelProvenance`.
   class: note
   state: open (owner: the coordinator, with the next mock pass)
+
+
+## Deferred from: Epic 24 batch e24a (2026-11-11)
+
+- source_spec: `spec-e24a-conclusion-rules.md` (Story 24.2)
+  summary: The layout-lock fixture builds a v14 relatório with the same extras as the v13 one (24.2-UNIT-SAME compares the two with the v14 flags read off), but no v14 golden is taken: seed v14 is not deployed and later Epic 24 batches still change it.
+  evidence: `packages/domain/fixtures/layout-lock/op-log.ts` (`EPIC24_EXTRAS`); `apps/api/src/jobs/generate/docx-layout-lock.test.ts` (`LAYOUT_LOCK_VERSIONS` stops at v13).
+  class: note
+  state: open (owner: the coordinator, at the Epic 24 deploy, when seed v14 freezes: lock v14 or not)
+- source_spec: `spec-e24a-conclusion-rules.md` (Story 24.2, phase B report)
+  summary: 24.2-UNIT-SAME reads v14 "with its flags off" through a `vi.mock` of `seedRule`; a later v14 key that is not a `rules` flag (a definition key of e24s or e24p) makes v14 differ from v13 and must be stripped or listed in that test.
+  evidence: the 24.2-UNIT-SAME test beside `packages/domain/fixtures/layout-lock/op-log.ts`'s callers (grep `24.2-UNIT-SAME`).
+  class: note
+  state: open (owner: batches e24s and e24p, when they add to `seed/v14.ts`)
+- source_spec: `spec-e24a-conclusion-rules.md` (phase B report)
+  summary: `e2e/cta.spec.ts` 14.5-E2E-001 and `e2e/qgbt.spec.ts` 14.9-E2E-001 build their template in the composer, which always takes the current seed; to keep asserting the v13 conclusion they pin the template's seed with a server-op helper (`pinTemplateSeed`) instead of a tap.
+  evidence: `e2e/support/` (`pinTemplateSeed`), the two specs.
+  class: debt
+  state: open (owner: the next carry-over batch: give these two specs a v14 twin or a seeded template)
+- source_spec: `spec-e24a-conclusion-rules.md` (Story 24.3, coordinator's readings)
+  summary: Built as the coordinator read them, open to Matheus: an NC row and a restricted reading still floor Aprovado · Com restrições on v14; the technician's Aprovado · Com restrições is justified in OBSERVAÇÕES (no second field); on v14 OBSERVAÇÕES is required under any Reprovado, the technician's own included, so a Reprovado ficha cannot be concluded without it; the arrester's prerequisite with its plate off is ignored on v14 only.
+  evidence: `epics.md` § Story 24.3, "Coordinator's reading"; `relatorio/conclusion.ts` `observationRequiredBy`, `computeFloor`; `relatorio/restriction.ts` `prerequisiteFailure`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24a-conclusion-rules.md` (Story 24.3)
+  summary: A restriction stored under a v14 Reprovado (a ficha concluded Aprovado · Com restrições whose reading was then corrected out) is ignored on read and shows "Conclusão ajustada pela ficha" until the technician confirms; nothing rewrites it on its own (decision 3).
+  evidence: `relatorio/conclusion.ts` `effectiveConclusionPair`, `conclusionAdjusted`, `conclusionPairWrites` (`clearRestriction`).
+  class: note
+  state: open (owner: the Epic 24 hands-on pass: check it reads as intended)
 
 ## Deferred from: Epic 24 batch e24c (2026-11-11)
 

@@ -48,7 +48,8 @@ test('@p0 23.3-E2E-001 the manufacturer\'s value on a v13 disjuntor: refused inl
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Pinned to v13 since seed v14 (Story 24.2): this walk asserts a v13 sheet.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const disjuntor = built.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const transformer = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   // A seccionadora marked not tested from the office, its contact holding 80 µΩ: the read-only entry.

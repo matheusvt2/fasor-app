@@ -155,8 +155,8 @@ describe('10.2 the contradiction mark', () => {
   });
 
   it('22.8: two voltages on a v12 insulation row name the cell by its row and the TENSÃO header, not "Linha · coluna"', () => {
-    // Seed v13 keeps v12's TENSÃO column (Story 22.8).
-    expect(SEED_VERSION).toBe('v13');
+    // Seeds v13 and v14 keep v12's TENSÃO column (Story 22.8).
+    expect(SEED_VERSION).toBe('v14');
     const voltageCol = definition.tests[0]!.tables[0]!.value_columns.findIndex((column) => column.role === 'voltage');
     const path = `sheet/${BLOCK}/test/${TEST}/cell/0/${voltageCol}`;
     const kv = (raw: string): JsonValue => ({ raw, unit: 'kV', state: 'measured' });
@@ -1096,7 +1096,7 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
  */
 describe('batch e23v the conclusion text decision composes under the visit context', () => {
   it('a v13 transformer judged at the cabine\'s 40 °C: the composed side\'s text and basis are composeConclusion under visitContextOf', () => {
-    const snapshot = structuredClone(layoutLockSnapshot('v13'));
+    const snapshot = structuredClone(layoutLockSnapshot('v13', { epic24: false }));
     const source = snapshot.blocks.find((row) => row.block_type === 'transformador_forca' && row.removed_at === null)!;
     const tf: BlockRow = structuredClone(source);
     const op = (n: number) => `019966b0-0012-7000-8000-0000000e23${n.toString(16).padStart(2, '0')}`;

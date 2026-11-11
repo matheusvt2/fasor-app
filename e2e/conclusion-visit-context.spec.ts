@@ -64,7 +64,8 @@ test('@p0 e23w-W2-4-E2E-001 under a cabine at 5 °C: "Confirmar" of "Conclusão 
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose adjusted pair this spec asserts (Reprovado · Com restrições).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const dj = built.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const sc = built.sheets.find((sheet) => sheet.blockType === 'chave_seccionadora')!;
   const created = (prefix: string) => built.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);

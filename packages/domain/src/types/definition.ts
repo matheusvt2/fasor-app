@@ -50,7 +50,7 @@ export type TypeNoun = z.infer<typeof typeNounSchema>;
 
 /**
  * The criterion operators a company criterion takes (`compareCriterion` implements all of them), in
- * the order the Critérios tab and its line of rules offer them. Story 24.18 (contract 44):
+ * the order the Critérios tab and its line of rules offer them. Story 24.18 (contract 45):
  * `nominal_pct`, a nominal value and a tolerance in percent, after `between`.
  */
 export const COMPANY_CRITERION_OPERATORS = ['>', '<', '>=', '<=', 'between', 'nominal_pct', '±', 'pass_fail'] as const;

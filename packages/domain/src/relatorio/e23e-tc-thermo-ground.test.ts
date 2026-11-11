@@ -535,7 +535,7 @@ describe('the voltage default prints in TENSÃO', () => {
  * the front of the local's tree order.
  */
 function snapshotOf(blocks: readonly BlockRow[], grouped = false, first: readonly string[] = []): RelatorioSnapshot {
-  const snapshot = structuredClone(layoutLockSnapshot(blocks[0]?.seed_version ?? 'v13'));
+  const snapshot = structuredClone(layoutLockSnapshot(blocks[0]?.seed_version ?? 'v13', { epic24: false }));
   snapshot.blocks = snapshot.blocks.map((block) => {
     const mine = blocks.find((one) => one.block_type === block.block_type);
     const edited = mine === undefined ? block : { ...block, sheet: structuredClone(mine.sheet) };

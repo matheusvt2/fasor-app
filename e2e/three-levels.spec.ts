@@ -83,7 +83,8 @@ async function setUp(page: Page): Promise<{ relatorioId: string; sheets: SeededS
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e24a (Stories 24.3 and 24.4): pinned to seed v13, whose floors and parecer this spec asserts.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
@@ -224,7 +225,8 @@ test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e24a (Story 24.3): pinned to seed v13, which reads the prerequisite whatever the switches (row 3344 applies on v14 only).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const arrester = built.sheets.find((sheet) => sheet.blockType === 'para_raio')!;
   // The relatório is created with the arrester's insulation sub-block off (as a template switches it off).
   type BlockValue = { id: string; config: { sub_blocks: Record<string, { enabled?: boolean }> } };

@@ -46,17 +46,22 @@ export const cellOf = (page: Page, testKey: string, row: number, col: number): L
   testSection(page, testKey).locator(`.ficha-cell[data-cell="${testKey}:${row}:${col}"]`).filter({ visible: true });
 export const plateField = (page: Page, key: string): Locator => page.locator(`#ficha-nameplate [data-field-key="${key}"]`);
 
-/** A new v13 relatório of the standard template, em campo, with the office's plate writes on its sheets. */
+/**
+ * A new v13 relatório of the standard template, em campo, with the office's plate writes on its sheets.
+ * Batch e24a: `seedVersion` pins it to a version (a spec asserting v13's conclusion passes 'v13'); the
+ * current seed without it.
+ */
 export async function setUpRelatorio(
   page: Page,
   account: SeedAccount,
   database: string,
   plates: (sheets: readonly SeededSheet[]) => { blockType: string; key: string; value: unknown }[] = () => [],
+  seedVersion?: string,
 ): Promise<{ relatorioId: string; sheets: SeededSheet[] }> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, seedVersion === undefined ? {} : { seedVersion });
   const scope = { relatorioId: built.relatorioId };
   const writes: OpDraft[] = plates(built.sheets).map(({ blockType, key, value }) => {
     const sheet = built.sheets.find((one) => one.blockType === blockType)!;

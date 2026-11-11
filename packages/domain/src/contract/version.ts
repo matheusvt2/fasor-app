@@ -499,18 +499,30 @@
  * the device and change no fold. MIN follows to 43 (below).
  */
 /*
- * 44 (2026-11-11, Stories 24.18 to 24.20, batch e24c): a company type's criteria row takes the
+ * 44 (2026-11-11, Stories 24.2 to 24.4, batch e24a): no new op or path family. Seed v14 opens and
+ * becomes the version a new Template is created with (`SEED_VERSION`); the server's boot step moves
+ * every template to it (`templateSeedUpgrade`), so every relatório created afterwards is born on v14
+ * and every one already made keeps its seed. The seed schema gains the optional seed-level `rules`
+ * (a strict object of optional `true` flags, read by `seedRule`), absent on v1 to v13, so every
+ * shipped seed parses to the bytes it shipped with. v14 turns five on: a reading out of its criterion
+ * makes the ficha Reprovado and nothing else and "Com restrições" is the technician's choice, the
+ * arrester's prerequisite is read only while its plate is on, the parecer names each reprovada
+ * ficha's findings, an NC observation's lines enter its clause on one line and the fixed "nos itens 8
+ * e 9" is replaced across formatted runs. MIN follows to 44 (below).
+ */
+/*
+ * 45 (2026-11-11, Stories 24.18 to 24.20, batch e24c): a company type's criteria row takes the
  * operator `nominal_pct` with the new optional `tolerance_pct` (a nominal value and a tolerance in
  * percent above zero, judged as the range it gives, both ends within), so a version's definition
- * carries a shape the strict schema before 44 refuses. A version published before 44 parses to the
+ * carries a shape the strict schema before 45 refuses. A version published before 45 parses to the
  * same bytes. The server's push route also refuses (`op_invalid`, as a strict-schema refusal) a
  * version create whose ratio table reads by the vector group with no valid vector-group field on its
  * plate (`vectorGroupPublishIssue`); the rule is outside the strict schema, so a version already
  * published in that state still folds on a fresh device. A published company copy of a seeded type
  * hides that type in both palettes and in "Fotografar equipamento", derived on the device (no fold
- * change). MIN follows to 44 (below).
+ * change). MIN follows to 45 (below).
  */
-export const CONTRACT_VERSION = 44;
+export const CONTRACT_VERSION = 45;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -803,14 +815,22 @@ export const CONTRACT_VERSION = 44;
  * pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
 /*
- * 44 (2026-11-11, Stories 24.18 to 24.20, batch e24c): a version-43 (or older) bundle's strict
+ * 44 (2026-11-11, Stories 24.2 to 24.4, batch e24a): a version-43 (or older) bundle ships no seed v14
+ * and reads no rule flag, so it cannot resolve a single definition of a v14 relatório or of a
+ * template the server moved to v14: a pulled block create or template put naming `v14` fails to fold,
+ * and the sheets it could show would have no nameplate, checklist or tests, nor judge them by v14's
+ * rules (a Reprovado with a restriction, the parecer's sentence by reason). Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+/*
+ * 45 (2026-11-11, Stories 24.18 to 24.20, batch e24c): a version-44 (or older) bundle's strict
  * schema refuses a criteria row with `nominal_pct` and `tolerance_pct`, so a pulled page carrying a
  * version published with the rule would fail to fold (`materializeEntity` throws on a pulled op its
  * fold refuses); its editor would also publish a type whose ratio table can never compute and offer
  * a library type a published copy hides. Its pull answers `426 contract_outdated` and it updates;
  * its pushes are still accepted, and the server refuses its publish of such a type.
  */
-export const MIN_CONTRACT_VERSION = 44;
+export const MIN_CONTRACT_VERSION = 45;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

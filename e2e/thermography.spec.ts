@@ -43,7 +43,8 @@ async function answerLoad(page: Page, blockId: string, answer: 'Sim' | 'Não'): 
 
 test('@p0 23.20-E2E-001 thermography on a para-raio and a TC in load (out, restricted, a thermal photo) and on a disjuntor out of load (NA with its reason); the DOCX prints the two tables and the photo line', async ({ page }) => {
   test.setTimeout(420_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this test asserts (Reprovado · Com restrições).
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [], 'v13');
   const pr = sheets.find((sheet) => sheet.blockType === 'para_raio')!;
   const tc = sheets.find((sheet) => sheet.blockType === 'tc')!;
   const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;

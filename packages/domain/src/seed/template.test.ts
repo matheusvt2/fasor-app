@@ -45,9 +45,9 @@ describe('standardTemplate', () => {
       expect(withVersionSubBlocks(built.blocks, SEED_VERSION), version).toEqual(template.blocks);
       expect(built.skeleton, version).toEqual(template.skeleton);
     }
-    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type.
+    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type (v14 opens equal to v13).
     const v12 = standardTemplate({ id: ID, seedVersion: 'v12' }).blocks;
-    for (const version of versions.filter((one) => one !== 'v13')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
+    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
     expect(withVersionSubBlocks(v12, 'v12')).toEqual(v12);
   });
 
@@ -59,7 +59,8 @@ describe('standardTemplate', () => {
       { newId: () => '019966b0-0000-7000-8000-0000000000c2', now: new Date('2026-11-08T12:00:00Z') },
     );
     const moved = applyOp(new Map([[`template:${ID}`, v12]]), move).get(`template:${ID}`);
-    expect(moved).toEqual({ ...template, version: v12.version });
+    // Pinned to v13 since seed v14 (Story 24.2): the move compares with the v13 template it lands on.
+    expect(moved).toEqual({ ...standardTemplate({ id: ID, seedVersion: 'v13' }), version: v12.version });
     const kept = applyOp(new Map([[`template:${ID}`, edited]]), move).get(`template:${ID}`) as typeof template;
     const cable = kept.blocks.find((block) => block.block_type === 'cabos_entrada')!;
     // Batch e23e (Story 23.20): with its thermography, on, before OBSERVAÇÕES.

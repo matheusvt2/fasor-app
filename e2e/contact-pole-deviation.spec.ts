@@ -44,7 +44,8 @@ test('@p0 23.14-E2E-001 a v13 disjuntor at 40, 42 and 70 µΩ: the 70 µΩ pole 
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this spec asserts (Reprovado · Com restrições).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const disjuntor = built.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
   await page.goto(`/relatorio/${built.relatorioId}`);

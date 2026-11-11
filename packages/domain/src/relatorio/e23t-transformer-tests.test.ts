@@ -406,7 +406,7 @@ describe('23.15 to 23.19-UNIT company copies carry the keys and prune what names
 // --- one v13 snapshot: every reader agrees ---------------------------------------------------------
 
 function v13Snapshot(): RelatorioSnapshot {
-  return structuredClone(layoutLockSnapshot('v13'));
+  return structuredClone(layoutLockSnapshot('v13', { epic24: false }));
 }
 const blockOf = (snapshot: RelatorioSnapshot, type: string) => snapshot.blocks.find((block) => block.block_type === type && block.removed_at === null)!;
 function editBlock(snapshot: RelatorioSnapshot, type: string, edit: (block: BlockRow) => void): BlockRow {

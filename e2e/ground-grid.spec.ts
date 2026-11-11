@@ -31,6 +31,8 @@ test.beforeEach(({ seed }) => {
 
 const TYPE = 'malha_aterramento';
 const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', TYPE);
+/** Batch e24a (Story 24.3): the relatório's seed, v13 (its floor is the one this spec asserts); a block added to it carries it. */
+const RELATORIO_SEED = 'v13';
 const LOCAL = 'Geradores';
 const GRID = 'resistencia_malha';
 const measured = (raw: string, unit: string) => ({ raw, unit, state: 'measured' });
@@ -45,7 +47,8 @@ async function typePlate(page: Page, key: string, text: string): Promise<void> {
 test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds a Malha de aterramento; the 5 Ω default applies with no design value, 3 Ω above a 2 Ω design value fails it (Reprovado), the parecer follows and the DOCX prints it under "Outros equipamentos"', async ({ page }) => {
   test.setTimeout(420_000);
   expect(paletteTypes('v12').library).not.toContain(TYPE);
-  const { relatorioId } = await setUpRelatorio(page, account, database);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this test asserts (Reprovado · Com restrições).
+  const { relatorioId } = await setUpRelatorio(page, account, database, () => [], RELATORIO_SEED);
   await page.setViewportSize({ width: 1024, height: 900 });
 
   // --- the field palette of the local: the Malha last under "Outros equipamentos" ---
@@ -65,7 +68,7 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
   await expect(fieldPalette).toBeHidden();
   await expect.poll(async () => (await outbox(database, page)).filter((op) => op.kind === 'create' && op.path.startsWith('block/') && (op.value as { block_type?: string }).block_type === TYPE).length).toBe(1);
   const create = (await outbox(database, page)).find((op) => op.kind === 'create' && op.path.startsWith('block/') && (op.value as { block_type?: string }).block_type === TYPE)!;
-  expect(create.value).toMatchObject({ block_type: TYPE, seed_version: SEED_VERSION, relatorio_id: relatorioId });
+  expect(create.value).toMatchObject({ block_type: TYPE, seed_version: RELATORIO_SEED, relatorio_id: relatorioId });
   const blockId = (create.value as BlockRow).id;
 
   // --- the sheet: its three plate fields, its two tests ---

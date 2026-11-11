@@ -24,6 +24,9 @@ import { applyOps } from '../../sync/apply.ts';
  * renders). Every later Epic 23 PR keeps these byte-equal; a drift is a defect against the
  * protection, never a golden update. Taken on main a3b0ec0e with `GOLDEN_UPDATE=1`. The DOCX half is
  * `docx-layout-lock.test.ts`.
+ *
+ * Story 24.2 (24.2-INT-LOCK): v13 joins, its relatório carrying what Epic 24 changes on v14 and a
+ * company type of its own (removed with the fixtures, `companyEntityIds`).
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -86,11 +89,17 @@ async function removeFixtures(): Promise<void> {
   const relatorios = fixtures.map((f) => f.relatorioId);
   const projects = fixtures.map((f) => f.projectId);
   const opIds = fixtures.flatMap((f) => f.log.map((op) => op.op_id));
+  const companyRows = fixtures.flatMap((f) => f.companyEntityIds);
   await db.transaction(async (tx) => {
     await tx.delete(ops).where(and(eq(ops.company_id, companyA.companyId), or(inArray(ops.op_id, opIds), inArray(ops.relatorio_id, relatorios), inArray(ops.project_id, projects))));
     await tx
       .delete(entities)
-      .where(and(eq(entities.company_id, companyA.companyId), or(inArray(entities.relatorio_id, relatorios), inArray(entities.project_id, projects), inArray(entities.id, projects))));
+      .where(
+        and(
+          eq(entities.company_id, companyA.companyId),
+          or(inArray(entities.relatorio_id, relatorios), inArray(entities.project_id, projects), inArray(entities.id, [...projects, ...companyRows])),
+        ),
+      );
   });
 }
 
@@ -118,7 +127,7 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe('23.2-INT-LOCK the PDF text of the locked seed versions is byte-equal to its golden', () => {
+describe('24.2-INT-LOCK (23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
   it.each(fixtures.map((fixture) => [fixture.version, fixture] as const))(
     '%s: the preview PDF of the synthetic relatório prints its golden text, page by page',
     async (version, fixture) => {

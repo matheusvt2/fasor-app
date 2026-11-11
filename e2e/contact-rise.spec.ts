@@ -93,7 +93,8 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   await signIn(page, account.email);
 
   // Relatório A: the poles at 40, 44 and 44 µΩ, issued (nothing judged out, so the parecer is tapped before issuing).
-  const a = newRelatorioDrafts(account);
+  // Batch e24a (Story 24.3): both relatórios are pinned to seed v13, whose floor this spec asserts (Reprovado · Com restrições).
+  const a = newRelatorioDrafts(account, { seedVersion: 'v13' });
   const djA = a.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const blockRows = (drafts: readonly OpDraft[]) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
   const equipmentId = blockRows(a.drafts).find((row) => row.id === djA.blockId)!.equipment_id!;
@@ -107,7 +108,7 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   // Relatório B of the same obra, its TAGs bound to the obra's equipment.
   const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
   const b = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), seedVersion: 'v13' }),
     { id: a.projectId },
     { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
