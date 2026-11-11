@@ -220,6 +220,17 @@ It is a fix batch, not a story:
 - **A second item, H9, added the same night.** *(2026-11-10, coordinator, on Matheus's decision.)* Bruno reported, through Matheus, that he could not write "Observações" on a ficha Aprovado · Sem restrições, and that the same holds for the relatório's conclusion. Matheus decided it is fixed at once, for every relatório on every seed. Text in OBSERVAÇÕES, or in the observation of a row that is not NC, no longer sets the conclusion floor (`relatorio/conclusion.ts`, the `observation` reason retired). Choosing Com restrições still requires OBSERVAÇÕES. A stored pair stays. The parecer follows the fichas, so a relatório with observations and nothing else derives Apto. No golden moved by it. This was half of Story 24.3, which keeps the rest.
 - **Old print changes once, here.** Section 8 of an older relatório loses its automatic entries. The spec names the goldens that move and carries their diff. From then on the rule "older relatórios print byte-identical" is measured from main after e24h.
 
+**Built and gated** *(2026-11-10, coordinator)*:
+
+- **PR #307**, head `a49e74db`, merged as `1528183f` on 2026-11-10. Contract 41, minimum 41. Spec and gate record: `spec-e24h-points-on-click.md`.
+- **Goldens.** The layout-lock goldens of v5, v11 and v12 lost their automatic entries and one sentence each ("Foram registrados N pontos de atenção"). The Porto Seguro golden went from 25 points to 7, on Matheus's word: the 18 automatic rows left and nothing else changed. H9 moved no golden.
+- **Story gate** on `86c98108`: lint and static clean; test:api 959 passed, 6 skipped; test:unit 6150 of 6150; 39 touched specs, 180 of 180.
+- **Full run.** `test:e2e:full` on `a49e74db`, the same tree as `1528183f`: 660 tests, 656 passed, 0 failed, 4 skipped, 2466,7 s. Load `{ 2.67 4.22 5.17 }` at the start and `{ 4.53 4.47 5.12 }` at the end. An earlier full run on `d58d8be7`, before H9, had one red (12.2-E2E-002) while the machine slept; it passed alone.
+- **Matrix** on `1528183f`: 168 tests, 150 passed, 2 failed, 16 skipped, 1295,5 s. Lock wait 482 s, load `{ 11.19 11.24 9.71 }` at the start, with two batch stacks beside the main one. The reds were 14.5-E2E-003 and R8DRY-E2E-002 on `durability-webkit`, each a 5 s wait. Their two spec files passed alone under the lock with `--repeat-each 2`, 12 of 12, at load `{ 3.15 4.10 5.48 }`.
+- **Hands-on pass** on `1528183f`: every check of the two rules passed. Report: `_bmad-output/test-artifacts/manual/behaviour-pass-e24h-2026-11-10.md`. Its finding H1 is the rule itself seen from the user's side: a relatório issued before the change prints without its automatic points when it is issued again.
+- **Load rule broken once.** The main stack stayed up for the pass while e24f and e24b ran, three stacks in all. The main stack's Postgres restarted three times, and the matrix's two reds came at that load. The main stack is stopped while batches run.
+- **Deploy.** COORDINATOR-FILLS
+
 What it means for the stories (each has its dated note in `epics.md`):
 
 | Story | What changed |
