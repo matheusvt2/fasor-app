@@ -180,7 +180,7 @@ describe('14.2 composer: the three levels', () => {
     expect(geradores.querySelector(':scope > .block-body .loc-flag')).toHaveTextContent('sem painéis · 0 blocos');
     expect(geradores.querySelector(':scope > .block-body .block-sub')).toHaveTextContent('Agrupar por tipo: desativado');
     expect(geradores.querySelector(':scope > .block-expand > .loc-direct')).toHaveClass('is-empty');
-    expect(within(geradores).getByText('Nenhum equipamento direto neste local. Toque em um tipo da paleta para adicionar.')).toHaveClass('loc-none');
+    expect(within(geradores).getByText('Nenhum equipamento direto neste local. Toque em um tipo da lista para adicionar.')).toHaveClass('loc-none');
 
     expect(screen.getByRole('list', { name: 'Locais do template' })).toBeVisible();
     expect(screen.getByText('Locais, painéis e colunas podem ser renomeados depois, no relatório, pela árvore')).toHaveClass('btn-reason');

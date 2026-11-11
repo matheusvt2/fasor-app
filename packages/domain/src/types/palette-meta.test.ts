@@ -38,7 +38,7 @@ describe('e24x-UNIT D17 composerHiddenTypes: the hidden original the template st
     const ctx = definitionContext([version], [typeRow(false)]);
     const hidden = composerHiddenTypes(ctx, SEED_VERSION, new Set(['transformador_forca', 'disjuntor_mt']));
     expect(hidden).toEqual([{ type: 'transformador_forca', after: companyBlockType(TYPE_ID), text: hiddenTypeText([copy.label]) }]);
-    expect(hidden[0]!.text).toBe(`Oculto nas paletas: a cópia ${copy.label} está publicada.`);
+    expect(hidden[0]!.text).toBe(`Oculto na lista de tipos: a cópia ${copy.label} está publicada.`);
     // The copy stands in the palette where the transformer stood; the original is not offered there.
     const offered = paletteTypeGroups(SEED_VERSION, ctx).flatMap((group) => group.types);
     expect(offered).toContain(companyBlockType(TYPE_ID));

@@ -5,6 +5,7 @@ import {
   isEquipmentBlock,
   locationPathText,
   pendingSuggestions,
+  sheetStepTitle,
   shownSheetSteps,
   sugestoesProntasBannerText,
   suggestionGroupCounts,
@@ -120,7 +121,10 @@ function FichaBody({
   const { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api, visit } =
     useFichaData({ relatorioId, snapshot, state, block });
   // E12-A7: only the steps whose sub-block is on; the header sentence names only these.
-  const shownSteps = useMemo(() => shownSheetSteps(block, { cabineFirst }), [block, cabineFirst]);
+  // Fix batch e24y (F10): on a seed with `empty_steps_hidden`, a checklist step whose definition holds no item is not shown either.
+  const shownSteps = useMemo(() => shownSheetSteps(block, { cabineFirst, definition }), [block, cabineFirst, definition]);
+  // Fix batch e24y (F10): the plate step named by the definition's own title, where it has one.
+  const plateTitle = sheetStepTitle('placa', definition);
   const bulk = useChecklistBulk(api, snapshot, block, equipment);
   const { current, focusIn, stepClass, goTo } = useFichaSteps(progress, shownSteps);
   const photos = useFichaPhotos({ relatorioId, snapshot, block, current, db, api, showToast });
@@ -189,6 +193,7 @@ function FichaBody({
             concludedBy={concludedBy}
             progress={progress}
             shown={shownSteps}
+            plateTitle={plateTitle}
             menu={menu}
             notTested={block.not_tested !== null}
             library={definition.library === true}
@@ -270,7 +275,7 @@ function FichaBody({
           </SheetReadOnlyProvider>
           <DropHint dragging={dragging} />
           <StickyActionBar
-            stepper={<SectionStepper steps={shownSteps} progress={progress} current={current} onGo={(step) => goTo(step, false)} />}
+            stepper={<SectionStepper steps={shownSteps} progress={progress} current={current} titles={{ placa: plateTitle }} onGo={(step) => goTo(step, false)} />}
             // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
             // the list head keeps its disabled action with the reason.
             secondary={showMirror ? <BulkActionBar bulk={bulk} compact /> : null}

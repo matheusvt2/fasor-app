@@ -2197,7 +2197,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
 // e24s (Stories 24.10 to 24.12): the TP and TC lists, the transformer's oil and dry items, the Inspeção de QGBT (`withoutE24s` below).
 // e24s (Stories 24.13 and 24.14): the No-break de comando, the oil sampling's "Outro" text, the Malha's plate block.
 // e24s merged after e24p (main e5fdde82): both batches' keys, re-pinned on the merge.
-const V14_HASH = 'aeea3d879961a7eb9a7f51efd31df955729e36e58a24151e9d8b1ffb8511e55a';
+// Fix batch e24y (P1, P5, F10): its three rule flags; P9: the inspection's `measurement_tests_unnumbered` (`withoutE24y` below).
+const V14_HASH = 'aec1d7de45b39bab6bad49d72ab91c3d14fa97977b536329615b63a5c67f04c1';
 
 /** Batch e24a's rule flags (Stories 24.3 and 24.4), in the order `seed/v14.ts` sets them. */
 const E24A_FLAGS = ['conclusion_restriction_by_choice', 'prerequisite_needs_nameplate', 'parecer_names_finding', 'nc_clause_on_one_line', 'results_reference_across_runs'] as const;
@@ -2220,6 +2221,20 @@ function withoutE24p(seed: ReportSeed): ReportSeed {
   if (out.rules === undefined) return out;
   for (const flag of E24P_FLAGS) delete out.rules[flag];
   if (Object.keys(out.rules).length === 0) delete out.rules;
+  return out;
+}
+
+/** Fix batch e24y's rule flags (P1, P5, F10), in the order `seed/v14.ts` sets them. */
+const E24Y_FLAGS = ['paired_tables_fit_whole', 'history_needs_like_with_like', 'empty_steps_hidden'] as const;
+
+/** Fix batch e24y's delta undone: its three flags dropped, and `rules` itself once nothing else is in it. */
+function withoutE24y(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  if (out.rules === undefined) return out;
+  for (const flag of E24Y_FLAGS) delete out.rules[flag];
+  if (Object.keys(out.rules).length === 0) delete out.rules;
+  // P9: the Inspeção de QGBT's unnumbered measurement tests.
+  delete out.blocks.inspecao_qgbt!.measurement_tests_unnumbered;
   return out;
 }
 
@@ -2284,7 +2299,8 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     // Batch e24a (Stories 24.3 and 24.4): its rule flags are undone here and pinned below.
     // Batch e24p (Stories 24.15 to 24.17): its rule flags too; batch e24s (Stories 24.10 to 24.14) its sheets' keys,
     // each pinned in its own block.
-    expect(JSON.stringify(withoutE24s(withoutE24p(withoutE24a(v14))))).toBe(JSON.stringify(v13));
+    // Fix batch e24y (P1, P5, F10): its three flags too.
+    expect(JSON.stringify(withoutE24y(withoutE24s(withoutE24p(withoutE24a(v14)))))).toBe(JSON.stringify(v13));
     expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
     expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
     expect(hash('v13'), 'seed v13 changed after it shipped: add a new version instead').toBe(V13_HASH);
@@ -2293,8 +2309,8 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
-  it('names the five flags of batch e24a and the three of batch e24p, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS]);
+  it('names the five flags of batch e24a, the three of batch e24p and the three of fix batch e24y, each true or absent', () => {
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2304,7 +2320,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
 
   it('no seed of v1 to v13 carries `rules`; v14 carries none at its opening (its flags stripped)', () => {
     for (const version of VERSIONS) expect(Object.hasOwn(getSeed(version, 'cabine_primaria'), 'rules'), version).toBe(false);
-    expect(Object.hasOwn(withoutE24p(withoutE24a(v14)), 'rules')).toBe(false);
+    expect(Object.hasOwn(withoutE24y(withoutE24p(withoutE24a(v14))), 'rules')).toBe(false);
   });
 
   it('seedRule answers false for every flag on v1 to v13 and on an unknown version', () => {
@@ -2315,16 +2331,22 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
 
   // Batch e24a (Stories 24.3 and 24.4): the five flags on, and nothing else in `rules`.
   it('e24a: v14 turns on the five rule flags of Stories 24.3 and 24.4 and nothing else', () => {
-    expect(withoutE24p(v14).rules).toEqual(Object.fromEntries(E24A_FLAGS.map((flag) => [flag, true])));
+    expect(withoutE24y(withoutE24p(v14)).rules).toEqual(Object.fromEntries(E24A_FLAGS.map((flag) => [flag, true])));
     for (const flag of E24A_FLAGS) expect(seedRule('v14', flag), flag).toBe(true);
   });
 
   // Batch e24p (Stories 24.15 to 24.17): the three flags on, beside e24a's, and nothing else in `rules`.
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
-    expect(withoutE24a(v14).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
-    expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS]);
+    expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
+    expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]);
     for (const flag of FLAGS) expect(seedRule('v14', flag), flag).toBe(true);
+  });
+
+  // Fix batch e24y (P1, P5, F10): the three flags on, beside e24a's and e24p's, and nothing else in `rules`.
+  it('e24y: v14 turns on the three rule flags of the hands-on pass fixes and nothing else', () => {
+    expect(withoutE24p(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24Y_FLAGS.map((flag) => [flag, true])));
+    for (const flag of E24Y_FLAGS) expect(seedRule('v14', flag), flag).toBe(true);
   });
 
   it('a seed object whose `rules` sets a flag answers true for that flag only', () => {

@@ -410,7 +410,7 @@ describe('e23z-UNIT item 4 a copy may not remove the vector-group field while it
 
   it('Remover on DESLOCAMENTO ANGULAR: refused with the kernel\'s reason, the draft unchanged', () => {
     const draft = tf();
-    expect(removeDraftEntryRefusal(draft, 'nameplate', fieldAt(draft))).toBe('O campo DESLOCAMENTO ANGULAR não pode ser removido: a relação de transformação calcula por ele. Remova antes o ensaio.');
+    expect(removeDraftEntryRefusal(draft, 'nameplate', fieldAt(draft))).toBe('O campo DESLOCAMENTO ANGULAR não pode ser removido: a relação de transformação é calculada a partir dele. Remova antes o ensaio.');
     expect(removeDraftEntry(draft, 'nameplate', fieldAt(draft))).toEqual(draft);
     // Another field is removed as before.
     expect(removeDraftEntryRefusal(draft, 'nameplate', 0)).toBeNull();

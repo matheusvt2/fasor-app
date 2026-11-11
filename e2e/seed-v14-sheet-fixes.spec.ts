@@ -106,6 +106,10 @@ test('@p0 24.14-E2E-002 a v14 Malha de aterramento titles its first block "Dados
   await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toContainText(malha.label, { timeout: 30_000 });
   await expect(page.locator('#ficha-nameplate .section-head h2')).toHaveText('Dados da malha');
+  // Fix batch e24y (F10): no "Verificações" step (the Malha has no checklist); its first step reads "Dados da malha".
+  const stepNames = await page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' }).getByRole('button').evaluateAll((nodes) => nodes.map((node) => (node.getAttribute('aria-label') ?? '').split(',')[0]));
+  expect(stepNames).toEqual(['Dados da malha', 'Ensaios', 'Conclusão']);
+  await expect(page.getByTestId('ficha-progress')).not.toContainText('erificaç');
   await expect(page.getByRole('button', { name: 'Fotografar placa' })).toHaveCount(0);
   await expect(page.locator('#ficha-nameplate .camera-group')).toHaveCount(0);
   const keys = await page.locator('#ficha-nameplate [data-field-key]').evaluateAll((nodes) => [...new Set(nodes.map((node) => node.getAttribute('data-field-key')))]);

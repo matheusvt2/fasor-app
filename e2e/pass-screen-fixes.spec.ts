@@ -96,7 +96,7 @@ test('@p0 24.9-E2E-001 TAPS names its separator, "Foto térmica" counts its shot
 
   // TAPS, empty: the helper names the separator before any error.
   await openStep(page, relatorioId, tr.blockId, 'Placa');
-  await expect(plateField(page, 'taps').locator('.helper')).toHaveText('Na ordem da placa, separados por ;');
+  await expect(plateField(page, 'taps').locator('.helper')).toHaveText('Na ordem da placa, separados por ponto e vírgula (;)');
 
   // "Foto térmica" with its count: two shots, then after a reload.
   await openStep(page, relatorioId, tr.blockId, 'Ensaios');

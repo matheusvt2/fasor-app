@@ -167,8 +167,8 @@ describe('23.7-UNIT TAPS and "N/√3" typed, stored and shown', () => {
     const field = { kind: 'number' as const, list: true as const };
     expect(fieldValueText(field, FIVE_TAPS)).toBe('13,8 · 13,2 · 12,6 · 12 · 11,4');
     // 24.9-UNIT (F9): the separator is named before any error.
-    expect(tapsHelperText(FIVE_TAPS)).toBe('Na ordem da placa, separados por ; · 5 taps');
-    expect(tapsHelperText(null)).toBe('Na ordem da placa, separados por ;');
+    expect(tapsHelperText(FIVE_TAPS)).toBe('Na ordem da placa, separados por ponto e vírgula (;) · 5 taps');
+    expect(tapsHelperText(null)).toBe('Na ordem da placa, separados por ponto e vírgula (;)');
   });
 
   it('TAPS refuses a repeated value, a non-number, a value not whole in V and one entry alone; N/A stays N/A', () => {

@@ -163,11 +163,11 @@ describe('12.3-UNIT per-unit fields and the TAG prefill (D-3, J-09)', () => {
     expect(nameplateCopyFields(source, SEC).map((entry) => entry.fieldKey)).toEqual(['identificacao', 'fabricacao', 'n_serie', 'tag']);
   });
 
-  it('"Copiar da última visita" is the same equipment: it carries the per-unit fields too (source-deltas row 50)', () => {
+  it('"Copiar da última visita" is the same equipment: it carries the per-unit fields too (source-deltas row 50), never the TAG (review Y4, fix batch e24y)', () => {
     const v2 = getDefinition('v2', 'cabine_primaria', 'chave_seccionadora');
     const fields = { identificacao: 'Coluna 5', fabricacao: 'Celtta', n_serie: 'SU1', tag: 'SEC-C05' };
     const row = equipment(1, { last_nameplate: { relatorio_id: OTHER_REL, revision_number: 1, issued_at: '2025-03-01T10:00:00.000Z', seed_version: 'v2', block_type: 'chave_seccionadora', fields } });
-    expect(lastNameplateCopy(row, v2).map((entry) => entry.fieldKey)).toEqual(['identificacao', 'fabricacao', 'n_serie', 'tag']);
+    expect(lastNameplateCopy(row, v2).map((entry) => entry.fieldKey)).toEqual(['identificacao', 'fabricacao', 'n_serie']);
   });
 
   it('prefills the nameplate TAG from the block TAG while the cell is absent; a typed or cleared cell stops following', () => {
@@ -221,9 +221,11 @@ describe('e23p-P1 the fields measured on the day are never copied (behaviour pas
       const row = equipment(1, { last_nameplate: { relatorio_id: OTHER_REL, revision_number: 1, issued_at: '2026-03-01T10:00:00.000Z', seed_version: 'v13', block_type: type, fields } });
       const copied = lastNameplateCopy(row, definition).map((entry) => entry.fieldKey);
       for (const key of keys) expect(copied, `${type} ${key}`).not.toContain(key);
-      expect(copied, type).toEqual(definition.nameplate.filter((field) => !keys.includes(field.key)).map((field) => field.key));
-      // The toast counts N-2 on the transformer (N-1 elsewhere).
-      expect(camposCopiadosText(copied.length), type).toBe(camposCopiadosText(definition.nameplate.length - keys.length));
+      // Review Y4 (fix batch e24y): the TAG is never copied either (it follows the equipment).
+      const skipped = [...keys, ...(definition.nameplate.some((field) => field.key === 'tag') ? ['tag'] : [])];
+      expect(copied, type).toEqual(definition.nameplate.filter((field) => !skipped.includes(field.key)).map((field) => field.key));
+      // The toast counts N-2 on the transformer (N-1 elsewhere), one less where the plate has a TAG.
+      expect(camposCopiadosText(copied.length), type).toBe(camposCopiadosText(definition.nameplate.length - skipped.length));
     }
   });
 

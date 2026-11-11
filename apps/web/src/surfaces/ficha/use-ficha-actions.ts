@@ -36,7 +36,7 @@ import { copy } from '../../copy/pt-br.ts';
 import type { SessionState } from '../../state/session.tsx';
 import type { ToastState } from '../../state/toast.tsx';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
-import { putEquipmentTagOp } from '../relatorio/relatorio-ops.ts';
+import { renameEquipmentOps } from '../relatorio/tag-rename-ops.ts';
 import { commitMove } from '../relatorio/tree-actions.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
@@ -269,7 +269,7 @@ export function useFichaActions({
     if (equipmentId === null) return;
     let refusal: string | null = null;
     void editor
-      .edit((_blocks, by, fresh) => {
+      .edit((blocks, by, fresh) => {
         const row = fresh.equipment.find((e) => e.id === equipmentId && e.removed_at === null);
         if (row === undefined || row.tag === value.trim()) return null;
         const verdict = tagVerdict(value, fresh.equipment, equipmentId);
@@ -277,7 +277,9 @@ export function useFichaActions({
           refusal = verdict.reason === 'empty' ? copy.sumario.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
           return null;
         }
-        return [putEquipmentTagOp(by, projectId, equipmentId, value.trim())];
+        // Fix batch e24y (P2, P3): the pencil's rename carries the sheets' unedited conclusion and stored plate TAG in the same batch.
+        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions: snapshotDefinitionContext(snapshot), relatorio };
+        return renameEquipmentOps(by, { projectId, relatorioId, rows }, equipmentId, value);
       })
       .then((batch) => {
         if (batch === null) {

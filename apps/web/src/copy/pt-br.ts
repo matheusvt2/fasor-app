@@ -403,8 +403,9 @@ export const copy = {
     skeletonFootNote: 'Locais, painéis e colunas podem ser renomeados depois, no relatório, pela árvore',
     // `.loc-direct`: the local's own equipment.
     locDirectTitle: 'Equipamentos no local',
-    locCurrent: '· selecionado: a paleta adiciona aqui',
-    locNone: 'Nenhum equipamento direto neste local. Toque em um tipo da paleta para adicionar.',
+    // authored (e24y, corrected by Bruno 2026-11-11): "a lista de tipos" (was "a paleta"), here and in the next line.
+    locCurrent: '· selecionado: a lista de tipos adiciona aqui',
+    locNone: 'Nenhum equipamento direto neste local. Toque em um tipo da lista para adicionar.',
     // `.pnl-empty` and the sub-line of a painel with no coluna, verbatim.
     painelEmpty: 'Este painel ainda não tem colunas. Um painel só agrupa colunas e não recebe equipamento direto: adicione uma coluna e coloque os equipamentos nela.',
     painelNewSub: 'Novo · nomeie-o pelo menu e adicione a primeira coluna',
@@ -461,7 +462,7 @@ export const copy = {
     // Verbatim from the mock's locked "Observações e conclusão" row, its `.toggle-sub`.
     alwaysOnSheet: 'Sempre na ficha',
     defaultsNote:
-      'Um sub-bloco desativado não é impresso na ficha — nunca sai vazio. Cada ficha pode sobrepor estes padrões pela paleta aberta de dentro dela.',
+      'Um sub-bloco desativado não é impresso na ficha — nunca sai vazio. Cada ficha pode sobrepor estes padrões pela lista de tipos aberta de dentro dela.', // authored (e24y, corrected by Bruno 2026-11-11): was "paleta"
     // authored: the select's option for a type used with no subtype.
     noSubtype: 'Sem subtipo',
     // authored: every placement of the type follows one config (Story 3.5 Design Notes).
@@ -572,7 +573,8 @@ export const copy = {
       `Um tipo de equipamento define a ficha: placa, verificações, ensaios e critérios. Os tipos da biblioteca vêm com o ${product} e não mudam; para ajustar um, duplique e edite a cópia. Publicar congela uma versão: relatórios já criados mantêm a versão que usaram.`,
     // ~~'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. O tipo da biblioteca continua nas paletas.'~~
     // (2026-11-11, Story 24.19: a published copy hides its library type in the palettes) authored (e24c, listed for Bruno).
-    libraryNote: 'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. Enquanto a cópia estiver publicada, o tipo da biblioteca sai das paletas.',
+    // authored (e24y, corrected by Bruno 2026-11-11): "sai da lista de tipos" (was "sai das paletas").
+    libraryNote: 'Para renomear um tipo da biblioteca, duplique: a cópia leva o nome novo. Enquanto a cópia estiver publicada, o tipo da biblioteca sai da lista de tipos.',
     edit: 'Editar',
     duplicate: 'Duplicar',
     retire: 'Aposentar',
@@ -581,8 +583,9 @@ export const copy = {
     editRow: (name: string) => `Editar tipo ${name}`,
     viewRow: (name: string) => `Ver tipo ${name}`,
     // authored (Story 14.7, from the mock's toasts).
-    retired: 'Tipo aposentado · fora das paletas',
-    reactivated: 'Tipo reativado · volta para as paletas',
+    // authored (e24y, corrected by Bruno 2026-11-11): "lista de tipos" (was "paletas"), the two toasts.
+    retired: 'Tipo aposentado · fora da lista de tipos',
+    reactivated: 'Tipo reativado · volta para a lista de tipos',
     discarded: 'Rascunho descartado',
     undo: 'Desfazer',
     cancel: 'Cancelar',
@@ -610,7 +613,8 @@ export const copy = {
     missing: 'Este tipo não está neste aparelho.',
     // Identificação
     nameLabel: 'Nome do tipo',
-    nameHelper: 'Aparece nas paletas, no título da ficha e na seção 9 impressa. Mudar o nome publica com a próxima versão.',
+    // authored (e24y, corrected by Bruno 2026-11-11): "na lista de tipos" (was "nas paletas").
+    nameHelper: 'Aparece na lista de tipos, no título da ficha e na seção 9 impressa. Mudar o nome publica com a próxima versão.',
     prefixLabel: 'Prefixo da TAG',
     printGroupLabel: 'Grupo na impressão',
     printGroupValue: 'Outros equipamentos, depois de Transformadores',
@@ -1060,7 +1064,7 @@ export const copy = {
       // Story 9.2: the `.pal-camera` row (lines 297-300).
       photograph: 'Fotografar equipamento',
       photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
-      officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.',
+      officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e lista de tipos aberta de dentro da ficha no desktop.', // authored (e24y, corrected by Bruno 2026-11-11): was "paleta"
       // ~~libraryMeta, companyMeta~~ (fix batch e24x, C3): a palette row's `.pi-meta` line ("17 itens · até 6 ensaios ·
       // CTA-GER", "Tipo da empresa · …") is derived text, composed by the kernel's `paletteMetaText`.
       // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled);
@@ -1343,7 +1347,8 @@ export const copy = {
     remove: 'Remover',
     // authored (Story 22.5, open for Bruno): a point whose ficha finding no longer stands. Fix batch e24h:
     // the automatic cards' words (chip, order line, reasons, "Abrir ficha", "Possível duplicado") went with them.
-    originResolved: 'Origem resolvida',
+    // authored (e24y, corrected by Bruno 2026-11-11) (was 'Origem resolvida').
+    originResolved: 'Item alterado',
     // authored: the parts of the editor no mock names.
     concluir: 'Concluir',
     cancel: 'Cancelar',
@@ -1503,7 +1508,8 @@ export const copy = {
       copiedFrom: (tag: string) => `Copiado de ${tag}`,
       invalidNumber: 'Número não reconhecido',
       // authored (Story 23.7, listed for Bruno): a TAPS list the kernel cannot read (one value, a repeat, text).
-      invalidList: 'Lista não reconhecida: dois ou mais valores diferentes, separados por ;',
+      // authored (e24y, corrected by Bruno 2026-11-11) (was "separados por ;").
+      invalidList: 'Lista não reconhecida: dois ou mais valores diferentes, separados por ponto e vírgula (;)',
       selectEmpty: 'Selecione',
       // authored (Story 8.1): the typed guess of a suggested field that is not its kind.
       invalidDate: 'Data não reconhecida — use dd/mm/aaaa ou mm/aaaa',

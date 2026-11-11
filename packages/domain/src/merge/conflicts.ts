@@ -6,6 +6,7 @@ import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
+import { nameplateTitleOf } from '../relatorio/nameplate-block.ts';
 import { overRangeText } from '../relatorio/over-range.ts';
 import { evaluateTest, manufacturerValueText } from '../relatorio/reading-evaluation.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
@@ -284,7 +285,8 @@ function cellConflictsOf(
   const nameplateKeys = [...(definition?.nameplate.map((field) => field.key) ?? []), ...Object.keys(sheet.nameplate)];
   for (const key of new Set(nameplateKeys)) {
     const field = definition?.nameplate.find((row) => row.key === key);
-    push({ family: 'sheet/nameplate', block_id: blockId, field_key: key }, sheet.nameplate[key], SECTION_NAMEPLATE, field === undefined ? key : screenLabel(field.label));
+    // Fix batch e24y (F10): a plate block with a title of its own (the v14 Malha's "Dados da malha") is named by it.
+    push({ family: 'sheet/nameplate', block_id: blockId, field_key: key }, sheet.nameplate[key], nameplateTitleOf(definition) ?? SECTION_NAMEPLATE, field === undefined ? key : screenLabel(field.label));
   }
 
   const items = definition?.checklist ?? [];

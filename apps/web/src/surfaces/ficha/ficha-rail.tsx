@@ -37,8 +37,8 @@ export function FichaRail({
   // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
   const definitions = useDefinitionContext();
   const treeContext = useMemo(
-    () => ({ relatorioId, projectId, seedVersion: relatorio.seed_version, editor, definitions }),
-    [relatorioId, projectId, relatorio.seed_version, editor, definitions],
+    () => ({ relatorioId, projectId, seedVersion: relatorio.seed_version, editor, definitions, relatorio }),
+    [relatorioId, projectId, relatorio.seed_version, editor, definitions, relatorio],
   );
   const total = useMemo(() => sheetOrder(snapshot).length, [snapshot]);
 

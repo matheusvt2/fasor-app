@@ -195,7 +195,7 @@ test('@p0 22.5-E2E-002 e24h: an old manual point of the NC row\'s equipment read
   await expect(row.getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   const resolved = cards(page).filter({ hasText: 'oxidação nos terminais' });
-  await expect(resolved.locator('[data-flag]')).toHaveText('Origem resolvida', { timeout: 30_000 });
+  await expect(resolved.locator('[data-flag]')).toHaveText('Item alterado', { timeout: 30_000 });
   await expect(cards(page).filter({ hasText: 'Terminais oxidados' }).locator('[data-flag]')).toHaveCount(0);
   await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(2);
 });

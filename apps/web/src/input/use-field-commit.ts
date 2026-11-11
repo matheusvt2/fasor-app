@@ -20,7 +20,8 @@ import { createFieldCommitter, type FieldCommitter, type Timers } from './field-
 
 export interface UseFieldCommitOptions<T> {
   commit: (value: T) => void | Promise<void>;
-  idleMs?: number;
+  /** Fix batch e24y (P3): null commits on blur, Enter or flush only (`createFieldCommitter`). */
+  idleMs?: number | null;
   timers?: Timers;
 }
 

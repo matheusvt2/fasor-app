@@ -39,8 +39,8 @@ const TYPE = 'inspecao_qgbt';
 const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', TYPE);
 const LOCAL = 'Geradores';
 const KEY = 'termografia';
-/** A library type numbers its measurement tests (the Malha's and the CTA's alike): the inspection's thermography prints as E1. */
-const THERMO_TITLE = 'E1 · TERMOGRAFIA';
+/** ~~A library type numbers its measurement tests: the inspection's thermography prints as E1.~~ Fix batch e24y (P9): it prints "TERMOGRAFIA", as the eight types' do. */
+const THERMO_TITLE = 'TERMOGRAFIA';
 
 const checklistRow = (page: Page, key: string) => page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${key}"]`);
 

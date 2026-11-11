@@ -238,17 +238,18 @@ export function pointQuestionText(points: readonly PointRow[], asked: readonly P
   // authored (e24b, listed for Bruno): the N.A. form of the mock's "que agora está Conforme".
   const now = to === 'C' ? 'que agora está Conforme' : 'que agora está marcado como Não se aplica';
   const list = listPtBr(positions.map(String));
+  // authored (e24y, corrected by Bruno 2026-11-11): the mark the question names, “Item alterado” (was “Origem resolvida”).
   if (positions.length === 1) {
     return {
       title: 'Remover o ponto de atenção deste item?',
-      description: `O ponto de atenção ${list} foi criado a partir deste item, ${now}. Se mantiver, ele fica com a marca “Origem resolvida”.`,
+      description: `O ponto de atenção ${list} foi criado a partir deste item, ${now}. Se mantiver, ele fica com a marca “Item alterado”.`,
       removed: `Ponto de atenção ${list} removido`,
     };
   }
   // authored (e24b, listed for Bruno): the plural forms of the mock's question, description and toast.
   return {
     title: 'Remover os pontos de atenção deste item?',
-    description: `Os pontos de atenção ${list} foram criados a partir deste item, ${now}. Se mantiver, eles ficam com a marca “Origem resolvida”.`,
+    description: `Os pontos de atenção ${list} foram criados a partir deste item, ${now}. Se mantiver, eles ficam com a marca “Item alterado”.`,
     removed: `Pontos de atenção ${list} removidos`,
   };
 }

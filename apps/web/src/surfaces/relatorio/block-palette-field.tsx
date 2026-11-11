@@ -278,6 +278,12 @@ function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipme
   const choices = locationChoices(locations);
   const verdict = tagVerdict(tag, equipment);
   const reason = tagReason(verdict, t.confirm);
+  // Fix batch e24y (F6): a type near the end of the list opens its TAG, Local and "Confirmar" below the
+  // drawer's fold; the list scrolls just enough to show them (`block: 'nearest'`, nothing moves when shown).
+  const confirmRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isOpen) confirmRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [isOpen]);
 
   const changeLocation = (id: string) => {
     setLocationId(id);
@@ -297,7 +303,7 @@ function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipme
         <ItemBody item={item} />
       </button>
       {isOpen ? (
-        <div className="type-confirm" id={confirmId}>
+        <div className="type-confirm" id={confirmId} ref={confirmRef}>
           <TagField
             label={copy.sumario.tagDialogs.tagLabel}
             value={tag}

@@ -99,6 +99,12 @@ export interface RestrictionPrevious {
    * v13); absent, the issue date.
    */
   dateText?: string;
+  /**
+   * Fix batch e24y (P5, seed v14 `history_needs_like_with_like`): set when the test's readings were
+   * corrected from the cabine's ambient, standing in for the plate's temperature not typed: they
+   * are not like the previous visit's (corrected from its plate), so the drop rule compares nothing.
+   */
+  uncomparable?: true;
 }
 
 /** One reading of a column, in the column's unit, as the comparisons take it. */
@@ -124,7 +130,7 @@ function columnReadings(rows: readonly EvaluatedRow[], col: number, column: Colu
  */
 function historyOf(cell: EvaluatedCell, pct: number, previous: RestrictionPrevious): Finding | null {
   const corrected = cell.corrected ?? null;
-  if (corrected === null || previous.entry === null) return null;
+  if (corrected === null || previous.entry === null || previous.uncomparable === true) return null;
   const before = previous.byAddress.get(readingAddressKey(cell.address))?.corrected ?? null;
   if (before === null) return null;
   const was = scaleToUnit(Number(before.raw), before.unit, corrected.unit);

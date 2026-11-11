@@ -11,7 +11,8 @@ export interface Timers {
 
 export interface FieldCommitterOptions<T> {
   commit: (value: T) => void;
-  idleMs?: number;
+  /** Fix batch e24y (P3): null commits on blur, Enter or flush only, never on idle (the plate's TAG field, whose commit is a rename). */
+  idleMs?: number | null;
   timers?: Timers;
 }
 
@@ -67,7 +68,7 @@ export function createFieldCommitter<T>(options: FieldCommitterOptions<T>): Fiel
     change(value) {
       clear();
       pending = { value };
-      handle = timers.setTimeout(settle, idleMs);
+      if (idleMs !== null) handle = timers.setTimeout(settle, idleMs);
     },
     blur: settle,
     enter: settle,

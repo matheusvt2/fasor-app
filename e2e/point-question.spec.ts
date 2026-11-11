@@ -99,7 +99,7 @@ test('@p0 24.7-E2E-001 back to Conforme, the question names the point: "Remover 
   await expect(row1.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1', { timeout: 30_000 });
   await row1.getByRole('radio', { name: 'Conforme', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: TITLE });
-  await expect(dialog).toHaveAccessibleDescription('O ponto de atenção 1 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Origem resolvida”.');
+  await expect(dialog).toHaveAccessibleDescription('O ponto de atenção 1 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Item alterado”.');
   await expect(dialog.getByRole('button', { name: 'Manter ponto' })).toBeFocused();
   await expect(row1.locator('.seg[data-value="c"]')).toHaveAttribute('aria-checked', 'true');
   expect(await writes(page, `sheet/${sheet.blockId}/checklist/${ITEM1.key}/result`)).toEqual([]);
@@ -123,7 +123,7 @@ test('@p0 24.7-E2E-001 back to Conforme, the question names the point: "Remover 
   await openPontos(page, relatorioId);
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toContainText(TEXT2);
-  await expect(cards(page).first().locator('.poa-flag-row')).toContainText('Origem resolvida');
+  await expect(cards(page).first().locator('.poa-flag-row')).toContainText('Item alterado');
 
   // The DOCX's section 8: the kept point, never the removed one.
   const tables = await issueAndReadTables(page, database, relatorioId);
@@ -146,7 +146,7 @@ test('24.7-E2E-002 a reading point whose readings are back within reads "Origem 
   await openPontos(page, relatorioId);
   const card = cards(page).filter({ hasText: 'Contato do polo A acima do aceitável' });
   const flag = card.locator('.poa-flag-row');
-  await expect(flag).toContainText('Origem resolvida', { timeout: 30_000 });
+  await expect(flag).toContainText('Item alterado', { timeout: 30_000 });
   await flag.getByRole('button', { name: 'Remover ponto' }).click();
   const confirm = page.getByRole('dialog', { name: 'Remover este ponto de atenção?' });
   await confirm.getByRole('button', { name: 'Remover ponto' }).click();
@@ -157,7 +157,7 @@ test('24.7-E2E-002 a reading point whose readings are back within reads "Origem 
     ['remove', null],
     ['put', null],
   ]);
-  await expect(card.locator('.poa-flag-row')).toContainText('Origem resolvida');
+  await expect(card.locator('.poa-flag-row')).toContainText('Item alterado');
 });
 
 test('24.7-E2E-003 a local\'s NC items: the point created by the tap, then the question on the row with both answers', async ({ page }) => {
@@ -202,5 +202,5 @@ test('24.7-E2E-003 a local\'s NC items: the point created by the tap, then the q
   expect(await writes(page, `point/${created[1]}/removed_at`)).toEqual([]);
   await openPontos(page, relatorioId);
   await expect(cards(page)).toHaveCount(1);
-  await expect(cards(page).first().locator('.poa-flag-row')).toContainText('Origem resolvida');
+  await expect(cards(page).first().locator('.poa-flag-row')).toContainText('Item alterado');
 });

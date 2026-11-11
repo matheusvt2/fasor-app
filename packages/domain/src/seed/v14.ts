@@ -30,6 +30,9 @@ function cabinePrimariaV14(): ReportSeed {
   withE24sQgbtInspection(seed);
   withE24sNoBreak(seed);
   withE24sSheetFixes(seed);
+  // Fix batch e24y (the hands-on pass of 2026-11-11), after every section above.
+  withE24yRules(seed);
+  withE24yUnnumbered(seed);
   return seed;
 }
 
@@ -286,6 +289,40 @@ function withE24sSheetFixes(seed: ReportSeed): void {
   // authored (e24s, listed for Bruno): the title of the grid's first block.
   malha.nameplate_title = 'Dados da malha';
   malha.nameplate_photo = false;
+}
+
+// --- fix batch e24y (the hands-on pass of 2026-11-11): the paired tables, like with like, empty steps ---
+
+/**
+ * Fix batch e24y (P1): the side-by-side pair of insulation tables (the Disjuntor MT's and the
+ * seccionadora's open and closed contacts) fits every word and value whole, measured the way a
+ * single corrected table is, and a value keeps its unit on its line (`paired_tables_fit_whole`).
+ * P5: the insulation-drop and the winding-variation rules compare a reading with the previous
+ * visit's only when it was corrected from its plate's temperature, never from the cabine's ambient
+ * standing in for a temperature not typed (`history_needs_like_with_like`). F10: a checklist step
+ * whose definition holds no item (the Malha de aterramento) is neither drawn in the stepper nor
+ * named in the Sheet header (`empty_steps_hidden`). Each flag is read by `seedRule`; `seed.test.ts`
+ * strips them (`withoutE24y`).
+ */
+function withE24yRules(seed: ReportSeed): void {
+  seed.rules = {
+    ...seed.rules,
+    paired_tables_fit_whole: true,
+    history_needs_like_with_like: true,
+    empty_steps_hidden: true,
+  };
+}
+
+/**
+ * Fix batch e24y (P9, Bruno's answer of 2026-11-11): the v14 Inspeção de QGBT's thermography is titled
+ * "TERMOGRAFIA", as the eight types title theirs, on the sheet and in print (`measurement_tests_unnumbered`,
+ * read by `measurementTestsUnnumbered`). The Malha and every other library type keep "E1 ·".
+ * `seed.test.ts` strips it (`withoutE24y`).
+ */
+function withE24yUnnumbered(seed: ReportSeed): void {
+  const inspection = seed.blocks.inspecao_qgbt;
+  if (inspection === undefined) throw new Error('seed v14: v13 lacks the Inspeção de QGBT');
+  inspection.measurement_tests_unnumbered = true;
 }
 
 export const CABINE_PRIMARIA_V14: ReportSeed = cabinePrimariaV14();
