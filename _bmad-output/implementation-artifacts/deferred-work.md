@@ -3662,7 +3662,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Story 24.6 counts the recents (other sheets' observations of the item) as offered phrases, so an observation the technician typed that equals another sheet's typed observation ("Repetir padrão" included) reads as automatic and is removed with no warning when the row leaves NC.
   evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`; `apps/web/src/surfaces/ficha/checklist-section.tsx` `sheetRowTarget` (`leaveChips`).
   class: decision
-  state: open (owner: Matheus: keep the recents in the rule, or judge against the seed and learned phrases only)
+  state: ~~open (owner: Matheus: keep the recents in the rule, or judge against the seed and learned phrases only)~~ closed (2026-11-11, fix batch e24x, A1, on Matheus's decision 17): the rule judges against the item's seed phrases only; an observation equal to a recent or a learned phrase is kept with the warning (`spec-e24x-review-fixes.md`).
 - source_spec: `spec-e24b-screen-lane.md` (review ECH-6, ECH-7)
   summary: "Foto térmica · N" counts the sheet's photos with no item whose caption is the thermography's context caption: a sheet renamed after its shots counts 0, and a sheet-camera photo with that caption counts. No stored marker of a thermal shot exists; one needs a file field (a contract). Screen only.
   evidence: `packages/domain/src/photos/text.ts` `thermalPhotoText`.
@@ -3739,7 +3739,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: in the template composer a library type hidden by a published copy leaves the palette, and with it the only "Editar padrões" entry of that type: a template that already places it (the standard template places five transformers) keeps its rows and its quantities (the skeleton list's grid), but its defaults for that type cannot be edited while the copy is published. Retiring the copy brings the entry back. Whether the composer should keep a placed original's row (for its defaults and its count) is the same product choice as the coordinator's reading on the composer's palette.
   evidence: `apps/web/src/surfaces/templates/block-palette.tsx` (`onEditDefaults` only on a palette row of a placed seeded type); `packages/domain/src/relatorio/tree.ts` `paletteTypeGroups`.
   class: decision
-  state: open (owner: Matheus, with the 24.19 reading on the composer's palette)
+  state: ~~open (owner: Matheus, with the 24.19 reading on the composer's palette)~~ closed (2026-11-11, fix batch e24x, on Matheus's decision 17): while a template places it, the hidden original stands right after its copies in the composer's palette with "Editar padrões", its count, and a stepper disabled by the type list's hidden line (`types/palette-meta.ts` `composerHiddenTypes`; `spec-e24x-review-fixes.md` Design Notes D4).
 
 ## Deferred from: Epic 24 batch e24p (2026-11-11)
 
@@ -3788,3 +3788,26 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `e24p-pdf-crops/v14-dated-header-and-rise-note.png`, `e24p-pdf-crops/v14-insulation-dated-header-and-drop-note.png`.
   class: note
   state: open (owner: Matheus, with the note's wording; low)
+
+## Deferred from: Epic 24 fix batch e24x, the integrated review's fixes, part 1 (2026-11-11)
+
+- source_spec: `spec-e24x-review-fixes.md` (integrated review B2, ledger only)
+  summary: remove a sheet, add the same type from the palette, restore the removed sheet: two live equipment on one `reuse_key`; the next relatório binds the oldest, and nothing reports the other.
+  evidence: `apps/web/src/surfaces/relatorio/tree-actions.ts:792`; `packages/domain/src/relatorio/tag.ts:211` (`reuseKeyFor`).
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (B4, stopped by its Boundaries)
+  summary: binding an obra's equipment to a template block of another type of the same family (the library breaker and its published copy) is one line in `instantiateTemplate` (`free`), but the previous visit refuses it: `previousResultsFor` returns no previous visit when the equipment's last entry (`last_results.block_type`) is of another type than the sheet's ("the equipment changed type"), so the copy's sheet would show no "Anterior", print no MANUT. ANTERIOR and judge no history rule, the opposite of the I/O row. Reading across a family there needs the company's type definitions in `previousResultsFor` and so in `visitContextOf`, which 6 of its 14 callers (the ficha's live queries, the conclusion writes, `sheetProgress`, the merge view) do not hold today, and its memo keys on the block type alone. Also, a copy's TAG prefix is `TAG_PREFIX` while the library row's key used `LEGACY_TAG_PREFIX`, so a seccionadora copy (SC) never finds a library seccionadora's key (SEC), and a copy whose prefix was edited finds none. Nothing was changed for B4.
+  evidence: `packages/domain/src/relatorio/instantiate.ts` (`free`, the reuse run); `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/relatorio/visit-context.ts` `visitContextOf`; `packages/domain/src/types/duplicate.ts` `seededTagPrefix`.
+  class: decision
+  state: open (owner: Matheus: thread the definitions through the visit context for a family-aware previous visit, or keep the binding to one type)
+- source_spec: `spec-e24x-review-fixes.md` (A1, Design Notes D1, listed for Matheus)
+  summary: with the seed's phrases alone automatic (decision 17), a learned or a recent chip tapped and left untouched is now kept with the warning when its row leaves NC (one tap on "Apagar observação" removes it, with "Desfazer"), where Story 24.6 removed it; and a seed phrase typed letter by letter still reads as automatic and is removed (no stored provenance tells a tap from typing; one would be a contract).
+  evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`.
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (B1, Design Notes D2)
+  summary: with the uplink floor at 1 KB/s a push whose answer never comes holds its sync cycle up to about 69 min at 4 MiB (was 572 s); a body-less request still ends after 60 s. A doubling per attempt was not taken.
+  evidence: `apps/web/src/sync/client.ts` `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S`, `requestHeadersTimeoutMs`.
+  class: note
+  state: open (owner: the next batch touching sync; low)
