@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, type Op } from '@app/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSyncClient, requestHeadersTimeoutMs, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
+import { createSyncClient, requestHeadersTimeoutMs, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_BODY_SHARE_MAX_MS, SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
 
 /*
  * The real client over a captured `fetch`: request building from the contract's route
@@ -185,13 +185,20 @@ describe('e24f-UNIT a JSON request whose answer never comes (E23-A4, 4.8-E2E-005
     expect(calls.every((init) => init.signal instanceof AbortSignal)).toBe(true);
   });
 
-  it('fix batch e24x (B1): a push at SYNC_PUSH_MAX_BYTES gets about 69 min at the 1 KB/s floor; a body-less request 60 s', () => {
+  it('fix batch e24x (B1): the body at the 1 KB/s floor; a body-less request 60 s', () => {
     expect(SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S).toBe(1024);
-    // 4 MiB at 1 KB/s is 4 096 s, plus the 60 s: 4 156 s, about 69 min.
-    expect(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES)).toBe(SYNC_REQUEST_TIMEOUT_MS + (SYNC_PUSH_MAX_BYTES / 1024) * 1000);
-    expect(Math.round(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES) / 60_000)).toBe(69);
+    // ~~4 MiB at 1 KB/s is 4 156 s, about 69 min~~ (review of e24x: the body's share stops at 300 s, the test above).
+    expect(requestHeadersTimeoutMs(200 * 1024)).toBe(SYNC_REQUEST_TIMEOUT_MS + 200_000);
     expect(requestHeadersTimeoutMs(0)).toBe(SYNC_REQUEST_TIMEOUT_MS);
     expect(SYNC_REQUEST_TIMEOUT_MS).toBe(60_000);
+  });
+
+  it('review of e24x: the body\'s share of the bound stops at 300 s, the server\'s whole-request limit; one attempt at most 360 s', () => {
+    expect(SYNC_REQUEST_BODY_SHARE_MAX_MS).toBe(300_000);
+    expect(requestHeadersTimeoutMs(300 * 1024)).toBe(360_000);
+    expect(requestHeadersTimeoutMs(301 * 1024)).toBe(360_000);
+    expect(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES)).toBe(360_000);
+    expect(requestHeadersTimeoutMs(100 * 1024)).toBe(SYNC_REQUEST_TIMEOUT_MS + 100_000);
   });
 
   it('fix batch e24x (B1): a 300 KB push on a 2 KB/s uplink is never aborted before its upload (about 150 s) and the server\'s time', async () => {

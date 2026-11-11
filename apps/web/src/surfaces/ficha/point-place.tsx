@@ -64,5 +64,7 @@ export function pointPlaces(
 ) {
   const shown = findings.filter((finding) => (where === 'conclusao' ? finding.place === 'conclusao' : finding.place === 'test' && finding.testKey === where.testKey));
   if (shown.length === 0) return null;
-  return shown.map((finding) => <PointPlace key={`${finding.origin}:${finding.testKey ?? ''}`} {...props} finding={finding} />);
+  // Review of fix batch e24x: keyed by its test, as D5 makes one place of a test's `reading` and `restricao` findings, so an
+  // origin that changes under an open editor never remounts the place (and never closes the editor).
+  return shown.map((finding) => <PointPlace key={finding.testKey ?? 'conclusao'} {...props} finding={finding} />);
 }

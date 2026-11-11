@@ -121,9 +121,9 @@ export const HEALTH_PROBE_TIMEOUT_MS = 5000;
  * preview and audit barriers) may wait for its answer's headers before it reads as a `network` failure. The sync
  * cycle is single-flight and every poll waits on it (the Export dialog's revision poll answers `busy` while a cycle
  * runs), so an answer that never came held the cycle, and every poll, until a reload. A request with a body gets its
- * upload on top, at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (fix batch e24x, B1: a 300 KB push gets 360 s, a 4 MiB
- * push 4 156 s, about 69 min; a body-less request 60 s); the answer's download is never cut, nor are the uploads and
- * downloads of `send`.
+ * upload on top, at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (fix batch e24x, B1: a 300 KB push gets 360 s; a body-less
+ * request 60 s), its share at most `SYNC_REQUEST_BODY_SHARE_MAX_MS`, so a larger push gets 360 s too; the answer's
+ * download is never cut, nor are the uploads and downloads of `send`.
  */
 export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
 
@@ -134,9 +134,16 @@ export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
  */
 export const SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S = 1024;
 
+/**
+ * Review of fix batch e24x: the body's share of the bound stops at the server's request limit, 300 s (Node's default
+ * `requestTimeout`; the api sets none): the server cuts a longer upload anyway. One attempt waits at most 60 + 300 s,
+ * the three attempts of `withRetry` about 18 min.
+ */
+export const SYNC_REQUEST_BODY_SHARE_MAX_MS = 300_000;
+
 /** Fix batch e24f: the wait for the answer's headers of a request whose body is `bodyBytes` long. */
 export function requestHeadersTimeoutMs(bodyBytes: number): number {
-  return SYNC_REQUEST_TIMEOUT_MS + Math.ceil((bodyBytes / SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S) * 1000);
+  return SYNC_REQUEST_TIMEOUT_MS + Math.min(SYNC_REQUEST_BODY_SHARE_MAX_MS, Math.ceil((bodyBytes / SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S) * 1000));
 }
 
 /** Story 14.10 lane B: the probe's route (`apps/api/src/http/health.ts`). */

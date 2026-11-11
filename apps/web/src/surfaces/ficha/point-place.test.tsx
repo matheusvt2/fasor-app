@@ -35,7 +35,7 @@ import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { MeasurementTests } from './measurement-test-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
-import { PointPlace } from './point-place.tsx';
+import { PointPlace, pointPlaces } from './point-place.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -366,7 +366,7 @@ describe('e24x-UNIT D1 the point editor stays open while its autosave creates th
 
   it('the Não ensaiado band: the same, the focus on "Desfazer" once the point stands', async () => {
     database = await freshDatabase();
-    renderLive(<LiveBand db={database} />);
+    const { container } = renderLive(<LiveBand db={database} />);
     await userEvent.click(screen.getByRole('button', { name: 'Criar ponto de atenção' }));
     const dialog = await screen.findByRole('dialog');
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Ação recomendada' }), 'Agendar');
@@ -380,5 +380,31 @@ describe('e24x-UNIT D1 the point editor stays open while its autosave creates th
     const creates = await storedCreates();
     expect(creates).toHaveLength(1);
     expect(creates[0]!.value as unknown as PointRow).toMatchObject({ origin: 'not_tested', equipment_id: EQUIPMENT });
+    // Review of e24x: the action's empty wrapper takes no room in the sheet's column once the point stands.
+    const wrapper = container.querySelector('.not-tested-band')!.nextElementSibling as HTMLElement;
+    expect(wrapper).not.toHaveClass('not-tested-point');
+    expect(wrapper).toHaveAttribute('hidden');
+  });
+
+  it('review of e24x: the finding turning from restricao to reading (a reading pulled out) with the editor open keeps the editor and what was typed', async () => {
+    database = await freshDatabase();
+    const ui = (origin: SheetPointFinding['origin']) => (
+      <MemoryRouter>
+        <SyncContext value={makeSyncState()}>
+          <ToastProvider>
+            <SheetReadOnlyProvider value={false}>
+              <>{pointPlaces([finding({ origin })], { testKey: 'isolacao' }, { relatorioId: RELATORIO, snapshot: SNAPSHOT, equipmentId: EQUIPMENT })}</>
+            </SheetReadOnlyProvider>
+          </ToastProvider>
+        </SyncContext>
+      </MemoryRouter>
+    );
+    const view = render(ui('restricao'));
+    await userEvent.click(screen.getByRole('button', { name: 'Criar ponto de atenção' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Ação recomendada' }), ' Sim');
+    view.rerender(ui('reading'));
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    expect(within(dialog).getByRole('textbox', { name: 'Ação recomendada' })).toHaveValue(`${ACTION} Sim`);
   });
 });

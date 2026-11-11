@@ -472,16 +472,18 @@ export function hasPointSource(snapshot: DerivedSnapshot): boolean {
 export function resolvedOriginPoints(snapshot: DerivedSnapshot): Set<string> {
   // Fix batch e23w (W2-3): a `restricao` source stands while its test has a restricted reading or a rule flags one now out.
   const restricted = new Set<string>();
+  // Review of fix batch e24x: paired by test as the place pairs them (`testSource`), so a `restricao` point is that
+  // test's point while the test fails too, and the sheet and Pontos agree.
   const standing = new Set(allDerivedPoints(snapshot, restricted).flatMap((entry) => {
-    const source = entrySource(entry);
+    const source = testSource(entrySource(entry));
     return source === null ? [] : [source];
   }));
-  for (const source of restricted) standing.add(source);
+  for (const source of restricted) standing.add(testSource(source)!);
   return new Set(
     snapshot.points
       .filter((point) => point.removed_at === null && (point.origin === 'nc' || point.origin === 'reading' || point.origin === 'reprovado' || point.origin === 'restricao'))
       .filter((point) => {
-        const source = pointSource(point);
+        const source = testSource(pointSource(point));
         return source !== null && !standing.has(source);
       })
       .map((point) => point.id),

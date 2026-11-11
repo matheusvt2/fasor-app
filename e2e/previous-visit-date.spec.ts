@@ -147,7 +147,10 @@ test('24.15-E2E-002 the older visit issued late: B (service in September) issued
   await issue(page, b.relatorioId);
   await expect.poll(async () => (await lastResultsOf(page, a.equipmentId))?.relatorio_id ?? null, { timeout: 30_000 }).toBe(b.relatorioId);
   // Fix batch e24x (D3): A, still open, never reads the later B as its previous visit.
-  await expect(await helperOf(page, a.relatorioId, a.trA.blockId)).toHaveCount(0);
+  const helperA = await helperOf(page, a.relatorioId, a.trA.blockId);
+  // A positive anchor first (A's own reading in that very cell), so the count is read on the rendered row.
+  await expect(page.locator(`.ficha-cell[data-cell="isolacao:${FIRST.row}:${FIRST.col}"]`).filter({ visible: true }).locator('input.mf-value')).toHaveValue(/4,9/);
+  await expect(helperA).toHaveCount(0);
   const tablesA = await issue(page, a.relatorioId);
   // A's document prints its own 4,9 GΩ and never B's 6,2 GΩ under MANUT. ANTERIOR.
   expect(JSON.stringify(tablesA)).toMatch(/(^|[^\d,])4,9(?![\d])/);

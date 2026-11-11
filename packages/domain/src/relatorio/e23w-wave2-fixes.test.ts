@@ -175,9 +175,15 @@ describe('e23w-UNIT W2-3 a stored restricao point stands while its rule still fl
     expect(captures(test)[2]!.restriction).toBeNull();
     expect(test.restrictionStands).toBe(true);
     expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(false);
-    // Every phase out and alike: no rule flags any row, the point resolves.
+    // ~~Every phase out and alike: no rule flags any row, the point resolves.~~ Review of fix batch e24x (X3, D5): the test
+    // still fails, so its `reading` finding is this point's test (one point per test): the point stands, as the sheet's
+    // place names it. With every phase back within, nothing stands and it resolves.
     editBlock(snapshot, 'cabos_entrada', (block) => {
       for (const row of ['0', '1', '2', '3']) block.sheet.test.isolacao!.cells[row]!['1'] = cell(measured('300', 'MΩ'));
+    });
+    expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(false);
+    editBlock(snapshot, 'cabos_entrada', (block) => {
+      for (const row of ['0', '1', '2', '3']) block.sheet.test.isolacao!.cells[row]!['1'] = cell(measured('5', 'GΩ'));
     });
     expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(true);
   });

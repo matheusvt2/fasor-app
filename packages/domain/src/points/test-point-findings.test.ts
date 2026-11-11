@@ -356,6 +356,24 @@ describe('e24x-UNIT D5 a point of the same test counts whether it was written as
     expect(findings(point(restricted('v14'), 'reading'))).toMatchObject([{ origin: 'restricao', testKey: 'isolacao', positions: [1] }]);
   });
 
+  it('review of e24x: a restricao point whose restricted cell is corrected while another cell of the test goes out is that test\'s point, never "Origem resolvida"', () => {
+    const stored = point(restricted('v14'), 'restricao');
+    expect(resolvedOriginPoints(stored).has(id(700))).toBe(false);
+    // Each cell rewritten out by the criterion, alike, so no restriction rule flags any of them.
+    const moved = editCopy(stored, (block) => {
+      const [a, b, c] = cellAddressesOf(findDefinition('v14', 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${a!.row}/${a!.col}`]: measured('300', 'MΩ'), [`${b!.row}/${b!.col}`]: measured('300', 'MΩ'), [`${c!.row}/${c!.col}`]: measured('300', 'MΩ') });
+    });
+    expect(findings(moved)).toMatchObject([{ origin: 'reading', testKey: 'isolacao', positions: [1] }]);
+    expect(resolvedOriginPoints(moved).has(id(700))).toBe(false);
+    // Corrected with nothing out or restricted left on the test, it is resolved, as before.
+    const clean = editCopy(stored, (block) => {
+      const [, , c] = cellAddressesOf(findDefinition('v14', 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${c!.row}/${c!.col}`]: measured('5', 'GΩ') });
+    });
+    expect(resolvedOriginPoints(clean).has(id(700))).toBe(true);
+  });
+
   it('another test or another equipment still does not count', () => {
     expect(findings(point(out('v14'), 'restricao', 'outro'))[0]!.positions).toEqual([]);
     expect(findings(point(out('v14'), 'restricao', 'isolacao', id(77)))[0]!.positions).toEqual([]);

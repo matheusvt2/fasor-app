@@ -63,7 +63,8 @@ export function NotTestedBand({
       </div>
       {/* Fix batch e24x (D1): the action stays mounted (in an unstyled, empty wrapper once the point stands), so the
           editor its tap opened stays open when its own autosave stores the point; only the button goes. */}
-      <div className={standing ? undefined : 'row-wrap not-tested-point'} ref={standing ? undefined : createRef}>
+      {/* Review of e24x: hidden once the point stands, so the empty wrapper adds no gap to the sheet's column (the dialog is portaled). */}
+      <div className={standing ? undefined : 'row-wrap not-tested-point'} ref={standing ? undefined : createRef} hidden={standing || undefined}>
         <CreatePointAction
           relatorioId={api.relatorioId}
           snapshot={snapshot}
