@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
 import {
+  composeConclusion,
   EMPTY_DEFINITION_CONTEXT,
+  getDefinition,
   instantiateTemplate,
   newEquipmentBlock,
   standardTemplate,
@@ -8,6 +10,7 @@ import {
   type EquipmentRow,
   type LocationRow,
   type RelatorioSummary,
+  visitContextOf,
 } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -309,6 +312,37 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(eqRow(DJ_TEST).querySelector('.s9-dup')).toBeNull();
     const ops = await outbox();
     expect(ops).toEqual([expect.objectContaining({ path: 'equipment/019966c1-0000-7000-8000-00000000000a/tag', kind: 'put', value: 'DJ-TEST-A', scope: 'project' })]);
+  });
+
+  it('e24y-P2: "Renomear TAG" writes the sheet\'s confirmed, current conclusion composed with the new TAG in the rename\'s batch', async () => {
+    database = await seeded();
+    // SEC-C01's conclusion: the suggestion confirmed as it is composed now with its TAG.
+    const sheet = (await database.entities.get(['block', SEC_C01]))!.row as BlockRow;
+    const locations = await Promise.all([CABINE, COLUNA].map(async (key) => (await database!.entities.get(['location', key]))!.row as LocationRow));
+    const owner = (await database.entities.get(['equipment', id(4)]))!.row as EquipmentRow;
+    const definition = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora');
+    const before = composeConclusion(sheet, definition, 'SEC-C01', visitContextOf({ locations, equipment: [owner] }, sheet));
+    const stored = (value: string, n: number) => ({ value, source_suggestion_id: null, op_id: id(200 + n) });
+    const concluded: BlockRow = { ...sheet, sheet: { ...sheet.sheet, conclusion: { text: stored(before.text, 1), text_status: stored('confirmed', 2), text_basis: stored(before.basis, 3) } } };
+    await database.entities.put(toRecord(`block:${SEC_C01}`, concluded));
+    await openCabine();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-C01' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear TAG' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear TAG SEC-C01' });
+    const field = within(dialog).getByRole('textbox', { name: 'TAG' });
+    await userEvent.clear(field);
+    await userEvent.type(field, 'QM8');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(eqRow(SEC_C01).querySelector('.block-tag')).toHaveTextContent('QM8'));
+    const after = composeConclusion(concluded, definition, 'QM8', visitContextOf({ locations, equipment: [owner] }, concluded));
+    expect(after.text).toContain('QM8');
+    const ops = await outbox();
+    expect(ops.map((op) => [op.path, op.value])).toEqual([
+      [`equipment/${id(4)}/tag`, 'QM8'],
+      [`sheet/${SEC_C01}/conclusion/text`, after.text],
+      [`sheet/${SEC_C01}/conclusion/text_basis`, after.basis],
+    ]);
+    expect(new Set(ops.map((op) => op.batch)).size).toBe(1);
   });
 
   it('"Duplicar" asks a new TAG (suggested, refused when taken) and creates equipment + block after the source, copying its config only', async () => {

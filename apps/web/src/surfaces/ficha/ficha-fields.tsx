@@ -170,7 +170,7 @@ function runsOn(event: { key: string; shiftKey: boolean; nativeEvent: KeyboardEv
  * draft while it differs from the committed value. `setup-surface.tsx`'s `useTextField`
  * idiom plus the draft registration of `field-fixture-surface.tsx`.
  */
-export function useTypedText(value: string, commit: (text: string) => void | Promise<void>, draft: DraftKey, options: { flushOnUnmount?: boolean; cap?: number | null } = {}) {
+export function useTypedText(value: string, commit: (text: string) => void | Promise<void>, draft: DraftKey, options: { flushOnUnmount?: boolean; cap?: number | null; idleMs?: number | null } = {}) {
   // Story 20.9: a text never grows past the kernel's cap of its field, however it arrives (typed,
   // a chip, a dictation, a recovered draft): the input's `maxLength` stops typing and pasting, and
   // this clamp stops the inserts the field writes itself.
@@ -187,6 +187,7 @@ export function useTypedText(value: string, commit: (text: string) => void | Pro
       sent.current.push(next.trim() === '' ? '' : next);
       return commit(next);
     },
+    ...(options.idleMs === undefined ? {} : { idleMs: options.idleMs }),
   });
   if (value !== committed.current) {
     committed.current = value;
@@ -281,6 +282,11 @@ export interface FieldProps {
   /** Story 20.9: a text field's cap, the kernel's for the path it writes (`textCapOf`); none for the other kinds. */
   maxLength?: number;
   /**
+   * Fix batch e24y (P3): a text field that commits when it is left or on Enter only, never after an idle pause
+   * mid-typing: the plate's TAG field, whose commit renames the equipment ("Q", "QM" never rename it).
+   */
+  commitOnLeave?: boolean;
+  /**
    * Story 16.4: a nameplate or cabine number field accepts the "N/A" spellings; any other
    * number field (a measurement test's value) refuses them as text that is no number.
    * Story 17.3: such a field also renders the "N/A" control at its trailing end.
@@ -324,12 +330,13 @@ export function SheetField(props: FieldProps) {
  */
 export const PLAIN_TEXT = { autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false } as const;
 
-function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount, maxLength }: FieldProps) {
+function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount, maxLength, commitOnLeave }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft, {
     flushOnUnmount: flushOnUnmount === true,
     cap: maxLength ?? null,
+    ...(commitOnLeave === true ? { idleMs: null } : {}),
   });
   return (
     <div className="field" data-field-key={field.key}>

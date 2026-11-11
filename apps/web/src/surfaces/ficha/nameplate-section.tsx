@@ -31,6 +31,9 @@ import {
   suggestionView,
   typedTurnsDownSuggestion,
   suggestNameplateCopy,
+  tagRenamedText,
+  tagTakenText,
+  tagVerdict,
   tapsHelperText,
   textCapOf,
   toIso,
@@ -54,6 +57,8 @@ import { discardCancelledReadings } from '../../db/suggestion-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle } from '../../state/sync.tsx';
+import { useToast } from '../../state/toast.tsx';
+import { renameEquipmentOps } from '../relatorio/tag-rename-ops.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable, ReadOnlyField, SheetField, type FieldProps } from './ficha-fields.tsx';
 import { checklistResultOp, createWordOp, nameplateOp, withOilCrossing } from './ficha-ops.ts';
@@ -65,6 +70,9 @@ import { useReadingCancelled } from './reading-line.tsx';
 import { TapAtualField } from './tap-atual-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+
+/** Fix batch e24y (P3): the nameplate field that holds the plate's TAG, the equipment's TAG. */
+const PLATE_TAG_FIELD = 'tag';
 
 /*
  * Stories 5.3 and 12.4 (FR-23, FR-34, AR-10, AR-24; `key-equipment-sheet-v09.html` "Dados
@@ -156,6 +164,9 @@ export function NameplateSection({
   // a tap in flight); null while the flag is being read, when the chip waits.
   const oilNaUsed = useLiveQuery(() => (db === null ? Promise.resolve(false) : readOilNaUsed(db, block.id)), [db, block.id], null);
   const [oilNaTapped, setOilNaTapped] = useState(false);
+  // Fix batch e24y (P3): bumped when a typed TAG is refused, so the field shows the stored value again.
+  const [tagEpoch, setTagEpoch] = useState(0);
+  const { showToast } = useToast();
   if (definition.nameplate.length === 0) return null;
   const grouped = !readOnly && suggestions.counts.fills > 0;
 
@@ -179,6 +190,56 @@ export function NameplateSection({
     void api
       .edit((blocks, by) => crossed(blocks, by, fields.map((entry) => nameplateOp(by, api.relatorioId, block.id, entry.fieldKey, entry.value))))
       .then((batch) => api.undoable(toast(fields.length), batch))
+      .catch(() => undefined);
+  }
+
+  /**
+   * Fix batch e24y (P3, the coordinator's reading N3): the plate's TAG field is the equipment's TAG. It
+   * commits on leave or Enter only (`commitOnLeave`), and its commit is the rename of "Renomear TAG"
+   * (`tagVerdict`, `renameEquipmentOps`) with the cell written in the same batch, so the sheet's title,
+   * the tree, the print and the plate never show two TAGs and the equipment keeps its history (Story
+   * 24.21). A TAG another live equipment holds, or a blank one, is refused with the rename's reason and
+   * the field shows the stored value again; nothing is written. A typed TAG equal to the equipment's
+   * writes the cell alone. A sheet with no equipment writes the cell as before.
+   */
+  function commitPlateTag(next: unknown): Promise<void> | undefined {
+    const equipmentId = block.equipment_id;
+    if (api.author === null) return undefined;
+    if (equipmentId === null) return api.commit([nameplateOp(api.author, api.relatorioId, block.id, 'tag', next)]);
+    const typed = typeof next === 'string' ? next.trim() : '';
+    const out: { refusal: string | null; renamed: boolean } = { refusal: null, renamed: false };
+    return api
+      .edit((blocks, by, fresh) => {
+        const row = fresh.equipment.find((e) => e.id === equipmentId && e.removed_at === null);
+        if (row === undefined) {
+          out.refusal = copy.sumario.tree.gone;
+          return null;
+        }
+        const own = blocks.find((one) => one.id === block.id);
+        if (row.tag === typed) {
+          // The equipment already holds it: only a stored cell that says otherwise is written.
+          const stored = own?.sheet.nameplate.tag;
+          return stored === undefined || stored.value === typed ? null : [nameplateOp(by, api.relatorioId, block.id, 'tag', typed)];
+        }
+        const verdict = tagVerdict(typed, fresh.equipment, equipmentId);
+        if (verdict !== null) {
+          out.refusal = verdict.reason === 'empty' ? copy.sumario.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
+          return null;
+        }
+        out.renamed = true;
+        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions };
+        return renameEquipmentOps(by, { projectId: api.projectId, relatorioId: api.relatorioId, rows }, equipmentId, typed, { plateCellOf: block.id });
+      })
+      .then((batch) => {
+        if (batch === null) {
+          if (out.refusal !== null) {
+            showToast(out.refusal);
+            setTagEpoch((n) => n + 1);
+          }
+          return;
+        }
+        if (out.renamed) api.undoable(tagRenamedText(typed), batch);
+      })
       .catch(() => undefined);
   }
 
@@ -461,8 +522,11 @@ export function NameplateSection({
                 // DG-2: never a discard here (this may be the idle commit mid-typing); leaving
                 // the field or Enter turns the suggestion down (`turnDownOnLeave`).
                 if (field.key === oilField) return commitOilField(field.key, next);
+                // Fix batch e24y (P3): the plate's TAG renames the equipment.
+                if (field.key === PLATE_TAG_FIELD) return commitPlateTag(next);
                 return api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]);
               },
+              ...(field.key === PLATE_TAG_FIELD ? { commitOnLeave: true } : {}),
               after:
                 field.key === INSULATION_FIELD_KEY && oilNaItems.length > 0 ? (
                   <>
@@ -488,7 +552,7 @@ export function NameplateSection({
           // One wrapper for every field, confirmed or not, so the field keeps its place in the
           // tree when a typed correction clears the provenance mid-typing (no remount).
           return (
-            <NameplateField key={field.key} model={suggestions} field={field} source={source} onLeave={pending?.view === 'replace' ? () => turnDownOnLeave(field.key) : undefined}>
+            <NameplateField key={field.key === PLATE_TAG_FIELD ? `${field.key}:${tagEpoch}` : field.key} model={suggestions} field={field} source={source} onLeave={pending?.view === 'replace' ? () => turnDownOnLeave(field.key) : undefined}>
               {sheetField}
             </NameplateField>
           );
