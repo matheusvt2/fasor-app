@@ -218,6 +218,13 @@
 /* authored (E6-Q11): the NC row names the point it already has beside its actions, in the
    meta style of the row's other secondary text (`.btn-reason`). */
 [data-route="/relatorio/:id/ficha/:blockId"] .nc-point-ref { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+/* Batch e24p (2026-11-11, Story 24.17; `60-ficha.html` 359-363, declarations verbatim): the place of
+   "Criar ponto de atenção" under a test and on the Conclusão step. The app draws either the action or
+   the point's name (never both), so the mock's display toggles are not copied; its name keeps the
+   mock's label style, scoped to the place so the NC row's mark above is unchanged. */
+[data-route="/relatorio/:id/ficha/:blockId"] .e24-point-place { margin-top: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e24-point-place .nc-point-ref { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e24-point-place.has-point .nc-point-ref { display: inline-flex; min-height: var(--touch-min); align-items: center; }
 /* authored (E78-Q4, no mock draws it): a stored manufacturer the registry does not hold,
    under its field: the name in the ink of a value, then "Criar ⟨nome⟩?" as a text button,
    laid out as the mock's `.suggestion-alt` line (flex, wrapping, the same gaps). */

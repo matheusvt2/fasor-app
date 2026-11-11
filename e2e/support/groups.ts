@@ -398,6 +398,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 24.16: issues two revisions of one obra through the shared queue and LibreOffice (relatório A, whose issue writes last_results, then B) to read the note lines under the tables of the DOCX',
   },
+  // Batch e24p (Story 24.17): 24.17-E2E-001 issues a revision to read section 8 of the DOCX.
+  {
+    file: 'recommendation-action.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.17: issues a revision through the shared queue and LibreOffice to read the point written from a test in section 8 of the DOCX (its bullet and its action-plan row)',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

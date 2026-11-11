@@ -10,7 +10,10 @@ import { z } from 'zod';
  * - `recommendation`, "Recomendação se reprovado": the text a `reading` derived point starts
  *   with (`points/derived.ts`), before the composed reference of the reading. Fix batch e24h
  *   (2026-11-10): no derived point lists or prints any more, so the recommendation starts no point
- *   until a create path for a reading exists (an open question, spec e24h D4).
+ *   until a create path for a reading exists (an open question, spec e24h D4). Batch e24p (Story
+ *   24.17): "Criar ponto de atenção" on a test is that path (`sheetPointFindings`); on seed v14 the
+ *   point starts with the recommendation in its action (`recommendationsText`), on v1 to v13 in its
+ *   text (`recommendedPointText`).
  *
  * Both are optional and never defaulted, so every seed parses to the bytes it shipped with. A
  * text is never trimmed or transformed here: the stored value is the op's raw value
@@ -125,16 +128,39 @@ const TERMINATED = /[.!?…:;]['"”’)\]]*$/;
  * the composed reference of the reading; the composed text alone, byte-equal, with no recommendation.
  * Fix batch e23z (W3-7, Bruno's answer 6): a list of recommendations, each blank one dropped, each
  * once (compared trimmed) in the order given, each terminated, joined by a space before the
- * composed text; a single text reads exactly as before.
+ * composed text; a single text reads exactly as before. Batch e24p (Story 24.17): the join is
+ * `recommendationsText`'s, the same bytes; on seed v1 to v13 a point written from a test starts with it.
  */
 export function recommendedPointText(recommendations: string | null | readonly (string | null)[], composed: string): string {
+  const heads = recommendationsText(recommendations);
+  if (heads === '') return composed;
+  // authored (Story 23.11, open for Bruno): the join of the recommendation and the reading's reference.
+  return `${heads} ${composed}`;
+}
+
+/**
+ * Batch e24p (Story 24.17): the recommendations as one text, each blank one dropped, each once
+ * (compared trimmed) in the order given, each terminated (a period appended unless `TERMINATED`),
+ * joined by a space; '' with none. On seed v14 the action a point written from a test starts with.
+ */
+export function recommendationsText(recommendations: string | null | readonly (string | null)[]): string {
+  return recommendationHeads(recommendations)
+    .map((head) => (TERMINATED.test(head) ? head : `${head}.`))
+    .join(' ');
+}
+
+/** Batch e24p (Story 24.17): how many distinct recommendations `recommendationsText` joins. */
+export function recommendationCount(recommendations: string | null | readonly (string | null)[]): number {
+  return recommendationHeads(recommendations).length;
+}
+
+/** The recommendations trimmed, each blank one dropped, each once (compared trimmed), in the order given. */
+function recommendationHeads(recommendations: string | null | readonly (string | null)[]): string[] {
   const list = typeof recommendations === 'string' || recommendations === null ? [recommendations] : recommendations;
   const heads: string[] = [];
   for (const one of list) {
     const head = one?.trim() ?? '';
     if (head !== '' && !heads.includes(head)) heads.push(head);
   }
-  if (heads.length === 0) return composed;
-  // authored (Story 23.11, open for Bruno): the join of the recommendation and the reading's reference.
-  return [...heads.map((head) => (TERMINATED.test(head) ? head : `${head}.`)), composed].join(' ');
+  return heads;
 }

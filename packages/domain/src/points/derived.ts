@@ -14,9 +14,10 @@ import { locationTree, treeNodes, type TreeEquipmentNode } from '../relatorio/tr
 import { visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, getSeed, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, getSeed, seedRule, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
+import { recommendationCount, recommendationsText, recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
+import { livePoints } from './checks.ts';
 
 /*
  * Fix batch e24h (Matheus, 2026-11-10, on Bruno's report of points created with no tap): a point of
@@ -67,6 +68,14 @@ interface DerivedPoint {
   justification: string | null;
   /** Story 22.5: the entry's composed text (photo tokens included); on a Não ensaiado entry its band text. */
   text: string;
+  /**
+   * Batch e24p (Story 24.17): the finding alone, before any recommendation: `text` is
+   * `recommendedPointText(recommendations, finding)`, so on every kind but `reading` and
+   * `reprovado` (which carry no recommendation) it equals `text`.
+   */
+  finding: string;
+  /** Batch e24p (Story 24.17): the recommendations `text` starts with, as Story 23.11 picks them (blank ones and repeats kept, the join drops them). */
+  recommendations: readonly (string | null)[];
   /** Story 22.5: the checklist item of an `nc` entry; null otherwise. */
   item_key: string | null;
   /** Story 22.5: the test of a `reading` entry (batch e23v: or a `restricao` one); null otherwise. */
@@ -113,7 +122,15 @@ function rowPhotoIds(photos: ReturnType<typeof livePhotos>, owner: { blockId: st
     .map((photo) => photo.id);
 }
 
-const base = { reason_key: '', reason_label: '', justification: null, item_key: null, test_key: null, location_id: null } as const;
+const base = { reason_key: '', reason_label: '', justification: null, item_key: null, test_key: null, location_id: null, recommendations: [] } as const;
+
+/**
+ * Batch e24p (Story 24.17): an entry's three texts from its finding and recommendations: `text` is
+ * Story 23.11's form (`recommendedPointText`), byte-equal to what it was; `finding` the finding alone.
+ */
+function texts(finding: string, recommendations: readonly (string | null)[] = []): Pick<DerivedPoint, 'text' | 'finding' | 'recommendations'> {
+  return { text: recommendedPointText(recommendations, finding), finding, recommendations };
+}
 
 /** The derived entries of one tested equipment sheet, in order: its NC rows, its out tests, its restricted tests (batch e23v), then its Reprovado. */
 function sheetEntries(
@@ -140,7 +157,7 @@ function sheetEntries(
         kind: 'nc',
         key: `nc:${block.id}:${item.key}`,
         item_key: item.key,
-        text: ncText(index + 1, item.label, observation, rowPhotoIds(photos, { blockId: block.id }, item.key)),
+        ...texts(ncText(index + 1, item.label, observation, rowPhotoIds(photos, { blockId: block.id }, item.key))),
       });
     });
   }
@@ -184,7 +201,7 @@ function sheetEntries(
       // authored (Story 23.6, listed for Bruno): a failed prerequisite before the out reading, "; " between them.
       // authored (Story 23.11, open for Bruno): the test's recommendation first, when it has one (`recommendedPointText`);
       // a `reading` entry is a failed test (an out reading, a failed prerequisite, or both), never a `restricao` one.
-      text: recommendedPointText(recommendations, `${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`),
+      ...texts(`${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`, recommendations),
     });
   }
   // Batch e23t (Story 23.15): the measurement tests judged under the same visit context.
@@ -197,10 +214,9 @@ function sheetEntries(
       key: `reading:${block.id}:${reading.testKey}`,
       test_key: reading.testKey,
       // authored (Story 23.11, open for Bruno): as above, in the measurement grammar.
-      text: recommendedPointText(
+      ...texts(`${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`, [
         testRecommendationOf({ tests: [], measurement_tests: definition.measurement_tests }, reading.testKey),
-        `${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`,
-      ),
+      ]),
     });
   }
   // Fix batch e23w (W2-3): a test's restriction stands while it has a restricted reading or a rule still flags one now out
@@ -226,7 +242,7 @@ function sheetEntries(
       key: `restricao:${block.id}:${test.testKey}`,
       test_key: test.testKey,
       // authored (Story 23.6, listed for Bruno): a restricted test's entry, its rows with their reasons.
-      text: `${test.title}: valor dentro do critério, com restrição (${items.join('; ')})`,
+      ...texts(`${test.title}: valor dentro do critério, com restrição (${items.join('; ')})`),
     });
   }
   // Batch e23t (Stories 23.15 and 23.19): one entry per measurement test with a restricted cell and no out cell.
@@ -239,7 +255,7 @@ function sheetEntries(
       key: `restricao:${block.id}:${test.testKey}`,
       test_key: test.testKey,
       // authored (Story 23.6's wording, batch e23t): a restricted test's entry, its cells with their reasons.
-      text: `${test.label}: valor dentro do critério, com restrição (${test.pointItems.join('; ')})`,
+      ...texts(`${test.label}: valor dentro do critério, com restrição (${test.pointItems.join('; ')})`),
     });
   }
   // A Reprovado the floor does not explain: the engineer's own choice.
@@ -253,7 +269,7 @@ function sheetEntries(
       // authored (Story 22.5, open for Bruno): a Reprovado entry with no sheet observation.
       // Fix batch e23z (item 2, Bruno 2026-11-09; authored (e23z, listed for Bruno)): the in-force tests' recommendations
       // first (`reprovadoRecommendations`), as a `reading` entry starts with its test's.
-      text: recommendedPointText(reprovadoRecommendations(definition, evaluations, measurements), observation === '' ? 'Concluído como Reprovado na ficha' : observation),
+      ...texts(observation === '' ? 'Concluído como Reprovado na ficha' : observation, reprovadoRecommendations(definition, evaluations, measurements)),
     });
   }
   return out;
@@ -304,7 +320,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): De
           name: local.name.trim(),
           title: sitePointTitle(local.name),
           item_key: item.key,
-          text: ncText(item.number, item.label, siteObservationOf(local, item.key), rowPhotoIds(photos, { locationId: local.id }, item.key)),
+          ...texts(ncText(item.number, item.label, siteObservationOf(local, item.key), rowPhotoIds(photos, { locationId: local.id }, item.key))),
         });
       }
       continue;
@@ -325,7 +341,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): De
         reason_key: reason.key,
         reason_label: reason.label,
         justification: reason.justification,
-        text: reasonText({ reason_key: reason.key, reason_label: reason.label, justification: reason.justification }),
+        ...texts(reasonText({ reason_key: reason.key, reason_label: reason.label, justification: reason.justification })),
       });
       continue;
     }
@@ -358,6 +374,70 @@ function entrySource(entry: DerivedPoint): string | null {
   if (entry.kind === 'reading') return entry.equipment_id === null ? null : `reading:${entry.equipment_id}:${entry.test_key}`;
   if (entry.kind === 'restricao') return entry.equipment_id === null ? null : `restricao:${entry.equipment_id}:${entry.test_key}`;
   return entry.equipment_id === null ? null : `reprovado:${entry.equipment_id}`;
+}
+
+/** Batch e24p (Story 24.17): a finding of one sheet that "Criar ponto de atenção" on a test or on the Conclusão step starts a point from. */
+export interface SheetPointFinding {
+  /** The point's origin: a test that fails, a test with a restricted reading and no failure, a Reprovado the technician chose. */
+  origin: 'reading' | 'restricao' | 'reprovado';
+  /** The test the point names (`test_key`); null for a chosen Reprovado. */
+  testKey: string | null;
+  /**
+   * Where the action sits: under its test when the test's section is drawn (its sub-block on, the
+   * test evaluated or behind its "Não se aplica" band, or a measurement test); on the Conclusão step
+   * for a chosen Reprovado and for a failed prerequisite whose test is switched off.
+   */
+  place: 'test' | 'conclusao';
+  /** What the point's text starts with: the finding alone on seed v14, else Story 23.11's form (the recommendations first). */
+  text: string;
+  /** What its "Ação recomendada" starts with: on seed v14 the recommendations joined; '' otherwise or with none. */
+  action: string;
+  /** The helper under the action while it holds the recommendations ("Da recomendação do ensaio · editável"); null with none. */
+  actionHelper: string | null;
+  /** The section 8 positions of the live points written from this finding (its origin, test and equipment): with one, the action is not offered. */
+  positions: number[];
+}
+
+/** `60-ficha.html` `#ficha-dlg-ponto-editor`: the helper under a seeded action, one recommendation and two or more. */
+const ACTION_HELPER_ONE = 'Da recomendação do ensaio · editável';
+const ACTION_HELPER_MANY = 'Das recomendações dos ensaios · editável';
+
+/**
+ * Batch e24p (Story 24.17, every seed): the findings of one sheet a point can be created from by a
+ * tap, in the order the findings are computed (its failed tests in definition order, its measurement
+ * tests, its restricted tests, then a chosen Reprovado): one per test, because one point stands for
+ * one test, and none for an NC row (its own row offers it) or a sheet marked Não ensaiado (read-only;
+ * its band offers it). Nothing is stored here: the tap opens the editor with `text` and `action`, and
+ * the point is written when it closes. On seed v14 (`recommendation_as_action`) the text is the
+ * finding alone and the action the test's recommendations (the index recommendation for a failed
+ * polarization index; for a chosen Reprovado its tests', `reprovadoRecommendations`); on v1 to v13
+ * the text is Story 23.11's (the recommendations first) and the action empty. A restricted test
+ * starts with no recommendation on any seed. `positions` names the live points already written from
+ * the finding (paired as "Origem resolvida" pairs them, `pointSource`).
+ */
+export function sheetPointFindings(snapshot: DerivedSnapshot, blockId: string): SheetPointFinding[] {
+  const block = snapshot.blocks.find((row) => row.id === blockId);
+  if (block === undefined || block.removed_at !== null || block.not_tested !== null || block.equipment_id === null) return [];
+  const node = treeNodes(locationTree(snapshot)).find((one): one is TreeEquipmentNode => one.kind === 'equipment' && one.blockId === blockId);
+  if (node === undefined) return [];
+  const ctx = snapshotDefinitionContext(snapshot);
+  const definition = blockDefinitionIn(ctx, block);
+  if (definition === null) return [];
+  const entries = sheetEntries(block, definition, node, equipmentPointTitle(node, snapshot), livePhotos(snapshot), ctx, visitContextOf(snapshot, block));
+  const asAction = seedRule(block.seed_version, 'recommendation_as_action');
+  const enabled = enabledSubBlocksOf(block);
+  const measured = new Set((definition.measurement_tests ?? []).map((test) => test.key as string));
+  const live = livePoints(snapshot.points);
+  return entries.flatMap((entry): SheetPointFinding[] => {
+    if (entry.kind !== 'reading' && entry.kind !== 'restricao' && entry.kind !== 'reprovado') return [];
+    const source = entrySource(entry);
+    const positions = live.flatMap((point, i) => (source !== null && pointSource(point) === source ? [i + 1] : []));
+    const testKey = entry.kind === 'reprovado' ? null : entry.test_key;
+    const place = testKey !== null && (measured.has(testKey) || enabled.has(testKey)) ? 'test' : 'conclusao';
+    const count = recommendationCount(entry.recommendations);
+    if (!asAction || count === 0) return [{ origin: entry.kind, testKey, place, text: entry.text, action: '', actionHelper: null, positions }];
+    return [{ origin: entry.kind, testKey, place, text: entry.finding, action: recommendationsText(entry.recommendations), actionHelper: count === 1 ? ACTION_HELPER_ONE : ACTION_HELPER_MANY, positions }];
+  });
 }
 
 /**

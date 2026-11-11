@@ -70,6 +70,7 @@ export function MeasurementTests({
   instruments,
   onRun,
   photoTarget,
+  pointPlace,
 }: {
   api: FichaApi;
   snapshot: RelatorioSnapshot;
@@ -83,12 +84,25 @@ export function MeasurementTests({
   onRun: MeasurementRun;
   /** Batch e23e (Story 23.20): the sheet photo's target with a test's context caption ("Foto térmica"); none, no such action. */
   photoTarget?: (testKey: string) => CaptureTarget;
+  /** Batch e24p (Story 24.17): the place of "Criar ponto de atenção" under a test, null where the kernel offers none. */
+  pointPlace?: (testKey: string) => ReactNode;
 }) {
   if (evaluations.length === 0) return null;
   return (
     <div className="tests-stack">
       {evaluations.map((test) => (
-        <MeasurementTestSection key={test.testKey} api={api} snapshot={snapshot} block={block} definition={definition} test={test} instruments={instruments} onRun={onRun} photoTarget={photoTarget} />
+        <MeasurementTestSection
+          key={test.testKey}
+          api={api}
+          snapshot={snapshot}
+          block={block}
+          definition={definition}
+          test={test}
+          instruments={instruments}
+          onRun={onRun}
+          photoTarget={photoTarget}
+          pointPlace={pointPlace?.(test.testKey)}
+        />
       ))}
     </div>
   );
@@ -103,6 +117,7 @@ function MeasurementTestSection({
   instruments,
   onRun,
   photoTarget,
+  pointPlace,
 }: {
   api: FichaApi;
   snapshot: RelatorioSnapshot;
@@ -112,6 +127,8 @@ function MeasurementTestSection({
   instruments: readonly InstrumentRow[];
   onRun: MeasurementRun;
   photoTarget?: (testKey: string) => CaptureTarget;
+  /** Batch e24p (Story 24.17): "Criar ponto de atenção" (or the point's name) at the end of the test's body. */
+  pointPlace?: ReactNode;
 }) {
   const t = copy.ficha.measurement;
   const headingId = useId();
@@ -239,6 +256,7 @@ function MeasurementTestSection({
               {group.values.map(value)}
             </div>
           ))}
+          {pointPlace}
         </div>
         </AppliedBody>
       ) : null}

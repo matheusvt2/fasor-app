@@ -1,7 +1,20 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { buildSnapshot, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, generationJobRowSchema, layoutSpec, previewResponseSchema, replay, type GenerationJobRow, type Op } from '@app/domain';
+import {
+  ACTION_PLAN_COLUMNS,
+  buildSnapshot,
+  CONTRACT_VERSION,
+  CONTRACT_VERSION_HEADER,
+  generationJobRowSchema,
+  layoutSpec,
+  previewResponseSchema,
+  replay,
+  sheetPointFindings,
+  type GenerationJobRow,
+  type Op,
+  type PointRow,
+} from '@app/domain';
 import { LAYOUT_LOCK_ISSUED_AT, layoutLockFixture, layoutLockSnapshot } from '@app/domain/fixtures/layout-lock';
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -47,14 +60,46 @@ const SERVICE_DATES: Readonly<Record<string, string>> = { chave_seccionadora: '2
 
 const base = layoutLockFixture('v14', { companyId: companyA.companyId, actorId: companyA.userId, deviceId: 'tablet-e24p-print' });
 /** The fixture with its previous visits dated (the `last_results` puts the issue job would have written after the story). */
+const dated: Op[] = base.log.map((op): Op => {
+  if (!op.path.endsWith('/last_results')) return op;
+  const value = op.value as { block_type: string };
+  const date = SERVICE_DATES[value.block_type];
+  return date === undefined ? op : { ...op, value: { ...(op.value as object), service_date: date } as Op['value'] };
+});
+
+// --- 24.17-INT: the stored point written as "Criar ponto de atenção" writes it on v14, and long rows ---
+
+const POINT_OP = dated.find((op) => op.kind === 'create' && op.path.startsWith('point/'))!;
+const POINT_ROW = POINT_OP.value as unknown as PointRow;
+/**
+ * What the create action on the company sheet's failed test starts the point with, the kernel's
+ * `sheetPointFindings` over the relatório without its Story 23.11 point (the finding in the text, the
+ * test's recommendation in the action).
+ */
+const WRITTEN = (() => {
+  const snapshot = buildSnapshot(replay(dated.filter((op) => op !== POINT_OP)), base.relatorioId);
+  const sheet = snapshot.blocks.find((block) => block.equipment_id === POINT_ROW.equipment_id)!;
+  const [found] = sheetPointFindings(snapshot, sheet.id).filter((one) => one.testKey === POINT_ROW.test_key);
+  return found!;
+})();
+const pointId = (n: number) => `019a6100-24e7-7000-8000-${n.toString(16).padStart(12, '0')}`;
+/** An invented sentence a long row repeats. */
+const SENTENCE = 'Verificar o aperto das conexões do barramento e registrar a temperatura de cada fase antes de religar. ';
+/** Eight rows of about 700 characters (two or three to a page), then one taller than a page. */
+const LONG_ROWS = [
+  ...Array.from({ length: 8 }, (_, i) => ({ start: `INICIO${i + 1}`, end: `FIM${i + 1}`, text: `INICIO${i + 1} ${SENTENCE.repeat(7)}FIM${i + 1}` })),
+  { start: 'INICIOGRANDE', end: 'FIMGRANDE', text: `INICIOGRANDE ${SENTENCE.repeat(40)}FIMGRANDE` },
+];
+const longPointOps: Op[] = LONG_ROWS.map((row, i) => ({
+  ...POINT_OP,
+  op_id: pointId(0x100 + i),
+  path: `point/${pointId(i + 1)}`,
+  value: { ...POINT_ROW, id: pointId(i + 1), text: row.text, action: 'Corrigir conforme o texto.', origin: 'manual', equipment_id: null, test_key: null, order_key: `b${i}` } as unknown as Op['value'],
+}));
+
 const fixture = {
   ...base,
-  log: base.log.map((op): Op => {
-    if (!op.path.endsWith('/last_results')) return op;
-    const value = op.value as { block_type: string };
-    const date = SERVICE_DATES[value.block_type];
-    return date === undefined ? op : { ...op, value: { ...(op.value as object), service_date: date } as Op['value'] };
-  }),
+  log: [...dated.map((op): Op => (op === POINT_OP ? { ...op, value: { ...POINT_ROW, text: WRITTEN.text, action: WRITTEN.action } as unknown as Op['value'] } : op)), ...longPointOps],
 };
 
 async function docxOfLog(log: readonly Op[], relatorioId: string): Promise<Buffer> {
@@ -94,6 +139,20 @@ describe('24.15-INT, 24.16-INT the DOCX of a v14 second visit', () => {
     expect(paragraphs.filter((text) => text.startsWith('Em relação à manutenção anterior:'))).toHaveLength(2);
     // The conclusion of the seccionadora (when printed) and the parecer name the same dated rise.
     expect(paragraphs.join('\n')).toContain('alta de 100 % sobre 23 µΩ da manutenção anterior, rev. 1 de 30/10/2025, acima do limite de 50 %');
+  }, 120_000);
+
+  it('24.17-INT: the point written from the failed test prints its finding under "Ponto de atenção", the recommendation under "Ação recomendada", and the bullet the finding then the recommendation', async () => {
+    expect(WRITTEN).toMatchObject({ origin: 'reading', testKey: 'tensoes_medidas', place: 'test', action: 'Ajustar a tensão de saída do retificador.', actionHelper: 'Da recomendação do ensaio · editável' });
+    expect(WRITTEN.text.startsWith('Tensões medidas: 110 Vcc em ')).toBe(true);
+    const { tables, paragraphs } = extractStructure(await docxOfLog(fixture.log, fixture.relatorioId));
+    const plan = tables.find((rows) => rows[0]?.join('|') === ACTION_PLAN_COLUMNS.join('|'));
+    expect(plan, 'the action plan').toBeDefined();
+    const row = plan!.find((cells) => cells[1] === WRITTEN.text);
+    expect(row, JSON.stringify(plan!.map((cells) => cells[1]))).toBeDefined();
+    expect(row![5]).toBe(WRITTEN.action);
+    expect(paragraphs).toContain(`${WRITTEN.text}. ${WRITTEN.action}`);
+    // The long rows follow it, one row each.
+    expect(plan!.slice(1).map((cells) => cells[1]!.split(' ')[0])).toEqual([WRITTEN.text.split(' ')[0], ...LONG_ROWS.map((one) => one.start)]);
   }, 120_000);
 
   it('the v14 twin with no service date kept prints the issue date in the header; v13 prints the header alone and no note line', async () => {
@@ -136,6 +195,22 @@ async function waitForJob(id: string, timeoutMs = 170_000): Promise<GenerationJo
 
 // pdfjs falls back to an in-process "fake worker" in Node, loaded from this path (as `pdf-outline.ts`).
 GlobalWorkerOptions.workerSrc = createRequire(import.meta.url).resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+
+/** The text of each page of the PDF, items joined by a space. */
+async function pdfPages(pdf: Buffer): Promise<string[]> {
+  const task = getDocument({ data: new Uint8Array(pdf), useSystemFonts: true, verbosity: 0 });
+  const doc = await task.promise;
+  try {
+    const pages: string[] = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      const content = await (await doc.getPage(n)).getTextContent();
+      pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '));
+    }
+    return pages;
+  } finally {
+    await task.destroy();
+  }
+}
 
 /** The text of the whole PDF, items joined by a space, whitespace collapsed, a word cut after its hyphen or dash at a line end joined again. */
 async function pdfText(pdf: Buffer): Promise<string> {
@@ -221,5 +296,19 @@ describe('24.15-INT, 24.16-INT the PDF of a v14 second visit', () => {
     expect(text).toContain('MANUT. ANTERIOR 05/11/2025');
     expect(text).toContain(nfkc(RISE_NOTE));
     expect(text).toContain(nfkc(DROP_NOTE));
+    // 24.17-INT: each action-plan row that fits on a page starts and ends on one page; the table runs
+    // over several pages; the row taller than a page still splits and prints whole across them.
+    const pages = await pdfPages(pdf);
+    // The last page naming a marker: the bullets print the same texts before the table.
+    const pageOf = (word: string) => pages.findLastIndex((page) => new RegExp(`\\b${word}\\b`).test(page));
+    for (const row of LONG_ROWS.slice(0, -1)) {
+      expect(pageOf(row.start), row.start).toBeGreaterThan(0);
+      expect(pageOf(row.end), `${row.start} starts on page ${pageOf(row.start) + 1}`).toBe(pageOf(row.start));
+    }
+    expect(new Set(LONG_ROWS.map((row) => pageOf(row.start))).size).toBeGreaterThan(2);
+    const giant = LONG_ROWS.at(-1)!;
+    expect(pageOf(giant.start)).toBeGreaterThan(0);
+    expect(pageOf(giant.end)).toBeGreaterThan(pageOf(giant.start));
+    expect(text).toContain(nfkc(`${WRITTEN.text}. ${WRITTEN.action}`));
   }, 200_000);
 });
