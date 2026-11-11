@@ -146,13 +146,19 @@ test('24.15-E2E-002 the older visit issued late: B (service in September) issued
   // B issued first, then A, the older visit, issued late.
   await issue(page, b.relatorioId);
   await expect.poll(async () => (await lastResultsOf(page, a.equipmentId))?.relatorio_id ?? null, { timeout: 30_000 }).toBe(b.relatorioId);
-  await issue(page, a.relatorioId);
+  // Fix batch e24x (D3): A, still open, never reads the later B as its previous visit.
+  await expect(await helperOf(page, a.relatorioId, a.trA.blockId)).toHaveCount(0);
+  const tablesA = await issue(page, a.relatorioId);
+  // A's document prints its own 4,9 GΩ and never B's 6,2 GΩ under MANUT. ANTERIOR.
+  expect(JSON.stringify(tablesA)).toMatch(/(^|[^\d,])4,9(?![\d])/);
+  expect(JSON.stringify(tablesA)).not.toMatch(/(^|[^\d,])6,2(?![\d])/);
   await expect.poll(async () => (await lastResultsOf(page, a.equipmentId))?.prior?.relatorio_id ?? null, { timeout: 30_000 }).toBe(a.relatorioId);
   const last = (await lastResultsOf(page, a.equipmentId))!;
   expect(last).toMatchObject({ relatorio_id: b.relatorioId, service_date: '2026-09-30', prior: { relatorio_id: a.relatorioId, service_date: '2026-03-14' } });
   // B's sheets read A as their previous visit; C reads B.
   const block = { block_type: 'transformador_forca' };
   expect(previousResultsFor({ last_results: last }, block, b.relatorioId)?.relatorio_id).toBe(a.relatorioId);
+  expect(previousResultsFor({ last_results: last }, block, a.relatorioId, '2026-03-14')).toBeNull();
 
   const c = nextRelatorio(a, '2026-11-09', '2026-11-10');
   const trC = blockRows(c.drafts).find((row) => row.equipment_id === a.equipmentId)!;

@@ -36,7 +36,7 @@ import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-
 import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
 import { printTextEm } from './text-metrics.ts';
 import { measurementHistoryNote, testHistoryNote } from './history-note.ts';
-import { PREVIOUS_HEADER, previousHeaderText } from './visit-date.ts';
+import { PREVIOUS_HEADER, previousHeaderText, relatorioVisitDate } from './visit-date.ts';
 
 /*
  * Story 7.1 (FR-68, AR-11, NFR-17), Story 7.2 AC2 and E12-A2: section 9 as data. Every sheet
@@ -1131,7 +1131,8 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
 function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefinition): PreviousReadings {
   const equipment = block.equipment_id === null ? undefined : ctx.equipment.get(block.equipment_id);
-  const entry = previousResultsFor(equipment, block, ctx.snapshot.relatorio.id);
+  // Fix batch e24x (D3): never a visit later than this relatório's own.
+  const entry = previousResultsFor(equipment, block, ctx.snapshot.relatorio.id, relatorioVisitDate(ctx.snapshot.relatorio.setup));
   if (entry === null) return null;
   // An entry none of whose keys this definition holds (every row renamed by a later seed) is no previous visit to print.
   // Story 23.8: the block's tap rows read the readings of their taps.

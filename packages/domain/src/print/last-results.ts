@@ -204,8 +204,10 @@ export function previousHelpers(
   block: Pick<BlockRow, 'block_type'> & Partial<Pick<BlockRow, 'sheet'>>,
   definition: SlotDefinition,
   relatorioId: string,
+  /** Fix batch e24x (D3): the relatório's own visit date (`relatorioVisitDate`): a later visit is no previous one. */
+  visitDate: string | null = null,
 ): ReadonlyMap<string, string> {
-  const entry = previousResultsFor(equipment, block, relatorioId);
+  const entry = previousResultsFor(equipment, block, relatorioId, visitDate);
   const out = new Map<string, string>();
   if (entry === null) return out;
   const rows = block.sheet === undefined ? undefined : { sheet: block.sheet };

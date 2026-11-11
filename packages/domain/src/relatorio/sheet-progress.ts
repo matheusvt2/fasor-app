@@ -270,7 +270,7 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string, 
     steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled, ctx);
     // Batch e23v: the visit context of the sheet when the caller holds its locations and equipment, else none.
-    const visit = snapshot.locations === undefined || snapshot.equipment === undefined ? NO_VISIT_CONTEXT : visitContextOf({ locations: snapshot.locations, equipment: snapshot.equipment }, block);
+    const visit = snapshot.locations === undefined || snapshot.equipment === undefined ? NO_VISIT_CONTEXT : visitContextOf({ locations: snapshot.locations, equipment: snapshot.equipment, relatorio: snapshot.relatorio }, block);
     steps.ensaios = ensaiosCounts(block, definition, enabled, visit);
     const conclusao = conclusaoMissing(block, definition, enabled, options.floorFills === true, visit);
     steps.conclusao = { missing: conclusao.missing, outOfLimit: 0, ...(conclusao.observation > 0 ? { observation: conclusao.observation } : {}) };

@@ -380,7 +380,9 @@ describe('22.12-UNIT MANUT. ANTERIOR in section 9', () => {
       last_results: { ...ENTRY_A, seed_version: 'v5', block_type: 'chave_transferencia_automatica', readings: { [`${E2}|a_t|normal_fechada`]: measured('9.8', 'GΩ'), [`${E2}|a_t|aberta`]: over('2', 'TΩ') } },
       removed_at: null,
     };
-    const snapshot: RelatorioSnapshot = { ...small, relatorio: { ...small.relatorio, seed_version: 'v5' }, locations: [{ ...local(), id: b.location_id! }], blocks: [b], equipment: [equipment], files: [], points: [], suggestions: [], actors: [] };
+    // Fix batch e24x (D3): this visit's service after the previous one's issue (2026-10-05); a visit before it reads none.
+    const setup = { ...small.relatorio.setup, service_start: '2026-11-06' };
+    const snapshot: RelatorioSnapshot = { ...small, relatorio: { ...small.relatorio, seed_version: 'v5', setup }, locations: [{ ...local(), id: b.location_id! }], blocks: [b], equipment: [equipment], files: [], points: [], suggestions: [], actors: [] };
     const printed = sheetsOf(snapshot)[0]!;
     const e2 = printed.parts.find((p) => p.kind === 'table' && p.table.rows[0]!.cells[0]!.text.includes('ISOLAMENTO PRINCIPAL'));
     if (e2 === undefined || e2.kind !== 'table') throw new Error('no E2 table');
