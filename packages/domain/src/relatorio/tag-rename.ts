@@ -30,6 +30,8 @@ export interface TagRenameSource {
   locations: readonly LocationRow[];
   equipment: readonly EquipmentRow[];
   definitions: DefinitionContext;
+  /** Fix batch e24x (D3): the relatório, whose visit date bounds the previous visit the text is composed under (`visitContextOf`). */
+  relatorio?: { setup: { service_start?: string | null; service_end?: string | null } } | null;
 }
 
 /** What one sheet of the relatório writes with the rename. */

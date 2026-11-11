@@ -277,8 +277,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
   const definitions = useDefinitionContext();
   const treeContext = useMemo(
-    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions }),
-    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions],
+    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions, relatorio }),
+    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions, relatorio],
   );
 
   const { rows: actions, addSection, restore, moveBack } = useSumarioActions(
@@ -324,7 +324,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           return null;
         }
         // Fix batch e24y (P2, P3): the rename carries the sheets' unedited conclusion and stored plate TAG in the same batch.
-        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions: snapshotDefinitionContext(snapshot) };
+        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions: snapshotDefinitionContext(snapshot), relatorio };
         return renameEquipmentOps(by, { projectId: relatorio.project_id, relatorioId: relatorio.id, rows }, equipmentId, tag);
       })
       .then((batch) => {

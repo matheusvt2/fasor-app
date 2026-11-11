@@ -227,7 +227,7 @@ export function NameplateSection({
           return null;
         }
         out.renamed = true;
-        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions };
+        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions, relatorio: snapshot.relatorio };
         return renameEquipmentOps(by, { projectId: api.projectId, relatorioId: api.relatorioId, rows }, equipmentId, typed, { plateCellOf: block.id });
       })
       .then((batch) => {

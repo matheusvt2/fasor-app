@@ -18,6 +18,8 @@ export interface TagRenameRows {
   locations: TagRenameSource['locations'];
   equipment: TagRenameSource['equipment'];
   definitions: DefinitionContext;
+  /** Fix batch e24x (D3): the relatório, as every conclusion composer passes it to `visitContextOf`. */
+  relatorio?: TagRenameSource['relatorio'];
 }
 
 /** The ops of renaming `equipmentId` to `tag` (trimmed) with what follows on the sheets of `relatorioId`. */

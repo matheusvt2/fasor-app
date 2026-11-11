@@ -45,8 +45,8 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
   // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
   const definitions = useDefinitionContext();
   const context = useMemo(
-    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions }),
-    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions],
+    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions, relatorio }),
+    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions, relatorio],
   );
   // `auto` leaves the width to decide (strip in portrait, rail from 1024 px); a press sets it.
   const [rail, setRail] = useState<'auto' | 'open' | 'closed'>('auto');

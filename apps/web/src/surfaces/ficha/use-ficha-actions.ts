@@ -278,7 +278,7 @@ export function useFichaActions({
           return null;
         }
         // Fix batch e24y (P2, P3): the pencil's rename carries the sheets' unedited conclusion and stored plate TAG in the same batch.
-        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions: snapshotDefinitionContext(snapshot) };
+        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions: snapshotDefinitionContext(snapshot), relatorio };
         return renameEquipmentOps(by, { projectId, relatorioId, rows }, equipmentId, value);
       })
       .then((batch) => {

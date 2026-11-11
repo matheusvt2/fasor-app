@@ -61,7 +61,7 @@ function renamed(snapshot: RelatorioSnapshot, equipmentId: string, tag: string, 
   return { ...snapshot, blocks, equipment: snapshot.equipment.map((row) => (row.id === equipmentId ? { ...row, tag } : row)) };
 }
 
-const sourceOf = (snapshot: RelatorioSnapshot): TagRenameSource => ({ blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment, definitions: snapshotDefinitionContext(snapshot) });
+const sourceOf = (snapshot: RelatorioSnapshot): TagRenameSource => ({ blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment, definitions: snapshotDefinitionContext(snapshot), relatorio: snapshot.relatorio });
 
 function printedOf(snapshot: RelatorioSnapshot, type: string): string | null {
   const { block, equipment } = blockOf(snapshot, type);

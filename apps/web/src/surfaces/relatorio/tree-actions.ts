@@ -91,6 +91,8 @@ export interface TreeContext {
   editor: RelatorioEditor;
   /** Story 14.8: the company's equipment types on this device (`useDefinitionContext`), for a block of a company type the palette creates. */
   definitions: DefinitionContext;
+  /** Fix batch e24y (on e24x's D3): the relatório, so a rename composes the conclusion under the same visit as the sheet. */
+  relatorio?: { setup: { service_start?: string | null; service_end?: string | null } };
 }
 
 /** What the actions need of the tree they act on. */
@@ -522,7 +524,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           return null;
         }
         // Fix batch e24y (P2, P3): the rename carries the sheets' unedited conclusion and stored plate TAG in the same batch.
-        return renameEquipmentOps(by, { projectId, relatorioId, rows: { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions } }, equipmentId, tag);
+        return renameEquipmentOps(by, { projectId, relatorioId, rows: { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions, relatorio: context.relatorio ?? null } }, equipmentId, tag);
       })
         .then((batch) => {
           restoreFocus(() => blockTrigger(blockRow(host.root(), node.blockId)), { mode: 'settled' });
@@ -534,7 +536,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         })
         .catch(() => undefined);
     },
-    [edit, projectId, relatorioId, definitions, host, showToast, undoable, t.gone],
+    [edit, projectId, relatorioId, definitions, context.relatorio, host, showToast, undoable, t.gone],
   );
 
   const markNotTested = useCallback(

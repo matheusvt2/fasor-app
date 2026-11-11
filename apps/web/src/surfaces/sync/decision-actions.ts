@@ -162,7 +162,9 @@ export function useDecisionActions(): DecisionActions {
         if (later === undefined || normalizeTag(later.tag) !== normalizeTag(decision.tag)) return null;
         const tag = keepBothTag(decision, equipment);
         // Fix batch e24y (P2, P3): the new TAG carries the relatório's unedited conclusion and stored plate TAG in the same batch.
-        const ops = renameEquipmentOps(author, { projectId: entry.projectId, relatorioId: entry.relatorioId, rows: { blocks, locations, equipment, definitions: context.definitions } }, later.id, tag);
+        // Fix batch e24x (D3): the relatório bounds the previous visit the conclusion is composed under.
+        const relatorio = ((await db.entities.get(['relatorio', entry.relatorioId]))?.row ?? null) as { setup: { service_start?: string | null; service_end?: string | null } } | null;
+        const ops = renameEquipmentOps(author, { projectId: entry.projectId, relatorioId: entry.relatorioId, rows: { blocks, locations, equipment, definitions: context.definitions, relatorio } }, later.id, tag);
         return { ops, text: keptBothText(decision, tag, context) };
       });
     },
