@@ -346,25 +346,38 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
   await expect(plateRow(page).getByRole('button', { name: 'Fotografar de novo' })).toHaveCount(0);
 });
 
+/**
+ * Fix batch e24f (E23-A4, R8CAP-E2E-010): types `name` in FABRICAÇÃO and presses its "Criar" option. Under load the
+ * field's list was re-mounted between the option's resolution and the press ("element was detached from the DOM",
+ * twice in three runs of 2026-11-10), so the press is retried, typing again, until it lands.
+ */
+async function createManufacturer(page: Page, name: string): Promise<void> {
+  await expect(async () => {
+    await field(page, 'fabricacao').getByRole('combobox').fill(name);
+    await page.getByRole('option', { name: `Criar “${name}”` }).click({ timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
+}
+
 test('@p0 R8CAP-E2E-010 a manufacturer the registry lacks, created with "Criar" under the replace line, writes the word, the value and the suggestion\'s discard in one batch', async ({ page }) => {
   test.setTimeout(180_000);
   await holdPhotoBytes(page);
   const ids = await openTransformerSheet(page, account, database);
   const plateId = await shootPlate(page);
   // The engineer's own manufacturer first, created with "Criar".
-  await field(page, 'fabricacao').getByRole('combobox').fill('Fabricante R8CAP');
-  await page.getByRole('option', { name: 'Criar “Fabricante R8CAP”' }).click();
+  await createManufacturer(page, 'Fabricante R8CAP');
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `sheet/${ids.blockId}/nameplate/fabricacao` && op.value === 'Fabricante R8CAP')).toBe(true);
   await syncNowAndReturn(page);
   const all = transformerPlateFields(['fabricacao']);
   const suggestions = await pushPlateSuggestions(account.companyId, ids.relatorioId, { blockId: ids.blockId, photoId: plateId, fields: { fabricacao: all.fabricacao! } });
   await pushReadingStatus(account.companyId, ids.relatorioId, plateId, 'done');
   await syncNowAndReturn(page);
+  // Fix batch e24f (E23-A4): `syncNowAndReturn` reloads the sheet; the tray is read once the sheet is drawn again
+  // (as every reopened sheet is waited for), not within the 5 s default from the navigation (red under load).
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await expect(field(page, 'fabricacao').locator('.suggestion-tray')).toContainText('Celtta');
 
   // Another name the registry lacks, created under the replace line.
-  await field(page, 'fabricacao').getByRole('combobox').fill('Megabras R8CAP');
-  await page.getByRole('option', { name: 'Criar “Megabras R8CAP”' }).click();
+  await createManufacturer(page, 'Megabras R8CAP');
   await expect(field(page, 'fabricacao').locator('.suggestion-tray')).toHaveCount(0);
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `suggestion/${suggestions.fabricacao}/status`)).toBe(true);
   const rows = await outbox(page);

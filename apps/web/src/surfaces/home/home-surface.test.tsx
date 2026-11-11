@@ -237,6 +237,9 @@ describe('Home: status board', () => {
   });
 });
 
+/** Fix batch e24f (E23-A4): the wait of a render that follows several live queries, within the 15 s test budget. */
+const LIVE_CHAIN = { timeout: 10_000 };
+
 describe('Home: relatório cards', () => {
   it('the Em campo relatório on this device sorts first with is-current and its two actions', async () => {
     database = await freshDb();
@@ -255,7 +258,7 @@ describe('Home: relatório cards', () => {
       expect(cards()).toHaveLength(2);
       expect(cards()[0]).toHaveAttribute('data-relatorio', R_FIELD_HERE);
       expect(cards()[0]).toHaveClass('is-current');
-    });
+    }, LIVE_CHAIN);
     const [first, second] = cards();
     // Story 12.2: "Continuar" is live; with no sheet on the relatório it opens the Sumário.
     expect(within(first!).getByRole('button', { name: 'Continuar' })).not.toHaveAttribute('aria-disabled');
@@ -311,7 +314,9 @@ describe('Home: relatório cards', () => {
 
     renderHome();
     // No pointer: the first sheet still missing something (SEC-01 is concluded).
-    const next = await screen.findByRole('button', { name: 'Continuar: SEC-02 · 1 de 2' });
+    // Fix batch e24f (E23-A4): the target is three live queries and the kernel's walk of the tree, with no timer of the
+    // product's in between; on a loaded host that chain outlasts the 1 s default of `findBy`, so it gets the test's budget.
+    const next = await screen.findByRole('button', { name: 'Continuar: SEC-02 · 1 de 2' }, LIVE_CHAIN);
     expect(next.querySelector('.tabular')).toHaveTextContent('SEC-02 · 1 de 2');
     const card = cards()[0]!;
     // The counter is Home's blocks live query, not the "Continuar" target's: either can land first.
@@ -319,11 +324,11 @@ describe('Home: relatório cards', () => {
       expect(card.querySelector('.card-state .progress-counter')).toHaveTextContent('1 de 2 fichas');
       expect(card.querySelector('.card-state .progress-counter')).toHaveAttribute('data-state', 'pending');
       expect(card.querySelector('.card-title')).toHaveAttribute('aria-label', 'Seguradora Exemplo · Blocos Norte e Sul, Em campo, 1 de 2 fichas');
-    });
+    }, LIVE_CHAIN);
 
     // The pointer wins, live.
     await writeLastSheet(database, R_FIELD_HERE, done.id);
-    const last = await screen.findByRole('button', { name: 'Continuar: SEC-01 · 1 de 2' });
+    const last = await screen.findByRole('button', { name: 'Continuar: SEC-01 · 1 de 2' }, LIVE_CHAIN);
     await userEvent.click(last);
     expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${R_FIELD_HERE}/ficha/${done.id}`);
   });

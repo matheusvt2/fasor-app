@@ -67,7 +67,7 @@ describe('23.8-INT a cell of the v13 TTR through the route (contract 35)', () =>
   });
 });
 
-describe('e23z-INT item 3 a TTR row off the plate takes a clear through the route (no contract)', () => {
+describe('e23z-INT item 3 a TTR row off the plate takes a clear through the route (contract 40; fix batch e24f, contract 42)', () => {
   it('a put of null on each filled cell of a tap dropped from TAPS is applied; a non-null put on it is refused', async () => {
     const seeded = await h.seedRelatorio(companyA);
     const transformer = seeded.blocks.find((block) => block.blockType === 'transformador_forca')!;
@@ -90,9 +90,40 @@ describe('e23z-INT item 3 a TTR row off the plate takes a clear through the rout
     expect(second.applied.map((applied) => applied.op_id)).toEqual(clears.map((op) => op.op_id));
     const row = await h.rowOf<BlockRow>(companyA, 'block', transformer.id);
     expect([3, 4].map((col) => row!.sheet.test.relacao_transformacao!.cells['11400']![String(col)]!.value)).toEqual([null, null]);
-    // Cleared, the row holds nothing: even a clear is refused now.
-    const third = await h.push(companyA, [put(11400, 3, null, clears[0]!.op_id)]);
-    expect(third.rejected.map((rejected) => rejected.code)).toEqual(['op_invalid']);
+    // Fix batch e24f (R-5, contract 42): ~~cleared, the row holds nothing: even a clear is refused now~~; cleared, a
+    // clear is accepted and changes nothing, and a value stays refused.
+    const again = put(11400, 3, null, clears[0]!.op_id);
+    const refusedValue = put(11400, 3, measured('60', null), clears[0]!.op_id);
+    const third = await h.push(companyA, [again, refusedValue]);
+    expect(third.applied.map((applied) => applied.op_id)).toEqual([again.op_id]);
+    expect(third.rejected).toEqual([{ op_id: refusedValue.op_id, code: 'op_invalid' }]);
+    expect(await h.rowOf<BlockRow>(companyA, 'block', transformer.id)).toEqual(row);
+  });
+
+  it('e24f-INT R-5 a second "Apagar leitura" from another device, synced later, is accepted and changes nothing', async () => {
+    const seeded = await h.seedRelatorio(companyA);
+    const transformer = seeded.blocks.find((block) => block.blockType === 'transformador_forca')!;
+    const relatorio_id = seeded.relatorioId;
+    const put = (device_id: string, row: number, col: number, value: unknown, prev_op_id: string | null = null) =>
+      h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(transformer.id, 'relacao_transformacao', row, col), relatorio_id, value, prev_op_id, device_id });
+    const taps = (value: string) => h.clientOp(companyA, { kind: 'put', path: sheetNameplatePath(transformer.id, 'taps'), relatorio_id, value: measured(value, 'kV') });
+    const five = taps('13.8;13.2;12.6;12;11.4');
+    const read = [3, 4, 5].map((col) => put('tablet-e23b', 11400, col, measured('51.9', null)));
+    const four = taps('13.8;13.2;12.6;12');
+    expect((await h.push(companyA, [five, ...read, four])).rejected).toEqual([]);
+    // Both devices saw the dropped tap filled; each clears it, naming the cells' head ops.
+    const clearsOf = (device: string) => read.map((op, i) => put(device, 11400, 3 + i, null, op.op_id));
+    const fromA = clearsOf('tablet-e23b');
+    const fromB = clearsOf('tablet-e24f-b');
+    const pushedA = await h.push(companyA, fromA);
+    expect(pushedA.rejected).toEqual([]);
+    const before = await h.rowOf<BlockRow>(companyA, 'block', transformer.id);
+    expect([3, 4, 5].map((col) => before!.sheet.test.relacao_transformacao!.cells['11400']![String(col)]!.value)).toEqual([null, null, null]);
+    // Device B syncs later: its three null puts are applied (its outbox rows acked, not dead), the row deep-equal.
+    const pushedB = await h.push(companyA, fromB);
+    expect(pushedB.rejected).toEqual([]);
+    expect(pushedB.applied.map((applied) => applied.op_id)).toEqual(fromB.map((op) => op.op_id));
+    expect(await h.rowOf<BlockRow>(companyA, 'block', transformer.id)).toEqual(before);
   });
 
   it('speaks contract 40: a version-39 pull is answered 426 contract_outdated, the current one is answered', async () => {

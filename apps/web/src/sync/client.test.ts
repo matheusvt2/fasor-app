@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_ROUTES, type Op } from '@app/domain';
-import { describe, expect, it } from 'vitest';
-import { createSyncClient, revisionDocxUrl, revisionPdfUrl, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, type Op } from '@app/domain';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createSyncClient, requestHeadersTimeoutMs, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
 
 /*
  * The real client over a captured `fetch`: request building from the contract's route
@@ -147,6 +147,68 @@ describe('sync client failures', () => {
     expect(await failureOf(pull.pullCompany(0))).toEqual({ kind: 'http', status: 200, code: 'invalid_response' });
     const empty = createSyncClient({ fetch: async () => new Response(null, { status: 204 }) });
     expect(await failureOf(empty.pullCompany(0))).toEqual({ kind: 'http', status: 204, code: 'invalid_response' });
+  });
+});
+
+describe('e24f-UNIT a JSON request whose answer never comes (E23-A4, 4.8-E2E-005)', () => {
+  /** A fetch whose answer never comes; it rejects only once its signal aborts, as the browser's does. */
+  const hanging = (calls: RequestInit[]): FetchLike => async (_input, init) => {
+    calls.push(init);
+    return new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    });
+  };
+  const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('the wait for the headers ends in network after SYNC_REQUEST_TIMEOUT_MS, plus the body at the floor uplink rate, and not before', async () => {
+    vi.useFakeTimers();
+    const calls: RequestInit[] = [];
+    const client = createSyncClient({ fetch: hanging(calls) });
+    const generateBody = { last_op_id: null, file_ids_expected: [] };
+    const cases: [() => Promise<unknown>, number][] = [
+      [() => client.pullRelatorio('r', 0), SYNC_REQUEST_TIMEOUT_MS],
+      [() => client.pushOps(ops), requestHeadersTimeoutMs(bytes({ ops }))],
+      [() => client.generate('r', generateBody), requestHeadersTimeoutMs(bytes(generateBody))],
+    ];
+    for (const [call, bound] of cases) {
+      let settled: SyncFailure | null = null;
+      const failure = failureOf(call()).then((one) => (settled = one));
+      await vi.advanceTimersByTimeAsync(bound - 1);
+      expect(settled).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await failure).toEqual({ kind: 'network' });
+    }
+    expect(calls.every((init) => init.signal instanceof AbortSignal)).toBe(true);
+  });
+
+  it('a push at SYNC_PUSH_MAX_BYTES gets about 8,5 min', () => {
+    expect(SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S).toBe(8 * 1024);
+    expect(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES)).toBe(SYNC_REQUEST_TIMEOUT_MS + 512_000);
+    expect(requestHeadersTimeoutMs(0)).toBe(SYNC_REQUEST_TIMEOUT_MS);
+  });
+
+  it('once the headers came, a slow body is never cut and the timer is gone', async () => {
+    vi.useFakeTimers();
+    let finish: (value: unknown) => void = () => undefined;
+    const slow = createSyncClient({
+      fetch: async () =>
+        ({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: () => new Promise((resolve) => (finish = resolve)),
+        }) as unknown as Response,
+    });
+    const answer = slow.pullCompany(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(10 * SYNC_REQUEST_TIMEOUT_MS);
+    finish(contractExamples.pullResponse.valid);
+    await expect(answer).resolves.toEqual(contractExamples.pullResponse.valid);
   });
 });
 

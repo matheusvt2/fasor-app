@@ -802,8 +802,12 @@ describe('4.2 SetupSurface', () => {
     database = await seeded();
     renderSetup();
     const first = await screen.findByRole('textbox', { name: 'Exclusão 1' });
-    await userEvent.clear(first);
-    await userEvent.type(first, 'Item alterado');
+    // Fix batch e24f (E23-A4): the new text replaces the old one in one input event (select all, paste). Typed key by key
+    // on a loaded host, a pause past the 500 ms idle commits a prefix whose live-query echo resets the keys typed after
+    // it (a product race, reported in spec-e24f's Auto Run Result); this test asserts the commit of a whole edit.
+    await userEvent.tripleClick(first);
+    await userEvent.paste('Item alterado');
+    expect(first).toHaveValue('Item alterado');
     await userEvent.tab();
     await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.exclusions?.[0]).toBe('Item alterado');

@@ -1133,6 +1133,11 @@ function groupsOf(values: readonly EvaluatedMeasurementValue[], skipped: boolean
   return groups;
 }
 
+// authored (e24f, listed for Bruno): the helper of a measured cell the deviation between phases could not judge (a
+// value at zero or below, a phase with no other measured in its group, every cell while the insulating medium is unknown).
+/** Fix batch e24f (R-1): the helper of a measured cell a deviation-between-phases test left with no verdict. */
+export const UNJUDGED_DEVIATION_HELPER = 'Conferir: leitura sem comparação com as outras fases, sem critério aplicado';
+
 function evaluate(
   block: Pick<BlockRow, 'config' | 'sheet'>,
   test: MeasurementTest,
@@ -1207,10 +1212,16 @@ function evaluate(
   }
   // Fix batch e23z (W3-2): a live test judged by the deviation between phases with a measured number cell left with no
   // verdict (and not to check) is unjudged: the floor withholds Aprovado · Sem restrições.
-  const unjudged =
-    live &&
-    criteria.some((criterion) => criterion.type === 'phase_deviation') &&
-    rows.some((row) => row.cells.some((cell) => cell.kind === 'number' && cell.fixed === null && cell.state === 'measured' && cell.verdict === null && !cell.toCheck));
+  const unjudgedCells =
+    live && criteria.some((criterion) => criterion.type === 'phase_deviation')
+      ? rows.flatMap((row) => row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null && cell.state === 'measured' && cell.verdict === null && !cell.toCheck))
+      : [];
+  const unjudged = unjudgedCells.length > 0;
+  // Fix batch e24f (R-1): each such cell says why it has no verdict (its verdict stays null, it is not `toCheck`).
+  for (const cell of unjudgedCells) {
+    // authored (e24f, listed for Bruno): a measured cell the deviation between phases could not judge.
+    if (cell.helperText === null) cell.helperText = UNJUDGED_DEVIATION_HELPER;
+  }
 
   // Seed v13 (batch e23t): a criterion read by medium is in force only on that medium (both while it is unknown).
   const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;

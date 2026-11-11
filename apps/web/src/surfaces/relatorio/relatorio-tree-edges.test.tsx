@@ -317,14 +317,15 @@ describe('4.4/4.5 tree edge paths', () => {
     await userEvent.clear(box);
     await userEvent.type(box, '2{Enter}');
     await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 2 de 3'));
-    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    // Fix batch e24f (E23-A4): the undo toast renders after the announcement; wait for it, never read it at once.
+    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
     await waitFor(() => expect(within(eqRow(SEC_TEST)).getByRole('textbox', { name: 'Posição de SEC-TEST' })).toHaveFocus());
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toHaveFocus());
-    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Recolher Coluna 2 de Cabine de Testes' })).toBeNull());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveFocus());
   });
