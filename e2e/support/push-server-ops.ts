@@ -99,6 +99,39 @@ export async function pushLastNameplate(companyId: string, projectId: string, eq
 }
 
 /**
+ * Batch e24a (Story 24.3): a template's seed moved to `seedVersion`, written as the server's seed
+ * move writes it -- `template/{id}/seed_version` is `serverOnly` like `revision` -- so a spec that
+ * builds its template in the composer (born on the current seed) and asserts an older seed's
+ * conclusion creates its relatório from it on that seed once the device pulls the move.
+ */
+export async function pinTemplateSeed(companyId: string, templateId: string, seedVersion: string, actorId: string): Promise<void> {
+  const config = loadConfig();
+  const { sql, db } = createDb(config.DATABASE_URL);
+  try {
+    const at = new Date();
+    const input: OpInput = {
+      kind: 'put',
+      scope: 'company',
+      company_id: companyId,
+      project_id: null,
+      relatorio_id: null,
+      path: `template/${templateId}/seed_version`,
+      value: seedVersion,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: actorId,
+      device_id: SERVER_DEVICE_ID,
+    };
+    const op = makeOp(input, { newId, now: at });
+    const result = await applyOps(db, asCompanyId(companyId), [op], { origin: 'server', now: () => at });
+    if (result.rejected.length > 0) throw new Error(`template seed_version op rejected: ${JSON.stringify(result.rejected)}`);
+  } finally {
+    await sql.end();
+  }
+}
+
+/**
  * Story 8.1: one pending suggestion, written as the reading job writes it -- the `suggestion`
  * family is `serverOnly` like `revision`, and no production endpoint writes one besides
  * the reading job (batch R) -- so the device pulls it on its next sync. `photoId` and the

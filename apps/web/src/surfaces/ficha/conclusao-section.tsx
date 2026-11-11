@@ -13,8 +13,11 @@ import {
   conclusionTextState,
   effectiveConclusionPair,
   enabledSubBlocksOf,
+  isConclusionPairComplete,
   isLooserThanFloor,
-  observationRequired,
+  observationRequiredBy,
+  restrictionApplies,
+  resultChoiceWrites,
   sheetConclusionPath,
   sheetObservationsPath,
   suggestedSheetObservation,
@@ -248,8 +251,12 @@ export function ConclusaoSection({
     observation.set(appendObservation(observationSuggested ? suggestedObservation : observation.text, text));
   };
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
-  const required = observationRequired(block, definition, visit) && observation.text.trim() === '' && !observationSuggested;
-  const observationMissing = observationRequired(block, definition, visit) && result !== null && restriction !== null;
+  // Batch e24a (Story 24.3): what requires the observation (Com restrições; on seed v14 a Reprovado too), which its helper names.
+  const requiredBy = observationRequiredBy(block, definition, visit);
+  const required = requiredBy !== null && observation.text.trim() === '' && !observationSuggested;
+  const observationMissing = requiredBy !== null && isConclusionPairComplete(block, { result, restriction });
+  // Batch e24a (Story 24.3, seed v14): a Reprovado ficha has no restriction to choose, so no Restrições group.
+  const restrictionShown = restrictionApplies(block, result);
 
   const edit = (build: Parameters<FichaApi['edit']>[0]) => void api.edit(build).catch(() => undefined);
 
@@ -266,8 +273,21 @@ export function ConclusaoSection({
       return op === null ? null : [op];
     });
 
-  const setResult = (value: ConclusionResult | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'result', value)]);
+  const setResult = (value: ConclusionResult | null) => edit((blocks, by) => resultChoiceOps(blocks, by, value));
   const setRestriction = (value: ConclusionRestriction | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', value)]);
+
+  /**
+   * Batch e24a (Story 24.3): a result tap writes the kernel's `resultChoiceWrites` of the fresh block:
+   * the result and, on seed v14, a Reprovado clears a stored restriction in the same batch.
+   */
+  const resultChoiceOps = (blocks: readonly BlockRow[], by: Parameters<typeof conclusionOp>[0], value: ConclusionResult | null) => {
+    const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
+    const writes = fresh === undefined ? { result: value, clearRestriction: false } : resultChoiceWrites(fresh, value);
+    return [
+      conclusionOp(by, api.relatorioId, api.blockId, 'result', writes.result),
+      ...(writes.clearRestriction ? [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', null)] : []),
+    ];
+  };
 
   /**
    * Story 22.4: "Confirmar" under the adjusted note writes the effective pair of the fresh block,
@@ -284,6 +304,8 @@ export function ConclusaoSection({
       return [
         ...(writes.result === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'result', writes.result)]),
         ...(writes.restriction === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', writes.restriction)]),
+        // Batch e24a (Story 24.3, seed v14): a restriction stored under the effective Reprovado is cleared.
+        ...(writes.clearRestriction ? [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', null)] : []),
         ...(writes.text === null
           ? []
           : [
@@ -300,7 +322,11 @@ export function ConclusaoSection({
     edit((blocks, by) => {
       const fresh = blocks.find((row) => row.id === api.blockId);
       if (fresh === undefined || conclusionResultOf(fresh) !== null || conclusionRestrictionOf(fresh) !== null) return null;
-      return [conclusionOp(by, api.relatorioId, api.blockId, 'result', suggestion.result), conclusionOp(by, api.relatorioId, api.blockId, 'restriction', suggestion.restriction)];
+      return [
+        conclusionOp(by, api.relatorioId, api.blockId, 'result', suggestion.result),
+        // Batch e24a (Story 24.3, seed v14): a Reprovado suggestion has no restriction to write.
+        ...(suggestion.restriction === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', suggestion.restriction)]),
+      ];
     });
   };
 
@@ -412,7 +438,7 @@ export function ConclusaoSection({
             ) : null}
             {required ? (
               <span className="helper" data-tone="red" id={obsReasonId}>
-                {t.observationRequired}
+                {requiredBy === 'reprovado' ? t.observationRequiredReprovado : t.observationRequired}
               </span>
             ) : null}
           </div>
@@ -444,17 +470,19 @@ export function ConclusaoSection({
               isDisabled={looser}
               describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
             />
-            <ConclusionPair
-              label={t.restrictionGroup}
-              segments={restrictionSegments}
-              value={restriction}
-              stored={conclusionRestrictionOf(block)}
-              onChange={setRestriction}
-              missing={result !== null && restriction === null}
-              readOnly={readOnly}
-              isDisabled={looser}
-              describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
-            />
+            {restrictionShown ? (
+              <ConclusionPair
+                label={t.restrictionGroup}
+                segments={restrictionSegments}
+                value={restriction}
+                stored={conclusionRestrictionOf(block)}
+                onChange={setRestriction}
+                missing={result !== null && restriction === null}
+                readOnly={readOnly}
+                isDisabled={looser}
+                describedBy={floorReason === null || readOnly ? undefined : floorReasonId}
+              />
+            ) : null}
             {floorReason === null || readOnly ? null : (
               <span className="conclusion-hint" id={floorReasonId}>
                 {floorReason}

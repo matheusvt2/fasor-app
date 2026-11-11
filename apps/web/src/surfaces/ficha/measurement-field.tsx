@@ -99,11 +99,22 @@ function fieldState(cell: Pick<FieldCell, 'verdict'>): 'out-of-limit' | 'restric
 export interface SheetCellExtras {
   rangeOf: (testKey: string) => InstrumentRange | null;
   previousOf: (address: FieldAddress) => string | null;
+  /**
+   * Batch e24a (Story 24.3): whether a reading out of its criterion offers "Marcar Com restrições",
+   * the kernel's `markRestrictionOffered` for the sheet's block (never on seed v14). Absent: offered,
+   * as on v1 to v13.
+   */
+  restrictionOffered?: boolean;
 }
 
 const NO_EXTRAS: SheetCellExtras = { rangeOf: () => null, previousOf: () => null };
 const SheetCellExtrasContext = createContext<SheetCellExtras>(NO_EXTRAS);
 export const SheetCellExtrasProvider = SheetCellExtrasContext.Provider;
+
+/** Batch e24a (Story 24.3): the sheet's answer to "may a cell out of its criterion offer Marcar Com restrições" (`SheetCellExtras`). */
+export function useRestrictionOffered(): boolean {
+  return useContext(SheetCellExtrasContext).restrictionOffered ?? true;
+}
 
 /**
  * Story 22.10: gives `input` the focus, the caret at its end, once the Overflow menu that ran the
@@ -421,7 +432,8 @@ export function MeasurementField<Address extends FieldAddress>({
       {!number.focused && !number.invalid && cell.helperText !== null && out ? (
         <div className="mf-helper" role="status" id={helperId}>
           {cell.helperText}
-          <TextButton onPress={markRestricted}>{t.markRestricted}</TextButton>
+          {/* Batch e24a (Story 24.3): only where the kernel offers it (never on seed v14). */}
+          {extras.restrictionOffered === false ? null : <TextButton onPress={markRestricted}>{t.markRestricted}</TextButton>}
         </div>
       ) : null}
       {/* Epic 14 QA Q-3: a helper with no verdict (a zero reading to check) is neutral and offers no "Com restrições". */}

@@ -2,11 +2,11 @@ import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
-import { findDefinition } from '../seed/definitions.ts';
+import { findDefinition, seedRule } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
-import { measurementCells, restrictedMeasurements, worstMeasurements, type WorstMeasurement } from './measurement-evaluation.ts';
+import { measurementCells, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
@@ -35,7 +35,39 @@ export type ConclusionTextStatus = 'confirmed' | 'edited';
 
 export interface ConclusionPair {
   result: ConclusionResult;
-  restriction: ConclusionRestriction;
+  /**
+   * Batch e24a (Story 24.3): null only with Reprovado on a seed whose `conclusion_restriction_by_choice`
+   * is on (seed v14): a Reprovado ficha has no restriction. On v1 to v13 never null.
+   */
+  restriction: ConclusionRestriction | null;
+}
+
+/**
+ * Batch e24a (Story 24.3, seed v14; Bruno's answers 25 and 26, Matheus's decisions 1, 3 and 5): a
+ * reading out of its criterion, a failed prerequisite or a defect Não ensaiado makes the ficha
+ * Reprovado and nothing else, and "Com restrições" exists only with Aprovado, by the technician's
+ * choice. Read from the block's own seed (a company block carries its relatório's); off on v1 to v13,
+ * where every function below returns what it returned before the flag.
+ */
+function restrictionByChoice(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'conclusion_restriction_by_choice');
+}
+
+/**
+ * Batch e24a (Story 24.3): whether a result takes a restriction: always on v1 to v13; on seed v14
+ * every result but Reprovado (a Reprovado ficha has no restriction to choose, show, count or print).
+ */
+export function restrictionApplies(block: Pick<BlockRow, 'seed_version'>, result: ConclusionResult | null): boolean {
+  return result !== 'reprovado' || !restrictionByChoice(block);
+}
+
+/**
+ * Batch e24a (Story 24.3): a pair is complete with a result and a restriction, or, on seed v14, with
+ * Reprovado alone (`restrictionApplies`). E5-A4's rule on v1 to v13.
+ */
+export function isConclusionPairComplete(block: Pick<BlockRow, 'seed_version'>, pair: { result: ConclusionResult | null; restriction: ConclusionRestriction | null }): boolean {
+  if (pair.result === null) return false;
+  return pair.restriction !== null || !restrictionApplies(block, pair.result);
 }
 
 /**
@@ -152,9 +184,20 @@ export function conclusionFloor(block: BlockRow, given: DefinitionArg = undefine
 
 const FLOORS = new WeakMap<BlockRow, Map<BlockDefinition | null, WeakMap<VisitContext, ConclusionFloor | null>>>();
 
+/**
+ * Batch e24a (Story 24.3): the floor of a failure (a reading, a ratio row or a measurement cell out, a
+ * failed prerequisite, a defect Não ensaiado): Reprovado · Com restrições on v1 to v13, with every
+ * reason the sheet holds; on seed v14 Reprovado and nothing else, so only the failures are its reasons
+ * (an NC row or a restricted reading floors a restriction, which a Reprovado ficha does not have).
+ */
+function failureFloor(block: Pick<BlockRow, 'seed_version'>, failures: ConclusionFloorReason[], restrictions: ConclusionFloorReason[]): ConclusionFloor {
+  if (restrictionByChoice(block)) return { pair: { result: 'reprovado', restriction: null }, reasons: failures };
+  return { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: [...failures, ...restrictions] };
+}
+
 function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): ConclusionFloor | null {
   if (block.not_tested !== null) {
-    return isDefectReason(block.seed_version, block.not_tested.reason) ? { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['defect'] } : null;
+    return isDefectReason(block.seed_version, block.not_tested.reason) ? failureFloor(block, ['defect'], []) : null;
   }
   if (definition === null) return null;
   const evaluations = sheetReadings(block, definition, visit);
@@ -175,7 +218,7 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   // Batch e23t (Stories 23.15, 23.16 and 23.19): a restricted measurement cell or IP restricts too.
   if (cells.some((cell) => cell.verdict === 'restricted') || tableCells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
   if (ncItems(block, definition).length > 0) restrictions.push('nc');
-  if (failures.length > 0) return { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: [...failures, ...restrictions] };
+  if (failures.length > 0) return failureFloor(block, failures, restrictions);
   if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
   if (tableCells.some((cell) => cell.toCheck)) return null;
@@ -222,8 +265,12 @@ export function effectiveConclusionPair(block: BlockRow, definition: DefinitionA
   // A sheet marked not tested prints no conclusion: a pair stored before the mark is ignored,
   // and only a defect reason's floor applies (review of batch e22c).
   const tested = block.not_tested === null;
+  const result = stricter(RESULT_RANK, floor?.result ?? null, tested ? conclusionResultOf(block) : null);
+  // Batch e24a (Story 24.3, seed v14): a Reprovado ficha has no restriction, the floor's or one stored
+  // before (decision 3: the stored value stays, ignored on read, until the technician writes again).
+  if (!restrictionApplies(block, result)) return { result, restriction: null };
   return {
-    result: stricter(RESULT_RANK, floor?.result ?? null, tested ? conclusionResultOf(block) : null),
+    result,
     restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, tested ? conclusionRestrictionOf(block) : null),
   };
 }
@@ -274,11 +321,19 @@ export function isLooserThanFloor(block: BlockRow, value: ConclusionResult | Con
   const floor = conclusionFloor(block, definition, visit)?.pair ?? null;
   if (floor === null) return false;
   if (value === 'aprovado' || value === 'reprovado') return RESULT_RANK[value] < RESULT_RANK[floor.result];
+  // Batch e24a (Story 24.3, seed v14): a Reprovado floor has no restriction to be looser than.
+  if (floor.restriction === null) return false;
   return RESTRICTION_RANK[value] < RESTRICTION_RANK[floor.restriction];
 }
 
 const RESULT_WORDS: Readonly<Record<ConclusionResult, string>> = { aprovado: 'Aprovado', reprovado: 'Reprovado' };
 const RESTRICTION_WORDS: Readonly<Record<ConclusionRestriction, string>> = { sem_restricoes: 'Sem restrições', com_restricoes: 'Com restrições' };
+
+/** "Aprovado · Sem restrições"; batch e24a (Story 24.3, seed v14): "Reprovado" alone, a pair with no restriction. */
+// authored (e24a, listed for Bruno): the Reprovado pair named alone ("A ficha exige no mínimo Reprovado: …", "Reprovado?"; `60-ficha.html` #ficha-conc-dj01).
+function pairWords(pair: ConclusionPair): string {
+  return pair.restriction === null ? RESULT_WORDS[pair.result] : `${RESULT_WORDS[pair.result]} · ${RESTRICTION_WORDS[pair.restriction]}`;
+}
 
 // authored (Story 22.4, open for Bruno): each source of the floor as the reason line names it.
 // authored (Story 23.6, listed for Bruno): `prerequisite` and `restriction`.
@@ -305,7 +360,8 @@ export function conclusionFloorReasonText(block: BlockRow, definition: Definitio
   const resolved = floor.reasons.includes('ratio') ? definitionOf(block, definition) : null;
   const choice = resolved === null ? null : choiceOnlyFailureText(failedRatioRows(sheetReadings(block, resolved, visit)));
   // authored (Story 22.4, open for Bruno): the reason line of the disabled segments; batch e23e (Story 23.18, listed for Bruno): the choice's words.
-  return `A ficha exige no mínimo ${RESULT_WORDS[floor.pair.result]} · ${RESTRICTION_WORDS[floor.pair.restriction]}: ${listPtBr(floor.reasons.map((reason) => (reason === 'ratio' && choice !== null ? choice : FLOOR_REASON_WORDS[reason])))}.`;
+  // Batch e24a (Story 24.3, seed v14): a Reprovado floor reads "A ficha exige no mínimo Reprovado: …" (`pairWords`).
+  return `A ficha exige no mínimo ${pairWords(floor.pair)}: ${listPtBr(floor.reasons.map((reason) => (reason === 'ratio' && choice !== null ? choice : FLOOR_REASON_WORDS[reason])))}.`;
 }
 
 /**
@@ -319,9 +375,9 @@ export function conclusionSuggestion(block: BlockRow, definition: DefinitionArg 
   return conclusionFloor(block, definition, visit)?.pair ?? null;
 }
 
-/** The suggestion row's words: "Aprovado · Sem restrições?". */
+/** The suggestion row's words: "Aprovado · Sem restrições?"; batch e24a (Story 24.3, seed v14): "Reprovado?". */
 export function conclusionSuggestionText(pair: ConclusionPair): string {
-  return `${RESULT_WORDS[pair.result]} · ${RESTRICTION_WORDS[pair.restriction]}?`;
+  return `${pairWords(pair)}?`;
 }
 
 /**
@@ -345,7 +401,58 @@ export function suggestedSheetObservation(block: BlockRow, definition: BlockDefi
 
 /** Com restrições makes the sheet observation required (Story 5.8 AC 2); Story 22.4: the effective restriction, the floor's included. */
 export function observationRequired(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
-  return effectiveConclusionPair(block, definition, visit).restriction === 'com_restricoes';
+  return observationRequiredBy(block, definition, visit) !== null;
+}
+
+/**
+ * Batch e24a (Story 24.3; Bruno's answer 25): what makes the sheet observation required, so the field
+ * names it: Com restrições on every seed, and, on seed v14, a Reprovado (the floor's or the technician's:
+ * the observation is the justification); null while neither stands. Read on the effective pair.
+ */
+export function observationRequiredBy(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): 'com_restricoes' | 'reprovado' | null {
+  return observationRequiredFor(block, effectiveConclusionPair(block, definition, visit));
+}
+
+/** `observationRequiredBy` over a pair already read (the sheet's progress reads its chosen or effective pair). */
+export function observationRequiredFor(block: Pick<BlockRow, 'seed_version'>, pair: EffectiveConclusionPair): 'com_restricoes' | 'reprovado' | null {
+  if (pair.restriction === 'com_restricoes') return 'com_restricoes';
+  return pair.result !== null && !restrictionApplies(block, pair.result) ? 'reprovado' : null;
+}
+
+/**
+ * Batch e24a (Story 24.3, row at 3019): whether a reading out of its criterion offers "Marcar Com
+ * restrições" (the action that writes the restriction alone): on v1 to v13 as before; never on seed
+ * v14, where a reading out makes the ficha Reprovado and nothing else.
+ */
+export function markRestrictionOffered(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return !restrictionByChoice(block);
+}
+
+/**
+ * Batch e24a (Story 24.3, seed v14): what a tap on a result segment writes: the result and, when it is
+ * Reprovado on seed v14 over a stored restriction, that restriction cleared in the same batch (a
+ * Reprovado ficha has none; choosing Aprovado again asks for it again). On v1 to v13 the result alone.
+ */
+export function resultChoiceWrites(block: Pick<BlockRow, 'seed_version' | 'sheet'>, value: ConclusionResult | null): { result: ConclusionResult | null; clearRestriction: boolean } {
+  return { result: value, clearRestriction: value !== null && !restrictionApplies(block, value) && conclusionRestrictionOf(block) !== null };
+}
+
+/**
+ * Story 22.4: what "Concluir ficha" writes for the pair, from the fresh block: each half of the effective
+ * pair that differs from the stored one. Batch e24a (Story 24.3, seed v14): under an effective Reprovado
+ * a stored restriction is cleared (`clearRestriction`); always false on v1 to v13.
+ */
+export function conclusionPairWrites(
+  block: BlockRow,
+  definition: DefinitionArg = undefined,
+  visit: VisitContext = NO_VISIT_CONTEXT,
+): { result: ConclusionResult | null; restriction: ConclusionRestriction | null; clearRestriction: boolean } {
+  const pair = effectiveConclusionPair(block, definition, visit);
+  return {
+    result: pair.result !== null && pair.result !== conclusionResultOf(block) ? pair.result : null,
+    restriction: pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(block) ? pair.restriction : null,
+    clearRestriction: pair.result !== null && !restrictionApplies(block, pair.result) && conclusionRestrictionOf(block) !== null,
+  };
 }
 
 // --- the composed paragraph -----------------------------------------------------------
@@ -382,10 +489,26 @@ function withoutFinalPeriod(observation: string): string {
   return /\betc$/i.test(stripped) ? `${stripped}.` : stripped;
 }
 
-/** What an NC row says before "(item N, NC)": its observation without the final period, else (or when that leaves nothing) its label. */
-function ncClauseText(item: { label: string; observation: string | null }): string {
-  const said = item.observation === null ? '' : withoutFinalPeriod(item.observation);
+/**
+ * What an NC row says before "(item N, NC)": its observation without the final period, else (or when that leaves nothing) its label.
+ * Batch e24a (Story 24.4, seed v14, row 3196): with `oneLine` the observation's lines enter the clause joined (`ncObservationOnOneLine`).
+ */
+function ncClauseText(item: { label: string; observation: string | null }, oneLine = false): string {
+  const said = item.observation === null ? '' : oneLine ? ncObservationOnOneLine(item.observation) : withoutFinalPeriod(item.observation);
   return said === '' ? item.label.toLocaleLowerCase('pt-BR') : said;
+}
+
+/**
+ * Batch e24a (Story 24.4, seed v14, row 3196): an NC observation typed in several lines as one clause,
+ * so the conclusion's sentence prints in one paragraph: each line trimmed and without its final period
+ * (`withoutFinalPeriod`), blank lines dropped, joined by "; " ("linha um; linha dois").
+ */
+function ncObservationOnOneLine(observation: string): string {
+  return observation
+    .split(/\r\n?|\n/)
+    .map((line) => withoutFinalPeriod(line.trim()))
+    .filter((line) => line !== '')
+    .join('; ');
 }
 
 const TEST_WORDS: Readonly<Record<TestKey, { phrase: string; symbol: string }>> = {
@@ -508,6 +631,38 @@ function measurementClause(reading: WorstMeasurement, keepCase = false): string 
   return `${label} fora do critério em ${reading.where} (${reading.valueText}; critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
+/**
+ * The findings of a sheet as its conclusion paragraph names them, in its order: each test's worst
+ * reading out of its criterion (its rise, on a pole out by it), an IP out of its class, a failed
+ * choice, each measurement test's worst cell out, each failed prerequisite.
+ */
+function findingClausesOf(
+  evaluations: readonly TestEvaluation[],
+  worst: readonly WorstReading[],
+  measurements: readonly MeasurementTestEvaluation[],
+  tableOut: readonly WorstMeasurement[],
+  prerequisites: readonly string[],
+): string[] {
+  const out = worst.filter((reading) => reading.verdict === 'out');
+  // Batch e23t (Story 23.16): an IP out of its class is a failure the paragraph names with the out readings.
+  const indexOut = evaluations.flatMap((test) => (test.indexOut ?? []).map((reading) => indexClause(test, reading)));
+  // Batch e23e (Story 23.18): a failed choice (a polarity INVERTIDA) is a failure the paragraph names too.
+  const choiceOut = evaluations.flatMap((test) => (test.choiceOut ?? []).map((one) => choiceClause(test, one)));
+  return [...out.map(readingClause), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
+}
+
+/**
+ * Batch e24a (Story 24.4; Bruno's answer 28): the findings of a sheet, the same clauses its conclusion
+ * paragraph names them by (`composeConclusion`), so the parecer's Reprovado sentence on seed v14 says
+ * what section 9 says: the test, the value, where, and the criterion or the rise. Empty on a sheet with
+ * no finding (a Reprovado the technician chose).
+ */
+export function findingClauses(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): string[] {
+  const evaluations = sheetReadings(block, definition, visit);
+  const measurements = sheetMeasurements(block, definition, visit);
+  return findingClausesOf(evaluations, worstReadings(evaluations), measurements, worstMeasurements(measurements), failedPrerequisites(block, definition).map(prerequisiteClause));
+}
+
 // The basis hash lives in `text/hash.ts` (shared with the parecer, Story 7.4).
 
 /**
@@ -538,19 +693,15 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const evaluations = sheetReadings(block, definition, visit);
   const cells = evaluatedCells(evaluations);
   const worst = worstReadings(evaluations);
-  const out = worst.filter((reading) => reading.verdict === 'out');
   // Story 14.5: the measurement tests (none on the eight FO.SERV-03 types), read as the seeded tables are.
   const measurements = sheetMeasurements(block, definition, visit);
   const tableCells = measurementCells(measurements);
   const tableOut = worstMeasurements(measurements);
-  // Batch e23t (Story 23.16): an IP out of its class is a failure the paragraph names with the out readings.
-  const indexOut = evaluations.flatMap((test) => (test.indexOut ?? []).map((reading) => indexClause(test, reading)));
-  // Batch e23e (Story 23.18): a failed choice (a polarity INVERTIDA) is a failure the paragraph names too.
-  const choiceOut = evaluations.flatMap((test) => (test.choiceOut ?? []).map((one) => choiceClause(test, one)));
   // Batch e23v (Story 23.6, seed v13): a failed prerequisite is a failure the paragraph names with the out readings.
   // Fix batch e23w (W2-2): every failed prerequisite (`failedPrerequisites`), its test switched off or NA too.
   const prerequisites = failedPrerequisites(block, definition).map(prerequisiteClause);
-  const outClauses = [...out.map(readingClause), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
+  // Batch e24a (Story 24.4): the findings, in the words the parecer names a reprovada ficha by too (`findingClauses`).
+  const outClauses = findingClausesOf(evaluations, worst, measurements, tableOut, prerequisites);
   // Batch e23v (Story 23.6, seed v13): the restricted readings, named after the readings' clause.
   const restricted = [
     ...evaluations.flatMap((test) => {
@@ -591,10 +742,12 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const ncs = ncItems(block, definition);
   const conformes = anyConforme(block, definition);
   const checked = ncs.length > 0 || conformes;
+  // Batch e24a (Story 24.4, seed v14): an NC observation typed in several lines enters its clause on one line.
+  const oneLine = seedRule(block.seed_version, 'nc_clause_on_one_line');
   const checklist =
     ncs.length === 0
       ? 'todos os itens verificados conformes'
-      : listPtBr(ncs.map((item) => `${ncClauseText(item)} (item ${item.n}, NC)`));
+      : listPtBr(ncs.map((item) => `${ncClauseText(item, oneLine)} (item ${item.n}, NC)`));
 
   // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
   const { result, restriction } = effectiveConclusionPair(block, definition, visit);
@@ -713,11 +866,11 @@ export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pi
 /**
  * E5-A4: true when the pair is complete, the way the sheet's progress counts it
  * (`sheet-progress.ts`): a result and a restriction are both set. Story 22.4: the effective
- * pair, so a floor completes an unset half.
+ * pair, so a floor completes an unset half. Batch e24a (Story 24.3, seed v14): Reprovado alone
+ * is complete (`isConclusionPairComplete`).
  */
 export function conclusionPairComplete(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
-  const pair = effectiveConclusionPair(block, definition, visit);
-  return pair.result !== null && pair.restriction !== null;
+  return isConclusionPairComplete(block, effectiveConclusionPair(block, definition, visit));
 }
 
 /**
@@ -749,20 +902,19 @@ export function conclusionBasisMatches(block: BlockRow, definition: BlockDefinit
  * a text that names the looser pair. Writing the pair leaves the effective pair, and so the
  * composition, unchanged, so the text composed before the write is the one that stands after
  * it. An edited text is the engineer's own and is never written: it then reads `stale`
- * ("Substituir"). Null when nothing differs.
+ * ("Substituir"). Null when nothing differs. Batch e24a (Story 24.3, seed v14): a restriction
+ * stored under an effective Reprovado is cleared too (`clearRestriction`, always false on v1 to v13).
  */
 export function conclusionAdjustWrites(
   block: BlockRow,
   definition: BlockDefinition,
   equipmentTag: string,
   visit: VisitContext = NO_VISIT_CONTEXT,
-): { result: ConclusionResult | null; restriction: ConclusionRestriction | null; text: { text: string; basis: string } | null } | null {
-  const pair = effectiveConclusionPair(block, definition, visit);
-  const result = pair.result !== null && pair.result !== conclusionResultOf(block) ? pair.result : null;
-  const restriction = pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(block) ? pair.restriction : null;
+): { result: ConclusionResult | null; restriction: ConclusionRestriction | null; clearRestriction: boolean; text: { text: string; basis: string } | null } | null {
+  const { result, restriction, clearRestriction } = conclusionPairWrites(block, definition, visit);
   const composed = composeConclusion(block, definition, equipmentTag, visit);
   const text = conclusionTextStatusOf(block) === 'confirmed' && conclusionTextState(block, composed) === 'stale' ? { text: composed.text, basis: composed.basis } : null;
-  return result === null && restriction === null && text === null ? null : { result, restriction, text };
+  return result === null && restriction === null && !clearRestriction && text === null ? null : { result, restriction, clearRestriction, text };
 }
 
 /**
@@ -775,8 +927,9 @@ export function conclusionAdjustWrites(
  */
 export function printedConclusionText(block: BlockRow, definition: BlockDefinition, equipmentTag: string, visit: VisitContext = NO_VISIT_CONTEXT): string | null {
   // e22f N2: the pair section 9 marks, so an open sheet whose pair only the floor sets prints no paragraph either.
+  // Batch e24a (Story 24.3, seed v14): a Reprovado with no restriction is a complete pair.
   const printed = printedConclusionPair(block, definition, visit);
-  if (printed.result === null || printed.restriction === null) return null;
+  if (!isConclusionPairComplete(block, printed)) return null;
   const status = conclusionTextStatusOf(block);
   if (status === null) return null;
   if (status === 'edited') return conclusionTextForPrint(block, definition, visit);

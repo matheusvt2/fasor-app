@@ -1679,6 +1679,9 @@ export const copy = {
       observationLabel: 'Observações da ficha',
       // EXPERIENCE.md › Observation field.
       observationRequired: 'Obrigatória com restrições',
+      // Batch e24a (Story 24.3, seed v14): the helper of the observation a Reprovado requires, verbatim from
+      // `60-ficha.html` #ficha-conc-dj01 (authored by Story 24.1's frames, listed for Bruno).
+      observationRequiredReprovado: 'Obrigatória em ficha reprovada',
       // `key-equipment-sheet-v09.html` suggested sheet observation helper (Story 12.4), verbatim.
       observationSuggestedHelper: 'Montada dos itens NC · confirmada com o texto da conclusão',
       textLabel: 'Texto da conclusão',

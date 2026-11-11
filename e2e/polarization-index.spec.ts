@@ -24,7 +24,8 @@ const IP = 4;
 
 test('@p0 23.16-E2E-001 a dry v13 transformer\'s IP: required once the 1 minuto is typed, 0,8 fails (Reprovado), 1,5 restricts; a row above the instrument\'s limit shows N/A; the DOCX prints the IP column', async ({ page }) => {
   test.setTimeout(300_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [{ blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'EPÓXI' }]);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this test asserts (Reprovado · Com restrições).
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [{ blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'EPÓXI' }], 'v13');
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   await openStep(page, relatorioId, tf.blockId, 'Ensaios');
   // The IP and the DAR are columns of the table, where FO.SERV-03 prints them.

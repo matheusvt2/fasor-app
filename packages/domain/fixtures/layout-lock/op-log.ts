@@ -61,7 +61,8 @@ import {
  * template's own Conclusão text with part of "nos itens 8 e 9" in bold. The v5, v11 and v12 ops
  * are those they were locked with, byte for byte: every addition is reached only through
  * `EPIC24_EXTRAS`. v14 takes the same additions (it is not locked: "24.2-UNIT-SAME" compares the
- * two while v14 equals v13, and the later stories print their v14 deltas from it).
+ * two with v14's rule flags read off, and the later stories print their v14 deltas from it: batch
+ * e24a's in `e24a-v14-print.integration.test.ts`).
  */
 
 /** The seed versions whose printed layout is locked. */

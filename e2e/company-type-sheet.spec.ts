@@ -58,6 +58,8 @@ interface OutboxRow {
 
 const QD = 'quadro_eletrico' as const;
 const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', QD);
+// Batch e24a (Story 24.3): the relatório is pinned to seed v13, whose conclusion this spec asserts (Reprovado · Com restrições).
+const RELATORIO_SEED = 'v13';
 const ITEMS = DEFINITION.checklist!;
 const NC_ITEM = ITEMS[0]!;
 const NAME = 'QGBT da empresa';
@@ -121,7 +123,7 @@ test('@p0 14.8-E2E-002 a company sheet of a duplicated library type: plate sugge
   const definitions = definitionContext(rows.versions, rows.type === undefined ? [] : [rows.type]);
 
   // --- a relatório with three sheets of the company type on Geradores, born at v1 (office ops) ---
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: RELATORIO_SEED });
   const local = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === LOCAL)!.value as { id: string };
   const pairs = TAGS.map((tag, i) =>
     newEquipmentBlock({
@@ -132,7 +134,7 @@ test('@p0 14.8-E2E-002 a company sheet of a duplicated library type: plate sugge
       locationId: local.id,
       type: companyBlockType(typeId),
       tag,
-      seedVersion: SEED_VERSION,
+      seedVersion: RELATORIO_SEED,
       orderKey: initialOrderKey(997 + i),
       typeVersion: { version: 1, id: version.id },
       definitions,

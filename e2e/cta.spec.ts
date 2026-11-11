@@ -25,6 +25,7 @@ import { escapeDialog } from './support/dialogs.ts';
 import { addLocal } from './support/local.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { pinTemplateSeed } from './support/push-server-ops.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { newId } from '../apps/api/src/ids.ts';
@@ -80,6 +81,8 @@ const E4 = 'cta_ajustes_controlador';
 const E5 = 'cta_transferencia';
 const E6 = 'cta_termografia';
 const NEW_TEMPLATE = 'Novo template';
+/** Batch e24a (Story 24.3): the seed the composer's template is moved to before 14.5-E2E-001 creates its relatório (its conclusion is v13's). */
+const COMPOSER_SEED = 'v13';
 const LOCAL = 'Geradores';
 const OUTROS = 'Outros equipamentos';
 const LIBRARY_SUMMARY = '17 itens · até 6 ensaios';
@@ -208,6 +211,11 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   expect(template.blocks.filter((block) => block.block_type === CTA).map((block) => block.quantity)).toEqual([1]);
   // The template reaches the server by "Sincronizar agora" (decision of record C-4), never by waiting for the 60 s tick.
   await syncNow(page);
+  // Batch e24a (Story 24.3): the server moves the template to seed v13, whose conclusion this test asserts
+  // (Reprovado · Com restrições); the device pulls the move before the relatório is created from it.
+  await pinTemplateSeed(account.companyId, templateId, COMPOSER_SEED, account.userId);
+  await syncNow(page);
+  await expect.poll(async () => (await entities<TemplateRow>(page)).find((record) => record.entity === 'template' && record.id === templateId)?.row.seed_version).toBe(COMPOSER_SEED);
 
   // --- a relatório from it: the CTA is born on the local with the kernel's TAG ---
   await page.goto('/');
@@ -225,8 +233,8 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
     .map((row) => ({ blockId: row.id, blockType: row.block_type, seedVersion: row.seed_version, locationId: row.location_id, tag: tagOf.get(row.equipment_id ?? '') ?? '' }))
     .sort((a, b) => a.tag.localeCompare(b.tag));
   expect(sheets.map((sheet) => [sheet.tag, sheet.blockType, sheet.seedVersion, sheet.locationId])).toEqual([
-    ['CTA-GERADORES', CTA, SEED_VERSION, localRow.id],
-    ['TR-1', 'transformador_forca', SEED_VERSION, localRow.id],
+    ['CTA-GERADORES', CTA, COMPOSER_SEED, localRow.id],
+    ['TR-1', 'transformador_forca', COMPOSER_SEED, localRow.id],
   ]);
   const blockId = sheets[0]!.blockId;
   const tag = sheets[0]!.tag;
@@ -775,16 +783,20 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   await context.setOffline(false);
 });
 
+/** Batch e24a (Story 24.3): the seed P020-E2E-004's relatório is pinned to (its CTA carries it). */
+const P020_SEED = 'v13';
+
 test('@p0 P020-E2E-004 P-6 at 390: a CTA with 4 polos, an E1 reading out of its relative limit, E2 filled and E5 "Não realizado" never scrolls the page sideways (top, at E1, at E5)', async ({ page }) => {
   test.setTimeout(150_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page, account.email);
   // A standard relatório (seed v5), Em campo, plus one CTA on Geradores in the production check's state, from the office.
-  const built = newRelatorioDrafts(account);
+  // Batch e24a (Story 24.3): pinned to seed v13, which offers "Marcar Com restrições" on the out reading (seed v14 never does).
+  const built = newRelatorioDrafts(account, { seedVersion: P020_SEED });
   const scope = { relatorioId: built.relatorioId };
   const geradores = built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === LOCAL)!.value as { id: string };
-  let config = defaultBlockConfig(SEED_VERSION, CTA) as unknown as JsonValue;
+  let config = defaultBlockConfig(P020_SEED, CTA) as unknown as JsonValue;
   config = blockConfigWithOption(config, 'polos', '4');
   config = blockConfigWithOption(config, 'tensao', 'mt');
   const { equipment, block } = newEquipmentBlock({
@@ -796,7 +808,7 @@ test('@p0 P020-E2E-004 P-6 at 390: a CTA with 4 polos, an E1 reading out of its 
     locationId: geradores.id,
     type: CTA,
     tag: 'CTA-APAGAR',
-    seedVersion: SEED_VERSION,
+    seedVersion: P020_SEED,
     orderKey: initialOrderKey(999),
     config,
   });

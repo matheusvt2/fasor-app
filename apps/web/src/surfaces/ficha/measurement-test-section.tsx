@@ -25,7 +25,7 @@ import { ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
 import { conclusionOp, testCellOp, testChoiceCellOp, testValueOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { cellKey, MeasurementField, ReadOnlyMeasurementField, useRestrictionOffered, type RunDirection } from './measurement-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import { TestHelpAction } from './test-help-dialog.tsx';
 import { TemperatureLine } from './corrected-value.tsx';
@@ -544,6 +544,8 @@ function ChoiceCell({ api, cell, label, readOnly }: { api: FichaApi; cell: Evalu
   const { address } = cell;
   const chosen = cell.state === 'measured' ? cell.raw : '';
   const notMeasured = cell.state === 'not_measured';
+  // Batch e24a (Story 24.3): "Marcar Com restrições" only where the kernel offers it (never on seed v14).
+  const restrictionOffered = useRestrictionOffered();
 
   if (readOnly) {
     return (
@@ -612,7 +614,7 @@ function ChoiceCell({ api, cell, label, readOnly }: { api: FichaApi; cell: Evalu
       {cell.helperText === null ? null : (
         <div className="mf-helper" role="status">
           {cell.helperText}
-          <TextButton onPress={markRestricted}>{ui.measurementField.markRestricted}</TextButton>
+          {restrictionOffered ? <TextButton onPress={markRestricted}>{ui.measurementField.markRestricted}</TextButton> : null}
         </div>
       )}
     </div>

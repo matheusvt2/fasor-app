@@ -3,6 +3,7 @@ import { effectiveParecer, parecerOwnText, parecerTextForPrint, parecerVerdictLa
 import { resultsItemsText } from '../relatorio/section-variables.ts';
 import type { Council } from '../schemas/council.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { seedRule } from '../seed/definitions.ts';
 import type { RichRun } from '../templates/rich-text.ts';
 import { SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
 import { artLabel } from './document-control.ts';
@@ -77,6 +78,37 @@ export function validityLine(council: Council | null, number: string | null): st
   return `Este relatório tem validade apenas acompanhada da ${label} ${value}`;
 }
 
+/**
+ * Batch e24a (Story 24.4, seed v14, row at 3125): FO.SERV-03's fixed "nos itens 8 e 9" replaced by
+ * `reference` where a template's own text splits it across formatted runs ("nos itens " and a bold
+ * "8 e 9"): the runs are read joined, each occurrence is replaced, the replaced phrase takes the marks
+ * of the run where it starts, and the text around it keeps its own run; a run left empty is dropped.
+ */
+export function referenceAcrossRuns(runs: readonly RichRun[], reference: string): RichRun[] {
+  const joined = runs.map((run) => run.text).join('');
+  const matches: { from: number; to: number }[] = [];
+  for (let at = joined.indexOf(FIXED_RESULTS_REFERENCE); at !== -1; at = joined.indexOf(FIXED_RESULTS_REFERENCE, at + FIXED_RESULTS_REFERENCE.length)) {
+    matches.push({ from: at, to: at + FIXED_RESULTS_REFERENCE.length });
+  }
+  const out: RichRun[] = [];
+  let runFrom = 0;
+  for (const run of runs) {
+    const runTo = runFrom + run.text.length;
+    let text = '';
+    let cursor = runFrom;
+    for (const match of matches) {
+      if (match.to <= runFrom || match.from >= runTo) continue;
+      if (match.from > cursor) text += joined.slice(cursor, match.from);
+      if (match.from >= runFrom) text += reference;
+      cursor = Math.min(match.to, runTo);
+    }
+    if (cursor < runTo) text += joined.slice(cursor, runTo);
+    if (text !== '') out.push({ ...run, text });
+    runFrom = runTo;
+  }
+  return out;
+}
+
 /** The signature block: the responsible's name, printed title and registration ("CREA 5063583141"). */
 function signatureOf(responsible: RelatorioSnapshot['responsible']): LayoutSection10['signature'] {
   if (responsible === null) return { name: `[${SECTION_VARIABLE_LABELS.responsavel}]`, title: '', registration: '' };
@@ -100,6 +132,9 @@ export function section10Layout(
   const verdict = effectiveParecer(snapshot);
   const reference = resultsItemsText(snapshot);
   const positioned = (text: string) => text.replaceAll(FIXED_RESULTS_REFERENCE, reference);
+  // Batch e24a (Story 24.4, seed v14, row at 3125): the reference replaced across the formatted runs it spans.
+  const acrossRuns = seedRule(snapshot.relatorio.seed_version, 'results_reference_across_runs');
+  const positionedRuns = (runs: readonly RichRun[]): RichRun[] => (acrossRuns ? referenceAcrossRuns(runs, reference) : runs.map((run) => ({ ...run, text: positioned(run.text) })));
   return {
     number: base.number,
     title: base.title,
@@ -114,7 +149,7 @@ export function section10Layout(
       .map((paragraph) => ({
         ...(paragraph.kind === 'numbered' ? { kind: 'numbered' as const, ...(paragraph.number === undefined ? {} : { number: paragraph.number }) } : { kind: 'item' as const }),
         text: positioned(paragraph.text),
-        runs: paragraph.runs === undefined ? [{ text: positioned(paragraph.text) }] : paragraph.runs.map((run) => ({ ...run, text: positioned(run.text) })),
+        runs: paragraph.runs === undefined ? [{ text: positioned(paragraph.text) }] : positionedRuns(paragraph.runs),
       })),
     validityLine: validityLine(snapshot.responsible?.council ?? null, snapshot.relatorio.setup.art_trt_number),
     signature: signatureOf(snapshot.responsible),

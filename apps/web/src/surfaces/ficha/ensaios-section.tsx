@@ -5,6 +5,7 @@ import {
   instrumentRangeFor,
   isTapTable,
   manufacturerApplies,
+  markRestrictionOffered,
   measurementCells,
   previousHelpers,
   readingAddressKey,
@@ -208,13 +209,16 @@ export function EnsaiosSection({
   const definitions = snapshotDefinitionContext(snapshot);
   const testKeys = [...evaluations.map((test) => test.testKey as string), ...measurements.map((test) => test.testKey as string)];
   const rangesKey = JSON.stringify(Object.fromEntries(testKeys.map((testKey) => [testKey, instrumentRangeFor(block, instruments, testKey, definitions)])));
+  // Batch e24a (Story 24.3): the kernel says whether a reading out offers "Marcar Com restrições" (never on seed v14).
+  const restrictionOffered = markRestrictionOffered(block);
   const extras = useMemo<SheetCellExtras>(() => {
     const ranges = JSON.parse(rangesKey) as Record<string, ReturnType<typeof instrumentRangeFor>>;
     return {
       rangeOf: (testKey) => ranges[testKey] ?? null,
       previousOf: (address) => previous.get(readingAddressKey(address)) ?? null,
+      restrictionOffered,
     };
-  }, [rangesKey, previous]);
+  }, [rangesKey, previous, restrictionOffered]);
 
   return (
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>

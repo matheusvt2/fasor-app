@@ -2189,7 +2189,20 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
 
 /** v14 as it ships (Epic 24); until its deploy each Epic 24 batch re-pins it, after it a change is a new version. */
 // e24a first commit (2026-11-11): v14 opens equal to v13, with no `rules`.
-const V14_HASH = '992143dd931904d8675621aa8c8550e5f7ca64013632535b104305444257e0c5';
+// e24a (Stories 24.3 and 24.4): the five rule flags (`withoutE24a` below).
+const V14_HASH = '3d26008bef9ca23ab40510adcf746f77043c44055f22f9fe96da65328b2b75b6';
+
+/** Batch e24a's rule flags (Stories 24.3 and 24.4), in the order `seed/v14.ts` sets them. */
+const E24A_FLAGS = ['conclusion_restriction_by_choice', 'prerequisite_needs_nameplate', 'parecer_names_finding', 'nc_clause_on_one_line', 'results_reference_across_runs'] as const;
+
+/** Batch e24a's delta undone: its five flags dropped, and `rules` itself once nothing else is in it. */
+function withoutE24a(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  if (out.rules === undefined) return out;
+  for (const flag of E24A_FLAGS) delete out.rules[flag];
+  if (Object.keys(out.rules).length === 0) delete out.rules;
+  return out;
+}
 
 describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of Bruno\'s answers of 2026-11-10', () => {
   const v13 = getSeed('v13', 'cabine_primaria');
@@ -2204,8 +2217,9 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     expect(equipmentTypesOf('v14')).toEqual(equipmentTypesOf('v13'));
   });
 
-  it('differs from v13 by exactly its stories (none at the opening), and v1 to v13 hash as they shipped', () => {
-    expect(JSON.stringify(structuredClone(v14))).toBe(JSON.stringify(v13));
+  it('differs from v13 by exactly its stories, and v1 to v13 hash as they shipped', () => {
+    // Batch e24a (Stories 24.3 and 24.4): its rule flags are undone here and pinned below.
+    expect(JSON.stringify(withoutE24a(v14))).toBe(JSON.stringify(v13));
     expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
     expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
     expect(hash('v13'), 'seed v13 changed after it shipped: add a new version instead').toBe(V13_HASH);
@@ -2223,14 +2237,22 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     expect(seedRulesSchema.safeParse({ parecer_name_finding: true }).success).toBe(false);
   });
 
-  it('no seed of v1 to v13 carries `rules`, and v14 carries none at its opening', () => {
-    for (const version of [...VERSIONS, 'v14']) expect(Object.hasOwn(getSeed(version, 'cabine_primaria'), 'rules'), version).toBe(false);
+  it('no seed of v1 to v13 carries `rules`; v14 carries none at its opening (its flags stripped)', () => {
+    for (const version of VERSIONS) expect(Object.hasOwn(getSeed(version, 'cabine_primaria'), 'rules'), version).toBe(false);
+    expect(Object.hasOwn(withoutE24a(v14), 'rules')).toBe(false);
   });
 
-  it('seedRule answers false for every flag on v1 to v13, on an unknown version and on v14 at its opening', () => {
-    for (const version of [...VERSIONS, 'v14', 'v999', '']) {
+  it('seedRule answers false for every flag on v1 to v13 and on an unknown version', () => {
+    for (const version of [...VERSIONS, 'v999', '']) {
       for (const flag of FLAGS) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
     }
+  });
+
+  // Batch e24a (Stories 24.3 and 24.4): the five flags on, and nothing else in `rules`.
+  it('e24a: v14 turns on the five rule flags of Stories 24.3 and 24.4 and nothing else', () => {
+    expect(v14.rules).toEqual(Object.fromEntries(E24A_FLAGS.map((flag) => [flag, true])));
+    expect([...FLAGS]).toEqual([...E24A_FLAGS]);
+    for (const flag of FLAGS) expect(seedRule('v14', flag), flag).toBe(true);
   });
 
   it('a seed object whose `rules` sets a flag answers true for that flag only', () => {

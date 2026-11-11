@@ -91,7 +91,8 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
   const megId = newId();
-  const built = newRelatorioDrafts(account);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this spec asserts (Reprovado · Com restrições).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
   await pushDrafts(page, database, [instrumentDraft(megId), ...built.drafts, emCampoDraft(account, built.relatorioId)]);
   const chave = built.sheets.find((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel')!;
   const tp = built.sheets.find((sheet) => sheet.blockType === 'tp')!;

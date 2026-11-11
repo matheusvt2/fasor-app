@@ -5,7 +5,7 @@ import type { BlockDefinition, OilRule } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
-import { chosenConclusionPair, effectiveConclusionPair } from './conclusion.ts';
+import { chosenConclusionPair, effectiveConclusionPair, observationRequiredFor, restrictionApplies } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { measurementCounts } from './measurement-evaluation.ts';
 import { oilDerivedNaKeysUnder, oilRuleOf } from './oil-rule.ts';
@@ -114,9 +114,6 @@ export interface SheetProgress {
 
 /** The value of a checklist result cell that names a non-conformity. */
 const NC = 'NC';
-
-/** The restriction value that makes the sheet observation required (`relatorio/conclusion.ts`). */
-const COM_RESTRICOES = 'com_restricoes';
 
 /** The item keys the block's config pre-marks NA (display default, never a cell). */
 export function naDefaultsOf(block: Pick<BlockRow, 'config'>): ReadonlySet<string> {
@@ -234,8 +231,10 @@ function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled:
   let missing = 0;
   let observation = 0;
   if (result === null) missing += 1;
-  if (restriction === null) missing += 1;
-  else if (restriction === COM_RESTRICOES && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
+  // Batch e24a (Story 24.3, seed v14): a Reprovado takes no restriction (`restrictionApplies`).
+  if (restriction === null && restrictionApplies(block, result)) missing += 1;
+  // Com restrições requires the observation; batch e24a (Story 24.3, seed v14): a Reprovado too (`observationRequiredFor`).
+  if (observationRequiredFor(block, { result, restriction }) !== null && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
   return { missing: missing + observation, observation };
 }
 

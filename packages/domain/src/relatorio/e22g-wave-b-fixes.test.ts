@@ -34,9 +34,10 @@ const cell = (value: unknown): Cell => ({ value: value as Cell['value'], source_
 const measured = (raw: string, unit: string | null) => cell({ raw, unit, state: 'measured' });
 const overRange = (raw: string, unit: string) => cell({ raw, unit, state: 'over_range' });
 
+/** Batch e24a (Story 24.4): on seed v13, whose summary sentences these tests pin. */
 function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: '019966b0-e22a-7000-8000-0000000000a1' }),
+    standardTemplate({ id: '019966b0-e22a-7000-8000-0000000000a1', seedVersion: 'v13' }),
     { id: TEST_PROJECT },
     { service_start: '2026-11-07', service_end: '2026-11-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-e22a-7001-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },

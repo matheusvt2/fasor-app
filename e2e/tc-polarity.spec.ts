@@ -24,11 +24,18 @@ const RATIO = 'relacao_transformacao';
 
 test('@p0 23.18-E2E-001 a v13 TC 0,3S of FATURAMENTO: the notice over a fillable insulation test, 0,25 % within ± 0,3 %, Fase R\'s polarity Invertida fails the row (Reprovado, a derived point, the outbox), and the DOCX prints POLARIDADE before CONDIÇÕES with the note', async ({ page }) => {
   test.setTimeout(360_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [
-    { blockType: 'tc', key: 'exatidao', value: '0,3S' },
-    { blockType: 'tc', key: 'relacao', value: '200/5' },
-    { blockType: 'tc', key: 'funcao_tc', value: 'FATURAMENTO' },
-  ]);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this test asserts (Reprovado · Com restrições).
+  const { relatorioId, sheets } = await setUpRelatorio(
+    page,
+    account,
+    database,
+    () => [
+      { blockType: 'tc', key: 'exatidao', value: '0,3S' },
+      { blockType: 'tc', key: 'relacao', value: '200/5' },
+      { blockType: 'tc', key: 'funcao_tc', value: 'FATURAMENTO' },
+    ],
+    'v13',
+  );
   const tc = sheets.find((sheet) => sheet.blockType === 'tc')!;
   await openStep(page, relatorioId, tc.blockId, 'Ensaios');
 

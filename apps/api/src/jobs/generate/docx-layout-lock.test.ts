@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { layoutSpec } from '@app/domain';
+import { layoutSpec, seedRule } from '@app/domain';
 import { LAYOUT_LOCK_ISSUED_AT, LAYOUT_LOCK_VERSIONS, layoutLockFixture, layoutLockSnapshot } from '@app/domain/fixtures/layout-lock';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDocx } from './docx.ts';
 import { readZipEntries } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
@@ -20,6 +20,17 @@ import { placeholderPages } from './toc.ts';
  * fix batches e24h and e24f, before any rule of Stories 24.3 and 24.4. Every later Epic 24 PR keeps
  * the v5, v11, v12 and v13 goldens and the Porto Seguro goldens byte-equal.
  */
+
+/*
+ * Batch e24a: 24.2-UNIT-SAME reads seed v14's rule flags off while it runs. The domain reads a flag
+ * only through `seedRule` (`seed/definitions.ts`), so the one module is mocked; every other test of the
+ * file reads the flags as shipped (v5 to v13 carry none).
+ */
+const rulesOff = vi.hoisted(() => ({ v14: false }));
+vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../packages/domain/src/seed/definitions.ts')>();
+  return { ...actual, seedRule: (version: string, flag: Parameters<typeof actual.seedRule>[1]) => (rulesOff.v14 && version === 'v14' ? false : actual.seedRule(version, flag)) };
+});
 
 const GOLDEN_DIR = resolve(__dirname, 'golden');
 /** The parts that carry the printed layout (the body, its numbering and styles, the header and footer). */
@@ -76,9 +87,19 @@ describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions i
 /**
  * Story 24.2 (24.2-UNIT-SAME): at its opening seed v14 changes no rule, so a v14 relatório with the
  * same answers as the v13 one concludes and prints the same: their layouts differ in nothing but
- * the ids the fixture derives from the version, its op ids and the version's own name.
+ * the ids the fixture derives from the version, its op ids and the version's own name. Batch e24a
+ * (Stories 24.3 and 24.4): v14 now carries rule flags, so the comparison reads them off
+ * (`rulesOff`, the domain's `seedRule` mocked above): every v14 difference comes through a flag,
+ * and nothing else of v14 moves; the v14 print with its flags on is `e24a-v14-print.integration.test.ts`'s.
  */
-describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays out as the v13 one', () => {
+describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays out as the v13 one, its rule flags off', () => {
+  beforeEach(() => {
+    rulesOff.v14 = true;
+  });
+  afterEach(() => {
+    rulesOff.v14 = false;
+  });
+
   /** The layout as JSON, the version's ids, op ids and name masked (`019a6100-00VV-…`, `019a6100-01VV-…`, `vVV`). */
   const normalized = (version: string) => {
     const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
@@ -90,11 +111,19 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
   };
 
   it('v13 and v14 give one layout once ids and the version are masked; dates are fixed and equal', () => {
+    // The mock is the one the domain reads: v14's flags are off here and on outside this block.
+    expect(seedRule('v14', 'conclusion_restriction_by_choice')).toBe(false);
     const v13 = layoutLockFixture('v13');
     const v14 = layoutLockFixture('v14');
     expect(v14.log).toHaveLength(v13.log.length);
     expect(v14.log.map((op) => op.client_ts)).toEqual(v13.log.map((op) => op.client_ts));
     expect(layoutLockSnapshot('v14').relatorio.seed_version).toBe('v14');
     expect(normalized('v14')).toBe(normalized('v13'));
+  });
+
+  it('control: with its flags on, as v14 ships, its layout is not v13\'s (the comparison above is not vacuous)', () => {
+    rulesOff.v14 = false;
+    expect(seedRule('v14', 'conclusion_restriction_by_choice')).toBe(true);
+    expect(normalized('v14')).not.toBe(normalized('v13'));
   });
 });

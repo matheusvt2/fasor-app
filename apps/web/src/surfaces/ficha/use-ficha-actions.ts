@@ -1,9 +1,9 @@
 import {
   concludedByText,
+  conclusionPairWrites,
   conclusionRestrictionOf,
   conclusionResultOf,
   conclusionTextOnConclude,
-  effectiveConclusionPair,
   enabledSubBlocksOf,
   filledByText,
   formatTimeOfDay,
@@ -140,7 +140,8 @@ export function useFichaActions({
    * already confirmed text is left as it is, and the tap count does not change.
    * Story 22.4: with the stored pair unset or looser than the floor, the same batch writes the
    * effective pair (`conclusion/result` and `/restriction` puts) before the text, which is
-   * composed from that same effective pair.
+   * composed from that same effective pair. Batch e24a (Story 24.3, seed v14): under an effective
+   * Reprovado the same batch clears a stored restriction (a put of null; `conclusionPairWrites`).
    */
   const conclude = (otherwise: 'jump' | 'next' = 'jump') => {
     if (block.concluded_by !== null) {
@@ -170,13 +171,13 @@ export function useFichaActions({
         // Batch e23v (Stories 23.5 and 23.6): judged under the visit context of the same fresh rows.
         const visit = visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh);
         const text = conclusionTextOnConclude(fresh, definition, tag, visit);
-        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? effectiveConclusionPair(fresh, definition, visit) : null;
+        // Batch e24a (Story 24.3): the kernel's pair writes; on seed v14 a Reprovado also clears a stored restriction.
+        const pair = fresh.not_tested === null && enabledSubBlocksOf(fresh).has('conclusion') ? conclusionPairWrites(fresh, definition, visit) : null;
         return [
           ...suggestedInstruments({ blocks, instruments, equipment_types: snapshot.equipment_types }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
-          ...(pair !== null && pair.result !== null && pair.result !== conclusionResultOf(fresh) ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),
-          ...(pair !== null && pair.restriction !== null && pair.restriction !== conclusionRestrictionOf(fresh)
-            ? [conclusionOp(by, relatorioId, blockId, 'restriction', pair.restriction)]
-            : []),
+          ...(pair !== null && pair.result !== null ? [conclusionOp(by, relatorioId, blockId, 'result', pair.result)] : []),
+          ...(pair !== null && pair.restriction !== null ? [conclusionOp(by, relatorioId, blockId, 'restriction', pair.restriction)] : []),
+          ...(pair !== null && pair.clearRestriction ? [conclusionOp(by, relatorioId, blockId, 'restriction', null)] : []),
           ...(text === null
             ? []
             : [

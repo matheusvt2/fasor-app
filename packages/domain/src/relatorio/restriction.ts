@@ -3,10 +3,12 @@ import { canonicalDecimal, formatDecimalGroupedPtBr } from '../parse/pt-br-numbe
 import { readingAddressKey, type LastResultReading, type PreviousResults } from '../print/reading-slots.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { scaleToUnit } from '../seed/criteria.ts';
+import { seedRule } from '../seed/definitions.ts';
 import type { BlockDefinition, ColumnDef, TestDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { overRangeText } from './over-range.ts';
 import { readingRowLabel, sentenceCase, type EvaluatedCell, type EvaluatedRow } from './reading-cells.ts';
+import { enabledSubBlocksOf } from './sheet-state.ts';
 import { correctedText, INSULATION_REFERENCE_C } from './temperature-correction.ts';
 
 /*
@@ -236,10 +238,16 @@ function previousReadingValueText(reading: LastResultReading): string {
  * select of the plate that holds one of its `fails_on` values (aliases resolved), with the clause
  * the points and the conclusion name it by: "pré-requisito não atendido (Desligador íntegro:
  * NÃO)"; null when the field holds another value or none (SIM or empty: no effect).
+ *
+ * Batch e24a (Story 24.3, seed v14, row 3344): the prerequisite is a plate value, so it is read only
+ * while the block's nameplate sub-block is on (`prerequisite_needs_nameplate`, the block's own seed);
+ * with the plate switched off nothing fails, so the floor, the conclusion text, the parecer and
+ * "Origem resolvida" ignore a value stored before. On v1 to v13 read whatever the switch.
  */
-export function prerequisiteFailure(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate'>, test: TestDef): { failed: true; text: string } | null {
+export function prerequisiteFailure(block: Pick<BlockRow, 'sheet' | 'config' | 'seed_version'>, definition: Pick<BlockDefinition, 'nameplate'>, test: TestDef): { failed: true; text: string } | null {
   const rule = test.restriction?.prerequisite;
   if (rule === undefined) return null;
+  if (seedRule(block.seed_version, 'prerequisite_needs_nameplate') && !enabledSubBlocksOf(block).has('nameplate')) return null;
   const field = definition.nameplate.find((candidate) => candidate.key === rule.field);
   const value = block.sheet.nameplate[rule.field]?.value;
   if (field === undefined || typeof value !== 'string' || value.trim() === '') return null;
@@ -264,9 +272,10 @@ export interface FailedPrerequisite {
  * sub-block's switch or its applicability: switching the arrester's insulation test off (or the
  * plate making it NA) never makes a failed disconnector vanish. With the test on, the list holds
  * what the evaluation's `prerequisite` holds. Empty on every definition of v1 to v12 (no
- * `restriction`).
+ * `restriction`). Batch e24a (Story 24.3): on seed v14 empty while the nameplate sub-block is off
+ * (`prerequisiteFailure`).
  */
-export function failedPrerequisites(block: Pick<BlockRow, 'sheet'>, definition: Pick<BlockDefinition, 'nameplate' | 'tests'>): FailedPrerequisite[] {
+export function failedPrerequisites(block: Pick<BlockRow, 'sheet' | 'config' | 'seed_version'>, definition: Pick<BlockDefinition, 'nameplate' | 'tests'>): FailedPrerequisite[] {
   return definition.tests.flatMap((test) => {
     if (test.restriction?.prerequisite === undefined) return [];
     const failure = prerequisiteFailure(block, definition, test);

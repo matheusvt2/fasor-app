@@ -64,14 +64,17 @@ const field = (page: Page, key: string) => page.locator(`[data-field-key="${key}
 const checklistRow = (page: Page, n: number) => page.locator('#ficha-step-verificacoes li.checklist-row').nth(n - 1);
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 
-/** Resets Empresa B, signs in and opens the Sumário of a relatório pushed from the office. */
-async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: string; projectId: string }> {
+/**
+ * Resets Empresa B, signs in and opens the Sumário of a relatório pushed from the office. Batch e24a:
+ * `seedVersion` pins it to a version (a test asserting v13's conclusion passes 'v13').
+ */
+async function openRelatorio(page: Page, width: number, seedVersion?: string): Promise<{ relatorioId: string; projectId: string }> {
   await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: 900 });
   await signIn(page, account.email);
   // Status flow 2026-10-10: Em campo from the start, as a relatório being filled on site is
   // (field work would move a Rascunho one there in its first batch, with a toast).
-  const ids = await pushNewRelatorio(page, account, database, { emCampo: true });
+  const ids = await pushNewRelatorio(page, account, database, { emCampo: true, ...(seedVersion === undefined ? {} : { seedVersion }) });
   await page.goto(`/relatorio/${ids.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   return ids;
@@ -520,7 +523,8 @@ function instrumentDraft(id: string, fields: Record<string, unknown>): OpDraft {
 
 test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a suffix and the tap-cycle set the unit, amber out of criterion with "Marcar Com restrições", the outlier hint; reload keeps it', async ({ page }) => {
   test.setTimeout(150_000);
-  await openRelatorio(page, 1280);
+  // Batch e24a (Story 24.3): pinned to seed v13, which offers "Marcar Com restrições" (seed v14 never does).
+  await openRelatorio(page, 1280, 'v13');
   await openEnel(page);
   const { blockId } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
@@ -1008,7 +1012,8 @@ test('@p0 5.7-E2E-001 the Instrument picker: empty state opens Cadastros; a pick
 
 test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the composed text is confirmed, a later reading out makes it stale and adjusts the conclusion to Reprovado · Com restrições (looser segments disabled), the observation is required, then "Concluir ficha" concludes', async ({ page }) => {
   test.setTimeout(180_000);
-  const { relatorioId } = await openRelatorio(page, 1280);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose adjusted pair this test asserts (Reprovado · Com restrições).
+  const { relatorioId } = await openRelatorio(page, 1280, 'v13');
   await openEnel(page);
   const target = await rowIds(rowOfType(page, 'Chave seccionadora'));
   // The plate seeded from the office; the checklist and readings through the UI.

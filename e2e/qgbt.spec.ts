@@ -20,6 +20,7 @@ import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test
 import { readStore } from './support/outbox.ts';
 import { paletteTypes, typeLabels, typeRows } from './support/palette.ts';
 import { devicePhotos } from './support/photos.ts';
+import { pinTemplateSeed } from './support/push-server-ops.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -79,6 +80,8 @@ const CTA = 'chave_transferencia_automatica';
 const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', QD);
 const QD_NAME = DEFINITION.label;
 const NEW_TEMPLATE = 'Novo template';
+/** Batch e24a (Story 24.3): the seed the composer's template is moved to before 14.9-E2E-001 creates its relatório (its conclusion is v13's). */
+const COMPOSER_SEED = 'v13';
 const LOCAL = 'Quadros';
 const OUTROS = 'Outros equipamentos';
 const PLATE = resolve(import.meta.dirname, '..', 'apps/api/src/jobs/reading/fixtures/images/plate-quadro-eletrico.png');
@@ -174,6 +177,11 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   expect(template.seed_version).toBe(SEED_VERSION);
   expect(template.blocks.filter((block) => block.block_type === QD).map((block) => block.quantity)).toEqual([1, 1]);
   await syncNow(page);
+  // Batch e24a (Story 24.3): the server moves the template to seed v13, whose conclusion this test asserts
+  // (Reprovado · Com restrições); the device pulls the move before the relatório is created from it.
+  await pinTemplateSeed(account.companyId, templateId, COMPOSER_SEED, account.userId);
+  await syncNow(page);
+  await expect.poll(async () => (await entities<TemplateRow>(page)).find((record) => record.entity === 'template' && record.id === templateId)?.row.seed_version).toBe(COMPOSER_SEED);
 
   // --- a relatório from it: the QGBTs born with the kernel's TAGs ---
   await page.goto('/');

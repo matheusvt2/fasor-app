@@ -20,7 +20,32 @@ const v13 = CABINE_PRIMARIA_V13;
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV14(): ReportSeed {
-  return structuredClone(v13);
+  const seed = structuredClone(v13);
+  withE24aRules(seed);
+  return seed;
+}
+
+// --- batch e24a (Stories 24.3 and 24.4): the conclusion and section 10 rule flags ------------------
+
+/**
+ * Batch e24a (Story 24.3): a reading out of its criterion, a failed prerequisite or a defect Não
+ * ensaiado makes the ficha Reprovado and nothing else, "Com restrições" is the technician's choice
+ * (`conclusion_restriction_by_choice`), and the arrester's prerequisite is read only while its
+ * nameplate sub-block is on (`prerequisite_needs_nameplate`). Story 24.4: the parecer's Reprovado
+ * sentence names each reproved ficha's findings (`parecer_names_finding`), an NC observation typed in
+ * several lines enters the conclusion on one line (`nc_clause_on_one_line`) and the fixed "nos itens 8
+ * e 9" of a Conclusão text is replaced across its formatted runs (`results_reference_across_runs`).
+ * Every flag is read by `seedRule` (`seed/definitions.ts`); `seed.test.ts` strips them (`withoutE24a`).
+ */
+function withE24aRules(seed: ReportSeed): void {
+  seed.rules = {
+    ...seed.rules,
+    conclusion_restriction_by_choice: true,
+    prerequisite_needs_nameplate: true,
+    parecer_names_finding: true,
+    nc_clause_on_one_line: true,
+    results_reference_across_runs: true,
+  };
 }
 
 export const CABINE_PRIMARIA_V14: ReportSeed = cabinePrimariaV14();
