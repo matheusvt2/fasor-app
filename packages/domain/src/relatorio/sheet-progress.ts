@@ -231,8 +231,10 @@ function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled:
   let missing = 0;
   let observation = 0;
   if (result === null) missing += 1;
-  // Batch e24a (Story 24.3, seed v14): a Reprovado takes no restriction (`restrictionApplies`).
-  if (restriction === null && restrictionApplies(block, result)) missing += 1;
+  // Batch e24a (Story 24.3, seed v14): a Reprovado takes no restriction (`restrictionApplies`); with no result
+  // chosen yet, the one the screen shows (the effective one) decides, as it decides whether the group is drawn.
+  const shown = result ?? effectiveConclusionPair(block, definition, visit).result;
+  if (restriction === null && restrictionApplies(block, shown)) missing += 1;
   // Com restrições requires the observation; batch e24a (Story 24.3, seed v14): a Reprovado too (`observationRequiredFor`).
   if (observationRequiredFor(block, { result, restriction }) !== null && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
   return { missing: missing + observation, observation };

@@ -500,13 +500,14 @@ function ncClauseText(item: { label: string; observation: string | null }, oneLi
 
 /**
  * Batch e24a (Story 24.4, seed v14, row 3196): an NC observation typed in several lines as one clause,
- * so the conclusion's sentence prints in one paragraph: each line trimmed and without its final period
- * (`withoutFinalPeriod`), blank lines dropped, joined by "; " ("linha um; linha dois").
+ * so the conclusion's sentence prints in one paragraph: each line trimmed and without its final
+ * period, ";" or "," (so "linha um;" never prints "linha um;; linha dois"; "etc." keeps its period,
+ * `withoutFinalPeriod`), blank lines dropped, joined by "; " ("linha um; linha dois").
  */
 function ncObservationOnOneLine(observation: string): string {
   return observation
     .split(/\r\n?|\n/)
-    .map((line) => withoutFinalPeriod(line.trim()))
+    .map((line) => withoutFinalPeriod(line.trim().replace(/[\s.;,]+$/, '')))
     .filter((line) => line !== '')
     .join('; ');
 }

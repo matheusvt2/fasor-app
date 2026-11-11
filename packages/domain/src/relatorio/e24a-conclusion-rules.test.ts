@@ -41,7 +41,7 @@ import {
   resultChoiceWrites,
 } from './conclusion.ts';
 import { instantiateTemplate } from './instantiate.ts';
-import { composeParecer, derivedParecer, parecerCounts } from './parecer.ts';
+import { composeParecer, derivedParecer, parecerCounts, parecerTextState } from './parecer.ts';
 import { cellAddressesOf, type TestKey } from './readings.ts';
 import { failedPrerequisites, prerequisiteFailure } from './restriction.ts';
 import { sheetProgress } from './sheet-progress.ts';
@@ -210,6 +210,14 @@ describe('24.3-UNIT B-1 a v14 reading out of its criterion floors Reprovado and 
     expect(conclusionSuggestionText(conclusionSuggestion(block)!)).toBe('Reprovado?');
     expect(conclusionPairComplete(block)).toBe(true);
     expect(markRestrictionOffered(block)).toBe(false);
+  });
+
+  it('nothing stored: the header counts the result alone missing on v14 (the Reprovado the screen shows takes no restriction); two on v13, as before', () => {
+    const v14 = outCable('v14');
+    expect(chosenConclusionPair(v14)).toEqual({ result: null, restriction: null });
+    expect(sheetProgress({ blocks: [v14] }, v14.id).steps.conclusao.missing).toBe(1);
+    const v13 = outCable('v13');
+    expect(sheetProgress({ blocks: [v13] }, v13.id).steps.conclusao.missing).toBe(2);
   });
 
   it('v13: Reprovado · Com restrições, the reason line and suggestion as before, Sem restrições looser, "Marcar Com restrições" offered', () => {
@@ -570,6 +578,20 @@ describe('24.4-UNIT C-1 the v14 parecer names the reprovada ficha with its findi
     expect(sectionEightEntries(snapshot)).toEqual([]);
   });
 
+  it('v14: the basis carries the findings, so a summary confirmed over 310 µΩ reads stale once the reading is 400 µΩ; v13\'s basis does not move', () => {
+    const corrected = (version: string) => {
+      const { snapshot, breaker } = breakerOut(version);
+      return { before: composeParecer(snapshot), after: composeParecer(edit(snapshot, breaker.id, (block) => readings(block, 'resistencia_contato', { '0/0': measured('400', 'µΩ') }))) };
+    };
+    const v14 = corrected('v14');
+    expect(v14.after.text).toContain('resistência de contato máxima de 400 µΩ');
+    expect(v14.after.basis).not.toBe(v14.before.basis);
+    expect(parecerTextState({ verdict: 'nao_apto', text: v14.before.text, text_status: 'confirmed', text_basis: v14.before.basis }, v14.after)).toBe('stale');
+    const v13 = corrected('v13');
+    expect(v13.after.basis).toBe(v13.before.basis);
+    expect(parecerTextState({ verdict: 'nao_apto', text: v13.before.text, text_status: 'confirmed', text_basis: v13.before.basis }, v13.after)).toBe('confirmed');
+  });
+
   it('v13: the sentence as before, by reason category', () => {
     const { snapshot, tag } = breakerOut('v13');
     expect(composeParecer(snapshot).text).toContain(`1 ficha foi reprovada por leituras fora do critério de aceitação (${tag}).`);
@@ -652,6 +674,11 @@ describe('24.4-UNIT C-5 an NC observation typed in two lines', () => {
     // Each line without its final period, blank lines dropped.
     const dotted = checklist(cleanCable('v14'), { 1: { result: 'NC', observation: 'Mufla aquecida.\n\n  Verificar na próxima visita.  ' } });
     expect(composeConclusion(dotted, definitionOf(dotted), 'CE-01').text).toContain('Mufla aquecida; Verificar na próxima visita (item 2, NC)');
+    // A line closed by ";" or "," (or with its period after one) never doubles the joining punctuation; "etc." keeps its period.
+    const punctuated = checklist(cleanCable('v14'), { 1: { result: 'NC', observation: 'linha um;\nlinha dois,\nlinha três.;\nfolga, oxidação etc.' } });
+    const joined = composeConclusion(punctuated, definitionOf(punctuated), 'CE-01').text;
+    expect(joined).toContain('linha um; linha dois; linha três; folga, oxidação etc. (item 2, NC)');
+    expect(joined).not.toMatch(/[;,]; /);
   });
 
   it('v13: the observation as typed, its line break kept (text and basis as before)', () => {
