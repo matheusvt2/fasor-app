@@ -377,8 +377,8 @@ Matheus decided:
 
 | Item | Question | Owner |
 | --- | --- | --- |
-| M-6 | Story 24.17's create action on a reading is the coordinator's reading. Is it what he wants, and may it wait for wave 3? Until the epic deploys, a failed test has no create action | Matheus |
-| M-7 | Story 24.21 gives no key to equipment that exists today. Should a later step cover it? | Matheus |
+| M-6 | ~~Story 24.17's create action on a reading is the coordinator's reading. Is it what he wants, and may it wait for wave 3? Until the epic deploys, a failed test has no create action~~ *(2026-11-11, Matheus: yes, decision 17.)* | Matheus |
+| M-7 | ~~Story 24.21 gives no key to equipment that exists today. Should a later step cover it?~~ *(2026-11-11, Matheus: no, decision 17.)* | Matheus |
 | M-8 | The open questions of fix batch e24h, as its spec stood that evening (an NC row with no point before issuing, a confirmed parecer text that reads stale, the Porto Seguro golden) | Matheus |
 | later | How automatic points should work | Matheus, with Bruno |
 
@@ -395,3 +395,35 @@ What it means:
 - Fix batch e24h gained item H9 and builds the observation rule. Story 24.3 keeps its other rules (the reading out of its criterion, the restriction boxes, the technician's choice).
 - This is the one conclusion rule that reaches relatórios on seed v13 and older. Decision 5 still holds for the rest: a reading out of its criterion gives Reprovado only on v14.
 - A ficha already concluded keeps its stored pair. No golden moved by the observation rule.
+
+## Matheus's decisions of 2026-11-11
+
+Matheus said "siga até o final", asked whether the rest could run in parallel, and later answered the open points with "aceito as recomendações das decisões". Recorded as:
+
+16. Epic 24 is driven to its end with the batches in parallel, two stacks at most. The coordinator stops only for a decision that is his and for the word to deploy or to release.
+    - The company-types half of batch e24p was started early as batch e24c, because it needs no seed.
+    - Contract numbers are no longer reserved: a batch takes main's number plus one when it merges.
+    - The gates between the waves became one integrated gate on main after the last batch, with one two-pass review and one fix batch.
+17. Every recommendation the coordinator gave on the open points is accepted:
+    - **M-6.** The "Criar ponto de atenção" action on a reading is built as Story 24.17 says. The technician taps it; nothing is created by itself.
+    - **M-7.** Equipment that existed before Story 24.21 gets no key.
+    - **M-8, first question.** An NC row with no point is not named again before issuing.
+    - The "Igual à" toast keeps no field count (fix batch e24f).
+    - An observation the technician typed is always treated as edited, so it is kept with its warning when its item goes back to Conforme or N.A. (Story 24.6). It goes to the fix batch.
+    - A point of attention moved to another equipment: what the point question does with it is left for later, as a row in `deferred-work.md`.
+    - A library type hidden by a copy keeps a way to "Editar padrões" in the composer (Story 24.19). It goes to the fix batch.
+18. What the batches built stands, since he raised nothing against it:
+    - Batch e24b: the unit column's alignment applies from 768 px up.
+    - Batch e24a, the four readings of Story 24.3: an NC row and a restricted reading still give Aprovado · Com restrições on v14; OBSERVAÇÕES is required under a v14 Reprovado; the justification of "Com restrições" is OBSERVAÇÕES; the arrester's rule applies on v14 only.
+    - Batch e24c: the readings of Stories 24.18 and 24.19, and Story 24.20's refusal in the server's push route.
+
+### Open items after 2026-11-11
+
+| Item | Question | Owner |
+| --- | --- | --- |
+| Release | Publish a release for the hotfix `1528183f` (v0.8.1)? It needs his explicit word. | Matheus |
+| 24.18 in print | Should a measurement table print its criterion, so that a "nominal ± %" row shows it? Until he decides, it does not: the layout is protected. | Matheus |
+| M-8, second question | A confirmed parecer text that reads stale after fix batch e24h | Matheus |
+| M-2, M-4 | They keep their defaults | Matheus |
+| B-1 to B-11 | One message after the epic is built, with the authored sentences of every batch, the tolerance's printed form (B-9), and the note that issuing again a relatório from before e24h drops its automatic points | Bruno, through Matheus |
+| later | How automatic points should work | Matheus, with Bruno |

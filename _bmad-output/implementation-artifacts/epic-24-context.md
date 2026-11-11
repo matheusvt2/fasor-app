@@ -203,6 +203,9 @@ Each is written under its story in `epics.md`.
 - **Matheus: the readings above**, chiefly ~~the renamed TAG (24.8)~~ *(2026-11-10, evening: decided, Story 24.21)* and the composer's palette (24.19). *(2026-11-10, evening: and, new, the create action on a reading (24.17; M-6 of the proposal) and the equipment from before the story (24.21; M-7).)*
 - *(2026-11-10, evening)* **Matheus: the open questions of fix batch e24h** (M-8 of the proposal), as its spec stood on the evening of 2026-11-10: whether an NC row with no point is named again before issuing, a confirmed parecer text that reads stale after the update, and the Porto Seguro golden.
 - *(2026-11-10, evening)* **Later, not planned:** how automatic points should work (decision 12).
+- *(2026-11-11)* **Decided by Matheus on 2026-11-11** (decisions 16 to 18 of the proposal): the create action on a reading (24.17, M-6) is built as the story says; equipment from before Story 24.21 gets no key (M-7); an NC row with no point is not named again before issuing (M-8); the readings of 24.3, 24.18 and 24.19 stand as built.
+- *(2026-11-11)* **Still open to Matheus:** a release for the hotfix `1528183f`; whether a measurement table prints its criterion (the 24.18 narrowing; until he decides, it does not); a confirmed parecer text that reads stale after e24h (M-8); M-2 and M-4 keep their defaults.
+- *(2026-11-11)* **For Bruno, added to the one message:** the tolerance's printed form "220 V ±5 %" (with B-9); the sentences batches e24a, e24b and e24c authored, listed in PRs #310, #311 and #312; and that issuing again a relatório from before e24h prints it without its automatic points (finding H1 of the e24h pass).
 
 ## Fix batch e24h
 
@@ -263,6 +266,47 @@ Rules for the batch:
 - If its spec finds a fold change (R-5 may be one), it takes contract ~~41~~ 42 *(2026-11-10, evening: e24h has 41)*, and the reserved numbers of e24a to e24p move up by one *(2026-11-10, evening: to 43, 44, 45 and 46)*.
 - The deferred half of R-9 (a hidden dry value kept in the store, a swallowed commit error) stays in the ledger.
 
+## Batches built (2026-11-11)
+
+*(2026-11-11, coordinator.)* Matheus said "siga até o final" and asked for the rest to run in parallel. So the batches ran two at a time, each from the main of the moment, and the two wave gates became one integrated gate at the end (see "Batch plan" and "Gates"). Each batch's spec holds its own gate record and design notes.
+
+| Batch | PR | Merged as | Contract | Stories | Story gate |
+| --- | --- | --- | --- | --- | --- |
+| e24f | #309, head `2bfd64cb` | `8bddd986` (2026-11-10) | 42, minimum 42 | none (R-1, R-3, R-4, R-5, R-7, R-8, R-9 and the tests red under load) | `spec-e24f-retro-fixes.md` § Auto Run Result |
+| e24b | #310 | `1c63235e` (2026-11-11) | 43, minimum 43 | 24.5, 24.6, 24.7, 24.8, 24.21, 24.9 | lint and static clean; test:unit 6243 of 6243; test:api 962 passed; touched specs 244 passed; touched durability specs on the three matrix browsers, 59 passed |
+| e24a | #311, head `1bd82b67` | `dee6d567` (2026-11-11) | 44, minimum 44 | 24.2, 24.3, 24.4 | lint and static clean; test:unit 6322 of 6322; test:api 973 passed, 6 skipped; 46 touched specs, 170 of 170 |
+| e24c | #312, head `e9be454d` | `ea6676d2` (2026-11-11) | 45, minimum 45 | 24.18, 24.19, 24.20 | lint and static clean; test:unit 6360 of 6361 (the red is e24b's `verificacoes-surface.test.tsx`, under load; it passed alone twice); test:api 977 passed, 6 skipped; 33 touched specs, 166 passed, 0 failed, 3 skipped |
+
+What each one left for the integrated review and for the people:
+
+- **e24f.**
+  - R-5 changed the fold (`ops/apply.ts`), so the batch took contract 42.
+  - The likely cause of the 150 s silence of 4.8-E2E-005 was that a JSON sync request had no time limit. `apps/web/src/sync/client.ts` now aborts a request whose headers do not arrive in time. The cause was not reproduced.
+  - Read first in the integrated review: that time limit, and R-1's branch for the vector group.
+- **e24b.**
+  - The unit column's alignment (decision 15) applies from 768 px up. At 390 px it pushed the table out of the screen.
+  - A new equipment stores a write-once `reuse_key`. The fixtures and the goldens pass the frozen TAG rule (`tagRule: 'legacy'`). No golden moved.
+  - Read first in the integrated review, patched and not re-reviewed: the effect that closes the point question, the pending-text rule, `learnedBefore`, the `reuse_key` schema.
+- **e24a.**
+  - Seed v14 is open, as v13 plus five flags of the seed-level `rules` object: `conclusion_restriction_by_choice`, `prerequisite_needs_nameplate`, `parecer_names_finding`, `nc_clause_on_one_line`, `results_reference_across_runs`. They are read by `seedRule(version, flag)`.
+  - The v13 lock was taken on main `8bddd986`: seven files under `golden/layout-lock-v13/`. The v5, v11, v12 and Porto Seguro goldens did not move.
+  - There is no v14 golden yet. It is due at the deploy.
+  - For the hands-on pass: a restriction stored under a v14 Reprovado shows "Conclusão ajustada" until it is confirmed.
+  - Read first in the integrated review, patched and not re-reviewed: the test of the v14 parecer basis, the header's count of what is missing under a v14 Reprovado, the punctuation of joined NC lines.
+- **e24c.** It is the company-types half of the planned e24p, started early because it needs no seed.
+  - **24.18, narrowed in print.** A measurement table has printed no ACEITÁVEL line since Story 22.2. So a "nominal ± %" row of such a table shows its criterion on the sheet and in the editor, and nothing in print. Where a criterion does print it reads "220 V ±5 %", as the ratio's "±0,5 %" prints today (B-9 decides the spacing). Whether those tables print the criterion is open to Matheus.
+  - **24.20, built in another place.** The refusal is in the server's push route (`op_invalid`), not in the strict schema. A new device runs every version it pulls through that schema and stops on a refusal, so a version already published in the broken state would block its sync.
+  - A library type hidden by a copy gets a second grey line in Tipos de equipamento. In the composer it loses its only "Editar padrões" entry while a template still places it: this goes to the fix batch (below).
+  - A residual risk, with no ledger row: any later tightening of `companyTypeDefinitionSchema` can block the sync of a new device.
+  - No golden moved and no seed data changed.
+
+## Fix batch after the integrated review (planned)
+
+*(2026-11-11, coordinator, on Matheus's decisions 17 and 18 of the proposal.)* One fix batch follows the integrated gate and review. Besides what the review finds, it carries:
+
+- An observation the technician typed is always treated as edited: when its item goes back to Conforme or N.A. it is kept and the warning shows, even when the text equals a phrase typed on another sheet (Story 24.6, batch e24b).
+- In the template composer, a library type hidden by a published copy keeps a way to "Editar padrões" while a template still places it (Story 24.19, batch e24c).
+
 ## Batch plan
 
 There are at most two batch stacks up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`. The coordinator hands out a free port base before each launch (`podman ps --filter name=fasor-`).
@@ -271,20 +315,23 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
 | --- | --- | --- | --- | --- | --- | --- |
 | *(2026-11-10, evening)* first | e24h | `e24h-points-on-click` | none: the fix batch "points on click" (decision 12) | opus · high | 41, minimum 41 | main `72ed1f51`; alone; deployed alone on Matheus's word |
 | 0 | coordinator | `docs/e24-frames` | 24.1 | opus · medium (`bmad-ux`) | none | main after the planning PR |
-| 0 | e24f | `e24f-retro-fixes` | none: the Epic 23 retrospective's fix batch (E23-A1, E23-A4) | opus · high | none expected | main after the planning PR, beside Story 24.1 *(2026-11-10, evening: and after e24h has merged)* |
-| 1 | e24a | `e24a-conclusion-rules` | 24.2, 24.3, 24.4 | opus · high, max, high | ~~41~~ 42 *(2026-11-10, evening)* | main after 24.1 is approved and e24f has merged |
+| 0 | e24f | `e24f-retro-fixes` | none: the Epic 23 retrospective's fix batch (E23-A1, E23-A4) | opus · high | ~~none expected~~ *(2026-11-11: 42, taken; R-5 changed the fold)* | main after the planning PR, beside Story 24.1 *(2026-11-10, evening: and after e24h has merged)* |
+| 1 | e24a | `e24a-conclusion-rules` | 24.2, 24.3, 24.4 | opus · high, max, high | ~~41~~ ~~42~~ *(2026-11-10, evening)* 44 *(2026-11-11, taken at its merge)* | main after 24.1 is approved and e24f has merged |
 | 1 | e24b | `e24b-screen-lane` | 24.5, 24.6, 24.7, 24.8, *(2026-11-10, evening)* 24.21, 24.9 | opus · medium, high, high, high, *(2026-11-10, evening)* high, medium | ~~42~~ 43 *(2026-11-10, evening: Story 24.21 takes it)* | main after 24.1 is approved |
-| 2 | e24s | `e24s-seed-v14-sheets` | 24.10, 24.11, 24.12, 24.13, 24.14 | opus · medium, high, medium, high, medium | ~~43~~ 44 *(2026-11-10, evening)* | main after wave 1's gate and fix batch |
-| 3 | e24p | `e24p-print-company-types` | 24.15, 24.16, 24.17, 24.18, 24.19, 24.20 | opus · high, high, ~~medium~~ high *(2026-11-10, evening)*, high, medium, medium | ~~44~~ 45 *(2026-11-10, evening)* | main after wave 1's gate and fix batch, beside e24s |
+| 2 | e24s | `e24s-seed-v14-sheets` | 24.10, 24.11, 24.12, 24.13, 24.14 | opus · medium, high, medium, high, medium | ~~43~~ ~~44~~ *(2026-11-10, evening)* main's number plus one at its merge, if it takes one *(2026-11-11)* | ~~main after wave 1's gate and fix batch~~ *(2026-11-11)* main `dee6d567`, right after e24a merged |
+| 3 | e24p | ~~`e24p-print-company-types`~~ *(2026-11-11)* `e24p-print` | 24.15, 24.16, 24.17, ~~24.18, 24.19, 24.20~~ *(2026-11-11: built as batch e24c, the next row)* | opus · high, high, ~~medium~~ high *(2026-11-10, evening)*~~, high, medium, medium~~ | ~~44~~ ~~45~~ *(2026-11-10, evening)* main's number plus one at its merge, if it takes one *(2026-11-11)* | ~~main after wave 1's gate and fix batch, beside e24s~~ *(2026-11-11)* main `ea6676d2`, right after e24c merged, beside e24s |
+| *(2026-11-11)* 3, early | e24c | `e24c-company-types` | 24.18, 24.19, 24.20 | opus · high, medium, medium | 45, taken at its merge | main `1c63235e`, right after e24b merged, beside e24a |
 
 ### Merge order
 
 1. The planning PR, then Story 24.1's frames and fix batch e24f side by side. e24f merges before e24a starts: both edit the conclusion text. *(2026-11-10, evening: fix batch e24h comes before all of them. It merges and is deployed alone. This planning change merges beside it; e24h does not edit the planning files. e24f starts after e24h merges.)*
 2. e24a, then e24b. e24b merges main first: both edit `points/derived.ts`. *(2026-11-10, evening: inside e24b, Story 24.21 is built right after 24.8.)*
-3. Wave 1's gate, its two-pass review and its fix batch.
-4. e24s, then e24p. e24p merges main first and re-pins `V14_HASH`.
-5. The gate of waves 2 and 3, its review and its fix batch.
+3. ~~Wave 1's gate, its two-pass review and its fix batch.~~ *(2026-11-11: folded into step 5.)*
+4. ~~e24s, then e24p. e24p merges main first and re-pins `V14_HASH`.~~ *(2026-11-11: e24s and e24p run side by side. The one that opens its PR second merges main first and re-pins `V14_HASH`.)*
+5. ~~The gate of waves 2 and 3, its review and its fix batch.~~ *(2026-11-11: one integrated gate on main after e24s and e24p merge, then one two-pass review, then one fix batch.)*
 6. The paid plate eval, the hands-on pass, then the deploy on Matheus's word.
+
+*(2026-11-11, coordinator: the order that happened.)* e24h (#307), e24f (#309), Story 24.1's frames, e24b (#310), e24a (#311), e24c (#312). Matheus asked for the rest to run in parallel, so each batch started as soon as a slot was free, on the main of the moment, and no gate ran between the waves. The risk taken is that a defect of wave 1 is found only at the end; the integrated review reads wave 1's patched parts first.
 
 ### Coordinator decisions
 
@@ -293,7 +340,7 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
   - Every later batch adds to v14 in place, in its own fenced section, with its strip helper in `seed.test.ts`. This is safe because v14 is not deployed until the epic's single deploy. `V14_HASH` is re-pinned by each batch, and the PR that merges second re-pins it on the merged main.
   - e24b adds nothing to the seed.
 - **Contracts.**
-  - Numbers are reserved in merge order: ~~e24a 41, e24b 42, e24s 43, e24p 44~~ *(2026-11-10, evening)* e24h 41 (taken), e24a 42, e24b 43, e24s 44, e24p 45.
+  - Numbers are reserved in merge order: ~~e24a 41, e24b 42, e24s 43, e24p 44~~ *(2026-11-10, evening)* ~~e24h 41 (taken), e24a 42, e24b 43, e24s 44, e24p 45.~~ *(2026-11-11: numbers are no longer reserved. A batch that needs one takes main's number plus one when it merges main before its PR. Taken so far: e24h 41, e24f 42, e24b 43, e24a 44, e24c 45.)*
   - A batch whose spec finds no fold change takes no number, and the coordinator renumbers the unlaunched batches down. ~~Planning found none in e24b.~~ *(2026-11-10, evening: Story 24.21 adds a key to the equipment row, so e24b takes its number.)*
   - `MIN_CONTRACT_VERSION` follows each bump unless a PR shows a reason not to. Each bump has an api integration test through the sync route.
 - **Shared files and expected conflicts.**
@@ -324,7 +371,7 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
   - Touched specs include every spec that asserts seed counts, the item, sub-block or type lists, the conclusion row, a suggested TAG, the palette's list, section 8 or section 10 (`grep -rln` over `e2e/`; E14-A3, E15-A3).
   - A batch that changes the op fold, the commit path or a live query on the ficha also runs its touched durability specs on the matrix projects.
 - **Cross-batch merge rule** before the second PR of a wave merges (orchestrator § 6).
-- **After each wave.**
+- **After each wave.** *(2026-11-11: once, after the last batch merges; see "Merge order".)*
   - First `podman compose restart api web`.
   - Then one integrated gate on main: `pnpm test:e2e`, `test:e2e:full` and the matrix, with the host load line.
   - Then the two-pass integrated review, then one fix batch if needed.
