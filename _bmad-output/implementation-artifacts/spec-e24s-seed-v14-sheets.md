@@ -134,7 +134,7 @@ All under `packages/domain/src/` unless named.
 
 ## Auto Run Result
 
-Status: done. Branch `e24s-seed-v14-sheets`; main `ea6676d2` (batch e24c) merged in `55c2351c`.
+Status: done. Branch `e24s-seed-v14-sheets`; main `ea6676d2` (batch e24c) merged in `55c2351c`, main `e5fdde82` (batch e24p) in `9260bc23`.
 
 **Summary.**
 - Story 24.10: v14 TP seven items with the hint "ÍNTEGROS E COM ESPECIFICAÇÃO CORRETA" under FUSÍVEIS; v14 TC six items without FUSÍVEIS; the four tap-budget specs gain v14 runs at the numbers accepted on v13 (24.10-E2E-002 to 005).
