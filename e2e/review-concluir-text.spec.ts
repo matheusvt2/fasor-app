@@ -176,48 +176,93 @@ test('@p0 R8CONC-E2E-002 an edited text is left as it is: the menu\'s "Concluir 
   expect((await textOps()).at(-1)).toBe(edited);
 });
 
-test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude makes the confirmed text stale: the sheet offers "Substituir", row 9 names the TAG and the Export dialog counts it until it is tapped', async ({ page }) => {
-  test.setTimeout(240_000);
+/** "Renomear TAG" from the sheet's menu, from `from` to `to`; the sheet's menu then names `to`. */
+async function renameFromMenu(page: Page, from: string, to: string): Promise<void> {
+  await page.getByRole('button', { name: `Mais opções da ficha ${from}` }).click();
+  await page.getByRole('menuitem', { name: 'Renomear TAG' }).click();
+  const rename = page.getByRole('dialog', { name: `Renomear TAG ${from}` });
+  await rename.getByRole('textbox', { name: 'TAG' }).fill(to);
+  await rename.getByRole('button', { name: 'Salvar' }).click();
+  await expect(rename).toHaveCount(0);
+  await expect(page.getByRole('button', { name: `Mais opções da ficha ${to}` })).toBeVisible();
+}
+
+/*
+ * Fix batch e24y (P2, `tag-rename.ts` `tagRenameFollows`, web `renameEquipmentOps`) changed the rule this test
+ * asserted, and fix batch e24z rewrote it to the decided one: a rename carries a confirmed, unedited conclusion
+ * text into the new TAG in the rename's own batch, so nothing goes stale; only a text the engineer edited stays as
+ * written, and that one is offered "Substituir", named on row 9 and counted by the Export dialog until it is tapped.
+ * `e24y-tag-rename.spec.ts` covers the followed text's batch and the issued DOCX on a v14 Disjuntor MT; this test
+ * adds the Sumário's row 9 and the Export dialog for both cases, on a sheet concluded with "Concluir e avançar".
+ */
+test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude: a confirmed, unedited text follows it and nothing is stale; an edited text stays, the sheet offers "Substituir", row 9 names the new TAG and the Export dialog counts it until it is tapped', async ({ page }) => {
+  test.setTimeout(300_000);
   const { relatorioId, sheet } = await setUp(page);
   await openSheet(page, relatorioId, sheet.blockId);
   await confirmPairAndConclude(page, sheet);
   await expectConcludeConfirmsText(page, database, sheet.blockId, `A seccionadora ${sheet.tag}`);
   await openSumario(page, relatorioId);
   const warningsBefore = await exportWarnings(page);
+  const textOps = async () => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === `sheet/${sheet.blockId}/conclusion/text`).map((row) => String(row.value));
+  const editor = page.getByRole('textbox', { name: 'Texto da conclusão' });
 
-  // "Renomear TAG" from the sheet's menu.
+  // (a) The confirmed text was never edited: the rename writes it again under the new TAG, still confirmed.
   const renamed = `${sheet.tag}-R`;
   await openSheet(page, relatorioId, sheet.blockId);
-  await page.getByRole('button', { name: `Mais opções da ficha ${sheet.tag}` }).click();
-  await page.getByRole('menuitem', { name: 'Renomear TAG' }).click();
-  const rename = page.getByRole('dialog', { name: `Renomear TAG ${sheet.tag}` });
-  await rename.getByRole('textbox', { name: 'TAG' }).fill(renamed);
-  await rename.getByRole('button', { name: 'Salvar' }).click();
-  await expect(rename).toHaveCount(0);
-  await expect(page.getByRole('button', { name: `Mais opções da ficha ${renamed}` })).toBeVisible();
-
-  // The sheet: the stored text stays, the recomposed one is offered.
+  await renameFromMenu(page, sheet.tag, renamed);
   await openConclusao(page);
-  await expect(generated(page).locator('.suggestion-alt')).toHaveText(STALE_LINE);
-
-  // Row 9 and the Export dialog's pre-issue list name the sheet by its new TAG.
-  const staleText = `Texto de conclusão desatualizado: ${renamed}`;
-  await openSumario(page, relatorioId);
-  await expect(row9(page)).toContainText(staleText);
-  // The Export dialog counts it with the other warnings on the Sumário rows.
-  expect(await exportWarnings(page)).toBe(warningsBefore + 1);
-
-  // "Substituir" on the sheet: the recomposed text, under the new TAG; the row is gone.
-  await openSheet(page, relatorioId, sheet.blockId);
-  await openConclusao(page);
-  await generated(page).locator('.suggestion-alt').getByRole('button', { name: 'Substituir' }).click();
+  await expect(editor).toContainText(`A seccionadora ${renamed} `);
+  await expect(generated(page).locator('.helper')).toHaveText(CONFIRMED_HELPER);
   await expect(generated(page).locator('.suggestion-alt')).toHaveCount(0);
-  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toContainText(`A seccionadora ${renamed} `);
-  const textOps = async () => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === `sheet/${sheet.blockId}/conclusion/text`).map((row) => String(row.value));
   await expect.poll(async () => (await textOps()).at(-1)).toMatch(new RegExp(`^A seccionadora ${renamed} `));
   expect(await lastTextStatus(page, database, sheet.blockId)).toBe('confirmed');
+  // Nothing stale: row 9 names nothing and the Export dialog counts what it counted before the rename.
   await openSumario(page, relatorioId);
   await expect(row9(page)).not.toContainText('Texto de conclusão desatualizado');
   await expect(row9(page)).not.toContainText('sem texto de conclusão confirmado');
   expect(await exportWarnings(page)).toBe(warningsBefore);
+
+  // (b) The engineer edits the text ("Editar", typed, blurred): it is theirs from then on.
+  await openSheet(page, relatorioId, sheet.blockId);
+  await openConclusao(page);
+  await generated(page).getByRole('button', { name: 'Editar' }).click();
+  await expect.poll(async () => lastTextStatus(page, database, sheet.blockId)).toBe('edited');
+  await expect(editor).toBeFocused();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Texto revisado.');
+  await editor.blur();
+  await expect.poll(async () => (await textOps()).at(-1)).toMatch(/ Texto revisado\.$/);
+  const edited = (await textOps()).at(-1)!;
+  expect(edited.startsWith(`A seccionadora ${renamed} `)).toBe(true);
+  await openSumario(page, relatorioId);
+  const warningsEdited = await exportWarnings(page);
+
+  // Renamed again: the edited text stays as written, and the recomposed one is offered.
+  const again = `${sheet.tag}-S`;
+  await openSheet(page, relatorioId, sheet.blockId);
+  const opsBeforeRename = (await textOps()).length;
+  await renameFromMenu(page, renamed, again);
+  await openConclusao(page);
+  await expect(generated(page).locator('.suggestion-alt')).toHaveText(STALE_LINE);
+  await expect(editor).toHaveText(edited);
+  expect((await textOps()).length, 'the rename writes no text over an edited one').toBe(opsBeforeRename);
+  expect(await lastTextStatus(page, database, sheet.blockId)).toBe('edited');
+
+  // Row 9 names the sheet by its new TAG; the Export dialog counts it with the other warnings on the Sumário rows.
+  await openSumario(page, relatorioId);
+  await expect(row9(page)).toContainText(`Texto de conclusão desatualizado: ${again}`);
+  expect(await exportWarnings(page)).toBe(warningsEdited + 1);
+
+  // "Substituir" on the sheet: the recomposed text, under the new TAG, confirmed again; the row is gone.
+  await openSheet(page, relatorioId, sheet.blockId);
+  await openConclusao(page);
+  await generated(page).locator('.suggestion-alt').getByRole('button', { name: 'Substituir' }).click();
+  await expect(generated(page).locator('.suggestion-alt')).toHaveCount(0);
+  await expect(editor).toContainText(`A seccionadora ${again} `);
+  await expect.poll(async () => (await textOps()).at(-1)).toMatch(new RegExp(`^A seccionadora ${again} `));
+  expect(await lastTextStatus(page, database, sheet.blockId)).toBe('confirmed');
+  await openSumario(page, relatorioId);
+  await expect(row9(page)).not.toContainText('Texto de conclusão desatualizado');
+  await expect(row9(page)).not.toContainText('sem texto de conclusão confirmado');
+  expect(await exportWarnings(page)).toBe(warningsEdited);
 });
