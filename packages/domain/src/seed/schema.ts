@@ -1039,6 +1039,12 @@ export const seedRulesSchema = z
     history_note: z.literal(true).optional(),
     /** Story 24.17: a point written from a test holds its recommendation as the action; action-plan rows kept whole; spaced photo references in section 8. */
     recommendation_as_action: z.literal(true).optional(),
+    /** Fix batch e24y (P1): the side-by-side pair of insulation tables fits every word and value whole, as a single corrected table does; a value keeps its unit on its line. */
+    paired_tables_fit_whole: z.literal(true).optional(),
+    /** Fix batch e24y (P5): the insulation-drop and winding-variation rules compare a reading only when it was corrected from its plate's temperature, not the cabine's ambient. */
+    history_needs_like_with_like: z.literal(true).optional(),
+    /** Fix batch e24y (F10): a checklist step whose definition holds no item is neither drawn nor named in the Sheet header. */
+    empty_steps_hidden: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;
