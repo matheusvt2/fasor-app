@@ -77,7 +77,7 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
   const next = useMemo(() => nextSheet(snapshot, blockId), [snapshot, blockId]);
   // Batch e23v (Stories 23.5 and 23.6): the sheet's visit context (the cabine's ambient, the equipment's previous visit),
   // from the same rows the progress reads; the kernel memoizes it per cabine row, equipment row and relatório.
-  const visit = useMemo(() => visitContextOf({ locations: snapshot.locations, equipment }, block), [snapshot.locations, equipment, block]);
+  const visit = useMemo(() => visitContextOf({ locations: snapshot.locations, equipment, relatorio: snapshot.relatorio }, block), [snapshot.locations, equipment, snapshot.relatorio, block]);
   const cabine = useMemo(() => cabineOf(snapshot.locations, block.location_id), [snapshot.locations, block.location_id]);
   const cabineFirst = useMemo(() => isCabineFirstSheet(snapshot, blockId), [snapshot, blockId]);
   const enabled = enabledSubBlocksOf(block);

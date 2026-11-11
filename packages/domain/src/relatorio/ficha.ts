@@ -222,23 +222,31 @@ export function recentChecklistObservations(
  *
  * Story 24.6 (every seed, screen only; Bruno's question 27): what a checklist row's observation
  * does when the row leaves NC for C or for N.A. Null for any other change ("Limpar", C to NC, a
- * row never NC) and for a blank observation: nothing is asked. `clear` while the observation is
- * still automatic, made only of the row's offered phrases (`ncChipPhrases`: the seed's, the
- * learned ones, the recents), joined as a chip tap joins them (`insertPhrase`), a final period
- * aside: the observation is removed in the same batch as the result. `keep` once it holds a typed
- * piece (`typedPieces`): the observation stays, and the row shows its warning ("Observação mantida:
- * o texto foi editado.") with "Apagar observação". A kept observation floors nothing (fix batch
+ * row never NC) and for a blank observation: nothing is asked. `keep` once it holds a typed piece
+ * (`typedPieces`): the observation stays, and the row shows its warning ("Observação mantida: o
+ * texto foi editado.") with "Apagar observação". A kept observation floors nothing (fix batch
  * e24h, H9).
+ *
+ * Fix batch e24x (A1; Matheus's decision 17 of 2026-11-11): `clear` only while the stored
+ * observation is made of the item's seed phrases alone (`seedPhrases`: the row's definition's
+ * `nc_phrases`, a site item's own), joined as a chip tap joins them (`insertPhrase`), a final
+ * period aside: it is removed in the same batch as the result. A learned or a recent phrase is a
+ * text typed on another sheet, so an observation equal to one is edited and kept. The rule reads
+ * only stored text, so two devices and an offline one answer the same, with no op-id or clock
+ * cut. A seed phrase typed letter by letter still reads as automatic (no stored provenance).
+ * A2: a text still being saved (`typed`, ahead of the store) is `keep` when non-blank, since its
+ * own commit lands after any clear, and null when blank.
  */
-export function ncObservationOnLeave(from: string | null, to: string | null, observation: string, chips: readonly string[]): 'clear' | 'keep' | null {
+export function ncObservationOnLeave(from: string | null, to: string | null, stored: string, seedPhrases: readonly string[], typed: string = stored): 'clear' | 'keep' | null {
   if (from !== 'NC' || (to !== 'C' && to !== 'NA')) return null;
-  if (observation.trim() === '') return null;
-  // Each offered phrase is taken with and without its final period, so "X." and "X" both cut.
-  const offered = chips.flatMap((phrase) => {
+  if (typed !== stored) return typed.trim() === '' ? null : 'keep';
+  if (stored.trim() === '') return null;
+  // Each seed phrase is taken with and without its final period, so "X." and "X" both cut.
+  const offered = seedPhrases.flatMap((phrase) => {
     const trimmed = phrase.trim();
     return trimmed.endsWith('.') ? [trimmed, trimmed.slice(0, -1)] : [trimmed, `${trimmed}.`];
   });
-  return typedPieces(observation, offered).length === 0 ? 'clear' : 'keep';
+  return typedPieces(stored, offered).length === 0 ? 'clear' : 'keep';
 }
 
 /**

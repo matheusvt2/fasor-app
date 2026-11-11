@@ -687,3 +687,45 @@ describe('24.14-UNIT the Malha\'s plate block: its title and no plate photo, rea
     expect(printedOf('v14')).toEqual(printedOf('v13'));
   });
 });
+
+// ===================================================================================================
+// Fix batch e24x (E1 and the post-merge check)
+// ===================================================================================================
+
+describe('e24x-UNIT E1 the v14 Inspeção de QGBT with its thermography not live reads as v13 (e22g N5)', () => {
+  const text = (block: BlockRow) => composeConclusion(block, definitionOf(block), 'QG-01').text;
+
+  it('off, not applicable (fora de carga) and unanswered: no ", sem valores medidos registrados"; the v13 sentence unmoved and pinned', () => {
+    const v13 = text(inspection('v13'));
+    expect(v13).toMatch(/ apresentou todos os itens verificados conformes\.$/);
+    expect(v13).not.toContain('sem valores medidos');
+    for (const [name, block] of [
+      ['unanswered', inspection()],
+      ['off', switchedOff(inspection(), 'termografia')],
+      ['fora de carga', inLoad(inspection(), 'nao')],
+    ] as const) {
+      expect(text(block), name).not.toContain('sem valores medidos registrados');
+      expect(text(block), name).toBe(v13);
+    }
+  });
+
+  it('in load with nothing measured: the reading is still asked for (", sem valores medidos registrados")', () => {
+    expect(text(inLoad(inspection(), 'sim'))).toMatch(/ apresentou todos os itens verificados conformes, sem valores medidos registrados\.$/);
+  });
+});
+
+describe('e24x-UNIT post-merge check: the No-break de comando (no test) under this batch\'s rules', () => {
+  const noBreak = (rows: Record<string, { result: string; observation?: string }> = {}) => checklist(sheet('no_break_comando', 'v14'), rows);
+
+  it('all Conforme: Aprovado · Sem restrições, the sentence names no reading; an NC observation typed in lines joins on one line, a colon line with a space', () => {
+    const clean = noBreak();
+    expect(conclusionFloor(clean)?.pair).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    const sentence = composeConclusion(clean, definitionOf(clean), 'NB-01').text;
+    expect(sentence).toMatch(/ apresentou todos os itens verificados conformes\.$/);
+    expect(sentence).not.toContain('valores medidos');
+    const first = definitionOf(clean).checklist![0]!.key;
+    const nc = noBreak({ [first]: { result: 'NC', observation: 'Observado:\n- bateria estufada' } });
+    expect(composeConclusion(nc, definitionOf(nc), 'NB-01').text).toContain('Observado: - bateria estufada (item 1, NC)');
+  });
+});
+

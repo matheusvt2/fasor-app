@@ -217,3 +217,59 @@ test('24.6-E2E-002 a local\'s item keeps a typed observation with the warning, "
   const texts = await chips.getByRole('button').allTextContents();
   expect(texts.filter((chip) => chip.replace(/\.$/, '') === LEARNED)).toHaveLength(1);
 });
+
+test('@p0 e24x-E2E-001 a typed observation the server learned, then a seed chip, set to Conforme: kept with the warning and no observation write; the warning survives a reload and leaving the ficha', async ({ page }) => {
+  test.setTimeout(240_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const seeded = relatorioWith([{}]);
+  const { relatorioId } = seeded;
+  const blockId = seeded.blockIds[0]!;
+  await pushDrafts(page, database, seeded.drafts);
+  await openSheet(page, relatorioId, blockId);
+  const observationPath = `sheet/${blockId}/checklist/${ITEM1.key}/observation`;
+  const resultPath = `sheet/${blockId}/checklist/${ITEM1.key}/result`;
+  const typed = 'Isolador da fase B com trinca longa';
+
+  // NC, a typed observation, synced: the server learns it as the company's phrase of the item.
+  const row = checklistRow(page, ITEM1.key);
+  await row.getByRole('radio', { name: 'Não conforme', exact: true }).click({ timeout: 30_000 });
+  await row.getByRole('textbox').fill(typed);
+  await row.getByRole('textbox').press('Tab');
+  await expect.poll(async () => (await writes(page, observationPath)).at(-1)?.value).toBe(typed);
+  await syncNowAndReturn(page);
+  await expect
+    .poll(async () => (await readStore<{ entity: string; row: { kind?: string; name?: string } }>(page, database, 'entities')).some((record) => record.entity === 'registry' && record.row.kind === 'nc_phrase' && record.row.name === typed))
+    .toBe(true);
+
+  // Then a seed chip tapped after it, as on site.
+  await openSheet(page, relatorioId, blockId);
+  const chips = row.getByRole('group', { name: /^Observações sugeridas do item / });
+  await chips.getByRole('button', { name: ITEM1.nc_phrases[0]!, exact: true }).click({ timeout: 30_000 });
+  // The chip goes in at the caret, before or after the typed words: both stay.
+  await expect(row.getByRole('textbox')).not.toHaveValue(typed);
+  const withChip = await row.getByRole('textbox').inputValue();
+  expect([insertPhrase(typed, ITEM1.nc_phrases[0]!).text, insertPhrase(typed, ITEM1.nc_phrases[0]!, 0).text]).toContain(withChip);
+  await row.getByRole('textbox').press('Tab');
+  await expect.poll(async () => (await writes(page, observationPath)).at(-1)?.value).toBe(withChip);
+  const before = (await writes(page, observationPath)).length;
+
+  // Conforme: the result alone; the observation stays with the warning.
+  await row.getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect.poll(async () => (await writes(page, resultPath)).at(-1)?.value).toBe('C');
+  expect((await writes(page, observationPath)).length).toBe(before);
+  expect((await writes(page, observationPath)).some((write) => write.value === null)).toBe(false);
+  const line = row.locator('.e24-kept-line');
+  await expect(line).toContainText(KEPT);
+  await expect(row.getByRole('textbox')).toHaveValue(withChip);
+
+  // A5: a reload, then leaving the ficha and coming back: the warning still shows.
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await expect(checklistRow(page, ITEM1.key).locator('.e24-kept-line')).toContainText(KEPT, { timeout: 30_000 });
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  await openSheet(page, relatorioId, blockId);
+  await expect(checklistRow(page, ITEM1.key).locator('.e24-kept-line')).toContainText(KEPT, { timeout: 30_000 });
+});

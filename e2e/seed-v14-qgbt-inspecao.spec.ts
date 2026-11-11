@@ -91,6 +91,21 @@ test('@p0 24.12-E2E-001 at 1024: a v14 Inspeção de QGBT asks twelve items (REA
   await expect(checklistRow(page, ncItem.key).getByRole('button', { name: 'Criar ponto de atenção' })).toBeVisible();
   const points = async () => (await readStore<{ entity: string; row: { removed_at: string | null } }>(page, database, 'entities')).filter((record) => record.entity === 'point' && record.row.removed_at === null);
   expect(await points()).toHaveLength(0);
+  // Fix batch e24x (G1): the Pontos screen is empty without the tap; the tap and "Concluir" store REAPERTO GERAL's point.
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toContainText(DEFINITION.label, { timeout: 30_000 });
+  await checklistRow(page, ncItem.key).getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(editor).toBeVisible();
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect.poll(async () => (await points()).length).toBe(1);
+  expect(((await points())[0]!.row as unknown as { origin: string; item_key: string | null }).origin).toBe('nc');
+  expect(((await points())[0]!.row as unknown as { origin: string; item_key: string | null }).item_key).toBe(ncItem.key);
+  await expect(checklistRow(page, ncItem.key).locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
 
   // --- the thermography: not applicable until in load, then a ΔT within, a thermal photo ---
   await openStep(page, relatorioId, blockId, 'Ensaios');

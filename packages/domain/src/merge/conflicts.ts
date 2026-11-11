@@ -129,6 +129,8 @@ export interface OpenDecisionsInput {
   createOpOf: (key: EntityKey) => OpFacts | undefined;
   /** Story 14.6: the company's type versions, through which a company block's cells are named. */
   definitions: DefinitionContext;
+  /** Fix batch e24x (D3): the relatório's service dates, so the composed text reads the visit the ficha reads. */
+  relatorio?: { setup: { service_start?: string | null; service_end?: string | null } } | null;
 }
 
 // --- listing -----------------------------------------------------------------------------
@@ -268,6 +270,7 @@ function cellConflictsOf(
   equipment: OpenDecisionsInput['equipment'] = [],
   ctx: DefinitionContext,
   locations: OpenDecisionsInput['locations'] = [],
+  relatorio: OpenDecisionsInput['relatorio'] = null,
 ): CellConflict[] {
   const definition = definitionOf(block, ctx);
   const out: CellConflict[] = [];
@@ -345,7 +348,7 @@ function cellConflictsOf(
   }
   const tag = block.equipment_id === null ? '' : (equipment.find((row) => row.id === block.equipment_id)?.tag ?? '');
   // Batch e23v (Stories 23.5 and 23.6): the composition the sheet shows, under its visit context.
-  const text = conclusionTextConflict(block, definition, tag, opOf, visitContextOf({ locations, equipment }, block));
+  const text = conclusionTextConflict(block, definition, tag, opOf, visitContextOf({ locations, equipment, relatorio }, block));
   if (text !== null) out.push(text);
   push({ family: 'sheet/observations', block_id: blockId }, sheet.observations ?? undefined, SECTION_OBSERVATIONS, 'Observações da ficha');
   return out;
@@ -385,7 +388,7 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   for (const block of sorted) {
     // A removed block's cells are not decided: its sheet is out of the tree (and a put on it
     // would mark a removal conflict); its removal decision, if any, comes first.
-    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment, input.definitions, input.locations) : [];
+    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf, input.equipment, input.definitions, input.locations, input.relatorio ?? null) : [];
     if (conflicts.length > 0) cells.push({ kind: 'cell', relatorio_id: input.relatorioId, block_id: block.id, cells: conflicts });
     const mark = block.removal_conflict;
     if (mark !== undefined && block.removed_at !== null) {

@@ -260,6 +260,7 @@ function FichaBody({
                 onFocus={() => focusIn('conclusao')}
                 section9={sectionMention(snapshot, 9)}
                 visit={visit}
+                visitRelatorio={snapshot.relatorio}
                 pointPlace={pointPlaces(pointFindings, 'conclusao', placeProps)}
               />
               {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}

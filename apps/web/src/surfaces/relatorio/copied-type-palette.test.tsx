@@ -74,3 +74,27 @@ describe('24.19 FieldPalette: a published copy hides its original', () => {
     expect([...palette.querySelectorAll<HTMLElement>('.palette-type')].map((row) => row.dataset.blockType)).toEqual(seededTypes());
   });
 });
+
+describe('e24x C3 FieldPalette: a company type with no summary', () => {
+  it('reads "Tipo da empresa · TAG", never a doubled separator', () => {
+    const bare: CompanyTypeDefinition = { label: 'Fonte sem itens', tag_prefix: 'FA', noun: { singular: 'fonte', plural: 'fontes', gender: 'f' }, nameplate: [{ key: 'fabricante', label: 'FABRICANTE', kind: 'manufacturer' }], checklist: null, tests: [], criteria: [] };
+    const bareId = id(60);
+    const bareVersion: EquipmentTypeVersionRow = { id: id(61), type_id: bareId, version: 1, definition: bare, published_by: id(52), published_at: '2026-11-11T12:00:00.000Z' };
+    const bareRow: EquipmentTypeRow = { id: bareId, derived_from: null, draft: null, retired_at: null, removed_at: null, latest_version: 1 };
+    render(
+      <FieldPalette
+        definitions={definitionContext([bareVersion], [bareRow])}
+        target={{ locationId: col9.id, anchorBlockId: null }}
+        seedVersion={SEED_VERSION}
+        locations={[cabine, col9]}
+        blocks={[]}
+        equipment={[]}
+        onCreate={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
+    const meta = palette.querySelector(`.palette-type[data-block-type="${companyBlockType(bareId)}"] .pf-field .pi-meta`)!;
+    expect(meta.textContent).toBe('Tipo da empresa · FA-01');
+  });
+});

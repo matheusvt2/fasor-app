@@ -1,26 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { learnedBefore } from '../registry/nc-phrase-row.ts';
-import type { RegistryRow } from '../schemas/entities.ts';
-import { ncObservationOnLeave } from './ficha.ts';
+import { insertPhrase, ncObservationOnLeave } from './ficha.ts';
 
 /*
- * Review of batch e24b (Story 24.6): the server learns the typed pieces of an NC observation after
- * its push, so the row judges its observation against the phrases learned before its own write.
+ * Fix batch e24x (A1 and A2; Matheus's decision 17 of 2026-11-11): an NC row's observation leaves
+ * with the NC only while it is made of the item's seed phrases alone. A phrase learned from a typed
+ * observation, or another sheet's observation (a recent), is a text someone typed, so an
+ * observation equal to one is edited and kept with the warning. A text still being saved is kept
+ * when non-blank. The rule reads stored text only: no op id, no clock. (The e24b review's
+ * `learnedBefore` and its test are gone with the op-id cut.)
  */
-describe('24.6-UNIT learnedBefore: a phrase learned from this very observation never makes it automatic', () => {
-  const row = (id: string, name: string) => ({ id, kind: 'nc_phrase', name, block_type: 'disjuntor_mt', item_key: 'estado_geral', removed_at: null }) as unknown as RegistryRow;
-  const before = row('019966b0-0400-7000-8000-000000000001', 'Oxidação nos terminais');
-  const after = row('019966b0-0400-7000-8000-000000000009', 'Trinca fina vista de cima');
-  const opId = '019966b0-0400-7000-8000-000000000005';
-  it('keeps the rows learned before the cell\'s op, all rows with no op id', () => {
-    expect(learnedBefore([before, after], opId)).toEqual([before]);
-    expect(learnedBefore([before, after], null)).toEqual([before, after]);
-    expect(learnedBefore([before, after], undefined)).toEqual([before, after]);
+
+const SEED = ['Trinca no isolador', 'Isolador sujo', 'Fixação solta.'];
+const TYPED = 'Trinca fina vista de cima';
+const LEARNED = 'Oxidação nos terminais do polo B';
+
+describe('e24x-UNIT A1 ncObservationOnLeave: the seed\'s phrases alone are automatic', () => {
+  it.each([
+    ['one seed chip, NC to C', 'C', SEED[0]!, 'clear'],
+    ['one seed chip, NC to N.A.', 'NA', SEED[0]!, 'clear'],
+    ['two seed chips joined as a tap joins them', 'C', insertPhrase(SEED[0]!, SEED[1]!).text, 'clear'],
+    ['two seed chips and a final period', 'NA', `${insertPhrase(SEED[0]!, SEED[1]!).text}.`, 'clear'],
+    ['a seed phrase offered with its period, stored without it', 'C', 'Fixação solta', 'clear'],
+    ['a typed text the server learned, then a seed chip tapped after it', 'C', insertPhrase(TYPED, SEED[0]!).text, 'keep'],
+    ['the same, NC to N.A.', 'NA', insertPhrase(TYPED, SEED[0]!).text, 'keep'],
+    ['a phrase learned from another sheet, alone (a learned chip tapped, untouched)', 'C', LEARNED, 'keep'],
+    ['another sheet\'s observation (a recent chip), alone', 'C', 'Barramento escurecido.', 'keep'],
+    ['a blank observation', 'C', '  ', null],
+  ] as const)('%s: %s', (_name, to, stored, expected) => {
+    expect(ncObservationOnLeave('NC', to, stored, SEED)).toBe(expected);
   });
-  it('a typed observation learned after its push stays "keep"; one made of a phrase learned before is "clear"', () => {
-    const offered = (rows: RegistryRow[]) => rows.map((one) => (one as unknown as { name: string }).name);
-    expect(ncObservationOnLeave('NC', 'C', 'Trinca fina vista de cima', offered([before, after]))).toBe('clear');
-    expect(ncObservationOnLeave('NC', 'C', 'Trinca fina vista de cima', offered(learnedBefore([before, after], opId)))).toBe('keep');
-    expect(ncObservationOnLeave('NC', 'NA', 'Oxidação nos terminais.', offered(learnedBefore([before, after], opId)))).toBe('clear');
+
+  it('answers the same for any other change: null', () => {
+    for (const [from, to] of [['NC', null], ['C', 'NC'], ['NA', 'C'], ['C', 'C']] as const) expect(ncObservationOnLeave(from, to, SEED[0]!, SEED)).toBeNull();
+  });
+
+  it('a site item judges against its own seed phrases the same way', () => {
+    const site = ['Extintor vencido', 'Sinalização ausente'];
+    expect(ncObservationOnLeave('NC', 'C', insertPhrase(site[0]!, site[1]!).text, site)).toBe('clear');
+    expect(ncObservationOnLeave('NC', 'C', 'Extintor vencido no corredor', site)).toBe('keep');
+  });
+});
+
+describe('e24x-UNIT A2 ncObservationOnLeave: a text still being saved', () => {
+  it('non-blank and ahead of the store: keep, even when it is a seed chip alone', () => {
+    expect(ncObservationOnLeave('NC', 'C', '', SEED, SEED[0]!)).toBe('keep');
+    expect(ncObservationOnLeave('NC', 'NA', SEED[0]!, SEED, insertPhrase(SEED[0]!, SEED[1]!).text)).toBe('keep');
+    expect(ncObservationOnLeave('NC', 'C', 'Texto antigo', SEED, 'Texto novo')).toBe('keep');
+  });
+
+  it('blank while it is being saved: nothing is asked', () => {
+    expect(ncObservationOnLeave('NC', 'C', 'Texto antigo', SEED, '')).toBeNull();
+    expect(ncObservationOnLeave('NC', 'C', SEED[0]!, SEED, '   ')).toBeNull();
+  });
+
+  it('only a row leaving NC asks, pending or not', () => {
+    expect(ncObservationOnLeave('C', 'NC', '', SEED, SEED[0]!)).toBeNull();
+    expect(ncObservationOnLeave('NC', null, '', SEED, SEED[0]!)).toBeNull();
   });
 });

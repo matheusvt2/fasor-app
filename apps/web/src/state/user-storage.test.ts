@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { siteAltitudeReading } from '../surfaces/relatorio/setup/altitude-reading.ts';
-import { ALTITUDE_KEY_PREFIX, clearUserStorage, LEGEND_KEY } from './user-storage.ts';
+import { ALTITUDE_KEY_PREFIX, clearUserStorage, KEPT_KEY_PREFIX, LEGEND_KEY } from './user-storage.ts';
 
 /* e20f (QA N3): the browser-storage keys of the user go with a sign-out; the device-wide ones stay. */
 
@@ -20,6 +20,14 @@ describe('clearUserStorage (e20f)', () => {
     clearUserStorage();
     expect(Object.keys(window.localStorage).sort()).toEqual(['releng.clock-offset', 'releng.pending-wipe', 'releng.theme']);
     expect(window.sessionStorage.getItem(LEGEND_KEY)).toBeNull();
+  });
+
+  it('fix batch e24x (A5): removes every kept-warning record of a checklist row and keeps any other session key', () => {
+    window.sessionStorage.setItem(`${KEPT_KEY_PREFIX}r1:b1:isoladores`, '{"observation":"Texto","result":"C"}');
+    window.sessionStorage.setItem(`${KEPT_KEY_PREFIX}r2:l1:extintores`, '{"observation":"Texto","result":"NA"}');
+    window.sessionStorage.setItem('other-key', 'kept');
+    clearUserStorage();
+    expect(Object.keys(window.sessionStorage)).toEqual(['other-key']);
   });
 
   it('E20-A1 (R-4c): an altitude answer that settles after a sign-out cleared storage is not kept, and the question in flight is forgotten', async () => {

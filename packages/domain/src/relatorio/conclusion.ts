@@ -3,6 +3,7 @@ import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-co
 import type { BlockRow } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
 import { findDefinition, seedRule } from '../seed/definitions.ts';
+import { isValueCondition } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
@@ -230,11 +231,40 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   // Story 14.9: a reading measured under a test no criterion judges (a QGBT with no TENSÃO
   // NOMINAL, or above 1000 V) is never a pass. e21g D6: nor a v11 ratio table waiting for its
   // vector group while its plate can be filled (the `ensaiosCounts` rule).
+  // Fix batch e24x (C1): nor a reading above the instrument's limit its test's criterion could not judge.
   const unjudged =
     evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && isReadingValue(cell.state))) ||
-    (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing)));
+    (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing))) ||
+    overRangeUnjudged(evaluations);
   if (unjudged) return null;
   return { pair: { result: 'aprovado', restriction: 'sem_restricoes' }, reasons: [] };
+}
+
+/**
+ * e22g (review N5) and fix batch e24x (E1): a sheet with nothing to measure, whose sentence never says no
+ * value was recorded: a type with no seeded test whose every measurement test asks for a reading only on
+ * the technician's own answer (a condition over the test's own value, the v14 Inspeção de QGBT's
+ * thermography and its "Equipamento em carga") and is not live here (off, not applicable, or that answer
+ * not given). A measurement test with no such condition (the CTA's, the Malha's) always counts, so every
+ * type of v1 to v13 reads as before (none of them has both no seeded test and a test of that kind).
+ */
+function nothingToMeasure(definition: BlockDefinition, measurements: readonly MeasurementTestEvaluation[]): boolean {
+  if (definition.tests.length > 0) return false;
+  return (definition.measurement_tests ?? []).every((test) => {
+    if (test.applies_when === undefined || !isValueCondition(test.applies_when)) return false;
+    const evaluated = measurements.find((one) => one.testKey === test.key);
+    return evaluated === undefined || !evaluated.enabled || evaluated.skipped || evaluated.applicability.state === 'na';
+  });
+}
+
+/**
+ * Fix batch e24x (C1): a capture above the instrument's limit that its test's criterion could not
+ * judge (`overRangeVerdict` null: a limit inside a range, units that do not compare). The floor
+ * withholds Aprovado · Sem restrições and the paragraph reads "a conferir" while one stands, as for
+ * a measured reading no criterion judged (R-1). A test with no criterion is Story 14.9's case.
+ */
+function overRangeUnjudged(evaluations: readonly TestEvaluation[]): boolean {
+  return evaluations.some((test) => test.criterion !== null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'over_range' && cell.verdict === null));
 }
 
 const RESULT_RANK: Readonly<Record<ConclusionResult, number>> = { aprovado: 1, reprovado: 2 };
@@ -526,11 +556,12 @@ function ncClauseText(item: { label: string; observation: string | null }, oneLi
  * `withoutFinalPeriod`), blank lines dropped, joined by "; " ("linha um; linha dois").
  */
 function ncObservationOnOneLine(observation: string): string {
-  return observation
+  const lines = observation
     .split(/\r\n?|\n/)
     .map((line) => withoutFinalPeriod(line.trim().replace(/[\s.;,]+$/, '')))
-    .filter((line) => line !== '')
-    .join('; ');
+    .filter((line) => line !== '');
+  // Fix batch e24x (A4): a line ending in ":" introduces the next, so they join with a space ("Observado: - trinca").
+  return lines.reduce((joined, line, n) => (n === 0 ? line : `${joined}${lines[n - 1]!.endsWith(':') ? ' ' : '; '}${line}`), '');
 }
 
 const TEST_WORDS: Readonly<Record<TestKey, { phrase: string; symbol: string }>> = {
@@ -747,14 +778,16 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   // seeded test with no criterion holding a measured capture (R-1b, the floor's Story 14.9 case), or a ratio table waiting
   // for its vector group while the plate can be filled (the floor's e21g D6 case). The basis is unchanged.
   const unjudgedTable = measurements.some((test) => test.unjudged === true);
+  // Fix batch e24x (A3): the group's clause names a ratio table that holds a measured capture, never an empty one.
   const unjudgedCapture =
     judged &&
     (evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && isReadingValue(cell.state))) ||
-      (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing))));
+      (enabledSubBlocksOf(block).has('nameplate') &&
+        evaluations.some((test) => test.tables.some((table) => table.groupMissing && table.rows.some((row) => row.cells.some((cell) => cell.role === 'capture' && isReadingValue(cell.state)))))));
   const plainReadings =
     outClauses.length > 0
       ? listPtBr(outClauses)
-      : tableCells.some((cell) => cell.toCheck) || unjudgedTable || unjudgedCapture
+      : tableCells.some((cell) => cell.toCheck) || unjudgedTable || unjudgedCapture || overRangeUnjudged(evaluations)
         ? toCheck
         : judged
           ? 'valores medidos dentro dos critérios de aceitação'
@@ -783,7 +816,7 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
         ? `${verb} ${readings}, sem itens verificados registrados`
         : checked
           ? // e22g (review N5): a type with nothing to measure (the Inspeção de QGBT) never says no value was recorded.
-            definition.tests.length === 0 && (definition.measurement_tests ?? []).length === 0
+            nothingToMeasure(definition, measurements)
             ? `${verb} ${checklist}`
             : `${verb} ${checklist}, sem valores medidos registrados`
           : `não ${verb} valores medidos nem itens verificados registrados`;

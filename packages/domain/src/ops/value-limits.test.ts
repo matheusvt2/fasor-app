@@ -33,6 +33,7 @@ import {
   valueDepth,
 } from './value-limits.ts';
 import { EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
+import { reuseKeyFor } from '../relatorio/tag.ts';
 
 /*
  * Story 20.9 (contract 29, security pass S4): per-kind tests at the cap and one past it, the
@@ -442,5 +443,41 @@ describe('the relatório budget (e20f, aggregate)', () => {
     expect(relatorioBudgetRowBytes('point', pointRow('x') as never, RELATORIO)).toBe(serializedBytes(pointRow('x')));
     expect(relatorioBudgetRowBytes('point', pointRow('x') as never, PROJECT)).toBe(0);
     expect(relatorioBudgetRowBytes('point', pointRow('x', '2026-11-03T11:00:00.000Z') as never, RELATORIO)).toBe(0);
+  });
+});
+
+/*
+ * Fix batch e24x (B3, integrated review of Epic 24): the equipment's write-once `reuse_key` (Story
+ * 24.21) is a medium text in its create, so a client cannot store 20 000 characters there; the
+ * longest key the reuse builds (a company prefix of six letters, a local named with 200
+ * characters, a number suffix) passes.
+ */
+describe('e24x-UNIT B3 the equipment create\'s reuse_key is a medium text', () => {
+  const create = (reuseKey: string) =>
+    op({
+      kind: 'create',
+      scope: 'project',
+      project_id: PROJECT,
+      relatorio_id: null,
+      path: `equipment/${EQUIPMENT}`,
+      value: { id: EQUIPMENT, project_id: PROJECT, tag: 'DJ-01', type: 'disjuntor_mt', last_nameplate: null, removed_at: null, reuse_key: reuseKey } as never,
+    });
+
+  it('1 000 characters pass, 1 001 are refused, and textCapOf says 1 000', () => {
+    expect(issue(create(chars(TEXT_CAPS.medium)))).toBeNull();
+    expect(issue(create(chars(TEXT_CAPS.medium + 1)))).toMatch(/value\.reuse_key holds 1001 characters, over 1000/);
+    expect(textCapOf('equipment', 'reuse_key')).toBe(TEXT_CAPS.medium);
+  });
+
+  it('the longest key the reuse builds passes: a six-letter company prefix, a local of 200 characters and a suffix', () => {
+    const type = 'type:019966c1-0000-7000-8000-0000000000ff' as const;
+    const local = { kind: 'cabine' as const, name: 'Z'.repeat(TEXT_CAPS.short) };
+    const definition = { tag_prefix: 'ABCDEF' };
+    const base = reuseKeyFor(type, local, [], definition);
+    expect(base).toBe(`ABCDEF-${'Z'.repeat(TEXT_CAPS.short)}`);
+    const taken = [base, ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `${base}-${n}`)].map((tag) => ({ tag, removed_at: null }));
+    const longest = reuseKeyFor(type, local, taken, definition);
+    expect(longest).toBe(`${base}-10`);
+    expect(issue(create(longest))).toBeNull();
   });
 });

@@ -1061,11 +1061,8 @@ export const copy = {
       photograph: 'Fotografar equipamento',
       photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
       officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.',
-      // Story 14.5 (`40-relatorio-overview.html` line 474, the library type's `.pi-meta`): what the
-      // type holds (the kernel's summary), then the TAG it would be born with: "17 itens · até 6 ensaios · CTA-GER".
-      libraryMeta: (summary: string, tag: string) => `${summary} · ${tag}`,
-      // Story 24.19 (`40-relatorio-overview.html` `#lo-type-tr`, the `.pi-meta` of a company type): the mark before the meta, wherever the row stands.
-      companyMeta: (meta: string) => `Tipo da empresa · ${meta}`,
+      // ~~libraryMeta, companyMeta~~ (fix batch e24x, C3): a palette row's `.pi-meta` line ("17 itens · até 6 ensaios ·
+      // CTA-GER", "Tipo da empresa · …") is derived text, composed by the kernel's `paletteMetaText`.
       // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled);
       // its "TAG" is the dialogs' `tagDialogs.tagLabel`.
       localLabel: 'Local',

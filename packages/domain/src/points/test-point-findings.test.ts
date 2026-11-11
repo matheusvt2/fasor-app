@@ -14,6 +14,7 @@ import { standardTemplate } from '../seed/template.ts';
 import { recommendationsText, recommendedPointText } from '../seed/test-help.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import type { CompanyTypeDefinition } from '../types/definition.ts';
+import { TEXT_CAPS } from '../ops/value-limits.ts';
 import { duplicateSeededType, typeVersionRow } from '../types/duplicate.ts';
 import { newPointRow } from './checks.ts';
 import { hasPointSource, resolvedOriginPoints, sheetPointFindings, type SheetPointFinding } from './derived.ts';
@@ -308,7 +309,8 @@ describe('24.17-UNIT one point per finding', () => {
   });
 
   it('a point of another origin, test or equipment does not count', () => {
-    expect(findings(withPoint(out('v14'), { origin: 'restricao' }))[0]!.positions).toEqual([]);
+    // ~~a `restricao` point of the test did not count~~ (fix batch e24x, D5: it is that test's point; see below).
+    expect(findings(withPoint(out('v14'), { origin: 'reprovado', test_key: null }))[0]!.positions).toEqual([]);
     expect(findings(withPoint(out('v14'), { test_key: 'outro' }))[0]!.positions).toEqual([]);
     expect(findings(withPoint(out('v14'), { equipment_id: id(77) }))[0]!.positions).toEqual([]);
   });
@@ -322,5 +324,98 @@ describe('24.17-UNIT one point per finding', () => {
     });
     expect(resolvedOriginPoints(corrected).has(id(600))).toBe(true);
     expect(findings(corrected)).toEqual([]);
+  });
+});
+
+/*
+ * Fix batch e24x (D5): one action per test. A live point of the same test and equipment written as
+ * `restricao` (the test restricted when it was created) is that test's point once a reading goes out,
+ * and a `reading` one while the test is only restricted: the place names it and offers no second one.
+ */
+describe('e24x-UNIT D5 a point of the same test counts whether it was written as reading or restricao', () => {
+  const out = (version: Version) =>
+    editCopy(withCopy(version, 'cabos_entrada', { isolacao: { recommendation: REC } }), (block) => {
+      const [first] = cellAddressesOf(findDefinition(version, 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${first!.row}/${first!.col}`]: measured('300', 'MΩ') });
+    });
+  const restricted = (version: Version) =>
+    editCopy(withCopy(version, 'cabos_entrada', { isolacao: { recommendation: REC } }), (block) => {
+      const [a, b, c] = cellAddressesOf(findDefinition(version, 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${a!.row}/${a!.col}`]: measured('5', 'GΩ'), [`${b!.row}/${b!.col}`]: measured('5', 'GΩ'), [`${c!.row}/${c!.col}`]: measured('1.5', 'GΩ') });
+    });
+  const point = (snapshot: RelatorioSnapshot, origin: PointRow['origin'], testKey = 'isolacao', equipmentId = COPY_EQUIPMENT): RelatorioSnapshot => ({
+    ...snapshot,
+    points: [...snapshot.points, newPointRow({ id: id(700), relatorioId: snapshot.relatorio.id, text: 'Ponto', equipmentId, origin, action: null, testKey }, snapshot.points)],
+  });
+
+  it('a reading out with a live restricao point of the test: the place names it', () => {
+    for (const version of VERSIONS) expect(findings(point(out(version), 'restricao')), version).toMatchObject([{ origin: 'reading', testKey: 'isolacao', positions: [1] }]);
+  });
+
+  it('a restricted test with a live reading point of the test: the place names it', () => {
+    expect(findings(point(restricted('v14'), 'reading'))).toMatchObject([{ origin: 'restricao', testKey: 'isolacao', positions: [1] }]);
+  });
+
+  it('review of e24x: a restricao point whose restricted cell is corrected while another cell of the test goes out is that test\'s point, never "Origem resolvida"', () => {
+    const stored = point(restricted('v14'), 'restricao');
+    expect(resolvedOriginPoints(stored).has(id(700))).toBe(false);
+    // Each cell rewritten out by the criterion, alike, so no restriction rule flags any of them.
+    const moved = editCopy(stored, (block) => {
+      const [a, b, c] = cellAddressesOf(findDefinition('v14', 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${a!.row}/${a!.col}`]: measured('300', 'MΩ'), [`${b!.row}/${b!.col}`]: measured('300', 'MΩ'), [`${c!.row}/${c!.col}`]: measured('300', 'MΩ') });
+    });
+    expect(findings(moved)).toMatchObject([{ origin: 'reading', testKey: 'isolacao', positions: [1] }]);
+    expect(resolvedOriginPoints(moved).has(id(700))).toBe(false);
+    // Corrected with nothing out or restricted left on the test, it is resolved, as before.
+    const clean = editCopy(stored, (block) => {
+      const [, , c] = cellAddressesOf(findDefinition('v14', 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${c!.row}/${c!.col}`]: measured('5', 'GΩ') });
+    });
+    expect(resolvedOriginPoints(clean).has(id(700))).toBe(true);
+  });
+
+  it('another test or another equipment still does not count', () => {
+    expect(findings(point(out('v14'), 'restricao', 'outro'))[0]!.positions).toEqual([]);
+    expect(findings(point(out('v14'), 'restricao', 'isolacao', id(77)))[0]!.positions).toEqual([]);
+  });
+});
+
+/*
+ * Fix batch e24x (D2): on v14 the action a point starts with is the joined recommendations only while
+ * they fit the action's cap (`TEXT_CAPS.medium`); past it the action starts empty and the
+ * recommendations start the text (Story 23.11's form) while that fits the text's cap
+ * (`TEXT_CAPS.long`), else the text is the finding alone. "Concluir" never stores a create the server
+ * refuses (`op_value_invalid`).
+ */
+describe('e24x-UNIT D2 the recommendations as the action only while they fit its cap', () => {
+  const build = (recommendation: string) =>
+    editCopy(withCopy('v14', 'cabos_entrada', { isolacao: { recommendation } }), (block) => {
+      const [first] = cellAddressesOf(findDefinition('v14', 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${first!.row}/${first!.col}`]: measured('300', 'MΩ') });
+    });
+  /** A recommendation already terminated, `length` characters long. */
+  const terminated = (length: number) => `${'R'.repeat(length - 1)}.`;
+  const finding = findings(build(terminated(10)))[0]!.text;
+
+  it('999 and 1 000 characters: the action, with its helper', () => {
+    for (const length of [999, 1000]) {
+      const [one] = findings(build(terminated(length)));
+      expect(one!.action, String(length)).toBe(terminated(length));
+      expect(one!.action.length).toBeLessThanOrEqual(TEXT_CAPS.medium);
+      expect(one).toMatchObject({ text: finding, actionHelper: HELPER_ONE });
+    }
+  });
+
+  it('1 001 characters, and one of exactly 1 000 that gains its final period: the action empty, the recommendation first in the text', () => {
+    for (const recommendation of [terminated(1001), 'R'.repeat(1000)]) {
+      const [one] = findings(build(recommendation));
+      expect(one).toMatchObject({ action: '', actionHelper: null, text: recommendedPointText([recommendation], finding) });
+      expect(one!.text.length).toBeLessThanOrEqual(TEXT_CAPS.long);
+    }
+  });
+
+  it('a recommendation the text cannot hold either: the finding alone, the action empty', () => {
+    const [one] = findings(build(terminated(TEXT_CAPS.long)));
+    expect(one).toMatchObject({ action: '', actionHelper: null, text: finding });
   });
 });

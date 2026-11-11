@@ -90,6 +90,32 @@ describe('standardTemplate', () => {
     expect(moved.find((block) => block.block_type === 'tp')!.sub_blocks.ia_ip_display).toEqual({ enabled: true });
   });
 
+  it('fix batch e24x (G3): the move of a v13 template holding an Inspeção de QGBT and a dry transformer to v14 folds the inspection\'s thermography in, on; the dry transformer keeps its subtype and NA defaults; nothing else changes', () => {
+    const v13 = standardTemplate({ id: ID, seedVersion: 'v13' });
+    const ref = v13.blocks.find((block) => block.block_type === 'transformador_forca')!.skeleton_location_ref;
+    const dry = { ...defaultBlockConfig('v13', 'transformador_forca', { subtype: 'a_seco' }), quantity: 1, skeleton_location_ref: ref, section_text: null };
+    const inspection = { ...defaultBlockConfig('v13', 'inspecao_qgbt'), quantity: 1, skeleton_location_ref: ref, section_text: null };
+    const held = { ...v13, blocks: [...v13.blocks, dry, inspection] } as typeof v13;
+    const move = makeOp(
+      { kind: 'put', scope: 'company', company_id: '019966b0-0000-7000-8000-0000000000c1', project_id: null, relatorio_id: null, prev_op_id: null, batch_id: null, meta: null, actor_id: 'system:identity', device_id: 'server', path: `template/${ID}/seed_version`, value: 'v14' },
+      { newId: () => '019966b0-0000-7000-8000-0000000000c3', now: new Date('2026-11-11T12:00:00Z') },
+    );
+    const moved = applyOp(new Map([[`template:${ID}`, held]]), move).get(`template:${ID}`) as typeof template;
+    expect(moved.seed_version).toBe('v14');
+    expect(templateRowSchema.parse(moved)).toEqual(moved);
+    const movedInspection = moved.blocks.at(-1)!;
+    expect(movedInspection.block_type).toBe('inspecao_qgbt');
+    expect(Object.keys(movedInspection.sub_blocks)).toEqual(getDefinition('v14', 'cabine_primaria', 'inspecao_qgbt').sub_blocks);
+    expect(movedInspection.sub_blocks.termografia).toEqual({ enabled: true });
+    const movedDry = moved.blocks.at(-2)!;
+    expect(movedDry).toMatchObject({ block_type: 'transformador_forca', subtype: 'a_seco', na_defaults: dry.na_defaults });
+    expect(dry.na_defaults.length).toBeGreaterThan(0);
+    const items = getDefinition('v14', 'cabine_primaria', 'transformador_forca').checklist!.map((item) => item.key);
+    for (const key of movedDry.na_defaults) expect(items, key).toContain(key);
+    expect(Object.keys(movedDry.sub_blocks)).toEqual(Object.keys(withVersionSubBlocks([dry], 'v14')[0]!.sub_blocks));
+    expect(moved.blocks.slice(0, -2)).toEqual(withVersionSubBlocks(v13.blocks, 'v14'));
+  });
+
   it('starts with the section blocks 1-6, 8, 10 and 11 in order, outside the skeleton', () => {
     const sections = template.blocks.filter((b) => b.block_type.startsWith('section_'));
     expect(sections.map((b) => b.block_type)).toEqual([

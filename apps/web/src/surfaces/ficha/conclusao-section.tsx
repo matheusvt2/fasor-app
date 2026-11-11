@@ -198,6 +198,7 @@ export function ConclusaoSection({
   section9,
   visit,
   pointPlace,
+  visitRelatorio = null,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -214,6 +215,8 @@ export function ConclusaoSection({
    * pair, for a Reprovado the technician chose (and a failed prerequisite whose test is off); `point-place.tsx`.
    */
   pointPlace?: ReactNode;
+  /** Fix batch e24x (D3): the relatório's service dates, so a fresh rebuild reads the visit `visit` reads (`visitContextOf`). */
+  visitRelatorio?: { setup: { service_start?: string | null; service_end?: string | null } } | null;
 }) {
   const t = copy.ficha.conclusao;
   const obsHeading = useId();
@@ -319,7 +322,7 @@ export function ConclusaoSection({
       const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
       if (fresh === undefined) return null;
       // Batch e23v (Stories 23.5 and 23.6): judged under the visit context of the build's fresh rows, as the conclude is.
-      const writes = conclusionAdjustWrites(fresh, definition, tag, visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh));
+      const writes = conclusionAdjustWrites(fresh, definition, tag, visitContextOf({ locations: rows.locations, equipment: rows.equipment, relatorio: visitRelatorio }, fresh));
       if (writes === null) return null;
       return [
         ...(writes.result === null ? [] : [conclusionOp(by, api.relatorioId, api.blockId, 'result', writes.result)]),
@@ -370,7 +373,7 @@ export function ConclusaoSection({
         if (status === 'confirmed') {
           const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
           // Batch e23v (Stories 23.5 and 23.6): the basis recomposed under the visit context of the build's fresh rows.
-          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis, visitContextOf({ locations: rows.locations, equipment: rows.equipment }, fresh))) moved = true;
+          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis, visitContextOf({ locations: rows.locations, equipment: rows.equipment, relatorio: visitRelatorio }, fresh))) moved = true;
           if (fresh === undefined || moved) return null;
         }
         const observationOp = suggestedObservationOp(blocks, by);

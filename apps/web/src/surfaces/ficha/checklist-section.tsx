@@ -9,7 +9,6 @@ import {
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
-  learnedBefore,
   ncChipPhrases,
   withPhotoTokens,
   ncRowPointText,
@@ -52,7 +51,7 @@ import type { PointSeed } from '../points/point-editor.tsx';
 import type { Author } from '../relatorio/relatorio-ops.ts';
 import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
-import { LEGEND_KEY } from '../../state/user-storage.ts';
+import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
 
 /*
  * Story 5.4 (FR-25, FR-26, UX-DR36-38, UX-DR44; `60-ficha.html` "Verificações gerais"):
@@ -279,6 +278,41 @@ export function ChecklistSection({
 const NO_PENDING: readonly SuggestionRow[] = [];
 const NO_LEARNED: readonly RegistryRow[] = [];
 
+/** Story 24.6: what the kept warning was shown for: the row's observation and result then. */
+interface KeptRecord {
+  observation: string;
+  result: TriStateValue | null;
+}
+
+/** Fix batch e24x (A5): the `sessionStorage` key of a row's kept warning. */
+function keptStorageKey(relatorioId: string, entityId: string, itemKey: string): string {
+  return `${KEPT_KEY_PREFIX}${relatorioId}:${entityId}:${itemKey}`;
+}
+
+/** The stored record, or null (none, unreadable, or storage blocked). */
+function readKept(key: string): KeptRecord | null {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(key);
+    if (raw === null || raw === undefined) return null;
+    const value = JSON.parse(raw) as { observation?: unknown; result?: unknown };
+    if (typeof value.observation !== 'string') return null;
+    if (value.result !== null && value.result !== 'C' && value.result !== 'NC' && value.result !== 'NA') return null;
+    return { observation: value.observation, result: value.result as TriStateValue | null };
+  } catch {
+    return null;
+  }
+}
+
+/** Writes the record, or removes it with null; storage that cannot be written is left as it is. */
+function writeKept(key: string, kept: KeptRecord | null): void {
+  try {
+    if (kept === null) globalThis.sessionStorage?.removeItem(key);
+    else globalThis.sessionStorage?.setItem(key, JSON.stringify(kept));
+  } catch {
+    // Blocked storage: the warning lasts while the row is on screen, as before.
+  }
+}
+
 /** The row's Dictation button on its own `.row-wrap` (a row with no photo action); nothing when the button is hidden. */
 function DictationRow({ children }: { children: ReactNode }) {
   if (!useSpeechAvailable()) return null;
@@ -317,11 +351,10 @@ export interface ChecklistRowTarget {
    */
   chips: readonly string[];
   /**
-   * Story 24.6: the phrases the row offered when its observation was written, which
-   * `ncObservationOnLeave` judges against (`learnedBefore`: a phrase learned from this very
-   * observation after its push never makes it automatic); `chips` when absent.
+   * Fix batch e24x (A1; decision 17): the item's seed phrases (a sheet item's definition's
+   * `nc_phrases`, a site item's own), the only phrases `ncObservationOnLeave` takes as automatic.
    */
-  leaveChips?: readonly string[];
+  seedPhrases: readonly string[];
 }
 
 /** The target of one item of a sheet's checklist: its cells on the block, its ops on `sheet/{blockId}/checklist/…`. */
@@ -358,7 +391,7 @@ export function sheetRowTarget(
     pointMark: (photoIds) => ncRowPointsText(ncRowPointPositions(snapshot.points, block.equipment_id, photoIds, item.key)),
     pointOwner: { equipmentId: block.equipment_id },
     chips: ncChipPhrases({ seeded: item.nc_phrases, learned, blockType: block.block_type, itemKey: item.key, recents }),
-    leaveChips: ncChipPhrases({ seeded: item.nc_phrases, learned: learnedBefore(learned, observationCell?.op_id), blockType: block.block_type, itemKey: item.key, recents }),
+    seedPhrases: item.nc_phrases,
   };
 }
 
@@ -438,9 +471,30 @@ export function ChecklistRow({
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
   // Story 24.6: the row left NC keeping an edited observation: the warning shows on this device
-  // until the row's observation or result changes again.
-  const [kept, setKept] = useState<{ observation: string; result: TriStateValue | null } | null>(null);
+  // until the row's observation or result changes again. Fix batch e24x (A5): the record outlives
+  // leaving the ficha and a reload (this tab's `sessionStorage`, by relatório, entity and item).
+  const keptStorage = keptStorageKey(api.relatorioId, target.entityId, item.key);
+  const [kept, setKeptState] = useState<KeptRecord | null>(() => readKept(keptStorage));
+  // Whether a row that no longer matches the record drops it: not while a fresh write awaits its echo.
+  const keptSettled = useRef(kept !== null);
+  const setKept = (next: KeptRecord | null) => {
+    keptSettled.current = false;
+    setKeptState(next);
+    writeKept(keptStorage, next);
+  };
   const showKept = !readOnly && kept !== null && kept.observation === stored && typed.text === stored && kept.result === result;
+  useEffect(() => {
+    if (kept === null || readOnly) return;
+    if (showKept) {
+      keptSettled.current = true;
+      return;
+    }
+    if (!keptSettled.current) return;
+    // The observation or the result changed since the warning showed (here, on another device, or while away).
+    keptSettled.current = false;
+    setKeptState(null);
+    writeKept(keptStorage, null);
+  }, [kept, readOnly, showKept, keptStorage]);
   const keptLineId = useId();
   const expanded = nc || observationOpen || (stored.trim() !== '' && !observationLine);
   const rowPoints = nc ? target.pointMark(photoIds) : null;
@@ -457,18 +511,14 @@ export function ChecklistRow({
 
   /**
    * Writes a result, one batch: Story 24.6, an NC row set to C or N.A. drops its observation
-   * while it is still only the offered phrases (`ncObservationOnLeave` `clear`; nothing typed
-   * since, `typed.text` the stored text) and keeps an edited one with the warning; Story 24.7,
-   * with the points "Remover ponto" removes.
+   * while it is still the item's seed phrases alone (`ncObservationOnLeave` `clear`) and keeps an
+   * edited one with the warning; Story 24.7, with the points "Remover ponto" removes.
    */
   const write = (value: TriStateValue | null, remove: readonly PointRow[] = []) => {
-    // Review of e24b: a text still being saved (`typed.text` ahead of the store) is judged as typed:
-    // kept with the warning when it holds a typed piece, never cleared here (its own commit would
-    // land after the clear and bring it back).
-    const pending = typed.text !== stored;
-    const judged = ncObservationOnLeave(result, value, pending ? typed.text : stored, target.leaveChips ?? chips);
-    const leave = pending && judged === 'clear' ? null : judged;
-    setKept(leave === 'keep' ? { observation: pending ? typed.text : stored, result: value } : null);
+    // Fix batch e24x (A2): a text still being saved (`typed.text` ahead of the store) is kept with
+    // the warning when non-blank, never cleared here (its own commit lands after any clear).
+    const leave = ncObservationOnLeave(result, value, stored, target.seedPhrases, typed.text);
+    setKept(leave === 'keep' ? { observation: typed.text, result: value } : null);
     const removed = remove.length === 0 ? null : pointQuestionText(snapshot.points, remove, value === 'NA' ? 'NA' : 'C');
     void api
       .edit((_blocks, by) => [

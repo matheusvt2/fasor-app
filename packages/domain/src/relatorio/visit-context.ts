@@ -1,4 +1,5 @@
 import { previousResultsFor, type PreviousResults } from '../print/reading-slots.ts';
+import { relatorioVisitDate } from '../print/visit-date.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { cabineOf } from './cabine.ts';
 
@@ -35,7 +36,7 @@ function ambientOf(cabine: Extract<LocationRow, { kind: 'cabine' }> | null): num
 const NO_CABINE = Object.freeze({});
 const NO_EQUIPMENT = Object.freeze({});
 
-/** cabine row -> equipment row -> `${relatorio_id}|${block_type}` -> context. */
+/** cabine row -> equipment row -> `${relatorio_id}|${block_type}|${visit date}` -> context. */
 const MEMO = new WeakMap<object, WeakMap<object, Map<string, VisitContext>>>();
 
 /**
@@ -44,9 +45,13 @@ const MEMO = new WeakMap<object, WeakMap<object, Map<string, VisitContext>>>();
  * are immutable (every op folds into a new row object), so the same cabine row, equipment row and
  * relatório give the same object, which the evaluation memos key on; a context holding neither
  * input is `NO_VISIT_CONTEXT` itself.
+ *
+ * Fix batch e24x (D3): with the relatório (`source.relatorio`, a snapshot's), the previous visit is
+ * never later than its own visit date (`previousResultsFor`); without it, as before. Every caller that
+ * holds the relatório passes it, so the screen, the judgement and the print read the same visit.
  */
 export function visitContextOf(
-  source: { locations: readonly LocationRow[]; equipment: readonly Pick<EquipmentRow, 'id' | 'last_results'>[] },
+  source: { locations: readonly LocationRow[]; equipment: readonly Pick<EquipmentRow, 'id' | 'last_results'>[]; relatorio?: { setup: { service_start?: string | null; service_end?: string | null } } | null | undefined },
   block: Pick<BlockRow, 'location_id' | 'equipment_id' | 'block_type' | 'relatorio_id'>,
 ): VisitContext {
   const cabine = cabineOf(source.locations, block.location_id);
@@ -63,11 +68,12 @@ export function visitContextOf(
     byBlock = new Map();
     byEquipment.set(equipmentKey, byBlock);
   }
-  const key = `${block.relatorio_id}|${block.block_type}`;
+  const visitDate = relatorioVisitDate(source.relatorio?.setup);
+  const key = `${block.relatorio_id}|${block.block_type}|${visitDate ?? ''}`;
   const hit = byBlock.get(key);
   if (hit !== undefined) return hit;
   const ambientC = ambientOf(cabine);
-  const previous = previousResultsFor(equipment, block, block.relatorio_id);
+  const previous = previousResultsFor(equipment, block, block.relatorio_id, visitDate);
   const context = ambientC === null && previous === null ? NO_VISIT_CONTEXT : Object.freeze({ ambientC, previous });
   byBlock.set(key, context);
   return context;

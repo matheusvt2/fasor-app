@@ -1,6 +1,7 @@
 import { tapRowsOf } from '../relatorio/tap-rows.ts';
 import type { BlockRow, EquipmentRow, LastResults } from '../schemas/entities.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { compareVisits } from './visit-date.ts';
 
 /*
  * Story 22.12 (`last-results.ts`, which re-exports everything here): the keys of a definition's
@@ -98,12 +99,21 @@ export function withoutPrior(entry: LastResults): PreviousResults {
  * relatório re-issued after another was issued over it), the visit before this one is no longer
  * stored and a later one is never taken: no previous visit. A top entry unrelated to this
  * relatório by its chain reads as before (the chain cannot tell).
+ *
+ * Fix batch e24x (D3): `visitDate`, the reading relatório's own visit date (`relatorioVisitDate`):
+ * a top entry of another relatório dated after it (`compareVisits`) is never its previous visit; it
+ * reads the top's `prior` when that is not later than its own visit (and is not itself), else
+ * nothing. Null (no service date on the relatório): as before.
  */
-export function previousResultsFor(equipment: Pick<EquipmentRow, 'last_results'> | null | undefined, block: Pick<BlockRow, 'block_type'>, relatorioId: string): PreviousResults | null {
+export function previousResultsFor(equipment: Pick<EquipmentRow, 'last_results'> | null | undefined, block: Pick<BlockRow, 'block_type'>, relatorioId: string, visitDate: string | null = null): PreviousResults | null {
   const top = equipment?.last_results ?? null;
   if (top === null) return null;
   if (top.relatorio_id !== relatorioId && top.prior?.relatorio_id === relatorioId) return null;
-  const entry = top.relatorio_id !== relatorioId ? withoutPrior(top) : top.prior;
+  let entry = top.relatorio_id !== relatorioId ? withoutPrior(top) : top.prior;
+  if (entry !== null && top.relatorio_id !== relatorioId && visitDate !== null) {
+    const own = { issued_at: '', service_date: visitDate };
+    if (compareVisits(entry, own) > 0) entry = top.prior !== null && top.prior.relatorio_id !== relatorioId && compareVisits(top.prior, own) <= 0 ? top.prior : null;
+  }
   if (entry === null || entry.block_type !== block.block_type) return null;
   return entry;
 }
