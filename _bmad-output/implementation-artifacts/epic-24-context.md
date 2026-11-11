@@ -398,6 +398,18 @@ Gaps not sent, kept here: no test presses "Ditar o motivo" (24.14); with the No-
 
 **Before the deploy:** the paid plate eval of `bedrock-structuring-9` and the v14 golden, then the deploy and the release, each on Matheus's explicit word.
 
+## Deploy (2026-11-11)
+
+*(2026-11-11, coordinator.)* Matheus's word: "pode seguir com os testes e deploy. O achado não atrasa o deploy mas precisamos corrigir". The finding is G1 of the final hands-on pass (a deadline typed by hand in the point editor leaves a draft behind); its fix is in batch e25a of Epic 25.
+
+- **The paid plate eval** of `bedrock-structuring-9`, on `2009fa30`, with Haiku 4.5 and Nova Pro (`apps/api/src/scripts/bedrock-eval.ts`, OCR Textract):
+  - Synthetic, 16 plates: Haiku 97,9 % of the fields (95 of 97), Nova Pro 97,9 % (95 of 97); a second run with per-plate detail gave Nova Pro 94 of 97. No reading failed; every citation was valid.
+  - The No-break plate (`plate-no-break-comando`): 15 of 15 fields on both models, with 15 cited values, so nothing was invented for the battery maker, model or date.
+  - Six real plates: Haiku 5 of 6, Nova Pro 5 of 6. The sixth reads no vector group on either model; it is the plate of E21-A2. On prompt 8 (2026-11-10) the figures were Haiku 5 of 6 and Nova Pro 6 of 6, and 97,6 % and 98,8 % on 15 synthetic plates. The older plates' prompt text did not change.
+- **The deploy.** `2009fa30` (the gated `ee0859cc` plus documentation) went to production on 2026-11-11 (23:26 to 23:52 UTC) through `infra/bin/deploy`. Health was up on every component. The smoke passed 8 of 8. The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`. The api logged "template seeds upgraded" once and no error event in the 40 minutes after the roll. The image tag before it was `1528183f`.
+- **Seed v14 is frozen from here.** Contract 47, minimum 47. A change to seed content or to printed text now needs seed v15 (Epic 25, Story 25.5), and the v14 layout lock is taken from `2009fa30`.
+- **Tag** `v0.9.0` is on `2009fa30`. The release page waits for Matheus's word.
+
 ## Batch plan
 
 There are at most two batch stacks up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`. The coordinator hands out a free port base before each launch (`podman ps --filter name=fasor-`).
