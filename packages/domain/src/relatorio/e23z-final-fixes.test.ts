@@ -74,7 +74,7 @@ const measurementOf = (block: BlockRow, testKey: string, definition: BlockDefini
 
 // --- snapshots ------------------------------------------------------------------------------------
 
-const v13Snapshot = (): RelatorioSnapshot => structuredClone(layoutLockSnapshot('v13'));
+const v13Snapshot = (): RelatorioSnapshot => structuredClone(layoutLockSnapshot('v13', { epic24: false }));
 const blockOf = (snapshot: RelatorioSnapshot, type: string) => snapshot.blocks.find((block) => block.block_type === type && block.removed_at === null)!;
 function editBlock(snapshot: RelatorioSnapshot, block: BlockRow, edit: (next: BlockRow) => BlockRow | void): BlockRow {
   const draft = structuredClone(block);
@@ -191,7 +191,7 @@ describe('e23z-UNIT W3-2 a measured cell the deviation between phases cannot jud
 // --- W3-3 and W3-4: a copy prints and reads as its base ----------------------------------------------
 
 describe('e23z-UNIT W3-3 a company copy of one of the eight prints in its base\'s group', () => {
-  const RELATORIO = layoutLockSnapshot('v13').relatorio;
+  const RELATORIO = layoutLockSnapshot('v13', { epic24: false }).relatorio;
   const cabine: LocationRow = {
     id: id(10),
     relatorio_id: RELATORIO.id,

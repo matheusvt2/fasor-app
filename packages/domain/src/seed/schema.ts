@@ -995,6 +995,30 @@ const blocksSchema = z
 /** `blocks` as every reader takes it: the eight always there, any other type only where its version ships it. */
 export type SeedBlocks = Record<BaseEquipmentBlockType, BlockDefinition> & Partial<Record<Exclude<EquipmentBlockType, BaseEquipmentBlockType>, BlockDefinition>>;
 
+/**
+ * Batch e24a (Story 24.2, seed v14): the rule flags a seed version may carry. A rule that changes a
+ * verdict or a printed page on a newer seed is reached through one of these flags, read by
+ * `seedRule`, never through a comparison of version numbers (AD-21). Each flag is `true` or
+ * absent, so a seed that never names one reads it as off; the object is strict, so a misspelt flag
+ * fails the seed's first import instead of being silently off.
+ */
+export const seedRulesSchema = z
+  .object({
+    /** Story 24.3: a failure floors Reprovado with no restriction; "Com restrições" is the technician's choice. */
+    conclusion_restriction_by_choice: z.literal(true).optional(),
+    /** Story 24.3: the arrester's prerequisite is read only while its nameplate sub-block is on. */
+    prerequisite_needs_nameplate: z.literal(true).optional(),
+    /** Story 24.4: the parecer's Reprovado sentence names each reproved ficha's finding. */
+    parecer_names_finding: z.literal(true).optional(),
+    /** Story 24.4: the lines of an NC observation are joined on one line in the conclusion. */
+    nc_clause_on_one_line: z.literal(true).optional(),
+    /** Story 24.4: the fixed results reference of a Conclusão text is replaced across its formatted runs. */
+    results_reference_across_runs: z.literal(true).optional(),
+  })
+  .strict();
+export type SeedRules = z.infer<typeof seedRulesSchema>;
+export type SeedRuleFlag = keyof SeedRules;
+
 /** Everything one seed version holds for one report type. */
 export const reportSeedSchema = z.object({
   blocks: blocksSchema,
@@ -1019,6 +1043,12 @@ export const reportSeedSchema = z.object({
    * checklist at all (`siteChecklistOf` answers null: nothing shown, counted or printed).
    */
   site_checklist: siteChecklistSchema.optional(),
+  /**
+   * Batch e24a (Story 24.2, seed v14): the seed's rule flags (`seedRulesSchema`). Optional like
+   * `recurring_findings`, so v1 to v13 parse to the bytes they shipped with and their content
+   * hashes hold; a version without it has every rule off (`seedRule` answers false).
+   */
+  rules: seedRulesSchema.optional(),
 });
 export type ReportSeed = Omit<z.infer<typeof reportSeedSchema>, 'blocks'> & { blocks: SeedBlocks };
 

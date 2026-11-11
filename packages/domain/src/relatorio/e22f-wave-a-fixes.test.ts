@@ -39,9 +39,10 @@ const cell = (value: unknown): Cell => ({ value: value as Cell['value'], source_
 const measured = (raw: string, unit: string | null) => cell({ raw, unit, state: 'measured' });
 const CONCLUDED = { actor_id: TEST_USER, at: '2026-11-06T12:00:00.000Z' };
 
+/** Batch e24a (Stories 24.3 and 24.4): on seed v13, whose pairs and summary sentences these tests pin. */
 function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: '019966b0-e22f-7000-8000-0000000000a1' }),
+    standardTemplate({ id: '019966b0-e22f-7000-8000-0000000000a1', seedVersion: 'v13' }),
     { id: TEST_PROJECT },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-e22f-7001-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
@@ -134,7 +135,8 @@ describe('e22f S1: the floor tightens a concluded sheet with a confirmed text', 
       expect(printedConclusionPair(out)).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
       expect(printedConclusionText(out, definition, tag)).toBe(now.text);
       const writes = conclusionAdjustWrites(out, definition, tag);
-      expect(writes).toEqual({ result: 'reprovado', restriction: 'com_restricoes', text: { text: now.text, basis: now.basis } });
+      // Batch e24a (Story 24.3): `clearRestriction`, false on v1 to v13.
+      expect(writes).toEqual({ result: 'reprovado', restriction: 'com_restricoes', clearRestriction: false, text: { text: now.text, basis: now.basis } });
       const after = withConclusion(out, {
         result: cell(writes!.result),
         restriction: cell(writes!.restriction),
@@ -147,7 +149,7 @@ describe('e22f S1: the floor tightens a concluded sheet with a confirmed text', 
       expect(conclusionAdjustWrites(after, definition, tag)).toBeNull();
       // An edited text is the engineer's: never written, printed as typed.
       const edited = withConclusion(out, { text: cell('Texto do engenheiro.'), text_status: cell('edited') });
-      expect(conclusionAdjustWrites(edited, definition, tag)).toEqual({ result: 'reprovado', restriction: 'com_restricoes', text: null });
+      expect(conclusionAdjustWrites(edited, definition, tag)).toEqual({ result: 'reprovado', restriction: 'com_restricoes', clearRestriction: false, text: null });
       expect(printedConclusionText(edited, definition, tag)).toBe('Texto do engenheiro.');
     });
   }

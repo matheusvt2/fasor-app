@@ -33,10 +33,14 @@ import { isEquipmentBlock } from './sheet-state.ts';
 const TEMPLATE_ID = '019966b0-0071-7000-8000-000000000001';
 const AT = '2026-09-08T12:00:00.000Z';
 
-/** A fresh relatório from the standard template, then only its first `n` equipment sheets kept. */
+/**
+ * A fresh relatório from the standard template, then only its first `n` equipment sheets kept. Batch
+ * e24a (Story 24.4): on seed v13, whose sentences these tests pin (seed v14's Reprovado sentence is
+ * `e24a-conclusion-rules.test.ts`'s).
+ */
 function withSheets(n: number): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: TEMPLATE_ID }),
+    standardTemplate({ id: TEMPLATE_ID, seedVersion: 'v13' }),
     { id: TEST_PROJECT },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966b0-0072-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },

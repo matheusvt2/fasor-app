@@ -129,7 +129,7 @@ describe('23.6-INT a point written from a restricted test through the route (con
 
 describe('23.6-INT the issue\'s last_results keeps the corrected value (AD-25, contract 36)', () => {
   it('a v13 transformer at 40 °C of oil keeps its AT reading corrected to 20 °C; a v12 transformer\'s reading carries none; company B never reads either', async () => {
-    const v13 = await h.seedRelatorio(companyA);
+    const v13 = await h.seedRelatorio(companyA, new Date(), 'v13'); // Pinned to v13 since seed v14 (Story 24.2).
     const tf13 = v13.blocks.find((block) => block.blockType === 'transformador_forca')!;
     const plate = (seeded: SeededRelatorio, blockId: string, key: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path: sheetNameplatePath(blockId, key), relatorio_id: seeded.relatorioId, value });
     const at = (seeded: SeededRelatorio, blockId: string, raw: string) => h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(blockId, 'isolacao', 0, 1), relatorio_id: seeded.relatorioId, value: measured(raw, 'GΩ') });

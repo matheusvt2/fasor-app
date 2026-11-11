@@ -4,12 +4,12 @@ import { hasPointSource } from '../points/derived.ts';
 import type { BlockRow, RelatorioParecer } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isCompanyBlockType } from '../schemas/block-config.ts';
-import { blockDefinitionIn, findSeed, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, findSeed, seedRule, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
-import { effectiveConclusionPair } from './conclusion.ts';
+import { effectiveConclusionPair, findingClauses } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
 import { measurementCells } from './measurement-evaluation.ts';
 import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
@@ -316,6 +316,35 @@ function reprovadoSentence(count: number, byReason: Record<keyof typeof REPROVAD
   return `${head}: ${listPtBr(groups.map((key) => `${byReason[key].length} por ${words[key]} (${listPtBr(byReason[key])})`))}.`;
 }
 
+/** Batch e24a (Story 24.4): one reprovada ficha as the seed v14 sentence names it: its name and its findings, in tree order. */
+interface ReprovadaFindings {
+  name: string;
+  /** The ficha's findings in its conclusion's words (`findingClauses`); a defect Não ensaiado's reason; empty for a Reprovado the technician chose. */
+  findings: string[];
+}
+
+/**
+ * Batch e24a (Story 24.4, seed v14; Bruno's answer 28): the Reprovado sentence naming each reprovada
+ * ficha once, in tree order, with its findings in the words section 9's conclusion uses: "1 ficha foi
+ * reprovada: DJ-01, por resistência de contato máxima de 310 µΩ em Polo A (critério: <250 µΩ,
+ * aceitável na ficha)."; several fichas joined by "; ", several findings as a pt-BR list; a ficha with
+ * no finding by its name alone.
+ */
+function reprovadoFindingsSentence(entries: readonly ReprovadaFindings[]): string {
+  const head = entries.length === 1 ? '1 ficha foi reprovada' : `${entries.length} fichas foram reprovadas`;
+  // authored (e24a, listed for Bruno): each reprovada ficha, "TAG, por <achados>", or the TAG alone.
+  return `${head}: ${entries.map(({ name, findings }) => (findings.length === 0 ? name : `${name}, por ${listPtBr(findings)}`)).join('; ')}.`;
+}
+
+/** Batch e24a (Story 24.4, seed v14): a reprovada ficha's findings: its conclusion's clauses, or a defect Não ensaiado's reason. */
+function reprovadaFindings(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext): string[] {
+  if (block.not_tested !== null) {
+    const reason = isDefectReason(block.seed_version, block.not_tested.reason) ? notTestedReason(block) : null;
+    return reason === null ? [] : [reason];
+  }
+  return definition === null ? [] : findingClauses(block, definition, visit);
+}
+
 /** "item 8 (contatos)", the checklist item as the summary groups it. */
 function ncItemName(item: { n: number; label: string }): string {
   return `item ${item.n} (${item.label.toLocaleLowerCase('pt-BR')})`;
@@ -370,6 +399,11 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     else if (block.not_tested !== null && isDefectReason(block.seed_version, block.not_tested.reason)) byReason.defect.push(name);
     else byReason.other.push(name);
   }
+  // Batch e24a (Story 24.4, seed v14): each reprovada ficha with its findings, in tree order (the relatório's seed reads the flag).
+  const namesFinding = seedRule(snapshot.relatorio.seed_version, 'parecer_names_finding');
+  const findings: ReprovadaFindings[] = namesFinding
+    ? sheets.filter(({ block }) => reprovadoSet.has(block.id)).map(({ block, definition, name, visit }) => ({ name, findings: reprovadaFindings(block, definition, visit) }))
+    : [];
   const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
   // Fix batch e24h: the stored live points only (the sentence, the Critérios item and the basis).
   const points = livePoints(snapshot.points).length;
@@ -387,7 +421,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     const pending = open > 0 ? `${open} ${open === 1 ? 'ainda não concluída' : 'ainda não concluídas'}` : null;
     const registered = total === 1 ? 'Foi registrada 1 ficha de ensaio' : `Foram registradas ${total} fichas de ensaio`;
     sentences.push(`${registered}: ${listPtBr([done, untested, pending].filter((part): part is string => part !== null))}.`);
-    if (reprovados.length > 0) sentences.push(reprovadoSentence(reprovados.length, byReason, choiceWords));
+    if (reprovados.length > 0) sentences.push(namesFinding ? reprovadoFindingsSentence(findings) : reprovadoSentence(reprovados.length, byReason, choiceWords));
     if (withRestriction.length > 0) {
       sentences.push(
         `${withRestriction.length === 1 ? '1 ficha apresentou' : `${withRestriction.length} fichas apresentaram`} restrições (${listPtBr(withRestriction)}).`,
@@ -467,6 +501,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
             },
           }
         : {}),
+      // Batch e24a (Story 24.4): only on seed v14 with a reprovada ficha, so every basis of v1 to v13 keeps its bytes.
+      ...(findings.length > 0 ? { reprovadoFindings: findings } : {}),
     }),
   );
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };

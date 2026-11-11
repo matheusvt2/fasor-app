@@ -89,7 +89,7 @@ function siteNc(snapshot: RelatorioSnapshot): RelatorioSnapshot {
 
 /** A v13 cable whose insulation is restricted (one phase below 50 % of the largest), alone in its relatório and otherwise clean. */
 function restrictedCableAlone(): RelatorioSnapshot {
-  const snapshot = structuredClone(layoutLockSnapshot('v13'));
+  const snapshot = structuredClone(layoutLockSnapshot('v13', { epic24: false }));
   const cable = structuredClone(snapshot.blocks.find((block) => block.block_type === 'cabos_entrada' && block.removed_at === null)!);
   for (const entry of Object.values(cable.sheet.checklist)) {
     entry.result = cell('C');

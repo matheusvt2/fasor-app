@@ -23,7 +23,8 @@ const KEY = 'resistencia_fusiveis';
 
 test('@p0 23.19-E2E-001 HH fuses at 10, 10 and 12 mΩ: the third fails (Reprovado); SEM CARGA makes the test NA with its reason, "Aplicar este ensaio" and "Seguir a placa" write its override; the DOCX prints no fuse table', async ({ page }) => {
   test.setTimeout(300_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [{ blockType: 'chave_seccionadora', key: 'tipo_seccionadora', value: 'SOB CARGA COM FUSÍVEIS' }]);
+  // Batch e24a (Story 24.3): pinned to seed v13, whose floor this test asserts (Reprovado · Com restrições).
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [{ blockType: 'chave_seccionadora', key: 'tipo_seccionadora', value: 'SOB CARGA COM FUSÍVEIS' }], 'v13');
   const sc = sheets.find((sheet) => sheet.blockType === 'chave_seccionadora')!;
   await openStep(page, relatorioId, sc.blockId, 'Ensaios');
   const section = testSection(page, KEY);

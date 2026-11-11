@@ -80,7 +80,7 @@ const captures = (test: TestEvaluation) => test.tables.flatMap((table) => table.
 const verdicts = (test: TestEvaluation) => captures(test).map((one) => one.verdict);
 
 function v13Snapshot(): RelatorioSnapshot {
-  return structuredClone(layoutLockSnapshot('v13'));
+  return structuredClone(layoutLockSnapshot('v13', { epic24: false }));
 }
 const blockOf = (snapshot: RelatorioSnapshot, type: string) => snapshot.blocks.find((block) => block.block_type === type && block.removed_at === null)!;
 function editBlock(snapshot: RelatorioSnapshot, type: string, edit: (block: BlockRow) => void): BlockRow {

@@ -238,7 +238,8 @@ describe('e23p-P1 the fields measured on the day are never copied (behaviour pas
   });
 
   it('no seed before v13 carries any of the five keys, so v1 to v12 copy as before', () => {
-    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v13')) {
+    // Seed v14 (Story 24.2) opens equal to v13 and keeps its keys.
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v13' && one !== 'v14')) {
       for (const type of BASE_EQUIPMENT_BLOCK_TYPES) {
         let definition;
         try {

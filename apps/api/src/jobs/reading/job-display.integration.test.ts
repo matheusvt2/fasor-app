@@ -91,10 +91,11 @@ interface Built {
   cabineId: string;
 }
 
-async function relatorio(): Promise<Built> {
+/** A standard-template relatório on the current seed, or on `seedVersion` (a test that asserts v13 behaviour names v13). */
+async function relatorio(seedVersion?: string): Promise<Built> {
   const projectId = newId();
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), ...(seedVersion === undefined ? {} : { seedVersion }) }),
     { id: projectId },
     { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId, actorId: ACTOR, companyId },
@@ -233,7 +234,7 @@ describe('9.1-INT the display reading kind', () => {
   // Batch e23t (Story 23.16, seed v13): a shot started on the transformer's typed POLARIZAÇÃO fills that IP cell as a
   // suggestion; the tester's other readings find no index cell after it and are dropped.
   it('batch e23t: a v13 transformer\'s display shot on POLARIZAÇÃO fills the IP as a pending suggestion, unitless', async () => {
-    const { relatorioId, blocks } = await relatorio();
+    const { relatorioId, blocks } = await relatorio('v13');
     const transformer = blocks.find((b) => b.block_type === 'transformador_forca')!;
     expect(transformer.seed_version).toBe('v13');
     const id = await photo(relatorioId, transformer.id, await shot('display-tres-valores'), displayCellTarget(transformer.id, transformer.block_type, 'isolacao', { row: 0, col: 4 }));
@@ -245,7 +246,7 @@ describe('9.1-INT the display reading kind', () => {
   }, 60_000);
 
   it('fix batch e23g (R2-1): a v13 transformer with TAPS, the ratio meter shot on a tap row: the suggestion lands on that row', async () => {
-    const { relatorioId, blocks } = await relatorio();
+    const { relatorioId, blocks } = await relatorio('v13');
     const transformer = blocks.find((b) => b.block_type === 'transformador_forca')!;
     expect(transformer.seed_version).toBe('v13');
     await apply([draft('put', 'relatorio', relatorioId, `sheet/${transformer.id}/nameplate/taps`, { raw: '13.8;13.2;12.6;12;11.4', unit: 'kV', state: 'measured' })]);
