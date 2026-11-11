@@ -163,7 +163,8 @@ test('@p0 E78-Q1 7.5-E2E-006 22.6-E2E a relatório with no section block (the Po
   const group = page.getByRole('radiogroup', { name: 'Parecer' });
   await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
   await expect(group.getByRole('radio', { name: 'Apto com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+  // Fix batch e24h: the untested sheet is no point of attention any more (was "… e 1 ponto de atenção.").
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText('O relatório exige no mínimo Apto com restrições: 1 não ensaiada.');
 });
 
 test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with the looser verdicts disabled, and the DOCX\'s section 10 prints Não apto, the summary naming the sheet, no third bullet, and the earlier typed summary as "Observações do responsável"', async ({

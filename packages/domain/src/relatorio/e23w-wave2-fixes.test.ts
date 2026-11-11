@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { readingSlotsOf } from '../print/reading-slots.ts';
 import { section9Layout } from '../print/section-9.ts';
-import { derivedPoints, resolvedOriginPoints } from '../points/derived.ts';
+import { hasPointSource, resolvedOriginPoints } from '../points/derived.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -128,7 +128,8 @@ describe('e23w-UNIT W2-2 the arrester\'s failed disconnector is read whatever it
     expect(failedPrerequisites(v12, definitionOf(v12))).toEqual([]);
   });
 
-  it('on the snapshot: section 8\'s reading entry of the switched-off test, and the parecer names the sheet by its prerequisite (W2-K1)', () => {
+  // Fix batch e24h: ~~section 8's reading entry of the switched-off test~~: the finding stands, no automatic point.
+  it('on the snapshot: the switched-off test\'s prerequisite is a finding, and the parecer names the sheet by its prerequisite (W2-K1)', () => {
     const snapshot = v13Snapshot();
     const arrester = editBlock(snapshot, 'para_raio', (block) => {
       block.sheet.nameplate.desligador_integro = cell('NÃO');
@@ -136,9 +137,7 @@ describe('e23w-UNIT W2-2 the arrester\'s failed disconnector is read whatever it
     });
     // The arrester alone: every other sheet removed, so the parecer's Reprovado sentence names only it.
     snapshot.blocks = snapshot.blocks.map((block) => (block.id !== arrester.id && block.equipment_id !== null ? { ...block, removed_at: '2026-11-09T10:00:00.000Z' } : block));
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${arrester.id}:isolacao`)!;
-    expect(entry).toMatchObject({ kind: 'reading', test_key: 'isolacao' });
-    expect(entry.text).toContain('Ensaio de isolação: pré-requisito não atendido (Desligador íntegro: NÃO)');
+    expect(hasPointSource(snapshot)).toBe(true);
     const tag = snapshot.equipment.find((row) => row.id === arrester.equipment_id)!.tag;
     expect(composeParecer(snapshot).text).toContain(`1 ficha foi reprovada por pré-requisito do ensaio não atendido (${tag}).`);
   });
@@ -175,9 +174,6 @@ describe('e23w-UNIT W2-3 a stored restricao point stands while its rule still fl
     expect(verdicts(test)[2]).toBe('out');
     expect(captures(test)[2]!.restriction).toBeNull();
     expect(test.restrictionStands).toBe(true);
-    const entries = derivedPoints(snapshot);
-    expect(entries.some((one) => one.key === `restricao:${out.id}:isolacao`)).toBe(false);
-    expect(entries.some((one) => one.key === `reading:${out.id}:isolacao`)).toBe(true);
     expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(false);
     // Every phase out and alike: no rule flags any row, the point resolves.
     editBlock(snapshot, 'cabos_entrada', (block) => {

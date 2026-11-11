@@ -428,7 +428,8 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(bulk(page)).toHaveAttribute('aria-disabled', 'true');
 
   // ~~Epic 14 QA Q-4: the NC item has no point of attention yet, so one pending row before issue
-  // names the local~~ Story 22.5: the NC item is a derived point of attention by itself, so that row retired.
+  // names the local~~ Story 22.5: ~~the NC item is a derived point of attention by itself, so~~ that row retired (fix batch
+  // e24h: the NC item is no point until "Criar ponto de atenção"; the row stays retired, an open question of spec e24h D5).
   await bar(page).getByRole('button', { name: 'Concluir verificações' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).not.toContainText(NC_WITHOUT_POINT);
@@ -443,8 +444,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(editor.locator('.poa-link-value')).toHaveText('Cubículo Enel · Verificações do local');
   const text = editor.getByRole('textbox', { name: 'Texto' });
   await expect(text.locator('.photo-ref')).toHaveText('Imagem 1');
-  // e22f S4: the point starts with the item's derived entry text (its NC phrase), as "Editar" on
-  // that entry does, so nothing needs typing here.
+  // e22f S4: the point starts with the item's text (its NC phrase), so nothing needs typing here.
   await expect(text).toContainText(/^Item \d+ \(.+\): .+/);
   await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill(POINT_ACTION);
   await editor.getByRole('button', { name: 'Concluir' }).click();
@@ -1037,12 +1037,15 @@ test('@p0 20.4-E2E-004 a Geral point picks a local in "Equipamento ou local": bo
   ]);
   await page.setViewportSize({ width: 1280, height: 900 });
   await openSumario(page, built.relatorioId);
-  // Story 22.5: the local's NC item is a derived point by itself; the Q-4 row retired.
+  // Story 22.5: the Q-4 row retired (fix batch e24h: ~~the local's NC item is a derived point by itself~~; it is no point).
   await expect(sumario(page).locator('li.sum-s9 .sum-status').first()).not.toContainText(NC_WITHOUT_POINT);
+  await expect(sumario(page).locator('li.sum-row[data-row="section_8"] .sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
 
   await page.goto(`/relatorio/${built.relatorioId}/pontos`);
   const card = page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)').first();
   await expect(card.locator('.poa-title')).toHaveText('Geral', { timeout: 30_000 });
+  // Fix batch e24h: the NC item lists no card of its own beside the stored point.
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(1);
   await card.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
   const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
   const picker = editor.getByRole('button', { name: /Equipamento ou local/ });

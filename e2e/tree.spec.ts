@@ -484,7 +484,9 @@ test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the rea
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(dialog).toBeHidden();
 
-  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 9');
+  // Fix batch e24h: the toast no longer says the sheet enters section 9 (no automatic point).
+  await expect(toast(page)).toContainText('Marcada como não ensaiada');
+  await expect(toast(page)).not.toContainText('entra na');
   await expect(eqRow(page, firstTag).locator('.s9-state')).toHaveText('⊘ Não ensaiada · Solicitação do cliente');
 
   // Not offered a second time once the sheet is already not tested (spec OPEN QUESTION).

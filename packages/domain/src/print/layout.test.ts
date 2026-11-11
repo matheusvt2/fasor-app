@@ -77,12 +77,13 @@ describe('4.8-UNIT-001 layoutSpec on the full fixture', () => {
     expect(byNumber.get(10)?.kind).toBe('section_10');
     expect(byNumber.get(9)?.kind).toBe('sheets');
     expect(EMPTY_SECTION_NOTE).toBe('(sem conteúdo nesta revisão)');
-    // Stories 7.2/7.3 (section-7/8/11.test.ts assert their contents): 82 photos, 7 points and (Story 22.5) 18 out tests, 3 certificates.
+    // Stories 7.2/7.3 (section-7/8/11.test.ts assert their contents): 82 photos, 7 points, 3 certificates
+    // (fix batch e24h: ~~and, Story 22.5, 18 out tests~~; no automatic point prints).
     const photos = byNumber.get(7)!;
     const points = byNumber.get(8)!;
     const certificates = byNumber.get(11)!;
     expect(photos.kind === 'photos' ? photos.photos.length : null).toBe(82);
-    expect(points.kind === 'points' ? points.bullets.length : null).toBe(7 + 18);
+    expect(points.kind === 'points' ? points.bullets.length : null).toBe(7);
     expect(certificates.kind === 'certificates' ? certificates.certificates.length : null).toBe(3);
   });
 
@@ -322,8 +323,9 @@ describe('4.8-UNIT-007 layoutSpec follows the relatório\'s section blocks (Sum�
         { kind: 'item', text: 'item b', runs: [{ text: 'item b' }] },
       ]);
     }
-    // The moved 8 prints its bullets (Story 7.3); the sections the seed fills stay text.
-    expect(layout.sections[5]!.kind).toBe('points');
+    // The moved 8 prints at its new place (Story 7.3); the sections the seed fills stay text. Fix batch e24h: the
+    // small fixture stores no point (its one untested sheet listed itself before), so 8 prints its empty note.
+    expect(layout.sections[5]!.kind).toBe('empty');
     expect(layout.sections[1]!.kind).toBe('text');
   });
 });

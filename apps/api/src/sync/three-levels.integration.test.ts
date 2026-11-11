@@ -1,7 +1,8 @@
 import {
   CONTRACT_VERSION,
-  derivedPoints,
+  hasPointSource,
   lastResults,
+  sectionEightEntries,
   makeOp,
   MIN_CONTRACT_VERSION,
   previousResultsFor,
@@ -80,16 +81,18 @@ async function project(company: Company, seeded: SeededRelatorio, revisionNumber
 }
 
 describe('23.6-INT a point written from a restricted test through the route (contract 36)', () => {
-  it('a create with origin restricao and its test_key is accepted and replaces the derived entry; an origin the contract does not know is refused', async () => {
+  // Fix batch e24h: ~~and replaces the derived entry~~; the restricted test lists nothing until the point is written.
+  it('a create with origin restricao and its test_key is accepted and is the one section 8 entry; an origin the contract does not know is refused', async () => {
     const seeded = await h.seedRelatorio(companyA);
     const cable = seeded.blocks.find((block) => block.blockType === 'cabos_entrada')!;
     const relatorio_id = seeded.relatorioId;
     const reading = (row: number, raw: string) => h.clientOp(companyA, { kind: 'put', path: sheetTestCellPath(cable.id, 'isolacao', row, 1), relatorio_id, value: measured(raw, 'GΩ') });
     expect((await h.push(companyA, [reading(0, '5'), reading(1, '5'), reading(2, '1.5')])).rejected).toEqual([]);
 
-    const key = `restricao:${cable.id}:isolacao`;
-    const entry = derivedPoints(await snapshotOf(companyA, relatorio_id)).find((one) => one.key === key)!;
-    expect(entry).toMatchObject({ kind: 'restricao', test_key: 'isolacao', equipment_id: cable.equipmentId, text: 'Ensaio de isolação: valor dentro do critério, com restrição (Fase C: abaixo de 50 % da maior leitura)' });
+    const before = await snapshotOf(companyA, relatorio_id);
+    expect(hasPointSource(before)).toBe(true);
+    expect(sectionEightEntries(before)).toEqual([]);
+    const entry = { text: 'Ensaio de isolação: valor dentro do critério, com restrição (Fase C: abaixo de 50 % da maior leitura)' };
 
     const pointId = newId();
     const unknownId = newId();
@@ -106,8 +109,8 @@ describe('23.6-INT a point written from a restricted test through the route (con
     expect(result.rejected).toEqual([{ op_id: unknown.op_id, code: 'op_invalid' }]);
     expect(await h.rowOf<PointRow>(companyA, 'point', pointId)).toMatchObject({ origin: 'restricao', test_key: 'isolacao', equipment_id: cable.equipmentId });
     expect(await h.rowOf<PointRow>(companyA, 'point', unknownId)).toBeUndefined();
-    // The stored point replaces the entry it was written from.
-    expect(derivedPoints(await snapshotOf(companyA, relatorio_id)).some((one) => one.key === key)).toBe(false);
+    // The stored point is the one entry.
+    expect(sectionEightEntries(await snapshotOf(companyA, relatorio_id)).map((one) => one.point.id)).toEqual([pointId]);
   });
 
   // Batch e23h (contract 37): the version-35 refusal stands; the current pull speaks the current number.

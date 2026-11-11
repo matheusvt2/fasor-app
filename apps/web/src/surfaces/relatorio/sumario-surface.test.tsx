@@ -279,11 +279,11 @@ describe('4.3 SumarioSurface', () => {
     expect(r11!.querySelector('button.sum-open')).toBeNull();
     expect(r10!.querySelector('button.sum-open')).not.toBeNull();
     expect(r7!.querySelector('button.sum-open')).not.toBeNull();
-    // Story 15.2 (F34): the one derived entry counted once (it read "1 ponto · 1 não ensaiada");
-    // with no live point it reads the automatic count alone (fix batch fx15q).
+    // ~~Story 15.2 (F34): the one derived entry counted once ("1 automático", fix batch fx15q).~~ Fix batch e24h:
+    // the untested sheet is no point of attention, so the row reads the empty count.
     const r9Button = within(r9!).getByRole('button', { name: /^Pontos de atenção/ });
-    expect(r9Button).toHaveTextContent('1 automático');
-    expect(r9Button).not.toHaveTextContent('pontos +');
+    expect(r9Button).toHaveTextContent('Nenhum ponto de atenção');
+    expect(r9Button).not.toHaveTextContent('automático');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');
     cleanup();

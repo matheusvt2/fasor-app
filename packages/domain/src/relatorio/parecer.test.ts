@@ -101,8 +101,8 @@ describe('22.6-UNIT derivedParecer, effectiveParecer and the reason line (amends
     expect(parecerCounts(nc).withRestriction).toEqual([tagOf(nc, 1)]);
     const oneUntested = mapSheets(base, (b, i) => (i === 2 ? untested(b, 'impossibilidade_desligamento') : conclude(b, 'aprovado', 'sem_restricoes')));
     expect(derivedParecer(oneUntested)).toBe('apto_com_restricoes');
-    // The untested sheet is a derived point of attention too.
-    expect(parecerReasonText(oneUntested)).toBe('O relatório exige no mínimo Apto com restrições: 1 não ensaiada e 1 ponto de atenção.');
+    // ~~The untested sheet is a derived point of attention too.~~ Fix batch e24h: it is no point; the verdict holds.
+    expect(parecerReasonText(oneUntested)).toBe('O relatório exige no mínimo Apto com restrições: 1 não ensaiada.');
     expect(parecerLooser(oneUntested, 'apto')).toBe(true);
     expect(parecerLooser(oneUntested, 'nao_apto')).toBe(false);
   });
@@ -168,11 +168,9 @@ describe('7.4-UNIT composeParecer', () => {
   it('says the typed text of an "Outro" reason and nothing about sheets it does not have', () => {
     const snapshot = mapSheets(withSheets(1), (b) => untested(b, 'outro', 'Cubículo trancado'));
     const composed = composeParecer(snapshot);
-    // The untested sheet is section 8's derived entry, so it counts as a point of attention too.
-    // Story 20.3: on a new relatório the points section prints at position 9, after the tests.
-    expect(composed.text).toBe(
-      `Foi registrada 1 ficha de ensaio: 1 não ensaiada (${tagOf(snapshot, 0)}, por Cubículo trancado). Foi registrado 1 ponto de atenção na seção 9.`,
-    );
+    // ~~The untested sheet is section 8's derived entry, so it counts as a point of attention too.~~ Fix batch e24h:
+    // it is no point, so the summary names no points sentence.
+    expect(composed.text).toBe(`Foi registrada 1 ficha de ensaio: 1 não ensaiada (${tagOf(snapshot, 0)}, por Cubículo trancado).`);
     expect(composeParecer(withSheets(0)).text).toBe('Nenhuma ficha de ensaio registrada neste relatório.');
   });
 });
@@ -242,12 +240,13 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
   const rootName = (snapshot: RelatorioSnapshot, local: number) => snapshot.locations.filter((row) => row.kind === 'cabine' && row.parent_id === null)[local]!.name.trim();
   const allApto = () => mapSheets(withSheets(3), (b) => conclude(b, 'aprovado', 'sem_restricoes'));
 
-  it('N4: a site NC with every sheet Aprovado · Sem restrições gives Apto com restrições, and the reason line counts it with its derived point', () => {
+  // Fix batch e24h: ~~and the reason line counts it with its derived point~~.
+  it('N4: a site NC with every sheet Aprovado · Sem restrições gives Apto com restrições, and the reason line counts it', () => {
     const snapshot = withSiteNc(allApto(), 0, [3]);
     expect(derivedParecer(allApto())).toBe('apto');
     expect(derivedParecer(snapshot)).toBe('apto_com_restricoes');
-    // Story 22.5: the NC site item is a point of attention by itself.
-    expect(parecerReasonText(snapshot)).toBe('O relatório exige no mínimo Apto com restrições: 1 NC nas verificações do local e 1 ponto de atenção.');
+    // ~~Story 22.5: the NC site item is a point of attention by itself.~~ Fix batch e24h: it is not.
+    expect(parecerReasonText(snapshot)).toBe('O relatório exige no mínimo Apto com restrições: 1 NC nas verificações do local.');
     expect(parecerReasonText(withSiteNc(snapshot, 0, [3, 5]))).toContain('2 NC nas verificações do local');
   });
 
@@ -256,7 +255,7 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     expect(derivedParecer(withSiteNc(withSheets(0), 0, [1]))).toBe('apto_com_restricoes');
   });
 
-  it('the whole summary with a sheet NC and a site NC: the site sentence right after "Itens não conformes", then the points', () => {
+  it('the whole summary with a sheet NC and a site NC: the site sentence right after "Itens não conformes" (fix batch e24h: no points sentence)', () => {
     const base = withSheets(1);
     const block = base.blocks.filter(isEquipmentBlock)[0]!;
     const key = Object.keys(block.sheet.checklist)[0] ?? 'limpeza';
@@ -265,10 +264,9 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     const sheetText = composeParecer(sheetNc).text;
     const site = `Verificações do local não conformes: item 3 (${items[2]!.label.toLocaleLowerCase('pt-BR')}) em 1 local.`;
     expect(sheetText).toContain('Itens não conformes: ');
-    // Story 22.5: each NC is a derived point, so the points sentence closes the summary.
-    const [head, points] = sheetText.split(' Foi registrado 1 ponto de atenção');
-    expect(points).toBeDefined();
-    expect(composeParecer(snapshot).text).toBe(`${head} ${site} Foram registrados 2 pontos de atenção${points!}`);
+    // ~~Story 22.5: each NC is a derived point, so the points sentence closes the summary.~~ Fix batch e24h: no point is stored.
+    expect(sheetText).not.toContain('ponto de atenção');
+    expect(composeParecer(snapshot).text).toBe(`${sheetText} ${site}`);
   });
 
   it('N5: the summary names each site item with its locals count, a Critérios item per item, and the basis changes', () => {
@@ -279,9 +277,9 @@ describe('2026-10-14 (Bruno) an NC site item counts in the parecer (N4, N5)', ()
     const composed = composeParecer(snapshot);
     const label = (n: number) => items[n - 1]!.label.toLocaleLowerCase('pt-BR');
     expect(composed.text).toContain(`Verificações do local não conformes: item 3 (${label(3)}) em 2 locais e item 7 (${label(7)}) em 1 local.`);
-    // Story 22.5: the three NC site items are three derived points.
-    expect(pointsSummary(snapshot).derived).toBe(3);
-    expect(composed.criteriaItems).toEqual([...composeParecer(base).criteriaItems, 'verificações do local, item 3 NC (2)', 'verificações do local, item 7 NC (1)', '3 pontos de atenção']);
+    // ~~Story 22.5: the three NC site items are three derived points.~~ Fix batch e24h: they are no points.
+    expect(pointsSummary(snapshot).total).toBe(0);
+    expect(composed.criteriaItems).toEqual([...composeParecer(base).criteriaItems, 'verificações do local, item 3 NC (2)', 'verificações do local, item 7 NC (1)']);
     expect(composed.basis).not.toBe(composeParecer(base).basis);
     expect(rootName(snapshot, 0)).not.toBe('');
   });

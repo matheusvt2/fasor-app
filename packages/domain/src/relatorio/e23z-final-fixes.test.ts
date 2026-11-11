@@ -3,13 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
 import { applyOp, entityKey, SeedPathError, type EntityState } from '../ops/apply.ts';
 import { groupForPrint, printBlockTypeOf, printGroupWordsOf } from '../print/group-for-print.ts';
-import { derivedPoints, resolvedOriginPoints } from '../points/derived.ts';
+import { resolvedOriginPoints } from '../points/derived.ts';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, Cell, EquipmentRow, EquipmentTypeVersionRow, JsonValue, LocationRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { definitionContext, EMPTY_DEFINITION_CONTEXT, getDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { definitionContext, EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { defaultBlockConfigIn } from '../seed/template.ts';
 import { recommendedPointText } from '../seed/test-help.ts';
 import { opFactory, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { asBlockDefinition } from '../types/block-definition.ts';
@@ -88,17 +87,6 @@ function versionRow(definition: CompanyTypeDefinition, n: number): EquipmentType
   return typeVersionRow({ id: id(500 + n), type: { id: id(600 + n), latest_version: 0 }, definition, publishedBy: id(9), publishedAt: PUBLISHED_AT });
 }
 
-/** The seeded sheet of `type` in the snapshot turned into a sheet of the company type `definition` (its readings kept). */
-function asCopy(snapshot: RelatorioSnapshot, type: EquipmentBlockType, definition: CompanyTypeDefinition, n: number): BlockRow {
-  const row = versionRow(definition, n);
-  snapshot.equipment_types = [...(snapshot.equipment_types ?? []), row];
-  const ctx = snapshotDefinitionContext(snapshot);
-  const company = companyBlockType(row.type_id);
-  const source = blockOf(snapshot, type);
-  snapshot.equipment = snapshot.equipment.map((equipment) => (equipment.id === source.equipment_id ? { ...equipment, type: company } : equipment));
-  return editBlock(snapshot, source, (next) => ({ ...next, block_type: company, config: defaultBlockConfigIn(ctx, 'v13', company, 1) as unknown as BlockRow['config'] }));
-}
-
 const restricaoPoint = (snapshot: RelatorioSnapshot, block: BlockRow, testKey: string, n: number): PointRow => {
   const point: PointRow = { id: id(700 + n), relatorio_id: snapshot.relatorio.id, text: 'x', equipment_id: block.equipment_id, origin: 'restricao', order_key: 'a0', removed_at: null, action: null, priority: null, deadline: null, owner: null, item_key: null, test_key: testKey };
   snapshot.points.push(point);
@@ -118,17 +106,13 @@ const winding = (snapshot: RelatorioSnapshot, block: BlockRow, values: Record<st
   editBlock(snapshot, block, (next) => cells(next, 'resistencia_enrolamento', values));
 
 describe('e23z-UNIT W3-1 a measurement test\'s restricao point stands while a restriction holds', () => {
-  it('Fase C restricted (3 %) and later a BT phase out (6 %): the point is not resolved; the sheet has a reading entry and no restricao entry', () => {
+  it('Fase C restricted (3 %) and later a BT phase out (6 %): the point is not resolved', () => {
     const snapshot = v13Snapshot();
-    let block = winding(snapshot, oilTransformer(snapshot), { '0/0': ohm('1'), '0/1': ohm('1'), '0/2': ohm('1.03') });
-    // The entries with no stored point (a point written from an entry replaces it).
-    const entries = () => derivedPoints({ ...snapshot, points: [] });
-    expect(entries().some((entry) => entry.key === `restricao:${block.id}:resistencia_enrolamento`)).toBe(true);
+    const block = winding(snapshot, oilTransformer(snapshot), { '0/0': ohm('1'), '0/1': ohm('1'), '0/2': ohm('1.03') });
+    // Fix batch e24h: ~~the entries with no stored point~~ (no automatic entry lists any more).
     const point = restricaoPoint(snapshot, block, 'resistencia_enrolamento', 1);
     expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(false);
-    block = winding(snapshot, block, { '3/0': ohm('1'), '3/1': ohm('1'), '3/2': ohm('1.06') });
-    expect(entries().some((entry) => entry.key === `restricao:${block.id}:resistencia_enrolamento`)).toBe(false);
-    expect(entries().some((entry) => entry.key === `reading:${block.id}:resistencia_enrolamento`)).toBe(true);
+    winding(snapshot, block, { '3/0': ohm('1'), '3/1': ohm('1'), '3/2': ohm('1.06') });
     expect(resolvedOriginPoints(snapshot).has(point.id)).toBe(false);
   });
 
@@ -309,7 +293,6 @@ const FILE: TestBaseFile = (() => {
 })();
 const rec = (rowId: string) => FILE.ensaios.find((row) => row.id === rowId)!.recomendacao_reprovado!;
 const PLAN = planTestBaseImport(FILE, EMPTY_DEFINITION_CONTEXT, 'v13');
-const trSe = () => structuredClone(PLAN.copies.find((copy) => copy.equipmentId === 'TR-SE')!.duplicate.draft);
 
 describe('e23z-UNIT W3-7 the base\'s IP rows reach the derived point', () => {
   it('TR-OL-03 and TR-SE-03 attach to the insulation test as its index_recommendation only', () => {
@@ -324,47 +307,9 @@ describe('e23z-UNIT W3-7 the base\'s IP rows reach the derived point', () => {
     }
   });
 
-  const insulation = (snapshot: RelatorioSnapshot, minute: unknown) => {
-    const block = asCopy(snapshot, 'transformador_forca', trSe(), 11);
-    return editBlock(snapshot, block, (next) => {
-      next.sheet.nameplate.tipo_de_isolacao = cell('EPÓXI');
-      next.sheet.nameplate.tensao_nominal_at = cell(measured('13.8', 'kV'));
-      next.sheet.nameplate.tensao_nominal_bt = cell(measured('380', 'V'));
-      next.sheet.test.isolacao = { cells: {} };
-      return cells(next, 'isolacao', { '0/1': minute, '0/4': measured('0.8', null) });
-    });
-  };
-
-  it('an imported TR-SE copy, IP out of class, every 1-minute reading within: the point starts with the IP row\'s recommendation', () => {
-    const snapshot = v13Snapshot();
-    const block = insulation(snapshot, measured('100', 'GΩ'));
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${block.id}:isolacao`)!;
-    expect(entry.text.startsWith(`${rec('TR-SE-03')}. `)).toBe(true);
-    expect(entry.text).not.toContain(rec('TR-SE-02'));
-  });
-
-  it('IP out on a copy whose insulation recommends but has no IP row\'s text: the point starts with the test\'s recommendation', () => {
-    const snapshot = v13Snapshot();
-    const draft = trSe();
-    delete (draft.tests.find((test) => test.key === 'isolacao') as { index_recommendation?: string }).index_recommendation;
-    const block = asCopy(snapshot, 'transformador_forca', draft, 14);
-    editBlock(snapshot, block, (next) => {
-      next.sheet.nameplate.tipo_de_isolacao = cell('EPÓXI');
-      next.sheet.nameplate.tensao_nominal_at = cell(measured('13.8', 'kV'));
-      next.sheet.nameplate.tensao_nominal_bt = cell(measured('380', 'V'));
-      next.sheet.test.isolacao = { cells: {} };
-      return cells(next, 'isolacao', { '0/1': measured('100', 'GΩ'), '0/4': measured('0.8', null) });
-    });
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${block.id}:isolacao`)!;
-    expect(entry.text.startsWith(`${rec('TR-SE-02')}. `)).toBe(true);
-    expect(entry.text).not.toContain(rec('TR-SE-03'));
-  });
-
-  it('IP out and a reading out: the recommendation, then the IP row\'s, each once', () => {
-    const snapshot = v13Snapshot();
-    const block = insulation(snapshot, measured('1', 'MΩ'));
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${block.id}:isolacao`)!;
-    expect(entry.text.startsWith(`${rec('TR-SE-02')}. ${rec('TR-SE-03')}. `)).toBe(true);
+  // Fix batch e24h (Matheus, 2026-11-10): ~~the three cases where the derived IP point starts with the base's recommendation~~
+  // went with `derivedPoints`; no automatic point exists, so nothing prints those texts (spec e24h D4). The text helper stays.
+  it('recommendedPointText keeps each recommendation once, then the composed text', () => {
     expect(recommendedPointText(['A', 'A.', 'A', null, ' '], 'x')).toBe('A. A. x');
     expect(recommendedPointText(['Trocar', 'Trocar'], 'x')).toBe('Trocar. x');
     expect(recommendedPointText('Trocar', 'x')).toBe('Trocar. x');
@@ -372,49 +317,8 @@ describe('e23z-UNIT W3-7 the base\'s IP rows reach the derived point', () => {
   });
 });
 
-describe('e23z-UNIT item 2 a Reprovado chosen by hand starts with the in-force tests\' recommendations', () => {
-  it('no restricted test: every in-force test\'s recommendation, in definition order, then "Concluído como Reprovado na ficha"', () => {
-    const snapshot = v13Snapshot();
-    const block = editBlock(snapshot, asCopy(snapshot, 'transformador_forca', trSe(), 12), (next) => {
-      next.sheet.test = {};
-      next.sheet.observations = null;
-      next.sheet.conclusion.result = cell('reprovado');
-    });
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reprovado:${block.id}`)!;
-    // termografia is NA (no "Equipamento em carga"); the TR-SE base has no oil-sampling row.
-    expect(entry.text).toBe(`${rec('TR-SE-02')}. ${rec('TR-SE-04')}. ${rec('TR-SE-05')}. Concluído como Reprovado na ficha`);
-  });
-
-  it('a restricted test: only its recommendation, before the sheet observation', () => {
-    const snapshot = v13Snapshot();
-    const block = editBlock(snapshot, asCopy(snapshot, 'transformador_forca', trSe(), 13), (next) => {
-      next.sheet.test = {};
-      next.sheet.nameplate.tipo_de_isolacao = cell('ÓLEO ISOLANTE');
-      next.sheet.nameplate.material_enrolamento = cell('Cu');
-      next.sheet.conclusion.result = cell('reprovado');
-      next.sheet.observations = cell('Escolhido pelo engenheiro');
-      return cells(next, 'resistencia_enrolamento', { '0/0': ohm('1'), '0/1': ohm('1'), '0/2': ohm('1.03') });
-    });
-    expect(conclusionFloor(block, blockDefinitionOf(snapshot, block))!.pair.result).toBe('aprovado');
-    const entry = derivedPoints(snapshot).find((one) => one.key === `reprovado:${block.id}`)!;
-    expect(entry.text).toBe(`${rec('TR-SE-05')}. Escolhido pelo engenheiro`);
-  });
-
-  it('a seeded type (no recommendation): the text is byte-equal to before', () => {
-    const snapshot = v13Snapshot();
-    const block = editBlock(snapshot, blockOf(snapshot, 'transformador_forca'), (next) => {
-      next.sheet.test = {};
-      next.sheet.observations = null;
-      next.sheet.conclusion.result = cell('reprovado');
-    });
-    expect(derivedPoints(snapshot).find((one) => one.key === `reprovado:${block.id}`)!.text).toBe('Concluído como Reprovado na ficha');
-  });
-});
-
-function blockDefinitionOf(snapshot: RelatorioSnapshot, block: BlockRow): BlockDefinition {
-  const version = snapshot.equipment_types!.find((row) => companyBlockType(row.type_id) === block.block_type)!;
-  return asBlockDefinition(version);
-}
+// ~~e23z-UNIT item 2 a Reprovado chosen by hand starts with the in-force tests' recommendations~~: fix batch e24h, a Reprovado
+// chosen by hand is no automatic point (spec e24h H1); its three cases on the entry's text went with `derivedPoints`.
 
 // --- item 3: "Apagar leitura" on a tap row off the plate -----------------------------------------
 

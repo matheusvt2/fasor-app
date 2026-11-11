@@ -14,7 +14,7 @@ import { sheetOrder } from '../relatorio/ficha.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { resolveSection8 } from '../print/section-8.ts';
 import { extractPhotoRefs, photoToken, pointTextTokens } from './refs.ts';
-import { derivedPointReasonText, derivedPoints, groupDerivedPoints, notTestedPointText, type DerivedPoint } from './derived.ts';
+import { hasPointSource, notTestedPointText } from './derived.ts';
 import { livePoints, livePointsOfLocals, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
 import { pointLinkValues } from './link.ts';
 import { pointOrderText, pointsHeadingText, pointsSummary, pointsSummaryText, pointTitle, sectionEightEntries } from './summary.ts';
@@ -143,86 +143,32 @@ describe('6.6-UNIT numberPhotos', () => {
   });
 });
 
-describe('6.6-UNIT derivedPoints', () => {
+// Fix batch e24h (Matheus, 2026-11-10): an untested sheet lists nothing until the technician
+// creates its point ("Criar ponto" on its band); ~~6.6-UNIT derivedPoints~~ and ~~groupDerivedPoints~~
+// went with the automatic entries.
+describe('6.6-UNIT an untested sheet (fix batch e24h)', () => {
   const base = fresh();
 
-  it('lists an untested sheet after the manual points, in tree order, with its reason and justification; never stored', () => {
-    const snapshot = withPoints(
-      withNotTested(base, { 3: notTested('outro', ' Sem acesso à sala '), 1: notTested('impossibilidade_desligamento') }),
-      point(base, {}),
-    );
-    const derived = derivedPoints(snapshot);
-    const order = sheetOrder(snapshot);
-    expect(derived.map((entry) => entry.block_id)).toEqual([order[1]!.blockId, order[3]!.blockId]);
-    expect(derived[0]).toMatchObject({ reason_key: 'impossibilidade_desligamento', reason_label: 'Impossibilidade de desligamento' });
-    expect(derived[0]!.justification).toMatch(/^Não foi possível realizar os ensaios elétricos/);
-    expect(derived[1]).toMatchObject({ reason_key: 'outro', reason_label: 'Outro', justification: 'Sem acesso à sala' });
-    expect(derived[0]!.title).toBe(`${order[1]!.name} · Cubículo Enel`);
-    const entries = sectionEightEntries(snapshot);
-    expect(entries.map((entry) => entry.kind)).toEqual(['point', 'derived', 'derived']);
-    expect(snapshot.points).toHaveLength(1);
-  });
-
-  it('is suppressed by a live not_tested point of the same equipment, and comes back when that point is removed', () => {
-    const marked = withNotTested(base, { 0: notTested('solicitacao_cliente') });
-    const block = marked.blocks.find((row) => row.id === sheetOrder(marked)[0]!.blockId)!;
+  it('lists nothing by itself; the finding stands for the parecer and the point written from its band lists', () => {
+    const marked = withNotTested(base, { 3: notTested('outro', ' Sem acesso à sala '), 1: notTested('impossibilidade_desligamento') });
+    expect(sectionEightEntries(marked)).toEqual([]);
+    expect(hasPointSource(marked)).toBe(true);
+    const block = marked.blocks.find((row) => row.id === sheetOrder(marked)[1]!.blockId)!;
     const own = point(marked, { origin: 'not_tested', equipment_id: block.equipment_id, text: notTestedPointText(block) });
-    expect(own.text).toBe('Os ensaios não foram realizados conforme solicitação do cliente.');
-    expect(derivedPoints(withPoints(marked, own))).toEqual([]);
-    expect(derivedPoints(withPoints(marked, { ...own, removed_at: T0.toISOString() }))).toHaveLength(1);
-    // A manual point on the same equipment suppresses nothing.
-    expect(derivedPoints(withPoints(marked, { ...own, origin: 'manual' }))).toHaveLength(1);
+    expect(own.text).toMatch(/^Não foi possível realizar os ensaios elétricos/);
+    expect(sectionEightEntries(withPoints(marked, own)).map((entry) => entry.kind)).toEqual(['point']);
+    expect(snapshotPointIds(withPoints(marked, own))).toEqual([own.id]);
   });
 
-  it('never suppresses a block with no equipment', () => {
-    const marked = withNotTested(base, { 0: notTested('solicitacao_cliente') });
-    const id = sheetOrder(marked)[0]!.blockId;
-    const orphan = { ...marked, blocks: marked.blocks.map((block) => (block.id === id ? { ...block, equipment_id: null } : block)) };
-    expect(derivedPoints(withPoints(orphan, point(orphan, { origin: 'not_tested', equipment_id: null })))).toHaveLength(1);
-  });
-
-  it('goes away once the sheet is tested again', () => {
-    const marked = withNotTested(base, { 0: notTested('solicitacao_cliente') });
-    expect(derivedPoints(marked)).toHaveLength(1);
-    expect(derivedPoints(withNotTested(marked, { 0: null }))).toEqual([]);
-  });
-
-  it('names the band text: reason and justification, the typed text alone for "Outro"', () => {
-    expect(derivedPointReasonText({ reason_key: 'solicitacao_cliente', reason_label: 'Solicitação do cliente', justification: 'J.' })).toBe('Solicitação do cliente — J.');
-    expect(derivedPointReasonText({ reason_key: 'outro', reason_label: 'Outro', justification: 'Sala trancada' })).toBe('Sala trancada');
-    expect(derivedPointReasonText({ reason_key: 'outro', reason_label: 'Outro', justification: null })).toBe('Outro');
+  it('starts its point with the seed\'s justification, the typed text for "Outro"', () => {
+    const marked = withNotTested(base, { 0: notTested('solicitacao_cliente'), 1: notTested('outro', ' Sala trancada ') });
+    const order = sheetOrder(marked);
+    expect(notTestedPointText(marked.blocks.find((row) => row.id === order[0]!.blockId)!)).toBe('Os ensaios não foram realizados conforme solicitação do cliente.');
+    expect(notTestedPointText(marked.blocks.find((row) => row.id === order[1]!.blockId)!)).toBe('Sala trancada');
   });
 });
 
-describe('6.6-UNIT groupDerivedPoints (E3-A9 bullet 4)', () => {
-  const entry = (block_id: string, reason_key: string, justification: string | null): DerivedPoint => ({
-    kind: 'not_tested',
-    key: `not_tested:${block_id}`,
-    block_id,
-    location_id: null,
-    equipment_id: null,
-    name: block_id,
-    title: block_id,
-    reason_key,
-    reason_label: reason_key,
-    justification,
-    text: justification ?? reason_key,
-    item_key: null,
-    test_key: null,
-  });
-
-  it('merges consecutive entries with the same reason and justification, and only consecutive ones', () => {
-    expect(
-      groupDerivedPoints([entry('1', 'r', 'J'), entry('2', 'r', 'J'), entry('3', 'r', 'K'), entry('4', 's', 'K'), entry('5', 'r', 'J')]),
-    ).toEqual([
-      { kind: 'not_tested', reason_key: 'r', justification: 'J', block_ids: ['1', '2'], keys: ['not_tested:1', 'not_tested:2'] },
-      { kind: 'not_tested', reason_key: 'r', justification: 'K', block_ids: ['3'], keys: ['not_tested:3'] },
-      { kind: 'not_tested', reason_key: 's', justification: 'K', block_ids: ['4'], keys: ['not_tested:4'] },
-      { kind: 'not_tested', reason_key: 'r', justification: 'J', block_ids: ['5'], keys: ['not_tested:5'] },
-    ]);
-    expect(groupDerivedPoints([])).toEqual([]);
-  });
-});
+const snapshotPointIds = (snapshot: RelatorioSnapshot) => sectionEightEntries(snapshot).map((entry) => entry.point.id);
 
 describe('6.6-UNIT pointsSummary and row 8', () => {
   const base = fresh();
@@ -232,16 +178,16 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     4: notTested('impossibilidade_desligamento'),
   });
 
-  // Story 15.2 (F34): the derived entries are counted once, after the live points; this read "5 pontos · 1 sem ação · 3 não ensaiadas" before.
-  it('reads "2 pontos + 3 automáticos · 1 sem ação" for 2 manual (1 without action) and 3 derived', () => {
+  // Story 15.2 (F34): ~~"2 pontos + 3 automáticos · 1 sem ação"~~; fix batch e24h: the three untested sheets count nothing.
+  it('reads "2 pontos · 1 sem ação" for 2 manual (1 without action) beside 3 untested sheets', () => {
     const first = point(marked, { action: 'Instalar plaquetas' });
     const snapshot = withPoints(marked, first, point(withPoints(marked, first), { action: '  ' }));
     const summary = pointsSummary(snapshot);
-    expect(summary).toEqual({ total: 5, semAcao: 1, naoEnsaiadas: 3, derived: 3, derivedNotTested: 3 });
-    expect(pointsSummaryText(summary)).toBe('2 pontos + 3 automáticos · 1 sem ação');
+    expect(summary).toEqual({ total: 2, semAcao: 1, naoEnsaiadas: 0 });
+    expect(pointsSummaryText(summary)).toBe('2 pontos · 1 sem ação');
     const computed = progress(snapshot);
     const row8 = sumarioRows(snapshot, preIssue(snapshot, computed), computed).find((row) => row.rowKey === 'section_8')!;
-    expect(row8.meta).toBe('2 pontos + 3 automáticos · 1 sem ação · 2 pontos sem prazo');
+    expect(row8.meta).toBe('2 pontos · 1 sem ação · 2 pontos sem prazo');
     expect(row8.kind).toBe('generated');
     expect(row8.pending).toBe(true);
     expect(preIssue(snapshot, computed).filter((row) => row.row === 'section_8')).toEqual([
@@ -251,45 +197,33 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
   });
 
   it('omits the parts that are 0, and names an empty section 8', () => {
-    expect(pointsSummaryText({ total: 0, semAcao: 0, naoEnsaiadas: 0, derived: 0, derivedNotTested: 0 })).toBe('Nenhum ponto de atenção');
-    // A live point written from a sheet still untested (no derived entry).
-    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 0, derivedNotTested: 0 })).toBe('1 ponto · 1 não ensaiada');
-    expect(pointsSummaryText({ total: 2, semAcao: 2, naoEnsaiadas: 0, derived: 0, derivedNotTested: 0 })).toBe('2 pontos · 2 sem ação');
+    expect(pointsSummaryText({ total: 0, semAcao: 0, naoEnsaiadas: 0 })).toBe('Nenhum ponto de atenção');
+    // A live point written from a sheet still untested.
+    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1 })).toBe('1 ponto · 1 não ensaiada');
+    expect(pointsSummaryText({ total: 2, semAcao: 2, naoEnsaiadas: 0 })).toBe('2 pontos · 2 sem ação');
+    expect(pointsSummaryText({ total: 3, semAcao: 0, naoEnsaiadas: 0 })).toBe('3 pontos');
     const computed = progress(base);
     const row8 = sumarioRows(base, preIssue(base, computed), computed).find((row) => row.rowKey === 'section_8')!;
     expect(row8.meta).toBe('Nenhum ponto de atenção');
     expect(row8.pending).toBe(false);
   });
 
-  it('15.2-UNIT F34: counts the automatic point once, after the live points', () => {
-    // 1 live point + 1 derived entry: Bruno's app read "2 pontos · 1 não ensaiada".
-    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 1, derived: 1, derivedNotTested: 1 })).toBe('1 ponto + 1 automático');
-    expect(pointsSummaryText({ total: 5, semAcao: 1, naoEnsaiadas: 1, derived: 1, derivedNotTested: 1 })).toBe('4 pontos + 1 automático · 1 sem ação');
-    // Only automatic points: the count alone, never "0 pontos + ..." (fix batch fx15q).
-    expect(pointsSummaryText({ total: 1, semAcao: 0, naoEnsaiadas: 1, derived: 1, derivedNotTested: 1 })).toBe('1 automático');
-    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 2, derivedNotTested: 2 })).toBe('2 automáticos');
-    expect(pointsSummaryText({ total: 2, semAcao: 1, naoEnsaiadas: 2, derived: 2, derivedNotTested: 2 })).toBe('2 automáticos · 1 sem ação');
-    expect(pointsSummaryText({ total: 3, semAcao: 0, naoEnsaiadas: 0, derived: 0, derivedNotTested: 0 })).toBe('3 pontos');
-    // A live point from an untested sheet beside a derived entry still adds "1 não ensaiada".
-    expect(pointsSummaryText({ total: 2, semAcao: 0, naoEnsaiadas: 2, derived: 1, derivedNotTested: 1 })).toBe('1 ponto + 1 automático · 1 não ensaiada');
-  });
-
+  // ~~15.2-UNIT F34: counts the automatic point once, after the live points~~ (fix batch e24h: no automatic point).
   it('counts a stored not_tested point as não ensaiada, never as sem ação', () => {
     const block = marked.blocks.find((row) => row.id === sheetOrder(marked)[0]!.blockId)!;
     const snapshot = withPoints(marked, point(marked, { origin: 'not_tested', equipment_id: block.equipment_id, action: null }));
-    expect(pointsSummary(snapshot)).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 3, derived: 2, derivedNotTested: 2 });
-    // Story 15.2 (F34): the two derived entries once, and the live point from an untested sheet as "não ensaiada".
-    expect(pointsSummaryText(pointsSummary(snapshot))).toBe('1 ponto + 2 automáticos · 1 não ensaiada');
+    // Fix batch e24h: the two other untested sheets count nothing; the live point from an untested sheet is "não ensaiada".
+    expect(pointsSummary(snapshot)).toEqual({ total: 1, semAcao: 0, naoEnsaiadas: 1 });
+    expect(pointsSummaryText(pointsSummary(snapshot))).toBe('1 ponto · 1 não ensaiada');
     // Once that sheet is tested again, its stored point stays but is no longer "não ensaiada".
-    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 2, derived: 2, derivedNotTested: 2 });
-    expect(pointsSummaryText(pointsSummary(withNotTested(snapshot, { 0: null })))).toBe('1 ponto + 2 automáticos');
+    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 1, semAcao: 0, naoEnsaiadas: 0 });
+    expect(pointsSummaryText(pointsSummary(withNotTested(snapshot, { 0: null })))).toBe('1 ponto');
   });
 
   it('writes the heading and the order line', () => {
-    expect(pointsHeadingText(0, 0)).toBe('Pontos de atenção');
-    expect(pointsHeadingText(4, 0)).toBe('Pontos de atenção (4)');
-    expect(pointsHeadingText(4, 1)).toBe('Pontos de atenção (4 + 1 automático)');
-    expect(pointsHeadingText(0, 2)).toBe('Pontos de atenção (0 + 2 automáticos)');
+    expect(pointsHeadingText(0)).toBe('Pontos de atenção');
+    expect(pointsHeadingText(4)).toBe('Pontos de atenção (4)');
+    // ~~"Pontos de atenção (4 + 1 automático)"~~ (fix batch e24h: no automatic point).
     expect(pointOrderText(1, 4)).toBe('1 de 4');
   });
 
@@ -382,22 +316,18 @@ describe('6.6-UNIT new points and moves', () => {
 describe('6.6-UNIT the Porto Seguro fixture', () => {
   const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
 
-  it('derives no Não ensaiado entry (its three untested sheets have their stored points), one entry per out test (Story 22.5), and keeps its seven points in stored order', () => {
-    const derived = derivedPoints(snapshot);
-    expect(derived.filter((entry) => entry.kind === 'not_tested')).toEqual([]);
-    // Story 22.5: the fixture's 18 sheets with a reading out of criterion each list their test.
-    expect(derived.map((entry) => entry.kind)).toEqual(Array.from({ length: 18 }, () => 'reading'));
-    expect(derived[0]).toMatchObject({ title: 'CE-ENEL · Cubículo Enel', test_key: 'isolacao' });
-    expect(derived[0]!.text).toMatch(/^Ensaio de isolação: 220 MΩ em .+ \(critério: >400 MΩ\)$/);
+  // ~~Story 22.5: the fixture's 18 sheets with a reading out of criterion each list their test.~~ Fix batch e24h: they list nothing.
+  it('lists its seven stored points in stored order, and nothing for its 18 sheets with a reading out of criterion', () => {
+    expect(hasPointSource(snapshot)).toBe(true);
     const entries = sectionEightEntries(snapshot);
-    expect(entries).toHaveLength(7 + 18);
+    expect(entries).toHaveLength(7);
     expect(entries.slice(0, 7).every((entry) => entry.kind === 'point')).toBe(true);
     const stored = [...snapshot.points].sort((a, b) => (a.order_key < b.order_key ? -1 : 1)).map((row) => row.id);
     expect(entries.slice(0, 7).map((entry) => (entry.kind === 'point' ? entry.point.id : ''))).toEqual(stored);
     expect(snapshot.points.filter((row) => row.origin === 'manual')).toHaveLength(4);
     // Rows written before Story 6.6 parse with the new fields empty.
     expect(snapshot.points.every((row) => row.action === null && row.priority === null && row.deadline === null && row.owner === null)).toBe(true);
-    expect(pointsSummary(snapshot)).toEqual({ total: 25, semAcao: 4, naoEnsaiadas: 3, derived: 18, derivedNotTested: 0 });
+    expect(pointsSummary(snapshot)).toEqual({ total: 7, semAcao: 4, naoEnsaiadas: 3 });
   });
 });
 

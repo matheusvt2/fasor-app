@@ -1,7 +1,6 @@
 import {
   companyBlockType,
   definitionContext,
-  derivedPoints,
   duplicateSeededType,
   getDefinition,
   initialOrderKey,
@@ -24,10 +23,13 @@ import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
-import { deviceSnapshot } from './support/e23t-flow.ts';
 
 /*
- * Story 23.11 (batch e23h): the recommendation as the derived point's initial text, driven as a
+ * Fix batch e24h (Matheus, 2026-11-10): a point exists only when the technician creates it, so the
+ * recommendation starts no automatic point any more (no create path for a reading: an open question,
+ * spec e24h D4). The cases below keep the type editor's field and assert the out reading and the
+ * Reprovado chosen by hand list and print nothing. Struck below: the Story 23.11 flow.
+ * ~~Story 23.11 (batch e23h): the recommendation as the derived point's initial text, driven as a
  * person does at 1280 px. The library CTA is duplicated and its main insulation table (a
  * measurement test) gets "Recomendação se reprovado" in the type editor; the copy is published. A
  * relatório gets a sheet of it (office ops, born at v1), where a reading below the insulation
@@ -35,7 +37,7 @@ import { deviceSnapshot } from './support/e23t-flow.ts';
  * point of origin `reading` whose text keeps it; the DOCX's section 8 (found by its own heading,
  * E7-A6) prints it. It issues a revision through the api's one queue and LibreOffice, so this spec
  * runs in the serial group (`e2e/support/groups.ts`). Synthetic text (M-1). Empresa B is this
- * worker's own (E6-Q7).
+ * worker's own (E6-Q7).~~
  */
 
 let account: SeedAccount;
@@ -67,11 +69,10 @@ interface OutboxRow {
 
 const toast = (page: Page) => page.getByTestId('toast');
 const sheetTitle = (page: Page) => page.locator('.sheet-header .sheet-title');
-const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const storedPoints = async (page: Page) =>
   (await readStore<{ entity: string; row: PointRow }>(page, database, 'entities')).filter((record) => record.entity === 'point').map((record) => record.row);
 
-test('@p0 23.11-E2E-001 a recommendation typed in the type editor starts the derived point of an out reading: the Pontos entry, the point "Editar" stores and the DOCX section 8 carry it', async ({ page }) => {
+test('@p0 23.11-E2E-001 e24h: a recommendation typed in the type editor is stored, and an out reading of its sheet lists no automatic point: Pontos and the DOCX section 8 are empty', async ({ page }) => {
   test.setTimeout(300_000);
   const written = async (path: string) => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === path).map((row) => row.value);
   await resetEmpresaB(account, { standard: true });
@@ -136,28 +137,14 @@ test('@p0 23.11-E2E-001 a recommendation typed in the type editor starts the der
   await page.keyboard.press('Tab');
   await expect.poll(() => written(`sheet/${blockId}/test/${E2}/cell/${E2_ROW}/${E2_COL}`)).toEqual([{ raw: READING, unit: 'MΩ', state: 'measured' }]);
 
-  // --- Pontos: the entry starts with the recommendation; "Editar" stores it ---
+  // --- Pontos: ~~the entry starts with the recommendation; "Editar" stores it~~ (fix batch e24h: nothing lists) ---
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
-  const entry = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: 'Fora do critério' }) });
-  await expect(entry).toHaveCount(1);
-  // The band: the kind's chip, then the entry's text, which starts with the recommendation.
-  const text = entry.locator('.not-tested-band > .not-tested-chip + span');
-  await expect(text).toContainText(STARTS);
-  expect((await text.textContent())!.startsWith(STARTS), (await text.textContent())!).toBe(true);
-  await expect(text).toContainText(`${READING} MΩ`);
-  await entry.getByRole('button', { name: /^Editar o ponto automático/ }).click();
-  const editor = page.locator('.point-of-attention-card.is-editing');
-  await expect(editor.getByRole('textbox', { name: 'Texto' })).toContainText(STARTS);
-  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Repetir o ensaio após a limpeza');
-  await editor.getByRole('button', { name: 'Concluir' }).click();
-  await expect(editor).toHaveCount(0);
-  await expect.poll(async () => (await storedPoints(page)).filter((row) => row.origin === 'reading').length).toBe(1);
-  const stored = (await storedPoints(page)).find((row) => row.origin === 'reading')!;
-  expect(stored).toMatchObject({ test_key: E2, equipment_id: pair.equipment.id, action: 'Repetir o ensaio após a limpeza' });
-  expect(stored.text.startsWith(STARTS), stored.text).toBe(true);
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
+  await expect(page.locator('.poa-list')).not.toContainText(STARTS);
+  expect(await storedPoints(page)).toEqual([]);
 
-  // --- the DOCX: section 8, found by its own heading, carries the text ---
+  // --- the DOCX: section 8, found by its own heading, prints its empty note, never the recommendation ---
   await syncNowAndReturn(page);
   await setParecer(page, relatorioId);
   const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
@@ -178,16 +165,17 @@ test('@p0 23.11-E2E-001 a recommendation typed in the type editor starts the der
   const from = structure.paragraphs.lastIndexOf(points!);
   const to = next === undefined ? structure.paragraphs.length : structure.paragraphs.lastIndexOf(next);
   const section = structure.paragraphs.slice(from, to);
-  expect(section.some((paragraph) => paragraph.includes(STARTS)), JSON.stringify(section)).toBe(true);
+  expect(section.some((paragraph) => paragraph.includes(STARTS)), JSON.stringify(section)).toBe(false);
+  expect(section).toContain('(sem conteúdo nesta revisão)');
 });
 
 /*
- * Fix batch e23z (item 2, Bruno's answer of 2026-11-09): a Reprovado chosen by hand, with no reading out of
+ * ~~Fix batch e23z (item 2, Bruno's answer of 2026-11-09): a Reprovado chosen by hand, with no reading out of
  * criterion, starts its derived entry with the in-force tests' recommendations (here the copy's one, on its main
- * insulation table), then the existing text ("Concluído como Reprovado na ficha"). The words are the kernel's
- * over the device's own rows.
+ * insulation table), then the existing text ("Concluído como Reprovado na ficha").~~ Fix batch e24h: the Reprovado
+ * chosen by hand lists no automatic point; the store holds no point.
  */
-test('@p0 e23z-E2E-003 item 2: Reprovado chosen by hand on a sheet whose in-force test recommends: the Pontos entry starts with the recommendation, then "Concluído como Reprovado na ficha"', async ({ page }) => {
+test('@p0 e23z-E2E-003 e24h: Reprovado chosen by hand on a sheet whose in-force test recommends lists no automatic point', async ({ page }) => {
   test.setTimeout(240_000);
   const written = async (path: string) => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === path).map((row) => row.value);
   await resetEmpresaB(account, { standard: true });
@@ -245,12 +233,10 @@ test('@p0 e23z-E2E-003 item 2: Reprovado chosen by hand on a sheet whose in-forc
   await page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Reprovado' }).click();
   await expect.poll(() => written(`sheet/${blockId}/conclusion/result`)).toContainEqual('reprovado');
 
-  // The kernel's entry over the device's rows starts with the recommendation; the Pontos card draws it.
-  const entry = derivedPoints(await deviceSnapshot(page, database, relatorioId)).find((one) => one.key === `reprovado:${blockId}`)!;
-  expect(entry.text).toBe(`${STARTS}Concluído como Reprovado na ficha`);
+  // ~~The kernel's entry over the device's rows starts with the recommendation; the Pontos card draws it.~~ No point.
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
-  const card = autoCards(page).filter({ has: page.locator('.not-tested-chip', { hasText: 'Reprovado' }) });
-  await expect(card).toHaveCount(1);
-  await expect(card.locator('.not-tested-band > .not-tested-chip + span')).toHaveText(entry.text);
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
+  await expect(page.locator('.poa-list')).not.toContainText('Concluído como Reprovado na ficha');
+  expect(await storedPoints(page)).toEqual([]);
 });

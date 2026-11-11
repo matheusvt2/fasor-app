@@ -1,4 +1,4 @@
-import { derivedParecer, derivedPointKindLabel, derivedPoints, getDefinition, parecerCounts, parecerVerdictLabel, SEED_VERSION, type BlockRow } from '@app/domain';
+import { derivedParecer, getDefinition, parecerCounts, parecerVerdictLabel, SEED_VERSION, type BlockRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { cellOf, deviceSnapshot, kernelOf, openStep, outbox, outboxValues, plateField, setUpRelatorio, testSection, typeCell } from './support/e23t-flow.ts';
@@ -117,16 +117,14 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
   expect(parecerCounts(snapshot).reprovado).toContain(tag);
   const verdict = derivedParecer(snapshot)!;
   expect(verdict).not.toBeNull();
-  // Fix batch e23p (P5): the derived point names it too, on the Pontos de atenção surface.
-  const entry = derivedPoints(snapshot).find((one) => one.key === `reading:${blockId}:${GRID}`)!;
-  expect(entry.text).toContain('(critério: ≤ 2 Ω, valor de projeto)');
+  // ~~Fix batch e23p (P5): the derived point names it too, on the Pontos de atenção surface.~~ Fix batch e24h (2026-11-10):
+  // no automatic point; Pontos lists nothing until the technician creates one.
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await page.locator('li.sum-row[data-row="section_8"]').getByRole('button', { name: /^Pontos de atenção/ }).click();
   await expect(page).toHaveURL(/\/pontos$/);
-  const card = page.locator('.poa-list > .point-of-attention-card.is-auto').filter({ has: page.locator('.not-tested-chip', { hasText: derivedPointKindLabel('reading') }) }).filter({ has: page.locator('.poa-title', { hasText: entry.title }) });
-  await expect(card).toHaveCount(1);
-  await expect(card.locator('.not-tested-band')).toContainText(entry.text);
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(0);
 
   // --- the DOCX: under "Outros equipamentos dos Geradores" ---
   await setParecer(page, relatorioId, parecerVerdictLabel(verdict) as Parameters<typeof setParecer>[2]);

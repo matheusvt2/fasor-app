@@ -5,7 +5,7 @@ import { locationChecklistPath, locationFieldPath } from '../ops/path.ts';
 import { contextCaption, siteCaption, type ContextCaptionMeta } from '../photos/caption.ts';
 import { galleryCabineOptions, photoCabineId, photoItemLine, photoSiteLocal } from '../photos/gallery.ts';
 import { ncRowPointPositions, ncRowPointsText, newPointRow } from '../points/checks.ts';
-import { derivedPoints } from '../points/derived.ts';
+import { hasPointSource } from '../points/derived.ts';
 import { photoToken } from '../points/refs.ts';
 import { pointsSummary, pointTitle, POINT_TITLE_GENERAL, sectionEightEntries } from '../points/summary.ts';
 import { section7Photos } from '../print/section-7.ts';
@@ -590,35 +590,31 @@ describe('14.3 a photo taken on a site item', () => {
   });
 });
 
-describe('22.5-UNIT a site NC is a point of attention by itself (retires Epic 14 QA Q-4\'s pre-issue row)', () => {
+// ~~22.5-UNIT a site NC is a point of attention by itself (retires Epic 14 QA Q-4's pre-issue row)~~: fix batch e24h
+// (Matheus, 2026-11-10), an NC site item is a point only when the technician creates one.
+describe('e24h-UNIT a site NC is no point of attention by itself (Epic 14 QA Q-4\'s pre-issue row stays retired)', () => {
   const ncOn = (locationId: string, keys: readonly string[], f = opFactory()): Op[] => keys.map((key) => f.op({ path: locationChecklistPath(locationId, key, 'result'), value: 'NC' }));
-  const ncEntries = (snapshot: RelatorioSnapshot) => derivedPoints(snapshot).filter((entry) => entry.kind === 'nc');
 
-  it('one derived entry per NC site item, at its local in tree order; no pre-issue row; nothing blocks', () => {
+  it('three NC site items on two locals: no entry, no pre-issue row, nothing blocks; the findings stand', () => {
     const state = fold(baseState(), [...ncOn(SUBSOLO, [EMERGENCIA, EXTINTOR]), ...ncOn(ENEL, [EPI])]);
     const snapshot = snapshotOf(state);
-    const entries = ncEntries(snapshot);
-    expect(entries.map((entry) => [entry.location_id, entry.item_key, entry.title])).toEqual([
-      [ENEL, EPI, sitePointTitle('Cubículo Enel')],
-      [SUBSOLO, EXTINTOR, sitePointTitle('1° Subsolo')],
-      [SUBSOLO, EMERGENCIA, sitePointTitle('1° Subsolo')],
-    ]);
-    expect(entries.every((entry) => entry.block_id === null && entry.equipment_id === null)).toBe(true);
+    expect(sectionEightEntries(snapshot)).toEqual([]);
+    expect(pointsSummary(snapshot).total).toBe(0);
+    expect(hasPointSource(snapshot)).toBe(true);
     const rows = preIssue(snapshot);
     expect(rows.some((row) => (row.kind as string) === 'site_checklist_nc_without_point')).toBe(false);
+    expect(rows.filter((row) => row.row === 'section_8')).toEqual([]);
     expect(blockingRows(rows)).toEqual([]);
   });
 
-  it('a point written from the item (origin nc, its item_key, the local) replaces its entry; a manual one does not; a removed local or v1 to v3 derive nothing', () => {
+  it('a point written from the item (origin nc, its item_key, the local) is the one entry; a removed local or v1 to v3 hold no finding', () => {
     const state = fold(baseState(), ncOn(SUBSOLO, [EMERGENCIA]));
-    expect(ncEntries(snapshotOf(state))).toHaveLength(1);
-    expect(ncEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EMERGENCIA })]])))).toEqual([]);
-    expect(ncEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EXTINTOR })]])))).toHaveLength(1);
-    expect(ncEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint()]])))).toHaveLength(1);
+    expect(sectionEightEntries(snapshotOf(state))).toEqual([]);
+    expect(sectionEightEntries(snapshotOf(withRows(state, [[entityKey('point', POINT), sitePoint({ origin: 'nc', item_key: EMERGENCIA })]])))).toHaveLength(1);
     const f = opFactory(new Date('2026-09-23T12:00:00.000Z'));
     const removed = fold(state, [f.op({ path: locationFieldPath(SUBSOLO, 'removed_at'), value: '2026-09-23T12:00:00.000Z' })]);
-    expect(ncEntries(snapshotOf(removed))).toEqual([]);
-    for (const version of ['v1', 'v2', 'v3']) expect(ncEntries(snapshotOf(baseState(version)))).toEqual([]);
+    expect(hasPointSource(snapshotOf(removed))).toBe(false);
+    for (const version of ['v1', 'v2', 'v3']) expect(hasPointSource(snapshotOf(baseState(version)))).toBe(false);
   });
 });
 

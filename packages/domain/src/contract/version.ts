@@ -466,7 +466,16 @@
  * numbering as its base) and a seeded-grammar test the optional `index_recommendation`, so a row
  * written before 40 parses to the same bytes. MIN follows to 40 (below).
  */
-export const CONTRACT_VERSION = 40;
+/*
+ * 41 (2026-11-10, fix batch e24h, Matheus on Bruno's report): no new op, path or schema family. The
+ * kernel derives differently on every seed: a point of attention exists only when the technician
+ * creates it, so an NC row, a reading out of its criterion, a restricted reading, a Reprovado chosen
+ * by hand and a sheet marked Não ensaiado no longer list, count or print as automatic points (the
+ * Points screen, Sumário row 8, the pre-issue rows, section 8 and the parecer's point counts read the
+ * stored live points only); the findings still floor the parecer's verdict, so no verdict moves, and
+ * a stored point still reads "Origem resolvida" when its finding is gone. MIN follows to 41 (below).
+ */
+export const CONTRACT_VERSION = 41;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -735,7 +744,15 @@ export const CONTRACT_VERSION = 40;
  * server derives the recommendations, a copy of the eight under "Outros equipamentos" where the
  * server prints it in its base's group. Its pull answers `426 contract_outdated` and it updates.
  */
-export const MIN_CONTRACT_VERSION = 40;
+/*
+ * 41 (2026-11-10, fix batch e24h): a version-40 (or older) bundle's kernel would list, count and
+ * print automatic points the server's kernel no longer does: its Points screen, Sumário row 8 and
+ * export preview would show an entry for every NC row, reading out of criterion, restricted reading,
+ * Reprovado chosen by hand and sheet marked Não ensaiado, and its parecer would count them, where the
+ * printed document holds the stored points only. Its pull answers `426 contract_outdated` and it
+ * updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 41;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

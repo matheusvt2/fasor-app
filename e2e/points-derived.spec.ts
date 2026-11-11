@@ -10,11 +10,13 @@ import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from '.
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
- * Story 22.5 (Bruno, 2026-11-06): every NC row and every test out of criterion is a point of
- * attention by itself. Driven as a person would at 1280 px: the derived entries on the Points
- * surface after the manual point, "Editar" on one writing a point of origin `nc` that replaces
- * it, the DOCX's section 8 printing them, and the removal bringing the entry back. It issues a
- * revision through the api's one queue and LibreOffice, so this spec runs in the serial group
+ * ~~Story 22.5 (Bruno, 2026-11-06): every NC row and every test out of criterion is a point of
+ * attention by itself.~~ Fix batch e24h (Matheus, 2026-11-10, on Bruno's report): a point exists
+ * only when the technician creates it. Driven as a person would at 1280 px: NC rows, an out
+ * insulation and an old manual point list nothing automatic and flag nothing; "Criar ponto de
+ * atenção" on an NC row writes the one point of origin `nc`; the DOCX's section 8 prints the stored
+ * points only; the row set back to C leaves its point "Origem resolvida". It issues a revision
+ * through the api's one queue and LibreOffice, so this spec runs in the serial group
  * (`e2e/support/groups.ts`).
  */
 
@@ -34,7 +36,6 @@ const storedPoints = async (page: Page) =>
   (await readStore<{ entity: string; row: PointRow }>(page, database, 'entities')).filter((record) => record.entity === 'point').map((record) => record.row);
 const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
 const cards = (page: Page) => page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)');
-const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
 const toast = (page: Page) => page.getByTestId('toast');
 const textArea = (scope: Locator) => scope.getByRole('textbox', { name: 'Texto' });
 const enelChaves = (sheets: readonly SeededSheet[]) => sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel');
@@ -73,7 +74,7 @@ async function openPoints(page: Page): Promise<void> {
   await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
 }
 
-test('@p0 22.5-E2E-001 NC rows of a sheet and an out insulation list as derived entries after the manual point; "Editar" on one writes an origin nc point that replaces it, removing it brings the entry back, and the DOCX\'s section 8 prints the entries', async ({
+test('@p0 22.5-E2E-001 e24h: NC rows of a sheet and an out insulation list nothing beside the manual point; "Criar ponto de atenção" on an NC row writes the one origin nc point, and the DOCX\'s section 8 prints the two stored points only', async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -93,37 +94,34 @@ test('@p0 22.5-E2E-001 NC rows of a sheet and an out insulation list as derived 
   });
   const chave = enelChaves(sheets)[0]!;
 
-  // Row 8 and the heading count the three automatic entries after the manual point (the local's NC
-  // entries are covered by the kernel tests, `derived-kinds.test.ts`).
-  await expect(row8(page).locator('.sum-status')).toContainText('1 ponto + 3 automáticos');
+  // ~~Row 8 and the heading count the three automatic entries after the manual point~~: the manual point alone.
+  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
   await openPoints(page);
-  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (1 + 3 automáticos)' })).toBeVisible();
-  const auto = autoCards(page);
-  await expect(auto).toHaveCount(3);
-  await expect(auto.locator('.not-tested-chip', { hasText: 'Não conforme' })).toHaveCount(2);
-  await expect(auto.locator('.not-tested-chip', { hasText: 'Fora do critério' })).toHaveCount(1);
-  await expect(page.locator('.poa-list > .point-of-attention-card').first()).not.toHaveClass(/is-auto/);
-  const ncCard = auto.filter({ hasText: 'oxidação nos terminais' });
-  await expect(ncCard).toHaveCount(1);
-  await expect(ncCard.locator('.poa-title')).toHaveText(`${chave.tag} · Cubículo Enel`);
-  await expect(ncCard.locator('.not-tested-band')).toContainText(`Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}): oxidação nos terminais`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (1)' })).toBeVisible();
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(1);
+  await expect(page.locator('.poa-list')).not.toContainText('oxidação nos terminais');
+  expect(await storedPoints(page)).toHaveLength(1);
 
-  // "Editar": a new point seeded with the entry's text; a new action and deadline saved.
-  await ncCard.getByRole('button', { name: /^Editar o ponto automático/ }).click();
-  const editor = page.locator('.point-of-attention-card.is-editing');
-  await expect(textArea(editor)).toContainText('oxidação nos terminais');
+  // "Criar ponto de atenção" on the NC row: the row's text, a new action and deadline, stored as origin nc with its item.
+  await page.goto(`/relatorio/${relatorioId}/ficha/${chave.blockId}`);
+  const row = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
+  await row.scrollIntoViewIfNeeded({ timeout: 30_000 });
+  await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(textArea(editor)).toContainText(`Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}): oxidação nos terminais`);
   await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Limpar e reapertar os terminais');
   await typeDate(editor, 'Prazo', '01122026');
   await editor.getByRole('button', { name: 'Concluir' }).click();
   await expect(editor).toHaveCount(0);
-  await expect.poll(async () => (await storedPoints(page)).filter((row) => row.origin === 'nc').length).toBe(1);
-  const written = (await storedPoints(page)).find((row) => row.origin === 'nc')!;
+  await expect.poll(async () => (await storedPoints(page)).filter((point) => point.origin === 'nc').length).toBe(1);
+  const written = (await storedPoints(page)).find((point) => point.origin === 'nc')!;
   expect(written).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), item_key: FIRST_ITEM.key, action: 'Limpar e reapertar os terminais', deadline: '2026-12-01' });
-  // The point replaces the entry.
-  await expect(auto).toHaveCount(2);
-  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2 + 2 automáticos)' })).toBeVisible();
+  expect(await storedPoints(page)).toHaveLength(2);
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2)' })).toBeVisible({ timeout: 30_000 });
+  await expect(cards(page)).toHaveCount(2);
 
-  // The DOCX's section 8: the two points, then the three entries, each its own bullet.
+  // The DOCX's section 8: the two stored points, no automatic bullet.
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   const footButton = page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' });
@@ -137,22 +135,12 @@ test('@p0 22.5-E2E-001 NC rows of a sheet and an out insulation list as derived 
   const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
   expect(response.status()).toBe(200);
   const paragraphs = extractStructure(Buffer.from(await response.body())).paragraphs;
-  expect(paragraphs.some((p) => p.startsWith('Limpar e reapertar os terminais') || p.includes('oxidação nos terminais. Limpar e reapertar os terminais'))).toBe(true);
-  // Each entry is one bullet and one action-plan row (its "Ponto de atenção" cell is the bullet's text).
-  expect(paragraphs.filter((p) => p.startsWith('Item não conforme: ')).length).toBe(2);
-  expect(paragraphs.filter((p) => p.startsWith('Ensaio fora do critério: ')).length).toBe(2);
-
-  // Removing the point brings the entry back.
-  await page.goto(`/relatorio/${relatorioId}/pontos`);
-  await expect(cards(page)).toHaveCount(2, { timeout: 30_000 });
-  await cards(page).nth(1).getByRole('button', { name: /^Mais opções de ponto 2/ }).click();
-  await page.getByRole('menuitem', { name: 'Remover' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Remover ponto' }).click();
-  await expect(auto).toHaveCount(3);
+  expect(paragraphs).toContain('Ponto geral. Agir');
+  expect(paragraphs.some((p) => p.includes('oxidação nos terminais. Limpar e reapertar os terminais'))).toBe(true);
+  expect(paragraphs.filter((p) => p.startsWith('Item não conforme: ') || p.startsWith('Ensaio fora do critério: '))).toEqual([]);
 });
 
-
-test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entry both read "Possível duplicado"; a point written from the out reading is stored as origin reading and replaces its entry; the NC row set back to C leaves its point "Origem resolvida"', async ({
+test('@p0 22.5-E2E-002 e24h: an old manual point of the NC row\'s equipment reads no "Possível duplicado" and the Export dialog names no pair; a point written from the NC row, the row set back to C, reads "Origem resolvida"', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -172,59 +160,40 @@ test('@p0 22.5-E2E-002 an old manual point of the same equipment and the NC entr
     ];
   });
   const chave = enelChaves(sheets)[0]!;
-  const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   await openPoints(page);
-  const auto = autoCards(page);
-  await expect(auto).toHaveCount(2);
-
-  // (a) The old manual point does not suppress the NC entry: both are flagged.
+  // (a) One card, the old point, with no flag (the duplicate pairs retired with the automatic entries).
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(1);
   const manual = cards(page).filter({ hasText: 'Terminais oxidados' });
-  await expect(manual.locator('[data-flag]')).toHaveText('Possível duplicado');
-  const ncCard = auto.filter({ hasText: 'oxidação nos terminais' });
-  await expect(ncCard.locator('[data-flag]')).toHaveText('Possível duplicado');
+  await expect(manual).toHaveCount(1);
+  await expect(manual.locator('[data-flag]')).toHaveCount(0);
+  await expect(page.getByText('Possível duplicado')).toHaveCount(0);
 
-  // e22f S2: the Export dialog names the pair (pending, "Gerar relatório" not blocked by it) and
-  // its "Ver pontos" opens the Pontos screen; nothing was removed on its own.
+  // e22f S2 retired: the Export dialog names no pair and offers no "Ver pontos".
   await page.goto(`/relatorio/${relatorioId}?exportar=1`);
   const exportDialog = page.getByRole('dialog');
-  const duplicateRow = exportDialog.locator('.precheck li').filter({ hasText: '1 par de pontos possivelmente duplicados' });
-  await expect(duplicateRow).toBeVisible({ timeout: 30_000 });
-  await duplicateRow.getByRole('button', { name: 'Ver pontos' }).click();
-  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/pontos`));
-  await expect(auto).toHaveCount(2);
-  await expect(cards(page).filter({ hasText: 'Terminais oxidados' }).locator('[data-flag]')).toHaveText('Possível duplicado');
+  await expect(exportDialog.locator('.generate-row')).toBeVisible({ timeout: 30_000 });
+  await expect(exportDialog).not.toContainText('possivelmente duplicados');
+  await expect(exportDialog.getByRole('button', { name: 'Ver pontos' })).toHaveCount(0);
+  await escapeDialog(page, exportDialog);
 
-  // (c) "Editar" on the out-insulation entry: the point is stored as origin reading with its test, and the entry goes.
-  const readingCard = auto.filter({ has: page.locator('.not-tested-chip', { hasText: 'Fora do critério' }) });
-  await readingCard.getByRole('button', { name: /^Editar o ponto automático/ }).click();
-  const editor = page.locator('.point-of-attention-card.is-editing');
-  await expect(textArea(editor)).toContainText('300 MΩ');
-  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Repetir o ensaio de isolação');
-  await editor.getByRole('button', { name: 'Concluir' }).click();
-  await expect(editor).toHaveCount(0);
-  await expect.poll(async () => (await storedPoints(page)).filter((row) => row.origin === 'reading').length).toBe(1);
-  expect((await storedPoints(page)).find((row) => row.origin === 'reading')).toMatchObject({ equipment_id: equipmentOf.get(dj.blockId), test_key: 'isolacao', action: 'Repetir o ensaio de isolação' });
-  await expect(auto).toHaveCount(1);
-
-  // (b) The NC entry written as a point, then its row set back to C: the point stays, "Origem resolvida".
-  await ncCard.getByRole('button', { name: /^Editar o ponto automático/ }).click();
-  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Limpar os terminais');
-  await editor.getByRole('button', { name: 'Concluir' }).click();
-  await expect(editor).toHaveCount(0);
-  await expect.poll(async () => (await storedPoints(page)).filter((row) => row.origin === 'nc').length).toBe(1);
-  const ncPoint = (await storedPoints(page)).find((row) => row.origin === 'nc')!;
-  expect(ncPoint).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), item_key: FIRST_ITEM.key });
-  await expect(auto).toHaveCount(0);
+  // (b) A point written from the NC row, then its row set back to C: the point stays, "Origem resolvida".
   await page.goto(`/relatorio/${relatorioId}/ficha/${chave.blockId}`);
   const row = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
   await row.scrollIntoViewIfNeeded({ timeout: 30_000 });
+  await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const editor = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Limpar os terminais');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect.poll(async () => (await storedPoints(page)).filter((point) => point.origin === 'nc').length).toBe(1);
+  expect((await storedPoints(page)).find((point) => point.origin === 'nc')).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), item_key: FIRST_ITEM.key });
   await row.getByRole('radio', { name: 'Conforme', exact: true }).click();
   await expect(row.getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
   await page.goto(`/relatorio/${relatorioId}/pontos`);
   const resolved = cards(page).filter({ hasText: 'oxidação nos terminais' });
   await expect(resolved.locator('[data-flag]')).toHaveText('Origem resolvida', { timeout: 30_000 });
-  // The manual point is no longer a possible duplicate: its NC entry is gone.
-  await expect(manual.locator('[data-flag]')).toHaveCount(0);
+  await expect(cards(page).filter({ hasText: 'Terminais oxidados' }).locator('[data-flag]')).toHaveCount(0);
+  await expect(page.locator('.poa-list > .point-of-attention-card')).toHaveCount(2);
 });
 
 /** A "Geral" photo row written on the office device (no bytes: the DOCX prints its placeholder and it keeps its number). */
@@ -256,7 +225,7 @@ function geralPhotoDraft(scope: Scope): { draft: OpDraft; id: string } {
   return { draft: officeDraft(account, scope, `file/${id}`, value, 'create'), id };
 }
 
-test('@p0 23f-E2E-001 the production check of 2026-11-07: a Reprovado sheet\'s observation lines print as line breaks in section 8, an NC observation ending in a period is not doubled in the conclusion, and the action plan spaces "Imagem N" after a period', async ({
+test('@p0 23f-E2E-001 the production check of 2026-11-07: a Reprovado sheet prints no automatic bullet (fix batch e24h) and no text run holds a line feed, an NC observation ending in a period is not doubled in the conclusion, and the action plan spaces "Imagem N" after a period', async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -306,17 +275,10 @@ test('@p0 23f-E2E-001 the production check of 2026-11-07: a Reprovado sheet\'s o
   const xml = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
   const { paragraphs, tables } = extractStructure(docx);
 
-  // (a) No text run holds a line feed; the Reprovado bullet and its action-plan cell carry the lines as breaks.
+  // (a) No text run holds a line feed. Fix batch e24h: ~~the Reprovado bullet and its action-plan cell carry the lines as
+  // breaks~~; the Reprovado sheet prints no automatic bullet (the line breaks of a stored point: `docx-line-breaks.test.ts`).
   expect([...xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].filter((m) => m[1]!.includes('\n')).map((m) => m[1])).toEqual([]);
-  const withReprovado = [...xml.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((m) => m[0]).filter((p) => p.includes('Equipamento reprovado: '));
-  // The bullet (numbered) and the cell.
-  expect(withReprovado).toHaveLength(2);
-  expect(withReprovado.filter((p) => p.includes('<w:numPr>'))).toHaveLength(1);
-  for (const paragraph of withReprovado) {
-    expect(paragraph.match(/<w:br\/>/g)).toHaveLength(2);
-    for (const line of OBSERVATION) expect(paragraph).toContain(line);
-  }
-  expect(paragraphs.filter((p) => p.startsWith('Equipamento reprovado: ') && p.endsWith(`.\n${OBSERVATION[1]}\n${OBSERVATION[2]}.`))).toHaveLength(2);
+  expect(paragraphs.filter((p) => p.startsWith('Equipamento reprovado: '))).toEqual([]);
 
   // (c) The bullet's clause, and the action plan's cell spaced after the period.
   expect(paragraphs).toContain('Porta danificada, conforme Imagem 1. Trocar a porta');

@@ -4,28 +4,27 @@ import { naoEnsaiadasText } from '../relatorio/progress.ts';
 import { siteLocalOf, sitePointTitle } from '../relatorio/site-checklist.ts';
 import { locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
 import { plural } from '../text/plural.ts';
-import { derivedPoints, equipmentPointTitle, type DerivedPoint } from './derived.ts';
+import { equipmentPointTitle } from './derived.ts';
 import { livePoints, pointsWithoutAction } from './checks.ts';
 
 /*
- * Story 6.6: section 8 as data. Its entries are the live points in `order_key` order, then
- * the derived entries (`derivedPoints`: the untested sheets and, Story 22.5, every NC row, out
- * test and Reprovado sheet); the counts and texts the Points surface and Sumário row 8 show
- * are composed here once (AD-1, AD-13).
+ * Story 6.6: section 8 as data. Its entries are the live points in `order_key` order; the counts
+ * and texts the Points surface and Sumário row 8 show are composed here once (AD-1, AD-13).
+ * ~~Then the derived entries (`derivedPoints`: the untested sheets and, Story 22.5, every NC row,
+ * out test and Reprovado sheet).~~ Fix batch e24h (Matheus, 2026-11-10): a point exists only when
+ * the technician creates it; a ficha finding with no stored point is no entry, no count, no bullet.
  */
 
-type PointsSnapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'points' | 'relatorio' | 'files'>;
+type PointsSnapshot = Pick<RelatorioSnapshot, 'blocks' | 'points'>;
 
-export type SectionEightEntry = { kind: 'point'; point: PointRow } | { kind: 'derived'; derived: DerivedPoint };
+/** Fix batch e24h: a live point; the derived kind is gone. */
+export type SectionEightEntry = { kind: 'point'; point: PointRow };
 
 const SEP = ' · ';
 
-/** Every section 8 entry, in print order: the live points, then the derived untested entries. */
-export function sectionEightEntries(snapshot: PointsSnapshot): SectionEightEntry[] {
-  return [
-    ...livePoints(snapshot.points).map((point) => ({ kind: 'point' as const, point })),
-    ...derivedPoints(snapshot).map((derived) => ({ kind: 'derived' as const, derived })),
-  ];
+/** Every section 8 entry, in print order: the live points (fix batch e24h: only they). */
+export function sectionEightEntries(snapshot: Pick<RelatorioSnapshot, 'points'>): SectionEightEntry[] {
+  return livePoints(snapshot.points).map((point) => ({ kind: 'point' as const, point }));
 }
 
 // authored: the title of a point linked to no equipment (the mock's free "Título" is not in the entity).
@@ -77,31 +76,22 @@ export function pointTitle(
 }
 
 export interface PointsSummary {
-  /** Every section 8 entry: live points plus derived entries. */
+  /** Every section 8 entry: the live points (fix batch e24h: ~~plus derived entries~~ only they). */
   total: number;
   /** Live manual points with no Ação recomendada. */
   semAcao: number;
-  /** Derived Não ensaiado entries plus live points written from an untested sheet. */
+  /** Live points written from a sheet still untested (fix batch e24h: ~~derived Não ensaiado entries plus~~ only they). */
   naoEnsaiadas: number;
-  /** Story 15.2 (F34): the derived (automatic) entries alone, counted once in row 8 ("+ 1 automático"); Story 22.5: every kind. */
-  derived: number;
-  /** Story 22.5: the derived Não ensaiado entries alone. */
-  derivedNotTested: number;
 }
 
 export function pointsSummary(snapshot: PointsSnapshot): PointsSummary {
   const live = livePoints(snapshot.points);
-  const derived = derivedPoints(snapshot);
-  const derivedNotTested = derived.filter((entry) => entry.kind === 'not_tested').length;
   return {
-    total: live.length + derived.length,
+    total: live.length,
     semAcao: pointsWithoutAction(snapshot.points).length,
-    derived: derived.length,
-    derivedNotTested,
     // A point written from an untested sheet counts only while that sheet is still untested,
     // so row 8 agrees with row 9 once the sheet is tested again.
     naoEnsaiadas:
-      derivedNotTested +
       live.filter(
         (point) =>
           point.origin === 'not_tested' &&
@@ -116,25 +106,17 @@ export const NO_POINTS_TEXT = 'Nenhum ponto de atenção';
 
 /**
  * Sumário row 8: "5 pontos · 1 sem ação · 3 não ensaiadas", the parts that are not 0; "Nenhum
- * ponto de atenção" when empty. Story 15.2 (F34, `40-relatorio-overview.html`): the derived
- * (automatic) entries are counted once, after the live points as the Points heading words
- * them ("4 pontos + 1 automático · 1 sem ação"); with no live point the first part is the
- * automatic count alone ("1 automático", "2 automáticos"; Matheus, 2026-10-23, fix batch
- * fx15q), never "0 pontos + ...". "não ensaiadas" then counts only the live points written
- * from a sheet still untested.
+ * ponto de atenção" when empty. "não ensaiadas" counts the live points written from a sheet still
+ * untested. ~~Story 15.2 (F34, `40-relatorio-overview.html`): the derived (automatic) entries are
+ * counted once, after the live points ("4 pontos + 1 automático · 1 sem ação"; "1 automático"
+ * alone, fix batch fx15q).~~ Fix batch e24h (2026-11-10): no automatic entry exists any more.
  */
 export function pointsSummaryText(summary: PointsSummary): string {
   if (summary.total === 0) return NO_POINTS_TEXT;
-  const live = summary.total - summary.derived;
-  const untestedLive = summary.naoEnsaiadas - summary.derivedNotTested;
   return [
-    summary.derived === 0
-      ? plural(summary.total, 'ponto', 'pontos')
-      : live === 0
-        ? plural(summary.derived, 'automático', 'automáticos')
-        : `${plural(live, 'ponto', 'pontos')} + ${plural(summary.derived, 'automático', 'automáticos')}`,
+    plural(summary.total, 'ponto', 'pontos'),
     summary.semAcao > 0 ? `${summary.semAcao} sem ação` : null,
-    untestedLive > 0 ? naoEnsaiadasText(untestedLive) : null,
+    summary.naoEnsaiadas > 0 ? naoEnsaiadasText(summary.naoEnsaiadas) : null,
   ]
     .filter((part): part is string => part !== null)
     .join(SEP);
@@ -146,12 +128,11 @@ export function pointOrderText(position: number, total: number): string {
 }
 
 /**
- * The Points surface heading: "Pontos de atenção (4 + 1 automático)" (`72-pontos.html`),
- * "Pontos de atenção (4)" with no derived entry, "Pontos de atenção" with none at all.
+ * The Points surface heading: "Pontos de atenção (4)" (`72-pontos.html`), "Pontos de atenção"
+ * with none at all. ~~"Pontos de atenção (4 + 1 automático)" with derived entries.~~ Fix batch
+ * e24h (2026-11-10): the live points only.
  */
-export function pointsHeadingText(live: number, derived: number): string {
+export function pointsHeadingText(live: number): string {
   const title = 'Pontos de atenção';
-  if (live + derived === 0) return title;
-  if (derived === 0) return `${title} (${live})`;
-  return `${title} (${live} + ${plural(derived, 'automático', 'automáticos')})`;
+  return live === 0 ? title : `${title} (${live})`;
 }

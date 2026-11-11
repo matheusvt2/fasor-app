@@ -1,6 +1,6 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
-import type { BlockRow, Cell } from '../schemas/entities.ts';
+import type { BlockRow } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
 import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
@@ -90,7 +90,8 @@ function anyAnswered(block: BlockRow): boolean {
  * (Story 23.6, seed v13): `prerequisite`, a test whose plate fails its prerequisite (Reprovado), and
  * `restriction`, a reading restricted by a rule of its test (Aprovado · Com restrições).
  */
-export type ConclusionFloorReason = 'defect' | 'reading' | 'ratio' | 'measurement' | 'prerequisite' | 'restriction' | 'nc' | 'observation';
+// Fix batch e24h (H9, 2026-11-10): ~~`observation`~~ retired; an observation never forces a restriction.
+export type ConclusionFloorReason = 'defect' | 'reading' | 'ratio' | 'measurement' | 'prerequisite' | 'restriction' | 'nc';
 
 /** Story 22.4: the least strict pair the sheet allows, and the sources that set it. */
 export interface ConclusionFloor {
@@ -99,21 +100,12 @@ export interface ConclusionFloor {
   reasons: ConclusionFloorReason[];
 }
 
-/** A cell holding typed text. */
-function holdsText(cell: Cell | null | undefined): boolean {
-  return isCellFilled(cell) && typeof cell!.value === 'string' && cell!.value.trim() !== '';
-}
-
-/**
- * Story 22.4: the sheet observation, or the observation of an enabled checklist row that is not
- * NC, holds text (an NC row's observation belongs to its NC, already a reason of its own).
+/*
+ * ~~Story 22.4: the sheet observation, or the observation of an enabled checklist row that is not
+ * NC, holds text (`anyObservation`): a floor reason of its own.~~ Fix batch e24h (H9; Bruno through
+ * Matheus, 2026-11-10, every seed): an observation is often only a comment and never forces a
+ * restriction; the technician chooses Com restrições (which still requires OBSERVAÇÕES).
  */
-function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
-  const enabled = enabledSubBlocksOf(block);
-  if (enabled.has('observations') && holdsText(block.sheet.observations)) return true;
-  if (definition.checklist === null || !enabled.has('checklist')) return false;
-  return definition.checklist.some((item) => checklistResultUnder(block, item.key, definition) !== 'NC' && holdsText(block.sheet.checklist[item.key]?.observation));
-}
 
 /**
  * Story 22.4 (Bruno, 2026-11-06, item 26; amends FR-29 and NFR-10): the floor of the sheet's
@@ -123,8 +115,9 @@ function anyObservation(block: BlockRow, definition: BlockDefinition): boolean {
  *   the sheet is marked Não ensaiado for a reason its seed flags `defect` (`isDefectReason`;
  *   no shipped seed has one yet). Com restrições stays with Reprovado, as the old suggestion
  *   kept it over an out reading (open for Bruno).
- * - Aprovado · Com restrições, short of that, when a checklist row is NC, or the sheet
- *   observation or a checklist row's observation holds text.
+ * - Aprovado · Com restrições, short of that, when a checklist row is NC ~~, or the sheet
+ *   observation or a checklist row's observation holds text~~ (fix batch e24h, H9: an observation
+ *   floors nothing).
  * - Aprovado · Sem restrições, short of both, once something was measured or answered and
  *   nothing stands to check (Epic 14 QA Q-3), unjudged (Story 14.9) or waiting for its vector
  *   group (e21g D6).
@@ -182,7 +175,6 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   // Batch e23t (Stories 23.15, 23.16 and 23.19): a restricted measurement cell or IP restricts too.
   if (cells.some((cell) => cell.verdict === 'restricted') || tableCells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
   if (ncItems(block, definition).length > 0) restrictions.push('nc');
-  if (anyObservation(block, definition)) restrictions.push('observation');
   if (failures.length > 0) return { pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: [...failures, ...restrictions] };
   if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
@@ -298,7 +290,7 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
   prerequisite: 'pré-requisito do ensaio não atendido',
   restriction: 'leitura com restrição',
   nc: 'item não conforme',
-  observation: 'observação registrada',
+  // ~~observation: 'observação registrada'~~ (fix batch e24h, H9: an observation floors nothing).
 };
 
 /**
