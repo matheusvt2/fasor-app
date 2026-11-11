@@ -8,7 +8,7 @@
   const frame   = $('#frame');
   const screens = $$('#screen-body > .screen');
   const DEVICES = { tablet: 'frame-tablet', 'tablet-landscape': 'frame-tablet-landscape', phone: 'frame-phone', desktop: 'frame-desktop' };
-  const SYNC_SHORT = { ok: 'OK', offline: 'Off', pending: 'Pend.', error: 'Erro', conflict: 'Confl.' };
+  const SYNC_SHORT = { ok: 'OK', offline: 'Off', pending: 'Pend.', error: 'Erro', conflict: 'Confl.', late: 'Atraso' };   // late: Story 25.1 (2026-11-11), the edits that waited more than 1 min online
   const state = { device: 'tablet', theme: 'system', fit: true, railOpen: false, railCollapsed: false, screen: null, taps: 0 };
 
   /* ---------- Routing ---------- */

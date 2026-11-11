@@ -1,0 +1,62 @@
+<style data-screen="sync-atrasado">
+/* Story 25.1 Part A (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11), for Story 25.3: the Sync status surface and the Sync badge
+   when edits have waited more than one minute while the device is online, signed in and not paused. A second fragment of 85-sync.html:
+   the prototype serves one route per fragment, so the state gets its own route (/sync/atrasado). The layout follows the Sync status
+   the app builds today (the section heading, the headline, the compact summary, the cause line), not the older kitchen-sink frame of
+   /sync. The alert is one line and one badge state (coordinator's reading of Story 25.3): no toast, no banner, nothing interrupts.
+   The new badge state is `late`: the pending ink (`sync-pending`) on the amber fill (`fora-do-limite-fill`), so it reads as the pending
+   state that now asks for a look; the word carries the state ("Envio atrasado", "Atraso" on the phone). No new colour token.
+   Governs: DESIGN.md § Components › Sync badge, Sync status row (amendments of 2026-11-11); EXPERIENCE.md § IA › Sync status,
+   § Component Patterns › Sync badge, § State Patterns › Edits waiting while online (added 2026-11-11). */
+#bar-sync[data-state="late"] { color: var(--sync-pending); }
+#bar-sync[data-state="late"] .pill { background: var(--fora-do-limite-fill); }
+[data-route="/sync/atrasado"] .sync-headline[data-tone="late"] .sh-state { color: var(--sync-pending); }
+[data-route="/sync/atrasado"] .sync-headline { margin-bottom: var(--sp-4); }
+/* The line and "Sincronizar agora" beside it, in one row; the button drops under the line when the width is short */
+[data-route="/sync/atrasado"] .e25-late { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-5); }
+[data-route="/sync/atrasado"] .e25-late .e25-late-line { flex: 1 1 320px; margin: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); color: var(--ink-primary); }
+[data-route="/sync/atrasado"] .e25-late .btn { flex: none; }
+[data-route="/sync/atrasado"] .sync-foot { margin-top: var(--sp-6); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.frame-phone [data-route="/sync/atrasado"] .sync-headline .sh-counts { font-size: var(--t-meta-size); }
+.frame-phone [data-route="/sync/atrasado"] .e25-late .btn { width: 100%; }
+</style>
+<section class="screen" data-route="/sync/atrasado" data-title="Sincronização" data-shell="app" data-rail="false" data-sync="late" data-sync-label="Envio atrasado">
+  <div class="content">
+
+    <section class="section" aria-labelledby="synca-h">
+      <div class="section-head"><h2 id="synca-h">Sincronização</h2></div>
+      <div class="sync-headline" data-tone="late">
+        <span class="sh-state"><span class="dot" aria-hidden="true"></span>Envio atrasado</span>
+        <span class="sh-counts">3 fichas aguardando envio</span>
+      </div>
+
+      <!-- The one line of the alert, with "Sincronizar agora" beside it (the same primary Button the surface already has, moved beside the
+           line while the alert holds). Both texts are the kernel's (Story 25.3: the state and its text are computed in packages/domain/src/sync/). -->
+      <div class="e25-late">
+        <p class="e25-late-line">O aparelho está com conexão, mas 3 alterações aguardam envio há mais de 1 minuto.</p>
+        <button class="btn btn-primary" data-toast="Sincronizando… fichas primeiro, fotos depois">Sincronizar agora</button>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="synca-h-env">
+      <div class="section-head"><h2 id="synca-h-env">Enviando</h2></div>
+      <p class="section-note">Fichas primeiro, fotos depois — fotos para leitura na frente. Continua sozinho quando houver sinal; nada sai deste aparelho até o servidor confirmar.</p>
+      <p class="field-label" style="margin-bottom: var(--sp-1)">Fichas (3)</p>
+      <ul class="sync-list">
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">DJ-C13 — Coluna 13 · Disjuntor MT</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:31</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">TP-C13 — Coluna 13 · TP</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:30</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">TC-C13 — Coluna 13 · TC</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:29</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+      </ul>
+    </section>
+
+    <section class="section" aria-labelledby="synca-h-ult">
+      <div class="section-head"><h2 id="synca-h-ult">Último envio</h2></div>
+      <p class="section-note">O servidor não sabe o que ainda está em outro aparelho; a hora do último envio é o sinal honesto.</p>
+      <ul class="sync-list">
+        <li class="sync-row"><span class="avatar" aria-hidden="true">B</span><span class="sr-body"><span class="sr-primary">Bruno</span><span class="sr-secondary">Este aparelho</span></span><span class="sr-state"><time datetime="2026-09-07T14:28">07/09 14:28</time></span></li>
+      </ul>
+    </section>
+
+    <p class="sync-foot">Última sincronização <time datetime="2026-09-07T14:28">07/09 14:28</time> · Tudo o que está neste aparelho fica salvo até o servidor confirmar.</p>
+  </div>
+</section>
