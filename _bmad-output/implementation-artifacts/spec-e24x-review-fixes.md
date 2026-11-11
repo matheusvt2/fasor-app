@@ -149,11 +149,23 @@ Same rules (verify first, red first, no golden may move). Contract: main is 47; 
 
 ## Review Triage Log
 
+*(2026-11-11, the coordinator's read-only review of `7b68f225...d5592943`: no high, no medium, seven low.)*
+
+| Id | Finding | Verdict | Route | Applied |
+|---|---|---|---|---|
+| X1 | the Não ensaiado band's empty action wrapper doubles the column's gap once the point stands | low | patch | `not-tested-band.tsx`: the wrapper `hidden` while the point stands; `point-place.tsx` checked: no empty box (the span or the button always fills it) |
+| X2 | `pointPlaces` keyed by `origin:testKey`, so an origin flip under an open editor remounts the place | low | patch | keyed by `testKey ?? 'conclusao'`; web test flipping `restricao` to `reading` with the editor open |
+| X3 | `resolvedOriginPoints` pairs by origin while the place pairs by test (D5) | low | patch | compared through `testSource`; kernel test of the sequence (red first) |
+| X4+X5 | three attempts of an unbounded body share outlast Node's 300 s `requestTimeout` | low | patch | `SYNC_REQUEST_BODY_SHARE_MAX_MS` = 300 s caps the body's share; test of the cap; numbers corrected here, in the ledger and the KB |
+| X6 | an over-limit reading inside a range reads "a conferir" with no cell helper | low | ledger | the e24f R-1 wording names the other phases, not the instrument's limit: no sentence authored; a row with the proposed sentence for Bruno |
+| X7 | 24.15-E2E-002's `toHaveCount(0)` had no positive anchor | low | patch | waits for A's own reading in the same cell first |
+| X8 | test gaps (D1 on the band in e2e, the "a conferir" cell, three hung attempts, a pre-24.15 top re-issued, decision 17 at 390 px and with several copies) | low | ledger | five rows in `deferred-work.md` § e24x |
+
 ## Design Notes
 
 **N1. A1: the seed's phrases alone are automatic.** A text alone cannot tell a tapped learned or recent chip from the same words typed, and decision 17 says a text equal to one typed on another sheet is edited. So `ncObservationOnLeave` judges against the item's seed phrases (`item.nc_phrases` of the row's definition; a site item's own), joined as `insertPhrase` joins them, a final period aside. It reads only stored text, so two devices and an offline device answer the same, with no op-id or clock cut and no fold change. Cost, listed for Matheus: a tapped learned or recent chip, untouched, is now kept with the warning (one tap "Apagar observação" removes it, with "Desfazer"), where Story 24.6 cleared it; a seed phrase typed letter by letter still reads as automatic (indistinguishable without a stored provenance, which would be a contract). A2: a text still being saved (`typed.text !== stored`) is `keep` when non-blank: its own commit lands after any clear, so clearing it is never safe.
 
-**N2. B1: a floor of 1 KB/s.** One constant, no change to `withRetry`. 300 KB at 2 KB/s needs about 150 s; the bound becomes 60 + 300 = 360 s. A hung push of 4 MiB holds its cycle up to about 69 min (was 572 s), a body-less request still 60 s. A doubling per attempt was not taken: it only lasts the three attempts of one cycle.
+**N2. B1: a floor of 1 KB/s.** One constant, no change to `withRetry`. 300 KB at 2 KB/s needs about 150 s; the bound becomes 60 + 300 = 360 s. ~~A hung push of 4 MiB holds its cycle up to about 69 min (was 572 s)~~ *(2026-11-11, review of the batch, coordinator's decision X4+X5: the body's share stops at 300 s, the server's request limit; one attempt at most 360 s, the three of one cycle about 18 min)*, a body-less request still 60 s. A doubling per attempt was not taken: it only lasts the three attempts of one cycle.
 
 **N3. B4: one family.** The family of a type is its seeded base: a seeded type is its own base; a company type's base is its latest published definition's `base_block_type` (as `hidingCopies` reads it), followed while it names a company type. `free(row)` accepts a row whose type's family equals the block's. The equipment row keeps its `type` (nothing rewrites it). Before building, list every reader of `equipment.type` and say in the Auto Run Result what each does with a block whose type differs from its equipment's; previous-visit values read by test key show where the new type has the test and simply do not show elsewhere. If any reader breaks, stop B4 (Boundaries).
 
@@ -175,7 +187,7 @@ Same rules (verify first, red first, no golden may move). Contract: main is 47; 
 **Built, item by item:**
 - **A1/A2** -- `relatorio/ficha.ts` `ncObservationOnLeave(from, to, stored, seedPhrases, typed = stored)`: `clear` only for a stored observation made of the item's seed phrases alone (N1); a pending text (`typed !== stored`) is `keep` when non-blank, null when blank. `learnedBefore` (`registry/nc-phrase-row.ts`), the target's `leaveChips` and the e24b test of `learnedBefore` are gone; `ChecklistRowTarget.seedPhrases` is passed by `sheetRowTarget` (`item.nc_phrases`) and the site row (`row.nc_phrases`).
 - **A5** -- `checklist-section.tsx`: the kept record lives in `sessionStorage` under `ficha:kept:{relatorio}:{block or local}:{item}` (`KEPT_KEY_PREFIX`, `state/user-storage.ts`, cleared by `clearUserStorage` at sign-out), read on mount, dropped once the row no longer matches it after the warning showed (or at mount when it no longer matches), and by "Apagar observação"; every access in try/catch.
-- **B1** -- `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` = 1024; 300 KB gets 360 s, 4 MiB 4 156 s (about 69 min), a body-less request 60 s; comment and test title corrected.
+- **B1** -- `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` = 1024; 300 KB gets 360 s, ~~4 MiB 4 156 s (about 69 min)~~ *(2026-11-11, review: any body past 300 KB 360 s, `SYNC_REQUEST_BODY_SHARE_MAX_MS`)*, a body-less request 60 s; comment and test title corrected.
 - **C1** -- `overRangeVerdict` reads `value_max`: a `between` limit at or above the upper end is `out`, else null; `overRangeAnswer` measures an out range limit from the upper end. A null over-range capture withholds the floor and reads "a conferir": on a reading table through `conclusion.ts` `overRangeUnjudged` (tests with a criterion), on a measurement test through its `unjudged` flag (the cells an absolute or max-field criterion could not judge). The out clause reads "acima de 200 MΩ (limite do instrumento)", the wording a `>` limit already had.
 - **A3** -- `composeConclusion`: the group's "a conferir" clause needs a measured capture in the waiting table; the floor is untouched (still null, by the floor's own e21g D6 rule).
 - **A4** -- `ncObservationOnOneLine`: a line ending in ":" joins the next with a space.
@@ -249,3 +261,14 @@ Same rules (verify first, red first, no golden may move). Contract: main is 47; 
 **Changed tests:** none (additions only).
 
 **Green runs:** `green-e1-unit.log`: the four files above plus the conclusion suites (`conclusion`, `e22g-wave-b-fixes`, `e23f-print-fixes`, `e24a-conclusion-rules`, `conclusion-unjudged`), 264 of 264; `pnpm static` exit 0; eslint on the touched files exit 0. `green-e1-e2e.log`: `seed-v14-qgbt-inspecao` (G1), `recommendation-action` (D1) and `nc-phrase-follows-item` (A1) after the merge, on both projects, 6 of 6.
+
+### Review patches (2026-11-11, same subagent, over `d5592943`; Review Triage Log above)
+
+**Built:** X1 `not-tested-band.tsx` (the wrapper `hidden` once the point stands; `point-place.tsx` has no empty box); X2 `point-place.tsx` (`pointPlaces` keyed by `testKey ?? 'conclusao'`); X3 `points/derived.ts` `resolvedOriginPoints` (paired through `testSource`); X4+X5 `sync/client.ts` (`SYNC_REQUEST_BODY_SHARE_MAX_MS` = 300 s, Node's default `requestTimeout`; the server untouched); X7 `e2e/previous-visit-date.spec.ts` (A's own reading in the cell before the count). X6 and X8: ledger rows, no code.
+
+**Red runs** (`red-x-unit.log`, `red-x-kernel.log`, load `{ 5.53 6.92 8.44 }` and `{ 6.31 6.97 8.40 }`): X1 (the band's wrapper not hidden), X2 (the editor gone after the origin flip), X4+X5 (the cap test) and X3 (the restricao point flagged "Origem resolvida" while every phase is out alike; a first try with one phase out passed, because the rule still flags it).
+
+**Changed tests:** `relatorio/e23w-wave2-fixes.test.ts` W2-3 "a restricted cable phase driven out by its criterion" -- its last step (every phase out alike, the point resolves) contradicts X3 and D5 (the failing test is the point's test): now it stands, and resolves once every phase is back within. `sync/client.test.ts` "a push at SYNC_PUSH_MAX_BYTES gets about 69 min" -- retitled to the floor case; the 4 MiB bound is the cap test's.
+
+**Green runs:** `green-x-unit.log` (load `{ 6.79 7.06 8.34 }`, api restarted): the points suites, `three-levels`, `e23w-wave2-fixes`, `e24a-conclusion-rules`, `e23z-final-fixes`, the Pontos web tests, `point-place`, `client`, 291 of 292 (the W2-3 step above), then `green-x-unit-2.log` (load `{ 6.93 7.41 8.19 }`) 43 of 43 over the two kernel files; `pnpm static` exit 0; eslint on the touched files exit 0. The gate's five load reds, each file alone: `measurement-test-section.test.tsx` 33 of 33 (load `{ 8.56 7.54 8.40 }`), `relatorio-tree-edges.test.tsx` 11 of 11 (`{ 8.85 7.69 8.42 }`), `relatorio-tree-painel.test.tsx` 16 of 16 (`{ 9.13 7.87 8.47 }`), `relatorio-tree.test.tsx` 11 of 11 (`{ 8.29 7.78 8.42 }`). `green-x-e2e.log`: `previous-visit-date` on both projects, 2 of 2.
+
