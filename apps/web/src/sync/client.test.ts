@@ -185,10 +185,33 @@ describe('e24f-UNIT a JSON request whose answer never comes (E23-A4, 4.8-E2E-005
     expect(calls.every((init) => init.signal instanceof AbortSignal)).toBe(true);
   });
 
-  it('a push at SYNC_PUSH_MAX_BYTES gets about 8,5 min', () => {
-    expect(SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S).toBe(8 * 1024);
-    expect(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES)).toBe(SYNC_REQUEST_TIMEOUT_MS + 512_000);
+  it('fix batch e24x (B1): a push at SYNC_PUSH_MAX_BYTES gets about 69 min at the 1 KB/s floor; a body-less request 60 s', () => {
+    expect(SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S).toBe(1024);
+    // 4 MiB at 1 KB/s is 4 096 s, plus the 60 s: 4 156 s, about 69 min.
+    expect(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES)).toBe(SYNC_REQUEST_TIMEOUT_MS + (SYNC_PUSH_MAX_BYTES / 1024) * 1000);
+    expect(Math.round(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES) / 60_000)).toBe(69);
     expect(requestHeadersTimeoutMs(0)).toBe(SYNC_REQUEST_TIMEOUT_MS);
+    expect(SYNC_REQUEST_TIMEOUT_MS).toBe(60_000);
+  });
+
+  it('fix batch e24x (B1): a 300 KB push on a 2 KB/s uplink is never aborted before its upload (about 150 s) and the server\'s time', async () => {
+    const body = 300 * 1024;
+    const upload = (body / (2 * 1024)) * 1000;
+    expect(upload).toBe(150_000);
+    // The bound covers the upload with the 60 s for the server on top: 360 s.
+    expect(requestHeadersTimeoutMs(body)).toBe(360_000);
+    expect(requestHeadersTimeoutMs(body)).toBeGreaterThanOrEqual(upload + SYNC_REQUEST_TIMEOUT_MS);
+    // Through the client: a push of that size whose answer is late (200 s) is not aborted.
+    vi.useFakeTimers();
+    const calls: RequestInit[] = [];
+    const client = createSyncClient({ fetch: hanging(calls) });
+    const big = [{ ...ops[0]!, value: 'x'.repeat(body) }] as unknown as typeof ops;
+    let settled: SyncFailure | null = null;
+    const failure = failureOf(client.pushOps(big)).then((one) => (settled = one));
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(settled).toBeNull();
+    await vi.advanceTimersByTimeAsync(requestHeadersTimeoutMs(bytes({ ops: big })) - 200_000);
+    expect(await failure).toEqual({ kind: 'network' });
   });
 
   it('once the headers came, a slow body is never cut and the timer is gone', async () => {

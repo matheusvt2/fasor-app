@@ -121,13 +121,18 @@ export const HEALTH_PROBE_TIMEOUT_MS = 5000;
  * preview and audit barriers) may wait for its answer's headers before it reads as a `network` failure. The sync
  * cycle is single-flight and every poll waits on it (the Export dialog's revision poll answers `busy` while a cycle
  * runs), so an answer that never came held the cycle, and every poll, until a reload. A request with a body gets its
- * upload on top, at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (a 4 MiB push: about 8,5 min); the answer's download is
- * never cut, nor are the uploads and downloads of `send`.
+ * upload on top, at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (fix batch e24x, B1: a 300 KB push gets 360 s, a 4 MiB
+ * push 4 156 s, about 69 min; a body-less request 60 s); the answer's download is never cut, nor are the uploads and
+ * downloads of `send`.
  */
 export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
 
-/** Fix batch e24f: the slowest uplink a field tablet is assumed to have, 8 KB/s, for the body's share of the bound. */
-export const SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S = 8 * 1024;
+/**
+ * Fix batch e24f: the slowest uplink a field tablet is assumed to have, for the body's share of the bound. Fix batch
+ * e24x (B1): 1 KB/s, down from 8 KB/s, which aborted a 300 KB push on a 2 KB/s uplink on every attempt (its upload
+ * needs about 150 s; the bound was 97,5 s). A hung push now holds its cycle longer; `withRetry` is unchanged.
+ */
+export const SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S = 1024;
 
 /** Fix batch e24f: the wait for the answer's headers of a request whose body is `bodyBytes` long. */
 export function requestHeadersTimeoutMs(bodyBytes: number): number {
