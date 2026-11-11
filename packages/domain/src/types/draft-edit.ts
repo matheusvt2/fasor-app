@@ -294,6 +294,12 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
       rule.items = items;
       if (items.length === 0) delete next.oil_rule;
     }
+    // Seed v14, batch e24s (Story 24.11): the removed item leaves the rule's dry items too, and the key once it lists none.
+    if (rule !== undefined && next.oil_rule !== undefined && Array.isArray(rule.dry_items)) {
+      const dry = (rule.dry_items as unknown[]).filter((item) => item !== textOf(removed.key));
+      if (dry.length === 0) delete rule.dry_items;
+      else rule.dry_items = dry;
+    }
     dropMediumTables(next);
   }
   if (part === 'tests' || part === 'measurement_tests') pruneCriteria(next);

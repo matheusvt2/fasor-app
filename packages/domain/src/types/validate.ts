@@ -44,7 +44,7 @@ const PART_OF: Readonly<Record<string, TypeEditorPart>> = {
 
 /** The tab of an issue at `path`: its head's, the oil rule's items on Verificações. */
 function partOf(path: readonly (string | number)[]): TypeEditorPart {
-  if (path[0] === 'oil_rule' && path[1] === 'items') return 'verificacoes';
+  if (path[0] === 'oil_rule' && (path[1] === 'items' || path[1] === 'dry_items')) return 'verificacoes';
   return PART_OF[String(path[0])] ?? 'identificacao';
 }
 
@@ -220,7 +220,7 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       const rule = draft.oil_rule;
       const at = rule !== null && typeof rule === 'object' ? (rule as Record<string, unknown>).field : undefined;
       const field = fieldLabelOf(draft, at) ?? 'do tipo de isolação';
-      if (index === 'items') return plain('A regra do óleo cita um item que não está na lista de verificação.', 'regra do óleo sem item');
+      if (index === 'items' || index === 'dry_items') return plain('A regra do óleo cita um item que não está na lista de verificação.', 'regra do óleo sem item');
       if (index === 'fields' || index === 'dry_fields') return plain('A regra do óleo cita um campo que não está na placa.', 'regra do óleo sem campo');
       if (index === 'oil_values' || index === 'full_values') return plain(`A regra do óleo cita uma opção que o campo ${field} não tem; mantenha as opções desse campo.`, 'regra do óleo sem opção');
       return plain(`A regra do óleo lê o campo ${field} da placa; mantenha esse campo como uma lista.`, 'regra do óleo sem campo');

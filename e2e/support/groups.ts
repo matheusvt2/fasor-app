@@ -193,6 +193,22 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'issues revisions through the shared queue and LibreOffice to read section 10\'s summary, its bullets and section 9\'s conclusion in the DOCX',
   },
+  // Batch e24s (Stories 24.10 to 24.12): each issues a revision to read its v14 sheets in the DOCX.
+  {
+    file: 'seed-v14-tp-tc.spec.ts',
+    lane: 'queue',
+    why: 'issues a revision through the shared queue and LibreOffice to read the v14 TP\'s seven rows and the v14 TC\'s six in the DOCX',
+  },
+  {
+    file: 'seed-v14-transformer.spec.ts',
+    lane: 'queue',
+    why: 'issues a revision through the shared queue and LibreOffice to read a v14 oil and a dry transformer\'s 17 rows in the DOCX',
+  },
+  {
+    file: 'seed-v14-qgbt-inspecao.spec.ts',
+    lane: 'queue',
+    why: 'issues a revision through the shared queue and LibreOffice to read the v14 Inspeção de QGBT\'s twelve rows and its thermography in the DOCX',
+  },
   // Story 22.11: 22.11-E2E-001 generates the DOCX the Inspeção de QGBT is read from.
   {
     file: 'qgbt-inspecao.spec.ts',

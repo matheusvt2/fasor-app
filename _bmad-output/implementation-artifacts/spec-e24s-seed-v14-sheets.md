@@ -2,7 +2,7 @@
 title: 'e24s: seed v14 sheets: TP and TC lists, the transformer oil and dry items, QGBT inspection, the No-break de comando, the oil sampling "Outro" text and the ground grid block (Stories 24.10 to 24.14)'
 type: 'feature'
 created: '2026-11-11'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: 'dee6d567b16680b154b0f843cfff0f3a1aa54e4e'
 review_loop_iteration: 0
 followup_review_recommended: false

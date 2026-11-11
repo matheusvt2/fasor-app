@@ -191,3 +191,77 @@ Block types: `quadro_eletrico`, and `inspecao_qgbt` from seed v12.
 | 15 | PLACAS DE SINALIZAÇÃO | `placas_de_sinalizacao` | placa de sinalização ausente · placa ilegível · placa sem advertência de risco elétrico |
 | 16 | ORGANIZAÇÃO INTERNA | `organizacao_interna` | cabos fora da canaleta · canaleta sem tampa · chicote desorganizado |
 | 17 | IDENTIFICAÇÃO DE CIRCUITOS | `identificacao_de_circuitos` | circuitos sem identificação · identificação ilegível · identificação divergente do diagrama |
+
+## TP and TC on seed v14 (Epic 24, Story 24.10)
+
+*(2026-11-11, batch e24s, seed `v14` in `packages/domain/src/seed/v14.ts`; Bruno's question 18.)* The TP keeps the seven items of the TC list above, with the same phrases; FUSÍVEIS gains the hint "ÍNTEGROS E COM ESPECIFICAÇÃO CORRETA" (authored from Bruno's wording, shown on the sheet only, never printed). The TC asks six items: FUSÍVEIS leaves its list. No phrase changes. A TP and a TC on seeds `v10` to `v13` keep the seven rows above.
+
+Block types: `tp`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA, PINTURA E CORROSÃO | `limpeza_pintura_e_corrosao` | acúmulo de poeira e sujeira · pintura descascada · pontos de corrosão |
+| 2 | VASAMENTO | `vasamento` | vazamento de óleo pela junta · vazamento de óleo pela bucha · resíduos de óleo na base |
+| 3 | FUSÍVEIS | `fusiveis` | fusível queimado · fusível com dimensionamento incorreto · base do fusível danificada |
+| 4 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 5 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
+| 6 | FIAÇÃO SECUNDÁRIA | `fiacao_secundaria` | fiação secundária danificada · terminal secundário frouxo · fiação secundária sem identificação |
+| 7 | BUCHAS | `buchas` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
+
+Block types: `tc`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA, PINTURA E CORROSÃO | `limpeza_pintura_e_corrosao` | acúmulo de poeira e sujeira · pintura descascada · pontos de corrosão |
+| 2 | VASAMENTO | `vasamento` | vazamento de óleo pela junta · vazamento de óleo pela bucha · resíduos de óleo na base |
+| 3 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 4 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
+| 5 | FIAÇÃO SECUNDÁRIA | `fiacao_secundaria` | fiação secundária danificada · terminal secundário frouxo · fiação secundária sem identificação |
+| 6 | BUCHAS | `buchas` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
+
+## Transformador de força on seed v14 (Epic 24, Story 24.11)
+
+*(2026-11-11, batch e24s, seed `v14`; Bruno's question 19.)* Items 1 to 14 keep the seed `v9` list and its phrases; item 5 reads VENTILAÇÃO FORÇADA (key `ventiladores`, phrases kept) and becomes a dry item. Items 15 to 17 are appended: TANQUE E ALETAS, an oil item; LIMPEZA DAS BOBINAS and TRINCAS NA RESINA, dry items. Their phrases are authored, pending Bruno's review. A transformer on seeds `v9` to `v13` keeps its 14 rows, item 5 VENTILADORES.
+
+Block types: `transformador_forca`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA | `limpeza` | acúmulo de poeira e sujeira · presença de umidade · resíduos de óleo |
+| 2 | VÁLVULA DE ALÍVIO | `valvula_de_alivio` | válvula de alívio atuada · vazamento na válvula de alívio · válvula de alívio danificada |
+| 3 | ELEMENTO SECANTE | `elemento_secante` | sílica gel saturada · recipiente do secante danificado · elemento secante ausente |
+| 4 | JUNTAS, VEDAÇÕES E VAZAMENTOS | `juntas_vedacoes_e_vazamentos` | vazamento de óleo pela junta · junta ressecada · vedação danificada |
+| 5 | VENTILAÇÃO FORÇADA | `ventiladores` | ventilador inoperante · ruído anormal no ventilador · ventilador com acúmulo de sujeira |
+| 6 | REGISTROS, RADIADORES | `registros_radiadores` | registro fechado · vazamento no radiador · radiador com amassados ou corrosão |
+| 7 | RELÉ DE GÁS, FUNCIONAMENTO | `rele_de_gas_funcionamento` | relé de gás inoperante · presença de gás no visor do relé · fiação do relé danificada |
+| 8 | CORROSÃO, PINTURA, VIBRAÇÕES | `corrosao_pintura_vibracoes` | pontos de corrosão · pintura descascada · vibração ou ruído anormal |
+| 9 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 10 | BUCHAS PRIMÁRIA/SECUNDÁRIAS | `buchas_primaria_secundarias` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
+| 11 | TERMÔMETRO | `termometro` | termômetro inoperante · leitura incoerente com a temperatura ambiente · visor do termômetro danificado |
+| 12 | ÓLEO ISOLANTE/INDICADOR DE NÍVEL | `oleo_isolante_indicador_de_nivel` | nível de óleo abaixo do mínimo · óleo com coloração escura · indicador de nível ilegível · indicador de nível danificado |
+| 13 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
+| 14 | RELÉ DE TEMPERATURA EXTERNO | `rele_de_temperatura_externo` | relé de temperatura inoperante · ajuste de alarme ou desligamento ausente · sensor de temperatura danificado |
+| 15 | TANQUE E ALETAS | `tanque_e_aletas` | pontos de corrosão no tanque · vazamento de óleo no tanque ou nas aletas · aletas amassadas ou danificadas |
+| 16 | LIMPEZA DAS BOBINAS | `limpeza_das_bobinas` | acúmulo de poeira nas bobinas · canais de ventilação obstruídos · presença de umidade nas bobinas |
+| 17 | TRINCAS NA RESINA | `trincas_na_resina` | trinca na resina da bobina · sinais de descarga parcial na resina · resina com sinais de aquecimento |
+
+## Inspeção de QGBT on seed v14 (Epic 24, Story 24.12)
+
+*(2026-11-11, batch e24s, seed `v14`; Bruno's question 22.)* The ten items of seed `v12` keep their phrases and hints. Two are appended: REAPERTO GERAL, the Quadro elétrico's item and phrases, with the hint "TORQUE CONFORME O FABRICANTE"; TESTE DE FUNCIONAMENTO, a new item with the hint "ACIONAMENTO MANUAL DOS DISJUNTORES, MULTIMEDIDOR, SINALIZAÇÃO, DPS". The two hints and the four phrases of row 12 are authored, pending Bruno's review. An Inspeção de QGBT on seeds `v12` and `v13` keeps its ten rows.
+
+Block types: `inspecao_qgbt`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA INTERNA E EXTERNA | `limpeza_interna_e_externa` | acúmulo de poeira e sujeira · presença de umidade · resíduos no interior do quadro |
+| 2 | PINTURA, CORROSÃO DA CAIXA | `pintura_corrosao_da_caixa` | pontos de corrosão na caixa · pintura descascada · caixa amassada ou danificada |
+| 3 | FUSÍVEIS | `fusiveis` | fusível queimado · fusível com capacidade divergente · porta-fusível danificado |
+| 4 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 5 | BARRAMENTOS | `barramentos` | sinais de aquecimento no barramento · oxidação no barramento · barramento sem proteção contra contato |
+| 6 | ISOLADORES | `isoladores` | trinca no isolador · sujeira acumulada no isolador · sinais de descarga no isolador |
+| 7 | FIAÇÃO INTERNA | `fiacao_interna` | isolação da fiação danificada · sinais de aquecimento na fiação · fiação sem fixação adequada |
+| 8 | PLACAS DE SINALIZAÇÃO | `placas_de_sinalizacao` | placa de sinalização ausente · placa ilegível · placa sem advertência de risco elétrico |
+| 9 | ORGANIZAÇÃO INTERNA | `organizacao_interna` | cabos fora da canaleta · canaleta sem tampa · chicote desorganizado |
+| 10 | IDENTIFICAÇÃO DE CIRCUITOS | `identificacao_de_circuitos` | circuitos sem identificação · identificação ilegível · identificação divergente do diagrama |
+| 11 | REAPERTO GERAL | `reaperto_geral` | conexão frouxa encontrada · sinais de aquecimento na conexão · terminal oxidado |
+| 12 | TESTE DE FUNCIONAMENTO | `teste_de_funcionamento` | disjuntor não opera no acionamento manual · multimedidor inoperante ou com leitura divergente · sinalização incoerente com o estado do circuito · DPS com indicação de falha |

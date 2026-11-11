@@ -126,11 +126,23 @@ function after(sheets: readonly SeededSheet[], sheet: SeededSheet): SeededSheet 
 
 test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second seccionadora and one NC, every tap on the first try, taps and keystrokes counted', async ({ page }) => {
   test.setTimeout(300_000);
+  await journeysRun(page, 'v12');
+});
+
+// 2026-11-11, batch e24s (Story 24.10; Matheus's decision of 2026-11-10 on the ledger row of the tap budgets): the same
+// journeys on seed v14 within the counts measured on v13 (J1 23 taps and 83 keystrokes, J3 7 and 47, J2 10 and 47).
+test('@p1 24.10-E2E-005 on seed v14: J1, J3 and J2 at 768 px, TIPO DE SECCIONADORA picked, every tap on the first try, within the counts measured on v13', async ({ page }) => {
+  test.setTimeout(300_000);
+  await journeysRun(page, 'v14');
+});
+
+/** One run of J1, J3 and J2 on a relatório of `seedVersion`; from v13 on J1 also picks TIPO DE SECCIONADORA. */
+async function journeysRun(page: Page, seedVersion: 'v12' | 'v14'): Promise<void> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   // Batch e23b: on seed v12, the plate the review baseline was counted on (v13 adds TIPO DE SECCIONADORA, required).
-  const built = newRelatorioDrafts(account, { seedVersion: 'v12' });
+  const built = newRelatorioDrafts(account, { seedVersion });
   const secc = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora');
   const enel = secc.filter((sheet) => sheet.locationName === 'Cubículo Enel');
   expect(enel).toHaveLength(2);
@@ -162,6 +174,12 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   const acionamento = page.getByLabel('Acionamento', { exact: true });
   await j1.tap('Acionamento', acionamento, () => expect(acionamento).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Acionamento MANUAL/PUNHO', acionamento, 'MANUAL/PUNHO');
+  if (seedVersion !== 'v12') {
+    // Seed v13 on: TIPO DE SECCIONADORA (required), a native select: its tap, then the option (two taps).
+    const tipo = field(page, 'tipo_seccionadora').locator('select');
+    await j1.tap('Tipo de seccionadora', tipo, () => expect(tipo).toBeFocused({ timeout: EFFECT_MS }));
+    await j1.pick('Tipo de seccionadora SEM CARGA', tipo, 'SEM CARGA');
+  }
   // Story 13.4 (INP-3): the empty date is a text input that reads the same eight digits.
   const day = field(page, 'data_de_fabricacao').locator('input.input');
   await j1.tap('Data de fabricação', day, () => expect(day).toBeFocused({ timeout: EFFECT_MS }));
@@ -245,4 +263,10 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   expect(j3.taps - perUnit.taps).toBeLessThanOrEqual(5);
   expect(j2.of('ncChip').taps).toBe(1);
   expect(typedInObservation).toBe(0);
-});
+  if (seedVersion !== 'v12') {
+    // The counts measured on seed v13 (2026-11-10), held on v14.
+    expect({ taps: j1.taps, keys: j1.keys }).toEqual({ taps: 23, keys: 83 });
+    expect({ taps: j3.taps, keys: j3.keys }).toEqual({ taps: 7, keys: 47 });
+    expect({ taps: j2.taps, keys: j2.keys }).toEqual({ taps: 10, keys: 47 });
+  }
+}

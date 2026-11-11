@@ -264,6 +264,16 @@ const SCREEN_FORMS: Record<string, string> = {
   'VALOR DE PROJETO': 'Valor de projeto',
   'MÉTODO DE MEDIÇÃO': 'Método de medição',
   'CONDIÇÃO DO SOLO': 'Condição do solo',
+  // Batch e24s (Stories 24.10 to 24.12, seed v14): the TP's FUSÍVEIS hint, the transformer's items, the Inspeção de QGBT's items and hints.
+  'ÍNTEGROS E COM ESPECIFICAÇÃO CORRETA': 'Íntegros e com especificação correta',
+  'VENTILAÇÃO FORÇADA': 'Ventilação forçada',
+  'TANQUE E ALETAS': 'Tanque e aletas',
+  'LIMPEZA DAS BOBINAS': 'Limpeza das bobinas',
+  // "NA" inside a phrase is the preposition, not the column mark.
+  'TRINCAS NA RESINA': 'Trincas na resina',
+  'TORQUE CONFORME O FABRICANTE': 'Torque conforme o fabricante',
+  'TESTE DE FUNCIONAMENTO': 'Teste de funcionamento',
+  'ACIONAMENTO MANUAL DOS DISJUNTORES, MULTIMEDIDOR, SINALIZAÇÃO, DPS': 'Acionamento manual dos disjuntores, multimedidor, sinalização, DPS',
 };
 
 /** Every label of every shipped seed version that renders on screen. */

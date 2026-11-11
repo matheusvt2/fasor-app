@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, initialOrderKey, newEquipmentBlock, screenLabel, SEED_VERSION, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, initialOrderKey, newEquipmentBlock, screenLabel, type BlockRow, type LocationRow, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -43,6 +43,11 @@ interface OutboxRow {
   value: unknown;
 }
 
+/**
+ * Batch e24s (Story 24.12): pinned to seed v13, whose Inspeção de QGBT asks the ten items and no test this
+ * spec asserts; the v14 sheet (twelve items, the thermography) is `seed-v14-qgbt-inspecao.spec.ts`'s.
+ */
+const SEED_VERSION = 'v13';
 const TYPE = 'inspecao_qgbt';
 const QD = 'quadro_eletrico';
 const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', TYPE);
@@ -65,7 +70,7 @@ async function goToStep(page: Page, name: string, step: string): Promise<void> {
 
 /** The standard relatório (v12, Em campo) with a painel and its coluna in Geradores, grouped by type, and a full QGBT in the coluna. */
 function relatorioWithPainel(): { relatorioId: string; colunaId: string; drafts: OpDraft[] } {
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED_VERSION });
   const scope = { relatorioId: built.relatorioId };
   const locations = built.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('location/')).map((draft) => draft.value as unknown as LocationRow);
   const geradores = locations.find((location) => location.kind === 'cabine' && location.name === LOCAL)!;

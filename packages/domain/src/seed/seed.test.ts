@@ -298,7 +298,8 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     expect([...all].sort()).toEqual(ITEM_KEYS.slice(0, 44).sort());
     expect(all.size).toBe(44);
     expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
-    expect(ITEM_KEYS).toHaveLength(79);
+    // Batch e24s (seed v14, contract 45) appended four: the transformer's three and the Inspeção de QGBT's function test.
+    expect(ITEM_KEYS).toHaveLength(83);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -1849,7 +1850,8 @@ describe('seed v10 (Story 15.7): v9 with the TC\'s own seven-item checklist', ()
       getDefinition('v9', 'cabine_primaria', 'chave_seccionadora').checklist!.find((item) => item.key === 'fusiveis')!.nc_phrases,
     );
     for (const key of TC_KEYS) expect(ITEM_KEYS as readonly string[]).toContain(key);
-    expect(ITEM_KEYS.slice(-4)).toEqual(['limpeza_pintura_e_corrosao', 'vasamento', 'fiacao_secundaria', 'buchas']);
+    // Batch e24s (seed v14) appended four more after them.
+    expect(ITEM_KEYS.slice(75, 79)).toEqual(['limpeza_pintura_e_corrosao', 'vasamento', 'fiacao_secundaria', 'buchas']);
   });
 
   it('a dry TC marks only VASAMENTO NA, and the oil rule names it alone', () => {
@@ -2190,7 +2192,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
 /** v14 as it ships (Epic 24); until its deploy each Epic 24 batch re-pins it, after it a change is a new version. */
 // e24a first commit (2026-11-11): v14 opens equal to v13, with no `rules`.
 // e24a (Stories 24.3 and 24.4): the five rule flags (`withoutE24a` below).
-const V14_HASH = '3d26008bef9ca23ab40510adcf746f77043c44055f22f9fe96da65328b2b75b6';
+// e24s (Stories 24.10 to 24.12): the TP and TC lists, the transformer's oil and dry items, the Inspeção de QGBT (`withoutE24s` below).
+const V14_HASH = '86a839b5481f530c0024cef1b2b792127642ec781cc59b75df0bdfdb2d9ba5ef';
 
 /** Batch e24a's rule flags (Stories 24.3 and 24.4), in the order `seed/v14.ts` sets them. */
 const E24A_FLAGS = ['conclusion_restriction_by_choice', 'prerequisite_needs_nameplate', 'parecer_names_finding', 'nc_clause_on_one_line', 'results_reference_across_runs'] as const;
@@ -2201,6 +2204,39 @@ function withoutE24a(seed: ReportSeed): ReportSeed {
   if (out.rules === undefined) return out;
   for (const flag of E24A_FLAGS) delete out.rules[flag];
   if (Object.keys(out.rules).length === 0) delete out.rules;
+  return out;
+}
+
+/** Batch e24s (Story 24.11): the transformer's appended items, in order. */
+const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
+/** Batch e24s (Story 24.12): the Inspeção de QGBT's appended items, in order. */
+const E24S_INSPECTION_ITEMS = ['reaperto_geral', 'teste_de_funcionamento'];
+
+/**
+ * Batch e24s's delta undone, story by story, so `withoutE24s(withoutE24a(v14))` is v13: Story 24.10
+ * the TP's FUSÍVEIS hint and the TC's FUSÍVEIS (the TP's item, the same one, back at item 3); Story
+ * 24.11 the transformer's item 5 label, its three appended items, its oil rule's new oil item and
+ * `dry_items`, its dry subtypes' new NA default; Story 24.12 the Inspeção de QGBT's two appended
+ * items and its thermography.
+ */
+function withoutE24s(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const { tp, tc, transformador_forca: transformer } = out.blocks;
+  const inspection = out.blocks.inspecao_qgbt!;
+  // Story 24.10.
+  const fuses = tp.checklist!.find((item) => item.key === 'fusiveis')!;
+  delete fuses.hint;
+  if (!tc.checklist!.some((item) => item.key === 'fusiveis')) tc.checklist!.splice(2, 0, structuredClone(fuses));
+  // Story 24.11.
+  transformer.checklist!.find((item) => item.key === 'ventiladores')!.label = 'VENTILADORES';
+  transformer.checklist = transformer.checklist!.filter((item) => !E24S_TRANSFORMER_ITEMS.includes(item.key));
+  transformer.oil_rule!.items = transformer.oil_rule!.items.filter((key) => key !== 'tanque_e_aletas');
+  delete transformer.oil_rule!.dry_items;
+  for (const subtype of transformer.subtypes) subtype.na_defaults = subtype.na_defaults.filter((key) => key !== 'tanque_e_aletas');
+  // Story 24.12.
+  inspection.checklist = inspection.checklist!.filter((item) => !E24S_INSPECTION_ITEMS.includes(item.key));
+  inspection.sub_blocks = inspection.sub_blocks.filter((key) => key !== 'termografia');
+  delete inspection.measurement_tests;
   return out;
 }
 
@@ -2218,8 +2254,9 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   });
 
   it('differs from v13 by exactly its stories, and v1 to v13 hash as they shipped', () => {
-    // Batch e24a (Stories 24.3 and 24.4): its rule flags are undone here and pinned below.
-    expect(JSON.stringify(withoutE24a(v14))).toBe(JSON.stringify(v13));
+    // Batch e24a (Stories 24.3 and 24.4): its rule flags are undone here and pinned below; batch e24s (Stories 24.10 to
+    // 24.12) its sheets' keys the same way, each pinned in its own block.
+    expect(JSON.stringify(withoutE24s(withoutE24a(v14)))).toBe(JSON.stringify(v13));
     expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
     expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
     expect(hash('v13'), 'seed v13 changed after it shipped: add a new version instead').toBe(V13_HASH);
@@ -2263,6 +2300,126 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     expect(seedRulesOf(null, 'conclusion_restriction_by_choice')).toBe(false);
     expect(seedRulesOf({ rules: {} }, 'parecer_names_finding')).toBe(false);
     expect(reportSeedSchema.safeParse({ ...v13, rules: { conclusion_restriction_by_choice: 'yes' } }).success).toBe(false);
+  });
+});
+
+describe('24.10-UNIT seed v14, batch e24s (Story 24.10): the TP and the TC with their own checklists', () => {
+  const at = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type);
+  const SEVEN = ['LIMPEZA, PINTURA E CORROSÃO', 'VASAMENTO', 'FUSÍVEIS', 'ATERRAMENTO', 'CONEXÕES', 'FIAÇÃO SECUNDÁRIA', 'BUCHAS'];
+
+  it('the v14 TP asks the seven items, FUSÍVEIS with its hint, and nothing else of the TP moves', () => {
+    const tp = at('v14', 'tp');
+    expect(tp.checklist!.map((item) => item.label)).toEqual(SEVEN);
+    expect(tp.checklist!.filter((item) => item.hint !== undefined).map((item) => [item.key, item.hint])).toEqual([['fusiveis', 'ÍNTEGROS E COM ESPECIFICAÇÃO CORRETA']]);
+    // Its printed label and phrases stay.
+    const fuses = tp.checklist!.find((item) => item.key === 'fusiveis')!;
+    expect(fuses.label).toBe('FUSÍVEIS');
+    expect(fuses.nc_phrases).toEqual(at('v13', 'tp').checklist!.find((item) => item.key === 'fusiveis')!.nc_phrases);
+    expect({ ...tp, checklist: null }).toEqual({ ...at('v13', 'tp'), checklist: null });
+  });
+
+  it('the v14 TC asks six items without FUSÍVEIS, in the same order; its plate, tests, subtypes and oil rule are v13\'s', () => {
+    const tc = at('v14', 'tc');
+    expect(tc.checklist!.map((item) => item.label)).toEqual(SEVEN.filter((label) => label !== 'FUSÍVEIS'));
+    expect(tc.checklist!.some((item) => item.key === 'fusiveis')).toBe(false);
+    for (const subtype of tc.subtypes) expect(subtype.na_defaults, subtype.key).not.toContain('fusiveis');
+    expect(tc.oil_rule!.items).toEqual(['vasamento']);
+    expect({ ...tc, checklist: null }).toEqual({ ...at('v13', 'tc'), checklist: null });
+    expect(blockDefinitionSchema.safeParse(tc).success).toBe(true);
+  });
+
+  it('v13 and v12 keep the seven items on both, with no hint', () => {
+    for (const version of ['v12', 'v13']) {
+      for (const type of ['tp', 'tc']) {
+        expect(at(version, type).checklist!.map((item) => item.label), `${version} ${type}`).toEqual(SEVEN);
+        expect(at(version, type).checklist!.some((item) => item.hint !== undefined), `${version} ${type}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe('24.11-UNIT seed v14, batch e24s (Story 24.11): the transformer\'s oil items and dry items', () => {
+  const at = (version: string) => getDefinition(version, 'cabine_primaria', 'transformador_forca');
+  const OIL_V13 = ['valvula_de_alivio', 'elemento_secante', 'juntas_vedacoes_e_vazamentos', 'registros_radiadores', 'rele_de_gas_funcionamento', 'termometro', 'oleo_isolante_indicador_de_nivel'];
+
+  it('asks the 14 items in their order, item 5 VENTILAÇÃO FORÇADA, then TANQUE E ALETAS, LIMPEZA DAS BOBINAS and TRINCAS NA RESINA', () => {
+    const v13 = at('v13').checklist!;
+    const v14 = at('v14').checklist!;
+    expect(v14).toHaveLength(17);
+    expect(v14.slice(0, 14).map((item) => item.key)).toEqual(v13.map((item) => item.key));
+    expect(v14[4]).toEqual({ ...v13[4]!, label: 'VENTILAÇÃO FORÇADA' });
+    expect(v13[4]!.label).toBe('VENTILADORES');
+    expect(v14.slice(14).map((item) => [item.key, item.label])).toEqual([
+      ['tanque_e_aletas', 'TANQUE E ALETAS'],
+      ['limpeza_das_bobinas', 'LIMPEZA DAS BOBINAS'],
+      ['trincas_na_resina', 'TRINCAS NA RESINA'],
+    ]);
+    for (const item of v14.slice(14)) {
+      expect(item.nc_phrases, item.key).toHaveLength(3);
+      expect(new Set(item.nc_phrases).size, item.key).toBe(3);
+      expect(item.hint, item.key).toBeUndefined();
+    }
+  });
+
+  it('its oil rule: eight oil items, the three dry items mirrored, the dry subtypes defaulting the eight', () => {
+    const rule = at('v14').oil_rule!;
+    expect(rule.items).toEqual([...OIL_V13, 'tanque_e_aletas']);
+    expect(rule.dry_items).toEqual(['ventiladores', 'limpeza_das_bobinas', 'trincas_na_resina']);
+    expect(at('v14').subtypes.map((subtype) => [subtype.key, subtype.na_defaults])).toEqual([
+      ['epoxi', rule.items],
+      ['a_seco', rule.items],
+    ]);
+    // The rest of the rule is v13's; v13 carries no `dry_items`.
+    expect({ ...rule, items: [], dry_items: undefined }).toEqual({ ...at('v13').oil_rule!, items: [] });
+    expect(Object.hasOwn(at('v13').oil_rule!, 'dry_items')).toBe(false);
+    expect(at('v13').oil_rule!.items).toEqual(OIL_V13);
+  });
+
+  it('the schema takes `dry_items` only disjoint from `items` and on the checklist', () => {
+    const v14 = at('v14');
+    expect(blockDefinitionSchema.safeParse(v14).success).toBe(true);
+    const overlapping = structuredClone(v14) as BlockDefinition;
+    overlapping.oil_rule!.dry_items = ['ventiladores', 'termometro'];
+    expect(blockDefinitionSchema.safeParse(overlapping).success).toBe(false);
+    const offList = structuredClone(v14) as BlockDefinition;
+    offList.checklist = offList.checklist!.filter((item) => item.key !== 'trincas_na_resina');
+    expect(blockDefinitionSchema.safeParse(offList).success).toBe(false);
+    const empty = structuredClone(v14) as BlockDefinition;
+    empty.oil_rule!.dry_items = [];
+    expect(blockDefinitionSchema.safeParse(empty).success).toBe(false);
+  });
+});
+
+describe('24.12-UNIT seed v14, batch e24s (Story 24.12): the Inspeção de QGBT\'s retightening, function test and thermography', () => {
+  const at = (version: string, type = 'inspecao_qgbt') => getDefinition(version, 'cabine_primaria', type);
+
+  it('asks the ten items, then REAPERTO GERAL (the Quadro\'s, with its hint) and TESTE DE FUNCIONAMENTO with its hint', () => {
+    const v13 = at('v13').checklist!;
+    const v14 = at('v14').checklist!;
+    expect(v14).toHaveLength(12);
+    expect(v14.slice(0, 10)).toEqual(v13);
+    expect(v14[10]).toEqual({ ...at('v14', 'quadro_eletrico').checklist!.find((item) => item.key === 'reaperto_geral')!, hint: 'TORQUE CONFORME O FABRICANTE' });
+    expect(v14[11]!.key).toBe('teste_de_funcionamento');
+    expect(v14[11]!.label).toBe('TESTE DE FUNCIONAMENTO');
+    expect(v14[11]!.hint).toBe('ACIONAMENTO MANUAL DOS DISJUNTORES, MULTIMEDIDOR, SINALIZAÇÃO, DPS');
+    expect(v14[11]!.nc_phrases.length).toBeGreaterThanOrEqual(3);
+    expect(v14[11]!.nc_phrases.length).toBeLessThanOrEqual(4);
+    // The Quadro elétrico does not change.
+    expect(at('v14', 'quadro_eletrico')).toEqual(at('v13', 'quadro_eletrico'));
+  });
+
+  it('carries v13\'s thermography as the eight carry it, its sub-block before OBSERVAÇÕES; no other test', () => {
+    const v14 = at('v14');
+    expect(v14.sub_blocks).toEqual(['nameplate', 'checklist', 'termografia', 'observations', 'conclusion']);
+    expect(v14.tests).toEqual([]);
+    expect(v14.measurement_tests).toEqual([at('v13', 'tp').measurement_tests!.find((test) => test.key === 'termografia')]);
+    expect(blockDefinitionSchema.safeParse(v14).success).toBe(true);
+    // v12 and v13: ten items, no test.
+    for (const version of ['v12', 'v13']) {
+      expect(at(version).checklist, version).toHaveLength(10);
+      expect(at(version).measurement_tests, version).toBeUndefined();
+      expect(at(version).sub_blocks, version).toEqual(['nameplate', 'checklist', 'observations', 'conclusion']);
+    }
   });
 });
 
