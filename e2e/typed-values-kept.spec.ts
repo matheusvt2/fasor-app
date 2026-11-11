@@ -34,7 +34,8 @@ interface OutboxRow {
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const sheetTitle = (page: Page) => page.locator('.sheet-header .sheet-title');
-const back = (page: Page) => page.locator('.app-bar').getByRole('button', { name: 'Voltar', exact: true });
+// By its label, not its role: an open combobox list hides the rest of the page from the accessibility tree (React Aria).
+const back = (page: Page) => page.locator('.app-bar button[aria-label="Voltar"]');
 const maker = (page: Page) => page.locator('#ficha-nameplate [data-field-key="fabricacao"]');
 const conclusionText = (page: Page) => page.locator('.ficha-conc-text');
 
@@ -55,7 +56,7 @@ async function backToSheet(page: Page, blockId: string): Promise<void> {
 /** The first reading cell of the Ensaios step, and the outbox path its value is written to. */
 async function firstReading(page: Page, blockId: string): Promise<{ input: Locator; path: string }> {
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
-  const input = page.locator('input.mf-value').filter({ visible: true }).first();
+  const input = page.locator('input.mf-value[data-cell-input]').filter({ visible: true }).first();
   await expect(input).toBeVisible();
   const [testKey, row, col] = (await input.getAttribute('data-cell-input'))!.split(':');
   return { input, path: `sheet/${blockId}/test/${testKey}/cell/${row}/${col}` };

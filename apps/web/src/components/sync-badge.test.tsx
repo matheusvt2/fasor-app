@@ -84,6 +84,6 @@ describe('25.3-WEB the late badge (`85-sync-atrasado.html`)', () => {
     expect(badge).toHaveAttribute('data-pending', '3');
     expect(badge.querySelector('.sync-long')).toHaveTextContent('Envio atrasado');
     expect(badge.querySelector('.sync-short')).toHaveTextContent('Atraso');
-    expect(badge).toHaveAccessibleName(/Envio atrasado/);
+    expect(badge).toHaveAccessibleName(/envio atrasado/i);
   });
 });

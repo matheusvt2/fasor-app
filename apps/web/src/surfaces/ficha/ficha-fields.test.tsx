@@ -777,7 +777,7 @@ describe('25.2-WEB the manufacturer field of the sheet', () => {
     const input = await openCombobox();
     expect(input).toHaveValue('Hi-Tech');
     await userEvent.clear(input);
-    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    await userEvent.click(screen.getByText('fora'));
     expect(commit).toHaveBeenCalledTimes(1);
     expect(commit).toHaveBeenCalledWith(null);
     expect(input).toHaveValue('');
@@ -797,7 +797,7 @@ describe('25.2-WEB the manufacturer field of the sheet', () => {
     const commit = vi.fn();
     const { unmount } = render(maker({ value: 'Hi-Tech', commit }));
     await openCombobox();
-    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    await userEvent.click(screen.getByText('fora'));
     await userEvent.click(screen.getByRole('combobox', { name: /FABRICAÇÃO/i }));
     unmount();
     expect(commit).not.toHaveBeenCalled();
@@ -834,15 +834,15 @@ describe('25.2-WEB the manufacturer field of the sheet', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Criar “Fabricante R8CAP”' }));
     expect(onCreateWord).toHaveBeenCalledTimes(1);
     // Left before anything lands.
-    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    await userEvent.click(screen.getByText('fora'));
     // The registry row lands first (its live read), the value second.
     const created = row('r8cap', 'Fabricante R8CAP');
     rerender(maker({ value: null, commit, onCreateWord, rows: [SIEMENS, created] }));
     await userEvent.click(input);
-    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    await userEvent.click(screen.getByText('fora'));
     rerender(maker({ value: 'Fabricante R8CAP', commit, onCreateWord, rows: [SIEMENS, created] }));
     await userEvent.click(input);
-    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
+    await userEvent.click(screen.getByText('fora'));
     expect(commit).not.toHaveBeenCalledWith(null);
     expect(onCreateWord).toHaveBeenCalledTimes(1);
     expect(input).toHaveValue('Fabricante R8CAP');
