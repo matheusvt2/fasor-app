@@ -860,9 +860,13 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
    confirmed reading shows its crop glyph after the unit, a row with no crop keeps the same slot empty, so every value
    and every unit sits in one column. Mirrors `60-ficha.html` `[data-route="/ficha/:tag"] .suggestion-field[data-state="confirmed"]
    .measurement-field .crop-thumb` and `.measurement-table:has(…) .measurement-field:not(:has(.crop-thumb))::after`
-   (dated 2026-11-10), declarations verbatim; the mock's `.is-confirmed` and `.all-confirmed` toggles are mock-only. */
-.suggestion-field[data-state="confirmed"] .measurement-field .crop-thumb { order: 9; margin-right: var(--sp-2); }
-.measurement-table:has(.suggestion-field[data-state="confirmed"] .crop-thumb) .measurement-field:not(:has(.crop-thumb))::after { content: ""; flex: none; order: 9; width: 24px; margin: 0 var(--sp-2); }
+   (dated 2026-11-10), declarations verbatim; the mock's `.is-confirmed` and `.all-confirmed` toggles are mock-only.
+   From the tablet width only (the story's 768 and 1280 px): below it the moved glyph and the empty slot pushed a 390 px
+   table past the screen (9.4-E2E-011, every table fits), so the phone keeps the layout it had. */
+@media (min-width: 768px) {
+  .suggestion-field[data-state="confirmed"] .measurement-field .crop-thumb { order: 9; margin-right: var(--sp-2); }
+  .measurement-table:has(.suggestion-field[data-state="confirmed"] .crop-thumb) .measurement-field:not(:has(.crop-thumb))::after { content: ""; flex: none; order: 9; width: 24px; margin: 0 var(--sp-2); }
+}
 
 /* Stories 8.2 and 8.6, the plate photo above the nameplate (`60-ficha.html` lines ~313-328,
    `components.css` `.plate-crop`, `.photo-row`). */

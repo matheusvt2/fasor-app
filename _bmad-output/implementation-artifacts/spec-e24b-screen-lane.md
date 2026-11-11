@@ -201,6 +201,7 @@ Part B (24.5, 24.6, 24.7, 24.9). New: `e2e/conclusion-preview.spec.ts` (24.5-E2E
 - `e2e/previous-visit-judges.spec.ts`, `three-levels.spec.ts`, `winding-resistance.spec.ts`, `polarization-index.spec.ts`, `tc-polarity.spec.ts`, `contact-pole-deviation.spec.ts`, `fuse-resistance.spec.ts`: the floor's reason line is selected as `.conclusion-hint:not(.e24-preview-line)` (Story 24.5: the preview line carries the mock's `.conclusion-hint` too).
 - `e2e/points-derived.spec.ts` 22.5-E2E-002: the row set back to C now asks (Story 24.7); the test answers "Manter ponto".
 - `e2e/panel-capture-pipeline.spec.ts` 9.2-E2E-004: the panel proposal reads "Criar SC-NN · …" (Story 24.8).
+- `apps/web/src/styles/app.css`: the Story 24.9 alignment rule (the crop glyph after the unit, the empty slot on a row with none) applies from 768 px only. At 390 px it pushed the dictation table past the screen (9.4-E2E-011, every table fits, red in the extra run); the story asks the alignment at 768 and 1280 px, so the phone keeps the layout it had. A deviation from the mock rule, which applies at every width.
 
 ## Auto Run Result
 
