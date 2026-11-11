@@ -3045,7 +3045,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: A stricter parecer verdict, once tapped, stays stored after the fichas clear (the stored LWW object has no "follow the derived verdict" state), so the effective verdict can stay stricter than the fichas with no way back but tapping the derived one, which also stores it.
   evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx` verdict tap; `relatorio/parecer.ts` `effectiveParecer`; review finding EC8.
   class: decision
-  state: open (owner: Bruno, relayed by Matheus)
+  state: open (owner: Bruno, relayed by Matheus); 2026-11-11, batch e25b (Story 25.4): checked, not closed. Story 25.4 keeps the printed verdicts on the revision (`printed_parecer`, `printed_conclusions`) and never writes `setup.parecer`, so a stricter tapped verdict still holds after the fichas clear, as this row says; the story names this row out of scope. Still open (owner: Bruno, relayed by Matheus)
 
 ## Deferred from: Epic 22 batch e22p (2026-11-06)
 
