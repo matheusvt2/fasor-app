@@ -2,7 +2,7 @@
 title: 'e24x: the Epic 24 integrated review''s fixes, part 1 (A1-A5, B1, B3, B4, C1-C4, decision 17, test gaps; B2 ledger only)'
 type: 'bugfix'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'e5fdde82ecd5edf367349664d9202efd902f46c5'
 review_loop_iteration: 0
 followup_review_recommended: true
@@ -271,4 +271,22 @@ Same rules (verify first, red first, no golden may move). Contract: main is 47; 
 **Changed tests:** `relatorio/e23w-wave2-fixes.test.ts` W2-3 "a restricted cable phase driven out by its criterion" -- its last step (every phase out alike, the point resolves) contradicts X3 and D5 (the failing test is the point's test): now it stands, and resolves once every phase is back within. `sync/client.test.ts` "a push at SYNC_PUSH_MAX_BYTES gets about 69 min" -- retitled to the floor case; the 4 MiB bound is the cap test's.
 
 **Green runs:** `green-x-unit.log` (load `{ 6.79 7.06 8.34 }`, api restarted): the points suites, `three-levels`, `e23w-wave2-fixes`, `e24a-conclusion-rules`, `e23z-final-fixes`, the Pontos web tests, `point-place`, `client`, 291 of 292 (the W2-3 step above), then `green-x-unit-2.log` (load `{ 6.93 7.41 8.19 }`) 43 of 43 over the two kernel files; `pnpm static` exit 0; eslint on the touched files exit 0. The gate's five load reds, each file alone: `measurement-test-section.test.tsx` 33 of 33 (load `{ 8.56 7.54 8.40 }`), `relatorio-tree-edges.test.tsx` 11 of 11 (`{ 8.85 7.69 8.42 }`), `relatorio-tree-painel.test.tsx` 16 of 16 (`{ 9.13 7.87 8.47 }`), `relatorio-tree.test.tsx` 11 of 11 (`{ 8.29 7.78 8.42 }`). `green-x-e2e.log`: `previous-visit-date` on both projects, 2 of 2.
+
+### Story gate (orchestrator, `fasor-e24x`, host lock, logs `.scratch-e24x/gate-*.log`, `rerun-*.log`)
+
+- **On `d5592943`** (main `7b68f225` merged):
+  - Lock wait 0 s. Load `{ 7.31 8.04 8.07 }` at the start and `{ 7.33 7.85 9.02 }` at the end. The main checkout's stack was up beside it for a browser pass.
+  - lint 0 errors (33 s); static 0 errors (93 s).
+  - test:unit 6547 of 6552 (626 s). The 5 reds are 15 s timeouts with no failed assertion. Their four files passed alone (above), so they are recorded as load-induced.
+  - test:api 994 passed, 6 skipped (697 s).
+  - 21 specs on desktop-chrome and durability-desktop-chrome: 139 of 139 (761 s).
+  - Matrix: 42 of 42 (383 s). The specs: oil-dry and dry-transformer (G4), ficha, verificacoes-local, over-range, company-type durability.
+- **After the review patches, on `16aa4440`:**
+  - Load `{ 5.37 6.86 7.92 }` at the start and `{ 8.09 9.28 9.35 }` at the end.
+  - lint 0 errors; static 0 errors.
+  - The touched unit files: 157 of 157.
+  - recommendation-action, points, points-on-click, action-plan, ficha, previous-visit-date and sync: 82 of 82.
+  - ficha.durability on the matrix: 15 of 15.
+- **Diff against main:** no golden, fixture, seed source or contract file. No contract number taken.
+- **Not re-reviewed:** the review patches X1 to X5 and the test gap.
 
