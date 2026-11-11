@@ -421,9 +421,10 @@ Matheus said "siga até o final", asked whether the rest could run in parallel, 
 
 | Item | Question | Owner |
 | --- | --- | --- |
-| Release | Publish a release for the hotfix `1528183f` (v0.8.1)? It needs his explicit word. | Matheus |
-| 24.18 in print | Should a measurement table print its criterion, so that a "nominal ± %" row shows it? Until he decides, it does not: the layout is protected. | Matheus |
+| Release | ~~Publish a release for the hotfix `1528183f` (v0.8.1)? It needs his explicit word.~~ *(2026-11-11: published on his word, "pode publicar a v0.8.1".)* | ~~Matheus~~ closed |
+| 24.18 in print | Should a measurement table print its criterion, so that a "nominal ± %" row shows it? Until he decides, it does not: the layout is protected. *(2026-11-11: Matheus agreed the question goes to Bruno, "2. ok"; it joins the one message.)* | ~~Matheus~~ Bruno, through Matheus |
 | M-8, second question | A confirmed parecer text that reads stale after fix batch e24h | Matheus |
 | M-2, M-4 | They keep their defaults | Matheus |
 | B-1 to B-11 | One message after the epic is built, with the authored sentences of every batch, the tolerance's printed form (B-9), and the note that issuing again a relatório from before e24h drops its automatic points | Bruno, through Matheus |
 | later | How automatic points should work | Matheus, with Bruno |
+| Integrated review *(added 2026-11-11)* | D3 taken as a defect (an older visit issued late prints the later one as previous); the readings batch e24s built; the inspection's thermography title in print (E3). The list is in `epic-24-context.md` § Open items and § Integrated review. | Matheus |
