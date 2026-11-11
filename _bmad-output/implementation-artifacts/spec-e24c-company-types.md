@@ -2,7 +2,7 @@
 title: 'e24c, company types: a "nominal ± %" criterion, a copy hides its original, a type that cannot compute its ratio is not published (Stories 24.18 to 24.20)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: '1c63235e9113855c30afaf228708177566c218ed'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -122,7 +122,7 @@ deferred:
 
 - **D1, the operator.** Stored as `operator: 'nominal_pct'` with `value` (the nominal, the row's unit) and `tolerance_pct` (percent, above zero); `type` stays `criterionTypeOf`'s default (`deviation_between`, as `between`). The reader's shape (`asBlockDefinition`) is a `between` with the computed bounds and a `text`, so it is "judged by the code that judges between, over those two bounds" with no reader touched. `compareCriterion` and `formatCriterionValue` also accept the stored shape, for the editor's preview and any direct caller.
 - **D2, the printed form.** How a tolerance prints is Bruno's open item B-9. Until he answers it follows what the product prints today for the ratio deviation, `±0,5 %` (sign glued to the number, a space before `%`): `220 V ±5 %`. The story and the mock wrote `220 V ± 5 %`; this is the launch prompt's rule, listed in the PR.
-- **D3, where the 24.20 rule lives.** A fresh device folds every pulled `equipment_type_version` create through `applyOp`, whose `assertVersionCreate` runs the strict schema, and "a pulled op the fold refuses still throws" (`ops/materialize.ts`). A version already published in the broken state (possible before e23z, row 3441) would then stop a fresh device's sync. So the rule is a publish rule outside the strict schema: the editor's `validateTypeDraft` shows it and the server's push route refuses the create (`checkClientOp`); an older build cannot publish it either, since the contract bump refuses that build. This narrows the story's "the strict schema refuses the same draft on the server" to "the server refuses the publish", with the same effect for every new publish.
+- **D3, where the 24.20 rule lives.** A fresh device folds every pulled `equipment_type_version` create through `applyOp`, whose `assertVersionCreate` runs the strict schema, and "a pulled op the fold refuses still throws" (`ops/materialize.ts`). A version already published in the broken state (possible before e23z, row 3441) would then stop a fresh device's sync. So the rule is a publish rule outside the strict schema: the editor's `validateTypeDraft` shows it and the server's push route refuses the create (`checkClientOp`); an older build cannot publish it either, since the push route checks every client create whatever its contract (an outdated client keeps pushing, AD-13). This narrows the story's "the strict schema refuses the same draft on the server" to "the server refuses the publish", with the same effect for every new publish.
 - **D4, the mark and the hidden line.** The palette row of a company type reads "Tipo da empresa · " before its meta (the mock's `pi-meta` of `40-relatorio-overview.html` `#lo-type-tr`), wherever it stands. The type list's hidden library type gets a second `rr-secondary` line (existing component, no new style), text below.
 - **D5, readings kept as written.** Coordinator's readings built as written: the nominal is typed in the criterion, both ends within (24.18); the original is hidden in the composer's palette too, and the copy takes the original's place (24.19).
 
@@ -167,3 +167,19 @@ Layers run: Edge Case Hunter and Verification Gap Reviewer. Skipped: Blind Hunte
   - `[low]` `[reject]` ECH-4 the Placa refusal is checked against the render-time draft, so two edits inside one render could drop a change without a toast — the same pattern as the e23z removal refusal (`rowMenu`), a single human tap per render; moving a toast into a state updater would be a side effect inside it.
   - `[false]` ECH-5 the "Tipo da empresa" rule lives in the web — the kernel decides which row is a company type (`PaletteItem.company`, `isCompanyBlockType`); the web only places the static word from `pt-br.ts`, the AGENTS.md home of static copy.
   - `[medium]` `[defer]` ECH-1 the same composer "Editar padrões" loss, filed by the edge-case layer — grouped with VG-other, same ledger row.
+
+## Auto Run Result
+
+Status: done (2026-11-11). Branch `e24c-company-types`, merged with main `dee6d567` (batch e24a, contract 44) as `d2f9bed9`; this batch takes contract 45 with minimum 45.
+
+**Summary.** 24.18: `nominal_pct` with `tolerance_pct` on a company criteria row, read by every reader as a `between` over `nominalBounds` with its own text "220 V ±5 %" (B-9 open); the Critérios tab's two inputs, its rule word and its issues. 24.19: `hidingCopies` puts a published copy in its original's place in both palettes, in the panel's proposal and chips, and in a second line of the type list; every company row in a palette reads "Tipo da empresa · ". 24.20: `vectorGroupPublishIssue` in the editor (Ensaios, publish bar) and refused by the push route (`op_invalid`), outside the strict schema (D3); the Placa tab refuses a kind or options change of the vector-group field while a ratio table reads it.
+
+**Files.** Kernel: `seed/criteria.ts`, `types/definition.ts`, `types/block-definition.ts`, `types/draft-edit.ts`, `types/validate.ts`, `types/list.ts`, `relatorio/tree.ts`, `relatorio/panel.ts`, `contract/version.ts`. Api: `sync/rules.ts`. Web: `type-editor-parts.tsx`, `type-editor.css`, `app.css`, `block-palette-field.tsx`, `block-palette.tsx`, `panel-capture.tsx`, `relatorio-tree.tsx`, `type-list.tsx`, `copy/pt-br.ts`. Tests: three kernel files, two web files, one api file, two new e2e specs, `type-editor.spec.ts` (24.20-E2E-001), `panel-capture.spec.ts` (24.19-E2E-003), the contract tests, four palette tests updated for the `company` field. Records: `source-deltas.md`, `deferred-work.md`, `sprint-status.yaml`, `docs/kbs`.
+
+**Narrowings.** 24.18: a measurement table prints no ACEITÁVEL since Story 22.2 (`print/section-9.ts` out of reach), so the PDF check reads ACEITÁVEL on a seeded-grammar test ruled "100 µΩ ±20 %". 24.20: the publish rule lives in the push route, not the strict schema (D3).
+
+**Review.** 9 findings (0 high, 3 medium, 5 low, 1 false): 3 patched (tests), 2 deferred as one ledger row (the composer's "Editar padrões" of a hidden placed original), 3 rejected low, 1 false. Follow-up review recommended: false (one medium patched, tests only).
+
+**Verification (story gate, `.scratch-e24c/gate/`).** Load `{ 3.29 4.26 4.64 }` at the start, `{ 4.40 5.31 5.59 }` at the end; lock wait 0 s; batch stack e24s up beside. lint 0 errors (40 s); static clean (50 s); test:api 126 files passed, 1 skipped, 977 tests passed, 6 skipped (455 s); test:unit 421 of 422 files, 6360 of 6361 tests (318 s): the one red, `verificacoes-surface.test.tsx` "24.6: an NC item ... Conforme keeps it" (an e24b test of a surface this batch does not touch, "expected 7 to be 8" at 7,2 s under load), passed alone twice under the lock (25 of 25 each); 33 touched specs on desktop-chrome and durability-desktop-chrome: 169 tests, 166 passed, 0 failed, 3 skipped (828 s). Goldens and fixtures: `git diff origin/main --name-status -- apps/api/src/jobs/generate/golden packages/domain/fixtures` empty.
+
+**Residual risks.** The fold's strict schema on pulled version creates (D3) is a standing trap for any later tightening of `companyTypeDefinitionSchema`. The printed tolerance form waits for Bruno (B-9).
