@@ -104,23 +104,24 @@ describe('9.2-UNIT the panel proposal', () => {
     expect(panelTypeChips('v4', 'chave_transferencia_automatica', false).chips).toHaveLength(8);
   });
 
-  it('composes "Criar SEC-C09-2 · Chave seccionadora · Coluna 9?" with SEC-C09 taken, and confirms the suggestion', () => {
-    const proposal = panelProposal({ seedVersion: seed, locations: locations(), equipment: [live('SEC-C09')], paletteLocationId: COL1, suggestion: suggestion(SEC9), pickedType: null })!;
-    expect(proposal.text).toBe('Criar SEC-C09-2 · Chave seccionadora · Coluna 9?');
-    expect(proposal).toMatchObject({ type: 'chave_seccionadora', tag: 'SEC-C09-2', trust: 'suggested', suggestionStatus: 'confirmed', locationPath: '1° Subsolo › Coluna 9' });
+  // Story 24.8: the TAG is PREFIX-NN, free in the obra (was "Criar SEC-C09-2 ..." with SEC-C09 taken).
+  it('composes "Criar SC-02 · Chave seccionadora · Coluna 9?" with SC-01 taken, and confirms the suggestion', () => {
+    const proposal = panelProposal({ seedVersion: seed, locations: locations(), equipment: [live('SC-01')], paletteLocationId: COL1, suggestion: suggestion(SEC9), pickedType: null })!;
+    expect(proposal.text).toBe('Criar SC-02 · Chave seccionadora · Coluna 9?');
+    expect(proposal).toMatchObject({ type: 'chave_seccionadora', tag: 'SC-02', trust: 'suggested', suggestionStatus: 'confirmed', locationPath: '1° Subsolo › Coluna 9' });
     expect(panelProvenance(proposal, suggestion(SEC9))).toEqual([
       { label: 'Tipo', text: 'frente do painel' },
       { label: 'Coluna', text: 'etiqueta "C09" na foto' },
-      { label: 'TAG', text: 'tipo + coluna · SEC-C09 já existe' },
+      { label: 'TAG', text: 'tipo · próximo número livre' },
     ]);
     expect(panelCreateText('TP-C01', 'TP', 'Coluna 1')).toBe('Criar TP-C01 · TP · Coluna 1?');
   });
 
   it('keeps a low-confidence guess flagged Verificar, and flags a column that is not in the cabine', () => {
     const low = panelProposal({ seedVersion: seed, locations: locations(), equipment: [], paletteLocationId: COL1, suggestion: suggestion(SEC9, { trust: 'verify' }), pickedType: null })!;
-    expect(low).toMatchObject({ trust: 'verify', suggestionStatus: 'confirmed', tag: 'SEC-C09' });
+    expect(low).toMatchObject({ trust: 'verify', suggestionStatus: 'confirmed', tag: 'SC-01' });
     const missing = panelProposal({ seedVersion: seed, locations: locations(), equipment: [], paletteLocationId: COL1, suggestion: suggestion({ ...SEC9, column: 7, column_text: 'C07' }), pickedType: null })!;
-    expect(missing).toMatchObject({ trust: 'verify', suggestionStatus: 'discarded', tag: 'SEC-C01', location: { id: COL1 } });
+    expect(missing).toMatchObject({ trust: 'verify', suggestionStatus: 'discarded', tag: 'SC-01', location: { id: COL1 } });
     expect(panelProvenance(missing, suggestion({ ...SEC9, column: 7, column_text: 'C07' }))[1]!.text).toBe('etiqueta "C07" na foto · coluna não encontrada, conferir');
   });
 
@@ -129,8 +130,8 @@ describe('9.2-UNIT the panel proposal', () => {
     const base = { seedVersion: seed, locations: locations(), equipment: [live('TR-1')], paletteLocationId: COL1, suggestion: unknown };
     expect(panelProposal({ ...base, pickedType: null })).toBeNull();
     const picked = panelProposal({ ...base, pickedType: 'transformador_forca' })!;
-    expect(picked).toMatchObject({ tag: 'TR-2', trust: null, suggestionStatus: 'discarded', location: { id: COL9 } });
-    expect(picked.text).toBe('Criar TR-2 · Transformador de força · Coluna 9?');
+    expect(picked).toMatchObject({ tag: 'TR-02', trust: null, suggestionStatus: 'discarded', location: { id: COL9 } });
+    expect(picked.text).toBe('Criar TR-02 · Transformador de força · Coluna 9?');
     expect(panelProvenance(picked, unknown)[0]!.text).toBe('escolhido por você');
     expect(panelProvenance(picked, unknown)[2]!.text).toBe('tipo · próximo número livre');
     const same = panelProposal({ ...base, suggestion: suggestion(SEC9), pickedType: 'chave_seccionadora' })!;
@@ -139,11 +140,11 @@ describe('9.2-UNIT the panel proposal', () => {
 
   it('offline: the type chips alone give the TAG on the palette location, nothing to confirm or discard', () => {
     const offline = panelProposal({ seedVersion: seed, locations: locations(), equipment: [], paletteLocationId: COL1, suggestion: null, pickedType: 'disjuntor_mt' })!;
-    expect(offline).toMatchObject({ tag: 'DJ-C01', trust: null, suggestionStatus: null });
+    expect(offline).toMatchObject({ tag: 'DJ-01', trust: null, suggestionStatus: null });
     expect(panelProvenance(offline, null)).toEqual([
       { label: 'Tipo', text: 'escolhido por você' },
       { label: 'Coluna', text: 'não lida na foto · local onde a paleta abriu' },
-      { label: 'TAG', text: 'tipo + coluna · nenhuma DJ-C01 no relatório' },
+      { label: 'TAG', text: 'tipo · próximo número livre' },
     ]);
   });
 

@@ -575,7 +575,7 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   await t5.getByRole('button', { name: 'Marcar Com restrições' }).click();
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   // Story 22.4: the out reading sets the floor Reprovado, shown though only the restriction was written; Aprovado is disabled.
-  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveClass(/\bis-floor\b/);
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toBeDisabled();
   const conclusionOps = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`));
   expect(conclusionOps.map((row) => [row.path.split('/').at(-1), row.value])).toEqual([['restriction', 'com_restricoes']]);
@@ -1029,9 +1029,9 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
 
   // The suggestion: all C/NA and all within.
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Aprovado · Sem restrições?');
-  await expect(suggestion.locator('.suggested-pill')).toHaveText('Sugerido');
+  await expect(suggestion.locator('.suggested-pill')).toHaveText('Prévia');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
@@ -1157,11 +1157,12 @@ test('@p0 5.8-E2E-002 22.4-E2E "Concluir ficha" lands on the first empty reading
   // Story 22.4: readings within and every row C give the floor Aprovado · Sem restrições, which
   // the radiogroups show before any tap; nothing is disabled and no reason line shows.
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
-  await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveClass(/\bis-floor\b/);
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toHaveClass(/\bis-floor\b/);
   for (const name of ['Aprovado', 'Reprovado']) await expect(resultGroup(page).getByRole('radio', { name })).toBeEnabled();
   for (const name of ['Sem restrições', 'Com restrições']) await expect(restrictionGroup(page).getByRole('radio', { name })).toBeEnabled();
-  await expect(page.locator('.conclusion-control .conclusion-hint')).toHaveCount(0);
+  // Story 24.5: only the preview line stands, no reason line.
+  await expect(page.locator('.conclusion-control .conclusion-hint:not(.e24-preview-line)')).toHaveCount(0);
 
   // A stricter Com restrições with no observation: the observation field.
   await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
@@ -1493,7 +1494,7 @@ test('@p0 5.9-E2E-004 a Não ensaiada sheet: readings, instrument and conclusion
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
   await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
   await expect(restrictionGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
-  await expect(page.getByRole('group', { name: 'Sugestão' })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Prévia da conclusão' })).toHaveCount(0);
   const generated = page.locator('.suggestion-field.is-generated');
   await expect(generated.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveAttribute('aria-readonly', 'true');
   await expect(generated.getByRole('button')).toHaveCount(0);

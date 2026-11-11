@@ -120,7 +120,7 @@ async function deviceRow<T>(page: Page, database: string, entity: string, id: st
   return records.find((record) => record.entity === entity && record.id === id)?.row;
 }
 
-test('@p0 11.2-E2E-001 "Mover para…" from the Sumário: SEC-C05 moves to Coluna 9 renamed SEC-C09, with its filled item and its photos, in one batch, announced with "Desfazer"', async ({ page, seed }) => {
+test('@p0 11.2-E2E-001 "Mover para…" from the Sumário: SEC-C05 moves to Coluna 9 keeping its TAG (Story 24.8: no rename offered), with its filled item and its photos, in one batch, announced with "Desfazer"', async ({ page, seed }) => {
   test.setTimeout(120_000);
   const account = seed.companies[1];
   const database = deviceDatabaseName(account.userId);
@@ -141,36 +141,33 @@ test('@p0 11.2-E2E-001 "Mover para…" from the Sumário: SEC-C05 moves to Colun
   await expect(dialog.getByText('Escolha o local de destino')).toBeVisible();
   await expect(dialog.getByRole('radio', { name: '1° Subsolo › Coluna 5', exact: true })).toHaveCount(0);
   await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
-  await expect(dialog.getByText('Sugerir TAG para Coluna 9?')).toBeVisible();
-  const rename = dialog.getByRole('checkbox', { name: 'Renomear para SEC-C09' });
-  await expect(rename).toHaveAttribute('aria-checked', 'false');
-  await rename.click();
-  await expect(rename).toHaveAttribute('aria-checked', 'true');
+  // Story 24.8: the TAG no longer depends on the local, so the dialog asks nothing about it.
+  await expect(dialog.getByText('Sugerir TAG para Coluna 9?')).toHaveCount(0);
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Mover', exact: true }).click();
   await expect(dialog).toBeHidden();
 
-  await expect(announcer(page)).toHaveText('SEC-C09 movida para a Coluna 9');
-  await expect(toast(page)).toContainText('SEC-C09 movida para a Coluna 9');
+  await expect(announcer(page)).toHaveText('SEC-C05 movida para a Coluna 9');
+  await expect(toast(page)).toContainText('SEC-C05 movida para a Coluna 9');
   await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
-  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09']);
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
   await expect(tagsIn(coluna(page, 'Coluna 5'))).not.toContainText(['SEC-C05']);
-  await expect(eqRow(page, 'SEC-C09').locator('.s9-state')).toHaveText('● Em preenchimento');
+  await expect(eqRow(page, 'SEC-C05').locator('.s9-state')).toHaveText('● Em preenchimento');
   // The focus lands on the moved row.
-  await expect(eqRow(page, 'SEC-C09').locator('.s9-eq-open')).toBeFocused();
+  await expect(eqRow(page, 'SEC-C05').locator('.s9-eq-open')).toBeFocused();
 
-  // One batch: the location, the order key and the TAG.
+  // One batch: the location and the order key; no TAG op.
   const block = (await deviceRow<BlockRow>(page, database, 'block', sec.blockId))!;
   expect(block.location_id).toBe(coluna9Id);
-  const ops = (await outbox(page, database)).filter((op) => op.path.startsWith(`block/${sec.blockId}/`) || op.path === `equipment/${block.equipment_id}/tag`);
-  expect(ops.map((op) => op.path).sort()).toEqual([`block/${sec.blockId}/location_id`, `block/${sec.blockId}/order_key`, `equipment/${block.equipment_id}/tag`].sort());
+  const ops = (await outbox(page, database)).filter((op) => op.path.startsWith(`block/${sec.blockId}/`) || op.path.startsWith(`equipment/${block.equipment_id}/`));
+  expect(ops.map((op) => op.path).sort()).toEqual([`block/${sec.blockId}/location_id`, `block/${sec.blockId}/order_key`].sort());
   expect(new Set(ops.map((op) => op.batch_id)).size).toBe(1);
   expect(ops[0]!.batch_id).not.toBeNull();
-  expect(ops.find((op) => op.path.endsWith('/tag'))!.value).toBe('SEC-C09');
 
   // Its photos still hang off the block; the sheet opened from Coluna 9 holds its item.
   const photos = (await devicePhotos(page, database)).filter((photo) => photo.block_id === sec.blockId);
   expect(photos).toHaveLength(2);
-  await eqRow(page, 'SEC-C09').locator('.s9-eq-open').click();
+  await eqRow(page, 'SEC-C05').locator('.s9-eq-open').click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/ficha/${sec.blockId}$`));
   await expect(page.locator('.sheet-header .sheet-meta').first()).toContainText('Coluna 9');
   await expect(page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${ITEM}"]`).getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
@@ -185,8 +182,8 @@ test('@p0 11.2-E2E-002 11.2-UNDO: "Desfazer" puts SEC-C05 back in Coluna 5 with 
   const coluna5Id = (await coluna(page, 'Coluna 5').getAttribute('data-location-id'))!;
   const before = (await deviceRow<BlockRow>(page, database, 'block', sec.blockId))!;
 
-  await moveFromTree(page, 'SEC-C05', '1° Subsolo › Coluna 9', true);
-  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09']);
+  await moveFromTree(page, 'SEC-C05', '1° Subsolo › Coluna 9', false);
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
   await expect(eqRow(page, 'SEC-C05')).toBeVisible();
   await expect(tagsIn(coluna(page, 'Coluna 5'))).toContainText(['SEC-C05']);
@@ -247,7 +244,7 @@ test('@p1 11.2-E2E-003 "Mover para…" from the sheet header, after "Marcar não
     .toEqual([before.location_id, before.order_key]);
 });
 
-test('@p1 11.2-E2E-004 keyboard only: the Overflow, the target, the rename and "Mover" by keys; the focus lands on the moved row', async ({ page, seed }) => {
+test('@p1 11.2-E2E-004 keyboard only: the Overflow, the target and "Mover" by keys (Story 24.8: no rename); the focus lands on the moved row', async ({ page, seed }) => {
   test.setTimeout(120_000);
   const account = seed.companies[1];
   await resetEmpresaB(account, { standard: true });
@@ -271,18 +268,14 @@ test('@p1 11.2-E2E-004 keyboard only: the Overflow, the target, the rename and "
   }
   for (let i = 0; i < 30 && (await target.getAttribute('aria-checked')) !== 'true'; i++) await page.keyboard.press('ArrowRight');
   await expect(target).toHaveAttribute('aria-checked', 'true');
-  await page.keyboard.press('Tab');
-  const rename = dialog.getByRole('checkbox', { name: 'Renomear para SEC-C09' });
-  await expect(rename).toBeFocused();
-  await page.keyboard.press('Space');
-  await expect(rename).toHaveAttribute('aria-checked', 'true');
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0);
   const move = dialog.getByRole('button', { name: 'Mover', exact: true });
   for (let i = 0; i < 4 && !(await move.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab');
   await expect(move).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(dialog).toBeHidden();
-  await expect(announcer(page)).toHaveText('SEC-C09 movida para a Coluna 9');
-  await expect(eqRow(page, 'SEC-C09').locator('.s9-eq-open')).toBeFocused();
+  await expect(announcer(page)).toHaveText('SEC-C05 movida para a Coluna 9');
+  await expect(eqRow(page, 'SEC-C05').locator('.s9-eq-open')).toBeFocused();
 });
 
 test('@p1 11.2-E2E-005 at 390 px the Move dialog fits: no sideways scroll on the page or inside the dialog, "Mover" reachable', async ({ page, seed }) => {
@@ -297,7 +290,8 @@ test('@p1 11.2-E2E-005 at 390 px the Move dialog fits: no sideways scroll on the
   const dialog = moveDialog(page, 'SEC-C05');
   await expect(dialog).toBeVisible();
   await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
-  await expect(dialog.getByRole('checkbox', { name: 'Renomear para SEC-C09' })).toBeVisible();
+  // Story 24.8: no rename checkbox any more; the chips and the actions must fit.
+  await expect(dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true })).toHaveAttribute('aria-checked', 'true');
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(Math.max(before, 0));
   const box = (await dialog.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);

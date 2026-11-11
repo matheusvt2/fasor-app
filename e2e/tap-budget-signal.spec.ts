@@ -205,7 +205,7 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible({ timeout: 20_000 });
   console.log(`9.1-E2E-005 the nine confirms landed ${Date.now() - queuedAt} ms after the last Enter`);
 
-  await c.tap('Confirmar the suggestion', page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' }), () =>
+  await c.tap('Confirmar the suggestion', page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' }), () =>
     expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
   );
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');

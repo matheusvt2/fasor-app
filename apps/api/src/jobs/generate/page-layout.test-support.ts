@@ -87,7 +87,7 @@ export function withNewSectionOrder(base: RelatorioSnapshot): RelatorioSnapshot 
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0200-7000-8000-000000000001' }),
     { id: base.relatorio.project_id },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId: () => `019966c1-0201-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: '019966c1-0202-7000-8000-000000000001', companyId: '019966c1-0202-7000-8000-000000000002' },
   );
   const sections = drafts

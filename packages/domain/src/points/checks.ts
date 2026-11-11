@@ -197,6 +197,62 @@ export function ncRowPointPositions(points: readonly PointRow[], owner: string |
   });
 }
 
+/**
+ * Story 24.7 (every seed, stored points only): the live points a checklist row asks about when
+ * its result leaves NC for C or for N.A.: the points written from that row (`origin` `nc`, the
+ * row's `item_key`, the same equipment or local), by "Criar ponto de atenção" or, before fix
+ * batch e24h, by "Editar" on an automatic entry. A point added by hand (`manual`) never is. In
+ * `livePoints` order, the order the row's mark (`ncRowPointPositions`) numbers them. Empty for
+ * any other change.
+ */
+export function pointsAskedOnLeave(points: readonly PointRow[], owner: NcRowOwner, itemKey: string, from: string | null, to: string | null): PointRow[] {
+  if (from !== 'NC' || (to !== 'C' && to !== 'NA')) return [];
+  const equipmentId = owner.equipmentId ?? null;
+  const locationId = owner.locationId ?? null;
+  if (equipmentId === null && locationId === null) return [];
+  return livePoints(points).filter(
+    (point) =>
+      point.origin === 'nc' &&
+      point.item_key === itemKey &&
+      ((equipmentId !== null && point.equipment_id === equipmentId) || (locationId !== null && (point.location_id ?? null) === locationId)),
+  );
+}
+
+/** Story 24.7: the words of the question a row asks about its points (`pointsAskedOnLeave`). */
+export interface PointQuestionText {
+  title: string;
+  description: string;
+  /** The toast after "Remover ponto", which offers "Desfazer". */
+  removed: string;
+}
+
+/**
+ * Story 24.7: the question's words, the points named by their section 8 position (as the row's
+ * mark names them) and the row's new result. The singular title and the Conforme description
+ * are the mock's (`60-ficha.html` `#ficha-dlg-ponto-item`); null with no point.
+ */
+export function pointQuestionText(points: readonly PointRow[], asked: readonly PointRow[], to: 'C' | 'NA'): PointQuestionText | null {
+  const order = livePoints(points).map((point) => point.id);
+  const positions = asked.map((point) => order.indexOf(point.id) + 1).filter((position) => position > 0);
+  if (positions.length === 0) return null;
+  // authored (e24b, listed for Bruno): the N.A. form of the mock's "que agora está Conforme".
+  const now = to === 'C' ? 'que agora está Conforme' : 'que agora está marcado como Não se aplica';
+  const list = listPtBr(positions.map(String));
+  if (positions.length === 1) {
+    return {
+      title: 'Remover o ponto de atenção deste item?',
+      description: `O ponto de atenção ${list} foi criado a partir deste item, ${now}. Se mantiver, ele fica com a marca “Origem resolvida”.`,
+      removed: `Ponto de atenção ${list} removido`,
+    };
+  }
+  // authored (e24b, listed for Bruno): the plural forms of the mock's question, description and toast.
+  return {
+    title: 'Remover os pontos de atenção deste item?',
+    description: `Os pontos de atenção ${list} foram criados a partir deste item, ${now}. Se mantiver, eles ficam com a marca “Origem resolvida”.`,
+    removed: `Pontos de atenção ${list} removidos`,
+  };
+}
+
 /** E6-Q11: the NC row's mark beside its actions: "Ponto de atenção 1", "Pontos de atenção 1 e 3"; null with none. */
 export function ncRowPointsText(positions: readonly number[]): string | null {
   if (positions.length === 0) return null;

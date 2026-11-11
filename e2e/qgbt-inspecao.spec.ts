@@ -126,7 +126,8 @@ test('@p0 22.11-E2E-001 at 1024: the field palette of a painel adds an Inspeçã
   const row = typeRows(fieldPalette, [TYPE]);
   await expect(row.locator('.pi-text > span').first()).toHaveText(DEFINITION.label);
   const tag = (await row.locator('.pi-meta').innerText()).trim().split(' · ').at(-1)!;
-  expect(tag).toMatch(/^QGBT-C01(-\d+)?$/);
+  // Story 24.8: the suggested TAG is the type and a two-digit number.
+  expect(tag).toMatch(/^QGBT-\d{2}$/);
   await row.click();
   await expect(fieldPalette).toBeHidden();
   await expect(toast(page)).toContainText(`${tag} criada na Coluna 1`);
@@ -184,7 +185,7 @@ test('@p0 22.11-E2E-001 at 1024: the field palette of a painel adds an Inspeçã
 
   // The conclusion: the NC item sets the floor Aprovado · Com restrições.
   await goToStep(page, 'Conclusão', 'conclusao');
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Aprovado · Com restrições?');
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições', exact: true })).toBeDisabled();
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();

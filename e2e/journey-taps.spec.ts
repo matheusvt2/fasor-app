@@ -127,7 +127,7 @@ async function readingsAndConclude(page: Page, c: Counter, nextBlockId: string):
   }
   await expect(page.locator('#ficha-primary')).toBeFocused();
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible();
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await c.tap('Confirmar the suggestion', suggestion.getByRole('button', { name: 'Confirmar' }), () =>
     expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
   );

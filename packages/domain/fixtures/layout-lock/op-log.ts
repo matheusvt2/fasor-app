@@ -187,7 +187,7 @@ export function layoutLockFixture(version: string, actor: LayoutLockActor = DEFA
   const { relatorioId, drafts } = instantiateTemplate(
     templateOf(version),
     { id: projectId },
-    { service_start: '2026-11-03', service_end: '2026-11-04', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-11-03', service_end: '2026-11-04', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: actor.actorId, companyId: actor.companyId },
   );
   const log = [project, ...drafts].map(opOf);

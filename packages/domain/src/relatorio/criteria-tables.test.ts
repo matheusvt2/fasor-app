@@ -495,3 +495,13 @@ describe('e23a review fixes (E14-A5 boundary tests)', () => {
     expect(worst).toMatchObject({ valueText: '79 µΩ', verdict: 'within', criterionText: '<80 µΩ', sourceName: 'Fabricante' });
   });
 });
+
+describe('24.9-UNIT F16 (review of e24b): the fallback lines under the criterion, the fallback rows only', () => {
+  it('a missing TIPO DE ISOLAÇÃO gives its fallback sentence once; a complete plate gives none, though its rows carry table helpers', () => {
+    const bare = evaluation(transformer(null, measured('13.8', 'kV'), measured('380', 'V')), 'isolacao');
+    expect(bare.fallbackLines).toEqual(['Sem o tipo de isolação na placa, vale >400 MΩ. Informe-o para julgar pela Tabela 100.5.']);
+    const full = evaluation(transformer('EPÓXI', measured('13.8', 'kV'), measured('380', 'V')), 'isolacao');
+    expect(full.tables[0]!.rows[0]!.criterionHelper).toBe('Tabela 100.5 (ANSI/NETA MTS-2023), seco, 13,8 kV: ≥ 25.000 MΩ');
+    expect(full.fallbackLines).toBeUndefined();
+  });
+});

@@ -175,18 +175,20 @@ describe('11.2-API move a block through the sync route', () => {
     const plan = movePlan({ blocks, locations, equipment, blockId: block.id, targetId: coluna9.id, rename: true, definitions: EMPTY_DEFINITION_CONTEXT });
     expect(plan.kind).toBe('move');
     if (plan.kind !== 'move') return;
-    expect(plan.rename).not.toBeNull();
+    // Story 24.8: a move offers no rename any more; the batch still carries a TAG put, as a client before 42 or "Renomear TAG" writes it.
+    expect(plan.rename).toBeNull();
+    const renamedTag = 'SEC-C09';
 
     const batchId = newId();
     const batch = [
       stamp({ ...envelope('relatorio', batchId), kind: 'put', path: `block/${block.id}/location_id`, value: plan.targetId }),
       stamp({ ...envelope('relatorio', batchId), kind: 'put', path: `block/${block.id}/order_key`, value: plan.orderKey }),
-      stamp({ ...envelope('project', batchId), kind: 'put', path: `equipment/${own.id}/tag`, value: plan.rename!.tag }),
+      stamp({ ...envelope('project', batchId), kind: 'put', path: `equipment/${own.id}/tag`, value: renamedTag }),
     ];
     const pushed = await push(batch);
     expect(pushed.rejected).toEqual([]);
     expect(await serverRow<BlockRow>('block', block.id)).toMatchObject({ location_id: coluna9.id, order_key: plan.orderKey, removed_at: null });
-    expect((await serverRow<EquipmentRow>('equipment', own.id)).tag).toBe(plan.rename!.tag);
+    expect((await serverRow<EquipmentRow>('equipment', own.id)).tag).toBe(renamedTag);
 
     const before = new Map<string, unknown>([
       [batch[0]!.op_id, block.location_id],

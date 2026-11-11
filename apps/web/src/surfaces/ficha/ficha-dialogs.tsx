@@ -87,7 +87,6 @@ export function FichaDialogs({
           blockId={block.id}
           locations={snapshot.locations}
           blocks={snapshot.blocks}
-          equipment={equipment}
           onClose={() => setMoveDialogOpen(false)}
           onSubmit={moveTo}
         />

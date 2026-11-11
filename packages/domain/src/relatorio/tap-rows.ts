@@ -356,10 +356,12 @@ export function tapsLineText(n: number): string {
 }
 
 // authored (Story 23.1's frame, built by Story 23.7): the helper under the TAPS field.
-/** The helper under a `list` field: "Na ordem da placa · 5 taps" for a stored list, "Na ordem da placa" while it holds none. */
+// Story 24.9 (F9; `60-ficha.html` TR-02 and TR1, 2026-11-10): the separator named before any error. Screen only.
+/** The helper under a `list` field: "Na ordem da placa, separados por ; · 5 taps" for a stored list, "Na ordem da placa, separados por ;" while it holds none. */
 export function tapsHelperText(value: unknown): string {
   const entries = readNumberListRaw(measuredRaw(value));
-  return entries === null ? 'Na ordem da placa' : `Na ordem da placa · ${plural(entries.length, 'tap', 'taps')}`;
+  const lead = 'Na ordem da placa, separados por ;';
+  return entries === null ? lead : `${lead} · ${plural(entries.length, 'tap', 'taps')}`;
 }
 
 // authored (Story 23.1's frame "3 — 12,6 kV", built by Story 23.7): an option of the TAP ATUAL picker.

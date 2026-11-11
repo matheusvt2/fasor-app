@@ -148,7 +148,7 @@ test('@p0 23.6-E2E-001 a v13 cable at 5, 5 and 1,5 GΩ: phase C restricted on th
   const reason = conclusionFloorReasonText(judged.block, definitionOf, visit)!;
   expect(reason).toBe('A ficha exige no mínimo Aprovado · Com restrições: leitura com restrição.');
   await openStep(page, relatorioId, cable.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
   await expect(page.locator('#ficha-step-conclusao')).toContainText(conclusionSuggestionText({ result: 'aprovado', restriction: 'com_restricoes' }));
 
   // Pontos: ~~one automatic "Com restrição" entry naming the test and the phase~~ (fix batch e24h: no automatic point).
@@ -173,7 +173,7 @@ test('@p0 23.6-E2E-001 a v13 cable at 5, 5 and 1,5 GΩ: phase C restricted on th
   await expect(cellOf(page, 'isolacao', c!).locator('.measurement-field')).toHaveAttribute('data-state', 'restricted');
   await expect(cellOf(page, 'isolacao', c!).locator('.mf-helper[data-tone="restricted"]')).toHaveText(`Com restrição: ${restriction.text}`);
   await openStep(page, relatorioId, cable.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
 });
 
 test('@p0 23.6-E2E-002 a v13 arrester whose DESLIGADOR ÍNTEGRO is NÃO: the floor is Reprovado · Com restrições, named by the prerequisite, whatever its readings; SIM lifts it; a reload keeps the plate', async ({ page }) => {
@@ -199,14 +199,14 @@ test('@p0 23.6-E2E-002 a v13 arrester whose DESLIGADOR ÍNTEGRO is NÃO: the flo
   const reason = conclusionFloorReasonText(failing.block, definition, visitContextOf(failing.snapshot, failing.block))!;
   expect(reason).toBe('A ficha exige no mínimo Reprovado · Com restrições: pré-requisito do ensaio não atendido.');
   await openStep(page, relatorioId, arrester.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
   await expect(page.locator('#ficha-step-conclusao')).toContainText(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' }));
 
   // A reload keeps the plate and the floor.
   await page.reload();
   await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
   await openStep(page, relatorioId, arrester.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
 
   // SIM: no prerequisite failure, and with one reading within nothing restricts the sheet.
   await openStep(page, relatorioId, arrester.blockId, 'Placa');
@@ -216,7 +216,7 @@ test('@p0 23.6-E2E-002 a v13 arrester whose DESLIGADOR ÍNTEGRO is NÃO: the flo
   expect(lifted.evaluation.prerequisite).toBeNull();
   expect(conclusionFloorReasonText(lifted.block, definition, visitContextOf(lifted.snapshot, lifted.block))).toBeNull();
   await openStep(page, relatorioId, arrester.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveCount(0);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveCount(0);
 });
 
 test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off and whose DESLIGADOR ÍNTEGRO is NÃO: the floor is still Reprovado by the prerequisite, Pontos lists nothing by itself (fix batch e24h), and the parecer follows', async ({ page }) => {
@@ -252,7 +252,7 @@ test('@p0 e23w-W2-2-E2E-001 a v13 arrester whose insulation test is switched off
   const reason = conclusionFloorReasonText(block, definition, visit)!;
   expect(reason).toBe('A ficha exige no mínimo Reprovado · Com restrições: pré-requisito do ensaio não atendido.');
   await openStep(page, built.relatorioId, arrester.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
   await expect(page.locator('#ficha-step-conclusao')).toContainText(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' }));
 
   // Pontos: ~~the test's reading entry, naming the disconnector~~ (fix batch e24h: nothing until the technician creates it).

@@ -344,7 +344,7 @@ describe('14.2 relatório tree: three levels (Sumário presentation)', () => {
     // No last sheet in this painel: its last coluna.
     expect(within(palette).getByText('Em: Cabine de Testes › Painel de média tensão › Coluna 6')).toBeInTheDocument();
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][2]!);
-    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('SEC-C06 criada na Coluna 6'));
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('SC-01 criada na Coluna 6'));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Adicionar bloco' })).toBeNull());
 
     await userEvent.click(within(row(LOCAL)).getByRole('button', { name: 'Adicionar equipamento no local Cabine de Testes' }));

@@ -364,16 +364,16 @@ test('@p0 13.5-E2E-003 a panel photo whose dialog was left by navigation waits i
   await openSumario(page, relatorioId);
   palette = await openPalette(page);
   row = palette.locator(`.pal-awaiting[data-photo-id="${photoId}"]`);
-  await expect(row.locator('.pi-meta')).toHaveText('Criar SEC-C09 · Chave seccionadora · Coluna 9?');
+  await expect(row.locator('.pi-meta')).toHaveText('Criar SC-01 · Chave seccionadora · Coluna 9?');
   await row.click();
   await expect(palette).toBeHidden();
   const dialog = result(page);
   await expect(dialog).toBeVisible();
   const field = dialog.locator('.suggestion-field');
-  await expect(field.locator('.sv-main')).toHaveText('Criar SEC-C09 · Chave seccionadora · Coluna 9?');
+  await expect(field.locator('.sv-main')).toHaveText('Criar SC-01 · Chave seccionadora · Coluna 9?');
   await field.getByRole('button', { name: 'Confirmar' }).click();
   await expect(dialog).toBeHidden();
-  await expect(tagsIn(coluna(page, 'Coluna 9'))).toContainText(['SEC-C09']);
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toContainText(['SC-01']);
   const reKind = (await outbox(page)).find((op) => op.path === `file/${photoId}/reading_kind`);
   expect(reKind?.value).toBe('plate');
   // Confirmed, the photo is no longer waiting: the palette does not list it.
@@ -447,7 +447,7 @@ test('@p1 13.5-E2E-005 the arrival toast\'s "Ver" on a panel suggestion reopens 
   await toast.getByRole('button', { name: 'Ver' }).click();
   const dialog = result(page);
   await expect(dialog).toBeVisible({ timeout: 30_000 });
-  await expect(dialog.locator('.suggestion-field .sv-main')).toHaveText('Criar SEC-C09 · Chave seccionadora · Coluna 9?');
+  await expect(dialog.locator('.suggestion-field .sv-main')).toHaveText('Criar SC-01 · Chave seccionadora · Coluna 9?');
   // The address carries no parameter any more: a reload opens the Sumário alone.
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
 });

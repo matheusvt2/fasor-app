@@ -112,7 +112,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   await page.getByRole('button', { name: 'Adicionar equipamento no local Cubículo Enel' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // E11-Q6: no camera row, so no orphan "Ou" before the heading.
-  await expect(palette.getByText('Escolha o tipo · TAG sugerida por tipo + coluna', { exact: true })).toBeVisible();
+  await expect(palette.getByText('Escolha o tipo · TAG sugerida por tipo e número', { exact: true })).toBeVisible();
   await expect(palette.getByText(/^Ou escolha/)).toHaveCount(0);
   await expect(palette.locator('.pf-field')).toHaveCount(equipmentTypesOf(SEED_VERSION).length);
   await expect(palette.locator('.pal-camera')).toHaveCount(0);

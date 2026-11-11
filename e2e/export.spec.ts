@@ -466,7 +466,7 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
   const r1 = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-03-02', service_end: '2026-03-03', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-03-02', service_end: '2026-03-03', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const r1Tags = r1.drafts.filter((draft) => draft.path.startsWith('equipment/')).map((draft) => (draft.value as { tag: string }).tag);

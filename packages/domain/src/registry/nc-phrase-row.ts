@@ -35,6 +35,8 @@ const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id 
  * they were learned), then the relatório's recent observations of the item. A phrase whose
  * normalized text (`normalizeRegistryName`) an earlier chip already offers is dropped, and so is
  * a blank one. A site item ("Verificações do local") passes no learned rows and a null type.
+ * Story 24.6 (row 2552): the text is compared without its final period, so a learned phrase
+ * (stored without it) and a recent observation (which keeps it) are offered once.
  */
 export function ncChipPhrases({
   seeded,
@@ -52,7 +54,7 @@ export function ncChipPhrases({
   const out: string[] = [];
   const seen = new Set<string>();
   const add = (phrase: string) => {
-    const normalized = normalizeRegistryName(phrase);
+    const normalized = normalizeRegistryName(phrase.trim().replace(/\.$/, ''));
     if (normalized === '' || seen.has(normalized)) return;
     seen.add(normalized);
     out.push(phrase);
@@ -67,6 +69,18 @@ export function ncChipPhrases({
   }
   for (const phrase of recents) add(phrase);
   return out;
+}
+
+/**
+ * Story 24.6 (review of batch e24b): the learned rows that were offered when an observation was
+ * written: those learned before its cell's last write (`opId`; both ids are UUIDv7, so the
+ * order is time). The server learns the typed pieces of an observation after its push, so
+ * without this cut a typed observation would read as an offered phrase once synced, and leaving
+ * NC would remove it with no warning. All rows when the cell holds no op id.
+ */
+export function learnedBefore(learned: readonly RegistryRow[], opId: string | null | undefined): RegistryRow[] {
+  if (opId === null || opId === undefined || opId === '') return [...learned];
+  return learned.filter((row) => row.id < opId);
 }
 
 /** The seed's NC phrases of one type and item in every shipped seed version that defines them, first-seen order. */

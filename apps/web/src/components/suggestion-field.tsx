@@ -35,6 +35,8 @@ export interface SuggestionFieldProps {
    * with these words (E78-Q13, kernel `criarAnnouncement`). Default "Confirmar".
    */
   confirmLabel?: string;
+  /** Story 24.5: the pill's word in the `suggested` state ("Prévia" on the Conclusão step's preview row). Default "Sugerido". */
+  pill?: string;
 }
 
 export interface SuggestionBlockProps {
@@ -102,6 +104,7 @@ export function SuggestionField({
   labelId: givenLabelId,
   after,
   confirmLabel,
+  pill,
 }: SuggestionFieldProps) {
   const ownLabelId = useId();
   const labelId = givenLabelId ?? ownLabelId;
@@ -132,7 +135,7 @@ export function SuggestionField({
           </button>
         )}
       </div>
-      {state === 'confirmed' ? null : <span className={state === 'verify' ? 'verify-pill' : 'suggested-pill'}>{state === 'verify' ? ui.suggestionField.verify : ui.suggestionField.suggested}</span>}
+      {state === 'confirmed' ? null : <span className={state === 'verify' ? 'verify-pill' : 'suggested-pill'}>{state === 'verify' ? ui.suggestionField.verify : (pill ?? ui.suggestionField.suggested)}</span>}
       {combobox ? (
         <span className="combobox-chevron" aria-hidden="true">
           <svg className="ico" aria-hidden="true">

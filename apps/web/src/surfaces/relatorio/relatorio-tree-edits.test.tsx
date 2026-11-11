@@ -318,11 +318,12 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicar' }));
     const dialog = await screen.findByRole('dialog', { name: 'Duplicar SEC-C01' });
     const field = within(dialog).getByRole('textbox', { name: 'TAG' });
-    expect(field).toHaveValue('SEC-C01-2');
+    // Story 24.8: the next free SC-NN of the obra (was SEC-C01-2).
+    expect(field).toHaveValue('SC-01');
     expect(await axe(dialog)).toHaveNoViolations();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Duplicar' }));
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-coluna')!)).toEqual(['SEC-C01', 'SEC-C01-2']));
-    expect(await screen.findByText('SEC-C01-2 criada na Coluna 1')).toBeInTheDocument();
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-coluna')!)).toEqual(['SEC-C01', 'SC-01']));
+    expect(await screen.findByText('SC-01 criada na Coluna 1')).toBeInTheDocument();
     const ops = await database.outbox.toArray();
     expect(ops.map((op) => op.path.split('/')[0])).toEqual(['equipment', 'block']);
     const block = ops[1]!.value as BlockRow;

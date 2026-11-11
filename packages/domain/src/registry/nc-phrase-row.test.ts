@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parsePath, type OpPath } from '../ops/path.ts';
-import { insertPhrase } from '../relatorio/ficha.ts';
+import { insertPhrase, ncObservationOnLeave } from '../relatorio/ficha.ts';
 import { NC_PHRASE_MAX_LENGTH, registryRowSchema, type BlockRow, type Cell, type RegistryRow } from '../schemas/entities.ts';
 import { SEED_VERSION, SEED_VERSIONS } from '../seed/definitions.ts';
 import {
@@ -247,6 +247,36 @@ describe('ncChipPhrases (the only chip list)', () => {
 
   it('a site item (no type) offers no learned phrase', () => {
     expect(ncChipPhrases({ seeded: ['A'], learned: [phraseRow('Fuga')], blockType: null, itemKey: ITEM, recents: ['B'] })).toEqual(['A', 'B']);
+  });
+
+  it('24.6-UNIT (row 2552): a learned phrase and a recent observation that differ only by the final period are offered once', () => {
+    const chips = ncChipPhrases({ seeded: SEED, learned: [phraseRow('Mola fraca')], blockType: 'disjuntor_mt', itemKey: ITEM, recents: ['Mola fraca.', 'Texto recente.'] });
+    expect(chips).toEqual([...SEED, 'Mola fraca', 'Texto recente.']);
+    // And the other way round: the recent comes first when the phrase has no learned row.
+    expect(ncChipPhrases({ seeded: ['Trinca no isolador.'], learned: [], blockType: null, itemKey: ITEM, recents: ['Trinca no isolador'] })).toEqual(['Trinca no isolador.']);
+  });
+});
+
+describe('24.6-UNIT ncObservationOnLeave: the NC phrase follows its item', () => {
+  const chips = ['Oxidação nos terminais', 'Acúmulo de poeira', 'Trinca no isolador.'];
+  const one = insertPhrase('', 'Oxidação nos terminais').text;
+  const two = insertPhrase(one, 'Acúmulo de poeira').text;
+  it.each([
+    ['one chip, NC to C', 'NC', 'C', one, 'clear'],
+    ['one chip, NC to N.A.', 'NC', 'NA', one, 'clear'],
+    ['two chips joined as a tap joins them, NC to C', 'NC', 'C', two, 'clear'],
+    ['two chips, NC to N.A.', 'NC', 'NA', two, 'clear'],
+    ['a chip with its final period added', 'NC', 'C', `${one}.`, 'clear'],
+    ['a chip offered with a period, stored without it', 'NC', 'C', 'Trinca no isolador', 'clear'],
+    ['a chip with typed words after it', 'NC', 'C', `${one} do polo B`, 'keep'],
+    ['a chip with typed words, NC to N.A.', 'NC', 'NA', `${two}, ver foto`, 'keep'],
+    ['typed text', 'NC', 'C', 'Isolador lascado na fase R', 'keep'],
+    ['a blank observation', 'NC', 'C', '   ', null],
+    ['NC cleared ("Limpar")', 'NC', null, one, null],
+    ['C to NC', 'C', 'NC', one, null],
+    ['N.A. to C', 'NA', 'C', one, null],
+  ] as const)('%s', (_name, from, to, observation, expected) => {
+    expect(ncObservationOnLeave(from, to, observation, chips)).toBe(expected);
   });
 });
 

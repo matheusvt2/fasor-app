@@ -27,7 +27,7 @@ import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from '
 import { siteCounterText, siteLocals, siteResultOf, siteRowText } from './site-checklist.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { CABINE_META_NONE, cabineMetaText } from './sumario.ts';
-import { suggestTag, type TagEquipment, type TagLocation } from './tag.ts';
+import { reuseKeyFor, suggestTag, type MatchKeyEquipment, type TagEquipment, type TagLocation } from './tag.ts';
 
 /*
  * Stories 4.4 and 4.5: the location tree as data, the one structure the Sumário's section
@@ -680,9 +680,9 @@ export function firstInTree(snapshot: Pick<RelatorioSnapshot, 'locations' | 'blo
 }
 
 /**
- * The TAG "Duplicar" suggests for a copy of a block: the next free TAG of its type in its
- * location ("SEC-C09-2"), the same scheme as the palette; the block's own TAG when its
- * type or location is unknown.
+ * The TAG "Duplicar" suggests for a copy of a block: the next free TAG of its type in the obra
+ * (Story 24.8: "DJ-02" beside a "DJ-01"), the same scheme as the palette; the block's own TAG
+ * when its type or location is unknown.
  */
 export function duplicateTagSuggestion(
   block: { blockType: string; locationId: string; tag: string },
@@ -696,7 +696,7 @@ export function duplicateTagSuggestion(
   if (location === undefined || location.kind === 'painel' || !isEquipmentKind(block.blockType)) return block.tag;
   // Story 14.6: a company type's prefix is its definition's; without one, its own TAG.
   if (isCompanyBlockType(block.blockType) && definition?.tag_prefix === undefined) return block.tag;
-  return suggestTag(block.blockType, { kind: location.kind, name: location.name }, equipment, definition);
+  return suggestTag(block.blockType, equipment, definition);
 }
 
 /**
@@ -814,6 +814,8 @@ export interface PaletteItem {
 /**
  * The field palette's rows for a location: every type the seed version ships (the eight, then
  * its library types), each with its suggested TAG (`suggestTag`, the instantiation's scheme).
+ * Story 24.8: the suggestion no longer reads the location (`PREFIX-NN`, free in the obra); the
+ * location stays in the signature as where the palette is open.
  */
 export function paletteItems(seedVersion: string, location: TagLocation, equipment: readonly TagEquipment[], ctx: DefinitionContext): PaletteItem[] {
   return paletteTypeGroups(seedVersion, ctx).flatMap((group) =>
@@ -825,7 +827,7 @@ export function paletteItems(seedVersion: string, location: TagLocation, equipme
         type,
         ...(typeVersion === undefined ? {} : { typeVersion }),
         label: blockTypeLabelIn(ctx, seedVersion, type, typeVersion),
-        tag: suggestTag(type, { kind: location.kind, name: location.name }, equipment, definition),
+        tag: suggestTag(type, equipment, definition),
         library: group.key === 'library',
         summary: group.key === 'library' ? libraryTypeSummaryText(seedVersion, type, ctx, typeVersion) : null,
       };
@@ -869,14 +871,24 @@ export interface NewEquipmentBlockInput {
    */
   typeVersion?: TypeVersionRef;
   definitions: DefinitionContext;
+  /**
+   * Story 24.21: where the block is placed and the obra's equipment (removed rows included), from
+   * which the equipment's `reuse_key` is computed (`reuseKeyFor`), so a relatório saved with
+   * "Salvar como template" finds it again. Without it the row is born with no key.
+   */
+  placement?: { location: TagLocation; equipment: readonly (MatchKeyEquipment & Pick<EquipmentRow, 'removed_at'>)[] };
 }
 
 /**
  * The equipment row (project scope) and the block row one palette tap or one "Duplicar"
  * creates, in the shapes `instantiateTemplate` writes (Story 4.1): the TAG trimmed, the
- * sheet empty, nothing concluded or marked not tested.
+ * sheet empty, nothing concluded or marked not tested; with a `placement`, the equipment's
+ * reuse key (Story 24.21).
  */
 export function newEquipmentBlock(input: NewEquipmentBlockInput): { equipment: EquipmentRow; block: BlockRow } {
+  // A company type's key takes its definition's prefix; one the context cannot resolve gets no key.
+  const definition = isCompanyBlockType(input.type) ? findDefinitionIn(input.definitions, input.seedVersion, input.type, input.typeVersion) : null;
+  const keyed = input.placement !== undefined && (!isCompanyBlockType(input.type) || definition?.tag_prefix !== undefined);
   const equipment: EquipmentRow = {
     id: input.equipmentId,
     project_id: input.projectId,
@@ -884,6 +896,7 @@ export function newEquipmentBlock(input: NewEquipmentBlockInput): { equipment: E
     type: input.type,
     last_nameplate: null,
     removed_at: null,
+    ...(keyed ? { reuse_key: reuseKeyFor(input.type, input.placement!.location, input.placement!.equipment, definition) } : {}),
   };
   const block: BlockRow = {
     id: input.blockId,

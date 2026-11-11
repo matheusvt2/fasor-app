@@ -47,7 +47,7 @@ test('@p0 23.16-E2E-001 a dry v13 transformer\'s IP: required once the 1 minuto 
   await expect(cellOf(page, 'isolacao', 0, IP).locator('.mf-helper[role="status"]')).toContainText(outIp.helperText!);
   expect(out.floorReason).toBe('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
   await openStep(page, relatorioId, tf.blockId, 'Conclusão');
-  await expect(page.locator('.conclusion-hint')).toHaveText(out.floorReason!);
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(out.floorReason!);
 
   // 1,5: restricted; the floor Aprovado · Com restrições.
   await openStep(page, relatorioId, tf.blockId, 'Ensaios');

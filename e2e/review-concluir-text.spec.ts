@@ -106,7 +106,7 @@ async function openConclusao(page: Page): Promise<void> {
 /** The suggested pair confirmed, the text left unconfirmed, then "Concluir e avançar". */
 async function confirmPairAndConclude(page: Page, sheet: SeededSheet): Promise<void> {
   await openConclusao(page);
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Aprovado · Sem restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
@@ -150,7 +150,7 @@ test('@p0 R8CONC-E2E-002 an edited text is left as it is: the menu\'s "Concluir 
   const { relatorioId, sheet } = await setUp(page);
   await openSheet(page, relatorioId, sheet.blockId);
   await openConclusao(page);
-  await page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
 
   // "Editar": stored as edited at once, typed, blurred.

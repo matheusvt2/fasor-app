@@ -140,8 +140,8 @@ test('@p0 23.2-E2E-001 a v13 dry transformer judged by NETA Table 100.5 row by r
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await outboxValues(page, `sheet/${tf.blockId}/test/isolacao/cell/1/1`)).at(-1)).toEqual({ raw: '30', unit: 'GΩ', state: 'measured' });
   await stepper(page).getByRole('button', { name: /^Conclusão/ }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado' })).toHaveClass(/\bis-floor\b/);
+  await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveClass(/\bis-floor\b/);
 
   // The issued DOCX. Nothing on the relatório is out, so the parecer is tapped (e22f S5) before issuing.
   await setParecer(page, built.relatorioId, 'Apto');

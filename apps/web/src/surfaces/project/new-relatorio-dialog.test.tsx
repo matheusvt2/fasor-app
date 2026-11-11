@@ -283,7 +283,8 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(bound).toHaveLength(1);
   });
 
-  it('suggests TAGs around a live equipment of another type: SEC-C05 taken by a TP, the new chave in Coluna 5 is SEC-C05-2', async () => {
+  // Story 24.8 (was "... the new chave in Coluna 5 is SEC-C05-2"): the TAG is PREFIX-NN; Story 24.21: the placement's key is stored.
+  it('suggests TAGs around a live equipment of another type: SEC-C05 taken by a TP is not bound, the new chave in Coluna 5 is SC-07 with the key SEC-C05', async () => {
     database = await freshDb();
     const EQUIPMENT = '019966b0-0060-7000-8000-000000000004';
     const existing: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'tp', last_nameplate: null, removed_at: null };
@@ -292,11 +293,10 @@ describe('4.1 NewRelatorioDialog', () => {
     await typeDate('Início da parada', '06092026');
     await userEvent.click(create());
     await screen.findByTestId('setup-route');
-    const tags = (await database.outbox.toArray()).filter((op) => op.path.startsWith('equipment/')).map((op) => (op.value as { tag: string }).tag);
-    expect(tags).toHaveLength(94);
-    expect(tags).toContain('SEC-C05-2');
-    expect(tags).not.toContain('SEC-C05');
-    expect(tags.filter((tag) => tag.startsWith('SEC-C05'))).toEqual(['SEC-C05-2']);
+    const created = (await database.outbox.toArray()).filter((op) => op.path.startsWith('equipment/')).map((op) => op.value as EquipmentRow);
+    expect(created).toHaveLength(94);
+    expect(created.filter((row) => row.tag.startsWith('SEC'))).toEqual([]);
+    expect(created.find((row) => row.reuse_key === 'SEC-C05')).toMatchObject({ tag: 'SC-07', type: 'chave_seccionadora' });
   });
 
   describe('E4 retro item 17: another relatório of the obra this device never pulled', () => {

@@ -14,6 +14,16 @@ export function templatesHeading(count: number): string {
   return `Templates (${count})`;
 }
 
+/**
+ * Story 24.9 (F1; `41-templates.html`, 2026-11-10): the line under the template list naming how many
+ * templates stored on this device fail their schema and are not listed; null with none. authored
+ * (e24b, listed for Bruno): "2 templates não puderam ser lidos neste aparelho.".
+ */
+export function unreadableTemplatesText(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? '1 template não pôde ser lido neste aparelho.' : `${count} templates não puderam ser lidos neste aparelho.`;
+}
+
 /** `41-templates.html` archived group heading: "Arquivados (1)". */
 export function archivedHeading(count: number): string {
   return `Arquivados (${count})`;

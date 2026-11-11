@@ -217,7 +217,7 @@ test('@p1 F-03 "Restaurar texto do template" brings back the template\'s own sec
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const company = (path: string, value: unknown): OpDraft => ({ ...officeDraft(account, { projectId }, path, value, 'create'), scope: 'company', project_id: null });

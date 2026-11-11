@@ -854,6 +854,8 @@ export const copy = {
     pickFuncao: 'Escolha a função',
     missingOther: 'Informe a função',
     missingName: 'Informe o nome',
+    // Story 24.9 (F20), `42-template-composer.html` `#tc-dlg-local` `.toggle-row` (2026-11-10), verbatim.
+    agrupar: 'Agrupar por tipo',
   },
   newRelatorio: {
     // authored (F-28, D3, Matheus 2026-10-06): the second step after Home's "Novo relatório"
@@ -1038,9 +1040,12 @@ export const copy = {
       title: 'Adicionar bloco',
       where: (path: string) => `Em: ${path}`,
       // `40-relatorio-overview.html` line 303 (Story 9.2: the camera tile above it is built).
-      chooseType: 'Ou escolha o tipo · TAG sugerida por tipo + coluna',
+      // ~~'Ou escolha o tipo · TAG sugerida por tipo + coluna'~~ Story 24.8 (batch e24b): `40-relatorio-overview.html` line 518, verbatim (authored in Story 24.1).
+      chooseType: 'Ou escolha o tipo · TAG sugerida por tipo e número',
       // authored (E11-Q6): the same heading when the camera row is absent (AI features off).
-      chooseTypeOnly: 'Escolha o tipo · TAG sugerida por tipo + coluna',
+      // ~~'Escolha o tipo · TAG sugerida por tipo + coluna'~~ (Story 24.8)
+      // authored (e24b, listed for Bruno): the mock's new wording of `chooseType` without "Ou".
+      chooseTypeOnly: 'Escolha o tipo · TAG sugerida por tipo e número',
       // Story 9.2: the `.pal-camera` row (lines 297-300).
       photograph: 'Fotografar equipamento',
       photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
@@ -1478,7 +1483,8 @@ export const copy = {
     nameplate: {
       title: 'Dados de placa',
       // `key-equipment-sheet-v09.html` TAG field helper (Story 12.3): the block's TAG, prefilled.
-      tagHelper: 'Do bloco · editável',
+      // ~~'Do bloco · editável'~~ Story 24.8 (batch e24b): `60-ficha.html` TAG field helper, verbatim; it asks for the plate's TAG.
+      tagHelper: 'Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.',
       // authored: the chip row's name.
       chipsLabel: 'Copiar dados de placa',
       // FR-34 chips (`60-ficha.html`, epics.md Story 5.3).
@@ -1556,6 +1562,17 @@ export const copy = {
       repeated: (tag: string) => `Padrão de ${tag} repetido`,
       // authored: nothing to repeat (the pattern already matches).
       repeatNothing: 'O padrão já é o mesmo desta ficha',
+      // Story 24.6, `60-ficha.html` / `61-verificacoes-local.html` `.e24-kept-line`, verbatim: a row
+      // back to C or N.A. that keeps an edited observation, its one action and the toast.
+      // authored (e24b, listed for Bruno): the line, the action and the toast (Story 24.6's words).
+      keptLine: 'Observação mantida: o texto foi editado.',
+      keptClear: 'Apagar observação',
+      keptCleared: 'Observação apagada',
+      // Story 24.7, `60-ficha.html` `#ficha-dlg-ponto-item`: the question's two buttons (the
+      // story's words; the title and the description are the kernel's `pointQuestionText`).
+      // authored (e24b, listed for Bruno).
+      pointKeep: 'Manter ponto',
+      pointRemove: 'Remover ponto',
     },
     // The "Ensaios" step (Stories 5.5-5.7): the Measurement tables and the Instrument picker,
     // verbatim from `60-ficha.html` where it draws them.
@@ -1652,8 +1669,8 @@ export const copy = {
       samplingHelper: 'Só registra a coleta; a análise do óleo é do laboratório.',
       samplingReasonHelper: 'Não coletado não muda a conclusão da ficha.',
       samplingReasonGroup: 'Motivo da não coleta',
-      // authored (Story 23.20, listed for Bruno): the thermography's action that opens the sheet camera with the test's context.
-      thermalPhoto: 'Foto térmica',
+      // ~~authored (Story 23.20, listed for Bruno): the thermography's action that opens the sheet camera with the test's context.
+      // thermalPhoto: 'Foto térmica'~~ Story 24.9 (F11): the control's words carry the kernel's count (`thermalPhotoText`).
     },
     // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
     // sheet Observation field and the Generated text field.
@@ -1670,8 +1687,11 @@ export const copy = {
       comRestricoes: 'Com restrições',
       // authored (Story 22.4, open for Bruno): the note over a stored pair a later floor made stricter.
       adjustedNote: 'Conclusão ajustada pela ficha',
-      // authored: the suggestion row's field label.
-      suggestionLabel: 'Sugestão',
+      // ~~authored: the suggestion row's field label. 'Sugestão'~~
+      // authored (e24b, listed for Bruno): Story 24.5, the preview row's label (`60-ficha.html` `.e24-conc`).
+      suggestionLabel: 'Prévia da conclusão',
+      // authored (e24b, listed for Bruno): Story 24.5, the line under the groups while a half is a preview.
+      previewLine: 'Prévia: só vale depois de Confirmar ou de Concluir ficha.',
       observationTitle: 'Observações',
       // Story 9.4, `60-ficha.html` 745: the section head's Dictation button.
       dictateObservations: 'Ditar observações',
@@ -1786,9 +1806,7 @@ export const copy = {
       'O parecer segue das fichas: uma ficha reprovada dá Não apto; restrições, não ensaiados, itens não conformes e pontos de atenção dão Apto com restrições. Você pode escolher um parecer mais rigoroso, nunca um mais brando. Sem ficha concluída nem parecer escolhido, a emissão fica bloqueada em Gerar relatório.',
     parecerLabel: 'Parecer',
     parecerSummaryLabel: 'Resumo do parecer',
-    parecerHelper: 'Montado no aparelho a partir das contagens do relatório — não é um veredito. Nada é impresso até você confirmar.',
-    parecerConfirmed: (section: string) => `Confirmado · impresso na caixa de parecer da ${section}`,
-    parecerConfirmedToast: (section: string) => `Resumo do parecer confirmado — impresso na ${section}`,
+    // Story 24.9 (row 3022): `parecerHelper`, `parecerConfirmed` and `parecerConfirmedToast` were rendered nowhere and are gone.
     // authored (Story 22.6, open for Bruno): the composed summary's line, the own text's label and its clear action.
     parecerComposed: (section: string) => `Montado no aparelho a partir das fichas · impresso na caixa de parecer da ${section}`,
     parecerOwnTextLabel: 'Observações do responsável',

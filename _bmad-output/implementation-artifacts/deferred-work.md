@@ -647,7 +647,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Q4 reuse matches only the base TAG the template position would get. An equipment renamed in an earlier relatório, or one that got a suffix at creation from a cross-type TAG collision, is not reused, and the next relatório mints a new row for that position.
   evidence: The coordinator fixed the key (base TAG plus type) on 2026-09-24. `instantiate.ts` compares `normalizeTag(row.tag)` with the base TAG computed over this run's TAGs only. A rename-aware key, or one keyed on location path and ordinal, needs a new product decision. Found by the review pass of 2026-09-24 (Blind Hunter and Edge Case Hunter).
   class: design
-  state: ~~open (owner: Epic 5's equipment work, when nameplates make an equipment's identity visible)~~ open; assigned 2026-11-10 (evening, Matheus on M-5 of `sprint-change-proposal-2026-11-10.md`) to Epic 24, Story 24.21: the equipment stores a key at its creation and the reuse matches on it, so a rename or a suffix no longer loses the equipment. An equipment created before the story has no key, still matches by its TAG and is not covered
+  state: ~~open (owner: Epic 5's equipment work, when nameplates make an equipment's identity visible)~~ open; assigned 2026-11-10 (evening, Matheus on M-5 of `sprint-change-proposal-2026-11-10.md`) to Epic 24, Story 24.21: the equipment stores a key at its creation and the reuse matches on it, so a rename or a suffix no longer loses the equipment. An equipment created before the story has no key, still matches by its TAG and is not covered; ~~open~~ closed 2026-11-11 by batch e24b (Story 24.21, contract 43, `spec-e24b-screen-lane.md`): the equipment stores a write-once `reuse_key` at its creation and a new relatório matches on it, so a renamed TAG or a suffixed one keeps its equipment and its previous visit. Narrowing, still open (owner: Matheus): an equipment created before the batch has no key and is still matched by its TAG, so renaming it loses its history at the next relatório (the coordinator's reading of Story 24.21)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-4-fix-qa.md`
   summary: Removing an equipment sheet frees (tombstones) its `equipment` row unless another live block this device holds references it (Epic 4 QA Q4, `removeSheetOps` over `projectBlockRows`). A later relatório of the obra now reuses the project's equipment, so an equipment shared with a relatório this device never pulled (another device's, not yet opened here) can still be tombstoned by a remove made here; the other relatório's block then points at a removed equipment row until someone restores it.
@@ -1436,7 +1436,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `signIn` setup helper waits 5 s for Home ("Relatórios por status"); under host load 12.2-E2E-006 failed there 2 of 5 repeats, then passed 3 of 3 isolated.
   evidence: `e2e/support/merged-fixtures.ts` `signIn`; `e2e/journey-forward.spec.ts:172`; PR #116 body.
   class: debt
-  state: open (owner: the next carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.9
+  state: open (owner: the next carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.9; ~~open~~ closed 2026-11-11 by batch e24b (Story 24.9, `spec-e24b-screen-lane.md`): `signIn` waits up to 15 s for Home
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
   summary: The unhandled timer error of `apps/web/src/components/number-input.test.tsx:21` (PR #105) could not be reproduced on demand, not even with `--detectAsyncLeaks`; PR #116 makes the harness clear its timers on unmount, which removes the only timer that outlived a test. Close it once a wave gate shows no such error.
   evidence: `apps/web/src/components/number-input.test.tsx` `Harness`; PR #116 body.
@@ -2048,7 +2048,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Left by the kernel slice (b). The suggested TAG of a CTA follows the existing rule with the new prefix only (`CTA`): on a coluna it is "CTA-C05", and placed directly on a local named "Geradores" it is "CTA-GERADORES". The approved mocks show "CTA-GER" there, which is example data: no rule abbreviates a local's name, and the TAG rule is unchanged by decision (`epic-14-context.md`, shared item "TAG rule"). The technician can type any TAG. Decide only if short TAGs for equipment placed directly on a local are wanted; that would be a change to the rule for all nine types.
   evidence: spec "Phase 1 result", last bullet; `packages/domain/src/relatorio/tag.ts` (prefix map, rule untouched); mocks `63-ficha-cta.html:116-124`, `40-relatorio-overview.html:304`, `mockups/key-print-section-9.html:171`.
   class: question
-  state: open (owner: Matheus; no action unless the first real job asks for it); assigned 2026-11-10 to Epic 24, Story 24.8 (the new TAG rule, TYPE-NN, answers it when built)
+  state: open (owner: Matheus; no action unless the first real job asks for it); assigned 2026-11-10 to Epic 24, Story 24.8 (the new TAG rule, TYPE-NN, answers it when built); ~~open~~ closed 2026-11-11 by batch e24b (Story 24.8, `spec-e24b-screen-lane.md`): the suggestion is PREFIX-NN for every type, so a CTA on "Geradores" is "CTA-01"
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: § 8.5 item 1, as it reaches the CTA. With tensão = MT the E2 criterion of a CTA is the firm's own seeded insulation criterion (the `isolacao` entry of `SEEDED_CRITERIA`, "> 400 MΩ", source "aceitável na ficha"), read from there and never repeated in the type, so one relatório judges all its MV equipment by one criterion. `sprint-change-proposal-2026-10-08.md` § 8.5 item 1 records that this value is well below the NETA figure for the 15 kV class and that the matter concerns every MV sheet, not only the CTA; it changes nothing now. If the firm's criterion changes, the CTA in MT follows it with no change to the type. With tensão = BT the criterion is the type's own (`>= 100 MΩ` at 1.000 Vcc).
@@ -2549,7 +2549,7 @@ Source: `_bmad-output/test-artifacts/manual/prod-pass-2026-10-28.md` § "Re-chec
   summary: The chip row "Observações sugeridas do item N" offers a learned NC phrase twice: the registry's normalized name (no closing period) and this device's recent text (with the period); recents and learned phrases are not deduplicated across the trailing period or the registry normalization (production re-check 2026-10-29, G8 steps, P3).
   evidence: `prod-pass-2026-10-28.md` § Re-check, TR-1 item 1 after the 66-character observation on TR-TEST synced; chip sources in `packages/domain/src/registry/nc-phrase-row.ts` (Stories 9.5 and 14.12).
   class: bug
-  state: open (owner: the next ficha batch; dedupe a recent against the learned phrases with the registry's normalization); assigned 2026-11-10 to Epic 24, Story 24.6
+  state: open (owner: the next ficha batch; dedupe a recent against the learned phrases with the registry's normalization); assigned 2026-11-10 to Epic 24, Story 24.6; ~~open~~ closed 2026-11-11 by batch e24b (Story 24.6, `spec-e24b-screen-lane.md`): `ncChipPhrases` compares a phrase without its final period
 - source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09-18/EXPERIENCE.md`
   summary: Home with many relatórios buries the Templates and Cadastros shortcuts under the card list (Matheus, 2026-10-29); Sally's options and recommendation (fold Emitido behind its chip, shortcuts above the list) in `backlog-2026-10-29-home-nav-and-telemetry.md` § 1, with two questions for Bruno.
   evidence: `20-home.html` section order (status chips, cards, "Atalhos"); production Home on 2026-10-29 already puts the shortcuts below the fold at 390 px with two relatórios.
@@ -2724,7 +2724,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - **E15-R1, the rail's site card is named without its counter.** `apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:67` sets the button's `aria-label` to the label, NC badge and name, which replaces the content, so "N de M" (`site.railCounter`) and the state word are never announced (the mock and the Sumário card carry the counter); both trees compose the "· ncBadge" in `apps/web` (also `relatorio-tree-sumario.tsx:116`) against Story 15.2's rule that every text is composed in `packages/domain`. Fix: the kernel site node exposes one accessible name used by both trees.
   state: open (owner: the next epic's carry-over batch)
 - **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
-  state: open (owner: the next epic's carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.8 (only if the story edits `block-palette.tsx`; else it stays open)
+  state: open (owner: the next epic's carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.8 (only if the story edits `block-palette.tsx`; else it stays open); 2026-11-11: batch e24b did not edit `block-palette.tsx`, so the row stays open
 - **E16-R1, an `unchanged` ready names an older revision.** `apps/web/src/surfaces/export/use-generate.ts:456-458`: the "anterior às alterações" banner and row tags are suppressed only while generating, so an `unchanged` answer whose revision is not pulled yet shows "Revisão N pronta" over "(revisão N-1). Alterações desde então geram a revisão N" (Story 16.2 AC 3). Fix: gate both on `readyHeld`, with a dialog test that delivers the job before the revision.
   state: ~~open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)~~ done (2026-11-03, batch s184: `beforeEdits`, and with it `beforeEditsBanner`, also require `readyHeld`; `export-dialog.test.tsx` "E16-R1" delivers an `unchanged` answer before its revision: no banner and no row tag, then the revision lands and both show; red without the gate)
 - **E16-R2, a cabine environment display shot prints nowhere yet holds a photo number.** A temperature or humidity "Ler visor" shot on a local (`apps/web/src/surfaces/ficha/read-display.tsx:733`, `displayEnvTarget`) has no block and no item; Story 16.3 took display shots out of section 7 for sheets only and Story 17.4 kept this one unprinted and numbered last (`packages/domain/src/print/photo-order.ts:83-86`, `:112-113`; pinned by `section-9.test.ts:1169`). The evidence of AMBIENTE DE ENSAIO leaves the document and the gallery shows a "Foto N" no "Imagem N" carries. Options: print it under the cabine's characteristics or environment part, or leave it out of the numbering and say so in the gallery.
@@ -3026,16 +3026,16 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The `blocking` severity and the Export dialog's blocking-row UI (`copy.export.blockingMeta`, `editInSetup`) stay with no rule emitting a blocking row; the parecer copy keys `parecerHelper`, `parecerConfirmed` and `parecerConfirmedToast` are no longer rendered.
   evidence: `packages/domain/src/relatorio/pre-issue.ts` `PreIssueSeverity`; `apps/web/src/surfaces/export/export-dialog.tsx`; `apps/web/src/copy/pt-br.ts` `setup`.
-  state: open; assigned 2026-11-10 to Epic 24, Story 24.9 (the three unused parecer copy keys; the `blocking` severity and the Export dialog's keys are still in use and stay)
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.9 (the three unused parecer copy keys; the `blocking` severity and the Export dialog's keys are still in use and stay); 2026-11-11: the three parecer copy keys removed by batch e24b (Story 24.9, `spec-e24b-screen-lane.md`); the `blocking` severity and the Export dialog's keys stay, still open
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: The e2e walk of a local's NC site item as a derived entry (Pontos card, "Abrir verificações", Editar) is not written; the kernel covers it (`points/derived-kinds.test.ts`, `relatorio/site-checklist.test.ts`) and `e2e/verificacoes-local.spec.ts` asserts the origin `nc` point written from the item.
   evidence: `e2e/points.spec.ts` 22.5-E2E-001 (sheet NC and out reading only).
-  state: open; assigned 2026-11-10 to Epic 24, Story 24.7; 2026-11-10 (evening): superseded in this form by fix batch e24h (no automatic points), since there is no entry to walk. What remains, still in Story 24.7: the browser walk of the point created by the tap on a local's NC item, and of the question on the local's row (24.7-E2E-003)
+  state: open; assigned 2026-11-10 to Epic 24, Story 24.7; 2026-11-10 (evening): superseded in this form by fix batch e24h (no automatic points), since there is no entry to walk. What remains, still in Story 24.7: the browser walk of the point created by the tap on a local's NC item, and of the question on the local's row (24.7-E2E-003); ~~still in Story 24.7~~ closed 2026-11-11 by batch e24b (Story 24.7, `spec-e24b-screen-lane.md`): `e2e/point-question.spec.ts` 24.7-E2E-003 creates the point by the tap on a local's NC item and walks the question on the local's row with both answers
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A point of origin `nc` or `reading` relinked to another equipment or local (Story 20.4 pick, or a later `point/{id}/equipment_id` put) keeps its `item_key`/`test_key` but changes its owner, so it suppresses the new owner's entry and the original entry prints again; needs an immutable source (the block id at create) or a relink guard when `origin !== 'manual'`.
   evidence: `packages/domain/src/points/derived.ts` `pointSource`; review findings EC3 and VG8 of the e22c pass.
   class: bug
-  state: ~~open (owner: the Epic 22 wave A integrated review)~~ partly superseded 2026-11-10 by fix batch e24h (no automatic points): no entry is suppressed and none prints again. What remains, open (owner: batch e24b's spec, Story 24.7): a relinked point keeps its `item_key` or `test_key` under its new owner, so "Origem resolvida" and Story 24.7's question read it against the wrong row
+  state: ~~open (owner: the Epic 22 wave A integrated review)~~ partly superseded 2026-11-10 by fix batch e24h (no automatic points): no entry is suppressed and none prints again. What remains, open (owner: batch e24b's spec, Story 24.7): a relinked point keeps its `item_key` or `test_key` under its new owner, so "Origem resolvida" and Story 24.7's question read it against the wrong row; 2026-11-11, batch e24b (`spec-e24b-screen-lane.md` D5): Story 24.7 asks by owner and `item_key` as the story defines it, so a relinked point is asked about by its new owner's row of the same item; an immutable source or a relink guard is a product decision, not built. Open (owner: Matheus)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A derived entry of a sheet with no equipment (`equipment_id` null) is never suppressed (Story 6.6's rule), so "Editar" or "Criar ponto" on it writes a point that prints beside the entry.
   evidence: `packages/domain/src/points/derived.ts` `entrySource`; review findings EC4, EC5, EC13.
@@ -3649,3 +3649,32 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `apps/web/src/sync/client.ts` `send`; `apps/web/src/sync/engine.ts` (the upload and thumbnail phases).
   class: note
   state: open (owner: the next batch touching sync)
+
+
+## Deferred from: Epic 24 batch e24b (2026-11-11)
+
+- source_spec: `spec-e24b-screen-lane.md` (Design Notes D4; review ECH-8, ECH-11)
+  summary: A reuse key names a place (type, local code, order): a sheet moved to another local and then saved with "Salvar como template", a palette breaker that sits before the original in its coluna, or a keyed sibling removed before the template is saved makes the next relatório miss (or swap) that equipment, which starts with no previous visit.
+  evidence: `packages/domain/src/relatorio/instantiate.ts` (the run), `relatorio/tag.ts` `reuseKeyFor`; Story 24.21 states the template-side limits.
+  class: design
+  state: open (owner: Matheus, with the next decision on equipment identity)
+- source_spec: `spec-e24b-screen-lane.md` (review ECH-4)
+  summary: Story 24.6 counts the recents (other sheets' observations of the item) as offered phrases, so an observation the technician typed that equals another sheet's typed observation ("Repetir padrão" included) reads as automatic and is removed with no warning when the row leaves NC.
+  evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`; `apps/web/src/surfaces/ficha/checklist-section.tsx` `sheetRowTarget` (`leaveChips`).
+  class: decision
+  state: open (owner: Matheus: keep the recents in the rule, or judge against the seed and learned phrases only)
+- source_spec: `spec-e24b-screen-lane.md` (review ECH-6, ECH-7)
+  summary: "Foto térmica · N" counts the sheet's photos with no item whose caption is the thermography's context caption: a sheet renamed after its shots counts 0, and a sheet-camera photo with that caption counts. No stored marker of a thermal shot exists; one needs a file field (a contract). Screen only.
+  evidence: `packages/domain/src/photos/text.ts` `thermalPhotoText`.
+  class: debt
+  state: open (owner: the next ficha batch)
+- source_spec: `spec-e24b-screen-lane.md` (review ECH-14)
+  summary: `moveTagQuestion`, `renameToText`, `MoveTagSuggestion` and the Move dialog's rename branch are dead now that `moveTagSuggestion()` is always null.
+  evidence: `packages/domain/src/relatorio/move.ts`; `apps/web/src/surfaces/relatorio/move-block-dialog.tsx`.
+  class: debt
+  state: open (owner: the next carry-over batch)
+- source_spec: `spec-e24b-screen-lane.md` (Part A report)
+  summary: The "Fotografar equipamento" detect frame of `40-relatorio-overview.html` (:662) still reads "tipo + coluna · nenhuma SEC-C09 no relatório"; the build now reads "tipo · próximo número livre" for every type (Story 24.8).
+  evidence: `mockups/prototype/screens/40-relatorio-overview.html`; `packages/domain/src/relatorio/panel.ts` `panelProvenance`.
+  class: note
+  state: open (owner: the coordinator, with the next mock pass)
