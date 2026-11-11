@@ -428,3 +428,7 @@ Matheus said "siga até o final", asked whether the rest could run in parallel, 
 | B-1 to B-11 | One message after the epic is built, with the authored sentences of every batch, the tolerance's printed form (B-9), and the note that issuing again a relatório from before e24h drops its automatic points | Bruno, through Matheus |
 | later | How automatic points should work | Matheus, with Bruno |
 | Integrated review *(added 2026-11-11)* | D3 taken as a defect (an older visit issued late prints the later one as previous); the readings batch e24s built; the inspection's thermography title in print (E3). The list is in `epic-24-context.md` § Open items and § Integrated review. | Matheus |
+
+## Bruno's answers (2026-11-11)
+
+Bruno answered on 2026-11-11 the thirteen questions of the message drawn from B-1 to B-11 and from the open point on the printed criterion, and sent a document of 33 improvements. Nothing of Epic 24 is reopened, and its deploy is not held. What his answers change is planned as Epic 25, on seed v15: `sprint-change-proposal-2026-11-11.md` § 1 maps each answer to its story. The tolerance's written form (B-9), the QGBT thermography's title and the sentences he corrected are fix batch e24y's.
