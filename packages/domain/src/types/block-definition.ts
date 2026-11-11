@@ -1,5 +1,5 @@
 import { companyBlockType } from '../schemas/block-config.ts';
-import type { CriterionSeed } from '../seed/criteria.ts';
+import { formatCriterionValue, nominalBounds, type CriterionSeed } from '../seed/criteria.ts';
 import type { MeasurementTest } from '../seed/measurement.ts';
 import type { BlockDefinition, ChecklistItem, TestDef } from '../seed/schema.ts';
 import { companySubBlocksOf, type CompanyTypeDefinition } from './definition.ts';
@@ -35,19 +35,40 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-/** The criteria rows as the readers take them (`CriterionSeed`), `usedBy` naming the type. */
+/**
+ * The criteria rows as the readers take them (`CriterionSeed`), `usedBy` naming the type. Story
+ * 24.18: a `nominal_pct` row reads as a `between` over its `nominalBounds` with its own text
+ * ("220 V ±5 %"), so every reader judges and writes it exactly as a range row.
+ */
 function criteriaOf(definition: CompanyTypeDefinition): CriterionSeed[] {
-  return definition.criteria.map((criterion) => ({
-    key: criterion.key,
-    label: criterion.label,
-    operator: criterion.operator,
-    value: criterion.value,
-    ...(criterion.value_max === undefined ? {} : { value_max: criterion.value_max }),
-    unit: criterion.unit,
-    type: criterion.type,
-    source: { name: criterion.source.name, edition: criterion.source.edition },
-    usedBy: definition.label,
-  }));
+  return definition.criteria.map((criterion) => {
+    if (criterion.operator === 'nominal_pct' && criterion.tolerance_pct !== undefined) {
+      const { min, max } = nominalBounds(criterion.value, criterion.tolerance_pct);
+      return {
+        key: criterion.key,
+        label: criterion.label,
+        operator: 'between',
+        value: min,
+        value_max: max,
+        unit: criterion.unit,
+        type: criterion.type,
+        source: { name: criterion.source.name, edition: criterion.source.edition },
+        usedBy: definition.label,
+        text: formatCriterionValue(criterion),
+      };
+    }
+    return {
+      key: criterion.key,
+      label: criterion.label,
+      operator: criterion.operator,
+      value: criterion.value,
+      ...(criterion.value_max === undefined ? {} : { value_max: criterion.value_max }),
+      unit: criterion.unit,
+      type: criterion.type,
+      source: { name: criterion.source.name, edition: criterion.source.edition },
+      usedBy: definition.label,
+    };
+  });
 }
 
 /** One published version as a `BlockDefinition`; the same object for the same row object. */

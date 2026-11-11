@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { duplicateSeededType, publishedText, SEED_VERSION } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
+import { duplicateLibraryType, openTypeList, publishButton } from './support/company-type.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { paletteRowOrder, relatorioSeedVersion, typeLabels } from './support/palette.ts';
@@ -354,4 +356,50 @@ test('@p1 9.2-E2E-006 "Desfazer" right after a photo-backed create removes the b
   expect(await serverRow(account.companyId, 'file', photoId)).toMatchObject({ reading_kind: null, reading_target: null, reading_status: 'none', block_id: null });
   expect(await serverRow(account.companyId, 'suggestion', suggestionId)).toMatchObject({ status: 'discarded' });
   expect(await serverRow(account.companyId, 'block', blockId)).toMatchObject({ removed_at: expect.any(String) });
+});
+
+test('@p1 24.19-E2E-003 (batch e24c) online, with a published copy of the transformer, a transformer reading proposes the copy: its chip first and pressed, "Criar TR-NN · ⟨copy⟩ · Coluna 9?"; one tap creates the copy at version 1', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  const { relatorioId } = await openRelatorio(page, 768);
+  // The copy: "Duplicar" of the library transformer, published untouched and synced.
+  await openTypeList(page);
+  const typeId = await duplicateLibraryType(page, 'transformador_forca');
+  await publishButton(page).click();
+  await expect(page.getByTestId('toast')).toHaveText(publishedText(1));
+  await syncNow(page);
+  const label = duplicateSeededType(SEED_VERSION, 'transformador_forca').draft.label;
+  // Back to the Sumário, section 9 and 1° Subsolo open.
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expect(tree(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await holdPhotoBytes(page);
+  const photoId = await shootPanel(page, await openPalette(page));
+  const dialog = result(page);
+  await expect(dialog).toBeVisible();
+  await pushSuggestion(account.companyId, relatorioId, {
+    targetPath: `file/${photoId}/block_id`,
+    value: { block_type: 'transformador_forca', column: 9, column_text: 'C09' },
+    photoId,
+    bbox: [0.13, 0.13, 0.71, 0.54],
+    actorId: READING_ACTOR,
+  });
+  await context.setOffline(true);
+  await context.setOffline(false);
+
+  const field = dialog.locator('.suggestion-field');
+  await expect(field.locator('.sv-main')).toHaveText(new RegExp(`^Criar TR-\\d{2} · ${label.replace(/[()]/g, '\\$&')} · Coluna 9\\?$`), { timeout: 60_000 });
+  await expect(dialog.getByRole('list', { name: 'Origem de cada sugestão' }).locator('li').first()).toHaveText('Tipofrente do painel');
+  const chips = dialog.locator('.chip-row.chips-recent .chip');
+  await expect(chips.first()).toHaveText(label);
+  await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
+  expect(await dialog.locator('.chip-row .chip').allTextContents()).not.toContain('Transformador de força');
+
+  await field.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(dialog).toBeHidden();
+  const { ops } = await confirmBatch(page, photoId);
+  const block = ops.find((op) => op.kind === 'create' && op.path.startsWith('block/'))!;
+  expect(block.value).toMatchObject({ block_type: `type:${typeId}`, config: { type_version: 1 } });
 });

@@ -23,17 +23,22 @@ import {
   typeEditorTabs,
   updateDraftCriterion,
   updateDraftField,
+  updateDraftFieldRefusal,
   updateDraftItem,
   updateDraftMeasurementRow,
   validateTypeDraft,
+  VECTOR_GROUP_FIELD,
+  vectorGroupPublishIssue,
   type CompanyTypeDraft,
   type EquipmentTypeRow,
   type EquipmentTypeVersionRow,
 } from '@app/domain';
 import type { Page } from '@playwright/test';
+import { newId } from '../apps/api/src/ids.ts';
 import { companyRow, duplicateLibraryType, editorTab, editorTabLabels, libraryRow, openTypeList, publishButton, scrollsSideways, typeInto, typeRows } from './support/company-type.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow } from './support/sync.ts';
 
@@ -515,4 +520,68 @@ test('@p0 e23z-E2E-005 (fix batch e23z, item 4 and W3-3): a copy of the v13 tran
   await page.getByRole('menuitem', { name: 'Remover' }).click();
   await expect(page.locator('.registry-row .rr-primary').filter({ hasText: new RegExp(`^${field.label}$`) })).toHaveCount(0);
   await expect.poll(storedDraft).toEqual(expected);
+});
+
+test('@p0 24.20-E2E-001 (batch e24c): a change of the kind or an option of DESLOCAMENTO ANGULAR is refused with the kernel\'s toast while the ratio test reads it; a draft that lost the field before e23z shows the issue and holds "Publicar"; the ratio test removed, it publishes', async ({ page, seed }) => {
+  test.setTimeout(180_000);
+  const account = seed.companies[1];
+  const database = deviceDatabaseName(account.userId);
+  await resetEmpresaB(account);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  await openTypeList(page);
+  const copy = duplicateSeededType(SEED_VERSION, 'transformador_forca');
+  const typeId = await duplicateLibraryType(page, 'transformador_forca');
+  await expect(page.locator('.tipo-head h2')).toHaveText(copy.draft.label);
+  const storedDraft = async (id: string) => (await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, id)).type?.draft ?? null;
+  await expect.poll(() => storedDraft(typeId)).toEqual(copy.draft);
+  const drafts = async () => (await readStore<OutboxRow>(page, database, 'outbox')).filter((op) => op.path === `equipment_type/${typeId}/draft`).length;
+
+  // --- the refusal: the kind, then one option, of the field a ratio table reads ---
+  await editorTab(page, 'Placa');
+  const field = copy.draft.nameplate.find((entry) => entry.key === VECTOR_GROUP_FIELD)!;
+  const at = copy.draft.nameplate.indexOf(field);
+  const refusal = updateDraftFieldRefusal(copy.draft, at, { kind: 'text' })!;
+  await page.getByRole('list', { name: 'Campos da placa' }).locator('li.registry-row', { has: page.locator('.rr-primary', { hasText: new RegExp(`^${field.label}$`) }) }).locator('button.rr-text').click();
+  const fieldEdit = page.locator('li.def-edit');
+  await fieldEdit.getByRole('combobox', { name: 'Tipo do campo' }).selectOption({ label: 'Texto' });
+  await expect(toast(page)).toHaveText(refusal);
+  await expect(fieldEdit.getByRole('combobox', { name: 'Tipo do campo' })).toHaveValue('select');
+  await fieldEdit.getByRole('button', { name: `Remover opção ${field.options![0]!}` }).click();
+  await expect(toast(page)).toHaveText(refusal);
+  await expect(fieldEdit.getByRole('button', { name: `Remover opção ${field.options![0]!}` })).toBeVisible();
+  expect(await drafts()).toBe(0);
+  expect(await storedDraft(typeId)).toEqual(copy.draft);
+
+  // --- a draft that lost the field before e23z, put from another device and pulled ---
+  const brokenId = newId();
+  const broken: CompanyTypeDraft = { ...structuredClone(copy.draft), label: 'Transformador sem grupo', nameplate: copy.draft.nameplate.filter((entry) => entry.key !== VECTOR_GROUP_FIELD) };
+  const issue = vectorGroupPublishIssue(broken)!;
+  expect(issue).not.toBeNull();
+  const row = newEquipmentTypeRow(brokenId, { derived_from: copy.derived_from, draft: broken as never });
+  await pushDrafts(page, database, [{ kind: 'create', scope: 'company', company_id: account.companyId, project_id: null, relatorio_id: null, path: `equipment_type/${brokenId}`, value: row as never, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId }]);
+  await syncNow(page);
+  await page.goto(`/templates/tipos/${brokenId}`);
+  await expect(page.locator('.tipo-head h2')).toHaveText('Transformador sem grupo', { timeout: 30_000 });
+  const issues = validateTypeDraft(broken);
+  expect(issues).toHaveLength(1);
+  await expect(reason(page)).toHaveText(publishBlockedText(issues)!);
+  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expectTabs(page, [...typeEditorTabs(broken, issues).map((tab) => tab.label), 'Pré-visualização']);
+  await editorTab(page, 'Ensaios');
+  const ratio = broken.tests![issue.test]!;
+  await expect(page.locator('[data-type-issue]')).toContainText([issues[0]!.message]);
+
+  // --- the way out: the ratio test removed, nothing holds the publish ---
+  await page.getByRole('button', { name: `Mais opções de ${ratio.label!}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Remover' }).click();
+  const expected = removeDraftEntry(broken, 'tests', issue.test);
+  await expect.poll(() => storedDraft(brokenId)).toEqual(expected);
+  await expect(reason(page)).toHaveCount(0);
+  await expect(page.locator('[data-type-issue]')).toHaveCount(0);
+  await publishButton(page).click();
+  await expect(toast(page)).toHaveText(publishedText(1));
+  await expect.poll(async () => (await typeRows<EquipmentTypeRow, EquipmentTypeVersionRow>(page, database, brokenId)).versions.map((version) => [version.version, version.definition])).toEqual([[1, expected]]);
+  await syncNow(page);
+  await expect.poll(async () => [...new Set((await readStore<OutboxRow>(page, database, 'outbox')).filter((op) => op.path.startsWith('equipment_type_version/')).map((op) => op.status))]).toEqual(['acked']);
 });

@@ -48,8 +48,12 @@ export const typeNounSchema = z.object({
 });
 export type TypeNoun = z.infer<typeof typeNounSchema>;
 
-/** The seven criterion operators a company criterion takes (`compareCriterion` implements all of them). */
-export const COMPANY_CRITERION_OPERATORS = ['>', '<', '>=', '<=', 'between', '±', 'pass_fail'] as const;
+/**
+ * The criterion operators a company criterion takes (`compareCriterion` implements all of them), in
+ * the order the Critérios tab and its line of rules offer them. Story 24.18 (contract 45):
+ * `nominal_pct`, a nominal value and a tolerance in percent, after `between`.
+ */
+export const COMPANY_CRITERION_OPERATORS = ['>', '<', '>=', '<=', 'between', 'nominal_pct', '±', 'pass_fail'] as const;
 export const companyCriterionOperatorSchema = z.enum(COMPANY_CRITERION_OPERATORS);
 export type CompanyCriterionOperator = z.infer<typeof companyCriterionOperatorSchema>;
 
@@ -73,6 +77,8 @@ export function criterionTypeOf(operator: CompanyCriterionOperator): CriterionTy
  * One row of a company type's criteria table: `between` holds `value` to `value_max`; `±` the
  * tolerance `value` (a deviation, as the seeded ratio criterion); `pass_fail` passes a reading of
  * 1 (aprovado). Every criterion names its source (`source.name`), as every seeded one does.
+ * Story 24.18: `nominal_pct` holds the nominal `value`, in the row's unit, and `tolerance_pct`, a
+ * percent above zero; it judges the range `nominalBounds` gives, both ends within, as `between`.
  */
 export const companyCriterionSchema = z
   .object({
@@ -81,11 +87,18 @@ export const companyCriterionSchema = z
     operator: companyCriterionOperatorSchema,
     value: z.number(),
     value_max: z.number().optional(),
+    // Story 24.18: the tolerance of a `nominal_pct` row, in percent.
+    tolerance_pct: z.number().optional(),
     unit: z.string().min(1).nullable(),
     type: criterionTypeSchema,
     source: z.object({ name: notBlank, edition: z.string().nullable() }),
   })
   .superRefine((criterion, ctx) => {
+    if (criterion.operator === 'nominal_pct' && criterion.tolerance_pct === undefined) ctx.addIssue({ code: 'custom', path: ['tolerance_pct'], message: 'nominal_pct names its tolerance' });
+    if (criterion.operator === 'nominal_pct' && criterion.tolerance_pct !== undefined && !(Number.isFinite(criterion.tolerance_pct) && criterion.tolerance_pct > 0)) {
+      ctx.addIssue({ code: 'custom', path: ['tolerance_pct'], message: 'the tolerance is above zero' });
+    }
+    if (criterion.operator !== 'nominal_pct' && criterion.tolerance_pct !== undefined) ctx.addIssue({ code: 'custom', path: ['tolerance_pct'], message: 'only nominal_pct names a tolerance' });
     if (criterion.operator === 'between' && criterion.value_max === undefined) ctx.addIssue({ code: 'custom', path: ['value_max'], message: 'between names its maximum' });
     if (criterion.operator !== 'between' && criterion.value_max !== undefined) ctx.addIssue({ code: 'custom', path: ['value_max'], message: 'only between names a maximum' });
     if (criterion.operator === 'between' && criterion.value_max !== undefined && criterion.value_max < criterion.value) {
@@ -198,13 +211,16 @@ function criterionUses(definition: object | null | undefined, criterionKey: stri
  * reading, a number cell or a choice cell would fail or never be judged); `pass_fail` judges no
  * reading of any grammar (`applyAbsolute` skips a choice cell), so only a row no test names takes
  * it. A row no test names takes every rule. The editor offers only these; the strict schema
- * refuses the rest.
+ * refuses the rest. Story 24.18: `nominal_pct` wherever `between` may, except on a row the ratio
+ * test's deviation uses.
  */
 export function criterionRulesFor(definition: object | null | undefined, criterionKey: string): CompanyCriterionOperator[] {
   const uses = [...criterionUses(definition, criterionKey)];
   return COMPANY_CRITERION_OPERATORS.filter((operator) => {
     if (operator === '±') return uses.every((use) => use === 'deviation');
     if (operator === 'pass_fail') return uses.length === 0;
+    // Story 24.18: a nominal and a tolerance judge a reading or a cell, never the ratio's deviation (which keeps ±).
+    if (operator === 'nominal_pct') return !uses.includes('deviation');
     return true;
   });
 }
@@ -241,10 +257,15 @@ function checkCompanyDefinition(
     });
   });
   // A rule that would fail every reading it judges (`criterionRulesFor`).
+  const refusals: Partial<Record<CompanyCriterionOperator, string>> = {
+    '±': '± judges a deviation, never a reading nor a cell',
+    pass_fail: 'pass_fail judges no reading of any grammar',
+    // Story 24.18.
+    nominal_pct: 'nominal_pct judges a reading, never the ratio deviation',
+  };
   definition.criteria.forEach((criterion, c) => {
-    if ((criterion.operator === '±' || criterion.operator === 'pass_fail') && !criterionRulesFor(definition, criterion.key).includes(criterion.operator)) {
-      issue(['criteria', c, 'operator'], criterion.operator === '±' ? '± judges a deviation, never a reading nor a cell' : 'pass_fail judges no reading of any grammar');
-    }
+    const refusal = refusals[criterion.operator];
+    if (refusal !== undefined && !criterionRulesFor(definition, criterion.key).includes(criterion.operator)) issue(['criteria', c, 'operator'], refusal);
   });
   checkSeedV6Definition(definition, ctx);
   checkMeasurementDefinition({ sub_blocks: companySubBlocksOf(definition), measurement_tests: definition.measurement_tests, config_fields: definition.config_fields }, ctx);

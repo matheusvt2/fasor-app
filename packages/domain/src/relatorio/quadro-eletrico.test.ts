@@ -113,7 +113,7 @@ describe('the type in the palettes, its TAG and its words', () => {
     const coluna = { kind: 'coluna' as const, name: 'Coluna 5' };
     const items = paletteItems('v6', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(items.map((entry) => entry.type).slice(-2)).toEqual([CTA, QD]);
-    expect(items.at(-1)).toEqual({ type: QD, label: 'Quadro elétrico (QGBT/QD)', tag: 'QD-01', library: true, summary: '17 itens · até 1 ensaio' });
+    expect(items.at(-1)).toEqual({ type: QD, label: 'Quadro elétrico (QGBT/QD)', tag: 'QD-01', library: true, company: false, summary: '17 itens · até 1 ensaio' });
     expect(paletteItems('v5', coluna, [], EMPTY_DEFINITION_CONTEXT).some((entry) => entry.type === QD)).toBe(false);
     expect(libraryTypeSummaryText('v6', QD, EMPTY_DEFINITION_CONTEXT)).toBe('17 itens · até 1 ensaio');
     expect(libraryTypeSummaryText('v5', QD, EMPTY_DEFINITION_CONTEXT)).toBeNull();

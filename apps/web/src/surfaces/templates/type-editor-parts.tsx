@@ -7,10 +7,10 @@ import {
   CRITERION_RULES,
   criterionRulesFor,
   criterionUsedByText,
+  draftCriterionText,
   FIELD_KIND_WORDS,
   FIELD_KINDS,
   fieldSummaryText,
-  formatCriterionValue,
   grammarHintText,
   grammarTaken,
   itemSummaryText,
@@ -33,6 +33,7 @@ import {
   testSummaryText,
   updateDraftCriterion,
   updateDraftField,
+  updateDraftFieldRefusal,
   updateDraftItem,
   updateDraftMeasurementRow,
   updateDraftTest,
@@ -430,10 +431,22 @@ export function NameplatePanel({ draft, issues, edit }: PanelProps) {
   const fields = listOf(draft, 'nameplate');
   const [open, setOpen] = useState<string | null>(null);
   const { showToast } = useToast();
+  // Story 24.20: bumped on a refused change, so the option chips drop a removal or an addition the kernel refused.
+  const [refusals, setRefusals] = useState(0);
   const rows: ListRow[] = fields.map((field, index) => {
     const name = text(field.label).trim() === '' ? `${t.fieldLabel} ${index + 1}` : text(field.label);
     const kind = field.kind as DraftFieldKind | undefined;
     const options = Array.isArray(field.options) ? (field.options as string[]) : [];
+    // Story 24.20: a kind or options change the kernel refuses (the vector-group field a ratio table reads) is a toast, and nothing is written.
+    const change = (patch: { kind?: DraftFieldKind; options?: string[] }) => {
+      const refusal = updateDraftFieldRefusal(draft, index, patch);
+      if (refusal !== null) {
+        showToast(refusal);
+        setRefusals((n) => n + 1);
+        return;
+      }
+      edit((d) => updateDraftField(d, index, patch));
+    };
     return {
       key: `nameplate:${index}`,
       name,
@@ -444,11 +457,11 @@ export function NameplatePanel({ draft, issues, edit }: PanelProps) {
       editor: (
         <div className="field-grid">
           <TextField label={t.fieldLabel} value={text(field.label)} onCommit={(value) => edit((d) => updateDraftField(d, index, { label: value }))} />
-          <SelectField label={t.fieldKind} value={kind ?? ''} options={FIELD_KINDS.map((value) => ({ value, label: FIELD_KIND_WORDS[value] }))} onChange={(value) => edit((d) => updateDraftField(d, index, { kind: value }))} />
+          <SelectField label={t.fieldKind} value={kind ?? ''} options={FIELD_KINDS.map((value) => ({ value, label: FIELD_KIND_WORDS[value] }))} onChange={(value) => change({ kind: value })} />
           {kind === 'select' ? (
             <div className="field span-2">
               <span className="field-label">{t.fieldOptions}</span>
-              <ChipList words={options} onChange={(words) => edit((d) => updateDraftField(d, index, { options: words }))} addLabel={t.newOptionLabel} addWord={t.newOption} removeLabel={t.removeOption} />
+              <ChipList key={refusals} words={options} onChange={(words) => change({ options: words })} addLabel={t.newOptionLabel} addWord={t.newOption} removeLabel={t.removeOption} />
               <span className="helper">{t.unitNotForList}</span>
             </div>
           ) : kind === 'number' || kind === 'voltage_class' ? (
@@ -653,8 +666,8 @@ export function TestsPanel({ draft, issues, edit }: PanelProps) {
     const criterionOf = (rowKey: string): string => {
       const named = testCriteria.find((criterion) => criterion.type === 'absolute' && Array.isArray(criterion.rows) && criterion.rows.includes(rowKey) && typeof criterion.seeded === 'string');
       const row = named === undefined ? undefined : criteria.find((criterion) => criterion.key === named.seeded);
-      if (row === undefined || typeof row.value !== 'number' || typeof row.operator !== 'string') return text(named?.text);
-      return formatCriterionValue({ operator: row.operator, value: row.value, ...(typeof row.value_max === 'number' ? { value_max: row.value_max } : {}), unit: typeof row.unit === 'string' ? row.unit : null });
+      // Story 24.18: the kernel words the row ("entre 198 e 242 Vca", "220 V ±5 %"); a row not typed yet reads the criterion's own text.
+      return draftCriterionText(row) ?? text(named?.text);
     };
     return {
       key: `measurement_tests:${index}`,
@@ -859,7 +872,7 @@ export function CriteriaPanel({ draft, issues, edit }: PanelProps) {
                     <>
                       <td data-label={t.colRule}>{operator === undefined ? '' : CRITERION_RULE_WORDS[operator]}</td>
                       <td className="cell-crit" data-label={t.colValue}>
-                        {typeof criterion.value === 'number' && operator !== undefined ? formatCriterionValue({ operator, value: criterion.value, ...(typeof criterion.value_max === 'number' ? { value_max: criterion.value_max } : {}), unit: unit === '' ? null : unit }) : ''}
+                        {draftCriterionText(criterion) ?? ''}
                       </td>
                       <td className="cell-src" data-label={t.colSource}>
                         {[text(source.name), text(source.edition)].filter((part) => part.trim() !== '').join(' ')}
@@ -875,6 +888,21 @@ export function CriteriaPanel({ draft, issues, edit }: PanelProps) {
                       <td className="cell-crit" data-label={t.colValue}>
                         {operator === 'pass_fail' ? (
                           CRITERION_RULE_WORDS.pass_fail
+                        ) : operator === 'nominal_pct' ? (
+                          // Story 24.18 (`43-tipo-equipamento.html` line 253): the nominal and the tolerance, side by side (stacked on the phone).
+                          <div className="tipo-nominal">
+                            <div className="field">
+                              <span className="field-label">{t.nominalLabel}</span>
+                              <div className="value-pair">
+                                <TextInput className="input tabular" inputMode="decimal" aria-label={t.nominalOf(name)} value={numberText(criterion.value)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { value: numberOf(value) }))} />
+                                {unit === '' ? null : <span className="unit">{unit}</span>}
+                              </div>
+                            </div>
+                            <div className="field">
+                              <span className="field-label">{t.toleranceLabel}</span>
+                              <TextInput className="input tabular" inputMode="decimal" aria-label={t.toleranceOf(name)} value={numberText(criterion.tolerance_pct)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { tolerance_pct: numberOf(value) }))} />
+                            </div>
+                          </div>
                         ) : (
                           <div className="value-pair">
                             <TextInput className="input tabular" inputMode="decimal" aria-label={t.valueLabel(name)} value={numberText(criterion.value)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { value: numberOf(value) }))} />
@@ -887,7 +915,8 @@ export function CriteriaPanel({ draft, issues, edit }: PanelProps) {
                             {unit === '' ? null : <span className="unit">{unit}</span>}
                           </div>
                         )}
-                        <IssueLines issues={[...at('value'), ...at('value_max'), ...at('unit')]} />
+                        {operator === 'nominal_pct' && draftCriterionText(criterion) !== null ? <span className="helper nominal-text">{draftCriterionText(criterion)}</span> : null}
+                        <IssueLines issues={[...at('value'), ...at('value_max'), ...at('tolerance_pct'), ...at('unit')]} />
                       </td>
                       <td className="cell-src" data-label={t.colSource}>
                         <TextInput aria-label={t.sourceLabel(name)} placeholder={t.sourcePlaceholder} value={text(source.name)} onCommit={(value) => edit((d) => updateDraftCriterion(d, index, { source_name: value }))} />

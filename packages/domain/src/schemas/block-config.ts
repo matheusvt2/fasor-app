@@ -253,7 +253,7 @@ export const ITEM_KEYS = [
   'vasamento',
   'fiacao_secundaria',
   'buchas',
-  // Appended (seed v14, batch e24s, contract 45): the transformer's oil item and two dry items
+  // Appended (seed v14, batch e24s, contract 46): the transformer's oil item and two dry items
   // (Story 24.11) and the Inspeção de QGBT's function test (Story 24.12) (`docs/nc-chip-phrases.md`,
   // "Seed v14"); the inspection's REAPERTO GERAL is the Quadro elétrico's `reaperto_geral`.
   'tanque_e_aletas',

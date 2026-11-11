@@ -1,4 +1,6 @@
 import type { z } from 'zod';
+import { isVectorGroupOptions, VECTOR_GROUP_FIELD } from '../relatorio/vector-group.ts';
+import { findDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { TEST_TEXT_MAX_LENGTH } from '../seed/test-help.ts';
 import { companyTypeDefinitionSchema, type CompanyTypeDraft } from './definition.ts';
 
@@ -8,7 +10,9 @@ import { companyTypeDefinitionSchema, type CompanyTypeDraft } from './definition
  * exactly what the strict `companyTypeDefinitionSchema` refuses: every issue the schema raises is
  * one issue here, read back as the sentence the editor shows inline beside the part it concerns,
  * so the editor and `applyOp` can never disagree on whether a draft publishes. The editor keeps
- * "Publicar" disabled with the first issue as its reason (`publishBlockedText`).
+ * "Publicar" disabled with the first issue as its reason (`publishBlockedText`). Story 24.20: plus
+ * one publish rule outside the strict schema (`vectorGroupPublishIssue`), which the server's push
+ * route refuses instead of the fold, so a version published before it still folds.
  */
 
 /** The editor tab an issue belongs to (`43-tipo-equipamento.html`). */
@@ -235,8 +239,16 @@ function sentenceOf(issue: z.core.$ZodIssue, draft: Draft): { message: string; s
       if (sub === 'operator' && issue.message.startsWith('± judges')) return plain(`${name}: a regra ± vale para o desvio da relação de transformação; escolha outra regra.`, `${name} com regra ±`);
       // authored: e22h N1, no grammar judges "aprovado ou reprovado" yet.
       if (sub === 'operator' && issue.message.startsWith('pass_fail judges')) return plain(`${name}: nenhum ensaio julga "aprovado ou reprovado"; escolha outra regra.`, `${name} com aprovado ou reprovado`);
+      // authored (e24c, listed for Bruno): Story 24.18's rule on the ratio's deviation, its nominal and its tolerance.
+      if (sub === 'operator' && issue.message.startsWith('nominal_pct judges')) return plain(`${name}: a regra "nominal ± %" julga uma leitura, não o desvio da relação de transformação; escolha outra regra.`, `${name} com regra nominal ± %`);
       if (sub === 'operator') return plain(`${name}: escolha a regra.`, `${name} sem regra`);
+      if (sub === 'value' && item?.operator === 'nominal_pct') return plain(`${name}: informe o valor nominal.`, `${name} sem valor nominal`);
       if (sub === 'value') return plain(`${name}: informe o valor.`, `${name} sem valor`);
+      if (sub === 'tolerance_pct') {
+        if (issue.message.includes('only nominal_pct')) return plain(`${name}: só a regra "nominal ± %" tem tolerância.`, `${name} com tolerância`);
+        if (issue.message.includes('above zero')) return plain(`${name}: a tolerância (%) precisa ser maior que zero.`, `${name} com tolerância zero ou negativa`);
+        return plain(`${name}: informe a tolerância (%).`, `${name} sem tolerância`);
+      }
       if (sub === 'value_max') {
         if (issue.message.includes('below')) return plain(`${name}: o valor máximo é menor que o mínimo.`, `${name} com máximo abaixo do mínimo`);
         if (issue.message.includes('only between')) return plain(`${name}: só a regra "entre" tem valor máximo.`, `${name} com máximo`);
@@ -274,15 +286,63 @@ function seededCriterionAt(draft: Draft, test: unknown, criterion: unknown): boo
   );
 }
 
+/** What `vectorGroupPublishIssue` finds: the ratio test that cannot compute, and the label of the field it reads. */
+export interface VectorGroupPublishIssue {
+  /** The index in `tests` of the first test whose table computes the ratio by the vector group. */
+  test: number;
+  /** The field's own label, else the base type's at the current seed (DESLOCAMENTO ANGULAR), else its key. */
+  label: string;
+}
+
+const looseEntries = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => entry !== null && typeof entry === 'object' && !Array.isArray(entry)) : [];
+
+/**
+ * Story 24.20 (the publish rule; D3 of `spec-e24c-company-types.md`): a definition whose ratio table
+ * reads by the vector group (`ratio_factor: 'vector_group'`) while its plate holds no valid
+ * vector-group field (`VECTOR_GROUP_FIELD`, a select whose options are exactly the codes): the
+ * field missing, its kind changed or its options changed. Null when no table reads by the group, or
+ * the field is valid. It is a publish rule, not a rule of the strict schema, so a version published
+ * in that state before it still folds on a fresh device (`assertVersionCreate`); the editor shows
+ * it (`validateTypeDraft`) and the server's push route refuses the publish.
+ */
+export function vectorGroupPublishIssue(definition: object | null | undefined): VectorGroupPublishIssue | null {
+  const d = (definition ?? {}) as Record<string, unknown>;
+  const test = looseEntries(d.tests).findIndex((entry) => looseEntries(entry.tables).some((table) => table.ratio_factor === 'vector_group'));
+  if (test === -1) return null;
+  const field = looseEntries(d.nameplate).find((entry) => entry.key === VECTOR_GROUP_FIELD);
+  const options = Array.isArray(field?.options) && field.options.every((option) => typeof option === 'string') ? (field.options as string[]) : undefined;
+  if (field !== undefined && field.kind === 'select' && isVectorGroupOptions(options)) return null;
+  const own = textOf(field?.label);
+  const base = typeof d.base_block_type === 'string' ? findDefinition(SEED_VERSION, d.base_block_type)?.nameplate.find((entry) => entry.key === VECTOR_GROUP_FIELD)?.label : undefined;
+  return { test, label: own ?? textOf(base) ?? VECTOR_GROUP_FIELD };
+}
+
+/** The issue `vectorGroupPublishIssue` finds, as the editor shows it on the Ensaios tab. */
+function vectorGroupIssue(draft: Draft): TypeDraftIssue | null {
+  const found = vectorGroupPublishIssue(draft);
+  if (found === null) return null;
+  const name = nameOf(itemAt(draft, 'tests', found.test), 'ensaio', found.test);
+  // authored (e24c, listed for Bruno): Story 24.20's issue and its publish-bar summary.
+  return {
+    path: ['tests', found.test],
+    part: 'ensaios',
+    message: `${name}: a relação de transformação é calculada pelo grupo de ligação do campo ${found.label} da placa, que não está mais na placa como a lista dos grupos. Remova este ensaio, ou comece de novo com "Duplicar".`,
+    summary: `${PART_WORD.ensaios} › ${name} sem o campo ${found.label}`,
+  };
+}
+
 /**
  * The draft's issues, in the order of the editor's tabs and then of the draft; none when the draft
  * publishes as it is. One issue per place: a field missing several things is named once, by the
- * first rule it breaks.
+ * first rule it breaks. Story 24.20: the vector-group publish rule (`vectorGroupPublishIssue`) is
+ * one more issue, raised whether the strict schema passes or not.
  */
 export function validateTypeDraft(draft: CompanyTypeDraft | null | undefined): TypeDraftIssue[] {
   const value: Draft = draft !== null && typeof draft === 'object' && !Array.isArray(draft) ? (draft as Draft) : {};
   const parsed = companyTypeDefinitionSchema.safeParse(value);
-  if (parsed.success) return [];
+  const vector = vectorGroupIssue(value);
+  if (parsed.success) return vector === null ? [] : [vector];
   const seen = new Set<string>();
   const out: TypeDraftIssue[] = [];
   for (const issue of parsed.error.issues) {
@@ -301,6 +361,7 @@ export function validateTypeDraft(draft: CompanyTypeDraft | null | undefined): T
     seen.add(at);
     out.push({ path, part, message, summary });
   }
+  if (vector !== null) out.push(vector);
   const order = (part: TypeEditorPart) => TYPE_EDITOR_PARTS.indexOf(part);
   return out.map((issue, i) => ({ issue, i })).sort((a, b) => order(a.issue.part) - order(b.issue.part) || a.i - b.i).map(({ issue }) => issue);
 }

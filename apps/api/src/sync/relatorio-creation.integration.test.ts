@@ -158,11 +158,10 @@ describe('4.1-API relatório creation as one batch', () => {
 
 describe('24.2-API-001 seed v14 through the sync route', () => {
   it(
-    // Batch e24s (contract 45): the previous contract is 44 now, the current one 45.
-    'a relatório created from the standard template is born on v14, every sheet on v14; a version-44 client is refused its stream with 426, a version-45 one reads it',
+    'a relatório created from the standard template is born on v14, every sheet on v14; a version-45 client is refused its stream with 426, a current one reads it (contract 46 since batch e24s)',
     async () => {
       expect(SEED_VERSION).toBe('v14');
-      expect(MIN_CONTRACT_VERSION).toBe(45);
+      expect(MIN_CONTRACT_VERSION).toBe(46);
       const projectId = newId();
       const projectDraft: OpDraft = {
         kind: 'create',
@@ -208,10 +207,10 @@ describe('24.2-API-001 seed v14 through the sync route', () => {
       expect(new Set(sheets.map((block) => block.seed_version))).toEqual(new Set(['v14']));
 
       // The previous contract ships no seed v14: its pull is refused with the update notice's code.
-      const old = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '44' } });
+      const old = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '45' } });
       expect(old.status).toBe(426);
       expect(((await old.json()) as { code: string }).code).toBe('contract_outdated');
-      const current = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '45' } });
+      const current = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) } });
       expect(current.status, await current.clone().text()).toBe(200);
       const pulled = syncPullResponseSchema.parse(await current.json()).ops as Op[];
       expect(pulled.find((op) => op.path === `relatorio/${relatorioId}`)?.value).toMatchObject({ seed_version: 'v14' });

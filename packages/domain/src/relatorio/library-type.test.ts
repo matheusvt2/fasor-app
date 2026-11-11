@@ -57,7 +57,7 @@ describe('matrix "Palettes by seed": v4 lists the eight; v5 the eight then "Outr
     const v5 = paletteItems('v5', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(v5.map((item) => item.type)).toEqual([...BASE_EQUIPMENT_BLOCK_TYPES, CTA]);
     expect(v5.slice(0, 8)).toEqual(v4);
-    expect(v5[8]).toEqual({ type: CTA, label: 'Chave de transferência automática', tag: 'CTA-01', library: true, summary: '17 itens · até 6 ensaios' });
+    expect(v5[8]).toEqual({ type: CTA, label: 'Chave de transferência automática', tag: 'CTA-01', library: true, company: false, summary: '17 itens · até 6 ensaios' });
     // Directly on a local, and with the TAG taken. Story 24.8 (row 2051): the local no longer enters the TAG (was CTA-GERADORES).
     const local = { kind: 'cabine' as const, name: 'Geradores' };
     expect(paletteItems('v5', local, [], EMPTY_DEFINITION_CONTEXT)[8]!.tag).toBe('CTA-01');

@@ -647,10 +647,11 @@ describe('Story 14.6 review: the rules a criterion may take (criterionRulesFor)'
   });
 
   it('an insulation or contact reading, a number row and a choice row take neither ± nor pass_fail (e22h N1); the ratio takes ±', () => {
-    const comparisons = ['>', '<', '>=', '<=', 'between'];
+    // Story 24.18 (2026-11-11): "nominal ± %" follows "entre" wherever it may, never on the ratio's deviation.
+    const comparisons = ['>', '<', '>=', '<=', 'between', 'nominal_pct'];
     expect(criterionRulesFor(DEFINITION_1, 'isolacao')).toEqual(comparisons);
     expect(criterionRulesFor(DEFINITION_1, 'tensao_saida')).toEqual(comparisons);
-    expect(criterionRulesFor(ratio, ratioKey)).toEqual([...comparisons, '±']);
+    expect(criterionRulesFor(ratio, ratioKey)).toEqual(['>', '<', '>=', '<=', 'between', '±']);
     expect(criterionRulesFor(choiceTable(DEFINITION_1), 'tensao_saida')).toEqual(comparisons);
     // A row no test names, and a loose draft the editor holds, take what their uses allow.
     expect(criterionRulesFor(DEFINITION_1, 'sem_uso')).toEqual([...comparisons, '±', 'pass_fail']);

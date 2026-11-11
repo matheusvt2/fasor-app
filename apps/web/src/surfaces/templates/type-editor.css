@@ -58,3 +58,9 @@
 [data-route="/templates/tipos/:id"] .tipo-help-head { display: flex; flex-direction: column; gap: 2px; }
 [data-route="/templates/tipos/:id"] .tipo-help-head h3 { font-size: var(--t-body-size); font-weight: 600; line-height: var(--t-body-lh); }
 [data-route="/templates/tipos/:id"] .tipo-help .observation-field { min-height: 72px; }
+/* Batch e24c (Story 24.18): `43-tipo-equipamento.html` lines 50-54 (Story 24.1 frame), the two inputs of a "nominal ± %" criterion,
+   declarations verbatim; the phone rule is `app.css`'s. The kernel's text of the row ("220 V ±5 %") sits under them as a helper. */
+[data-route="/templates/tipos/:id"] .tipo-nominal { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--sp-2); min-width: 220px; }
+[data-route="/templates/tipos/:id"] .tipo-nominal .field-label { font-size: var(--t-meta-size); white-space: nowrap; }
+[data-route="/templates/tipos/:id"] .data-table td[data-label="Regra"] .input { white-space: nowrap; }
+[data-route="/templates/tipos/:id"] .data-table td .helper.nominal-text { display: block; margin-top: var(--sp-1); }

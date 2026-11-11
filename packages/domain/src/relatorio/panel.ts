@@ -2,8 +2,8 @@ import { fileFieldPath, suggestionStatusPath } from '../ops/path.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { panelReadingTarget, panelSuggestionValueSchema, type PanelSuggestionValue } from '../reading/panel.ts';
 import { plateReadingTarget } from '../reading/target.ts';
-import type { EquipmentBlockType } from '../schemas/block-config.ts';
-import { equipmentTypesOf } from '../seed/definitions.ts';
+import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType } from '../schemas/block-config.ts';
+import { EMPTY_DEFINITION_CONTEXT, equipmentTypesOf, findDefinitionIn, latestTypeVersion, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockRow, JsonValue, LocationRow, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
 import type { BlockLocationRow } from './local.ts';
 import { liveLocationIds } from './location-live.ts';
@@ -11,7 +11,7 @@ import { locationPathText } from './location-path.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
 import { discardSuggestionOp, PLATE_CAPTION } from './suggestions.ts';
 import { locationCode, suggestTag, type TagEquipment } from './tag.ts';
-import { blockTypeLabel } from './tree.ts';
+import { blockTypeLabelIn, hidingCopies } from './tree.ts';
 
 /*
  * Story 9.2 (FR-38): "Fotografar equipamento" on the device, every derived value once. The
@@ -172,20 +172,46 @@ export function panelLocation(locations: readonly LocationRow[], paletteLocation
 
 /** One chip of the type row. */
 export interface PanelTypeChip {
-  type: EquipmentBlockType;
+  /** Story 24.19: a company copy that hides a seeded type stands in its place. */
+  type: BlockTypeKey;
   label: string;
+  /** Story 24.19: the published version a company copy's block is placed at (its latest); absent on a seeded type. */
+  typeVersion?: number;
+}
+
+/** A company type's latest published version in the context, absent on a seeded type or one with none. */
+function companyVersionOf(ctx: DefinitionContext, type: BlockTypeKey): number | undefined {
+  return isCompanyBlockType(type) ? (latestTypeVersion(ctx, type.slice('type:'.length)) ?? undefined) : undefined;
+}
+
+/**
+ * Story 24.19: the type a panel reading proposes for the type it read: the read type itself, or,
+ * when company copies hide it (`hidingCopies`), its one copy; null when several copies hide it (the
+ * engineer picks one).
+ */
+function proposedFor(ctx: DefinitionContext, seedVersion: string, read: EquipmentBlockType): BlockTypeKey | null {
+  const copies = hidingCopies(ctx, seedVersion).get(read);
+  if (copies === undefined) return read;
+  return copies.length === 1 ? copies[0]! : null;
 }
 
 /**
  * The type chips of the result dialog: collapsed, the read type and the next three in seed
  * order (wrapping), then "Outro…" (`other`); expanded, or with no type read, every type the
  * relatório's seed version ships (the eight; Story 14.5: on v5 the library type after them).
- * A read type the version does not ship is no type read.
+ * A read type the version does not ship is no type read. Story 24.19: with the company's types
+ * (`ctx`), a type its copies hide is replaced in the list by them; a read type one copy hides
+ * starts the row at that copy, one several copies hide is no type read (every chip shown).
  */
-export function panelTypeChips(seedVersion: string, first: EquipmentBlockType | null, expanded: boolean): { chips: PanelTypeChip[]; other: boolean } {
-  const all = equipmentTypesOf(seedVersion);
-  const chip = (type: EquipmentBlockType): PanelTypeChip => ({ type, label: blockTypeLabel(seedVersion, type) });
-  const at = first === null ? -1 : all.indexOf(first);
+export function panelTypeChips(seedVersion: string, first: EquipmentBlockType | null, expanded: boolean, ctx: DefinitionContext = EMPTY_DEFINITION_CONTEXT): { chips: PanelTypeChip[]; other: boolean } {
+  const hidden = hidingCopies(ctx, seedVersion);
+  const all: BlockTypeKey[] = equipmentTypesOf(seedVersion).flatMap((type) => hidden.get(type) ?? [type]);
+  const chip = (type: BlockTypeKey): PanelTypeChip => {
+    const typeVersion = companyVersionOf(ctx, type);
+    return { type, label: blockTypeLabelIn(ctx, seedVersion, type, typeVersion), ...(typeVersion === undefined ? {} : { typeVersion }) };
+  };
+  const start = first === null || !equipmentTypesOf(seedVersion).includes(first) ? null : proposedFor(ctx, seedVersion, first);
+  const at = start === null ? -1 : all.indexOf(start);
   if (at === -1 || expanded) return { chips: all.map(chip), other: false };
   const types = [0, 1, 2, 3].map((offset) => all[(at + offset) % all.length]!);
   return { chips: types.map(chip), other: true };
@@ -204,12 +230,16 @@ export interface PanelProposalInput {
   equipment: readonly TagEquipment[];
   paletteLocationId: string;
   suggestion: PanelSuggestion | null;
-  /** The chip the engineer tapped, or null while none was. */
-  pickedType: EquipmentBlockType | null;
+  /** The chip the engineer tapped, or null while none was (Story 24.19: a company copy's chip too). */
+  pickedType: BlockTypeKey | null;
+  /** Story 24.19: the company's types, so a read type a copy hides proposes the copy; none by default. */
+  definitions?: DefinitionContext;
 }
 
 export interface PanelProposal {
-  type: EquipmentBlockType;
+  type: BlockTypeKey;
+  /** Story 24.19: the published version a company copy's block is placed at (its latest); absent on a seeded type. */
+  typeVersion?: number;
   typeLabel: string;
   location: BlockLocationRow;
   /** "1° Subsolo › Coluna 9". */
@@ -226,21 +256,26 @@ export interface PanelProposal {
 
 /** The block one tap would create, or null while no type is known (no "Criar" line) or the palette location is gone. */
 export function panelProposal(input: PanelProposalInput): PanelProposal | null {
+  const ctx = input.definitions ?? EMPTY_DEFINITION_CONTEXT;
   // Story 14.5: a type the relatório's seed version does not ship was never read as far as the proposal goes.
   const read = input.suggestion?.value.block_type ?? null;
-  const suggested = read !== null && equipmentTypesOf(input.seedVersion).includes(read) ? read : null;
+  // Story 24.19: a read type one company copy hides proposes the copy; one several copies hide, none.
+  const suggested = read !== null && equipmentTypesOf(input.seedVersion).includes(read) ? proposedFor(ctx, input.seedVersion, read) : null;
   const type = input.pickedType ?? suggested;
   if (type === null) return null;
   const where = panelLocation(input.locations, input.paletteLocationId, input.suggestion?.value.column ?? null);
   if (where === null) return null;
   const { location, matched } = where;
-  const typeLabel = blockTypeLabel(input.seedVersion, type);
-  const tag = suggestTag(type, input.equipment);
+  const typeVersion = companyVersionOf(ctx, type);
+  const typeLabel = blockTypeLabelIn(ctx, input.seedVersion, type, typeVersion);
+  const definition = isCompanyBlockType(type) ? findDefinitionIn(ctx, input.seedVersion, type, typeVersion) : null;
+  const tag = suggestTag(type, input.equipment, definition);
   const byHand = input.pickedType !== null && input.pickedType !== suggested;
   const trust = input.suggestion === null || byHand ? null : input.suggestion.row.trust === 'verify' || !matched ? 'verify' : 'suggested';
   const suggestionStatus = input.suggestion === null ? null : type === suggested && matched ? 'confirmed' : 'discarded';
   return {
     type,
+    ...(typeVersion === undefined ? {} : { typeVersion }),
     typeLabel,
     location,
     locationPath: locationPathText(input.locations, location.id),
@@ -261,7 +296,8 @@ export interface PanelProvenanceItem {
 /** The three `.prov-list` lines of a proposal: the type, the column and the TAG. */
 export function panelProvenance(proposal: PanelProposal, suggestion: PanelSuggestion | null): PanelProvenanceItem[] {
   const read = suggestion?.value ?? null;
-  const typeText = read !== null && read.block_type === proposal.type ? 'frente do painel' : 'escolhido por você';
+  // Story 24.19: the read type, or the one company copy that hides it, is the reading's (its trust is set).
+  const typeText = read !== null && proposal.trust !== null ? 'frente do painel' : 'escolhido por você';
   const label = read?.column_text ?? null;
   const columnText =
     label === null

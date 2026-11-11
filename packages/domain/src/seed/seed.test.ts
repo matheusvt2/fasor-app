@@ -298,7 +298,7 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     expect([...all].sort()).toEqual(ITEM_KEYS.slice(0, 44).sort());
     expect(all.size).toBe(44);
     expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
-    // Batch e24s (seed v14, contract 45) appended four: the transformer's three and the Inspeção de QGBT's function test.
+    // Batch e24s (seed v14, contract 46) appended four: the transformer's three and the Inspeção de QGBT's function test.
     expect(ITEM_KEYS).toHaveLength(83);
   });
 
