@@ -17,8 +17,8 @@ import { visitContextOf } from './visit-context.ts';
  *   rename (another input moved it) is not written either (Design Notes N2 of the spec).
  * - P3: a sheet whose plate stores a TAG cell gets it rewritten with the new TAG, so the plate's
  *   TAG and the equipment's never differ after a rename. A sheet with no stored cell keeps
- *   showing the equipment's TAG through `nameplateTagPrefill`, so nothing is written there,
- *   unless the caller names it (`plateCellOf`: the plate field whose commit is the rename).
+ *   showing the equipment's TAG through `nameplateTagPrefill`, so nothing is written there, not even
+ *   when the plate field itself commits the rename (review Y2: its undo would store a null cell).
  *
  * Only the live sheets of `relatorioId` bound to the equipment are touched: another relatório's
  * sheets of the same equipment, and every TAG on reading or opening, stay as they are (N3).
@@ -48,10 +48,9 @@ const PLATE_TAG_KEY = 'tag';
 
 /**
  * The writes a rename of `equipmentId` to `tag` carries on the live sheets of `relatorioId` bound to
- * it (see the header). `plateCellOf` names a sheet whose plate TAG cell is written even when it
- * stores none (the plate field the engineer committed). Empty when nothing follows.
+ * it (see the header). Empty when nothing follows.
  */
-export function tagRenameFollows(source: TagRenameSource, relatorioId: string, equipmentId: string, tag: string, options: { plateCellOf?: string } = {}): TagRenameFollow[] {
+export function tagRenameFollows(source: TagRenameSource, relatorioId: string, equipmentId: string, tag: string): TagRenameFollow[] {
   const row = source.equipment.find((one) => one.id === equipmentId);
   if (row === undefined) return [];
   const before = row.tag;
@@ -72,7 +71,8 @@ export function tagRenameFollows(source: TagRenameSource, relatorioId: string, e
     }
     const hasTagField = definition.nameplate.some((field) => field.key === PLATE_TAG_KEY);
     const stored = block.sheet.nameplate[PLATE_TAG_KEY];
-    const plateTag = hasTagField && (options.plateCellOf === block.id || (stored !== undefined && stored.value !== after));
+    // Review Y2: never a cell where none is stored (the field's prefill follows the equipment; an undo would leave a null cell).
+    const plateTag = hasTagField && stored !== undefined && stored.value !== after;
     if (conclusion !== null || plateTag) out.push({ blockId: block.id, conclusion, plateTag });
   }
   return out;

@@ -222,7 +222,7 @@ describe('24.3-UNIT B-1 a v14 reading out of its criterion floors Reprovado and 
     expect(conclusionPreview(stored(v14, 'reprovado', null))).toEqual({ result: false, restriction: false });
     const v13 = outCable('v13');
     expect(conclusionPreview(v13)).toEqual({ result: true, restriction: true });
-    expect(conclusionSuggestionText(conclusionSuggestion(v13)!)).toBe('Marcar como Reprovado · Com restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(v13)!)).toBe('Reprovado · Com restrições?');
     expect(conclusionPreview(stored(v13, 'reprovado', null))).toEqual({ result: false, restriction: true });
     // An Aprovado floor on v14 previews both halves, as on every seed.
     expect(conclusionPreview(cleanCable('v14'))).toEqual({ result: true, restriction: true });
@@ -244,7 +244,7 @@ describe('24.3-UNIT B-1 a v14 reading out of its criterion floors Reprovado and 
     expect(effectiveConclusionPair(block)).toEqual({ result: 'reprovado', restriction: 'com_restricoes' });
     expect(restrictionApplies(block, 'reprovado')).toBe(true);
     expect(observationRequiredBy(block)).toBe('com_restricoes');
-    expect(conclusionSuggestionText(conclusionSuggestion(block)!)).toBe('Marcar como Reprovado · Com restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(block)!)).toBe('Reprovado · Com restrições?');
     expect(markRestrictionOffered(block)).toBe(true);
   });
 });

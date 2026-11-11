@@ -3947,3 +3947,23 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `apps/web/src/copy/pt-br.ts`; `packages/domain/src/relatorio/panel.ts`; every `// authored (e24y, corrected by Bruno 2026-11-11)`.
   class: note
   state: open (owner: Bruno, through Matheus, with the authored list)
+- source_spec: `spec-e24y-pass-fixes.md` (review Y1, P5)
+  summary: when a v14 reading is held back from the previous-visit comparison (the previous visit typed TEMPERATURA DO ÓLEO, or DO ENROLAMENTO, and this one has not), its cell says nothing about it: no existing sentence fits (the missing-temperature line asks for a temperature the ambient already stands in for). A proposal for Bruno: "Sem comparar com a manutenção anterior: ela foi corrigida pela temperatura da placa; informe a temperatura do óleo."
+  evidence: `packages/domain/src/relatorio/reading-evaluation.ts` (`unlike`), `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory`; `relatorio/temperature-correction.ts` `missingNote`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `spec-e24y-pass-fixes.md` (review Y6, P2 and P3)
+  summary: another open relatório of the same obra bound to the renamed equipment keeps its confirmed conclusion (now stale, so it prints no paragraph until confirmed again) and its stored plate TAG cell with the old TAG: a rename writes only the relatório it is made in.
+  evidence: `packages/domain/src/relatorio/tag-rename.ts` (`relatorioId` filter).
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: `spec-e24y-pass-fixes.md` (review, test gaps)
+  summary: no print test holds a side-by-side pair with an ACEITÁVEL column (the per-row criteria), and no end-to-end test covers a rename racing an edit of the same sheet on another device, or the "Manter as duas" and Sumário rename paths (unit-tested only).
+  evidence: `packages/domain/src/print/e24y-paired-tables.test.ts`; `e2e/e24y-tag-rename.spec.ts`.
+  class: gap
+  state: open (owner: the next batch touching the rename or the pair's print; low)
+- source_spec: `spec-e24y-pass-fixes.md` (P8b, P3)
+  summary: (1) the preview pill reads "Marcar como Reprovado?" for Bruno's Reprovado alone; the pairs with a restriction keep "Aprovado · Sem restrições?" and the others, because "Marcar como Reprovado · Com restrições?" takes two lines at 390 px. (2) The stepper's jump moves the focus to its section a moment after the tap: typing into the plate's TAG field right after tapping "Placa" can leave the field and commit, and rename, a half-typed TAG (every field commits on leaving; the TAG field's commit is a rename, undoable).
+  evidence: `packages/domain/src/relatorio/conclusion.ts` `conclusionSuggestionText`; `e2e/e24y-screen-fixes.spec.ts` (E2E-005); `apps/web/src/surfaces/ficha/use-ficha-steps.ts`.
+  class: decision
+  state: open (owner: Matheus: the other pills' wording with Bruno; whether the stepper's focus jump should skip a focused field)

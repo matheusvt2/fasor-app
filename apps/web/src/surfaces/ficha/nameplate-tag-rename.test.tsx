@@ -115,7 +115,7 @@ const tagInput = () => screen.getByRole('textbox', { name: 'TAG' });
 const paths = (ops: readonly OpDraft[]) => ops.map((op) => `${op.path}=${String(op.value)}`);
 
 describe('e24y-P3 the plate\'s TAG field renames the equipment', () => {
-  it('typing "QM8" and leaving the field renames DJ-01 with the plate cell in the same batch, under the rename\'s toast', async () => {
+  it('typing "QM8" and leaving the field renames DJ-01, under the rename\'s toast; with no stored cell none is written (review Y2: an undo would leave a null cell)', async () => {
     const { api, built } = draw(sheetOf());
     expect(tagInput()).toHaveValue('DJ-01');
     await userEvent.clear(tagInput());
@@ -126,9 +126,18 @@ describe('e24y-P3 the plate\'s TAG field renames the equipment', () => {
     expect(api.commit).not.toHaveBeenCalled();
     await userEvent.tab();
     await waitFor(() => expect(built).toHaveLength(1));
-    expect(paths(built[0]!)).toEqual([`equipment/${EQUIPMENT}/tag=QM8`, `sheet/${ID}/nameplate/tag=QM8`]);
+    expect(paths(built[0]!)).toEqual([`equipment/${EQUIPMENT}/tag=QM8`]);
     await waitFor(() => expect(api.undoable).toHaveBeenCalledWith(tagRenamedText('QM8'), 'b1'));
     expect(api.commit).not.toHaveBeenCalled();
+  });
+
+  it('a stored plate TAG cell is written with the rename in the same batch', async () => {
+    const { built } = draw(sheetOf({ tag: cell('SINT-4') }));
+    await userEvent.clear(tagInput());
+    await userEvent.type(tagInput(), 'QM8');
+    await userEvent.tab();
+    await waitFor(() => expect(built).toHaveLength(1));
+    expect(paths(built[0]!)).toEqual([`equipment/${EQUIPMENT}/tag=QM8`, `sheet/${ID}/nameplate/tag=QM8`]);
   });
 
   it('Enter commits the rename too', async () => {

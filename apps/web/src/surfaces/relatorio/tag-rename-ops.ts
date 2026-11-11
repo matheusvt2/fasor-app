@@ -23,10 +23,10 @@ export interface TagRenameRows {
 }
 
 /** The ops of renaming `equipmentId` to `tag` (trimmed) with what follows on the sheets of `relatorioId`. */
-export function renameEquipmentOps(author: Author, input: { projectId: string; relatorioId: string; rows: TagRenameRows }, equipmentId: string, tag: string, options: { plateCellOf?: string } = {}): OpDraft[] {
+export function renameEquipmentOps(author: Author, input: { projectId: string; relatorioId: string; rows: TagRenameRows }, equipmentId: string, tag: string): OpDraft[] {
   const next = tag.trim();
   const ops: OpDraft[] = [putEquipmentTagOp(author, input.projectId, equipmentId, next)];
-  for (const follow of tagRenameFollows(input.rows, input.relatorioId, equipmentId, next, options)) {
+  for (const follow of tagRenameFollows(input.rows, input.relatorioId, equipmentId, next)) {
     if (follow.conclusion !== null) {
       ops.push(conclusionOp(author, input.relatorioId, follow.blockId, 'text', follow.conclusion.text, { composed: true }));
       ops.push(conclusionOp(author, input.relatorioId, follow.blockId, 'text_basis', follow.conclusion.basis));

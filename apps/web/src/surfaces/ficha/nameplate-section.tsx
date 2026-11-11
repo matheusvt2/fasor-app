@@ -196,7 +196,7 @@ export function NameplateSection({
   /**
    * Fix batch e24y (P3, the coordinator's reading N3): the plate's TAG field is the equipment's TAG. It
    * commits on leave or Enter only (`commitOnLeave`), and its commit is the rename of "Renomear TAG"
-   * (`tagVerdict`, `renameEquipmentOps`) with the cell written in the same batch, so the sheet's title,
+   * (`tagVerdict`, `renameEquipmentOps`) with a stored cell written in the same batch, so the sheet's title,
    * the tree, the print and the plate never show two TAGs and the equipment keeps its history (Story
    * 24.21). A TAG another live equipment holds, or a blank one, is refused with the rename's reason and
    * the field shows the stored value again; nothing is written. A typed TAG equal to the equipment's
@@ -228,7 +228,8 @@ export function NameplateSection({
         }
         out.renamed = true;
         const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions, relatorio: snapshot.relatorio };
-        return renameEquipmentOps(by, { projectId: api.projectId, relatorioId: api.relatorioId, rows }, equipmentId, typed, { plateCellOf: block.id });
+        // Review Y2: a stored cell is written with the rename; with none, the field keeps following the equipment.
+        return renameEquipmentOps(by, { projectId: api.projectId, relatorioId: api.relatorioId, rows }, equipmentId, typed);
       })
       .then((batch) => {
         if (batch === null) {

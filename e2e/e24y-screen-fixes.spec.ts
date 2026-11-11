@@ -146,7 +146,7 @@ test('@p0 e24y-E2E-004 at 390 px the point editor\'s "P4 · Próxima manutençã
   expect(hintBox!.width).toBeGreaterThan(40);
 });
 
-test('@p0 e24y-E2E-005 at 390 px the preview pill "Marcar como …?" fits its row on one line, the longest pair ("Reprovado · Com restrições") included', async ({ page }) => {
+test('@p0 e24y-E2E-005 at 390 px the preview pill fits its row on one line, "Marcar como Reprovado?" included; the long form of every pair would not (so only Bruno\'s pill changed)', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [], 'v13');
   const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
@@ -157,7 +157,7 @@ test('@p0 e24y-E2E-005 at 390 px the preview pill "Marcar como …?" fits its ro
   await page.setViewportSize({ width: 390, height: 844 });
   await openStep(page, relatorioId, dj.blockId, 'Conclusão');
   const value = page.locator('#ficha-conc .ficha-conc-sug-host .sv');
-  await expect(value).toHaveText(/^Marcar como .+\?$/u, { timeout: 30_000 });
+  await expect(value).toHaveText(/\?$/u, { timeout: 30_000 });
   const linesOf = (text: string | null) =>
     value.evaluate((element, replaced) => {
       if (replaced !== null) element.textContent = replaced;
@@ -165,7 +165,9 @@ test('@p0 e24y-E2E-005 at 390 px the preview pill "Marcar como …?" fits its ro
       range.selectNodeContents(element);
       return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
     }, text);
-  // The pill the sheet shows, then the same element holding the longest pair's words (the kernel's `conclusionSuggestionText`).
+  // The pill the sheet shows, then the same element holding Bruno's pill (the kernel's `conclusionSuggestionText`); the
+  // coordinator's reading ("Marcar como" on every pair) breaks the longest pair into two lines, so it was not built.
   expect(await linesOf(null)).toBe(1);
-  expect(await linesOf(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' }))).toBe(1);
+  expect(await linesOf(conclusionSuggestionText({ result: 'reprovado', restriction: null }))).toBe(1);
+  expect(await linesOf('Marcar como Reprovado · Com restrições?')).toBe(2);
 });

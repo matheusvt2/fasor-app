@@ -12,11 +12,11 @@ import { visitContextOf } from './visit-context.ts';
  * library type keep their "E1 ·", and v13 prints as before. Every relatório is the layout lock's.
  */
 
-describe('e24y-P8b-UNIT the preview pill asks "Marcar como …?"', () => {
-  it('names the pair after "Marcar como", the Reprovado alone and each restriction', () => {
+describe('e24y-P8b-UNIT the v14 Reprovado preview pill asks "Marcar como Reprovado?"', () => {
+  it('Bruno\'s pill only; the pairs with a restriction keep their words (the long form does not fit at 390 px)', () => {
     expect(conclusionSuggestionText({ result: 'reprovado', restriction: null })).toBe('Marcar como Reprovado?');
-    expect(conclusionSuggestionText({ result: 'aprovado', restriction: 'sem_restricoes' })).toBe('Marcar como Aprovado · Sem restrições?');
-    expect(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' })).toBe('Marcar como Reprovado · Com restrições?');
+    expect(conclusionSuggestionText({ result: 'aprovado', restriction: 'sem_restricoes' })).toBe('Aprovado · Sem restrições?');
+    expect(conclusionSuggestionText({ result: 'reprovado', restriction: 'com_restricoes' })).toBe('Reprovado · Com restrições?');
   });
 });
 

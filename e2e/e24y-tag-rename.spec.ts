@@ -97,7 +97,9 @@ test('@p0 e24y-E2E-001 a concluded v14 Disjuntor MT renamed from its menu and fr
 
   // --- P3: the plate's TAG field, prefilled with the equipment's TAG ---
   const tagInput = plateField(page, 'tag').locator('input');
-  await page.getByRole('button', { name: /^Placa,/ }).click();
+  // The stepper's own jump moves the focus to its section a moment later (which would leave the field): the field is clicked instead.
+  await tagInput.click();
+  await expect(tagInput).toBeFocused();
   await expect(tagInput).toHaveValue('QM8');
   await tagInput.fill('QM9');
   // Idle mid-typing: nothing is written until the field is left.
@@ -110,11 +112,16 @@ test('@p0 e24y-E2E-001 a concluded v14 Disjuntor MT renamed from its menu and fr
     `equipment/${before.equipmentId}/tag`,
     `sheet/${dj.blockId}/conclusion/text`,
     `sheet/${dj.blockId}/conclusion/text_basis`,
-    `sheet/${dj.blockId}/nameplate/tag`,
   ]);
   const second = await renameBatch(page, before.equipmentId, 'QM9');
   expect(second.find(([path]) => path === `sheet/${dj.blockId}/conclusion/text`)?.[1]).toBe(before.text.replace(dj.tag, 'QM9'));
-  expect(second.find(([path]) => path === `sheet/${dj.blockId}/nameplate/tag`)?.[1]).toBe('QM9');
+  // Review Y2: no plate cell was stored, so none is written: "Desfazer" brings QM8 back in the field, never a blank.
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByRole('button', { name: 'Mais opções da ficha QM8' })).toBeVisible();
+  await expect(plateField(page, 'tag').locator('input')).toHaveValue('QM8');
+  await plateField(page, 'tag').locator('input').fill('QM9');
+  await plateField(page, 'tag').locator('input').press('Tab');
+  await expect(page.getByRole('button', { name: 'Mais opções da ficha QM9' })).toBeVisible();
   const row = (await entities(page)).find((record) => record.entity === 'equipment' && record.id === before.equipmentId)!.row as unknown as EquipmentRow;
   expect([row.id, row.tag, row.reuse_key ?? null]).toEqual([before.equipmentId, 'QM9', keyBefore]);
 

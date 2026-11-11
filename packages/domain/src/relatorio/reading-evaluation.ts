@@ -16,7 +16,7 @@ import { previousVisitDateText } from '../print/visit-date.ts';
 import { seedRule } from '../seed/definitions.ts';
 import { applyHistoryRise, applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
 import { correctedRaw, correctedText, mediumOf, temperatureFactor, temperatureView, testTemperature } from './temperature-correction.ts';
-import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
+import { NO_VISIT_CONTEXT, previousPlateMeasured, type VisitContext } from './visit-context.ts';
 import {
   convertRatioUnit,
   DECIMAL,
@@ -1026,9 +1026,15 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
   const criterion = rowCriteria === null ? effectiveCriterion(block, test) : first;
   // Batch e23v (Stories 23.5 and 23.6, seed v13): the test's temperature, and the previous visit its history rule reads.
   const temperature = testTemperature(block, definition, test, visit);
-  // Fix batch e24y (P5, seed v14 `history_needs_like_with_like`): readings corrected from the cabine's ambient (the plate's
-  // temperature not typed) are not like the previous visit's, so the drop rule compares none of them.
-  const unlike = temperature !== null && !('missing' in temperature) && temperature.source === 'ambient' && seedRule(block.seed_version, 'history_needs_like_with_like');
+  // Fix batch e24y (P5, Y1, seed v14 `history_needs_like_with_like`): readings corrected from the cabine's ambient (the plate's
+  // temperature not typed) while the previous visit was corrected from its plate's are not alike, so the drop rule compares
+  // none of them. Both from the ambient, both from the plate, or a previous visit whose plate is not known: compared, as v13.
+  const unlike =
+    temperature !== null &&
+    !('missing' in temperature) &&
+    temperature.source === 'ambient' &&
+    seedRule(block.seed_version, 'history_needs_like_with_like') &&
+    previousPlateMeasured(visit, temperature.medium === 'oil' ? test.temperature_correction?.oil_field : test.temperature_correction?.dry_field) === true;
   const judging: TableJudging =
     test.temperature_correction === undefined && test.restriction === undefined
       ? PLAIN_JUDGING

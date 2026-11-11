@@ -40,7 +40,9 @@ describe('e24y-P1-UNIT the paired insulation tables fit whole on v14, each value
   it('joins a number to the word right after it with a no-break space, every other space kept', () => {
     expect(joinUnits('1,21 mΩ')).toBe(`1,21${NBSP}mΩ`);
     expect(joinUnits('20 °C')).toBe(`20${NBSP}°C`);
-    expect(joinUnits('> 2 TΩ')).toBe(`> 2${NBSP}TΩ`);
+    // Review Y7: the sign joins its number too.
+    expect(joinUnits('> 2 TΩ')).toBe(`>${NBSP}2${NBSP}TΩ`);
+    expect(joinUnits('≥ 5 GΩ')).toBe(`≥${NBSP}5${NBSP}GΩ`);
     expect(joinUnits('1,08 Ω · 1,09 Ω')).toBe(`1,08${NBSP}Ω · 1,09${NBSP}Ω`);
     expect(joinUnits('FASE A')).toBe(`FASE${NBSP}A`);
     expect(joinUnits('DISJUNTOR CONTATO ABERTO')).toBe('DISJUNTOR CONTATO ABERTO');
@@ -52,6 +54,8 @@ describe('e24y-P1-UNIT the paired insulation tables fit whole on v14, each value
     it(`${type}: v14 prints every word and value whole in its column (GUARD, FASE A, 20 °C, the values with their units)`, () => {
       const pair = pairOf(sheetOf(v14, type));
       expect(wordsWiderThanColumns(pair, readingFitWidthEm(pair))).toEqual([]);
+      // Review test gap: the size the whole fit lands on, 7,5 pt (8 pt before the fix); a drop toward the 5 pt floor fails here.
+      expect(pair.textHalfPoints).toBe(15);
       const cells = texts(pair);
       expect(cells.filter((text) => text === `20${NBSP}°C`)).toHaveLength(2);
       expect(cells).toContain('GUARD');

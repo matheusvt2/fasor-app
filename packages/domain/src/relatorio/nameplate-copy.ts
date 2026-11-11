@@ -127,6 +127,8 @@ export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'
   if (fields === undefined) return [];
   const out: { fieldKey: string; value: unknown }[] = [];
   for (const field of definition.nameplate) {
+    // Review Y4 (fix batch e24y): the plate's TAG follows the equipment (`nameplateTagPrefill`), so the last visit's TAG is never copied.
+    if (field.key === TAG_KEY) continue;
     if (!Object.hasOwn(fields, field.key) || isDayMeasuredField(field.key)) continue;
     const value = fields[field.key];
     if (!isCellFilled({ value: value as JsonValue, source_suggestion_id: null, op_id: '' })) continue;

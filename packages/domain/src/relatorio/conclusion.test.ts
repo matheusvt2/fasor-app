@@ -81,7 +81,7 @@ describe('22.4-UNIT conclusionFloor and the suggestion row (amends 5.8 suggestCo
   it('all C/NA and all within: Aprovado · Sem restrições, no reason, nothing disabled', () => {
     const b = block({ checklist: allC(), test: within() });
     expect(conclusionFloor(b)).toEqual({ pair: { result: 'aprovado', restriction: 'sem_restricoes' }, reasons: [] });
-    expect(conclusionSuggestionText(conclusionSuggestion(b)!)).toBe('Marcar como Aprovado · Sem restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(b)!)).toBe('Aprovado · Sem restrições?');
     expect(conclusionFloorReasonText(b)).toBeNull();
     for (const value of ['aprovado', 'reprovado', 'sem_restricoes', 'com_restricoes'] as const) expect(isLooserThanFloor(b, value)).toBe(false);
   });
@@ -131,7 +131,7 @@ describe('22.4-UNIT conclusionFloor and the suggestion row (amends 5.8 suggestCo
     test.isolacao!.cells['0'] = { '0': measured('300', 'MΩ') };
     const out = block({ checklist: allC(), test });
     expect(conclusionFloor(out)).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['reading'] });
-    expect(conclusionSuggestionText(conclusionSuggestion(out)!)).toBe('Marcar como Reprovado · Com restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(out)!)).toBe('Reprovado · Com restrições?');
     expect(isLooserThanFloor(out, 'aprovado')).toBe(true);
     expect(isLooserThanFloor(out, 'sem_restricoes')).toBe(true);
     expect(conclusionFloorReasonText(out)).toBe('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
@@ -723,7 +723,7 @@ describe('17.5-UNIT a ratio row INSATISFATÓRIO feeds the floor and the composed
   it('B1 (Story 22.4): a failed ratio and nothing else gives Reprovado · Com restrições', () => {
     const b = tpBlock({ test: ratio('125') });
     expect(conclusionFloor(b)).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['ratio'] });
-    expect(conclusionSuggestionText(conclusionSuggestion(b)!)).toBe('Marcar como Reprovado · Com restrições?');
+    expect(conclusionSuggestionText(conclusionSuggestion(b)!)).toBe('Reprovado · Com restrições?');
     // Every row within: as before.
     expect(floorPair(tpBlock({ test: ratio('120.1') }))).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
     // At the limit (0,5 %): within.

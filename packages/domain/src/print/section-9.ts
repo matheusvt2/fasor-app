@@ -1067,11 +1067,15 @@ const UNITS_JOINED_TABLES = new WeakSet<object>();
 const PLAIN_SPACES = /[^\S\u00a0]+/u;
 
 /**
- * A number and the word right after it ("1,21 mΩ", "20 °C", "> 2 TΩ"), and a name and the one letter that
- * ends it ("FASE A"), joined by a no-break space; every other space kept.
+ * A number and the word right after it ("1,21 mΩ", "20 °C", "> 2 TΩ"), a sign and its number ("> 2", "≥ 5",
+ * review Y7), and a name and the one letter that ends it ("FASE A"), joined by a no-break space; every other
+ * space kept.
  */
 export function joinUnits(text: string): string {
-  return text.replace(/(\d) (?=[^\s\d·])/gu, '$1\u00a0').replace(/(\p{L}) (?=\p{L}(?:$|[\s/]))/gu, '$1\u00a0');
+  return text
+    .replace(/(\d) (?=[^\s\d·])/gu, '$1\u00a0')
+    .replace(/([<>≤≥]) (?=\d)/gu, '$1\u00a0')
+    .replace(/(\p{L}) (?=\p{L}(?:$|[\s/]))/gu, '$1\u00a0');
 }
 
 /** The rows with every cell's value joined to its unit (`joinUnits`). */

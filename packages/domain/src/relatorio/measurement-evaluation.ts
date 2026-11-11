@@ -49,7 +49,7 @@ import {
   windingTemperatureView,
   type TestTemperatureView,
 } from './temperature-correction.ts';
-import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
+import { NO_VISIT_CONTEXT, previousPlateMeasured, type VisitContext } from './visit-context.ts';
 
 /*
  * Story 14.5 (seed v5): THE evaluation of a sheet's measurement tests, the tests of the
@@ -987,13 +987,16 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
   const pct = test.history_deviation_pct;
   const entry: PreviousResults | null = context.visit.previous;
   if (pct === undefined || entry === null) return false;
-  // Fix batch e24y (P5, seed v14 `history_needs_like_with_like`): a winding corrected from the cabine's ambient, standing in for
-  // a plate temperature not typed (TEMPERATURA DO ÓLEO, or DO ENROLAMENTO on a dry unit, which "Copiar da última visita" never
-  // copies), is not like the previous visit's value, corrected from its plate: nothing is compared.
+  // Fix batch e24y (P5, Y1, seed v14 `history_needs_like_with_like`): a winding corrected from the cabine's ambient, standing in
+  // for a plate temperature not typed (TEMPERATURA DO ÓLEO, or DO ENROLAMENTO on a dry unit, which "Copiar da última visita"
+  // never copies), is not like a previous value corrected from its plate's temperature: nothing is compared. Both from the
+  // ambient, or a previous visit whose plate is not known: compared, as v13.
   if (test.winding_correction !== undefined && context.seedVersion !== undefined && seedRule(context.seedVersion, 'history_needs_like_with_like')) {
     const plate = { nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) };
     const temperature = windingTemperature(block, plate, test.winding_correction, context.visit);
-    if (!('missing' in temperature) && temperature.source === 'ambient') return false;
+    const medium = mediumOf(plate, block);
+    const field = medium === 'oil' ? test.winding_correction.oil_field : medium === 'dry' ? test.winding_correction.dry_field : undefined;
+    if (!('missing' in temperature) && temperature.source === 'ambient' && previousPlateMeasured(context.visit, field) === true) return false;
   }
   // Fix batch e23z (W3-1): the rule also reads a cell out by its criterion (its verdict unchanged); true when it flags one.
   let stands = false;

@@ -8,6 +8,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, getDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { composeConclusion, conclusionAdjustWrites, conclusionAdjusted, conclusionTextState, printedConclusionText } from './conclusion.ts';
 import { evaluateSheetMeasurements } from './measurement-evaluation.ts';
+import { lastNameplateCopy } from './nameplate-copy.ts';
 import { composeParecer, parecerTextForPrint } from './parecer.ts';
 import { evaluateSheetReadings } from './readings.ts';
 import { sheetProgress, sheetStepTitle, sheetSummaryText, shownSheetSteps } from './sheet-progress.ts';
@@ -45,8 +46,8 @@ function withPrevious(snapshot: RelatorioSnapshot, type: string, change: (entry:
 }
 
 /** The snapshot with `equipmentId` renamed to `tag` and the follow-up writes applied as the batch would. */
-function renamed(snapshot: RelatorioSnapshot, equipmentId: string, tag: string, options: { plateCellOf?: string } = {}): RelatorioSnapshot {
-  const follows = tagRenameFollows(sourceOf(snapshot), snapshot.relatorio.id, equipmentId, tag, options);
+function renamed(snapshot: RelatorioSnapshot, equipmentId: string, tag: string): RelatorioSnapshot {
+  const follows = tagRenameFollows(sourceOf(snapshot), snapshot.relatorio.id, equipmentId, tag);
   const blocks = snapshot.blocks.map((block) => {
     const follow = follows.find((one) => one.blockId === block.id);
     if (follow === undefined) return block;
@@ -162,6 +163,36 @@ describe('e24y-P2-UNIT a rename carries a confirmed, current conclusion to the n
   });
 });
 
+describe('e24y-Y3-UNIT the follow composes under the relatório\'s visit date, as the sheet does (e24x D3)', () => {
+  it('an equipment whose stored top is a later visit of another relatório: the text follows when the relatório is passed, as the web passes it', () => {
+    const concluded = concludedAsNow(v13);
+    const { equipment } = blockOf(concluded, 'disjuntor_mt');
+    const visitEnd = concluded.relatorio.setup.service_end ?? concluded.relatorio.setup.service_start!;
+    // A later visit of another relatório on top, its contact readings much lower (a rise against it), the original entry its prior.
+    const later = withPrevious(concluded, 'disjuntor_mt', (entry) => ({
+      ...entry,
+      relatorio_id: '019a6400-24f9-7000-8000-00000000dead',
+      service_date: '2027-03-01',
+      readings: Object.fromEntries(Object.entries(entry.readings).map(([key, reading]) => [key, key.startsWith('resistencia_contato|') ? { ...reading, raw: '10' } : reading])),
+      prior: { ...entry, prior: undefined } as never,
+    }));
+    expect(visitEnd < '2027-03-01').toBe(true);
+    const follows = tagRenameFollows(sourceOf(later), later.relatorio.id, equipment.id, 'QM8');
+    expect(follows.find((one) => one.conclusion !== null)?.conclusion?.text).toContain('QM8');
+    // The call before the fix (no relatório): the later visit is read, the composed text differs, nothing follows.
+    const withoutRelatorio = { ...sourceOf(later), relatorio: null };
+    expect(tagRenameFollows(withoutRelatorio, later.relatorio.id, equipment.id, 'QM8').every((one) => one.conclusion === null)).toBe(true);
+  });
+});
+
+describe('e24y-Y4-UNIT "Copiar da última visita" never copies the last visit\'s TAG', () => {
+  it('skips the plate TAG field (it follows the equipment)', () => {
+    const definition = getDefinition('v14', 'cabine_primaria', 'disjuntor_mt');
+    const copied = lastNameplateCopy({ last_nameplate: { relatorio_id: v14.relatorio.id, revision_number: 1, issued_at: '2026-11-05T12:00:00.000Z', seed_version: 'v14', block_type: 'disjuntor_mt', fields: { tag: 'DJ-ANTIGO', fabricante: 'Fabricante Sintético' } } }, definition);
+    expect(copied.map((one) => one.fieldKey)).not.toContain('tag');
+  });
+});
+
 describe('e24y-P3-UNIT a rename rewrites a stored plate TAG cell; a sheet with none keeps following the equipment', () => {
   it('the Disjuntor MT stores "SINT-4" on its plate: the rename writes the new TAG there; the plate field\'s own sheet is written with no cell', () => {
     const { block, equipment } = blockOf(v14, 'disjuntor_mt');
@@ -169,16 +200,15 @@ describe('e24y-P3-UNIT a rename rewrites a stored plate TAG cell; a sheet with n
     const follows = tagRenameFollows(sourceOf(v14), v14.relatorio.id, equipment.id, 'QM8');
     expect(follows).toEqual([{ blockId: block.id, conclusion: expect.anything(), plateTag: true }]);
     expect(blockOf(renamed(v14, equipment.id, 'QM8'), 'disjuntor_mt').block.sheet.nameplate.tag?.value).toBe('QM8');
-    // With no stored plate TAG cell (it shows the equipment's TAG prefilled), nothing is written there, unless its plate field commits the rename.
+    // Review Y2: with no stored plate TAG cell (it shows the equipment's TAG prefilled), nothing is written there, so an undo leaves no null cell.
     const bare = withBlock(v14, 'disjuntor_mt', (row) => {
       delete row.sheet.nameplate.tag;
       return row;
     });
     expect(tagRenameFollows(sourceOf(bare), bare.relatorio.id, equipment.id, 'QM8').every((one) => !one.plateTag)).toBe(true);
-    expect(tagRenameFollows(sourceOf(bare), bare.relatorio.id, equipment.id, 'QM8', { plateCellOf: block.id }).find((one) => one.blockId === block.id)?.plateTag).toBe(true);
-    // A definition with no TAG field on its plate (the TP) is never written, even when named.
+    // A definition with no TAG field on its plate (the TP) is never written.
     const tp = blockOf(v14, 'tp');
-    expect(tagRenameFollows(sourceOf(v14), v14.relatorio.id, tp.equipment.id, 'TP-9', { plateCellOf: tp.block.id }).every((one) => !one.plateTag)).toBe(true);
+    expect(tagRenameFollows(sourceOf(v14), v14.relatorio.id, tp.equipment.id, 'TP-9').every((one) => !one.plateTag)).toBe(true);
   });
 });
 
@@ -291,17 +321,42 @@ function verdictsOf(snapshot: RelatorioSnapshot): string[] {
   return [...readings, ...measurements];
 }
 
-describe('e24y-P5-UNIT like with like: no drop nor variation while the plate\'s temperature is missing (v14)', () => {
-  it('v14: the copied readings, corrected from the cabine\'s 25 °C with no TEMPERATURA DO ÓLEO, raise no drop and no variation', () => {
-    const copied = copiedWithoutOil(v14);
+/** The equipment's `last_nameplate` as the previous visit issued it: its TEMPERATURA DO ÓLEO typed (40 °C) or not. */
+function withPreviousPlate(snapshot: RelatorioSnapshot, oilTyped: boolean): RelatorioSnapshot {
+  const { equipment } = blockOf(snapshot, 'transformador_forca');
+  const entry = equipment.last_results!;
+  const fields: Record<string, unknown> = { tipo_de_isolacao: 'ÓLEO ISOLANTE', ...(oilTyped ? { [OIL_FIELD]: { raw: '40', unit: '°C', state: 'measured' } } : {}) };
+  const plate = { relatorio_id: entry.relatorio_id, revision_number: entry.revision_number, issued_at: entry.issued_at, seed_version: entry.seed_version, block_type: entry.block_type, fields };
+  return { ...snapshot, equipment: snapshot.equipment.map((row) => (row.id === equipment.id ? { ...row, last_nameplate: plate as never } : row)) };
+}
+
+describe('e24y-P5-UNIT like with like: no drop nor variation while only the previous visit typed the plate\'s temperature (v14)', () => {
+  it('v14: the previous visit typed TEMPERATURA DO ÓLEO, this one has not (the cabine\'s 25 °C stands in): no drop and no variation', () => {
+    const copied = withPreviousPlate(copiedWithoutOil(v14), true);
     const { block } = blockOf(copied, 'transformador_forca');
     expect(block.sheet.nameplate[OIL_FIELD]).toBeUndefined();
     expect(visitContextOf(copied, block).ambientC).toBe(25);
     expect(historyFlags(copied)).toEqual([]);
   });
 
+  it('review Y1: neither visit typed it (both from the ambient), or the previous plate is not known: compared as v13 (a drop is restricted)', () => {
+    for (const make of [(s: RelatorioSnapshot) => withPreviousPlate(copiedWithoutOil(s), false), (s: RelatorioSnapshot) => copiedWithoutOil(s)]) {
+      const flags14 = historyFlags(make(v14));
+      expect(flags14.length).toBeGreaterThan(0);
+      expect(verdictsOf(make(v14))).toEqual(verdictsOf(make(v13)));
+    }
+  });
+
+  it('then the temperature typed on this visit too: v13\'s verdicts', () => {
+    const typed = (s: RelatorioSnapshot) => withPreviousPlate(withBlock(copiedWithoutOil(s), 'transformador_forca', (next) => {
+      next.sheet.nameplate[OIL_FIELD] = cell({ raw: '40', unit: '°C', state: 'measured' });
+      return next;
+    }), true);
+    expect(verdictsOf(typed(v14))).toEqual(verdictsOf(typed(v13)));
+  });
+
   it('v13 without the temperature is unchanged: the same copy still flags (listed for Matheus)', () => {
-    expect(historyFlags(copiedWithoutOil(v13)).length).toBeGreaterThan(0);
+    expect(historyFlags(withPreviousPlate(copiedWithoutOil(v13), true)).length).toBeGreaterThan(0);
   });
 
   it('with TEMPERATURA DO ÓLEO typed, every verdict and flag is the same on v13 and v14 (the layout lock\'s transformer, a drop restricted)', () => {
