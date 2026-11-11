@@ -2196,7 +2196,8 @@ describe('seed v13 (Epic 23): v12 plus the keys of Bruno\'s test base rev08', ()
 // e24p (Stories 24.15 to 24.17): the three rule flags (`withoutE24p` below).
 // e24s (Stories 24.10 to 24.12): the TP and TC lists, the transformer's oil and dry items, the Inspeção de QGBT (`withoutE24s` below).
 // e24s (Stories 24.13 and 24.14): the No-break de comando, the oil sampling's "Outro" text, the Malha's plate block.
-const V14_HASH = 'b65c9fde535a1724a8406e3a203e07960ad831a934b613850557e9fca563735d';
+// e24s merged after e24p (main e5fdde82): both batches' keys, re-pinned on the merge.
+const V14_HASH = 'aeea3d879961a7eb9a7f51efd31df955729e36e58a24151e9d8b1ffb8511e55a';
 
 /** Batch e24a's rule flags (Stories 24.3 and 24.4), in the order `seed/v14.ts` sets them. */
 const E24A_FLAGS = ['conclusion_restriction_by_choice', 'prerequisite_needs_nameplate', 'parecer_names_finding', 'nc_clause_on_one_line', 'results_reference_across_runs'] as const;
