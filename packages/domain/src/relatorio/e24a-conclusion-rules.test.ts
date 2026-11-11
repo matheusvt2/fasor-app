@@ -697,6 +697,16 @@ describe('24.4-UNIT C-5 an NC observation typed in two lines', () => {
     expect(joined).not.toMatch(/[;,]; /);
   });
 
+  it('e24x-UNIT A4 (fix batch e24x): a line ending in ":" joins the next with a space, never ":;"', () => {
+    const colon = checklist(cleanCable('v14'), { 1: { result: 'NC', observation: 'Observado:\n- trinca' } });
+    const text = composeConclusion(colon, definitionOf(colon), 'CE-01').text;
+    expect(text).toContain('Observado: - trinca (item 2, NC)');
+    expect(text).not.toContain(':;');
+    // The colon line among others: only the line after it joins with a space.
+    const among = checklist(cleanCable('v14'), { 1: { result: 'NC', observation: 'Mufla aquecida.\nObservado:\n- trinca\n- folga' } });
+    expect(composeConclusion(among, definitionOf(among), 'CE-01').text).toContain('Mufla aquecida; Observado: - trinca; - folga (item 2, NC)');
+  });
+
   it('v13: the observation as typed, its line break kept (text and basis as before)', () => {
     const block = twoLines('v13');
     expect(composeConclusion(block, definitionOf(block), 'CE-01').text).toContain('linha um\nlinha dois (item 2, NC)');

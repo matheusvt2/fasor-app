@@ -357,7 +357,9 @@ export interface MeasurementTestEvaluation {
   /**
    * W3-2 (Epic 14 QA Q-3, Story 14.9): a live test judged by the deviation between phases holds a measured number
    * cell no criterion judged (a cell at zero or below, a group with one positive cell, every cell while the medium is
-   * unknown): `conclusionFloor` withholds Aprovado · Sem restrições while it stands.
+   * unknown): `conclusionFloor` withholds Aprovado · Sem restrições while it stands. Fix batch e24x (C1): so does a
+   * live test with a reading above the instrument's limit its absolute criterion could not judge (a limit inside a
+   * range), and the conclusion's paragraph reads "a conferir".
    */
   unjudged?: true;
 }
@@ -491,7 +493,9 @@ function overRangeAnswer(value: number, unit: string | null, limit: Limit): { wi
   const scaled = scaleToUnit(value, unit, limit.unit);
   if (verdict === null || scaled === null) return null;
   const within = verdict === 'within';
-  return { within, excess: within || limit.value === 0 ? 0 : Math.abs(scaled - limit.value) / Math.abs(limit.value) };
+  // Fix batch e24x (C1): a range's out limit stands above its upper end, so its distance is measured from there.
+  const bound = limit.operator === 'between' && limit.value_max !== undefined ? limit.value_max : limit.value;
+  return { within, excess: within || bound === 0 ? 0 : Math.abs(scaled - bound) / Math.abs(bound) };
 }
 
 /**
@@ -540,7 +544,7 @@ function mark(cell: EvaluatedMeasurementCell, within: boolean, criterion: Measur
   cell.excess = excess;
 }
 
-function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'absolute' }>): void {
+function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'absolute' }>, unanswered: EvaluatedMeasurementCell[] = []): void {
   const limit = limitOf(criterion);
   if (limit === null) return;
   // authored: the seeded tables' own helper wording (`reading-evaluation.ts`); Story 14.6: "Fora do aceitável" for a company criterion with two sides.
@@ -556,6 +560,8 @@ function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
       if (criterion.columns !== undefined && !criterion.columns.includes(cell.columnKey)) continue;
       const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
       if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess);
+      // Fix batch e24x (C1): a limit the criterion cannot judge (inside a range, units that do not compare).
+      else if (cell.state === 'over_range') unanswered.push(cell);
     }
   }
 }
@@ -878,7 +884,7 @@ function maxFieldCriterionText(criterion: Extract<MeasurementCriterion, { type: 
  * whether it is the design value or the default. A reading above the instrument's limit is judged
  * as on an absolute criterion (`overRangeVerdict`).
  */
-function applyMaxField(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'max_field' }>, limit: Limit, byDefault: boolean): void {
+function applyMaxField(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'max_field' }>, limit: Limit, byDefault: boolean, unanswered: EvaluatedMeasurementCell[] = []): void {
   // authored (Story 23.21, listed for Bruno): the out helper, naming where the limit comes from.
   const helper = `Acima do aceitável (${limit.text}, ${byDefault ? 'padrão sem valor de projeto' : 'valor de projeto'})`;
   for (const row of rows) {
@@ -886,6 +892,7 @@ function applyMaxField(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
       if (cell.kind !== 'number' || cell.fixed !== null || !isReadingValue(cell.state)) continue;
       const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
       if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess, maxFieldCriterionText(criterion, limit, byDefault));
+      else if (cell.state === 'over_range') unanswered.push(cell);
     }
   }
 }
@@ -1191,6 +1198,8 @@ function evaluate(
   // Seed v13 (batch e23t, Story 23.15): the values at 75 °C, the temperature line and the material's request.
   const winding = applyWindingCorrection(block, test, rows, context);
   const notes: string[] = [...(winding?.notes ?? [])];
+  // Fix batch e24x (C1): the cells above the instrument's limit an absolute criterion in force could not judge.
+  const overRangeUnanswered: EvaluatedMeasurementCell[] = [];
   if (live) {
     // Seed v13, batch e23e (Story 23.21): the default of a maximum read from the plate, said while the field is empty (only on a live test).
     for (const criterion of criteria) {
@@ -1203,7 +1212,7 @@ function evaluate(
     const deviation = criteria.find((criterion) => criterion.type === 'phase_deviation' && (criterion.medium === undefined || criterion.medium === medium)) ?? criteria.find((criterion) => criterion.type === 'phase_deviation');
     if (deviation !== undefined) markOpenCircuits(rows, deviation);
     for (const criterion of criteria) {
-      if (criterion.type === 'absolute') applyAbsolute(rows, criterion);
+      if (criterion.type === 'absolute') applyAbsolute(rows, criterion, overRangeUnanswered);
       else if (criterion.type === 'relative_to_lowest') applyRelative(rows, columns, criterion);
       else if (criterion.type === 'equals_column') applyEquals(rows, criterion);
       else if (criterion.type === 'phase_deviation') {
@@ -1213,7 +1222,7 @@ function evaluate(
       }
       else if (criterion.type === 'max_field') {
         const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
-        applyMaxField(rows, criterion, limit, byDefault);
+        applyMaxField(rows, criterion, limit, byDefault, overRangeUnanswered);
       } else applyChoicePass(rows, criterion);
     }
     if (deviation !== undefined && medium === null && criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) && !criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium === undefined)) {
@@ -1244,7 +1253,8 @@ function evaluate(
     live && criteria.some((criterion) => criterion.type === 'phase_deviation')
       ? rows.flatMap((row) => row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null && cell.state === 'measured' && cell.verdict === null && !cell.toCheck))
       : [];
-  const unjudged = unjudgedCells.length > 0;
+  // Fix batch e24x (C1): a limit the instrument passed that no criterion judged (a limit inside a range) is unjudged too.
+  const unjudged = unjudgedCells.length > 0 || (live && overRangeUnanswered.some((cell) => cell.verdict === null));
   // Fix batch e24f (R-1): each such cell says why it has no verdict (its verdict stays null, it is not `toCheck`).
   for (const cell of unjudgedCells) {
     // authored (e24f, listed for Bruno): a measured cell the deviation between phases could not judge.
