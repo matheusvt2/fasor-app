@@ -95,6 +95,24 @@ deferred: []
 - Given every layout-lock and Porto Seguro golden, when `test:api` and `test:unit` run, then all stay byte-identical, and the layout-lock test's output is quoted ("No golden moved").
 - Given the story gate (lint, static, test:unit, test:api, the touched specs on `desktop-chrome` and `durability-desktop-chrome`), when it runs under the lock, then it is green.
 
+## Additions of 2026-11-11 (coordinator): P8 to P10, from Bruno's answers of 2026-11-11
+
+Built after P1 to P7 and after merging main `76c74711` (fix batch e24x). Bruno's own words stay in the gitignored `docs/context/epic-24/` of the main checkout; only the UI strings below enter tracked files. Same rules: verify first, red first, no golden moves, a v1 to v13 print never changes (behind the batch's v14 flag or v14 data when a printed text is involved). Each changed string is marked `// authored (e24y, corrected by Bruno 2026-11-11)` and every test asserting it is updated (grep `apps/`, `packages/`, `e2e/`).
+
+| Id | Old | New | Notes |
+|---|---|---|---|
+| P8a | "a ficha fica Reprovado." | "a ficha fica como Reprovado." | `relatorio/measurement-evaluation.ts:~707`, `relatorio/reading-evaluation.ts:~939`; screen helper text; if it reaches a printed page of v1 to v13, keep the old words there |
+| P8b | preview pill "Reprovado?" | "Marcar como Reprovado?" | `relatorio/conclusion.ts:~398-400`. Coordinator's reading, for Matheus: the other preview pills read alike ("Marcar como Aprovado?", "Marcar como Aprovado · Com restrições?"); if that form does not fit the pill at 390 px, change only Bruno's one and say so (an e2e at 390 px checks the fit) |
+| P8c | "Origem resolvida" | "Item alterado" | `apps/web/src/copy/pt-br.ts:~1349`, `points/checks.ts:~244, 251`; if the mark prints on a v1 to v13 page, the print keeps the old words (goldens byte-identical) and the screen changes; record what was found |
+| P8d | "paletas" in user-visible sentences | "lista de tipos", grammar adjusted ("nas paletas" -> "na lista de tipos"; "sai das paletas" -> "sai da lista de tipos"; natural wording where a sentence means both pickers) | `packages/domain/src/types/list.ts` (~87, 127-128, 237), `types/palette-meta.ts` (`paletteMetaText`, from e24x), `apps/web/src/copy/pt-br.ts` (~406, 407, 464, 575, 584, 585, 613); code identifiers keep `palette` |
+| P8e | "a relação de transformação calcula por ele" | "a relação de transformação é calculada a partir dele" | `types/draft-edit.ts:~128, 256` (both sentences) |
+| P8f | "Na ordem da placa, separados por ;" | "Na ordem da placa, separados por ponto e vírgula (;)" | `relatorio/tap-rows.ts:~363`, `pt-br.ts:~1509` |
+| P8g | "Aplicado por você. Equipamento fora de carga." | NOT changed (coordinator's correction) | the band marks a test applied over the app's N.A.; Bruno's replacement says the opposite. Ledger row: "the override band's wording: Bruno read it as an N.A. mark; ask him again with the screen" (owner Matheus) |
+| P9 | v14 Inspeção de QGBT thermography title "E1 · TERMOGRAFIA" (sheet and print) | "TERMOGRAFIA", as the eight types print it | from `measurementTestsUnnumbered` (`relatorio/measurement-evaluation.ts:~936-941`); the v13 Malha golden's "E1 · RESISTÊNCIA DE ATERRAMENTO DA MALHA" and every other library type's numbering stay; v14 data or the batch's flag; closes the e24s ledger row "E1 · TERMOGRAFIA" with a dated strike |
+| P10 | the "nominal ± %" criterion "220 V ±5 %"; ">=" | "220 V ± 5 %"; "≥" | `seed/criteria.ts` `formatCriterionValue`: the "nominal ± %" form (new in Epic 24, Story 24.18) changes everywhere it shows. The ratio's "±0,5 %" and any ">=" a v1 to v13 relatório prints stay as printed: change them on screen and on v14 print only behind the batch's flag, or leave them with a ledger row, whichever is the smaller safe change; record which |
+
+**Tasks:** P8a to P8f and P9, P10 as the table says, kernel and web unit tests updated or added (red first where the behaviour is new: P9's title on v14 and v13, P10's form, P8b's pills), one e2e step at 390 px for the P8b pill fit (in `e2e/e24y-screen-fixes.spec.ts`), the e2e specs asserting any changed string found by grep and run beside the touched specs. Re-pin `V14_HASH` if v14 data changes. Records: the P8g ledger row, the closed e24s row, the authored list in the Auto Run Result, the KB log line amended.
+
 ## Design Notes
 
 - **N1 (P1).** e24p recorded (`deferred-work.md` ~`:3782`) that "GUARD" already breaks in the locked v13 golden for the seccionadora's pair, so the defect is older than the dated header; the pass saw the Disjuntor's pair also cut the "20 °C" values. The pair is excluded from e23p's whole fit (`measurementTable`'s `single`, `sideBySide` uses the 60 em budget with `emWidth`), which is why it under-measures. The v14 fix extends the whole fit to the pair; v13 keeps `emWidth` and the 60 em budget byte for byte. Smallest change: columns first; a smaller step only if needed (e23p's 5 pt floor applies).
