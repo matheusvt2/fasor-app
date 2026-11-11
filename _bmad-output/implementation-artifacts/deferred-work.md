@@ -3747,17 +3747,17 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: before a relatório is issued, its sheet reads the equipment's top entry as its previous visit whatever the dates: while relatório A (service in March) is still open and relatório B (service in September) is already issued, A's sheets and A's preview show B's later values as "Anterior" and MANUT. ANTERIOR. The story orders the stored chain at issue (A becomes B's `prior`, never the top) and says nothing about what an open relatório reads; `previousResultsFor` takes no service date of its own relatório.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/print/visit-date.ts` `compareVisits`.
   class: decision
-  state: open (owner: Matheus: should an open relatório read no previous visit, or the prior, when the stored top is a later visit by date)
+  state: ~~open (owner: Matheus: should an open relatório read no previous visit, or the prior, when the stored top is a later visit by date)~~ closed (2026-11-11, fix batch e24x, D3): the coordinator took it as a defect (a signed document naming a later visit as the previous one), listed for Matheus: a sheet reads no visit later than its own relatório's service date; with the top later it reads the top's prior when that is not later, else nothing; with its own dates unknown, as before (`previousResultsFor`'s `visitDate`, passed by the visit context, the "Anterior" helper and section 9).
 - source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.15)
   summary: a re-issue whose service dates were edited after its first issue is not re-ordered: on a re-issue of the top relatório the date order is not compared with its prior, and when the top's `prior` is the re-issued relatório (fix batch e23w's first rule) its new date is not compared with the top. Reached only by editing the service dates of an issued relatório and issuing it again.
   evidence: `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line and the W2-1 branch above it).
   class: defect
   state: open (owner: the next batch touching `print/last-results.ts`; low)
 - source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.17)
-  summary: on seed v14 the action a point starts with joins several recommendations (a chosen Reprovado over several tests, a failed index beside its test's), and each recommendation may hold up to the action's own cap (1000 characters): a join longer than the cap shows over the editor's count and the create is refused until the technician shortens it. Not reachable with the imported base's lengths seen so far.
+  summary: on seed v14 the action a point starts with joins several recommendations (a chosen Reprovado over several tests, a failed index beside its test's), and each recommendation may hold up to the action's own cap (1000 characters): ~~a join longer than the cap shows over the editor's count and the create is refused until the technician shortens it~~ (2026-11-11, fix batch e24x, D2: past the cap the action starts empty and the recommendations start the text, Story 23.11's form, or the finding stands alone past the text's cap; no create the server refuses is offered). Not reachable with the imported base's lengths seen so far.
   evidence: `packages/domain/src/points/derived.ts` `sheetPointFindings`; `value-limits` point action cap (medium).
   class: note
-  state: open (owner: Matheus, with Bruno's base; low)
+  state: ~~open (owner: Matheus, with Bruno's base; low)~~ closed (2026-11-11, fix batch e24x, D2).
 - source_spec: `spec-e24p-print.md` (Design Notes D2; Story 24.16)
   summary: the note line under a table names each flagged cell with the kernel's reason as it stands ("alta de 53 % sobre 40 µΩ da manutenção anterior, rev. 1 de 14/03/2026, acima do limite de 50 %"; "queda de mais de 50 % desde a manutenção anterior (de 16,4 GΩ para 7,9 GΩ, a 20 °C)"), as the story says; the approved frame's sample was shorter ("subiu 53 % (40 µΩ)"). A risen pole is named where the conclusion names it ("T1-T2–Fase A").
   evidence: `packages/domain/src/print/history-note.ts`; `key-print-section-9-v14.html` (sample text).
@@ -3811,3 +3811,8 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `apps/web/src/sync/client.ts` `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S`, `requestHeadersTimeoutMs`.
   class: note
   state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e24x-review-fixes.md` (D4, ledger only; e24p Design Notes D4)
+  summary: a top entry from before Story 24.15 (no `service_date`; service 2026-11-03, issued 2026-11-10) is dated by its issue day, so a re-test with service 2026-11-08 issued after the deploy compares as older than it and is filed as its prior: the earlier visit stays on top and the re-test's sheets read nothing newer.
+  evidence: `packages/domain/src/print/visit-date.ts` `visitDateOf`, `compareVisits`; `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line).
+  class: decision
+  state: open (owner: Matheus)

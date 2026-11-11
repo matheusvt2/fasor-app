@@ -196,3 +196,28 @@ Same rules as the items above (verify first, red first, no golden may move; if o
 
 **Listed for Matheus:** A1's cost (a learned or recent chip tapped untouched is now kept with the warning; a seed phrase typed letter by letter still clears), B1's longer hold of a hung push, B4 stopped, B2's row: all in `deferred-work.md` § e24x.
 
+### Additions D1 to D5 (2026-11-11, same subagent)
+
+**Verified, then built:**
+- **D1 (confirmed on both places)** -- the editor's first autosave (`point-editor.tsx` `persist`) stores the point, the finding's `positions` (or `hasNotTestedPoint`) turn non-empty, and the place unmounted `CreatePointAction`, its dialog with it. `create-point-action.tsx` takes `hideButton`: `point-place.tsx` keeps the action always mounted (the button hidden once the point stands, the span beside it); `not-tested-band.tsx` keeps it in an unstyled empty wrapper once the point stands (its `row-wrap not-tested-point` class and `createRef` only while no point stands, so `focusAfterSave` still lands on "Desfazer"). The NC row was already safe (its action never unmounts).
+- **D2** -- `points/derived.ts` `sheetPointFindings`: on v14, a joined action over `TEXT_CAPS.medium` starts empty, the text being Story 23.11's form (`entry.text`) while it fits `TEXT_CAPS.long`, else the finding alone.
+- **D3** -- `previousResultsFor(…, visitDate)`: a top entry of another relatório dated after the reading relatório's own visit (`compareVisits`) is skipped for the top's `prior` when that is not later, else nothing; null date as before. `print/visit-date.ts` `relatorioVisitDate(setup)` (`service_end`, else `service_start`). Passed by `visitContextOf` (from `source.relatorio`; its memo key gains the date), section 9's MANUT. ANTERIOR, `previousHelpers` (the ficha's "Anterior"), and the callers holding no snapshot: `use-ficha-data.ts`, `use-ficha-actions.ts`, `conclusao-section.tsx` (new `visitRelatorio` prop from `ficha-surface.tsx`), `sheet-progress.ts`, `merge/conflicts.ts` (`OpenDecisionsInput.relatorio`, from `decision-store.ts`). No golden moved (the lock's previous visits are issued in 2025, before its service). Cost, listed for Matheus with D4: a top entry from before Story 24.15 is dated by its issue day, so a relatório serviced between that visit's service and its issue now reads no previous visit on screen and in print.
+- **D4** -- ledger row only.
+- **D5** -- `sheetPointFindings` positions compare by test (`testSource`: `reading` and `restricao` of one equipment and test are one source); `resolvedOriginPoints` untouched.
+
+**Red runs on the baseline** (tests written first, before any source change): `red-d-unit.log`, 3 files, 9 failed: D1 (the place and the band over a live snapshot: "Unable to find … dialog"), D2 (two cases), D3 (three cases), D5 (two cases); `red-d-e2e.log`: 24.17-E2E-002's new step (the editor gone after the autosave) and 24.15-E2E-002's new step (A's open sheet showed B's later value); D2's 999/1 000 cases and D5's "another test" case pass on the baseline by design.
+
+**Changed tests:**
+- `points/test-point-findings.test.ts` "a point of another origin, test or equipment does not count" -- its `restricao` case now uses a `reprovado` point: D5 makes a `restricao` point of the same test count.
+- `relatorio/three-levels.test.ts` e23p-P3 "a cell restricted by the drop" -- its synthetic previous visit was issued on 2026-11-05, after the lock relatório's service (2026-11-04); dated 2026-10-05 so D3 still reads it.
+- `print/last-results.test.ts` 22.12 "a measurement test (a CTA on seed v5)" -- the Porto Seguro small relatório's service (2026-09-06) predates the synthetic entry's issue (2026-10-05); its service set to 2026-11-06.
+- `e2e/recommendation-action.spec.ts` 24.17-E2E-002 and `e2e/previous-visit-date.spec.ts` 24.15-E2E-002 -- extended with the D1 and D3 steps; `ficha/point-place.test.tsx` gains the live-snapshot cases beside the static ones.
+
+**Authored pt-BR sentences:** none.
+
+**Green runs** (under the host lock, api restarted after the domain change):
+- `green-d-unit.log`: the touched files (`test-point-findings`, `e24p-previous-visit`, `point-place`, `merge/conflicts`, `conclusao-section`), 118 of 118; `pnpm lint` 0 errors; `pnpm static` then failed on one test-only type error, fixed (`green-d-unit-2.log`: static clean).
+- `green-d-test-unit.log`: the full `pnpm test:unit`, 6465 of 6467; the two reds were the fixtures dated against D3 (see Changed tests), green after (`green-d-unit-2.log`, 105 of 105 over their three files).
+- `green-d-api.log`: `docx-layout-lock`, `layout-lock.integration`, `e24p-v14-print.integration`, `e24a-v14-print.integration`, `docx`, `job.integration`, 55 of 55; `git status` of the goldens and fixtures clean.
+- `green-d-e2e.log`: recommendation-action, previous-visit-date, points, test-recommendation on both projects, 30 of 31: 24.17-E2E-002's last assertion counted the point the new D1 step leaves (now "Ponto de atenção 2"). A rerun showed the focus after "Concluir" could lose a race with the dialog's own focus return; `create-point-action.tsx` now waits for the editor to leave the page before it moves the focus. `green-d-unit-3.log`: point-place and the points web tests 33 of 33, eslint clean on the three files; `green-d-e2e-3.log`: recommendation-action and points, 27 of 27.
+
