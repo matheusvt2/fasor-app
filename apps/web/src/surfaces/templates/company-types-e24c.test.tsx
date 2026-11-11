@@ -4,6 +4,7 @@ import {
   duplicateSeededType,
   entityKey,
   EMPTY_DEFINITION_CONTEXT,
+  hiddenTypeText,
   paletteTypeGroups,
   SEED_VERSION,
   standardTemplate,
@@ -14,7 +15,7 @@ import {
   type EquipmentTypeRow,
   type EquipmentTypeVersionRow,
 } from '@app/domain';
-import { DEFINITION_1 } from '@app/domain/fixtures/company-types';
+import { DEFINITION_1, DEFINITION_3 } from '@app/domain/fixtures/company-types';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRef, useState } from 'react';
@@ -178,14 +179,15 @@ describe('24.20 the Placa tab refuses a change of the vector-group field', () =>
 
 const trCopy: CompanyTypeDefinition = { ...duplicateSeededType(SEED_VERSION, 'transformador_forca').draft, label: 'Transformador de força — base 2026' };
 
-async function freshDb(): Promise<AppDatabase> {
+async function freshDb(definition: CompanyTypeDefinition = trCopy): Promise<AppDatabase> {
   const user = `019966b0-0e24-7000-8000-${(++counter + 100).toString(16).padStart(12, '0')}`;
   const db = openDatabase(user);
   await db.delete();
   const fresh = openDatabase(user);
   await fresh.sync_state.put({ id: COMPANY_STREAM, cursor_seq: 1, complete: true, files_pending: 0, downloaded_at: '2026-11-11T12:00:00.000Z', last_sync_at: '2026-11-11T12:00:00.000Z', last_push_at: [], relatorios: [] });
-  const type: EquipmentTypeRow = { id: TYPE_ID, derived_from: { seed_version: SEED_VERSION, block_type: 'transformador_forca' }, draft: null, retired_at: null, removed_at: null, latest_version: 1 };
-  const version: EquipmentTypeVersionRow = { id: VERSION_ID, type_id: TYPE_ID, version: 1, definition: trCopy, published_by: USER, published_at: '2026-11-11T12:00:00.000Z' };
+  const derived = definition === trCopy ? { seed_version: SEED_VERSION, block_type: 'transformador_forca' as const } : null;
+  const type: EquipmentTypeRow = { id: TYPE_ID, derived_from: derived, draft: null, retired_at: null, removed_at: null, latest_version: 1 };
+  const version: EquipmentTypeVersionRow = { id: VERSION_ID, type_id: TYPE_ID, version: 1, definition, published_by: USER, published_at: '2026-11-11T12:00:00.000Z' };
   await fresh.entities.bulkPut([toRecord(entityKey('equipment_type', TYPE_ID), type), toRecord(entityKey('equipment_type_version', VERSION_ID), version), toRecord(entityKey('template', TEMPLATE_ID), standardTemplate({ id: TEMPLATE_ID }))]);
   return fresh;
 }
@@ -210,29 +212,70 @@ describe('24.19 a published copy hides its original', () => {
     expect(screen.getByText(/^Para renomear um tipo da biblioteca/)).toHaveTextContent('Enquanto a cópia estiver publicada, o tipo da biblioteca sai das paletas.');
   });
 
-  it('the composer\'s palette lists the copy where the transformer stood, marked "Tipo da empresa", and not the transformer', async () => {
+  it('the composer\'s palette lists the copy where the transformer stood, marked "Tipo da empresa", and offers no stepper of the transformer', async () => {
     database = await freshDb();
-    render(
-      <MemoryRouter initialEntries={[`/templates/${TEMPLATE_ID}`]}>
-        <ToastProvider>
-          <Routes>
-            <Route path="/templates/:id" element={<TemplateComposerSurface />} />
-          </Routes>
-          <ToastOutlet />
-        </ToastProvider>
-      </MemoryRouter>,
-    );
+    renderComposer();
     await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
     const palette = screen.getByRole('complementary', { name: 'Paleta de blocos' });
-    const names = () => [...palette.querySelectorAll<HTMLElement>('.palette-item.is-stepper .pi-text > span:first-child')].map((span) => span.textContent);
+    const names = () => [...palette.querySelectorAll<HTMLElement>('.palette-item.is-stepper:not([data-hidden-type]) .pi-text > span:first-child')].map((span) => span.textContent);
     await waitFor(() => expect(names()).toContain(trCopy.label));
     const before = paletteTypeGroups(SEED_VERSION, EMPTY_DEFINITION_CONTEXT).flatMap((group) => group.types);
     expect(names()).toHaveLength(before.length);
     const at = before.indexOf('transformador_forca');
     expect(names()[at]).toBe(trCopy.label);
     expect(names()).not.toContain('Transformador de força');
-    const row = [...palette.querySelectorAll<HTMLElement>('.palette-item.is-stepper')][at]!;
+    const row = [...palette.querySelectorAll<HTMLElement>('.palette-item.is-stepper:not([data-hidden-type])')][at]!;
     expect(row.querySelector('.pi-meta')!.textContent).toMatch(/^Tipo da empresa · /);
     expect(companyBlockType(TYPE_ID)).toBe(`type:${TYPE_ID}`);
   });
+
+  it('e24x D17: the template placing transformers keeps the hidden transformer right after its copy, with "Editar padrões", its stepper disabled by the hidden line', async () => {
+    database = await freshDb();
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const palette = screen.getByRole('complementary', { name: 'Paleta de blocos' });
+    const rows = () => [...palette.querySelectorAll<HTMLElement>('.palette-item.is-stepper')];
+    const nameOf = (row: HTMLElement) => row.querySelector('.pi-text > span:first-child')!.textContent;
+    await waitFor(() => expect(rows().map(nameOf)).toContain(trCopy.label));
+    const at = rows().findIndex((row) => nameOf(row) === trCopy.label);
+    const hidden = rows()[at + 1]!;
+    expect(nameOf(hidden)).toBe('Transformador de força');
+    expect(hidden).toHaveAttribute('data-hidden-type');
+    const meta = hidden.querySelector<HTMLElement>('.pi-meta')!;
+    expect(meta).toHaveTextContent(hiddenTypeText([trCopy.label])!);
+    // Nothing new to place: the stepper is disabled, its reason the hidden line.
+    for (const button of within(hidden).getAllByRole('button').filter((one) => one.getAttribute('aria-label') !== 'Editar padrões de Transformador de força')) {
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute('aria-describedby', meta.id);
+    }
+    // The way back to the transformer's defaults.
+    await userEvent.click(within(hidden).getByRole('button', { name: 'Editar padrões de Transformador de força' }));
+    expect(await screen.findByRole('dialog', { name: /Transformador de força/ })).toBeVisible();
+  });
+
+  it('e24x C3: a company type with no summary and no version text reads "Tipo da empresa" alone', async () => {
+    database = await freshDb({ ...structuredClone(DEFINITION_3), label: 'Fonte sem itens', checklist: null });
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const palette = screen.getByRole('complementary', { name: 'Paleta de blocos' });
+    const row = await waitFor(() => {
+      const found = [...palette.querySelectorAll<HTMLElement>('.palette-item.is-stepper')].find((one) => one.querySelector('.pi-text > span:first-child')!.textContent === 'Fonte sem itens');
+      expect(found).toBeDefined();
+      return found!;
+    });
+    expect(row.querySelector('.pi-meta')!.textContent).toBe('Tipo da empresa');
+  });
 });
+
+function renderComposer(): void {
+  render(
+    <MemoryRouter initialEntries={[`/templates/${TEMPLATE_ID}`]}>
+      <ToastProvider>
+        <Routes>
+          <Route path="/templates/:id" element={<TemplateComposerSurface />} />
+        </Routes>
+        <ToastOutlet />
+      </ToastProvider>
+    </MemoryRouter>,
+  );
+}

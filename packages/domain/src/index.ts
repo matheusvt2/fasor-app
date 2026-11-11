@@ -170,6 +170,8 @@ export * from './registry/nc-phrase-row.ts';
 // Story 14.7: the type list's and the editor's derived text, and the editor's draft edits. Last:
 // `types/list.ts` reads `relatorio/tree.ts`, which must finish loading in its own order first.
 export * from './types/list.ts';
+// Fix batch e24x: the palettes' meta line and the composer's hidden originals read `types/list.ts`.
+export * from './types/palette-meta.ts';
 export * from './types/draft-edit.ts';
 // Story 23.12: the base import reads `types/list.ts` (`typeNameOf`), so it loads after it.
 export * from './types/test-base-import.ts';

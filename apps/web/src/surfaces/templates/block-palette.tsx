@@ -1,7 +1,9 @@
 import {
+  composerHiddenTypes,
   isCompanyBlockType,
   latestCompanyTypeVersion,
   libraryTypeSummaryText,
+  paletteMetaText,
   paletteTypeGroups,
   SECTION_BLOCK_TYPES,
   sectionNumber,
@@ -86,13 +88,14 @@ export function BlockPaletteContent({
   const naming = useTypeNaming();
   const definitions = naming.definitions;
   /** A library row's line: what it holds, then (a company type) the version the template records and the newer one. */
+  // Story 24.19: a company type's row is marked "Tipo da empresa", wherever it stands (a copy among the eight too);
+  // fix batch e24x (C3): the kernel composes the line, so a type with nothing to say still carries the mark.
   const paletteMeta = (type: BlockTypeKey): string | null => {
     const version = latestCompanyTypeVersion(definitions, type);
-    const parts = [libraryTypeSummaryText(seedVersion, type, definitions, version), naming.versionTextOf(type)].filter((part): part is string => part !== null && part !== '');
-    if (parts.length === 0) return null;
-    // Story 24.19: a company type's row is marked "Tipo da empresa", wherever it stands (a copy among the eight too).
-    return isCompanyBlockType(type) ? copy.sumario.palette.companyMeta(parts.join(' · ')) : parts.join(' · ');
+    return paletteMetaText(isCompanyBlockType(type), [libraryTypeSummaryText(seedVersion, type, definitions, version), naming.versionTextOf(type)]);
   };
+  // Fix batch e24x (decision 17): a library type a published copy hides, while the template places it, keeps its defaults' entry.
+  const hiddenPlaced = composerHiddenTypes(definitions, seedVersion, placedTypes);
   const drawer = onClose !== undefined;
   const moreBelow = useMoreBelowCue(drawer);
   // The mock swaps `.pal-now` and `.pal-none` with CSS `:has()`; here one of them is rendered. A polite region: the target is said when it changes.
@@ -166,18 +169,37 @@ export function BlockPaletteContent({
             {group.label === null ? null : <p className="palette-group palette-library">{group.label}</p>}
             {/* Story 14.8: the published, non-retired company types follow the library types (AD-21 item 6). */}
             {group.types.map((type) => (
-              <PaletteEquipmentRow
-                // A new node is a new stepper: no count carries over from the previous one.
-                key={`${current?.ref ?? ''}:${type}`}
-                type={type}
-                meta={group.key === 'library' || isCompanyBlockType(type) ? paletteMeta(type) : null}
-                value={current === null ? 0 : (current.quantities[type] ?? 0)}
-                isDisabled={current === null}
-                disabledReasonId={reasonId}
-                onCommit={(n) => onSetQuantity(type, n)}
-                // A company type's defaults are its own editor's (Templates › Tipos de equipamento).
-                {...(placedTypes.has(type) && !isCompanyBlockType(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
-              />
+              // A new node is a new stepper: no count carries over from the previous one.
+              <Fragment key={`${current?.ref ?? ''}:${type}`}>
+                <PaletteEquipmentRow
+                  type={type}
+                  meta={group.key === 'library' || isCompanyBlockType(type) ? paletteMeta(type) : null}
+                  value={current === null ? 0 : (current.quantities[type] ?? 0)}
+                  isDisabled={current === null}
+                  disabledReasonId={reasonId}
+                  onCommit={(n) => onSetQuantity(type, n)}
+                  // A company type's defaults are its own editor's (Templates › Tipos de equipamento).
+                  {...(placedTypes.has(type) && !isCompanyBlockType(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
+                />
+                {/* Fix batch e24x (decision 17): right after its copies, the hidden original the template places: its
+                    defaults' entry, its count, and a stepper disabled by the line that says why. */}
+                {hiddenPlaced
+                  .filter((hidden) => hidden.after === type)
+                  .map((hidden) => (
+                    <PaletteEquipmentRow
+                      key={hidden.type}
+                      type={hidden.type}
+                      meta={hidden.text}
+                      metaId={`${reasonId}-hidden-${hidden.type}`}
+                      hidden
+                      value={current === null ? 0 : (current.quantities[hidden.type] ?? 0)}
+                      isDisabled
+                      disabledReasonId={`${reasonId}-hidden-${hidden.type}`}
+                      onCommit={async () => undefined}
+                      onEditDefaults={() => onEditDefaults(hidden.type)}
+                    />
+                  ))}
+              </Fragment>
             ))}
           </Fragment>
         ))}
@@ -228,23 +250,31 @@ export interface PaletteEquipmentRowProps {
   onCommit: (n: number) => Promise<void>;
   /** Present when the template holds the type: the row's button opens its sub-block defaults. */
   onEditDefaults?: () => void;
+  /** Fix batch e24x (decision 17): the meta's id, so the disabled stepper of a hidden original names it as its reason. */
+  metaId?: string;
+  /** Fix batch e24x (decision 17): a library type a published copy hides, kept for its defaults (`data-hidden-type`). */
+  hidden?: boolean;
 }
 
 /**
  * One equipment type of the palette with its stepper and, once the template holds the type,
  * the "Editar padrões" icon button that opens its sub-block defaults (Story 3.5).
  */
-export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disabledReasonId, onCommit, onEditDefaults }: PaletteEquipmentRowProps) {
+export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disabledReasonId, onCommit, onEditDefaults, metaId, hidden = false }: PaletteEquipmentRowProps) {
   const naming = useTypeNaming();
   const name = naming.nameOf(type);
   return (
-    <div className="palette-item is-stepper">
+    <div className="palette-item is-stepper" data-hidden-type={hidden ? '' : undefined}>
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-block" />
       </svg>
       <span className="pi-text">
         <span>{name}</span>
-        {meta === null ? null : <span className="pi-meta">{meta}</span>}
+        {meta === null ? null : (
+          <span className="pi-meta" id={metaId}>
+            {meta}
+          </span>
+        )}
       </span>
       {onEditDefaults === undefined ? null : (
         <button type="button" className="icon-btn" aria-label={copy.composer.editDefaults(name)} onClick={onEditDefaults}>
