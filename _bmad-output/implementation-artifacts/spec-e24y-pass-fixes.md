@@ -2,7 +2,7 @@
 title: 'e24y: the hands-on pass findings of 2026-11-11 (print of the paired insulation tables, the conclusion after a TAG rename, the sheet''s TAG field, small screen fixes)'
 type: 'bugfix'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '7b68f225112f6b0f365bad09871a7874716639b1'
 review_loop_iteration: 0
 followup_review_recommended: true
@@ -189,3 +189,11 @@ Built after P1 to P7 and after merging main `76c74711` (fix batch e24x). Bruno's
 **Authored (second pass), `// authored (e24y, corrected by Bruno 2026-11-11)`:** the eleven corrected strings of P8a to P8f and P10 above (Bruno's own words, as the spec lists them; "Toque em um tipo da lista para adicionar.", "lista de tipos aberta de dentro da ficha" and "local onde a lista de tipos abriu" are the batch's wording of his correction).
 
 **Touched e2e specs (both passes):** `e24y-screen-fixes`, `e24y-tag-rename` (queue lane), `seed-v14-sheet-fixes`, `equipment-history`, `tag-suggestion`, `previous-visit-note`, `previous-visit-date`, `previous-visit`, `winding-resistance`, `seed-v14-transformer`, `points-on-click`, `panel-capture`, `tc-polarity`, `type-editor`, `pass-screen-fixes`, `v13-nameplate`, `seed-v14-qgbt-inspecao`, `nominal-tolerance`, `conclusion-v14`. None is a durability spec on the ficha's commit path.
+
+**Story gate (orchestrator, 2026-11-11, under the host lock, after merging main `76c74711`).** Run on head `6fc4d155`; the e2e and matrix stages ran on `bedb8c52`, which changes only `e24y-screen-fixes.spec.ts` (E2E-005) and this spec. Lock wait 130 s; load 7.47 at the start, 13.71 at the end; the main checkout's stack stopped, `fasor-e24y` the only stack.
+- lint 0 errors (27 s, rerun on `bedb8c52`: 0 errors); static clean (40 s).
+- test:api 995 passed, 6 skipped (540 s); layout-lock v5, v11, v12, v13 byte-equal, Porto Seguro golden green: no golden moved (`git diff 7b68f225 -- apps/api/src/jobs/generate/golden packages/domain/fixtures packages/domain/src/contract/version.ts` empty).
+- test:unit 6589 of 6593 (402 s). The 4 reds are in `relatorio-tree-edges.test.tsx` (three) and `relatorio-tree.test.tsx` (one): three 15 s timeouts at load 13, and one cascade from a popover a timed-out test left open. None of these files is touched by the batch. Rerun alone under the lock on `bedb8c52`: 22 of 22 green.
+- Touched e2e (24 specs, `desktop-chrome` + `durability-desktop-chrome`): 68 of 68 (parallel 30, queue 38), 592 s.
+- Matrix (P3 changes the plate TAG field's commit: `ficha.durability`, `lost-taps.durability` on durability desktop, Android and WebKit): 35 passed, 1 skipped (that spec's own skip), 308 s.
+- Orchestrator additions after the dev: `point-question.spec.ts` and `points-derived.spec.ts` asserted the old "Origem resolvida" (P8c), fixed in `6fc4d155`, and `thermography.spec.ts` was run beside them. E2E-005 was rewritten in `bedb8c52`: its line-count measure was unreliable, see P8b.
