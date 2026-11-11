@@ -18,6 +18,7 @@ import { blockDefinitionIn, getSeed, seedRule, siteItems, snapshotDefinitionCont
 import type { BlockDefinition } from '../seed/schema.ts';
 import { recommendationCount, recommendationsText, recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
 import { livePoints } from './checks.ts';
+import { TEXT_CAPS } from '../ops/value-limits.ts';
 
 /*
  * Fix batch e24h (Matheus, 2026-11-10, on Bruno's report of points created with no tap): a point of
@@ -365,6 +366,15 @@ function pointSource(point: Pick<PointRow, 'origin' | 'equipment_id' | 'location
   return null;
 }
 
+/**
+ * Fix batch e24x (D5): one point per test (Story 24.17). A `reading` and a `restricao` source of the
+ * same equipment and test are that test's one point for "Criar ponto de atenção": a point written while
+ * the test was restricted names the place once a reading goes out, and the other way round.
+ */
+function testSource(source: string | null): string | null {
+  return source === null ? null : source.replace(/^(reading|restricao):/, 'test:');
+}
+
 /** A finding as a point names it; null when no point can name it (a sheet with no equipment). */
 function entrySource(entry: DerivedPoint): string | null {
   const owner = entry.equipment_id ?? entry.location_id;
@@ -430,13 +440,17 @@ export function sheetPointFindings(snapshot: DerivedSnapshot, blockId: string): 
   const live = livePoints(snapshot.points);
   return entries.flatMap((entry): SheetPointFinding[] => {
     if (entry.kind !== 'reading' && entry.kind !== 'restricao' && entry.kind !== 'reprovado') return [];
-    const source = entrySource(entry);
-    const positions = live.flatMap((point, i) => (source !== null && pointSource(point) === source ? [i + 1] : []));
+    const source = testSource(entrySource(entry));
+    const positions = live.flatMap((point, i) => (source !== null && testSource(pointSource(point)) === source ? [i + 1] : []));
     const testKey = entry.kind === 'reprovado' ? null : entry.test_key;
     const place = testKey !== null && (measured.has(testKey) || enabled.has(testKey)) ? 'test' : 'conclusao';
     const count = recommendationCount(entry.recommendations);
     if (!asAction || count === 0) return [{ origin: entry.kind, testKey, place, text: entry.text, action: '', actionHelper: null, positions }];
-    return [{ origin: entry.kind, testKey, place, text: entry.finding, action: recommendationsText(entry.recommendations), actionHelper: count === 1 ? ACTION_HELPER_ONE : ACTION_HELPER_MANY, positions }];
+    const action = recommendationsText(entry.recommendations);
+    // Fix batch e24x (D2): past the action's cap the recommendations start the text instead (Story 23.11's form), or,
+    // past the text's cap too, the finding stands alone; "Concluir" never stores a create the server refuses.
+    if (action.length > TEXT_CAPS.medium) return [{ origin: entry.kind, testKey, place, text: entry.text.length <= TEXT_CAPS.long ? entry.text : entry.finding, action: '', actionHelper: null, positions }];
+    return [{ origin: entry.kind, testKey, place, text: entry.finding, action, actionHelper: count === 1 ? ACTION_HELPER_ONE : ACTION_HELPER_MANY, positions }];
   });
 }
 
