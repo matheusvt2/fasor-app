@@ -208,7 +208,7 @@ describe('24.3-UNIT B-1 a v14 reading out of its criterion floors Reprovado and 
     expect(observationRequired(block)).toBe(true);
     expect(observationRequiredBy(block)).toBe('reprovado');
     expect(conclusionSuggestion(block)).toEqual({ result: 'reprovado', restriction: null });
-    expect(conclusionSuggestionText(conclusionSuggestion(block)!)).toBe('Reprovado?');
+    expect(conclusionSuggestionText(conclusionSuggestion(block)!)).toBe('Marcar como Reprovado?');
     expect(conclusionPairComplete(block)).toBe(true);
     expect(markRestrictionOffered(block)).toBe(false);
   });
@@ -217,7 +217,7 @@ describe('24.3-UNIT B-1 a v14 reading out of its criterion floors Reprovado and 
     const v14 = outCable('v14');
     expect(conclusionPreview(v14)).toEqual({ result: true, restriction: false });
     expect(conclusionSuggestion(v14)).toEqual({ result: 'reprovado', restriction: null });
-    expect(conclusionSuggestionText(conclusionSuggestion(v14)!)).toBe('Reprovado?');
+    expect(conclusionSuggestionText(conclusionSuggestion(v14)!)).toBe('Marcar como Reprovado?');
     // Reprovado stored by a tap: nothing left to preview on v14; v13 previews its Com restrições.
     expect(conclusionPreview(stored(v14, 'reprovado', null))).toEqual({ result: false, restriction: false });
     const v13 = outCable('v13');

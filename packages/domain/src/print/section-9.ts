@@ -27,7 +27,7 @@ import { TEMPERATURE_PRINT_LABEL, type TestTemperatureView } from '../relatorio/
 import { visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import type { BlockRow, EquipmentRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, findSeed, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, findSeed, getSeed, seedRule, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import { scaleToUnit } from '../seed/criteria.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, ReportSeed, SiteChecklist, TableDef, TestDef } from '../seed/schema.ts';
 import { withCaptionOrdinals } from './caption-ordinal.ts';
@@ -858,9 +858,11 @@ interface FittedTable {
  * exactly as before, with no size: the margins stay the same points whatever the size, so
  * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS, outsideBudget: readonly number[] = [], wholeFit = false): FittedTable {
+function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS, outsideBudget: readonly number[] = [], wholeFit = false, unitsJoined = false): FittedTable {
   // Fix batch e23p (P2): a whole-fit table measures its words by the face's advance widths.
   const measure = wholeFit ? printTextEm : emWidth;
+  // Fix batch e24y (P1): a table whose values are joined to their units (`joinUnits`) splits its words at plain spaces only.
+  const words = (text: string) => text.split(unitsJoined ? PLAIN_SPACES : /\s+/);
   const least = new Array<number>(count).fill(0);
   const whole = new Array<number>(count).fill(0);
   for (const row of rows) {
@@ -869,7 +871,7 @@ function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly
       const span = cell.span ?? 1;
       if (span === 1 && col < count) {
         const bold = cell.bold === true;
-        const word = Math.max(0, ...cell.text.split(/\s+/).map((part) => measure(part, bold)));
+        const word = Math.max(0, ...words(cell.text).map((part) => measure(part, bold)));
         least[col] = Math.max(least[col]!, word);
         whole[col] = Math.max(whole[col]!, [...cell.text].length <= SHORT_TEXT ? measure(cell.text, bold) : word);
       }
@@ -958,6 +960,8 @@ export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'row
   const scale = textScale(printed.textHalfPoints);
   // Fix batch e23p (P2): a whole-fit table's words are measured by the face's advance widths, as it was fitted.
   const measure = WHOLE_FIT_TABLES.has(printed) ? printTextEm : emWidth;
+  // Fix batch e24y (P1): a value joined to its unit is one word, as it was fitted.
+  const split = UNITS_JOINED_TABLES.has(printed) ? PLAIN_SPACES : /\s+/;
   const out: { col: number; word: string }[] = [];
   for (const row of printed.rows) {
     let col = 0;
@@ -965,7 +969,7 @@ export function wordsWiderThanColumns(printed: Pick<PrintTable, 'columns' | 'row
       const span = cell.span ?? 1;
       if (span === 1 && col < printed.columns.length) {
         const width = (printed.columns[col]! / total) * pageEm;
-        for (const word of cell.text.split(/\s+/)) if (measure(word, cell.bold === true) * scale + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
+        for (const word of cell.text.split(split)) if (measure(word, cell.bold === true) * scale + CELL_ALLOWANCE_EM > width + 1e-9) out.push({ col, word });
       }
       col += span;
     }
@@ -1049,6 +1053,42 @@ function withWholeFit(table: PrintTable, wholeFit: boolean): PrintTable {
   return table;
 }
 
+/**
+ * Fix batch e24y (P1, the hands-on pass of 2026-11-11, seed v14 `paired_tables_fit_whole`): the tables
+ * whose values are joined to their units by a no-break space (`joinUnits`): the Disjuntor MT's and the
+ * seccionadora's side-by-side pair (every cell) and the measurement tables (their MANUT. ANTERIOR column). Their words are split at plain spaces
+ * only (`PLAIN_SPACES`), so "1,21 mΩ" and "20 °C" are measured, and printed, as one word. Kept beside
+ * the table, as `WHOLE_FIT_TABLES`; `withAppendedColumn` re-fits such a table the same way. No table of
+ * seeds v1 to v13 is one.
+ */
+const UNITS_JOINED_TABLES = new WeakSet<object>();
+
+/** Whitespace but the no-break space: where a table whose values keep their units splits its words. */
+const PLAIN_SPACES = /[^\S\u00a0]+/u;
+
+/**
+ * A number and the word right after it ("1,21 mΩ", "20 °C", "> 2 TΩ"), a sign and its number ("> 2", "≥ 5",
+ * review Y7), and a name and the one letter that ends it ("FASE A"), joined by a no-break space; every other
+ * space kept.
+ */
+export function joinUnits(text: string): string {
+  return text
+    .replace(/(\d) (?=[^\s\d·])/gu, '$1\u00a0')
+    .replace(/([<>≤≥]) (?=\d)/gu, '$1\u00a0')
+    .replace(/(\p{L}) (?=\p{L}(?:$|[\s/]))/gu, '$1\u00a0');
+}
+
+/** The rows with every cell's value joined to its unit (`joinUnits`). */
+function rowsWithUnitsJoined(rows: readonly PrintRow[]): PrintRow[] {
+  return rows.map((row) => ({ ...row, cells: row.cells.map((cell) => ({ ...cell, text: joinUnits(cell.text) })) }));
+}
+
+/** The table, recorded as joining its values to their units when `joined`. */
+function withUnitsJoined(table: PrintTable, joined: boolean): PrintTable {
+  if (joined) UNITS_JOINED_TABLES.add(table);
+  return table;
+}
+
 /** The table, with its corrected columns recorded, as `fittedColumns` gave it. */
 function withCorrectedColumns(table: PrintTable, columns: readonly number[]): PrintTable {
   if (columns.length > 0) CORRECTED_COLUMNS.set(table, columns);
@@ -1075,11 +1115,20 @@ function simpleTitled(definition: TableDef): boolean {
   return definition.title !== undefined && definition.connection_group === undefined && definition.value_columns.every((column) => column.group === undefined);
 }
 
-/** Two tables of the same shape drawn as one, side by side, row by row, its columns fitted over the joined rows. */
-function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
-  const rows = left.rows.map((row, i) => ({ ...row, cells: [...row.cells, ...right.rows[i]!.cells] }));
+/**
+ * Two tables of the same shape drawn as one, side by side, row by row, its columns fitted over the joined rows.
+ * Fix batch e24y (P1, seed v14 `paired_tables_fit_whole`): the pair "GUAR"/"D" broke in (the Disjuntor MT's and
+ * the seccionadora's, "20 °C" cut in two lines too) is fitted whole, as e23p fits a single corrected table: its
+ * words measured by the face's advance widths, every column against the page, columns first and a smaller size
+ * only when the columns cannot hold the words, down to 5 pt; and each value keeps its unit (`joinUnits`). Every
+ * pair of seeds v1 to v13 is fitted as before, byte for byte (`emWidth`, the 60 em budget).
+ */
+function sideBySide(left: PrintTable, right: PrintTable, whole = false): PrintTable {
+  const joined = left.rows.map((row, i) => ({ ...row, cells: [...row.cells, ...right.rows[i]!.cells] }));
+  const rows = whole ? rowsWithUnitsJoined(joined) : joined;
   const outside = [...(CORRECTED_COLUMNS.get(left) ?? []), ...(CORRECTED_COLUMNS.get(right) ?? []).map((col) => col + left.columns.length)];
-  return withCorrectedColumns({ ...fittedColumns(rows, left.columns.length + right.columns.length, TABLE_TEXT_STEPS_HALF_POINTS, outside), rows }, outside);
+  const fitted = withCorrectedColumns({ ...fittedColumns(rows, left.columns.length + right.columns.length, TABLE_TEXT_STEPS_HALF_POINTS, outside, whole, whole), rows }, outside);
+  return withUnitsJoined(withWholeFit(fitted, whole), whole);
 }
 
 // --- MANUT. ANTERIOR (Story 22.12) ----------------------------------------------------------------
@@ -1108,6 +1157,8 @@ export function withPreviousColumn(printed: PrintTable, texts: readonly string[]
  */
 export function withAppendedColumn(printed: PrintTable, header: string, texts: readonly string[], steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS): PrintTable {
   const width = printed.columns.length;
+  // Fix batch e24y (P1): a table joining its values to their units joins the appended column's values too.
+  const joined = UNITS_JOINED_TABLES.has(printed);
   const headers = printed.rows.filter((row) => row.header === true);
   const last = headers[headers.length - 1];
   let data = 0;
@@ -1117,7 +1168,7 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
     if (row.band === true || (row.cells.length === 1 && span === width && width > 1)) return { ...row, cells: [{ ...row.cells[0]!, span: width + 1 }] };
     const text = texts[data] ?? '';
     data += 1;
-    return { ...row, cells: [...row.cells, valueCell(text)] };
+    return { ...row, cells: [...row.cells, valueCell(joined ? joinUnits(text) : text)] };
   });
   // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
   const kept: PrintTable = { ...printed };
@@ -1125,7 +1176,7 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
   const outside = CORRECTED_COLUMNS.get(printed) ?? [];
   // Fix batch e23p (P2): a whole-fit table stays one, re-fitted the same way.
   const wholeFit = WHOLE_FIT_TABLES.has(printed);
-  return withWholeFit(withCorrectedColumns({ ...kept, ...fittedColumns(rows, width + 1, steps, outside, wholeFit), rows }, outside), wholeFit);
+  return withUnitsJoined(withWholeFit(withCorrectedColumns({ ...kept, ...fittedColumns(rows, width + 1, steps, outside, wholeFit, joined), rows }, outside), wholeFit), joined);
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -1179,7 +1230,9 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   // Batch e23e (Story 23.18, seed v13): the test's print note (the ratio check is not an accuracy test), the same way.
   // Batch e24p (Story 24.16, seed v14): the rows a previous-visit rule flagged, one line after the test's other notes.
   const notes = [evaluation.limitNote ?? null, evaluation.printNote ?? null, testHistoryNote(block.seed_version, evaluation)].filter((text): text is string => text !== null);
-  const printed = (paired ? [sideBySide(tables[0]!, tables[1]!)] : tables).map((one, i, all): SheetPart =>
+  // Fix batch e24y (P1, seed v14): the pair is fitted whole, each value with its unit.
+  const pairWhole = seedRule(block.seed_version, 'paired_tables_fit_whole');
+  const printed = (paired ? [sideBySide(tables[0]!, tables[1]!, pairWhole)] : tables).map((one, i, all): SheetPart =>
     i < all.length - 1 || notes.length > 0 ? { kind: 'table', table: one, keepWithNext: true } : { kind: 'table', table: one },
   );
   const paragraphs = notes.map((text, i): SheetPart => (i < notes.length - 1 ? { kind: 'paragraph', text, keepWithNext: true } : { kind: 'paragraph', text }));
@@ -1302,7 +1355,10 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
     if (group.text === '') continue;
     rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: width - 1, align: 'center' }] });
   }
-  const printed: PrintTable = { ...fittedColumns(rows, width), rows };
+  // Fix batch e24y (P1, seed v14 `paired_tables_fit_whole`): MANUT. ANTERIOR keeps each value with its unit on its line
+  // ("1,21 mΩ"), appended by `withPreviousColumn`; the table's own cells stay as v13 prints them.
+  const joined = seedRule(block.seed_version, 'paired_tables_fit_whole');
+  const printed: PrintTable = withUnitsJoined({ ...fittedColumns(rows, width, TABLE_TEXT_STEPS_HALF_POINTS, [], false, joined), rows }, joined);
   if (previous === null) return { kind: 'table', table: printed };
   // Story 22.12: each shown row's previous number cells, in column order (the reference and group rows take none).
   const texts = test.rows.map((row) =>

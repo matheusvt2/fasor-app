@@ -156,7 +156,7 @@ describe('24.7 the question about the row\'s stored point (a sheet\'s row)', () 
     const h = renderRow('NC', 'Trinca no isolador', points());
     await userEvent.click(seg('Conforme'));
     const dialog = await screen.findByRole('dialog', { name: 'Remover o ponto de atenção deste item?' });
-    expect(dialog).toHaveAccessibleDescription('O ponto de atenção 2 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Origem resolvida”.');
+    expect(dialog).toHaveAccessibleDescription('O ponto de atenção 2 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Item alterado”.');
     expect(within(dialog).getByRole('button', { name: 'Manter ponto' })).toHaveFocus();
     expect(within(dialog).getByRole('button', { name: 'Remover ponto' })).toHaveClass('btn-destructive');
     // Behind the modal (hidden from the tree while it is open), the row shows the new result.

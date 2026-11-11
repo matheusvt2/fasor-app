@@ -430,6 +430,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 24.17: issues a revision through the shared queue and LibreOffice to read the point written from a test in section 8 of the DOCX (its bullet and its action-plan row)',
   },
+  // Fix batch e24y (P2, P3): e24y-E2E-001 issues a revision to read the renamed sheet's conclusion in section 9 of the DOCX.
+  {
+    file: 'e24y-tag-rename.spec.ts',
+    lane: 'queue',
+    why: 'Fix batch e24y: issues a revision through the shared queue and LibreOffice to read that a sheet renamed after its conclusion prints the paragraph naming the new TAG',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

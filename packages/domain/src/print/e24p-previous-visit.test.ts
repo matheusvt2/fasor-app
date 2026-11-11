@@ -271,9 +271,12 @@ describe('24.15-UNIT the MANUT. ANTERIOR header and the history texts name the v
       const now = tablesOf(sheetOf(withPrevious(v14, type, dated('2025-10-30')), type)).filter(hasPrevious);
       expect(now.length, type).toBe(old.length);
       now.forEach((table, i) => {
-        expect(table.columns, type).toEqual(old[i]!.columns);
-        expect(table.textHalfPoints, type).toBe(old[i]!.textHalfPoints);
-        const strip = (one: PrintTable) => one.rows.map((row) => row.cells.map((c) => (isPreviousHeader(c.text) ? PREVIOUS : c.text)));
+        // Fix batch e24y (P1, `paired_tables_fit_whole`): the v14 side-by-side pair is fitted whole, so its weights and
+        // size are its own; every table keeps a value with its unit by a no-break space, read here as a space.
+        const pair = type !== 'transformador_forca' && table.columns.length === 14;
+        if (!pair) expect(table.columns, type).toEqual(old[i]!.columns);
+        if (!pair) expect(table.textHalfPoints, type).toBe(old[i]!.textHalfPoints);
+        const strip = (one: PrintTable) => one.rows.map((row) => row.cells.map((c) => (isPreviousHeader(c.text) ? PREVIOUS : c.text.replace(/\u00a0/gu, ' '))));
         expect(strip(table), type).toEqual(strip(old[i]!));
         expect(wordsWiderThanColumns(table, readingFitWidthEm(table)), type).toEqual([]);
       });

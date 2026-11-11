@@ -72,6 +72,7 @@ import {
   removeBlockOp,
   type Author,
 } from './relatorio-ops.ts';
+import { renameEquipmentOps } from './tag-rename-ops.ts';
 
 /*
  * Stories 4.4 and 4.5: every write the location tree makes, through the relatório's one
@@ -90,6 +91,8 @@ export interface TreeContext {
   editor: RelatorioEditor;
   /** Story 14.8: the company's equipment types on this device (`useDefinitionContext`), for a block of a company type the palette creates. */
   definitions: DefinitionContext;
+  /** Fix batch e24y (on e24x's D3): the relatório, so a rename composes the conclusion under the same visit as the sheet. */
+  relatorio?: { setup: { service_start?: string | null; service_end?: string | null } };
 }
 
 /** What the actions need of the tree they act on. */
@@ -508,7 +511,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       const equipmentId = node.equipmentId;
       if (equipmentId === null) return;
       const out: { refusal: string | null } = { refusal: null };
-      void edit((_blocks, by, fresh) => {
+      void edit((blocks, by, fresh) => {
         const row = fresh.equipment.find((e) => e.id === equipmentId && e.removed_at === null);
         if (row === undefined) {
           out.refusal = t.gone;
@@ -520,7 +523,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           out.refusal = verdict.reason === 'empty' ? copy.sumario.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
           return null;
         }
-        return [putEquipmentTagOp(by, projectId, equipmentId, tag.trim())];
+        // Fix batch e24y (P2, P3): the rename carries the sheets' unedited conclusion and stored plate TAG in the same batch.
+        return renameEquipmentOps(by, { projectId, relatorioId, rows: { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions, relatorio: context.relatorio ?? null } }, equipmentId, tag);
       })
         .then((batch) => {
           restoreFocus(() => blockTrigger(blockRow(host.root(), node.blockId)), { mode: 'settled' });
@@ -532,7 +536,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         })
         .catch(() => undefined);
     },
-    [edit, projectId, host, showToast, undoable, t.gone],
+    [edit, projectId, relatorioId, definitions, context.relatorio, host, showToast, undoable, t.gone],
   );
 
   const markNotTested = useCallback(

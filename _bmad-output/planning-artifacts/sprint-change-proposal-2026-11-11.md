@@ -311,6 +311,8 @@ With the message go the authored sentences of fix batch e24y and of every Epic 2
 | M-9 | A stale conclusion text blocks issuing on every seed, older relatórios included | As stated. |
 | M-10 | Two deploys: wave 1 alone, then one after the last wave. Wave 5 may go with wave 4 or after it | As stated. |
 
+*(2026-11-11, later: Matheus decided all ten, "pode mergear e seguir"; see "The ten questions, decided" under his decisions below.)*
+
 ## Matheus's decisions (2026-11-11)
 
 Matheus said "ok" to the coordinator's list. Recorded as:
@@ -328,6 +330,25 @@ Matheus said "ok" to the coordinator's list. Recorded as:
 11. Fixed texts, the cover and the headers (M09, M10, M11, M12, M13): seed v15, together.
 
 Also in scope by his word: the 50 % edge; N/A per cell and per row (M05); the header's voltage (M06); the point that names every reading (M14); the overdue deadline (M26); the test base as an update (M27); the TC's item (M22); the transformer's hints (M21); the warning on a removed local (M32); the helper of a limit inside a range. Out of scope: M04, M08, M15 and M28, which are done, and whatever fix batch e24y is doing.
+
+### The ten questions, decided (2026-11-11, later)
+
+The coordinator put M-1 to M-10 to Matheus with a recommendation for each. His word: "pode mergear e seguir". Recorded as:
+
+| # | Decision |
+| --- | --- |
+| M-1 | The story list, the waves and the batches are approved. |
+| M-2 | An NC item may carry more than one point of attention, as today. Nothing changes. |
+| M-3 | Story 25.4 keeps the printed verdicts on the revision. The stored pair and the stored parecer are not written over. |
+| M-4 | No "Salvo às hh:mm" line per field for now. Story 25.2 makes the value save by itself. |
+| M-5 | N/A on a reading cell and on a row: seed v15 only, because it changes the print. |
+| M-6 | **Changed from the default:** on seed v15 the sheet's conclusion paragraph and section 10 also name every reading out of its criterion, as the point does. It joins Story 25.10. |
+| M-7 | **Changed from the default:** a restriction chosen by hand over a sheet with no finding no longer prints a recommendation that points at nothing (pass finding F12). It joins Story 25.7. |
+| M-8 | The AI check is marked out of date and runs only on a tap. |
+| M-9 | A stale conclusion text blocks issuing on every seed. |
+| M-10 | Two deploys: wave 1 alone, then one after the last wave. |
+
+The same day he confirmed two points of Epic 24 the coordinator had built on its own reading: an older visit issued late must not print a later visit as the previous one (review finding D3 of fix batch e24x), and the correction of a reading above the instrument's limit applies on every seed.
 
 ## Where the sources and the decisions do not agree
 

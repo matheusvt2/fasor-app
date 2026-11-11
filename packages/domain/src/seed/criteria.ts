@@ -141,7 +141,8 @@ export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' |
   // authored (e24c, listed for Bruno): Story 24.18's nominal and tolerance, "220 V ±5 %" (B-9 open:
   // the sign glued to the tolerance and a space before "%", as the ratio's "±0,5 %" prints today).
   if (criterion.operator === 'nominal_pct') {
-    return criterion.tolerance_pct === undefined ? withUnit(value) : `${withUnit(value)} ±${String(criterion.tolerance_pct).replace('.', ',')} %`;
+    // authored (e24y, corrected by Bruno 2026-11-11): "220 V ± 5 %" (was "220 V ±5 %"), a space after the sign.
+    return criterion.tolerance_pct === undefined ? withUnit(value) : `${withUnit(value)} ± ${String(criterion.tolerance_pct).replace('.', ',')} %`;
   }
   // authored (Story 14.6): a company type's two operators the seeds never use, as the editor's mock words them.
   if (criterion.operator === 'between' && criterion.value_max !== undefined) return withUnit(`entre ${value} e ${String(criterion.value_max).replace('.', ',')}`);

@@ -89,7 +89,7 @@ describe('24.7-UNIT pointQuestionText: the question names the points by their se
   it('one point, back to Conforme: the mock\'s words', () => {
     expect(pointQuestionText(points, [first], 'C')).toEqual({
       title: 'Remover o ponto de atenção deste item?',
-      description: 'O ponto de atenção 2 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Origem resolvida”.',
+      description: 'O ponto de atenção 2 foi criado a partir deste item, que agora está Conforme. Se mantiver, ele fica com a marca “Item alterado”.',
       removed: 'Ponto de atenção 2 removido',
     });
     // The same number the row's mark shows.
@@ -98,11 +98,11 @@ describe('24.7-UNIT pointQuestionText: the question names the points by their se
 
   it('one point, to N.A., and two points', () => {
     expect(pointQuestionText(points, [first], 'NA')!.description).toBe(
-      'O ponto de atenção 2 foi criado a partir deste item, que agora está marcado como Não se aplica. Se mantiver, ele fica com a marca “Origem resolvida”.',
+      'O ponto de atenção 2 foi criado a partir deste item, que agora está marcado como Não se aplica. Se mantiver, ele fica com a marca “Item alterado”.',
     );
     expect(pointQuestionText(points, [first, second], 'C')).toEqual({
       title: 'Remover os pontos de atenção deste item?',
-      description: 'Os pontos de atenção 2 e 3 foram criados a partir deste item, que agora está Conforme. Se mantiver, eles ficam com a marca “Origem resolvida”.',
+      description: 'Os pontos de atenção 2 e 3 foram criados a partir deste item, que agora está Conforme. Se mantiver, eles ficam com a marca “Item alterado”.',
       removed: 'Pontos de atenção 2 e 3 removidos',
     });
     expect(pointQuestionText(points, [], 'C')).toBeNull();

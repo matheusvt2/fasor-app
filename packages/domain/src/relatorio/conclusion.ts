@@ -424,9 +424,14 @@ export function conclusionPreview(block: BlockRow, definition: DefinitionArg = u
   return { result: !isCellFilled(block.sheet.conclusion.result), restriction };
 }
 
-/** The suggestion row's words: "Aprovado · Sem restrições?"; batch e24a (Story 24.3, seed v14): "Reprovado?". */
+/**
+ * The suggestion row's words: "Aprovado · Sem restrições?"; batch e24a (Story 24.3, seed v14): "Reprovado?",
+ * fix batch e24y (P8b): "Marcar como Reprovado?". Screen only (the preview pill of the Conclusão step).
+ */
 export function conclusionSuggestionText(pair: ConclusionPair): string {
-  return `${pairWords(pair)}?`;
+  // authored (e24y, corrected by Bruno 2026-11-11): "Marcar como Reprovado?" (was "Reprovado?"). The other pairs keep their
+  // words: "Marcar como Reprovado · Com restrições?" does not fit the pill on one line at 390 px (e24y-E2E-005).
+  return pair.result === 'reprovado' && pair.restriction === null ? 'Marcar como Reprovado?' : `${pairWords(pair)}?`;
 }
 
 /**

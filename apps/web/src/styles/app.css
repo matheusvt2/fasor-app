@@ -710,6 +710,12 @@ body {
 .dialog-scrim.palette-drawer .palette-item.is-stepper { flex-wrap: wrap; }
 .dialog-scrim.palette-drawer .palette-item.is-stepper .pi-text { flex: 1 0 auto; max-width: 100%; }
 .dialog-scrim.palette-drawer .palette-item .pi-text > span:first-child { white-space: nowrap; }
+/* authored: fix batch e24y (F17). The field palette ("Adicionar bloco") draws its type names as the mock
+   does (`40-relatorio-overview.html` `#lo-type-cta`, the `.block-palette .palette-item .pi-text` rule of
+   `components.css`, which sets no `white-space`): a name wider than the rail ("Chave de transferência
+   automática") wraps between its words instead of running under the "+", so the row's gap before the "+"
+   stays. The composer's stepper rows keep Story 15.5's one line above. */
+.dialog-scrim.palette-drawer .field-palette .palette-item:not(.is-stepper) .pi-text > span:first-child { white-space: normal; }
 
 /* ---------- Date field: React Aria's segments inside the mock's `.input` box ----------
    authored: the mock (`30-project.html`) draws the date as text in the `.input` with the
@@ -1282,3 +1288,15 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 [data-route="/relatorio/:id/ficha/:blockId"] .measurement-card .pol-note { display: flex; margin-top: var(--sp-1); }
 /* The frame's inline `style="color: var(--nao-conforme)"` on the helper's `.mf-helper` (both the row and the card). */
 [data-route="/relatorio/:id/ficha/:blockId"] .mf-helper[data-tone="nc"] { color: var(--nao-conforme); }
+
+/* ---------- Priority picker on a phone (fix batch e24y, F11) ----------
+   authored: mirrors `components.css` `.priority-picker .priority-pill { white-space: normal; }` ("P4 ·
+   Próxima manutenção" wraps inside the row on phone). Beside P4's hint "próxima intervenção", which never
+   wraps (`.priority-picker .pr-hint`), that left the pill a third of the row and broke it into three lines
+   at 390 px. Below `breakpoint-tablet` the pill keeps its one line (its own `.priority-pill` rule), and
+   the row wraps the hint under it, at the right as before, when both do not fit. */
+@media (max-width: 767.98px) {
+  .priority-picker .option-row { flex-wrap: wrap; padding-block: var(--sp-2); }
+  .priority-picker .pr-text { min-width: auto; }
+  .priority-picker .priority-pill { white-space: nowrap; }
+}

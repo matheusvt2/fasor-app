@@ -62,7 +62,7 @@ test('@p0 23.18-E2E-001 a v13 TC 0,3S of FATURAMENTO: the notice over a fillable
   const row = judged.test(RATIO).tables[0]!.rows[0]!;
   expect([row.choice!.verdict, row.condicao]).toEqual(['out', 'INSATISFATÓRIO']);
   // Fix batch e24h (H7): the helper no longer promises a point (was "… e gera um ponto de atenção.").
-  expect(row.choice!.helperText).toBe('Polaridade invertida: a ficha fica Reprovado.');
+  expect(row.choice!.helperText).toBe('Polaridade invertida: a ficha fica como Reprovado.');
   await expect(testSection(page, RATIO).locator('[data-choice-helper="0"]')).toHaveText(row.choice!.helperText!);
   // Review fix: the ratio failed by its polarity alone, the reason names the polarity.
   expect(judged.floorReason).toBe('A ficha exige no mínimo Reprovado · Com restrições: polaridade invertida.');

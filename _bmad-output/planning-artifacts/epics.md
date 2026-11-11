@@ -9776,6 +9776,12 @@ So that a Reprovado never reads "valores medidos dentro dos critérios" (M20).
 **When** their texts are composed
 **Then** they read as today, and the layout-lock goldens hold
 
+*(2026-11-11, later, Matheus on M-7 of the proposal: this story also fixes finding F12 of the hands-on pass of 2026-11-11. One more criterion:)*
+
+**Given** a v15 sheet with no NC item, no reading out of its criterion and no restricted reading,
+**When** the technician chooses "Aprovado" with "Com restrições" by hand,
+**Then** the composed conclusion carries no sentence that recommends correcting points the sheet does not indicate (today: "Recomenda-se a correção dos pontos indicados"); the replacement wording is authored and listed for Bruno; v1 to v14 keep their texts
+
 **Definition of Done, in addition:**
 - Kernel "25.7-UNIT": the two clauses, alone and together, with NC items and with a failed test; the basis moves with them; v14 unchanged; the pre-issue row's severity.
 - "25.7-API-001": the server's refusal.
@@ -9945,6 +9951,12 @@ So that the action plan does not hide two of three poles (M14).
 **Given** a v14 sheet with three readings out
 **When** the point is started
 **Then** it names the worst one, as today
+
+*(2026-11-11, later, Matheus on M-6 of the proposal: on seed v15 the sheet's conclusion paragraph and section 10 also name every reading out of its criterion, in row order, as the point does, not only the worst one (finding F7 of the hands-on pass of 2026-11-11). v1 to v14 keep their texts. One more criterion:)*
+
+**Given** a v15 test with two readings out of the criterion and a third out by its rise since the previous visit,
+**When** the sheet's conclusion is composed and section 10 is printed,
+**Then** each of the three is named with its place, its value and its reason, in row order, and a v14 twin of the same sheet names the worst one as today
 
 **Definition of Done, in addition:**
 - Kernel "25.10-UNIT": seeded tests and measurement tests, one and several readings, the cap, a failed prerequisite beside readings, v14 unchanged.

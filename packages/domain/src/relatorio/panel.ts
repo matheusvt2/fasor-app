@@ -301,7 +301,7 @@ export function panelProvenance(proposal: PanelProposal, suggestion: PanelSugges
   const label = read?.column_text ?? null;
   const columnText =
     label === null
-      ? `não lida na foto${SEP}local onde a paleta abriu`
+      ? `não lida na foto${SEP}local onde a lista de tipos abriu` /* authored (e24y, corrected by Bruno 2026-11-11): was "a paleta" */
       : proposal.matched
         ? `etiqueta "${label}" na foto`
         : `etiqueta "${label}" na foto${SEP}coluna não encontrada, conferir`;

@@ -24,7 +24,7 @@ import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
-import { putEquipmentTagOp } from '../relatorio/relatorio-ops.ts';
+import { renameEquipmentOps } from '../relatorio/tag-rename-ops.ts';
 import { removeSheetOps, restoreSheetOps } from '../relatorio/tree-actions.ts';
 
 /*
@@ -156,12 +156,16 @@ export function useDecisionActions(): DecisionActions {
     async (entry: HeldDecisions, decision: DuplicateTagDecision, context: DecisionTextContext) => {
       if (author === null || db === null) return;
       await run(async () => {
-        const equipment = await equipmentRows(db, entry.projectId);
+        const [equipment, blocks, locations] = await Promise.all([equipmentRows(db, entry.projectId), blockRowsOf(db, entry.relatorioId), allLocationRows(db, entry.relatorioId)]);
         const later = equipment.find((row) => row.id === decision.later_equipment_id && row.removed_at === null);
         // A second tap, or a rename already made elsewhere: nothing left to keep apart.
         if (later === undefined || normalizeTag(later.tag) !== normalizeTag(decision.tag)) return null;
         const tag = keepBothTag(decision, equipment);
-        return { ops: [putEquipmentTagOp(author, entry.projectId, later.id, tag)], text: keptBothText(decision, tag, context) };
+        // Fix batch e24y (P2, P3): the new TAG carries the relatório's unedited conclusion and stored plate TAG in the same batch.
+        // Fix batch e24x (D3): the relatório bounds the previous visit the conclusion is composed under.
+        const relatorio = ((await db.entities.get(['relatorio', entry.relatorioId]))?.row ?? null) as { setup: { service_start?: string | null; service_end?: string | null } } | null;
+        const ops = renameEquipmentOps(author, { projectId: entry.projectId, relatorioId: entry.relatorioId, rows: { blocks, locations, equipment, definitions: context.definitions, relatorio } }, later.id, tag);
+        return { ops, text: keptBothText(decision, tag, context) };
       });
     },
     [run, db, author],

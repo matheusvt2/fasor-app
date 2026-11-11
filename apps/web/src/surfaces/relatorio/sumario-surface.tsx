@@ -78,7 +78,7 @@ import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
 import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
-import { putEquipmentTagOp } from './relatorio-ops.ts';
+import { renameEquipmentOps } from './tag-rename-ops.ts';
 import { TagDialog } from './tag-dialogs.tsx';
 import { SaveTemplateDialog } from './save-template-dialog.tsx';
 import { createTemplateOp } from '../templates/template-ops.ts';
@@ -277,8 +277,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // Story 14.8 / e22h B1: the device's company types, for a block the palette creates.
   const definitions = useDefinitionContext();
   const treeContext = useMemo(
-    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions }),
-    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions],
+    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, definitions, relatorio }),
+    [relatorioId, relatorio.project_id, relatorio.seed_version, editor, definitions, relatorio],
   );
 
   const { rows: actions, addSection, restore, moveBack } = useSumarioActions(
@@ -311,7 +311,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     setRenamingId(null);
     const out: { refusal: string | null } = { refusal: null };
     void editor
-      .edit((_blocks, by, fresh) => {
+      .edit((blocks, by, fresh) => {
         const row = fresh.equipment.find((e) => e.id === equipmentId && e.removed_at === null);
         if (row === undefined) {
           out.refusal = t.tree.gone;
@@ -323,7 +323,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           out.refusal = verdict.reason === 'empty' ? t.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
           return null;
         }
-        return [putEquipmentTagOp(by, relatorio.project_id, equipmentId, tag.trim())];
+        // Fix batch e24y (P2, P3): the rename carries the sheets' unedited conclusion and stored plate TAG in the same batch.
+        const rows = { blocks, locations: fresh.locations, equipment: fresh.equipment, definitions: snapshotDefinitionContext(snapshot), relatorio };
+        return renameEquipmentOps(by, { projectId: relatorio.project_id, relatorioId: relatorio.id, rows }, equipmentId, tag);
       })
       .then((batch) => {
         if (batch !== null) editor.undoable(tagRenamedText(tag.trim()), batch);

@@ -256,7 +256,7 @@ for (const { width, height, tag } of WIDTHS) {
     const confirm = page.getByRole('alertdialog', { name: retireTypeTitle('No-break de comando 125 V') }).or(page.getByRole('dialog', { name: retireTypeTitle('No-break de comando 125 V') }));
     await confirm.getByRole('button', { name: 'Aposentar' }).click();
     await expect(pill(page)).toHaveText('Aposentado · versão 2');
-    await expect(toast(page)).toContainText('Tipo aposentado · fora das paletas');
+    await expect(toast(page)).toContainText('Tipo aposentado · fora da lista de tipos');
     await expect.poll(async () => (await outbox()).filter((op) => op.path === `equipment_type/${typeId}/retired_at`).map((op) => typeof op.value)).toEqual(['string']);
 
     // --- the list: the retired type with "Reativar"; reactivated, it is published again ---
@@ -267,7 +267,7 @@ for (const { width, height, tag } of WIDTHS) {
     await expect(row.locator('.status-pill')).toHaveText('Aposentado · versão 2');
     await expect(row.locator('.rr-actions').getByRole('button')).toHaveText(['Reativar', 'Duplicar']);
     await row.getByRole('button', { name: 'Reativar' }).click();
-    await expect(toast(page)).toHaveText('Tipo reativado · volta para as paletas');
+    await expect(toast(page)).toHaveText('Tipo reativado · volta para a lista de tipos');
     await expect(row.locator('.status-pill')).toHaveText('Publicado · versão 2');
     await expect(row.locator('.rr-actions').getByRole('button')).toHaveText(['Editar', 'Duplicar', 'Aposentar']);
     await expect(row.locator('.rr-secondary')).toHaveText(`TAG NB · duplicado de ${CTA_LABEL}`);
