@@ -1,4 +1,4 @@
-import { moveTagSuggestion, moveTargets, takesBlocks, type BlockRow, type EquipmentRow, type LocationRow } from '@app/domain';
+import { moveTagSuggestion, moveTargets, takesBlocks, type BlockRow, type LocationRow } from '@app/domain';
 import { useState } from 'react';
 import { Button, Checkbox, FilterChipGroup, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -11,7 +11,9 @@ import { useDialogTelemetry } from '../../telemetry/hooks.ts';
  * Filter chip group with nothing preselected; once a target is picked and the kernel has a
  * TAG to re-suggest there, its question and a "Renomear para ⟨TAG⟩" checkbox, unchecked by
  * default (spec OPEN QUESTION). The primary waits, disabled with its reason, for a target.
- * The move itself is re-planned on the fresh rows at commit (`movePlan`).
+ * The move itself is re-planned on the fresh rows at commit (`movePlan`). Story 24.8: the
+ * suggestion no longer depends on the local, so the kernel offers no rename and the dialog
+ * shows the targets alone.
  */
 
 export interface MoveBlockDialogProps {
@@ -20,13 +22,11 @@ export interface MoveBlockDialogProps {
   blockId: string;
   locations: readonly LocationRow[];
   blocks: readonly BlockRow[];
-  /** The project's equipment, removed rows included. */
-  equipment: readonly EquipmentRow[];
   onClose: () => void;
   onSubmit: (targetId: string, rename: boolean) => void;
 }
 
-export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, onClose, onSubmit }: MoveBlockDialogProps) {
+export function MoveBlockDialog({ name, blockId, locations, blocks, onClose, onSubmit }: MoveBlockDialogProps) {
   // Epic 18: `dialog_open` on mount; `onClose` is this dialog's cancel path (Cancelar, Esc, the scrim).
   const cancelled = useDialogTelemetry('move_block');
   const cancel = () => {
@@ -40,8 +40,8 @@ export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, o
   const targets = block === undefined ? [] : moveTargets([...locations], block);
   // `moveTargets` offers only locations that take blocks (never a painel).
   const target = targetId === null ? undefined : locations.filter(takesBlocks).find((row) => row.id === targetId);
-  const own = block?.equipment_id == null ? undefined : equipment.find((row) => row.id === block.equipment_id && row.removed_at === null);
-  const suggestion = block === undefined || target === undefined ? null : moveTagSuggestion(block, own, target, equipment);
+  // Story 24.8: the kernel offers no TAG rename on a move any more, so no checkbox shows.
+  const suggestion = block === undefined || target === undefined ? null : moveTagSuggestion();
   const disabledReason = targetId === null ? t.movePickReason : undefined;
 
   const submit = () => {

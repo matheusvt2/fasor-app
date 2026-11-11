@@ -225,8 +225,9 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
     .map((row) => ({ blockId: row.id, blockType: row.block_type, seedVersion: row.seed_version, locationId: row.location_id, tag: tagOf.get(row.equipment_id ?? '') ?? '' }))
     .sort((a, b) => a.tag.localeCompare(b.tag));
   expect(sheets.map((sheet) => [sheet.tag, sheet.blockType, sheet.seedVersion, sheet.locationId])).toEqual([
-    ['CTA-GERADORES', CTA, SEED_VERSION, localRow.id],
-    ['TR-1', 'transformador_forca', SEED_VERSION, localRow.id],
+    // Story 24.8: PREFIX-NN, free in the obra (was CTA-GERADORES and TR-1).
+    ['CTA-01', CTA, SEED_VERSION, localRow.id],
+    ['TR-01', 'transformador_forca', SEED_VERSION, localRow.id],
   ]);
   const blockId = sheets[0]!.blockId;
   const tag = sheets[0]!.tag;
@@ -534,7 +535,7 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   expect(level2[0]).toMatch(new RegExp(`^${number}\\.1 Transformadores`));
   expect(level2[1]).toMatch(new RegExp(`^${number}\\.2 ${OUTROS}`));
   const sheetTitle = `CHAVE DE TRANSFERÊNCIA AUTOMÁTICA ${tag}`;
-  const order = [level2[0]!, 'TRANSFORMADOR DE FORÇA TR-1', level2[1]!, sheetTitle].map((part) => section.indexOf(part));
+  const order = [level2[0]!, 'TRANSFORMADOR DE FORÇA TR-01', level2[1]!, sheetTitle].map((part) => section.indexOf(part));
   expect(order.every((index) => index > -1), `every part of section 9 is printed: ${JSON.stringify(order)}`).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
   // The sheet's parts in order; the three tests switched off print nothing.
@@ -643,7 +644,7 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   // The heading sits between the eighth type and the library type.
   expect(await heading.evaluate((element) => (element.previousElementSibling?.classList.contains('palette-type') ?? false) && element.nextElementSibling?.getAttribute('data-block-type'))).toBe(CTA);
   const meta = (await ctaRow.locator('.pi-meta').innerText()).trim();
-  expect(meta).toMatch(new RegExp(`^${LIBRARY_SUMMARY} · CTA-GERADORES(-\\d+)?$`));
+  expect(meta).toMatch(new RegExp(`^${LIBRARY_SUMMARY} · CTA-\\d{2}$`));
   const tag = meta.slice(`${LIBRARY_SUMMARY} · `.length);
   await ctaRow.click();
   await expect(fieldPalette).toBeHidden();

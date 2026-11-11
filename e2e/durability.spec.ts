@@ -594,10 +594,10 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
   expect(Math.round(sheet.y + sheet.height)).toBeGreaterThanOrEqual(844 - 2);
   await palette.getByRole('button', { name: /Disjuntor MT/ }).tap();
   await expect(palette).toBeHidden();
-  await expect(tags).toHaveText(['SEC-C01', 'DJ-C01']);
+  await expect(tags).toHaveText(['SEC-C01', 'DJ-01']);
 
-  // Press and hold 300 ms on DJ-C01's handle, then drag above SEC-C01.
-  const handle = page.getByRole('button', { name: 'Reordenar DJ-C01' });
+  // Press and hold 300 ms on DJ-01's handle, then drag above SEC-C01.
+  const handle = page.getByRole('button', { name: 'Reordenar DJ-01' });
   await handle.scrollIntoViewIfNeeded();
   const from = (await handle.boundingBox())!;
   const top = (await col1.locator('li.s9-eq').first().boundingBox())!;
@@ -611,8 +611,8 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
     await page.waitForTimeout(16);
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect(page.getByTestId('sumario-announcer')).toHaveText('DJ-C01 movido para a posição 1 de 2');
-  await expect(tags).toHaveText(['DJ-C01', 'SEC-C01']);
+  await expect(page.getByTestId('sumario-announcer')).toHaveText('DJ-01 movido para a posição 1 de 2');
+  await expect(tags).toHaveText(['DJ-01', 'SEC-C01']);
 });
 
 test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly once with its 512/2000 variants, none duplicated or lost', async ({

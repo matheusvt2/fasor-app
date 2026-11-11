@@ -1,10 +1,10 @@
-import { isEquipmentBlockType, isEquipmentKind } from '../schemas/block-config.ts';
+import { isEquipmentKind } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { liveLocationIds } from './location-live.ts';
 import { typeVersionOf } from '../schemas/block-config.ts';
 import { type DefinitionContext } from '../seed/definitions.ts';
 import { blockTypeLabelIn, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
-import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
+import { type TagLocation } from './tag.ts';
 
 /*
  * Story 11.2 (FR-20): "Mover para…" moves an equipment block to another live location in
@@ -12,7 +12,8 @@ import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
  * when the engineer accepts the re-suggestion, `equipment/{id}/tag`. The sheet, its photos,
  * checks, measurements and observations hang off the block id, so they follow it. The
  * targets, the TAG re-suggestion, its question and every sentence the move says are
- * composed here (AD-1/AD-13); the surface writes the ops only.
+ * composed here (AD-1/AD-13); the surface writes the ops only. Story 24.8 (batch e24b): the
+ * re-suggestion is gone (`moveTagSuggestion`); a move writes the block's two fields only.
  */
 
 /**
@@ -51,23 +52,15 @@ export interface MoveTagSuggestion {
 }
 
 /**
- * The TAG the block would get in `target` (`suggestTag`, free among the project's live
- * equipment other than its own row), or null when there is nothing to offer: a section
- * block, a transformer (its `TR-n` never depends on the location), a block with no
- * equipment row here, or a suggestion equal to the current TAG.
+ * The TAG rename a move offers. Story 24.8 (batch e24b): always null. The suggestion is
+ * `PREFIX-NN` free in the obra and no longer depends on the local, so a move has no TAG of the
+ * target to offer, for any type, and the Move dialog shows no rename checkbox. The equipment's
+ * reuse key (Story 24.21) keeps the old local's code: a moved sheet's equipment is still found
+ * by the template's placement it was born at. It takes no input: nothing of the block or the
+ * target enters the answer any more.
  */
-export function moveTagSuggestion(
-  block: Pick<BlockRow, 'block_type' | 'equipment_id'>,
-  equipment: Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'> | undefined,
-  target: TagLocation,
-  allEquipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[],
-): MoveTagSuggestion | null {
-  if (!isEquipmentBlockType(block.block_type) || block.block_type === 'transformador_forca') return null;
-  if (equipment === undefined || block.equipment_id === null || equipment.id !== block.equipment_id) return null;
-  const others = allEquipment.filter((row) => row.id !== equipment.id);
-  const tag = suggestTag(block.block_type, { kind: target.kind, name: target.name }, others);
-  if (normalizeTag(tag) === normalizeTag(equipment.tag)) return null;
-  return { tag, question: moveTagQuestion(target), renameLabel: renameToText(tag) };
+export function moveTagSuggestion(): MoveTagSuggestion | null {
+  return null;
 }
 
 /** What one move writes, computed on the rows as they are at commit time. */
@@ -112,7 +105,8 @@ export function movePlan(input: {
   if (target.kind === 'painel') return { kind: 'refused', reason: 'not-a-block-location' };
   if (block.location_id === target.id) return { kind: 'refused', reason: 'same-location' };
   const own = block.equipment_id === null ? undefined : input.equipment.find((row) => row.id === block.equipment_id && row.removed_at === null);
-  const suggestion = input.rename ? moveTagSuggestion(block, own, target, input.equipment) : null;
+  // Story 24.8: no move renames a TAG any more (`moveTagSuggestion`); `rename` is read as before.
+  const suggestion = input.rename ? moveTagSuggestion() : null;
   const rename = suggestion === null || own === undefined ? null : { equipmentId: own.id, tag: suggestion.tag };
   // The name the sentence gives the block: its TAG, else (no live equipment row here, or a
   // blank TAG) the seed's name of its type, never the raw slug.

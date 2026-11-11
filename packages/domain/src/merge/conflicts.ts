@@ -532,8 +532,10 @@ export function decisionKey(decision: Decision): string {
 }
 
 /**
- * "Manter as duas": the later equipment's next free TAG, by `suggestTag`'s suffix rule
- * (`-2`, then `-3`, ...) on the TAG both carry; removed rows never count.
+ * "Manter as duas": the later equipment's next free TAG, by the suffix rule of the TAG rule
+ * before Story 24.8 (`legacySuggestTag`: `-2`, then `-3`, ...) on the TAG both carry; removed
+ * rows never count. Story 24.8 left it as it was: it renames a TAG a person or a device wrote,
+ * not a new sheet's suggestion, and it writes `tag` only (the reuse key, Story 24.21, stays).
  */
 export function keepBothTag(decision: Pick<DuplicateTagDecision, 'tag'>, equipment: readonly Pick<EquipmentRow, 'tag' | 'removed_at'>[]): string {
   for (let n = 2; ; n++) {

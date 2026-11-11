@@ -498,7 +498,6 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           blockId={dialog.node.blockId}
           locations={snapshot.locations}
           blocks={snapshot.blocks}
-          equipment={equipment}
           onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
           onSubmit={(targetId, rename) => {
             const node = dialog.node;

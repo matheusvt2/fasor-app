@@ -197,10 +197,10 @@ describe('4.4/4.5 tree edge paths', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicar' }));
     const dialog = await screen.findByRole('dialog', { name: 'Duplicar SEC-C01' });
     const submit = within(dialog).getByRole('button', { name: 'Duplicar' });
-    const twin: EquipmentRow = { id: id(10), project_id: PROJECT, tag: 'SEC-C01-2', type: 'chave_seccionadora', last_nameplate: null, removed_at: null };
+    const twin: EquipmentRow = { id: id(10), project_id: PROJECT, tag: 'SC-01', type: 'chave_seccionadora', last_nameplate: null, removed_at: null };
     await database.entities.put(toRecord(`equipment:${twin.id}`, twin));
     fireEvent.click(submit);
-    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('TAG já existe nesta obra — SEC-C01-2'));
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('TAG já existe nesta obra — SC-01'));
     expect(await outbox()).toHaveLength(0);
   });
 
@@ -241,7 +241,7 @@ describe('4.4/4.5 tree edge paths', () => {
     const palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine de Testes')).toBeInTheDocument();
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][1]!);
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'PR-TESTES', 'DJ-TEST', 'TR-TEST']));
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'PR-01', 'DJ-TEST', 'TR-TEST']));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
     await waitFor(() => expect(eqRow(SEC_TEST).querySelector('.s9-eq-open')).toHaveFocus());
@@ -258,9 +258,9 @@ describe('4.4/4.5 tree edge paths', () => {
     await waitFor(() => expect(palette.querySelector('.pf-field')).toHaveFocus());
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][1]!);
     const coluna = () => tree().querySelector('li.s9-coluna')!;
-    await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01', 'PR-C01']));
+    await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01', 'PR-01']));
     expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']);
-    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('PR-C01 criada na Coluna 1'));
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('PR-01 criada na Coluna 1'));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01']));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1 de Cabine de Testes' })).toHaveFocus());
@@ -291,7 +291,7 @@ describe('4.4/4.5 tree edge paths', () => {
     palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: Cabine Vazia')).toBeInTheDocument();
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][3]!);
-    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('DJ-VAZIA criada em Cabine Vazia'));
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('DJ-01 criada em Cabine Vazia'));
   });
 
   it('"Desfazer" of a Restaurar hands the focus back to the header\'s "Mais opções do relatório"', async () => {
@@ -353,15 +353,15 @@ describe('4.5 field palette (Sumário)', () => {
     expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();
     const field = [...palette.querySelectorAll('.pf-field')];
     expect(field).toHaveLength(8);
-    expect(field.map((b) => b.querySelector('.pi-meta')?.textContent)).toEqual(['CE-C01', 'PR-C01', 'SEC-C01-2', 'DJ-C01', 'TP-C01', 'TC-C01', 'CS-C01', 'TR-1']);
+    expect(field.map((b) => b.querySelector('.pi-meta')?.textContent)).toEqual(['CE-01', 'PR-01', 'SC-01', 'DJ-01', 'TP-01', 'TC-01', 'CS-01', 'TR-01']);
     // No section blocks and no sub-block toggles in the field palette.
     expect(within(palette).queryByText('Objetivo')).toBeNull();
     expect(within(palette).queryByRole('switch')).toBeNull();
     expect(await axe(palette)).toHaveNoViolations();
     await userEvent.click(field[3] as HTMLElement);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Adicionar bloco' })).toBeNull());
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-coluna')!)).toEqual(['SEC-C01', 'DJ-C01']));
-    expect(await screen.findByText('DJ-C01 criada na Coluna 1')).toBeInTheDocument();
+    await waitFor(() => expect(tags(tree().querySelector('li.s9-coluna')!)).toEqual(['SEC-C01', 'DJ-01']));
+    expect(await screen.findByText('DJ-01 criada na Coluna 1')).toBeInTheDocument();
     const ops = await database.outbox.toArray();
     expect(ops.map((op) => [op.path.split('/')[0], op.kind, op.scope])).toEqual([
       ['equipment', 'create', 'project'],
@@ -370,7 +370,8 @@ describe('4.5 field palette (Sumário)', () => {
     expect(new Set(ops.map((op) => op.batch_id)).size).toBe(1);
     const equipment = ops[0]!.value as EquipmentRow;
     const block = ops[1]!.value as BlockRow;
-    expect(equipment).toMatchObject({ tag: 'DJ-C01', type: 'disjuntor_mt', project_id: PROJECT });
+    // Story 24.8: the TAG is DJ-NN; Story 24.21: the create carries the placement's key, the frozen rule's name of Coluna 1.
+    expect(equipment).toMatchObject({ tag: 'DJ-01', type: 'disjuntor_mt', project_id: PROJECT, reuse_key: 'DJ-C01' });
     expect(block).toMatchObject({ equipment_id: equipment.id, location_id: COLUNA, block_type: 'disjuntor_mt', seed_version: 'v1' });
     expect(block.order_key > 'a0').toBe(true);
     await waitFor(() => expect(document.activeElement).toBe(eqRow(block.id).querySelector('.s9-eq-open')));

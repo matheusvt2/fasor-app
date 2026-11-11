@@ -163,7 +163,7 @@ export function routeHarness(deviceId: string) {
     const { relatorioId, drafts } = instantiateTemplate(
       standardTemplate({ id: newId(), ...(seedVersion === undefined ? {} : { seedVersion }) }),
       { id: projectId },
-      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: obra?.existingEquipment ?? [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+      { service_start: '2026-11-01', service_end: '2026-11-02', existingEquipment: obra?.existingEquipment ?? [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
       { newId, actorId: company.userId, companyId: company.companyId },
     );
     const batchId = newId();

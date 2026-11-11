@@ -54,7 +54,7 @@ export function removalFixture(): RemovalFixture {
   const { relatorioId, drafts } = instantiateTemplate(
     template,
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId: idSequence('019966b0-0151-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const newId = idSequence('019966b0-0152-7000-8000-');

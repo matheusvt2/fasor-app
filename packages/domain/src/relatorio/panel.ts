@@ -10,7 +10,7 @@ import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
 import { discardSuggestionOp, PLATE_CAPTION } from './suggestions.ts';
-import { locationCode, suggestTag, TAG_PREFIX, type TagEquipment } from './tag.ts';
+import { locationCode, suggestTag, type TagEquipment } from './tag.ts';
 import { blockTypeLabel } from './tree.ts';
 
 /*
@@ -18,8 +18,8 @@ import { blockTypeLabel } from './tree.ts';
  * panel photo's one pending suggestion (`reading/panel.ts`, on `file/{photo}/block_id`) or
  * the type the engineer taps becomes one proposal: the type, where the block goes (the
  * palette's cabine's coluna the label names, else the palette's own location, flagged
- * Verificar), the TAG `suggestTag` gives there, and the line "Criar SEC-C09-2 · Chave
- * seccionadora · Coluna 9?". One tap commits equipment + block and re-targets the same photo
+ * Verificar), the TAG `suggestTag` gives (Story 24.8: "SC-02", free in the obra), and the line
+ * "Criar SC-02 · Chave seccionadora · Coluna 9?". One tap commits equipment + block and re-targets the same photo
  * to the new block's plate (`panelRetargetOps`); nothing is written before it.
  */
 
@@ -235,7 +235,7 @@ export function panelProposal(input: PanelProposalInput): PanelProposal | null {
   if (where === null) return null;
   const { location, matched } = where;
   const typeLabel = blockTypeLabel(input.seedVersion, type);
-  const tag = suggestTag(type, { kind: location.kind, name: location.name }, input.equipment);
+  const tag = suggestTag(type, input.equipment);
   const byHand = input.pickedType !== null && input.pickedType !== suggested;
   const trust = input.suggestion === null || byHand ? null : input.suggestion.row.trust === 'verify' || !matched ? 'verify' : 'suggested';
   const suggestionStatus = input.suggestion === null ? null : type === suggested && matched ? 'confirmed' : 'discarded';
@@ -269,12 +269,9 @@ export function panelProvenance(proposal: PanelProposal, suggestion: PanelSugges
       : proposal.matched
         ? `etiqueta "${label}" na foto`
         : `etiqueta "${label}" na foto${SEP}coluna não encontrada, conferir`;
-  let tagText: string;
-  if (proposal.type === 'transformador_forca') tagText = `tipo${SEP}próximo número livre`;
-  else {
-    const base = `${TAG_PREFIX[proposal.type]}-${locationCode({ kind: proposal.location.kind, name: proposal.location.name })}`;
-    tagText = proposal.tag === base ? `tipo + coluna${SEP}nenhuma ${base} no relatório` : `tipo + coluna${SEP}${base} já existe`;
-  }
+  // Story 24.8: every type's TAG is the type's prefix and the next free number (the line a
+  // transformer read before), never the column.
+  const tagText = `tipo${SEP}próximo número livre`;
   return [
     { label: 'Tipo', text: typeText },
     { label: 'Coluna', text: columnText },

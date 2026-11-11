@@ -109,7 +109,7 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   const b = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: a.projectId },
-    { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const djB = blockRows(b.drafts).find((row) => row.equipment_id === equipmentId)!;

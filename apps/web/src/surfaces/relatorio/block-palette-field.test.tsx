@@ -30,7 +30,8 @@ const cabine: LocationRow = {
 const col5: LocationRow = { id: id(2), relatorio_id: RELATORIO, parent_id: id(1), kind: 'coluna', name: 'Coluna 5', order_key: 'a0', removed_at: null };
 const col9: LocationRow = { id: id(3), relatorio_id: RELATORIO, parent_id: id(1), kind: 'coluna', name: 'Coluna 9', order_key: 'a1', removed_at: null };
 const sec05 = newEquipmentBlock({ definitions: EMPTY_DEFINITION_CONTEXT, blockId: id(10), equipmentId: id(11), relatorioId: RELATORIO, projectId: PROJECT, locationId: id(2), type: 'chave_seccionadora', tag: 'SEC-C05', seedVersion: 'v1', orderKey: 'a0' });
-const removed: EquipmentRow = { id: id(12), project_id: PROJECT, tag: 'SEC-C09', type: 'chave_seccionadora', last_nameplate: null, removed_at: '2026-09-07T10:00:00.000Z' };
+// Story 24.8: a removed SC-01 (was SEC-C09) never holds its number.
+const removed: EquipmentRow = { id: id(12), project_id: PROJECT, tag: 'SC-01', type: 'chave_seccionadora', last_nameplate: null, removed_at: '2026-09-07T10:00:00.000Z' };
 
 function renderPalette(onCreate = vi.fn(), onClose = vi.fn()) {
   render(
@@ -68,9 +69,9 @@ describe('14.5 FieldPalette: the library type after the eight', () => {
     expect(heading.compareDocumentPosition(types[8]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(types[8]).toHaveAttribute('data-block-type', 'chave_transferencia_automatica');
     expect(rows[8]!.querySelector('.pi-text > span:first-child')).toHaveTextContent('Chave de transferência automática');
-    expect(rows[8]!.querySelector('.pi-meta')).toHaveTextContent('17 itens · até 6 ensaios · CTA-C09');
+    expect(rows[8]!.querySelector('.pi-meta')).toHaveTextContent('17 itens · até 6 ensaios · CTA-01');
     // The eight keep the TAG alone.
-    expect(rows[2]!.querySelector('.pi-meta')).toHaveTextContent(/^SEC-C09$/);
+    expect(rows[2]!.querySelector('.pi-meta')).toHaveTextContent(/^SC-01$/);
     expect(await axe(palette)).toHaveNoViolations();
     await userEvent.click(rows[8]!);
     expect(onCreate).toHaveBeenCalledWith({ type: 'chave_transferencia_automatica', locationId: col9.id, anchorBlockId: null, tag: null });
@@ -93,7 +94,7 @@ describe('4.5 FieldPalette', () => {
     // Review F-9: the palette opens on its first type row (jsdom draws both variants; the field row comes first).
     await waitFor(() => expect(palette.querySelector('.pf-field')).toHaveFocus());
     // E11-Q6: no camera row here (no onPhotograph), so the heading has no leading "Ou".
-    expect(within(palette).getByText('Escolha o tipo · TAG sugerida por tipo + coluna')).toBeInTheDocument();
+    expect(within(palette).getByText('Escolha o tipo · TAG sugerida por tipo e número')).toBeInTheDocument();
     const rows = [...palette.querySelectorAll<HTMLElement>('.pf-field')];
     expect(rows.map((row) => row.querySelector('.pi-text > span:first-child')?.textContent)).toEqual([
       'Cabos de entrada',
@@ -105,15 +106,15 @@ describe('4.5 FieldPalette', () => {
       'Cabos de saída',
       'Transformador de força',
     ]);
-    // A removed SEC-C09 frees its TAG.
-    expect(rows.map((row) => row.querySelector('.pi-meta')?.textContent)).toEqual(['CE-C09', 'PR-C09', 'SEC-C09', 'DJ-C09', 'TP-C09', 'TC-C09', 'CS-C09', 'TR-1']);
+    // Story 24.8: PREFIX-NN free in the obra, whatever the local; a removed SC-01 frees its number.
+    expect(rows.map((row) => row.querySelector('.pi-meta')?.textContent)).toEqual(['CE-01', 'PR-01', 'SC-01', 'DJ-01', 'TP-01', 'TC-01', 'CS-01', 'TR-01']);
     expect(palette.querySelector('.office-note')).toHaveTextContent('Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório');
     expect(await axe(palette)).toHaveNoViolations();
     await userEvent.click(rows[2]!);
     expect(onCreate).toHaveBeenCalledWith({ type: 'chave_seccionadora', locationId: col9.id, anchorBlockId: null, tag: null });
   });
 
-  it('office confirm: TAG and Local prefilled; a TAG already in the obra is refused on blur; changing Local suggests again until the TAG is edited', async () => {
+  it('office confirm: TAG and Local prefilled; a TAG already in the obra is refused on blur; changing Local keeps the suggestion (Story 24.8) and the typed TAG', async () => {
     const { onCreate } = renderPalette();
     const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
     const office = [...palette.querySelectorAll<HTMLElement>('.pf-office')][2]!;
@@ -123,12 +124,12 @@ describe('4.5 FieldPalette', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const tag = within(office).getByRole('textbox', { name: 'TAG' });
     const local = within(office).getByRole('combobox', { name: 'Local' });
-    expect(tag).toHaveValue('SEC-C09');
+    expect(tag).toHaveValue('SC-01');
     expect(local).toHaveValue(col9.id);
     expect([...(local as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(['1° Subsolo', '1° Subsolo › Coluna 5', '1° Subsolo › Coluna 9']);
-    // Local changes, the TAG follows while untouched.
+    // Local changes: Story 24.8, the suggestion does not depend on the local, so it stays.
     await userEvent.selectOptions(local, col5.id);
-    expect(tag).toHaveValue('SEC-C05-2');
+    expect(tag).toHaveValue('SC-01');
     // A taken TAG, typed any case with a trailing space: refused on blur.
     await userEvent.clear(tag);
     await userEvent.type(tag, 'sec-c05 ');
@@ -164,7 +165,7 @@ describe('4.5 FieldPalette', () => {
     );
     const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByRole('button', { name: /Fotografar equipamento/ })).toBeInTheDocument();
-    expect(within(palette).getByText('Ou escolha o tipo · TAG sugerida por tipo + coluna')).toBeInTheDocument();
+    expect(within(palette).getByText('Ou escolha o tipo · TAG sugerida por tipo e número')).toBeInTheDocument();
   });
 
   it('closes from its head', async () => {

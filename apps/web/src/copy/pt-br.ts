@@ -1038,9 +1038,12 @@ export const copy = {
       title: 'Adicionar bloco',
       where: (path: string) => `Em: ${path}`,
       // `40-relatorio-overview.html` line 303 (Story 9.2: the camera tile above it is built).
-      chooseType: 'Ou escolha o tipo · TAG sugerida por tipo + coluna',
+      // ~~'Ou escolha o tipo · TAG sugerida por tipo + coluna'~~ Story 24.8 (batch e24b): `40-relatorio-overview.html` line 518, verbatim (authored in Story 24.1).
+      chooseType: 'Ou escolha o tipo · TAG sugerida por tipo e número',
       // authored (E11-Q6): the same heading when the camera row is absent (AI features off).
-      chooseTypeOnly: 'Escolha o tipo · TAG sugerida por tipo + coluna',
+      // ~~'Escolha o tipo · TAG sugerida por tipo + coluna'~~ (Story 24.8)
+      // authored (e24b, listed for Bruno): the mock's new wording of `chooseType` without "Ou".
+      chooseTypeOnly: 'Escolha o tipo · TAG sugerida por tipo e número',
       // Story 9.2: the `.pal-camera` row (lines 297-300).
       photograph: 'Fotografar equipamento',
       photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
@@ -1478,7 +1481,8 @@ export const copy = {
     nameplate: {
       title: 'Dados de placa',
       // `key-equipment-sheet-v09.html` TAG field helper (Story 12.3): the block's TAG, prefilled.
-      tagHelper: 'Do bloco · editável',
+      // ~~'Do bloco · editável'~~ Story 24.8 (batch e24b): `60-ficha.html` TAG field helper, verbatim; it asks for the plate's TAG.
+      tagHelper: 'Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.',
       // authored: the chip row's name.
       chipsLabel: 'Copiar dados de placa',
       // FR-34 chips (`60-ficha.html`, epics.md Story 5.3).

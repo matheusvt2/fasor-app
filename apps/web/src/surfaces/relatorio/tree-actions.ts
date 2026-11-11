@@ -327,7 +327,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           out.refusal = t.locationGone;
           return null;
         }
-        const tag = input.tag ?? suggestTag(input.type, { kind: location.kind, name: location.name }, fresh.equipment, definition);
+        const tag = input.tag ?? suggestTag(input.type, fresh.equipment, definition);
         const verdict = tagVerdict(tag, fresh.equipment);
         if (verdict !== null) {
           out.refusal = verdict.reason === 'empty' ? copy.sumario.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
@@ -347,6 +347,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           // "Duplicar" copies the structure (sub-blocks, subtype), never the data (EXPERIENCE.md › Block Model).
           ...(source === undefined ? {} : { config: source.config }),
           ...(typeVersion === undefined ? {} : { typeVersion }),
+          // Story 24.21: the equipment's reuse key, from its local and the obra's equipment, so "Salvar como template" finds it again.
+          placement: { location: { kind: location.kind, name: location.name }, equipment: fresh.equipment },
         });
         out.created = { tag: pair.equipment.tag, blockId: pair.block.id, location: { kind: location.kind, name: location.name } };
         // Story 9.2: "Fotografar equipamento" re-targets its photo to the new block's plate, and

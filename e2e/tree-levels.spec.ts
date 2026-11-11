@@ -90,7 +90,7 @@ function levelsRelatorio(): Built {
   const { relatorioId, drafts } = instantiateTemplate(
     { ...base, blocks },
     { id: projectId },
-    { service_start: '2026-10-20', service_end: '2026-10-22', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-10-20', service_end: '2026-10-22', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const rows = (prefix: string) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);

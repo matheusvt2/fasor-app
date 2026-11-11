@@ -221,7 +221,7 @@ test('@p0 4.1-E2E-002 the same creation offline; once online and synced, the cli
   }
 });
 
-test('@p0 4.1-E2E-003 a second relatório of the same obra reuses its equipment (SEC-C05, never SEC-C05-2), and every Home card names the obra as the Sumário header does', async ({
+test('@p0 4.1-E2E-003 a second relatório of the same obra reuses its equipment (SC-07, never a new SC-NN), and every Home card names the obra as the Sumário header does', async ({
   page,
 }) => {
   await resetEmpresaB();
@@ -250,11 +250,11 @@ test('@p0 4.1-E2E-003 a second relatório of the same obra reuses its equipment 
   expect(secondBatch.filter((op) => op.path.startsWith('block/'))).toHaveLength(105);
   expect(outbox.filter((op) => op.batch_id === batchOf(first) && op.path.startsWith('equipment/'))).toHaveLength(94);
 
-  // The tree shows the same TAGs the first relatório got.
+  // The tree shows the same TAGs the first relatório got (Story 24.8: PREFIX-NN, Coluna 5's after the six seccionadoras and five breakers before it).
   await page.getByRole('button', { name: 'Expandir ou recolher a seção 8' }).click();
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   const coluna5 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 5$/ }) });
-  await expect(coluna5.locator(':scope > .s9-eqs > li.s9-eq .block-tag')).toHaveText(['SEC-C05', 'DJ-C05']);
+  await expect(coluna5.locator(':scope > .s9-eqs > li.s9-eq .block-tag')).toHaveText(['SC-07', 'DJ-06']);
 
   // Q5: Home names both cards "client · obra", exactly as the Sumário header does.
   await page.getByRole('button', { name: 'Voltar' }).click();

@@ -140,7 +140,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   // J-09: the TAG field shows the block's TAG, counted as filled, nothing written.
   const tag = page.getByLabel('TAG', { exact: true });
   await expect(tag).toHaveValue(target.tag);
-  await expect(tag).toHaveAccessibleDescription('Do bloco · editável');
+  await expect(tag).toHaveAccessibleDescription('Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.');
   await expect(tag).not.toHaveAttribute('data-missing-field');
   expect(await stepMissing(page, 'Placa')).toBe(SECC_PLATE.filter((f) => f.optional !== true).length - 1);
 
@@ -181,7 +181,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await tag.fill('PLACA-01');
   await tag.press('Tab');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${target.blockId}/nameplate/tag`)?.value).toBe('PLACA-01');
-  await expect(tag).not.toHaveAccessibleDescription('Do bloco · editável');
+  await expect(tag).not.toHaveAccessibleDescription('Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.');
   await page.reload();
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue('PLACA-01');
   await expect(page.getByLabel('Identificação', { exact: true })).toBeVisible();

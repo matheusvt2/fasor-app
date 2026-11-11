@@ -345,10 +345,10 @@ test('@p1 10.1-E2E-004 blocks added on each tablet are kept on both; the same bl
     // Eduardo adds one block and moves SEC-C01 after it; Ana adds two and moves SEC-C01 after
     // both, so the two moves of the same block write different order keys (a same key would be
     // no merge at all).
-    await addBlock(eduardo.page, 'TC-C01', 2);
+    await addBlock(eduardo.page, 'TC-01', 2);
     await moveLast(eduardo.page);
-    await addBlock(ana.page, 'DJ-C01', 2);
-    await addBlock(ana.page, 'TP-C01', 3);
+    await addBlock(ana.page, 'DJ-01', 2);
+    await addBlock(ana.page, 'TP-01', 3);
     await moveLast(ana.page);
     const secId = (await eqRow(ana.page, 'SEC-C01').getAttribute('data-block-id'))!;
     const eMove = await lastWritten(eduardo.page, eduardo.database, `block/${secId}/order_key`);
@@ -370,7 +370,7 @@ test('@p1 10.1-E2E-004 blocks added on each tablet are kept on both; the same bl
       await openColuna1(device.page);
       // Every new block of both tablets is there; their relative order follows their order keys.
       await expect(tagsIn(device.page)).toHaveCount(4);
-      expect(new Set(await tagsIn(device.page).allTextContents())).toEqual(new Set(['SEC-C01', 'DJ-C01', 'TP-C01', 'TC-C01']));
+      expect(new Set(await tagsIn(device.page).allTextContents())).toEqual(new Set(['SEC-C01', 'DJ-01', 'TP-01', 'TC-01']));
     }
   } finally {
     await eduardo.context.close();

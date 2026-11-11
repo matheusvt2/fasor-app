@@ -255,7 +255,7 @@ export interface FieldProps {
   missing?: boolean;
   /** The visible label; the seed's own when omitted. */
   label?: string;
-  /** A text field's helper line under the input (the prefilled TAG's "Do bloco · editável"). */
+  /** A text field's helper line under the input (the prefilled TAG's helper, `copy.ficha.nameplate.tagHelper`). */
   helper?: string;
   /** The words a field shows when a typed number is not one ("Número não reconhecido"). */
   invalidText: string;

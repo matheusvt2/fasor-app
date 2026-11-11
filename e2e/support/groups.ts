@@ -332,6 +332,17 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Fix batch e23w (B-6): issues two revisions through the shared queue and LibreOffice (relatório A, whose issue writes last_results, then B of the same obra) to read the CONCLUSÃO Reprovado and the rise point from the DOCX',
   },
+  // Batch e24b (Stories 24.8 and 24.21): each issues revisions to read the TAGs and MANUT. ANTERIOR of the DOCX.
+  {
+    file: 'tag-suggestion.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.8: issues revisions through the shared queue and LibreOffice to read the suggested and typed TAGs and MANUT. ANTERIOR of an obra with the old TAGs from the DOCX',
+  },
+  {
+    file: 'equipment-history.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.21: issues two revisions through the shared queue and LibreOffice (relatório A with a renamed TAG, whose issue writes last_results, then B of the same obra) to read MANUT. ANTERIOR on the renamed sheet from the DOCX',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

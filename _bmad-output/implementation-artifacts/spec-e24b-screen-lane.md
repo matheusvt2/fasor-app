@@ -2,7 +2,7 @@
 title: 'e24b, the screen lane: the conclusion preview, the NC phrase, the point question, the TAG rule, a renamed TAG keeps its history, small screen fixes (Stories 24.5 to 24.9, 24.21)'
 type: 'feature'
 created: '2026-11-10'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_revision: '1528183f3abfc76b842dcf3fc79bce86142db1ae'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -122,4 +122,16 @@ The work is done in two parts, each by one implementation pass, in this order. P
 
 ## Authored sentences
 
+Part A (24.8, 24.21):
+- `copy.sumario.palette.chooseTypeOnly` (`apps/web/src/copy/pt-br.ts`): "Escolha o tipo · TAG sugerida por tipo e número" -- authored (e24b, listed for Bruno): the mock's new `chooseType` wording without "Ou" (the palette with no camera row).
+- Verbatim from the mocks, not authored here: the TAG field helper "Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local." (`60-ficha.html`), and `chooseType` "Ou escolha o tipo · TAG sugerida por tipo e número" (`40-relatorio-overview.html` :518, authored in Story 24.1).
+- Kernel, no new sentence: the "Fotografar equipamento" provenance line for the TAG (`panelProvenance`, `relatorio/panel.ts`) now reads, for every type, the existing transformer line "tipo · próximo número livre" (the "tipo + coluna · ..." lines no longer describe the rule). The detect frame of `40-relatorio-overview.html` :662 still shows "tipo + coluna · nenhuma SEC-C09 no relatório" (a 24.1 frame not updated; for the reviewer).
+
 ## Changed tests
+
+Part A (24.8, 24.21). New: `packages/domain/src/ops/equipment-reuse-key.test.ts` (24.21-UNIT fold), `apps/api/src/sync/equipment-reuse-key.integration.test.ts` (24.21-API-001), `e2e/tag-suggestion.spec.ts` (24.8-E2E-001 @p0, 24.8-E2E-002 @p0), `e2e/equipment-history.spec.ts` (24.21-E2E-001 @p0, 24.21-E2E-002); both specs added to the queue lane of `e2e/support/groups.ts`. New cases in `relatorio/tag.test.ts` (24.8-UNIT, 24.21-UNIT) and `relatorio/instantiate.test.ts` (24.8-UNIT, 24.21-UNIT).
+- Legacy rule passed (`tagRule: 'legacy'`, assertions unchanged): `packages/domain/fixtures/layout-lock/op-log.ts`, `e2e/support/relatorio-seed.ts` (both builders), `apps/api/src/jobs/generate/page-layout.test-support.ts`, `apps/api/src/sync/rules.test-support.ts`, `relatorio/removal.test-support.ts`; the tests `relatorio/instantiate.test.ts` (the 4.1/Q4/14.2 cases through its `inputs`), `relatorio/move.test.ts`, `points/link.test.ts`, `points/points-on-click.test.ts`, `relatorio/sumario.test.ts`, `relatorio/library-type.test.ts` (both instantiations), `types/company-types.test.ts` (the 14.6 instantiation); the e2e builders in `contact-rise`, `export`, `local-painel-coluna` (`pushPainelRelatorio`), `previous-visit`, `previous-visit-judges`, `review-field-defects`, `tree-levels`.
+- Frozen rule kept, call renamed to `legacySuggestTag`: `relatorio/tag.test.ts` (4.1-UNIT), `library-type.test.ts`, `quadro-eletrico.test.ts`, `company-types.test.ts` (each with a new-rule line added).
+- Asserting the new rule (a palette, "Duplicar", panel or screen-created TAG): `relatorio/tree.test.ts`, `tree-painel.test.ts` (matrix "TAG collision across painéis" now SC-01, SC-02, SC-03), `panel.test.ts`, `library-type.test.ts` (panel proposal), `quadro-eletrico.test.ts` and `company-types.test.ts` (palette items, the copy's `reuse_key`); web `new-relatorio-dialog.test.tsx`, `block-palette-field.test.tsx` (the removed fixture row is SC-01; the office confirm keeps its suggestion when the local changes), `relatorio-tree-edges.test.tsx` (adds the `reuse_key` of a palette create), `relatorio-tree-edits.test.tsx`, `relatorio-tree-painel.test.tsx`; e2e 4.1-E2E-003 (`relatorio.spec.ts`), `cta.spec.ts`, `local-painel-coluna.spec.ts` (14.2-E2E-001 and two palette regexes), `qgbt.spec.ts`, `tree.spec.ts` (4.5-E2E-001, -002), `durability.spec.ts` (4.5-E2E-004), `panel-capture.spec.ts`, `reading-wait.spec.ts`, `conflicts.spec.ts`, `merge.spec.ts`; the palette heading in `ai-features-off.spec.ts`, `panel-capture.spec.ts`, `block-palette-field.test.tsx`; the TAG helper in `sheet-knows-12-3-12-4.spec.ts`.
+- A move offers no rename: `relatorio/move.test.ts` (moveTagSuggestion is null; movePlan with `rename: true` writes none), `apps/api/src/sync/move-block.integration.test.ts` (the batch's TAG put is now a literal), `e2e/move-block.spec.ts` (11.2-E2E-001, -002, -004, -005).
+- Contract 42: `contract/contract.test.ts`, `sync.integration.test.ts` 1.5-API-005.

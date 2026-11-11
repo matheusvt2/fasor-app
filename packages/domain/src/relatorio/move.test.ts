@@ -15,7 +15,8 @@ function relatorio() {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: '019966b0-0050-7000-8000-000000000001' }),
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    // Story 24.8: the TAGs these cases name are the rule's before it.
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId: idSequence('019966b0-0051-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d) => makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0052-7000-8000-'), now: T0 }));
@@ -47,36 +48,15 @@ describe('11.2-UNIT moveTargets', () => {
   });
 });
 
-describe('11.2-UNIT moveTagSuggestion', () => {
-  it('re-suggests the TAG for the target coluna, free among the others', () => {
+describe('24.8-UNIT moveTagSuggestion (was 11.2-UNIT): a move offers no TAG rename', () => {
+  it('is null for every type: the suggestion no longer depends on the local', () => {
     expect(tagOf(sec)).toBe('SEC-C05');
-    // Coluna 9 of the standard template holds no equipment: the base TAG.
-    const suggestion = moveTagSuggestion(sec, own(sec), coluna9, snapshot.equipment);
-    expect(suggestion).toEqual({ tag: 'SEC-C09', question: 'Sugerir TAG para Coluna 9?', renameLabel: 'Renomear para SEC-C09' });
-  });
-
-  it('fix batch fxpw G7 (pin): SEC-C01 moved from Coluna 1 to the empty Coluna 9 is offered SEC-C09', () => {
-    const coluna1 = byName('Coluna 1');
-    const sec1 = locationBlocks(snapshot.blocks, coluna1.id).find((block) => block.block_type === 'chave_seccionadora')!;
-    expect(tagOf(sec1)).toBe('SEC-C01');
-    expect(locationBlocks(snapshot.blocks, coluna9.id)).toEqual([]);
-    expect(moveTagSuggestion(sec1, own(sec1), coluna9, snapshot.equipment)).toEqual({ tag: 'SEC-C09', question: 'Sugerir TAG para Coluna 9?', renameLabel: 'Renomear para SEC-C09' });
-  });
-
-  it('offers the next free TAG when the base one is taken by a live row, never by a removed one', () => {
-    const holder = { id: '019966b0-0053-7000-8000-000000000001', tag: 'SEC-C09', removed_at: null };
-    expect(moveTagSuggestion(sec, own(sec), coluna9, [...snapshot.equipment, holder])!.tag).toBe('SEC-C09-2');
-    expect(moveTagSuggestion(sec, own(sec), coluna9, [...snapshot.equipment, { ...holder, removed_at: T0.toISOString() }])!.tag).toBe('SEC-C09');
-  });
-
-  it('is null for a transformer, a section block, a block with no equipment row, or the same TAG', () => {
-    const tr = snapshot.blocks.find((block) => block.block_type === 'transformador_forca')!;
-    expect(moveTagSuggestion(tr, own(tr), coluna9, snapshot.equipment)).toBeNull();
-    const section = snapshot.blocks.find((block) => block.block_type === 'section_1')!;
-    expect(moveTagSuggestion(section, undefined, coluna9, snapshot.equipment)).toBeNull();
-    expect(moveTagSuggestion(sec, undefined, coluna9, snapshot.equipment)).toBeNull();
-    // Its own TAG never counts as taken: back in Coluna 5 it would be SEC-C05 again.
-    expect(moveTagSuggestion(sec, own(sec), coluna5, snapshot.equipment)).toBeNull();
+    expect(moveTagSuggestion()).toBeNull();
+    // A move with the rename asked for keeps the TAG, for every type the template holds.
+    for (const block of snapshot.blocks.filter((row) => row.equipment_id !== null && row.location_id !== coluna9.id)) {
+      const plan = movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment, blockId: block.id, targetId: coluna9.id, rename: true });
+      expect(plan).toMatchObject({ kind: 'move', rename: null, text: `${own(block).tag} movida para a Coluna 9` });
+    }
   });
 });
 
@@ -101,11 +81,8 @@ describe('11.2-UNIT movePlan', () => {
     expect(into1.kind === 'move' && into1.orderKey > last.order_key).toBe(true);
   });
 
-  it('renames with the suggestion computed now, and names the new TAG', () => {
-    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, rename: true })).toMatchObject({ kind: 'move', rename: { equipmentId: sec.equipment_id, tag: 'SEC-C09' }, text: 'SEC-C09 movida para a Coluna 9' });
-    // SEC-C09 taken meanwhile: the fresh suggestion is committed instead.
-    const taken = [...snapshot.equipment, { id: '019966b0-0053-7000-8000-000000000002', project_id: TEST_PROJECT, tag: 'SEC-C09', type: 'chave_seccionadora' as const, last_nameplate: null, removed_at: null }];
-    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, equipment: taken, rename: true })).toMatchObject({ rename: { tag: 'SEC-C09-2' }, text: 'SEC-C09-2 movida para a Coluna 9' });
+  it('Story 24.8 (was "renames with the suggestion computed now"): a rename asked for writes none and names the TAG it keeps', () => {
+    expect(movePlan({ definitions: EMPTY_DEFINITION_CONTEXT, ...base, rename: true })).toMatchObject({ kind: 'move', rename: null, text: 'SEC-C05 movida para a Coluna 9' });
   });
 
   it('names the block by its type when it has no live equipment row or a blank TAG', () => {

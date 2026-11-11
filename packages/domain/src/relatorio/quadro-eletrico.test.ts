@@ -17,7 +17,7 @@ import { CTA } from './measurement-test-support.ts';
 import { voltsOf } from './reading-evaluation.ts';
 import { bandCriterion, CRITERION_NOT_EVALUATED, evaluatedCells, evaluateSheetReadings, worstReadings } from './readings.ts';
 import { sheetProgress } from './sheet-progress.ts';
-import { suggestTag, TAG_PREFIX } from './tag.ts';
+import { legacySuggestTag, suggestTag, TAG_PREFIX } from './tag.ts';
 import { LIBRARY_GROUP_LABEL, libraryTypeSummaryText, newEquipmentBlock, paletteItems, paletteTypeGroups } from './tree.ts';
 
 /*
@@ -113,7 +113,7 @@ describe('the type in the palettes, its TAG and its words', () => {
     const coluna = { kind: 'coluna' as const, name: 'Coluna 5' };
     const items = paletteItems('v6', coluna, [], EMPTY_DEFINITION_CONTEXT);
     expect(items.map((entry) => entry.type).slice(-2)).toEqual([CTA, QD]);
-    expect(items.at(-1)).toEqual({ type: QD, label: 'Quadro elétrico (QGBT/QD)', tag: 'QD-C05', library: true, summary: '17 itens · até 1 ensaio' });
+    expect(items.at(-1)).toEqual({ type: QD, label: 'Quadro elétrico (QGBT/QD)', tag: 'QD-01', library: true, summary: '17 itens · até 1 ensaio' });
     expect(paletteItems('v5', coluna, [], EMPTY_DEFINITION_CONTEXT).some((entry) => entry.type === QD)).toBe(false);
     expect(libraryTypeSummaryText('v6', QD, EMPTY_DEFINITION_CONTEXT)).toBe('17 itens · até 1 ensaio');
     expect(libraryTypeSummaryText('v5', QD, EMPTY_DEFINITION_CONTEXT)).toBeNull();
@@ -121,8 +121,10 @@ describe('the type in the palettes, its TAG and its words', () => {
 
   it('the TAG prefix is QD by the existing rule, on a coluna and on a local', () => {
     expect(TAG_PREFIX[QD]).toBe('QD');
-    expect(suggestTag(QD, { kind: 'coluna', name: 'Coluna 5' }, [])).toBe('QD-C05');
-    expect(suggestTag(QD, { kind: 'cabine', name: 'Subestação' }, [{ tag: 'QD-SUBESTACAO', removed_at: null }])).toBe('QD-SUBESTACAO-2');
+    // Story 24.8: QD-NN, free in the obra; the rule before is kept frozen (`legacySuggestTag`).
+    expect(suggestTag(QD, [{ tag: 'QD-01', removed_at: null }])).toBe('QD-02');
+    expect(legacySuggestTag(QD, { kind: 'coluna', name: 'Coluna 5' }, [])).toBe('QD-C05');
+    expect(legacySuggestTag(QD, { kind: 'cabine', name: 'Subestação' }, [{ tag: 'QD-SUBESTACAO', removed_at: null }])).toBe('QD-SUBESTACAO-2');
   });
 
   it('the template totals name it after the CTA (the Inspeção de QGBT of seed v12 after it, the Malha de aterramento of seed v13 last), the stepper label, the caption word and the conclusion noun (masculine)', () => {

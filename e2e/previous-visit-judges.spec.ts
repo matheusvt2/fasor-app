@@ -113,7 +113,7 @@ test('@p0 23.6-E2E-003 relatório A issued at 10 GΩ (20 °C); relatório B of t
   const b = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: a.projectId },
-    { service_start: '2026-11-08', service_end: '2026-11-09', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { service_start: '2026-11-08', service_end: '2026-11-09', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   const trB = blockRows(b.drafts).find((row) => row.equipment_id === equipmentId)!;

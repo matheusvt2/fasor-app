@@ -71,7 +71,7 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * empty the copy chips that apply sit above the fields: "Igual à ⟨TAG⟩?" first (the most
  * specific match; never the per-unit fields, D-3), then "Copiar da última visita (⟨TAG⟩)";
  * both copy plain values in one batch with "Desfazer". The TAG field shows the block's TAG
- * while it has no cell of its own ("Do bloco · editável", J-09): nothing is written until
+ * while it has no cell of its own ("Do bloco · editável", J-09; Story 24.8: the `60-ficha.html` helper asking for the plate's TAG): nothing is written until
  * the engineer types, and renaming the block moves it.
  *
  * Story 8.1: the device's pending suggestions of this plate (`nameplate-suggestions.tsx`):
