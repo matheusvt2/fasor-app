@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, type Op } from '@app/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSyncClient, requestHeadersTimeoutMs, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_BODY_SHARE_MAX_MS, SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
+import { createSyncClient, fileBodyTimeoutMs, requestHeadersTimeoutMs, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_BODY_SHARE_MAX_MS, SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
 
 /*
  * The real client over a captured `fetch`: request building from the contract's route
@@ -295,5 +295,78 @@ describe('the server clock (e20f)', () => {
       },
     });
     await expect(throwing.pullCompany(0)).resolves.toBeDefined();
+  });
+});
+
+describe('25.3-WEB a file transfer whose answer never comes', () => {
+  /** A fetch whose answer never comes; it rejects only once its signal aborts, as the browser's does. */
+  const hanging = (calls: RequestInit[]): FetchLike => async (_input, init) => {
+    calls.push(init);
+    return new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    });
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Advances to one millisecond before `bound`, checks nothing settled, then to the bound: a `network` failure. */
+  async function endsAt(call: Promise<unknown>, bound: number): Promise<void> {
+    let settled: SyncFailure | null = null;
+    const failure = failureOf(call).then((one) => (settled = one));
+    await vi.advanceTimersByTimeAsync(bound - 1);
+    expect(settled).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await failure).toEqual({ kind: 'network' });
+  }
+
+  it('an upload is aborted at the JSON requests\' bound over the file\'s size, and not before', async () => {
+    vi.useFakeTimers();
+    const calls: RequestInit[] = [];
+    const client = createSyncClient({ fetch: hanging(calls) });
+    const blob = new Blob([new Uint8Array(200 * 1024)]);
+    await endsAt(client.uploadFile('f', blob, 'a'.repeat(64)), requestHeadersTimeoutMs(blob.size));
+    expect(requestHeadersTimeoutMs(blob.size)).toBe(SYNC_REQUEST_TIMEOUT_MS + 200_000);
+    expect(calls[0]!.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('a 4 MiB photo waits at most 60 + 300 s', async () => {
+    vi.useFakeTimers();
+    const client = createSyncClient({ fetch: hanging([]) });
+    await endsAt(client.uploadFile('f', new Blob([new Uint8Array(4 * 1024 * 1024)]), 'a'.repeat(64)), SYNC_REQUEST_TIMEOUT_MS + SYNC_REQUEST_BODY_SHARE_MAX_MS);
+  });
+
+  it('a download whose headers never come is aborted after SYNC_REQUEST_TIMEOUT_MS; so is a reading\'s retry', async () => {
+    vi.useFakeTimers();
+    const client = createSyncClient({ fetch: hanging([]) });
+    await endsAt(client.fetchFile('f', 'thumb'), SYNC_REQUEST_TIMEOUT_MS);
+    await endsAt(client.rereadPhoto('p'), SYNC_REQUEST_TIMEOUT_MS);
+  });
+
+  it('a download whose body stalls is aborted at the bound of its Content-Length, or at 60 + 300 s when none is given', async () => {
+    vi.useFakeTimers();
+    const stalled = (length: string | null): FetchLike => async (_input, init) =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers(length === null ? {} : { 'content-length': length }),
+        blob: () =>
+          new Promise<Blob>((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+          }),
+      }) as unknown as Response;
+    expect(fileBodyTimeoutMs('102400')).toBe(SYNC_REQUEST_TIMEOUT_MS + 100_000);
+    expect(fileBodyTimeoutMs(null)).toBe(SYNC_REQUEST_TIMEOUT_MS + SYNC_REQUEST_BODY_SHARE_MAX_MS);
+    await endsAt(createSyncClient({ fetch: stalled('102400') }).fetchFile('f', 'original'), fileBodyTimeoutMs('102400'));
+    await endsAt(createSyncClient({ fetch: stalled(null) }).fetchFile('f', 'original'), fileBodyTimeoutMs(null));
+  });
+
+  it('a transfer that answers in time keeps its answer and leaves no timer behind', async () => {
+    vi.useFakeTimers();
+    const client = createSyncClient({ fetch: async () => new Response('bytes', { status: 200, headers: { 'content-length': '5' } }) });
+    const blob = await client.fetchFile('f', 'thumb');
+    expect(await blob.text()).toBe('bytes');
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

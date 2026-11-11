@@ -124,9 +124,11 @@ export function syncCounts(
 /**
  * The five badge states of `key-sync-status.html`, plus `retrying` (Story 14.10 lane B,
  * production finding of 2026-10-15): the last cycle failed on the network or a 5xx while the
- * server still answers its health check, so "Sem conexão" would be false.
+ * server still answers its health check, so "Sem conexão" would be false. Story 25.3 adds
+ * `late` (`85-sync-atrasado.html`): an op has waited more than one minute while the device is
+ * online, signed in, reaching the server and not paused.
  */
-export type SyncBadgeState = 'ok' | 'pending' | 'offline' | 'retrying' | 'error' | 'conflict';
+export type SyncBadgeState = 'ok' | 'pending' | 'late' | 'offline' | 'retrying' | 'error' | 'conflict';
 
 export interface SyncBadgeInputs {
   /** The browser says it has a network. */
@@ -150,11 +152,20 @@ export interface SyncBadgeInputs {
    * not false.
    */
   serverAnswers?: boolean;
+  /**
+   * Story 25.3: how many waiting ops have waited more than one minute (`lateOpCount`); omitted
+   * means 0. Any turns a `pending` badge to `late`, never one that an earlier state explains.
+   */
+  late?: number;
+  /** Story 25.3: sync is paused on this device (the engine waits for a sign-in): never `late` then. */
+  paused?: boolean;
 }
 
 /**
  * Conflict before error before offline before pending (epic-10 Conflict 12, the banner
  * priority). A rejected op needs attention wherever the device is.
+ * Story 25.3: `late` sits between the unreachable states and `pending`: only a device that is
+ * online, reaching the server and not paused reads it, when an op has waited more than a minute.
  * An unreachable server reads as `offline` ("Sem conexão"): EXPERIENCE.md has five badge
  * states and no sixth for it, and "no connection; still saving locally" is exactly what
  * the user needs to know then. Sync status names the actual cause.
@@ -167,6 +178,7 @@ export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'se
   if (counts.dead > 0) return 'error';
   if (!deps.online) return 'offline';
   if (deps.reachable === false) return deps.serverAnswers === true ? 'retrying' : 'offline';
+  if (counts.pending + counts.sent > 0 && (deps.late ?? 0) > 0 && deps.paused !== true) return 'late';
   if (counts.pending + counts.sent > 0) return 'pending';
   return 'ok';
 }
@@ -278,6 +290,9 @@ export function syncBadgeLabel(state: SyncBadgeState, counts: SyncCounts): strin
       return 'Sincronizado';
     case 'pending':
       return plural(counts.pending + counts.sent, 'pendente', 'pendentes');
+    case 'late':
+      // Story 25.3: the frame's word (`85-sync-atrasado.html`).
+      return 'Envio atrasado';
     case 'offline':
       return 'Sem conexão';
     case 'retrying':
@@ -301,6 +316,9 @@ export function syncAnnouncementText(state: SyncBadgeState): string {
       return 'Sincronizado';
     case 'pending':
       return 'Alterações pendentes';
+    case 'late':
+      // authored (e25a, listed for Bruno): the frame's badge word, announced as it is.
+      return 'Envio atrasado';
     case 'offline':
       return 'Sem conexão';
     case 'retrying':
@@ -318,12 +336,12 @@ export const SYNCING_WORD = 'Sincronizando…';
 
 /**
  * F-14: the Sync status headline's word, `syncBadgeLabel`'s, except while a cycle runs over a
- * state with nothing for the user to act on (`ok`, `pending`, `offline`, `retrying`): then "Sincronizando…",
+ * state with nothing for the user to act on (`ok`, `pending`, `late`, `offline`, `retrying`): then "Sincronizando…",
  * the reason the disabled "Sincronizar agora" gives too, so the headline and the button always
  * read one state. A conflict or an error keeps its word: it needs the user whatever runs.
  */
 export function syncStatusWord(state: SyncBadgeState, counts: SyncCounts, running: boolean): string {
-  if (running && (state === 'ok' || state === 'pending' || state === 'offline' || state === 'retrying')) return SYNCING_WORD;
+  if (running && (state === 'ok' || state === 'pending' || state === 'late' || state === 'offline' || state === 'retrying')) return SYNCING_WORD;
   return syncBadgeLabel(state, counts);
 }
 
@@ -344,6 +362,9 @@ export function syncBadgeShortLabel(state: SyncBadgeState, counts: SyncCounts): 
       return 'Sinc.';
     case 'pending':
       return String(counts.pending + counts.sent);
+    case 'late':
+      // Story 25.3: the frame's phone word (`proto.js` `SYNC_SHORT.late`).
+      return 'Atraso';
     case 'offline':
       return 'Off';
     case 'retrying':

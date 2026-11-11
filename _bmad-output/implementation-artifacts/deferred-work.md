@@ -3873,7 +3873,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: no test runs three hung push attempts of one sync cycle against the capped bound (about 18 min).
   evidence: `apps/web/src/sync/engine.ts` (`withRetry` of the push); `apps/web/src/sync/client.test.ts`.
   class: test-gap
-  state: open (owner: the next batch touching sync; low)
+  state: ~~open (owner: the next batch touching sync; low)~~ *(2026-11-11, batch e25a: done; `apps/web/src/sync/engine.test.ts` "25.3-WEB" runs three hung push attempts of one cycle at the capped bound and the cycle goes on to its pulls)*
 - source_spec: `spec-e24x-review-fixes.md` (review X8)
   summary: no test re-issues a top entry from before Story 24.15 (no `service_date`) after the reading relatório's service date, where D3 and D4 meet.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`.
@@ -3991,7 +3991,7 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   summary: red in the gate's parallel group, green alone. Its waits are not wall-clock windows against a render (a 45 s retry of 15 s waits), so it stays in the parallel group. e24z reproduced it under load (`--repeat-each 6` then 8, three workers, a unit loop beside): 3 red in 14 runs, in two different ways. (1) Twice at the first "Criar": the combobox holds "Fabricante R8CAP", the list is closed and no option ever shows; the retry of `createManufacturer` (e24f) fills the same text again, which changes nothing in the input, so the list never reopens and the retry cannot recover. A test defect: a retry that changes the text (clear, or delete and retype the last letter) would reopen it. (2) Once, as in the gate, at the second "Criar": after the two `syncNowAndReturn`, FABRICAÇÃO was drawn empty with "Celtta" as a fill suggestion ("Sugerido", "Criar Celtta?"), so there was no replace line and no combobox, while the sync badge read "1 pendente"; in the seven passing runs of the probe the outbox and the device row held "Fabricante R8CAP" at both points. Where the stored manufacturer went is not proven. An unproven lead: `RegistryPickerField` releases a held null selection when the leave decides nothing (`commitLeft` `release()`), and leaving the field right after "Criar", before the created entry lands in the options, may be such a leave; if so a stored manufacturer can be cleared by a leave, a product defect. No product code was changed.
   evidence: the gate log `run2-7773aafa/e2e-full.log` (failure 3); `.scratch-e24z/e2e-r8cap.log` and `e2e-probe.log` of the batch; `e2e/review-photo-failures.spec.ts` (`createManufacturer`); `apps/web/src/components/registry-picker-field.tsx` (`commitLeft`, `heldNull`).
   class: gap
-  state: open (owner: the next batch touching the manufacturer field or this spec: a probe that dumps the field's ops after each sync, under load; then the retry fix of (1))
+  state: open (owner: the next batch touching the manufacturer field or this spec: a probe that dumps the field's ops after each sync, under load; then the retry fix of (1)) *(2026-11-11, batch e25a: (1) fixed, the retry of `createManufacturer` retypes the last letter so the list reopens; (2) still unproven, see § e25a)*
 - source_spec: fix batch e24z (`e2e/plate-shot-fallback.spec.ts` 14.10-E2E-003)
   summary: the test samples the focus every 50 ms in the page for a fixed 6 s and asserts more than 50 samples; in the gate's parallel group the page's timers took 17. It times a wait against a render, so the file moved to the `solo` lane (`e2e/support/groups.ts`).
   evidence: `e2e/support/plate-focus.ts` `samplePlateFocus`; `e2e/support/groups.ts`.
@@ -4002,3 +4002,22 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `ReadOnlyField`; the specs named.
   class: gap
   state: open (owner: the next batch touching those specs; low)
+
+## Deferred from: Epic 25 batch e25a (2026-11-11)
+
+- source_spec: `spec-e25a-saving-and-sync.md` (Design Notes D2, the e24z R8CAP-E2E-010 lead (2))
+  summary: not reproduced by reading the code. On the sheet, `WordField` drops every null React Aria reports while a created name has not landed (`created`) or while the stored name is not in the registry, so the leave whose text equals its baseline (`commitLeft` `release()`) cannot clear a stored name through it; a clear now goes only through `onClear` (the technician emptied the field). Two component tests drive "Criar" then leaves before and after the registry row and the value land (`registry-picker-field.test.tsx`, `ficha-fields.test.tsx`, "D2"); they pass on the reading of the code, to be confirmed in the batch's runs. The empty FABRICAÇÃO with "1 pendente" of the e24z gate stays unexplained; the retry of (1) no longer fills the same text.
+  evidence: `apps/web/src/components/registry-picker-field.tsx` (`commitLeft`, `release`); `apps/web/src/surfaces/ficha/ficha-fields.tsx` `WordField`; `e2e/review-photo-failures.spec.ts` `createManufacturer`.
+  class: gap
+  state: open (owner: the next run of R8CAP-E2E-010 under `--repeat-each`; a red there with the outbox dump names the op)
+- source_spec: `spec-e25a-saving-and-sync.md` (Design Notes D5, fix batch e24x B1)
+  summary: a hung push still holds its cycle up to about 18 min (three attempts at 360 s): this batch bounds the file transfers, not the push; edits wait behind it, now with the `late` badge and line after one minute.
+  evidence: `apps/web/src/sync/client.ts` `requestHeadersTimeoutMs`; `apps/web/src/sync/engine.ts` `withRetry`.
+  class: note
+  state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e25a-saving-and-sync.md` (open question O1)
+  summary: the Etapa 6 parecer summary uses the same Generated text field and keeps its blur-only commit and its bordered look (the frame did not draw it); whether it gets the same saving is Matheus's.
+  evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx`; `apps/web/src/components/generated-text-field.tsx` (`presentation`, `commitWhileTyping`).
+  class: decision
+  state: open (owner: Matheus)
+

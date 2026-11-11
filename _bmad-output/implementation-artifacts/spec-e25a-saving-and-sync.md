@@ -2,8 +2,8 @@
 title: 'e25a: what is typed is saved (conclusion text, manufacturer, readings) and a sheet edit is sent by itself (Stories 25.2 and 25.3)'
 type: 'feature'
 created: '2026-11-11'
-status: 'ready-for-dev'
-baseline_revision: 'ef7894d4'
+status: 'in-progress'
+baseline_revision: '203226f5545f77aebbc0b26a01c4e156002756e1'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus
@@ -121,6 +121,8 @@ deferred: []
 - **D1, the window.** 2 s, fixed from the first commit and not restarted, so continuous typing never starves it and the first edit is sent within 2 s plus one cycle (the AC asks 5 s). The engine's single-flight plus `onlineWhileRunning` keeps it at one cycle at a time; during non-stop typing that is at most one cycle per about 2 s: one push and one small pull per followed stream, each a few hundred bytes when nothing changed (about 1.5 MB over ten minutes of non-stop typing on a relatório with a few streams). No cycle runs offline, paused or signed out (`nudge` returns). A shorter window would send more cycles while typing; a longer one would miss the 5 s target under a slow cycle.
 - **D2, the manufacturer lead (fix batch e24z).** Unproven: under load, after "Criar" and two `syncNowAndReturn`, FABRICAÇÃO was empty with "1 pendente". Suspects in order: `commitLeft`'s `release()` letting a held null go out on a leave whose text equals the focus baseline (`before === latest`), and the `WordField` guard dropping its protection once `created.current` resets (:772) while React Aria later reports a null for a label that does not match. Reproduce with a component test driving React Aria (Criar, leave before and after the entry lands, a re-render with the options late) and, if needed, the e2e under `--repeat-each`. A proven clear is fixed in this batch with a red test; an unproven one is written up here with what was tried.
 - **D3, values that changed with no typing.** To be filled by the investigation task.
+  *(2026-11-11, e25a, read on the code; the runs of phase B confirm it.)* Every control of a reading that changes the value without typing writes an op at once, offline included (the write is a local commit): the cell menu's "Não medido" (`write` in `measurement-field.tsx`), "> limite" with an instrument range (`write`) and without one only types "> " (Story 22.10, now dropped at unmount too); the unit choice and the tap-cycle (`chooseUnit` → `commitValue` → `committer.immediate`) when the cell holds a value, while on an empty cell they change only the slot's unit, which is no stored value; "Copiar da última visita" (`copyFrom` in `nameplate-section.tsx`, one `api.edit` batch, plate fields only); an accepted display reading (`read-display.tsx`, `confirmSuggestionOps` in `api.edit`) and a dictated one (`confirm` in `measurement-field.tsx`). None was found not to write, so no path was changed. The most likely reading of Bruno's report is M03 itself: values written on the device that waited for a sync cycle (60 s tick, the uploads, or "Sincronizar agora"), which Story 25.3 now starts by itself. The other candidate seen: a corrected insulation value (temperature correction) changes on screen when the temperature changes, but it is derived and never stored, so it never "reaches the server" as a value of its own.
+- **D2, found (e25a).** Not reproduced by reading. On the sheet, `WordField` drops every null React Aria reports while a created name has not landed (`created`) or while the stored name is not in the registry; `RegistryPickerField`'s `release()` can only hand such a null to it. Since this batch a clear the technician made goes through `onClear` alone. Component tests drive "Criar" then leaves before the entry lands, after the registry row lands and after the value lands, with the options late (`registry-picker-field.test.tsx` and `ficha-fields.test.tsx`, "D2"); `createManufacturer` now changes the text on each try (the e24z cause (1)). If R8CAP-E2E-010 goes red again, the outbox dump at that point names the op (ledger, § e25a).
 - **D4, the bound of a transfer.** One attempt of a 4 MiB photo waits at most 60 + 300 s; with the retry table one file can hold a worker about 18 min, but pending edits are pushed between attempts, so an edit waits at most one attempt's bound (the coordinator's reading: a push in parallel with an upload in flight is not taken).
 - **D5, e24x rows.** X8 (no test of three hung push attempts) is closed by the engine test above. B1 (a hung push holds its cycle up to about 18 min) stays open as a note: this batch bounds the file transfers, not the push.
 - **O1, open question for Matheus.** The Etapa 6 parecer text uses the same component and keeps its blur-only commit and its bordered look (the frame did not draw it). Apply the same saving there?
@@ -133,3 +135,45 @@ deferred: []
 - `pnpm exec tsx scripts/e2e.ts <touched durability specs> --project durability-desktop-chrome --project durability-android-chrome --project durability-webkit` -- green.
 
 ## Auto Run Result
+
+*(Phase A, 2026-11-11: written before any command ran; the gate results, the mutation runs and the 390/768/1280 checks are added in phase B.)*
+
+**Authored sentences (e25a, listed for Bruno):**
+- "O aparelho está com conexão, mas 1 alteração aguarda envio há mais de 1 minuto." (the singular of the late line; the plural is the frame's), `packages/domain/src/sync/late.ts` `syncLateText`.
+- "Envio atrasado" as the live region's announcement of the late state (the frame's badge word, reused), `packages/domain/src/sync/counts.ts` `syncAnnouncementText`.
+
+**Acceptance criteria and their tests:**
+
+| AC | Test |
+| --- | --- |
+| 25.2 confirmed text reads as text, "Editar" the only way | `generated-text-field.test.tsx` 25.2-WEB "confirmed, the text reads as text"; `e2e/typed-values-kept.spec.ts` 25.2-E2E-002 |
+| 25.2 a 500 ms pause commits the text | `generated-text-field.test.tsx` 25.2-WEB "a 500 ms pause" and "an idle commit followed by a blur is one commit" |
+| 25.2 leaving the screen 100 ms after typing commits the text | `generated-text-field.test.tsx` 25.2-WEB "the field leaving the screen"; 25.2-E2E-001 |
+| 25.2 a registered name typed and left is stored | `registry-picker-field.test.tsx` and `ficha-fields.test.tsx` 25.2-WEB (unmount); 25.2-E2E-001 uses a new name |
+| 25.2 a new name is created once | the same tests ("created once"); 25.2-E2E-001 (one create, one put, one batch) |
+| 25.2 the clear of an unregistered name is written | `registry-picker-field.test.tsx` and `ficha-fields.test.tsx` 25.2-WEB (blur and unmount) |
+| 25.2 "548" left with the sheet is committed with its unit | `measurement-field-unmount.test.tsx` 25.2-WEB; 25.2-E2E-001 |
+| 25.2 an unparseable reading is a draft offered on return | `measurement-field-unmount.test.tsx`, `drafts.test.tsx` 25.2-WEB; 25.2-E2E-002 |
+| 25.2 "3.3", 2 s, "00" commits 3300 once | `measurement-field-unmount.test.tsx` 25.2-WEB (and the existing `number-input.test.tsx`) |
+| 25.2 offline, the same | 25.2-E2E-001's offline half |
+| 25.3 a commit starts a cycle within 5 s, the op leaves the outbox | `nudges.test.ts` 25.3-WEB (window, commit.ts announcements); 25.3-E2E-001 |
+| 25.3 ten edits in one second, one cycle | `nudges.test.ts` "ten commits within one second" |
+| 25.3 an edit during the second of five uploads is pushed before the third | `engine.test.ts` 25.3-WEB "five photos uploading"; 25.3-E2E-002 |
+| 25.3 back to the front, a cycle | `nudges.test.ts` "a visibilitychange to visible" |
+| 25.3 Sync status opening, a cycle | `sync-status-surface.test.tsx` 25.3-WEB; 25.3-E2E-001 |
+| 25.3 a hung upload ends at its bound, pulls run, retried next cycle | `client.test.ts` 25.3-WEB (bounds), `engine.test.ts` 25.3-WEB "a hung upload" |
+| 25.3 the late alert, gone once sent | `late.test.ts` 25.3-UNIT, `late-ops.test.tsx`, `sync-status-surface.test.tsx`, `sync-badge.test.tsx` 25.3-WEB; 25.3-E2E-003 |
+| 25.3 offline, session expired or paused: no alert | `late.test.ts` 25.3-UNIT precedence rows |
+| 25.3 nothing lost, doubled or out of order | `engine.test.ts` 25.3-WEB "five photos uploading" (op order, one push at a time, every op once), "a push between files that fails" |
+
+**Changed tests (one line of reason each):**
+- `e2e/ficha.spec.ts` (Story 5.8 conclusion steps; the read-only sheet): the text before "Editar" is read through `.ficha-conc-text .generated-text`, and the read-only text asserts no textbox, since the text is no longer a `textbox` (Story 25.2).
+- `e2e/qgbt.spec.ts`, `e2e/cta.spec.ts`, `e2e/parecer-names-finding.spec.ts`: the suggested text is read through `.ficha-conc-text .generated-text`, for the same reason.
+- `e2e/review-concluir-text.spec.ts`: the confirmed text is read through `.generated-text`, and the R8CONC-E2E-003 locator reads whichever of the text and the field is shown.
+- `e2e/cta.spec.ts` (palette add): the read of the badge's non-zero `data-pending` right after the add is dropped (the add is now sent within seconds); the outbox creates are still asserted.
+- `e2e/review-photo-failures.spec.ts` `createManufacturer`: each retry retypes the name's last letter so a list a failed try left closed opens again (fix batch e24z, R8CAP-E2E-010 cause (1)).
+
+**Specs that keep an op pending, found by grep (`'pending'`, `pendente`, `aguardando envio`, `data-pending`, `status !== 'acked'`):** they already go offline (`auth`, `cadastros`, `tree`, `verificacoes-local`, `verificacoes-local.durability`, `test-applicability.durability`, `sync-status` 10.4-E2E-001) or refuse or hold the push route (`home`, `security-device`, `sync`, `sync-status` 10.4-E2E-009 and 14.10-E2E-002) before the edit; no change was needed in them. Photo pills read "Aguardando envio" under held file routes, as before. The new ones: `sync-by-itself.spec.ts` 25.3-E2E-003 holds the push route; `typed-values-kept.spec.ts` 25.2-E2E-001's second half goes offline.
+
+**Lanes:** `e2e/sync-by-itself.spec.ts` in `solo` (it times a push against its commit and jumps the page's clock); `e2e/typed-values-kept.spec.ts` in the parallel group.
+

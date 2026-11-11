@@ -23,7 +23,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { addLocal } from './support/local.ts';
-import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { pinTemplateSeed } from './support/push-server-ops.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
@@ -491,7 +491,8 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => lastWritten(page, `sheet/${blockId}/conclusion/result`)).toBe('reprovado');
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
-  const text = page.getByRole('textbox', { name: 'Texto da conclusão' });
+  // Story 25.2: the suggested text reads as text, no longer a textbox.
+  const text = page.locator('.ficha-conc-text .generated-text');
   await expect(text).toContainText(`chave de transferência automática ${tag}`);
   await expect(text).toContainText('Polo C, Lado Emergência (63 µΩ');
   await expect(text).toContainText(phrase);
@@ -658,7 +659,8 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   await expect(fieldPalette).toBeHidden();
   await expect(toast(page)).toContainText(`${tag} criada em ${LOCAL}`);
   await expect(eqRow(page, tag).locator('.s9-eq-name')).toHaveText(CTA_NAME);
-  await expect(syncBadge(page)).not.toHaveAttribute('data-pending', '0');
+  // Story 25.3: the add is sent by itself within seconds, so the badge's count is no longer read here; the
+  // outbox keeps the creates either way.
   // The equipment and the block creates are in the outbox, the block on the relatório's seed version.
   const created = (await outbox(page)).filter((op) => op.kind === 'create');
   const blockCreate = created.find((op) => op.path.startsWith('block/') && (op.value as { block_type?: string }).block_type === CTA)!;

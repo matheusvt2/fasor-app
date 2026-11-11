@@ -1803,3 +1803,227 @@ describe('W-4 / W-10 (full review 2026-09-30) the public engine calls', () => {
     expect(h.engine.status().running).toBe(false);
   });
 });
+
+/*
+ * Story 25.3 (M03), "25.3-WEB": an edit committed while files upload is pushed between two files, one push at a
+ * time and in commit order; a transfer whose answer never comes ends at its bound and the cycle goes on; three hung
+ * push attempts of one cycle end its push phase (fix batch e24x, review X8).
+ */
+describe('25.3-WEB edits do not wait for the uploads', () => {
+  const PHOTOS = ['019966b0-0000-7000-8000-0000000025a1', '019966b0-0000-7000-8000-0000000025b2', '019966b0-0000-7000-8000-0000000025c3', '019966b0-0000-7000-8000-0000000025d4', '019966b0-0000-7000-8000-0000000025e5'];
+
+  /** A photo's create op plus its original, as `commitPhotoCapture` leaves them. */
+  async function photo(h: Harness, id: string, capturedAt: string): Promise<void> {
+    const op = makeOp(
+      {
+        kind: 'create',
+        scope: 'relatorio',
+        company_id: COMPANY_ID,
+        relatorio_id: RELATORIO_ID,
+        project_id: null,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        path: `file/${id}`,
+        value: {
+          id,
+          company_id: COMPANY_ID,
+          relatorio_id: RELATORIO_ID,
+          kind: 'photo',
+          sha256: 'abc',
+          mime: 'image/jpeg',
+          size: 4,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+          captured_at: capturedAt,
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: BLOCK_1_ID,
+          item_key: null,
+          caption: null,
+          reading_kind: null,
+          reading_target: null,
+          reading_status: 'none',
+        },
+        actor_id: USER_ID,
+        device_id: 'tablet-a',
+      },
+      { newId: ids(`019966b0-00${id.slice(-2)}-7000-8000-`), now: new Date('2026-09-21T16:30:00.000Z') },
+    );
+    await commitOps(h.db, [op]);
+    await h.db.files.put({ id, variant: 'original', blob: new Blob(['abcd']), acked: false, created_at: '2026-09-21T16:30:00.000Z' });
+  }
+
+  function gate(): { promise: Promise<void>; open: () => void } {
+    let open = () => {};
+    const promise = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return { promise, open };
+  }
+
+  it('five photos uploading: an edit committed during the second upload is pushed before the third starts, one push at a time, in commit order', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    for (const [i, id] of PHOTOS.entries()) await photo(h, id, `2026-09-21T16:1${i}:00.000Z`);
+    // The launch cycle pushes the creates; nothing is uploaded yet in this test's order of events.
+    const events: string[] = [];
+    let pushing = 0;
+    let maxPushing = 0;
+    const push = h.server.pushOps.bind(h.server);
+    h.server.pushOps = async (ops) => {
+      pushing += 1;
+      maxPushing = Math.max(maxPushing, pushing);
+      events.push(`push:${ops.map((op) => op.op_id).join(',')}`);
+      try {
+        return await push(ops);
+      } finally {
+        pushing -= 1;
+      }
+    };
+    const held = new Map([PHOTOS[0]!, PHOTOS[1]!].map((id) => [id, gate()] as const));
+    const upload = h.server.uploadFile.bind(h.server);
+    h.server.uploadFile = async (id, blob, sha256) => {
+      events.push(`upload:${id}`);
+      await held.get(id)?.promise;
+      return upload(id, blob, sha256);
+    };
+
+    const cycle = h.engine.runCycle();
+    await waitFor(() => events.includes(`upload:${PHOTOS[0]}`) && events.includes(`upload:${PHOTOS[1]}`), 'the first two uploads in flight');
+    // Two edits while both uploads hang.
+    const newId = ids('019966b0-0255-7000-8000-');
+    const first = localPut(newId, 'Siemens');
+    const second = localPut(newId, 'WEG', { path: `sheet/${BLOCK_1_ID}/nameplate/n_serie` });
+    await commitOps(h.db, [first]);
+    await commitOps(h.db, [second]);
+    held.get(PHOTOS[0]!)!.open();
+    await waitFor(() => events.includes(`upload:${PHOTOS[2]}`), 'the third upload');
+    const editPush = events.findIndex((event) => event.startsWith('push:') && event.includes(first.op_id));
+    expect(editPush).toBeGreaterThan(-1);
+    expect(editPush).toBeLessThan(events.indexOf(`upload:${PHOTOS[2]}`));
+    // Both edits in one push, in commit order.
+    expect(events[editPush]).toBe(`push:${first.op_id},${second.op_id}`);
+    held.get(PHOTOS[1]!)!.open();
+    expect(await cycle).toBe('ran');
+    expect(maxPushing).toBe(1);
+    // Nothing lost, doubled or out of order: every photo up, both edits on the server once.
+    for (const id of PHOTOS) expect((await h.db.files.get(id))!.acked).toBe(true);
+    expect(h.server.log.filter((op) => op.op_id === first.op_id || op.op_id === second.op_id).map((op) => op.op_id)).toEqual([first.op_id, second.op_id]);
+    expect(await h.db.outbox.where('status').anyOf('pending', 'sent').count()).toBe(0);
+    h.db.close();
+  });
+
+  it('with nothing committed meanwhile, no push runs between the files', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    for (const [i, id] of PHOTOS.slice(0, 3).entries()) await photo(h, id, `2026-09-21T16:2${i}:00.000Z`);
+    expect(await h.engine.runCycle()).toBe('ran');
+    // The cycle's own push, then the three uploads.
+    expect(h.server.pushAttempts).toBe(1);
+    expect(h.server.uploads).toHaveLength(3);
+    h.db.close();
+  });
+
+  it('a push between files that fails is recorded and not tried again in that cycle; the uploads go on and the next cycle sends the edit', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    for (const [i, id] of PHOTOS.slice(0, 3).entries()) await photo(h, id, `2026-09-21T16:3${i}:00.000Z`);
+    const held = gate();
+    const upload = h.server.uploadFile.bind(h.server);
+    let started = 0;
+    h.server.uploadFile = async (id, blob, sha256) => {
+      started += 1;
+      if (started <= 2) await held.promise;
+      return upload(id, blob, sha256);
+    };
+    const cycle = h.engine.runCycle();
+    await waitFor(() => started === 2, 'two uploads in flight');
+    const edit = localPut(ids('019966b0-0256-7000-8000-'), 'Siemens');
+    await commitOps(h.db, [edit]);
+    h.server.failNext.pushes = [{ kind: 'http', status: 400, code: 'sync_batch_invalid' }];
+    held.open();
+    expect(await cycle).toBe('ran');
+    expect(h.server.pushAttempts).toBe(2);
+    expect(h.server.uploads).toHaveLength(3);
+    expect(h.engine.status().lastFailure).toEqual({ kind: 'http', status: 400, code: 'sync_batch_invalid' });
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(h.server.log.some((op) => op.op_id === edit.op_id)).toBe(true);
+    h.db.close();
+  });
+
+  it('a hung upload ends at its bound: the retry table runs, the cycle reaches its pulls, the photo stays pending and the next cycle uploads it', async () => {
+    const BOUND = 60_000;
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    await photo(h, PHOTOS[0]!, '2026-09-21T16:40:00.000Z');
+    const upload = h.server.uploadFile.bind(h.server);
+    let hung = true;
+    let attempts = 0;
+    // What the client does with an answer that never comes: a `network` failure at the bound (`client.test.ts`).
+    h.server.uploadFile = (id, blob, sha256) => {
+      attempts += 1;
+      if (!hung) return upload(id, blob, sha256);
+      return new Promise<FilePutResponse>((_, reject) => {
+        h.clock.timers.setTimeout(() => reject(new SyncRequestError({ kind: 'network' })), BOUND);
+      });
+    };
+    const cycle = h.engine.runCycle();
+    await waitFor(() => attempts === 1, 'attempt 1');
+    const pullsBefore = companyPulls(h).length;
+    await h.clock.advance(BOUND + 1_000);
+    await waitFor(() => attempts === 2, 'attempt 2');
+    await h.clock.advance(BOUND + 2_000);
+    await waitFor(() => attempts === 3, 'attempt 3');
+    await h.clock.advance(BOUND);
+    expect(await cycle).toBe('ran');
+    expect(companyPulls(h).length).toBe(pullsBefore + 1);
+    expect((await h.db.files.get(PHOTOS[0]!))!.acked).toBe(false);
+    expect((await h.db.files.get(PHOTOS[0]!))!.upload_error).toMatchObject({ state: 'failed', code: 'network' });
+
+    hung = false;
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(attempts).toBe(4);
+    expect((await h.db.files.get(PHOTOS[0]!))!.acked).toBe(true);
+    h.db.close();
+  });
+
+  it('e24x X8: three hung push attempts of one cycle end its push phase at their bound; the cycle goes on to its pulls', async () => {
+    // The capped bound of one push attempt (`requestHeadersTimeoutMs`, 60 + 300 s).
+    const BOUND = 360_000;
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    const push = h.server.pushOps.bind(h.server);
+    let hung = true;
+    h.server.pushOps = (ops) => {
+      h.server.pushAttempts += 1;
+      if (!hung) {
+        h.server.pushAttempts -= 1;
+        return push(ops);
+      }
+      return new Promise<SyncPushResponse>((_, reject) => {
+        h.clock.timers.setTimeout(() => reject(new SyncRequestError({ kind: 'network' })), BOUND);
+      });
+    };
+    const cycle = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 1, 'attempt 1');
+    expect(companyPulls(h)).toEqual([]);
+    await h.clock.advance(BOUND + 1_000);
+    await waitFor(() => h.server.pushAttempts === 2, 'attempt 2');
+    await h.clock.advance(BOUND + 2_000);
+    await waitFor(() => h.server.pushAttempts === 3, 'attempt 3');
+    await h.clock.advance(BOUND);
+    expect(await cycle).toBe('ran');
+    expect(h.server.pushAttempts).toBe(3);
+    expect(companyPulls(h)).toHaveLength(1);
+    expect(h.engine.status().lastFailure).toEqual({ kind: 'network' });
+    // The rows stay `sent` for the next cycle, which sends them.
+    expect(await h.db.outbox.where('status').equals('sent').count()).toBeGreaterThan(0);
+    hung = false;
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(await pushedThrough(h, seedLog())).toBe(true);
+    h.db.close();
+  });
+});

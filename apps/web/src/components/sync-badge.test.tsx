@@ -75,3 +75,15 @@ describe('SyncBadge', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('25.3-WEB the late badge (`85-sync-atrasado.html`)', () => {
+  it('reads "Envio atrasado", "Atraso" on the phone, keeps the pending count on its data and names the state', () => {
+    render(<SyncBadge state="late" counts={counts({ pending: 3, sheets_pending: 3 })} />);
+    const badge = screen.getByTestId('sync-badge');
+    expect(badge).toHaveAttribute('data-state', 'late');
+    expect(badge).toHaveAttribute('data-pending', '3');
+    expect(badge.querySelector('.sync-long')).toHaveTextContent('Envio atrasado');
+    expect(badge.querySelector('.sync-short')).toHaveTextContent('Atraso');
+    expect(badge).toHaveAccessibleName(/Envio atrasado/);
+  });
+});

@@ -44,8 +44,15 @@ export interface DraftsState {
   /**
    * Writes one target's value now, by `persistAll`'s rule: null drops the row, except
    * while that row is the one on offer. `useDraftSource` hands it to its surface (E6-R1).
+   * Story 25.2: with `offerOnReturn`, a value written as its surface leaves the screen (a
+   * reading that does not parse) is offered again when a source of the same key registers.
    */
-  persistOne: (target: DraftTarget, value: unknown) => Promise<void>;
+  persistOne: (target: DraftTarget, value: unknown, options?: PersistOptions) => Promise<void>;
+}
+
+export interface PersistOptions {
+  /** Story 25.2: offer this draft ("Rascunho encontrado — Recuperar") when its surface is opened again in this session. */
+  offerOnReturn?: boolean;
 }
 
 /** Exported so a surface test can supply the state without the provider's Dexie work. */
@@ -75,10 +82,20 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   // state updater (which React invokes twice under StrictMode).
   const offerRef = useRef<Offer | null>(null);
   offerRef.current = offer;
+  /**
+   * Story 25.2 (M02): the keys whose draft was written as their surface left the screen in this
+   * session (`persistOne` with `offerOnReturn`); the next source of such a key to register makes
+   * it an offer, so going back to the sheet offers it without a reload.
+   */
+  const returnOffers = useRef<Set<string>>(new Set());
 
   const register = useCallback((source: DraftSource) => {
     const key = draftKey(source);
     sources.current.set(key, source);
+    if (returnOffers.current.delete(key)) {
+      setOffer((current) => (current === null ? [key] : current.includes(key) ? current : [...current, key]));
+      setDeclined(false);
+    }
     return () => {
       // Only drop this registration: a remount may already have replaced it.
       if (sources.current.get(key) === source) sources.current.delete(key);
@@ -116,11 +133,17 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   }, [db]);
 
   const persistOne = useCallback(
-    async (target: DraftTarget, value: unknown) => {
+    async (target: DraftTarget, value: unknown, options: PersistOptions = {}) => {
       if (db === null) return;
       const empty = value === null || value === undefined || value === '';
+      const key = draftKey(target);
+      // Story 25.2: noted before the write, so a surface opened again at once still finds it.
+      if (options.offerOnReturn === true) {
+        if (empty) returnOffers.current.delete(key);
+        else returnOffers.current.add(key);
+      }
       // The row on offer is never dropped by a surface showing the committed value (see above).
-      if (empty && (offerRef.current ?? []).includes(draftKey(target))) return;
+      if (empty && (offerRef.current ?? []).includes(key)) return;
       try {
         await saveDrafts(db, [{ target, value }], now());
       } catch (error) {
@@ -227,7 +250,7 @@ export interface DraftSourceOptions extends Omit<DraftSource, 'entity_id'> {
  * dialogs and field surfaces each call this with their own surface name; nothing in the
  * store or in this provider changes when they do.
  */
-export function useDraftSource(options: DraftSourceOptions): () => Promise<void> {
+export function useDraftSource(options: DraftSourceOptions): (persist?: PersistOptions) => Promise<void> {
   const { register, persistOne } = useDrafts();
   const { surface, entityId, field, read, apply } = options;
   // `read` and `apply` are called at hide time and at recovery time, so the registration
@@ -250,8 +273,11 @@ export function useDraftSource(options: DraftSourceOptions): () => Promise<void>
   // E6-R1: writes this source's draft now, by the same rule as a tab-hide, for a surface
   // that keeps its draft while the person types (a reload fires no hide first). It reads
   // the latest values, so it still works from a timer that fires after an unmount.
-  return useCallback(() => {
-    const { surface: s, entityId: id, field: f } = target.current;
-    return persistOne({ surface: s, entity_id: id, ...(f === undefined ? {} : { field: f }) }, latest.current.read());
-  }, [persistOne]);
+  return useCallback(
+    (persist?: PersistOptions) => {
+      const { surface: s, entityId: id, field: f } = target.current;
+      return persistOne({ surface: s, entity_id: id, ...(f === undefined ? {} : { field: f }) }, latest.current.read(), persist);
+    },
+    [persistOne],
+  );
 }
