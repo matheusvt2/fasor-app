@@ -316,6 +316,59 @@ describe('14.3 "Verificações do local": the surface', () => {
     await waitFor(async () => expect((await outbox()).map((op) => [op.path, op.value])).toEqual([[observationPath(EXTINTOR), 'PQS 4 kg']]));
   });
 
+  it('24.6: an NC item with a typed observation set to Conforme keeps it with the warning and "Apagar observação"; a chip alone is removed', async () => {
+    await open();
+    // Answered on this device, as on site: NC, then a typed observation.
+    await userEvent.click(seg(EMERGENCIA, 'Não conforme'));
+    const field = await within(rowOf(EMERGENCIA)).findByRole('textbox', { name: 'Observação do item 11' });
+    await userEvent.type(field, 'Luminária do corredor sem bateria');
+    fireEvent.blur(field);
+    await waitFor(async () => expect((await outbox()).map((op) => op.path)).toEqual([resultPath(EMERGENCIA), observationPath(EMERGENCIA)]));
+    await waitFor(() => expect(within(rowOf(EMERGENCIA)).getByRole('textbox', { name: 'Observação do item 11' })).not.toHaveAttribute('aria-invalid'));
+    await userEvent.click(seg(EMERGENCIA, 'Conforme'));
+    await waitFor(async () => expect((await outbox()).map((op) => [op.path, op.value]).at(-1)).toEqual([resultPath(EMERGENCIA), 'C']));
+    const line = await within(rowOf(EMERGENCIA)).findByText('Observação mantida: o texto foi editado.');
+    expect(line.closest('.e24-kept-line')).toHaveAttribute('role', 'status');
+    expect(rowOf(EMERGENCIA)).toHaveClass('e24-kept');
+    expect(rowOf(EMERGENCIA).querySelector('.vl-obs-line')).toBeNull();
+    await userEvent.click(within(rowOf(EMERGENCIA)).getByRole('button', { name: 'Apagar observação' }));
+    await waitFor(async () => expect((await outbox()).map((op) => [op.path, op.value]).at(-1)).toEqual([observationPath(EMERGENCIA), null]));
+    await waitFor(() => expect(toastText()).toContain('Observação apagada'));
+    await waitFor(() => expect(within(rowOf(EMERGENCIA)).queryByText('Observação mantida: o texto foi editado.')).toBeNull());
+
+    // A seed phrase alone, from its chip, leaves with the NC, in the same batch as the result.
+    await userEvent.click(seg(LUVAS, 'Não conforme'));
+    const chips = await within(rowOf(LUVAS)).findByRole('group', { name: /^Observações sugeridas do item / });
+    await userEvent.click(within(chips).getByRole('button', { name: 'Luvas isolantes ausentes' }));
+    fireEvent.blur(within(rowOf(LUVAS)).getByRole('textbox', { name: /^Observação do item / }));
+    await waitFor(async () => expect((await outbox()).map((op) => [op.path, op.value]).at(-1)).toEqual([observationPath(LUVAS), 'Luvas isolantes ausentes']));
+    const before = (await outbox()).length;
+    await userEvent.click(seg(LUVAS, 'Conforme'));
+    await waitFor(async () => expect((await outbox()).length).toBe(before + 2));
+    const [result, observation] = (await outbox()).slice(before);
+    expect([result!.path, result!.value, observation!.path, observation!.value]).toEqual([resultPath(LUVAS), 'C', observationPath(LUVAS), null]);
+    expect(result!.batch).toBe(observation!.batch);
+    expect(within(rowOf(LUVAS)).queryByText('Observação mantida: o texto foi editado.')).toBeNull();
+  });
+
+  it('24.7: a local\'s NC item with a point written from it asks before it leaves NC; "Remover ponto" removes it in the same batch', async () => {
+    database = await seeded({ checklist: { [EMERGENCIA]: { result: 'NC', observation: 'Bateria vencida no corredor' } } });
+    const POINT = id(0x3000);
+    const row: PointRow = { id: POINT, relatorio_id: RELATORIO, text: 'Item 11: Bateria vencida no corredor', equipment_id: null, location_id: LOCAL, origin: 'nc', item_key: EMERGENCIA, order_key: 'zz', removed_at: null, action: null, priority: null, deadline: null, owner: null };
+    await database.entities.put(toRecord(`point:${POINT}`, row as never));
+    renderAt(LOCAL);
+    await screen.findByRole('heading', { level: 2, name: /^Verificações do local — / });
+    await userEvent.click(seg(EMERGENCIA, 'Conforme'));
+    const dialog = await screen.findByRole('dialog', { name: 'Remover o ponto de atenção deste item?' });
+    expect(dialog).toHaveAccessibleDescription(/foi criado a partir deste item, que agora está Conforme/);
+    expect(await outbox()).toEqual([]);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remover ponto' }));
+    await waitFor(async () => expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([[resultPath(EMERGENCIA), 'put'], [`point/${POINT}/removed_at`, 'remove']]));
+    const ops = await outbox();
+    expect(new Set(ops.map((op) => op.batch)).size).toBe(1);
+    await waitFor(() => expect(toastText()).toMatch(/^Ponto de atenção \d+ removido/));
+  });
+
   it('"Marcar os restantes como Conforme" writes one C put per unanswered item in one batch; "Desfazer" writes the inverses in a new batch', async () => {
     await open({ checklist: { [LUVAS]: { result: 'NC', observation: 'Luvas vencidas' }, [TAPETE]: { result: 'NA' } } });
     expect(counter19()).toHaveTextContent('2 de 19');

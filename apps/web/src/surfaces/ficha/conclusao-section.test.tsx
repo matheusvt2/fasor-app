@@ -312,3 +312,70 @@ describe('e23w W2-4: both confirms judge a v13 sheet under the visit context of 
     ]);
   });
 });
+
+describe('24.5 the suggested conclusion reads as a preview until the pair is stored', () => {
+  const allC = (): Sheet['checklist'] => Object.fromEntries(SEC.checklist!.map((item) => [item.key, { result: cell('C') }]));
+  const PREVIEW_LINE = 'Prévia: só vale depois de Confirmar ou de Concluir ficha.';
+  const groups = () => [screen.getByRole('radiogroup', { name: 'Resultado' }), screen.getByRole('radiogroup', { name: 'Restrições' })] as const;
+
+  it('floor only: the row reads "Prévia da conclusão" with the pill "Prévia", both groups are a preview, the line describes both', () => {
+    cleanup();
+    renderSection(block({ checklist: allC() }));
+    const row = screen.getByRole('group', { name: 'Prévia da conclusão' });
+    expect(row).toHaveTextContent('Aprovado · Sem restrições?');
+    expect(row.querySelector('.suggested-pill')).toHaveTextContent('Prévia');
+    const [result, restriction] = groups();
+    expect(result.querySelector('[aria-checked="true"]')).toBeNull();
+    expect(restriction.querySelector('[aria-checked="true"]')).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Aprovado' })).toHaveClass('is-floor');
+    expect(screen.getByRole('radio', { name: 'Sem restrições' })).toHaveClass('is-floor');
+    expect(screen.getByRole('radio', { name: 'Reprovado' })).not.toHaveClass('is-floor');
+    expect(result).not.toHaveAttribute('aria-invalid');
+    expect(result).toHaveAccessibleDescription(PREVIEW_LINE);
+    expect(restriction).toHaveAccessibleDescription(PREVIEW_LINE);
+  });
+
+  it('"Confirmar" on the row writes both halves in one batch', async () => {
+    cleanup();
+    const shown = block({ checklist: allC() });
+    const builds = renderSection(shown);
+    await userEvent.click(screen.getByRole('group', { name: 'Prévia da conclusão' }).querySelector('button')!);
+    const ops = builds.at(-1)!([shown], AUTHOR, fresh) ?? [];
+    expect(ops.map((op) => [op.path.split('/').slice(-1)[0], op.value])).toEqual([
+      ['result', 'aprovado'],
+      ['restriction', 'sem_restricoes'],
+    ]);
+  });
+
+  it('half stored by a tap: no row, only the restriction group is a preview and the line describes it alone', () => {
+    cleanup();
+    renderSection(block({ checklist: allC(), conclusion: { result: cell('aprovado') } }));
+    expect(screen.queryByRole('group', { name: 'Prévia da conclusão' })).toBeNull();
+    const [result, restriction] = groups();
+    expect(screen.getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Aprovado' })).not.toHaveClass('is-floor');
+    expect(restriction.querySelector('[aria-checked="true"]')).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Sem restrições' })).toHaveClass('is-floor');
+    expect(result).not.toHaveAccessibleDescription(PREVIEW_LINE);
+    expect(restriction).toHaveAccessibleDescription(PREVIEW_LINE);
+  });
+
+  it('a stored pair, a sheet marked Não ensaiado, or no floor: no row, no preview state, no line', () => {
+    const notTested: BlockRow = { ...block({ checklist: allC() }), not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-06T12:00:00.000Z', by: ID } };
+    for (const shown of [block({ checklist: allC(), conclusion: pair }), notTested, block({})]) {
+      cleanup();
+      renderSection(shown);
+      expect(screen.queryByRole('group', { name: 'Prévia da conclusão' })).toBeNull();
+      expect(document.querySelector('.seg.is-floor')).toBeNull();
+      expect(screen.queryByText(PREVIEW_LINE)).toBeNull();
+    }
+  });
+
+  it('a stored pair a later floor made stricter shows "Conclusão ajustada pela ficha" and nothing reads as a preview', () => {
+    cleanup();
+    renderSection(block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, conclusion: pair }));
+    expect(screen.getByText('Conclusão ajustada pela ficha')).toBeVisible();
+    expect(document.querySelector('.seg.is-floor')).toBeNull();
+    expect(screen.queryByText(PREVIEW_LINE)).toBeNull();
+  });
+});

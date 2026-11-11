@@ -480,7 +480,7 @@ function NumberField({ field, value, commit, draft, missing, label, helper, inva
           {invalidText}
         </span>
       ) : null}
-      {/* Seed v13 (Story 23.7): the kernel's line under the field (TAPS: "Na ordem da placa · 5 taps"). */}
+      {/* Seed v13 (Story 23.7): the kernel's line under the field (TAPS: "Na ordem da placa, separados por ; · 5 taps", Story 24.9). */}
       {helper === undefined || number.invalid ? null : (
         <span className="helper" id={`${helperId}-help`}>
           {helper}

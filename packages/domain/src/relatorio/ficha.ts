@@ -19,6 +19,7 @@ import {
   type NotApplicableNumber,
 } from '../parse/pt-br-number.ts';
 import { wordRowByName } from '../registry/instrument-row.ts';
+import { typedPieces } from '../registry/nc-phrase-row.ts';
 import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
 import { isOilItem } from './oil-rule.ts';
@@ -214,17 +215,30 @@ export function recentChecklistObservations(
 }
 
 /**
- * e22f N3 (integrated review of Epic 22 wave A): a checklist row set back from NC to C clears
+ * ~~e22f N3 (integrated review of Epic 22 wave A): a checklist row set back from NC to C clears
  * its observation in the same batch only while that observation is still the NC phrase a chip
- * wrote, unedited: exactly one of the row's chips (`ncChipPhrases`: the seed's phrases, the
- * learned ones, the recents). Kept otherwise (an edited or typed text is the engineer's, and
- * as a C row's observation it ~~still sets the floor's "observação registrada"~~ stays a comment; fix batch e24h, H9: it
- * floors nothing).
+ * wrote, unedited: exactly one of the row's chips. Kept otherwise.~~ (`clearsNcObservation`,
+ * replaced by Story 24.6.)
+ *
+ * Story 24.6 (every seed, screen only; Bruno's question 27): what a checklist row's observation
+ * does when the row leaves NC for C or for N.A. Null for any other change ("Limpar", C to NC, a
+ * row never NC) and for a blank observation: nothing is asked. `clear` while the observation is
+ * still automatic, made only of the row's offered phrases (`ncChipPhrases`: the seed's, the
+ * learned ones, the recents), joined as a chip tap joins them (`insertPhrase`), a final period
+ * aside: the observation is removed in the same batch as the result. `keep` once it holds a typed
+ * piece (`typedPieces`): the observation stays, and the row shows its warning ("Observação mantida:
+ * o texto foi editado.") with "Apagar observação". A kept observation floors nothing (fix batch
+ * e24h, H9).
  */
-export function clearsNcObservation(from: string | null, to: string | null, observation: string, chips: readonly string[]): boolean {
-  if (from !== 'NC' || to !== 'C') return false;
-  const text = observation.trim();
-  return text !== '' && chips.some((phrase) => phrase.trim() === text);
+export function ncObservationOnLeave(from: string | null, to: string | null, observation: string, chips: readonly string[]): 'clear' | 'keep' | null {
+  if (from !== 'NC' || (to !== 'C' && to !== 'NA')) return null;
+  if (observation.trim() === '') return null;
+  // Each offered phrase is taken with and without its final period, so "X." and "X" both cut.
+  const offered = chips.flatMap((phrase) => {
+    const trimmed = phrase.trim();
+    return trimmed.endsWith('.') ? [trimmed, trimmed.slice(0, -1)] : [trimmed, `${trimmed}.`];
+  });
+  return typedPieces(observation, offered).length === 0 ? 'clear' : 'keep';
 }
 
 /**

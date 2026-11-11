@@ -114,7 +114,7 @@ async function readings(page: Page, c: TapCounter): Promise<void> {
 
 /** The suggested conclusion pair confirmed with one tap. */
 async function confirmPair(page: Page, c: TapCounter): Promise<void> {
-  const confirm = page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' });
+  const confirm = page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' });
   // e23f (R8LAY, Matheus 2026-11-08): the readings run now ends on the primary without scrolling
   // the page, so the suggestion can sit half under the Sticky action bar (J3 at 768 px: the
   // button 865-913 px, the bar from 892 px). The person scrolls it into view before tapping, as
@@ -125,7 +125,7 @@ async function confirmPair(page: Page, c: TapCounter): Promise<void> {
   await c.tap('Confirmar the suggestion', confirm, async () => {
     // The radios draw the effective pair, the floor included, so they read checked before any
     // write; the suggestion row leaving says the pair was stored (e23f).
-    await expect(page.getByRole('group', { name: 'Sugestão' })).toHaveCount(0, { timeout: EFFECT_MS });
+    await expect(page.getByRole('group', { name: 'Prévia da conclusão' })).toHaveCount(0, { timeout: EFFECT_MS });
     await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS });
   });
 }

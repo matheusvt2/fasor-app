@@ -277,6 +277,10 @@ describe('e23w-UNIT B-6 a contact pole more than 50 % above the previous v13 vis
     const worst = worstReadings(evaluateSheetReadings(block, definition, visit)).find((one) => one.testKey === 'resistencia_contato')!;
     expect(worst).toMatchObject({ verdict: 'out', valueText: '61 µΩ', rise });
     expect(composeConclusion(block, definition, 'DJ-1', visit).text).toContain(`resistência de contato máxima de 61 µΩ em T1-T2–Fase A (${rise})`);
+    // 24.9-UNIT (F19): "Critérios usados" names the rise with the previous value, not "critério <250 µΩ"; the printed paragraph above is unchanged.
+    const items = composeConclusion(block, definition, 'DJ-1', visit).criteriaItems;
+    expect(items).toContain(`R_cont T1-T2–Fase A 61 µΩ · ${rise}`);
+    expect(items.join(' · ')).not.toContain('critério <250 µΩ');
   });
 
   it('the bound is exclusive: 60 µΩ (exactly +50 %) and 59 µΩ are not out by this rule', () => {

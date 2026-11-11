@@ -292,7 +292,7 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   // The conclusion: Story 22.4, the out reading sets the floor Reprovado · Com restrições (the NC
   // item alone would give Aprovado · Com restrições); Aprovado is disabled; its text names both.
   await goToStep(page, 'Conclusão', 'conclusao');
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado', exact: true })).toBeDisabled();
   await expect(page.locator('.conclusion-control .conclusion-hint').first()).toHaveText(

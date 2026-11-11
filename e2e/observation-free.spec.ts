@@ -130,8 +130,9 @@ test('@p0 e24h-H9-E2E-001 an observation on a clean ficha leaves "Aprovado · Se
   await expect(observations).not.toHaveAttribute('data-required', '');
   const restriction = page.getByRole('radiogroup', { name: 'Restrições' });
   await expect(restriction.getByRole('radio', { name: 'Sem restrições', exact: true })).toBeEnabled();
-  await expect(page.locator('.conclusion-control .conclusion-hint')).toHaveCount(0);
-  await expect(page.getByRole('group', { name: 'Sugestão' })).toContainText('Aprovado · Sem restrições?');
+  // Story 24.5: only the preview line stands, no reason line.
+  await expect(page.locator('.conclusion-control .conclusion-hint:not(.e24-preview-line)')).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Prévia da conclusão' })).toContainText('Aprovado · Sem restrições?');
 
   // "Concluir ficha": the pair the floor gives is stored with the conclude, Aprovado · Sem restrições.
   await page.getByRole('button', { name: `Mais opções da ficha ${TAG}` }).click();

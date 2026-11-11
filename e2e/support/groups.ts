@@ -343,6 +343,27 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 24.21: issues two revisions through the shared queue and LibreOffice (relatório A with a renamed TAG, whose issue writes last_results, then B of the same obra) to read MANUT. ANTERIOR on the renamed sheet from the DOCX',
   },
+  // Batch e24b, Part B (Stories 24.5, 24.6, 24.7, 24.9): each renders a draft PDF or issues a revision through the shared queue and LibreOffice.
+  {
+    file: 'conclusion-preview.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.5: renders the draft PDF ("Pré-visualizar") through the shared queue and LibreOffice to read that a preview pair prints no conclusion mark',
+  },
+  {
+    file: 'nc-phrase-follows-item.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.6: renders the draft PDF through the shared queue and LibreOffice to read the removed phrase and the kept text in section 9',
+  },
+  {
+    file: 'point-question.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.7: issues a revision through the shared queue and LibreOffice to read section 8 of the DOCX after both answers',
+  },
+  {
+    file: 'pass-screen-fixes.spec.ts',
+    lane: 'queue',
+    why: 'Story 24.9: issues revisions through the shared queue and LibreOffice (a second visit for the contact rise; the grouping by type from the DOCX)',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

@@ -99,3 +99,24 @@ export function cameraZoomText(zoom: number): string {
   const value = Number.isFinite(zoom) ? zoom : 1;
   return `${value.toFixed(1).replace('.', ',')}×`;
 }
+
+/** The fields of a file row `thermalPhotoText` reads. */
+interface ThermalPhotoFile {
+  kind: string;
+  removed_at: string | null;
+  block_id?: string | null;
+  item_key?: string | null;
+  caption?: string | null;
+}
+
+/**
+ * Story 24.9 (F11; `60-ficha.html` TR-02 Termografia, 2026-11-10): the thermography's "Foto
+ * térmica" control with the count of the sheet's live photos taken through it (the sheet's photos
+ * with no item whose caption is the test's context caption, `caption`, the one the camera gives
+ * each shot): "Foto térmica · 2", and "Foto térmica" alone with none. Screen only.
+ */
+export function thermalPhotoText(files: readonly ThermalPhotoFile[], blockId: string, caption: string | null): string {
+  const count =
+    caption === null ? 0 : files.filter((file) => file.kind === 'photo' && file.removed_at === null && file.block_id === blockId && (file.item_key ?? null) === null && file.caption === caption).length;
+  return count === 0 ? 'Foto térmica' : `Foto térmica · ${count}`;
+}

@@ -136,7 +136,8 @@ describe('23.15-UNIT winding resistance: the deviation between phases by medium 
     expect(at('1.0501')).toBe('out');
     const out = atRow(transformer('oil'), ohm('1'), ohm('1'), ohm('1.0501'));
     const test = measurement(out, 'resistencia_enrolamento');
-    expect(cellAt(test, 0, 2).helperText).toBe('5,01 % acima da menor fase (Fase A: 1 Ω) — critério ≤ 5 %');
+    // 24.9-UNIT (F17): built as the restricted helper is.
+    expect(cellAt(test, 0, 2).helperText).toBe('Desvio de 5,01 % sobre a menor fase (Fase A: 1 Ω), acima de 5 %: a ficha fica Reprovado.');
     expect(conclusionFloor(out, definitionOf(out))!.pair.result).toBe('reprovado');
   });
 
@@ -246,7 +247,7 @@ describe('23.19-UNIT HH fuses on the seccionadora (Base rev08 SC-04)', () => {
     const block = fuses(fused(), '10', '10', '12');
     const test = measurement(block, 'resistencia_fusiveis');
     expect(test.rows.map((row) => row.cells[0]!.verdict)).toEqual(['within', 'within', 'out']);
-    expect(test.rows[2]!.cells[0]!.helperText).toBe('20 % acima da menor fase (Fase A: 10 mΩ) — critério ≤ 15 %');
+    expect(test.rows[2]!.cells[0]!.helperText).toBe('Desvio de 20 % sobre a menor fase (Fase A: 10 mΩ), acima de 15 %: a ficha fica Reprovado.');
     expect(conclusionFloor(block, definitionOf(block))).toEqual({ pair: { result: 'reprovado', restriction: 'com_restricoes' }, reasons: ['measurement'] });
     expect(measurement(fuses(fused(), '10', '11.5', '10'), 'resistencia_fusiveis').rows.map((row) => row.cells[0]!.verdict)).toEqual(['within', 'within', 'within']);
     // A zero or negative lowest is no reference; one fuse alone judges nothing.

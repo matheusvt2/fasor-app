@@ -8,6 +8,7 @@ import {
   sortTemplates,
   standardTemplate,
   templatesHeading,
+  unreadableTemplatesText,
   templateSummaryText,
   templateUseCount,
   toIso,
@@ -263,6 +264,12 @@ export function TemplatesSurface() {
                   ))}
                 </ul>
               ) : null}
+              {/* Story 24.9 (F1; `41-templates.html`): the templates this device could not read, counted by the kernel. */}
+              {unreadableTemplatesText(list?.unreadable ?? 0) === null ? null : (
+                <p className="section-note tpl-unreadable" role="status">
+                  {unreadableTemplatesText(list?.unreadable ?? 0)}
+                </p>
+              )}
             </section>
 
             {archived.length > 0 ? (

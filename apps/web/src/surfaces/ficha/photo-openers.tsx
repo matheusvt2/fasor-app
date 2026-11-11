@@ -63,7 +63,7 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
  * (`contextCaption` names the thermography) and prints in the sheet's photo block (FR-68). No new
  * photo kind and no reading job.
  */
-export function ThermalPhotoButton({ relatorioId, target }: { relatorioId: string; target: () => CaptureTarget }) {
+export function ThermalPhotoButton({ relatorioId, target, label }: { relatorioId: string; target: () => CaptureTarget; label: string }) {
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener);
   const deniedId = useId();
@@ -83,7 +83,8 @@ export function ThermalPhotoButton({ relatorioId, target }: { relatorioId: strin
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-camera" />
         </svg>
-        {copy.ficha.measurement.thermalPhoto}
+        {/* Story 24.9 (F11): "Foto térmica · 2", the kernel's count of the photos taken through it (`thermalPhotoText`). */}
+        {label}
       </AriaButton>
       <CameraOpeningStatus opening={camera.opening} />
       {camera.denied ? (

@@ -316,8 +316,10 @@ export interface MeasurementTestEvaluation {
   groups: MeasurementValueGroup[];
   /** The criteria in force under the block's configuration. */
   criteria: MeasurementCriterionLine[];
-  /** Their wording joined ("≤ 50 % acima do menor do mesmo lado"). */
+  /** Their wording joined ("≤ 50 % acima do menor do mesmo lado"): the print's line. */
   criterionText: string;
+  /** Story 24.9 (F17): the screen's line while the medium is unknown, each criterion read by medium named by it ("Óleo: … · Seco: …"); absent otherwise. */
+  screenCriterionText?: string;
   /** Their sources joined, each once. */
   sourceName: string;
   /*
@@ -674,6 +676,8 @@ function applyChoicePass(rows: readonly EvaluatedMeasurementRow[], criterion: Ex
 
 // authored (Stories 23.15 and 23.19, listed for Bruno): the helper and reason texts of the deviation between phases.
 const RESTRICTED_CLOSING = 'a conclusão sobe para Com restrições.';
+// authored (e24b, listed for Bruno): Story 24.9 (F17), the out helper's outcome, as the restricted helper ends with its own.
+const OUT_CLOSING = 'a ficha fica Reprovado.';
 const OPEN_CIRCUIT_HELPER = 'Acima do limite do instrumento: circuito aberto';
 
 /** "2", "2,5". */
@@ -756,7 +760,9 @@ function applyPhaseDeviation(rows: readonly EvaluatedMeasurementRow[], columns: 
         continue;
       }
       const bound = criterion.restricted_max_pct ?? criterion.within_max_pct;
-      const helper = `${numberText(shownPercent(pct, bound, false))} % acima da menor fase (${lowestText}) — critério ≤ ${pctText(bound)} %`;
+      // ~~`⟨pct⟩ % acima da menor fase (⟨lowest⟩) — critério ≤ ⟨bound⟩ %`~~ Story 24.9 (F17): built as the restricted helper is
+      // (the deviation, the lowest phase with its value, the bound, then the outcome). Screen only: the print reads `criterionText`.
+      const helper = `Desvio de ${numberText(shownPercent(pct, bound, false))} % sobre a menor fase (${lowestText}), acima de ${pctText(bound)} %: ${OUT_CLOSING}`;
       mark(entry.cell, false, criterion, helper, pct / bound - 1);
       if (criterion.restricted_max_pct !== undefined) stands = true;
     }
@@ -1221,6 +1227,15 @@ function evaluate(
     const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
     return { text: maxFieldCriterionText(criterion, limit, byDefault), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
   });
+  // Story 24.9 (F17): while the medium is unknown both criteria read by medium stand; on screen each is named by its medium.
+  const mediumWords: Readonly<Record<string, string>> = { oil: 'Óleo', dry: 'Seco' };
+  const byMedium = medium === null && inForce.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined);
+  // authored (e24b, listed for Bruno): "Óleo: … · Seco: …".
+  const screenCriterion = byMedium
+    ? inForce
+        .map((criterion, i) => (criterion.type === 'phase_deviation' && criterion.medium !== undefined ? `${mediumWords[criterion.medium] ?? criterion.medium}: ${lines[i]!.text}` : lines[i]!.text))
+        .join(' · ')
+    : null;
   // Story 23.15: a FO.SERV-03 type's measurement test is titled by its label alone (the CTA's keep "E{n} ·").
   const unnumbered = context.unnumbered;
   return {
@@ -1243,6 +1258,8 @@ function evaluate(
     groups: groupsOf(values, skipped),
     criteria: lines,
     criterionText: lines.map((line) => line.text).join('; '),
+    // Story 24.9 (F17): with the medium unknown, the screen names each criterion by its medium; the print keeps `criterionText`.
+    ...(screenCriterion === null ? {} : { screenCriterionText: screenCriterion }),
     sourceName: [...new Set(lines.map((line) => line.sourceName))].join('; '),
     ...(unnumbered ? { unnumbered: true as const } : {}),
     ...(winding === null ? {} : { temperature: winding.view }),

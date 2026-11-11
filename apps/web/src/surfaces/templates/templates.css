@@ -201,3 +201,6 @@
 @media (max-width: 767.98px) {
   [data-route="/templates"] .type-row .rr-actions { flex: 1 1 100%; min-width: 0; }
 }
+
+/* Story 24.9 (F1): the line under the template list, `41-templates.html` (Story 24.1, 2026-11-10) `.section-note[role="status"]`, its inline `margin-top: var(--sp-3)` */
+[data-route="/templates"] .tpl-unreadable { margin-top: var(--sp-3); }

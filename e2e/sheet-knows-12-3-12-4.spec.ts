@@ -539,7 +539,7 @@ test('@p0 12.4-E2E-001an NC item observation becomes the suggested sheet observa
   await expect(observation).toHaveAccessibleDescription('Montada dos itens NC · confirmada com o texto da conclusão');
 
   // Com restrições: the pair suggestion, then no red "required" while the suggestion stands.
-  await page.getByRole('group', { name: 'Sugestão' }).getByRole('button', { name: 'Confirmar' }).click();
+  await page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByText('Obrigatória com restrições')).toHaveCount(0);
   await expect(suggested.getByRole('button', { name: 'Confirmar' })).toHaveAttribute('data-missing-field', '');

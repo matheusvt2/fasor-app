@@ -118,6 +118,8 @@ export const ui = {
     suggested: 'Sugerido',
     // `60-ficha.html` `.verify-pill` (Story 8.1): a low-confidence guess.
     verify: 'Verificar',
+    // authored (e24b, listed for Bruno): Story 24.5, the pill of the Conclusão step's preview row (`60-ficha.html` `.e24-conc`).
+    preview: 'Prévia',
     confirm: 'Confirmar',
     // `60-ficha.html` `.suggestion-alt` button (Story 8.1).
     replace: 'Substituir',

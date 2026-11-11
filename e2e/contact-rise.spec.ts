@@ -150,9 +150,10 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   const reason = conclusionFloorReasonText(block, DISJUNTOR, visit)!;
   expect(reason).toBe('A ficha exige no mínimo Reprovado · Com restrições: leitura fora do critério.');
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
-  await expect(page.locator('.conclusion-hint')).toHaveText(reason);
+  // Story 24.5: the preview line is a `.conclusion-hint` too.
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
   // The engineer takes the suggestion: the pair section 9 prints (e22f N2: only a chosen pair prints its marks).
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'true');

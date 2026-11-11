@@ -126,9 +126,9 @@ export interface TreeActions {
   /** "Adicionar painel" under a local; "Adicionar coluna" under a painel, or under a local that already holds colunas directly. */
   addLocation: (parent: TreeLocationNode, kind: 'painel' | 'coluna') => void;
   /** The foot's "Adicionar local", with what the Função dialog chose. */
-  addLocal: (chosen: { funcao: string | null; name: string }) => void;
+  addLocal: (chosen: { funcao: string | null; name: string; agrupar?: boolean }) => void;
   /** "Função e nome": the local's `funcao` and `name` puts in one batch. A null Função leaves the stored one as it is. */
-  updateLocal: (node: TreeLocationNode, chosen: { funcao: string | null; name: string }) => void;
+  updateLocal: (node: TreeLocationNode, chosen: { funcao: string | null; name: string; agrupar?: boolean }) => void;
   renameLocation: (node: TreeLocationNode, name: string) => void;
   toggleAgrupar: (node: TreeLocationNode) => void;
 }
@@ -594,13 +594,17 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 
   const addLocal = useCallback(
-    (chosen: { funcao: string | null; name: string }) =>
-      createLocation(null, (locations) => newLocation(locations, { id: newId(), relatorioId, kind: 'cabine', parentId: null, name: chosen.name, funcao: chosen.funcao })),
+    (chosen: { funcao: string | null; name: string; agrupar?: boolean }) =>
+      createLocation(null, (locations) => {
+        const row = newLocation(locations, { id: newId(), relatorioId, kind: 'cabine', parentId: null, name: chosen.name, funcao: chosen.funcao });
+        // Story 24.9 (F20): the dialog's "Agrupar por tipo", off by default (M-2), on the created row.
+        return chosen.agrupar === true && row.kind === 'cabine' ? { ...row, agrupar_por_tipo: true } : row;
+      }),
     [createLocation, relatorioId],
   );
 
   const updateLocal = useCallback(
-    (node: TreeLocationNode, chosen: { funcao: string | null; name: string }) => {
+    (node: TreeLocationNode, chosen: { funcao: string | null; name: string; agrupar?: boolean }) => {
       const out = { gone: false, name: chosen.name };
       void edit((_blocks, by, fresh) => {
         const row = fresh.locations.find((l) => l.id === node.id);
@@ -617,6 +621,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         if (chosen.name !== node.name) ops.push(putLocationOp(by, relatorioId, node.id, 'name', chosen.name));
         // A name left untouched is the row's own, which is what the toast names.
         else out.name = row.name;
+        // Story 24.9 (F20): the dialog's switch, written only when changed from what the dialog opened on.
+        if (chosen.agrupar !== undefined && chosen.agrupar !== (node.agruparPorTipo === true)) ops.push(putAgruparOp(by, relatorioId, node.id, chosen.agrupar));
         return ops.length === 0 ? null : ops;
       })
         .then((batch) => {

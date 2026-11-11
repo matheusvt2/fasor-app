@@ -10,6 +10,7 @@ import {
   duplicateTemplate,
   emptyTemplate,
   pickableTemplates,
+  unreadableTemplatesText,
   sortTemplates,
   templatesHeading,
   templateUseCount,
@@ -154,5 +155,13 @@ describe("4.1-UNIT templateUseCount counts this device's unsynced relatórios to
     expect(templateUseCount(A, summaries, local)).toBe(2);
     expect(templateUseCount(B, [], local)).toBe(1);
     expect(templateUseCount(A, summaries)).toBe(1);
+  });
+});
+
+describe('24.9-UNIT (F1) unreadableTemplatesText', () => {
+  it('counts the templates this device could not read; none, no line', () => {
+    expect(unreadableTemplatesText(0)).toBeNull();
+    expect(unreadableTemplatesText(1)).toBe('1 template não pôde ser lido neste aparelho.');
+    expect(unreadableTemplatesText(2)).toBe('2 templates não puderam ser lidos neste aparelho.');
   });
 });

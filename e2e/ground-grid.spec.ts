@@ -107,7 +107,7 @@ test('@p0 23.21-E2E-001 at 1024: "Adicionar equipamento no local Geradores" adds
 
   // The conclusion confirmed at its floor; the derived parecer names the sheet as Reprovado.
   await openStep(page, relatorioId, blockId, 'Conclusão');
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => (await outboxValues(database, page, `sheet/${blockId}/conclusion/result`)).at(-1)).toBe('reprovado');

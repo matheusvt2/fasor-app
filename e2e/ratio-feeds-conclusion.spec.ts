@@ -73,16 +73,17 @@ test('@p0 17.5-E2E-001 22.4-E2E 22.6-E2E a transformer ratio row INSATISFATÓRIO
   const result = page.getByRole('radiogroup', { name: 'Resultado' });
   const restriction = page.getByRole('radiogroup', { name: 'Restrições' });
   await expect(result).toBeVisible();
-  const suggestion = page.getByRole('group', { name: 'Sugestão' });
+  const suggestion = page.getByRole('group', { name: 'Prévia da conclusão' });
   await expect(suggestion).toContainText('Reprovado · Com restrições?');
-  await expect(result.getByRole('radio', { name: 'Reprovado', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(restriction.getByRole('radio', { name: 'Com restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(result.getByRole('radio', { name: 'Reprovado', exact: true })).toHaveClass(/\bis-floor\b/);
+  await expect(restriction.getByRole('radio', { name: 'Com restrições', exact: true })).toHaveClass(/\bis-floor\b/);
   // Looser segments are disabled, with the kernel's one reason line.
   await expect(result.getByRole('radio', { name: 'Aprovado', exact: true })).toBeDisabled();
   await expect(restriction.getByRole('radio', { name: 'Sem restrições', exact: true })).toBeDisabled();
   const reason = page.locator('.conclusion-control .conclusion-hint').first();
   await expect(reason).toHaveText('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');
-  await expect(result).toHaveAccessibleDescription('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');
+  // Story 24.5: the group is a preview, so the preview line describes it after the reason line.
+  await expect(result).toHaveAccessibleDescription('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória. Prévia: só vale depois de Confirmar ou de Concluir ficha.');
 
   // The suggestion's Confirmar writes the floor pair, one batch.
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();

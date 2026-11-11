@@ -510,6 +510,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
         <LocalDialog
           mode="add"
           seedVersion={context.seedVersion}
+          agrupar={false}
           onClose={() => closeDialog(() => footRef.current?.querySelector<HTMLElement>('button') ?? null)}
           onSubmit={(chosen) => {
             setDialog(null);
@@ -522,6 +523,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           mode="edit"
           seedVersion={context.seedVersion}
           initial={{ funcao: dialog.node.funcao, name: dialog.node.name }}
+          agrupar={dialog.node.agruparPorTipo === true}
           onClose={() => closeDialog(() => locationChevron(rootRef.current, dialog.node.id))}
           onSubmit={(chosen) => {
             const node = dialog.node;

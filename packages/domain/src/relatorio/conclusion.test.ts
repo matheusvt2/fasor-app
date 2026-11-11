@@ -17,6 +17,7 @@ import {
   conclusionFloor,
   conclusionFloorReasonText,
   conclusionPairComplete,
+  conclusionPreview,
   conclusionSuggestion,
   conclusionSuggestionText,
   conclusionTextForPrint,
@@ -746,5 +747,39 @@ describe('17.5-UNIT a ratio row INSATISFATÓRIO feeds the floor and the composed
     expect(out.criteriaItems).toContain('RT Fase R 4,17 % · critério ±0,5 %');
     const within = composeConclusion(tpBlock({ test: ratio('120.1'), checklist: tpAllC(), conclusion: pair }), TP, 'TP-1');
     expect(within.basis).not.toBe(out.basis);
+  });
+});
+
+describe('24.5-UNIT conclusionPreview: which half of the pair the Conclusão step shows as a preview', () => {
+  const NOT_TESTED = { reason: 'solicitacao_cliente' as const, text: null, at: '2026-09-06T12:00:00.000Z', by: ID };
+  for (const version of ['v5', 'v13'] as const) {
+    const definition = getDefinition(version, 'cabine_primaria', 'chave_seccionadora');
+    const allCv = Object.fromEntries(definition.checklist!.map((item) => [item.key, { result: cell('C') }]));
+    const at = (sheet: Partial<Sheet>, over: Partial<BlockRow> = {}) =>
+      block(sheet, { seed_version: version, config: defaultBlockConfig(version, 'chave_seccionadora', { subtype: 'manual' }), ...over });
+
+    it(`${version}: floor only, both halves are a preview`, () => {
+      const b = at({ checklist: allCv });
+      expect(conclusionFloor(b, definition)).not.toBeNull();
+      expect(conclusionPreview(b, definition)).toEqual({ result: true, restriction: true });
+    });
+
+    it(`${version}: half stored by a tap, only the other half is a preview`, () => {
+      expect(conclusionPreview(at({ checklist: allCv, conclusion: { result: cell('aprovado') } }), definition)).toEqual({ result: false, restriction: true });
+      expect(conclusionPreview(at({ checklist: allCv, conclusion: { restriction: cell('com_restricoes') } }), definition)).toEqual({ result: true, restriction: false });
+    });
+
+    it(`${version}: stored pair, not tested, or no floor: nothing is a preview`, () => {
+      const none = { result: false, restriction: false };
+      expect(conclusionPreview(at({ checklist: allCv, conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') } }), definition)).toEqual(none);
+      expect(conclusionPreview(at({ checklist: allCv }, { not_tested: NOT_TESTED }), definition)).toEqual(none);
+      expect(conclusionPreview(at({}), definition)).toEqual(none);
+    });
+  }
+
+  it('a stored pair a later floor made stricter is adjusted, never a preview', () => {
+    const b = block({ checklist: { ...allC(), contatos: { result: cell('NC') } }, conclusion: { result: cell('aprovado'), restriction: cell('sem_restricoes') } });
+    expect(conclusionAdjusted(b)).toBe(true);
+    expect(conclusionPreview(b)).toEqual({ result: false, restriction: false });
   });
 });

@@ -294,6 +294,8 @@ export interface TestEvaluation {
   manufacturer?: { value: ManufacturerValue; criterion: CriterionSeed; criterionText: string };
   /** Stories 23.2 and 23.3: the source details the sheet lists under the criterion (per-row helpers, the manufacturer's line). */
   sourceLines?: string[];
+  /** Story 24.9 (F16): the rows' fallback requests (the plate lacks what the table needs), shown under the criterion; absent with none. Screen only. */
+  fallbackLines?: string[];
   /** Story 23.4: on a test with `instrument_limit_note`, the observation under its table, or null while no limit meets it. */
   limitNote?: string | null;
   /*

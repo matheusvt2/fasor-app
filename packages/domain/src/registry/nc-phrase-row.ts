@@ -35,6 +35,8 @@ const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id 
  * they were learned), then the relatório's recent observations of the item. A phrase whose
  * normalized text (`normalizeRegistryName`) an earlier chip already offers is dropped, and so is
  * a blank one. A site item ("Verificações do local") passes no learned rows and a null type.
+ * Story 24.6 (row 2552): the text is compared without its final period, so a learned phrase
+ * (stored without it) and a recent observation (which keeps it) are offered once.
  */
 export function ncChipPhrases({
   seeded,
@@ -52,7 +54,7 @@ export function ncChipPhrases({
   const out: string[] = [];
   const seen = new Set<string>();
   const add = (phrase: string) => {
-    const normalized = normalizeRegistryName(phrase);
+    const normalized = normalizeRegistryName(phrase.trim().replace(/\.$/, ''));
     if (normalized === '' || seen.has(normalized)) return;
     seen.add(normalized);
     out.push(phrase);
