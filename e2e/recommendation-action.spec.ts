@@ -207,6 +207,8 @@ test('@p0 24.17-E2E-001 a v14 company type\'s reading out of its criterion: noth
   // The place names the point and offers no second one.
   await expect(place).toHaveClass(/has-point/);
   await expect(place.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
+  // The save took the button away: the focus is on the point's name in its place.
+  await expect(place.locator('.nc-point-ref')).toBeFocused();
   await expect(place.getByRole('button', { name: 'Criar ponto de atenção' })).toHaveCount(0);
   await expect.poll(async () => (await storedPoints(page)).map((point) => [point.origin, point.test_key, point.action])).toEqual([['reading', E2, finding!.action]]);
 
@@ -296,4 +298,5 @@ test('24.17-E2E-002 v14: a restricted reading starts a restricao point with its 
   const reproved = await concludeEditor(page, chosen!);
   expect(reproved.value).toMatchObject({ origin: 'reprovado', text: OBSERVATION, action: null });
   await expect(placeOf(conclusao).locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
+  await expect(placeOf(conclusao).locator('.nc-point-ref')).toBeFocused();
 });
