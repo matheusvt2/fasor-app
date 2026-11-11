@@ -277,6 +277,14 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'solo',
     why: 'times every tap of the SM-3 walk against a render and waits on nine readings of the one reading queue and worker',
   },
+  // Story 14.10 lane B (14.10-E2E-003): the focus is sampled in the page every 50 ms for a fixed 6 s and the test
+  // asserts more than 50 samples. Fix batch e24z: in the parallel group of the e24 integrated gate (7773aafa) the
+  // page's timers, starved by the renders beside it, took 17 samples in those 6 s; alone it passes.
+  {
+    file: 'plate-shot-fallback.spec.ts',
+    lane: 'solo',
+    why: 'samples the focus every 50 ms for a fixed window while the plate row renders, and counts the samples, so it must not share the CPU with other workers',
+  },
   // Story 16.3: display shots out of section 7 and the numbering, checked in a generated DOCX.
   {
     file: 'display-shots.spec.ts',

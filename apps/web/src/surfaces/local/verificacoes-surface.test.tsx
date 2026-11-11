@@ -317,7 +317,7 @@ describe('14.3 "Verificações do local": the surface', () => {
   });
 
   it('24.6: an NC item with a typed observation set to Conforme keeps it with the warning and "Apagar observação"; a chip alone is removed', async () => {
-    await open();
+    const view = await open();
     // Answered on this device, as on site: NC, then a typed observation.
     await userEvent.click(seg(EMERGENCIA, 'Não conforme'));
     const field = await within(rowOf(EMERGENCIA)).findByRole('textbox', { name: 'Observação do item 11' });
@@ -342,6 +342,14 @@ describe('14.3 "Verificações do local": the surface', () => {
     await userEvent.click(within(chips).getByRole('button', { name: 'Luvas isolantes ausentes' }));
     fireEvent.blur(within(rowOf(LUVAS)).getByRole('textbox', { name: /^Observação do item / }));
     await waitFor(async () => expect((await outbox()).map((op) => [op.path, op.value]).at(-1)).toEqual([observationPath(LUVAS), 'Luvas isolantes ausentes']));
+    // Fix batch e24z: the rule reads the stored observation, and a text still ahead of the store is kept (e24x A2).
+    // The outbox holds the chip's write before the surface has re-read the row, so a "Conforme" tapped then kept the
+    // phrase with the warning and wrote the result alone (7 ops, not 8; red once in 25 runs, and under load in the
+    // e24 gate). The surface is opened again, as after leaving it, so it draws the row as stored before the tap.
+    view.unmount();
+    renderAt(LOCAL);
+    await screen.findByRole('heading', { level: 2, name: /^Verificações do local — / });
+    expect(within(rowOf(LUVAS)).getByRole('textbox', { name: /^Observação do item / })).toHaveValue('Luvas isolantes ausentes');
     const before = (await outbox()).length;
     await userEvent.click(seg(LUVAS, 'Conforme'));
     await waitFor(async () => expect((await outbox()).length).toBe(before + 2));
