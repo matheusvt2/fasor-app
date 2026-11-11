@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
-import type { BlockRow, Cell } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { definitionContext, EMPTY_DEFINITION_CONTEXT, getDefinition, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { defaultBlockConfig } from '../seed/template.ts';
 import { TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { asBlockDefinition } from '../types/block-definition.ts';
 import type { CompanyTypeDefinition } from '../types/definition.ts';
@@ -160,3 +161,25 @@ describe('e24f-UNIT R-1b a seeded test with no criterion holding a capture besid
     expect(composeConclusion(b, definition, 'QD-1').text).toContain(NOT_COMPARED);
   });
 });
+
+describe('e24f-UNIT R-1 a v11 ratio table waiting for its vector group, beside a judged reading, reads "a conferir"', () => {
+  const TRAFO = getDefinition('v11', 'cabine_primaria', 'transformador_forca');
+  const at = (raw: string, unit: string | null) => cell(measured(raw, unit));
+  function trafo(ligacao: string | null): BlockRow {
+    const sheet = emptySheet();
+    if (ligacao !== null) sheet.nameplate.ligacao_secundaria = cell(ligacao);
+    sheet.test.relacao_transformacao = { cells: { '0': { '0': at('13.8', 'kV'), '1': at('380', 'V'), '3': at('36.3', null), '4': at('36.3', null), '5': at('36.3', null) } } };
+    sheet.test.isolacao = { cells: Object.fromEntries([0, 1, 2].map((row) => [String(row), { '1': at('147', 'GΩ') }])) };
+    return { id: id(1), relatorio_id: TEST_RELATORIO, location_id: null, equipment_id: id(2), block_type: 'transformador_forca', config: defaultBlockConfig('v11', 'transformador_forca'), seed_version: 'v11', order_key: 'a0', feeds_block_id: null, not_tested: null, concluded_by: null, sheet, created_by: null, first_edited_at: null, last_modified_by: null, last_modified_at: null, removed_at: null } as BlockRow;
+  }
+
+  it('no DESLOCAMENTO ANGULAR: no floor and "a conferir"; with the group, "dentro dos critérios" as before', () => {
+    const waiting = trafo(null);
+    expect(conclusionFloor(waiting, TRAFO)).toBeNull();
+    expect(composeConclusion(waiting, TRAFO, 'TR-1').text).toContain(TO_CHECK);
+    const grouped = trafo('Yyn0');
+    expect(conclusionFloor(grouped, TRAFO)!.pair).toEqual({ result: 'aprovado', restriction: 'sem_restricoes' });
+    expect(composeConclusion(grouped, TRAFO, 'TR-1').text).toContain(WITHIN);
+  });
+});
+

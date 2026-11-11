@@ -2,7 +2,7 @@
 title: 'e24f: the Epic 23 retrospective''s review fixes (R-1, R-3, R-4, R-5, R-7, R-8, R-9) and the tests red under load (E23-A4; contract 42)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1528183f3abfc76b842dcf3fc79bce86142db1ae'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -109,6 +109,22 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-10 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them).
+
+- verdicts: 9 findings — high 0, medium 4, low 3, false 0, maybe-false 2
+- findings:
+  - `[maybe-false]` `[defer]` ECH: `send()` (uploads, thumbnails) has no bound, so an upload or thumbnail answer that never comes can still hold the single-flight cycle — pre-existing, and whether it is the 4.8-E2E-005 cause is unproven; if true, medium (unverified). Ledger row added in the e24f section.
+  - `[medium]` `[patch]` ECH: the 60 s timer covered the whole request (upload and answer), so a push near 4 MB on an uplink under about 70 KB/s aborted every time — the timer now bounds only the wait for the response headers, extended by the body's bytes at a floor uplink rate; the answer's body is not bounded.
+  - `[medium]` `[patch]` ECH: a large pull page on a slow link was cut at 60 s total and re-requested forever — same patch (the body download is no longer bounded).
+  - `[medium]` `[patch]` ECH: a v11+ ratio table waiting for its vector group (`groupMissing`) withholds the floor while the paragraph still says "dentro dos critérios" beside a judged capture — the same condition joins the "a conferir" branch (R-1c), basis unchanged.
+  - `[low]` `[reject]` ECH claim: the rewritten R-4 and the R-8 tests are not red on the baseline — true and stated in the Auto Run Result: both items are test-only by the retrospective's disposition, so no red run can exist; nothing to fix.
+  - `[low]` `[reject]` ECH claim: the R-9 matrix row says the toast counts the copied fields, the product says "Copiado de ⟨TAG⟩" — the row misdescribed the existing toast (R-9 changes no behaviour); the test asserts the product; listed in the PR.
+  - `[maybe-false]` `[reject]` ECH claim: R-7 accepts `pending` or `sent` after the reload — a row left `sent` passes; the test then removes the stubs and asserts the op on the server and the row acked, so a stuck `sent` would still fail there; if true it would be low.
+  - `[medium]` `[patch]` VG other: R8LAY-E2E-008 now repeats its press until the dialog opens, so a press lost on a Home that looks ready no longer fails any test, and no ledger row says so — ledger row added; the Epic 21 row no longer reads as closed by a fix.
+  - `[low]` `[patch]` VG other: `e24f-INT R-8` read state set by the file's first test and failed run alone — made independent.
+
 ## Design Notes
 
 **D1. R-1 and the basis.** `printedConclusionText` prints a confirmed text while its basis matches; a basis change would make every v13 paragraph already confirmed with the wrong sentence read stale and stop printing (or print the composed one) with no word from the engineer. So the basis stays; only the composed text changes. A paragraph confirmed before the fix keeps its words (the engineer confirmed them); listed for Matheus as an open question in the PR.
@@ -151,9 +167,10 @@ Status: done (verification below; review not run)
   - `home-surface.test.tsx` 12.2 "Continuar" (two tests) and `reading-arrivals.test.tsx` caption toast: the waits after a chain of live queries take a 10 s budget instead of the 1 s default (no product timer in the chain).
   - `review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-008: the press waits for the Home to settle (status board shown, network idle).
   - `review-photo-failures.spec.ts` R8CAP-E2E-010: the tray is read once the sheet reloaded by `syncNowAndReturn` is drawn, and the two "Criar" presses go through `createManufacturer` (retried while the list re-mounts).
+- **Review fixes (2026-11-10):** the request bound covers only the wait for the headers (plus the body's upload at 8 KB/s), never the answer's download; R-1 also reads "a conferir" beside a judged reading when a v11+ ratio table waits for its vector group (the floor's e21g D6 case); `e24f-INT R-8` previews on its own (a shared once-per-file preview); two ledger rows (the R8LAY lost press, `send()` unbounded).
 - **New tests:** `conclusion-unjudged.test.ts` (R-1), `draft-edit.test.ts` e24f-UNIT R-3, `e23z-final-fixes.test.ts` e24f-UNIT R-5, `nameplate-applicability.integration.test.ts` e24f-INT R-5 (two devices through the push route), `v13-insulation-print.integration.test.ts` e24f-INT R-8, `e2e/sync.spec.ts` e24f-E2E-001 `@p1` (R-7), `e2e/v13-nameplate.spec.ts` e24f-E2E-002 `@p1` (R-9), `client.test.ts` e24f-UNIT (the request timeout).
 - **Load-red tests, cause and fix (E23-A4):**
-  - 4.8-E2E-005 and 21.1-E2E-002 (D5): the Export dialog's revision poll (3 s interval, re-armed with the working phase; the retry resets the phase and the flush rounds) never stops or backs off, but it calls `syncRelatorio`, which answers `busy` with no request while a sync cycle runs. A cycle awaits its push and pulls with no timeout, so one answer that never comes (a dropped connection, the dev proxy under load) holds the cycle, and the poll, until a reload: "no request for 150 s" with the job done. Product fix: `apps/web/src/sync/client.ts` ends a JSON request after `SYNC_REQUEST_TIMEOUT_MS` (60 s) as a network failure (the existing retry policy then applies). Not reproduced here (no trace of the original runs is kept); this is the one code path that fits the record.
+  - 4.8-E2E-005 and 21.1-E2E-002 (D5): the Export dialog's revision poll (3 s interval, re-armed with the working phase; the retry resets the phase and the flush rounds) never stops or backs off, but it calls `syncRelatorio`, which answers `busy` with no request while a sync cycle runs. A cycle awaits its push and pulls with no timeout, so one answer that never comes (a dropped connection, the dev proxy under load) holds the cycle, and the poll, until a reload: "no request for 150 s" with the job done. Product fix: `apps/web/src/sync/client.ts` ends a JSON request whose answer's headers never come as a network failure (the existing retry policy then applies) after `requestHeadersTimeoutMs`: `SYNC_REQUEST_TIMEOUT_MS` (60 s) plus the body at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (8 KB/s; a 4 MiB push about 8,5 min); the answer's download is never cut, and `send()` stays unbounded (ledger row). Not reproduced here (no trace of the original runs is kept); this is the one code path that fits the record.
   - R8CAP-E2E-010: reproduced twice: FABRICAÇÃO's list re-mounts between the "Criar" option's resolution and the press, so the press finds a detached node; the press is retried with the name typed again. Also, the tray was read within the 5 s default from the navigation `syncNowAndReturn` makes; now after the sheet's title is drawn. Whether a tap on a tablet can be lost the same way is reported in `deferred-work.md`.
   - R8LAY-E2E-008: a press on a Home still mounting (session read, shell swap, launch cycle) can be lost; the press waits for the status board and is repeated only while the dialog is closed (`networkidle` never came: a request is always in flight).
   - `setup-surface.test.tsx`: typed key by key on a loaded host, a pause past the 500 ms idle commits a prefix, and its live-query echo resets the keys typed after it. That is a product race (reported in `deferred-work.md`, not fixed: outside R-1, R-3, R-5); the test pastes the edit whole.

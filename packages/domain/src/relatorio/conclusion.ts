@@ -571,9 +571,13 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const toCheck = 'valores medidos com leitura a conferir';
   // Fix batch e24f (R-1): a measured reading no criterion judged is a reading to check, never "within the criteria":
   // a live measurement test the deviation between phases left `unjudged` (R-1a), or, beside a judged capture, a
-  // seeded test with no criterion holding a measured capture (R-1b, the floor's Story 14.9 case). The basis is unchanged.
+  // seeded test with no criterion holding a measured capture (R-1b, the floor's Story 14.9 case), or a ratio table waiting
+  // for its vector group while the plate can be filled (the floor's e21g D6 case). The basis is unchanged.
   const unjudgedTable = measurements.some((test) => test.unjudged === true);
-  const unjudgedCapture = judged && evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && isReadingValue(cell.state)));
+  const unjudgedCapture =
+    judged &&
+    (evaluations.some((test) => test.criterion === null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && isReadingValue(cell.state))) ||
+      (enabledSubBlocksOf(block).has('nameplate') && evaluations.some((test) => test.tables.some((table) => table.groupMissing))));
   const plainReadings =
     outClauses.length > 0
       ? listPtBr(outClauses)

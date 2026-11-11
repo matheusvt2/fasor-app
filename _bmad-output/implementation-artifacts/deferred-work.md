@@ -3011,7 +3011,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
 - source_spec: `_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md` (P-3, owner: E21-A4, a test-hardening batch)
   summary: Four tests went red under load in two or more gates and passed alone each time: `apps/web/src/state/reading-arrivals.test.tsx` (the caption toast), `apps/web/src/surfaces/home/home-surface.test.tsx` (12.2 "Continuar"), `apps/web/src/surfaces/relatorio/setup-surface.test.tsx` (the exclusion typing) and R8LAY-E2E-008 (`e2e/review-layout-interaction-2026-10-08.spec.ts`, the "Novo relatório" dialog within 5 s).
   evidence: PR #254 § Story gate (load 23.5); PR #255 § Earlier gate (load 26); `epic-21-context.md` § Integrated gate (load 4.5 to 5.2, with the review stack beside it); `docs/kbs/log.md` chore T2 (R8LAY-E2E-008 red once in 5); `epic-12-retro-2026-09-25.md:73` (`home-surface.test.tsx`).
-  state: closed (2026-11-10, fix batch e24f, E23-A4): each test hardened on its cause, written in `spec-e24f-retro-fixes.md` § Auto Run Result (setup-surface: the edit pasted whole, a keystroke race of the product reported in the e24f rows below; reading-arrivals and home-surface: a render chain of live queries given the test's budget; R8LAY-E2E-008: the press waits for the launch to settle).
+  state: closed (2026-11-10, fix batch e24f, E23-A4) for the three unit tests, each hardened on its cause, written in `spec-e24f-retro-fixes.md` § Auto Run Result (setup-surface: the edit pasted whole, a keystroke race of the product reported in the e24f rows below; reading-arrivals and home-surface: a render chain of live queries given the test's budget). R8LAY-E2E-008 is not closed by a fix: its press is now repeated until the dialog opens, and the lost press it met stays open in the e24f rows below.
 
 ## Deferred from: e22c (2026-11-06)
 
@@ -3529,7 +3529,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Three tests went red under load in two or more gates of Epic 23 and passed alone each time: 21.1-E2E-002 (`e2e/seed-v11.spec.ts`; e23t's story gate, the wave 3 gate, T3's run 1), R8CAP-E2E-010 (`e2e/review-photo-failures.spec.ts`; e23t's story gate, e23p's full run) and 4.8-E2E-005 (`e2e/export.spec.ts`; e23w's story gate, T3's run 2, where the job finished in 1.6 s and the device sent no request for 150 s). `setup-surface.test.tsx`, already in the Epic 21 retrospective's row above, was red again in e23p's story gate. That row still has no state and no owner batch.
   evidence: `epic-23-context.md` § Fix batch e23w, § Wave 3, § Fix batch e23p; `spec-e23t-transformer-tests.md` Auto Run Result (gate reds); `spec-t3-serial-split.md:151-152`.
   class: flake
-  state: ~~open (owner: E23-A4); assigned 2026-11-10 to fix batch e24f (Matheus: yes), `epic-24-context.md` § Fix batch e24f~~ closed (2026-11-10, fix batch e24f): 4.8-E2E-005 and 21.1-E2E-002 wait on the revision poll, which answers `busy` while a sync cycle runs; a JSON request with no answer held the cycle with no timeout, so the product now ends one after `SYNC_REQUEST_TIMEOUT_MS` (60 s) as a network failure (`apps/web/src/sync/client.ts`); R8CAP-E2E-010 retries its "Criar" press while the field's list re-mounts and reads the tray once the reloaded sheet is drawn; `setup-surface.test.tsx` as in the Epic 21 row above. Causes and runs in `spec-e24f-retro-fixes.md` § Auto Run Result
+  state: ~~open (owner: E23-A4); assigned 2026-11-10 to fix batch e24f (Matheus: yes), `epic-24-context.md` § Fix batch e24f~~ closed (2026-11-10, fix batch e24f): 4.8-E2E-005 and 21.1-E2E-002 wait on the revision poll, which answers `busy` while a sync cycle runs; a JSON request with no answer held the cycle with no timeout, so the product now ends one whose answer's headers never come as a network failure, after 60 s plus its body at 8 KB/s (`requestHeadersTimeoutMs`, `apps/web/src/sync/client.ts`); R8CAP-E2E-010 retries its "Criar" press while the field's list re-mounts and reads the tray once the reloaded sheet is drawn; `setup-surface.test.tsx` as in the Epic 21 row above. Causes and runs in `spec-e24f-retro-fixes.md` § Auto Run Result
 - source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (Behavior verification, owner: E23-A5)
   summary: The read-only preview of Bruno's v5 relatório after the deploy, planned in `epic-23-context.md` § Coordinator decisions ("Bruno's v5 relatório"), has no run on record for any of the three Epic 23 deploys. The v5 layout-lock golden covers the same risk in tests; the production check is the one that was planned.
   evidence: `epic-23-context.md:341` against § Deploy.
@@ -3611,4 +3611,14 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `.scratch-e24f/e2e-repeat-2.log`, `e2e-repeat-3.log` (worktree, not tracked); `apps/web/src/components/registry-picker-field.tsx`.
   class: risk
   state: open (owner: the next batch touching the registry picker)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8LAY-E2E-008)
+  summary: "Novo relatório" pressed on a Home that already shows its status board can be lost while the launch still re-renders (the dialog never opened in the load reds). The test now repeats the press until the dialog opens, so this lost press, which a user would meet too, no longer fails any test. The cause is not found; nothing in the product changed.
+  evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-008; `apps/web/src/surfaces/home/home-surface.tsx` (the "Novo relatório" button).
+  class: flake
+  state: open (owner: the next batch touching the Home launch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, 4.8-E2E-005)
+  summary: Only the JSON requests' wait for their answer's headers is bounded (`requestHeadersTimeoutMs`). `send()` (the photo uploads, the thumbnail and file downloads) still has no bound, so the sync cycle, and every poll gated on it, can still be held by an upload or a thumbnail whose answer never comes.
+  evidence: `apps/web/src/sync/client.ts` `send`; `apps/web/src/sync/engine.ts` (the upload and thumbnail phases).
+  class: note
+  state: open (owner: the next batch touching sync)
 

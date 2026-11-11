@@ -117,13 +117,22 @@ export interface SyncClient {
 export const HEALTH_PROBE_TIMEOUT_MS = 5000;
 
 /**
- * Fix batch e24f (E23-A4, 4.8-E2E-005): how long a JSON request of `request` (the push, the pulls, the
- * generate, preview and audit barriers) may take, its body included, before it reads as a `network`
- * failure. The sync cycle is single-flight and every poll waits on it (the Export dialog's revision poll
- * answers `busy` while a cycle runs), so a request whose answer never came held the cycle, and every
- * poll, until a reload. The uploads and downloads (`send`) are not bounded here: their bytes may take longer.
+ * Fix batch e24f (E23-A4, 4.8-E2E-005): how long a JSON request of `request` (the push, the pulls, the generate,
+ * preview and audit barriers) may wait for its answer's headers before it reads as a `network` failure. The sync
+ * cycle is single-flight and every poll waits on it (the Export dialog's revision poll answers `busy` while a cycle
+ * runs), so an answer that never came held the cycle, and every poll, until a reload. A request with a body gets its
+ * upload on top, at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (a 4 MiB push: about 8,5 min); the answer's download is
+ * never cut, nor are the uploads and downloads of `send`.
  */
 export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
+
+/** Fix batch e24f: the slowest uplink a field tablet is assumed to have, 8 KB/s, for the body's share of the bound. */
+export const SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S = 8 * 1024;
+
+/** Fix batch e24f: the wait for the answer's headers of a request whose body is `bodyBytes` long. */
+export function requestHeadersTimeoutMs(bodyBytes: number): number {
+  return SYNC_REQUEST_TIMEOUT_MS + Math.ceil((bodyBytes / SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S) * 1000);
+}
 
 /** Story 14.10 lane B: the probe's route (`apps/api/src/http/health.ts`). */
 export const HEALTH_PATH = '/api/health';
@@ -203,37 +212,35 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
   }
 
   async function request<T>(route: SyncRoute, schema: ResponseSchema<T>, query?: string, body?: unknown): Promise<T> {
-    // Fix batch e24f (E23-A4, 4.8-E2E-005): a JSON request that never answers is a network failure after
-    // `SYNC_REQUEST_TIMEOUT_MS`, so it never holds the sync cycle (and every poll gated on it) forever.
+    // Fix batch e24f (E23-A4, 4.8-E2E-005): an answer whose headers never come is a network failure after
+    // `requestHeadersTimeoutMs`, so it never holds the sync cycle (and every poll gated on it) forever. Only the wait
+    // for the headers is bounded: the body's upload is allowed for in the bound, the answer's download is not cut.
+    const payload = body === undefined ? undefined : JSON.stringify(body);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), SYNC_REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), requestHeadersTimeoutMs(payload === undefined ? 0 : new TextEncoder().encode(payload).byteLength));
     let response: Response;
-    let json: unknown;
     try {
-      try {
-        response = await timedFetch(query ? `${route.path}?${query}` : route.path, {
-          method: route.method,
-          credentials: 'same-origin',
-          headers: {
-            accept: 'application/json',
-            [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION),
-            ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-          },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-          signal: controller.signal,
-        });
-      } catch {
-        throw new SyncRequestError({ kind: 'network' });
-      }
-      try {
-        json = await response.json();
-      } catch {
-        // A body cut by the timeout never completed: the request did not either.
-        if (controller.signal.aborted) throw new SyncRequestError({ kind: 'network' });
-        json = undefined;
-      }
+      response = await timedFetch(query ? `${route.path}?${query}` : route.path, {
+        method: route.method,
+        credentials: 'same-origin',
+        headers: {
+          accept: 'application/json',
+          [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION),
+          ...(payload === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        ...(payload === undefined ? {} : { body: payload }),
+        signal: controller.signal,
+      });
+    } catch {
+      throw new SyncRequestError({ kind: 'network' });
     } finally {
       clearTimeout(timer);
+    }
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch {
+      json = undefined;
     }
     if (!response.ok) {
       const envelope = errorResponseSchema.safeParse(json);

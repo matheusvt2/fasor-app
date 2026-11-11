@@ -340,30 +340,38 @@ afterAll(async () => {
   await sql.end();
 });
 
-/** Fix batch e24f (R-8): the PDF tables read by the first test, for the fifth sheet's checks. */
-let pdfTables: string[][] | null = null;
+/**
+ * The relatório previewed through the api (its worker, its LibreOffice) and its insulation tables read from the PDF, once
+ * for the file: fix batch e24f (R-8) reads them too, so either test runs alone.
+ */
+let previewed: Promise<string[][]> | null = null;
+function previewTables(): Promise<string[][]> {
+  previewed ??= (async () => {
+    const res = await call(`/api/relatorios/${built.relatorioId}/preview`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ last_op_id: null, file_ids_expected: [] }),
+    });
+    expect(res.status, await res.clone().text()).toBe(202);
+    const answer = previewResponseSchema.parse(await res.json());
+    const job = await waitForJob(answer.job_id);
+    expect(job.status, job.error ?? '').toBe('done');
+    const pdf = await call(`/api/relatorios/${built.relatorioId}/preview.pdf?v=${job.result_file_id}`, { headers: { cookie } });
+    expect(pdf.status).toBe(200);
+    const bytes = Buffer.from(await pdf.arrayBuffer());
+    if (process.env.E23P_PDF_OUT !== undefined && process.env.E23P_PDF_OUT !== '') writeFileSync(process.env.E23P_PDF_OUT, bytes);
+    return insulationTables(await pdfLines(bytes));
+  })();
+  return previewed;
+}
 
 describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word whole in the PDF, in its four shapes', () => {
   it(
     'previewed through LibreOffice, each table holds its words whole the expected number of times and no fragment of one',
     async () => {
-      const res = await call(`/api/relatorios/${built.relatorioId}/preview`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', cookie },
-        body: JSON.stringify({ last_op_id: null, file_ids_expected: [] }),
-      });
-      expect(res.status, await res.clone().text()).toBe(202);
-      const answer = previewResponseSchema.parse(await res.json());
-      const job = await waitForJob(answer.job_id);
-      expect(job.status, job.error ?? '').toBe('done');
-      const pdf = await call(`/api/relatorios/${built.relatorioId}/preview.pdf?v=${job.result_file_id}`, { headers: { cookie } });
-      expect(pdf.status).toBe(200);
-      const bytes = Buffer.from(await pdf.arrayBuffer());
-      if (process.env.E23P_PDF_OUT !== undefined && process.env.E23P_PDF_OUT !== '') writeFileSync(process.env.E23P_PDF_OUT, bytes);
-      const tables = insulationTables(await pdfLines(bytes));
+      const tables = await previewTables();
       // Fix batch e24f (R-8): ~~four tables~~ the four shapes, then the fifth sheet (its own test below).
       expect(tables).toHaveLength(SHEETS);
-      pdfTables = tables;
       SHAPES.forEach((shape, i) => {
         const words = tables[i]!;
         const expected = EXPECTED[shape];
@@ -378,7 +386,8 @@ describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word 
   );
 
   it('e24f-INT R-8 every column filled with long values: no word wider than its column in the kernel\'s table, each value whole in the PDF, the same words in the DOCX', async () => {
-    expect(pdfTables, 'the PDF test above ran first').not.toBeNull();
+    const pdfTables = await previewTables();
+    expect(pdfTables).toHaveLength(SHEETS);
     const snapshot = await toSnapshot(db, asCompanyId(companyA.companyId), built.relatorioId);
     const sheet = section9Layout(snapshot, 9, 'RESULTADOS')!
       .subsections.flatMap((subsection) => subsection.sheets)
@@ -389,7 +398,7 @@ describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word 
     // Every word holding a digit: the long values, their corrected, ACEITÁVEL and MANUT. ANTERIOR cells.
     const values = table.rows.flatMap((row) => row.cells.flatMap((cell) => cell.text.split(/\s+/).filter((word) => /\d/.test(word))));
     for (const long of ['1.987,65', '1,234', '10,123']) expect(values, long).toContain(long);
-    const pdfWords = pdfTables![FULL]!;
+    const pdfWords = pdfTables[FULL]!;
     const countIn = (words: readonly string[], word: string) => words.filter((one) => one === word).length;
     for (const word of new Set(values)) expect(countIn(pdfWords, word), `PDF: ${word} in ${pdfWords.join(' ')}`).toBeGreaterThanOrEqual(countIn(values, word));
     // No strict fragment of a value on any PDF line of the table ("1.987,6", "1.98").
@@ -399,6 +408,6 @@ describe('e23p-INT-P2 the v13 transformer\'s insulation table prints every word 
     const docxWords = docx.tables.find((rows) => rows.some((cells) => cells.includes('ABSORÇÃO')) && rows.some((cells) => cells.some((cell) => cell.includes('1.987,65'))))?.flatMap((rows) => rows.flatMap((cell) => cell.split(/\s+/)));
     expect(docxWords, 'the DOCX holds the fifth sheet\'s table').toBeDefined();
     for (const word of new Set(values)) expect(countIn(docxWords!, word), `DOCX: ${word}`).toBeGreaterThanOrEqual(countIn(values, word));
-  }, 60_000);
+  }, 200_000);
 });
 

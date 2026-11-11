@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_ROUTES, type Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, type Op } from '@app/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSyncClient, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
+import { createSyncClient, requestHeadersTimeoutMs, revisionDocxUrl, revisionPdfUrl, SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S, SYNC_REQUEST_TIMEOUT_MS, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
 
 /*
  * The real client over a captured `fetch`: request building from the contract's route
@@ -150,7 +150,7 @@ describe('sync client failures', () => {
   });
 });
 
-describe('e24f-UNIT a JSON request that never answers (E23-A4, 4.8-E2E-005)', () => {
+describe('e24f-UNIT a JSON request whose answer never comes (E23-A4, 4.8-E2E-005)', () => {
   /** A fetch whose answer never comes; it rejects only once its signal aborts, as the browser's does. */
   const hanging = (calls: RequestInit[]): FetchLike => async (_input, init) => {
     calls.push(init);
@@ -158,19 +158,26 @@ describe('e24f-UNIT a JSON request that never answers (E23-A4, 4.8-E2E-005)', ()
       init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
     });
   };
+  const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('is a network failure after SYNC_REQUEST_TIMEOUT_MS, the push, a pull and the generate barrier alike, and not before', async () => {
+  it('the wait for the headers ends in network after SYNC_REQUEST_TIMEOUT_MS, plus the body at the floor uplink rate, and not before', async () => {
     vi.useFakeTimers();
     const calls: RequestInit[] = [];
     const client = createSyncClient({ fetch: hanging(calls) });
-    for (const call of [() => client.pushOps(ops), () => client.pullRelatorio('r', 0), () => client.generate('r', { last_op_id: null, file_ids_expected: [] })]) {
+    const generateBody = { last_op_id: null, file_ids_expected: [] };
+    const cases: [() => Promise<unknown>, number][] = [
+      [() => client.pullRelatorio('r', 0), SYNC_REQUEST_TIMEOUT_MS],
+      [() => client.pushOps(ops), requestHeadersTimeoutMs(bytes({ ops }))],
+      [() => client.generate('r', generateBody), requestHeadersTimeoutMs(bytes(generateBody))],
+    ];
+    for (const [call, bound] of cases) {
       let settled: SyncFailure | null = null;
       const failure = failureOf(call()).then((one) => (settled = one));
-      await vi.advanceTimersByTimeAsync(SYNC_REQUEST_TIMEOUT_MS - 1);
+      await vi.advanceTimersByTimeAsync(bound - 1);
       expect(settled).toBeNull();
       await vi.advanceTimersByTimeAsync(1);
       expect(await failure).toEqual({ kind: 'network' });
@@ -178,23 +185,30 @@ describe('e24f-UNIT a JSON request that never answers (E23-A4, 4.8-E2E-005)', ()
     expect(calls.every((init) => init.signal instanceof AbortSignal)).toBe(true);
   });
 
-  it('a body that never completes is a network failure too; an answer in time clears its timer', async () => {
+  it('a push at SYNC_PUSH_MAX_BYTES gets about 8,5 min', () => {
+    expect(SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S).toBe(8 * 1024);
+    expect(requestHeadersTimeoutMs(SYNC_PUSH_MAX_BYTES)).toBe(SYNC_REQUEST_TIMEOUT_MS + 512_000);
+    expect(requestHeadersTimeoutMs(0)).toBe(SYNC_REQUEST_TIMEOUT_MS);
+  });
+
+  it('once the headers came, a slow body is never cut and the timer is gone', async () => {
     vi.useFakeTimers();
-    const stalled = createSyncClient({
-      fetch: async (_input, init) =>
+    let finish: (value: unknown) => void = () => undefined;
+    const slow = createSyncClient({
+      fetch: async () =>
         ({
           ok: true,
           status: 200,
           headers: new Headers(),
-          json: () => new Promise((_resolve, reject) => init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))),
+          json: () => new Promise((resolve) => (finish = resolve)),
         }) as unknown as Response,
     });
-    const failure = failureOf(stalled.pullCompany(0));
-    await vi.advanceTimersByTimeAsync(SYNC_REQUEST_TIMEOUT_MS);
-    expect(await failure).toEqual({ kind: 'network' });
-    const prompt = createSyncClient({ fetch: async () => json(contractExamples.pullResponse.valid) });
-    await expect(prompt.pullCompany(0)).resolves.toEqual(contractExamples.pullResponse.valid);
+    const answer = slow.pullCompany(0);
+    await vi.advanceTimersByTimeAsync(0);
     expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(10 * SYNC_REQUEST_TIMEOUT_MS);
+    finish(contractExamples.pullResponse.valid);
+    await expect(answer).resolves.toEqual(contractExamples.pullResponse.valid);
   });
 });
 
