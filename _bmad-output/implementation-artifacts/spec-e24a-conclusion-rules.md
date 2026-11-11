@@ -2,7 +2,7 @@
 title: 'e24a: seed v14 opens, the v13 layout is locked, out of criterion gives Reprovado only, section 10 names the finding (Stories 24.2 to 24.4)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: '8bddd986ca9c5187e11f415d3a64431dabe12658'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -150,3 +150,20 @@ Paths under `packages/domain/src/` unless named.
 - `... pnpm exec vitest run packages/domain/src/seed packages/domain/src/relatorio packages/domain/src/print` -- green.
 - `... pnpm test:api` (after `podman compose restart api`) -- green, layout-lock v5/v11/v12/v13 included.
 - `... pnpm exec tsx scripts/e2e.ts e2e/seed-v14.spec.ts e2e/conclusion-v14.spec.ts e2e/parecer-names-finding.spec.ts <touched> --project desktop-chrome --project durability-desktop-chrome` -- green.
+
+## Auto Run Result
+
+Status: done. Branch `e24a-conclusion-rules`; main `1c63235e` (batch e24b) merged in `5451b577`.
+
+**Summary.**
+- Story 24.2 (`43e2e929`, alone): seed v14 = v13, the seed-level `rules` object and `seedRule`, the v13 layout lock (goldens under `golden/layout-lock-v13/`, taken on main `8bddd986`). Contract: 43 at first (`c088d55e`), moved to **44 with MIN 44** at the merge, since e24b took 43.
+- Story 24.3: flags `conclusion_restriction_by_choice` and `prerequisite_needs_nameplate`. On v14 a failure or a defect Não ensaiado floors Reprovado with no restriction; every reader shows no restriction under an effective Reprovado; Reprovado alone is complete; OBSERVAÇÕES is required under Reprovado; the conclude, a Reprovado tap and the adjusted note's "Confirmar" clear a stored restriction; "Marcar Com restrições" is not offered; the arrester's prerequisite is read only with its plate on. The Story 24.5 preview (e24b) agrees: under a v14 Reprovado it shows "Reprovado?" and no restriction.
+- Story 24.4: flags `parecer_names_finding`, `nc_clause_on_one_line`, `results_reference_across_runs`. The parecer's Reprovado sentence names each reprovada ficha with `findingClauses` (the conclusion's own clauses), its basis gains `reprovadoFindings`; NC lines are joined by "; "; the fixed reference is replaced across runs.
+
+**Files (main ones).** `seed/schema.ts`, `seed/definitions.ts`, `seed/v14.ts` (seed and flags); `relatorio/conclusion.ts`, `sheet-progress.ts`, `restriction.ts`, `parecer.ts`, `print/section-10.ts` (rules); `fixtures/layout-lock/op-log.ts` (the v13 and v14 extras); `contract/version.ts`; web `conclusao-section.tsx`, `use-ficha-actions.ts`, `measurement-field.tsx`, `measurement-test-section.tsx`, `ensaios-section.tsx`, `copy/pt-br.ts`; tests `e24a-conclusion-rules.test.ts`, `conclusao-section-v14.test.tsx`, `use-ficha-actions-v14.test.tsx`, `mark-restriction-offered.test.tsx`, `apps/api/src/sync/e24a-conclusion.integration.test.ts`, `apps/api/src/jobs/generate/e24a-v14-print.integration.test.ts`, `e2e/seed-v14.spec.ts`, `e2e/conclusion-v14.spec.ts`, `e2e/parecer-names-finding.spec.ts`; 16 e2e specs and three unit builders pinned to v13.
+
+**Review.** One pass, two layers: 4 findings; 3 patched (2 medium, 1 low; see the triage log), 1 rejected as false. Patched, not re-reviewed: the `reprovadoFindings` basis test, the `conclusaoMissing` effective-result rule, the NC line-end stripping. Follow-up review recommended: false (two medium patches, but both are covered by new boundary tests; the integrated review reads the patched list).
+
+**Verification.** Story gate on the merged head (lint 0 errors, static clean, test:api 973 passed / 6 skipped, test:unit 6322 of 6322, the touched specs on both projects): see the PR body. v5, v11, v12, v13 and Porto Seguro goldens byte-equal, nothing regenerated after phase A. PDF crops in `e24a-pdf-crops/`.
+
+**Residual risks.** The `deferred-work.md` section "Epic 24 batch e24a": no v14 golden yet; 24.2-UNIT-SAME must learn later v14 keys; two specs pin their composer template with a server op; the coordinator's readings of Story 24.3 open to Matheus; a stored restriction under a v14 Reprovado shows "Conclusão ajustada pela ficha" until confirmed.
