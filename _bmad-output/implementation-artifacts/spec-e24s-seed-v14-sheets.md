@@ -2,7 +2,7 @@
 title: 'e24s: seed v14 sheets: TP and TC lists, the transformer oil and dry items, QGBT inspection, the No-break de comando, the oil sampling "Outro" text and the ground grid block (Stories 24.10 to 24.14)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'dee6d567b16680b154b0f843cfff0f3a1aa54e4e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -131,3 +131,23 @@ All under `packages/domain/src/` unless named.
 - `... pnpm exec vitest run packages/domain/src/seed packages/domain/src/relatorio packages/domain/src/print packages/domain/src/types` -- green.
 - `... pnpm test:api` (after `podman compose restart api`) -- green, layout-lock v5/v11/v12/v13 and Porto Seguro included.
 - `... pnpm exec tsx scripts/e2e.ts e2e/seed-v14-tp-tc.spec.ts e2e/seed-v14-transformer.spec.ts e2e/seed-v14-qgbt-inspecao.spec.ts e2e/no-break.spec.ts e2e/seed-v14-sheet-fixes.spec.ts <touched> --project desktop-chrome --project durability-desktop-chrome` -- green.
+
+## Auto Run Result
+
+Status: done. Branch `e24s-seed-v14-sheets`; main `ea6676d2` (batch e24c) merged in `55c2351c`.
+
+**Summary.**
+- Story 24.10: v14 TP seven items with the hint "ÍNTEGROS E COM ESPECIFICAÇÃO CORRETA" under FUSÍVEIS; v14 TC six items without FUSÍVEIS; the four tap-budget specs gain v14 runs at the numbers accepted on v13 (24.10-E2E-002 to 005).
+- Story 24.11: `oil_rule.dry_items` (seed and company schemas); v14 transformer 17 items (item 5 VENTILAÇÃO FORÇADA, dry; TANQUE E ALETAS oil; LIMPEZA DAS BOBINAS, TRINCAS NA RESINA dry); derived N.A. both ways, the crossing to oil clears the dry items with a toast; on every seed with `oil_rule.fields` an oil field of a non-oil unit is read-only with `oilFieldExcusedReason`.
+- Story 24.12: v14 Inspeção de QGBT twelve items (REAPERTO GERAL and TESTE DE FUNCIONAMENTO with hints) and v13's `termografia`.
+- Story 24.13: library type `no_break_comando` (NB), 18 plate fields, six items, no test; default fake plate `plate-no-break-comando.png`; the cables default to the v13 cable plate; prompt `bedrock-structuring-9` (paid eval pending, the coordinator's).
+- Story 24.14: measurement value kind `text` (values only, fold cap 1000, other values kept at 200), `shownUnder` follows the chain, "Descreva o motivo" under Motivo "Outro" with dictation, printed "MOTIVO: OUTRO, <texto>"; `nameplate_title` and `nameplate_photo: false` on the v14 Malha ("Dados da malha", no "Fotografar placa").
+- Contract 46 with MIN 46 (e24c took 45 on main before the merge).
+
+**Files (main ones).** `seed/v14.ts` (five fenced sections), `seed/schema.ts`, `seed/measurement.ts`, `schemas/block-config.ts`, `relatorio/oil-rule.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/nameplate-block.ts` (new), `relatorio/tag.ts`, `relatorio/screen-label.ts`, `ops/apply.ts`, `ops/value-limits.ts`, `print/section-9.ts`, `types/definition.ts`, `types/block-definition.ts`, `types/duplicate.ts`, `contract/version.ts`; web `nameplate-section.tsx`, `measurement-test-section.tsx`, `type-defaults-dialog.tsx`, `copy/pt-br.ts`; api `kinds/plate.ts`, `providers/bedrock.ts`, `scripts/make-plate-fixtures.ts`, the No-break fixture; tests `e24s-seed-v14-sheets.test.ts`, `e24s-seed-v14-sheets.integration.test.ts`, `e24s-no-break-docx.test.ts`, `e24s-v14-print.integration.test.ts` (PDF text), five new e2e specs, 24.2-UNIT-SAME adapted; docs `nc-chip-phrases.md`, `source-deltas.md`, `SPEC.md`.
+
+**Review.** One pass, two layers, 8 findings: 2 medium patched (both test gaps), 5 low and 1 false rejected (see the triage log). Patched, not re-reviewed: the Malha copy's keys through the row schemas, and 24.2-UNIT-SAME's equality outside the delta. Follow-up review recommended: false (the two medium patches are tests only and add no product code).
+
+**Verification.** See the PR body for the story gate (lint, static, test:api, test:unit, the touched specs on two projects, the durability specs on the matrix). No golden moved: `git diff origin/main --name-status -- apps/api/src/jobs/generate/golden packages/domain/fixtures` lists only `layout-lock/op-log.ts` (a `withoutTypes` option; no op of v5 to v13 changed) and `porto-seguro/op-log.test.ts` (the type count map). PDF crops in `e24s-pdf-crops/`.
+
+**Residual risks.** These are in the `deferred-work.md` section "Epic 24 batch e24s": the paid eval of `bedrock-structuring-9`; the Conflict view and the stepper still say "Dados de placa"/"Placa" on the Malha; the coordinator's readings open to Matheus; the inspection's thermography prints "E1 · TERMOGRAFIA"; no v14 golden yet.
