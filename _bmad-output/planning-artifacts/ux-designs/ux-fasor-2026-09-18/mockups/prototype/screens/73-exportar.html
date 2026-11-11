@@ -45,6 +45,17 @@
 [data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-blocking.is-done .pc-block { color: var(--conforme); font-weight: 600; }
 [data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-blocking.is-done .pc-sim { display: none; }
 /* D4 — Controle do documento: compact read-only summary of the table printed after the cover */
+/* Story 25.1 Part B (2026-11-11; MOCK-GUIDE.md § 2026-11-11): the second blocking row (a stale conclusion text, Story 25.7), the three named
+   warnings of Story 25.12 and the instrument rows of Story 25.13, and the Conferência por IA (Story 25.24): its out-of-date mark with the
+   action, and a fixed rule's finding beside the model's. Existing classes (.precheck, .banner, .btn-text, .pc-meta); layout on existing tokens. */
+[data-route="/relatorio/porto-seguro/exportar"] .audit-block { display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/relatorio/porto-seguro/exportar"] .audit-block .audit-note, [data-route="/relatorio/porto-seguro/exportar"] .audit-summary { margin: 0; color: var(--ink-secondary); font-size: var(--t-meta-size); }
+[data-route="/relatorio/porto-seguro/exportar"] .audit-summary { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+[data-route="/relatorio/porto-seguro/exportar"] .e25-audit-stale .banner-actions { flex-wrap: wrap; }
+[data-route="/relatorio/porto-seguro/exportar"] .e25-audit-stale.is-fresh { display: none; }
+[data-route="/relatorio/porto-seguro/exportar"] .e25-audit-old { opacity: .72; }
+[data-route="/relatorio/porto-seguro/exportar"] .e25-audit-old.is-fresh { opacity: 1; }
+[data-route="/relatorio/porto-seguro/exportar"] .e25-rule-word { display: inline-flex; align-items: center; min-height: 24px; margin-right: var(--sp-1); padding: 0 var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); vertical-align: 1px; }
 </style>
 <section class="screen" data-route="/relatorio/porto-seguro/exportar" data-title="Gerar relatório" data-shell="app" data-rail="false">
 
@@ -70,7 +81,32 @@
           <!-- v0.8 (2026-09-21): the warnings live on the Sumário rows; here only the blocker and the count -->
           <ul class="precheck">
             <li class="is-blocking" id="exportar-pc-parecer"><span class="pc-text"><span class="pc-block" id="exportar-pc-parecer-t">Parecer não preenchido</span> — seção 10 <span class="pc-meta">(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/setup">Dados do relatório</button><button class="btn btn-text pc-sim" data-toggle-class="is-done" data-toggle-target="#exportar-pc-parecer" data-set-text="#exportar-pc-parecer-t|Parecer: Apto com restrições" data-close="#exportar-gen-blocked" data-open="#exportar-gen-idle" data-toast="Parecer preenchido — a emissão foi liberada">Simular preenchido</button></span></li>
+            <!-- Story 25.1 Part B (2026-11-11), for Story 25.7: a concluded sheet whose stored text is stale is now a blocking row on every seed,
+                 with its own place (section 9) and its way out (the sheet, where "Substituir" or an edit of the text clears it). -->
+            <li class="is-blocking" id="exportar-pc-stale"><span class="pc-text"><span class="pc-block" id="exportar-pc-stale-t">Texto de conclusão desatualizado: SEC-C05</span> — seção 9 <span class="pc-meta">(os valores da ficha mudaram depois do texto; Substituir ou editar o texto na ficha)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/SEC-C05">Abrir ficha</button><button class="btn btn-text pc-sim" data-toggle-class="is-done" data-toggle-target="#exportar-pc-stale" data-set-text="#exportar-pc-stale-t|Texto de conclusão atualizado: SEC-C05" data-toast="Texto substituído — a linha sai da lista">Simular substituído</button></span></li>
+            <!-- Story 25.1 Part B (2026-11-11), for Stories 25.12 and 25.13: the named rows, none blocking; the rest stays a count -->
+            <li><span class="pc-text">Prazo já vencido: ponto 3 <span class="pc-meta">— seção 8 · o prazo foi 10/09/2026</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/pontos">Pontos</button></span></li>
+            <li><span class="pc-text">7E: sem data de calibração <span class="pc-meta">— seção 11 · sem ela a validade não é calculada</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/cadastros">Cadastros</button></span></li>
+            <li><span class="pc-text">3M: mesmo certificado de 6M <span class="pc-meta">— seção 11 · confira qual instrumento tem este certificado</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/cadastros">Cadastros</button></span></li>
+            <li><span class="pc-text">Fichas em local removido, fora do relatório: TP-C21 <span class="pc-meta">— seção 9 · criada em outro aparelho depois que o local foi removido</span></span></li>
+            <li><span class="pc-text">1T: marcado, sem uso nas fichas <span class="pc-meta">— seção 11 · desmarque em Instrumentos se não foi usado</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/setup">Instrumentos</button></span></li>
             <li><span class="pc-text">7 avisos <span class="pc-meta">— ficha não concluída, legendas, sugestões de placa e de visor, ponto sem ação, calibração. Estão nas linhas do sumário; nenhum impede gerar.</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro">Ver no sumário</button></span></li>
+          </ul>
+        </div>
+
+        <!-- Story 25.1 Part B (2026-11-11), for Story 25.24: the Conferência por IA, built in Story 13.8 and drawn here for the first time. The
+             relatório changed after the last run, so the result is marked out of date, with the action that runs it again; it never runs by
+             itself (M-8). The old findings stay readable under the mark. A fixed rule's finding (computed on the device, always current, marked
+             "Regra") sits beside the model's; both are information and change nothing in the list above. -->
+        <div class="audit-block">
+          <p class="field-label">Conferência por IA</p>
+          <p class="audit-note">Feita por IA: aponta pontos para você conferir. Nada é alterado no relatório.</p>
+          <div class="banner e25-audit-stale" data-variant="warning" role="status" id="exportar-audit-stale"><span class="banner-text">Conferência desatualizada: o relatório mudou depois dela.</span><span class="banner-actions"><button class="btn btn-text" data-toggle-class="is-fresh" data-toggle-target="#exportar-audit-stale" data-toast="Conferindo… os pontos aparecem aqui">Conferir de novo</button></span></div>
+          <p class="audit-summary"><span>3 pontos para conferir</span><span>Conferidas 76 de 76 fichas</span><span>Conferido às 09:12</span></p>
+          <ul class="precheck e25-audit-old" aria-label="Pontos apontados pela conferência por IA">
+            <li><span class="pc-text"><span class="e25-rule-word">Regra</span>Ficha concluída Aprovado com leitura fora do critério: resistência ôhmica de contato T1-T2 310 µΩ (&lt;250 µΩ). <span class="pc-meta">— Resultado da ficha · Disjuntor MT DJ-01</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/DJ-01" aria-label="Ver Disjuntor MT DJ-01">Ver</button></span></li>
+            <li><span class="pc-text">A leitura da fase B difere muito das outras duas do mesmo ensaio. <span class="pc-meta">— Leitura fora do padrão · Chave seccionadora SEC-C05</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/SEC-C05" aria-label="Ver Chave seccionadora SEC-C05">Ver</button></span></li>
+            <li><span class="pc-text">A observação cita o item 9, e a lista desta ficha tem 7 itens. <span class="pc-meta">— Observação e itens · TC TC-02</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/TC-02" aria-label="Ver TC TC-02">Ver</button></span></li>
           </ul>
         </div>
 
@@ -103,7 +139,7 @@
         <div class="generate-row" id="exportar-gen-blocked">
           <button class="btn btn-secondary" data-toast="Gerando rascunho… abre em uma nova aba, com RASCUNHO em cada página e sem número de revisão"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Pré-visualizar</button>
           <button class="btn btn-primary" aria-disabled="true" aria-describedby="exportar-gen-blocked-reason">Gerar relatório</button>
-          <span class="btn-reason" id="exportar-gen-blocked-reason">Preencha o parecer (linha 10 do sumário) para emitir a revisão 3. O rascunho pode ser visto antes.</span>
+          <span class="btn-reason" id="exportar-gen-blocked-reason">Preencha o parecer (linha 10 do sumário) e atualize o texto da conclusão de SEC-C05 para emitir a revisão 3. O rascunho pode ser visto antes.</span>
         </div>
 
         <!-- idle -->

@@ -381,9 +381,62 @@
    field). Existing tokens only; components.css unchanged (candidate to promote: the two rules below on .suggestion-field.is-generated). */
 [data-route="/ficha/:tag"] #ficha-conc-text-sf > .generated-text { border: 0; min-height: 0; }
 [data-route="/ficha/:tag"] #ficha-conc-text-sf.is-confirmed > .generated-text { background: transparent; padding: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+/* ---------- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): seven example sheets on seed v15, DJ-02 (nothing
+   measured, Story 25.6; thermography "Não realizada", 25.15), SEC-02 (the header's test voltage, 25.11; three poles out and the point that
+   names them, 25.10; thermography with an added point, 25.14/25.15), TR-03 (thermography points of a transformer, 25.15; the six hints,
+   25.18; "A SECO", 25.19), TP-02 (N/A on a cell and on a row, 25.9; "TP", 25.22), TC-02 (item 7, 25.18; "TC", 25.22), MA-02 (a sixth
+   continuity point, 25.16) and NB-02 (the No-break's tests, 25.17, coordinator's reading). Every visual is an existing components.css
+   block (Field, Measurement field and table, Segmented control, Chip row, Checklist row, Conclusion control, Overflow menu, Button); this
+   block is layout and states on existing tokens only. No new colour token. Sample values are invented. */
+[data-route="/ficha/:tag"][data-param="DJ-02"] [data-only-tag~="DJ-02"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="DJ-02"] [data-not-tag~="DJ-02"] { display: none; }
+[data-route="/ficha/:tag"][data-param="SEC-02"] [data-only-tag~="SEC-02"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="SEC-02"] [data-not-tag~="SEC-02"] { display: none; }
+[data-route="/ficha/:tag"][data-param="TR-03"] [data-only-tag~="TR-03"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="TR-03"] [data-not-tag~="TR-03"] { display: none; }
+[data-route="/ficha/:tag"][data-param="TP-02"] [data-only-tag~="TP-02"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="TP-02"] [data-not-tag~="TP-02"] { display: none; }
+[data-route="/ficha/:tag"][data-param="TC-02"] [data-only-tag~="TC-02"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="TC-02"] [data-not-tag~="TC-02"] { display: none; }
+[data-route="/ficha/:tag"][data-param="MA-02"] [data-only-tag~="MA-02"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="MA-02"] [data-not-tag~="MA-02"] { display: none; }
+[data-route="/ficha/:tag"][data-param="NB-02"] [data-only-tag~="NB-02"] { display: contents; }
+[data-route="/ficha/:tag"][data-param="NB-02"] [data-not-tag~="NB-02"] { display: none; }
+/* A reading "Não medido" reads as a word, not a number; a reading "Não se aplica" reads N/A on the neutral NA fill (the Tri-state's NA) */
+[data-route="/ficha/:tag"] .mf-value.e25-nm { font-size: var(--t-body-size); font-style: italic; color: var(--ink-secondary); }
+[data-route="/ficha/:tag"] .measurement-field[data-state="na"] { background: var(--nao-aplica-fill); }
+[data-route="/ficha/:tag"] .e25-na { color: var(--nao-aplica); font-weight: 600; }
+/* The cell's menu trigger beside the reading, and the row's beside the row name (Story 25.9) */
+[data-route="/ficha/:tag"] .e25-cell { display: flex; align-items: center; gap: var(--sp-1); }
+[data-route="/ficha/:tag"] .e25-cell .measurement-field { flex: 1; min-width: 0; }
+[data-route="/ficha/:tag"] .e25-row-head { display: inline-flex; align-items: center; gap: var(--sp-1); }
+[data-route="/ficha/:tag"] .e25-calc { display: inline-block; padding: 0 var(--sp-2); font-size: var(--t-body-size); }
+[data-route="/ficha/:tag"] #ficha-dlg-cell-menu, [data-route="/ficha/:tag"] #ficha-dlg-row-menu { align-items: center; justify-content: center; }
+[data-route="/ficha/:tag"] #ficha-dlg-cell-menu .overflow-menu, [data-route="/ficha/:tag"] #ficha-dlg-row-menu .overflow-menu { box-shadow: var(--shadow-float); }
+/* A row added in the field (Story 25.14): its name is a field, with the remove action beside it; "Adicionar ponto" under the table */
+[data-route="/ficha/:tag"] .e25-added { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+[data-route="/ficha/:tag"] .e25-added .field { flex: 1; min-width: 0; }
+[data-route="/ficha/:tag"] .e25-added .input { min-width: 0; }
+[data-route="/ficha/:tag"] .measurement-table td.cell-point:has(.e25-added) { min-width: 220px; }
+[data-route="/ficha/:tag"] .card-point.e25-card-added { margin-bottom: var(--sp-2); }
+[data-route="/ficha/:tag"] .e25-add-row { margin-top: var(--sp-3); align-items: center; }
+/* The v15 thermography (Story 25.15): one required choice; "Não realizada" shows the reasons and hides the points, "Realizada" the opposite */
+[data-route="/ficha/:tag"] .e25-thermo .v13-choice:has(.seg[data-value="nao-realizada"][aria-checked="true"]) .v13-reason { display: flex; }
+[data-route="/ficha/:tag"] .e25-thermo:has(.seg[data-value="nao-realizada"][aria-checked="true"]) .e25-tm-body,
+[data-route="/ficha/:tag"] .e25-thermo:not(:has(.seg[aria-checked="true"])) .e25-tm-body { display: none; }
+[data-route="/ficha/:tag"] .e25-thermo .e25-tm-body { margin-top: var(--sp-4); }
+/* The instrument header's test voltage as a field (Story 25.11): the sign "Alterada nesta ficha" in fora-do-limite, the action beside it */
+[data-route="/ficha/:tag"] .e25-header-param { max-width: 320px; margin-top: var(--sp-3); }
+[data-route="/ficha/:tag"] .e25-changed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin: 0; }
+[data-route="/ficha/:tag"] .e25-changed-word { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+[data-route="/ficha/:tag"] .e25-header-param.is-default .e25-changed { display: none; }
+[data-route="/ficha/:tag"] .checklist-row.e25-new-item .row-expand { display: flex; }
+/* The example tables of these sheets hold several value columns: a value cell takes what it needs (as .is-wide does), not the 300 px of a single-value table */
+[data-route="/ficha/:tag"] .measurement-table.e25-mt td.cell-value { width: auto; min-width: 128px; }
+[data-route="/ficha/:tag"] .measurement-table.e25-mt td.cell-calc, [data-route="/ficha/:tag"] .measurement-table.e25-mt td.cell-dim { white-space: nowrap; }
 </style>
 
-<section class="screen" data-route="/ficha/:tag" data-title=":tag" data-shell="app" data-rail="true" data-sync="pending" data-sync-label="2 pendentes" data-examples="CB-ENT,SEC-ENT,SEC-C05,DJ-C14,TP-C16,TR1,DJ-01,NB-01,TR-02,MA-01" data-count-tap>
+<section class="screen" data-route="/ficha/:tag" data-title=":tag" data-shell="app" data-rail="true" data-sync="pending" data-sync-label="2 pendentes" data-examples="CB-ENT,SEC-ENT,SEC-C05,DJ-C14,TP-C16,TR1,DJ-01,NB-01,TR-02,MA-01,DJ-02,SEC-02,TR-03,TP-02,TC-02,MA-02,NB-02" data-count-tap>
 
 <div data-only-tag="TP-C16">
 <div class="banner-slot ficha-banner-slot">
@@ -446,7 +499,7 @@
 <div data-only-tag="TP-C16">
 <div class="sheet-header">
   <div>
-    <h2 class="sheet-title">TP — proteção — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG TP-C16 — abrir no relatório">TP-C16<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <!-- Story 25.1 Part B (2026-11-11), for Story 25.22: the type is named "TP" on every seed (was "TP — proteção"). --><h2 class="sheet-title">TP — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG TP-C16 — abrir no relatório">TP-C16<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
     <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 16</p>
     <p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-08T16:05">08/09 16:05</time></p>
   </div>
@@ -519,6 +572,98 @@
   <div class="ficha-head-side">
     <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
     <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha MA-01"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): the seed v15 example sheets DJ-02, SEC-02, TR-03, TP-02, TC-02, MA-02 and NB-02 (headers). -->
+<div data-only-tag="DJ-02">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">Disjuntor MT — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG DJ-02 — abrir no relatório">DJ-02<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 11</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T09:40">08/09 09:40</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha DJ-02"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<div data-only-tag="SEC-02">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">Chave seccionadora — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG SEC-02 — abrir no relatório">SEC-02<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 10</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T09:58">08/09 09:58</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha SEC-02"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<div data-only-tag="TR-03">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">Transformador de força — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG TR-03 — abrir no relatório">TR-03<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine de transformação</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T10:20">08/09 10:20</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="ok"><span class="dot" aria-hidden="true"></span>Completa</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha TR-03"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<div data-only-tag="TP-02">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">TP — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG TP-02 — abrir no relatório">TP-02<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 12</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T10:41">08/09 10:41</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha TP-02"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<div data-only-tag="TC-02">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">TC — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG TC-02 — abrir no relatório">TC-02<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 12</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T10:52">08/09 10:52</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha TC-02"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<div data-only-tag="MA-02">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">Malha de aterramento — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG MA-02 — abrir no relatório">MA-02<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T11:05">08/09 11:05</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha MA-02"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+  </div>
+</div>
+</div>
+<div data-only-tag="NB-02">
+<div class="sheet-header">
+  <div>
+    <h2 class="sheet-title">No-break de comando — <button class="tag-btn" data-go="#/relatorio/porto-seguro" aria-label="TAG NB-02 — abrir no relatório">NB-02<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+    <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão</p>
+    <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-08T11:20">08/09 11:20</time></p>
+  </div>
+  <div class="ficha-head-side">
+    <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+    <button class="overflow-trigger" data-open="#ficha-dlg-menu" aria-label="Mais opções da ficha NB-02"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
   </div>
 </div>
 </div>
@@ -672,6 +817,17 @@
 <div class="chip-row" role="group" aria-label="Copiar dados de placa"><button class="chip" data-toast="Dados copiados da última visita" data-toast-action="Desfazer">Copiar da última visita (MA-01)</button></div>
 <div class="nameplate-grid">
 <div class="field"><span class="field-label">Valor de projeto</span><div class="measurement-field"><span class="mf-value">10</span><span class="mf-unit">Ω</span></div></div><div class="field combobox"><span class="field-label">Método de medição</span><div class="input">Queda de potencial</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div><div class="field combobox"><span class="field-label">Condição do solo</span><div class="input">Seco</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+</div>
+</section>
+</div>
+<div data-only-tag="TR-03">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.19, the "A SECO" half: TIPO DE ISOLAÇÃO lists "A SECO" (alias "Á SECO") on the transformer, the TP and the TC; the oil option keeps its v14 name here because its half waits for Bruno (B-4, coordinator's reading). The rest of the plate as on TR1. -->
+<section class="section" aria-labelledby="ficha-h-placa-tr03">
+<div class="section-head"><h2 id="ficha-h-placa-tr03">Dados de placa</h2></div>
+<div class="nameplate-grid">
+<div class="field combobox"><span class="field-label">Tipo de isolação</span><div class="input" data-open="#ficha-tr03-iso-list" aria-haspopup="listbox">Óleo isolante</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+<div class="combobox-list" id="ficha-tr03-iso-list" aria-label="Tipo de isolação"><button class="combobox-option" role="radio" aria-checked="false" data-close="#ficha-tr03-iso-list"><span class="grow">EPÓXI</span></button><button class="combobox-option" role="radio" aria-checked="false" data-close="#ficha-tr03-iso-list"><span class="grow">A SECO</span></button><button class="combobox-option" role="radio" aria-checked="true" data-close="#ficha-tr03-iso-list"><span class="grow">ÓLEO ISOLANTE</span></button></div>
+<p class="section-note">Os outros campos de placa como no TR1.</p>
 </div>
 </section>
 </div>
@@ -831,6 +987,46 @@
 <section class="section" aria-labelledby="ficha-h-verif-tr02">
 <div class="section-head"><h2 id="ficha-h-verif-tr02">Verificações gerais</h2></div>
 <p class="section-note">17 itens · os 8 itens de óleo em NA pela placa · 9 respondidos Conforme (resumidos neste desenho).</p>
+</section>
+</div>
+<div data-only-tag="TC-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.18: the TC's item 7, appended on seed v15 with Bruno's wording; answered NC here so its chips show (the three NC phrases are the frame's proposal; the batch authors them). Items 1 to 6 as on v14. -->
+<section class="section" aria-labelledby="ficha-h-verif-tc02">
+<div class="section-head"><h2 id="ficha-h-verif-tc02">Verificações gerais</h2></div>
+<ul class="checklist">
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Limpeza, pintura e corrosão</span><div class="tri-state" role="radiogroup" aria-label="1. Limpeza, pintura e corrosão"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 1: Limpar · Observação — não prototipado" aria-label="Mais opções de Limpeza, pintura e corrosão"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Vazamento</span><div class="tri-state" role="radiogroup" aria-label="2. Vazamento"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 2: Limpar · Observação — não prototipado" aria-label="Mais opções de Vazamento"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Aterramento</span><div class="tri-state" role="radiogroup" aria-label="3. Aterramento"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 3: Limpar · Observação — não prototipado" aria-label="Mais opções de Aterramento"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">4.</span>Conexões</span><div class="tri-state" role="radiogroup" aria-label="4. Conexões"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 4: Limpar · Observação — não prototipado" aria-label="Mais opções de Conexões"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">5.</span>Fiação secundária</span><div class="tri-state" role="radiogroup" aria-label="5. Fiação secundária"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 5: Limpar · Observação — não prototipado" aria-label="Mais opções de Fiação secundária"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">6.</span>Buchas</span><div class="tri-state" role="radiogroup" aria-label="6. Buchas"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 6: Limpar · Observação — não prototipado" aria-label="Mais opções de Buchas"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row e25-new-item"><div class="row-main"><span class="row-label"><span class="row-num">7.</span>Secundário fechado ou curto-circuitado nos bornes (nunca aberto); bornes de aferição em bom estado</span><div class="tri-state" role="radiogroup" aria-label="7. Secundário fechado ou curto-circuitado nos bornes (nunca aberto); bornes de aferição em bom estado"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="true" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 7: Limpar · Observação — não prototipado" aria-label="Mais opções de Secundário fechado ou curto-circuitado nos bornes (nunca aberto); bornes de aferição em bom estado"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div><div class="row-expand"><div class="chip-row"><button class="chip" aria-pressed="true">Secundário aberto nos bornes</button><button class="chip" aria-pressed="false">Bornes de aferição danificados</button><button class="chip" aria-pressed="false">Bornes de aferição oxidados</button></div><div class="field"><span class="field-label">Observação do item 7</span><div class="observation-field" role="textbox" aria-multiline="true" aria-label="Observação do item 7">Secundário aberto nos bornes.</div></div></div></li>
+</ul>
+</section>
+</div>
+<div data-only-tag="TR-03">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.18: hints under six items of the oil transformer's list, shown on the sheet only; labels, keys, order and print unchanged. -->
+<section class="section" aria-labelledby="ficha-h-verif-tr03">
+<div class="section-head"><h2 id="ficha-h-verif-tr03">Verificações gerais</h2></div>
+<p class="section-note">17 itens, todos respondidos. Abaixo, os seis que ganham ajuda na v15.</p>
+<ul class="checklist">
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">5.</span>Óleo isolante/indicador de nível<span class="helper row-hint">Nível de óleo</span></span><div class="tri-state" role="radiogroup" aria-label="5. Óleo isolante/indicador de nível"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 5: Limpar · Observação — não prototipado" aria-label="Mais opções de Óleo isolante/indicador de nível"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">6.</span>Juntas, vedações e vazamentos<span class="helper row-hint">Vazamentos de óleo</span></span><div class="tri-state" role="radiogroup" aria-label="6. Juntas, vedações e vazamentos"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 6: Limpar · Observação — não prototipado" aria-label="Mais opções de Juntas, vedações e vazamentos"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">9.</span>Elemento secante<span class="helper row-hint">Sílica gel do secador</span></span><div class="tri-state" role="radiogroup" aria-label="9. Elemento secante"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 9: Limpar · Observação — não prototipado" aria-label="Mais opções de Elemento secante"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">11.</span>Termômetro<span class="helper row-hint">Termômetro de óleo</span></span><div class="tri-state" role="radiogroup" aria-label="11. Termômetro"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 11: Limpar · Observação — não prototipado" aria-label="Mais opções de Termômetro"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">12.</span>Relé de gás, funcionamento<span class="helper row-hint">Relé Buchholz, quando houver</span></span><div class="tri-state" role="radiogroup" aria-label="12. Relé de gás, funcionamento"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 12: Limpar · Observação — não prototipado" aria-label="Mais opções de Relé de gás, funcionamento"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">13.</span>Válvula de alívio<span class="helper row-hint">Válvula de alívio de pressão, quando houver</span></span><div class="tri-state" role="radiogroup" aria-label="13. Válvula de alívio"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 13: Limpar · Observação — não prototipado" aria-label="Mais opções de Válvula de alívio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+</ul>
+</section>
+</div>
+<div data-only-tag="NB-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.17 (coordinator's reading until B-1, B-2 and B-13): item 4's hint names the date of the exchange. -->
+<section class="section" aria-labelledby="ficha-h-verif-nb02">
+<div class="section-head"><h2 id="ficha-h-verif-nb02">Verificações gerais</h2></div>
+<p class="section-note">Seis itens, como na v14. Muda só a ajuda do item 4.</p>
+<ul class="checklist">
+<li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">4.</span>Baterias<span class="helper row-hint">Estufamento, vazamento, oxidação nos bornes, data da troca</span></span><div class="tri-state" role="radiogroup" aria-label="4. Baterias"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" data-toast="Opções do item 4: Limpar · Observação — não prototipado" aria-label="Mais opções de Baterias"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></li>
+</ul>
 </section>
 </div>
 <div class="ficha-anchor-slot"><button type="button" class="ficha-anchor" id="ficha-anchor-ensaios" tabindex="-1" aria-hidden="true" aria-disabled="true" data-count-tap></button></div>
@@ -1225,7 +1421,268 @@
 </div>
 </section>
 </div>
+<div data-only-tag="DJ-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.6: a v15 Disjuntor MT on which every reading is "Não medido" (items all C). The cells count as filled, so the Ensaios step is complete; the Conclusão step refuses Aprovado. Story 25.15: the thermography "Não realizada" with the reason "Outro" and its text; a tap on "Realizada" shows the breaker's six terminals. -->
+<section class="section" aria-labelledby="ficha-h-rc-dj02">
+<div class="section-head"><h2 id="ficha-h-rc-dj02">Resistência ôhmica de contato</h2></div>
+<div class="field combobox instrument-picker"><span class="field-label">Instrumento</span><div class="input"><span class="ip-code">3M</span><span class="grow ip-name">Microhmímetro</span></div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+<div class="ficha-mt">
+<div class="mt-title-row"><span class="mt-title">Contato fechado</span><span class="mt-criterion">Corrente de ensaio 10 A · Aceitável &lt;250 µΩ</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Linha</th><th scope="col" class="col-value">Valor</th></tr></thead><tbody>
+<tr><td class="cell-point">T1-T2</td><td class="cell-value"><div class="measurement-field"><span class="mf-value e25-nm">Não medido</span></div></td></tr>
+<tr><td class="cell-point">T3-T4</td><td class="cell-value"><div class="measurement-field"><span class="mf-value e25-nm">Não medido</span></div></td></tr>
+<tr><td class="cell-point">T5-T6</td><td class="cell-value"><div class="measurement-field"><span class="mf-value e25-nm">Não medido</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">T1-T2</p><div class="card-fields"><div class="field"><span class="field-label">Valor</span><div class="measurement-field"><span class="mf-value e25-nm">Não medido</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">T3-T4</p><div class="card-fields"><div class="field"><span class="field-label">Valor</span><div class="measurement-field"><span class="mf-value e25-nm">Não medido</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">T5-T6</p><div class="card-fields"><div class="field"><span class="field-label">Valor</span><div class="measurement-field"><span class="mf-value e25-nm">Não medido</span></div></div></div></div>
+</div></div>
+</div>
+</section>
+<section class="section" aria-labelledby="ficha-h-iso-dj02">
+<div class="section-head"><h2 id="ficha-h-iso-dj02">Ensaio de isolação</h2></div>
+<p class="section-note">As seis leituras dos dois contatos em "Não medido" (resumidas neste desenho).</p>
+</section>
+<section class="section e25-thermo" aria-labelledby="ficha-h-tm-dj-02">
+<div class="section-head"><h2 id="ficha-h-tm-dj-02">Termografia</h2></div>
+<div class="v13-choice">
+<span class="field-label" id="ficha-dj-02-tm-l">Termografia</span>
+<div class="segmented" role="radiogroup" aria-labelledby="ficha-dj-02-tm-l" aria-required="true"><button class="seg" role="radio" data-value="realizada" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Realizada</button><button class="seg" role="radio" data-value="nao-realizada" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Não realizada</button></div>
+<div class="v13-reason e25-tm-reason"><span class="field-label">Motivo</span><div class="chip-row chips-recent" role="group" aria-label="Motivo da termografia não realizada"><button class="chip" data-value="motivo" aria-pressed="false">Equipamento fora de carga</button><button class="chip" data-value="motivo" aria-pressed="false">Sem acesso seguro ao equipamento</button><button class="chip" data-value="motivo" aria-pressed="false">Sem termovisor disponível</button><button class="chip" data-value="outro" aria-pressed="true">Outro</button></div><div class="field e24-outro"><span class="field-label" id="ficha-dj-02-tm-outro-l">Descreva o motivo</span><div class="input" role="textbox" aria-labelledby="ficha-dj-02-tm-outro-l" aria-required="true" contenteditable="true">Termovisor em calibração</div></div><p class="helper">O motivo sai no relatório, numa linha no lugar da tabela. Não é restrição.</p></div>
+</div>
+<div class="ficha-mt e25-tm-body">
+<div class="mt-title-row"><span class="mt-title">Pontos</span><span class="mt-criterion">ΔT entre similares ≤ 3 °C · ΔT sobre o ambiente ≤ 10 °C</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Ponto</th><th scope="col" class="col-value">ΔT entre similares</th><th scope="col" class="col-value">ΔT sobre o ambiente</th></tr></thead><tbody>
+<tr><td class="cell-point">Terminal de entrada, fase A</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">1,2</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">8,5</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de entrada, fase B</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de entrada, fase C</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de saída, fase A</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de saída, fase B</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de saída, fase C</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Terminal de entrada, fase A</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value">1,2</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value">8,5</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de entrada, fase B</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de entrada, fase C</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de saída, fase A</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de saída, fase B</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de saída, fase C</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+</div></div>
+<div class="row-wrap e25-add-row"><button class="btn btn-text" data-toast="Ponto acrescentado: dê um nome a ele"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar ponto</button></div>
+</div>
+</section>
+</div>
+<div data-only-tag="SEC-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.11: the insulation test's instrument header with its TENSÃO ENSAIO as a field, typed 5 kV over the registry's 10 kV, the sign "Alterada nesta ficha" and the action that takes the instrument's value back. Story 25.10: three poles out of the criterion; "Criar ponto de atenção" opens the editor with a text that names the three. Story 25.15 with 25.14: a thermography "Realizada" with the switch's six terminals and one point added in the field. -->
+<section class="section" aria-labelledby="ficha-h-iso-sec02">
+<div class="section-head"><h2 id="ficha-h-iso-sec02">Ensaio de isolação</h2></div>
+<div class="field combobox instrument-picker"><span class="field-label">Instrumento</span><div class="input"><span class="ip-code">2E</span><span class="grow ip-name">Megôhmetro</span></div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+<div class="field e25-header-param" id="ficha-sec02-tensao">
+<span class="field-label" id="ficha-sec02-tensao-l">Tensão de ensaio</span>
+<div class="measurement-field" aria-labelledby="ficha-sec02-tensao-l"><span class="mf-value">5</span><span class="mf-unit">kV</span></div>
+<p class="e25-changed"><span class="e25-changed-word">Alterada nesta ficha · cadastro: 10 kV</span><button class="btn btn-text" data-toggle-class="is-default" data-toggle-target="#ficha-sec02-tensao" data-set-text="#ficha-sec02-tensao .mf-value|10" data-toast="Tensão de ensaio voltou a 10 kV, a do instrumento">Usar a do instrumento</button></p>
+</div>
+<p class="section-note">As leituras como na SEC-C05 (resumidas neste desenho). Uma linha sem tensão própria segue o cabeçalho.</p>
+</section>
+<section class="section" aria-labelledby="ficha-h-rc-sec02">
+<div class="section-head"><h2 id="ficha-h-rc-sec02">Resistência ôhmica de contato</h2></div>
+<div class="field combobox instrument-picker"><span class="field-label">Instrumento</span><div class="input"><span class="ip-code">3M</span><span class="grow ip-name">Microhmímetro</span></div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+<div class="ficha-mt">
+<div class="mt-title-row"><span class="mt-title">Contato fechado</span><span class="mt-criterion">Corrente de ensaio 10 A · Aceitável &lt;250 µΩ</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Linha</th><th scope="col" class="col-value">Valor</th></tr></thead><tbody>
+<tr><td class="cell-point">T1-T2</td><td class="cell-value"><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">273</span><span class="mf-unit">µΩ</span></div></td></tr>
+<tr class="row-helper"><td colspan="2" class="cell-helper"><span class="mf-helper"><span>Acima do aceitável (&lt;250 µΩ)</span></span></td></tr>
+<tr><td class="cell-point">T3-T4</td><td class="cell-value"><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">266</span><span class="mf-unit">µΩ</span></div></td></tr>
+<tr class="row-helper"><td colspan="2" class="cell-helper"><span class="mf-helper"><span>Acima do aceitável (&lt;250 µΩ)</span></span></td></tr>
+<tr><td class="cell-point">T5-T6</td><td class="cell-value"><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">548</span><span class="mf-unit">µΩ</span></div></td></tr>
+<tr class="row-helper"><td colspan="2" class="cell-helper"><span class="mf-helper"><span>Acima do aceitável (&lt;250 µΩ)</span></span></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">T1-T2</p><div class="card-fields"><div class="field"><span class="field-label">Valor</span><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">273</span><span class="mf-unit">µΩ</span></div></div></div><span class="mf-helper"><span>Acima do aceitável (&lt;250 µΩ)</span></span></div>
+<div class="measurement-card"><p class="card-point">T3-T4</p><div class="card-fields"><div class="field"><span class="field-label">Valor</span><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">266</span><span class="mf-unit">µΩ</span></div></div></div><span class="mf-helper"><span>Acima do aceitável (&lt;250 µΩ)</span></span></div>
+<div class="measurement-card"><p class="card-point">T5-T6</p><div class="card-fields"><div class="field"><span class="field-label">Valor</span><div class="measurement-field" data-state="out-of-limit"><span class="mf-value">548</span><span class="mf-unit">µΩ</span></div></div></div><span class="mf-helper"><span>Acima do aceitável (&lt;250 µΩ)</span></span></div>
+</div></div>
+</div>
+<div class="row-wrap e24-point-place" id="ficha-sec02-rc-point"><button class="btn btn-secondary" data-open="#ficha-dlg-ponto-editor" aria-haspopup="dialog"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Criar ponto de atenção</button><span class="nc-point-ref">Ponto de atenção 9</span></div>
+</section>
+<section class="section e25-thermo" aria-labelledby="ficha-h-tm-sec-02">
+<div class="section-head"><h2 id="ficha-h-tm-sec-02">Termografia</h2></div>
+<div class="v13-choice">
+<span class="field-label" id="ficha-sec-02-tm-l">Termografia</span>
+<div class="segmented" role="radiogroup" aria-labelledby="ficha-sec-02-tm-l" aria-required="true"><button class="seg" role="radio" data-value="realizada" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Realizada</button><button class="seg" role="radio" data-value="nao-realizada" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Não realizada</button></div>
+<div class="v13-reason e25-tm-reason"><span class="field-label">Motivo</span><div class="chip-row chips-recent" role="group" aria-label="Motivo da termografia não realizada"><button class="chip" data-value="motivo" aria-pressed="false">Equipamento fora de carga</button><button class="chip" data-value="motivo" aria-pressed="false">Sem acesso seguro ao equipamento</button><button class="chip" data-value="motivo" aria-pressed="false">Sem termovisor disponível</button><button class="chip" data-value="outro" aria-pressed="false">Outro</button></div><div class="field e24-outro"><span class="field-label" id="ficha-sec-02-tm-outro-l">Descreva o motivo</span><div class="input" role="textbox" aria-labelledby="ficha-sec-02-tm-outro-l" aria-required="true" contenteditable="true"></div></div><p class="helper">O motivo sai no relatório, numa linha no lugar da tabela. Não é restrição.</p></div>
+</div>
+<div class="ficha-mt e25-tm-body">
+<div class="mt-title-row"><span class="mt-title">Pontos</span><span class="mt-criterion">ΔT entre similares ≤ 3 °C · ΔT sobre o ambiente ≤ 10 °C</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Ponto</th><th scope="col" class="col-value">ΔT entre similares</th><th scope="col" class="col-value">ΔT sobre o ambiente</th></tr></thead><tbody>
+<tr><td class="cell-point">Terminal de entrada, fase A</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">1,2</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">8,5</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de entrada, fase B</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de entrada, fase C</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de saída, fase A</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de saída, fase B</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Terminal de saída, fase C</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Barramento de saída</div></div><button class="icon-btn" data-toast="Ponto removido: Barramento de saída" data-toast-action="Desfazer" aria-label="Remover ponto Barramento de saída"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">2,1</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">9,0</span><span class="mf-unit">°C</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Terminal de entrada, fase A</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value">1,2</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value">8,5</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de entrada, fase B</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de entrada, fase C</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de saída, fase A</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de saída, fase B</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Terminal de saída, fase C</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point e25-card-added"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Barramento de saída</div></div><button class="icon-btn" data-toast="Ponto removido: Barramento de saída" data-toast-action="Desfazer" aria-label="Remover ponto Barramento de saída"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value">2,1</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value">9,0</span><span class="mf-unit">°C</span></div></div></div></div>
+</div></div>
+<div class="row-wrap e25-add-row"><button class="btn btn-text" data-toast="Ponto acrescentado: dê um nome a ele"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar ponto</button></div>
+</div>
+</section>
+</div>
+<div data-only-tag="TR-03">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.15: the transformer's thermography points on seed v15 (Bruno's answer 4); "Adicionar ponto" as on every type. -->
+<section class="section e25-thermo" aria-labelledby="ficha-h-tm-tr-03">
+<div class="section-head"><h2 id="ficha-h-tm-tr-03">Termografia</h2></div>
+<div class="v13-choice">
+<span class="field-label" id="ficha-tr-03-tm-l">Termografia</span>
+<div class="segmented" role="radiogroup" aria-labelledby="ficha-tr-03-tm-l" aria-required="true"><button class="seg" role="radio" data-value="realizada" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Realizada</button><button class="seg" role="radio" data-value="nao-realizada" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Não realizada</button></div>
+<div class="v13-reason e25-tm-reason"><span class="field-label">Motivo</span><div class="chip-row chips-recent" role="group" aria-label="Motivo da termografia não realizada"><button class="chip" data-value="motivo" aria-pressed="false">Equipamento fora de carga</button><button class="chip" data-value="motivo" aria-pressed="false">Sem acesso seguro ao equipamento</button><button class="chip" data-value="motivo" aria-pressed="false">Sem termovisor disponível</button><button class="chip" data-value="outro" aria-pressed="false">Outro</button></div><div class="field e24-outro"><span class="field-label" id="ficha-tr-03-tm-outro-l">Descreva o motivo</span><div class="input" role="textbox" aria-labelledby="ficha-tr-03-tm-outro-l" aria-required="true" contenteditable="true"></div></div><p class="helper">O motivo sai no relatório, numa linha no lugar da tabela. Não é restrição.</p></div>
+</div>
+<div class="ficha-mt e25-tm-body">
+<div class="mt-title-row"><span class="mt-title">Pontos</span><span class="mt-criterion">ΔT entre similares ≤ 3 °C · ΔT sobre o ambiente ≤ 10 °C</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Ponto</th><th scope="col" class="col-value">ΔT entre similares</th><th scope="col" class="col-value">ΔT sobre o ambiente</th></tr></thead><tbody>
+<tr><td class="cell-point">Buchas MT</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">1,2</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">8,5</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Buchas e conexões BT</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+<tr><td class="cell-point">Tanque ou bobinas</td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Buchas MT</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value">1,2</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value">8,5</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Buchas e conexões BT</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Tanque ou bobinas</p><div class="card-fields"><div class="field"><span class="field-label">ΔT entre similares</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div><div class="field"><span class="field-label">ΔT sobre o ambiente</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit">°C</span></div></div></div></div>
+</div></div>
+<div class="row-wrap e25-add-row"><button class="btn btn-text" data-toast="Ponto acrescentado: dê um nome a ele"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar ponto</button></div>
+</div>
+</section>
+</div>
+<div data-only-tag="TP-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.9 on seed v15, a set of two TPs: phase T of the insulation table marked "Não se aplica" from the cell's menu (the ⋯ beside each reading opens it); the ratio table's row action marked the whole row, its calculated and condition cells read N/A too. Phases R and S are judged as before; the N/A cells are not missing. Story 25.22: the header reads "TP". -->
+<section class="section" aria-labelledby="ficha-h-iso-tp02">
+<div class="section-head"><h2 id="ficha-h-iso-tp02">Ensaio de isolação</h2></div>
+<div class="field combobox instrument-picker"><span class="field-label">Instrumento</span><div class="input"><span class="ip-code">2E</span><span class="grow ip-name">Megôhmetro</span></div><span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+<div class="ficha-mt">
+<div class="mt-title-row"><span class="mt-title">Primário × massa</span><span class="mt-criterion">Tensão de ensaio 5 kV · Aceitável &gt;1 GΩ</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Linha</th><th scope="col" class="col-value">1 minuto</th></tr></thead><tbody>
+<tr><td class="cell-point">Fase R</td><td class="cell-value"><div class="e25-cell"><div class="measurement-field"><span class="mf-value">98</span><span class="mf-unit">GΩ</span></div><button class="overflow-trigger" data-open="#ficha-dlg-cell-menu" aria-label="Mais opções da leitura Fase R"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></td></tr>
+<tr><td class="cell-point">Fase S</td><td class="cell-value"><div class="e25-cell"><div class="measurement-field"><span class="mf-value">102</span><span class="mf-unit">GΩ</span></div><button class="overflow-trigger" data-open="#ficha-dlg-cell-menu" aria-label="Mais opções da leitura Fase S"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></td></tr>
+<tr><td class="cell-point">Fase T</td><td class="cell-value"><div class="e25-cell"><div class="measurement-field" data-state="na"><span class="mf-value e25-na">N/A</span></div><button class="overflow-trigger" data-open="#ficha-dlg-cell-menu" aria-label="Mais opções da leitura Fase T"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Fase R</p><div class="card-fields"><div class="field"><span class="field-label">1 minuto</span><div class="e25-cell"><div class="measurement-field"><span class="mf-value">98</span><span class="mf-unit">GΩ</span></div><button class="overflow-trigger" data-open="#ficha-dlg-cell-menu" aria-label="Mais opções da leitura Fase R"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Fase S</p><div class="card-fields"><div class="field"><span class="field-label">1 minuto</span><div class="e25-cell"><div class="measurement-field"><span class="mf-value">102</span><span class="mf-unit">GΩ</span></div><button class="overflow-trigger" data-open="#ficha-dlg-cell-menu" aria-label="Mais opções da leitura Fase S"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Fase T</p><div class="card-fields"><div class="field"><span class="field-label">1 minuto</span><div class="e25-cell"><div class="measurement-field" data-state="na"><span class="mf-value e25-na">N/A</span></div><button class="overflow-trigger" data-open="#ficha-dlg-cell-menu" aria-label="Mais opções da leitura Fase T"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div></div></div></div>
+</div></div>
+</div>
+</section>
+<section class="section" aria-labelledby="ficha-h-rt-tp02">
+<div class="section-head"><h2 id="ficha-h-rt-tp02">Relação de transformação (TTR)</h2></div>
+<div class="ficha-mt">
+<div class="mt-title-row"><span class="mt-title">Relação de transformação</span><span class="mt-criterion">Aceitável ±0,5 %</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Fase</th><th scope="col" class="col-value">V primário</th><th scope="col" class="col-value">V secundário</th><th scope="col" class="col-value">Calculado</th><th scope="col" class="col-value">H1-H2 / X1-X2</th><th scope="col" class="col-value">Condição</th></tr></thead><tbody>
+<tr><td class="cell-point"><span class="e25-row-head">Fase R<button class="overflow-trigger" data-open="#ficha-dlg-row-menu" aria-label="Mais opções da linha Fase R"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span></td><td class="cell-dim"><span class="e25-dim">13.800 V</span></td><td class="cell-dim"><span class="e25-dim">115 V</span></td><td class="cell-calc"><span class="e25-calc">120,00</span></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">120,10</span></div></td><td class="cell-calc"><span class="e25-calc">Normal</span></td></tr>
+<tr><td class="cell-point"><span class="e25-row-head">Fase S<button class="overflow-trigger" data-open="#ficha-dlg-row-menu" aria-label="Mais opções da linha Fase S"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span></td><td class="cell-dim"><span class="e25-dim">13.800 V</span></td><td class="cell-dim"><span class="e25-dim">115 V</span></td><td class="cell-calc"><span class="e25-calc">120,00</span></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">119,94</span></div></td><td class="cell-calc"><span class="e25-calc">Normal</span></td></tr>
+<tr><td class="cell-point"><span class="e25-row-head">Fase T<button class="overflow-trigger" data-open="#ficha-dlg-row-menu" aria-label="Mais opções da linha Fase T"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span></td><td class="cell-dim"><span class="e25-dim e25-na">N/A</span></td><td class="cell-dim"><span class="e25-dim e25-na">N/A</span></td><td class="cell-calc"><span class="e25-calc e25-na">N/A</span></td><td class="cell-value"><div class="measurement-field" data-state="na"><span class="mf-value e25-na">N/A</span></div></td><td class="cell-calc"><span class="e25-calc e25-na">N/A</span></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Fase R</p><div class="card-fields"><div class="field"><span class="field-label">V primário</span><span class="e25-dim">13.800 V</span></div><div class="field"><span class="field-label">V secundário</span><span class="e25-dim">115 V</span></div><div class="field"><span class="field-label">Calculado</span><span class="e25-calc">120,00</span></div><div class="field"><span class="field-label">H1-H2 / X1-X2</span><div class="measurement-field"><span class="mf-value">120,10</span></div></div><div class="field"><span class="field-label">Condição</span><span class="e25-calc">Normal</span></div></div></div>
+<div class="measurement-card"><p class="card-point">Fase S</p><div class="card-fields"><div class="field"><span class="field-label">V primário</span><span class="e25-dim">13.800 V</span></div><div class="field"><span class="field-label">V secundário</span><span class="e25-dim">115 V</span></div><div class="field"><span class="field-label">Calculado</span><span class="e25-calc">120,00</span></div><div class="field"><span class="field-label">H1-H2 / X1-X2</span><div class="measurement-field"><span class="mf-value">119,94</span></div></div><div class="field"><span class="field-label">Condição</span><span class="e25-calc">Normal</span></div></div></div>
+<div class="measurement-card"><p class="card-point">Fase T</p><div class="card-fields"><div class="field"><span class="field-label">V primário</span><span class="e25-dim e25-na">N/A</span></div><div class="field"><span class="field-label">V secundário</span><span class="e25-dim e25-na">N/A</span></div><div class="field"><span class="field-label">Calculado</span><span class="e25-calc e25-na">N/A</span></div><div class="field"><span class="field-label">H1-H2 / X1-X2</span><div class="measurement-field" data-state="na"><span class="mf-value e25-na">N/A</span></div></div><div class="field"><span class="field-label">Condição</span><span class="e25-calc e25-na">N/A</span></div></div></div>
+</div></div>
+</div>
+</section>
+</div>
+<div data-only-tag="MA-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.16 with 25.14: the continuity test's five rows stay optional; a sixth point, added in the field, has its name, its cell and its remove action ("Desfazer" in the toast); "Adicionar ponto" under the table. The resistance test as on MA-01. -->
+<section class="section" aria-labelledby="ficha-h-cont-ma02">
+<div class="section-head"><h2 id="ficha-h-cont-ma02">Continuidade e equipotencialização</h2></div>
+<div class="ficha-mt">
+<div class="mt-title-row"><span class="mt-title">Pontos</span><span class="mt-criterion">Aceitável ≤ 0,5 Ω entre pontos</span></div>
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Ponto</th><th scope="col" class="col-value">Resistência</th></tr></thead><tbody>
+<tr><td class="cell-point">Carcaças</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">0,12</span><span class="mf-unit">Ω</span></div></td></tr>
+<tr><td class="cell-point">Portas</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">0,31</span><span class="mf-unit">Ω</span></div></td></tr>
+<tr><td class="cell-point">Neutro do transformador</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">0,08</span><span class="mf-unit">Ω</span></div></td></tr>
+<tr><td class="cell-point">Para-raios</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">0,44</span><span class="mf-unit">Ω</span></div></td></tr>
+<tr><td class="cell-point">Blindagens</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">0,27</span><span class="mf-unit">Ω</span></div></td></tr>
+<tr><td class="cell-point"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Quadro geral de baixa tensão</div></div><button class="icon-btn" data-toast="Ponto removido: Quadro geral de baixa tensão" data-toast-action="Desfazer" aria-label="Remover ponto Quadro geral de baixa tensão"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">0,19</span><span class="mf-unit">Ω</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Carcaças</p><div class="card-fields"><div class="field"><span class="field-label">Resistência</span><div class="measurement-field"><span class="mf-value">0,12</span><span class="mf-unit">Ω</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Portas</p><div class="card-fields"><div class="field"><span class="field-label">Resistência</span><div class="measurement-field"><span class="mf-value">0,31</span><span class="mf-unit">Ω</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Neutro do transformador</p><div class="card-fields"><div class="field"><span class="field-label">Resistência</span><div class="measurement-field"><span class="mf-value">0,08</span><span class="mf-unit">Ω</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Para-raios</p><div class="card-fields"><div class="field"><span class="field-label">Resistência</span><div class="measurement-field"><span class="mf-value">0,44</span><span class="mf-unit">Ω</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point">Blindagens</p><div class="card-fields"><div class="field"><span class="field-label">Resistência</span><div class="measurement-field"><span class="mf-value">0,27</span><span class="mf-unit">Ω</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point e25-card-added"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Quadro geral de baixa tensão</div></div><button class="icon-btn" data-toast="Ponto removido: Quadro geral de baixa tensão" data-toast-action="Desfazer" aria-label="Remover ponto Quadro geral de baixa tensão"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></p><div class="card-fields"><div class="field"><span class="field-label">Resistência</span><div class="measurement-field"><span class="mf-value">0,19</span><span class="mf-unit">Ω</span></div></div></div></div>
+</div></div>
+<div class="row-wrap e25-add-row"><button class="btn btn-text" data-toast="Ponto acrescentado: dê um nome a ele"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar ponto</button></div>
+</div>
+</section>
+</div>
+<div data-only-tag="NB-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.17, the coordinator's reading until Bruno answers B-1 and B-2: four tests in this order. The voltages table with the input on battery fixed "-"; the float voltage with the bank and one added row per battery, "Bateria N", offered from the plate's BATERIAS: QUANTIDADE (4 here, 2 added); two pass or fail tests, a NÃO ABRIU reproves the ficha. No criterion is drawn on the voltages: Bruno gives it (B-2). -->
+<section class="section" aria-labelledby="ficha-h-v-nb02">
+<div class="section-head"><h2 id="ficha-h-v-nb02">Tensões de entrada e saída</h2></div>
+<div class="ficha-mt">
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Medição</th><th scope="col" class="col-value">Em rede</th><th scope="col" class="col-value">Em bateria</th></tr></thead><tbody>
+<tr><td class="cell-point">Entrada</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">219</span><span class="mf-unit">V</span></div></td><td class="cell-calc"><span class="e25-calc">-</span></td></tr>
+<tr><td class="cell-point">Saída</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">220</span><span class="mf-unit">V</span></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">218</span><span class="mf-unit">V</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Entrada</p><div class="card-fields"><div class="field"><span class="field-label">Em rede</span><div class="measurement-field"><span class="mf-value">219</span><span class="mf-unit">V</span></div></div><div class="field"><span class="field-label">Em bateria</span><span class="e25-calc">-</span></div></div></div>
+<div class="measurement-card"><p class="card-point">Saída</p><div class="card-fields"><div class="field"><span class="field-label">Em rede</span><div class="measurement-field"><span class="mf-value">220</span><span class="mf-unit">V</span></div></div><div class="field"><span class="field-label">Em bateria</span><div class="measurement-field"><span class="mf-value">218</span><span class="mf-unit">V</span></div></div></div></div>
+</div></div>
+</div>
+</section>
+<section class="section" aria-labelledby="ficha-h-f-nb02">
+<div class="section-head"><h2 id="ficha-h-f-nb02">Tensão de flutuação</h2></div>
+<div class="ficha-mt">
+<table class="measurement-table e25-mt"><thead><tr><th scope="col">Medição</th><th scope="col" class="col-value">Tensão</th></tr></thead><tbody>
+<tr><td class="cell-point">Banco</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">54,6</span><span class="mf-unit">V</span></div></td></tr>
+<tr><td class="cell-point"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Bateria 1</div></div><button class="icon-btn" data-toast="Ponto removido: Bateria 1" data-toast-action="Desfazer" aria-label="Remover bateria Bateria 1"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">13,6</span><span class="mf-unit">V</span></div></td></tr>
+<tr><td class="cell-point"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Bateria 2</div></div><button class="icon-btn" data-toast="Ponto removido: Bateria 2" data-toast-action="Desfazer" aria-label="Remover bateria Bateria 2"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></td><td class="cell-value"><div class="measurement-field"><span class="mf-value">13,7</span><span class="mf-unit">V</span></div></td></tr>
+</tbody></table>
+<div class="ficha-cards"><div class="measurement-cards">
+<div class="measurement-card"><p class="card-point">Banco</p><div class="card-fields"><div class="field"><span class="field-label">Tensão</span><div class="measurement-field"><span class="mf-value">54,6</span><span class="mf-unit">V</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point e25-card-added"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Bateria 1</div></div><button class="icon-btn" data-toast="Ponto removido: Bateria 1" data-toast-action="Desfazer" aria-label="Remover bateria Bateria 1"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></p><div class="card-fields"><div class="field"><span class="field-label">Tensão</span><div class="measurement-field"><span class="mf-value">13,6</span><span class="mf-unit">V</span></div></div></div></div>
+<div class="measurement-card"><p class="card-point e25-card-added"><div class="e25-added"><div class="field"><span class="field-label visually-hidden">Nome do ponto</span><div class="input" role="textbox" aria-label="Nome do ponto" contenteditable="true">Bateria 2</div></div><button class="icon-btn" data-toast="Ponto removido: Bateria 2" data-toast-action="Desfazer" aria-label="Remover bateria Bateria 2"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button></div></p><div class="card-fields"><div class="field"><span class="field-label">Tensão</span><div class="measurement-field"><span class="mf-value">13,7</span><span class="mf-unit">V</span></div></div></div></div>
+</div></div>
+<div class="row-wrap e25-add-row"><button class="btn btn-secondary" data-toast="2 baterias acrescentadas: Bateria 3 e Bateria 4"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar as 2 baterias que faltam</button><span class="btn-reason">A placa diz 4 baterias.</span><button class="btn btn-text" data-toast="Bateria acrescentada: Bateria 3"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bateria</button></div>
+</div>
+</section>
+<section class="section" aria-labelledby="ficha-h-transf-nb-02">
+<div class="section-head"><h2 id="ficha-h-transf-nb-02">Teste de transferência</h2></div>
+<div class="v13-choice"><span class="field-label" id="ficha-nb-02-transf-l">Resultado</span><div class="segmented" role="radiogroup" aria-labelledby="ficha-nb-02-transf-l"><button class="seg" role="radio" data-value="ok" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>OK</button><button class="seg" role="radio" data-value="falhou" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>FALHOU</button></div></div>
+</section>
+<section class="section" aria-labelledby="ficha-h-rele-nb-02">
+<div class="section-head"><h2 id="ficha-h-rele-nb-02">Abertura do disjuntor pelo relé com o no-break em bateria</h2></div>
+<div class="v13-choice"><span class="field-label" id="ficha-nb-02-rele-l">Resultado</span><div class="segmented" role="radiogroup" aria-labelledby="ficha-nb-02-rele-l"><button class="seg" role="radio" data-value="abriu" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>ABRIU</button><button class="seg" role="radio" data-value="não-abriu" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>NÃO ABRIU</button></div></div>
+</section>
+</div>
 <div class="ficha-anchor-slot"><button type="button" class="ficha-anchor" id="ficha-anchor-concl" tabindex="-1" aria-hidden="true" aria-disabled="true" data-count-tap></button></div>
+<div data-only-tag="DJ-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.6: a v15 sheet with no measurement. Aprovado is not offered (disabled, as a segment looser than the floor is), the reason line says why and the secondary "Marcar não ensaiado" under it opens the existing not-tested flow (the overflow menu's item, here the DJ-C14 example). Reprovado stays possible, with OBSERVAÇÕES as on v14. No preview: nothing is suggested. -->
+<section class="section e24-conc" aria-labelledby="ficha-h-conc-dj02" id="ficha-conc-dj02">
+<div class="section-head"><h2 id="ficha-h-conc-dj02">Conclusão</h2></div>
+<div class="conclusion-control">
+<div class="conclusion-pair" role="radiogroup" aria-label="Resultado" data-pair="resultado"><button class="seg" role="radio" data-value="aprovado" aria-checked="false" aria-disabled="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Aprovado</button><button class="seg" role="radio" data-value="reprovado" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Reprovado</button></div>
+<span class="conclusion-hint e25-reason" id="ficha-dj02-reason">Nenhum ensaio foi medido nesta ficha. Registre as medições ou marque a ficha como não ensaiada.</span>
+</div>
+<div class="row-wrap e24-point-place"><button class="btn btn-secondary" data-go="#/ficha/DJ-C14" data-toast="Marcada como não ensaiada — escolha o motivo">Marcar não ensaiado</button></div>
+</section>
+</div>
+<div data-only-tag="SEC-02 TR-03 TP-02 TC-02 MA-02 NB-02">
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): the other v15 example sheets: their Conclusão step as on v14 (summarised). -->
+<section class="section" aria-labelledby="ficha-h-conc-v15">
+<div class="section-head"><h2 id="ficha-h-conc-v15">Conclusão</h2></div>
+<p class="section-note">Como na v14: prévia, os dois grupos e o texto da conclusão (resumido neste desenho).</p>
+</section>
+</div>
 <div data-only-tag="DJ-01">
 <!-- Story 24.1 (2026-11-10, Epic 24 frames; MOCK-GUIDE.md § 2026-11-10): Story 24.3 on a seed v14 sheet with a reading out of its criterion: the floor is Reprovado and nothing else. Aprovado is disabled, no Restrições group is drawn (a Reprovado ficha has no restriction to choose), the reason line names the floor and OBSERVAÇÕES is required (helper authored). Story 24.5: the floor's Reprovado is a preview until "Confirmar", a tap on the segment or "Concluir ficha". -->
 <section class="section" aria-labelledby="ficha-h-obs-dj01">
@@ -1256,7 +1713,7 @@
 <div class="row-wrap e24-point-place" id="ficha-tr02-conc-point"><button class="btn btn-secondary" data-open="#ficha-dlg-ponto-editor" aria-haspopup="dialog"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Criar ponto de atenção</button><span class="nc-point-ref">Ponto de atenção 8</span></div>
 </section>
 </div>
-<div data-not-tag="DJ-C14 DJ-01 TR-02">
+<div data-not-tag="DJ-C14 DJ-01 TR-02 DJ-02 SEC-02 TR-03 TP-02 TC-02 MA-02 NB-02">
 <section class="section" aria-labelledby="ficha-h-obs">
 <div class="section-head"><h2 id="ficha-h-obs">Observações</h2><span class="dictation"><button class="dictation-btn slice-inline" aria-pressed="false" aria-label="Ditar observações" data-listen="#ficha-obs|Ensaio realizado sob chuva e umidade relativa elevada, fatores que podem influenciar os valores de isolação." data-slice="out" data-slice-note=" · FR-40"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button><span class="listening-word">Ouvindo…</span></span></div>
 <div class="chip-row chips-recent" role="group" aria-label="Observações recentes neste relatório"><button class="chip" aria-pressed="false" data-set-text="#ficha-obs|Ensaio realizado sob chuva e umidade relativa elevada (67 %), fatores que podem influenciar os valores de isolação.">Chuva e umidade elevada</button><button class="chip" aria-pressed="false" data-set-text="#ficha-obs|Recomenda-se a instalação de plaquetas de identificação nos equipamentos e nas colunas da cabine.">Plaquetas de identificação</button><button class="chip" aria-pressed="false" data-set-text="#ficha-obs|Recomenda-se afixar na cabine o diagrama unifilar atualizado da instalação.">Diagrama unifilar</button><button class="chip" aria-pressed="false" data-set-text="#ficha-obs|Recomenda-se a limpeza geral da cabine e a remoção de materiais estranhos ao ambiente elétrico.">Limpeza da cabine</button><button class="chip" aria-pressed="false" data-set-text="#ficha-obs|Recomenda-se a instalação de iluminação de emergência na cabine.">Iluminação de emergência</button><button class="chip chip-other" data-toast="Abre a lista completa de observações padrão">Outro…</button></div>
@@ -1343,6 +1800,34 @@
 <div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
 </div>
 
+<div data-only-tag="DJ-02">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-current="step" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
+<div data-only-tag="SEC-02">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-current="step" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
+<div data-only-tag="TR-03">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-current="step" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="0" aria-label="Conclusão, 0 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">0</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
+<div data-only-tag="TP-02">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-current="step" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
+<div data-only-tag="TC-02">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-current="step" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
+<div data-only-tag="MA-02">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-current="step" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
+<div data-only-tag="NB-02">
+<div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="0" aria-label="Placa, 0 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="0" aria-label="Verificações, 0 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="0" aria-current="step" aria-label="Ensaios, 0 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">0</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
+<div class="bar-buttons has-camera"><button class="camera-capture-btn" data-toast="Câmera aberta — a legenda vem do contexto" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+</div>
 <div data-only-tag="CB-ENT">
 <div class="section-stepper" role="group" aria-label="Seções da ficha — toque para ir à seção"><label class="step seg" for="ficha-anchor-placa" data-toggle-class="is-current" data-missing="1" aria-current="step" aria-label="Placa, 1 faltando"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span><span class="step-count"><span class="n">1</span></span></label><label class="step seg" for="ficha-anchor-verif" data-toggle-class="is-current" data-missing="5" aria-label="Verificações, 5 faltando"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span><span class="step-count"><span class="n">5</span></span></label><label class="step seg" for="ficha-anchor-ensaios" data-toggle-class="is-current" data-missing="1" aria-label="Ensaios, 1 faltando"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span><span class="step-count"><span class="n">1</span></span></label><label class="step seg" for="ficha-anchor-concl" data-toggle-class="is-current" data-missing="1" aria-label="Conclusão, 1 faltando"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span><span class="step-count"><span class="n">1</span></span></label></div>
 <div class="bar-buttons has-camera"><button class="camera-capture-btn" data-open="#ficha-dlg-camera" aria-label="Tirar fotos da ficha — a legenda vem do contexto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button><button class="btn btn-primary" data-go="#/ficha/SEC-ENT">Próxima ficha<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
@@ -1545,6 +2030,20 @@
   </div>
 </div>
 
+
+<!-- Story 25.1 Part B (2026-11-11, Epic 25 frames; MOCK-GUIDE.md § 2026-11-11): Story 25.9: the reading cell's menu on a v15 sheet ("Não se aplica" added under the two items the app has) and the row action of a measured table. "Não se aplica" is not offered on v1 to v14. -->
+<div class="dialog-scrim" id="ficha-dlg-cell-menu" hidden>
+  <div class="overflow-menu" role="menu" aria-label="Opções da leitura">
+    <button class="menu-item" role="menuitem" data-close data-toast="Leitura marcada Não medido">Não medido</button>
+    <button class="menu-item" role="menuitem" data-close data-toast="Digite o valor depois de “&gt; ”">&gt; limite</button>
+    <button class="menu-item" role="menuitem" data-close data-toast="Leitura marcada Não se aplica — não é julgada e imprime N/A" data-toast-action="Desfazer">Não se aplica</button>
+  </div>
+</div>
+<div class="dialog-scrim" id="ficha-dlg-row-menu" hidden>
+  <div class="overflow-menu" role="menu" aria-label="Opções da linha">
+    <button class="menu-item" role="menuitem" data-close data-toast="Linha marcada Não se aplica — todas as leituras imprimem N/A" data-toast-action="Desfazer">Linha toda: não se aplica</button>
+  </div>
+</div>
 <!-- Story 24.1 (2026-11-10), for Story 24.17: the point editor opened by "Criar ponto de atenção" on a test or on the Conclusão step.
      The same editor an NC row opens (Form dialog shell, full screen on the phone; it reuses the "Como ensaiar" overlay's layout classes).
      DJ-01 (seed v14, a test that fails): the finding in "Texto" and the test's recommendation in "Ação recomendada".
@@ -1556,12 +2055,12 @@
     <div class="como-head"><div><p class="como-kicker">Novo ponto · entra no fim da seção 8</p><h2 class="dialog-title" id="ficha-pe-title" tabindex="-1">Ponto de atenção</h2></div><button class="icon-btn" data-close aria-label="Fechar"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button></div>
     <div class="field combobox">
       <span class="field-label">Equipamento ou local</span>
-      <div class="input"><span data-only-tag="DJ-01">DJ-01 · Disjuntor MT · 1° Subsolo › Coluna 9</span><span data-only-tag="TR1">TR1 · Transformador de força · Cabine de transformação</span><span data-only-tag="TR-02">TR-02 · Transformador de força · Cabine de transformação</span></div>
+      <div class="input"><span data-only-tag="DJ-01">DJ-01 · Disjuntor MT · 1° Subsolo › Coluna 9</span><span data-only-tag="TR1">TR1 · Transformador de força · Cabine de transformação</span><span data-only-tag="TR-02">TR-02 · Transformador de força · Cabine de transformação</span><span data-only-tag="SEC-02">SEC-02 · Chave seccionadora · 1° Subsolo › Coluna 10</span></div>
       <span class="combobox-chevron" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></span>
     </div>
     <div class="field">
       <span class="field-label" id="ficha-pe-texto-l">Texto</span>
-      <div class="observation-field" role="textbox" aria-multiline="true" aria-labelledby="ficha-pe-texto-l" contenteditable="true"><span data-only-tag="DJ-01">Resistência ôhmica de contato: T1-T2 310 µΩ, acima do aceitável (&lt;250 µΩ).</span><span data-only-tag="TR1">Ensaio de isolação: Primário · Massa com restrição, caiu desde a manutenção anterior (12,4 GΩ a 20 °C, relatório de 03/2025).</span><span data-only-tag="TR-02">Ruído anormal no núcleo com o transformador em carga.</span></div>
+      <div class="observation-field" role="textbox" aria-multiline="true" aria-labelledby="ficha-pe-texto-l" contenteditable="true"><span data-only-tag="DJ-01">Resistência ôhmica de contato: T1-T2 310 µΩ, acima do aceitável (&lt;250 µΩ).</span><span data-only-tag="TR1">Ensaio de isolação: Primário · Massa com restrição, caiu desde a manutenção anterior (12,4 GΩ a 20 °C, relatório de 03/2025).</span><span data-only-tag="TR-02">Ruído anormal no núcleo com o transformador em carga.</span><span data-only-tag="SEC-02">Resistência ôhmica de contato fora do critério (&lt;250 µΩ): T1-T2 273 µΩ; T3-T4 266 µΩ; T5-T6 548 µΩ.</span></div>
       <span class="helper">Referências a fotos entram pela seleção abaixo; o número é definido na exportação.</span>
     </div>
     <div class="field">
@@ -1581,7 +2080,7 @@
     <div class="field"><span class="field-label">Responsável</span><div class="input"></div></div>
     <div class="dialog-actions">
       <button class="btn btn-secondary" data-close>Cancelar</button>
-      <span data-only-tag="DJ-01"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-dj01-rc-point" data-toast="Ponto de atenção salvo · 8 de 8 na seção 8">Concluir</button></span><span data-only-tag="TR1"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-tr1-iso-point" data-toast="Ponto de atenção salvo · 8 de 8 na seção 8">Concluir</button></span><span data-only-tag="TR-02"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-tr02-conc-point" data-toast="Ponto de atenção salvo · 8 de 8 na seção 8">Concluir</button></span>
+      <span data-only-tag="SEC-02"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-sec02-rc-point" data-toast="Ponto de atenção salvo · 9 de 9 na seção 8">Concluir</button></span><span data-only-tag="DJ-01"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-dj01-rc-point" data-toast="Ponto de atenção salvo · 8 de 8 na seção 8">Concluir</button></span><span data-only-tag="TR1"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-tr1-iso-point" data-toast="Ponto de atenção salvo · 8 de 8 na seção 8">Concluir</button></span><span data-only-tag="TR-02"><button class="btn btn-primary" data-close data-toggle-class="has-point" data-toggle-target="#ficha-tr02-conc-point" data-toast="Ponto de atenção salvo · 8 de 8 na seção 8">Concluir</button></span>
     </div>
   </div>
 </div>

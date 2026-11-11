@@ -1,0 +1,271 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Seção 9 impressa, seed v15</title>
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<style>/* Governs: Story 25.1 Part B (2026-11-11), the printed frame of a seed v15 relatório. It draws only the deltas from
+   key-print-section-9-v14.html that Story 25.1 lists: CRITÉRIO and RESULTADO on each row of the tables measurementTestPart prints (Story 25.20),
+   the headers "20 °C (corrigido)" and "75 °C (corrigido)" (Story 25.20), a reading printed N/A (Story 25.9), an added point (Stories 25.14,
+   25.15, 25.16), the line of a thermography "Não realizada" (Story 25.15), the No-break's tests (Story 25.17, coordinator's reading), the
+   variation note in its two forms (Story 25.21, coordinator's reading), the ratio headers "TPs" and "TCs", the cover's "Cidade/local",
+   section 1's sentence and section 10's validity line (Story 25.22). Every v1 to v14 sheet prints as before. Table style from
+   key-print-section-9-v14.html. Page-only: the printed A4 page is paper, black on white in every theme. 9 pt = 10 px here.
+   Each table's size is the one the renderer's fit gives it, measured against print/section-9.ts (CONTENT_WIDTH_EM 58, READING_FIT_WIDTH_EM
+   60; the table at the end of this file). Client, site, makers and values are invented sample data. */
+.print-page { box-sizing: border-box; width: 794px; padding: 30px 48px 22px; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; }
+.print-page * { box-sizing: border-box; }
+.pp-body { display: flex; flex-direction: column; gap: 7px; }
+.pp-sheet { margin: 0; padding: 4px 8px; background: #BFBFBF; border: 1px solid #000; font-size: 10.5px; font-weight: 700; text-align: center; }
+.pt { width: 100%; border-collapse: collapse; }
+.pt th, .pt td { border: 1px solid #000; padding: 2px 5px; vertical-align: middle; text-align: center; font-weight: 400; }
+.pt .pt-title th { background: #BFBFBF; font-weight: 700; }
+.pt .pt-cols th { background: #E7E7E7; font-weight: 700; }
+.pt .pt-line td { text-align: left; }
+.pt td.pt-crit { text-align: left; }
+.pt td .nb { white-space: nowrap; }
+.pt-thermo td.pt-crit { width: 44%; }   /* the renderer gives the criterion the room its words ask; the browser would squeeze it */   /* a value joined to its unit (U+00A0), never parted */
+.pt-85 { font-size: 9.4px; }   /* 8,5 pt */
+.pt-65 { font-size: 7.2px; }   /* 6,5 pt: the paired insulation tables with "20 °C (corrigido)" (55,5 em at 6,5 pt; 7,5 pt on v14) */
+.pp-note { margin: -4px 0 0; padding: 2px 5px; font-size: 9px; text-align: left; }
+.pp-line { margin: 0; padding: 3px 5px; border: 1px solid #000; text-align: left; }
+.pt-conc td { width: 25%; text-align: left; }
+.pbox { display: inline-flex; align-items: center; justify-content: center; width: 10px; height: 10px; margin-right: 4px; border: 1px solid #000; font-size: 8px; font-weight: 700; line-height: 1; vertical-align: -1px; }
+.pp-text { margin: 0; text-align: justify; }
+.pp-h { margin: 0; font-weight: 700; }
+/* Mock-only marks, never printed: omitted parts and the deltas */
+.pp-omit-line { margin: 0; padding: 3px 6px; border: 1px dashed #8A9099; background: repeating-linear-gradient(135deg, #F4F5F6 0 6px, #EBEDEF 6px 12px); color: #5B616B; font-style: italic; text-align: center; font-size: 9px; }
+.pt .is-delta, .pp-note.is-delta, .pp-line.is-delta, .pp-text .is-delta { outline: 2px dashed #1F5FA8; outline-offset: -3px; }
+.pp-note.is-delta, .pp-line.is-delta { outline-offset: -1px; }
+.pp-reading { outline: 2px dashed #8A4B00; outline-offset: -3px; }   /* mock-only: the coordinator's reading, open to Bruno */
+.mock-row.is-print { gap: var(--sp-6); }
+.mock-note { font-size: 13px; color: var(--ink-secondary); max-width: 794px; margin: var(--sp-2) 0 0; }
+.mock-legend { display: inline-block; width: 22px; height: 12px; outline: 2px dashed #1F5FA8; outline-offset: -3px; vertical-align: -1px; margin-right: 6px; }
+.mock-legend.is-reading { outline-color: #8A4B00; }
+.src-table { width: 794px; border-collapse: collapse; font-size: 13px; background: var(--surface-raised); color: var(--ink-primary); }
+.src-table th, .src-table td { border: 1px solid var(--border-strong); padding: 6px 10px; text-align: left; vertical-align: top; }
+.src-table th { background: var(--surface-base); font-weight: 600; }
+.src-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style></head>
+<body class="mock-page">
+<h1 class="mock-title">Seção 9 impressa — o que muda num relatório v15</h1>
+<p class="mock-sub">Story 25.1, parte B (2026-11-11), para o Matheus aprovar. Num relatório de seed v15 mudam só as coisas abaixo em relação à v14: cada linha das tabelas de medição imprime o seu CRITÉRIO e o seu RESULTADO, as colunas corrigidas dizem "(corrigido)", uma leitura pode imprimir N/A, um ponto acrescentado em campo imprime na sua tabela, a termografia não realizada imprime uma linha com o motivo, o No-break de comando imprime os seus ensaios, a nota de variação fica curta, e os textos fixos, a capa e os cabeçalhos das tabelas de relação são corrigidos. Todo relatório v1 a v14 continua imprimindo como hoje. Valores, nomes e textos de exemplo. <span class="mock-legend" aria-hidden="true"></span>contorno azul = o que muda; <span class="mock-legend is-reading" aria-hidden="true"></span>contorno âmbar = leitura do coordenador, a confirmar com o Bruno (só no mock, não imprime).</p>
+
+<div class="mock-row is-print">
+<div class="mock-item">
+  <p class="mock-caption"><b>Transformador v15 — enrolamentos e termografia não realizada</b><span class="sep">·</span>A4 retrato, trecho do TRANSFORMADOR DE FORÇA TR-03, primeira visita<span class="sep">·</span>Stories 25.20 e 25.15</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">TRANSFORMADOR DE FORÇA TR-03</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, ENSAIO DE ISOLAÇÃO e RELAÇÃO DE TRANSFORMAÇÃO, como na v14</p>
+<table class="pt"><thead>
+<tr class="pt-title"><th colspan="9">RESISTÊNCIA ÔHMICA DOS ENROLAMENTOS</th></tr>
+<tr class="pt-line"><td colspan="9">INSTRUMENTO: 3M · FABRICANTE F · MOD-3M · Nº SÉRIE 000456 · RBC 00000/26</td></tr>
+<tr class="pt-line"><td colspan="9">TEMPERATURA: 32 °C (ÓLEO)</td></tr>
+<tr class="pt-cols"><th></th><th colspan="3"></th><th colspan="3" class="is-delta">75 °C (corrigido)</th><th colspan="2" class="is-delta"></th></tr>
+<tr class="pt-cols"><th>ENROLAMENTO</th><th>FASE A</th><th>FASE B</th><th>FASE C</th><th>FASE A</th><th>FASE B</th><th>FASE C</th><th class="is-delta">CRITÉRIO</th><th class="is-delta">RESULTADO</th></tr></thead>
+<tbody>
+<tr><td>AT, TAP ATUAL</td><td><span class="nb">1,204 Ω</span></td><td><span class="nb">1,231 Ω</span></td><td><span class="nb">1,240 Ω</span></td><td><span class="nb">1,436 Ω</span></td><td><span class="nb">1,468 Ω</span></td><td><span class="nb">1,479 Ω</span></td><td class="pt-crit is-delta">desvio entre fases ≤ 2 % (com restrição até 5 %)</td><td class="is-delta">COM RESTRIÇÃO</td></tr>
+<tr><td>AT, PRIMEIRO TAP</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td class="pt-crit is-delta">desvio entre fases ≤ 2 % (com restrição até 5 %)</td><td class="is-delta">-</td></tr>
+<tr><td>AT, ÚLTIMO TAP</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td class="pt-crit is-delta">desvio entre fases ≤ 2 % (com restrição até 5 %)</td><td class="is-delta">-</td></tr>
+<tr><td>BT</td><td><span class="nb">3,812 mΩ</span></td><td><span class="nb">3,820 mΩ</span></td><td><span class="nb">3,809 mΩ</span></td><td><span class="nb">4,546 mΩ</span></td><td><span class="nb">4,556 mΩ</span></td><td><span class="nb">4,543 mΩ</span></td><td class="pt-crit is-delta">desvio entre fases ≤ 2 % (com restrição até 5 %)</td><td class="is-delta">SATISFATÓRIO</td></tr>
+</tbody></table>
+<p class="pp-line is-delta"><b>TERMOGRAFIA:</b> NÃO REALIZADA. MOTIVO: EQUIPAMENTO FORA DE CARGA.</p>
+<p class="pp-omit-line">Trecho omitido no mock: COLETA DE ÓLEO, OBSERVAÇÕES e fotos, como na v14</p>
+<table class="pt pt-conc"><thead><tr class="pt-title"><th colspan="4">CONCLUSÃO</th></tr></thead><tbody>
+<tr><td><span class="pbox">X</span>APROVADO</td><td><span class="pbox"></span>REPROVADO</td><td><span class="pbox"></span>SEM RESTRIÇÕES</td><td><span class="pbox">X</span>COM RESTRIÇÕES (VER OBSERVAÇÕES)</td></tr>
+<tr><td colspan="4"><b>CONCLUSÃO:</b> O transformador TR-03 (Fabricante A, 500 kVA, 13,8 kV) apresentou na resistência ôhmica dos enrolamentos, AT tap atual, desvio de 2,9 % entre fases (critério: ≤ 2 %, com restrição até 5 %). <span class="is-delta">Termografia não realizada (equipamento fora de carga).</span></td></tr>
+</tbody></table>
+  </div></div>
+</div>
+
+<div class="mock-item">
+  <p class="mock-caption"><b>Disjuntor v15, segunda visita — "(corrigido)", nota curta, termografia com ponto acrescentado</b><span class="sep">·</span>A4 retrato, trecho do DISJUNTOR MT DJ-02<span class="sep">·</span>Stories 25.20, 25.21, 25.14 e 25.15</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">DISJUNTOR MT DJ-02</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS e o cabeçalho do instrumento do ENSAIO DE ISOLAÇÃO, como na v14</p>
+<table class="pt pt-65"><thead>
+<tr class="pt-cols"><th colspan="7">DISJUNTOR CONTATO ABERTO</th><th colspan="7">DISJUNTOR CONTATO FECHADO</th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>TENSÃO (kV)</th><th>VALORES (GΩ)</th><th class="is-delta">20 °C (corrigido)</th><th>MANUT. ANTERIOR 05/11/2025</th><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>TENSÃO (kV)</th><th>VALORES (GΩ)</th><th class="is-delta">20 °C (corrigido)</th><th>MANUT. ANTERIOR 05/11/2025</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>T2</td><td>MASSA</td><td>5</td><td>1</td><td>1,26</td><td><span class="nb">1 GΩ</span></td><td><span class="nb">FASE A</span></td><td>MASSA</td><td></td><td>5</td><td>2.500</td><td>3.150</td><td><span class="nb">2.500 GΩ</span></td></tr>
+<tr><td>T3</td><td>T4</td><td>MASSA</td><td>5</td><td>2.600</td><td>3.280</td><td><span class="nb">2.600 GΩ</span></td><td><span class="nb">FASE B</span></td><td>MASSA</td><td></td><td>5</td><td>2.600</td><td>3.280</td><td><span class="nb">2.600 GΩ</span></td></tr>
+<tr><td>T5</td><td>T6</td><td>MASSA</td><td>5</td><td>2.700</td><td>3.400</td><td><span class="nb">2.700 GΩ</span></td><td><span class="nb">FASE C</span></td><td>MASSA</td><td></td><td>5</td><td>2.700</td><td>3.400</td><td><span class="nb">2.700 GΩ</span></td></tr>
+</tbody></table>
+<table class="pt"><thead><tr class="pt-title"><th colspan="6">RESISTÊNCIA ÔHMICA DE CONTATO</th></tr>
+<tr class="pt-cols"><th>INSTRUM./FABRIC.</th><th>TIPO</th><th>Nº SÉRIE</th><th>RBC</th><th>CORRENTE</th><th>ACEITÁVEL</th></tr></thead>
+<tbody><tr><td>Fabricante F</td><td>MOD-3M</td><td>000456</td><td>00000/26</td><td>10 A</td><td>&lt; 250 µΩ</td></tr></tbody></table>
+<table class="pt"><thead>
+<tr class="pt-cols"><th colspan="3">CONTATO FECHADO</th><th></th><th></th></tr>
+<tr class="pt-cols"><th>LINHA</th><th>TERRA</th><th>GUARD</th><th>VALORES (µΩ)</th><th>MANUT. ANTERIOR 05/11/2025</th></tr></thead>
+<tbody>
+<tr><td>T1-T2</td><td>FASE A</td><td>MASSA</td><td>61</td><td><span class="nb">40 µΩ</span></td></tr>
+<tr><td>T3-T4</td><td>FASE B</td><td>MASSA</td><td>42</td><td><span class="nb">41 µΩ</span></td></tr>
+<tr><td>T5-T6</td><td>FASE C</td><td>MASSA</td><td>60</td><td><span class="nb">38 µΩ</span></td></tr>
+</tbody></table>
+<p class="pp-note is-delta pp-reading">Em relação à manutenção anterior: T1-T2 subiu 53 % (antes <span class="nb">40 µΩ</span>); T5-T6 subiu 58 % (antes <span class="nb">38 µΩ</span>).</p>
+<table class="pt pt-thermo"><thead>
+<tr class="pt-title"><th colspan="5">TERMOGRAFIA</th></tr>
+<tr class="pt-cols"><th>PONTO</th><th>ΔT ENTRE SIMILARES (°C)</th><th>ΔT SOBRE O AMBIENTE (°C)</th><th class="is-delta">CRITÉRIO</th><th class="is-delta">RESULTADO</th></tr></thead>
+<tbody>
+<tr><td class="is-delta">TERMINAL DE ENTRADA, FASE A</td><td>1,2</td><td>8,5</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">SATISFATÓRIO</td></tr>
+<tr><td class="is-delta">TERMINAL DE ENTRADA, FASE B</td><td>6,8</td><td>24,0</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">COM RESTRIÇÃO</td></tr>
+<tr><td class="is-delta">TERMINAL DE ENTRADA, FASE C</td><td>1,0</td><td>8,1</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">SATISFATÓRIO</td></tr>
+<tr><td class="is-delta">TERMINAL DE SAÍDA, FASE A</td><td>-</td><td>-</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">-</td></tr>
+<tr><td class="is-delta">TERMINAL DE SAÍDA, FASE B</td><td>-</td><td>-</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">-</td></tr>
+<tr><td class="is-delta">TERMINAL DE SAÍDA, FASE C</td><td>-</td><td>-</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">-</td></tr>
+<tr><td class="is-delta">BARRAMENTO DE SAÍDA</td><td>2,1</td><td>9,0</td><td class="pt-crit is-delta">ΔT entre similares ≤ 3 °C (com restrição até 15 °C)<br>ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)</td><td class="is-delta">SATISFATÓRIO</td></tr>
+</tbody></table>
+<p class="pp-omit-line">Trecho omitido no mock: OBSERVAÇÕES, CONCLUSÃO e fotos, como na v14</p>
+  </div></div>
+</div>
+</div>
+
+<div class="mock-row is-print">
+<div class="mock-item">
+  <p class="mock-caption"><b>Malha v15 e uma tabela de tipo da empresa</b><span class="sep">·</span>A4 retrato, trechos da MALHA DE ATERRAMENTO MA-02 e do QUADRO DE COMANDO QC-01<span class="sep">·</span>Stories 25.20, 25.16 e 25.9</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">MALHA DE ATERRAMENTO MA-02</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DA MALHA e VERIFICAÇÕES GERAIS, como na v14</p>
+<table class="pt"><thead>
+<tr class="pt-title"><th colspan="4">RESISTÊNCIA DE ATERRAMENTO DA MALHA</th></tr>
+<tr class="pt-cols"><th>MEDIÇÃO</th><th>RESISTÊNCIA (Ω)</th><th class="is-delta">CRITÉRIO</th><th class="is-delta">RESULTADO</th></tr></thead>
+<tbody><tr><td>MALHA</td><td>4,2</td><td class="pt-crit is-delta">≤ <span class="nb">10 Ω</span> (valor de projeto)</td><td class="is-delta">SATISFATÓRIO</td></tr></tbody></table>
+<table class="pt"><thead>
+<tr class="pt-title"><th colspan="4">CONTINUIDADE E EQUIPOTENCIALIZAÇÃO</th></tr>
+<tr class="pt-cols"><th>PONTO</th><th>RESISTÊNCIA (Ω)</th><th class="is-delta">CRITÉRIO</th><th class="is-delta">RESULTADO</th></tr></thead>
+<tbody>
+<tr><td>CARCAÇAS</td><td>0,12</td><td class="pt-crit is-delta">≤ <span class="nb">0,5 Ω</span> entre pontos</td><td class="is-delta">SATISFATÓRIO</td></tr>
+<tr><td>PORTAS</td><td>0,31</td><td class="pt-crit is-delta">≤ <span class="nb">0,5 Ω</span> entre pontos</td><td class="is-delta">SATISFATÓRIO</td></tr>
+<tr><td>NEUTRO DO TRANSFORMADOR</td><td>0,08</td><td class="pt-crit is-delta">≤ <span class="nb">0,5 Ω</span> entre pontos</td><td class="is-delta">SATISFATÓRIO</td></tr>
+<tr><td>PARA-RAIOS</td><td>0,72</td><td class="pt-crit is-delta">≤ <span class="nb">0,5 Ω</span> entre pontos</td><td class="is-delta">INSATISFATÓRIO</td></tr>
+<tr><td>BLINDAGENS</td><td class="is-delta">N/A</td><td class="pt-crit is-delta">≤ <span class="nb">0,5 Ω</span> entre pontos</td><td class="is-delta">-</td></tr>
+<tr class="is-delta"><td>QUADRO GERAL DE BAIXA TENSÃO</td><td>0,19</td><td class="pt-crit">≤ <span class="nb">0,5 Ω</span> entre pontos</td><td>SATISFATÓRIO</td></tr>
+</tbody></table>
+<p class="pp-omit-line">Trecho omitido no mock: OBSERVAÇÕES, CONCLUSÃO e fotos, como na v14</p>
+<p class="pp-sheet">QUADRO DE COMANDO QC-01</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO e VERIFICAÇÕES GERAIS do tipo da empresa (o nome do tipo não imprime)</p>
+<table class="pt"><thead>
+<tr class="pt-title"><th colspan="4">TENSÃO DE ALIMENTAÇÃO</th></tr>
+<tr class="pt-cols"><th>MEDIÇÃO</th><th>TENSÃO (V)</th><th class="is-delta">CRITÉRIO</th><th class="is-delta">RESULTADO</th></tr></thead>
+<tbody>
+<tr><td>ENTRADA</td><td>221</td><td class="pt-crit is-delta"><span class="nb">220 V ± 5 %</span></td><td class="is-delta">SATISFATÓRIO</td></tr>
+<tr><td>SAÍDA</td><td>232</td><td class="pt-crit is-delta"><span class="nb">220 V ± 5 %</span></td><td class="is-delta">INSATISFATÓRIO</td></tr>
+</tbody></table>
+  </div></div>
+</div>
+
+<div class="mock-item">
+  <p class="mock-caption"><b>TP e TC v15, No-break de comando v15</b><span class="sep">·</span>A4 retrato, trechos do TP TP-02, do TC TC-02 e do NO-BREAK DE COMANDO NB-02<span class="sep">·</span>Stories 25.22, 25.9 e 25.17 (leitura do coordenador)</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">TP TP-02</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS, ENSAIO DE ISOLAÇÃO e o cabeçalho do instrumento, como na v14</p>
+<table class="pt"><thead>
+<tr class="pt-title"><th colspan="6">RELAÇÃO DE TRANSFORMAÇÃO</th></tr>
+<tr class="pt-cols"><th class="is-delta">TPs</th><th>V PRIMÁRIO</th><th>V SECUNDÁRIO</th><th>VAL CALCULADO</th><th>H1-H2 / X1-X2</th><th>CONDIÇÕES</th></tr></thead>
+<tbody>
+<tr><td>FASE R</td><td><span class="nb">13.800 V</span></td><td><span class="nb">115 V</span></td><td>120,00</td><td>120,10</td><td>NORMAL</td></tr>
+<tr><td>FASE S</td><td><span class="nb">13.800 V</span></td><td><span class="nb">115 V</span></td><td>120,00</td><td>119,94</td><td>NORMAL</td></tr>
+<tr class="is-delta"><td>FASE T</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td><td>N/A</td></tr>
+</tbody></table>
+<p class="pp-sheet">TC TC-02</p>
+<table class="pt"><thead>
+<tr class="pt-title"><th colspan="6">RELAÇÃO DE TRANSFORMAÇÃO</th></tr>
+<tr class="pt-cols"><th class="is-delta">TCs</th><th>A PRIMÁRIO</th><th>A SECUNDÁRIO</th><th>VAL CALCULADO</th><th>P1-P2 / S1-S2</th><th>CONDIÇÕES</th></tr></thead>
+<tbody>
+<tr><td>FASE R</td><td><span class="nb">200 A</span></td><td><span class="nb">5 A</span></td><td>40,00</td><td>40,02</td><td>NORMAL</td></tr>
+<tr><td>FASE S</td><td><span class="nb">200 A</span></td><td><span class="nb">5 A</span></td><td>40,00</td><td>39,98</td><td>NORMAL</td></tr>
+<tr><td>FASE T</td><td><span class="nb">200 A</span></td><td><span class="nb">5 A</span></td><td>40,00</td><td>40,01</td><td>NORMAL</td></tr>
+</tbody></table>
+<p class="pp-sheet">NO-BREAK DE COMANDO NB-02</p>
+<p class="pp-omit-line">Trecho omitido no mock: DADOS DO EQUIPAMENTO e VERIFICAÇÕES GERAIS, como na v14</p>
+<table class="pt pp-reading"><thead>
+<tr class="pt-title"><th colspan="5">TENSÕES DE ENTRADA E SAÍDA</th></tr>
+<tr class="pt-cols"><th>MEDIÇÃO</th><th>EM REDE (V)</th><th>EM BATERIA (V)</th><th>CRITÉRIO</th><th>RESULTADO</th></tr></thead>
+<tbody>
+<tr><td>ENTRADA</td><td>219</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>SAÍDA</td><td>220</td><td>218</td><td>-</td><td>-</td></tr>
+</tbody></table>
+<table class="pt pp-reading"><thead>
+<tr class="pt-title"><th colspan="4">TENSÃO DE FLUTUAÇÃO</th></tr>
+<tr class="pt-cols"><th>MEDIÇÃO</th><th>TENSÃO (V)</th><th>CRITÉRIO</th><th>RESULTADO</th></tr></thead>
+<tbody>
+<tr><td>BANCO</td><td>54,6</td><td>-</td><td>-</td></tr>
+<tr><td>BATERIA 1</td><td>13,6</td><td>-</td><td>-</td></tr>
+<tr><td>BATERIA 2</td><td>13,7</td><td>-</td><td>-</td></tr>
+<tr><td>BATERIA 3</td><td>13,6</td><td>-</td><td>-</td></tr>
+<tr><td>BATERIA 4</td><td>12,1</td><td>-</td><td>-</td></tr>
+</tbody></table>
+<table class="pt pp-reading"><thead><tr class="pt-title"><th>TESTE DE TRANSFERÊNCIA</th></tr></thead><tbody><tr class="pt-line"><td>RESULTADO: OK</td></tr></tbody></table>
+<table class="pt pp-reading"><thead><tr class="pt-title"><th>ABERTURA DO DISJUNTOR PELO RELÉ COM O NO-BREAK EM BATERIA</th></tr></thead><tbody><tr class="pt-line"><td>RESULTADO: ABRIU</td></tr></tbody></table>
+  </div></div>
+</div>
+</div>
+
+<div class="mock-row is-print">
+<div class="mock-item">
+  <p class="mock-caption"><b>Nota de variação, forma de muitas variações</b><span class="sep">·</span>A4 retrato, final da ficha da CHAVE SECCIONADORA SEC-03, segunda visita<span class="sep">·</span>Story 25.21 (leitura do coordenador, pergunta B-7)</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-sheet">CHAVE SECCIONADORA SEC-03</p>
+<p class="pp-omit-line">Trecho omitido no mock: as tabelas do ENSAIO DE ISOLAÇÃO e da RESISTÊNCIA ÔHMICA DE CONTATO, como na v14, sem a nota sob cada tabela</p>
+<p class="pp-note is-delta pp-reading" style="margin-top: 0">Em relação à manutenção anterior: 5 leituras variaram além do limite (Ensaio de isolação: 3; Resistência ôhmica de contato: 2).</p>
+<p class="pp-omit-line">Trecho omitido no mock: OBSERVAÇÕES, CONCLUSÃO e fotos, como na v14</p>
+  </div></div>
+</div>
+
+<div class="mock-item">
+  <p class="mock-caption"><b>Capa, seção 1 e seção 10 de um relatório v15</b><span class="sep">·</span>A4 retrato, três trechos<span class="sep">·</span>Story 25.22</p>
+  <div class="print-page"><div class="pp-body">
+<p class="pp-omit-line">Capa: trecho omitido no mock, como na v14</p>
+<table class="pt"><tbody>
+<tr><td style="text-align:left; width: 30%"><b>Cliente</b></td><td style="text-align:left">Empresa Exemplo S.A.</td></tr>
+<tr class="is-delta"><td style="text-align:left"><b>Cidade/local</b></td><td style="text-align:left">Centro Administrativo</td></tr>
+</tbody></table>
+<p class="pp-h">1. OBJETIVO</p>
+<p class="pp-text">… <span class="is-delta">nas Cabines Primárias de Proteção, Distribuição e Transformação da Empresa Exemplo S.A., unidade Centro Administrativo.</span></p>
+<p class="pp-omit-line">Seções 2 a 9: trecho omitido no mock (os textos corrigidos da Story 25.22: sem o parágrafo da resistência de terra na seção 2, "iminentes", "EPCs", "EPIs", "QGBTs", "(a seco)", "Conforme NR-10, item 10.5.1:")</p>
+<p class="pp-h">10. CONCLUSÃO E PARECER</p>
+<p class="pp-omit-line">O parecer: trecho omitido no mock, como na v14</p>
+<p class="pp-text"><span class="is-delta">Este relatório tem validade apenas acompanhado da respectiva ART.</span></p>
+  </div></div>
+</div>
+</div>
+
+<div class="mock-row">
+<div class="mock-item" style="width: 794px">
+  <p class="mock-caption"><b>As tabelas medidas contra a largura da página</b><span class="sep">·</span>como o renderizador as cabe<span class="sep">·</span><code>packages/domain/src/print/section-9.ts</code></p>
+  <table class="src-table">
+    <thead><tr><th scope="col">Tabela (dados deste mock)</th><th scope="col">Soma das larguras mínimas a 9 pt</th><th scope="col">Cabe a</th><th scope="col">Como foi medida</th></tr></thead>
+    <tbody>
+      <tr><td>Enrolamentos, 9 colunas, primeira visita</td><td class="num">54,4 em</td><td class="num">9 pt</td><td>Larguras de Arial (<code>printTextEm</code>) contra 58 em; 56,6 em com a estimativa <code>emWidth</code> contra 60 em, também 9 pt</td></tr>
+      <tr><td>Enrolamentos, 10 colunas, segunda visita (MANUT. ANTERIOR)</td><td class="num">60,5 em</td><td class="num">8,5 pt</td><td>57,7 em a 8,5 pt contra 58; pela <code>emWidth</code>, 63,2 em a 9 pt e 8 pt contra 60</td></tr>
+      <tr><td>Par de isolação do disjuntor, segunda visita, "20 °C (corrigido)"</td><td class="num">71,9 em (66,9 em com "20 °C")</td><td class="num">6,5 pt</td><td>Ajuste inteiro do e24y: 55,5 em a 6,5 pt contra 58 (na v14, com "20 °C", 57,9 em a 7,5 pt). "(corrigido)" pode ir para a segunda linha do cabeçalho; nenhum valor quebra</td></tr>
+      <tr><td>Termografia, 5 colunas, 7 pontos (um acrescentado)</td><td class="num">34,3 em</td><td class="num">9 pt</td><td>O critério em duas linhas por linha da tabela</td></tr>
+      <tr><td>Malha: resistência; continuidade com 6 pontos</td><td class="num">27,2 em; 32,7 em</td><td class="num">9 pt</td><td></td></tr>
+      <tr><td>Tipo da empresa, "220 V ± 5 %"</td><td class="num">26,4 em</td><td class="num">9 pt</td><td>"220 V ± 5 %" é uma palavra só (espaços U+00A0)</td></tr>
+      <tr><td>Relação TP com "TPs" e a linha N/A; relação TC com "TCs"</td><td class="num">35,2 em; 34,9 em</td><td class="num">9 pt</td><td></td></tr>
+      <tr><td>No-break: tensões; flutuação com 4 baterias</td><td class="num">27,5 em; 23,5 em</td><td class="num">9 pt</td><td></td></tr>
+    </tbody>
+  </table>
+  <p class="mock-note">Medido com uma cópia em Python das regras de <code>fittedColumns</code>: cada coluna leva ao menos a sua palavra mais longa (mínimo 1,5 em) mais 0,9 em de margem; as palavras se separam só em espaços comuns, porque o valor fica junto da sua unidade (U+00A0, como o e24y faz na v14 e a v15 herda); a célula que ocupa várias colunas fica de fora. RESULTADO é a coluna mais larga das tabelas novas por causa de "INSATISFATÓRIO" (8,3 em em Arial). Nenhuma tabela precisa de menos de 6,5 pt, acima do piso de 5 pt.</p>
+</div>
+</div>
+
+<div class="mock-row">
+<div class="mock-item" style="width: 794px">
+  <p class="mock-caption"><b>As mudanças</b><span class="sep">·</span>o que imprime em cada caso<span class="sep">·</span>Stories 25.9, 25.14 a 25.17, 25.20 a 25.22</p>
+  <table class="src-table">
+    <thead><tr><th scope="col">Mudança</th><th scope="col">Relatório v15 imprime</th><th scope="col">Relatório v1 a v14</th></tr></thead>
+    <tbody>
+      <tr><td>CRITÉRIO e RESULTADO por linha (Story 25.20)</td><td>Toda tabela que <code>measurementTestPart</code> imprime ganha as duas colunas no fim, depois de MANUT. ANTERIOR quando ela imprime. O critério com que a linha foi julgada; um critério por coluna julgada, um por linha do texto. O resultado: SATISFATÓRIO, COM RESTRIÇÃO ou INSATISFATÓRIO; "-" quando nada da linha foi julgado (não medido, N/A, a conferir). As tabelas de isolação, contato e relação do FO.SERV-03 não mudam de colunas. Os ensaios de escolha (o teste de transferência, a abertura pelo relé, a coleta de óleo) não têm linhas e imprimem só a linha da resposta.</td><td>Só os valores</td></tr>
+      <tr><td>Cabeçalhos corrigidos (Story 25.20)</td><td>"20 °C (corrigido)" e "75 °C (corrigido)"; o cabeçalho pode ter duas linhas, um valor nunca</td><td>"20 °C" e "75 °C"</td></tr>
+      <tr><td>Leitura N/A (Story 25.9)</td><td>"N/A" na célula; numa linha toda N/A, também as células calculadas e a condição</td><td>Não existe</td></tr>
+      <tr><td>Ponto acrescentado em campo (Stories 25.14 a 25.16)</td><td>Uma linha depois das linhas do ensaio, com o nome que o técnico deu, julgada pelos critérios da coluna</td><td>Não existe</td></tr>
+      <tr><td>Termografia não realizada (Story 25.15)</td><td>Uma linha no lugar do ensaio: "TERMOGRAFIA: NÃO REALIZADA. MOTIVO: …"; e a frase na conclusão</td><td>Nada imprime</td></tr>
+      <tr><td>No-break de comando (Story 25.17, leitura do coordenador)</td><td>Quatro ensaios; as tensões sem critério até o Bruno dar a regra (B-2), por isso "-"</td><td>Sem ensaios</td></tr>
+      <tr><td>Nota de variação (Story 25.21, leitura do coordenador)</td><td>Forma curta: onde, quanto variou e o valor anterior, sem revisão e sem data (estão no cabeçalho). Com mais de três variações na ficha, uma linha só depois da última tabela, com os ensaios e a contagem</td><td>A frase longa do sistema, com revisão e data</td></tr>
+      <tr><td>Capa, seções 1 e 10, relação (Story 25.22)</td><td>"Cidade/local" com o local da obra; a frase da seção 1; a validade sem número da ART; "TPs" e "TCs"</td><td>Como hoje</td></tr>
+    </tbody>
+  </table>
+  <p class="mock-note">As palavras do resultado, a frase da termografia não realizada, as formas da nota de variação e os ensaios do No-break são autorais e vão para a revisão do Bruno. A coleta de óleo e os dois testes de escolha do No-break ficam sem as duas colunas: numa tabela sem linhas elas seriam ruído (a leitura do coordenador na Story 25.20 previa isso).</p>
+</div>
+</div>
+</body></html>
