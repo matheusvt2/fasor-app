@@ -3782,12 +3782,12 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the seccionadora's side-by-side insulation tables with MANUT. ANTERIOR break "GUARD" inside the word ("GUAR" over "D") at their type size. It is already so in the locked v13 golden (`golden/layout-lock-v13/pdf-text.json`), so it is not caused by the dated header (whose date is narrower than "ANTERIOR"); on v14 it prints the same. Fixing it is a layout change of a locked shape.
   evidence: `apps/api/src/jobs/generate/golden/layout-lock-v13/pdf-text.json` ("LINHA TERRA GUAR D TENSÃO"); `test-results/e24p-pdf/e24p-v14-relatorio.pdf` page 12; `e24p-pdf-crops/v14-dated-header-and-rise-note.png`.
   class: defect
-  state: open (owner: Matheus: a v14 fit change for that shape, or accept)
+  state: ~~open (owner: Matheus: a v14 fit change for that shape, or accept)~~ *(2026-11-11, fix batch e24y, P1: closed on v14. The pair is fitted whole there (`paired_tables_fit_whole`): measured by Arial's widths against the page, columns first, each value joined to its unit; v13 keeps its pair byte for byte, "GUAR"/"D" included, as its golden holds it. `spec-e24y-pass-fixes.md`, `e24y-pdf-crops/`.)*
 - source_spec: `spec-e24p-print.md` (the PDF crops, Story 24.16)
   summary: the note line wraps where LibreOffice finds a space, so a value and its unit can part across lines ("limite de 50" / "% ...", "a 20" / "°C"). The kernel's reasons use plain spaces before "%" and "°C" everywhere; a no-break space in the note alone would make its text differ from the same reason elsewhere.
   evidence: `e24p-pdf-crops/v14-dated-header-and-rise-note.png`, `e24p-pdf-crops/v14-insulation-dated-header-and-drop-note.png`.
   class: note
-  state: open (owner: Matheus, with the note's wording; low)
+  state: open (owner: Matheus, with the note's wording; low) *(2026-11-11, fix batch e24y: still open. P1's no-break space joins a value to its unit inside the paired tables and the measurement tables only; the note line is a paragraph whose reasons are the kernel's own texts, so the same rule there would make them differ from the conclusion's and the point's.)*
 ## Deferred from: Epic 24 batch e24s (2026-11-11)
 
 - source_spec: `spec-e24s-seed-v14-sheets.md` (Story 24.13)
@@ -3799,7 +3799,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: The v14 Malha de aterramento's first block reads "Dados da malha" on the sheet and in the composer only; the Conflict view still names its fields under "Dados de placa" (`SECTION_NAMEPLATE`) and the sheet stepper's step still reads "Placa".
   evidence: `packages/domain/src/merge/conflicts.ts:155`; `apps/web/src/copy/pt-br.ts` (`placa: { long: 'Placa', short: 'Placa' }`); `packages/domain/src/relatorio/nameplate-block.ts` `nameplateTitleOf`.
   class: debt
-  state: open (owner: the next batch touching the conflict view or the sheet stepper; Bruno may say whether the step should read "Malha")
+  state: ~~open (owner: the next batch touching the conflict view or the sheet stepper; Bruno may say whether the step should read "Malha")~~ *(2026-11-11, fix batch e24y, F10: closed. The stepper, the Sheet header and the Conflict view read the definition's `nameplate_title` ("Dados da malha"), and on v14 (`empty_steps_hidden`) the Malha shows no "Verificações" step. Bruno may still say whether the step should read "Malha".)*
 - source_spec: `spec-e24s-seed-v14-sheets.md` (the coordinator's readings of Stories 24.10 to 24.14, built as written)
   summary: Built as the coordinator read them, open to Matheus: the TC gains no item on its secondary (B-11 for Bruno) and the TP's fuse wording is a hint; forced ventilation is item 5 renamed and made a dry item, the three new transformer items appended, nothing printed about the laboratory's report; the QGBT function test is one item with a hint and the thermography keeps its four points (B-3); the No-break has six items, "Potência (VA/W)" is two fields (W optional), the battery fields carry "BATERIAS:" and the photo fills them only when it shows them; the "Outro" text is required while it shows; the grid's block is "Dados da malha", on v14 only.
   evidence: `epics.md` § Stories 24.10 to 24.14, "Coordinator's reading"; `packages/domain/src/seed/v14.ts` (the batch's fenced sections).
@@ -3825,3 +3825,51 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/ops/value-limits.ts` (`sheet/test/value`); `packages/domain/src/ops/apply.ts` `assertTestValueShape`; 24.14-API-001.
   class: note
   state: closed (2026-11-11, batch e24s; the production over-cap count of 2026-11-04 found no stored value over a cap, so no replayed op reaches the fold's check over 200)
+
+## Deferred from: Epic 24 fix batch e24y (2026-11-11)
+
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N2; P2)
+  summary: a confirmed conclusion text prints only while it is the text composed now (`printedConclusionText`), and a stale confirmed text prints only when the floor adjusted the pair. The batch carries the new TAG into an unedited, current suggestion in the rename's batch, but any other input that changes the composed text after "Concluir ficha" (a reading, an instrument, an observation edited while the pair stays) still leaves the CONCLUSÃO boxes with no paragraph and no warning. The same holds for a confirmed text that was already stale when the TAG was renamed: the rename writes nothing to it.
+  evidence: `packages/domain/src/relatorio/conclusion.ts` `printedConclusionText`, `conclusionTextState`; `packages/domain/src/relatorio/tag-rename.ts`.
+  class: decision
+  state: open (owner: Matheus: a stale confirmed text prints the stored text, the composed one, or blocks "Gerar" with a Sumário warning)
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N6; P6)
+  summary: not a defect. In the composer's palette the company copy "Chave seccionadora (SC)" (from before Story 24.8) is the one copy that hides the seeded seccionadora, so Story 24.19 proposes it; "Chave seccionadora (cópia)", made before fix batch e23z, carries no `base_block_type`, hides nothing and sits under "Outros equipamentos", and a type duplicated from it inherits none. An older copy without a base never hides its original.
+  evidence: `packages/domain/src/relatorio/panel.ts` `proposedFor`; `packages/domain/src/relatorio/tree.ts` `hidingCopies`.
+  class: note
+  state: open (owner: Matheus: whether copies made before e23z should learn their base)
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F4)
+  summary: an NC row still offers "Criar ponto de atenção" after its point exists, so one item can hold several points.
+  evidence: `apps/web/src/surfaces/ficha/checklist-section.tsx` (`ChecklistRow`).
+  class: decision
+  state: open (owner: Matheus: may an item hold several points)
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F5)
+  summary: in the local dev company the print's company identity differs from what Cadastros shows; older than Epic 24.
+  evidence: the hands-on pass of 2026-11-11 (report kept outside the repository).
+  class: defect
+  state: open (owner: the next batch touching the cover's identity; low)
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F7)
+  summary: a conclusion and section 10 name only the first pole out by its criterion; a rise on another pole appears only in the note line.
+  evidence: `packages/domain/src/relatorio/conclusion.ts` (`worstReadings`); `packages/domain/src/relatorio/parecer.ts`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F12 and F13)
+  summary: two wordings for Bruno: a restriction the technician chose over a clean sheet composes "dentro dos critérios ... Recomenda-se a correção dos pontos indicados" with no point indicated; an NC clause reads "apresentou baterias (item 4, NC)" before its observation.
+  evidence: `packages/domain/src/relatorio/conclusion.ts` (`composeConclusion`, `ncClauseText`).
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F15)
+  summary: "Último envio" shows another device's older push.
+  evidence: the hands-on pass of 2026-11-11; `apps/web/src/surfaces/sync/`.
+  class: defect
+  state: open (owner: the next batch touching the sync status; low)
+- source_spec: `spec-e24y-pass-fixes.md` (P5, Design Notes N4)
+  summary: like with like is judged on the current reading only: a reading corrected from the cabine's ambient (the plate's TEMPERATURA DO ÓLEO, or DO ENROLAMENTO, not typed) is not compared with the previous visit on v14. The stored previous reading keeps no record of where its temperature came from (a new synced field would be a fold change), so a previous visit corrected from its own ambient is still compared with a current one corrected from the plate. v13 keeps comparing as before.
+  evidence: `packages/domain/src/relatorio/reading-evaluation.ts` (`unlike`), `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory`; `packages/domain/src/schemas/entities.ts` `lastResultReadingSchema`.
+  class: decision
+  state: open (owner: Matheus: whether v13 should also take it, and whether the stored reading should keep its temperature's source)
+- source_spec: `spec-e24y-pass-fixes.md` (P3, Design Notes N3)
+  summary: the plate's TAG field renames the equipment on every seed (a person's commit, never on reading): an older seed's relatório whose stored plate TAG differs from its equipment's moves only when someone commits the field or renames. A plate reading that suggests a TAG and is confirmed through "Substituir" or "Confirmar todos" writes the cell alone, not the rename.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (`commitPlateTag`); `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx`.
+  class: decision
+  state: open (owner: Matheus: whether a confirmed TAG suggestion should rename too)
