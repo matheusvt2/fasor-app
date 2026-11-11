@@ -3839,12 +3839,12 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   evidence: `packages/domain/src/relatorio/instantiate.ts` (`free`, the reuse run); `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/relatorio/visit-context.ts` `visitContextOf`; `packages/domain/src/types/duplicate.ts` `seededTagPrefix`.
   class: decision
   state: open (owner: Matheus: thread the definitions through the visit context for a family-aware previous visit, or keep the binding to one type)
-- source_spec: `spec-e24x-review-fixes.md` (A1, Design Notes D1, listed for Matheus)
+- source_spec: `spec-e24x-review-fixes.md` (A1, Design Notes N1, listed for Matheus)
   summary: with the seed's phrases alone automatic (decision 17), a learned or a recent chip tapped and left untouched is now kept with the warning when its row leaves NC (one tap on "Apagar observação" removes it, with "Desfazer"), where Story 24.6 removed it; and a seed phrase typed letter by letter still reads as automatic and is removed (no stored provenance tells a tap from typing; one would be a contract).
   evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`.
   class: decision
   state: open (owner: Matheus)
-- source_spec: `spec-e24x-review-fixes.md` (B1, Design Notes D2)
+- source_spec: `spec-e24x-review-fixes.md` (B1, Design Notes N2)
   summary: with the uplink floor at 1 KB/s a push whose answer never comes holds its sync cycle up to about 69 min at 4 MiB (was 572 s); a body-less request still ends after 60 s. A doubling per attempt was not taken.
   evidence: `apps/web/src/sync/client.ts` `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S`, `requestHeadersTimeoutMs`.
   class: note
