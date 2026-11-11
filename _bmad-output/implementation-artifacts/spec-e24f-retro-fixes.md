@@ -2,10 +2,10 @@
 title: 'e24f: the Epic 23 retrospective''s review fixes (R-1, R-3, R-4, R-5, R-7, R-8, R-9) and the tests red under load (E23-A4; contract 42)'
 type: 'bugfix'
 created: '2026-11-10'
-status: 'in-review'
+status: 'done'
 baseline_revision: '1528183f3abfc76b842dcf3fc79bce86142db1ae'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md'
 warnings: ['batched', 'multiple-goals']
 batched_reason: 'The Epic 23 retrospective''s seven review findings (E23-A1) and its test-hardening list (E23-A4) run as one fix batch, as Matheus approved on 2026-11-10 (epic-24-context.md § Fix batch e24f): one spec, one gate, one PR.'
-deferred: []
+deferred:
+  - summary: >-
+      send() (photo uploads, thumbnail and file downloads) has no time bound, so an upload or thumbnail answer that never comes can still hold the single-flight sync cycle.
+    evidence: |-
+      Pre-existing; whether it caused 4.8-E2E-005 is unproven. Settled by a trace of a held cycle in an upload or thumbnail phase. Ledger row in deferred-work.md, e24f section.
+    location: >-
+      apps/web/src/sync/client.ts send
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -184,3 +191,7 @@ Status: done (verification below; review not run)
   - Gate 4 (load 7.72 to 5.74): R8CAP-E2E-010 three runs, 3 of 3. So each of the six cases passed three runs (4.8-E2E-005, 21.1-E2E-002, R8LAY-E2E-008, e24f-E2E-001, e24f-E2E-002 in gates 2 and 3; R8CAP-E2E-010 in gate 4). Lint 0 and static 0 again after the last edit.
   - Matrix: no durability spec drives the off-plate clear (only `ttr-per-tap.spec.ts`, not a durability spec), so no targeted matrix run applies to R-5.
 - **Not done here (spec):** `epics.md`, `source-deltas.md`, `epic-24-context.md`, `sprint-status.yaml` untouched; no seed change; no golden regenerated. The coordinator moves Epic 24's reserved contracts up by one (e24a 43 ...).
+- **Final story gate (orchestrator, on the merged head `bfd53e1a`, main `ea40d4e9` merged in, docs only):** lock wait 0 s, load `{ 2.60 4.19 5.35 }` to `{ 5.54 5.73 5.66 }`; lint 0 (20 s), static 0 (35 s), test:api 961 passed, 6 skipped (454 s), test:unit 6162 of 6162 (290 s), 18 specs on desktop-chrome and durability-desktop-chrome 108 of 108 (parallel 70, queue 21, solo 17; 457 s). The six hardened or new e2e cases on the final code: the gate run plus two separate runs, 6 of 6 each (load up to 10.98). No golden changed.
+- **Review:** Edge Case Hunter and Verification Gap (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them). 9 findings: 5 patched in one loop (the headers-only request bound, two findings of one root cause; R-1's vector-group case; the R8LAY ledger row; R-8's test run alone), 1 deferred (`send()` unbounded, ledger row), 3 rejected (R-4/R-8 not red by nature; the R-9 toast row misdescribed the product; R-7's `pending|sent` then asserted acked on the server).
+- **Follow-up review recommended: true.** Two medium entries were patched without a re-read: the headers-only bound in `apps/web/src/sync/client.ts` (`requestHeadersTimeoutMs`) and R-1's vector-group branch in `conclusion.ts`. The integrated review's second pass should read both first.
+
