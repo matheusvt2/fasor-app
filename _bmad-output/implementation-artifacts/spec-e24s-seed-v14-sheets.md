@@ -2,7 +2,7 @@
 title: 'e24s: seed v14 sheets: TP and TC lists, the transformer oil and dry items, QGBT inspection, the No-break de comando, the oil sampling "Outro" text and the ground grid block (Stories 24.10 to 24.14)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'dee6d567b16680b154b0f843cfff0f3a1aa54e4e'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -99,6 +99,23 @@ All under `packages/domain/src/` unless named.
 - Given the batch diff, when `git diff origin/main --name-status -- apps/api/src/jobs/generate/golden packages/domain/fixtures` runs, then it lists additions only (and `layout-lock/op-log.ts` if modified), and the v5, v11, v12, v13 layout-lock and Porto Seguro tests pass unchanged.
 - Given seed v1 to v13, when `seed.test.ts` runs, then every shipped hash holds and `withoutE24s(withoutE24a(v14))` equals v13.
 - Given a client on contract 44, when it syncs a relatório holding a No-break block, a v14 text value or a company type with `dry_items`, then the sync route answers 426.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-11-11 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them). Diff: the batch's own change, `ea6676d2` (main after batch e24c, merged in `55c2351c`) to `684db045`, binaries excluded.
+- verdicts: 8 findings — high 0, medium 2, low 5, false 1, maybe-false 0 (edge case 5, verification gap 3; the plate-block naming is reported by both layers)
+- findings:
+  - `[low]` `[reject]` (edge case) A `text` value with no choice parent in the values line would become a choice part and print in caps — no seeded value is such (the only text value sits under Motivo's choice), and the type editor offers no `text` kind; the fix adds a branch for a case nobody can create today.
+  - `[false]` `[reject]` (edge case) The fold's new short-string check on non-text test values could throw on the replay of an old pulled op holding a string over 200 characters — the route has capped `sheet/test/value` at 200 since Story 20.9 (contract 30), and the production over-cap count of 2026-11-04 (E20-A4, `deferred-work.md`) found 0 values over a cap, so no stored op reaches the check over it.
+  - `[low]` `[reject]` (edge case) The Conflict view names a v14 Malha's plate field under "Dados de placa" (`merge/conflicts.ts:155`) — real, but the story names the sheet and the composer only; a conflict on a Malha plate field is rare; recorded as a ledger row for the next batch touching the conflict view.
+  - `[low]` `[reject]` (edge case) A non-oil unit whose rule field holds a filled non-string value (an N/A mark) gets no reason, so its oil fields stay editable — that is the behaviour before this batch and the same as e23p's `dryFieldExcusedReason`; print and counts still excuse the field.
+  - `[low]` `[reject]` (edge case) A block with `nameplate_photo: false` that already holds a plate photo still shows its crop and photo row — no surface of a v14 Malha takes a plate photo, and showing a stored photo rather than hiding it is the conservative reading.
+  - `[medium]` `[patch]` (verification gap) No test parses a published Malha copy's version row and draft through the structural schemas that strip unknown keys, so dropping `nameplate_title`/`nameplate_photo` there would pass — patched: 24.14-UNIT parses both row schemas and asserts both keys.
+  - `[medium]` `[patch]` (verification gap) 24.2-UNIT-SAME stopped comparing the TC, transformer and Inspeção de QGBT sheets outside their checklist, so a v14-only print change there would pass — patched: equality of those sheets with the checklist part (and the inspection's thermography) removed.
+  - `[low]` `[reject]` (verification gap, other) The sheet stepper's step label "Placa" and the Conflict view's "Dados de placa" do not read `nameplateTitleOf` — the same root as the Conflict view row above (the story names the sheet title and the composer); same ledger row.
 
 ## Design Notes
 

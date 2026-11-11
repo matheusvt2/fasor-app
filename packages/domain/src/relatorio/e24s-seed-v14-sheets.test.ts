@@ -7,12 +7,12 @@ import { CAPTION_EQUIPMENT_WORDS } from '../photos/caption.ts';
 import { totalsText } from '../templates/text.ts';
 import { section9Layout, type PrintSheet, type PrintTable, type SheetPart } from '../print/section-9.ts';
 import type { EquipmentBlockType, Subtype } from '../schemas/block-config.ts';
-import { relatorioRowSchema, type BlockRow, type Cell, type EntityRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
+import { equipmentTypeRowSchema, equipmentTypeVersionRowSchema, relatorioRowSchema, type BlockRow, type Cell, type EntityRow, type FileRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
-import { opFactory, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, type OpFactory } from '../test-support.ts';
+import { opFactory, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER, type OpFactory } from '../test-support.ts';
 import { asBlockDefinition } from '../types/block-definition.ts';
 import { companyTypeDefinitionSchema, type CompanyTypeDraft } from '../types/definition.ts';
 import { removeDraftEntry } from '../types/draft-edit.ts';
@@ -665,6 +665,17 @@ describe('24.14-UNIT the Malha\'s plate block: its title and no plate photo, rea
     expect([draft.nameplate_title, draft.nameplate_photo]).toEqual(['Dados da malha', false]);
     const definition = companyTypeDefinitionSchema.parse(draft);
     const adapted = asBlockDefinition({ id: id(82), type_id: id(83), version: 1, definition });
+    expect([nameplateTitleOf(adapted), nameplatePhotoOffered(adapted)]).toEqual(['Dados da malha', false]);
+  });
+
+  it('a published Malha copy keeps both keys through the row schemas the store reads it with (its version row and its draft row)', () => {
+    const { derived_from, draft } = duplicateSeededType('v14', 'malha_aterramento');
+    const version = equipmentTypeVersionRowSchema.parse({ id: id(84), type_id: id(85), version: 1, definition: draft, published_by: TEST_USER, published_at: '2026-11-11T12:00:00.000Z' });
+    expect([version.definition.nameplate_title, version.definition.nameplate_photo]).toEqual(['Dados da malha', false]);
+    const type = equipmentTypeRowSchema.parse({ id: id(85), derived_from, draft, retired_at: null, removed_at: null, latest_version: 1 });
+    expect([type.draft?.nameplate_title, type.draft?.nameplate_photo]).toEqual(['Dados da malha', false]);
+    // Read back through `asBlockDefinition`, the stored version still titles its block and offers no photo.
+    const adapted = asBlockDefinition(version);
     expect([nameplateTitleOf(adapted), nameplatePhotoOffered(adapted)]).toEqual(['Dados da malha', false]);
   });
 
