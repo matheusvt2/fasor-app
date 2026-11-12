@@ -5,7 +5,7 @@ import type { BlockDefinition, OilRule } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
-import { chosenConclusionPair, effectiveConclusionPair, observationRequiredFor, restrictionApplies } from './conclusion.ts';
+import { chosenConclusionPair, effectiveConclusionPair, observationRequiredFor, restrictionOffered } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { measurementCounts } from './measurement-evaluation.ts';
 import { nameplateTitleOf } from './nameplate-block.ts';
@@ -251,7 +251,8 @@ function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled:
   // Batch e24a (Story 24.3, seed v14): a Reprovado takes no restriction (`restrictionApplies`); with no result
   // chosen yet, the one the screen shows (the effective one) decides, as it decides whether the group is drawn.
   const shown = result ?? effectiveConclusionPair(block, definition, visit).result;
-  if (restriction === null && restrictionApplies(block, shown)) missing += 1;
+  // Story 25.6 (seed v15): nor on a sheet with no measurement, whose only result is Reprovado (`restrictionOffered`).
+  if (restriction === null && restrictionOffered(block, shown, definition, visit)) missing += 1;
   // Com restrições requires the observation; batch e24a (Story 24.3, seed v14): a Reprovado too (`observationRequiredFor`).
   if (observationRequiredFor(block, { result, restriction }) !== null && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
   return { missing: missing + observation, observation };

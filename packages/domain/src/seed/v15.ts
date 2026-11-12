@@ -18,10 +18,22 @@ import { CABINE_PRIMARIA_V14 } from './v14.ts';
 
 const v14 = CABINE_PRIMARIA_V14;
 
+// --- Story 25.6: a sheet with no measurement does not accept Aprovado ---------------------------
+
+/**
+ * Story 25.6 (M07, decision 6): the flag `no_measurement_refuses_aprovado`. A sheet whose live tests
+ * hold no measured reading and at least one "Não medido" neither offers nor accepts Aprovado
+ * (`noMeasurementRefusesAprovado`, `relatorio/conclusion.ts`); no definition key changes.
+ */
+function story25_6(seed: ReportSeed): void {
+  seed.rules = { ...seed.rules, no_measurement_refuses_aprovado: true };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
   const seed = structuredClone(v14);
+  story25_6(seed);
   return seed;
 }
 

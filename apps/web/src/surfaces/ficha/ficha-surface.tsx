@@ -267,6 +267,7 @@ function FichaBody({
                 visit={visit}
                 visitRelatorio={snapshot.relatorio}
                 pointPlace={pointPlaces(pointFindings, 'conclusao', placeProps)}
+                onMarkNotTested={() => actions.setNotTestedDialogOpen(true)}
               />
               {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}
               <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />

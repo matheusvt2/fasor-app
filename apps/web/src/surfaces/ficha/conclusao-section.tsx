@@ -16,8 +16,9 @@ import {
   enabledSubBlocksOf,
   isConclusionPairComplete,
   isLooserThanFloor,
+  noMeasurementRefusesAprovado,
   observationRequiredBy,
-  restrictionApplies,
+  restrictionOffered,
   resultChoiceWrites,
   sheetConclusionPath,
   sheetObservationsPath,
@@ -199,6 +200,7 @@ export function ConclusaoSection({
   visit,
   pointPlace,
   visitRelatorio = null,
+  onMarkNotTested,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -217,6 +219,8 @@ export function ConclusaoSection({
   pointPlace?: ReactNode;
   /** Fix batch e24x (D3): the relatório's service dates, so a fresh rebuild reads the visit `visit` reads (`visitContextOf`). */
   visitRelatorio?: { setup: { service_start?: string | null; service_end?: string | null } } | null;
+  /** Story 25.6 (`60-ficha.html` #ficha-conc-dj02): opens the existing "Marcar não ensaiado" dialog, the header Overflow's. */
+  onMarkNotTested?: () => void;
 }) {
   const t = copy.ficha.conclusao;
   const obsHeading = useId();
@@ -279,7 +283,10 @@ export function ConclusaoSection({
   const required = requiredBy !== null && observation.text.trim() === '' && !observationSuggested;
   const observationMissing = requiredBy !== null && isConclusionPairComplete(block, { result, restriction });
   // Batch e24a (Story 24.3, seed v14): a Reprovado ficha has no restriction to choose, so no Restrições group.
-  const restrictionShown = restrictionApplies(block, result);
+  // Story 25.6 (seed v15): nor a sheet with no measurement, whose only result is Reprovado (`restrictionOffered`).
+  const restrictionShown = restrictionOffered(block, result, definition, visit);
+  // Story 25.6 (seed v15): Aprovado refused for a sheet with no measurement: the reason line and "Marcar não ensaiado".
+  const noMeasurement = !readOnly && noMeasurementRefusesAprovado(block, definition, visit);
 
   const edit = (build: Parameters<FichaApi['edit']>[0]) => void api.edit(build).catch(() => undefined);
 
@@ -515,7 +522,8 @@ export function ConclusaoSection({
               />
             ) : null}
             {floorReason === null || readOnly ? null : (
-              <span className="conclusion-hint" id={floorReasonId}>
+              // Story 25.6: the no-measurement reason line carries the mock's `.e25-reason` (`60-ficha.html` #ficha-dj02-reason).
+              <span className={noMeasurement ? 'conclusion-hint e25-reason' : 'conclusion-hint'} id={floorReasonId}>
                 {floorReason}
               </span>
             )}
@@ -533,6 +541,13 @@ export function ConclusaoSection({
               </span>
             ) : null}
           </div>
+          {noMeasurement && onMarkNotTested !== undefined ? (
+            <div className="row-wrap e24-point-place">
+              <button type="button" className="btn btn-secondary" onClick={onMarkNotTested}>
+                {copy.sumario.tree.markNotTested}
+              </button>
+            </div>
+          ) : null}
           {pointPlace}
           {result === null ? null : (
             <div className="ficha-conc-text">

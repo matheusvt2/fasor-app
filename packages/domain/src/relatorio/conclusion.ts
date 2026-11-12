@@ -13,7 +13,7 @@ import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, readingRowLabel
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
-import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
+import { enabledSubBlocksOf, isCellFilled, registerConcludedAprovadoRefused } from './sheet-state.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
 
 /*
@@ -60,6 +60,14 @@ function restrictionByChoice(block: Pick<BlockRow, 'seed_version'>): boolean {
  */
 export function restrictionApplies(block: Pick<BlockRow, 'seed_version'>, result: ConclusionResult | null): boolean {
   return result !== 'reprovado' || !restrictionByChoice(block);
+}
+
+/**
+ * Story 25.6: whether the Restrições group is drawn and its half counted: `restrictionApplies`, and never on
+ * a sheet with no measurement (seed v15), whose only result is Reprovado, which has no restriction.
+ */
+export function restrictionOffered(block: BlockRow, result: ConclusionResult | null, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
+  return restrictionApplies(block, result) && !noMeasurementRefusesAprovado(block, definition, visit);
 }
 
 /**
@@ -220,6 +228,9 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   if (cells.some((cell) => cell.verdict === 'restricted') || tableCells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
   if (ncItems(block, definition).length > 0) restrictions.push('nc');
   if (failures.length > 0) return failureFloor(block, failures, restrictions);
+  // Story 25.6 (seed v15 `no_measurement_refuses_aprovado`): a sheet with no measurement has no Aprovado floor, and is never
+  // turned Reprovado by itself: no floor, so nothing is suggested or previewed until the technician reproves it or marks it not tested.
+  if (noMeasurementRule(block) && noMeasurementOn(block, definition, visit)) return null;
   if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
   if (tableCells.some((cell) => cell.toCheck)) return null;
@@ -267,6 +278,54 @@ function overRangeUnjudged(evaluations: readonly TestEvaluation[]): boolean {
   return evaluations.some((test) => test.criterion !== null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'over_range' && cell.verdict === null));
 }
 
+/** Story 25.6: the flag of the block's own seed (a company block carries its relatório's). */
+function noMeasurementRule(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'no_measurement_refuses_aprovado');
+}
+
+/**
+ * Story 25.6 (M07, decision 6): "no measurement". The reading cells of the sheet's live tests (the seeded
+ * tests enabled and in force, `evaluateSheetReadings`; the measurement tests switched on, run and applicable,
+ * `measurementCells`) hold at least one "Não medido" and no value, measured or above the instrument's limit
+ * (`isReadingValue`). A reading cell is a capture or a typed index of a seeded table and a number cell of a
+ * measurement table; a ratio input, a choice (the polarity, the oil sampling's answer) and a test value are
+ * not readings, so they neither make nor break the rule. A cell holding any other state (an N/A cell, Story
+ * 25.9) is left out. A sheet with no reading cell (nothing to measure, every test switched off) is not in it.
+ */
+function noMeasurementOn(block: BlockRow, definition: BlockDefinition, visit: VisitContext): boolean {
+  const seeded = evaluatedCells(sheetReadings(block, definition, visit)).filter((cell) => cell.role !== 'input');
+  const table = measurementCells(sheetMeasurements(block, definition, visit)).filter((cell) => cell.kind === 'number');
+  const states = [...seeded, ...table].map((cell) => cell.state);
+  return states.includes('not_measured') && !states.some((state) => isReadingValue(state));
+}
+
+/**
+ * Story 25.6 (seed v15 `no_measurement_refuses_aprovado`): whether the sheet neither offers nor accepts
+ * Aprovado because nothing on it was measured (`noMeasurementOn`). Aprovado is disabled with its own reason
+ * line (`conclusionFloorReasonText`), a stored Aprovado reads as no result (`effectiveConclusionPair`), no
+ * restriction is asked (`restrictionOffered`), and the step offers "Marcar não ensaiado". Reprovado stays
+ * possible. False on a sheet marked not tested, on a seed without the flag (v1 to v14), and with no definition.
+ */
+export function noMeasurementRefusesAprovado(block: BlockRow, given: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
+  if (block.not_tested !== null || !noMeasurementRule(block)) return false;
+  const definition = definitionOf(block, given);
+  return definition !== null && noMeasurementOn(block, definition, visit);
+}
+
+/**
+ * Story 25.6: a concluded sheet whose stored Aprovado the rule now refuses (a reading set to "Não medido"
+ * after the conclude) reads as not concluded (`sheetState`): nothing is written by itself. Read for a seeded
+ * type only, from its own seed and with no visit context (the rule reads cell states alone); a company type's
+ * definition lives in the snapshot, which `sheetState` does not hold, so a company sheet keeps its state.
+ */
+export function storedAprovadoRefused(block: BlockRow): boolean {
+  if (block.not_tested !== null || conclusionResultOf(block) !== 'aprovado' || !noMeasurementRule(block) || isCompanyBlockType(block.block_type)) return false;
+  return noMeasurementRefusesAprovado(block);
+}
+
+// Story 25.6: `sheetState` reads the refusal through this registration (a direct import would close a module cycle).
+registerConcludedAprovadoRefused(storedAprovadoRefused);
+
 const RESULT_RANK: Readonly<Record<ConclusionResult, number>> = { aprovado: 1, reprovado: 2 };
 const RESTRICTION_RANK: Readonly<Record<ConclusionRestriction, number>> = { sem_restricoes: 1, com_restricoes: 2 };
 
@@ -295,10 +354,14 @@ export function effectiveConclusionPair(block: BlockRow, definition: DefinitionA
   // A sheet marked not tested prints no conclusion: a pair stored before the mark is ignored,
   // and only a defect reason's floor applies (review of batch e22c).
   const tested = block.not_tested === null;
-  const result = stricter(RESULT_RANK, floor?.result ?? null, tested ? conclusionResultOf(block) : null);
+  // Story 25.6 (seed v15): on a sheet with no measurement a stored Aprovado reads as no result, and no restriction
+  // is read (the stored values stay, ignored on read, until the technician writes again: nothing is written by itself).
+  const refused = tested && noMeasurementRefusesAprovado(block, definition, visit);
+  const stored = tested ? conclusionResultOf(block) : null;
+  const result = stricter(RESULT_RANK, floor?.result ?? null, refused && stored === 'aprovado' ? null : stored);
   // Batch e24a (Story 24.3, seed v14): a Reprovado ficha has no restriction, the floor's or one stored
   // before (decision 3: the stored value stays, ignored on read, until the technician writes again).
-  if (!restrictionApplies(block, result)) return { result, restriction: null };
+  if (!restrictionApplies(block, result) || refused) return { result, restriction: null };
   return {
     result,
     restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, tested ? conclusionRestrictionOf(block) : null),
@@ -342,12 +405,16 @@ export function conclusionAdjusted(block: BlockRow, definition: DefinitionArg = 
   const result = conclusionResultOf(block);
   const restriction = conclusionRestrictionOf(block);
   if (result === null || restriction === null) return false;
+  // Story 25.6: a stored pair the no-measurement rule refuses is not adjusted, it reads as not concluded (no Confirmar).
+  if (noMeasurementRefusesAprovado(block, definition, visit)) return false;
   const effective = effectiveConclusionPair(block, definition, visit);
   return effective.result !== result || effective.restriction !== restriction;
 }
 
 /** Story 22.4: whether a segment is looser than the floor, so the radiogroups disable it (a stricter one stays choosable). */
 export function isLooserThanFloor(block: BlockRow, value: ConclusionResult | ConclusionRestriction, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
+  // Story 25.6 (seed v15): Aprovado is not offered on a sheet with no measurement, drawn disabled as a looser segment is.
+  if (value === 'aprovado' && noMeasurementRefusesAprovado(block, definition, visit)) return true;
   const floor = conclusionFloor(block, definition, visit)?.pair ?? null;
   if (floor === null) return false;
   if (value === 'aprovado' || value === 'reprovado') return RESULT_RANK[value] < RESULT_RANK[floor.result];
@@ -378,6 +445,9 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
   // ~~observation: 'observação registrada'~~ (fix batch e24h, H9: an observation floors nothing).
 };
 
+// authored (Story 25.6, M07, for Bruno): the reason line of a sheet with no measurement (`60-ficha.html` #ficha-dj02-reason).
+const NO_MEASUREMENT_TEXT = 'Nenhum ensaio foi medido nesta ficha. Registre as medições ou marque a ficha como não ensaiada.';
+
 /**
  * Story 22.4: the one line under the radiogroups naming why segments are disabled: "A ficha
  * exige no mínimo Reprovado · Com restrições: leitura fora do critério." Null while no
@@ -385,7 +455,8 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
  */
 export function conclusionFloorReasonText(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): string | null {
   const floor = conclusionFloor(block, definition, visit);
-  if (floor === null || floor.reasons.length === 0) return null;
+  // Story 25.6 (seed v15): with no failure to name, a sheet with no measurement says why Aprovado is disabled.
+  if (floor === null || floor.reasons.length === 0) return noMeasurementRefusesAprovado(block, definition, visit) ? NO_MEASUREMENT_TEXT : null;
   // Batch e23e (Story 23.18, review fix): a ratio failed by its choice alone (a polarity INVERTIDA) names the choice.
   const resolved = floor.reasons.includes('ratio') ? definitionOf(block, definition) : null;
   const choice = resolved === null ? null : choiceOnlyFailureText(failedRatioRows(sheetReadings(block, resolved, visit)));

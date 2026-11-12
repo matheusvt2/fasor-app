@@ -1050,6 +1050,8 @@ export const seedRulesSchema = z
     history_needs_like_with_like: z.literal(true).optional(),
     /** Fix batch e24y (F10): a checklist step whose definition holds no item is neither drawn nor named in the Sheet header. */
     empty_steps_hidden: z.literal(true).optional(),
+    /** Story 25.6 (seed v15, M07): a sheet with no measurement (every reading of its live tests "Não medido", none measured) neither offers nor accepts Aprovado. */
+    no_measurement_refuses_aprovado: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;
