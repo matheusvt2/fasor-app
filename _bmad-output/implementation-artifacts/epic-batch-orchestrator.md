@@ -481,3 +481,16 @@ carries the date it was written. P-8 of Epic 24 gives no new rule: it is the eva
   questions B-1 to B-10 were known at planning on 2026-11-10 and sent after the build. The answers came on the last
   day, and Epic 25 reworks four stories built the day before (Stories 25.17, 25.18, 25.19 and 25.21 over 24.13, 24.10,
   24.11 and 24.16).
+
+## 12. Token economy of Epic 25 (2026-11-12, Matheus, "sim nos 3")
+
+Mirrors the 2026-11-12 line of `AGENTS.md` "Decisions of record". It amends the story gate of 2026-10-08 (§ 2).
+
+- ~~A story gate per batch plus an integrated gate after the merges.~~ *(2026-11-12)* A batch runs `lint`, `static`,
+  `test:unit`, `test:api` and its touched specs (and its touched durability specs under the E10-A4 condition), pastes
+  the summary in its PR and stops. The coordinator runs ONE full gate per wave on the integrated branch.
+- ~~A batch review and an integrated review.~~ *(2026-11-12)* No review loop inside the batch (this overrides § 2's
+  "Review (step 4)" for Epic 25 batches); the coordinator runs one review per wave.
+- Orchestration and records run on the cheaper model. The expensive model is for kernel and print code and for the
+  review.
+- One batch and one PR per wave; a second batch only when kernel and screen work do not touch. One records PR per wave.
