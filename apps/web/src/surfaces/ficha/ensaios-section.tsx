@@ -685,8 +685,10 @@ function MeasurementTable({
                     </td>
                   ) : i === 0 && rowAction(row) !== null ? (
                     // Story 25.9 (`60-ficha.html` #/ficha/TP-02 `.e25-row-head`): the row's action beside its name.
+                    // Review of PR #332 (R8LAY-E2E-001): an unnamed row (the TTR of a plate with no taps, "—") stacks it
+                    // under the dash as the TTR's first column stacks a tap row's (`.tap-cell`), so the table fits at 1280.
                     <td key={`c${i}`} className="cell-point">
-                      <span className="e25-row-head">
+                      <span className={text === '' ? 'tap-cell' : 'e25-row-head'}>
                         {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
                         {rowAction(row)}
                       </span>
