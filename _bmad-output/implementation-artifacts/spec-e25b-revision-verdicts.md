@@ -2,7 +2,7 @@
 title: 'e25b: the revision keeps the verdicts it printed (Story 25.4)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: '4da9493b7b381dc7839369aee665497e2b9ec587'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -132,3 +132,14 @@ deferred:
 - `podman compose --profile tools run --rm --user root tools pnpm lint` / `static` / `test:unit` / `test:api` -- green.
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/revision-verdicts.spec.ts e2e/export.spec.ts e2e/parecer-export.spec.ts e2e/conclusion-v14.spec.ts e2e/emission-audit.spec.ts e2e/security-ops.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- green.
 - `git diff --stat origin/main -- apps/api/src/jobs/generate/golden packages/domain/fixtures packages/domain/src/seed` -- empty.
+
+## Auto Run Result
+
+Status: done (2026-11-11, batch e25b; PR open, not merged).
+
+- **Built.** The `revision` row's optional `printed_parecer` and `printed_conclusions` (`schemas/entities.ts`, `printedConclusionSchema`), written by `commitRevision` from `printedVerdicts(frozen.snapshot)` (`print/printed-verdicts.ts`); `printsConclusionRow` (`print/section-9.ts`) is the one rule `sheetOf` prints by and the record follows; `relatorioVerdicts(snapshot, revisions)` is the raw reader. Contract 48, MIN 48. The Conferência por IA already read the effective values through the draft layout (no fix; AC6 test added). No screen, seed or older golden changed.
+- **Coordinator's addition.** `LAYOUT_LOCK_VERSIONS` gains v14; `golden/layout-lock-v14/` (seven files) taken from the product code of main 928dad15 (= deployed 2009fa30) with this branch's product changes set aside, commit 7a8c7aa6; byte-equal after the change.
+- **Files.** `schemas/entities.ts`, `print/section-9.ts`, `print/printed-verdicts.ts` (+ test), `index.ts`, `contract/version.ts`, `contract/contract.test.ts`, `audit/audit.test.ts`, `apps/api/src/jobs/generate/job.ts`, `apps/api/src/jobs/generate/e25b-revision-verdicts.integration.test.ts`, the two sync tests' contract asserts, `e2e/revision-verdicts.spec.ts`, `e2e/support/groups.ts` (queue lane), `fixtures/layout-lock/op-log.ts`, the v14 goldens; records: spine AD-25, `source-deltas.md`, KB `data-model.md` and `log.md`, `deferred-work.md` § e25b and the § e22c row's note, `sprint-status.yaml`.
+- **Review.** 7 findings: 3 low patched (doc comments: keyed not ordered, live revisions), 1 low deferred (open sheet: printed vs effective, Matheus), 2 false rejected. Follow-up review recommended: false (no high, no two mediums patched).
+- **Verification.** Story gate on 7a8c7aa6 under the host lock (wait 0 s; load 6.01 at the start, 5.10 at the end; batch e25a's stack up beside): lint 0 (27 warnings, none in this diff), static 0, test:api 1003 passed / 6 skipped, test:unit 6611 of 6611, touched specs 31 of 31 (queue lane; revision-verdicts, export, parecer-export, conclusion-v14, emission-audit, security-ops). Earlier iteration runs under load had 15 web unit timeouts and two api reds (friction-read CLI 60 s timeout, generation-time 58.6 s against 50 s), all green in the gate run.
+- **Residual risks.** The matrix row "conclusion sub-block off" cannot occur (the conclusion is locked); no raw reader calls `relatorioVerdicts` yet.
