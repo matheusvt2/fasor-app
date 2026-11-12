@@ -315,11 +315,17 @@ export const restrictionSchema = z
     pole_deviation_pct: restrictionPct.optional(),
     // Fix batch e23w (B-6): see `testDefSchema.restriction`.
     history_rise_out_pct: restrictionPct.optional(),
+    // Batch e25c (Story 25.8, seed v15): see `testDefSchema.restriction`.
+    history_rise_at_limit_restricted: z.literal(true).optional(),
     prerequisite: z.object({ field: seedKey, fails_on: z.array(z.string().min(1)).min(1) }).optional(),
     status: criterionRowStatusSchema,
   })
   .refine((r) => r.history_drop_pct !== undefined || r.below_largest_pct !== undefined || r.pole_deviation_pct !== undefined || r.history_rise_out_pct !== undefined || r.prerequisite !== undefined, {
     message: 'a restriction names at least one rule',
+  })
+  .refine((r) => r.history_rise_at_limit_restricted === undefined || r.history_rise_out_pct !== undefined, {
+    message: 'history_rise_at_limit_restricted qualifies history_rise_out_pct',
+    path: ['history_rise_at_limit_restricted'],
   });
 export type RestrictionRules = z.infer<typeof restrictionSchema>;
 
@@ -424,6 +430,9 @@ export const testDefSchema = z.object({
    * fix batch e23w (Bruno's answer B-6, DJ-03, SC-03): `history_rise_out_pct` puts out a measured
    * reading more than that share above the same cell's previous measured value (the previous
    * visit on seed v13 or later), the one rule here that sets out rather than restricted.
+   * Batch e25c (Story 25.8, Bruno's answer 1 of 2026-11-11, seed v15): `history_rise_at_limit_restricted`
+   * (only beside `history_rise_out_pct`) makes a rise equal to that share, within the rule's rounding
+   * tolerance, restricted rather than within; above it stays out.
    * `status` is the base's status of the rule (`CRITERION_ROW_STATUSES`, data only).
    */
   restriction: restrictionSchema.optional(),

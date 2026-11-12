@@ -28,6 +28,7 @@ import { CABINE_PRIMARIA_V2 } from './v2.ts';
 import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
+import { STORY_25_8_TESTS } from './v15.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
 
@@ -2380,14 +2381,15 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
  */
 // Story 25.6 (batch e25c): the flag `no_measurement_refuses_aprovado` (`withoutE25c6` below).
 // Story 25.7 (batch e25c): the flag `conclusion_names_choice_and_unmeasured` (`withoutE25c7` below).
-const V15_HASH = 'abd050d6c486f87bb441fde078229f5b45bc8800525c223ee624ad9b0208eb54';
+// Story 25.8 (batch e25c): the definition key `restriction.history_rise_at_limit_restricted` (`withoutE25c8` below).
+const V15_HASH = 'a208819ebc0437d9a9fb56d0b2b48aecb932880187865833cd7a421537e6a8e5';
 
 /**
  * Story 25.5: each later Epic 25 story's delta on v15, undone, in the order `seed/v15.ts` applies them. A story
  * that adds a v15 key or rule flag adds its own `withoutE25c<N>` helper below this line and names it here, so
  * `withoutEpic25(v15)` stays v14 and "25.5-UNIT" keeps pinning that every other byte of v15 is v14's.
  */
-const EPIC25_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25c6, withoutE25c7];
+const EPIC25_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25c6, withoutE25c7, withoutE25c8];
 
 /** Story 25.6's delta undone: its flag `no_measurement_refuses_aprovado` dropped (v15 keeps v14's flags, so `rules` stays). */
 function withoutE25c6(seed: ReportSeed): ReportSeed {
@@ -2404,6 +2406,16 @@ function withoutE25c7(seed: ReportSeed): ReportSeed {
   if (out.rules === undefined) return out;
   for (const flag of E25C7_FLAGS) delete out.rules[flag];
   if (Object.keys(out.rules).length === 0) delete out.rules;
+  return out;
+}
+
+/** Story 25.8's delta undone: the key `history_rise_at_limit_restricted` dropped from the contact tests it names. */
+function withoutE25c8(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  for (const [type, testKey] of STORY_25_8_TESTS) {
+    const restriction = out.blocks[type].tests.find((test) => test.key === testKey)?.restriction;
+    if (restriction !== undefined) delete restriction.history_rise_at_limit_restricted;
+  }
   return out;
 }
 

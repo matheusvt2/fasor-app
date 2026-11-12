@@ -41,12 +41,34 @@ function story25_7(seed: ReportSeed): void {
   seed.rules = { ...seed.rules, conclusion_names_choice_and_unmeasured: true };
 }
 
+// --- Story 25.8: a contact rise of exactly 50 % is "com restrição" ------------------------------
+
+/** Story 25.8's tests: the contact resistance of the breaker and of the switch, the two carrying `history_rise_out_pct`. */
+export const STORY_25_8_TESTS = [
+  ['disjuntor_mt', 'resistencia_contato'],
+  ['chave_seccionadora', 'resistencia_contato'],
+] as const;
+
+/**
+ * Story 25.8 (Bruno's answer 1 of 2026-11-11): the definition key `restriction.history_rise_at_limit_restricted`
+ * on the contact test of the breaker and the switch. A pole whose rise since the previous visit equals
+ * `history_rise_out_pct` (50) is restricted (`riseAtLimitOf`, `relatorio/restriction.ts`); above it stays out.
+ */
+function story25_8(seed: ReportSeed): void {
+  for (const [type, testKey] of STORY_25_8_TESTS) {
+    const test = seed.blocks[type].tests.find((candidate) => candidate.key === testKey);
+    if (test?.restriction?.history_rise_out_pct === undefined) throw new Error(`seed v15: ${type}.${testKey} lacks history_rise_out_pct`);
+    test.restriction.history_rise_at_limit_restricted = true;
+  }
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
   const seed = structuredClone(v14);
   story25_6(seed);
   story25_7(seed);
+  story25_8(seed);
   return seed;
 }
 

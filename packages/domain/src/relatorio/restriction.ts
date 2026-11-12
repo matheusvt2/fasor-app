@@ -168,6 +168,10 @@ export function applyRestrictions(test: TestDef, rows: readonly EvaluatedRow[], 
         const found = historyOf(cell, rules.history_drop_pct, previous);
         if (found !== null) findings.push(found);
       }
+      if (rules.history_rise_at_limit_restricted === true && rules.history_rise_out_pct !== undefined && cell.verdict === 'within') {
+        const found = riseAtLimitOf(cell, rules.history_rise_out_pct, previous);
+        if (found !== null) findings.push(found);
+      }
       if (own !== undefined && rules.below_largest_pct !== undefined) {
         const others = readings.filter((reading) => reading !== own);
         const largest = others.reduce<ColumnReading | null>((best, reading) => (best === null || reading.value > best.value ? reading : best), null);
@@ -222,26 +226,21 @@ const RISE_FROM_SEED = 13;
  * unit, is more than the share above the same cell's previous measured value. The previous visit
  * (`visit.previous`) judges only when it was issued on seed v13 or later and the cell's previous
  * reading is measured and above zero; a reading above the instrument's limit, on either visit,
- * judges nothing. The bound is exclusive (exactly the share is within). Applied before the
+ * judges nothing. The bound is exclusive (exactly the share is within; on a seed whose rule carries
+ * `history_rise_at_limit_restricted`, v15, exactly the share is restricted, `riseAtLimitOf`). Applied before the
  * restriction rules (`applyRestrictions`), so a pole both risen and deviating is out.
  * `captureColumns` are the table's capture columns. A reading already out keeps its own reason.
  */
 export function applyHistoryRise(test: TestDef, rows: readonly EvaluatedRow[], captureColumns: readonly { col: number; column: ColumnDef }[], previous: RestrictionPrevious): void {
   const pct = test.restriction?.history_rise_out_pct;
-  const entry = previous.entry;
-  if (pct === undefined || entry === null) return;
-  const seed = seedNumber(entry.seed_version);
-  if (seed === null || seed < RISE_FROM_SEED) return;
+  if (pct === undefined) return;
   for (const { col } of captureColumns) {
     for (const row of rows) {
       const cell = row.cells.find((candidate) => candidate.address.col === col && candidate.role === 'capture');
-      if (cell === undefined || cell.state !== 'measured' || cell.verdict !== 'within') continue;
-      const before = previous.byAddress.get(readingAddressKey(cell.address));
-      if (before === undefined || before.state !== 'measured') continue;
-      const was = Number(before.raw);
-      const now = scaleToUnit(Number(cell.raw), cell.unit, before.unit);
-      if (!(was > 0) || !Number.isFinite(was) || now === null || !Number.isFinite(now)) continue;
-      const rise = ((now - was) / was) * 100;
+      if (cell === undefined || cell.verdict !== 'within') continue;
+      const found = riseOf(cell, previous);
+      if (found === null) continue;
+      const { rise, before, entry } = found;
       if (!(rise > pct * (1 + EPSILON))) continue;
       // authored (e23w, listed for Bruno): a pole out by its rise since the previous visit, as the helper, the points and the conclusion name it.
       // The rise is shown rounded up to one decimal, so a rise just past the limit never reads as the limit (review fix).
@@ -251,6 +250,38 @@ export function applyHistoryRise(test: TestDef, rows: readonly EvaluatedRow[], c
       cell.helperText = `Acima do aceitável: ${reason}`;
     }
   }
+}
+
+/**
+ * The rise of one measured cell over the same cell's previous measured value, in percent, in the
+ * previous one's unit: null when the previous visit was issued before seed v13, the cell or its
+ * previous reading is not measured, or the previous value is not above zero (`applyHistoryRise`).
+ */
+function riseOf(cell: EvaluatedCell, previous: RestrictionPrevious): { rise: number; before: LastResultReading; entry: PreviousResults } | null {
+  const entry = previous.entry;
+  if (entry === null || cell.state !== 'measured') return null;
+  const seed = seedNumber(entry.seed_version);
+  if (seed === null || seed < RISE_FROM_SEED) return null;
+  const before = previous.byAddress.get(readingAddressKey(cell.address));
+  if (before === undefined || before.state !== 'measured') return null;
+  const was = Number(before.raw);
+  const now = scaleToUnit(Number(cell.raw), cell.unit, before.unit);
+  if (!(was > 0) || !Number.isFinite(was) || now === null || !Number.isFinite(now)) return null;
+  return { rise: ((now - was) / was) * 100, before, entry };
+}
+
+/**
+ * Batch e25c (Story 25.8, Bruno's answer 1 of 2026-11-11; seed v15, `restriction.history_rise_at_limit_restricted`):
+ * a pole within its criterion whose rise equals `history_rise_out_pct`, within the rule's tolerance
+ * (`EPSILON`), is restricted; a rise above it is out (`applyHistoryRise`), below it nothing. A
+ * previous-visit finding, so the note line under the table names it too.
+ */
+function riseAtLimitOf(cell: EvaluatedCell, pct: number, previous: RestrictionPrevious): Finding | null {
+  const found = riseOf(cell, previous);
+  if (found === null || found.rise < pct * (1 - EPSILON) || found.rise > pct * (1 + EPSILON)) return null;
+  // authored (e25c, Story 25.8, listed for Bruno): the rise of a restricted pole, in the form of the out one's, at the limit.
+  const reason = `alta de ${pctText(pct)} % sobre ${previousReadingValueText(found.before)} da manutenção anterior, rev. ${found.entry.revision_number} de ${previousDateOf(found.entry, previous)}, no limite de ${pctText(pct)} %`;
+  return { reason, detail: reason, history: true };
 }
 
 /** A previous measured reading as the rise names it: "40 µΩ". */

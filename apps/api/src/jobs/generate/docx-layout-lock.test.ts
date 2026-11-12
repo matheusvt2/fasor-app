@@ -54,6 +54,24 @@ vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importO
   };
 });
 
+/*
+ * Story 25.8 (25.5-UNIT-SAME): a v15 definition key, not a rule flag, gates the contact rise at the limit
+ * (`restriction.history_rise_at_limit_restricted`). While v15 reads v14's flags, the rules read each test
+ * without it too, so the comparison stays v14's definitions as well as v14's flags.
+ */
+vi.mock('../../../../../packages/domain/src/relatorio/restriction.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../packages/domain/src/relatorio/restriction.ts')>();
+  return {
+    ...actual,
+    applyRestrictions: (...[test, rows, captures, previous]: Parameters<typeof actual.applyRestrictions>) => {
+      if (!rulesOff.v15ReadsV14 || test.restriction?.history_rise_at_limit_restricted === undefined) return actual.applyRestrictions(test, rows, captures, previous);
+      const restriction = { ...test.restriction };
+      delete restriction.history_rise_at_limit_restricted;
+      return actual.applyRestrictions({ ...test, restriction }, rows, captures, previous);
+    },
+  };
+});
+
 const GOLDEN_DIR = resolve(__dirname, 'golden');
 /** The parts that carry the printed layout (the body, its numbering and styles, the header and footer). */
 const PARTS = /^word\/(document|numbering|styles|header\d*|footer\d*)\.xml$/;
@@ -235,7 +253,8 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
  * ficha's effective pair and the composed parecer are equal, and the layout and the DOCX parts differ in
  * nothing but the ids the fixture derives from the version, its op ids and the version's own name. The
  * comparison reads v15 through v14's rule flags only (`rulesOff.v15ReadsV14`), so a later Epic 25 story
- * that adds a v15 flag keeps this pin: every v15 difference comes through a flag.
+ * that adds a v15 flag keeps this pin: every v15 difference comes through a flag. Story 25.8's v15
+ * definition key is read off the same way (the `restriction.ts` mock above).
  */
 describe('25.5-UNIT-SAME a v15 relatório with the v14 Epic 25 fixture\'s answers concludes and prints as the v14 one', () => {
   beforeEach(() => {
