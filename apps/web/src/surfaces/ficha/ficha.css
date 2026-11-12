@@ -410,3 +410,9 @@
 .como-scrim .como-list dd { white-space: pre-line; overflow-wrap: anywhere; }
 /* authored: the action is read-only, so a read-only sheet keeps it (the read-only rule above hides a head's `.btn`). */
 [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .section-head .btn[data-test-help] { display: inline-flex; }
+/* `60-ficha.html` (Story 25.1 Part B frame, Story 25.11) `[data-route="/ficha/:tag"] .e25-header-param` and its children, declarations
+   verbatim: the instrument header's test parameter as a field, the sign "Alterada nesta ficha" in fora-do-limite and the action beside it. */
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-header-param { max-width: 320px; margin-top: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-changed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-changed-word { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-header-param.is-default .e25-changed { display: none; }

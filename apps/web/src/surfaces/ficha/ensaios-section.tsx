@@ -57,6 +57,7 @@ import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
 import { CorrectedValue, TemperatureLine } from './corrected-value.tsx';
 import { InstrumentPicker } from './instrument-picker.tsx';
+import { HeaderParameterField } from './header-parameter-field.tsx';
 import { ManufacturerValue } from './manufacturer-value.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
 import { MeasurementTests } from './measurement-test-section.tsx';
@@ -425,6 +426,8 @@ function TestSection({
         setupInstrumentIds={snapshot.relatorio.setup.instrument_ids}
         readOnly={readOnly}
       />
+      {/* Story 25.11 (Story 25.1 Part B's frame): the header's TENSÃO ENSAIO or CORRENTE as a field of this sheet, every seed. */}
+      {readOnly ? null : <HeaderParameterField api={api} block={block} testKey={test.testKey} instruments={instruments} />}
       {tables.length > 1 ? <div className="tests-two">{tables}</div> : tables}
       {/* Batch e23a (Story 23.4, seed v13): the kernel's instrument-limit note under the test's tables, as the document prints it. */}
       {test.limitNote === undefined || test.limitNote === null ? null : (

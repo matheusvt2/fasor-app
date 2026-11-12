@@ -111,6 +111,7 @@ export * from './relatorio/restriction.ts';
 export * from './relatorio/conclusion.ts';
 export * from './relatorio/parecer.ts';
 export * from './relatorio/instrument-pick.ts';
+export * from './relatorio/header-parameter.ts';
 export * from './relatorio/suggestions.ts';
 export * from './relatorio/panel.ts';
 export * from './relatorio/arrivals.ts';

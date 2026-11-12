@@ -1606,6 +1606,8 @@ export const copy = {
       // authored: the closed picker before any pick.
       instrumentEmpty: 'Selecione o instrumento',
       instrumentDetails: 'Série, RBC e validade',
+      // Story 25.11 (`60-ficha.html` #/ficha/SEC-02 `.e25-header-param`), verbatim: the action that takes the instrument's test parameter back.
+      headerParameterUseInstrument: 'Usar a do instrumento',
       // `key-equipment-sheet-v09.html` suggested instrument helper (Story 12.3), verbatim.
       instrumentSuggestedHelper: 'Último usado neste relatório · confirmado ao concluir a ficha, ou toque para trocar',
       instrumentList: 'Instrumentos cadastrados',
