@@ -32,7 +32,7 @@ describe('e25r-R1-UNIT-PARSE plateCelsiusOf: a plate temperature counts only as 
   });
 
   it('a state other than measured, a raw that is no string, an array, null, undefined, a bare number or string are none', () => {
-    for (const value of [measured('40', 'not_measured'), measured('40', 'over_range'), measured('40', 'not_applicable'), measured('40', undefined), measured(40), measured(null), [measured('40')], null, undefined, 40, '40', { raw: '40' }]) {
+    for (const value of [measured('40', 'not_measured'), measured('40', 'over_range'), measured('40', 'not_applicable'),measured(40), measured(null), [measured('40')], null, undefined, 40, '40', { raw: '40' }]) {
       expect(plateCelsiusOf(value), JSON.stringify(value) ?? 'undefined').toBeNull();
     }
   });
