@@ -14,7 +14,9 @@ import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { preIssue } from '../relatorio/pre-issue.ts';
 import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
-import { auditRunRowSchema, type AuditRunRow, type BlockRow, type EquipmentRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
+import { auditRunRowSchema, type AuditRunRow, type BlockRow, type Cell, type EquipmentRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
+import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
+import { parecerVerdictLabel } from '../relatorio/parecer.ts';
 import { CTA, CTA_BLOCK, ctaRows, ctaState, E1, num, writeSheet, blockOf } from '../relatorio/measurement-test-support.ts';
 import { sheetState, isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import { newEquipmentBlock } from '../relatorio/tree.ts';
@@ -701,5 +703,36 @@ describe('17.4-UNIT auditInput: a display shot is cited by its number', () => {
     expect(numbers.get(PLAIN)).toBe(n + 1);
     expect(input.refs.find((ref) => ref.id === `photo:${PLAIN}`)?.label).toBe(`Imagem ${n + 1}`);
     expect(input.text).toContain(`[photo:${PLAIN}] Imagem ${n + 1}: Vista geral.`);
+  });
+});
+
+describe('25.4-UNIT AC6 the Conferência por IA reads the effective verdicts, never the stored choices', () => {
+  // The layout-lock v14 relatório (synthetic), its parecer stored Apto by a tap and its breaker stored
+  // Aprovado · Sem restrições, while its fichas (the breaker's reading out among them) give Não apto and Reprovado.
+  const base = layoutLockSnapshot('v14');
+  const disjuntor = base.blocks.find((block) => block.block_type === 'disjuntor_mt' && block.removed_at === null)!;
+  const cell = (value: string, n: number): Cell => ({ value, source_suggestion_id: null, op_id: `019a6100-0e25-7000-8000-${n.toString(16).padStart(12, '0')}` });
+  const withPair = (block: BlockRow): BlockRow => {
+    const next = structuredClone(block);
+    next.sheet.conclusion = { ...next.sheet.conclusion, result: cell('aprovado', 1), restriction: cell('sem_restricoes', 2) };
+    return next;
+  };
+  const snapshot: RelatorioSnapshot = {
+    ...base,
+    relatorio: { ...base.relatorio, setup: { ...base.relatorio.setup, parecer: { verdict: 'apto', text: null, text_status: null, text_basis: null } } },
+    blocks: base.blocks.map((block) => (block.id === disjuntor.id ? withPair(block) : block)),
+  };
+  const lines = auditInput(draft(snapshot), snapshot, Number.MAX_SAFE_INTEGER).text.split('\n');
+
+  it('the payload holds PARECER: Não apto, never the stored Apto', () => {
+    expect(snapshot.relatorio.setup.parecer?.verdict).toBe('apto');
+    expect(lines).toContain(`PARECER: ${parecerVerdictLabel('nao_apto')}`);
+    expect(lines).not.toContain(`PARECER: ${parecerVerdictLabel('apto')}`);
+  });
+
+  it('the breaker\'s CONCLUSÃO row holds the REPROVADO mark alone, never its stored APROVADO and SEM RESTRIÇÕES', () => {
+    const rows = lines.filter((line) => line.startsWith(`  [row:${disjuntor.id}:`) && line.includes('] APROVADO | '));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.slice(rows[0]!.indexOf('] ') + 2).split(' | ')).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', '']);
   });
 });
