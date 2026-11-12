@@ -2,7 +2,7 @@
 title: 'e25b: the revision keeps the verdicts it printed (Story 25.4)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '4da9493b7b381dc7839369aee665497e2b9ec587'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-25-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'One story alone in batch e25b (wave 1, beside e25a); the tag is kept for the epic batch plan.'
-deferred: []
+deferred:
+  - summary: >-
+      On an open ficha with a floor, relatorioVerdicts answers the effective pair before an issue and the printed halves (null where no X) after it.
+    evidence: |-
+      Story 25.4 says the revision stores the pair "as section 9 printed it" and the raw reader falls back to "the effective ones"; printedConclusionPair on an open sheet is the chosen pair. Edge Case Hunter ECH-3. Which one a raw count should take for an open sheet is Matheus's decision.
+    location: >-
+      packages/domain/src/print/printed-verdicts.ts relatorioVerdicts
+    severity: low
 ---
 
 <intent-contract>
@@ -100,6 +107,17 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-11-11 — Review pass
+- layers: Edge Case Hunter, Verification Gap (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 7 findings — high 0, medium 0, low 4, false 2, maybe-false 0 (plus 1 Verification Gap "no gaps found")
+- findings:
+  - `[low]` `[patch]` (VG other, ECH-1) `printed_conclusions` is documented "in print order", but the row is stored in `jsonb`, which sorts the uuid keys — comment in `print/printed-verdicts.ts` reworded: a keyed record, the print order comes from the layout.
+  - `[low]` `[patch]` (ECH-2) `relatorioVerdicts` returns the revision path in key order and the fallback in print order — same root as above; the doc comment says the result is keyed, not ordered. No reader walks it in order.
+  - `[low]` `[defer]` (ECH-3) an open ficha with a floor and no chosen halves reads `{reprovado, …}` (effective) before an issue and `{null, null}` (as printed) after it — the spec's reading of the story's words ("as section 9 printed it"; "else the effective ones"), now said in the doc comment; whether a raw reader should take the printed or the effective pair for an open sheet is Matheus's call (deferred-work § e25b).
+  - `[false]` `[reject]` (ECH-4) `printed_parecer` null cannot tell section 10 off from a printed "[Parecer]" — issuing is refused while section 10 prints and `effectiveParecer` is null (`relatorio/pre-issue.ts` `parecer_missing`, blocking; `apps/api/src/http/generate.ts`), so an issued revision never holds the placeholder.
+  - `[false]` `[reject]` (ECH-5) a revision with one key and not the other drops the recorded parecer — the only writer (`commitRevision`) always spreads both keys from `printedVerdicts`; such a row cannot be written through the sync route (`revision` is a server-only create).
+  - `[low]` `[patch]` (ECH-6) `relatorioVerdicts` would read a removed revision if handed one — `RevisionRow` carries no `removed_at`; every reader takes live rows (`liveRevisions`, the device store); the doc comment now says `revisions` are the live rows.
 
 ## Design Notes
 

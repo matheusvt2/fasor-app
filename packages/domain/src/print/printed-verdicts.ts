@@ -35,7 +35,11 @@ export const PRINTED_CONCLUSION_TYPES_MATCH: Same<PrintedConclusion['result'], C
 export interface PrintedVerdicts {
   /** Section 10's verdict as printed (`effectiveParecer`); null when section 10 does not print. */
   printed_parecer: ParecerVerdict | null;
-  /** Each ficha section 9 prints a CONCLUSÃO row for, in print order: its X marks (`printedConclusionPair`). */
+  /**
+   * Each ficha section 9 prints a CONCLUSÃO row for, keyed by block id: its X marks (`printedConclusionPair`).
+   * A keyed record, not an ordered list: the stored row is `jsonb`, which sorts the keys, so a reader takes
+   * the print order from the layout, never from this record.
+   */
   printed_conclusions: Record<string, PrintedConclusion>;
 }
 
@@ -100,7 +104,10 @@ export interface RelatorioVerdicts {
  * carries both recorded keys: what the issued document printed. Otherwise (no revision, or the
  * latest written before the keys existed: absent means "not recorded") the effective values, never
  * Apto nor Aprovado by default: `effectiveParecer` when section 10 prints (else null) and
- * `effectiveConclusionPair` over the same set of fichas `printedVerdicts` records.
+ * `effectiveConclusionPair` over the same set of fichas `printedVerdicts` records. On an open sheet the two
+ * differ by design (the story's words): the revision holds the halves the document marked, the fallback the
+ * effective pair with its floor. `revisions` are the relatório's live rows (`liveRevisions` on the server,
+ * the device's store), as every reader of revisions takes them; the result is keyed, not ordered.
  */
 export function relatorioVerdicts(snapshot: RelatorioSnapshot, revisions: readonly RevisionRow[]): RelatorioVerdicts {
   const latest = latestRevision(revisions.filter((row) => row.relatorio_id === snapshot.relatorio.id));

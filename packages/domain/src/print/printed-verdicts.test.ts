@@ -151,7 +151,7 @@ describe('25.4-UNIT (c) the edges of the matrix', () => {
     expect(printedVerdicts(snapshot)).toEqual({ printed_parecer: 'nao_apto', printed_conclusions: {} });
   });
 
-  it('a sheet marked not tested, one whose conclusion sub-block is off and one of an unknown definition get no entry, as section 9 prints no CONCLUSÃO row for them', () => {
+  it('a sheet marked not tested and one of an unknown definition get no entry (section 9 prints no CONCLUSÃO row for them); the locked conclusion switched off in a config keeps its entry, as it still prints', () => {
     const base = fresh('v14');
     const tp = liveSheet(base, 'tp');
     const tc = liveSheet(base, 'tc');
@@ -168,7 +168,9 @@ describe('25.4-UNIT (c) the edges of the matrix', () => {
     });
     const verdicts = printedVerdicts(snapshot);
     expect(verdicts.printed_conclusions).not.toHaveProperty(tp.id);
-    expect(verdicts.printed_conclusions).not.toHaveProperty(tc.id);
+    // The conclusion is a locked sub-block (`LOCKED_SUB_BLOCKS`): a config that switches it off still prints
+    // the CONCLUSÃO row, so the record keeps the sheet, as section 9 does.
+    expect(verdicts.printed_conclusions).toHaveProperty(tc.id);
     expect(verdicts.printed_conclusions).toHaveProperty(company.id);
     expect(Object.keys(verdicts.printed_conclusions)).toEqual(conclusionTables(snapshot).map((table) => table.blockId));
 
