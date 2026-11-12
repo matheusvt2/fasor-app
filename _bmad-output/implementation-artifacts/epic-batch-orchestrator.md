@@ -402,3 +402,82 @@ Each names its source in `epic-21-retro-2026-11-06.md`.
   recorded in its PR body with the count, or "none found", before it merges. Precedent: e21f came after the
   integrated review, patched four fixes with "follow-up review: false", and no re-read is on record; the
   retrospective's read of that code found R-1 and R-2.
+
+## 11. Rules carried from the Epic 23 and Epic 24 retrospectives (2026-11-11, E23-A3 and E24-A3)
+
+Each names its source in `epic-23-retro-2026-11-10.md` or `epic-24-retro-2026-11-11.md`. The eight Epic 23 lines were
+kept in practice through Epic 24 but never written here (the Epic 24 retrospective's follow-through table); each line
+carries the date it was written. P-8 of Epic 24 gives no new rule: it is the eval line of Epic 23, restated.
+
+- (E23-A3 item 1, P-1 of Epic 23, 2026-11-11; extends E18-A6 in § 8 and P-3 in § 9) No `infra/bin/deploy` of an
+  integrated main before the hands-on behaviour pass of its waves has run in the browser, with its report tracked
+  under `_bmad-output/test-artifacts/manual/`. The deploy checklist also lists every open `verification` row of
+  `deferred-work.md` owned by a review or a QA pass, not only the rows that say "before the deploy". Precedent: Epic
+  23's pass ran on 2026-11-10 on the code of `47be2638`, after two deploys, and found two high print defects (F2, F3)
+  on code every automated gate had passed; fix batch e23p and a third deploy followed. Epic 24 kept the rule: two
+  passes before the deploy, both reports tracked.
+- (E23-A3 item 2, P-1 of Epic 23, 2026-11-11) A change to a printed table's columns or type size carries a test that
+  reads the PDF, and a crop of the page in the PR. A layout choice is put to Matheus with the crop. Precedent: the v13
+  transformer insulation table was judged by the kernel's own estimate; it broke words and a number in print, and no
+  test read the PDF until e23p added one.
+- (E23-A3 item 3, P-1 of Epic 23, 2026-11-11; E10-A3 in § 6 restated) A story that adds a field to an existing entity
+  lists that entity's readers and writers in its DoR: copy, previous visit, plate reading, print. The epic context
+  carries the cross-story table of assertions E10-A3 asks for. Precedent: Story 23.7 added the two temperatures as
+  nameplate fields, the copy chips of Epic 5 copied them and Story 23.5 corrects by them, so a second visit was
+  corrected with the first visit's temperature (F2). Each story's own tests passed.
+- (E23-A3 item 4, P-2 of Epic 23, 2026-11-11) Deploy after the wave's fix batch. An earlier deploy names the known
+  findings and Matheus's word in the deploy record before it starts. A fix after a deploy that changes what a device
+  derives or writes states its contract choice in its spec. Precedent: `ef099d41` was deployed before fix batch e23z,
+  so the plan of one deploy became three, and e23p's fix went out with no contract number (R-2 of that retrospective).
+  Epic 24 kept the rule: PRs #317 and #322 state "no contract number" with the reason.
+- (E23-A3 item 5, P-3 of Epic 23 and P-8 of Epic 24, 2026-11-11; E21-A4 P-1 in § 10 restated) A PR that bumps a
+  reading prompt carries its eval table, or does not merge. "Before the deploy" in an epic context does not replace
+  this rule. Precedent: in Epic 23, prompts 6 and 7 were never measured alone and prompt 8 was measured after
+  `ef099d41` was already serving it. In Epic 24, batch e24s bumped the prompt to `bedrock-structuring-9` and merged
+  with fake-provider tests only (#315); the eval ran on `2009fa30`, before the deploy and after the merge.
+- (E23-A3 item 6, P-4 of Epic 23, 2026-11-11) The batch plan says whether a wave may start beside the previous wave's
+  fix batch, and each gate record names what else ran on the host. Precedent: the Epic 23 plan said each wave starts
+  after the previous wave's gate and fix batch; in practice the next wave started beside the fix batch (the e23t stack
+  was up throughout e23w's gate), and wave 2's full run took 7505 s against 2530 s for wave 1's, with no line on what
+  else ran.
+- (E23-A3 item 7, P-5 of Epic 23, 2026-11-11) A gate's record is written into the epic context when the gate ends,
+  with its counts, its reds and its load line. "Green" means no red; a gate with reds that passed alone says so in
+  those words. A handover cites the record, and the next session checks the handover against the record before acting.
+  Precedent: Epic 23's wave 2 and wave 3 gate sections were filled a day after the gates ran and after the first
+  deploy, and a handover note called those gates green and dated the paid eval before the first deploy (corrected in
+  PR #299).
+- (E23-A3 item 8, P-7 of Epic 23, 2026-11-11) A batch that reads the test base checks its diff for word runs of the
+  base before its PR: no run of five words that matches the base JSON. Precedent: PR #295 put two short quotes of the
+  base in comments of `seed/v13.ts`; fix batch e23z replaced them and ran that check, and the two quotes stay in the
+  public git history.
+- (E24-A3 item 1, P-1 of Epic 24, 2026-11-11) A broken word or number seen in a golden or in a PDF is a defect row of
+  `deferred-work.md` with an owner batch, never a row that waits for a decision. A finding that a hands-on pass
+  repeats is put to Matheus the first time it is reported. Precedent: batch e24p wrote that "GUARD" already broke in
+  the locked v13 golden and left it as a low row for Matheus; the early pass then met it as F1, a high print defect.
+  An NC row that offers a second point was reported by three passes (H3, F4, G3) before he decided it stays.
+- (E24-A3 item 2, P-2 of Epic 24, 2026-11-11; extends P-4 in § 10) The last commit before a deploy that changes
+  product code gets a read, the patches written after a fix batch's own review included. A test of an editor types
+  into it and waits past its autosave. Precedent: `8ea60738`, `c65c93ca` and `5a8b8958` were written after their fix
+  batches' reviews, read by nobody and deployed the same day; the retrospective found R-1 in that code. D1, the point
+  editor that closed itself at the first autosave, passed its batch's tests because they tapped "Concluir" without
+  typing.
+- (E24-A3 item 3, P-3 of Epic 24, 2026-11-11; extends E15-A3 in § 7) A batch's PR body lists the grep it ran over
+  `e2e/` and the web tests for the strings, op paths and behaviours it changes, and the grep's hits, so a missing grep
+  can be seen. The integrated gate never runs beside a building batch. Precedent: the integrated gate's run 2 on
+  `7773aafa` went red on three specs that still asserted the behaviour from before e24s and e24y, and none was in
+  those batches' touched-spec lists. Run 1 on `76c74711` ran beside a building batch: the load reached 32, the stack's
+  Postgres restarted and the run gave no result.
+- (E24-A3 item 4, P-5 of Epic 24, 2026-11-11; extends F7 in § 7) A batch's Auto Run Result has one line per
+  orchestrator cut: what the orchestrator was waiting on, and where the handoff file is. The handoff file is written
+  at each phase boundary, not at the cut. Precedent: Epic 24's batch orchestrators were cut by their runtime several
+  times (the coordinator's fact); no spec, PR body or context line records a cut, so the cost cannot be measured.
+- (E24-A3 item 5, P-6 of Epic 24, 2026-11-11; extends P-3 in § 9) A sentence a person corrected is checked in its
+  place on the screen before it is built. The deploy record closes or carries each "before the deploy" row by name.
+  Precedent: among the sentences Bruno corrected, one replacement reversed the meaning of its band; it was withdrawn
+  before it was built (P8g of `spec-e24y-pass-fixes.md`). Three "before the deploy" rows were still open after the
+  deploy of `2009fa30`: the v14 layout lock, the paid eval and an optional production count.
+- (E24-A3 item 6, P-7 of Epic 24, 2026-11-11) The questions for the field engineer go out when the stories are
+  written, not after the build. A story that rests on an open question says so in its DoR. Precedent: Epic 24's
+  questions B-1 to B-10 were known at planning on 2026-11-10 and sent after the build. The answers came on the last
+  day, and Epic 25 reworks four stories built the day before (Stories 25.17, 25.18, 25.19 and 25.21 over 24.13, 24.10,
+  24.11 and 24.16).

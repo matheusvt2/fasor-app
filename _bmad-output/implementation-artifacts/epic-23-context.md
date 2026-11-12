@@ -394,7 +394,7 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
   - e23h, PR #291, head `b3af9bf4`, merged as `8c097ffa` (contract 37). It merged main `967d898a` (e23v) in first and kept e23v's `V13_HASH`.
   - Docs PR #292 (Bruno's 2026-11-09 answers, B-1 to B-7) merged as `32bd1845` while the gate ran; it changes no code.
 - **Integrated gate** on `8c097ffa`.
-  - Lock wait 1 s. Load `{ 4.16 4.20 4.36 }` at the start and `{ 6.04 5.82 6.69 }` at the end.
+  - Lock wait 1 s. Load `{ 4.16 4.20 4.36 }` at the start and `{ 6.04 5.82 6.69 }` at the end. *(2026-11-11, coordinator, E23-A5 item 3 of the Epic 23 retrospective: what else ran on the host during this gate is not recorded. The gate logs were kept outside the repository (`epic-23-retro-2026-11-10.md` P-4 and P-5).)*
   - `pnpm test:e2e:full` ran 7505 s and failed. The parallel group had 461 tests: 452 passed, 5 failed, 4 skipped. The serial group had 175: 174 passed, 1 failed. Total 636: 626 passed, 6 failed, 4 skipped.
   - The six reds re-ran alone under the lock. Five passed: `@p0` 4.2-E2E-001, `@p1` 4.2-E2E-002, `@p1` F-13, `@p1` F-21 and `@p0` 14.3-E2E-001. They are counted load-bound under E15-A4, with both runs recorded.
   - The sixth, `@p1` 13.5-E2E-004 (`reading-wait.spec.ts:384`), was red alone too. It went to fix batch e23w as W2-G1. The bisect found a race in the test (the engine arms the next tick when a cycle ends), not a 60 s poll regression. The test was fixed and the product left unchanged.
@@ -412,7 +412,7 @@ The integrated review's stack takes base 64. A fix batch takes the lowest base f
   - e23e, PR #295, head `784bfee6`, merged as `7f29b243` (contract 39).
   - e23x (Story 23.12, M-1 (b)), PR #296, head `6a7e641e`, merged as `ef099d41` (no contract).
 - **Integrated gate** on `ef099d41`.
-  - Lock wait 1 s. Load `{ 5.19 7.02 7.28 }` at the start and `{ 5.44 5.36 5.64 }` at the end.
+  - Lock wait 1 s. Load `{ 5.19 7.02 7.28 }` at the start and `{ 5.44 5.36 5.64 }` at the end. *(2026-11-11, coordinator, E23-A5 item 3 of the Epic 23 retrospective: what else ran on the host during this gate is not recorded. The rerun of the red below waited 744 s for the lock at a load of 17.43, so something else was running then; the record does not name it. The gate logs were kept outside the repository (`epic-23-retro-2026-11-10.md` P-4 and P-5).)*
   - `pnpm test:e2e:full` ran 3216 s and failed on one test. The parallel group passed: 464 tests, 460 passed, 4 skipped. The serial group had 187: 186 passed, 1 failed. Total 651: 646 passed, 1 failed, 4 skipped.
   - The red was `@p0` 21.1-E2E-002 (`seed-v11.spec.ts:95`). It re-ran alone under the lock with `--repeat-each 2` and passed 2 of 2. The lock wait was 744 s, and the load was `{ 17.43 13.68 11.54 }` at the start. It is counted load-bound under E15-A4, with both runs recorded.
   - `pnpm test:e2e:matrix` ran 738 s and passed: 152 passed, 16 skipped, 0 failed.
