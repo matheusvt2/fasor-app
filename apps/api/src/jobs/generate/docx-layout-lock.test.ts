@@ -1,7 +1,15 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { layoutSpec, seedRule } from '@app/domain';
-import { LAYOUT_LOCK_ISSUED_AT, LAYOUT_LOCK_VERSIONS, layoutLockFixture, layoutLockSnapshot } from '@app/domain/fixtures/layout-lock';
+import { blockDefinitionIn, composeParecer, effectiveConclusionPair, layoutSpec, seedRule, snapshotDefinitionContext, visitContextOf, type RelatorioSnapshot } from '@app/domain';
+import {
+  LAYOUT_LOCK_EPIC25_VERSIONS,
+  LAYOUT_LOCK_ISSUED_AT,
+  LAYOUT_LOCK_VERSIONS,
+  layoutLockEpic25Golden,
+  layoutLockEpic25Snapshot,
+  layoutLockFixture,
+  layoutLockSnapshot,
+} from '@app/domain/fixtures/layout-lock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildDocx } from './docx.ts';
 import { readZipEntries } from './docx-structure.test-support.ts';
@@ -19,6 +27,12 @@ import { placeholderPages } from './toc.ts';
  * what Epic 24 changes on v14 (`epic24Extras` of the fixture); its golden is taken on main after
  * fix batches e24h and e24f, before any rule of Stories 24.3 and 24.4. Every later Epic 24 PR keeps
  * the v5, v11, v12 and v13 goldens and the Porto Seguro goldens byte-equal.
+ *
+ * Story 25.5, the Epic 25 layout lock (25.5-UNIT-LOCK): the v14 golden (PR #325, from the code deployed as
+ * 2009fa30) stays byte-equal, and a second v14 relatório holding the cases Epic 25 changes on v15
+ * (`layoutLockEpic25Fixture`) is pinned in `golden/layout-lock-v14-epic25/`, taken once on this batch's
+ * first commit (seed v15 opened equal to v14, no rule changed). Every later Epic 25 PR keeps every golden
+ * of this directory byte-equal.
  */
 
 /*
@@ -26,18 +40,44 @@ import { placeholderPages } from './toc.ts';
  * only through `seedRule` (`seed/definitions.ts`), so the one module is mocked; every other test of the
  * file reads the flags as shipped (v5 to v13 carry none).
  */
-const rulesOff = vi.hoisted(() => ({ v14: false }));
+const rulesOff = vi.hoisted(() => ({ v14: false, v15ReadsV14: false }));
 vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../../packages/domain/src/seed/definitions.ts')>();
-  return { ...actual, seedRule: (version: string, flag: Parameters<typeof actual.seedRule>[1]) => (rulesOff.v14 && version === 'v14' ? false : actual.seedRule(version, flag)) };
+  return {
+    ...actual,
+    seedRule: (version: string, flag: Parameters<typeof actual.seedRule>[1]) => {
+      if (rulesOff.v14 && version === 'v14') return false;
+      // Story 25.5 (25.5-UNIT-SAME): v15 reads v14's flags only, so a later Epic 25 flag stays out of the comparison.
+      if (rulesOff.v15ReadsV14 && version === 'v15') return actual.seedRule('v14', flag);
+      return actual.seedRule(version, flag);
+    },
+  };
+});
+
+/*
+ * Story 25.8 (25.5-UNIT-SAME): a v15 definition key, not a rule flag, gates the contact rise at the limit
+ * (`restriction.history_rise_at_limit_restricted`). While v15 reads v14's flags, the rules read each test
+ * without it too, so the comparison stays v14's definitions as well as v14's flags.
+ */
+vi.mock('../../../../../packages/domain/src/relatorio/restriction.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../../packages/domain/src/relatorio/restriction.ts')>();
+  return {
+    ...actual,
+    applyRestrictions: (...[test, rows, captures, previous]: Parameters<typeof actual.applyRestrictions>) => {
+      if (!rulesOff.v15ReadsV14 || test.restriction?.history_rise_at_limit_restricted === undefined) return actual.applyRestrictions(test, rows, captures, previous);
+      const restriction = { ...test.restriction };
+      delete restriction.history_rise_at_limit_restricted;
+      return actual.applyRestrictions({ ...test, restriction }, rows, captures, previous);
+    },
+  };
 });
 
 const GOLDEN_DIR = resolve(__dirname, 'golden');
 /** The parts that carry the printed layout (the body, its numbering and styles, the header and footer). */
 const PARTS = /^word\/(document|numbering|styles|header\d*|footer\d*)\.xml$/;
 
-async function partsOf(version: string): Promise<Map<string, string>> {
-  const layout = layoutSpec(layoutLockSnapshot(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
+async function partsOf(version: string, snapshotOf: (version: string) => RelatorioSnapshot = layoutLockSnapshot): Promise<Map<string, string>> {
+  const layout = layoutSpec(snapshotOf(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT });
   const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
   const parts = new Map<string, string>();
   for (const [name, bytes] of readZipEntries(docx)) if (PARTS.test(name)) parts.set(name, bytes.toString('utf8'));
@@ -47,34 +87,7 @@ async function partsOf(version: string): Promise<Map<string, string>> {
 describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_VERSIONS)(
     '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
-    async (version) => {
-      const parts = await partsOf(version);
-      expect(parts.has('word/document.xml')).toBe(true);
-      const dir = resolve(GOLDEN_DIR, `layout-lock-${version}`);
-      const index = resolve(dir, 'parts.json');
-      if (process.env.GOLDEN_UPDATE === '1') {
-        mkdirSync(dir, { recursive: true });
-        for (const [name, text] of parts) {
-          const file = resolve(dir, name.replace('word/', ''));
-          mkdirSync(dirname(file), { recursive: true });
-          writeFileSync(file, text);
-        }
-        writeFileSync(index, `${JSON.stringify([...parts.keys()].sort(), null, 2)}\n`);
-      } else if (!existsSync(index)) {
-        throw new Error(`${index} is missing; the layout lock is taken once, deliberately, with GOLDEN_UPDATE=1`);
-      }
-      expect([...parts.keys()].sort(), 'the DOCX parts changed').toEqual(JSON.parse(readFileSync(index, 'utf8')));
-      for (const [name, text] of parts) {
-        const golden = readFileSync(resolve(dir, name.replace('word/', '')), 'utf8');
-        // Not toEqual on the whole string: a mismatch would print megabytes. Byte equality, then the first difference.
-        if (text !== golden) {
-          let at = 0;
-          while (at < text.length && text[at] === golden[at]) at++;
-          expect(text.slice(Math.max(0, at - 200), at + 200), `${version} ${name} drifted at ${at}`).toBe(golden.slice(Math.max(0, at - 200), at + 200));
-        }
-        expect(text === golden, `${version} ${name}`).toBe(true);
-      }
-    },
+    async (version) => expectGolden(version, `layout-lock-${version}`, await partsOf(version)),
     120_000,
   );
 
@@ -83,6 +96,43 @@ describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions i
     expect(a.get('word/document.xml') === b.get('word/document.xml')).toBe(true);
   }, 120_000);
 });
+
+describe('25.5-UNIT-LOCK the DOCX of the Epic 25 v14 relatório is byte-equal to its golden', () => {
+  it.each(LAYOUT_LOCK_EPIC25_VERSIONS)(
+    '%s: every layout part of the relatório holding the cases Epic 25 changes on v15 matches golden/layout-lock-v14-epic25',
+    async (version) => expectGolden(version, layoutLockEpic25Golden(version), await partsOf(version, layoutLockEpic25Snapshot)),
+    120_000,
+  );
+});
+
+/** The layout parts against the golden directory `dirName`: written once with `GOLDEN_UPDATE=1`, byte-equal ever after. */
+function expectGolden(version: string, dirName: string, parts: Map<string, string>): void {
+  expect(parts.has('word/document.xml')).toBe(true);
+  const dir = resolve(GOLDEN_DIR, dirName);
+  const index = resolve(dir, 'parts.json');
+  if (process.env.GOLDEN_UPDATE === '1') {
+    mkdirSync(dir, { recursive: true });
+    for (const [name, text] of parts) {
+      const file = resolve(dir, name.replace('word/', ''));
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, text);
+    }
+    writeFileSync(index, `${JSON.stringify([...parts.keys()].sort(), null, 2)}\n`);
+  } else if (!existsSync(index)) {
+    throw new Error(`${index} is missing; the layout lock is taken once, deliberately, with GOLDEN_UPDATE=1`);
+  }
+  expect([...parts.keys()].sort(), 'the DOCX parts changed').toEqual(JSON.parse(readFileSync(index, 'utf8')));
+  for (const [name, text] of parts) {
+    const golden = readFileSync(resolve(dir, name.replace('word/', '')), 'utf8');
+    // Not toEqual on the whole string: a mismatch would print megabytes. Byte equality, then the first difference.
+    if (text !== golden) {
+      let at = 0;
+      while (at < text.length && text[at] === golden[at]) at++;
+      expect(text.slice(Math.max(0, at - 200), at + 200), `${version} ${name} drifted at ${at}`).toBe(golden.slice(Math.max(0, at - 200), at + 200));
+    }
+    expect(text === golden, `${version} ${name}`).toBe(true);
+  }
+}
 
 /**
  * Story 24.2 (24.2-UNIT-SAME): at its opening seed v14 changes no rule, so a v14 relatório with the
@@ -195,4 +245,59 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
     expect(seedRule('v14', 'conclusion_restriction_by_choice')).toBe(true);
     expect(layoutOf('v14').rest).not.toBe(layoutOf('v13').rest);
   });
+});
+
+/**
+ * Story 25.5 (25.5-UNIT-SAME): at its opening seed v15 changes no rule, so a v15 relatório with the same
+ * answers as the v14 one (the Epic 25 fixture, built on each version) concludes and prints the same: every
+ * ficha's effective pair and the composed parecer are equal, and the layout and the DOCX parts differ in
+ * nothing but the ids the fixture derives from the version, its op ids and the version's own name. The
+ * comparison reads v15 through v14's rule flags only (`rulesOff.v15ReadsV14`), so a later Epic 25 story
+ * that adds a v15 flag keeps this pin: every v15 difference comes through a flag. Story 25.8's v15
+ * definition key is read off the same way (the `restriction.ts` mock above).
+ */
+describe('25.5-UNIT-SAME a v15 relatório with the v14 Epic 25 fixture\'s answers concludes and prints as the v14 one', () => {
+  beforeEach(() => {
+    rulesOff.v15ReadsV14 = true;
+  });
+  afterEach(() => {
+    rulesOff.v15ReadsV14 = false;
+  });
+
+  /** The version's ids, op ids and name masked (`019a6100-02VV-…`, `019a6100-03VV-…`, the instruments' `019a6100-00VV-…`, `vVV`). */
+  const masked = (version: string, text: string) => {
+    const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
+    return text
+      .replaceAll(`019a6100-00${hex}-`, '019a6100-00VV-')
+      .replaceAll(`019a6100-02${hex}-`, '019a6100-02VV-')
+      .replaceAll(`019a6100-03${hex}-`, '019a6100-03VV-')
+      .replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
+  };
+
+  /** Every equipment sheet's effective conclusion pair, by masked block id, and the composed parecer. */
+  const verdictsOf = (version: string) => {
+    const snapshot = layoutLockEpic25Snapshot(version);
+    const ctx = snapshotDefinitionContext(snapshot);
+    const pairs = snapshot.blocks
+      .filter((block) => block.equipment_id !== null)
+      .map((block) => [masked(version, block.id), effectiveConclusionPair(block, blockDefinitionIn(ctx, block)!, visitContextOf(snapshot, block))] as const);
+    return { pairs, parecer: masked(version, JSON.stringify(composeParecer(snapshot))) };
+  };
+
+  it('v14 and v15 give the same verdicts: each ficha\'s pair and the parecer', () => {
+    expect(layoutLockEpic25Snapshot('v15').relatorio.seed_version).toBe('v15');
+    const a = verdictsOf('v14');
+    const b = verdictsOf('v15');
+    expect(a.pairs.length).toBeGreaterThan(10);
+    expect(b.pairs).toEqual(a.pairs);
+    expect(b.parecer).toBe(a.parecer);
+  });
+
+  it('v14 and v15 give one layout and one DOCX once ids and the version are masked', async () => {
+    const layoutOf = (version: string) => masked(version, JSON.stringify(layoutSpec(layoutLockEpic25Snapshot(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT })));
+    expect(layoutOf('v15')).toBe(layoutOf('v14'));
+    const [a, b] = await Promise.all([partsOf('v14', layoutLockEpic25Snapshot), partsOf('v15', layoutLockEpic25Snapshot)]);
+    expect([...b.keys()]).toEqual([...a.keys()]);
+    for (const [name, text] of a) expect(masked('v15', b.get(name)!) === masked('v14', text), name).toBe(true);
+  }, 120_000);
 });

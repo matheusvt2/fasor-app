@@ -292,24 +292,69 @@ describe('4.2 SetupSurface', () => {
     });
   });
 
-  it('refuses to uncheck an instrument a sheet still references, with an inline note', async () => {
+  // ~~refuses to uncheck an instrument a sheet still references, with an inline note~~ Story 25.13:
+  // the sheets' instruments are marked from the sheets, so there is no tick to take back.
+  it('25.13: an instrument the sheets use is marked from them, with the count, and a press refuses with the note and writes nothing', async () => {
     database = await seeded();
     renderSetup();
-    const row = await screen.findByText('2E');
-    const checkbox = row.closest('button')!;
-    expect(checkbox).toHaveAttribute('aria-checked', 'false');
-    // The fixture's instrument_ids starts empty; check it first so there is something to uncheck.
-    await userEvent.click(checkbox);
-    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (relatorio) => {
-      expect((relatorio!.row as RelatorioRow).setup.instrument_ids).toContain(INSTRUMENT_MEGOHMETRO_ID);
-    });
-    // The live query re-reads the relatório (now with its points and files) after the write
-    // lands: uncheck only once the row draws the checked state, or the click checks again.
-    await waitFor(() => expect(checkbox).toHaveAttribute('aria-checked', 'true'));
+    const checkbox = await screen.findByRole('checkbox', { name: /^2E/ });
+    // Derived: the fixture's instrument_ids is empty and stays so.
+    expect(checkbox).toHaveAttribute('aria-checked', 'true');
+    expect(checkbox).toHaveAttribute('aria-disabled', 'true');
+    const used = screen.getByText('Usado em 2 fichas');
+    expect(used).toHaveClass('e25-used');
+    expect(checkbox).toHaveAccessibleDescription(used.textContent!);
+    expect(screen.queryByText(/^Marcado, sem uso nas fichas/)).toBeNull();
     await userEvent.click(checkbox);
     expect(await screen.findByText('Continua na seção 11 porque uma ficha usa este instrumento')).toBeVisible();
+    expect(checkbox).toHaveAttribute('aria-checked', 'true');
     const relatorio = await database!.entities.get(['relatorio', RELATORIO]);
-    expect((relatorio!.row as RelatorioRow).setup.instrument_ids).toContain(INSTRUMENT_MEGOHMETRO_ID);
+    expect((relatorio!.row as RelatorioRow).setup.instrument_ids).not.toContain(INSTRUMENT_MEGOHMETRO_ID);
+    expect(await database!.outbox.where('path').equals('relatorio/setup/instrument_ids').count()).toBe(0);
+  });
+
+  it('25.13: an instrument ticked and used on no sheet carries the warning line; unticking it clears the line', async () => {
+    database = await seeded();
+    const UNUSED_ID = '019966c1-000f-7000-8000-00000000ee13';
+    await database.entities.put(
+      toRecord(`registry:${UNUSED_ID}`, {
+        id: UNUSED_ID,
+        kind: 'instrument',
+        code: '9T',
+        name: 'Instrumento sem uso',
+        manufacturer: null,
+        model: null,
+        serial: null,
+        cert_number: null,
+        laboratory: null,
+        calibrated_at: '2026-01-10',
+        calibration_interval_months: 480,
+        rbc_accredited: false,
+        test_isolacao: null,
+        test_resistencia_contato: null,
+        test_relacao_transformacao: null,
+        certificate_file_id: null,
+        removed_at: null,
+      } as never),
+    );
+    renderSetup();
+    const checkbox = await screen.findByRole('checkbox', { name: /^9T/ });
+    expect(checkbox).toHaveAttribute('aria-checked', 'false');
+    expect(checkbox).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(checkbox);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (relatorio) => {
+      expect((relatorio!.row as RelatorioRow).setup.instrument_ids).toContain(UNUSED_ID);
+    });
+    const line = await screen.findByText('Marcado, sem uso nas fichas. Desmarque se não foi usado: ele sai da seção 11.');
+    expect(line).toHaveAttribute('role', 'status');
+    expect(line).toHaveClass('ip-expired', 'e25-unused');
+    expect(checkbox).toHaveAccessibleDescription(line.textContent!);
+    await waitFor(() => expect(checkbox).toHaveAttribute('aria-checked', 'true'));
+    await userEvent.click(checkbox);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (relatorio) => {
+      expect((relatorio!.row as RelatorioRow).setup.instrument_ids).not.toContain(UNUSED_ID);
+    });
+    await waitFor(() => expect(screen.queryByText(/^Marcado, sem uso nas fichas/)).toBeNull());
   });
 
   it('"Concluir dados do relatório" is aria-disabled while a gap remains, and its reason names every gap at once (M2, 2026-10-10)', async () => {
@@ -319,8 +364,9 @@ describe('4.2 SetupSurface', () => {
     renderSetup();
     const button = await screen.findByRole('button', { name: 'Concluir dados do relatório' });
     await waitFor(() => expect(button).toHaveAttribute('aria-disabled'));
-    // This fixture lacks the end date, the ART/TRT number and an instrument: all three are named.
-    expect(screen.getByText(/^Concluir dados do relatório: falta a data de fim, o número d[ao] (ART|TRT|ART\/TRT) e um instrumento$/)).toBeVisible();
+    // This fixture lacks the end date and the ART/TRT number: both are named. ~~and an instrument~~
+    // Review of PR #332: its sheets use 2E, which closes the instrument gap with no tick.
+    expect(screen.getByText(/^Concluir dados do relatório: falta a data de fim e o número d[ao] (ART|TRT|ART\/TRT)$/)).toBeVisible();
   });
 
   it('commits the Rascunho→Em campo transition once every gap is closed', async () => {
@@ -856,8 +902,9 @@ describe('4.2 SetupSurface', () => {
     const record = await database.entities.get(['relatorio', RELATORIO]);
     await database.entities.put({ ...record!, row: { ...(record!.row as RelatorioRow), status: 'emitido' } });
     const first = renderSetup();
-    // This fixture lacks the end date, the ART/TRT number and an instrument.
-    expect(await screen.findByText(/^Falta a data de fim, o número d[ao] (ART|TRT|ART\/TRT) e um instrumento\.$/)).toBeVisible();
+    // This fixture lacks the end date and the ART/TRT number. ~~and an instrument~~ Review of
+    // PR #332: its sheets use 2E, which closes the instrument gap with no tick.
+    expect(await screen.findByText(/^Falta a data de fim e o número d[ao] (ART|TRT|ART\/TRT)\.$/)).toBeVisible();
     expect(screen.queryByText('Dados salvos')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Concluir dados do relatório' })).toBeNull();
     first.unmount();

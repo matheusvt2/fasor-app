@@ -35,6 +35,7 @@ import { seedTestCompanies, TEST_SEED } from '../../db/seed.ts';
 import { newId } from '../../ids.ts';
 import { applyOps } from '../../sync/apply.ts';
 import { extractStructure } from './docx-structure.test-support.ts';
+import { staleTextReplacements } from './stale-texts.test-support.ts';
 
 /*
  * 25.4-API-001 and 25.4-INT (Story 25.4, contract 48): the revision keeps the verdicts its document
@@ -126,7 +127,7 @@ async function removeFixtures(): Promise<void> {
 const extraOps = new Map<string, Op[]>();
 
 /** A relatório-scoped put on `fixture`'s relatório, as a device of Empresa A writes it, applied at once. */
-async function put(fixture: LayoutLockFixture, path: string, value: JsonValue): Promise<void> {
+async function put(fixture: LayoutLockFixture, path: string, value: JsonValue, prevOpId: string | null = null): Promise<void> {
   const op = makeOp(
     {
       kind: 'put',
@@ -136,7 +137,7 @@ async function put(fixture: LayoutLockFixture, path: string, value: JsonValue): 
       relatorio_id: fixture.relatorioId,
       path,
       value,
-      prev_op_id: null,
+      prev_op_id: prevOpId,
       batch_id: null,
       meta: null,
       actor_id: companyA.userId,
@@ -230,6 +231,8 @@ async function pulledRevision(fixture: LayoutLockFixture, number: number): Promi
 
 /** "Gerar relatório" through the route; waits for the revision `number` the job commits. */
 async function issue(fixture: LayoutLockFixture, number: number): Promise<RevisionRow> {
+  // Story 25.7: a stale conclusion text blocks the issue; the v14 fixture holds one, replaced as "Substituir" does.
+  for (const [path, value, prevOpId] of staleTextReplacements(localSnapshot(fixture))) await put(fixture, path, value, prevOpId);
   const res = await authed(companyA, `/api/relatorios/${fixture.relatorioId}/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

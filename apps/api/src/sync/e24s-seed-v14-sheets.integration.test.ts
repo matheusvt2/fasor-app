@@ -65,7 +65,7 @@ function inspectionCreates(seeded: { relatorioId: string; projectId: string; loc
 
 describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\'s new items through the route (contract 47)', () => {
   it('a v14 transformer takes TANQUE E ALETAS, LIMPEZA DAS BOBINAS and TRINCAS NA RESINA; a v13 one refuses them op_invalid', async () => {
-    const v14 = await h.seedRelatorio(companyA);
+    const v14 = await h.seedRelatorio(companyA, new Date(), 'v14');
     const transformer = v14.blocks.find((block) => block.blockType === 'transformador_forca')!;
     const put = (relatorio_id: string, path: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path, relatorio_id, value: value as JsonValue });
     const writes = [
@@ -102,7 +102,7 @@ describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\
   });
 
   it('a v14 Inspeção de QGBT takes TESTE DE FUNCIONAMENTO, REAPERTO GERAL and its thermography; a v13 one refuses the test and the item', async () => {
-    const v14 = await h.seedRelatorio(companyA);
+    const v14 = await h.seedRelatorio(companyA, new Date(), 'v14');
     const inspection = inspectionCreates(v14, 'v14');
     expect(Object.keys((inspection.block.config as { sub_blocks: Record<string, unknown> }).sub_blocks)).toContain('termografia');
     expect((await h.push(companyA, [inspection.equipment, inspection.create])).rejected).toEqual([]);
@@ -143,7 +143,7 @@ describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\
     expect(stored.definition.oil_rule?.dry_items).toEqual(['ventiladores', 'limpeza_das_bobinas', 'trincas_na_resina']);
 
     // A sheet of the copy on a v14 relatório answers a dry item.
-    const seeded = await h.seedRelatorio(companyA);
+    const seeded = await h.seedRelatorio(companyA, new Date(), 'v14');
     const blockId = newId();
     const blockType = companyBlockType(typeId);
     const ctx = definitionContext([version], [{ id: typeId, derived_from, draft: null, retired_at: null, removed_at: null, latest_version: 1 }]);
@@ -178,7 +178,7 @@ describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\
   });
 
   it('24.13-API-001 a v14 No-break de comando takes its plate and its six items; a v13 relatório refuses the block op_invalid', async () => {
-    const v14 = await h.seedRelatorio(companyA);
+    const v14 = await h.seedRelatorio(companyA, new Date(), 'v14');
     const noBreak = inspectionCreates(v14, 'v14', 'no_break_comando');
     expect((await h.push(companyA, [noBreak.equipment, noBreak.create])).rejected).toEqual([]);
     const put = (path: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path, relatorio_id: v14.relatorioId, value: value as JsonValue });
@@ -206,7 +206,7 @@ describe('24.11-API-001 and 24.12 the v14 transformer\'s and Inspeção de QGBT\
   });
 
   it('24.14-API-001 the oil sampling\'s "Descreva o motivo" folds a text up to 1000 characters and refuses a longer one or a v13 one', async () => {
-    const v14 = await h.seedRelatorio(companyA);
+    const v14 = await h.seedRelatorio(companyA, new Date(), 'v14');
     const transformer = v14.blocks.find((block) => block.blockType === 'transformador_forca')!;
     const path = sheetTestValuePath(transformer.id, 'coleta_oleo', 'motivo_texto');
     const put = (relatorio_id: string, at: string, value: unknown) => h.clientOp(companyA, { kind: 'put', path: at, relatorio_id, value: value as JsonValue });

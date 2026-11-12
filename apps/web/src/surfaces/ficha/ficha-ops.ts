@@ -130,7 +130,8 @@ export function testCellOp(
   testKey: string,
   row: number,
   col: number,
-  value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' | 'over_range' } | null,
+  // Story 25.9 (seed v15): `not_applicable`, "Não se aplica" (`notApplicableReadingValue`).
+  value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' | 'over_range' | 'not_applicable' } | null,
 ): OpDraft {
   return put(author, relatorioId, sheetTestCellPath(blockId, testKey, row, col), value);
 }

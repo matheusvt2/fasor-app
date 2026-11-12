@@ -6,6 +6,7 @@ import {
   entityKey,
   evaluateTest,
   getDefinition,
+  historyNoteText,
   instantiateTemplate,
   SEED_VERSION,
   standardTemplate,
@@ -15,6 +16,7 @@ import {
   type EquipmentRow,
   type LastResults,
   type OpDraft,
+  testHistoryItems,
   type RelatorioSnapshot,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
@@ -168,4 +170,88 @@ test('@p0 e23w-B6-E2E-001 relatório A issued with pole A at 40 µΩ; relatório
   const concluded = structure.tables.filter((table) => table[0]?.[0] === 'CONCLUSÃO' && table[1]?.includes('X'));
   expect(concluded.map((table) => table[1])).toEqual([['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']]);
   expect(structure.paragraphs.some((paragraph) => paragraph.startsWith('Ensaio fora do critério: '))).toBe(false);
+});
+
+/*
+ * Story 25.8 (batch e25c, Bruno's answer 1 of 2026-11-11; seed v15, `restriction.history_rise_at_limit_restricted`):
+ * a rise of exactly 50 % is "com restrição". Relatório A of the obra on v15 is issued with pole A at 40 µΩ;
+ * relatório B on v15, typed as a person at 1280 px, reads 60 µΩ on pole A (+50 %), 45 and 44: pole A is
+ * restricted (not out), its helper names the rise at the limit, the floor is Aprovado · Com restrições and
+ * B's DOCX prints the note line under the contact table naming it. Pinned to v15 by an addition, so it keeps
+ * the v15 key when a later version opens.
+ */
+test('@p0 25.8-E2E-001 relatório A issued with pole A at 40 µΩ; relatório B at 60 µΩ (exactly +50 %) on v15: pole A restricted at the limit, the floor Aprovado · Com restrições, and B\'s DOCX prints the note line', async ({
+  page,
+}) => {
+  test.setTimeout(480_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const V15 = getDefinition('v15', 'cabine_primaria', 'disjuntor_mt');
+  const poles = cellAddressesOf(V15, TEST_KEY);
+
+  const a = newRelatorioDrafts(account, { seedVersion: 'v15' });
+  const djA = a.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+  const blockRows = (drafts: readonly OpDraft[]) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
+  const equipmentId = blockRows(a.drafts).find((row) => row.id === djA.blockId)!.equipment_id!;
+  await pushDrafts(page, database, [
+    ...a.drafts,
+    ...['40', '44', '44'].map((raw, i) => officeDraft(account, { relatorioId: a.relatorioId }, `sheet/${djA.blockId}/test/${TEST_KEY}/cell/${poles[i]!.row}/${poles[i]!.col}`, { raw, unit: 'µΩ', state: 'measured' })),
+  ]);
+  await setParecer(page, a.relatorioId);
+  await issue(page, a.relatorioId, 1);
+
+  const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
+  const b = instantiateTemplate(
+    standardTemplate({ id: newId(), seedVersion: 'v15' }),
+    { id: a.projectId },
+    { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
+    { newId, actorId: account.userId, companyId: account.companyId },
+  );
+  const djB = blockRows(b.drafts).find((row) => row.equipment_id === equipmentId)!;
+  await pushDrafts(page, database, b.drafts);
+  await page.goto(`/relatorio/${b.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  await expect
+    .poll(async () => ((await entities(page)).find((record) => record.entity === 'equipment' && record.id === equipmentId)?.row.last_results as LastResults | null | undefined)?.relatorio_id ?? null, { timeout: 30_000 })
+    .toBe(a.relatorioId);
+
+  // B's disjuntor: 60, 45 and 44 µΩ typed in one run, each committed to the outbox.
+  await page.goto(`/relatorio/${b.relatorioId}/ficha/${djB.id}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await cellOf(page, poles[0]!).locator('input.mf-value').click();
+  for (const value of ['60', '45', '44']) {
+    await page.keyboard.type(value);
+    await page.keyboard.press('Enter');
+  }
+  const path = (address: { row: number; col: number }) => `sheet/${djB.id}/test/${TEST_KEY}/cell/${address.row}/${address.col}`;
+  for (const [i, raw] of ['60', '45', '44'].entries()) {
+    await expect.poll(async () => (await readStore<{ path: string; value: unknown }>(page, database, 'outbox')).filter((row) => row.path === path(poles[i]!)).map((row) => row.value)).toEqual([{ raw, unit: 'µΩ', state: 'measured' }]);
+  }
+
+  // The kernel over the device's rows: pole A restricted by its rise at the limit, not out.
+  const snapshot = await deviceSnapshot(page, b.relatorioId);
+  const block = snapshot.blocks.find((row) => row.id === djB.id)!;
+  expect(block.seed_version).toBe('v15');
+  const visit = visitContextOf(snapshot, block);
+  expect(visit.previous?.relatorio_id).toBe(a.relatorioId);
+  const evaluation = evaluateTest(block, V15, V15.tests.find((one) => one.key === TEST_KEY)!, visit);
+  const cells = evaluation.tables[0]!.rows.map((row) => row.cells[0]!);
+  expect(cells.map((one) => one.verdict)).toEqual(['restricted', 'within', 'within']);
+  expect(cells[0]!.rise).toBeUndefined();
+  expect(cells[0]!.restriction!.reason).toMatch(/^alta de 50 % sobre 40 µΩ da manutenção anterior, rev\. 1 de \d\d\/\d\d\/\d{4}, no limite de 50 %$/);
+  await expect(cellOf(page, poles[0]!).locator('.measurement-field')).toHaveAttribute('data-state', 'restricted');
+  await expect(cellOf(page, poles[0]!).locator('.mf-helper[data-tone="restricted"]')).toHaveText(`Com restrição: ${cells[0]!.restriction!.text}`);
+  const reason = conclusionFloorReasonText(block, V15, visit)!;
+  expect(reason).toBe('A ficha exige no mínimo Aprovado · Com restrições: leitura com restrição.');
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(page.locator('.conclusion-hint:not(.e24-preview-line)')).toHaveText(reason);
+
+  // B's DOCX: the note line under the contact table names pole A's rise at the limit.
+  const note = historyNoteText(testHistoryItems(evaluation))!;
+  expect(note).toContain('no limite de 50 %');
+  await setParecer(page, b.relatorioId);
+  const structure = await issue(page, b.relatorioId, 1);
+  expect(structure.paragraphs).toContain(note);
 });

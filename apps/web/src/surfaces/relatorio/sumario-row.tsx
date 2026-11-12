@@ -1,5 +1,5 @@
 import { fixedRowNote, type SumarioRow as Row } from '@app/domain';
-import { useId, type ReactNode } from 'react';
+import { Fragment, useId, type ReactNode } from 'react';
 import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { PositionBox } from '../templates/reorder-controls.tsx';
@@ -28,12 +28,26 @@ const Chevron = ({ onOpen }: { onOpen: () => void }) => (
   </span>
 );
 
-/** `.sum-body`: the title and the status line the kernel wrote; red and bold when blocking. */
+/**
+ * `.sum-body`: the title and the status line the kernel wrote; red and bold when blocking. Story 25.7
+ * (`40-relatorio-overview.html` row 9): with `metaParts`, only the blocking part is red (`.sum-status .is-blocking`).
+ */
 export function RowBody({ row }: { row: Row }) {
   return (
     <span className="sum-body">
       <span className="sum-title">{row.title}</span>
-      <span className={row.blocking ? 'sum-status is-blocking' : 'sum-status'}>{row.meta}</span>
+      {row.metaParts === undefined ? (
+        <span className={row.blocking ? 'sum-status is-blocking' : 'sum-status'}>{row.meta}</span>
+      ) : (
+        <span className="sum-status">
+          {row.metaParts.map((part, n) => (
+            <Fragment key={n}>
+              {n === 0 ? null : ' · '}
+              {part.blocking ? <span className="is-blocking">{part.text}</span> : part.text}
+            </Fragment>
+          ))}
+        </span>
+      )}
     </span>
   );
 }

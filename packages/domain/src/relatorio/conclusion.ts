@@ -2,18 +2,18 @@ import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
-import { findDefinition, seedRule } from '../seed/definitions.ts';
+import { blockDefinitionIn, findDefinition, seedRule, type DefinitionContext } from '../seed/definitions.ts';
 import { isValueCondition } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
-import { measurementCells, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
+import { measurementCells, outMeasurements, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
-import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
+import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, namedReadings, readingRowLabel, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
-import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
+import { enabledSubBlocksOf, isCellFilled, registerConcludedAprovadoRefused } from './sheet-state.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
 
 /*
@@ -60,6 +60,14 @@ function restrictionByChoice(block: Pick<BlockRow, 'seed_version'>): boolean {
  */
 export function restrictionApplies(block: Pick<BlockRow, 'seed_version'>, result: ConclusionResult | null): boolean {
   return result !== 'reprovado' || !restrictionByChoice(block);
+}
+
+/**
+ * Story 25.6: whether the Restrições group is drawn and its half counted: `restrictionApplies`, and never on
+ * a sheet with no measurement (seed v15), whose only result is Reprovado, which has no restriction.
+ */
+export function restrictionOffered(block: BlockRow, result: ConclusionResult | null, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
+  return restrictionApplies(block, result) && !noMeasurementRefusesAprovado(block, definition, visit);
 }
 
 /**
@@ -220,6 +228,9 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
   if (cells.some((cell) => cell.verdict === 'restricted') || tableCells.some((cell) => cell.verdict === 'restricted')) restrictions.push('restriction');
   if (ncItems(block, definition).length > 0) restrictions.push('nc');
   if (failures.length > 0) return failureFloor(block, failures, restrictions);
+  // Story 25.6 (seed v15 `no_measurement_refuses_aprovado`): a sheet with no measurement has no Aprovado floor, and is never
+  // turned Reprovado by itself: no floor, so nothing is suggested or previewed until the technician reproves it or marks it not tested.
+  if (noMeasurementRule(block) && noMeasurementOn(block, definition, visit)) return null;
   if (restrictions.length > 0) return { pair: { result: 'aprovado', restriction: 'com_restricoes' }, reasons: restrictions };
   // Epic 14 QA Q-3: a zero or negative reading the criterion cannot judge stands: no floor until it is checked.
   if (tableCells.some((cell) => cell.toCheck)) return null;
@@ -267,6 +278,57 @@ function overRangeUnjudged(evaluations: readonly TestEvaluation[]): boolean {
   return evaluations.some((test) => test.criterion !== null && evaluatedCells([test]).some((cell) => cell.role === 'capture' && cell.state === 'over_range' && cell.verdict === null));
 }
 
+/** Story 25.6: the flag of the block's own seed (a company block carries its relatório's). */
+function noMeasurementRule(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'no_measurement_refuses_aprovado');
+}
+
+/**
+ * Story 25.6 (M07, decision 6): "no measurement". The reading cells of the sheet's live tests (the seeded
+ * tests enabled and in force, `evaluateSheetReadings`; the measurement tests switched on, run and applicable,
+ * `measurementCells`) hold at least one "Não medido" and no value, measured or above the instrument's limit
+ * (`isReadingValue`). A reading cell is a capture or a typed index of a seeded table and a number cell of a
+ * measurement table; a ratio input, a choice (the polarity, the oil sampling's answer) and a test value are
+ * not readings, so they neither make nor break the rule. A cell holding any other state (an N/A cell, Story
+ * 25.9) is left out. A sheet with no reading cell (nothing to measure, every test switched off) is not in it.
+ */
+function noMeasurementOn(block: BlockRow, definition: BlockDefinition, visit: VisitContext): boolean {
+  const seeded = evaluatedCells(sheetReadings(block, definition, visit)).filter((cell) => cell.role !== 'input');
+  const table = measurementCells(sheetMeasurements(block, definition, visit)).filter((cell) => cell.kind === 'number');
+  const states = [...seeded, ...table].map((cell) => cell.state);
+  return states.includes('not_measured') && !states.some((state) => isReadingValue(state));
+}
+
+/**
+ * Story 25.6 (seed v15 `no_measurement_refuses_aprovado`): whether the sheet neither offers nor accepts
+ * Aprovado because nothing on it was measured (`noMeasurementOn`). Aprovado is disabled with its own reason
+ * line (`conclusionFloorReasonText`), a stored Aprovado reads as no result (`effectiveConclusionPair`), no
+ * restriction is asked (`restrictionOffered`), and the step offers "Marcar não ensaiado". Reprovado stays
+ * possible. False on a sheet marked not tested, on a seed without the flag (v1 to v14), and with no definition.
+ */
+export function noMeasurementRefusesAprovado(block: BlockRow, given: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
+  if (block.not_tested !== null || !noMeasurementRule(block)) return false;
+  const definition = definitionOf(block, given);
+  return definition !== null && noMeasurementOn(block, definition, visit);
+}
+
+/**
+ * Story 25.6: a concluded sheet whose stored Aprovado the rule now refuses (a reading set to "Não medido"
+ * after the conclude) reads as not concluded (`sheetState`): nothing is written by itself. Read with no visit
+ * context (the rule reads cell states alone). A seeded type reads its own seed; a company type (review of
+ * PR #332: treated as a standard sheet) reads its definition from the snapshot's `definitions`, and keeps
+ * its state only where the caller passes none.
+ */
+export function storedAprovadoRefused(block: BlockRow, definitions?: DefinitionContext): boolean {
+  if (block.not_tested !== null || conclusionResultOf(block) !== 'aprovado' || !noMeasurementRule(block)) return false;
+  if (!isCompanyBlockType(block.block_type)) return noMeasurementRefusesAprovado(block);
+  const definition = definitions === undefined ? null : blockDefinitionIn(definitions, block);
+  return definition !== null && noMeasurementRefusesAprovado(block, definition);
+}
+
+// Story 25.6: `sheetState` reads the refusal through this registration (a direct import would close a module cycle).
+registerConcludedAprovadoRefused(storedAprovadoRefused);
+
 const RESULT_RANK: Readonly<Record<ConclusionResult, number>> = { aprovado: 1, reprovado: 2 };
 const RESTRICTION_RANK: Readonly<Record<ConclusionRestriction, number>> = { sem_restricoes: 1, com_restricoes: 2 };
 
@@ -295,10 +357,14 @@ export function effectiveConclusionPair(block: BlockRow, definition: DefinitionA
   // A sheet marked not tested prints no conclusion: a pair stored before the mark is ignored,
   // and only a defect reason's floor applies (review of batch e22c).
   const tested = block.not_tested === null;
-  const result = stricter(RESULT_RANK, floor?.result ?? null, tested ? conclusionResultOf(block) : null);
+  // Story 25.6 (seed v15): on a sheet with no measurement a stored Aprovado reads as no result, and no restriction
+  // is read (the stored values stay, ignored on read, until the technician writes again: nothing is written by itself).
+  const refused = tested && noMeasurementRefusesAprovado(block, definition, visit);
+  const stored = tested ? conclusionResultOf(block) : null;
+  const result = stricter(RESULT_RANK, floor?.result ?? null, refused && stored === 'aprovado' ? null : stored);
   // Batch e24a (Story 24.3, seed v14): a Reprovado ficha has no restriction, the floor's or one stored
   // before (decision 3: the stored value stays, ignored on read, until the technician writes again).
-  if (!restrictionApplies(block, result)) return { result, restriction: null };
+  if (!restrictionApplies(block, result) || refused) return { result, restriction: null };
   return {
     result,
     restriction: stricter(RESTRICTION_RANK, floor?.restriction ?? null, tested ? conclusionRestrictionOf(block) : null),
@@ -342,12 +408,16 @@ export function conclusionAdjusted(block: BlockRow, definition: DefinitionArg = 
   const result = conclusionResultOf(block);
   const restriction = conclusionRestrictionOf(block);
   if (result === null || restriction === null) return false;
+  // Story 25.6: a stored pair the no-measurement rule refuses is not adjusted, it reads as not concluded (no Confirmar).
+  if (noMeasurementRefusesAprovado(block, definition, visit)) return false;
   const effective = effectiveConclusionPair(block, definition, visit);
   return effective.result !== result || effective.restriction !== restriction;
 }
 
 /** Story 22.4: whether a segment is looser than the floor, so the radiogroups disable it (a stricter one stays choosable). */
 export function isLooserThanFloor(block: BlockRow, value: ConclusionResult | ConclusionRestriction, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): boolean {
+  // Story 25.6 (seed v15): Aprovado is not offered on a sheet with no measurement, drawn disabled as a looser segment is.
+  if (value === 'aprovado' && noMeasurementRefusesAprovado(block, definition, visit)) return true;
   const floor = conclusionFloor(block, definition, visit)?.pair ?? null;
   if (floor === null) return false;
   if (value === 'aprovado' || value === 'reprovado') return RESULT_RANK[value] < RESULT_RANK[floor.result];
@@ -378,6 +448,9 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
   // ~~observation: 'observação registrada'~~ (fix batch e24h, H9: an observation floors nothing).
 };
 
+// authored (Story 25.6, M07, for Bruno): the reason line of a sheet with no measurement (`60-ficha.html` #ficha-dj02-reason).
+const NO_MEASUREMENT_TEXT = 'Nenhum ensaio foi medido nesta ficha. Registre as medições ou marque a ficha como não ensaiada.';
+
 /**
  * Story 22.4: the one line under the radiogroups naming why segments are disabled: "A ficha
  * exige no mínimo Reprovado · Com restrições: leitura fora do critério." Null while no
@@ -385,7 +458,8 @@ const FLOOR_REASON_WORDS: Readonly<Record<ConclusionFloorReason, string>> = {
  */
 export function conclusionFloorReasonText(block: BlockRow, definition: DefinitionArg = undefined, visit: VisitContext = NO_VISIT_CONTEXT): string | null {
   const floor = conclusionFloor(block, definition, visit);
-  if (floor === null || floor.reasons.length === 0) return null;
+  // Story 25.6 (seed v15): with no failure to name, a sheet with no measurement says why Aprovado is disabled.
+  if (floor === null || floor.reasons.length === 0) return noMeasurementRefusesAprovado(block, definition, visit) ? NO_MEASUREMENT_TEXT : null;
   // Batch e23e (Story 23.18, review fix): a ratio failed by its choice alone (a polarity INVERTIDA) names the choice.
   const resolved = floor.reasons.includes('ratio') ? definitionOf(block, definition) : null;
   const choice = resolved === null ? null : choiceOnlyFailureText(failedRatioRows(sheetReadings(block, resolved, visit)));
@@ -535,6 +609,35 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
 // authored: the recommendation that follows a restricted or failed result.
 const RECOMMENDATION = 'Recomenda-se a correção dos pontos indicados antes da próxima manutenção.';
 
+// --- Story 25.7 (seed v15 `conclusion_names_choice_and_unmeasured`; M20, F12) -------------------
+
+// authored (Story 25.7, listed for Bruno): a Reprovado the technician chose over a floor that does not reprove.
+const REPROVED_BY_HAND = 'Ficha reprovada por avaliação do responsável técnico, conforme as observações.';
+// authored (Story 25.7, F12, listed for Bruno): Com restrições chosen over a sheet that indicates no point to correct.
+const RESTRICTED_BY_HAND = 'Ficha aprovada com restrições por avaliação do responsável técnico, conforme as observações.';
+// authored (Story 25.7, listed for Bruno): "Não medido: ⟨ensaio⟩, ⟨ensaio⟩."
+const unmeasuredSentence = (names: readonly string[]): string => `Não medido: ${names.join(', ')}.`;
+
+/** Story 25.7: the flag of the block's own seed (a company block carries its relatório's). */
+function namesChoiceAndUnmeasured(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'conclusion_names_choice_and_unmeasured');
+}
+
+/**
+ * Story 25.7 (seed v15): the live, applicable tests whose reading cells hold at least one "Não medido" and no
+ * value (measured or above the instrument's limit), in sheet order, as the paragraph names them: a seeded test by
+ * its heading ("ensaio de resistência ôhmica de contato"), a measurement test by its label. The cells read are
+ * Story 25.6's (`noMeasurementOn`), one test at a time; a cell in any other state (N/A, Story 25.9) is left out.
+ */
+function unmeasuredTests(evaluations: readonly TestEvaluation[], measurements: readonly MeasurementTestEvaluation[]): string[] {
+  const unmeasured = (states: readonly string[]) => states.includes('not_measured') && !states.some((state) => isReadingValue(state));
+  const seeded = evaluations.filter((test) => unmeasured(evaluatedCells([test]).filter((cell) => cell.role !== 'input').map((cell) => cell.state))).map((test) => test.title.toLocaleLowerCase('pt-BR'));
+  const tables = measurements
+    .filter((test) => unmeasured(measurementCells([test]).filter((cell) => cell.kind === 'number').map((cell) => cell.state)))
+    .map((test) => (test.unnumbered === true ? `${test.label.charAt(0).toLocaleLowerCase('pt-BR')}${test.label.slice(1)}` : test.label.toLocaleLowerCase('pt-BR')));
+  return [...seeded, ...tables];
+}
+
 /**
  * e23f (the production check of 2026-11-07): an NC observation as the clause before "(item N,
  * NC)" reads it, without its final period(s), so "acúmulo de poeira." never prints "poeira. (item
@@ -610,8 +713,10 @@ export interface ComposedConclusion {
   basis: string;
 }
 
-function readingClause(reading: WorstReading): string {
-  const phrase = TEST_WORDS[reading.testKey].phrase;
+function readingClause(reading: WorstReading, oneOfSeveral = false): string {
+  // Story 25.10 (seed v15): a reading named beside others of its test out too is not "the" minimum or maximum, so the
+  // qualifier goes ("resistência de contato de 273 µΩ em …"); authored (Story 25.10, listed for Bruno).
+  const phrase = oneOfSeveral ? TEST_WORDS[reading.testKey].phrase.replace(/ (mínima|máxima) de$/, ' de') : TEST_WORDS[reading.testKey].phrase;
   // authored (e22g, review N2, listed for Bruno): a limit the instrument passed reads "acima de 2.000 µΩ (limite do instrumento)", never "de > 2.000 µΩ".
   const value =
     reading.overRange === true && reading.valueText.startsWith(OVER_RANGE_TEXT_PREFIX)
@@ -692,7 +797,8 @@ function measurementClause(reading: WorstMeasurement, keepCase = false): string 
 /**
  * The findings of a sheet as its conclusion paragraph names them, in its order: each test's worst
  * reading out of its criterion (its rise, on a pole out by it), an IP out of its class, a failed
- * choice, each measurement test's worst cell out, each failed prerequisite.
+ * choice, each measurement test's worst cell out, each failed prerequisite. Story 25.10 (seed v15): the
+ * caller passes every reading and cell out instead of the worst ones (`namedReadings`, `namedMeasurements`).
  */
 function findingClausesOf(
   evaluations: readonly TestEvaluation[],
@@ -702,11 +808,13 @@ function findingClausesOf(
   prerequisites: readonly string[],
 ): string[] {
   const out = worst.filter((reading) => reading.verdict === 'out');
+  // Story 25.10 (seed v15): a test with several readings named (`namedReadings` with `every`).
+  const several = new Set(out.filter((reading, i) => out.findIndex((one) => one.testKey === reading.testKey) !== i).map((reading) => reading.testKey));
   // Batch e23t (Story 23.16): an IP out of its class is a failure the paragraph names with the out readings.
   const indexOut = evaluations.flatMap((test) => (test.indexOut ?? []).map((reading) => indexClause(test, reading)));
   // Batch e23e (Story 23.18): a failed choice (a polarity INVERTIDA) is a failure the paragraph names too.
   const choiceOut = evaluations.flatMap((test) => (test.choiceOut ?? []).map((one) => choiceClause(test, one)));
-  return [...out.map(readingClause), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
+  return [...out.map((reading) => readingClause(reading, several.has(reading.testKey))), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
 }
 
 /**
@@ -718,7 +826,22 @@ function findingClausesOf(
 export function findingClauses(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): string[] {
   const evaluations = sheetReadings(block, definition, visit);
   const measurements = sheetMeasurements(block, definition, visit);
-  return findingClausesOf(evaluations, worstReadings(evaluations), measurements, worstMeasurements(measurements), failedPrerequisites(block, definition).map(prerequisiteClause));
+  const every = namesEveryReadingOut(block);
+  return findingClausesOf(evaluations, namedReadings(evaluations, every), measurements, namedMeasurements(measurements, every), failedPrerequisites(block, definition).map(prerequisiteClause));
+}
+
+/**
+ * Story 25.10 (seed v15 `names_every_reading_out`, M-6): the conclusion paragraph and the parecer's Reprovado
+ * sentence name every reading out of its criterion, in row order, each with its place, value and reason, as a
+ * point started from the test does; v1 to v14 name each test's worst one.
+ */
+function namesEveryReadingOut(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'names_every_reading_out');
+}
+
+/** Story 25.10: the measurement cells the paragraph names: every out one with `every` (seed v15), else each test's worst. */
+function namedMeasurements(measurements: readonly MeasurementTestEvaluation[], every: boolean): WorstMeasurement[] {
+  return every ? outMeasurements(measurements) : worstMeasurements(measurements);
 }
 
 // The basis hash lives in `text/hash.ts` (shared with the parecer, Story 7.4).
@@ -750,11 +873,13 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
 
   const evaluations = sheetReadings(block, definition, visit);
   const cells = evaluatedCells(evaluations);
-  const worst = worstReadings(evaluations);
+  // Story 25.10 (seed v15): every reading out of its criterion, in row order, where v1 to v14 name each test's worst.
+  const every = namesEveryReadingOut(block);
+  const worst = namedReadings(evaluations, every);
   // Story 14.5: the measurement tests (none on the eight FO.SERV-03 types), read as the seeded tables are.
   const measurements = sheetMeasurements(block, definition, visit);
   const tableCells = measurementCells(measurements);
-  const tableOut = worstMeasurements(measurements);
+  const tableOut = namedMeasurements(measurements, every);
   // Batch e23v (Story 23.6, seed v13): a failed prerequisite is a failure the paragraph names with the out readings.
   // Fix batch e23w (W2-2): every failed prerequisite (`failedPrerequisites`), its test switched off or NA too.
   const prerequisites = failedPrerequisites(block, definition).map(prerequisiteClause);
@@ -811,7 +936,23 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
 
   // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
   const { result, restriction } = effectiveConclusionPair(block, definition, visit);
-  const recommend = restriction === 'com_restricoes' || result === 'reprovado';
+  const recommendation = restriction === 'com_restricoes' || result === 'reprovado';
+  // Story 25.7 (seed v15, M20 and F12): the paragraph names each test left unmeasured; a Reprovado stricter
+  // than the floor says the responsible reproved the ficha and points to OBSERVAÇÕES; Com restrições chosen over
+  // a sheet whose paragraph indicates no point says so too; and the recommendation to correct "os pontos
+  // indicados" follows only a paragraph that indicates one. v1 to v14 read as before.
+  const v15Text = namesChoiceAndUnmeasured(block);
+  const unmeasured = v15Text ? unmeasuredTests(evaluations, measurements) : [];
+  const indicatesPoints = outClauses.length > 0 || restricted.length > 0 || ncs.length > 0;
+  const floorResult = v15Text ? (conclusionFloor(block, definition, visit)?.pair.result ?? null) : null;
+  const byHand: 'reprovado' | 'com_restricoes' | null = !v15Text
+    ? null
+    : result === 'reprovado' && floorResult !== 'reprovado'
+      ? 'reprovado'
+      : result === 'aprovado' && restriction === 'com_restricoes' && !indicatesPoints
+        ? 'com_restricoes'
+        : null;
+  const recommend = recommendation && (!v15Text || indicatesPoints);
   const verb = noun.plural ? 'apresentaram' : 'apresentou';
   // authored (OQ-3 placeholder): the sentence states only what exists.
   const body =
@@ -825,7 +966,11 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
             ? `${verb} ${checklist}`
             : `${verb} ${checklist}, sem valores medidos registrados`
           : `não ${verb} valores medidos nem itens verificados registrados`;
-  const text = `${subject} ${body}.${recommend ? ` ${RECOMMENDATION}` : ''}`;
+  const v15Sentences = [
+    ...(unmeasured.length === 0 ? [] : [unmeasuredSentence(unmeasured)]),
+    ...(byHand === 'reprovado' ? [REPROVED_BY_HAND] : byHand === 'com_restricoes' ? [RESTRICTED_BY_HAND] : []),
+  ];
+  const text = `${subject} ${body}.${v15Sentences.map((sentence) => ` ${sentence}`).join('')}${recommend ? ` ${RECOMMENDATION}` : ''}`;
 
   const criteriaItems = [
     // Story 24.9 (F19): a pole out by its rise names the rise with the previous value ("Critérios usados" is screen only), as the paragraph does.
@@ -863,6 +1008,10 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
       })),
       nc: ncs,
       ...(prerequisites.length === 0 ? {} : { prerequisites }),
+      // Story 25.7 (seed v15): the tests named as not measured and a choice named as the responsible's join
+      // only where present, so every basis of v1 to v14 (and of a v15 sheet without them) keeps its bytes.
+      ...(unmeasured.length === 0 ? {} : { unmeasured }),
+      ...(byHand === null ? {} : { by_hand: byHand }),
       // Story 14.5: only a type with measurement tests adds its key, so the basis of every
       // sheet of the eight (and every `text_basis` already stored) is the bytes it always was.
       ...(measurements.length === 0

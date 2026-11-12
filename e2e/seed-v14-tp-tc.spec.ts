@@ -1,4 +1,4 @@
-import { getDefinition, screenLabel, SEED_VERSION, type BlockRow, type FieldDef } from '@app/domain';
+import { getDefinition, screenLabel, type BlockRow, type FieldDef } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -32,8 +32,8 @@ test.beforeEach(({ seed }) => {
   database = deviceDatabaseName(account.userId);
 });
 
-const TP = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp');
-const TC = getDefinition(SEED_VERSION, 'cabine_primaria', 'tc');
+const TP = getDefinition('v14', 'cabine_primaria', 'tp');
+const TC = getDefinition('v14', 'cabine_primaria', 'tc');
 const TC_V13 = getDefinition('v13', 'cabine_primaria', 'tc');
 const LOCAL = 'Geradores';
 
@@ -70,11 +70,11 @@ async function addFromPalette(page: Page, type: string): Promise<string> {
 
 test('@p0 24.10-E2E-001 at 1024: a v14 TP from the palette asks seven items with the FUSÍVEIS hint, a v14 TC six; a TC copied from a v13 visit takes the plate only; the DOCX prints seven and six rows and the conclusion\'s item 3', async ({ page }) => {
   test.setTimeout(480_000);
-  expect(SEED_VERSION).toBe('v14');
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1024, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: 'v14' });
   const { relatorioId } = built;
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, relatorioId)]);
   // A template TC whose equipment holds the plate of a v13 visit.

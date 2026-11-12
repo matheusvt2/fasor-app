@@ -20,7 +20,12 @@ import {
   sheetRunTarget,
   tableDictationLabel,
   rowVoltageCell,
+  notApplicableReadingValue,
+  ratioRowCalculatedText,
   ratioRowCondicaoText,
+  readingNotApplicableOn,
+  rowNotApplicableOffered,
+  rowNotApplicableTargets,
   readingLabelText,
   sheetTestSections,
   tapCellTyped,
@@ -48,7 +53,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { WholeWords } from '../../components/whole-words.tsx';
-import { SegmentedControl, TextButton } from '../../components/index.ts';
+import { OverflowMenu, SegmentedControl, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
@@ -57,6 +62,7 @@ import { focusRunEnd } from './ficha-fields.tsx';
 import { testCellOp } from './ficha-ops.ts';
 import { CorrectedValue, TemperatureLine } from './corrected-value.tsx';
 import { InstrumentPicker } from './instrument-picker.tsx';
+import { HeaderParameterField } from './header-parameter-field.tsx';
 import { ManufacturerValue } from './manufacturer-value.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
 import { MeasurementTests } from './measurement-test-section.tsx';
@@ -217,14 +223,17 @@ export function EnsaiosSection({
   const rangesKey = JSON.stringify(Object.fromEntries(testKeys.map((testKey) => [testKey, instrumentRangeFor(block, instruments, testKey, definitions)])));
   // Batch e24a (Story 24.3): the kernel says whether a reading out offers "Marcar Com restrições" (never on seed v14).
   const restrictionOffered = markRestrictionOffered(block);
+  // Story 25.9 (seed v15): the kernel says whether a reading's Overflow offers "Não se aplica".
+  const notApplicableOffered = readingNotApplicableOn(block);
   const extras = useMemo<SheetCellExtras>(() => {
     const ranges = JSON.parse(rangesKey) as Record<string, ReturnType<typeof instrumentRangeFor>>;
     return {
       rangeOf: (testKey) => ranges[testKey] ?? null,
       previousOf: (address) => previous.get(readingAddressKey(address)) ?? null,
       restrictionOffered,
+      notApplicableOffered,
     };
-  }, [rangesKey, previous, restrictionOffered]);
+  }, [rangesKey, previous, restrictionOffered, notApplicableOffered]);
 
   return (
     <div id="ficha-step-ensaios" ref={host} className={className} data-step="ensaios" tabIndex={-1} onFocus={onFocus}>
@@ -378,6 +387,7 @@ function TestSection({
     <MeasurementTable
       key={table.key}
       api={api}
+      block={block}
       test={test}
       table={table}
       firstMissing={firstMissing}
@@ -425,6 +435,8 @@ function TestSection({
         setupInstrumentIds={snapshot.relatorio.setup.instrument_ids}
         readOnly={readOnly}
       />
+      {/* Story 25.11 (Story 25.1 Part B's frame): the header's TENSÃO ENSAIO or CORRENTE as a field of this sheet, every seed. */}
+      {readOnly ? null : <HeaderParameterField api={api} block={block} testKey={test.testKey} instruments={instruments} />}
       {tables.length > 1 ? <div className="tests-two">{tables}</div> : tables}
       {/* Batch e23a (Story 23.4, seed v13): the kernel's instrument-limit note under the test's tables, as the document prints it. */}
       {test.limitNote === undefined || test.limitNote === null ? null : (
@@ -464,6 +476,7 @@ function TestSection({
 
 function MeasurementTable({
   api,
+  block,
   test,
   table,
   firstMissing,
@@ -474,6 +487,8 @@ function MeasurementTable({
   actions,
 }: {
   api: FichaApi;
+  /** Story 25.9: the sheet's block, whose seed says whether a row offers "Linha toda: não se aplica". */
+  block: Pick<BlockRow, 'seed_version'>;
   test: TestEvaluation;
   table: EvaluatedTable;
   /** Story 14.14: a line under the title row's criterion (the test-voltage check); null for none. */
@@ -524,7 +539,12 @@ function MeasurementTable({
       />
     );
   // Story 23.8: an unmarked tap row with nothing measured reads "Não medido" (`ratioRowCondicaoText`).
-  const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? ratioRowCondicaoText(row) : (row.calculated?.text ?? '—'));
+  // Story 25.9 (seed v15): a row whose every reading is N/A reads "N/A" in both (`ratioRowCalculatedText`).
+  const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? ratioRowCondicaoText(row) : ratioRowCalculatedText(row));
+  /** Story 25.9 (`60-ficha.html` #/ficha/TP-02 `.e25-calc.e25-na`): an N/A derived cell in the NA ink. */
+  const derivedNode = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (row.notApplicable === true ? <span className="e25-na">{derivedText(row, kind)}</span> : derivedText(row, kind));
+  /** Story 25.9 (seed v15, `60-ficha.html` #ficha-dlg-row-menu): the row's action beside its name, where the kernel offers it. */
+  const rowAction = (row: EvaluatedRow) => (readOnly || !rowNotApplicableOffered(block, row) ? null : <RowNotApplicableAction api={api} testKey={test.testKey} row={row} name={rowName(row)} />);
   // Story 23.8 (seed v13): the TTR's rows are the plate's taps; the line above the table counts them.
   // Fix batch e23g (R2-4): the count and the predicates are the kernel's.
   const tapRows = isTapTable(table.rows);
@@ -663,6 +683,16 @@ function MeasurementTable({
                         {readOnly ? null : <ClearTapRowButton api={api} testKey={test.testKey} row={row} />}
                       </span>
                     </td>
+                  ) : i === 0 && rowAction(row) !== null ? (
+                    // Story 25.9 (`60-ficha.html` #/ficha/TP-02 `.e25-row-head`): the row's action beside its name.
+                    // Review of PR #332 (R8LAY-E2E-001): an unnamed row (the TTR of a plate with no taps, "—") stacks it
+                    // under the dash as the TTR's first column stacks a tap row's (`.tap-cell`), so the table fits at 1280.
+                    <td key={`c${i}`} className="cell-point">
+                      <span className={text === '' ? 'tap-cell' : 'e25-row-head'}>
+                        {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
+                        {rowAction(row)}
+                      </span>
+                    </td>
                   ) : (
                     <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
                       {text === '' ? '—' : <WholeWords className="mt-word" text={screenLabel(text)} />}
@@ -680,7 +710,7 @@ function MeasurementTable({
                       column.col === choiceBefore ? choiceTd(row) : null,
                       // DC-1: Condição is the mock's `td.cell-dim` ("Satisfatório", `60-ficha.html`), the calculated value `td.cell-calc`.
                       <td key={column.col} className={column.derivedKind === 'condicao' ? 'cell-dim' : 'cell-calc'}>
-                        {derivedText(row, column.derivedKind)}
+                        {derivedNode(row, column.derivedKind)}
                         {column.derivedKind === 'condicao' ? null : (
                           <>
                             <span className="calc-mark" aria-hidden="true">
@@ -743,7 +773,17 @@ function MeasurementTable({
                 <TapCard key={row.row} row={row} table={table} optional={optional(row)} mark={markOf(row)} field={field} derivedText={derivedText} clear={readOnly ? null : <ClearTapRowButton api={api} testKey={test.testKey} row={row} />} />
               ) : (
               <div key={row.row} className="measurement-card">
-                <p className="card-point">{screenLabel(row.label)}</p>
+                {/* Story 25.9: the row's action beside the card's name too (the phone shows the cards). */}
+                {rowAction(row) === null ? (
+                  <p className="card-point">{screenLabel(row.label)}</p>
+                ) : (
+                  <p className="card-point">
+                    <span className="e25-row-head">
+                      {screenLabel(row.label)}
+                      {rowAction(row)}
+                    </span>
+                  </p>
+                )}
                 {row.cells.map((cell) => (
                   <div key={cell.address.col} className="field">
                     <span className="field-label" aria-hidden="true">
@@ -802,6 +842,24 @@ function MeasurementTable({
       {table.groupHelper === null ? null : <p className="helper">{table.groupHelper}</p>}
     </div>
   );
+}
+
+/**
+ * Story 25.9 (seed v15; `60-ficha.html` #ficha-dlg-row-menu): "Linha toda: não se aplica", one batch writing
+ * "Não se aplica" on every typed cell of the row the kernel names (`rowNotApplicableTargets`), with the frame's
+ * toast and "Desfazer".
+ */
+function RowNotApplicableAction({ api, testKey, row, name }: { api: FichaApi; testKey: string; row: EvaluatedRow; name: string }) {
+  const mark = () => {
+    const targets = rowNotApplicableTargets(row);
+    void api
+      .edit((_blocks, by) => targets.map((target) => testCellOp(by, api.relatorioId, api.blockId, testKey, target.address.row, target.address.col, notApplicableReadingValue(target.unit))))
+      .then((batch) => {
+        if (batch !== null) api.undoable(copy.ficha.ensaios.rowNotApplicableMarked, batch);
+      })
+      .catch(() => undefined);
+  };
+  return <OverflowMenu name={name} label={ui.measurementField.rowMenuLabel(name)} items={[{ id: 'row-not-applicable', label: ui.measurementField.rowNotApplicable, onAction: mark }]} />;
 }
 
 /**

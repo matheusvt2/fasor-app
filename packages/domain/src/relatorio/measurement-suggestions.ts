@@ -1,5 +1,5 @@
 import { safeParsePath } from '../ops/path.ts';
-import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { displayCellTargetSchema } from '../reading/target.ts';
 import type { BlockRow, Cell, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
 import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
@@ -144,6 +144,8 @@ function numberText(value: unknown): string {
   const number = numberShape(value);
   if (number === null) return typeof value === 'string' ? value : '';
   if (number.state === 'not_measured') return '-';
+  // Story 25.9 (seed v15): a reading marked "Não se aplica" (only a v15 sheet's menu writes one).
+  if (number.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
   // Story 22.10: a typed reading above the instrument's limit, "> 2 TΩ".
   if (number.state === 'over_range') return overRangeText(number.raw, number.unit);
   const shown = formatDecimalGroupedPtBr(number.raw);

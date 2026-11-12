@@ -1,4 +1,4 @@
-import { issueConfirmation, latestPushPerUser, preIssue, progress, type IssueConfirmation, type PreIssueRow, type Progress, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
+import { issueConfirmation, latestPushPerUser, liveRegistryInstruments, preIssue, progress, sheetsUnderRemovedLocals, type EntityState, type InstrumentRow, type IssueConfirmation, type PreIssueRow, type Progress, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
 import { useMemo } from 'react';
 import { now } from '../../clock.ts';
 import { uploadErrorIds } from '../../db/file-store.ts';
@@ -17,13 +17,21 @@ import { useSync } from '../../state/sync.tsx';
 
 const NO_ERRORS: ReadonlySet<string> = new Set();
 const NO_PENDING: readonly SuggestionRow[] = [];
+const NO_NAMES: readonly string[] = [];
+const NO_INSTRUMENTS: readonly InstrumentRow[] = [];
 
 export function usePreIssue(
   db: AppDatabase | null,
   snapshot: RelatorioSnapshot | null,
   computed: Progress | null = null,
   pending: readonly SuggestionRow[] = NO_PENDING,
+  state: EntityState | null = null,
 ): PreIssueRow[] {
+  // Story 25.12: the sheets under a removed local, which only the whole state holds.
+  const relatorioId = snapshot?.relatorio.id ?? null;
+  const removedLocalSheets = useMemo(() => (state === null || relatorioId === null ? NO_NAMES : sheetsUnderRemovedLocals(state, relatorioId)), [state, relatorioId]);
+  // Story 25.13: the company's live instruments, for a certificate number shared with another row.
+  const registryInstruments = useMemo(() => (state === null ? NO_INSTRUMENTS : liveRegistryInstruments(state)), [state]);
   const sync = useSync();
   const photoErrors = useLiveQuery(() => (db === null ? Promise.resolve(NO_ERRORS) : uploadErrorIds(db)), [db], NO_ERRORS);
   const { counts, lastPushAt, userNames, deviceId } = sync;
@@ -36,8 +44,8 @@ export function usePreIssue(
     () =>
       snapshot === null
         ? []
-        : preIssue(snapshot, computed ?? progress(snapshot, pending), { photoErrors, now: now(), rejected: counts.dead, lastPushes, pendingSuggestions: pending }),
-    [snapshot, computed, photoErrors, counts.dead, lastPushes, pending],
+        : preIssue(snapshot, computed ?? progress(snapshot, pending), { photoErrors, now: now(), rejected: counts.dead, lastPushes, pendingSuggestions: pending, removedLocalSheets, registryInstruments }),
+    [snapshot, computed, photoErrors, counts.dead, lastPushes, pending, removedLocalSheets, registryInstruments],
   );
 }
 

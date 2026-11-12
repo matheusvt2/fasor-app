@@ -6,7 +6,8 @@ import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, typ
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import { listPtBr } from '../text/plural.ts';
 import { ACCURACY_CLASS_HELPER, accuracyClassDeviation, parseAccuracyClass } from './accuracy-class.ts';
-import { isOverRangeRaw, OVER_RANGE_ALLOWED, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
+import { isOverRangeRaw, OVER_RANGE_ALLOWED, OVER_RANGE_INSIDE_RANGE_HELPER, OVER_RANGE_RATIO_REFUSAL, overRangeDisplay, overRangeInsideRange, overRangeVerdict, type OverRangeAllowance } from './over-range.ts';
+import { readingNotApplicableOn } from './reading-not-applicable.ts';
 import { ratedVoltsOf, rowTestVoltage, voltageColumnOf } from './row-voltage.ts';
 import { isTestInForce, testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
@@ -698,6 +699,8 @@ function evaluateTable(
   const inputs = typed.filter(({ column }) => column.role === 'input');
   // Seed v13, batch e23e (Story 23.18): the table's choice column, never a typed reading column.
   const choiceColumn = choiceColumnView(table);
+  // Story 25.9 (seed v15 `reading_not_applicable`): a stored "Não se aplica" reads as one only on such a sheet.
+  const notApplicableOn = readingNotApplicableOn(block);
   // Story 23.8 (seed v13): a `rows_from` table's rows are the plate's taps (`tap-rows.ts`); null keeps the seeded rows (v1 to v12).
   const plan = tapRowsOf(block, definition, table, test.key);
   const listUnit = plan === null ? null : (definition.nameplate.find((field) => field.key === table.rows_from)?.unit ?? null);
@@ -725,7 +728,7 @@ function evaluateTable(
     const effective: (number | null)[] = [];
     for (const { col, column } of typed) {
       const address: CellAddress = { testKey: test.key, row, col };
-      const stored = readStored(storedCell(block, address));
+      const stored = readStored(storedCell(block, address), notApplicableOn);
       // Story 22.10: a stored limit where the cell refuses one (an op written by hand or an old path) reads invalid: "> 2", no verdict.
       const refusedLimit = stored?.state === 'over_range' && !overRange.allowed;
       const state = refusedLimit ? 'invalid' : (stored?.state ?? 'empty');
@@ -745,7 +748,9 @@ function evaluateTable(
               ? overRangeDisplay(stored!.raw)
               : state === 'not_measured'
                 ? '-'
-                : state === 'invalid'
+                : state === 'not_applicable'
+                  ? NOT_APPLICABLE_TEXT
+                  : state === 'invalid'
                   ? stored!.raw
                   : '—',
         overRange,
@@ -823,11 +828,18 @@ function evaluateTable(
       if (within !== null) {
         cell.verdict = within ? 'within' : 'out';
         cell.helperText = within ? null : corrected === null ? helper : correctedOutHelperText(rowCriterionValue, corrected.text);
+      } else if (cell.state === 'over_range' && overRangeInsideRange(value, cell.unit, rowCriterionValue)) {
+        // Story 25.9 (every seed, screen only; e24x X6): a limit inside a range criterion says why it was not judged.
+        cell.helperText = OVER_RANGE_INSIDE_RANGE_HELPER;
       }
     }
     // Seed v13, batch e23t (Story 23.16): the row's IP and DAR, after its captures.
     if (test.polarization_index !== undefined || table.value_columns.some((column) => column.role === 'index')) judgeIndexCells(table, test, cells, judging.medium);
-    const captures = cells.filter((cell) => cell.role === 'capture');
+    // Story 25.9 (seed v15): a capture marked "Não se aplica" is left out of the row's judgement; the others decide.
+    const captures = cells.filter((cell) => cell.role === 'capture' && cell.state !== 'not_applicable');
+    // Story 25.9: every typed cell of the row N/A: no VAL CALCULADO, no CONDIÇÕES, and its choice not asked.
+    const rowNotApplicable = cells.length > 0 && cells.every((cell) => cell.state === 'not_applicable');
+    if (rowNotApplicable) calculated = null;
     // F42: one capture out of the criterion fails the row; every capture within passes it; otherwise unjudged.
     // Batch e23v (Story 23.6): a restricted capture is within its criterion here (B-8: SATISFATÓRIO).
     let condicao: EvaluatedRow['condicao'] = null;
@@ -836,9 +848,12 @@ function evaluateTable(
       else if (captures.every((cell) => cell.verdict === 'within' || cell.verdict === 'restricted')) condicao = 'SATISFATÓRIO';
     }
     // Seed v13, batch e23e (Story 23.18): the row's choice cell (POLARIDADE); an option that fails puts the row out.
-    const choice = choiceColumn === null ? null : evaluateChoice(block, test.key, row, choiceColumn, required);
+    const choice = choiceColumn === null ? null : evaluateChoice(block, test.key, row, choiceColumn, required && !rowNotApplicable);
     if (choice !== null && choice.verdict === 'out') condicao = 'INSATISFATÓRIO';
-    const withChoice = <T extends EvaluatedRow>(evaluatedRow: T): T => (choice === null ? evaluatedRow : { ...evaluatedRow, choice });
+    const withChoice = <T extends EvaluatedRow>(evaluatedRow: T): T => {
+      const withAnswer = choice === null ? evaluatedRow : { ...evaluatedRow, choice };
+      return rowNotApplicable ? { ...withAnswer, notApplicable: true as const } : withAnswer;
+    };
     // F42: a typed connection the seed leaves blank (TAP Nº) reads the plate's TAP ATUAL as typed.
     // Story 23.8: a tap row's TAP Nº is its position on the plate; a tap no longer on it shows none.
     if (tap !== null && tapPrimary !== null) {

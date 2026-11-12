@@ -144,16 +144,28 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     const staleRows = (snapshot: RelatorioSnapshot) => preIssue(snapshot, undefined, { now: NOW }).filter((r) => r.kind === 'conclusion_stale');
     const blockOf = (snapshot: RelatorioSnapshot, blockId: string) => snapshot.blocks.find((b) => b.id === blockId)!;
 
-    it('names one stale confirmed sheet by its TAG on section 9, pending, and the Sumário row 9 says it', () => {
+    // Story 25.7 (M20): the row blocks the issue (it was pending), names the sheet it leads to, and row 9 draws it red.
+    it('names one stale confirmed sheet by its TAG on section 9, blocking, and the Sumário row 9 says it', () => {
       const snapshot = fresh();
       const [first] = sheetOrder(snapshot);
       expect(first!.tag).not.toBe('');
       const stale = withBlocks(snapshot, new Map([[first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)]]));
       const rows = staleRows(stale);
-      expect(rows).toEqual([{ id: 'conclusion_stale', row: 'section_9', severity: 'pending', text: `Texto de conclusão desatualizado: ${first!.tag}`, kind: 'conclusion_stale' }]);
+      expect(rows).toEqual([
+        {
+          id: 'conclusion_stale',
+          row: 'section_9',
+          severity: 'blocking',
+          text: `Texto de conclusão desatualizado: ${first!.tag}`,
+          kind: 'conclusion_stale',
+          sheets: [{ blockId: first!.blockId, name: first!.tag }],
+        },
+      ]);
       const computed = progress(stale);
       const row9 = sumarioRows(stale, preIssue(stale, computed, { now: NOW }), computed).find((r) => r.rowKey === 'section_9')!;
-      expect(row9.meta).toContain(`Texto de conclusão desatualizado: ${first!.tag}`);
+      expect(row9.meta).toContain(`Texto de conclusão desatualizado: ${first!.tag} — impede gerar`);
+      expect(row9.blocking).toBe(true);
+      expect(row9.metaParts!.filter((part) => part.blocking)).toEqual([{ text: `Texto de conclusão desatualizado: ${first!.tag} — impede gerar`, blocking: true }]);
     });
 
     it('a TAG renamed after the confirm makes it stale, named by the new TAG', () => {
@@ -277,7 +289,7 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     expect(preIssue({ ...snapshot, blocks }, undefined, { now: NOW }).some((r) => r.kind === 'suggestions_pending')).toBe(false);
   });
 
-  it('calibration per instrument on section 11: expired pending, about to expire a warning; a missing certificate a warning', () => {
+  it('calibration per instrument on section 11: expired pending, about to expire a warning; a missing certificate pending (Story 25.12)', () => {
     const base = fresh();
     const snapshot = {
       ...base,
@@ -289,11 +301,13 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
         instrument({ id: '019966b0-0085-7000-8000-000000000003', code: 'TTR-01', calibrated_at: '2026-06-01' }),
       ],
     };
-    const rows = preIssueRowsFor(preIssue(snapshot, undefined, { now: NOW }), 'section_11').filter((r) => r.kind !== 'setup_missing');
+    // Story 25.13: no sheet uses them, so each is also ticked-unused (information), left out here.
+    const rows = preIssueRowsFor(preIssue(snapshot, undefined, { now: NOW }), 'section_11').filter((r) => r.kind !== 'setup_missing' && r.kind !== 'instrument_unused');
     expect(kinds(rows)).toEqual([
       ['calibration', 'section_11', 'pending', 'MEG-01 — calibração vencida em 01/08/2026'],
       ['calibration', 'section_11', 'info', 'MIC-01 — calibração vence em 20/09/2026'],
-      ['certificate_missing', 'section_11', 'info', 'MIC-01 sem certificado'],
+      // Story 25.12: a missing certificate file is pending.
+      ['certificate_missing', 'section_11', 'pending', 'MIC-01 sem certificado'],
     ]);
     // With no service end the caller's now is the reference; with neither, nothing is judged (the kernel reads no clock).
     const noEnd = withSetup(snapshot, { service_end: null });

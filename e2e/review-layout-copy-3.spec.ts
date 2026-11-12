@@ -1,4 +1,4 @@
-import { getDefinition, newPointRow, STANDARD_TEMPLATE_NAME, type OpDraft, type PointRow } from '@app/domain';
+import { getDefinition, newPointRow, STANDARD_TEMPLATE_NAME, tickedUnusedText, type OpDraft, type PointRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -377,7 +377,8 @@ test('@p1 F-15 three instruments and no certificate: row 11 reads "3 instrumento
   const ids = drafts.map((draft) => (draft.value as { id: string }).id);
   const built = await setUp(page, (scope) => [...drafts, officeDraft(account, scope, 'relatorio/setup/instrument_ids', ids)]);
   const row11 = sumario(page).locator('li.sum-row[data-row="section_11"] .sum-status');
-  await expect(row11).toHaveText('3 instrumentos · nenhum certificado anexado', { timeout: 30_000 });
+  // Story 25.13: no sheet uses the three, so the row then names each as ticked and unused (`tickedUnusedText`).
+  await expect(row11).toHaveText(['1T', '2E', '3M'].reduce((text, code) => `${text} · ${tickedUnusedText(code)}`, '3 instrumentos · nenhum certificado anexado'), { timeout: 30_000 });
   await expect(row11).not.toContainText('sem certificado');
 
   // The Export dialog keeps the three "sem certificado" warnings in its count: the same relatório
@@ -415,7 +416,7 @@ test('@p1 F-15 three instruments and no certificate: row 11 reads "3 instrumento
     }),
   );
   await openSumario(page, built.relatorioId);
-  await expect(row11).toHaveText('3 instrumentos', { timeout: 30_000 });
+  await expect(row11).toHaveText(['1T', '2E', '3M'].reduce((text, code) => `${text} · ${tickedUnusedText(code)}`, '3 instrumentos'), { timeout: 30_000 });
   expect(await warnings()).toBe(withoutCertificates - 3);
 });
 

@@ -7,7 +7,7 @@ import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
-import type { SuggestionRow } from '../schemas/entities.ts';
+import type { RegistryRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, findSeed, getSeed, sectionText, snapshotDefinitionContext, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
@@ -19,6 +19,8 @@ import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWi
 import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
+import { calibrationLack, calibrationLackText, deadlineOverdueText, overduePointPositions, sheetsUnderRemovedLocalsText } from './pre-issue-warnings.ts';
+import { sharedCertificateText, sharedCertificateTwins, tickedUnusedInstruments, tickedUnusedText } from './instrument-use.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { composeConclusion, conclusionTextForPrint, conclusionTextState } from './conclusion.ts';
 import { visitContextOf } from './visit-context.ts';
@@ -43,7 +45,8 @@ import { sectionBlocks } from './sumario.ts';
  * preenchido" (section 10) ~~(Story 22.6, 2026-11-06: the verdict is derived from the fichas,
  * so it is never missing and no row blocks)~~ (e22f S5: only while no sheet is concluded and
  * no verdict was tapped, `effectiveParecer` null); everything else warns and the document
- * prints its consequence.
+ * prints its consequence. Story 25.7 (M20, every seed): a second one, `conclusion_stale`, a
+ * concluded sheet whose stored conclusion text is stale, named with the sheets it leads to.
  * The `sync` rows (rejected ops, the other devices' last send) are what no Sumário row can
  * say: only the Export dialog draws them.
  */
@@ -70,6 +73,11 @@ export type PreIssueKind =
   | 'points_sem_acao'
   | 'point_photo_removed'
   | 'points_sem_prazo'
+  | 'deadline_overdue'
+  | 'sheets_removed_local'
+  | 'calibration_missing'
+  | 'certificate_shared'
+  | 'instrument_unused'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
@@ -91,6 +99,17 @@ export interface PreIssueRow {
   /** pt-BR, ready to render. */
   text: string;
   kind: PreIssueKind;
+  /**
+   * Story 25.7: the sheets a `conclusion_stale` row names, in its order, so the Export dialog's
+   * "Abrir ficha" leads to each; absent on every other row.
+   */
+  sheets?: readonly PreIssueSheet[];
+}
+
+/** Story 25.7: a sheet a pre-issue row names: its block and the name the row prints (the TAG, else the type). */
+export interface PreIssueSheet {
+  blockId: string;
+  name: string;
 }
 
 // authored: the mocks draw the cover row only when it is complete; these name the gaps in
@@ -154,6 +173,17 @@ export interface PreIssueContext {
    * a warning that never blocks. Default: none.
    */
   pendingSuggestions?: readonly SuggestionRow[];
+  /**
+   * Story 25.12: the live sheets of this relatório under a removed local, named
+   * (`sheetsUnderRemovedLocals`, read from the device's state: the snapshot hides them). Default: none.
+   */
+  removedLocalSheets?: readonly string[];
+  /**
+   * Story 25.13: the company's live instrument rows (`liveRegistryInstruments`, read from the
+   * device's state: the snapshot holds only the relatório's), for a certificate number an
+   * instrument of the relatório shares with another row. Default: none, no such row.
+   */
+  registryInstruments?: readonly Extract<RegistryRow, { kind: 'instrument' }>[];
 }
 
 const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
@@ -211,13 +241,13 @@ export function conclusionStaleText(names: readonly string[]): string {
  * sheet with no printable text is `conclusion_unconfirmed`'s, never this row's; a sheet whose
  * seed this device does not ship is skipped (nothing to compose it against).
  */
-function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
+function staleConclusionSheets(snapshot: RelatorioSnapshot): PreIssueSheet[] {
   const tags = new Map(snapshot.equipment.map((row) => [row.id, row.tag]));
   const ctx = snapshotDefinitionContext(snapshot);
   const stale = new Set<string>();
   for (const block of snapshot.blocks) {
     // The cheap checks first; the composition runs only for a concluded sheet with a printable text.
-    if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block) !== 'concluida') continue;
+    if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block, ctx) !== 'concluida') continue;
     const definition = blockDefinitionIn(ctx, block);
     // Batch e23v (Stories 23.5 and 23.6): the sheet as it is judged, under its visit context.
     const visit = visitContextOf(snapshot, block);
@@ -227,18 +257,18 @@ function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
     if (conclusionTextState(block, composeConclusion(block, definition, tag, visit)) === 'stale') stale.add(block.id);
   }
   if (stale.size === 0) return [];
-  const names: string[] = [];
+  const sheets: PreIssueSheet[] = [];
   for (const node of sheetOrder(snapshot)) {
     if (!stale.delete(node.blockId)) continue;
-    names.push(node.name);
+    sheets.push({ blockId: node.blockId, name: node.name });
   }
   // A sheet the tree does not draw (no live location) is still named, after the others.
   for (const block of snapshot.blocks) {
     if (!stale.has(block.id)) continue;
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
-    names.push(tag !== '' ? tag : (blockDefinitionIn(ctx, block)?.label ?? block.block_type));
+    sheets.push({ blockId: block.id, name: tag !== '' ? tag : (blockDefinitionIn(ctx, block)?.label ?? block.block_type) });
   }
-  return names;
+  return sheets;
 }
 
 /** "3 com erro de envio": section 7's photos whose upload stopped with an error on this device. */
@@ -387,6 +417,13 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   if (semPrazo > 0) {
     rows.push({ id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: pointsSemPrazoText(semPrazo), kind: 'points_sem_prazo' });
   }
+  // Story 25.12 (M26): the live points whose deadline is before the day of generating
+  // (America/Sao_Paulo; a month only once it has passed), one pending row naming them. The
+  // caller's clock is the day: without it nothing is judged.
+  const overdue = now === null ? [] : overduePointPositions(snapshot.points, calendarDateOfInstant(now));
+  if (overdue.length > 0) {
+    rows.push({ id: 'deadline_overdue', row: 'section_8', severity: 'pending', text: deadlineOverdueText(overdue), kind: 'deadline_overdue' });
+  }
 
   // Fix batch fxpw G5: the remaining work, a not-tested sheet counted as handled.
   if (computed.sheets_handled < computed.sheets_total) {
@@ -406,13 +443,19 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   if (withSuggestions > 0) {
     rows.push({ id: 'suggestions_pending', row: 'section_9', severity: 'pending', text: fichasComSugestoesText(withSuggestions), kind: 'suggestions_pending' });
   }
+  // Story 25.12 (M32): live sheets under a removed local, which the snapshot leaves out of the
+  // tree, the counts and the print; one pending row names them.
+  const removedLocalSheets = context.removedLocalSheets ?? [];
+  if (removedLocalSheets.length > 0) {
+    rows.push({ id: 'sheets_removed_local', row: 'section_9', severity: 'pending', text: sheetsUnderRemovedLocalsText(removedLocalSheets), kind: 'sheets_removed_local' });
+  }
   // Story 7.5: a concluded sheet whose conclusion text is not confirmed prints without it.
   const definitions = snapshotDefinitionContext(snapshot);
   const unconfirmed = snapshot.blocks.filter(
     (block) =>
       block.removed_at === null &&
       isEquipmentBlock(block) &&
-      sheetState(block) === 'concluida' &&
+      sheetState(block, definitions) === 'concluida' &&
       enabledSubBlocksOf(block).has('conclusion') &&
       conclusionTextForPrint(block, blockDefinitionIn(definitions, block), visitContextOf(snapshot, block)) === null,
   ).length;
@@ -420,10 +463,18 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: 'conclusion_unconfirmed', row: 'section_9', severity: 'pending', text: conclusionUnconfirmedText(unconfirmed), kind: 'conclusion_unconfirmed' });
   }
   // Review 2026-10-08 AIB-1: a concluded sheet whose stored text went stale (a value or the
-  // TAG changed since its confirm); "Substituir" on the sheet clears it.
-  const staleNames = staleConclusionNames(snapshot);
-  if (staleNames.length > 0) {
-    rows.push({ id: 'conclusion_stale', row: 'section_9', severity: 'pending', text: conclusionStaleText(staleNames), kind: 'conclusion_stale' });
+  // TAG changed since its confirm); "Substituir" on the sheet clears it. Story 25.7 (M20, every
+  // seed): it blocks the issue, here and on the server, and names the sheets it leads to.
+  const staleSheets = staleConclusionSheets(snapshot);
+  if (staleSheets.length > 0) {
+    rows.push({
+      id: 'conclusion_stale',
+      row: 'section_9',
+      severity: 'blocking',
+      text: conclusionStaleText(staleSheets.map((sheet) => sheet.name)),
+      kind: 'conclusion_stale',
+      sheets: staleSheets,
+    });
   }
   for (const finding of integrityFindings({ equipment: snapshot.equipment })) {
     rows.push({
@@ -507,13 +558,34 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       kind: 'calibration',
     });
   }
-  // Story 7.3's rule (section 11 prints a placeholder line for each of these).
+  // Story 25.12 (M18): an instrument section 11 prints with no calibration date, or no interval
+  // to compute its validity from, is pending and named, whatever the reference date.
+  for (const entry of printedInstruments) {
+    const instrument = registryInstruments.get(entry.instrument_id);
+    const lack = instrument === undefined ? null : calibrationLack(instrument);
+    if (instrument === undefined || lack === null) continue;
+    rows.push({ id: `calibration_missing:${instrument.id}`, row: 'section_11', severity: 'pending', text: calibrationLackText(instrument.code, lack), kind: 'calibration_missing' });
+  }
+  // Story 7.3's rule (section 11 prints a placeholder line for each of these). Story 25.12:
+  // pending, no longer information.
   for (const entry of missingCertificates(snapshot)) {
-    rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
+    rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'pending', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
   }
   for (const entry of printedInstruments) {
     if (!entry.cert_mismatch) continue;
     rows.push({ id: `cert_number_mismatch:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certNumberMismatchText(entry.code), kind: 'cert_number_mismatch' });
+  }
+  // Story 25.13 (M25): an instrument section 11 prints that shares its certificate number with
+  // another live registry row (trimmed, without case) is pending, naming the twin; one ticked in
+  // Etapa 4 that no live sheet uses is information (a shared model raises nothing here).
+  const certificateTwins = sharedCertificateTwins(context.registryInstruments ?? []);
+  for (const entry of printedInstruments) {
+    const twins = certificateTwins.get(entry.instrument_id);
+    if (twins === undefined) continue;
+    rows.push({ id: `certificate_shared:${entry.instrument_id}`, row: 'section_11', severity: 'pending', text: sharedCertificateText(entry.code, twins), kind: 'certificate_shared' });
+  }
+  for (const instrument of tickedUnusedInstruments(snapshot)) {
+    rows.push({ id: `instrument_unused:${instrument.id}`, row: 'section_11', severity: 'info', text: tickedUnusedText(instrument.code), kind: 'instrument_unused' });
   }
 
   // The Export dialog's own lines: what this device could not send, and when the others last sent.
@@ -551,12 +623,19 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   'photos_pending_upload',
   'photos_upload_error',
   'cert_number_mismatch',
+  // Story 25.12 (`73-exportar.html`, Story 25.1 Part B): the three warnings are named rows.
+  'deadline_overdue',
+  'calibration_missing',
+  'sheets_removed_local',
+  // Story 25.13 (`73-exportar.html`): a shared certificate and a ticked, unused instrument.
+  'certificate_shared',
+  'instrument_unused',
   'rejected',
   'last_send',
 ]);
 
 export interface ExportPrecheck {
-  /** The rows that stop "Gerar relatório" (only "Parecer não preenchido", e22f S5). */
+  /** The rows that stop "Gerar relatório" ("Parecer não preenchido", e22f S5; Story 25.7, a stale conclusion text). */
   blocking: PreIssueRow[];
   /** The rows the dialog draws one per line. */
   explicit: PreIssueRow[];
@@ -609,6 +688,26 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
 export function parecerMissingReason(number: number, line: number | null): string {
   const where = line === null ? '' : ` (linha ${line} do sumário)`;
   return `Preencha o parecer${where} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
+}
+
+/**
+ * Story 25.7 (`73-exportar.html` `#exportar-gen-blocked-reason`, Story 25.1 Part B): the reason beside a
+ * blocked "Gerar relatório", naming every blocking row: the parecer alone (`parecerMissingReason`), a stale
+ * conclusion text alone, or both, as the mock reads them ("Preencha o parecer (linha 10 do sumário) e
+ * atualize o texto da conclusão de SEC-C05 para emitir a revisão 3. O rascunho pode ser visto antes.").
+ * Null with no blocking row.
+ */
+export function issueBlockedReason(blocking: readonly PreIssueRow[], number: number, parecerLine: number | null): string | null {
+  if (blocking.length === 0) return null;
+  const names = blocking.flatMap((row) => (row.kind === 'conclusion_stale' ? (row.sheets ?? []).map((sheet) => sheet.name) : []));
+  const parecer = blocking.some((row) => row.kind === 'parecer_missing');
+  if (names.length === 0) return parecerMissingReason(number, parecerLine);
+  // authored: Story 25.7, the stale texts the mock names ("atualize o texto da conclusão de SEC-C05"), and their plural.
+  const texts = `${names.length === 1 ? 'o texto da conclusão' : 'os textos da conclusão'} de ${listPtBr(names)}`;
+  const where = parecerLine === null ? '' : ` (linha ${parecerLine} do sumário)`;
+  // authored: Story 25.7, the stale text alone opens the sentence with its verb.
+  const ask = parecer ? `Preencha o parecer${where} e atualize ${texts}` : `Atualize ${texts}`;
+  return `${ask} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
 }
 
 /**

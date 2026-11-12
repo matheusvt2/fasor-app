@@ -315,11 +315,17 @@ export const restrictionSchema = z
     pole_deviation_pct: restrictionPct.optional(),
     // Fix batch e23w (B-6): see `testDefSchema.restriction`.
     history_rise_out_pct: restrictionPct.optional(),
+    // Batch e25c (Story 25.8, seed v15): see `testDefSchema.restriction`.
+    history_rise_at_limit_restricted: z.literal(true).optional(),
     prerequisite: z.object({ field: seedKey, fails_on: z.array(z.string().min(1)).min(1) }).optional(),
     status: criterionRowStatusSchema,
   })
   .refine((r) => r.history_drop_pct !== undefined || r.below_largest_pct !== undefined || r.pole_deviation_pct !== undefined || r.history_rise_out_pct !== undefined || r.prerequisite !== undefined, {
     message: 'a restriction names at least one rule',
+  })
+  .refine((r) => r.history_rise_at_limit_restricted === undefined || r.history_rise_out_pct !== undefined, {
+    message: 'history_rise_at_limit_restricted qualifies history_rise_out_pct',
+    path: ['history_rise_at_limit_restricted'],
   });
 export type RestrictionRules = z.infer<typeof restrictionSchema>;
 
@@ -424,6 +430,9 @@ export const testDefSchema = z.object({
    * fix batch e23w (Bruno's answer B-6, DJ-03, SC-03): `history_rise_out_pct` puts out a measured
    * reading more than that share above the same cell's previous measured value (the previous
    * visit on seed v13 or later), the one rule here that sets out rather than restricted.
+   * Batch e25c (Story 25.8, Bruno's answer 1 of 2026-11-11, seed v15): `history_rise_at_limit_restricted`
+   * (only beside `history_rise_out_pct`) makes a rise equal to that share, within the rule's rounding
+   * tolerance, restricted rather than within; above it stays out.
    * `status` is the base's status of the rule (`CRITERION_ROW_STATUSES`, data only).
    */
   restriction: restrictionSchema.optional(),
@@ -1050,6 +1059,14 @@ export const seedRulesSchema = z
     history_needs_like_with_like: z.literal(true).optional(),
     /** Fix batch e24y (F10): a checklist step whose definition holds no item is neither drawn nor named in the Sheet header. */
     empty_steps_hidden: z.literal(true).optional(),
+    /** Story 25.6 (seed v15, M07): a sheet with no measurement (every reading of its live tests "Não medido", none measured) neither offers nor accepts Aprovado. */
+    no_measurement_refuses_aprovado: z.literal(true).optional(),
+    /** Story 25.7 (seed v15, M20, F12): the conclusion paragraph names each test left unmeasured and a Reprovado (or a Com restrições over no indicated point) the responsible chose, and recommends correcting only points it indicates. */
+    conclusion_names_choice_and_unmeasured: z.literal(true).optional(),
+    /** Story 25.9 (seed v15, M05): a reading cell takes "Não se aplica" from its menu, alone or with its whole row: filled, never judged, left out of every comparison, printed "N/A". */
+    reading_not_applicable: z.literal(true).optional(),
+    /** Story 25.10 (seed v15, M14 and M-6): a point started from a test, the conclusion paragraph and the parecer's Reprovado sentence name every reading out of its criterion in row order, not only the worst one. */
+    names_every_reading_out: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

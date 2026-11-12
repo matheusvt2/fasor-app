@@ -82,6 +82,22 @@ export function overRangeVerdict(limit: number, unit: string | null, criterion: 
   return scaled >= criterion.value * (1 - 1e-12) ? 'within' : 'out';
 }
 
+/**
+ * Story 25.9 (every seed, screen only; closes e24x X6): whether a limit the instrument passed stands inside a
+ * range criterion (`between`, which a "nominal ± %" row reads as), below its upper end, so `overRangeVerdict`
+ * cannot judge it: the reading may lie inside or above the range. False for any other operator, a limit at or
+ * above the upper end (out) and units that do not compare.
+ */
+export function overRangeInsideRange(limit: number, unit: string | null, criterion: OverRangeCriterion): boolean {
+  if (criterion.operator !== 'between' || criterion.value_max === undefined) return false;
+  if (scaleToUnit(limit, unit, criterion.unit) === null) return false;
+  return overRangeVerdict(limit, unit, criterion) === null;
+}
+
+// authored (Story 25.9, B-6, proposed for Bruno and built as proposed until he answers): the helper under a
+// reading above the instrument's limit that a range criterion could not judge (`overRangeInsideRange`).
+export const OVER_RANGE_INSIDE_RANGE_HELPER = 'Conferir: o limite do instrumento está dentro da faixa do critério; meça com outra escala.';
+
 // authored (Story 22.10, open for Bruno): the refusal of a ratio cell, capture or input.
 /** Why a relação de transformação cell refuses a reading above the limit. */
 export const OVER_RANGE_RATIO_REFUSAL = 'O ensaio de relação de transformação não aceita valor acima do limite: informe o valor medido.';

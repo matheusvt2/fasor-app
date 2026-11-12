@@ -783,7 +783,14 @@ export const copy = {
     blockingWhere: (section: string) => ` — ${section} `,
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
+    // Story 25.7, verbatim from `73-exportar.html` `#exportar-pc-stale` (Story 25.1 Part B): the stale conclusion text's row.
+    staleMeta: '(os valores da ficha mudaram depois do texto; Substituir ou editar o texto na ficha)',
+    openSheet: 'Abrir ficha',
+    // authored (Story 25.7): with several stale sheets, each "Abrir ficha" names its sheet for assistive tech.
+    openSheetNamed: (name: string) => `Abrir ficha ${name}`,
     seeInSumario: 'Ver no sumário',
+    // Story 25.12 (`73-exportar.html`, Story 25.1 Part B): where a named warning stands; `section` is the kernel's `sectionRefText`.
+    warningWhere: (section: string) => `— ${section}`,
     // authored: the Sync status surface's own word for resending rejected changes.
     resend: 'Reenviar',
     docControlLabel: 'Controle do documento',
@@ -1606,6 +1613,8 @@ export const copy = {
       // authored: the closed picker before any pick.
       instrumentEmpty: 'Selecione o instrumento',
       instrumentDetails: 'Série, RBC e validade',
+      // Story 25.11 (`60-ficha.html` #/ficha/SEC-02 `.e25-header-param`), verbatim: the action that takes the instrument's test parameter back.
+      headerParameterUseInstrument: 'Usar a do instrumento',
       // `key-equipment-sheet-v09.html` suggested instrument helper (Story 12.3), verbatim.
       instrumentSuggestedHelper: 'Último usado neste relatório · confirmado ao concluir a ficha, ou toque para trocar',
       instrumentList: 'Instrumentos cadastrados',
@@ -1641,6 +1650,10 @@ export const copy = {
       clearTapRow: 'Apagar leitura',
       // authored (e23z, listed for Bruno).
       clearedTapRowToast: 'Leitura apagada',
+      // Story 25.9 (seed v15; `60-ficha.html` #ficha-dlg-cell-menu and #ficha-dlg-row-menu, verbatim): the toasts after
+      // "Não se aplica" on a reading and "Linha toda: não se aplica" on a row, each with "Desfazer".
+      notApplicableMarked: 'Leitura marcada Não se aplica — não é julgada e imprime N/A',
+      rowNotApplicableMarked: 'Linha marcada Não se aplica — todas as leituras imprimem N/A',
     },
     // Story 23.9 (`60-ficha.html` #/ficha/SEC-C05, DESIGN.md › Not-applicable test): a test the nameplate
     // makes not applicable; the reason and the applied sentence are the kernel's (`testApplicability`).
@@ -1789,6 +1802,8 @@ export const copy = {
       m.prints ? `Marque os instrumentos desta obra: o certificado de cada um entra na ${m.ref}.` : `Marque os instrumentos desta obra. Os certificados não saem no documento: o relatório não tem a ${m.ref}.`,
     // authored: the inline note beside an instrument a sheet still references.
     instrumentReferenced: (m: Mention) => (m.prints ? `Continua na ${m.ref} porque uma ficha usa este instrumento` : 'Continua marcado porque uma ficha usa este instrumento'),
+    // Story 25.13 (`50-relatorio-setup.html` Etapa 4 `.e25-unused`), verbatim; authored "Marcado, sem uso nas fichas" (for Bruno).
+    instrumentUnused: (m: Mention) => (m.prints ? `Marcado, sem uso nas fichas. Desmarque se não foi usado: ele sai da ${m.ref}.` : 'Marcado, sem uso nas fichas.'),
     // authored (Story 12.2): the note in place of the list while the registry is empty,
     // the same sentence the sheet's instrument picker says.
     noInstruments: 'Nenhum instrumento cadastrado',

@@ -7,6 +7,7 @@ import {
   generatingReason,
   generatingText,
   idleReason,
+  issueBlockedReason,
   issueConfirmText,
   latestRevision,
   MARK_SENT_LABEL,
@@ -16,10 +17,12 @@ import {
   pendingSuggestions,
   progress,
   readyTitle,
+  relatorioSectionNumber,
   revisionMetaSegments,
   revisionRowSegments,
   sectionMention,
   sectionRefText,
+  namedWarningSection,
   suggestionRowsOf,
   sumarioLineOf,
   sumarioRows,
@@ -65,6 +68,8 @@ export interface ExportDialogProps {
    * a sheet (or one of its rows) opens the sheet, a photo the gallery. Absent, no "Ver".
    */
   onSeeAuditTarget?: (target: AuditTarget) => void;
+  /** Story 25.7: a stale conclusion text's "Abrir ficha", which opens that sheet (and comes back here). Absent, no action. */
+  onOpenSheet?: (blockId: string) => void;
   /** Test hook: shorter waits than the 3 s poll and 2 s retry of the product. */
   timing?: GenerateTiming;
 }
@@ -85,7 +90,7 @@ const TITLE_ID = 'export-title';
  * words a failure beside its row. Mounted by the Sumário's
  * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`).
  */
-export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, onSeeAuditTarget, timing = DEFAULT_TIMING }: ExportDialogProps) {
+export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, onSeeAuditTarget, onOpenSheet, timing = DEFAULT_TIMING }: ExportDialogProps) {
   // Epic 18: the Export dialog's `dialog_open` and `dialog_cancel`, on its own screen.
   const exportCancelled = useDialogTelemetry('export', isOpen, 'export');
   const state = useGenerate(relatorioId, timing);
@@ -205,7 +210,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   // Story 8.6: the device's pending suggestion rows (section 9's warning and the sheets count).
   const pending = useMemo(() => (entityState === null ? [] : pendingSuggestions(suggestionRowsOf(entityState, relatorioId))), [entityState, relatorioId]);
   const computed = useMemo(() => (snapshot === null ? null : progress(snapshot, pending)), [snapshot, pending]);
-  const issues = usePreIssue(db, snapshot, computed, pending);
+  const issues = usePreIssue(db, snapshot, computed, pending, entityState);
   const precheck = useMemo(() => exportPrecheck(issues), [issues]);
   // F-03 (D1): with empty sheets or blank fields, "Gerar relatório" first asks, naming the counts.
   const confirmCounts = useIssueConfirmation(snapshot);
@@ -384,7 +389,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
     const disabledReason = !online
       ? copy.export.offlineReason
       : blocked
-        ? parecerMissingReason(idleNumber, parecerLine)
+        ? // Story 25.7: every blocking row named (the parecer, a stale conclusion text, or both).
+          (issueBlockedReason(precheck.blocking, idleNumber, parecerLine) ?? parecerMissingReason(idleNumber, parecerLine))
         : phase.kind === 'flushing' || phase.kind === 'requesting'
           ? copy.export.flushing
           : undefined;
@@ -468,23 +474,55 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           <div>
             <p className="field-label precheck-label">{copy.export.precheckLabel}</p>
             <ul className="precheck">
-              {precheck.blocking.map((row) => (
-                <li className="is-blocking" key={row.id}>
-                  <span className="pc-text">
-                    <span className="pc-block">{row.text}</span>
-                    {snapshot === null ? null : copy.export.blockingWhere(sectionRefText(snapshot, 10))}
-                    <span className="pc-meta">{copy.export.blockingMeta}</span>
-                  </span>
-                  {onEditInSetup === undefined ? null : (
-                    <span className="pc-actions">
-                      <TextButton onPress={() => onEditInSetup(6)}>{copy.export.editInSetup}</TextButton>
+              {precheck.blocking.map((row) =>
+                row.kind === 'conclusion_stale' ? (
+                  // Story 25.7 (`73-exportar.html` `#exportar-pc-stale`): the stale texts, on section 9, with the way to each sheet.
+                  <li className="is-blocking" key={row.id}>
+                    <span className="pc-text">
+                      <span className="pc-block">{row.text}</span>
+                      {snapshot === null ? null : copy.export.blockingWhere(sectionRefText(snapshot, relatorioSectionNumber(row.row) ?? 9))}
+                      <span className="pc-meta">{copy.export.staleMeta}</span>
                     </span>
-                  )}
-                </li>
-              ))}
+                    {onOpenSheet === undefined || (row.sheets ?? []).length === 0 ? null : (
+                      <span className="pc-actions">
+                        {(row.sheets ?? []).map((sheet) => (
+                          <TextButton
+                            key={sheet.blockId}
+                            {...((row.sheets ?? []).length > 1 ? { 'aria-label': copy.export.openSheetNamed(sheet.name) } : {})}
+                            onPress={() => onOpenSheet(sheet.blockId)}
+                          >
+                            {copy.export.openSheet}
+                          </TextButton>
+                        ))}
+                      </span>
+                    )}
+                  </li>
+                ) : (
+                  <li className="is-blocking" key={row.id}>
+                    <span className="pc-text">
+                      <span className="pc-block">{row.text}</span>
+                      {snapshot === null ? null : copy.export.blockingWhere(sectionRefText(snapshot, 10))}
+                      <span className="pc-meta">{copy.export.blockingMeta}</span>
+                    </span>
+                    {onEditInSetup === undefined ? null : (
+                      <span className="pc-actions">
+                        <TextButton onPress={() => onEditInSetup(6)}>{copy.export.editInSetup}</TextButton>
+                      </span>
+                    )}
+                  </li>
+                ),
+              )}
               {precheck.explicit.map((row) => (
                 <li key={row.id}>
-                  <span className="pc-text">{row.text}</span>
+                  <span className="pc-text">
+                    {row.text}
+                    {snapshot === null || namedWarningSection(row) === null ? null : (
+                      <>
+                        {' '}
+                        <span className="pc-meta">{copy.export.warningWhere(sectionRefText(snapshot, namedWarningSection(row) ?? 0))}</span>
+                      </>
+                    )}
+                  </span>
                   {row.kind === 'rejected' ? (
                     <span className="pc-actions">
                       <TextButton onPress={() => void resendDead()}>{copy.export.resend}</TextButton>

@@ -167,7 +167,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const computed = useMemo(() => progress(snapshot, pending), [snapshot, pending]);
   // The one pre-issue call the Export dialog makes too (photo upload errors, the clock reading).
-  const issues = usePreIssue(db, snapshot, computed, pending);
+  const issues = usePreIssue(db, snapshot, computed, pending, state);
   // p020 P-1b: the reason line ends with what will not print (no section 8 or 10).
   const absentSentence = useMemo(() => absentSectionsSentence(snapshot), [snapshot]);
   const confirmCounts = useIssueConfirmation(snapshot);

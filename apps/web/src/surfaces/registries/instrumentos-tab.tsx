@@ -1,4 +1,4 @@
-import { isInstrumentReferenced, sortInstrumentRegistryRows, type BlockRow, type InstrumentRow } from '@app/domain';
+import { instrumentTwinLines, isInstrumentReferenced, sortInstrumentRegistryRows, type BlockRow, type InstrumentRow } from '@app/domain';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -59,6 +59,8 @@ export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTab
   const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRows(db)), [db], NO_BLOCKS);
 
   const sorted = useMemo(() => sortInstrumentRegistryRows(instruments, now()), [instruments]);
+  // Story 25.13: two live rows sharing a certificate number name each other; a shared model is a lighter line.
+  const twins = useMemo(() => instrumentTwinLines(instruments), [instruments]);
   const openInstrument = useMemo(() => instruments.find((row) => row.id === openId) ?? null, [instruments, openId]);
   const referenced = openId === null ? false : isInstrumentReferenced(openId, blocks);
 
@@ -89,6 +91,7 @@ export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTab
                 status={status}
                 isOpen={instrument.id === openId}
                 onOpen={() => setOpenId(instrument.id)}
+                twins={twins.get(instrument.id)}
               />
             ))}
           </ul>

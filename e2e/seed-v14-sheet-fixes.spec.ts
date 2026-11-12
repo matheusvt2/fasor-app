@@ -1,4 +1,4 @@
-import { choiceValue, getDefinition, nameplateTitleOf, SEED_VERSION, type BlockRow } from '@app/domain';
+import { choiceValue, getDefinition, nameplateTitleOf, type BlockRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { issueAndReadTables, kernelOf, openStep, outbox, outboxValues, plateField, setUpRelatorio, tablesTitled, testSection, typeCell } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -41,14 +41,14 @@ const textField = (page: Page) => testSection(page, KEY).locator('.v13-reason[da
 
 test('@p0 24.14-E2E-001 the oil sampling\'s "Outro" asks "Descreva o motivo", required while it shows, kept when hidden, on the transformer and the Disjuntor MT; the DOCX prints "MOTIVO: OUTRO, <texto>"', async ({ page }) => {
   test.setTimeout(420_000);
-  expect(SEED_VERSION).toBe('v14');
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
   const { relatorioId, sheets } = await setUpRelatorio(page, account, database, (all) => [
     { blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'ÓLEO ISOLANTE' },
     { blockType: 'disjuntor_mt', key: 'meio_de_extincao', value: 'Óleo' },
-  ].filter((write) => all.some((sheet) => sheet.blockType === write.blockType)));
+  ].filter((write) => all.some((sheet) => sheet.blockType === write.blockType)), 'v14');
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
-  const label = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').measurement_tests!.find((test) => test.key === KEY)!.values!.find((value) => value.key === 'motivo_texto')!.label;
+  const label = getDefinition('v14', 'cabine_primaria', 'transformador_forca').measurement_tests!.find((test) => test.key === KEY)!.values!.find((value) => value.key === 'motivo_texto')!.label;
   expect(label).toBe('Descreva o motivo');
 
   // --- the transformer: "Outro" asks for the text, missing while empty ---
@@ -87,9 +87,9 @@ test('@p0 24.14-E2E-001 the oil sampling\'s "Outro" asks "Descreva o motivo", re
 
 test('@p0 24.14-E2E-002 a v14 Malha de aterramento titles its first block "Dados da malha" and offers no "Fotografar placa"; its fields and chips stay, a resistance above VALOR DE PROJETO fails it, and the DOCX prints its tables', async ({ page }) => {
   test.setTimeout(420_000);
-  const malha = getDefinition(SEED_VERSION, 'cabine_primaria', 'malha_aterramento');
+  const malha = getDefinition('v14', 'cabine_primaria', 'malha_aterramento');
   expect(nameplateTitleOf(malha)).toBe('Dados da malha');
-  const { relatorioId } = await setUpRelatorio(page, account, database);
+  const { relatorioId } = await setUpRelatorio(page, account, database, undefined, 'v14');
   await page.setViewportSize({ width: 1024, height: 900 });
   const chevron = section9Chevron(page);
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();

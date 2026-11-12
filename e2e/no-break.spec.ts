@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { composeConclusion, getDefinition, paletteTypeGroups, EMPTY_DEFINITION_CONTEXT, screenLabel, SEED_VERSION, type BlockRow } from '@app/domain';
+import { composeConclusion, getDefinition, paletteTypeGroups, EMPTY_DEFINITION_CONTEXT, screenLabel, type BlockRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { deviceSnapshot, openStep, outbox, outboxValues, setUpRelatorio } from './support/e23t-flow.ts';
@@ -41,7 +41,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 const TYPE = 'no_break_comando';
-const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', TYPE);
+const DEFINITION = getDefinition('v14', 'cabine_primaria', TYPE);
 const LOCAL = 'Geradores';
 const PLATE = resolve(import.meta.dirname, '..', 'apps/api/src/jobs/reading/fixtures/images/plate-no-break-comando.png');
 
@@ -52,11 +52,11 @@ test('@p0 24.13-E2E-001 at 1024: a v14 local offers the No-break de comando (NB-
   page,
 }) => {
   test.setTimeout(480_000);
-  expect(SEED_VERSION).toBe('v14');
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
   expect(paletteTypes('v14').library).toContain(TYPE);
   expect(paletteTypes('v13').library).not.toContain(TYPE);
   expect(paletteTypeGroups('v14', EMPTY_DEFINITION_CONTEXT).find((group) => group.key === 'library')!.types).toContain(TYPE);
-  const { relatorioId } = await setUpRelatorio(page, account, database);
+  const { relatorioId } = await setUpRelatorio(page, account, database, undefined, 'v14');
   await page.setViewportSize({ width: 1024, height: 900 });
 
   // --- the field palette of the local: the No-break under "Outros equipamentos", NB-01 ---

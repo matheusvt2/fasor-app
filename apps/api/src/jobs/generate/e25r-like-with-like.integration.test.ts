@@ -43,6 +43,7 @@ import { seedTestCompanies, TEST_SEED } from '../../db/seed.ts';
 import { newId } from '../../ids.ts';
 import { applyOps } from '../../sync/apply.ts';
 import { paragraphText, readZipEntries } from './docx-structure.test-support.ts';
+import { staleTextReplacements } from './stale-texts.test-support.ts';
 
 /*
  * e25r-R1-API (fix batch e25r, R-1 and E24-A1 of the Epic 24 retrospective, contract 49): seed v14's
@@ -214,6 +215,12 @@ async function waitForJob(id: string): Promise<GenerationJobRow> {
 
 /** "Gerar relatório" through the route; waits for the revision `number` the job commits. */
 async function issue(number: number): Promise<RevisionRow> {
+  // Story 25.7: a stale conclusion text blocks the issue; the v14 fixture holds one, replaced as "Substituir" does.
+  const replacements = staleTextReplacements(localSnapshot()).map(([path, value, prevOpId]) => relatorioPut(path, value, prevOpId));
+  if (replacements.length > 0) {
+    extraOps.push(...replacements);
+    await serverApply(replacements);
+  }
   const res = await authed(`/api/relatorios/${fixture.relatorioId}/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -409,14 +416,15 @@ describe('e25r-R1-API-001 a v14 second visit issued twice keeps "like with like"
     200_000,
   );
 
-  it('e25r-R1-API-003 contract 49: a version-48 pull answers 426 contract_outdated on the company, relatório and project streams; a version-49 pull is answered; a version-48 push is applied', async () => {
-    expect(CONTRACT_VERSION).toBe(49);
-    expect(MIN_CONTRACT_VERSION).toBe(49);
+  it('e25r-R1-API-003 contract 49: a version-48 pull answers 426 contract_outdated on the company, relatório and project streams; a current pull is answered; a version-48 push is applied', async () => {
+    // Batch e25c (Story 25.5) moved the contract to 50: 48 stays refused, the current version is answered.
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(49);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(49);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${fixture.relatorioId}?since=0`, `/api/sync/projects/${fixture.projectId}?since=0`]) {
       const old = await authed(path, { headers: { [CONTRACT_VERSION_HEADER]: '48' } });
       expect(old.status, path).toBe(426);
       expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
-      expect((await authed(path, { headers: { [CONTRACT_VERSION_HEADER]: '49' } })).status, path).toBe(200);
+      expect((await authed(path, { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) } })).status, path).toBe(200);
     }
     // An outdated device keeps pushing (AD-13): only its pull is refused.
     const op = relatorioPut(sheetObservationsPath(transformer.id), 'Observação sintética de um aparelho na versão 48.', localSnapshot().blocks.find((row) => row.id === transformer.id)!.sheet.observations?.op_id ?? null);

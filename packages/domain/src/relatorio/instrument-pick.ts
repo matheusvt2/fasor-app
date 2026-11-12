@@ -57,8 +57,13 @@ export function instrumentHeaderOf(row: InstrumentRow, testKey: TestKey): Instru
   const raw = parameter?.raw ?? null;
   return {
     ...measurementInstrumentHeaderOf(row),
-    test_parameter: raw === null || raw.trim() === '' ? null : [formatDecimalGroupedPtBr(raw), parameter?.unit ?? null].filter((part) => part !== null && part !== '').join(' '),
+    test_parameter: raw === null || raw.trim() === '' ? null : testParameterText(raw, parameter?.unit ?? null),
   };
+}
+
+/** Story 25.11: the text form a header's test parameter is stored in, the pick's and the sheet field's alike ("5 kV", "1.000 V"). */
+export function testParameterText(raw: string, unit: string | null): string {
+  return [formatDecimalGroupedPtBr(raw), unit].filter((part) => part !== null && part !== '').join(' ');
 }
 
 /** Story 22.10: the test types whose registry row carries a top of range (`range_isolacao`, `range_resistencia_contato`). */

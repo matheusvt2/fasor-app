@@ -31,6 +31,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'winding-resistance.spec.ts', lane: 'queue', why: 'Story 23.15: issues a revision through the shared queue and LibreOffice to read the winding table of the DOCX' },
   { file: 'polarization-index.spec.ts', lane: 'queue', why: 'Story 23.16: issues a revision through the shared queue and LibreOffice to read the IP column of the DOCX' },
   { file: 'oil-liquid-sampling.spec.ts', lane: 'queue', why: 'Story 23.17: issues a revision through the shared queue and LibreOffice to read the liquid fields and the absent sampling of the DOCX' },
+  { file: 'header-test-voltage.spec.ts', lane: 'queue', why: 'Story 25.11: issues a revision through the shared queue and LibreOffice to read the TENSÃO ENSAIO of the DOCX' },
+  { file: 'stale-conclusion-blocks.spec.ts', lane: 'queue', why: 'Story 25.7: issues a revision through the shared queue and LibreOffice once the stale conclusion text no longer blocks, and reads its paragraph in the DOCX' },
+  { file: 'warnings-before-generating.spec.ts', lane: 'queue', why: 'Story 25.12: issues a revision through the shared queue and LibreOffice to check the sheets of a removed local are absent from the DOCX' },
+  { file: 'instruments-from-sheets.spec.ts', lane: 'queue', why: 'Story 25.13: issues a revision through the shared queue and LibreOffice to read section 11 of the DOCX' },
+  { file: 'reading-not-applicable.spec.ts', lane: 'queue', why: 'Story 25.9: issues a revision through the shared queue and LibreOffice to read the N/A cells of the DOCX' },
+  { file: 'point-names-readings.spec.ts', lane: 'queue', why: 'Story 25.10: issues a revision through the shared queue and LibreOffice to read the point\'s readings in section 8 of the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.
   { file: 'voltage-defaults.spec.ts', lane: 'queue', why: 'Story 23.13: issues a revision through the shared queue and LibreOffice to read the TENSÃO column of the DOCX' },
@@ -187,6 +193,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     file: 'seed-v14.spec.ts',
     lane: 'queue',
     why: 'generates two revisions through the shared queue and LibreOffice, a v14 relatório\'s and a v13 one\'s, to read their filled sheets in the DOCX',
+  },
+  // Story 25.5 (batch e25c): 25.5-E2E-001 generates the DOCX of a new v15 relatório and of a v14 one beside it.
+  {
+    file: 'seed-v15.spec.ts',
+    lane: 'queue',
+    why: 'generates two revisions through the shared queue and LibreOffice, a v15 relatório\'s and a v14 one\'s, to read their filled sheets in the DOCX',
   },
   // Stories 24.3 and 24.4 (batch e24a): every test issues a revision (and one previews a draft) to read the CONCLUSÃO boxes and section 10.
   {

@@ -7,6 +7,11 @@ export interface CheckboxProps {
   children: ReactNode;
   /** A reason beside the row (an expired calibration); the row stays selectable. */
   'aria-describedby'?: string;
+  /**
+   * Story 25.13: a row that stays checked and cannot be unticked (an instrument a sheet uses,
+   * `50-relatorio-setup.html` Etapa 4). It stays focusable; the caller decides what a press says.
+   */
+  'aria-disabled'?: boolean;
 }
 
 /**

@@ -158,10 +158,9 @@ describe('4.1-API relatório creation as one batch', () => {
 
 describe('24.2-API-001 seed v14 through the sync route', () => {
   it(
-    'a relatório created from the standard template is born on v14, every sheet on v14; a version-46 client is refused its stream with 426, a current one reads it (contract 49 since fix batch e25r)',
+    'a relatório created from the standard template on v14 is on v14, every sheet on v14; a version-46 client is refused its stream with 426, a current one reads it (pinned to v14 since seed v15, Story 25.5)',
     async () => {
-      expect(SEED_VERSION).toBe('v14');
-      expect(MIN_CONTRACT_VERSION).toBe(49);
+      expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(49);
       const projectId = newId();
       const projectDraft: OpDraft = {
         kind: 'create',
@@ -177,7 +176,7 @@ describe('24.2-API-001 seed v14 through the sync route', () => {
         actor_id: company.userId,
       };
       const { relatorioId, drafts } = instantiateTemplate(
-        standardTemplate({ id: newId() }),
+        standardTemplate({ id: newId(), seedVersion: 'v14' }),
         { id: projectId },
         { service_start: '2026-11-11', service_end: '2026-11-11', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
         { newId, actorId: company.userId, companyId: company.companyId },
@@ -214,6 +213,75 @@ describe('24.2-API-001 seed v14 through the sync route', () => {
       expect(current.status, await current.clone().text()).toBe(200);
       const pulled = syncPullResponseSchema.parse(await current.json()).ops as Op[];
       expect(pulled.find((op) => op.path === `relatorio/${relatorioId}`)?.value).toMatchObject({ seed_version: 'v14' });
+    },
+    60_000,
+  );
+});
+
+/*
+ * 25.5-API-001 (Story 25.5, batch e25c, contract 50): seed v15 opens equal to v14 and is the version a new
+ * relatório is born on. A relatório created from the standard template through the sync route is on v15, every
+ * sheet on v15; a version-49 client (the contract before) is refused its stream with 426 and the update
+ * notice's code, and the current one reads it.
+ */
+describe('25.5-API-001 seed v15 through the sync route', () => {
+  it(
+    'a relatório created from the standard template is born on v15, every sheet on v15; a version-49 client is refused its stream with 426 contract_outdated, a current one reads it',
+    async () => {
+      expect(SEED_VERSION).toBe('v15');
+      expect(MIN_CONTRACT_VERSION).toBe(50);
+      const projectId = newId();
+      const projectDraft: OpDraft = {
+        kind: 'create',
+        scope: 'company',
+        company_id: company.companyId,
+        project_id: null,
+        relatorio_id: null,
+        path: `project/${projectId}`,
+        value: { id: projectId, client_id: null, name: 'Obra v15', site: 'Obra v15', removed_at: null },
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: company.userId,
+      };
+      const { relatorioId, drafts } = instantiateTemplate(
+        standardTemplate({ id: newId() }),
+        { id: projectId },
+        { service_start: '2026-11-11', service_end: '2026-11-11', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+        { newId, actorId: company.userId, companyId: company.companyId },
+      );
+      const batchId = newId();
+      const at = now();
+      const batch: Op[] = [projectDraft, ...drafts].map((draft) => makeOp({ ...draft, batch_id: batchId, device_id: DEVICE }, { newId, now: at }));
+      for (const op of batch) {
+        written.opIds.add(op.op_id);
+        written.entityIds.add((op.value as { id: string }).id);
+      }
+      const res = await authed('/api/sync/ops', { method: 'POST', body: JSON.stringify({ ops: batch }) });
+      expect(res.status, await res.clone().text()).toBe(200);
+      expect(syncPushResponseSchema.parse(await res.json()).rejected).toEqual([]);
+
+      const [relatorio] = await db
+        .select({ row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.company_id, company.companyId), eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)));
+      expect(relatorio?.row).toMatchObject({ seed_version: 'v15' });
+      const blocks = await db
+        .select({ row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.company_id, company.companyId), eq(entities.entity, 'block'), eq(entities.relatorio_id, relatorioId)));
+      const sheets = blocks.map((block) => block.row as { seed_version: string; equipment_id: string | null }).filter((block) => block.equipment_id !== null);
+      expect(sheets.length).toBeGreaterThan(0);
+      expect(new Set(sheets.map((block) => block.seed_version))).toEqual(new Set(['v15']));
+
+      // The previous contract ships no seed v15: its pull is refused with the update notice's code.
+      const old = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '49' } });
+      expect(old.status).toBe(426);
+      expect(((await old.json()) as { code: string }).code).toBe('contract_outdated');
+      const current = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) } });
+      expect(current.status, await current.clone().text()).toBe(200);
+      const pulled = syncPullResponseSchema.parse(await current.json()).ops as Op[];
+      expect(pulled.find((op) => op.path === `relatorio/${relatorioId}`)?.value).toMatchObject({ seed_version: 'v15' });
     },
     60_000,
   );

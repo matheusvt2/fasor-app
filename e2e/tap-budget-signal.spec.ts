@@ -133,12 +133,18 @@ test('@p0 24.10-E2E-003 SM-3 on seed v14: with signal and TIPO DE SECCIONADORA p
   await signalRun(page, context, 'v14', SIGNAL_BUDGET_V14);
 });
 
+// 2026-11-12, batch e25c (Story 25.5, seed v15 opens): the same walk on seed v15, within the limit accepted on v13.
+test('@p0 25.5-E2E-003 SM-3 on seed v15: with signal and TIPO DE SECCIONADORA picked in at most 22 taps and 15 keystrokes', async ({ page, context }) => {
+  test.setTimeout(300_000);
+  await signalRun(page, context, 'v15', SIGNAL_BUDGET_V14);
+});
+
 /**
  * One SM-3 walk on a relatório of `seedVersion`. From v13 on the seccionadora asks TIPO DE SECCIONADORA, which a
  * plate copied from a v2 visit lacks: it is picked (SEM CARGA, so the HH fuses do not apply), its tap and its option;
  * the option is the browser's popup, out of the page listener, so it is added to the listener's count.
  */
-async function signalRun(page: Page, context: BrowserContext, seedVersion: 'v12' | 'v14', budget: { readonly taps: number; readonly keys: number }): Promise<void> {
+async function signalRun(page: Page, context: BrowserContext, seedVersion: 'v12' | 'v14' | 'v15', budget: { readonly taps: number; readonly keys: number }): Promise<void> {
   const picksType = seedVersion !== 'v12';
   await context.addInitScript(installCounter);
   await resetEmpresaB(account, { standard: true });

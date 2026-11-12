@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, cellAddressesOf, getDefinition, instantiateTemplate, previousResultsFor, SEED_VERSION, standardTemplate, type EquipmentRow, type LastResults, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, cellAddressesOf, getDefinition, instantiateTemplate, previousResultsFor, standardTemplate, type EquipmentRow, type LastResults, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -11,7 +11,7 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
  * Story 24.15 (batch e24p, contract 46): the previous visit's date, as a person meets it at 1280 px on
- * the current seed (v14). Relatório A of an obra, its service from 12 to 14/03/2026, is issued through
+ * seed v14 (pinned since seed v15 opened, Story 25.5). Relatório A of an obra, its service from 12 to 14/03/2026, is issued through
  * the real generate job with 4,9 GΩ on the transformer's first insulation row: the equipment's
  * `last_results` keeps 2026-03-14 beside the issue instant. Relatório B of the same obra opens the
  * transformer's sheet: "Anterior: 4,9 GΩ (rev. 1, 14/03/2026)"; its DOCX prints "14/03/2026" under
@@ -38,7 +38,7 @@ interface EntityRecord {
 const entities = (page: Page) => readStore<EntityRecord>(page, database, 'entities');
 const toast = (page: Page) => page.getByTestId('toast');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
-const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+const TRANSFORMER = getDefinition('v14', 'cabine_primaria', 'transformador_forca');
 const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
 /** Issues revision 1 of `relatorioId` from its Sumário and returns the DOCX's tables. */
@@ -61,9 +61,9 @@ async function issue(page: Page, relatorioId: string): Promise<string[][][]> {
 
 const blockRows = (drafts: readonly OpDraft[]) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
 
-/** Relatório A of a new obra on the current seed, its service dates set from the office, and its transformer's equipment. */
+/** Relatório A of a new obra on seed v14, its service dates set from the office, and its transformer's equipment. */
 function relatorioA(start: string, end: string) {
-  const a = newRelatorioDrafts(account);
+  const a = newRelatorioDrafts(account, { seedVersion: 'v14' });
   const trA = a.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const equipmentId = blockRows(a.drafts).find((row) => row.id === trA.blockId)!.equipment_id!;
   const service: OpDraft[] = [
@@ -77,7 +77,7 @@ function relatorioA(start: string, end: string) {
 function nextRelatorio(a: { drafts: readonly OpDraft[]; projectId: string }, start: string, end: string) {
   const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
   return instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), seedVersion: 'v14' }),
     { id: a.projectId },
     { service_start: start, service_end: end, existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },
@@ -104,7 +104,7 @@ test('@p0 24.15-E2E-001 relatório A, its service ended on 14/03/2026, issued: t
   await signIn(page, account.email);
 
   const a = relatorioA('2026-03-12', '2026-03-14');
-  expect(SEED_VERSION).toBe('v14');
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
   await pushDrafts(page, database, [...a.drafts, ...a.service, reading(a.relatorioId, a.trA.blockId, '4.9')]);
   await issue(page, a.relatorioId);
 

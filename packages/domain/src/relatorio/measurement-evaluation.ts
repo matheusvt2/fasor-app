@@ -21,7 +21,9 @@ import {
   isReadingValue,
   OVER_RANGE_ALLOWED,
   OVER_RANGE_COMPARED_REFUSAL,
+  OVER_RANGE_INSIDE_RANGE_HELPER,
   overRangeDisplay,
+  overRangeInsideRange,
   overRangeMissingLimitText,
   overRangeVerdict,
   rangeInUnits,
@@ -32,7 +34,7 @@ import { readStored, type ReadingState, type ReadingVerdict } from './reading-ce
 import { testApplicability, type TestApplicability } from './applicability.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 import { formatDateOfInstant } from '../format/datetime.ts';
-import { canonicalDecimal } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { previousReadingsByAddress, readingAddressKey, type LastResultReading, type PreviousResults } from '../print/reading-slots.ts';
 import { previousVisitDateText } from '../print/visit-date.ts';
 import { seedRule } from '../seed/definitions.ts';
@@ -402,15 +404,18 @@ function readText(cell: Cell | undefined): Stored | null {
   return { state: 'measured', raw: value, unit: null };
 }
 
-function read(cell: Cell | undefined, kind: MeasurementValueKind, options: readonly MeasurementOption[]): Stored | null {
+/** Story 25.9: `notApplicable`, the block's seed flag `reading_not_applicable`, lets a number cell read a stored "Não se aplica". */
+function read(cell: Cell | undefined, kind: MeasurementValueKind, options: readonly MeasurementOption[], notApplicable = false): Stored | null {
   if (kind === 'text') return readText(cell);
-  return kind === 'choice' ? readChoice(cell, options) : readStored(cell);
+  return kind === 'choice' ? readChoice(cell, options) : readStored(cell, notApplicable);
 }
 
 function displayOf(stored: Stored | null, kind: MeasurementValueKind, options: readonly MeasurementOption[]): string {
   if (stored === null) return EMPTY;
   if (kind === 'text') return stored.raw.trim();
   if (stored.state === 'not_measured') return NOT_MEASURED;
+  // Story 25.9 (seed v15): a number cell marked "Não se aplica".
+  if (stored.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
   if (stored.state === 'over_range') return overRangeDisplay(stored.raw);
   if (stored.state === 'invalid') return stored.raw;
   if (kind === 'choice') return options.find((option) => option.key === stored.raw)?.label ?? EMPTY;
@@ -580,7 +585,11 @@ function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
       const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
       if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess);
       // Fix batch e24x (C1): a limit the criterion cannot judge (inside a range, units that do not compare).
-      else if (cell.state === 'over_range') unanswered.push(cell);
+      else if (cell.state === 'over_range') {
+        unanswered.push(cell);
+        // Story 25.9 (every seed, screen only; e24x X6): a limit inside the range says why it was not judged.
+        if (cell.helperText === null && overRangeInsideRange(Number(cell.raw), cell.unit, limit)) cell.helperText = OVER_RANGE_INSIDE_RANGE_HELPER;
+      }
     }
   }
 }
@@ -1047,7 +1056,7 @@ function columnsOf(test: MeasurementTest): EvaluatedMeasurementColumn[] {
   return test.columns.map((column: MeasurementColumn, col) => ({ col, key: column.key, label: column.label, kind: column.kind, unit: column.unit ?? null, optional: column.optional === true }));
 }
 
-function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, config: Readonly<Record<string, string>>): EvaluatedMeasurementRow[] {
+function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, config: Readonly<Record<string, string>>, notApplicable = false): EvaluatedMeasurementRow[] {
   const stored = block.sheet.test[test.key]?.cells ?? {};
   const rows: EvaluatedMeasurementRow[] = [];
   test.rows.forEach((row: MeasurementRow, index) => {
@@ -1057,7 +1066,7 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
       const options = kind === 'choice' ? ((row.kind === undefined ? column.options : row.options) ?? []) : [];
       const defaultUnit = kind === 'choice' ? null : ((row.kind === undefined ? column.unit : row.unit) ?? null);
       const fixed = row.fixed?.[column.key] ?? null;
-      const value = fixed === null ? read(stored[String(index)]?.[String(col)], kind, options) : null;
+      const value = fixed === null ? read(stored[String(index)]?.[String(col)], kind, options, notApplicable) : null;
       const state: ReadingState = value?.state ?? 'empty';
       return {
         address: { testKey: test.key, row: index, col },
@@ -1236,7 +1245,8 @@ function evaluate(
 ): MeasurementTestEvaluation {
   const enabled = test.switchable === undefined || enabledSubBlocksOf(block).has(test.key);
   const columns = columnsOf(test);
-  const rows = evaluateRows(block, test, config);
+  // Story 25.9 (seed v15 `reading_not_applicable`): a number cell reads a stored "Não se aplica" only on such a sheet.
+  const rows = evaluateRows(block, test, config, context.seedVersion !== undefined && seedRule(context.seedVersion, 'reading_not_applicable'));
   const values = evaluateValues(block, test);
   const skipValue = test.skip_when === undefined ? undefined : values.find((value) => value.key === test.skip_when!.value);
   const skipped = skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals;
@@ -1521,19 +1531,31 @@ export function worstMeasurements(evaluations: readonly MeasurementTestEvaluatio
       }
     }
     if (worst === null) continue;
-    const { row, cell } = worst;
-    out.push({
-      testKey: test.testKey,
-      title: test.title,
-      label: test.label,
-      where: measurementWhere(test, row, cell),
-      valueText: withUnit(cell.displayText, cell.unit),
-      criterionText: cell.criterionText ?? test.criterionText,
-      sourceName: cell.sourceName ?? test.sourceName,
-      helperText: cell.helperText ?? '',
-    });
+    out.push(measurementReading(test, worst.row, worst.cell));
   }
   return out;
+}
+
+/**
+ * Story 25.10 (seed v15, M14 and M-6): every out-of-criterion cell of every live measurement test, test by test
+ * in order and each test's in row order, named as `worstMeasurements` names a test's worst one.
+ */
+export function outMeasurements(evaluations: readonly MeasurementTestEvaluation[]): WorstMeasurement[] {
+  return liveTests(evaluations).flatMap((test) => test.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.fixed === null && cell.verdict === 'out' ? [measurementReading(test, row, cell)] : []))));
+}
+
+/** One cell of a measurement test as a sentence names it (Story 25.10 drew it out of `worstMeasurements`). */
+function measurementReading(test: MeasurementTestEvaluation, row: EvaluatedMeasurementRow, cell: EvaluatedMeasurementCell): WorstMeasurement {
+  return {
+    testKey: test.testKey,
+    title: test.title,
+    label: test.label,
+    where: measurementWhere(test, row, cell),
+    valueText: withUnit(cell.displayText, cell.unit),
+    criterionText: cell.criterionText ?? test.criterionText,
+    sourceName: cell.sourceName ?? test.sourceName,
+    helperText: cell.helperText ?? '',
+  };
 }
 
 /** Seed v13 (batch e23t, Stories 23.15 and 23.19): one measurement test's restricted cells, each named with its reason. */

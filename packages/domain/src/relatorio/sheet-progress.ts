@@ -5,7 +5,7 @@ import type { BlockDefinition, OilRule } from '../seed/schema.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
-import { chosenConclusionPair, effectiveConclusionPair, observationRequiredFor, restrictionApplies } from './conclusion.ts';
+import { chosenConclusionPair, effectiveConclusionPair, observationRequiredFor, restrictionOffered } from './conclusion.ts';
 import { nameplateMissingKeys } from './dry-insulation.ts';
 import { measurementCounts } from './measurement-evaluation.ts';
 import { nameplateTitleOf } from './nameplate-block.ts';
@@ -226,10 +226,11 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
   // only while the plate that holds LIGAÇÃO SECUNDÁRIA can be filled (its sub-block enabled).
   // Fix batch e23g (R2-3): only a required row counts (`tapRowRequired`: every v11/v12 row; on a v13
-  // tap table the current tap and the extremes, never an unmarked or off-plate row).
+  // tap table the current tap and the extremes, never an unmarked or off-plate row). Story 25.9 (seed v15): nor a row
+  // whose every reading is "Não se aplica".
   const groupMissing = !enabled.has('nameplate')
     ? 0
-    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.filter((row) => tapRowRequired(row)).length : 0), 0), 0);
+    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.filter((row) => tapRowRequired(row) && row.notApplicable !== true).length : 0), 0), 0);
   // Seed v13, batch e23e (Story 23.18): a row's choice cell (POLARIDADE) counts missing while empty and out when it fails.
   const choices = evaluatedChoices(evaluations);
   return {
@@ -251,7 +252,8 @@ function conclusaoMissing(block: BlockRow, definition: BlockDefinition, enabled:
   // Batch e24a (Story 24.3, seed v14): a Reprovado takes no restriction (`restrictionApplies`); with no result
   // chosen yet, the one the screen shows (the effective one) decides, as it decides whether the group is drawn.
   const shown = result ?? effectiveConclusionPair(block, definition, visit).result;
-  if (restriction === null && restrictionApplies(block, shown)) missing += 1;
+  // Story 25.6 (seed v15): nor on a sheet with no measurement, whose only result is Reprovado (`restrictionOffered`).
+  if (restriction === null && restrictionOffered(block, shown, definition, visit)) missing += 1;
   // Com restrições requires the observation; batch e24a (Story 24.3, seed v14): a Reprovado too (`observationRequiredFor`).
   if (observationRequiredFor(block, { result, restriction }) !== null && enabled.has('observations') && !isCellFilled(block.sheet.observations)) observation = 1;
   return { missing: missing + observation, observation };

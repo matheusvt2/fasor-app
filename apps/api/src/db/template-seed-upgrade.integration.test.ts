@@ -109,11 +109,13 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
       const onV5: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v5' }), name: 'Na v5' };
       // Story 24.2 (seed v14): a template on v13, the version before the current one, moves to v14 the same way.
       const onV13: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v13' }), name: 'Na v13' };
+      // Story 25.5 (seed v15): a template on v14, the version before the current one, moves to v15 the same way.
+      const onV14: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v14' }), name: 'Na v14' };
       // Not moved: a removed one (v2), one already current, and one whose stored row fails the row check.
       const removed: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v2' }), name: 'Removido' };
       const current: TemplateRow = { ...standardTemplate({ id: newId() }), name: 'Atual' };
       const broken: TemplateRow = { ...standardTemplate({ id: newId(), seedVersion: 'v3' }), name: 'Quebrado' };
-      for (const row of [seeded, edited, own, archived, onV5, onV13, removed, current, broken]) await createTemplate(companyId, row);
+      for (const row of [seeded, edited, own, archived, onV5, onV13, onV14, removed, current, broken]) await createTemplate(companyId, row);
       await applyServer(companyId, [
         // A content edit (D-4) bumps the version to 2.
         { kind: 'put', path: `template/${edited.id}/blocks`, value: edited.blocks.slice(0, -1) },
@@ -143,7 +145,7 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
         { ...made.drafts.find((draft) => draft.path === `relatorio/${made.relatorioId}`)! },
       ]);
 
-      const movedIds = [seeded.id, edited.id, own.id, archived.id, onV5.id, onV13.id];
+      const movedIds = [seeded.id, edited.id, own.id, archived.id, onV5.id, onV13.id, onV14.id];
       const before = new Map<string, unknown>();
       for (const id of [...movedIds, removed.id, current.id, broken.id]) before.set(id, (await templateRow(companyId, id)).row);
       const relatorioBefore = await relatorioRow(companyId, made.relatorioId);
@@ -202,9 +204,11 @@ describe('upgradeTemplateSeeds (Story 14.3, matrix "Templates")', () => {
         { newId, actorId: 'system:identity', companyId },
       );
       expect(born.drafts.find((draft) => draft.path === `relatorio/${born.relatorioId}`)!.value).toMatchObject({ seed_version: SEED_VERSION });
-      // Story 24.2: the current version is v14, and the template moved from v13 is on it too.
-      expect(SEED_VERSION).toBe('v14');
-      expect((await templateRow(companyId, onV13.id)).row).toMatchObject({ seed_version: 'v14' });
+      // Story 24.2: the template moved from v13 is on the current version too. Story 25.5: the current version is
+      // v15, and the template moved from v14 is on it.
+      expect(SEED_VERSION).toBe('v15');
+      expect((await templateRow(companyId, onV13.id)).row).toMatchObject({ seed_version: 'v15' });
+      expect((await templateRow(companyId, onV14.id)).row).toMatchObject({ seed_version: 'v15' });
 
       // Idempotent: a second run moves nothing anywhere and writes no op; the broken row is named again.
       const settled = (await templateOps(companyId)).length;

@@ -4,10 +4,12 @@ import {
   instrumentDetailSeparator,
   instrumentExpiredNoteText,
   instrumentRegistryRowText,
-  isInstrumentReferenced,
+  instrumentSheetCounts,
+  instrumentTickLocked,
   sectionMention,
   sectionsCaption,
-  type BlockRow,
+  tickedUnusedInstruments,
+  usedInSheetsText,
   type InstrumentRow,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -24,14 +26,12 @@ export function Etapa4Instrumentos({
   relatorioId,
   snapshot,
   instruments,
-  blocks,
   onCommit,
   bandRef,
 }: {
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   instruments: readonly InstrumentRow[];
-  blocks: readonly BlockRow[];
   onCommit: CommitField;
   bandRef: BandRef;
 }) {
@@ -48,8 +48,16 @@ export function Etapa4Instrumentos({
     [instruments, setup.service_end],
   );
 
+  // Story 25.13 (M25): the instruments the live sheets use, marked from the sheets (derived: the
+  // tick is not written), and the ticked ones no sheet uses.
+  const sheetCounts = useMemo(() => instrumentSheetCounts(snapshot), [snapshot]);
+  const unused = useMemo(() => new Set(tickedUnusedInstruments(snapshot).map((row) => row.id)), [snapshot]);
+
   function onToggle(id: string, isSelected: boolean): void {
-    if (!isSelected && isInstrumentReferenced(id, blocks)) {
+    // A used instrument cannot be unticked; the press says why. ~~Before Story 25.13 only this
+    // refusal: it still holds for a sheet the count leaves out (a not-tested one).~~ Review of
+    // PR #332: only a sheet the count holds locks the tick, so "Desmarque" can be followed.
+    if (instrumentTickLocked(snapshot, id)) {
       setRefusedNote(id);
       return;
     }
@@ -74,14 +82,22 @@ export function Etapa4Instrumentos({
         <ul className="instrument-list instrument-picker">
           {rows.map(({ instrument, status }) => {
             const text = instrumentRegistryRowText(instrument, status);
-            const isSelected = setup.instrument_ids.includes(instrument.id);
+            const used = sheetCounts.get(instrument.id) ?? 0;
+            const isSelected = used > 0 || setup.instrument_ids.includes(instrument.id);
             const refusedId = refusedNote === instrument.id ? `instrument-note-${instrument.id}` : undefined;
             const expiredNote = instrumentExpiredNoteText(text);
             const expiredId = expiredNote === null ? undefined : `instrument-expired-${instrument.id}`;
-            const describedBy = [expiredId, refusedId].filter((id): id is string => id !== undefined).join(' ') || undefined;
+            const usedId = used > 0 ? `instrument-used-${instrument.id}` : undefined;
+            const unusedId = unused.has(instrument.id) ? `instrument-unused-${instrument.id}` : undefined;
+            const describedBy = [expiredId, usedId, unusedId, refusedId].filter((id): id is string => id !== undefined).join(' ') || undefined;
             return (
               <li key={instrument.id}>
-                <Checkbox isSelected={isSelected} onChange={(checked) => onToggle(instrument.id, checked)} aria-describedby={describedBy}>
+                <Checkbox
+                  isSelected={isSelected}
+                  onChange={(checked) => onToggle(instrument.id, checked)}
+                  aria-describedby={describedBy}
+                  aria-disabled={used > 0 ? true : undefined}
+                >
                   <span className="ip-code">{text.code}</span>
                   <span className="ip-text">
                     <span className="ip-name">{text.primaryName}</span>
@@ -95,6 +111,16 @@ export function Etapa4Instrumentos({
                 {expiredId === undefined ? null : (
                   <p className="ip-expired" id={expiredId} role="status">
                     {expiredNote}
+                  </p>
+                )}
+                {usedId === undefined ? null : (
+                  <p className="e25-used" id={usedId}>
+                    {usedInSheetsText(used)}
+                  </p>
+                )}
+                {unusedId === undefined ? null : (
+                  <p className="ip-expired e25-unused" id={unusedId} role="status">
+                    {t.instrumentUnused(sectionMention(snapshot, 11))}
                   </p>
                 )}
                 {refusedId === undefined ? null : (
