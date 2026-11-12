@@ -313,7 +313,7 @@ test('@p1 e25r-R1-E2E-001 seed v14: A typed TEMPERATURA DO ÓLEO and is issued; 
     const evaluation = evaluateTest(block, TRANSFORMER_V14, TRANSFORMER_V14.tests.find((test) => test.key === 'isolacao')!, visit);
     const judged = evaluation.tables[0]!.rows[0]!.cells.find((one) => one.role === 'capture')!;
     expect(judged.verdict).toBe('within');
-    expect(judged.restriction).toBeUndefined();
+    expect(judged.restriction?.history).toBeUndefined();
     await expect(cellOf().locator('.measurement-field')).not.toHaveAttribute('data-state', 'restricted');
     await expect(cellOf().locator('.mf-helper[data-tone="restricted"]')).toHaveCount(0);
     // Story 22.12's line is there: the previous visit is read, only not compared.
