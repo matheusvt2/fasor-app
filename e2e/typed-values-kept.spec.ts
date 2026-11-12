@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { typeDate } from './support/relatorio-flow.ts';
 import { openChaveSheet } from './support/photos.ts';
 import { serverRow } from './support/reading-ops.ts';
 import { syncNow } from './support/sync.ts';
@@ -202,3 +203,36 @@ test('@p1 25.2-E2E-002 a confirmed conclusion text reads as text and "Editar" op
   await expect(again.input).toHaveValue('abc');
   expect((await outbox(page)).filter((row) => row.path === reading.path)).toEqual([]);
 });
+
+test('@p0 G1-E2E-001 a point from a test with a Prazo typed by hand, stored by "Concluir", leaves no draft: after a reload no "Rascunho encontrado"', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { blockId } = await openChaveSheet(page, account, database);
+  // A reading out of its criterion gives the test its "Criar ponto de atenção".
+  const reading = await firstReading(page, blockId);
+  await reading.input.click();
+  await reading.input.pressSequentially('0,1');
+  await reading.input.press('Tab');
+  await expect.poll(() => lastValue(page, reading.path)).toMatchObject({ raw: '0.1' });
+  const testKey = reading.path.split('/')[3]!;
+  const place = page.locator(`section[data-test-key="${testKey}"] .e24-point-place`).filter({ visible: true }).first();
+  await place.getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await typeDate(dialog, 'Prazo', '15032031');
+  const pointDrafts = async () => (await readStore<{ surface: string }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point');
+  const storedPoints = async () =>
+    (await readStore<{ entity: string; row: { deadline: string | null; origin: string } }>(page, database, 'entities')).filter((record) => record.entity === 'point').map((record) => record.row);
+  // The typed Prazo lands (its idle commit) before "Concluir".
+  await expect.poll(async () => (await storedPoints()).map((row) => row.deadline)).toEqual(['2031-03-15']);
+  await dialog.getByRole('button', { name: 'Concluir' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect((await storedPoints()).map((row) => [row.origin, row.deadline])).toEqual([['reading', '2031-03-15']]);
+  await expect.poll(pointDrafts).toEqual([]);
+
+  await page.reload();
+  await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
+  // The launch reads the drafts store once; give the offer the time it would take to show (6.6-E2E-014's wait).
+  await page.waitForTimeout(1_500);
+  await expect(page.getByTestId('toast').filter({ hasText: 'Rascunho encontrado' })).toHaveCount(0);
+  expect(await pointDrafts()).toEqual([]);
+});
+
