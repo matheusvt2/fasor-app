@@ -2,7 +2,7 @@
 title: 'e25r: like with like survives the issue (R-1, E24-A1) and the test gaps of Story 25.4'
 type: 'bugfix'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '132ad4a1'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -283,3 +283,10 @@ run under the host lock, logs in `.scratch-e25r/`): the new kernel and api tests
 green; lint, static, test:unit, test:api; the touched specs; the count query tried on the batch's Postgres.
 
 ## Auto Run Result
+
+- Phase A (2026-11-11, machine busy): spec, code, tests and records written statically by one dev agent; nothing run.
+- R-1 reproduced (mutation: the three fix files at 132ad4a1). Kernel: row 3 red (revision 2 prints the transformer differently), rows 2 and 5 red on the field. Api, through the issue job: revision 2 printed two false note lines ("Em relação à manutenção anterior": three insulation drops of more than 50 %, six winding variations of more than 2 %) on readings equal to the first visit's. Fix restored: green.
+- Design as D1 to D5; contract 49, MIN 49 (D6). No seed, fixture or golden changed; every layout-lock golden v5 to v14 green.
+- Two test slips fixed after the first runs: a parse case that was a measured value; the e2e read `restriction` as undefined where the kernel gives null.
+- Story gate on 11239749 (origin/main d720301b merged): lint 21 s, static 30 s, test:api 134 files 1010 passed 6 skipped (524 s), test:unit 442 files 6779 passed (358 s), touched specs 7 of 7 (184 s). Load 4.66 at the start, 5.34 at the end; lock wait 1 s; nothing else on the host.
+- No review loop of its own and no subagent beyond the dev (coordinator's rule, on Matheus's word). T4 is a kernel pin only. The count query for D5 is in the PR body, tried on the batch's Postgres.

@@ -4117,6 +4117,7 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/print/printed-verdicts.ts` `relatorioVerdicts`.
   class: note
   state: open (owner: Matheus, only if an old revision's printed verdicts are ever needed)
+
 ## Deferred from: Epic 25 fix batch e25x, the wave 1 review fixes (2026-11-12)
 
 - source_spec: `spec-e25x-wave1-web-fixes.md` (A6 of the wave 1 integrated review, not fixed)
