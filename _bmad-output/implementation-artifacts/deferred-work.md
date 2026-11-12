@@ -1044,7 +1044,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E78-Q10. Section 10's validity line prints the literal placeholder `[ART]` when the ART number is blank ("Este relatório tem validade apenas acompanhada da ART [ART]").
   evidence: `reviews/epic-7-8-review-qa.md` E78-Q10 (Rev. 1 PDF p.106); tracked under E7-A3 (2026-09-28).
   class: question
-  state: open (owner: Matheus decides the blank-ART wording (E7-A5); the next batch touching section 10 applies it)
+  state: ~~open (owner: Matheus decides the blank-ART wording (E7-A5); the next batch touching section 10 applies it)~~ closed for seed v15 (2026-11-12, Story 25.22, batch e25p: the validity line reads "Este relatório tem validade apenas acompanhado da respectiva ART." with no number, so a blank one prints no bracket); v1 to v14 keep "[ART]" by design (byte-identical print)
 
 - source_spec: spec-epic-7-8-fix-qa.md
   summary: E78-Q12. "82 aguardando envio" (pre-issue row, gallery header, tiles) reads as if this device will send the photos; on an office device that never held them the server simply lacks them. The gallery's static note "Os números são provisórios até a exportação" sits beside "Números da revisão 1".

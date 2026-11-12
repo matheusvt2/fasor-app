@@ -28,7 +28,7 @@ import { CABINE_PRIMARIA_V2 } from './v2.ts';
 import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
-import { STORY_25_8_TESTS } from './v15.ts';
+import { STORY_25_22_RATIO_HEADERS, STORY_25_8_TESTS } from './v15.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
 
@@ -2254,6 +2254,8 @@ const E25C9_FLAGS = ['reading_not_applicable'] as const;
 const E25C10_FLAGS = ['names_every_reading_out'] as const;
 /** Story 25.20's two rule flags (seed v15, batch e25p): `withoutE25p20` below drops them. */
 const E25P20_FLAGS = ['criterion_result_per_row', 'corrected_headers_corrigido'] as const;
+/** Story 25.22's three rule flags (seed v15, batch e25p): `withoutE25p22` below drops them, with its section texts and ratio headers. */
+const E25P22_FLAGS = ['obra_reads_site', 'relay_clause_by_exclusions', 'validity_line_without_number'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2327,7 +2329,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2356,7 +2358,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2368,6 +2370,8 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     for (const flag of E25C10_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
     // Story 25.20: likewise, both.
     for (const flag of E25P20_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
+    // Story 25.22: likewise, the three.
+    for (const flag of E25P22_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
   });
 
   // Fix batch e24y (P1, P5, F10): the three flags on, beside e24a's and e24p's, and nothing else in `rules`.
@@ -2397,14 +2401,15 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
 // Story 25.9 (batch e25c): the flag `reading_not_applicable` (`withoutE25c9` below).
 // Story 25.10 (batch e25c): the flag `names_every_reading_out` (`withoutE25c10` below).
 // Story 25.20 (batch e25p): the flags `criterion_result_per_row` and `corrected_headers_corrigido` (`withoutE25p20` below).
-const V15_HASH = '2932003d344d17b62fa91c4581525417589cf8026a1117667dcd4252c6545bc8';
+// Story 25.22 (batch e25p): its section texts, ratio headers and three flags (`withoutE25p22` below).
+const V15_HASH = 'fa1b0b9ae873242fd970b22890f9a5db625c51f76cc071a0cff0650d23341150';
 
 /**
  * Story 25.5: each later Epic 25 story's delta on v15, undone, in the order `seed/v15.ts` applies them. A story
  * that adds a v15 key or rule flag adds its own `withoutE25c<N>` helper below this line and names it here, so
  * `withoutEpic25(v15)` stays v14 and "25.5-UNIT" keeps pinning that every other byte of v15 is v14's.
  */
-const EPIC25_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25c6, withoutE25c7, withoutE25c8, withoutE25c9, withoutE25c10, withoutE25p20];
+const EPIC25_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25c6, withoutE25c7, withoutE25c8, withoutE25c9, withoutE25c10, withoutE25p20, withoutE25p22];
 
 /** Story 25.6's delta undone: its flag `no_measurement_refuses_aprovado` dropped (v15 keeps v14's flags, so `rules` stays). */
 function withoutE25c6(seed: ReportSeed): ReportSeed {
@@ -2461,6 +2466,20 @@ function withoutE25p20(seed: ReportSeed): ReportSeed {
   return out;
 }
 
+/** Story 25.22's delta undone: v14's section texts and ratio headers back, its three flags dropped. */
+function withoutE25p22(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  out.sections = structuredClone(getSeed('v14', 'cabine_primaria').sections);
+  for (const type of ['tp', 'tc'] as const) {
+    const v14Table = getSeed('v14', 'cabine_primaria').blocks[type].tests.find((test) => test.key === 'relacao_transformacao')!.tables![0]!;
+    out.blocks[type].tests.find((test) => test.key === 'relacao_transformacao')!.tables![0]!.connection_columns = [...v14Table.connection_columns];
+  }
+  if (out.rules === undefined) return out;
+  for (const flag of E25P22_FLAGS) delete out.rules[flag];
+  if (Object.keys(out.rules).length === 0) delete out.rules;
+  return out;
+}
+
 /** v15 with every Epic 25 story's delta undone: v14 at its opening. */
 function withoutEpic25(seed: ReportSeed): ReportSeed {
   return EPIC25_STRIPS.reduceRight((out, strip) => strip(out), structuredClone(seed));
@@ -2495,6 +2514,65 @@ describe('25.5-UNIT seed v15 (Epic 25) opens equal to v14, and v14 is frozen as 
   it('keeps every rule flag v14 turns on (a v15 relatório concludes and prints as a v14 one until a story says otherwise)', () => {
     expect(withoutEpic25(v15).rules).toEqual(v14.rules);
     for (const flag of Object.keys(v14.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v15', flag), flag).toBe(true);
+  });
+});
+
+describe('25.22-UNIT seed v15 (Story 25.22): the fixed texts, the cover and the ratio headers; every older seed unchanged', () => {
+  const BASE = '2000-01-01';
+  const text = (version: string, section: number) => sectionText(version, section, BASE).map((block) => block.text);
+  const ratioHeader = (version: string, type: 'tp' | 'tc') => getDefinition(version, 'cabine_primaria', type).tests.find((test) => test.key === 'relacao_transformacao')!.tables![0]!.connection_columns;
+  const OLDER = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14'];
+
+  it('section 1 names the client and the obra as the unit', () => {
+    expect(text('v15', 1)[0]).toBe(
+      'O presente relatório tem por objetivo apresentar, de forma clara e objetiva, as atividades realizadas pela {empresa_executora}, referentes à manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação da {cliente}, unidade {obra}.',
+    );
+    expect(text('v15', 1).slice(1)).toEqual(text('v14', 1).slice(1));
+  });
+
+  it('section 2 loses its paragraph on earth resistance and reads "iminentes"', () => {
+    expect(text('v15', 2).some((one) => one.includes('Aterramento') || one.includes('NBR 5419'))).toBe(false);
+    expect(text('v15', 2)).toHaveLength(text('v14', 2).length - 1);
+    expect(text('v15', 2).join('\n')).toContain('detectando possíveis falhas iminentes.');
+    expect(text('v15', 2).join('\n')).not.toContain('eminentes');
+  });
+
+  it('section 3 keeps its text (the relay clause is the rule `relay_clause_by_exclusions`)', () => {
+    expect(text('v15', 3)).toEqual(text('v14', 3));
+  });
+
+  it('sections 4 to 6 read "EPCs", "EPIs", "QGBTs", "(a seco)" and "Conforme NR-10, item 10.5.1:"', () => {
+    const all = [4, 5, 6].flatMap((section) => text('v15', section)).join('\n');
+    for (const word of ['EPC’s', 'EPI’s', 'QGBT’s', 'à seco', 'capítulo 5.1']) expect(all, word).not.toContain(word);
+    expect(text('v15', 4)).toEqual(expect.arrayContaining(['EPCs', 'EPIs']));
+    expect(text('v15', 5)).toContain('Conforme NR-10, item 10.5.1:');
+    expect(all).toContain('disponibilidade dos EPIs e EPCs;');
+    expect(text('v15', 6)).toEqual(expect.arrayContaining(['Transformador de Força (a seco)', 'Cubículos, QGBTs e Quadros de Distribuição']));
+    expect(text('v15', 10)).toEqual(text('v14', 10));
+  });
+
+  it('the cover keeps its rows (its "Cidade/local" changes through `{obra}`), and the three flags are on', () => {
+    expect(getSeed('v15', 'cabine_primaria').cover).toEqual(getSeed('v14', 'cabine_primaria').cover);
+    for (const flag of E25P22_FLAGS) expect(seedRule('v15', flag), flag).toBe(true);
+  });
+
+  it('the ratio tables are headed "TPs" and "TCs" on v15, "TP\'s" and "TPS" on every older seed', () => {
+    expect(ratioHeader('v15', 'tp')).toEqual([STORY_25_22_RATIO_HEADERS.tp]);
+    expect(ratioHeader('v15', 'tc')).toEqual([STORY_25_22_RATIO_HEADERS.tc]);
+    expect(STORY_25_22_RATIO_HEADERS).toEqual({ tp: 'TPs', tc: 'TCs' });
+    for (const version of OLDER) {
+      expect(ratioHeader(version, 'tp'), version).toEqual(["TP's"]);
+      expect(ratioHeader(version, 'tc'), version).toEqual(['TPS']);
+    }
+  });
+
+  it('every older seed keeps its texts and cover, and no flag of the story', () => {
+    for (const version of OLDER) {
+      expect(text(version, 2).join('\n'), version).toContain('NBR 5419');
+      expect(text(version, 1)[0], version).toContain('Transformação de {obra} da {cliente}.');
+      expect(getSeed(version, 'cabine_primaria').cover, version).toEqual(getSeed('v1', 'cabine_primaria').cover);
+      for (const flag of E25P22_FLAGS) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+    }
   });
 });
 

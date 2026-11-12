@@ -266,6 +266,20 @@ function printLabel(label: string): string {
   return label.toLocaleUpperCase('pt-BR').replace(/(\p{Lu})(['’])S(?![\p{L}\p{N}])/gu, '$1$2s');
 }
 
+/** Story 25.22: an acronym's plain plural ("TPs", "TCs", seed v15's ratio headers), kept as written in print. */
+const ACRONYM_PLURAL = /^\p{Lu}{2,}s$/u;
+
+/**
+ * A connection column's printed label: `printLabel`, but a word that is an acronym's plain plural keeps its "s"
+ * (Story 25.22, seed v15: "TPs" and "TCs", not "TPS"). No connection column of v1 to v14 holds such a word, so their
+ * print is unchanged.
+ */
+function connectionLabel(label: string): string {
+  const words = label.split(/(\s+)/u);
+  if (!words.some((word) => ACRONYM_PLURAL.test(word))) return printLabel(label);
+  return words.map((word) => (ACRONYM_PLURAL.test(word) ? word : printLabel(word))).join('');
+}
+
 // --- cells and rows ------------------------------------------------------------------------
 
 const bandRow = (text: string, span: number, options: { bold?: boolean; align?: PrintAlign } = {}): PrintRow => ({
@@ -709,7 +723,7 @@ function measurementHeader(definition: TableDef, evaluated: EvaluatedTable, corr
   const columnLabel = (column: ColumnDef, col: number) =>
     column.label === VALORES ? valoresHeader([col], evaluated, values) : printLabel(evaluated.columns.find((visible) => visible.col === col)?.label ?? column.label);
   const bottom = headerRow([
-    ...definition.connection_columns.map(printLabel),
+    ...definition.connection_columns.map(connectionLabel),
     ...(voltage === null ? [] : [voltage.header]),
     ...printed.map((entry) => (entry.kind === 'corrected' ? entry.corrected.header : columnLabel(entry.column, entry.col))),
   ]);

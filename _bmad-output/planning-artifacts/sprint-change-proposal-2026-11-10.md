@@ -244,7 +244,7 @@ One message, sent after Epic 24 is built, so that he answers looking at the resu
 | M-1 | ~~The story list of 4.1, with Story 24.9's small fixes and the batches~~ *(2026-11-10, Matheus: approved.)* | n/a |
 | M-2 | ~~The rest of the low pass findings (F10, F15, F18, F20)~~ *(2026-11-10, Matheus: fix them with Epic 24 where they fit; they are in 24.14, 24.17, 24.14 and 24.9.)* One point stays his: whether "Agrupar por tipo" starts switched on for a new local. | It stays off; 24.9 only makes the switch easy to reach. |
 | M-3 | No separate `bmad-architecture` run: the AD-25 note is written in the build PR | As stated. |
-| M-4 | What section 10 prints when the ART is blank (today "[ART]"), since 24.4 edits that section | Left as it is. |
+| M-4 | What section 10 prints when the ART is blank (today "[ART]"), since 24.4 edits that section | Left as it is. *(2026-11-12, Story 25.22, batch e25p: closed for seed v15, whose validity line carries no number, "Este relatório tem validade apenas acompanhado da respectiva ART.", so a blank number prints no bracket; v1 to v14 unchanged.)* |
 
 ## Matheus's decisions (2026-11-10)
 

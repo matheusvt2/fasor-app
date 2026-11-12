@@ -242,8 +242,8 @@ describe('3.5 composer: sub-block defaults per type', () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
-    await user.click(within(palette()).getByRole('button', { name: 'Editar padrões de TP — proteção' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP — proteção' });
+    await user.click(within(palette()).getByRole('button', { name: 'Editar padrões de TP' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP' });
     expect(within(dialog).getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('Sem subtipo');
     await user.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'Epóxi', 'Á seco']);
@@ -483,7 +483,7 @@ describe('3.6 composer: section text', () => {
     const textbox = area(dialog);
     expect(textbox).toHaveAttribute('contenteditable', 'true');
     expect(textbox).toHaveAttribute('aria-multiline', 'true');
-    expect([...textbox.querySelectorAll('.var-chip')].map((c) => c.textContent)).toEqual(['{empresa_executora}', '{obra}', '{cliente}']);
+    expect([...textbox.querySelectorAll('.var-chip')].map((c) => c.textContent)).toEqual(['{empresa_executora}', '{cliente}', '{obra}']); // Story 25.22: v15's sentence names the client first
     // Story 11.4: the toolbar, the chip row hidden until "Variável" opens it.
     const toolbar = within(dialog).getByRole('toolbar', { name: 'Formatação' });
     expect(within(toolbar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Negrito', 'Itálico', 'Lista', 'Numeração', 'Variável']);

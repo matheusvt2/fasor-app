@@ -1079,6 +1079,12 @@ export const seedRulesSchema = z
     criterion_result_per_row: z.literal(true).optional(),
     /** Story 25.20 (seed v15, M24): the corrected columns print "20 °C (corrigido)" and "75 °C (corrigido)", and a table printed alone with one keeps each value with its unit. */
     corrected_headers_corrigido: z.literal(true).optional(),
+    /** Story 25.22 (seed v15): the section variable `{obra}` (the cover's "Cidade/local", section 1) reads the obra's site, then its name; the setup's Local no longer feeds it. */
+    obra_reads_site: z.literal(true).optional(),
+    /** Story 25.22 (seed v15): section 3's first paragraph ends ", incluindo o relé de proteção" only while no exclusion of the relatório names a relay. */
+    relay_clause_by_exclusions: z.literal(true).optional(),
+    /** Story 25.22 (seed v15; M-4 of the Epic 24 proposal): section 10's validity line names the ART (or TRT) with no number: "acompanhado da respectiva ART." */
+    validity_line_without_number: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

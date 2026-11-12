@@ -870,8 +870,8 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
   await expect(dialog).toBeHidden();
 
   // "Á SECO" on the TP pre-marks its oil items: the current seed's count (seven on v9, Story 15.3).
-  await palette(page).getByRole('button', { name: 'Editar padrões de TP — proteção' }).click();
-  dialog = page.getByRole('dialog', { name: 'Padrões de TP — proteção' });
+  await palette(page).getByRole('button', { name: 'Editar padrões de TP' }).click();
+  dialog = page.getByRole('dialog', { name: 'Padrões de TP' });
   await pickSubtype(page, dialog, 'Á seco');
   await expect(dialog.getByText(naDefaultsCountText(naDefaultsFor(SEED_VERSION, 'tp', 'a_seco').length))).toBeVisible();
   await page.keyboard.press('Escape');
@@ -936,7 +936,8 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   const area = dialog.getByRole('textbox', { name: 'Texto da seção 1' });
   const chips = area.locator('.var-chip');
   await expect(area).toBeFocused();
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
+  // Story 25.22 (seed v15): section 1 names the client before the obra ("da {cliente}, unidade {obra}").
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}']);
   // Story 11.4: the toolbar over the text; "Variável" opens the chip row, hidden until then.
   const toolbar = dialog.getByRole('toolbar', { name: 'Formatação' });
   await expect(toolbar.getByRole('button')).toHaveText(['Negrito', 'Itálico', 'Lista', 'Numeração', 'Variável']);
@@ -958,7 +959,7 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   await area.click();
   await page.keyboard.press('Control+End');
   await dialog.getByRole('button', { name: 'datas', exact: true }).click();
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{datas}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}', '{datas}']);
   await expect(area).toBeFocused();
   await page.keyboard.type(' fim');
   await expect(area).toContainText('{datas} fim');
@@ -967,14 +968,14 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
   await expect(chips).toHaveCount(4);
   await page.keyboard.press('Backspace');
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}']);
   expect((await area.innerText()).trimEnd()).toMatch(/atividades realizadas\.$/);
 
   // Keyboard only: Tab to a chip, Enter inserts it at the caret left in the text.
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'cliente', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{cliente}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}', '{cliente}']);
   await page.keyboard.type(' e mais');
 
   // The chip cannot be edited character by character: its text is not editable.
@@ -988,7 +989,7 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.evaluate(() => navigator.clipboard.writeText('colada da {obra}\r\nfim'));
   await page.keyboard.press('Control+V');
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{cliente}', '{obra}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}', '{cliente}', '{obra}']);
 
   // Autosave (500 ms idle), then a reload keeps it.
   await expect
@@ -997,7 +998,7 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   await page.reload();
   await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
   await page.getByRole('menuitem', { name: 'Editar texto' }).click();
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{cliente}', '{obra}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}', '{cliente}', '{obra}']);
   await expect(area).toContainText('{cliente} e mais');
   await expect(area).toContainText('Linha colada da {obra}');
 
@@ -1074,7 +1075,7 @@ test('@p0 3.6-E2E-003 section text: undo is the editor\'s own and never corrupts
   await page.keyboard.type(' Texto A    B');
   await dialog.getByRole('button', { name: 'Variável' }).click();
   await dialog.getByRole('button', { name: 'datas', exact: true }).click();
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{datas}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}', '{datas}']);
   await page.keyboard.press('Backspace');
   await expect(chips).toHaveCount(3);
   await expect.poll(stored, { timeout: 10_000 }).toMatch(/ Texto A {4}B$/);
@@ -1106,7 +1107,7 @@ test('@p0 3.6-E2E-003 section text: undo is the editor\'s own and never corrupts
 
   // Reopened, the four spaces show as four, not collapsed into one.
   await expect(await openText()).toBeVisible();
-  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
+  await expect(chips).toHaveText(['{empresa_executora}', '{cliente}', '{obra}']);
   expect(await area.innerText()).toMatch(/ Texto A {4}B\s*$/);
 });
 

@@ -546,8 +546,8 @@ export const copy = {
       para_raio: 'Para-raio',
       chave_seccionadora: 'Chave seccionadora',
       disjuntor_mt: 'Disjuntor MT',
-      tp: 'TP — proteção',
-      tc: 'TC — proteção',
+      tp: 'TP',
+      tc: 'TC',
       cabos_saida: 'Cabos de saída / alimentação TRn',
       transformador_forca: 'Transformador de força',
       // Story 14.5 (seed v5): the library type, verbatim from the mock's "Outros equipamentos" group.

@@ -92,7 +92,7 @@ export function Etapa3Responsavel({
                 />
                 <CharCount length={artTrtNumber.text.length} cap={ART_TRT_CAP} />
                 {(() => {
-                  const echo = artTrtEchoText(label, artTrtNumber.text, sectionRefText(snapshot, 10));
+                  const echo = artTrtEchoText(label, artTrtNumber.text, sectionRefText(snapshot, 10), snapshot.relatorio.seed_version);
                   return echo === null ? null : <span className="echo">{echo}</span>;
                 })()}
               </div>

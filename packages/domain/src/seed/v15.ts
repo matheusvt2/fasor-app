@@ -100,6 +100,60 @@ function story25_20(seed: ReportSeed): void {
   seed.rules = { ...seed.rules, criterion_result_per_row: true, corrected_headers_corrigido: true };
 }
 
+// --- Story 25.22: the fixed texts, the cover and the headers --------------------------------------
+
+/**
+ * Story 25.22's edits of the seed's fixed texts (M09, M10, M12, M13; Matheus's decision 11): each replaces exactly
+ * one occurrence in its section's text in force since the base date, so a text that moved fails the seed's import.
+ */
+export const STORY_25_22_TEXT_EDITS: readonly { section: number; from: string; to: string }[] = [
+  { section: 1, from: 'Transformação de {obra} da {cliente}.', to: 'Transformação da {cliente}, unidade {obra}.' },
+  { section: 2, from: 'falhas eminentes', to: 'falhas iminentes' },
+  { section: 4, from: 'EPC’s', to: 'EPCs' },
+  { section: 4, from: 'EPI’s', to: 'EPIs' },
+  { section: 5, from: 'dos EPI’s e EPC’s', to: 'dos EPIs e EPCs' },
+  { section: 5, from: 'Conforme NR-10, capítulo 5.1, item 10.5.1:', to: 'Conforme NR-10, item 10.5.1:' },
+  { section: 6, from: 'Transformador de Força (à seco)', to: 'Transformador de Força (a seco)' },
+  { section: 6, from: 'QGBT’s', to: 'QGBTs' },
+];
+
+/** Story 25.22: the start of section 2's paragraph on earth resistance, which v15 removes. */
+export const STORY_25_22_REMOVED_PARAGRAPH = 'Resistência Ôhmica de Aterramento:';
+
+/** Story 25.22: the ratio tables' first column on v15, by type (v1 to v14: "TP's" on the TP, the source's "TPS" on the TC). */
+export const STORY_25_22_RATIO_HEADERS = { tp: 'TPs', tc: 'TCs' } as const;
+
+/**
+ * Story 25.22: v15's own section texts (the edits above, section 2 without its paragraph on earth resistance) and
+ * its ratio headers; the flags `obra_reads_site`, `relay_clause_by_exclusions` and `validity_line_without_number`
+ * reach the kernel texts (`relatorio/section-variables.ts`, `print/section-10.ts`). The cover's rows are v14's: its
+ * "Cidade/local" changes through `{obra}`. A template's or a relatório's own section text is never rewritten.
+ */
+function story25_22(seed: ReportSeed): void {
+  const BASE = '2000-01-01';
+  const edited = seed.sections.map((entry) => {
+    if (entry.effective_from !== BASE || entry.blocks === null) return entry;
+    let blocks = entry.blocks.map((block) => ({ ...block }));
+    if (entry.section === 2) blocks = blocks.filter((block) => !block.text.startsWith(STORY_25_22_REMOVED_PARAGRAPH));
+    for (const edit of STORY_25_22_TEXT_EDITS.filter((one) => one.section === entry.section)) {
+      const hits = blocks.filter((block) => block.text.includes(edit.from));
+      if (hits.length !== 1 || hits[0]!.text.split(edit.from).length !== 2) throw new Error(`seed v15: section ${edit.section} holds "${edit.from}" ${hits.length} times`);
+      hits[0]!.text = hits[0]!.text.replace(edit.from, edit.to);
+    }
+    return { ...entry, blocks };
+  });
+  if (edited.find((entry) => entry.section === 2)!.blocks!.length !== seed.sections.find((entry) => entry.section === 2)!.blocks!.length - 1) {
+    throw new Error('seed v15: section 2 lacks its paragraph on earth resistance');
+  }
+  seed.sections = edited;
+  for (const type of ['tp', 'tc'] as const) {
+    const table = seed.blocks[type].tests.find((test) => test.key === 'relacao_transformacao')?.tables?.[0];
+    if (table?.connection_columns.length !== 1) throw new Error(`seed v15: ${type} lacks its ratio table`);
+    table.connection_columns = [STORY_25_22_RATIO_HEADERS[type]];
+  }
+  seed.rules = { ...seed.rules, obra_reads_site: true, relay_clause_by_exclusions: true, validity_line_without_number: true };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
@@ -110,6 +164,7 @@ function cabinePrimariaV15(): ReportSeed {
   story25_9(seed);
   story25_10(seed);
   story25_20(seed);
+  story25_22(seed);
   return seed;
 }
 
