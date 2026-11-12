@@ -105,6 +105,8 @@ export * from './relatorio/over-range.ts';
 // Batch e23v (Stories 23.5, 23.6, 23.14): the visit context, the temperature correction, the restriction rules.
 export * from './relatorio/visit-context.ts';
 export * from './relatorio/temperature-correction.ts';
+// Fix batch e25r (R-1): the one parse of a plate temperature and the plate fields a definition reads one from.
+export * from './relatorio/plate-temperature.ts';
 export * from './relatorio/restriction.ts';
 export * from './relatorio/conclusion.ts';
 export * from './relatorio/parecer.ts';

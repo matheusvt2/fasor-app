@@ -86,6 +86,9 @@ export function withoutPrior(entry: LastResults): PreviousResults {
     seed_version: entry.seed_version,
     block_type: entry.block_type,
     readings: entry.readings,
+    // Fix batch e25r (R-1): the plate temperatures the visit typed travel with its readings into `prior`, only where the
+    // entry keeps them (no key otherwise, so older entries keep their bytes).
+    ...(entry.plate_measured === undefined ? {} : { plate_measured: entry.plate_measured }),
   };
 }
 

@@ -3,10 +3,10 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { replay } from '../ops/replay.ts';
 import { ctaBlock, CTA_EQUIPMENT, E2 } from '../relatorio/measurement-test-support.ts';
-import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
+import { cellAddressesOf, evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
 import { newEquipmentBlock } from '../relatorio/tree.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
-import { lastResultsSchema, type BlockRow, type Cell, type EquipmentRow, type LastResults, type LocationRow } from '../schemas/entities.ts';
+import { lastResultsSchema, type BlockRow, type Cell, type EquipmentRow, type JsonValue, type LastResults, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { findDefinition, getDefinition, EMPTY_DEFINITION_CONTEXT } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
@@ -438,5 +438,142 @@ describe('22.12-UNIT and 22.10-UNIT on seed v12 (after e22s: the TENSÃO column 
     expect(insulation).toMatchObject({ state: 'over_range', verdict: 'within', overRange: { allowed: true } });
     const ratio = cells.find((c) => c.address.testKey === 'relacao_transformacao' && c.role === 'capture')!;
     expect(ratio.overRange.allowed).toBe(false);
+  });
+});
+
+// --- fix batch e25r (R-1 of the Epic 24 retrospective, contract 49): plate_measured ------------------
+
+describe('e25r-R1-UNIT-WRITE an entry keeps the plate temperatures its sheet typed, and an older entry is filled from its plate', () => {
+  const TF = 'transformador_forca' as const;
+  const OIL = 'temperatura_oleo_c';
+  const WINDING = 'temperatura_enrolamento_c';
+  const definitionOf = (seedVersion: string) => getDefinition(seedVersion, 'cabine_primaria', TF);
+  const atAddress = (seedVersion: string) => {
+    const at = cellAddressesOf(definitionOf(seedVersion), 'isolacao')[0]!;
+    return `${at.row}/${at.col}`;
+  };
+  /** A key of the transformer's readings, the previous visits' only reading here. */
+  const SLOT = readingSlotsOf(definitionOf('v14')).find((slot) => slot.testKey === 'isolacao')!.key;
+  const ISSUE = { revisionNumber: 1, issuedAt: '2026-11-01T12:00:00.000Z' };
+  const ELSEWHERE = id(4242);
+
+  /** A transformer of `seedVersion` (v14 by default) with its first insulation reading (none with `reading: false`) and these plate temperatures, raw by key. */
+  function transformer(plate: Record<string, string> = {}, options: { seedVersion?: string; reading?: boolean } = {}): Built {
+    const seedVersion = options.seedVersion ?? 'v14';
+    const built = sheet(1, TF, options.reading === false ? {} : { isolacao: { [atAddress(seedVersion)]: measured('10', 'GΩ') } }, seedVersion);
+    for (const [key, raw] of Object.entries(plate)) built.block.sheet.nameplate[key] = cell(measured(raw, '°C'));
+    return built;
+  }
+
+  /** Relatório `relatorioId`'s entry for that transformer, revision 1, as an issue before contract 49 wrote it (no field). */
+  const entryOf = (relatorioId: string, extra: Partial<LastResults> = {}): LastResults => ({
+    relatorio_id: relatorioId,
+    revision_number: 1,
+    issued_at: ISSUED_A,
+    seed_version: 'v14',
+    block_type: TF,
+    readings: { [SLOT]: measured('9', 'GΩ') },
+    prior: null,
+    ...extra,
+  });
+
+  /** The equipment's `last_nameplate` as `relatorioId`'s revision `revision` left it. */
+  const plateOf = (relatorioId: string, fields: Record<string, JsonValue>, revision = 1): EquipmentRow['last_nameplate'] => ({
+    relatorio_id: relatorioId,
+    revision_number: revision,
+    issued_at: ISSUED_A,
+    seed_version: 'v14',
+    block_type: TF,
+    fields,
+  });
+  const OIL_PLATE: Record<string, JsonValue> = { tipo_de_isolacao: 'ÓLEO ISOLANTE', [OIL]: measured('40', '°C') };
+
+  const withRow = (built: Built, last: LastResults | null, plate: EquipmentRow['last_nameplate']): Built => ({ ...built, equipment: { ...built.equipment, last_results: last, last_nameplate: plate } });
+  const notTested = (built: Built): Built => ({ ...built, block: { ...built.block, not_tested: { reason: 'cliente', text: null, at: ISSUED_A, by: id(900) } as never } });
+
+  it('own: the keys of the definition\'s plate temperatures that hold a number, sorted, [] when none (the plate is known); no key on a v12 definition', () => {
+    const both = lastResults(snapshotOf([transformer({ [OIL]: '40', [WINDING]: '45' })]), ISSUE)[0]!.value;
+    expect(both.plate_measured).toEqual([WINDING, OIL]);
+    expect(lastResultsSchema.parse(both)).toEqual(both);
+    expect(lastResults(snapshotOf([transformer()]), ISSUE)[0]!.value.plate_measured).toEqual([]);
+    // E24-A1 item 2: a measured cell that is no number is not a typed temperature.
+    expect(lastResults(snapshotOf([transformer({ [OIL]: 'abc', [WINDING]: '45' })]), ISSUE)[0]!.value.plate_measured).toEqual([WINDING]);
+    const v12 = lastResults(snapshotOf([transformer({ [OIL]: '40' }, { seedVersion: 'v12' })]), ISSUE)[0]!.value;
+    expect(Object.hasOwn(v12, 'plate_measured')).toBe(false);
+    const cabos = lastResults(snapshotOf([sheet(2, 'cabos_saida', { isolacao: { '0/1': measured('4.9', 'GΩ') } })]), ISSUE);
+    expect(JSON.stringify(cabos)).not.toContain('plate_measured');
+  });
+
+  it('own on top: the old top, written before 49 and whose plate is on the row, becomes the prior with the field filled; another plate, an entry that already says, or another revision\'s plate fill nothing', () => {
+    const [entry] = lastResults(snapshotOf([withRow(transformer(), entryOf(RELATORIO_A), plateOf(RELATORIO_A, OIL_PLATE))]), ISSUE);
+    expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_B, plate_measured: [] });
+    expect(entry!.value.prior).toEqual({ ...withoutPrior(entryOf(RELATORIO_A)), plate_measured: [OIL] });
+    expect(lastResultsSchema.parse(entry!.value)).toEqual(entry!.value);
+    const other = lastResults(snapshotOf([withRow(transformer(), entryOf(RELATORIO_A), plateOf(ELSEWHERE, OIL_PLATE))]), ISSUE)[0]!.value;
+    expect(other.prior).toEqual(withoutPrior(entryOf(RELATORIO_A)));
+    const said = lastResults(snapshotOf([withRow(transformer(), entryOf(RELATORIO_A, { plate_measured: [] }), plateOf(RELATORIO_A, OIL_PLATE))]), ISSUE)[0]!.value;
+    expect(said.prior?.plate_measured).toEqual([]);
+    const revision = lastResults(snapshotOf([withRow(transformer(), entryOf(RELATORIO_A), plateOf(RELATORIO_A, OIL_PLATE, 2))]), ISSUE)[0]!.value;
+    expect(Object.hasOwn(revision.prior!, 'plate_measured')).toBe(false);
+  });
+
+  it('the old top kept, own as its prior (e23w: a later visit whose prior is this relatório): the top, with its plate on the row, gets the field', () => {
+    const later = entryOf(RELATORIO_C, { issued_at: '2026-10-20T12:00:00.000Z', prior: withoutPrior(entryOf(RELATORIO_B)) });
+    const issue = { revisionNumber: 2, issuedAt: '2026-10-25T12:00:00.000Z', firstIssuedAt: ISSUED_A };
+    const [entry] = lastResults(snapshotOf([withRow(transformer({ [OIL]: '40' }), later, plateOf(RELATORIO_C, OIL_PLATE))]), issue);
+    expect(entry!.value).toEqual({
+      ...later,
+      plate_measured: [OIL],
+      prior: { relatorio_id: RELATORIO_B, revision_number: 2, issued_at: '2026-10-25T12:00:00.000Z', seed_version: 'v14', block_type: TF, readings: expect.anything(), plate_measured: [OIL] },
+    });
+  });
+
+  it('the old top kept, own as its prior (e24p: an older visit by date): the top, with its plate on the row, gets the field', () => {
+    const newer = entryOf(RELATORIO_C, { service_date: '2026-06-01' });
+    const winding: Record<string, JsonValue> = { [WINDING]: measured('45', '°C') };
+    const [entry] = lastResults(snapshotOf([withRow(transformer(), newer, plateOf(RELATORIO_C, winding))], RELATORIO_B, { start: '2026-03-01', end: '2026-03-02' }), ISSUE);
+    expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_C, plate_measured: [WINDING], prior: { relatorio_id: RELATORIO_B, service_date: '2026-03-02', plate_measured: [] } });
+  });
+
+  it('a re-issue keeps the prior: the prior, written before 49 and whose plate is still on the row (revision 1 left none), gets the field', () => {
+    const first = entryOf(RELATORIO_B, { prior: withoutPrior(entryOf(RELATORIO_A)) });
+    const [entry] = lastResults(snapshotOf([withRow(transformer(), first, plateOf(RELATORIO_A, OIL_PLATE))]), { revisionNumber: 2, issuedAt: '2026-11-02T12:00:00.000Z', firstIssuedAt: ISSUED_A });
+    expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_B, revision_number: 2, plate_measured: [] });
+    expect(entry!.value.prior).toEqual({ ...withoutPrior(entryOf(RELATORIO_A)), plate_measured: [OIL] });
+  });
+
+  it('skip (e24p): an older visit whose top keeps a newer prior writes nothing, so the top, with its plate on the row, is written with the field and nothing else changed; nothing when that fills nothing', () => {
+    const top = entryOf(RELATORIO_C, { service_date: '2026-06-01', prior: withoutPrior(entryOf(RELATORIO_A, { service_date: '2026-05-01' })) });
+    const older = (last: LastResults, plate: EquipmentRow['last_nameplate']) => snapshotOf([withRow(transformer(), last, plate)], RELATORIO_B, { start: '2026-03-01', end: '2026-03-02' });
+    expect(lastResults(older(top, plateOf(RELATORIO_C, OIL_PLATE)), ISSUE)).toEqual([{ equipmentId: id(2001), value: { ...top, plate_measured: [OIL] } }]);
+    expect(lastResults(older(top, plateOf(ELSEWHERE, OIL_PLATE)), ISSUE)).toEqual([]);
+    expect(lastResults(older({ ...top, plate_measured: [OIL] }, plateOf(RELATORIO_C, OIL_PLATE)), ISSUE)).toEqual([]);
+    expect(lastResults(older(top, null), ISSUE)).toEqual([]);
+  });
+
+  it('skip (e23w): a re-issue over an unrelated later visit writes nothing, so that visit, with its plate on the row, gets the field; nothing when that fills nothing', () => {
+    const later = entryOf(RELATORIO_C, { issued_at: '2026-10-20T12:00:00.000Z' });
+    const issue = { revisionNumber: 2, issuedAt: '2026-10-25T12:00:00.000Z', firstIssuedAt: ISSUED_A };
+    expect(lastResults(snapshotOf([withRow(transformer(), later, plateOf(RELATORIO_C, OIL_PLATE))]), issue)).toEqual([{ equipmentId: id(2001), value: { ...later, plate_measured: [OIL] } }]);
+    expect(lastResults(snapshotOf([withRow(transformer(), { ...later, plate_measured: [] }, plateOf(RELATORIO_C, OIL_PLATE))]), issue)).toEqual([]);
+  });
+
+  it('a sheet with no reading, or marked not tested, writes no entry, but its plate is still written over: the entry, with its plate on the row, gets the field; else nothing, as before', () => {
+    const filled = [{ equipmentId: id(2001), value: { ...entryOf(RELATORIO_A), plate_measured: [OIL] } }];
+    expect(lastResults(snapshotOf([withRow(transformer({}, { reading: false }), entryOf(RELATORIO_A), plateOf(RELATORIO_A, OIL_PLATE))]), ISSUE)).toEqual(filled);
+    expect(lastResults(snapshotOf([notTested(withRow(transformer(), entryOf(RELATORIO_A), plateOf(RELATORIO_A, OIL_PLATE)))]), ISSUE)).toEqual(filled);
+    expect(lastResults(snapshotOf([withRow(transformer({}, { reading: false }), entryOf(RELATORIO_A, { plate_measured: [OIL] }), plateOf(RELATORIO_A, OIL_PLATE))]), ISSUE)).toEqual([]);
+    expect(lastResults(snapshotOf([withRow(transformer({}, { reading: false }), entryOf(RELATORIO_A), plateOf(ELSEWHERE, OIL_PLATE))]), ISSUE)).toEqual([]);
+    expect(lastResults(snapshotOf([withRow(transformer({}, { reading: false }), entryOf(RELATORIO_A), null)]), ISSUE)).toEqual([]);
+    expect(lastResults(snapshotOf([withRow(transformer({}, { reading: false }), null, plateOf(RELATORIO_A, OIL_PLATE))]), ISSUE)).toEqual([]);
+  });
+
+  it('withoutPrior carries plate_measured when the entry has it, and no key otherwise; the next relatório reads it either way', () => {
+    expect(withoutPrior(entryOf(RELATORIO_A, { plate_measured: [OIL] }))).toEqual({ ...withoutPrior(entryOf(RELATORIO_A)), plate_measured: [OIL] });
+    expect(withoutPrior(entryOf(RELATORIO_A, { plate_measured: [] })).plate_measured).toEqual([]);
+    expect(Object.hasOwn(withoutPrior(entryOf(RELATORIO_A)), 'plate_measured')).toBe(false);
+    const block = { block_type: TF };
+    expect(previousResultsFor({ last_results: entryOf(RELATORIO_A, { plate_measured: [OIL] }) }, block, RELATORIO_B)?.plate_measured).toEqual([OIL]);
+    expect(previousResultsFor({ last_results: entryOf(RELATORIO_B, { prior: { ...withoutPrior(entryOf(RELATORIO_A)), plate_measured: [WINDING] } }) }, block, RELATORIO_B)?.plate_measured).toEqual([WINDING]);
   });
 });

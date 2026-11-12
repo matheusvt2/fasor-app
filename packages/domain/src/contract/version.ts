@@ -566,7 +566,20 @@
  * values, never to Apto or Aprovado. No device reader reads the keys and nothing on screen or in
  * print changes. MIN follows to 48 (below).
  */
-export const CONTRACT_VERSION = 48;
+/*
+ * 49 (2026-11-11, fix batch e25r, R-1 and E24-A1 of the Epic 24 retrospective): no new op or path
+ * family. An equipment's `last_results` entry (and its `prior`, one shared shape) gains the optional
+ * `plate_measured`, the plate temperature keys of the visit's sheet that held a finite number when it
+ * was issued (`print/last-results.ts`, sorted, no duplicate; no key on a definition that names no
+ * plate temperature, so every entry of v1 to v12 keeps its bytes). It travels into `prior` with its
+ * entry, so seed v14's "like with like" rule (`history_needs_like_with_like`) still knows the previous
+ * visit's plate after the issue writes `last_nameplate` over (`relatorio/visit-context.ts`); an entry
+ * without it reads that plate while it is still the visit's, and the issue job fills it from there.
+ * A previous plate temperature counts only as a finite number. Server-only, as `last_results` is (no
+ * client can push the key); field keys only, no id and no instant. Never defaulted: an entry written
+ * before 49 parses to the same bytes. MIN follows to 49 (below).
+ */
+export const CONTRACT_VERSION = 49;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -900,7 +913,16 @@ export const CONTRACT_VERSION = 48;
  * not folded again). Its pull answers `426 contract_outdated` and it updates first; its pushes are
  * still accepted.
  */
-export const MIN_CONTRACT_VERSION = 48;
+/*
+ * 49 (2026-11-11, fix batch e25r, R-1): a version-48 (or older) bundle's equipment schema strips
+ * `plate_measured` from a pulled `last_results` entry and its `prior` (a plain object strips unknown
+ * keys), and it would keep the stripped row after it updates (a pulled op is not folded again). Its
+ * kernel would also read the previous visit's plate from `last_nameplate` alone, so once a v14
+ * relatório is issued its sheet would compare as v13 (a false drop or variation) while the server
+ * prints the like-with-like result. Its pull answers `426 contract_outdated` and it updates first;
+ * its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 49;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

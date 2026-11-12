@@ -1116,10 +1116,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('25.4-API-002, 24.2-API-001, 24.18-API-002, 24.15-API-001 contract 48 (Story 25.4, batch e25b; contract 47, Stories 24.10 to 24.14, batch e24s; contract 46, Stories 24.15 and 24.16, batch e24p; contract 45, Stories 24.18 to 24.20, batch e24c; contract 44, Stories 24.2 to 24.4, batch e24a; contract 43, Stories 24.8 and 24.21, batch e24b; contract 42, fix batch e24f; contract 41, fix batch e24h; contract 40, fix batch e23z; contract 39, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e; contract 38, Stories 23.15 to 23.17 and 23.19, batch e23t; contract 37, Stories 23.10 and 23.11, batch e23h; contract 36, Stories 23.5, 23.6 and 23.14, batch e23v; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-47 pull is refused with 426 contract_outdated on every stream, a version-48 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(48);
-    expect(MIN_CONTRACT_VERSION).toBe(48);
+  it('25.4-API-002, 24.2-API-001, 24.18-API-002, 24.15-API-001 contract 49 (fix batch e25r, R-1; contract 48, Story 25.4, batch e25b; contract 47, Stories 24.10 to 24.14, batch e24s; contract 46, Stories 24.15 and 24.16, batch e24p; contract 45, Stories 24.18 to 24.20, batch e24c; contract 44, Stories 24.2 to 24.4, batch e24a; contract 43, Stories 24.8 and 24.21, batch e24b; contract 42, fix batch e24f; contract 41, fix batch e24h; contract 40, fix batch e23z; contract 39, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e; contract 38, Stories 23.15 to 23.17 and 23.19, batch e23t; contract 37, Stories 23.10 and 23.11, batch e23h; contract 36, Stories 23.5, 23.6 and 23.14, batch e23v; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"): a version-48 pull is refused with 426 contract_outdated on every stream, a version-49 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(49);
+    expect(MIN_CONTRACT_VERSION).toBe(49);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 48 strips a last_results entry's plate_measured, so a v14 sheet compares as v13 once its relatório is issued (fix batch e25r, R-1);
       // 47 strips the revision's printed parecer and conclusions when it folds the create (Story 25.4, batch e25b);
       // 46 lacks the v14 transformer's and Inspeção de QGBT's item keys and strips the oil rule's `dry_items` (batch e24s);
       // 45 strips the visit's service date from a pulled last_results entry and prints no v14 dated header nor history note (Stories 24.15 and 24.16);
@@ -1153,17 +1154,17 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['47', '46', '45', '44', '43', '42', '41', '40', '39', '38', '37', '36', '35', '34', '33', '32', '31', '30', '29', '28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['48', '47', '46', '45', '44', '43', '42', '41', '40', '39', '38', '37', '36', '35', '34', '33', '32', '31', '30', '29', '28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '48');
+    const current = await pull(companyA, '/api/sync/company?since=0', '49');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
-    const pushed = await push(companyA, { ops: batch }, '47');
+    const pushed = await push(companyA, { ops: batch }, '48');
     expect(pushed.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
   });
