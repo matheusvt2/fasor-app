@@ -4094,3 +4094,26 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   class: test-gap
   state: open (owner: the wave 1 integrated gate; if either goes red again, harden it: wait for the list to be gone after "Criar" in the journey helpers, and wait for Home's list before "Novo relatório" in `createProjectFromHome`)
 
+
+## Deferred from: Epic 25 fix batch e25r (2026-11-11)
+
+- source_spec: `spec-e25r-like-with-like.md` (R-1, E24-A1; design D5)
+  summary: a `last_results` entry written before contract 49 whose plate another issue already wrote over (a v14 relatório issued or re-issued between the 2026-11-11 deploy and this fix) carries no `plate_measured` and has no plate to fill it from, so its sheet still compares as v13 (the false drop or variation stays for that equipment until its next visit). No backfill in this batch.
+  evidence: `packages/domain/src/relatorio/visit-context.ts` `previousPlateKeysOf`; pinned by e25r-R1-UNIT-004 row 8 and e25r-R1-API-002. The PR body carries a read-only count query (counts only) for production.
+  class: decision
+  state: open (owner: Matheus: run the count in production, then decide whether a backfill is worth it)
+- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B1; test T4)
+  summary: `printed_parecer: null` on a revision has two meanings. (1) Section 10 was not printed (its block removed or switched off). (2) Section 10 printed "[Parecer]" because an op reopened a sheet between the route's check and the snapshot the job froze (the job does not run the check again). The print is older than Story 25.4; the ambiguous record is new. Behaviour not changed; pinned by `25.4-UNIT (g)` in `print/printed-verdicts.test.ts` (kernel only: a test cannot reach the worker without the route).
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `printedVerdicts`; `apps/api/src/jobs/generate/job.ts` (no second check).
+  class: decision
+  state: open (owner: Matheus: keep one null, record a third value, or have the job refuse)
+- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B2)
+  summary: a sheet marked not tested with a defect reason floors the parecer but has no entry in `printed_conclusions` (section 9 prints no CONCLUSÃO row for it). A count that reads the record to explain a Não apto will not find that sheet there.
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `conclusionSheets` (`printsConclusionRow`).
+  class: note
+  state: open (owner: the first story that counts from the record)
+- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B3)
+  summary: revisions written before contract 48 carry no printed keys and get no backfill; a raw reader falls back to the effective values (the story's own fallback). Pinned through the sync route by 25.4-API-003 (T1).
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `relatorioVerdicts`.
+  class: note
+  state: open (owner: Matheus, only if an old revision's printed verdicts are ever needed)

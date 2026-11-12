@@ -2006,7 +2006,7 @@ action_items:
       and finds the flags as before the issue, and G1 is closed by a test that types
       a deadline, concludes and reloads."
     owner: "batch e25c of Epic 25 (R-1); batch e25a (G1); the coordinator assigns"
-    status: open
+    status: open  # 2026-11-11: items 1 to 3 built by fix batch e25r (spec-e25r-like-with-like.md; R-1 reproduced through the issue job, plate_measured travels with last_results, contract 49, MIN 49), PR open, not merged; status unchanged
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-181-e24-a2-v14-layout-lock"
     epic: 24
