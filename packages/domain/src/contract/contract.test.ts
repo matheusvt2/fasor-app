@@ -113,9 +113,10 @@ describe('contract constants', () => {
   // e24p (Stories 24.15 and 24.16, 2026-11-11): 46, after e24c's 45; MIN follows.
   // e24s (Stories 24.10 to 24.14, seed v14's sheets, 2026-11-11): 47, after e24p's 46; MIN follows.
   // e25b (Story 25.4, the revision keeps the verdicts it printed, 2026-11-11): 48, after e24s's 47; MIN follows.
-  it('speaks version 48 and refuses version 47 (batch e25b: a version-47 bundle strips the revision\'s printed verdicts)', () => {
-    expect(CONTRACT_VERSION).toBe(48);
-    expect(MIN_CONTRACT_VERSION).toBe(48);
+  // e25r (R-1 of the Epic 24 retrospective, a last_results entry keeps plate_measured, 2026-11-11): 49, after e25b's 48; MIN follows.
+  it('speaks version 49 and refuses version 48 (fix batch e25r: a version-48 bundle strips a last_results entry\'s plate_measured)', () => {
+    expect(CONTRACT_VERSION).toBe(49);
+    expect(MIN_CONTRACT_VERSION).toBe(49);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

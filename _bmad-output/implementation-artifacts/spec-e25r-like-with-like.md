@@ -255,11 +255,14 @@ D5, a count for Matheus).
 
 **Definition of done.** Red tests seen red on the old code (mutation: the fix reverted, tests red, restored);
 the story gate green on the final head with origin/main merged (lint, static, test:unit, test:api with every
-layout-lock golden, the touched specs on desktop-chrome and durability-desktop-chrome); one review loop
-(Edge Case Hunter, Verification Gap) triaged below; the records written; the grep of changed strings and
+layout-lock golden, the touched specs on desktop-chrome and durability-desktop-chrome); no review loop of its own
+(coordinator's rule of 2026-11-11, on Matheus's word: the coordinator reads the final diff once); the records written; the grep of changed strings and
 keys in the PR body; the read-only production count query in the PR body; the PR open, not merged.
 
 ## Spec Change Log
+
+- 2026-11-11: the batch's own review loop is skipped and no subagent beyond the one dev is used (coordinator, on Matheus's word, token economy).
+- 2026-11-11 (dev, phase A, nothing run): the route answers `unchanged` when nothing was edited since the last revision, so the tests edit `relatorio/setup/atividade` (away from the transformer) before revision 2; T4 is kernel-only (the worker cannot be reached without the route in a test); T1 and T3 live in `e25b-revision-verdicts-gaps.integration.test.ts`.
 
 ## Review Triage Log
 

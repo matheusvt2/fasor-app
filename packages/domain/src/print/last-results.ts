@@ -1,6 +1,7 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { evaluateSheetMeasurements, measurementCells } from '../relatorio/measurement-evaluation.ts';
 import { isReadingValue, overRangeText } from '../relatorio/over-range.ts';
+import { plateCelsiusOf, plateTemperatureFields } from '../relatorio/plate-temperature.ts';
 import { correctedText } from '../relatorio/temperature-correction.ts';
 import { evaluatedCells, evaluateSheetReadings } from '../relatorio/readings.ts';
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
@@ -52,6 +53,15 @@ import { compareVisits, visitDateText } from './visit-date.ts';
  * keeps its value corrected to 20 °C as the sheet judged it (`corrected`, under the block's visit
  * context: the cabine's ambient), the value the next visit's history rule compares with; a reading
  * of any other test, every reading of v1 to v12, and one with no temperature carry none.
+ *
+ * Fix batch e25r (R-1 of the Epic 24 retrospective, contract 49): an entry of a sheet whose
+ * definition names a plate temperature (`plateTemperatureFields`) keeps `plate_measured`, the keys
+ * of those fields that held a number when it was issued, so the next visit's "like with like" rule
+ * (seed v14) still knows the plate after this issue writes the equipment's `last_nameplate` over.
+ * An entry without it (written before 49) whose plate is still the equipment's `last_nameplate` is
+ * filled from that plate by any issue that writes for the equipment, or that may write its plate
+ * over while it writes no entry for it (a sheet marked not tested or with no reading, the two
+ * branches that keep a later visit's place).
  */
 
 export type LastResultsValue = LastResults;
@@ -120,23 +130,49 @@ export function blockReadings(block: BlockRow, definition: BlockDefinition, visi
  * - X's visit is newer than E's: X on top, prior E, a re-issue included (the dates decide, not the
  *   issue order the e23w skip stands in for);
  * - equal dates, or no service date on either: today's rules, unchanged.
+ *
+ * Fix batch e25r (R-1, contract 49): `own` keeps `plate_measured` on a definition that names a plate
+ * temperature, and every value written passes through `withPlateMeasured` (a top or a prior written
+ * before 49 whose plate is the equipment's `last_nameplate` gets the field from it). Where nothing is
+ * written for an equipment while this issue may still write its plate over (the date rule's and the
+ * e23w rule's skips, a live sheet marked not tested or with no reading), its value is written with the
+ * field filled and nothing else changed when that fills anything; else nothing is written, as before.
  */
 export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string; firstIssuedAt?: string }): LastResultsEntry[] {
   const out: LastResultsEntry[] = [];
   const done = new Set<string>();
+  // Fix batch e25r (D3): an equipment a live sheet binds that writes no entry of its own (marked not tested, or with no reading),
+  // with the plate temperature fields of that sheet's definition (the first such sheet's); filled after every sheet is read.
+  const unwritten = new Map<string, readonly string[]>();
   // Story 14.6: a company sheet's definition is the version its block references (the snapshot's `equipment_types`).
   const ctx = snapshotDefinitionContext(snapshot);
   // Batch e24p (Story 24.15): the visit's service date, its last day else its first.
   const serviceDate = snapshot.relatorio.setup.service_end ?? snapshot.relatorio.setup.service_start ?? null;
+  const equipmentOf = (id: string) => snapshot.equipment.find((row) => row.id === id);
   for (const block of snapshot.blocks) {
-    if (block.removed_at !== null || block.equipment_id === null || !isEquipmentBlock(block) || block.not_tested !== null) continue;
+    if (block.removed_at !== null || block.equipment_id === null || !isEquipmentBlock(block)) continue;
+    if (block.not_tested !== null) {
+      // Fix batch e25r (D3): a sheet marked not tested writes no entry, but the issue still writes its plate (`lastNameplates`).
+      const definition = blockDefinitionIn(ctx, block);
+      if (definition !== null && !unwritten.has(block.equipment_id)) unwritten.set(block.equipment_id, plateTemperatureFields(definition));
+      continue;
+    }
     if (done.has(block.equipment_id)) continue;
     const definition = blockDefinitionIn(ctx, block);
     if (definition === null) continue;
+    const plateFields = plateTemperatureFields(definition);
     const readings = blockReadings(block, definition, visitContextOf(snapshot, block));
-    if (Object.keys(readings).length === 0) continue;
+    if (Object.keys(readings).length === 0) {
+      if (!unwritten.has(block.equipment_id)) unwritten.set(block.equipment_id, plateFields);
+      continue;
+    }
     done.add(block.equipment_id);
-    const existing = snapshot.equipment.find((row) => row.id === block.equipment_id)?.last_results ?? null;
+    const equipmentId = block.equipment_id;
+    const equipment = equipmentOf(equipmentId);
+    const existing = equipment?.last_results ?? null;
+    // Fix batch e25r (D3): the equipment's plate as it stands before this issue writes its own over it.
+    const plate = equipment?.last_nameplate ?? null;
+    const fill = (value: LastResults): LastResults => withPlateMeasured(value, plate, plateFields);
     const own = {
       relatorio_id: snapshot.relatorio.id,
       revision_number: input.revisionNumber,
@@ -145,23 +181,70 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
       seed_version: block.seed_version,
       block_type: block.block_type,
       readings,
+      // Fix batch e25r (D3): the plate temperatures this sheet holds as numbers, the very cells its judgement read (the
+      // nameplate sub-block's switch is not consulted, as `testTemperature` does not consult it); no key on a definition that
+      // names none, so every entry of v1 to v12 keeps its bytes.
+      ...(plateFields.length === 0 ? {} : { plate_measured: plateFields.filter((key) => plateCelsiusOf(block.sheet.nameplate[key]?.value) !== null) }),
+    };
+    // Fix batch e25r (D3): where this sheet writes nothing, the existing value with the field filled, when that fills anything.
+    const keep = (value: LastResults) => {
+      const filled = fill(value);
+      if (filled !== value) out.push({ equipmentId, value: filled });
     };
     // Fix batch e23w (W2-1): a later visit on top keeps its place; this one refreshes its prior, or writes nothing.
     if (existing !== null && existing.relatorio_id !== snapshot.relatorio.id && existing.prior?.relatorio_id === snapshot.relatorio.id) {
-      out.push({ equipmentId: block.equipment_id, value: { ...existing, prior: own } });
+      out.push({ equipmentId: block.equipment_id, value: fill({ ...existing, prior: own }) });
       continue;
     }
     // Batch e24p (Story 24.15): an older visit never becomes the top; a newer one by date takes it, even on a re-issue.
     const order = existing === null || existing.relatorio_id === snapshot.relatorio.id ? 0 : compareVisits(own, existing);
     if (existing !== null && order < 0) {
-      if (existing.prior === null || compareVisits(existing.prior, own) <= 0) out.push({ equipmentId: block.equipment_id, value: { ...existing, prior: own } });
+      if (existing.prior === null || compareVisits(existing.prior, own) <= 0) out.push({ equipmentId: block.equipment_id, value: fill({ ...existing, prior: own }) });
+      else keep(existing);
       continue;
     }
-    if (order === 0 && existing !== null && existing.relatorio_id !== snapshot.relatorio.id && input.revisionNumber > 1 && input.firstIssuedAt !== undefined && Date.parse(existing.issued_at) > Date.parse(input.firstIssuedAt)) continue;
+    if (order === 0 && existing !== null && existing.relatorio_id !== snapshot.relatorio.id && input.revisionNumber > 1 && input.firstIssuedAt !== undefined && Date.parse(existing.issued_at) > Date.parse(input.firstIssuedAt)) {
+      keep(existing);
+      continue;
+    }
     const prior = existing === null ? null : existing.relatorio_id === snapshot.relatorio.id ? existing.prior : withoutPrior(existing);
-    out.push({ equipmentId: block.equipment_id, value: { ...own, prior } });
+    out.push({ equipmentId: block.equipment_id, value: fill({ ...own, prior }) });
+  }
+  // Fix batch e25r (D3): an equipment no sheet wrote an entry for, whose plate this issue may still write over: its value with the
+  // field filled and nothing else changed, when that fills anything; else nothing, as before.
+  for (const [equipmentId, plateFields] of unwritten) {
+    if (done.has(equipmentId)) continue;
+    const equipment = equipmentOf(equipmentId);
+    const existing = equipment?.last_results ?? null;
+    if (existing === null) continue;
+    const filled = withPlateMeasured(existing, equipment?.last_nameplate ?? null, plateFields);
+    if (filled !== existing) out.push({ equipmentId, value: filled });
   }
   return out;
+}
+
+/**
+ * Fix batch e25r (D3, R-1): `value` with `plate_measured` filled on each of its entries (the top and its
+ * `prior`) that lacks it while `plate`, the equipment's `last_nameplate` before this issue writes its own
+ * over it, is that entry's own (the same relatório and revision): the keys of `plateFields` (the issuing
+ * sheet's definition's, `plateTemperatureFields`: `previousResultsFor` hands an entry only to a sheet of
+ * its block type, and the rule asks about that sheet's own keys) that hold a number on that plate
+ * (`plateCelsiusOf`). The same object when nothing is filled, and always on a definition that names no
+ * plate temperature, so an entry of v1 to v12 keeps its bytes.
+ */
+function withPlateMeasured(value: LastResults, plate: EquipmentRow['last_nameplate'] | undefined, plateFields: readonly string[]): LastResults {
+  if (plate === null || plate === undefined || plateFields.length === 0) return value;
+  const { relatorio_id: plateRelatorio, revision_number: plateRevision, fields } = plate;
+  const owns = (entry: PreviousResults): boolean => entry.plate_measured === undefined && entry.relatorio_id === plateRelatorio && entry.revision_number === plateRevision;
+  const top = owns(value);
+  const prior = value.prior !== null && owns(value.prior);
+  if (!top && !prior) return value;
+  const measured = plateFields.filter((key) => plateCelsiusOf(fields[key]) !== null);
+  return {
+    ...value,
+    ...(top ? { plate_measured: measured } : {}),
+    prior: prior && value.prior !== null ? { ...value.prior, plate_measured: measured } : value.prior,
+  };
 }
 
 /** A previous reading as the helper and MANUT. ANTERIOR print it: "4,9 GΩ", "> 2 TΩ". */

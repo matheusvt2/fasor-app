@@ -392,7 +392,8 @@ describe('25.4-API-001 25.4-INT the revision keeps the verdicts its document pri
   );
 
   it('25.4-API-002 a version-47 pull answers 426 contract_outdated on the company, relatório and project streams; the current one is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(48);
+    // Fix batch e25r (contract 49): 48 and later keep refusing 47.
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(48);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${v14.relatorioId}?since=0`, `/api/sync/projects/${v14.projectId}?since=0`]) {
       const old = await authed(companyA, path, { headers: { [CONTRACT_VERSION_HEADER]: '47' } });
       expect(old.status, path).toBe(426);

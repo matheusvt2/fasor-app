@@ -2,6 +2,7 @@ import { canonicalDecimal, formatDecimalGroupedPtBr } from '../parse/pt-br-numbe
 import type { BlockRow } from '../schemas/entities.ts';
 import type { BlockDefinition, TestDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
+import { plateCelsiusOf } from './plate-temperature.ts';
 import type { VisitContext } from './visit-context.ts';
 
 /*
@@ -78,15 +79,13 @@ export function mediumOf(definition: Pick<BlockDefinition, 'oil_rule' | 'namepla
   return rule.oil_values.includes(option) ? 'oil' : 'dry';
 }
 
-/** A plate number field in °C: its measured value, or null. */
+/**
+ * A plate number field in °C: its measured value, or null. Fix batch e25r (R-1, E24-A1 item 2): the
+ * parse is `plateCelsiusOf`, the one the previous visit's plate is read by too.
+ */
 function plateCelsius(block: Pick<BlockRow, 'sheet'>, key: string | undefined): number | null {
   if (key === undefined) return null;
-  const value = block.sheet.nameplate[key]?.value;
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
-  const cell = value as { raw?: unknown; state?: unknown };
-  if (cell.state !== 'measured' || typeof cell.raw !== 'string' || !/^-?\d+(\.\d+)?$/.test(cell.raw)) return null;
-  const celsius = Number(cell.raw);
-  return Number.isFinite(celsius) ? celsius : null;
+  return plateCelsiusOf(block.sheet.nameplate[key]?.value);
 }
 
 /**

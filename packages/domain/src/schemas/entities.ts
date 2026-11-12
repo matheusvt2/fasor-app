@@ -370,6 +370,18 @@ const lastResultsEntryShape = {
   seed_version: z.string(),
   block_type: z.string(),
   readings: z.record(z.string(), lastResultReadingSchema),
+  /*
+   * Fix batch e25r (R-1 of the Epic 24 retrospective, contract 49): the plate temperature keys of the
+   * visit's sheet that held a finite number when the revision was issued (the `oil_field` and
+   * `dry_field` of its definition's corrections, `relatorio/plate-temperature.ts`), sorted, no
+   * duplicate. Present, even empty, means this visit's plate is known; absent means not recorded (an
+   * entry written before 49, or a sheet whose definition names no plate temperature). It moves into
+   * `prior` with its entry, so the next visit's "like with like" rule (seed v14) still knows it after
+   * the equipment's `last_nameplate` is written over (`relatorio/visit-context.ts`). Field keys only:
+   * no id, no instant. Optional and never defaulted, so an entry written before 49 parses to the same
+   * bytes.
+   */
+  plate_measured: z.array(z.string()).optional(),
 };
 
 /**
