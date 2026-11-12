@@ -587,7 +587,17 @@
  * Epic 25 stories change what a v15 relatório concludes and prints through v15 keys and rule flags,
  * each without a contract of its own. MIN follows to 50 (below).
  */
-export const CONTRACT_VERSION = 50;
+/*
+ * 51 (2026-11-12, Story 25.23, batch e25p): no new op or path family. A seeded-grammar test of a company
+ * type gains the optional `index_help`, the polarization index's own "Como ensaiar" (the base's IP row),
+ * shown under the index on the sheet, and a test of either grammar the optional `base_texts`, the record of
+ * each text the test base filled (the file's revision and the text as given, `testBaseTextsSchema`), which
+ * "Atualizar base de ensaios" reads to replace by itself only a text nobody edited. Both travel inside the
+ * existing `equipment_type/{id}` create, its `draft` put and the `equipment_type_version/{id}` create; no
+ * seed carries them. Never defaulted: a type written before 51 parses to the same bytes. MIN follows to 51
+ * (below).
+ */
+export const CONTRACT_VERSION = 51;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -937,7 +947,14 @@ export const CONTRACT_VERSION = 50;
  * nameplate, checklist or tests, nor judge them by v15's rules once the later stories add them. Its pull
  * answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 50;
+/*
+ * 51 (2026-11-12, Story 25.23, batch e25p): a version-50 (or older) bundle does not show the index's own
+ * "Como ensaiar" a published type carries, and its "Importar base de ensaios" would write copies with no
+ * record of the base's texts, so the company's next update would list every text it filled as edited and
+ * replace none by itself. Its pull answers `426 contract_outdated` and it updates; its pushes are still
+ * accepted.
+ */
+export const MIN_CONTRACT_VERSION = 51;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -125,3 +125,14 @@ Matheus decided M-1 (b): the base's procedure and recommendation texts never ent
 - A copy made by "Duplicar" or by the import carries `base_block_type` and prints in its base type's group.
 - A Reprovado chosen by hand starts with the in-force tests' recommendations (`reprovadoRecommendations` in `points/derived.ts`).
 - Narrowings and Bruno's open readings: `deferred-work.md` § "Epic 23 fix batch e23z".
+
+## Story 25.23 as built: the update (2026-11-12, batch e25p, contract 51)
+
+Bruno's answers 7 and 10 of 2026-11-11 (M27): a new revision of the base enters as an update, not as a second import.
+
+- **Where.** Modelos > Tipos de equipamento, "Atualizar base de ensaios" beside the import (`41-templates.html` `#tpl-dlg-base-update`). Same file format. The kernel planner is `planTestBaseUpdate` (`packages/domain/src/types/test-base-update.ts`); the preview is `testBaseUpdatePreview`, the toast `testBaseUpdatedText`.
+- **Provenance.** From this story on, the import and the update write, on each test, the optional `base_texts`: per text ("Como ensaiar", the recommendation, and the index's two) the file's `versao` and the text as the base gave it. Equal to the held text means nobody edited it.
+- **What it does to a held type** (same seeded source and name). It builds a new draft over the open draft, else the latest version: adds the tests the current seed's type has and the held type lacks (never one the seed it was copied from already had: that was the office's removal), with the criteria rows they name; fills an empty text; replaces by itself a text nobody edited since its record; lists a text the office edited (or one with no record) that the base gives differently, kept unless the office chooses "Usar o da base". An edited text the base did not change since its record is not listed. A criterion is never touched.
+- **What it never does.** It never publishes: each touched type gets one `equipment_type/{id}/draft` put, and a type the company does not hold is created as the import plans it, as a draft. No version row and no placed sheet changes.
+- **The index's "Como ensaiar".** The IP row's (TR-OL-03, TR-SE-03) help fills the insulation test's optional `index_help`, shown on the sheet under the insulation tables as "Como ensaiar o índice de polarização" (`IndexHelpAction`, `testIndexHelpOf`). Never printed.
+- **Tests.** The synthetic revision B is `packages/domain/fixtures/test-base/revision-b.ts` (`syntheticRevisionB`, three changed texts over the synthetic revision A). The real new revision had not arrived on 2026-11-12: read it and check its format before a production run.

@@ -185,5 +185,7 @@ export * from './types/palette-meta.ts';
 export * from './types/draft-edit.ts';
 // Story 23.12: the base import reads `types/list.ts` (`typeNameOf`), so it loads after it.
 export * from './types/test-base-import.ts';
+// Story 25.23: the base update reads the import's planner.
+export * from './types/test-base-update.ts';
 // Fix batch e24y (P2, P3): last, so the module order of everything above stays as it was.
 export * from './relatorio/tag-rename.ts';

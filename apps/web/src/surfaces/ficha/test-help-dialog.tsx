@@ -1,4 +1,4 @@
-import { testHelpEntries, testHelpMetaText, testHelpOf, type BlockDefinition } from '@app/domain';
+import { testHelpEntries, testHelpMetaText, testHelpOf, testIndexHelpOf, type BlockDefinition } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
@@ -30,6 +30,28 @@ export function TestHelpAction({ definition, testKey, title }: { definition: Blo
       </TextButton>
       {open ? <TestHelpDialog title={title} typeLabel={definition.label} help={help} onClose={() => setOpen(false)} /> : null}
     </>
+  );
+}
+
+/**
+ * Story 25.23: the polarization index's own "Como ensaiar" (`testIndexHelpOf`, the base's IP row on a
+ * company copy), a text button under the test's tables opening the same read-only dialog, titled with
+ * the index; drawn only when the test carries it, on a read-only sheet too. Never printed.
+ */
+export function IndexHelpAction({ definition, testKey }: { definition: BlockDefinition; testKey: string }) {
+  const help = testIndexHelpOf(definition, testKey);
+  const [open, setOpen] = useState(false);
+  if (help === null) return null;
+  return (
+    <p className="helper" data-index-help="">
+      <TextButton aria-haspopup="dialog" onPress={() => setOpen(true)}>
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-book" />
+        </svg>
+        {copy.testHelp.openIndex}
+      </TextButton>
+      {open ? <TestHelpDialog title={copy.testHelp.indexTitle} typeLabel={definition.label} help={help} onClose={() => setOpen(false)} /> : null}
+    </p>
   );
 }
 

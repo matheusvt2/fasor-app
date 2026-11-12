@@ -9,6 +9,7 @@ import {
   newEquipmentTypeRow,
   parseTestBaseText,
   planTestBaseImport,
+  planTestBaseUpdate,
   PRODUTO,
   retireTypeBody,
   retireTypeTitle,
@@ -16,6 +17,9 @@ import {
   testBaseImportedText,
   testBaseImportPreviewText,
   testBaseInvalidText,
+  testBaseUpdateDraft,
+  testBaseUpdatedText,
+  testBaseUpdatePreview,
   toIso,
   typeDuplicatedText,
   typeVersionRow,
@@ -24,12 +28,13 @@ import {
   type OpDraft,
   type TestBaseFile,
   type TestBaseImportPlan,
+  type TestBaseUpdatePlan,
   type TypeDuplicate,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from 'react-aria-components';
-import { ConfirmDialog, TextButton } from '../../components/index.ts';
+import { ConfirmDialog, SegmentedControl, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -38,7 +43,7 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import type { UndoableEdits } from '../../state/use-undoable-edits.ts';
 import { newId } from '../../ids.ts';
-import { createTypeOp, createVersionOp, putTypeStampOp } from './type-ops.ts';
+import { createTypeOp, createVersionOp, putTypeDraftOp, putTypeStampOp } from './type-ops.ts';
 
 export interface TypeListSectionProps {
   /** Commits one batch through the list's edit queue; null when nothing was written. */
@@ -75,6 +80,12 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const importTitleId = useId();
   const importBodyId = useId();
+  // Story 25.23: "Atualizar base de ensaios", its file, its plan and the office's choice per edited text.
+  const updateInput = useRef<HTMLInputElement>(null);
+  const [updatePlan, setUpdatePlan] = useState<{ file: TestBaseFile; plan: TestBaseUpdatePlan } | null>(null);
+  const [takeBase, setTakeBase] = useState<ReadonlySet<string>>(new Set());
+  const updateTitleId = useId();
+  const updateBodyId = useId();
 
   const types = useMemo(() => [...ctx.types.values()], [ctx]);
   const company = useMemo(() => companyTypeListRows(types, ctx), [types, ctx]);
@@ -101,7 +112,7 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
    * Story 23.12 (M-1 (b)): "Importar base de ensaios". The file is read on this device and the
    * kernel plans the copies (`planTestBaseImport`); nothing is written before "Importar".
    */
-  async function readBase(file: File): Promise<void> {
+  async function readBase(file: File, mode: 'import' | 'update' = 'import'): Promise<void> {
     setImportError(null);
     let text: string;
     try {
@@ -115,7 +126,39 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
       setImportError(testBaseInvalidText(parsed.reason));
       return;
     }
+    if (mode === 'update') {
+      // Story 25.23: the same file format; every edited text starts on "Manter o da empresa".
+      setTakeBase(new Set());
+      setUpdatePlan({ file: parsed.file, plan: planTestBaseUpdate(parsed.file, ctx) });
+      return;
+    }
     setImportPlan({ file: parsed.file, plan: planTestBaseImport(parsed.file, ctx) });
+  }
+
+  /**
+   * Story 25.23: "Atualizar", re-planned over the current types as the import is. Each held type
+   * gets one `draft` put (with the base's text where the office chose it), each type the company
+   * does not hold its create as a draft; nothing is published and no version is written.
+   */
+  async function updateBase(base: TestBaseFile, chosen: ReadonlySet<string>): Promise<void> {
+    const plan = planTestBaseUpdate(base, ctx);
+    if (user === null || inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const drafts: OpDraft[] = [];
+      let updated = 0;
+      for (const update of plan.updates) {
+        const draft = testBaseUpdateDraft(update, chosen);
+        if (draft === null) continue;
+        drafts.push(putTypeDraftOp(user, update.typeId, draft));
+        updated++;
+      }
+      for (const copy of plan.creates) drafts.push(createTypeOp(user, newEquipmentTypeRow(newId(), copy.duplicate)));
+      if (drafts.length > 0 && (await commit(drafts)) === null) return;
+      showToast(testBaseUpdatedText(updated, plan.creates.length));
+    } finally {
+      inFlight.current = false;
+    }
   }
 
   /**
@@ -153,10 +196,31 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
     <section className="section tpl-group" aria-labelledby={headingId} id="tpl-tipos">
       <div className="section-head">
         <h2 id={headingId}>{copy.types.heading}</h2>
-        <TextButton onPress={() => fileInput.current?.click()}>
-          {icon('i-book')}
-          {copy.types.importBase}
-        </TextButton>
+        {/* Story 25.23 (`41-templates.html` `.e25-base-actions`): "Atualizar base de ensaios" beside the import. */}
+        <div className="e25-base-actions">
+          <TextButton onPress={() => fileInput.current?.click()}>
+            {icon('i-book')}
+            {copy.types.importBase}
+          </TextButton>
+          <TextButton aria-haspopup="dialog" onPress={() => updateInput.current?.click()}>
+            {icon('i-cycle')}
+            {copy.types.updateBase}
+          </TextButton>
+        </div>
+        <input
+          ref={updateInput}
+          type="file"
+          accept="application/json,.json"
+          className="visually-hidden"
+          tabIndex={-1}
+          aria-label={copy.types.updateFileLabel}
+          data-testid="test-base-update-file"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file !== undefined) void readBase(file, 'update');
+          }}
+        />
         <input
           ref={fileInput}
           type="file"
@@ -309,6 +373,25 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
         </DialogShell>
       )}
 
+      {updatePlan === null ? null : (
+        <TestBaseUpdateDialog
+          plan={updatePlan.plan}
+          titleId={updateTitleId}
+          bodyId={updateBodyId}
+          takeBase={takeBase}
+          onChoose={(id, base) =>
+            setTakeBase((current) => {
+              const next = new Set(current);
+              if (base) next.add(id);
+              else next.delete(id);
+              return next;
+            })
+          }
+          onClose={() => setUpdatePlan(null)}
+          onConfirm={() => void updateBase(updatePlan.file, takeBase)}
+        />
+      )}
+
       {retiring === null ? null : (
         <ConfirmDialog
           isOpen
@@ -323,5 +406,96 @@ export function TypeListSection({ commit, edits }: TypeListSectionProps) {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * Story 25.23 (`41-templates.html` `#tpl-dlg-base-update`): the update's preview, a Confirm dialog
+ * that scrolls inside. The kernel's lines (`testBaseUpdatePreview`), then each text the office
+ * edited and the revision changed as one row with a Segmented choice ("Manter o da empresa" by
+ * default), then the kernel's closing lines. "Atualizar" shows only when the plan could write.
+ */
+function TestBaseUpdateDialog({
+  plan,
+  titleId,
+  bodyId,
+  takeBase,
+  onChoose,
+  onClose,
+  onConfirm,
+}: {
+  plan: TestBaseUpdatePlan;
+  titleId: string;
+  bodyId: string;
+  takeBase: ReadonlySet<string>;
+  onChoose: (id: string, base: boolean) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const preview = testBaseUpdatePreview(plan);
+  const options = [
+    { value: 'keep' as const, label: copy.types.keepCompanyText },
+    { value: 'base' as const, label: copy.types.useBaseText },
+  ];
+  return (
+    <DialogShell
+      className="confirm-dialog"
+      overlayClassName="tpl-dlg-base-update"
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      aria-labelledby={titleId}
+      aria-describedby={bodyId}
+    >
+      {({ close }) => (
+        <>
+          <h2 className="dialog-title" id={titleId}>
+            {copy.types.updateBase}
+          </h2>
+          <div id={bodyId}>
+            {preview.lines.map((line) => (
+              <p key={line} className="t-body">
+                {line}
+              </p>
+            ))}
+          </div>
+          {preview.differingHeading === null ? null : (
+            <>
+              <p className="field-label">{preview.differingHeading}</p>
+              <ul className="e25-diff-list" data-testid="test-base-differing">
+                {preview.differing.map((diff) => (
+                  <li key={diff.id} data-diff-id={diff.id}>
+                    <span className="e25-diff-where">{diff.where}</span>
+                    <SegmentedControl aria-label={diff.where} value={takeBase.has(diff.id) ? 'base' : 'keep'} options={options} onChange={(value) => onChoose(diff.id, value === 'base')} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {preview.after.map((line) => (
+            <p key={line} className="t-body">
+              {line}
+            </p>
+          ))}
+          <div className="dialog-actions">
+            <Button className="btn btn-secondary" autoFocus onPress={close}>
+              {copy.types.cancel}
+            </Button>
+            {preview.writes ? (
+              <Button
+                className="btn btn-primary"
+                onPress={() => {
+                  onConfirm();
+                  close();
+                }}
+              >
+                {copy.types.updateConfirm}
+              </Button>
+            ) : null}
+          </div>
+        </>
+      )}
+    </DialogShell>
   );
 }

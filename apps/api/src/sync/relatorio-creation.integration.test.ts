@@ -229,7 +229,8 @@ describe('25.5-API-001 seed v15 through the sync route', () => {
     'a relatório created from the standard template is born on v15, every sheet on v15; a version-49 client is refused its stream with 426 contract_outdated, a current one reads it',
     async () => {
       expect(SEED_VERSION).toBe('v15');
-      expect(MIN_CONTRACT_VERSION).toBe(50);
+      // Batch e25p (Story 25.23) moved the contract to 51: 49 stays refused.
+      expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(50);
       const projectId = newId();
       const projectDraft: OpDraft = {
         kind: 'create',

@@ -70,7 +70,7 @@ import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestio
 import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
-import { TestHelpAction } from './test-help-dialog.tsx';
+import { IndexHelpAction, TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
 
@@ -444,6 +444,8 @@ function TestSection({
           {test.limitNote}
         </p>
       )}
+      {/* Story 25.23: the polarization index's own "Como ensaiar" under the tables, where the type carries it. */}
+      <IndexHelpAction definition={definition} testKey={test.testKey} />
       {/* Story 22.9 (seed v12): the kernel's helper while the class the ratio is judged by is empty; never printed. */}
       {test.classHelper === null ? null : (
         <p className="helper" data-class-helper="">

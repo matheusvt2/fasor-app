@@ -12,7 +12,7 @@ import {
 } from '../schemas/block-config.ts';
 import type { CriterionSeed } from './criteria.ts';
 import { criterionRowStatusSchema, criterionTableSchema } from './criteria-tables.ts';
-import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
+import { testBaseTextsSchema, testHelpSchema, testRecommendationSchema } from './test-help.ts';
 import { checkMeasurementDefinition, plateAppliesWhenSchema, configFieldSchema, criterionSourceSchema, isValueCondition, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
 
 /*
@@ -453,6 +453,14 @@ export const testDefSchema = z.object({
    * carries it), the same cap as `recommendation`.
    */
   index_recommendation: testRecommendationSchema.optional(),
+  /**
+   * Story 25.23 (contract 51): the polarization index's own "Como ensaiar" (the base's IP row, filled
+   * only by the base import and update on a company copy; shown under the index on the sheet, never
+   * printed, never in the editor), and the record of the texts the base filled (`testBaseTextsSchema`).
+   * Optional and never defaulted (no seed carries them).
+   */
+  index_help: testHelpSchema.optional(),
+  base_texts: testBaseTextsSchema.optional(),
   /*
    * Seed v13, batch e23t (Story 23.16). Optional and never defaulted, so v1 to v12 parse to the
    * bytes they shipped with; a test without it judges no index.

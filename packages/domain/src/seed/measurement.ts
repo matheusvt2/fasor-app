@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { subBlockKeySchema } from '../schemas/block-config.ts';
-import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
+import { testBaseTextsSchema, testHelpSchema, testRecommendationSchema } from './test-help.ts';
 
 /*
  * Story 14.5 (seed v5, AD-21): the measurement-table grammar. The four grammars of FO.SERV-03
@@ -431,6 +431,8 @@ export const measurementTestShape = {
   /** Batch e23h (Stories 23.10 and 23.11): "Como ensaiar" and the recommendation, as on `testDefSchema` (`seed/test-help.ts`). */
   help: testHelpSchema.optional(),
   recommendation: testRecommendationSchema.optional(),
+  /** Story 25.23 (contract 51): the record of the texts the base filled (`seed/test-help.ts`); never on a seed. */
+  base_texts: testBaseTextsSchema.optional(),
   /*
    * Seed v13, batch e23t (Story 23.15). Both optional and never defaulted, so v5 to v12 parse to
    * the bytes they shipped with.

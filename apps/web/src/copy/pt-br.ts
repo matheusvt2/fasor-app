@@ -597,6 +597,14 @@ export const copy = {
     importBase: 'Importar base de ensaios',
     importConfirm: 'Importar',
     importFileLabel: 'Arquivo JSON da base de ensaios',
+    // Story 25.23 (`41-templates.html` `#tpl-dlg-base-update`): the update's static words. The preview's
+    // lines and the toast are the kernel's (`testBaseUpdatePreview`, `testBaseUpdatedText`).
+    updateBase: 'Atualizar base de ensaios',
+    updateConfirm: 'Atualizar',
+    keepCompanyText: 'Manter o da empresa',
+    useBaseText: 'Usar o da base',
+    // authored (Story 25.23, listed for Bruno): the hidden file input's name.
+    updateFileLabel: 'Arquivo JSON da nova revisão da base de ensaios',
   },
   // Story 14.7 (`43-tipo-equipamento.html`): the type editor's static words. Tab labels with
   // their counts, the head line, the publish label and reason, every row line and every issue
@@ -735,6 +743,9 @@ export const copy = {
     },
     // The section head's text button and the dialog's kicker, close and secondary button.
     open: 'Como ensaiar',
+    // authored (Story 25.23, listed for Bruno): the polarization index's own "Como ensaiar" under the test's tables, and its dialog's title.
+    openIndex: 'Como ensaiar o índice de polarização',
+    indexTitle: 'Índice de polarização',
     kicker: 'Como ensaiar',
     close: 'Fechar Como ensaiar',
     back: 'Voltar ao ensaio',

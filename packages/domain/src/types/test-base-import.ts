@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { isEquipmentBlockType } from '../schemas/block-config.ts';
+import { isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { findDefinition, SEED_VERSION, type DefinitionContext } from '../seed/definitions.ts';
-import { TEST_TEXT_MAX_LENGTH, type TestHelp, type TestHelpKey } from '../seed/test-help.ts';
+import type { EquipmentTypeRow } from '../schemas/entities.ts';
+import { BASE_TEXT_KEYS, TEST_BASE_REVISION_MAX_LENGTH, TEST_TEXT_MAX_LENGTH, type BaseTextKey, type TestHelp, type TestHelpKey } from '../seed/test-help.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import type { CompanyTypeDefinition } from './definition.ts';
 import { duplicateSeededType, type TypeDuplicate } from './duplicate.ts';
@@ -25,6 +26,11 @@ import { validateTypeDraft } from './validate.ts';
  * out; a text over the cap is never cut: the heading is left out and the row is listed as refused.
  * The import is idempotent: a copy whose name and seeded source the company already holds (not
  * removed) is listed as already imported and planned again only once discarded or renamed.
+ *
+ * Story 25.23 (contract 51): a held copy is brought to a newer revision by the update
+ * (`types/test-base-update.ts`), never by a second import. From this story on each text the base
+ * fills carries its record (`base_texts`: the file's revision and the text as given), and the IP
+ * row's "Como ensaiar" fills the index's own (`index_help`).
  */
 
 /** One row of the base's `ensaios`: an ID, its equipment (an equipment ID or `TODOS`), every text column optional. */
@@ -96,8 +102,9 @@ export const TEST_BASE_ROW_TESTS: Readonly<Record<string, string>> = Object.free
 
 /**
  * Fix batch e23z (W3-7): base row ID to the test whose polarization index it describes. The row attaches only to a
- * test carrying `polarization_index` (Story 23.16 judges the IP inside the insulation test), and fills only that
- * test's `index_recommendation`: its "Como ensaiar" is not merged into the test's own (a narrowing).
+ * test carrying `polarization_index` (Story 23.16 judges the IP inside the insulation test), and fills that
+ * test's `index_recommendation`: its "Como ensaiar" is not merged into the test's own (a narrowing). Story 25.23:
+ * it fills the index's own "Como ensaiar" (`index_help`), shown under the index on the sheet.
  */
 export const TEST_BASE_INDEX_ROWS: Readonly<Record<string, string>> = Object.freeze({
   'TR-OL-03': 'isolacao',
@@ -212,7 +219,9 @@ interface TestLike {
   help?: unknown;
   recommendation?: unknown;
   index_recommendation?: unknown;
+  index_help?: unknown;
   polarization_index?: unknown;
+  base_texts?: unknown;
 }
 
 /** The draft's test of `key`, in `tests` then `measurement_tests`; null when the type has none. */
@@ -232,25 +241,51 @@ function indexTestKeysOf(definition: { tests: readonly { key: string; polarizati
   return new Set(definition.tests.filter((test) => test.polarization_index !== undefined).map((test) => test.key));
 }
 
-/** Whether the company already holds this copy: a non-removed type of the same seeded source and name. */
-function alreadyHeld(ctx: DefinitionContext, blockType: string, label: string): boolean {
+/**
+ * Whether the company already holds this copy: a non-removed type of the same seeded source and name.
+ * Story 25.23: the first such type, which the update updates; null when the company holds none.
+ */
+export function heldTestBaseType(ctx: DefinitionContext, blockType: string, label: string): EquipmentTypeRow | null {
   for (const type of ctx.types.values()) {
     if (type.removed_at !== null) continue;
     const from = type.derived_from;
     if (from === null || !('block_type' in from) || from.block_type !== blockType) continue;
-    if (typeNameOf(type, ctx) === label) return true;
+    if (typeNameOf(type, ctx) === label) return type;
   }
-  return false;
+  return null;
 }
 
-/** The import's plan over the company's types: the copies to create, those already held, the rows left out. */
-export function planTestBaseImport(file: TestBaseFile, ctx: DefinitionContext, seedVersion: string = SEED_VERSION): TestBaseImportPlan {
-  const copies: TestBaseCopy[] = [];
-  const alreadyImported: string[] = [];
-  const attached = new Set<string>();
-  const refused = new Set<string>();
-  const allRows = file.ensaios.filter((row) => row.equipamento === TEST_BASE_ALL_EQUIPMENT);
+/** Story 25.23: what the base gives one test, each text within the cap (a text over it is left out). */
+export interface BaseTestTexts {
+  help?: TestHelp;
+  recommendation?: string;
+  /** The polarization index's own "Como ensaiar" and its recommendation (the base's IP row). */
+  index_help?: TestHelp;
+  index_recommendation?: string;
+}
 
+/** One base equipment over one seeded type: its label, the rows that attach and the texts they give each test. */
+export interface TestBaseTypeRows {
+  equipmentId: string;
+  blockType: EquipmentBlockType;
+  label: string;
+  /** The rows that attach, the equipment's own then the TODOS rows, each with the test it fills. */
+  rows: TestBaseAttachedRow[];
+  /** By test key. */
+  texts: Map<string, BaseTestTexts>;
+  /** Row IDs with a text over the cap, left out. */
+  refused: Set<string>;
+}
+
+/**
+ * The base's equipment over the seeded types of `seedVersion`: one entry per base equipment and
+ * seeded type with at least one attached row of its own, and the row IDs that attach to none.
+ * Story 25.23: the import's loop, shared with the update.
+ */
+export function testBaseTypesOf(file: TestBaseFile, seedVersion: string = SEED_VERSION): { types: TestBaseTypeRows[]; unattached: string[] } {
+  const types: TestBaseTypeRows[] = [];
+  const attached = new Set<string>();
+  const allRows = file.ensaios.filter((row) => row.equipamento === TEST_BASE_ALL_EQUIPMENT);
   for (const [equipmentId, blockTypes] of Object.entries(TEST_BASE_EQUIPMENT_TYPES)) {
     const ownRows = file.ensaios.filter((row) => row.equipamento === equipmentId);
     if (ownRows.length === 0) continue;
@@ -271,41 +306,84 @@ export function planTestBaseImport(file: TestBaseFile, ctx: DefinitionContext, s
       };
       const own = ownRows.filter(attaches);
       if (own.length === 0) continue;
-      const rows = [...own, ...allRows.filter(attaches)];
-      for (const row of rows) attached.add(row.id);
-
-      const label = `${definition.label} (${equipmentId})`;
-      if (alreadyHeld(ctx, blockType, label)) {
-        alreadyImported.push(label);
-        continue;
-      }
-      const duplicate = duplicateSeededType(seedVersion, blockType);
-      duplicate.draft.label = label;
+      const texts = new Map<string, BaseTestTexts>();
+      const refused = new Set<string>();
       const placed: TestBaseAttachedRow[] = [];
-      for (const row of rows) {
+      for (const row of [...own, ...allRows.filter(attaches)]) {
+        attached.add(row.id);
         const index = indexKey(row);
         const testKey = index ?? TEST_BASE_ROW_TESTS[row.id]!;
-        const test = draftTest(duplicate.draft, testKey);
-        if (test === null) continue;
+        const one = rowTexts(row);
+        if (one.refused) refused.add(row.id);
+        const entry = texts.get(testKey) ?? {};
+        const hasHelp = Object.keys(one.help).length > 0;
         if (index !== null) {
-          // Fix batch e23z (W3-7): the IP row's recommendation only; a text over the cap is refused as any.
-          const recommendation = testBaseRecommendationOf(row);
-          if (recommendation !== null && recommendation.length > TEST_TEXT_MAX_LENGTH) refused.add(row.id);
-          else if (recommendation !== null) test.index_recommendation = recommendation;
-          placed.push({ rowId: row.id, testKey });
-          continue;
+          // Story 25.23: the IP row's "Como ensaiar" is the index's own; its recommendation as fix batch e23z placed it.
+          if (hasHelp) entry.index_help = one.help;
+          if (one.recommendation !== null) entry.index_recommendation = one.recommendation;
+        } else {
+          if (hasHelp) entry.help = one.help;
+          if (one.recommendation !== null) entry.recommendation = one.recommendation;
         }
-        const texts = rowTexts(row);
-        if (texts.refused) refused.add(row.id);
-        if (Object.keys(texts.help).length > 0) test.help = texts.help;
-        if (texts.recommendation !== null) test.recommendation = texts.recommendation;
+        texts.set(testKey, entry);
         placed.push({ rowId: row.id, testKey });
       }
-      copies.push({ equipmentId, blockType, label, duplicate, publishable: validateTypeDraft(duplicate.draft).length === 0, rows: placed });
+      types.push({ equipmentId, blockType, label: `${definition.label} (${equipmentId})`, rows: placed, texts, refused });
     }
   }
-
   const unattached = [...new Set(file.ensaios.map((row) => row.id))].filter((id) => !attached.has(id));
+  return { types, unattached };
+}
+
+/** Story 25.23: the file's revision as a record keeps it: its `versao`; null when absent, blank or longer than the cap. */
+export function testBaseRevisionOf(file: TestBaseFile): string | null {
+  const name = file.versao;
+  return name === undefined || name.trim() === '' || name.length > TEST_BASE_REVISION_MAX_LENGTH ? null : name;
+}
+
+/** Story 25.23: the base's texts written on a test, each with its record in `base_texts` (merged into any record the test holds). */
+export function placeBaseTexts(test: { [key: string]: unknown }, texts: BaseTestTexts, revision: string | null, only: readonly BaseTextKey[] = BASE_TEXT_KEYS): void {
+  const held = test.base_texts !== null && typeof test.base_texts === 'object' && !Array.isArray(test.base_texts) ? (test.base_texts as Record<string, unknown>) : {};
+  const record: Record<string, unknown> = { ...held };
+  for (const key of only) {
+    const value = texts[key];
+    if (value === undefined) continue;
+    test[key] = structuredClone(value);
+    record[key] = { revision, value: structuredClone(value) };
+  }
+  if (Object.keys(record).length > 0) test.base_texts = record;
+}
+
+/** A copy of the seeded type of `rows` with the base's texts on its tests, as the import plans it. */
+export function testBaseCopyOf(rows: TestBaseTypeRows, revision: string | null, seedVersion: string = SEED_VERSION): TestBaseCopy {
+  const duplicate = duplicateSeededType(seedVersion, rows.blockType);
+  duplicate.draft.label = rows.label;
+  for (const [testKey, texts] of rows.texts) {
+    const test = draftTest(duplicate.draft, testKey);
+    if (test !== null) placeBaseTexts(test as unknown as { [key: string]: unknown }, texts, revision);
+  }
+  return { equipmentId: rows.equipmentId, blockType: rows.blockType, label: rows.label, duplicate, publishable: validateTypeDraft(duplicate.draft).length === 0, rows: rows.rows };
+}
+
+/**
+ * The import's plan over the company's types: the copies to create, those already held, the rows left out.
+ * Story 25.23: each text the base fills carries its record (`base_texts`), and the IP row's "Como ensaiar"
+ * lands on the index (`index_help`).
+ */
+export function planTestBaseImport(file: TestBaseFile, ctx: DefinitionContext, seedVersion: string = SEED_VERSION): TestBaseImportPlan {
+  const copies: TestBaseCopy[] = [];
+  const alreadyImported: string[] = [];
+  const refused = new Set<string>();
+  const revision = testBaseRevisionOf(file);
+  const { types, unattached } = testBaseTypesOf(file, seedVersion);
+  for (const rows of types) {
+    if (heldTestBaseType(ctx, rows.blockType, rows.label) !== null) {
+      alreadyImported.push(rows.label);
+      continue;
+    }
+    for (const id of rows.refused) refused.add(id);
+    copies.push(testBaseCopyOf(rows, revision, seedVersion));
+  }
   return { copies, alreadyImported, unattached, refused: [...refused] };
 }
 
@@ -329,10 +407,17 @@ export function testBaseImportPreviewText(plan: TestBaseImportPlan): string {
     if (drafts.length > 0) lines.push(`Ficam como rascunho, com avisos para publicar: ${listPtBr(drafts)}.`);
     if (plan.alreadyImported.length > 0) lines.push(`Já importado: ${listPtBr(plan.alreadyImported)}.`);
   }
-  // authored (Story 23.12, listed for Bruno): rows the import leaves out.
-  if (plan.unattached.length > 0) lines.push(`Sem ensaio no app: ${listPtBr(plan.unattached)}.`);
-  if (plan.refused.length > 0) lines.push(`Texto acima de ${TEST_TEXT_MAX_LENGTH} caracteres, deixado de fora: ${listPtBr(plan.refused)}.`);
+  lines.push(...testBaseLeftOutLines(plan.unattached, plan.refused));
   return lines.join('\n');
+}
+
+/** The rows a plan leaves out, one line each (the import's and the update's preview end with them). */
+export function testBaseLeftOutLines(unattached: readonly string[], refused: readonly string[]): string[] {
+  const lines: string[] = [];
+  // authored (Story 23.12, listed for Bruno): rows the import leaves out.
+  if (unattached.length > 0) lines.push(`Sem ensaio no app: ${listPtBr(unattached)}.`);
+  if (refused.length > 0) lines.push(`Texto acima de ${TEST_TEXT_MAX_LENGTH} caracteres, deixado de fora: ${listPtBr(refused)}.`);
+  return lines;
 }
 
 /** The toast after the import: "9 tipos importados". */

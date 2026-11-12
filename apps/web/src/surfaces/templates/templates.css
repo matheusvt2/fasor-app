@@ -37,6 +37,21 @@
 [data-route="/templates"] .type-sub { margin-top: var(--sp-5); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: var(--sp-2); }
 /* The mock's inline `style="margin-top: var(--sp-3)"` on the library note. */
 [data-route="/templates"] .type-lib-note { margin-top: var(--sp-3); }
+/* Story 25.23 (`41-templates.html`, Story 25.1 Part B): "Atualizar base de ensaios" beside the import, verbatim. */
+[data-route="/templates"] #tpl-tipos .section-head { flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); }
+[data-route="/templates"] .e25-base-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+/* The preview is portaled to the end of <body>, outside `[data-route]`: the mock's `[data-route="/templates"] #tpl-dlg-base-update X`
+   rules become `.tpl-dlg-base-update X` (the scrim's modifier class), declarations verbatim. */
+.tpl-dlg-base-update .confirm-dialog { max-width: 640px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-3); }
+.tpl-dlg-base-update .e25-diff-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.tpl-dlg-base-update .e25-diff-list li { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+.tpl-dlg-base-update .e25-diff-list .e25-diff-where { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.tpl-dlg-base-update .e25-diff-list .segmented { max-width: 420px; }
+/* `.frame-phone [data-route="/templates"] #tpl-dlg-base-update` (MOCK-GUIDE: `.frame-phone X` below 768 px). */
+@media (max-width: 767.98px) {
+  .dialog-scrim.tpl-dlg-base-update { padding: 0; align-items: stretch; }
+  .tpl-dlg-base-update .confirm-dialog { width: 100%; max-width: none; border-radius: 0; }
+}
 
 /* ---------- 42-template-composer.html ---------- */
 [data-route="/templates/:id"] .skeleton-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
