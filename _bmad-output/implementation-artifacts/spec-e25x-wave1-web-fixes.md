@@ -2,7 +2,7 @@
 title: 'e25x: wave 1 review fixes for saving and sync (Stories 25.2 and 25.3, batch e25a)'
 type: 'fix'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '132ad4a1'
 review_loop_iteration: 0
 followup_review_recommended: true
@@ -147,7 +147,13 @@ deferred: []
 
 ## Spec Change Log
 
+- 2026-11-12 (coordinator, phase B): a file commit asks for one full cycle (Q2). The wave gate's four e2e reds on `132ad4a1` are this batch's to explain (Auto Run Result).
+- 2026-11-12 (phase B): the telemetry flush posts nothing inside the 60 s window of a 429 (`telemetry/flush.ts`; before, only the beacon held). Story 25.3 made cycles come seconds apart (Sync status opening, then "Sincronizar agora"), and each one posted against the limiter: 18.1-E2E-002 saw four refused posts for one sync. This changes E18-A1 R-A1's "the next cycle resumes" to "the first cycle after the window resumes"; `docs/observability.md` says so.
+- 2026-11-12 (phase B): A9's `onChange` clear has no test: no gesture on the manufacturer reaches it (React Aria reports no null while the field keeps the focus); its reset is the same line as `onClear`'s. The clear, pick, clear row is tested through the leave.
+
 ## Review Triage Log
+
+- 2026-11-12: no review loop in this batch (Matheus's word of 2026-11-11, token economy); the coordinator reads the final diff once.
 
 ## Design Notes
 
@@ -155,7 +161,7 @@ deferred: []
 - **D2, why the draft drops are safe.** The protection rule exists for a surface that shows the committed value because the person has not answered the offer yet: its source reads empty without anyone having typed. The new drops need more than an empty read. (1) A commit drop needs the field's own typed value to have been saved just now: a row of that field is then older uncommitted text of the same field, and "Recuperar" would write it over the newer saved value. A row on offer is dropped this way only by the number input, whose commit is one whole value given by a blur, an Enter or a leave; the conclusion text commits on every 500 ms pause, which is no answer to an offer, so its offered row still goes only by "Recuperar" or by a newer draft. (2) "Fechar" drops only a draft offered on return in this session, which is always a reading that did not parse, with its field on screen and holding nothing typed: the person saw the offer beside the field and closed it. Rows from an earlier launch keep retro U7 (dismissing keeps the row). Open question Q1 below.
 - **D3, the wait on a duration clock.** `client_ts` is an instant of the corrected clock, so the wait cannot be read from the raw clock alone. The hook reads the corrected clock once per row, when it first sees it, and counts on from there with the monotonic clock: a learned offset or a set clock does not move a wait already counted, and a device asleep is not counted as able to send (the monotonic clock may stop then; waking runs a full cycle).
 - **Q1, open for Matheus.** Should "Fechar" also drop a draft offered at launch (retro U7 keeps it, so it is offered at every launch until "Recuperar")? And should a saved conclusion text drop its offered draft? Kept as they are.
-- **Q2, open for Matheus.** A certificate or another non-photo file committed now has its bytes sent by the next full cycle (up to 60 s), as before e25a. Ask for a full cycle on a file commit?
+- ~~**Q2, open for Matheus.** A certificate or another non-photo file committed now has its bytes sent by the next full cycle (up to 60 s), as before e25a. Ask for a full cycle on a file commit?~~ *(2026-11-12, decided by the coordinator: yes. `commitFileBatch` announces `'file'`, and a window that saw one asks for one full cycle instead of a pass.)*
 
 ## Verification
 
