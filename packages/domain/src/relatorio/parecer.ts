@@ -180,7 +180,8 @@ export function derivedParecer(snapshot: RelatorioSnapshot): ParecerVerdict | nu
   if (sheets.some(({ block, definition, visit }) => reprovado(block, definition, visit))) return 'nao_apto';
   if (sheets.some(({ block, definition, visit }) => restricted(block, definition, visit))) return 'apto_com_restricoes';
   if (siteNcCount(snapshot) > 0 || livePoints(snapshot.points).length > 0 || hasPointSource(snapshot)) return 'apto_com_restricoes';
-  return sheets.some(({ block }) => sheetState(block) === 'concluida') ? 'apto' : null;
+  const ctx = snapshotDefinitionContext(snapshot);
+  return sheets.some(({ block }) => sheetState(block, ctx) === 'concluida') ? 'apto' : null;
 }
 
 /** Story 22.6: whether a verdict is looser than the derived one, so Etapa 6 disables its segment. */
@@ -254,7 +255,8 @@ export interface ParecerCounts {
  */
 export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
   const sheets = countedSheets(snapshot);
-  const concluded = sheets.filter(({ block }) => sheetState(block) === 'concluida').length;
+  const ctx = snapshotDefinitionContext(snapshot);
+  const concluded = sheets.filter(({ block }) => sheetState(block, ctx) === 'concluida').length;
   const notTested = sheets.filter(({ block }) => block.not_tested !== null).map(({ block, name }) => ({ name, reason: notTestedReason(block) }));
   const withRestriction = sheets.filter(({ block, definition, visit }) => block.not_tested === null && restricted(block, definition, visit) && !reprovado(block, definition, visit)).map(({ name }) => name);
   const reprovados = sheets.filter(({ block, definition, visit }) => reprovado(block, definition, visit)).map(({ name }) => name);

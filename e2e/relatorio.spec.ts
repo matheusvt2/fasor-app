@@ -4,9 +4,11 @@ import {
   backwardMoveConsequenceText,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
+  instrumentHeaderOf,
   issuedBannerText,
   makeOp,
   registrationNumberLabel,
+  type InstrumentRow,
   STANDARD_TEMPLATE_NAME,
 } from '@app/domain';
 import type { Page } from '@playwright/test';
@@ -685,7 +687,9 @@ test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchec
   // block's definition (`isolacao` is a test of every equipment block type in seed v1).
   const block = entities.find((r) => r.entity === 'block' && EQUIPMENT_BLOCK_TYPES.includes(r.row.block_type ?? ''))!;
   const deviceId = await readDeviceId(page, database);
-  await pushOp(page, relatorioId, deviceId, `sheet/${block.id}/test/isolacao/instrument`, { instrument_id: instrument.id });
+  // ~~`{ instrument_id }` alone~~ Review of PR #332: Etapa 4 locks the tick of an instrument a live, tested
+  // sheet uses (`instrumentTickLocked`), read from the header the picker copies (AD-19), so the sheet holds one.
+  await pushOp(page, relatorioId, deviceId, `sheet/${block.id}/test/isolacao/instrument`, instrumentHeaderOf(instrument.row as unknown as InstrumentRow, 'isolacao'));
   await syncNowAndReturn(page);
   await page.reload();
 
@@ -698,9 +702,11 @@ test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchec
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=1$`));
 
   const checkbox = page.getByRole('checkbox', { name: /^R1/ });
-  await checkbox.click();
+  // ~~Ticked by a first press~~ Story 25.13: drawn checked from the sheet, with no tick written.
   await expect(checkbox).toHaveAttribute('aria-checked', 'true');
-  await checkbox.click();
+  await expect(checkbox).toHaveAttribute('aria-disabled', 'true');
+  // aria-disabled: Playwright waits for an enabled control; a tap still lands on it.
+  await checkbox.click({ force: true });
   // Refused, not a throw: the row stays checked, the inline note explains why.
   await expect(checkbox).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByText('Continua na seção 11 porque uma ficha usa este instrumento')).toBeVisible();

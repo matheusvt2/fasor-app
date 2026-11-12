@@ -5,7 +5,6 @@ import {
   setupGapsNote,
   setupIncompleteReason,
   statusTable,
-  type BlockRow,
   type EntityState,
   type InstrumentRow,
   type RelatorioParecer,
@@ -19,7 +18,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { relatorioRow } from '../../db/generate-store.ts';
-import { blockRowsOf, instrumentRows } from '../../db/home-store.ts';
+import { instrumentRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
@@ -38,7 +37,6 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 const NO_USERS: UserRow[] = [];
 const NO_INSTRUMENTS: InstrumentRow[] = [];
-const NO_BLOCKS: BlockRow[] = [];
 
 /**
  * `/relatorio/:id/setup?etapa=n` (Story 4.2): the five Etapa bands the epics.md AC lists
@@ -62,9 +60,8 @@ function SetupLoaded({ relatorioId: id, state }: { relatorioId: string; state: E
   const db = useSession().database;
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const instruments = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db], NO_INSTRUMENTS);
-  const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRowsOf(db, id)), [db, id], NO_BLOCKS);
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, id);
-  return <SetupContent relatorioId={id} snapshot={snapshot} users={users} instruments={instruments} blocks={blocks} />;
+  return <SetupContent relatorioId={id} snapshot={snapshot} users={users} instruments={instruments} />;
 }
 
 interface SetupContentProps {
@@ -72,7 +69,6 @@ interface SetupContentProps {
   snapshot: RelatorioSnapshot;
   users: readonly UserRow[];
   instruments: readonly InstrumentRow[];
-  blocks: readonly BlockRow[];
 }
 
 /** The instrument Cadastros registered for this page (E12-Q11), from the arrival's state. */
@@ -82,7 +78,7 @@ function registeredInstrumentOf(state: unknown): string | null {
   return typeof raw === 'string' ? raw : null;
 }
 
-function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: SetupContentProps) {
+function SetupContent({ relatorioId, snapshot, users, instruments }: SetupContentProps) {
   const db = useSession().database;
   const user = useSession().user;
   const [search] = useSearchParams();
@@ -221,7 +217,6 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
         relatorioId={relatorioId}
         snapshot={snapshot}
         instruments={instruments}
-        blocks={blocks}
         onCommit={commitField}
         bandRef={(el) => (bandRefs.current[4] = el)}
       />

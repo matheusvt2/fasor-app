@@ -5,12 +5,11 @@ import {
   instrumentExpiredNoteText,
   instrumentRegistryRowText,
   instrumentSheetCounts,
-  isInstrumentReferenced,
+  instrumentTickLocked,
   sectionMention,
   sectionsCaption,
   tickedUnusedInstruments,
   usedInSheetsText,
-  type BlockRow,
   type InstrumentRow,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -27,14 +26,12 @@ export function Etapa4Instrumentos({
   relatorioId,
   snapshot,
   instruments,
-  blocks,
   onCommit,
   bandRef,
 }: {
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   instruments: readonly InstrumentRow[];
-  blocks: readonly BlockRow[];
   onCommit: CommitField;
   bandRef: BandRef;
 }) {
@@ -57,9 +54,10 @@ export function Etapa4Instrumentos({
   const unused = useMemo(() => new Set(tickedUnusedInstruments(snapshot).map((row) => row.id)), [snapshot]);
 
   function onToggle(id: string, isSelected: boolean): void {
-    // A used instrument cannot be unticked; the press says why. Before Story 25.13 only this
-    // refusal: it still holds for a sheet the count leaves out (a not-tested one).
-    if ((sheetCounts.get(id) ?? 0) > 0 || (!isSelected && isInstrumentReferenced(id, blocks))) {
+    // A used instrument cannot be unticked; the press says why. ~~Before Story 25.13 only this
+    // refusal: it still holds for a sheet the count leaves out (a not-tested one).~~ Review of
+    // PR #332: only a sheet the count holds locks the tick, so "Desmarque" can be followed.
+    if (instrumentTickLocked(snapshot, id)) {
       setRefusedNote(id);
       return;
     }

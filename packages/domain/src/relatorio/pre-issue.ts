@@ -247,7 +247,7 @@ function staleConclusionSheets(snapshot: RelatorioSnapshot): PreIssueSheet[] {
   const stale = new Set<string>();
   for (const block of snapshot.blocks) {
     // The cheap checks first; the composition runs only for a concluded sheet with a printable text.
-    if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block) !== 'concluida') continue;
+    if (block.removed_at !== null || !isEquipmentBlock(block) || sheetState(block, ctx) !== 'concluida') continue;
     const definition = blockDefinitionIn(ctx, block);
     // Batch e23v (Stories 23.5 and 23.6): the sheet as it is judged, under its visit context.
     const visit = visitContextOf(snapshot, block);
@@ -455,7 +455,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     (block) =>
       block.removed_at === null &&
       isEquipmentBlock(block) &&
-      sheetState(block) === 'concluida' &&
+      sheetState(block, definitions) === 'concluida' &&
       enabledSubBlocksOf(block).has('conclusion') &&
       conclusionTextForPrint(block, blockDefinitionIn(definitions, block), visitContextOf(snapshot, block)) === null,
   ).length;

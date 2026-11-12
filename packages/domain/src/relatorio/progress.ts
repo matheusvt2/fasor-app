@@ -57,12 +57,12 @@ export function ncCount(block: BlockRow): number {
  * `held`: the blocks holding a pending suggestion (Story 8.1). A sheet with a value still
  * waiting for a tap is never counted as concluded, whatever its own state says.
  */
-function over(blocks: readonly BlockRow[], suggestionsPending: number, held: ReadonlySet<string> = new Set()): Progress {
+function over(blocks: readonly BlockRow[], suggestionsPending: number, held: ReadonlySet<string> = new Set(), ctx?: DefinitionContext): Progress {
   const progress: Progress = { sheets_concluded: 0, sheets_handled: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: suggestionsPending };
   for (const block of blocks) {
     if (block.removed_at !== null || !isEquipmentBlock(block)) continue;
     progress.sheets_total += 1;
-    const state = sheetState(block);
+    const state = sheetState(block, ctx);
     if (!held.has(block.id)) {
       if (state === 'concluida') progress.sheets_concluded += 1;
       if (state === 'concluida' || state === 'nao_ensaiada') progress.sheets_handled += 1;
@@ -85,8 +85,11 @@ export function progress(
   snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'equipment_types'>>,
   pending?: readonly SuggestionRow[],
 ): Progress {
+  const ctx = snapshotDefinitionContext(snapshot);
   const sheets =
-    pending === undefined ? over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length) : over(snapshot.blocks, ...scoped(snapshot.blocks, pending, snapshotDefinitionContext(snapshot)));
+    pending === undefined
+      ? over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length, undefined, ctx)
+      : over(snapshot.blocks, ...scoped(snapshot.blocks, pending, ctx), ctx);
   const { relatorio, locations } = snapshot;
   if (relatorio === undefined || locations === undefined) return sheets;
   return { ...sheets, nc_open: sheets.nc_open + siteNcCount({ relatorio, locations }) };
@@ -118,7 +121,7 @@ export function cabineLocationIds(locations: readonly (Pick<LocationRow, 'id' | 
 
 /** The progress over exactly these blocks (a local's own, for "Equipamentos no local · 0 de 2"), with the same pending-suggestion rule as `progress`. */
 export function blocksProgress(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] | undefined, ctx: DefinitionContext): Progress {
-  return over(blocks, ...scoped(blocks, pending, ctx));
+  return over(blocks, ...scoped(blocks, pending, ctx), ctx);
 }
 
 /**
@@ -156,7 +159,8 @@ export function locationProgress(
   const ids = descendantLocationIds(snapshot.locations, locationId);
   const hidden = hiddenLocationIds(snapshot.locations);
   const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id) && !hidden.has(block.location_id));
-  return over(blocks, ...scoped(blocks, pending, snapshotDefinitionContext(snapshot)));
+  const ctx = snapshotDefinitionContext(snapshot);
+  return over(blocks, ...scoped(blocks, pending, ctx), ctx);
 }
 
 /**
@@ -193,7 +197,7 @@ export function locationProgressIndex(
     let out = own.get(id);
     if (out === undefined) {
       const blocks = blocksAt.get(id) ?? [];
-      out = over(blocks, ...scoped(blocks, pending, ctx));
+      out = over(blocks, ...scoped(blocks, pending, ctx), ctx);
       own.set(id, out);
     }
     return out;
@@ -259,7 +263,7 @@ export function relatorioCounter(
   const hidden = locations === undefined ? null : hiddenLocationIds(locations);
   const shown = hidden === null ? blocks : blocks.filter((block) => block.location_id === null || !hidden.has(block.location_id));
   // `progress({ blocks, suggestions: [] }, pending)` without the copy: the same `over` and `scoped`.
-  const p = over(shown, ...scoped(shown, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows), ctx));
+  const p = over(shown, ...scoped(shown, suggestionRows === undefined ? undefined : pendingSuggestions(suggestionRows), ctx), ctx);
   return { text: fichasCountText(p), state: progressCounterState(p) };
 }
 

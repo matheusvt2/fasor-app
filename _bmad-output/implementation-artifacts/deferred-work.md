@@ -4140,3 +4140,11 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/sync/client.ts` `request`.
   class: note
   state: open (owner: the next batch touching sync, with fix batch e24x B1; low)
+
+## Deferred from: Epic 25 batch e25c, the review of PR #332 (2026-11-12)
+
+- source_spec: `spec-e25c-seed-v15-and-rules.md` (review of PR #332, finding 4, low; not fixed)
+  summary: the server's 409 `pre_issue_blocked` answer to "Gerar relatório" lands in the dialog's generic failed state, with no reason shown; only `not_caught_up` is read apart.
+  evidence: `apps/web/src/surfaces/export/use-generate.ts` (the `catch` of the generate request, about line 314).
+  class: gap
+  state: open (owner: the next batch touching the Export dialog; low)

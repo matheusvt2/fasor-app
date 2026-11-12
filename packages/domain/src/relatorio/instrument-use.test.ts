@@ -12,6 +12,7 @@ import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-s
 import { instantiateTemplate } from './instantiate.ts';
 import {
   instrumentSheetCounts,
+  instrumentTickLocked,
   instrumentTwinLines,
   sameCertificateText,
   sameModelText,
@@ -24,6 +25,7 @@ import {
 import { exportPrecheck, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
 import { namedWarningSection } from './pre-issue-warnings.ts';
 import { progress } from './progress.ts';
+import { setupGaps } from './setup-complete.ts';
 import { sumarioRows } from './sumario.ts';
 
 /*
@@ -157,6 +159,38 @@ describe('25.13-UNIT a ticked instrument no sheet uses', () => {
   it('a ticked instrument whose registry row is removed prints nothing and raises nothing', () => {
     const snapshot = withSetup(fresh(), [ID_B], [instrument({ id: ID_B, code: '1T', removed_at: '2026-09-08T12:00:00.000Z' })]);
     expect(tickedUnusedInstruments(snapshot)).toEqual([]);
+  });
+});
+
+describe('25.13-UNIT review of PR #332: the setup gap and the tick follow the same "used"', () => {
+  const notTested = (block: BlockRow): BlockRow => ({ ...block, not_tested: { reason: NOT_TESTED_REASON_KEYS[0]!, text: null, at: '2026-09-08T12:00:00.000Z', by: TEST_USER } }) as BlockRow;
+
+  it('finding 1: an instrument a live, tested sheet uses closes the "no instrument" gap with no tick; one used only on a not-tested sheet does not', () => {
+    const base = fresh();
+    const sheet = base.blocks.find((block) => block.block_type === 'para_raio')!;
+    const used = withSetup(replaceBlocks(base, [withHeader(sheet, 'isolacao', ID_A, '2E')]), [], [instrument({ id: ID_A })]);
+    expect(setupGaps(used)).not.toContain('instruments');
+    expect(preIssue(used, undefined, { now: NOW }).map((row) => row.id)).not.toContain('setup_missing:instruments');
+    // Section 11 prints as before: the instrument the sheet uses.
+    expect(section11Instruments(used).map((entry) => entry.code)).toEqual(['2E']);
+
+    const onNotTested = withSetup(replaceBlocks(base, [notTested(withHeader(sheet, 'isolacao', ID_A, '2E'))]), [], [instrument({ id: ID_A })]);
+    expect(setupGaps(onNotTested)).toContain('instruments');
+    expect(setupGaps(withSetup(base, [], []))).toContain('instruments');
+    expect(setupGaps(withSetup(base, [ID_A], [instrument({ id: ID_A })]))).not.toContain('instruments');
+  });
+
+  it('finding 3: a tick whose only use is a not-tested sheet is ticked-unused and may be unticked; a used one is locked', () => {
+    const base = fresh();
+    const [first, second] = base.blocks.filter((block) => block.block_type === 'para_raio');
+    const snapshot = withSetup(
+      replaceBlocks(base, [withHeader(first!, 'isolacao', ID_A, '2E'), notTested(withHeader(second!, 'isolacao', ID_B, '1T'))]),
+      [ID_A, ID_B],
+      [instrument({ id: ID_A }), instrument({ id: ID_B, code: '1T', model: 'HTRT-8K' })],
+    );
+    expect(tickedUnusedInstruments(snapshot).map((row) => row.code)).toEqual(['1T']);
+    expect(instrumentTickLocked(snapshot, ID_B)).toBe(false);
+    expect(instrumentTickLocked(snapshot, ID_A)).toBe(true);
   });
 });
 

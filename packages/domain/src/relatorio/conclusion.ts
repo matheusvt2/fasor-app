@@ -2,7 +2,7 @@ import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { isCompanyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
-import { findDefinition, seedRule } from '../seed/definitions.ts';
+import { blockDefinitionIn, findDefinition, seedRule, type DefinitionContext } from '../seed/definitions.ts';
 import { isValueCondition } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
@@ -314,13 +314,16 @@ export function noMeasurementRefusesAprovado(block: BlockRow, given: DefinitionA
 
 /**
  * Story 25.6: a concluded sheet whose stored Aprovado the rule now refuses (a reading set to "Não medido"
- * after the conclude) reads as not concluded (`sheetState`): nothing is written by itself. Read for a seeded
- * type only, from its own seed and with no visit context (the rule reads cell states alone); a company type's
- * definition lives in the snapshot, which `sheetState` does not hold, so a company sheet keeps its state.
+ * after the conclude) reads as not concluded (`sheetState`): nothing is written by itself. Read with no visit
+ * context (the rule reads cell states alone). A seeded type reads its own seed; a company type (review of
+ * PR #332: treated as a standard sheet) reads its definition from the snapshot's `definitions`, and keeps
+ * its state only where the caller passes none.
  */
-export function storedAprovadoRefused(block: BlockRow): boolean {
-  if (block.not_tested !== null || conclusionResultOf(block) !== 'aprovado' || !noMeasurementRule(block) || isCompanyBlockType(block.block_type)) return false;
-  return noMeasurementRefusesAprovado(block);
+export function storedAprovadoRefused(block: BlockRow, definitions?: DefinitionContext): boolean {
+  if (block.not_tested !== null || conclusionResultOf(block) !== 'aprovado' || !noMeasurementRule(block)) return false;
+  if (!isCompanyBlockType(block.block_type)) return noMeasurementRefusesAprovado(block);
+  const definition = definitions === undefined ? null : blockDefinitionIn(definitions, block);
+  return definition !== null && noMeasurementRefusesAprovado(block, definition);
 }
 
 // Story 25.6: `sheetState` reads the refusal through this registration (a direct import would close a module cycle).

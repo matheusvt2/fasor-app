@@ -522,7 +522,7 @@ function buildLocationTree(
   };
 
   const equipmentNode = (block: BlockRow, position: number, siblings: number, level: number): TreeEquipmentNode => {
-    const state = sheetState(block);
+    const state = sheetState(block, definitions);
     const word = sheetStateLabel(state);
     const reason = notTestedReasonText(block);
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');

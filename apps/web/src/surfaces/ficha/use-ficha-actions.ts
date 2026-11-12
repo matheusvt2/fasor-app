@@ -222,7 +222,7 @@ export function useFichaActions({
   const filledBy = filledName === null || block.last_modified_at === null ? null : filledByText(filledName, block.last_modified_at);
   const concludedName = block.concluded_by === null ? null : nameOf(block.concluded_by.actor_id);
   // Story 25.6 (seed v15): a concluded sheet whose Aprovado the no-measurement rule refuses reads as not concluded (`sheetState`).
-  const concludedBy = block.concluded_by === null || concludedName === null || sheetState(block) !== 'concluida' ? null : concludedByText(concludedName, block.concluded_by.at);
+  const concludedBy = block.concluded_by === null || concludedName === null || sheetState(block, snapshotDefinitionContext(snapshot)) !== 'concluida' ? null : concludedByText(concludedName, block.concluded_by.at);
   const menu: OverflowMenuAction[] = [];
   if (block.concluded_by === null && block.not_tested === null) menu.push({ id: 'concluir', label: t.menuConcluir, onAction: () => conclude() });
   if (block.equipment_id !== null) menu.push({ id: 'rename-tag', label: t.menuRenameTag, onAction: () => setRenaming(true) });

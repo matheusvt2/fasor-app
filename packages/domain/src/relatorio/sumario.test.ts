@@ -264,8 +264,9 @@ describe('4.3-UNIT sumarioRows', () => {
     // Story 7.3: row 11 counts the instruments section 11 prints, then its pre-issue rows (Story 7.5: no instrument checked at setup; the fixture attaches no certificate file) (the three the sheets copied).
     // Review fixes 2026-10-06 (F-15): the count is of instruments, and with no certificate attached one line stands for the three "sem certificado" rows.
     // Story 25.12: the delivered relatório's three instruments carry no calibration date; each is named.
+    // Review of PR #332: ~~Nenhum instrumento em Dados do relatório~~ no longer: the sheets use the three, which closes the gap with no tick.
     expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe(
-      '3 instrumentos · nenhum certificado anexado · Nenhum instrumento em Dados do relatório · 2E: sem data de calibração · 3M: sem data de calibração · 1T: sem data de calibração',
+      '3 instrumentos · nenhum certificado anexado · 2E: sem data de calibração · 3M: sem data de calibração · 1T: sem data de calibração',
     );
     // Some attached: how many, and the codes still missing one.
     const attach = (codes: readonly string[]) => ({
@@ -273,11 +274,11 @@ describe('4.3-UNIT sumarioRows', () => {
       instruments: withSections.instruments.map((row) => (codes.includes(row.code) ? { ...row, certificate_file_id: `file-${row.code}` } : row)),
     });
     expect(rowsOf(attach(['2E', '1T'])).find((r) => r.rowKey === 'section_11')!.meta).toBe(
-      '3 instrumentos · 2 certificados · Nenhum instrumento em Dados do relatório · 2E: sem data de calibração · 3M: sem data de calibração · 1T: sem data de calibração · 3M sem certificado',
+      '3 instrumentos · 2 certificados · 2E: sem data de calibração · 3M: sem data de calibração · 1T: sem data de calibração · 3M sem certificado',
     );
     // All attached: the instrument count and the row's other own rows.
     expect(rowsOf(attach(['2E', '3M', '1T'])).find((r) => r.rowKey === 'section_11')!.meta).toBe(
-      '3 instrumentos · Nenhum instrumento em Dados do relatório · 2E: sem data de calibração · 3M: sem data de calibração · 1T: sem data de calibração',
+      '3 instrumentos · 2E: sem data de calibração · 3M: sem data de calibração · 1T: sem data de calibração',
     );
   });
 });

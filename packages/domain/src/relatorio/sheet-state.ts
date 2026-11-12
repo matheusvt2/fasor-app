@@ -1,6 +1,6 @@
 import { blockConfigSchema, isCompanyBlockType, isEquipmentKind, SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
-import { SEED_VERSION } from '../seed/definitions.ts';
+import { SEED_VERSION, type DefinitionContext } from '../seed/definitions.ts';
 import { enabledSubBlocks } from '../templates/compose.ts';
 
 /*
@@ -106,21 +106,22 @@ export function enabledCells(block: BlockRow): Cell[] {
  * here without a module cycle that breaks the domain's load order; `conclusion.ts` registers it when it loads
  * (the package entry loads it with every reader of `sheetState`). Until then no sheet is refused.
  */
-let concludedAprovadoRefused: (block: BlockRow) => boolean = () => false;
+let concludedAprovadoRefused: (block: BlockRow, definitions?: DefinitionContext) => boolean = () => false;
 
 /** Story 25.6: called once by `conclusion.ts` at its load; see `concludedAprovadoRefused`. */
-export function registerConcludedAprovadoRefused(refused: (block: BlockRow) => boolean): void {
+export function registerConcludedAprovadoRefused(refused: (block: BlockRow, definitions?: DefinitionContext) => boolean): void {
   concludedAprovadoRefused = refused;
 }
 
 /**
  * AD-18 precedence: `not_tested` > `concluded_by` > any filled enabled cell > empty. Story 25.6 (seed v15): a
  * concluded sheet whose stored Aprovado the no-measurement rule refuses reads as not concluded, so the Sumário
- * counts it incomplete until the technician reproves it or marks it not tested.
+ * counts it incomplete until the technician reproves it or marks it not tested. A company type's sheet is
+ * read so only when the caller passes the snapshot's `definitions` (its definition lives there).
  */
-export function sheetState(block: BlockRow): SheetState {
+export function sheetState(block: BlockRow, definitions?: DefinitionContext): SheetState {
   if (block.not_tested !== null) return 'nao_ensaiada';
-  if (block.concluded_by !== null && !concludedAprovadoRefused(block)) return 'concluida';
+  if (block.concluded_by !== null && !concludedAprovadoRefused(block, definitions)) return 'concluida';
   let state = stateByBlock.get(block);
   if (state === undefined) {
     state = enabledCells(block).some(isCellFilled) ? 'em_preenchimento' : 'vazia';

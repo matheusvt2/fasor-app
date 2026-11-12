@@ -3,6 +3,7 @@ import { artOrTrtLabel } from '../registration.ts';
 import type { NumberValue, RelatorioSetup } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { listPtBr } from '../text/plural.ts';
+import { instrumentSheetCounts } from './instrument-use.ts';
 
 /*
  * Story 4.2, AR-21: whether the relatório's office-side setup is complete enough to leave
@@ -40,7 +41,9 @@ export function setupGaps(snapshot: RelatorioSnapshot): SetupGap[] {
   if (setup.responsible_user_id === null) gaps.push('responsible_user_id');
   else if (blank(snapshot.responsible?.registration_number)) gaps.push('registration_number');
   if (blank(setup.art_trt_number)) gaps.push('art_trt_number');
-  if (setup.instrument_ids.length === 0) gaps.push('instruments');
+  // Story 25.13 review: Etapa 4 marks an instrument a live, tested sheet uses without writing the
+  // tick, so such a use closes the gap as a tick does (the same "used" as `instrumentSheetCounts`).
+  if (setup.instrument_ids.length === 0 && instrumentSheetCounts(snapshot).size === 0) gaps.push('instruments');
   return gaps;
 }
 

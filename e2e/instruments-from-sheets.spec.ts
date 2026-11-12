@@ -5,6 +5,7 @@ import {
   instrumentSheetCounts,
   section11Instruments,
   sectionRefText,
+  setupGapText,
   sharedCertificateText,
   tickedUnusedText,
   usedInSheetsText,
@@ -187,9 +188,14 @@ test('@p0 25.13-E2E-001 Etapa 4 marks the sheets\' instruments and warns on one 
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(sumarioStatus(page, 'section_11')).toContainText(sharedText, { timeout: 30_000 });
   await expect(sumarioStatus(page, 'section_11')).not.toContainText(unusedText);
+  // Review of PR #332: nothing is ticked now, but the sheets use 3M and 2E, so no "no instrument" row.
+  const noInstrumentText = setupGapText('instruments', snapshot);
+  expect(noInstrumentText).toBe('Nenhum instrumento em Dados do relatório');
+  await expect(sumarioStatus(page, 'section_11')).not.toContainText(noInstrumentText);
   await openExport();
   await expect(precheck.locator('li', { hasText: sharedText })).toHaveCount(1);
   await expect(precheck.locator('li', { hasText: unusedText })).toHaveCount(0);
+  await expect(precheck.locator('li', { hasText: noInstrumentText })).toHaveCount(0);
 
   // The issue: section 11 of the DOCX prints the kernel's section 11 instruments, as today.
   const generate = dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });

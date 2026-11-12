@@ -33,6 +33,17 @@ export function instrumentSheetCounts(snapshot: UseSnapshot): ReadonlyMap<string
   return counts;
 }
 
+/**
+ * Whether Etapa 4 refuses a press on the instrument's tick: exactly when a live, tested sheet uses
+ * it (`instrumentSheetCounts`), so the tick is drawn from the sheets. Review of PR #332: a sheet the
+ * count leaves out (marked not tested, under a removed local) no longer holds the tick, so the
+ * "Desmarque" advice of `tickedUnusedInstruments` can always be followed. Nothing dangles: the
+ * snapshot still carries the registry row of every instrument a live block names.
+ */
+export function instrumentTickLocked(snapshot: UseSnapshot, instrumentId: string): boolean {
+  return (instrumentSheetCounts(snapshot).get(instrumentId) ?? 0) > 0;
+}
+
 /** "Usado em 1 ficha", "Usado em 12 fichas". */
 export function usedInSheetsText(count: number): string {
   // authored: Story 25.13, for Bruno ("Usado em ⟨N⟩ fichas"; 50-relatorio-setup.html Etapa 4).

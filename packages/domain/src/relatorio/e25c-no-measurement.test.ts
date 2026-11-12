@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import { section9Layout, type PrintSheet, type PrintTable, type SheetPart } from '../print/section-9.ts';
-import type { EquipmentBlockType } from '../schemas/block-config.ts';
-import type { BlockRow, Cell } from '../schemas/entities.ts';
+import { companyBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
+import type { BlockRow, Cell, EquipmentTypeVersionRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, getSeed, seedRule } from '../seed/definitions.ts';
+import { blockDefinitionIn, definitionContext, EMPTY_DEFINITION_CONTEXT, getDefinition, getSeed, seedRule } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
+import { duplicateSeededType } from '../types/duplicate.ts';
 import {
   chosenConclusionPair,
   conclusionAdjusted,
@@ -376,5 +377,34 @@ describe('25.6-UNIT the same inputs on v14 conclude and print as before', () => 
     expect(progress(snapshot)).toMatchObject({ sheets_concluded: 1, sheets_handled: 1 });
     expect(boxesOf(snapshot, blockId)).toEqual(BOXES(true, false, true, false));
     expect(derivedParecer(snapshot)).toBe('apto');
+  });
+});
+
+describe('25.6-UNIT review of PR #332: a company type sheet reads as a standard one', () => {
+  const TYPE_ID = id(70);
+  const VERSION_ID = id(71);
+  const companyOf = (block: BlockRow): BlockRow =>
+    ({ ...block, block_type: companyBlockType(TYPE_ID), config: { ...(block.config as object), block_type: companyBlockType(TYPE_ID), type_version: 1, type_version_id: VERSION_ID } }) as BlockRow;
+  const versionsOf = (seedVersion: string): EquipmentTypeVersionRow[] => [
+    { id: VERSION_ID, type_id: TYPE_ID, version: 1, definition: duplicateSeededType(seedVersion, 'disjuntor_mt').draft, published_by: TEST_USER, published_at: '2026-11-01T12:00:00.000Z' } as EquipmentTypeVersionRow,
+  ];
+
+  it('v15: a company copy of the breaker concluded Aprovado with nothing measured reads as not concluded and counts incomplete', () => {
+    const versions = versionsOf('v15');
+    const ctx = definitionContext(versions);
+    const block = companyOf(concluded(stored(nothingMeasured('v15'), 'aprovado', 'sem_restricoes')));
+    expect(effectiveConclusionPair(block, blockDefinitionIn(ctx, block))).toEqual({ result: null, restriction: null });
+    expect(storedAprovadoRefused(block, ctx)).toBe(true);
+    expect(sheetState(block, ctx)).toBe('em_preenchimento');
+    expect(progress({ blocks: [block], suggestions: [], equipment_types: versions })).toMatchObject({ sheets_concluded: 0, sheets_handled: 0, sheets_total: 1 });
+  });
+
+  it('v14: the same company sheet stays concluded, as before', () => {
+    const versions = versionsOf('v14');
+    const ctx = definitionContext(versions);
+    const block = companyOf(concluded(stored(nothingMeasured('v14'), 'aprovado', 'sem_restricoes')));
+    expect(storedAprovadoRefused(block, ctx)).toBe(false);
+    expect(sheetState(block, ctx)).toBe('concluida');
+    expect(progress({ blocks: [block], suggestions: [], equipment_types: versions })).toMatchObject({ sheets_concluded: 1, sheets_handled: 1, sheets_total: 1 });
   });
 });

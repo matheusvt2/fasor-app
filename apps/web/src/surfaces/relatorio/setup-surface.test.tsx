@@ -364,8 +364,9 @@ describe('4.2 SetupSurface', () => {
     renderSetup();
     const button = await screen.findByRole('button', { name: 'Concluir dados do relatório' });
     await waitFor(() => expect(button).toHaveAttribute('aria-disabled'));
-    // This fixture lacks the end date, the ART/TRT number and an instrument: all three are named.
-    expect(screen.getByText(/^Concluir dados do relatório: falta a data de fim, o número d[ao] (ART|TRT|ART\/TRT) e um instrumento$/)).toBeVisible();
+    // This fixture lacks the end date and the ART/TRT number: both are named. ~~and an instrument~~
+    // Review of PR #332: its sheets use 2E, which closes the instrument gap with no tick.
+    expect(screen.getByText(/^Concluir dados do relatório: falta a data de fim e o número d[ao] (ART|TRT|ART\/TRT)$/)).toBeVisible();
   });
 
   it('commits the Rascunho→Em campo transition once every gap is closed', async () => {
@@ -901,8 +902,9 @@ describe('4.2 SetupSurface', () => {
     const record = await database.entities.get(['relatorio', RELATORIO]);
     await database.entities.put({ ...record!, row: { ...(record!.row as RelatorioRow), status: 'emitido' } });
     const first = renderSetup();
-    // This fixture lacks the end date, the ART/TRT number and an instrument.
-    expect(await screen.findByText(/^Falta a data de fim, o número d[ao] (ART|TRT|ART\/TRT) e um instrumento\.$/)).toBeVisible();
+    // This fixture lacks the end date and the ART/TRT number. ~~and an instrument~~ Review of
+    // PR #332: its sheets use 2E, which closes the instrument gap with no tick.
+    expect(await screen.findByText(/^Falta a data de fim e o número d[ao] (ART|TRT|ART\/TRT)\.$/)).toBeVisible();
     expect(screen.queryByText('Dados salvos')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Concluir dados do relatório' })).toBeNull();
     first.unmount();
