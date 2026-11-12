@@ -2,6 +2,7 @@ import {
   formatDecimalGroupedPtBr,
   isInsulationFamily,
   measurementReadingRefusal,
+  notApplicableReadingValue,
   nextUnit,
   numberEchoText,
   overRangeDisplay,
@@ -36,7 +37,8 @@ import { conclusionOp, testCellOp } from './ficha-ops.ts';
  * chips on phone) sets the unit. Everything it shows about the committed value -- the
  * amber out-of-criterion state and helper, the neutral outlier helper -- is the kernel's
  * evaluation (`evaluateSheetReadings`); red is never used for a reading and nothing here
- * blocks. "Não medido" is the cell's Overflow item.
+ * blocks. "Não medido" is the cell's Overflow item; Story 25.9 (seed v15): so is "Não se aplica", where the
+ * kernel offers it (`SheetCellExtras.notApplicableOffered`), with "Desfazer".
  *
  * Story 9.1: a cell a display reading filled is the Suggestion field's confirmed state (the
  * crop shrunk to its glyph, `confirmedCrop`), and lines of "Ler visor" go under it (`after`).
@@ -85,8 +87,12 @@ function RestrictedHelper({ cell, id }: { cell: FieldCell; id?: string }) {
   );
 }
 
-/** Batch e23v: the field's `data-state`: out of its limit, restricted (Story 23.6), or neither. */
-function fieldState(cell: Pick<FieldCell, 'verdict'>): 'out-of-limit' | 'restricted' | undefined {
+/**
+ * Batch e23v: the field's `data-state`: out of its limit, restricted (Story 23.6), or neither. Story 25.9 (seed
+ * v15; `60-ficha.html` #/ficha/TP-02): `na`, a reading marked "Não se aplica", on the neutral NA fill.
+ */
+function fieldState(cell: Pick<FieldCell, 'verdict' | 'state'>): 'out-of-limit' | 'restricted' | 'na' | undefined {
+  if (cell.state === 'not_applicable') return 'na';
   return cell.verdict === 'out' ? 'out-of-limit' : cell.verdict === 'restricted' ? 'restricted' : undefined;
 }
 
@@ -105,6 +111,11 @@ export interface SheetCellExtras {
    * as on v1 to v13.
    */
   restrictionOffered?: boolean;
+  /**
+   * Story 25.9: whether a reading's Overflow offers "Não se aplica", the kernel's `readingNotApplicableOn` for
+   * the sheet's block (seed v15 and later). Absent: not offered, as on v1 to v14.
+   */
+  notApplicableOffered?: boolean;
 }
 
 const NO_EXTRAS: SheetCellExtras = { rangeOf: () => null, previousOf: () => null };
@@ -231,8 +242,8 @@ export function MeasurementField<Address extends FieldAddress>({
 
   const number = useNumberInput({
     // "Não medido" keeps the input empty and prints its "-" as the placeholder, so a value
-    // typed over it is not read as "-5".
-    storedText: cell.state === 'empty' || cell.state === 'not_measured' ? '' : cell.displayText,
+    // typed over it is not read as "-5". Story 25.9: "Não se aplica" too, its "N/A" the placeholder.
+    storedText: cell.state === 'empty' || cell.state === 'not_measured' || cell.state === 'not_applicable' ? '' : cell.displayText,
     storedRaw: cell.state === 'measured' ? cell.raw : cell.state === 'over_range' ? overRangeStoredRaw(cell.raw) : null,
     // Epic 14 QA Q-3: the kernel refuses a zero or negative reading where the criterion compares with the lowest.
     // Story 22.10: "OL" takes the instrument's limit, "> 2 TΩ" the typed one, where the kernel allows it.
@@ -334,10 +345,21 @@ export function MeasurementField<Address extends FieldAddress>({
     [number.echo === null ? null : echoId, number.invalid || hint !== null || (!number.focused && (cell.helperText !== null || outlier !== null || restricted)) ? helperId : null]
       .filter(Boolean)
       .join(' ') || undefined;
+  /** Story 25.9 (seed v15): "Não se aplica" through the edit queue, with the frame's toast and "Desfazer". */
+  const markNotApplicable = () => {
+    void api
+      .edit((_blocks, by) => [testCellOp(by, api.relatorioId, api.blockId, address.testKey, address.row, address.col, notApplicableReadingValue(slotUnit))])
+      .then((batch) => {
+        if (batch !== null) api.undoable(copy.ficha.ensaios.notApplicableMarked, batch);
+      })
+      .catch(() => undefined);
+  };
   const overflowItems = [
     { id: 'not-measured', label: t.notMeasured, onAction: () => void write({ raw: '', unit: slotUnit, state: 'not_measured' }) },
     // Story 22.10: offered only where the kernel allows a reading above the limit (never on a ratio or a compared cell).
     ...(cell.overRange?.allowed === true ? [{ id: 'over-range', label: t.overRange, onAction: chooseLimit }] : []),
+    // Story 25.9 (seed v15, `60-ficha.html` #ficha-dlg-cell-menu): under the two items the app has, where the kernel offers it.
+    ...(extras.notApplicableOffered === true && cell.state !== 'not_applicable' ? [{ id: 'not-applicable', label: t.notApplicable, onAction: markNotApplicable }] : []),
   ];
   const keepFocus = (event: { preventDefault: () => void }) => {
     if (number.focused) event.preventDefault();
@@ -379,7 +401,7 @@ export function MeasurementField<Address extends FieldAddress>({
           aria-label={label}
           aria-invalid={number.invalid || undefined}
           aria-describedby={describedBy}
-          placeholder={cell.state === 'not_measured' ? cell.displayText : cell.fallback?.text}
+          placeholder={cell.state === 'not_measured' || cell.state === 'not_applicable' ? cell.displayText : cell.fallback?.text}
           data-cell-input={cellKey(address)}
           data-missing-field={missing ? '' : undefined}
         />
@@ -614,7 +636,8 @@ export function ReadOnlyMeasurementField({ cell, label }: { cell: FieldCell; lab
   return (
     <div className="ficha-cell" data-cell={cellKey(cell.address)}>
       <div className="measurement-field" role="textbox" aria-readonly="true" aria-label={label} data-state={fieldState(cell)}>
-        <span className={empty ? 'mf-value is-empty' : 'mf-value'}>{text}</span>
+        {/* Story 25.9: a reading "Não se aplica" in the NA ink (`60-ficha.html` `.mf-value.e25-na`). */}
+        <span className={empty ? 'mf-value is-empty' : cell.state === 'not_applicable' ? 'mf-value e25-na' : 'mf-value'}>{text}</span>
         {cell.unit === null ? null : (
           <span className="mf-unit" aria-label={t.unitNames[cell.unit] ?? cell.unit}>
             {cell.unit}

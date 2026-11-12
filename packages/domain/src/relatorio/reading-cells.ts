@@ -1,4 +1,4 @@
-import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, parseDecimalPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, NOT_APPLICABLE_TEXT, parseDecimalPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
@@ -39,8 +39,13 @@ export interface CellAddress {
   col: number;
 }
 
-/** Story 22.10: `over_range` is a reading above the instrument's limit, `raw` that limit (`over-range.ts`). */
-export type ReadingState = 'empty' | 'measured' | 'not_measured' | 'over_range' | 'invalid';
+/**
+ * Story 22.10: `over_range` is a reading above the instrument's limit, `raw` that limit (`over-range.ts`).
+ * Story 25.9 (seed v15 `reading_not_applicable`): `not_applicable` is a reading cell the technician marked
+ * "Não se aplica": filled, never judged, left out of every comparison, printed "N/A". Read so only on a
+ * sheet whose seed turns the flag on (`readStored`); on v1 to v14 the stored state reads `invalid` as before.
+ */
+export type ReadingState = 'empty' | 'measured' | 'not_measured' | 'over_range' | 'invalid' | 'not_applicable';
 /**
  * Batch e23v (Story 23.6, seed v13): `restricted` is a reading inside its criterion that a test's
  * restriction rule flags (`relatorio/restriction.ts`): out > restricted > within. Only a test whose
@@ -188,6 +193,11 @@ export interface EvaluatedRow {
    * on a row of a table with a choice column; absent on every other row, every row of v1 to v12.
    */
   choice?: EvaluatedChoice;
+  /**
+   * Story 25.9 (seed v15): every typed cell of the row (its inputs, captures and indexes) is "Não se aplica":
+   * no VAL CALCULADO and no CONDIÇÕES are computed, and both show and print "N/A". Absent on every other row.
+   */
+  notApplicable?: true;
 }
 
 /**
@@ -422,6 +432,12 @@ export function condicaoScreenText(condicao: EvaluatedRow['condicao']): string {
   return condicao === 'SATISFATÓRIO' ? 'Satisfatório' : 'Insatisfatório';
 }
 
+/** Story 25.9 (seed v15): the VAL CALCULADO a ratio row shows on screen: "N/A" on a row whose every reading is N/A, else the value or "—". */
+export function ratioRowCalculatedText(row: Pick<EvaluatedRow, 'calculated' | 'notApplicable'>): string {
+  if (row.notApplicable === true) return NOT_APPLICABLE_TEXT;
+  return row.calculated?.text ?? '—';
+}
+
 // authored (Story 23.1's frame, built by Story 23.8): an unmarked tap row with nothing measured (`60-ficha.html` #/ficha/TR1).
 export const TAP_NOT_MEASURED_TEXT = 'Não medido';
 
@@ -430,7 +446,9 @@ export const TAP_NOT_MEASURED_TEXT = 'Não medido';
  * unmarked tap row of the plate with no capture filled, which reads "Não medido" (it requires
  * nothing). The printed sheet prints "-" there, as for any unjudged row.
  */
-export function ratioRowCondicaoText(row: Pick<EvaluatedRow, 'condicao' | 'tap' | 'cells'>): string {
+export function ratioRowCondicaoText(row: Pick<EvaluatedRow, 'condicao' | 'tap' | 'cells' | 'notApplicable'>): string {
+  // Story 25.9 (seed v15): a row whose every reading is "Não se aplica" reads "N/A".
+  if (row.notApplicable === true) return NOT_APPLICABLE_TEXT;
   const unmarked = row.tap !== null && row.tap.onPlate && row.tap.mark === null;
   if (row.condicao === null && unmarked && row.cells.every((cell) => cell.role !== 'capture' || cell.state === 'empty')) return TAP_NOT_MEASURED_TEXT;
   return condicaoScreenText(row.condicao);
@@ -521,7 +539,12 @@ export interface StoredReading {
   unit: string | null;
 }
 
-export function readStored(cell: Cell | undefined): StoredReading | null {
+/**
+ * A stored reading cell as the evaluation reads it. Story 25.9: `notApplicable` is the block's seed flag
+ * `reading_not_applicable` (`readingNotApplicableOn`): with it a stored `not_applicable` state reads as
+ * "Não se aplica"; without it (v1 to v14) it reads `invalid`, as it always did.
+ */
+export function readStored(cell: Cell | undefined, notApplicable = false): StoredReading | null {
   const value = cell?.value;
   if (value === null || value === undefined) return null;
   if (typeof value !== 'object' || Array.isArray(value)) return { state: 'invalid', raw: String(value), unit: null };
@@ -530,6 +553,7 @@ export function readStored(cell: Cell | undefined): StoredReading | null {
   const raw = typeof v.raw === 'string' ? v.raw : '';
   if (v.state === 'empty') return null;
   if (v.state === 'not_measured') return { state: 'not_measured', raw: '', unit };
+  if (v.state === 'not_applicable' && notApplicable) return { state: 'not_applicable', raw: '', unit };
   if (v.state === 'measured' && DECIMAL.test(raw)) return { state: 'measured', raw, unit };
   // Story 22.10: a limit the instrument passed is a positive plain decimal (`over-range.ts` `isOverRangeRaw`).
   if (v.state === 'over_range' && DECIMAL.test(raw) && !raw.startsWith('-') && Number(raw) > 0) return { state: 'over_range', raw, unit };

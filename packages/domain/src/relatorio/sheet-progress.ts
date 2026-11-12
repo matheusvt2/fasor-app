@@ -226,10 +226,11 @@ function ensaiosCounts(block: BlockRow, definition: BlockDefinition, enabled: Re
   // Story 21.1: a v11 ratio row with no vector group to compute VAL CALCULADO counts one missing,
   // only while the plate that holds LIGAÇÃO SECUNDÁRIA can be filled (its sub-block enabled).
   // Fix batch e23g (R2-3): only a required row counts (`tapRowRequired`: every v11/v12 row; on a v13
-  // tap table the current tap and the extremes, never an unmarked or off-plate row).
+  // tap table the current tap and the extremes, never an unmarked or off-plate row). Story 25.9 (seed v15): nor a row
+  // whose every reading is "Não se aplica".
   const groupMissing = !enabled.has('nameplate')
     ? 0
-    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.filter((row) => tapRowRequired(row)).length : 0), 0), 0);
+    : evaluations.reduce((sum, test) => sum + test.tables.reduce((rows, table) => rows + (table.groupMissing ? table.rows.filter((row) => tapRowRequired(row) && row.notApplicable !== true).length : 0), 0), 0);
   // Seed v13, batch e23e (Story 23.18): a row's choice cell (POLARIDADE) counts missing while empty and out when it fails.
   const choices = evaluatedChoices(evaluations);
   return {

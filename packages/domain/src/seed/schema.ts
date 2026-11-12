@@ -1063,6 +1063,8 @@ export const seedRulesSchema = z
     no_measurement_refuses_aprovado: z.literal(true).optional(),
     /** Story 25.7 (seed v15, M20, F12): the conclusion paragraph names each test left unmeasured and a Reprovado (or a Com restrições over no indicated point) the responsible chose, and recommends correcting only points it indicates. */
     conclusion_names_choice_and_unmeasured: z.literal(true).optional(),
+    /** Story 25.9 (seed v15, M05): a reading cell takes "Não se aplica" from its menu, alone or with its whole row: filled, never judged, left out of every comparison, printed "N/A". */
+    reading_not_applicable: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

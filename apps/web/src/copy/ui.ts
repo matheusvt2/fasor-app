@@ -100,6 +100,11 @@ export const ui = {
     notMeasured: 'Não medido',
     // Story 22.10 (Bruno's item, the epic's wording): the Overflow item that records a reading above the instrument's limit.
     overRange: '> limite',
+    // Story 25.9 (seed v15; `60-ficha.html` #ficha-dlg-cell-menu, verbatim): the Overflow item that marks a reading not applicable.
+    notApplicable: 'Não se aplica',
+    // Story 25.9 (`60-ficha.html` #ficha-dlg-row-menu, verbatim): the row action's one item, and its trigger's name.
+    rowNotApplicable: 'Linha toda: não se aplica',
+    rowMenuLabel: (row: string) => `Mais opções da linha ${row}`,
     // `key-equipment-sheet.html` `.mf-helper`'s text button.
     markRestricted: 'Marcar Com restrições',
     // authored: a typed text that is no number (kept typed, not committed).

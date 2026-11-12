@@ -9,6 +9,7 @@
 
 export {
   condicaoScreenText,
+  ratioRowCalculatedText,
   ratioRowCondicaoText,
   TAP_NOT_MEASURED_TEXT,
   headerText,

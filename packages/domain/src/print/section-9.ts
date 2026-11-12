@@ -667,6 +667,8 @@ function printedEntries(definition: TableDef, corrected: PrintedCorrected | null
 
 /** A row's corrected cell: the capture's value at 20 °C, bare in its header's unit, with its unit under a header with none; "-" without one. */
 function correctedCellText(row: EvaluatedRow, corrected: PrintedCorrected, headerUnit: string | null): string {
+  // Story 25.9 (seed v15): a derived cell of a row whose every reading is N/A prints N/A.
+  if (row.notApplicable === true) return NOT_APPLICABLE_TEXT;
   const value = row.cells.find((cell) => cell.address.col === corrected.capture)?.corrected ?? null;
   if (value === null) return DASH;
   return headerUnit !== null && value.unit === headerUnit ? formatDecimalGroupedPtBr(value.raw) : value.text;
@@ -724,6 +726,8 @@ function measurementHeader(definition: TableDef, evaluated: EvaluatedTable, corr
 function readingText(cell: EvaluatedCell, column: ColumnDef, headerUnit: string | null): string {
   const unitOf = (unit: string | null | undefined) => (headerUnit !== null && unit === headerUnit ? null : unit);
   if (isReadingValue(cell.state)) return withUnit(cell.displayText, unitOf(cell.unit));
+  // Story 25.9 (seed v15): a reading marked "Não se aplica" prints N/A, with no unit.
+  if (cell.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
   if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.displayText;
   if (cell.state === 'empty' && cell.fallback !== null) return withUnit(cell.fallback.text, unitOf(column.unit));
   return DASH;
@@ -762,6 +766,8 @@ function valueText(
       return cell === undefined ? DASH : readingText(cell, column, headerUnit);
     }
     case 'derived':
+      // Story 25.9 (seed v15): VAL CALCULADO and CONDIÇÕES of a row whose every reading is N/A print N/A.
+      if (row.notApplicable === true) return NOT_APPLICABLE_TEXT;
       return evaluated.columns.find((visible) => visible.col === col)?.derivedKind === 'condicao' ? (row.condicao ?? DASH) : (row.calculated?.text ?? DASH);
     case 'print':
       return printColumnText(block, testKey, row.row, col, column, enabled, test !== undefined && polarizationNotApplicable(test, row));
@@ -775,6 +781,8 @@ function valueText(
       const cell = row.cells.find((candidate) => candidate.address.col === col);
       if (cell === undefined) return DASH;
       if (cell.index?.notApplicable === true) return NOT_APPLICABLE_TEXT;
+      // Story 25.9 (seed v15): an index marked "Não se aplica" prints N/A.
+      if (cell.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
       return cell.state === 'measured' ? cell.displayText : DASH;
     }
   }
@@ -1299,6 +1307,8 @@ function sharedUnit(test: MeasurementTestEvaluation, col: number): string | null
 /** A cell as printed: a fixed text as written, a choice's option in caps, a number (with its unit unless the header carries it), "-" when empty. */
 function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | null): string {
   if (cell.fixed !== null) return cell.fixed;
+  // Story 25.9 (seed v15): a number cell marked "Não se aplica" prints N/A, with no unit.
+  if (cell.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
   if (cell.state === 'invalid') return cell.raw.trim() === '' ? DASH : cell.displayText;
   // Story 22.10: a reading above the instrument's limit prints as a number does ("> 2.000 µΩ").
   if (!isReadingValue(cell.state)) return DASH;
@@ -1309,6 +1319,8 @@ function measurementText(cell: EvaluatedMeasurementCell, headerUnit: string | nu
 /** Batch e23t (Story 23.15): a cell's value at 75 °C, bare under a header carrying its unit; "-" without one. */
 function correctedMeasurementText(cell: EvaluatedMeasurementCell, headerUnit: string | null): string {
   const value = cell.corrected ?? null;
+  // Story 25.9 (seed v15): the corrected value of a cell marked "Não se aplica" prints N/A, as the cell does.
+  if (cell.fixed === null && cell.state === 'not_applicable') return NOT_APPLICABLE_TEXT;
   if (cell.fixed !== null || value === null) return DASH;
   return headerUnit !== null && value.unit === headerUnit ? formatDecimalGroupedPtBr(value.raw) : value.text;
 }

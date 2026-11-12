@@ -62,6 +62,18 @@ function story25_8(seed: ReportSeed): void {
   }
 }
 
+// --- Story 25.9: N/A on a reading cell and on a row ----------------------------------------------
+
+/**
+ * Story 25.9 (M05, M-5): the flag `reading_not_applicable`. A reading cell of a seeded test and a number cell
+ * of a measurement test take "Não se aplica" from the cell's menu, and a row's action marks every reading of
+ * the row (`relatorio/reading-not-applicable.ts`): filled, never judged, left out of every comparison and of
+ * the previous visit's rules, printed "N/A"; no definition key changes.
+ */
+function story25_9(seed: ReportSeed): void {
+  seed.rules = { ...seed.rules, reading_not_applicable: true };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
@@ -69,6 +81,7 @@ function cabinePrimariaV15(): ReportSeed {
   story25_6(seed);
   story25_7(seed);
   story25_8(seed);
+  story25_9(seed);
   return seed;
 }
 

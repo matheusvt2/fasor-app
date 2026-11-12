@@ -416,3 +416,9 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .e25-changed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin: 0; }
 [data-route="/relatorio/:id/ficha/:blockId"] .e25-changed-word { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
 [data-route="/relatorio/:id/ficha/:blockId"] .e25-header-param.is-default .e25-changed { display: none; }
+/* `60-ficha.html` (Story 25.1 Part B frame, Story 25.9) `[data-route="/ficha/:tag"] .measurement-field[data-state="na"]`, `.e25-na` and
+   `.e25-row-head`, declarations verbatim: a reading "Não se aplica" reads N/A on the neutral NA fill; the row's action beside its name.
+   authored: the app draws N/A as the input's placeholder (as "Não medido" draws "-"), so `.e25-na`'s ink is the placeholder's. */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field[data-state="na"] { background: var(--nao-aplica-fill); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-na, [data-route="/relatorio/:id/ficha/:blockId"] .measurement-field[data-state="na"] .mf-value::placeholder { color: var(--nao-aplica); font-weight: 600; }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-row-head { display: inline-flex; align-items: center; gap: var(--sp-1); }

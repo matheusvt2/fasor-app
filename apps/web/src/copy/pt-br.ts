@@ -1650,6 +1650,10 @@ export const copy = {
       clearTapRow: 'Apagar leitura',
       // authored (e23z, listed for Bruno).
       clearedTapRowToast: 'Leitura apagada',
+      // Story 25.9 (seed v15; `60-ficha.html` #ficha-dlg-cell-menu and #ficha-dlg-row-menu, verbatim): the toasts after
+      // "Não se aplica" on a reading and "Linha toda: não se aplica" on a row, each with "Desfazer".
+      notApplicableMarked: 'Leitura marcada Não se aplica — não é julgada e imprime N/A',
+      rowNotApplicableMarked: 'Linha marcada Não se aplica — todas as leituras imprimem N/A',
     },
     // Story 23.9 (`60-ficha.html` #/ficha/SEC-C05, DESIGN.md › Not-applicable test): a test the nameplate
     // makes not applicable; the reason and the applied sentence are the kernel's (`testApplicability`).
