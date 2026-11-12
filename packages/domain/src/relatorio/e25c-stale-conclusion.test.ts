@@ -178,7 +178,8 @@ describe('25.7-UNIT the composed paragraph on v15', () => {
   it('a failed test reproves by itself: no "by hand" sentence, the finding and the recommendation, and a test left out still named', () => {
     const failed = stored(contactUnmeasured(insulationOut(conforming(sheet('chave_seccionadora', 'v15')))), 'reprovado', null);
     const composed = text(failed);
-    expect(composed).toContain('resistência de isolação mínima de');
+    // Story 25.10 (seed v15): every reading out is named, so none is "the" minimum.
+    expect(composed).toContain('resistência de isolação de 0,1 MΩ em ');
     expect(composed).not.toContain(REPROVED);
     expect(composed).toMatch(/\. Não medido: ensaio de resistência ôhmica de contato\. Recomenda-se a correção dos pontos indicados antes da próxima manutenção\.$/);
   });

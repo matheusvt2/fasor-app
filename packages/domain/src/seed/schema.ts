@@ -1065,6 +1065,8 @@ export const seedRulesSchema = z
     conclusion_names_choice_and_unmeasured: z.literal(true).optional(),
     /** Story 25.9 (seed v15, M05): a reading cell takes "Não se aplica" from its menu, alone or with its whole row: filled, never judged, left out of every comparison, printed "N/A". */
     reading_not_applicable: z.literal(true).optional(),
+    /** Story 25.10 (seed v15, M14 and M-6): a point started from a test, the conclusion paragraph and the parecer's Reprovado sentence name every reading out of its criterion in row order, not only the worst one. */
+    names_every_reading_out: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

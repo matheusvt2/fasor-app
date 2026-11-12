@@ -36,6 +36,7 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'warnings-before-generating.spec.ts', lane: 'queue', why: 'Story 25.12: issues a revision through the shared queue and LibreOffice to check the sheets of a removed local are absent from the DOCX' },
   { file: 'instruments-from-sheets.spec.ts', lane: 'queue', why: 'Story 25.13: issues a revision through the shared queue and LibreOffice to read section 11 of the DOCX' },
   { file: 'reading-not-applicable.spec.ts', lane: 'queue', why: 'Story 25.9: issues a revision through the shared queue and LibreOffice to read the N/A cells of the DOCX' },
+  { file: 'point-names-readings.spec.ts', lane: 'queue', why: 'Story 25.10: issues a revision through the shared queue and LibreOffice to read the point\'s readings in section 8 of the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.
   { file: 'voltage-defaults.spec.ts', lane: 'queue', why: 'Story 23.13: issues a revision through the shared queue and LibreOffice to read the TENSÃO column of the DOCX' },

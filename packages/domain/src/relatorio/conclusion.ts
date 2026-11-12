@@ -7,9 +7,9 @@ import { isValueCondition } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
-import { measurementCells, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
+import { measurementCells, outMeasurements, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
-import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, readingRowLabel, worstReadings, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
+import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, namedReadings, readingRowLabel, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
@@ -710,8 +710,10 @@ export interface ComposedConclusion {
   basis: string;
 }
 
-function readingClause(reading: WorstReading): string {
-  const phrase = TEST_WORDS[reading.testKey].phrase;
+function readingClause(reading: WorstReading, oneOfSeveral = false): string {
+  // Story 25.10 (seed v15): a reading named beside others of its test out too is not "the" minimum or maximum, so the
+  // qualifier goes ("resistência de contato de 273 µΩ em …"); authored (Story 25.10, listed for Bruno).
+  const phrase = oneOfSeveral ? TEST_WORDS[reading.testKey].phrase.replace(/ (mínima|máxima) de$/, ' de') : TEST_WORDS[reading.testKey].phrase;
   // authored (e22g, review N2, listed for Bruno): a limit the instrument passed reads "acima de 2.000 µΩ (limite do instrumento)", never "de > 2.000 µΩ".
   const value =
     reading.overRange === true && reading.valueText.startsWith(OVER_RANGE_TEXT_PREFIX)
@@ -792,7 +794,8 @@ function measurementClause(reading: WorstMeasurement, keepCase = false): string 
 /**
  * The findings of a sheet as its conclusion paragraph names them, in its order: each test's worst
  * reading out of its criterion (its rise, on a pole out by it), an IP out of its class, a failed
- * choice, each measurement test's worst cell out, each failed prerequisite.
+ * choice, each measurement test's worst cell out, each failed prerequisite. Story 25.10 (seed v15): the
+ * caller passes every reading and cell out instead of the worst ones (`namedReadings`, `namedMeasurements`).
  */
 function findingClausesOf(
   evaluations: readonly TestEvaluation[],
@@ -802,11 +805,13 @@ function findingClausesOf(
   prerequisites: readonly string[],
 ): string[] {
   const out = worst.filter((reading) => reading.verdict === 'out');
+  // Story 25.10 (seed v15): a test with several readings named (`namedReadings` with `every`).
+  const several = new Set(out.filter((reading, i) => out.findIndex((one) => one.testKey === reading.testKey) !== i).map((reading) => reading.testKey));
   // Batch e23t (Story 23.16): an IP out of its class is a failure the paragraph names with the out readings.
   const indexOut = evaluations.flatMap((test) => (test.indexOut ?? []).map((reading) => indexClause(test, reading)));
   // Batch e23e (Story 23.18): a failed choice (a polarity INVERTIDA) is a failure the paragraph names too.
   const choiceOut = evaluations.flatMap((test) => (test.choiceOut ?? []).map((one) => choiceClause(test, one)));
-  return [...out.map(readingClause), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
+  return [...out.map((reading) => readingClause(reading, several.has(reading.testKey))), ...indexOut, ...choiceOut, ...tableOut.map((reading) => measurementClause(reading, measurements.find((test) => test.testKey === reading.testKey)?.unnumbered === true)), ...prerequisites];
 }
 
 /**
@@ -818,7 +823,22 @@ function findingClausesOf(
 export function findingClauses(block: BlockRow, definition: BlockDefinition, visit: VisitContext = NO_VISIT_CONTEXT): string[] {
   const evaluations = sheetReadings(block, definition, visit);
   const measurements = sheetMeasurements(block, definition, visit);
-  return findingClausesOf(evaluations, worstReadings(evaluations), measurements, worstMeasurements(measurements), failedPrerequisites(block, definition).map(prerequisiteClause));
+  const every = namesEveryReadingOut(block);
+  return findingClausesOf(evaluations, namedReadings(evaluations, every), measurements, namedMeasurements(measurements, every), failedPrerequisites(block, definition).map(prerequisiteClause));
+}
+
+/**
+ * Story 25.10 (seed v15 `names_every_reading_out`, M-6): the conclusion paragraph and the parecer's Reprovado
+ * sentence name every reading out of its criterion, in row order, each with its place, value and reason, as a
+ * point started from the test does; v1 to v14 name each test's worst one.
+ */
+function namesEveryReadingOut(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'names_every_reading_out');
+}
+
+/** Story 25.10: the measurement cells the paragraph names: every out one with `every` (seed v15), else each test's worst. */
+function namedMeasurements(measurements: readonly MeasurementTestEvaluation[], every: boolean): WorstMeasurement[] {
+  return every ? outMeasurements(measurements) : worstMeasurements(measurements);
 }
 
 // The basis hash lives in `text/hash.ts` (shared with the parecer, Story 7.4).
@@ -850,11 +870,13 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
 
   const evaluations = sheetReadings(block, definition, visit);
   const cells = evaluatedCells(evaluations);
-  const worst = worstReadings(evaluations);
+  // Story 25.10 (seed v15): every reading out of its criterion, in row order, where v1 to v14 name each test's worst.
+  const every = namesEveryReadingOut(block);
+  const worst = namedReadings(evaluations, every);
   // Story 14.5: the measurement tests (none on the eight FO.SERV-03 types), read as the seeded tables are.
   const measurements = sheetMeasurements(block, definition, visit);
   const tableCells = measurementCells(measurements);
-  const tableOut = worstMeasurements(measurements);
+  const tableOut = namedMeasurements(measurements, every);
   // Batch e23v (Story 23.6, seed v13): a failed prerequisite is a failure the paragraph names with the out readings.
   // Fix batch e23w (W2-2): every failed prerequisite (`failedPrerequisites`), its test switched off or NA too.
   const prerequisites = failedPrerequisites(block, definition).map(prerequisiteClause);

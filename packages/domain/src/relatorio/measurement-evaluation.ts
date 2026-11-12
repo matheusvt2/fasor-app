@@ -1531,19 +1531,31 @@ export function worstMeasurements(evaluations: readonly MeasurementTestEvaluatio
       }
     }
     if (worst === null) continue;
-    const { row, cell } = worst;
-    out.push({
-      testKey: test.testKey,
-      title: test.title,
-      label: test.label,
-      where: measurementWhere(test, row, cell),
-      valueText: withUnit(cell.displayText, cell.unit),
-      criterionText: cell.criterionText ?? test.criterionText,
-      sourceName: cell.sourceName ?? test.sourceName,
-      helperText: cell.helperText ?? '',
-    });
+    out.push(measurementReading(test, worst.row, worst.cell));
   }
   return out;
+}
+
+/**
+ * Story 25.10 (seed v15, M14 and M-6): every out-of-criterion cell of every live measurement test, test by test
+ * in order and each test's in row order, named as `worstMeasurements` names a test's worst one.
+ */
+export function outMeasurements(evaluations: readonly MeasurementTestEvaluation[]): WorstMeasurement[] {
+  return liveTests(evaluations).flatMap((test) => test.rows.flatMap((row) => row.cells.flatMap((cell) => (cell.fixed === null && cell.verdict === 'out' ? [measurementReading(test, row, cell)] : []))));
+}
+
+/** One cell of a measurement test as a sentence names it (Story 25.10 drew it out of `worstMeasurements`). */
+function measurementReading(test: MeasurementTestEvaluation, row: EvaluatedMeasurementRow, cell: EvaluatedMeasurementCell): WorstMeasurement {
+  return {
+    testKey: test.testKey,
+    title: test.title,
+    label: test.label,
+    where: measurementWhere(test, row, cell),
+    valueText: withUnit(cell.displayText, cell.unit),
+    criterionText: cell.criterionText ?? test.criterionText,
+    sourceName: cell.sourceName ?? test.sourceName,
+    helperText: cell.helperText ?? '',
+  };
 }
 
 /** Seed v13 (batch e23t, Stories 23.15 and 23.19): one measurement test's restricted cells, each named with its reason. */

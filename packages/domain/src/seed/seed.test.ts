@@ -2250,6 +2250,8 @@ const E25C6_FLAGS = ['no_measurement_refuses_aprovado'] as const;
 const E25C7_FLAGS = ['conclusion_names_choice_and_unmeasured'] as const;
 /** Story 25.9's rule flag (seed v15, batch e25c): `withoutE25c9` below drops it. */
 const E25C9_FLAGS = ['reading_not_applicable'] as const;
+/** Story 25.10's rule flag (seed v15, batch e25c): `withoutE25c10` below drops it. */
+const E25C10_FLAGS = ['names_every_reading_out'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2323,7 +2325,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2352,7 +2354,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2360,6 +2362,8 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
     for (const flag of E25C7_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
     // Story 25.9: a v15 flag is off on v14.
     for (const flag of E25C9_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
+    // Story 25.10: likewise.
+    for (const flag of E25C10_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
   });
 
   // Fix batch e24y (P1, P5, F10): the three flags on, beside e24a's and e24p's, and nothing else in `rules`.
@@ -2387,14 +2391,15 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
 // Story 25.7 (batch e25c): the flag `conclusion_names_choice_and_unmeasured` (`withoutE25c7` below).
 // Story 25.8 (batch e25c): the definition key `restriction.history_rise_at_limit_restricted` (`withoutE25c8` below).
 // Story 25.9 (batch e25c): the flag `reading_not_applicable` (`withoutE25c9` below).
-const V15_HASH = 'ec3f116973083bc74fec7699a529974faaf5ef6fe9cdf00cbc1ff0239f666e8d';
+// Story 25.10 (batch e25c): the flag `names_every_reading_out` (`withoutE25c10` below).
+const V15_HASH = '2c650a81860e680cd49913258a0a7443bd712ae4dad83655cf2d02351864168b';
 
 /**
  * Story 25.5: each later Epic 25 story's delta on v15, undone, in the order `seed/v15.ts` applies them. A story
  * that adds a v15 key or rule flag adds its own `withoutE25c<N>` helper below this line and names it here, so
  * `withoutEpic25(v15)` stays v14 and "25.5-UNIT" keeps pinning that every other byte of v15 is v14's.
  */
-const EPIC25_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25c6, withoutE25c7, withoutE25c8, withoutE25c9];
+const EPIC25_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25c6, withoutE25c7, withoutE25c8, withoutE25c9, withoutE25c10];
 
 /** Story 25.6's delta undone: its flag `no_measurement_refuses_aprovado` dropped (v15 keeps v14's flags, so `rules` stays). */
 function withoutE25c6(seed: ReportSeed): ReportSeed {
@@ -2429,6 +2434,15 @@ function withoutE25c9(seed: ReportSeed): ReportSeed {
   const out = structuredClone(seed);
   if (out.rules === undefined) return out;
   for (const flag of E25C9_FLAGS) delete out.rules[flag];
+  if (Object.keys(out.rules).length === 0) delete out.rules;
+  return out;
+}
+
+/** Story 25.10's delta undone: its flag `names_every_reading_out` dropped. */
+function withoutE25c10(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  if (out.rules === undefined) return out;
+  for (const flag of E25C10_FLAGS) delete out.rules[flag];
   if (Object.keys(out.rules).length === 0) delete out.rules;
   return out;
 }

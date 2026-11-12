@@ -180,70 +180,118 @@ function rangeScore(scaled: number, range: { min: number; max: number }): number
   return -Math.min(relative(scaled - range.min, range.min), relative(range.max - scaled, range.max));
 }
 
+/**
+ * One measured capture of a test as the conclusion and the points name it, with how bad it is: its verdict's
+ * rank and its score within that rank (the worse, the higher); null for a capture no reading of the test names
+ * (empty or not a reading, a ratio row with no VAL CALCULADO, a row its own criterion leaves unjudged). Story
+ * 25.10 drew it out of `worstReadings`, which ranks with it as before, so `outReadings` names each reading the
+ * same way.
+ */
+function rankedReading(test: TestEvaluation, table: EvaluatedTable, row: EvaluatedRow, cell: EvaluatedCell): { rank: number; score: number; reading: WorstReading } | null {
+  const criterion = test.criterion;
+  if (cell.role !== 'capture' || !isReadingValue(cell.state)) return null;
+  // Batch e23v (Story 23.5): a corrected reading is judged, so ranked and named, at 20 °C.
+  const corrected = cell.corrected ?? null;
+  const value = corrected === null ? Number(cell.raw) : Number(corrected.raw);
+  const shown = corrected === null ? (cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`) : `${corrected.text}${CORRECTED_SUFFIX}`;
+  let score: number;
+  let valueText: string;
+  if (test.testKey === 'relacao_transformacao') {
+    if (row.calculated === null) return null;
+    score = deviationPct(value, Number(row.calculated.raw));
+    valueText = `${formatDeviation(score)} %`;
+  } else if (row.criterion !== undefined) {
+    // Batch e23a (Stories 23.2, 23.3): a row judged by its own criterion ranks by its reading over
+    // that criterion, so the worst is the one furthest below its minimum (or above its maximum).
+    const own = row.criterion;
+    if (own === null) return null;
+    const range = rangeOf(own);
+    if (range === null && !(own.value > 0)) return null;
+    const scaled = scaleToUnit(value, cell.unit, own.unit);
+    if (scaled === null) return null;
+    score = range !== null ? rangeScore(scaled, range) : own.operator.startsWith('>') ? -(scaled / own.value) : scaled / own.value;
+    valueText = shown;
+  } else {
+    const scaled = scaleToUnit(value, cell.unit, criterion!.unit);
+    if (scaled === null) return null;
+    const range = rangeOf(criterion!);
+    // Insulation: the lowest is the worst; contact resistance: the highest; fix batch e24x (C2): a range, the furthest outside.
+    score = range !== null ? rangeScore(scaled, range) : criterion!.operator.startsWith('>') ? -scaled : scaled;
+    valueText = shown;
+  }
+  // An out-of-criterion reading always outranks a within one; batch e23v: a restricted one sits between them.
+  const rank = VERDICT_RANK[cell.verdict ?? 'within'];
+  return {
+    rank,
+    score,
+    reading: {
+      testKey: test.testKey,
+      // Batch e23a: named by the row's own criterion where the row carries one.
+      criterionText: row.criterionText ?? test.criterionText,
+      sourceName: row.criterion?.source.name ?? test.sourceName,
+      valueText,
+      where: whereOf(table, row, cell),
+      verdict: cell.verdict,
+      ...(cell.state === 'over_range' ? { overRange: true as const } : {}),
+      ...(cell.rise === undefined ? {} : { rise: cell.rise.reason }),
+    },
+  };
+}
+
+/** Story 14.9: a test no criterion judges (a band test with no band for the plate) names no reading. */
+function namesReadings(test: TestEvaluation): boolean {
+  return test.criterion !== null || test.testKey === 'relacao_transformacao';
+}
+
 /** The worst reading of every enabled test that holds at least one measured capture. */
 export function worstReadings(evaluations: readonly TestEvaluation[]): WorstReading[] {
   const out: WorstReading[] = [];
   for (const test of evaluations) {
-    // Story 14.9: a test no criterion judges (a band test with no band for the plate) names no worst reading.
-    const criterion = test.criterion;
-    if (criterion === null && test.testKey !== 'relacao_transformacao') continue;
+    if (!namesReadings(test)) continue;
     let worst: { rank: number; score: number; reading: WorstReading } | null = null;
     for (const table of test.tables) {
       for (const row of table.rows) {
         for (const cell of row.cells) {
-          if (cell.role !== 'capture' || !isReadingValue(cell.state)) continue;
-          // Batch e23v (Story 23.5): a corrected reading is judged, so ranked and named, at 20 °C.
-          const corrected = cell.corrected ?? null;
-          const value = corrected === null ? Number(cell.raw) : Number(corrected.raw);
-          const shown = corrected === null ? (cell.unit === null ? cell.displayText : `${cell.displayText} ${cell.unit}`) : `${corrected.text}${CORRECTED_SUFFIX}`;
-          let score: number;
-          let valueText: string;
-          if (test.testKey === 'relacao_transformacao') {
-            if (row.calculated === null) continue;
-            score = deviationPct(value, Number(row.calculated.raw));
-            valueText = `${formatDeviation(score)} %`;
-          } else if (row.criterion !== undefined) {
-            // Batch e23a (Stories 23.2, 23.3): a row judged by its own criterion ranks by its reading over
-            // that criterion, so the worst is the one furthest below its minimum (or above its maximum).
-            const own = row.criterion;
-            if (own === null) continue;
-            const range = rangeOf(own);
-            if (range === null && !(own.value > 0)) continue;
-            const scaled = scaleToUnit(value, cell.unit, own.unit);
-            if (scaled === null) continue;
-            score = range !== null ? rangeScore(scaled, range) : own.operator.startsWith('>') ? -(scaled / own.value) : scaled / own.value;
-            valueText = shown;
-          } else {
-            const scaled = scaleToUnit(value, cell.unit, criterion!.unit);
-            if (scaled === null) continue;
-            const range = rangeOf(criterion!);
-            // Insulation: the lowest is the worst; contact resistance: the highest; fix batch e24x (C2): a range, the furthest outside.
-            score = range !== null ? rangeScore(scaled, range) : criterion!.operator.startsWith('>') ? -scaled : scaled;
-            valueText = shown;
-          }
-          // An out-of-criterion reading always outranks a within one; batch e23v: a restricted one sits between them.
-          const rank = VERDICT_RANK[cell.verdict ?? 'within'];
-          if (worst === null || rank > worst.rank || (rank === worst.rank && score > worst.score)) {
-            worst = {
-              rank,
-              score,
-              reading: {
-                testKey: test.testKey,
-                // Batch e23a: named by the row's own criterion where the row carries one.
-                criterionText: row.criterionText ?? test.criterionText,
-                sourceName: row.criterion?.source.name ?? test.sourceName,
-                valueText,
-                where: whereOf(table, row, cell),
-                verdict: cell.verdict,
-                ...(cell.state === 'over_range' ? { overRange: true as const } : {}),
-                ...(cell.rise === undefined ? {} : { rise: cell.rise.reason }),
-              },
-            };
-          }
+          const ranked = rankedReading(test, table, row, cell);
+          if (ranked === null) continue;
+          if (worst === null || ranked.rank > worst.rank || (ranked.rank === worst.rank && ranked.score > worst.score)) worst = ranked;
         }
       }
     }
     if (worst !== null) out.push(worst.reading);
   }
   return out;
+}
+
+/**
+ * Story 25.10 (seed v15, M14 and M-6): every reading out of its criterion (out by its rise, on a pole the rule
+ * flags), test by test in order, each test's in row order (its tables, rows and captures as the sheet draws
+ * them), named as `worstReadings` names a test's worst one.
+ */
+export function outReadings(evaluations: readonly TestEvaluation[]): WorstReading[] {
+  const out: WorstReading[] = [];
+  for (const test of evaluations) {
+    if (!namesReadings(test)) continue;
+    for (const table of test.tables) {
+      for (const row of table.rows) {
+        for (const cell of row.cells) {
+          const ranked = rankedReading(test, table, row, cell);
+          if (ranked !== null && ranked.reading.verdict === 'out') out.push(ranked.reading);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Story 25.10 (seed v15, M-6): the readings the conclusion names, in its order. With `every`, a test with a
+ * reading out of its criterion names each of them in row order (`outReadings`), any other its worst one; without,
+ * `worstReadings` as before (v1 to v14).
+ */
+export function namedReadings(evaluations: readonly TestEvaluation[], every: boolean): WorstReading[] {
+  const worst = worstReadings(evaluations);
+  if (!every) return worst;
+  const outs = outReadings(evaluations);
+  return worst.flatMap((reading) => (reading.verdict === 'out' ? outs.filter((one) => one.testKey === reading.testKey) : [reading]));
 }

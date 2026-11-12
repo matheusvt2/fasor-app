@@ -74,6 +74,19 @@ function story25_9(seed: ReportSeed): void {
   seed.rules = { ...seed.rules, reading_not_applicable: true };
 }
 
+// --- Story 25.10: a point created from a test names every reading out of its criterion ----------
+
+/**
+ * Story 25.10 (M14; M-6): the flag `names_every_reading_out`. The text a point starts with when it is created
+ * from a test (`sheetPointFindings`, `points/derived.ts`) names each reading of the test out of its criterion in
+ * row order, with its value, and the criterion once, within the point text's cap; the conclusion paragraph and
+ * the parecer's Reprovado sentence (`findingClauses`, `relatorio/conclusion.ts`) name each of them too, not only
+ * the worst one. No definition key changes.
+ */
+function story25_10(seed: ReportSeed): void {
+  seed.rules = { ...seed.rules, names_every_reading_out: true };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
@@ -82,6 +95,7 @@ function cabinePrimariaV15(): ReportSeed {
   story25_7(seed);
   story25_8(seed);
   story25_9(seed);
+  story25_10(seed);
   return seed;
 }
 

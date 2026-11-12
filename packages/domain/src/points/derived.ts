@@ -2,9 +2,9 @@ import { photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
 import { conclusionFloor, effectiveConclusionPair, restrictedItems, restrictedPointItems } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
-import { restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
+import { outMeasurements, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from '../relatorio/measurement-evaluation.ts';
 import type { TestEvaluation } from '../relatorio/reading-cells.ts';
-import { worstReadings } from '../relatorio/readings.ts';
+import { outReadings, worstReadings } from '../relatorio/readings.ts';
 import { failedPrerequisites } from '../relatorio/restriction.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
@@ -19,6 +19,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
 import { recommendationCount, recommendationsText, recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
 import { livePoints } from './checks.ts';
 import { TEXT_CAPS } from '../ops/value-limits.ts';
+import { plural } from '../text/plural.ts';
 
 /*
  * Fix batch e24h (Matheus, 2026-11-10, on Bruno's report of points created with no tap): a point of
@@ -133,6 +134,46 @@ function texts(finding: string, recommendations: readonly (string | null)[] = []
   return { text: recommendedPointText(recommendations, finding), finding, recommendations };
 }
 
+/** Story 25.10: one reading out of its criterion as a v15 point names it: its place, its value, and its criterion or its rise. */
+interface OutItem {
+  where: string;
+  value: string;
+  criterion: string;
+  rise?: string | undefined;
+}
+
+/**
+ * Story 25.10 (seed v15 `names_every_reading_out`, M14): a test's finding naming every reading out of its
+ * criterion in row order, each with its value, and the criterion once; authored (Story 25.10, listed for Bruno):
+ * "⟨Ensaio⟩ fora do critério (⟨critério⟩): ⟨linha⟩ ⟨valor⟩; ⟨linha⟩ ⟨valor⟩.". A reading out by its rise since the
+ * previous visit carries its rise; where the out readings meet different criteria, each carries its own
+ * ("(critério: …)") and the head none. A failed prerequisite, an IP out of its class and a failed choice of the
+ * same test follow, each a sentence of its own. Past the point text's cap (`TEXT_CAPS.long`) the readings that do
+ * not fit are counted ("e mais 3 leituras"), so the editor never starts a text the server refuses (e24x D2).
+ */
+function everyReadingFinding(title: string, items: readonly OutItem[], extras: readonly string[]): string {
+  const criteria = new Set(items.filter((item) => item.rise === undefined).map((item) => item.criterion));
+  const once = criteria.size === 1 ? [...criteria][0]! : null;
+  const named = items.map((item) => `${item.where} ${item.value}${item.rise !== undefined ? ` (${item.rise})` : once === null ? ` (critério: ${item.criterion})` : ''}`);
+  const head = `${title} fora do critério${once === null ? '' : ` (${once})`}`;
+  const tail = extras.map((extra) => ` ${extra.charAt(0).toLocaleUpperCase('pt-BR')}${extra.slice(1)}.`).join('');
+  const compose = (shown: number): string => {
+    const left = named.length - shown;
+    // authored (Story 25.10, listed for Bruno): the readings past the cap, counted.
+    const list = [...named.slice(0, shown), ...(left === 0 ? [] : [`e mais ${plural(left, 'leitura', 'leituras')}`])];
+    return `${head}: ${list.join('; ')}.${tail}`;
+  };
+  // The text grows with every reading shown, so the most that fit is found by halving.
+  let low = 0;
+  let high = named.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (compose(mid).length <= TEXT_CAPS.long) low = mid;
+    else high = mid - 1;
+  }
+  return compose(low);
+}
+
 /** The derived entries of one tested equipment sheet, in order: its NC rows, its out tests, its restricted tests (batch e23v), then its Reprovado. */
 function sheetEntries(
   block: BlockRow,
@@ -164,6 +205,9 @@ function sheetEntries(
   }
   const evaluations = sheetReadings(block, definition, visit);
   const readings = worstReadings(evaluations).filter((reading) => reading.verdict === 'out');
+  // Story 25.10 (seed v15): the text names every reading out of its criterion, in row order, not only the worst.
+  const every = seedRule(block.seed_version, 'names_every_reading_out');
+  const allOut = every ? outReadings(evaluations) : [];
   // Batch e23v (Story 23.6): a failed prerequisite is its test's `reading` entry, with the test's worst out reading when it has one.
   // Fix batch e23w (W2-2): read over every test that names one (`failedPrerequisites`), its sub-block off or NA by the plate too.
   const prerequisites = failedPrerequisites(block, definition);
@@ -193,6 +237,17 @@ function sheetEntries(
       reading !== undefined || prerequisite !== null || choice.length > 0 ? recommendation : null,
       index.length > 0 ? (testIndexRecommendationOf({ tests: definition.tests }, testKey) ?? recommendation) : null,
     ];
+    const title = titles.get(testKey) ?? testKey;
+    const outs = allOut.filter((one) => one.testKey === testKey);
+    const finding =
+      outs.length > 0
+        ? // Story 25.10 (seed v15): every reading out, the ratio's as its deviation, then the other failures of the test.
+          everyReadingFinding(
+            title,
+            outs.map((one) => ({ where: one.where, value: one.testKey === 'relacao_transformacao' ? `desvio de ${one.valueText}` : one.valueText, criterion: one.criterionText, rise: one.rise })),
+            [prerequisite, ...index, ...choice].filter((part): part is string => part !== null),
+          )
+        : `${title}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`;
     out.push({
       ...base,
       ...common,
@@ -202,12 +257,15 @@ function sheetEntries(
       // authored (Story 23.6, listed for Bruno): a failed prerequisite before the out reading, "; " between them.
       // authored (Story 23.11, open for Bruno): the test's recommendation first, when it has one (`recommendedPointText`);
       // a `reading` entry is a failed test (an out reading, a failed prerequisite, or both), never a `restricao` one.
-      ...texts(`${titles.get(testKey) ?? testKey}: ${[prerequisite, outText, ...index, ...choice].filter((part): part is string => part !== null).join('; ')}`, recommendations),
+      ...texts(finding, recommendations),
     });
   }
   // Batch e23t (Story 23.15): the measurement tests judged under the same visit context.
   const measurements = sheetMeasurements(block, definition, visit);
+  const tableOut = every ? outMeasurements(measurements) : [];
   for (const reading of worstMeasurements(measurements)) {
+    // Story 25.10 (seed v15): every cell out of the test, in row order, in the same form as a seeded test's.
+    const cells: readonly WorstMeasurement[] = tableOut.filter((one) => one.testKey === reading.testKey);
     out.push({
       ...base,
       ...common,
@@ -215,9 +273,16 @@ function sheetEntries(
       key: `reading:${block.id}:${reading.testKey}`,
       test_key: reading.testKey,
       // authored (Story 23.11, open for Bruno): as above, in the measurement grammar.
-      ...texts(`${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`, [
-        testRecommendationOf({ tests: [], measurement_tests: definition.measurement_tests }, reading.testKey),
-      ]),
+      ...texts(
+        cells.length > 0
+          ? everyReadingFinding(
+              reading.label,
+              cells.map((one) => ({ where: one.where, value: one.valueText, criterion: one.criterionText })),
+              [],
+            )
+          : `${reading.label}: ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText})`,
+        [testRecommendationOf({ tests: [], measurement_tests: definition.measurement_tests }, reading.testKey)],
+      ),
     });
   }
   // Fix batch e23w (W2-3): a test's restriction stands while it has a restricted reading or a rule still flags one now out
