@@ -155,7 +155,8 @@ test('@p0 25.5-E2E-001 a new relatório is born on v15: one sheet of every type 
   expect(LIBRARY).toHaveLength(5);
   for (const type of LIBRARY) expect(paletteTypes('v15').library, type).toContain(type);
   await resetEmpresaB(account, { standard: true });
-  await page.setViewportSize({ width: 1280, height: 900 });
+  // 1024 px, where the field palette lists every type as a row (as `no-break.spec.ts` and `ground-grid.spec.ts` add them).
+  await page.setViewportSize({ width: 1024, height: 900 });
   await signIn(page, account.email);
 
   // --- the new relatório, created as a person creates it, is on v15 ---
