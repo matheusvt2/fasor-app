@@ -2,10 +2,10 @@
 title: 'e25a: what is typed is saved (conclusion text, manufacturer, readings) and a sheet edit is sent by itself (Stories 25.2 and 25.3)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-review'
+status: 'done'
 baseline_revision: '203226f5545f77aebbc0b26a01c4e156002756e1'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -124,7 +124,7 @@ deferred: []
 
 ### 2026-11-11 — Review pass
 - Layers: Edge Case Hunter and Verification Gap Reviewer (opus) over the diff `203226f5..1d3e78ed`. Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
-- verdicts: 15 findings — high 0, medium 3, low 7, false 2, maybe-false 0 (VG1 to VG5 pre-verified gaps; E1 to E10 edge cases)
+- verdicts: 15 findings — high 0, medium 3, low 10, false 2, maybe-false 0 (VG1 to VG5 pre-verified gaps; E1 to E10 edge cases)
 - findings:
   - `[medium]` `[patch]` VG1: no test covers the `filePush.off` setup after a failed cycle push; with `off: false` an edit during the uploads re-runs the failed push and its retry table before each file — engine test added: the cycle's push fails, an edit is committed during the uploads, no push runs between files.
   - `[low]` `[patch]` VG2: nothing checks that `SyncProvider` wires the visible-again nudge (only `followVisible` alone is tested) — `sync.test.tsx` case added.
@@ -237,3 +237,13 @@ deferred: []
 - `drafts.tsx` `register`: after the person put the offer away, a returning draft is offered alone; test "after the person put the launch offer away".
 - `late.ts`, `late-ops.ts`, `state/sync.tsx`: the wait counts from the later of `client_ts` and when the device last became online, reaching the server and not paused (`sinceMs`); `late.test.ts` boundary case (10 min old, online 30 s: not late; 60 000 ms not, 60 001 ms late).
 
+
+**Story gate (orchestrator, 2026-11-11, on `2a862662`, origin/main `2b299da1` merged: batch e25b and contract 48):**
+- Host: load 3.66 at the start, 7.12 at the end; lock wait 0 s; e25b's stack and the main checkout's stack stopped (the coordinator's word). A first gate on `db6c2f50` was stopped before its stages ran when main moved.
+- `pnpm lint` 0 (20 s), `pnpm static` 0 (28 s), `pnpm test:unit` 438 files, 6676 passed (258 s), `pnpm test:api` 132 files, 1003 passed, 6 skipped (594 s, api restarted first).
+- Touched specs on `desktop-chrome` and `durability-desktop-chrome` (43 specs, e25b's `revision-verdicts.spec.ts` among them): 300 tests, 299 passed, 1 failed (24.10-E2E-005), 1508 s.
+- `pnpm test:e2e:matrix` (every durability spec, three projects): 168 tests, 151 passed, 16 skipped, 1 failed (e20f-DUR-001 on `durability-webkit`), 918 s.
+- The two reds rerun alone under the lock (`.scratch-e25a/reruns/`): 24.10-E2E-005 3 of 3 green; `device-clock.durability.spec.ts` on the three durability projects 36 of 36 green (e20f-DUR-001 3 of 3 on each). Their failing states and why neither is a defect of this batch: `deferred-work.md` § e25a, the gate row.
+- No golden moved, v5 to v14: this batch changes no seed and no print; `test:api` ran with main's v14 layout lock.
+
+**Follow-up review:** recommended. The loop patched three medium entries (VG1, E2, E9) and nobody re-read them: E2 (the conclusion text's refused write) and E9 (the late wait counted from when the device could send) changed product code after the review.

@@ -4049,5 +4049,20 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   summary: the Etapa 6 parecer summary uses the same Generated text field and keeps its blur-only commit and its bordered look (the frame did not draw it); whether it gets the same saving is Matheus's.
   evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx`; `apps/web/src/components/generated-text-field.tsx` (`presentation`, `commitWhileTyping`).
   class: decision
-  state: open (owner: Matheus)
+  state: open (owner: Matheus; the coordinator recommends the same correction for the parecer in a follow-up if he agrees)
+- source_spec: `spec-e25a-saving-and-sync.md` (G1, coordinator item from the Epic 24 final hands-on pass, `behaviour-pass-e24-2026-11-11.md` G1)
+  summary: a point stored with a Prazo typed by hand left a `drafts` row, so "Rascunho encontrado" came back on every load. Cause: the draft was written right after the write landed while it still compared the typed Prazo with a deadline that caught up only on the next render, and the close never wrote it again. Older than Epic 24: the same code is at production `1528183f`, from Stories 11.9 and 11.10 (`31740f59`, 2026-09-30).
+  evidence: `apps/web/src/surfaces/points/point-editor.tsx` (`storedDeadline`, `finish`); `point-editor-draft.test.tsx` G1-WEB (red on the baseline, test and NC routes); `e2e/typed-values-kept.spec.ts` G1-E2E-001.
+  class: defect
+  state: done (e25a; the "Epic 24 integrated gate" section's G1 row is closed by it)
+- source_spec: `spec-e25a-saving-and-sync.md` (Story 25.3, the late alert's clock)
+  summary: the moment the device last became able to send (`canSendSince`, `state/sync.tsx`) is read at mount on the corrected clock; on the very first load of a device whose clock is fast, before any server answer has taught the offset, it is read on the raw clock, so the alert can come late by up to the offset, on that load only (the offset is stored afterwards). Never early.
+  evidence: `apps/web/src/state/sync.tsx` (`canSendSince`); `apps/web/src/clock.ts` (`now`, `learnServerClock`).
+  class: note
+  state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e25a-saving-and-sync.md` (story gate on `2a862662`)
+  summary: two reds in the gate, both green alone. (1) `journeys-12-3-12-4.spec.ts` 24.10-E2E-005 (solo lane): the tap on "Nº série" right after "Criar" on FABRICAÇÃO found the page still inert (`pointer-events: none` while React Aria draws the list closed) after the 2 s settle of `humanTap`, so its centre hit `div.nameplate-grid`; green 3 of 3 alone. Since this batch a commit asks for a cycle 2 s later, which adds a push, a pull and a render in that settle window, so the batch adds load at that moment without a defect of its own. (2) `device-clock.durability.spec.ts` e20f-DUR-001 on `durability-webkit`: the press on Home's "Novo relatório" opened no dialog while the launch cycle's pull was drawing the relatório list (the snapshot shows it drawn); no code of this batch runs between the load and that press (no commit, no visibility change); green 3 of 3 alone on each of the three durability projects (36 of 36 for the spec).
+  evidence: `.scratch-e25a/gate/` and `.scratch-e25a/reruns/` logs of the batch (load 3.7 at the gate's start, 7.1 at its end; 2.8 to 5.4 for the reruns).
+  class: test-gap
+  state: open (owner: the wave 1 integrated gate; if either goes red again, harden it: wait for the list to be gone after "Criar" in the journey helpers, and wait for Home's list before "Novo relatório" in `createProjectFromHome`)
 
