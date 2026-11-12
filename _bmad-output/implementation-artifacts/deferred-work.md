@@ -3045,7 +3045,7 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   summary: A stricter parecer verdict, once tapped, stays stored after the fichas clear (the stored LWW object has no "follow the derived verdict" state), so the effective verdict can stay stricter than the fichas with no way back but tapping the derived one, which also stores it.
   evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx` verdict tap; `relatorio/parecer.ts` `effectiveParecer`; review finding EC8.
   class: decision
-  state: open (owner: Bruno, relayed by Matheus)
+  state: open (owner: Bruno, relayed by Matheus); 2026-11-11, batch e25b (Story 25.4): checked, not closed. Story 25.4 keeps the printed verdicts on the revision (`printed_parecer`, `printed_conclusions`) and never writes `setup.parecer`, so a stricter tapped verdict still holds after the fichas clear, as this row says; the story names this row out of scope. Still open (owner: Bruno, relayed by Matheus)
 
 ## Deferred from: Epic 22 batch e22p (2026-11-06)
 
@@ -4009,3 +4009,26 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
 - **`e2e/cta.spec.ts` 14.5-E2E-001 is sensitive to the load of the document queue.** In gate run 3 on `ee0859cc` its download did not start within 30 s (`e2e/support/download.ts:13`) in the queue lane; alone it passed 3 of 3, and it passed in run 2. Open: whether the 30 s wait should follow the document job's own bound.
 - **Process, not code.** Batches e24s and e24y changed behaviour that three specs outside their touched lists asserted (`seed-v7`, `review-concluir-text`, `sheet-knows-12-3-12-4`); the integrated gate caught them (fix batch e24z). From Epic 25 on a batch greps `e2e/` and the web tests for what it changes before its gate.
 - **The final hands-on pass of 2026-11-11** (`_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md`, findings G1 to G14), open rows: G1, a deadline typed by hand in the point editor leaves a draft behind and "Rascunho encontrado" shows on the next load (sent to batch e25a; whether it is older than Epic 24 is being checked); G4, the "Não ensaiado" band shows no link to its point once it exists; G5, a sheet whose plate TAG was typed before fix batch e24y keeps a plate TAG different from the equipment's; G6, a line break between "75" and "°C" in a note line; G7, the v14 Malha's helper still says "na placa"; G8, the Malha's conclusion ends ", sem itens verificados registrados" though the sheet has no checklist; G9, the QGBT header says "Leituras prontas" with no reading; G10, a comparison held back for a missing temperature says nothing on screen; G11, the rename toast wraps into four lines at 390 px; G12, "(critério: …, aceitável na ficha)" reads as if the rejected value were acceptable (for Bruno); G13 and G14 are older than Epic 24 (the obra's count of relatórios on the device; "Criar" offered beside an exact client name).
+
+## Deferred from: Epic 25 batch e25b (2026-11-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e25b-revision-verdicts.md` (Story 25.4, review finding ECH-3)
+  summary: On an open ficha whose floor sets a pair the technician has not chosen, `relatorioVerdicts` answers the effective pair before any issue and the printed halves (null where no X printed) once a revision records them, as the story words it ("as section 9 printed it"; "else the effective ones"). A raw count of Reprovado can therefore drop for an open sheet after an issue.
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `relatorioVerdicts`; `relatorio/conclusion.ts` `printedConclusionPair` (an open sheet prints the chosen halves).
+  class: decision
+  state: open (owner: Matheus: whether a raw reader of an open sheet takes the printed or the effective pair; no reader exists yet)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e25b-revision-verdicts.md` (Story 25.4)
+  summary: `printed_conclusions` is a record keyed by block id; the stored row is `jsonb`, which sorts the keys, so a reader takes the print order from the layout, never from the record. Said in the doc comments.
+  evidence: `apps/api/src/db/schema.ts` (`jsonb` columns); review finding VG-O1 and ECH-1.
+  class: note
+  state: done (documented)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e25b-revision-verdicts.md` (Story 25.4, matrix row "conclusion sub-block off")
+  summary: The conclusion is a locked sub-block (`LOCKED_SUB_BLOCKS`), so a config that switches it off still prints the CONCLUSÃO row; `printsConclusionRow` keeps the test for it, and 25.4-UNIT asserts the record keeps such a sheet, as section 9 does. The spec's matrix row describes a state the app cannot reach.
+  evidence: `packages/domain/src/templates/compose.ts` `enabledSubBlocks`; `print/printed-verdicts.test.ts` (c).
+  class: note
+  state: done
+- source_spec: `_bmad-output/implementation-artifacts/spec-e25b-revision-verdicts.md` (coordinator's ask, 2026-11-11)
+  summary: The v14 layout lock is taken in this batch, from the product code of 2009fa30 (main 928dad15), with `layoutLockFixture('v14')` as it stood; Story 25.5 keeps it byte-equal and adds its own second fixture.
+  evidence: `apps/api/src/jobs/generate/golden/layout-lock-v14/`; `packages/domain/fixtures/layout-lock/op-log.ts` `LAYOUT_LOCK_VERSIONS`.
+  class: note
+  state: done (owner of the second fixture: Story 25.5, batch e25c)

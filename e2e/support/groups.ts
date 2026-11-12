@@ -444,6 +444,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Fix batch e24y: issues a revision through the shared queue and LibreOffice to read that a sheet renamed after its conclusion prints the paragraph naming the new TAG',
   },
+  // Batch e25b (Story 25.4): 25.4-E2E-001 issues two revisions to read their verdicts in the DOCX and on the stored revision rows.
+  {
+    file: 'revision-verdicts.spec.ts',
+    lane: 'queue',
+    why: 'Story 25.4: issues two revisions through the shared queue and LibreOffice to read the verdicts each DOCX printed beside the ones its revision row stores',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

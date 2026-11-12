@@ -805,6 +805,17 @@ export const generationJobRowSchema = z.object({
   started_at: nullableIso.default(null),
 });
 
+/**
+ * Story 25.4 (contract 48): one ficha's pair as section 9's CONCLUSÃO row printed it, each half null
+ * where no X printed. The halves are `ConclusionResult` and `ConclusionRestriction` of
+ * `relatorio/conclusion.ts` (a type-level check in `print/printed-verdicts.ts` keeps them equal).
+ */
+export const printedConclusionSchema = z.object({
+  result: z.enum(['aprovado', 'reprovado']).nullable(),
+  restriction: z.enum(['sem_restricoes', 'com_restricoes']).nullable(),
+});
+export type PrintedConclusion = z.infer<typeof printedConclusionSchema>;
+
 export const revisionRowSchema = z.object({
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
@@ -814,6 +825,17 @@ export const revisionRowSchema = z.object({
   docx_file_id: uuidV7Schema,
   pdf_file_id: uuidV7Schema,
   created_at: isoTimestampSchema,
+  /**
+   * Story 25.4 (contract 48): the verdicts the issued document printed, computed once by the kernel
+   * (`printedVerdicts`) from the frozen snapshot the generate job rendered: the parecer as section 10
+   * printed it (null when section 10 does not print) and each ficha's pair as section 9's CONCLUSÃO
+   * row printed it, by block id. The technician's stored choices are never written. Optional and
+   * never defaulted: a revision written before 48 parses to the same bytes, and absent means "not
+   * recorded" (a reader falls back to the effective values, `relatorioVerdicts`), never Apto or
+   * Aprovado.
+   */
+  printed_parecer: parecerVerdictSchema.nullable().optional(),
+  printed_conclusions: z.record(uuidV7Schema, printedConclusionSchema).optional(),
 });
 
 /**

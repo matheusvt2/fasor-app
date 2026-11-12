@@ -60,13 +60,16 @@ import {
  * company type's sheet with a reading out and a stored point holding its recommendation, and the
  * template's own Conclusão text with part of "nos itens 8 e 9" in bold. The v5, v11 and v12 ops
  * are those they were locked with, byte for byte: every addition is reached only through
- * `EPIC24_EXTRAS`. v14 takes the same additions (it is not locked: "24.2-UNIT-SAME" compares the
+ * `EPIC24_EXTRAS`. v14 takes the same additions (~~it is not locked~~: "24.2-UNIT-SAME" compares the
  * two with v14's rule flags read off, and the later stories print their v14 deltas from it: batch
- * e24a's in `e24a-v14-print.integration.test.ts`).
+ * e24a's in `e24a-v14-print.integration.test.ts`). 2026-11-11, batch e25b (coordinator's ask, Epic 24
+ * deployed as 2009fa30, seed v14 frozen): v14 is locked too, its goldens taken from the product code of
+ * 2009fa30 (main 928dad15) with this fixture as it stands (every type v14 offers); Story 25.5 keeps
+ * them and adds its own second fixture.
  */
 
 /** The seed versions whose printed layout is locked. */
-export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13'] as const;
+export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14'] as const;
 export type LayoutLockVersion = (typeof LAYOUT_LOCK_VERSIONS)[number];
 
 /** The issue instant the DOCX golden renders with. */
