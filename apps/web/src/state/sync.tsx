@@ -340,7 +340,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     cycleRequests.add(nudge);
     // Story 25.3: a local commit asks the engine to send it (coalesced in `COMMIT_SYNC_WINDOW_MS`); fix batch e25x
     // (A2): that is a push-only pass (`pushNow`), not a whole cycle. The app coming back to the front asks a cycle.
-    const stopCommits = followCommits(() => engine.pushNow(), browserTimers);
+    const stopCommits = followCommits(() => engine.pushNow(), browserTimers, undefined, nudge);
     const stopVisible = followVisible(nudge);
     return () => {
       current = false;

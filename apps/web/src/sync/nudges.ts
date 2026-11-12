@@ -22,13 +22,20 @@ const globalTimers: Timers = {
  * `COMMIT_SYNC_WINDOW_MS`; every commit announced before it fires joins it; the timer nudges once.
  * The window is never restarted, so continuous typing never starves it.
  */
-export function followCommits(nudge: () => void, timers: Timers = globalTimers, windowMs: number = COMMIT_SYNC_WINDOW_MS): () => void {
+export function followCommits(nudge: () => void, timers: Timers = globalTimers, windowMs: number = COMMIT_SYNC_WINDOW_MS, cycle: () => void = nudge): () => void {
   let handle: unknown = null;
-  const stop = onCommit(() => {
+  // Fix batch e25x (coordinator, 2026-11-12): a window that saw a file commit (a certificate, any non-photo file)
+  // asks `cycle` once instead of `nudge`, so its bytes are uploaded now; the cycle's own push sends the ops.
+  let file = false;
+  const stop = onCommit((kind) => {
+    if (kind === 'file') file = true;
     if (handle !== null) return;
     handle = timers.setTimeout(() => {
       handle = null;
-      nudge();
+      const whole = file;
+      file = false;
+      if (whole) cycle();
+      else nudge();
     }, windowMs);
   });
   return () => {

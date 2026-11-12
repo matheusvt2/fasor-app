@@ -14,7 +14,13 @@
  */
 export const COMMIT_SYNC_WINDOW_MS = 2_000;
 
-type Listener = () => void;
+/**
+ * Fix batch e25x (coordinator, 2026-11-12): what a commit left to send. `ops`: outbox ops only. `file`: also a
+ * file's bytes (a certificate, any non-photo file), which only a full cycle uploads.
+ */
+export type CommitKind = 'ops' | 'file';
+
+type Listener = (kind: CommitKind) => void;
 
 const listeners = new Set<Listener>();
 
@@ -27,10 +33,10 @@ export function onCommit(listener: Listener): () => void {
 }
 
 /** Called by `db/commit.ts` after a transaction that wrote at least one outbox op has committed. */
-export function announceCommit(): void {
+export function announceCommit(kind: CommitKind = 'ops'): void {
   for (const listener of [...listeners]) {
     try {
-      listener();
+      listener(kind);
     } catch (error) {
       console.error('commit listener failed', error);
     }

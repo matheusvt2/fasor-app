@@ -46,6 +46,24 @@ function handClock(): { timers: Timers; advance(ms: number): void; pending(): nu
 }
 
 describe('25.3-WEB the commit window', () => {
+  it('e25x: a window that saw a file commit asks for one full cycle and no push-only pass; the next window of plain commits asks a pass', () => {
+    const clock = handClock();
+    const push = vi.fn();
+    const cycle = vi.fn();
+    const stop = followCommits(push, clock.timers, COMMIT_SYNC_WINDOW_MS, cycle);
+    announceCommit();
+    announceCommit('file');
+    announceCommit();
+    clock.advance(COMMIT_SYNC_WINDOW_MS);
+    expect(cycle).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
+    announceCommit();
+    clock.advance(COMMIT_SYNC_WINDOW_MS);
+    expect(cycle).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
   it('ten commits within one second ask for one cycle, two seconds after the first; the window is not restarted', () => {
     const clock = handClock();
     const nudge = vi.fn();
