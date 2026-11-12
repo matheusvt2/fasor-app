@@ -218,3 +218,12 @@ There are at most two batch stacks up at a time (the 2026-10-08 load rules). Eac
 - **After each wave:** `podman compose restart api web`, then one integrated gate on main (`pnpm test:e2e`, `test:e2e:full` and the matrix), then the two-pass integrated review, then one fix batch if needed.
 - **Before each deploy:** the hands-on pass in the browser on the integrated main, its report tracked under `_bmad-output/test-artifacts/manual/`; the "before the deploy" rows of `deferred-work.md`. Before the last one, also the paid checks.
 - **Deploys.** Wave 1 alone. Then one after the last wave, where seed v15 freezes. Each on Matheus's word.
+
+## Wave 1 record (2026-11-12)
+
+Wave 1 (e25a, e25b, fix batches #329 and #330) is on main and NOT deployed; production still runs `2009fa30`.
+
+- **Final gate on `6b09992a`, 2026-11-12:** lint and static clean; `test:api` 1010 passed, 6 skipped; `test:unit` 6779 of 6779; `test:e2e:full` 721 of 725, 0 failed, 4 skipped; matrix 152 passed, 0 failed, 16 skipped.
+- **First wave gate on `132ad4a1`:** 1 unit red (known flaky, E24-A4) and 4 e2e reds. 18.1-E2E-002 had a real cause (the telemetry flush against the push limiter), fixed in #329; the other three passed 3 of 3 on #329's head. Host load line: not recorded for these runs.
+- **Hands-on pass, 2026-11-12, local dev company:** a reading typed and left at once, by the tree and by browser back, is kept; no "Rascunho encontrado"; the badge went from "1 pendente" to "sincronizado" by itself with one push.
+- **Read-only production count, 2026-11-12 (production on `2009fa30`):** 32 equipment with results, 0 with a prior entry whose plate is unknown, 3 top entries unknown; no backfill needed.
