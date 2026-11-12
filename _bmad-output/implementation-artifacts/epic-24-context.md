@@ -362,7 +362,53 @@ Gaps not sent, kept here: no test presses "Ditar o motivo" (24.14); with the No-
 
 **The paid plate eval of `bedrock-structuring-9`** (not run; it needs Matheus's word). On the sample `plate-no-break-comando` in `apps/api/src/scripts/eval-samples.ts`: the 15 printed values come back; the battery maker, model and date stay empty, with no leak of the unit's own maker and model; the battery quantity is 10 from "10 x 12 V 7 Ah", with 12 V and 7 Ah in their fields; 3000 VA and 2700 W are not swapped; the input and output types read "Vca" and "Vcc". Every other sample scores as under prompt 8.
 
-**What follows.** Fix batch e24x (`spec-e24x-review-fixes.md`, in build on 2026-11-11) merges main and takes contract 48 if it needs a number. Then: the integrated gate on main, a read of e24x's patches, the hands-on pass in the browser with its report under `_bmad-output/test-artifacts/manual/`, the paid eval and the v14 golden, and the deploy on Matheus's word. An early hands-on pass on `716e26b8` runs beside the fix batch; its findings go to e24x or to a second fix batch.
+*(2026-11-11, later: done; see "Fix batches, the integrated gate and the passes" below.)* **What follows.** Fix batch e24x (`spec-e24x-review-fixes.md`, in build on 2026-11-11) merges main and takes contract 48 if it needs a number. Then: the integrated gate on main, a read of e24x's patches, the hands-on pass in the browser with its report under `_bmad-output/test-artifacts/manual/`, the paid eval and the v14 golden, and the deploy on Matheus's word. An early hands-on pass on `716e26b8` runs beside the fix batch; its findings go to e24x or to a second fix batch.
+
+## Fix batches, the integrated gate and the passes (2026-11-11)
+
+*(2026-11-11, coordinator.)* What happened after the integrated review, in order.
+
+| Step | PR | Merged as | Contract | What it is |
+| --- | --- | --- | --- | --- |
+| Fix batch e24x | #317, head `7331e624` | `76c74711` | none (47 stays) | The integrated review's findings A1 to E1 and the gaps G1 to G4; its own review (X1 to X7). B4 was stopped and B2 is a ledger row. |
+| Fix batch e24y | #319, head `c2243c43` | `7773aafa` | none | The early hands-on pass's findings (P1 to P7), Bruno's corrected sentences, the QGBT thermography title and the tolerance's form (P8 to P10); its own review (Y1 to Y8). |
+| Fix batch e24z | #322, head `e3a275bf` | `ee0859cc` | none | The integrated gate's reds: tests only. |
+
+**Seed v14 after the fix batches.** Three more `rules` flags, all from e24y: `paired_tables_fit_whole`, `history_needs_like_with_like`, `empty_steps_hidden`; and one definition key on the Inspeção de QGBT, `measurement_tests_unnumbered`. `V14_HASH` is re-pinned and `withoutE24y` strips them. No golden and no fixture op moved in any of the three batches.
+
+**The integrated gate** ran three times on main, each as `lint`, `static`, `test:api`, `test:unit`, `test:e2e:full` and `test:e2e:matrix` under the host lock.
+
+| Run | Main | Result |
+| --- | --- | --- |
+| 1 | `76c74711` | No result. It ran beside a building batch: the load reached 32, the stack's Postgres restarted and the api did not come back. Lint and static were clean. |
+| 2 | `7773aafa` | lint and static clean; test:api 995 passed; test:unit 6592 of 6593; test:e2e:full 707 of 716 with 5 failed; matrix 152 passed, 0 failed. Three reds were specs that still asserted the behaviour from before e24s and e24y (`review-concluir-text`, `sheet-knows-12-3-12-4`, `seed-v7`); two specs and the unit test passed alone. They became fix batch e24z. |
+| 3 | `ee0859cc` | **Accepted.** lint 0 errors; static clean; test:api 995 passed, 6 skipped; test:unit 6593 of 6593; test:e2e:full 711 of 716, 4 skipped and 1 failed (`cta.spec.ts` 14.5-E2E-001: the download did not start within 30 s in the queue lane; alone it passed 3 of 3); matrix 152 passed, 0 failed, 16 skipped. |
+
+`origin/main` after run 3 differs from `ee0859cc` by documentation only (the Epic 25 frames).
+
+**What the gate taught.** A batch's list of touched specs misses the specs that assert the old behaviour of what it changes. From Epic 25 on, a batch greps `e2e/` and the web tests for the strings, op paths and behaviours it changes before its gate. And the integrated gate never runs beside a building batch.
+
+**The hands-on passes.** `_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md` holds both: the early pass on `716e26b8`, whose findings F1 to F17 fed fix batch e24y, and the final pass on `ee0859cc`. It found no High defect and nothing that should stop a deploy; its three Medium findings are G1 (a deadline typed by hand in the point editor leaves a draft behind, so "Rascunho encontrado" shows on the next load; sent to batch e25a of Epic 25), G2 (a TAG rename is not carried to the conclusion text of the same equipment in another open relatório of the obra; ledger row of e24y, and Story 25.7 will block issuing with a stale text) and G3 (an NC row offers a second point; Matheus decided an item may carry several).
+
+**Matheus's words of 2026-11-11 on what the coordinator had built on its own reading:** an older visit issued late must not print a later visit as the previous one (D3) and the correction of a reading above the instrument's limit applies on every seed (X7), both "pode mergear e seguir"; an NC item may carry several points (F4), nothing changes.
+
+**Still open to Matheus from the fix batches** (each has its ledger row): the "Marcar como …?" form for the other preview pills (only "Reprovado" changed); the seeded criteria keep "±" and ">=" as they print today; another open relatório of the same obra keeps the old TAG's text after a rename (Y6); the helper "Sugestão do app. Troque pela TAG da placa…" stays after a rename typed in the plate's field; the band "Aplicado por você. Equipamento fora de carga." was not changed, because Bruno's replacement reverses its meaning (a question for him); B4, a company copy never binds its base type's equipment.
+
+**Ledger rows added here** (`deferred-work.md` § "Epic 24 integrated gate"): the api process exits when its database restarts and does not come back in compose; `cta.spec.ts` 14.5-E2E-001 is sensitive to the load of the document queue.
+
+**Before the deploy:** the paid plate eval of `bedrock-structuring-9` and the v14 golden, then the deploy and the release, each on Matheus's explicit word.
+
+## Deploy (2026-11-11)
+
+*(2026-11-11, coordinator.)* Matheus's word: "pode seguir com os testes e deploy. O achado não atrasa o deploy mas precisamos corrigir". The finding is G1 of the final hands-on pass (a deadline typed by hand in the point editor leaves a draft behind); its fix is in batch e25a of Epic 25.
+
+- **The paid plate eval** of `bedrock-structuring-9`, on `2009fa30`, with Haiku 4.5 and Nova Pro (`apps/api/src/scripts/bedrock-eval.ts`, OCR Textract):
+  - Synthetic, 16 plates: Haiku 97,9 % of the fields (95 of 97), Nova Pro 97,9 % (95 of 97); a second run with per-plate detail gave Nova Pro 94 of 97. No reading failed; every citation was valid.
+  - The No-break plate (`plate-no-break-comando`): 15 of 15 fields on both models, with 15 cited values, so nothing was invented for the battery maker, model or date.
+  - Six real plates: Haiku 5 of 6, Nova Pro 5 of 6. The sixth reads no vector group on either model; it is the plate of E21-A2. On prompt 8 (2026-11-10) the figures were Haiku 5 of 6 and Nova Pro 6 of 6, and 97,6 % and 98,8 % on 15 synthetic plates. The older plates' prompt text did not change.
+- **The deploy.** `2009fa30` (the gated `ee0859cc` plus documentation) went to production on 2026-11-11 (23:26 to 23:52 UTC) through `infra/bin/deploy`. Health was up on every component. The smoke passed 8 of 8. The usage-event check found 6 `session_start` with the new `app_version` and 0 `ux_event_sink_failed`. The api logged "template seeds upgraded" once and no error event in the 40 minutes after the roll. The image tag before it was `1528183f`.
+- **Seed v14 is frozen from here.** Contract 47, minimum 47. A change to seed content or to printed text now needs seed v15 (Epic 25, Story 25.5), and the v14 layout lock is taken from `2009fa30`.
+- **Tag** `v0.9.0` is on `2009fa30`. The release page waits for Matheus's word.
 
 ## Batch plan
 
