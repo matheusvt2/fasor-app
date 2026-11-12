@@ -3858,7 +3858,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: a reading above the instrument's limit inside a range criterion withholds the ficha's floor and the paragraph reads "a conferir", but its cell carries no helper saying why: e24f R-1's "Conferir: leitura sem comparação com as outras fases, sem critério aplicado" names the other phases and does not fit. Proposed sentence for Bruno: "Conferir: o limite do instrumento está dentro da faixa do critério; meça com outra escala." Not authored in code.
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` (the over-range cells an absolute criterion leaves unjudged); `relatorio/conclusion.ts` `overRangeUnjudged`.
   class: decision
-  state: open (owner: Bruno, through Matheus)
+  state: closed 2026-11-12 (batch e25c, Story 25.9 built the proposed sentence on every seed; Bruno's confirmation B-6 still open) | was open (owner: Bruno, through Matheus)
 - source_spec: `spec-e24x-review-fixes.md` (review X8)
   summary: D1 on the Não ensaiado band (the editor kept open through its autosave, the focus on "Desfazer") has a web test over a live snapshot but no end-to-end step.
   evidence: `apps/web/src/surfaces/ficha/point-place.test.tsx`; `e2e/points.spec.ts`.
@@ -3868,7 +3868,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: nothing tests what the sheet shows for a reading "a conferir" because of C1 (a limit inside a range): no helper exists for it (X6), and no web test pins the cell.
   evidence: `apps/web/src/surfaces/ficha/measurement-test-section.tsx`.
   class: test-gap
-  state: open (owner: with X6's sentence)
+  state: closed 2026-11-12 (batch e25c, Story 25.9: web test pins the cell) | was open (owner: with X6's sentence)
 - source_spec: `spec-e24x-review-fixes.md` (review X8)
   summary: no test runs three hung push attempts of one sync cycle against the capped bound (about 18 min).
   evidence: `apps/web/src/sync/engine.ts` (`withRetry` of the push); `apps/web/src/sync/client.test.ts`.

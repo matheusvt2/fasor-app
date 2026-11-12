@@ -91,23 +91,44 @@
     "kind": "setup_missing"
   },
   {
+    "id": "calibration_missing:019966c0-0000-7000-8000-000000000005",
+    "row": "section_11",
+    "severity": "pending",
+    "text": "2E: sem data de calibração",
+    "kind": "calibration_missing"
+  },
+  {
+    "id": "calibration_missing:019966c0-0000-7000-8000-000000000006",
+    "row": "section_11",
+    "severity": "pending",
+    "text": "3M: sem data de calibração",
+    "kind": "calibration_missing"
+  },
+  {
+    "id": "calibration_missing:019966c0-0000-7000-8000-000000000007",
+    "row": "section_11",
+    "severity": "pending",
+    "text": "1T: sem data de calibração",
+    "kind": "calibration_missing"
+  },
+  {
     "id": "certificate_missing:019966c0-0000-7000-8000-000000000005",
     "row": "section_11",
-    "severity": "info",
+    "severity": "pending",
     "text": "2E sem certificado",
     "kind": "certificate_missing"
   },
   {
     "id": "certificate_missing:019966c0-0000-7000-8000-000000000006",
     "row": "section_11",
-    "severity": "info",
+    "severity": "pending",
     "text": "3M sem certificado",
     "kind": "certificate_missing"
   },
   {
     "id": "certificate_missing:019966c0-0000-7000-8000-000000000007",
     "row": "section_11",
-    "severity": "info",
+    "severity": "pending",
     "text": "1T sem certificado",
     "kind": "certificate_missing"
   }
