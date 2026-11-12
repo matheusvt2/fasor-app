@@ -45,7 +45,8 @@ import { sectionBlocks } from './sumario.ts';
  * preenchido" (section 10) ~~(Story 22.6, 2026-11-06: the verdict is derived from the fichas,
  * so it is never missing and no row blocks)~~ (e22f S5: only while no sheet is concluded and
  * no verdict was tapped, `effectiveParecer` null); everything else warns and the document
- * prints its consequence.
+ * prints its consequence. Story 25.7 (M20, every seed): a second one, `conclusion_stale`, a
+ * concluded sheet whose stored conclusion text is stale, named with the sheets it leads to.
  * The `sync` rows (rejected ops, the other devices' last send) are what no Sumário row can
  * say: only the Export dialog draws them.
  */
@@ -98,6 +99,17 @@ export interface PreIssueRow {
   /** pt-BR, ready to render. */
   text: string;
   kind: PreIssueKind;
+  /**
+   * Story 25.7: the sheets a `conclusion_stale` row names, in its order, so the Export dialog's
+   * "Abrir ficha" leads to each; absent on every other row.
+   */
+  sheets?: readonly PreIssueSheet[];
+}
+
+/** Story 25.7: a sheet a pre-issue row names: its block and the name the row prints (the TAG, else the type). */
+export interface PreIssueSheet {
+  blockId: string;
+  name: string;
 }
 
 // authored: the mocks draw the cover row only when it is complete; these name the gaps in
@@ -229,7 +241,7 @@ export function conclusionStaleText(names: readonly string[]): string {
  * sheet with no printable text is `conclusion_unconfirmed`'s, never this row's; a sheet whose
  * seed this device does not ship is skipped (nothing to compose it against).
  */
-function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
+function staleConclusionSheets(snapshot: RelatorioSnapshot): PreIssueSheet[] {
   const tags = new Map(snapshot.equipment.map((row) => [row.id, row.tag]));
   const ctx = snapshotDefinitionContext(snapshot);
   const stale = new Set<string>();
@@ -245,18 +257,18 @@ function staleConclusionNames(snapshot: RelatorioSnapshot): string[] {
     if (conclusionTextState(block, composeConclusion(block, definition, tag, visit)) === 'stale') stale.add(block.id);
   }
   if (stale.size === 0) return [];
-  const names: string[] = [];
+  const sheets: PreIssueSheet[] = [];
   for (const node of sheetOrder(snapshot)) {
     if (!stale.delete(node.blockId)) continue;
-    names.push(node.name);
+    sheets.push({ blockId: node.blockId, name: node.name });
   }
   // A sheet the tree does not draw (no live location) is still named, after the others.
   for (const block of snapshot.blocks) {
     if (!stale.has(block.id)) continue;
     const tag = block.equipment_id === null ? '' : (tags.get(block.equipment_id) ?? '');
-    names.push(tag !== '' ? tag : (blockDefinitionIn(ctx, block)?.label ?? block.block_type));
+    sheets.push({ blockId: block.id, name: tag !== '' ? tag : (blockDefinitionIn(ctx, block)?.label ?? block.block_type) });
   }
-  return names;
+  return sheets;
 }
 
 /** "3 com erro de envio": section 7's photos whose upload stopped with an error on this device. */
@@ -451,10 +463,18 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: 'conclusion_unconfirmed', row: 'section_9', severity: 'pending', text: conclusionUnconfirmedText(unconfirmed), kind: 'conclusion_unconfirmed' });
   }
   // Review 2026-10-08 AIB-1: a concluded sheet whose stored text went stale (a value or the
-  // TAG changed since its confirm); "Substituir" on the sheet clears it.
-  const staleNames = staleConclusionNames(snapshot);
-  if (staleNames.length > 0) {
-    rows.push({ id: 'conclusion_stale', row: 'section_9', severity: 'pending', text: conclusionStaleText(staleNames), kind: 'conclusion_stale' });
+  // TAG changed since its confirm); "Substituir" on the sheet clears it. Story 25.7 (M20, every
+  // seed): it blocks the issue, here and on the server, and names the sheets it leads to.
+  const staleSheets = staleConclusionSheets(snapshot);
+  if (staleSheets.length > 0) {
+    rows.push({
+      id: 'conclusion_stale',
+      row: 'section_9',
+      severity: 'blocking',
+      text: conclusionStaleText(staleSheets.map((sheet) => sheet.name)),
+      kind: 'conclusion_stale',
+      sheets: staleSheets,
+    });
   }
   for (const finding of integrityFindings({ equipment: snapshot.equipment })) {
     rows.push({
@@ -615,7 +635,7 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
 ]);
 
 export interface ExportPrecheck {
-  /** The rows that stop "Gerar relatório" (only "Parecer não preenchido", e22f S5). */
+  /** The rows that stop "Gerar relatório" ("Parecer não preenchido", e22f S5; Story 25.7, a stale conclusion text). */
   blocking: PreIssueRow[];
   /** The rows the dialog draws one per line. */
   explicit: PreIssueRow[];
@@ -668,6 +688,26 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
 export function parecerMissingReason(number: number, line: number | null): string {
   const where = line === null ? '' : ` (linha ${line} do sumário)`;
   return `Preencha o parecer${where} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
+}
+
+/**
+ * Story 25.7 (`73-exportar.html` `#exportar-gen-blocked-reason`, Story 25.1 Part B): the reason beside a
+ * blocked "Gerar relatório", naming every blocking row: the parecer alone (`parecerMissingReason`), a stale
+ * conclusion text alone, or both, as the mock reads them ("Preencha o parecer (linha 10 do sumário) e
+ * atualize o texto da conclusão de SEC-C05 para emitir a revisão 3. O rascunho pode ser visto antes.").
+ * Null with no blocking row.
+ */
+export function issueBlockedReason(blocking: readonly PreIssueRow[], number: number, parecerLine: number | null): string | null {
+  if (blocking.length === 0) return null;
+  const names = blocking.flatMap((row) => (row.kind === 'conclusion_stale' ? (row.sheets ?? []).map((sheet) => sheet.name) : []));
+  const parecer = blocking.some((row) => row.kind === 'parecer_missing');
+  if (names.length === 0) return parecerMissingReason(number, parecerLine);
+  // authored: Story 25.7, the stale texts the mock names ("atualize o texto da conclusão de SEC-C05"), and their plural.
+  const texts = `${names.length === 1 ? 'o texto da conclusão' : 'os textos da conclusão'} de ${listPtBr(names)}`;
+  const where = parecerLine === null ? '' : ` (linha ${parecerLine} do sumário)`;
+  // authored: Story 25.7, the stale text alone opens the sentence with its verb.
+  const ask = parecer ? `Preencha o parecer${where} e atualize ${texts}` : `Atualize ${texts}`;
+  return `${ask} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
 }
 
 /**

@@ -84,6 +84,12 @@ export interface SumarioRow {
   title: string;
   /** `.sum-status`. */
   meta: string;
+  /**
+   * Story 25.7 (`40-relatorio-overview.html` row 9, Story 25.1 Part B): `meta` in its parts, when a
+   * blocking part stands among others on section 9: only that part is drawn in the blocking red
+   * (`.sum-status .is-blocking`), not the whole line. Absent on every other row, which draws `meta`.
+   */
+  metaParts?: readonly SumarioMetaPart[];
   blocking: boolean;
   /** Any pending or blocking pre-issue row addresses it (the mock's `.has-pend`). */
   pending: boolean;
@@ -103,7 +109,30 @@ export interface SumarioRow {
   virtual: boolean;
 }
 
+/** Story 25.7: one part of a row's `meta`, and whether it blocks the issue. */
+export interface SumarioMetaPart {
+  text: string;
+  blocking: boolean;
+}
+
 const SEP = ' · ';
+
+/**
+ * Story 25.7 (`40-relatorio-overview.html` row 9): section 9's pre-issue rows as the row draws them when one
+ * blocks (a stale conclusion text): each in its order, the blocking one followed by "— impede gerar". Null
+ * while none blocks, so the row reads as before.
+ */
+function section9MetaParts(issues: readonly PreIssueRow[]): SumarioMetaPart[] | null {
+  if (!issues.some((row) => row.severity === 'blocking')) return null;
+  // authored: Story 25.7, the mock's "Texto de conclusão desatualizado: SEC-C05 — impede gerar".
+  return issues.map((row) => (row.severity === 'blocking' ? { text: `${row.text} — impede gerar`, blocking: true } : { text: row.text, blocking: false }));
+}
+
+/** Story 25.7: `metaParts` of a numbered row, set only on section 9 while a part of it blocks. */
+function metaPartsOf(blockType: string, issues: readonly PreIssueRow[]): { metaParts?: readonly SumarioMetaPart[] } {
+  const parts = blockType === 'section_9' ? section9MetaParts(issues) : null;
+  return parts === null ? {} : { metaParts: parts };
+}
 
 /** The rows that still ask for something: pending or blocking, never a plain warning. */
 function pendingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
@@ -218,7 +247,12 @@ export function sectionBlocks(blocks: readonly BlockRow[]): BlockRow[] {
 function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: readonly PreIssueRow[], computed: Progress, snapshot: RelatorioSnapshot): string {
   const kind = isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text';
   const own = issues.map((row) => row.text);
-  if (block.block_type === 'section_9') return own.length > 0 ? join(own) : progressCounterText(computed);
+  if (block.block_type === 'section_9') {
+    // Story 25.7: a blocking part reads as its row draws it ("— impede gerar").
+    const parts = section9MetaParts(issues);
+    if (parts !== null) return join(parts.map((part) => part.text));
+    return own.length > 0 ? join(own) : progressCounterText(computed);
+  }
   // Story 6.6: row 8 always counts its entries; the "sem ação" count is already in that
   // line, so only the rows naming a point with a removed photo follow it, and (Story 11.10)
   // the "pontos sem prazo" count.
@@ -321,6 +355,7 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       number: i + 1,
       title: sectionRowTitle(block.block_type),
       meta: metaOfSection(block, own, computed, snapshot),
+      ...metaPartsOf(block.block_type, own),
       blocking: blockingRows(own).length > 0,
       pending: pendingRows(own).length > 0,
       blockId: block.id,
@@ -353,6 +388,7 @@ function virtualSectionRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       number: i + 1,
       title: sectionRowTitle(type),
       meta: metaOfSection({ block_type: type, config: null }, own, computed, snapshot),
+      ...metaPartsOf(type, own),
       blocking: blockingRows(own).length > 0,
       pending: pendingRows(own).length > 0,
       blockId: null,

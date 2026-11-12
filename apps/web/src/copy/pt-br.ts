@@ -783,6 +783,11 @@ export const copy = {
     blockingWhere: (section: string) => ` — ${section} `,
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
+    // Story 25.7, verbatim from `73-exportar.html` `#exportar-pc-stale` (Story 25.1 Part B): the stale conclusion text's row.
+    staleMeta: '(os valores da ficha mudaram depois do texto; Substituir ou editar o texto na ficha)',
+    openSheet: 'Abrir ficha',
+    // authored (Story 25.7): with several stale sheets, each "Abrir ficha" names its sheet for assistive tech.
+    openSheetNamed: (name: string) => `Abrir ficha ${name}`,
     seeInSumario: 'Ver no sumário',
     // Story 25.12 (`73-exportar.html`, Story 25.1 Part B): where a named warning stands; `section` is the kernel's `sectionRefText`.
     warningWhere: (section: string) => `— ${section}`,

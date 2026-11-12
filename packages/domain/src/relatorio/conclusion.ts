@@ -606,6 +606,35 @@ const NOUNS: Readonly<Record<EquipmentBlockType, { noun: string; plural: boolean
 // authored: the recommendation that follows a restricted or failed result.
 const RECOMMENDATION = 'Recomenda-se a correção dos pontos indicados antes da próxima manutenção.';
 
+// --- Story 25.7 (seed v15 `conclusion_names_choice_and_unmeasured`; M20, F12) -------------------
+
+// authored (Story 25.7, listed for Bruno): a Reprovado the technician chose over a floor that does not reprove.
+const REPROVED_BY_HAND = 'Ficha reprovada por avaliação do responsável técnico, conforme as observações.';
+// authored (Story 25.7, F12, listed for Bruno): Com restrições chosen over a sheet that indicates no point to correct.
+const RESTRICTED_BY_HAND = 'Ficha aprovada com restrições por avaliação do responsável técnico, conforme as observações.';
+// authored (Story 25.7, listed for Bruno): "Não medido: ⟨ensaio⟩, ⟨ensaio⟩."
+const unmeasuredSentence = (names: readonly string[]): string => `Não medido: ${names.join(', ')}.`;
+
+/** Story 25.7: the flag of the block's own seed (a company block carries its relatório's). */
+function namesChoiceAndUnmeasured(block: Pick<BlockRow, 'seed_version'>): boolean {
+  return seedRule(block.seed_version, 'conclusion_names_choice_and_unmeasured');
+}
+
+/**
+ * Story 25.7 (seed v15): the live, applicable tests whose reading cells hold at least one "Não medido" and no
+ * value (measured or above the instrument's limit), in sheet order, as the paragraph names them: a seeded test by
+ * its heading ("ensaio de resistência ôhmica de contato"), a measurement test by its label. The cells read are
+ * Story 25.6's (`noMeasurementOn`), one test at a time; a cell in any other state (N/A, Story 25.9) is left out.
+ */
+function unmeasuredTests(evaluations: readonly TestEvaluation[], measurements: readonly MeasurementTestEvaluation[]): string[] {
+  const unmeasured = (states: readonly string[]) => states.includes('not_measured') && !states.some((state) => isReadingValue(state));
+  const seeded = evaluations.filter((test) => unmeasured(evaluatedCells([test]).filter((cell) => cell.role !== 'input').map((cell) => cell.state))).map((test) => test.title.toLocaleLowerCase('pt-BR'));
+  const tables = measurements
+    .filter((test) => unmeasured(measurementCells([test]).filter((cell) => cell.kind === 'number').map((cell) => cell.state)))
+    .map((test) => (test.unnumbered === true ? `${test.label.charAt(0).toLocaleLowerCase('pt-BR')}${test.label.slice(1)}` : test.label.toLocaleLowerCase('pt-BR')));
+  return [...seeded, ...tables];
+}
+
 /**
  * e23f (the production check of 2026-11-07): an NC observation as the clause before "(item N,
  * NC)" reads it, without its final period(s), so "acúmulo de poeira." never prints "poeira. (item
@@ -882,7 +911,23 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
 
   // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
   const { result, restriction } = effectiveConclusionPair(block, definition, visit);
-  const recommend = restriction === 'com_restricoes' || result === 'reprovado';
+  const recommendation = restriction === 'com_restricoes' || result === 'reprovado';
+  // Story 25.7 (seed v15, M20 and F12): the paragraph names each test left unmeasured; a Reprovado stricter
+  // than the floor says the responsible reproved the ficha and points to OBSERVAÇÕES; Com restrições chosen over
+  // a sheet whose paragraph indicates no point says so too; and the recommendation to correct "os pontos
+  // indicados" follows only a paragraph that indicates one. v1 to v14 read as before.
+  const v15Text = namesChoiceAndUnmeasured(block);
+  const unmeasured = v15Text ? unmeasuredTests(evaluations, measurements) : [];
+  const indicatesPoints = outClauses.length > 0 || restricted.length > 0 || ncs.length > 0;
+  const floorResult = v15Text ? (conclusionFloor(block, definition, visit)?.pair.result ?? null) : null;
+  const byHand: 'reprovado' | 'com_restricoes' | null = !v15Text
+    ? null
+    : result === 'reprovado' && floorResult !== 'reprovado'
+      ? 'reprovado'
+      : result === 'aprovado' && restriction === 'com_restricoes' && !indicatesPoints
+        ? 'com_restricoes'
+        : null;
+  const recommend = recommendation && (!v15Text || indicatesPoints);
   const verb = noun.plural ? 'apresentaram' : 'apresentou';
   // authored (OQ-3 placeholder): the sentence states only what exists.
   const body =
@@ -896,7 +941,11 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
             ? `${verb} ${checklist}`
             : `${verb} ${checklist}, sem valores medidos registrados`
           : `não ${verb} valores medidos nem itens verificados registrados`;
-  const text = `${subject} ${body}.${recommend ? ` ${RECOMMENDATION}` : ''}`;
+  const v15Sentences = [
+    ...(unmeasured.length === 0 ? [] : [unmeasuredSentence(unmeasured)]),
+    ...(byHand === 'reprovado' ? [REPROVED_BY_HAND] : byHand === 'com_restricoes' ? [RESTRICTED_BY_HAND] : []),
+  ];
+  const text = `${subject} ${body}.${v15Sentences.map((sentence) => ` ${sentence}`).join('')}${recommend ? ` ${RECOMMENDATION}` : ''}`;
 
   const criteriaItems = [
     // Story 24.9 (F19): a pole out by its rise names the rise with the previous value ("Critérios usados" is screen only), as the paragraph does.
@@ -934,6 +983,10 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
       })),
       nc: ncs,
       ...(prerequisites.length === 0 ? {} : { prerequisites }),
+      // Story 25.7 (seed v15): the tests named as not measured and a choice named as the responsible's join
+      // only where present, so every basis of v1 to v14 (and of a v15 sheet without them) keeps its bytes.
+      ...(unmeasured.length === 0 ? {} : { unmeasured }),
+      ...(byHand === null ? {} : { by_hand: byHand }),
       // Story 14.5: only a type with measurement tests adds its key, so the basis of every
       // sheet of the eight (and every `text_basis` already stored) is the bytes it always was.
       ...(measurements.length === 0

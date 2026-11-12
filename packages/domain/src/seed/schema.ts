@@ -1052,6 +1052,8 @@ export const seedRulesSchema = z
     empty_steps_hidden: z.literal(true).optional(),
     /** Story 25.6 (seed v15, M07): a sheet with no measurement (every reading of its live tests "Não medido", none measured) neither offers nor accepts Aprovado. */
     no_measurement_refuses_aprovado: z.literal(true).optional(),
+    /** Story 25.7 (seed v15, M20, F12): the conclusion paragraph names each test left unmeasured and a Reprovado (or a Com restrições over no indicated point) the responsible chose, and recommends correcting only points it indicates. */
+    conclusion_names_choice_and_unmeasured: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

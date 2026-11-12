@@ -192,11 +192,12 @@ async function renameFromMenu(page: Page, from: string, to: string): Promise<voi
  * Fix batch e24y (P2, `tag-rename.ts` `tagRenameFollows`, web `renameEquipmentOps`) changed the rule this test
  * asserted, and fix batch e24z rewrote it to the decided one: a rename carries a confirmed, unedited conclusion
  * text into the new TAG in the rename's own batch, so nothing goes stale; only a text the engineer edited stays as
- * written, and that one is offered "Substituir", named on row 9 and counted by the Export dialog until it is tapped.
+ * written, and that one is offered "Substituir" and named on row 9 until it is tapped (Story 25.7: as a blocker, so
+ * the Export dialog no longer counts it among the warnings).
  * `e24y-tag-rename.spec.ts` covers the followed text's batch and the issued DOCX on a v14 Disjuntor MT; this test
  * adds the Sumário's row 9 and the Export dialog for both cases, on a sheet concluded with "Concluir e avançar".
  */
-test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude: a confirmed, unedited text follows it and nothing is stale; an edited text stays, the sheet offers "Substituir", row 9 names the new TAG and the Export dialog counts it until it is tapped', async ({ page }) => {
+test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude: a confirmed, unedited text follows it and nothing is stale; an edited text stays, the sheet offers "Substituir", row 9 names the new TAG as a blocker until it is tapped', async ({ page }) => {
   test.setTimeout(300_000);
   const { relatorioId, sheet } = await setUp(page);
   await openSheet(page, relatorioId, sheet.blockId);
@@ -250,10 +251,11 @@ test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude: a confirmed, unedited
   expect((await textOps()).length, 'the rename writes no text over an edited one').toBe(opsBeforeRename);
   expect(await lastTextStatus(page, database, sheet.blockId)).toBe('edited');
 
-  // Row 9 names the sheet by its new TAG; the Export dialog counts it with the other warnings on the Sumário rows.
+  // Row 9 names the sheet by its new TAG. Story 25.7 (M20): the stale text blocks the issue, so row 9 draws it as
+  // its blocking part and the Export dialog lists it as a blocker (`stale-conclusion-blocks.spec.ts`), not a warning.
   await openSumario(page, relatorioId);
-  await expect(row9(page)).toContainText(`Texto de conclusão desatualizado: ${again}`);
-  expect(await exportWarnings(page)).toBe(warningsEdited + 1);
+  await expect(row9(page).locator('.is-blocking')).toHaveText(`Texto de conclusão desatualizado: ${again} — impede gerar`);
+  expect(await exportWarnings(page)).toBe(warningsEdited);
 
   // "Substituir" on the sheet: the recomposed text, under the new TAG, confirmed again; the row is gone.
   await openSheet(page, relatorioId, sheet.blockId);

@@ -197,7 +197,8 @@ describe('25.6-UNIT the seed flag', () => {
   it('v15 turns on `no_measurement_refuses_aprovado` beside v14\'s flags; v14 and older read it off', () => {
     expect(seedRule('v15', 'no_measurement_refuses_aprovado')).toBe(true);
     for (const version of ['v14', 'v13', 'v5']) expect(seedRule(version, 'no_measurement_refuses_aprovado'), version).toBe(false);
-    expect(getSeed('v15', 'cabine_primaria').rules).toEqual({ ...getSeed('v14', 'cabine_primaria').rules, no_measurement_refuses_aprovado: true });
+    // Story 25.7 adds its own v15 flag beside this one (`seed.test.ts` pins the whole list).
+    expect(getSeed('v15', 'cabine_primaria').rules).toMatchObject({ ...getSeed('v14', 'cabine_primaria').rules, no_measurement_refuses_aprovado: true });
   });
 });
 

@@ -32,6 +32,7 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'polarization-index.spec.ts', lane: 'queue', why: 'Story 23.16: issues a revision through the shared queue and LibreOffice to read the IP column of the DOCX' },
   { file: 'oil-liquid-sampling.spec.ts', lane: 'queue', why: 'Story 23.17: issues a revision through the shared queue and LibreOffice to read the liquid fields and the absent sampling of the DOCX' },
   { file: 'header-test-voltage.spec.ts', lane: 'queue', why: 'Story 25.11: issues a revision through the shared queue and LibreOffice to read the TENSÃO ENSAIO of the DOCX' },
+  { file: 'stale-conclusion-blocks.spec.ts', lane: 'queue', why: 'Story 25.7: issues a revision through the shared queue and LibreOffice once the stale conclusion text no longer blocks, and reads its paragraph in the DOCX' },
   { file: 'warnings-before-generating.spec.ts', lane: 'queue', why: 'Story 25.12: issues a revision through the shared queue and LibreOffice to check the sheets of a removed local are absent from the DOCX' },
   { file: 'instruments-from-sheets.spec.ts', lane: 'queue', why: 'Story 25.13: issues a revision through the shared queue and LibreOffice to read section 11 of the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },

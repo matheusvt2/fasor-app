@@ -144,16 +144,28 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     const staleRows = (snapshot: RelatorioSnapshot) => preIssue(snapshot, undefined, { now: NOW }).filter((r) => r.kind === 'conclusion_stale');
     const blockOf = (snapshot: RelatorioSnapshot, blockId: string) => snapshot.blocks.find((b) => b.id === blockId)!;
 
-    it('names one stale confirmed sheet by its TAG on section 9, pending, and the Sumário row 9 says it', () => {
+    // Story 25.7 (M20): the row blocks the issue (it was pending), names the sheet it leads to, and row 9 draws it red.
+    it('names one stale confirmed sheet by its TAG on section 9, blocking, and the Sumário row 9 says it', () => {
       const snapshot = fresh();
       const [first] = sheetOrder(snapshot);
       expect(first!.tag).not.toBe('');
       const stale = withBlocks(snapshot, new Map([[first!.blockId, (b: BlockRow) => concludedWith(snapshot, b, 'confirmed', false)]]));
       const rows = staleRows(stale);
-      expect(rows).toEqual([{ id: 'conclusion_stale', row: 'section_9', severity: 'pending', text: `Texto de conclusão desatualizado: ${first!.tag}`, kind: 'conclusion_stale' }]);
+      expect(rows).toEqual([
+        {
+          id: 'conclusion_stale',
+          row: 'section_9',
+          severity: 'blocking',
+          text: `Texto de conclusão desatualizado: ${first!.tag}`,
+          kind: 'conclusion_stale',
+          sheets: [{ blockId: first!.blockId, name: first!.tag }],
+        },
+      ]);
       const computed = progress(stale);
       const row9 = sumarioRows(stale, preIssue(stale, computed, { now: NOW }), computed).find((r) => r.rowKey === 'section_9')!;
-      expect(row9.meta).toContain(`Texto de conclusão desatualizado: ${first!.tag}`);
+      expect(row9.meta).toContain(`Texto de conclusão desatualizado: ${first!.tag} — impede gerar`);
+      expect(row9.blocking).toBe(true);
+      expect(row9.metaParts!.filter((part) => part.blocking)).toEqual([{ text: `Texto de conclusão desatualizado: ${first!.tag} — impede gerar`, blocking: true }]);
     });
 
     it('a TAG renamed after the confirm makes it stale, named by the new TAG', () => {

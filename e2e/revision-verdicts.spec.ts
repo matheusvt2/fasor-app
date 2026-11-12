@@ -42,6 +42,14 @@ const observationField = (page: Page) => page.getByLabel('Observações da ficha
 // The "Conclusão ajustada pela ficha" line (a complete stored pair the floor made stricter), as 24.3-E2E-004 reads it.
 const adjustedNote = (page: Page) => page.locator('.conclusion-control .conclusion-hint[role="status"]', { hasText: 'Conclusão ajustada pela ficha' });
 
+/** Story 25.7: the sheet's stale conclusion text replaced with "Substituir", as the blocked Export dialog asks. */
+async function replaceStaleText(page: Page): Promise<void> {
+  const alt = page.locator('.ficha-conc-text .suggestion-alt');
+  await expect(alt).toHaveText('Sugerido: texto atualizado — Substituir');
+  await alt.getByRole('button', { name: 'Substituir' }).click();
+  await expect(alt).toHaveCount(0);
+}
+
 /** A plate value by kind, as a technician might type it; a select takes its first option. */
 function plateValue(field: FieldDef, n: number): JsonValue {
   switch (field.kind) {
@@ -197,6 +205,9 @@ test('@p1 25.4-E2E-001 the revision keeps the verdicts it printed: stored Apto a
   await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(adjustedNote(page)).toBeVisible();
   expect(await storedPair(page, cable.blockId)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes', concluded: true });
+  // Story 25.7: the text confirmed at the conclude is stale now and blocks "Gerar relatório"; "Substituir" writes the text alone.
+  await replaceStaleText(page);
+  expect(await storedPair(page, cable.blockId)).toEqual({ result: 'aprovado', restriction: 'sem_restricoes', concluded: true });
 
   // Revision 1: the DOCX prints Não apto and REPROVADO alone; the revision holds them; the stored choices stand.
   const first = await issue(page, cable.relatorioId, 1);
@@ -213,6 +224,8 @@ test('@p1 25.4-E2E-001 the revision keeps the verdicts it printed: stored Apto a
   await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(adjustedNote(page)).toHaveCount(0);
+  // Story 25.7: the text replaced under Reprovado is stale again once the reading is corrected.
+  await replaceStaleText(page);
   await page.goto(`/relatorio/${cable.relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   await expect(page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Apto', exact: true })).toHaveAttribute('aria-checked', 'true');

@@ -37,6 +37,7 @@ import { seedTestCompanies, TEST_SEED } from '../../db/seed.ts';
 import { newId } from '../../ids.ts';
 import { applyOps } from '../../sync/apply.ts';
 import { extractStructure } from './docx-structure.test-support.ts';
+import { staleTextReplacements } from './stale-texts.test-support.ts';
 
 /*
  * 25.4-API-003 and 25.4-API-004 (fix batch e25r: the test gaps T1 and T3 the wave 1 review found in
@@ -197,6 +198,8 @@ async function pulledRevision(number: number): Promise<Record<string, unknown>> 
 
 /** "Gerar relatório" through the route; waits for the revision `number` the job commits. */
 async function issue(number: number): Promise<RevisionRow> {
+  // Story 25.7: a stale conclusion text blocks the issue; the v14 fixture holds one, replaced as "Substituir" does.
+  for (const [path, value, prevOpId] of staleTextReplacements(localSnapshot())) await put(path, value, prevOpId);
   const res = await authed(`/api/relatorios/${fixture.relatorioId}/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

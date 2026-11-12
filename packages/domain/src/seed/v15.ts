@@ -29,11 +29,24 @@ function story25_6(seed: ReportSeed): void {
   seed.rules = { ...seed.rules, no_measurement_refuses_aprovado: true };
 }
 
+// --- Story 25.7: the conclusion text names a Reprovado by hand and the tests left unmeasured ------
+
+/**
+ * Story 25.7 (M20, decision 7; F12 by M-7): the flag `conclusion_names_choice_and_unmeasured`. The composed
+ * conclusion paragraph (`composeConclusion`, `relatorio/conclusion.ts`) names each live test left "Não medido", says
+ * that the responsible reproved a ficha whose floor does not reprove it, or restricted one whose paragraph indicates
+ * no point, and recommends correcting "os pontos indicados" only when it indicates one; no definition key changes.
+ */
+function story25_7(seed: ReportSeed): void {
+  seed.rules = { ...seed.rules, conclusion_names_choice_and_unmeasured: true };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
   const seed = structuredClone(v14);
   story25_6(seed);
+  story25_7(seed);
   return seed;
 }
 

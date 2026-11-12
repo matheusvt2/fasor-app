@@ -43,6 +43,7 @@ import { seedTestCompanies, TEST_SEED } from '../../db/seed.ts';
 import { newId } from '../../ids.ts';
 import { applyOps } from '../../sync/apply.ts';
 import { paragraphText, readZipEntries } from './docx-structure.test-support.ts';
+import { staleTextReplacements } from './stale-texts.test-support.ts';
 
 /*
  * e25r-R1-API (fix batch e25r, R-1 and E24-A1 of the Epic 24 retrospective, contract 49): seed v14's
@@ -214,6 +215,12 @@ async function waitForJob(id: string): Promise<GenerationJobRow> {
 
 /** "Gerar relatório" through the route; waits for the revision `number` the job commits. */
 async function issue(number: number): Promise<RevisionRow> {
+  // Story 25.7: a stale conclusion text blocks the issue; the v14 fixture holds one, replaced as "Substituir" does.
+  const replacements = staleTextReplacements(localSnapshot()).map(([path, value, prevOpId]) => relatorioPut(path, value, prevOpId));
+  if (replacements.length > 0) {
+    extraOps.push(...replacements);
+    await serverApply(replacements);
+  }
   const res = await authed(`/api/relatorios/${fixture.relatorioId}/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

@@ -2,6 +2,7 @@ import type { AuditTarget, SumarioRowKey } from '@app/domain';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { RETURN_PARAM, RETURN_TO_EXPORT } from '../../state/back-target.tsx';
 import { ExportDialog } from '../export/export-dialog.tsx';
 
 export interface GenerateActionProps {
@@ -56,6 +57,8 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
         isOpen={open}
         onOpenChange={setOpen}
         onEditInSetup={(etapa) => void navigate(`/relatorio/${relatorioId}/setup?etapa=${etapa}${etapa === 6 ? '&volta=exportar' : ''}`)}
+        // Story 25.7: a stale conclusion text's "Abrir ficha", with `?volta=exportar` so the sheet's "Voltar" reopens the dialog.
+        onOpenSheet={(blockId) => void navigate(`/relatorio/${relatorioId}/ficha/${blockId}?${RETURN_PARAM}=${RETURN_TO_EXPORT}`)}
         onSeeInSumario={(rows) => {
           setOpen(false);
           onSeeInSumario(rows);
