@@ -326,7 +326,9 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
     if (!response.ok) {
       let json: unknown;
       try {
-        json = await response.json();
+        // Fix batch e25x (A8): a refusal's body is read within `SYNC_REQUEST_TIMEOUT_MS` (aborting the transfer), so a
+        // body that never ends cannot hold the upload worker; a stalled or broken body is the refusal with no code.
+        json = await readBounded(() => response.json(), SYNC_REQUEST_TIMEOUT_MS, controller);
       } catch {
         json = undefined;
       }

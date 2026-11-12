@@ -11,7 +11,8 @@ import { whenTelemetryWritten } from './track.ts';
  * `sendBeacon`. A batch is deleted on a 2xx and on any 4xx but 429 (an invalid batch is
  * dropped, never retried); it is kept on a 5xx, when the network fails or the post times out
  * (`TELEMETRY_POST_TIMEOUT_MS`), and on a 429, which also ends the flush: the server's
- * limiter scheduled the refusal, so the next `ran` cycle resumes (E18-A1, R-A1). One flush
+ * limiter scheduled the refusal, so ~~the next `ran` cycle resumes~~ the first `ran` cycle after
+ * `RATE_LIMIT_WINDOW_MS` resumes (E18-A1, R-A1; the window for a flush too since fix batch e25x, 2026-11-12). One flush
  * at a time, and a row in flight is never sent by another path: events are never posted
  * twice concurrently.
  */
@@ -40,7 +41,8 @@ let beaconing: Promise<void> | null = null;
 
 /**
  * After a 429 the limiter refuses this device for a while; a beacon cannot see its answer and
- * would delete a refused batch, so none is sent inside this window (E18-A1).
+ * would delete a refused batch, so none is sent inside this window (E18-A1). Fix batch e25x: no flush posts inside
+ * it either.
  */
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 let rateLimitedUntil = 0;
@@ -58,6 +60,10 @@ function payloadOf(rows: readonly QueuedUxEvent[]): UxEvent[] {
 const MAX_BATCHES_PER_FLUSH = Math.ceil(UX_EVENTS_CAP / TELEMETRY_BATCH_MAX) + 1;
 
 async function drain(db: AppDatabase, transport: TelemetryTransport): Promise<void> {
+  // Fix batch e25x (2026-11-12): inside the window of a 429 nothing is posted. Cycles can now come seconds apart (the
+  // Sync screen opening, the app coming back to the front), and each one posting against the limiter is what the wave 1
+  // gate saw (18.1-E2E-002: four refused posts for one "Sincronizar agora").
+  if (Date.now() < rateLimitedUntil) return;
   // What was tracked before this flush started is queued first, so it leaves with it.
   await whenTelemetryWritten();
   for (let batch = 0; batch < MAX_BATCHES_PER_FLUSH; batch += 1) {

@@ -12,7 +12,7 @@ Locally and in the tests the sink is `stdout` (`TELEMETRY_SINK=stdout`): the eve
 
 *(2026-11-03, batch e18fa, the E18-A1 fix batch.)* What a reader of the views must know about how the events arrive:
 
-- **A 429** on the telemetry post (the api's per-device limit) keeps the batch on the device and ends that flush; the next sync cycle that runs (`ran`) resumes, and no beacon is sent within 60 s of a 429. **A 401** still drops the batch.
+- **A 429** on the telemetry post (the api's per-device limit) keeps the batch on the device and ends that flush; ~~the next sync cycle that runs (`ran`) resumes~~ *(2026-11-12, fix batch e25x: no flush posts within 60 s of a 429, since cycles can now come seconds apart; the first cycle that runs after the window resumes)*, and no beacon is sent within 60 s of a 429. **A 401** still drops the batch.
 - **Timeouts:** the device aborts a telemetry post after 15 s; the api's CloudWatch client makes at most two attempts of 3 s per command, so a put the sink gives up on ends as `ux_event_sink_failed` well before the device's 15 s.
 - **Size:** the api refuses a body over 256 KiB with `413 body_too_large`; the device's batches (at most 200 events) stay far below it.
 - **The beacon** fires on a hidden tab and also on `pagehide`, one at a time (the two fire back to back on a tab close and send one beacon). *(Story 18.4: before it, the open screen's `screen_view` is written, so the last screen of a visit travels with it.)*

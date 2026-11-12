@@ -46,6 +46,7 @@ export interface DraftsState {
    * while that row is the one on offer. `useDraftSource` hands it to its surface (E6-R1).
    * Story 25.2: with `offerOnReturn`, a value written as its surface leaves the screen (a
    * reading that does not parse) is offered again when a source of the same key registers.
+   * Fix batch e25x (A3, A4): with `committed`, the source has just saved its own value.
    */
   persistOne: (target: DraftTarget, value: unknown, options?: PersistOptions) => Promise<void>;
 }
@@ -53,6 +54,20 @@ export interface DraftsState {
 export interface PersistOptions {
   /** Story 25.2: offer this draft ("Rascunho encontrado — Recuperar") when its surface is opened again in this session. */
   offerOnReturn?: boolean;
+  /**
+   * Fix batch e25x (A4): this source has just committed a value through its own commit path, and the
+   * write succeeded. With an empty value (nothing typed since) the row of this key is older text of
+   * the same field, which "Recuperar" would write over the newer saved value, so it is dropped; with
+   * a non-empty one (the field is dirty again) nothing happens. A row on offer is dropped this way
+   * only with `answersOffer` (Design Notes D2 of the e25x spec).
+   */
+  committed?: boolean;
+  /**
+   * Fix batch e25x (A3), with `committed`: the commit answers the offer of this key too (the number
+   * input's commit is one whole value given by a blur, an Enter or a leave). The key leaves the
+   * offer, and the "Rascunho encontrado" toast goes once no key is left.
+   */
+  answersOffer?: boolean;
 }
 
 /** Exported so a surface test can supply the state without the provider's Dexie work. */
@@ -68,7 +83,7 @@ type Offer = readonly string[];
 export function DraftProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const db = session.database;
-  const { toast, showToast } = useToast();
+  const { toast, showToast, withdrawToast } = useToast();
   const sources = useRef<Map<string, DraftSource>>(new Map());
   const [offer, setOffer] = useState<Offer | null>(null);
   /**
@@ -91,11 +106,25 @@ export function DraftProvider({ children }: { children: ReactNode }) {
    * it an offer, so going back to the sheet offers it without a reload.
    */
   const returnOffers = useRef<Set<string>>(new Set());
+  /**
+   * Fix batch e25x (A3): the keys offered on return in this session (`register` moved them from
+   * `returnOffers` to the offer). "Fechar" drops their rows when their field is on screen and
+   * holds nothing typed; a row of an earlier launch is never dropped by it (retro U7).
+   */
+  const offeredOnReturn = useRef<Set<string>>(new Set());
+  /**
+   * Fix batch e25x (A3, A4): the keys that may hold a row, the launch list and every non-empty
+   * write of this session, so a committed drop of any other key touches no store. Until the
+   * launch list has been read (`launchRead`), every committed drop goes to the store.
+   */
+  const knownKeys = useRef<Set<string>>(new Set());
+  const launchRead = useRef(false);
 
   const register = useCallback((source: DraftSource) => {
     const key = draftKey(source);
     sources.current.set(key, source);
     if (returnOffers.current.delete(key)) {
+      offeredOnReturn.current.add(key);
       if (declinedRef.current) {
         // The person put the earlier offer away: only the draft that came back is offered, not the rows dismissed.
         setOffer([key]);
@@ -126,7 +155,9 @@ export function DraftProvider({ children }: { children: ReactNode }) {
       // the camera, which is what `visibilitychange` is here for — must not delete the
       // draft the toast is still offering: the surface is showing the committed value
       // precisely because the user has not pressed "Recuperar" yet.
-      if (offered.has(key) && (value === null || value === undefined || value === '')) continue;
+      const empty = value === null || value === undefined || value === '';
+      if (offered.has(key) && empty) continue;
+      if (!empty) knownKeys.current.add(key);
       writes.push({ target: source, value });
     }
     try {
@@ -140,11 +171,49 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     }
   }, [db]);
 
+  /**
+   * Fix batch e25x (A3): `keys` leave the offer at once (the ref too, so a tab-hide right after
+   * no longer protects them), and with `withdraw` the "Rascunho encontrado" toast goes once no key
+   * is left (not when the toast is being closed by its own "Fechar").
+   */
+  const leaveOffer = useCallback(
+    (keys: readonly string[], withdraw: boolean) => {
+      const current = offerRef.current;
+      if (current === null) return;
+      const rest = current.filter((candidate) => !keys.includes(candidate));
+      if (rest.length === current.length) return;
+      offerRef.current = rest.length === 0 ? null : rest;
+      setOffer(offerRef.current);
+      if (withdraw && rest.length === 0) withdrawToast(copy.draft.foundText);
+    },
+    [withdrawToast],
+  );
+
   const persistOne = useCallback(
     async (target: DraftTarget, value: unknown, options: PersistOptions = {}) => {
       if (db === null) return;
       const empty = value === null || value === undefined || value === '';
       const key = draftKey(target);
+      if (options.committed === true) {
+        // Fix batch e25x (A3, A4): the field is dirty again, so what it holds is newer than the commit.
+        if (!empty) return;
+        const offered = (offerRef.current ?? []).includes(key);
+        // An offered row is answered only by a commit that is one whole value (the number input).
+        if (offered && options.answersOffer !== true) return;
+        // No row can be there: nothing to drop, no store touched.
+        if (!offered && launchRead.current && !knownKeys.current.has(key)) return;
+        knownKeys.current.delete(key);
+        returnOffers.current.delete(key);
+        offeredOnReturn.current.delete(key);
+        if (offered) leaveOffer([key], true);
+        try {
+          await dropDraft(db, target);
+        } catch (error) {
+          console.warn('could not drop the draft', error);
+        }
+        return;
+      }
+      if (!empty) knownKeys.current.add(key);
       // Story 25.2: noted before the write, so a surface opened again at once still finds it.
       if (options.offerOnReturn === true) {
         if (empty) returnOffers.current.delete(key);
@@ -158,7 +227,7 @@ export function DraftProvider({ children }: { children: ReactNode }) {
         console.warn('could not persist the draft', error);
       }
     },
-    [db],
+    [db, leaveOffer],
   );
 
   // One `visibilitychange` and one `pagehide` listener for the whole app. `pagehide` is
@@ -180,6 +249,9 @@ export function DraftProvider({ children }: { children: ReactNode }) {
 
   // On mount, a row left by an earlier launch becomes an offer. Nothing is applied.
   useEffect(() => {
+    // Fix batch e25x: another database is another set of rows; committed drops go to the store until it is read.
+    launchRead.current = false;
+    knownKeys.current = new Set();
     if (db === null) {
       setOffer(null);
       return;
@@ -187,7 +259,10 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void listDrafts(db).then(
       (rows) => {
-        if (cancelled || rows.length === 0) return;
+        if (cancelled) return;
+        for (const row of rows) knownKeys.current.add(row.key);
+        launchRead.current = true;
+        if (rows.length === 0) return;
         setOffer(rows.map((row) => row.key));
       },
       () => {},
@@ -211,6 +286,7 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     // the meantime.
     const rest = current.filter((candidate) => candidate !== key);
     setOffer(rest.length === 0 ? null : rest);
+    offeredOnReturn.current.delete(key);
     void readDraft(db, source).then(async (row) => {
       // Read now, not at boot: a tab-hide in between may have rewritten the row, and the
       // newest uncommitted text is the one the user means.
@@ -224,16 +300,48 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   // so `showToast` sets no timer. It is raised again whenever the single toast slot
   // frees while the offer still stands, so a "Sem conexão" line or a refused-write
   // error cannot take "Recuperar" away for the rest of the page session. Only the user
-  // dismissing it ends that, and dismissing never drops a row (retro U7).
+  // dismissing it ends that, and dismissing never drops a row of an earlier launch (retro U7).
+  //
+  // Fix batch e25x (A3): "Fechar" answers a draft offered on return in this session (always a
+  // reading that did not parse) when its field is on screen holding nothing typed: the person saw
+  // the offer beside the field and closed it, so that row is dropped and leaves the offer.
+  const dismiss = useCallback(() => {
+    setDeclined(true);
+    if (db === null) return;
+    const answered: DraftSource[] = [];
+    for (const key of offerRef.current ?? []) {
+      if (!offeredOnReturn.current.has(key)) continue;
+      const source = sources.current.get(key);
+      if (source === undefined) continue;
+      const value = source.read();
+      if (value !== null && value !== undefined && value !== '') continue;
+      answered.push(source);
+    }
+    if (answered.length === 0) return;
+    const keys = answered.map((source) => draftKey(source));
+    for (const key of keys) {
+      offeredOnReturn.current.delete(key);
+      knownKeys.current.delete(key);
+    }
+    leaveOffer(keys, false);
+    void saveDrafts(
+      db,
+      answered.map((target) => ({ target, value: null })),
+      now(),
+    ).catch((error: unknown) => {
+      console.warn('could not drop the drafts', error);
+    });
+  }, [db, leaveOffer]);
+
   useEffect(() => {
     if (offer === null || declined || toast !== null) return;
     showToast(copy.draft.foundText, {
       action: { label: copy.draft.recoverAction, onPress: recover },
-      onDismiss: () => setDeclined(true),
+      onDismiss: dismiss,
       // Raised on its own, not by a press: it waits behind a job outcome on screen (R-1).
       arrival: true,
     });
-  }, [offer, declined, toast, showToast, recover]);
+  }, [offer, declined, toast, showToast, recover, dismiss]);
 
   const value = useMemo<DraftsState>(
     () => ({ draftFound: offer !== null && !declined, register, persistAll, persistOne }),

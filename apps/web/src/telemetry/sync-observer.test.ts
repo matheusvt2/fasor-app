@@ -20,7 +20,7 @@ vi.mock('./flush.ts', async (importOriginal) => ({
   flushTelemetry: vi.fn(async () => undefined),
 }));
 
-const IDLE: EngineStatus = { running: false, paused: false, outdated: false, lastResult: null, lastFailure: null, serverAnswers: null, merges: [] };
+const IDLE: EngineStatus = { running: false, pushing: false, paused: false, outdated: false, lastResult: null, lastFailure: null, serverAnswers: null, merges: [] };
 const DEVICE = '019966b0-0077-7000-8000-0000000000dd';
 
 let counter = 0;
@@ -63,6 +63,15 @@ describe('observeCycle (Epic 18, moved by Story 18.4)', () => {
     observeCycle(db, IDLE, { ...IDLE, lastResult: 'ran' });
     observeCycle(db, { ...IDLE, lastResult: 'ran' }, { ...IDLE, running: true });
     observeCycle(db, { ...IDLE, running: true }, { ...IDLE, running: false, lastResult: 'busy' } as EngineStatus);
+    expect(await results()).toEqual([]);
+    expect(flushTelemetry).not.toHaveBeenCalled();
+  });
+
+  it('e25x A2: a push-only pass (pushing, then not, `running` untouched) queues no sync_result and drains nothing', async () => {
+    const after = { ...IDLE, lastResult: 'ran' as const };
+    observeCycle(db, after, { ...after, pushing: true });
+    observeCycle(db, { ...after, pushing: true }, { ...after, pushing: true, lastFailure: null });
+    observeCycle(db, { ...after, pushing: true }, after);
     expect(await results()).toEqual([]);
     expect(flushTelemetry).not.toHaveBeenCalled();
   });

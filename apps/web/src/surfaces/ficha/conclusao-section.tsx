@@ -361,12 +361,16 @@ export function ConclusaoSection({
    * (a value changed between the draw and the tap): the field then shows the recomposed text
    * to confirm again. An edited text is the engineer's own and is written as typed, under
    * the basis they saw (a later change marks it stale, as before).
+   *
+   * Fix batch e25x (A1): an edited text's write is returned, rejection included, so the field sees a
+   * refused write (the text stays dirty, the next blur or leave writes it again, and it is a draft
+   * meanwhile); "Confirmar" and "Substituir" keep swallowing it, as before.
    */
-  const confirmText = (text: string, status: 'confirmed' | 'edited') => {
+  const confirmText = (text: string, status: 'confirmed' | 'edited'): Promise<void> | undefined => {
     const basis = composed.basis;
     /** Carry-over F: the basis moved between the draw and the tap, so nothing was written. */
     let moved = false;
-    void api
+    const written = api
       .edit((blocks, by, rows) => {
         // The build may run again on fresher rows: only its last run decides.
         moved = false;
@@ -388,8 +392,10 @@ export function ConclusaoSection({
       .then(() => {
         // Said through the sheet's polite live region; the field already shows the recomposed text.
         if (moved) api.announce(t.basisMoved);
-      })
-      .catch(() => undefined);
+      });
+    if (status === 'edited') return written;
+    void written.catch(() => undefined);
+    return undefined;
   };
 
   const resultSegments: Segment<ConclusionResult>[] = [
