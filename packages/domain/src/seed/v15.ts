@@ -87,6 +87,19 @@ function story25_10(seed: ReportSeed): void {
   seed.rules = { ...seed.rules, names_every_reading_out: true };
 }
 
+// --- Story 25.20: the criterion and the result print on each row, and the corrected columns say so ---
+
+/**
+ * Story 25.20 (M24; Bruno's answers 2, 3 and 5; Matheus's decision 5): two flags, print only.
+ * `criterion_result_per_row`: every table `measurementTestPart` prints (`print/section-9.ts`) but a choice
+ * test gains CRITÉRIO and RESULTADO on each row (`measurementRowJudgements`), fitted whole with each value
+ * kept with its unit. `corrected_headers_corrigido`: the corrected columns read "20 °C (corrigido)" and
+ * "75 °C (corrigido)" (`correctedPrintHeader`). No definition key changes.
+ */
+function story25_20(seed: ReportSeed): void {
+  seed.rules = { ...seed.rules, criterion_result_per_row: true, corrected_headers_corrigido: true };
+}
+
 // --- the version -------------------------------------------------------------------------------
 
 function cabinePrimariaV15(): ReportSeed {
@@ -96,6 +109,7 @@ function cabinePrimariaV15(): ReportSeed {
   story25_8(seed);
   story25_9(seed);
   story25_10(seed);
+  story25_20(seed);
   return seed;
 }
 

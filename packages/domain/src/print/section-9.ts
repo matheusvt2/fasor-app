@@ -13,7 +13,7 @@ import {
 } from '../relatorio/conclusion.ts';
 import { fieldValueText } from '../relatorio/ficha.ts';
 import { storedInstrumentHeader } from '../relatorio/instrument-pick.ts';
-import { configFieldsOf, evaluateSheetMeasurements, type EvaluatedMeasurementCell, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
+import { configFieldsOf, evaluateSheetMeasurements, measurementRowJudgements, type EvaluatedMeasurementCell, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
 import { nameplateTagPrefill } from '../relatorio/nameplate-copy.ts';
 import { isOilFieldExcused } from '../relatorio/oil-rule.ts';
 import { evaluateSheetReadings, MANUFACTURER_PRINT_SUFFIX, polarizationNotApplicable, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
@@ -23,7 +23,8 @@ import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import { isReadingValue } from '../relatorio/over-range.ts';
-import { TEMPERATURE_PRINT_LABEL, type TestTemperatureView } from '../relatorio/temperature-correction.ts';
+import type { ReadingVerdict } from '../relatorio/reading-cells.ts';
+import { correctedPrintHeader, TEMPERATURE_PRINT_LABEL, type TestTemperatureView } from '../relatorio/temperature-correction.ts';
 import { visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import type { BlockRow, EquipmentRow, NumberValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
@@ -68,6 +69,12 @@ import { PREVIOUS_HEADER, previousHeaderText, relatorioVisitDate } from './visit
  * off prints nothing, as a disabled sub-block does, and (2026-10-14, Bruno) so does one its
  * own value says was not run (E5 "Não realizado"). An out-of-criterion cell prints as any
  * other, the plain value with no mark, the seeded tables' convention.
+ *
+ * Story 25.20 (seed v15 `criterion_result_per_row`, `corrected_headers_corrigido`; M24): a measurement
+ * table that reads a measurement prints on each row the criteria it was judged by (CRITÉRIO) and the
+ * worst verdict of its cells (RESULTADO), last, after MANUT. ANTERIOR, fitted whole with every value kept
+ * with its unit (`judgedTable`); the corrected columns read "20 °C (corrigido)" and "75 °C (corrigido)".
+ * "Tipo da empresa" never prints. Every relatório on v1 to v14 prints as before.
  *
  * Story 22.2: a text value typed as an N/A spelling ("na", "N.A.", "n/a") prints "N/A"
  * (`printNotApplicable`), and a reading table whose VALORES header carries its one unit
@@ -236,6 +243,11 @@ const POLARIZATION_COLUMN = 'POLARIZAÇÃO';
 /** The mark in a chosen C/NC/NA or CONCLUSÃO box, and what an uncaptured value prints. */
 const MARK = 'X';
 const DASH = '-';
+// Story 25.20 (seed v15; M24, Bruno's answers 2, 3 and 5): the two columns a measurement table gains on each row.
+const CRITERION_HEADER = 'CRITÉRIO';
+const RESULT_HEADER = 'RESULTADO';
+// authored (Story 25.20, listed for Bruno, B-11): RESULTADO's words, the worst verdict among the row's judged cells.
+const RESULT_WORDS: Readonly<Record<ReadingVerdict, string>> = { within: 'SATISFATÓRIO', restricted: 'COM RESTRIÇÃO', out: 'INSATISFATÓRIO' };
 
 // authored: the reason band of a sheet marked not tested (open question for Bruno).
 const NOT_TESTED_PREFIX = 'NÃO ENSAIADO';
@@ -644,14 +656,15 @@ interface PrintedCorrected {
   header: string;
 }
 
-function printedCorrectedOf(definition: TableDef, temperature: TestTemperatureView | undefined): PrintedCorrected | null {
+function printedCorrectedOf(definition: TableDef, temperature: TestTemperatureView | undefined, corrigido = false): PrintedCorrected | null {
   if (temperature === undefined) return null;
   const printed = printedValueColumns(definition);
   let after = -1;
   printed.forEach(({ column }, i) => {
     if (column.role === 'capture') after = i;
   });
-  return after === -1 ? null : { after, capture: printed[after]!.col, header: temperature.printHeader };
+  // Story 25.20 (seed v15 `corrected_headers_corrigido`): "20 °C (corrigido)".
+  return after === -1 ? null : { after, capture: printed[after]!.col, header: correctedPrintHeader(temperature, corrigido) };
 }
 
 /** One printed value column: a seed column, or (batch e23v) the corrected one. */
@@ -866,7 +879,15 @@ interface FittedTable {
  * exactly as before, with no size: the margins stay the same points whatever the size, so
  * only the words shrink.
  */
-function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS, outsideBudget: readonly number[] = [], wholeFit = false, unitsJoined = false): FittedTable {
+function fittedColumns(
+  rows: readonly PrintRow[],
+  count: number,
+  steps: readonly number[] = TABLE_TEXT_STEPS_HALF_POINTS,
+  outsideBudget: readonly number[] = [],
+  wholeFit = false,
+  unitsJoined = false,
+  wholeLines: readonly number[] = [],
+): FittedTable {
   // Fix batch e23p (P2): a whole-fit table measures its words by the face's advance widths.
   const measure = wholeFit ? printTextEm : emWidth;
   // Fix batch e24y (P1): a table whose values are joined to their units (`joinUnits`) splits its words at plain spaces only.
@@ -881,7 +902,9 @@ function fittedColumns(rows: readonly PrintRow[], count: number, steps: readonly
         const bold = cell.bold === true;
         const word = Math.max(0, ...words(cell.text).map((part) => measure(part, bold)));
         least[col] = Math.max(least[col]!, word);
-        whole[col] = Math.max(whole[col]!, [...cell.text].length <= SHORT_TEXT ? measure(cell.text, bold) : word);
+        // Story 25.20 (seed v15): a column of `wholeLines` (CRITÉRIO) asks the room each of its lines takes whole, whatever its length.
+        const asked = wholeLines.includes(col) ? Math.max(0, ...cell.text.split('\n').map((line) => measure(line, bold))) : [...cell.text].length <= SHORT_TEXT ? measure(cell.text, bold) : word;
+        whole[col] = Math.max(whole[col]!, asked);
       }
       col += span;
     }
@@ -999,7 +1022,9 @@ function measurementTable(
   temperature?: TestTemperatureView,
   single = false,
 ): PrintTable {
-  const corrected = printedCorrectedOf(definition, temperature);
+  // Story 25.20 (seed v15 `corrected_headers_corrigido`): the corrected column says "(corrigido)".
+  const corrigido = seedRule(block.seed_version, 'corrected_headers_corrigido');
+  const corrected = printedCorrectedOf(definition, temperature, corrigido);
   const width = definition.connection_columns.length + definition.value_columns.length + (corrected === null ? 0 : 1);
   const rows: PrintRow[] = [];
   if (definition.title !== undefined) rows.push(bandRow(printLabel(definition.title), width));
@@ -1031,7 +1056,11 @@ function measurementTable(
   const outside = at === -1 ? [] : [definition.connection_columns.length + (voltage === null ? 0 : 1) + at];
   // Fix batch e23p (P2): a table printed alone (not side by side) with its corrected column fits whole.
   const wholeFit = single && corrected !== null;
-  return withWholeFit(withCorrectedColumns({ ...fittedColumns(rows, width, TABLE_TEXT_STEPS_HALF_POINTS, outside, wholeFit), rows }, outside), wholeFit);
+  // Story 25.20 (seed v15): such a table, its header now "20 °C (corrigido)", keeps each value with its unit too, as
+  // fix batch e24y keeps the pair's (`joinUnits`); the pair's halves are joined when `sideBySide` draws them as one.
+  const joined = wholeFit && corrigido;
+  const drawn = joined ? rowsWithUnitsJoined(rows) : rows;
+  return withUnitsJoined(withWholeFit(withCorrectedColumns({ ...fittedColumns(drawn, width, TABLE_TEXT_STEPS_HALF_POINTS, outside, wholeFit, joined), rows: drawn }, outside), wholeFit), joined);
 }
 
 /**
@@ -1167,17 +1196,7 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
   const width = printed.columns.length;
   // Fix batch e24y (P1): a table joining its values to their units joins the appended column's values too.
   const joined = UNITS_JOINED_TABLES.has(printed);
-  const headers = printed.rows.filter((row) => row.header === true);
-  const last = headers[headers.length - 1];
-  let data = 0;
-  const rows = printed.rows.map((row): PrintRow => {
-    if (row.header === true) return { ...row, cells: [...row.cells, headerCell(row === last ? header : '')] };
-    const span = row.cells.reduce((sum, cell) => sum + (cell.span ?? 1), 0);
-    if (row.band === true || (row.cells.length === 1 && span === width && width > 1)) return { ...row, cells: [{ ...row.cells[0]!, span: width + 1 }] };
-    const text = texts[data] ?? '';
-    data += 1;
-    return { ...row, cells: [...row.cells, valueCell(joined ? joinUnits(text) : text)] };
-  });
+  const rows = rowsWithColumns(printed.rows, width, [{ header, texts }], joined);
   // The size is the re-fitted table's own: the one the narrower table carried no longer applies.
   const kept: PrintTable = { ...printed };
   delete kept.textHalfPoints;
@@ -1185,6 +1204,35 @@ export function withAppendedColumn(printed: PrintTable, header: string, texts: r
   // Fix batch e23p (P2): a whole-fit table stays one, re-fitted the same way.
   const wholeFit = WHOLE_FIT_TABLES.has(printed);
   return withUnitsJoined(withWholeFit(withCorrectedColumns({ ...kept, ...fittedColumns(rows, width + 1, steps, outside, wholeFit, joined), rows }, outside), wholeFit), joined);
+}
+
+/**
+ * The rows of a table `width` columns wide with `columns` appended last, in order (`withAppendedColumn`'s shape,
+ * one column or several): the last header row carries each column's header, an earlier header row one empty
+ * shaded cell across them, a band or a line across the table spans them too, and each other row takes each
+ * column's `texts` in order ('' past their end: a reference or a group row), joined to their units when `joined`.
+ */
+function rowsWithColumns(rows: readonly PrintRow[], width: number, columns: readonly { header: string; texts: readonly string[] }[], joined: boolean): PrintRow[] {
+  const headers = rows.filter((row) => row.header === true);
+  const last = headers[headers.length - 1];
+  let data = 0;
+  return rows.map((row): PrintRow => {
+    if (row.header === true) return { ...row, cells: [...row.cells, ...(row === last ? columns.map((column) => headerCell(column.header)) : [headerCell('', columns.length)])] };
+    const span = row.cells.reduce((sum, cell) => sum + (cell.span ?? 1), 0);
+    if (row.band === true || (row.cells.length === 1 && span === width && width > 1)) return { ...row, cells: [{ ...row.cells[0]!, span: width + columns.length }] };
+    const at = data;
+    data += 1;
+    return {
+      ...row,
+      cells: [
+        ...row.cells,
+        ...columns.map((column) => {
+          const text = column.texts[at] ?? '';
+          return valueCell(joined ? joinUnits(text) : text);
+        }),
+      ],
+    };
+  });
 }
 
 /** Story 22.12: the sheet's previous visit (`previousResultsFor`), its readings by address; null with none. */
@@ -1326,11 +1374,53 @@ function correctedMeasurementText(cell: EvaluatedMeasurementCell, headerUnit: st
 }
 
 /**
+ * Story 25.20 (seed v15): whether a measurement test reads a measurement: a typed number cell on a shown row. A choice
+ * test (the oil sampling, whose only column is its answer) prints without CRITÉRIO and RESULTADO, where they would
+ * repeat its answer (the approved frame, `key-print-section-9-v15.html`, and the story's reading).
+ */
+function readsMeasurement(test: MeasurementTestEvaluation): boolean {
+  return test.rows.some((row) => row.cells.some((cell) => cell.kind === 'number' && cell.fixed === null));
+}
+
+/** Story 25.20 (seed v15): a nominal value and its tolerance ("220 V ± 5 %") as one word, as the frame prints it. */
+function joinTolerance(text: string): string {
+  return text.replace(/(\S) ± (?=\d)/gu, '$1\u00a0±\u00a0');
+}
+
+/**
+ * Story 25.20 (seed v15 `criterion_result_per_row`; M24, Bruno's answers 2, 3 and 5): a measured table's CRITÉRIO
+ * and RESULTADO, its last two columns (after MANUT. ANTERIOR when `previousColumn` prints): on each row the criteria
+ * it was judged by, one per line in column order, and the worst verdict of its judged cells; "-" for a row no
+ * criterion covers or nothing of which was judged (not measured, N/A, left to check). The table is fitted whole, as
+ * fix batch e23p fits a corrected table, every value kept with its unit (`joinUnits`) and the criterion given the
+ * room its lines ask; the type steps down only when the columns cannot hold the words, to the 5 pt floor.
+ */
+function judgedTable(
+  block: BlockRow,
+  definition: BlockDefinition,
+  test: MeasurementTestEvaluation,
+  rows: readonly PrintRow[],
+  width: number,
+  previousColumn: { header: string; texts: readonly string[] } | null,
+): PrintTable {
+  const judgements = measurementRowJudgements(block, definition, test);
+  const columns = [
+    ...(previousColumn === null ? [] : [previousColumn]),
+    { header: CRITERION_HEADER, texts: judgements.map((one) => (one.criteria.length === 0 ? DASH : one.criteria.map(joinTolerance).join('\n'))) },
+    { header: RESULT_HEADER, texts: judgements.map((one) => (one.verdict === null ? DASH : RESULT_WORDS[one.verdict])) },
+  ];
+  const all = rowsWithUnitsJoined(rowsWithColumns(rows, width, columns, false));
+  const count = width + columns.length;
+  const fitted: PrintTable = { ...fittedColumns(all, count, TABLE_TEXT_STEPS_HALF_POINTS, [], true, true, [count - 2]), rows: all };
+  return withUnitsJoined(withWholeFit(fitted, true), true);
+}
+
+/**
  * One measurement test as one table; null for a test switched off and (2026-10-14, Bruno) for
  * one marked not run (`skipped`, E5's método "Não realizado"): neither prints a title, a
  * method or a criterion line. The other tests keep their numbers ("E6 · …").
  */
-function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
+function measurementTestPart(block: BlockRow, definition: BlockDefinition, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
   // Story 23.9: a test the nameplate makes not applicable is omitted, as a switched-off one is (FR-11).
   if (!test.enabled || test.skipped || test.applicability.state === 'na') return null;
   // Batch e23t (Story 23.15, seed v13): a test corrected to 75 °C repeats its columns in a "75 °C" group after them.
@@ -1347,7 +1437,9 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
   }
   const units = test.columns.map((column) => sharedUnit(test, column.col));
   const headers = test.columns.map((column, c) => (units[c] === null ? printLabel(column.label) : `${printLabel(column.label)} (${units[c]})`));
-  if (corrected !== null) rows.push({ header: true, cells: [headerCell(''), headerCell('', test.columns.length), headerCell(corrected.printHeader, test.columns.length)] });
+  // Story 25.20 (seed v15 `corrected_headers_corrigido`): "75 °C (corrigido)".
+  const correctedHeader = corrected === null ? null : correctedPrintHeader(corrected, seedRule(block.seed_version, 'corrected_headers_corrigido'));
+  if (correctedHeader !== null) rows.push({ header: true, cells: [headerCell(''), headerCell('', test.columns.length), headerCell(correctedHeader, test.columns.length)] });
   rows.push(headerRow([printLabel(test.rowHeader), ...headers, ...(corrected === null ? [] : headers)]));
   for (const row of test.rows) {
     const atReference = corrected === null ? [] : row.cells.map((cell, c) => valueCell(correctedMeasurementText(cell, units[c] ?? null)));
@@ -1367,22 +1459,27 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
     if (group.text === '') continue;
     rows.push({ cells: [{ text: printLabel(group.label), bold: true, align: 'center' }, { text: group.text, span: width - 1, align: 'center' }] });
   }
+  // Story 22.12: each shown row's previous number cells, in column order (the reference and group rows take none).
+  const texts =
+    previous === null
+      ? null
+      : test.rows.map((row) =>
+          previousRowText(
+            previous.readings,
+            row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null).map((cell) => cell.address),
+          ),
+        );
+  // e22g (review N1): no column of "-" on a table none of whose rows has a previous value.
+  // Batch e24p (Story 24.15): the header names the previous visit's date on v14.
+  const previousColumn = previous === null || texts === null || texts.every((text) => text === DASH) ? null : { header: previous.header, texts };
+  // Story 25.20 (seed v15 `criterion_result_per_row`): a table reading a measurement gains CRITÉRIO and RESULTADO.
+  if (seedRule(block.seed_version, 'criterion_result_per_row') && readsMeasurement(test)) return { kind: 'table', table: judgedTable(block, definition, test, rows, width, previousColumn) };
   // Fix batch e24y (P1, seed v14 `paired_tables_fit_whole`): MANUT. ANTERIOR keeps each value with its unit on its line
   // ("1,21 mΩ"), appended by `withPreviousColumn`; the table's own cells stay as v13 prints them.
   const joined = seedRule(block.seed_version, 'paired_tables_fit_whole');
   const printed: PrintTable = withUnitsJoined({ ...fittedColumns(rows, width, TABLE_TEXT_STEPS_HALF_POINTS, [], false, joined), rows }, joined);
-  if (previous === null) return { kind: 'table', table: printed };
-  // Story 22.12: each shown row's previous number cells, in column order (the reference and group rows take none).
-  const texts = test.rows.map((row) =>
-    previousRowText(
-      previous.readings,
-      row.cells.filter((cell) => cell.kind === 'number' && cell.fixed === null).map((cell) => cell.address),
-    ),
-  );
-  // e22g (review N1): no column of "-" on a table none of whose rows has a previous value.
-  if (texts.every((text) => text === DASH)) return { kind: 'table', table: printed };
-  // Batch e24p (Story 24.15): the header names the previous visit's date on v14.
-  return { kind: 'table', table: withPreviousColumn(printed, texts, previous.header) };
+  if (previousColumn === null) return { kind: 'table', table: printed };
+  return { kind: 'table', table: withPreviousColumn(printed, previousColumn.texts, previousColumn.header) };
 }
 
 /**
@@ -1390,8 +1487,8 @@ function measurementTestPart(block: BlockRow, test: MeasurementTestEvaluation, p
  * slot of the rows its history rule flagged (`measurementHistoryNote`), the table kept with the line.
  * Every other test, and every test of v1 to v13, prints its table alone, as before.
  */
-function measurementTestParts(block: BlockRow, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart[] {
-  const part = measurementTestPart(block, test, previous);
+function measurementTestParts(block: BlockRow, definition: BlockDefinition, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart[] {
+  const part = measurementTestPart(block, definition, test, previous);
   if (part === null) return [];
   const note = measurementHistoryNote(block.seed_version, test);
   return note === null ? [part] : [{ ...part, keepWithNext: true }, { kind: 'paragraph', text: note }];
@@ -1400,7 +1497,7 @@ function measurementTestParts(block: BlockRow, test: MeasurementTestEvaluation, 
 /** The measurement tests of a sheet that print, in the definition's order. */
 function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings, visit: VisitContext): SheetPart[] {
   // Batch e23t (Story 23.15): judged and corrected under the sheet's visit context, as on screen.
-  return evaluateSheetMeasurements(block, definition, visit).flatMap((test) => measurementTestParts(block, test, previous));
+  return evaluateSheetMeasurements(block, definition, visit).flatMap((test) => measurementTestParts(block, definition, test, previous));
 }
 
 // --- OBSERVAÇÕES and CONCLUSÃO ----------------------------------------------------------------
@@ -1558,10 +1655,14 @@ function keptTogether(parts: readonly SheetPart[]): SheetPart[] {
     switch (part.kind) {
       case 'table': {
         // Fix batch e23w (W2-K2): a copy keeps the table's corrected columns (`CORRECTED_COLUMNS`); e23p (P2): and its whole fit.
+        // Story 25.20: and its values joined to their units (e24y), so the printed table is measured as it was fitted.
         const kept: PrintTable =
           part.table.keepWhole === true
             ? part.table
-            : withWholeFit(withCorrectedColumns({ ...part.table, keepRows: true }, CORRECTED_COLUMNS.get(part.table) ?? []), WHOLE_FIT_TABLES.has(part.table));
+            : withUnitsJoined(
+                withWholeFit(withCorrectedColumns({ ...part.table, keepRows: true }, CORRECTED_COLUMNS.get(part.table) ?? []), WHOLE_FIT_TABLES.has(part.table)),
+                UNITS_JOINED_TABLES.has(part.table),
+              );
         return keep ? { kind: 'table', table: kept, keepWithNext: true } : { kind: 'table', table: kept };
       }
       case 'photos':

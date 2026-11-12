@@ -1230,6 +1230,17 @@ function groupsOf(values: readonly EvaluatedMeasurementValue[], skipped: boolean
   return groups;
 }
 
+/** Seed v13 (batch e23t): the medium the oil rule reads from the plate, read only when a criterion in `criteria` is by medium. */
+function criteriaMedium(criteria: readonly MeasurementCriterion[], definition: Pick<BlockDefinition, 'nameplate' | 'oil_rule'>, block: Pick<BlockRow, 'sheet'>): 'oil' | 'dry' | null {
+  if (!criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined)) return null;
+  return mediumOf({ nameplate: definition.nameplate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) }, block);
+}
+
+/** Seed v13 (batch e23t): the criteria in force, a criterion read by medium only on that medium (both while it is unknown). */
+function criteriaInForce(criteria: readonly MeasurementCriterion[], medium: 'oil' | 'dry' | null): MeasurementCriterion[] {
+  return criteria.filter((criterion) => criterion.type !== 'phase_deviation' || criterion.medium === undefined || medium === null || criterion.medium === medium);
+}
+
 // authored (e24f, listed for Bruno): the helper of a measured cell the deviation between phases could not judge (a
 // value at zero or below, a phase with no other measured in its group, every cell while the insulating medium is unknown).
 /** Fix batch e24f (R-1): the helper of a measured cell a deviation-between-phases test left with no verdict. */
@@ -1325,8 +1336,8 @@ function evaluate(
   }
 
   // Seed v13 (batch e23t): a criterion read by medium is in force only on that medium (both while it is unknown).
-  const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
-  const inForce = criteria.filter((criterion) => criterion.type !== 'phase_deviation' || criterion.medium === undefined || medium === null || criterion.medium === medium);
+  const medium = criteriaMedium(criteria, context.definition, block);
+  const inForce = criteriaInForce(criteria, medium);
   const lines: MeasurementCriterionLine[] = inForce.map((criterion) => {
     // Fix batch e23p (P5): a maximum read from the plate states its number when the plate gives one.
     if (criterion.type !== 'max_field') return { text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
@@ -1395,6 +1406,70 @@ export function evaluateSheetMeasurements(
   // Batch e23t (Stories 23.15 to 23.19): the plate, the oil rule and (batch e23v's) visit context a v13 test reads.
   const context: MeasurementContext = { definition: { ...plate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) }, visit, unnumbered: measurementTestsUnnumbered(definition), ...(block.seed_version === undefined ? {} : { seedVersion: block.seed_version }) };
   return tests.map((test, index) => evaluate(block, test, index + 1, config, testApplicability(block, plate, test.key), context));
+}
+
+// --- Story 25.20 (seed v15): what each row was judged by, and how it came out ----------------------
+
+/** Story 25.20: one shown row of a measurement test as the printed CRITÉRIO and RESULTADO columns read it. */
+export interface MeasurementRowJudgement {
+  /**
+   * The criteria in force that judge the row's typed cells, worded as the test's `criteria` lines, in column
+   * order and each once (a criterion over several columns at the first it covers); empty when none covers the row.
+   */
+  criteria: string[];
+  /** The worst verdict among the row's cells (out over restricted over within); null when no cell of it was judged. */
+  verdict: ReadingVerdict | null;
+}
+
+/** Whether `criterion` judges `cell` of `row` (its kind, its column and, for an absolute one, its rows), whatever the cell holds. */
+function judges(criterion: MeasurementCriterion, row: Pick<EvaluatedMeasurementRow, 'key' | 'cells'>, cell: EvaluatedMeasurementCell): boolean {
+  if (cell.fixed !== null) return false;
+  switch (criterion.type) {
+    case 'absolute':
+      return cell.kind === 'number' && (criterion.rows === undefined || criterion.rows.includes(row.key)) && (criterion.columns === undefined || criterion.columns.includes(cell.columnKey));
+    case 'equals_column':
+      return cell.columnKey === criterion.column && row.cells.some((other) => other.columnKey === criterion.reference && other.fixed === null);
+    case 'choice_pass':
+      return cell.kind === 'choice' && cell.columnKey === criterion.column;
+    case 'bands':
+      return cell.kind === 'number' && cell.columnKey === criterion.column;
+    case 'relative_to_lowest':
+    case 'phase_deviation':
+    case 'max_field':
+      return cell.kind === 'number';
+  }
+}
+
+const VERDICT_RANK: Readonly<Record<ReadingVerdict, number>> = { within: 1, restricted: 2, out: 3 };
+
+/**
+ * Story 25.20 (seed v15 `criterion_result_per_row`; M24, Bruno's answers 2, 3 and 5): each shown row of
+ * `evaluation` (one test of `evaluateSheetMeasurements` over this block and definition), in its order: the
+ * criteria the row is judged by and the worst verdict of its cells. Read only by the printed table.
+ */
+export function measurementRowJudgements(
+  block: Pick<BlockRow, 'config' | 'sheet'>,
+  definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'oil_rule'>>,
+  evaluation: Pick<MeasurementTestEvaluation, 'testKey' | 'rows' | 'criteria'>,
+): MeasurementRowJudgement[] {
+  const test = definition.measurement_tests?.find((candidate) => candidate.key === evaluation.testKey);
+  const config = configOptionsOf(block, definition);
+  const criteria = test === undefined ? [] : test.criteria.filter((criterion) => holds(criterion.when, config));
+  const plate = { nameplate: definition.nameplate ?? [], ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) };
+  // The criteria in force as `evaluate` reads them, so each is worded by the line of the same place (`criteria` there).
+  const inForce = criteriaInForce(criteria, criteriaMedium(criteria, plate, block));
+  return evaluation.rows.map((row) => {
+    const texts: string[] = [];
+    for (const cell of row.cells) {
+      inForce.forEach((criterion, i) => {
+        const text = evaluation.criteria[i]?.text ?? '';
+        if (text !== '' && !texts.includes(text) && judges(criterion, row, cell)) texts.push(text);
+      });
+    }
+    let verdict: ReadingVerdict | null = null;
+    for (const cell of row.cells) if (cell.verdict !== null && (verdict === null || VERDICT_RANK[cell.verdict] > VERDICT_RANK[verdict])) verdict = cell.verdict;
+    return { criteria: texts, verdict };
+  });
 }
 
 /** Story 22.10: a typed reading of a cell, a limit the instrument passed carrying `state: 'over_range'`. */

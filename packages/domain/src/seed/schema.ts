@@ -1075,6 +1075,10 @@ export const seedRulesSchema = z
     reading_not_applicable: z.literal(true).optional(),
     /** Story 25.10 (seed v15, M14 and M-6): a point started from a test, the conclusion paragraph and the parecer's Reprovado sentence name every reading out of its criterion in row order, not only the worst one. */
     names_every_reading_out: z.literal(true).optional(),
+    /** Story 25.20 (seed v15, M24): every measurement table but a choice test prints a CRITÉRIO and a RESULTADO column on each row, after its values and MANUT. ANTERIOR, fitted whole with each value kept with its unit. */
+    criterion_result_per_row: z.literal(true).optional(),
+    /** Story 25.20 (seed v15, M24): the corrected columns print "20 °C (corrigido)" and "75 °C (corrigido)", and a table printed alone with one keeps each value with its unit. */
+    corrected_headers_corrigido: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

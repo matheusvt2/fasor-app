@@ -302,6 +302,20 @@ export function windingTemperatureView(keys: WindingCorrectionKeys, temperature:
   return { ...fixed, state: 'missing_temperature', line: { label: TEMPERATURE_LINE_LABEL, value: '—', note: `Informe ${where}: sem ela, os valores não são corrigidos a ${WINDING_REFERENCE_C} °C.` }, print: DASH };
 }
 
+// --- Story 25.20 (seed v15): the printed headers say "(corrigido)" ----------------------------------
+
+// Story 25.20 (Bruno's answer 5 of 2026-11-11, Matheus's decision 5): "20 °C (corrigido)" and "75 °C (corrigido)".
+export const CORRECTED_PRINT_MARK = '(corrigido)';
+
+/**
+ * Story 25.20 (seed v15 `corrected_headers_corrigido`): a corrected column's printed header, its reference
+ * temperature followed by "(corrigido)" ("20 °C (corrigido)", "75 °C (corrigido)") where the block's seed
+ * asks it; the header as v13 and v14 print it ("20 °C", "75 °C") otherwise.
+ */
+export function correctedPrintHeader(view: Pick<TestTemperatureView, 'printHeader'>, corrigido: boolean): string {
+  return corrigido ? `${view.printHeader} ${CORRECTED_PRINT_MARK}` : view.printHeader;
+}
+
 /** Story 23.15: the request of a winding test whose plate names no material ("Informe o campo MATERIAL DO ENROLAMENTO na placa …"). */
 export function windingMaterialMissingText(label: string): string {
   return `Informe o campo ${label} na placa para corrigir os valores a ${WINDING_REFERENCE_C} °C.`;
