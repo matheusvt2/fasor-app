@@ -597,7 +597,16 @@
  * seed carries them. Never defaulted: a type written before 51 parses to the same bytes. MIN follows to 51
  * (below).
  */
-export const CONTRACT_VERSION = 51;
+/*
+ * 52 (2026-11-12, Story 25.24, batch e25p): the server-only `audit_run/{id}/snapshot_seq` put family is new
+ * (the point of the relatório the run read, the `max(seq)` of its stream at the job's frozen snapshot,
+ * written with the done batch), and an audit finding's kind may be `observation_vs_items` (prompt
+ * `audit-2`: an observation naming an item its checklist does not have). The device marks a finished run
+ * out of date when an edit of the relatório is newer than that point (`auditRunStale`). Optional and
+ * never defaulted on the run row: a run written before 52 parses to the same bytes and reads as out of
+ * date. No id and no instant. MIN follows to 52 (below).
+ */
+export const CONTRACT_VERSION = 52;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -954,7 +963,14 @@ export const CONTRACT_VERSION = 51;
  * replace none by itself. Its pull answers `426 contract_outdated` and it updates; its pushes are still
  * accepted.
  */
-export const MIN_CONTRACT_VERSION = 51;
+/*
+ * 52 (2026-11-12, Story 25.24, batch e25p): a version-51 (or older) bundle's path enum lacks
+ * `audit_run/{id}/snapshot_seq` and its finding enum lacks `observation_vs_items`, so a pulled done batch
+ * of a run fails to fold (`materializeEntity` throws on a pulled op its fold refuses), and it would show an
+ * old run's findings with no out-of-date mark. Its pull answers `426 contract_outdated` and it updates; its
+ * pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 52;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -95,7 +95,7 @@ const FINDINGS: AuditFinding[] = [
 ];
 
 /** A run of the relatório as the server writes it: its create, then the puts of `status`. */
-function runOps(status: 'queued' | 'running' | 'done' | 'failed', options: { id?: string; findings?: AuditFinding[]; createdAt?: string } = {}): Op[] {
+function runOps(status: 'queued' | 'running' | 'done' | 'failed', options: { id?: string; findings?: AuditFinding[]; createdAt?: string; point?: number } = {}): Op[] {
   const id = options.id ?? RUN;
   const createdAt = options.createdAt ?? new Date().toISOString();
   const ops = [
@@ -106,6 +106,8 @@ function runOps(status: 'queued' | 'running' | 'done' | 'failed', options: { id?
     ops.push(
       serverOp('put', `audit_run/${id}/findings`, options.findings ?? FINDINGS),
       serverOp('put', `audit_run/${id}/prompt_version`, 'fake-audit-1'),
+      // Story 25.24: the point the run read; absent, a run written before contract 52.
+      ...(options.point === undefined ? [] : [serverOp('put', `audit_run/${id}/snapshot_seq`, options.point)]),
       serverOp('put', `audit_run/${id}/finished_at`, '2026-10-07T17:32:00.000Z'),
       serverOp('put', `audit_run/${id}/status`, 'done'),
     );
@@ -446,5 +448,49 @@ describe('Review fixes 2026-10-08 (QW25): the audit\'s barrier guards', () => {
     await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
     expect(await within(dialog()).findByText(DEAD)).toBeVisible();
     expect(audit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('25.24 the out-of-date mark (Story 25.24, M16)', () => {
+  const STALE = 'Conferência desatualizada: o relatório mudou depois dela.';
+  const edit = (): Op => ({ ...serverOp('put', `sheet/${BLOCK_CHAVE_ID}/observations`, 'Terminal reapertado.', USER), device_id: 'tablet-other' });
+
+  it('a run with no edit after its point shows no mark; an edit pulled after it marks it, dims the old findings and offers "Conferir de novo"; nothing runs by itself', async () => {
+    database = await freshDb();
+    const point = seq;
+    await applyPulled(database, runOps('done', { point }));
+    const audit = vi.fn(async () => ({ audit_run_id: RUN }));
+    render(<Harness sync={syncState({ audit })} />);
+    const list = await within(dialog()).findByRole('list', { name: 'Pontos apontados pela conferência por IA' });
+    expect(within(dialog()).queryByText(STALE)).toBeNull();
+    for (const row of within(list).getAllByRole('listitem')) expect(row).not.toHaveClass('e25-audit-old');
+
+    await applyPulled(database, [edit()]);
+    expect(await within(dialog()).findByText(STALE)).toBeVisible();
+    const modelRows = within(list)
+      .getAllByRole('listitem')
+      .filter((item) => item.dataset.rule !== 'true');
+    expect(modelRows).toHaveLength(FINDINGS.length);
+    for (const row of modelRows) expect(row).toHaveClass('e25-audit-old');
+    // The old findings stay readable under the mark, and nothing was asked.
+    expect(within(list).getByText(FINDINGS[0]!.text)).toBeInTheDocument();
+    expect(audit).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Conferir de novo' }));
+    await waitFor(() => expect(audit).toHaveBeenCalledTimes(1));
+  });
+
+  it('a run written before contract 52 (no point) is marked; an edit still waiting in the outbox marks a current run', async () => {
+    database = await freshDb();
+    await applyPulled(database, runOps('done'));
+    render(<Harness sync={syncState()} />);
+    expect(await within(dialog()).findByText(STALE)).toBeVisible();
+    cleanup();
+    await database.delete();
+
+    database = await freshDb();
+    await applyPulled(database, runOps('done', { point: seq }));
+    await database.outbox.put(outboxRow('pending'));
+    render(<Harness sync={syncState()} />);
+    expect(await within(dialog()).findByText(STALE)).toBeVisible();
   });
 });

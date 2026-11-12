@@ -2214,6 +2214,12 @@ export const copy = {
     seeLabel: (target: string) => `Ver ${target}`,
     // authored: the findings list's accessible name.
     listLabel: 'Pontos apontados pela conferência por IA',
+    // authored (Story 25.24, listed for Bruno; `73-exportar.html` #exportar-audit-stale): the mark over a run the relatório changed after.
+    staleMark: 'Conferência desatualizada: o relatório mudou depois dela.',
+    // authored (Story 25.24, listed for Bruno; the same frame): the mark's action, a new run on a tap.
+    runAgain: 'Conferir de novo',
+    // authored (Story 25.24, listed for Bruno; the same frame): the pill of a fixed rule's row.
+    ruleWord: 'Regra',
   },
   // Story 13.5 (WAIT-3): the field palette's panel photos whose result dialog was left.
   panelAwaiting: {

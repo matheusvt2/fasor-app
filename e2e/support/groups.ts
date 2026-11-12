@@ -279,6 +279,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'issues a revision through the shared queue and LibreOffice (13.8-E2E-002) and waits on the audit job of the one api worker',
   },
+  // Story 25.24: the out-of-date mark and the fixed rules, two runs of the real audit job.
+  {
+    file: 'audit-stale-and-rules.spec.ts',
+    lane: 'queue',
+    why: 'waits twice on the audit job of the one api worker, as emission-audit.spec.ts does',
+  },
   // Story 13.7: "Fotografar placa" on every block type through the real reading job.
   {
     file: 'plate-every-type.spec.ts',

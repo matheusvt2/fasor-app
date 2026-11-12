@@ -1,5 +1,5 @@
 {
-  "$comment": "Story 13.8: the fake audit's canned findings, one per kind. Each ref is a selector the fake resolves against the refs the run sent: first-sheet, first-row, first-photo, or a ref id as written (section:10). A selector with no match is skipped.",
+  "$comment": "Story 13.8: the fake audit's canned findings, one per kind. Each ref is a selector the fake resolves against the refs the run sent: first-sheet, first-row, first-photo, sheet-citing:<text> (Story 25.24: the first sheet whose lines carry that text), or a ref id as written (section:10). A selector with no match is skipped.",
   "findings": [
     {
       "kind": "conclusion_vs_nc",
@@ -20,6 +20,11 @@
       "kind": "caption_equipment",
       "ref": "first-photo",
       "text": "A legenda cita um equipamento que não consta no relatório."
+    },
+    {
+      "kind": "observation_vs_items",
+      "ref": "sheet-citing:item 9",
+      "text": "A observação cita o item 9, e a lista desta ficha não tem esse item."
     }
   ]
 }

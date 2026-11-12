@@ -83,3 +83,14 @@
 /* authored: the audit's button row, the `.generate-row` declarations under a class of its own so
    the "Gerar relatório" row (and its reason) stays the dialog's only `.generate-row`. */
 .export-dialog .audit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); }
+/*
+ * Story 25.24: the frame of `73-exportar.html` (Story 25.1 Part B), its `[data-route=".../exportar"]`
+ * rules unscoped, declarations verbatim: the out-of-date Banner's actions wrap (`.e25-audit-stale
+ * .banner-actions`), the old findings at 72 % (`.e25-audit-old`, on each of the run's rows: DESIGN.md
+ * dims the old findings, never a rule's row), and a rule's outlined pill (`.e25-rule-word`). The
+ * Banner keeps the summary line's spacing from it.
+ */
+.e25-audit-stale .banner-actions { flex-wrap: wrap; }
+.audit-findings .e25-audit-stale { margin-bottom: var(--sp-2); }
+.e25-audit-old { opacity: .72; }
+.e25-rule-word { display: inline-flex; align-items: center; min-height: 24px; margin-right: var(--sp-1); padding: 0 var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); vertical-align: 1px; }

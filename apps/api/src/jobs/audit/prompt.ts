@@ -9,7 +9,8 @@ import { AUDIT_FINDING_KINDS } from '@app/domain';
  * tool schema; the run row and the log line carry it.
  */
 
-export const AUDIT_PROMPT_VERSION = 'audit-1';
+// Story 25.24 (contract 52): `audit-2` adds the fifth kind, `observation_vs_items`; the four others read as under `audit-1`.
+export const AUDIT_PROMPT_VERSION = 'audit-2';
 
 export const AUDIT_TOOL = 'record_findings';
 
@@ -22,13 +23,15 @@ export const AUDIT_KIND_RULES: Readonly<Record<(typeof AUDIT_FINDING_KINDS)[numb
   reading_out_of_family: 'a reading far out of family against the same reading on the other phases or units of the same equipment type, with no mark or observation explaining it',
   parecer_vs_restricoes: 'a PARECER (APTO, APTO COM RESTRIÇÕES, NÃO APTO) or its text that disagrees with the restrições the sheets and the points of attention carry',
   caption_equipment: 'a photo caption (an "Imagem N" line) that names an equipment the relatório does not carry',
+  observation_vs_items:
+    "a sheet's OBSERVAÇÕES or a checklist item's observation that names an item, by its number or by its description, that the same sheet's checklist does not have",
 };
 
 export const AUDIT_SYSTEM = [
   'You check the assembled technical report of an inspection of a medium-voltage electrical substation in Brazil before it is issued.',
   'You only point at contradictions for the engineer to check. The engineer decides; the report is never changed from your answer.',
   `Call the ${AUDIT_TOOL} tool exactly once.`,
-  'Report only these four kinds of finding:',
+  'Report only these kinds of finding:',
   ...AUDIT_FINDING_KINDS.map((kind) => `- ${kind}: ${AUDIT_KIND_RULES[kind]}.`),
   'Each line the report lets you point at starts with a ref in square brackets, like [sheet:...], [row:...], [section:...] or [photo:...].',
   'For each finding give its kind, exactly one ref copied from those brackets (the most specific one: the row, else the sheet, else the section or the photo), and one short sentence in Brazilian Portuguese (pt-BR) saying what disagrees with what.',

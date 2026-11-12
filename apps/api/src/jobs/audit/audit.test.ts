@@ -45,11 +45,11 @@ const toolAnswer = (input: unknown): BedrockConverseOutput => ({
 });
 
 describe('13.8-UNIT-010 the prompt and the tool', () => {
-  it('is versioned', () => {
-    expect(AUDIT_PROMPT_VERSION).toBe('audit-1');
+  it('is versioned (Story 25.24: audit-2, the fifth kind)', () => {
+    expect(AUDIT_PROMPT_VERSION).toBe('audit-2');
   });
 
-  it('names the four kinds and asks for one pt-BR sentence citing one given ref', () => {
+  it('names every kind (the four of audit-1 and the observation that names an item the checklist lacks) and asks for one pt-BR sentence citing one given ref', () => {
     for (const kind of AUDIT_FINDING_KINDS) expect(AUDIT_SYSTEM).toContain(`- ${kind}: ${AUDIT_KIND_RULES[kind]}.`);
     expect(AUDIT_SYSTEM).toContain('Brazilian Portuguese (pt-BR)');
     expect(AUDIT_SYSTEM).toContain('cite only refs written in the report');
@@ -87,10 +87,30 @@ describe('13.8-UNIT-011 the fake audit', () => {
     const answer = await fakeAuditProvider().audit({ text: 'x', refs });
     expect(answer.model).toBe(FAKE_AUDIT_MODEL);
     expect(answer.usage).toEqual({ input_tokens: 0, output_tokens: 0, usd: 0 });
-    expect((answer.findings as { kind: string }[]).map((finding) => finding.kind)).toEqual([...AUDIT_FINDING_KINDS]);
+    // No sheet of this text cites "item 9": the fifth kind's finding is skipped.
+    expect((answer.findings as { kind: string }[]).map((finding) => finding.kind)).toEqual(AUDIT_FINDING_KINDS.filter((kind) => kind !== 'observation_vs_items'));
     expect((answer.findings as { ref: string }[]).map((finding) => finding.ref)).toEqual([`sheet:${BLOCK}`, `row:${BLOCK}:2:3`, 'section:10', `photo:${PHOTO}`]);
     const noPhoto = await fakeAuditProvider().audit({ text: 'x', refs: refs.filter((ref) => !ref.id.startsWith('photo:')) });
     expect((noPhoto.findings as { kind: string }[]).map((finding) => finding.kind)).toEqual(['conclusion_vs_nc', 'reading_out_of_family', 'parecer_vs_restricoes']);
+  });
+
+  it('25.24-UNIT: sheet-citing:<text> names the sheet whose lines carry the text, and nothing outside a sheet', async () => {
+    const OTHER = '019966c1-0000-7000-8000-000000000013';
+    const twoSheets: AuditRef[] = [...refs, { id: `sheet:${OTHER}`, label: 'TC TC-02', target: { kind: 'sheet', blockId: OTHER } }];
+    const text = [
+      '[section:10] 10 CONCLUSÃO E PARECER',
+      'Ver item 9 do relatório anterior.',
+      `[sheet:${BLOCK}] CHAVE SECCIONADORA`,
+      '  OBSERVAÇÕES: sem anotações',
+      `[sheet:${OTHER}] TRANSFORMADOR DE CORRENTE`,
+      '  OBSERVAÇÕES: conforme o Item 9, o terminal foi reapertado.',
+    ].join('\n');
+    expect(resolveFakeSelector('sheet-citing:item 9', twoSheets, text)).toBe(`sheet:${OTHER}`);
+    expect(resolveFakeSelector('sheet-citing:item 9', refs, text)).toBeNull();
+    expect(resolveFakeSelector('sheet-citing:item 12', twoSheets, text)).toBeNull();
+    const answer = await fakeAuditProvider().audit({ text, refs: twoSheets });
+    const observation = (answer.findings as { kind: string; ref: string }[]).find((finding) => finding.kind === 'observation_vs_items');
+    expect(observation?.ref).toBe(`sheet:${OTHER}`);
   });
 
   it('is what LLM_PROVIDER=fake builds', async () => {

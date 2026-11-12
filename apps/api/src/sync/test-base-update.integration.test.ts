@@ -128,8 +128,9 @@ describe('25.23-API-001 the base update through the route', () => {
   });
 
   it('speaks contract 51: a version-50 pull is answered 426 contract_outdated, the current one is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(51);
-    expect(MIN_CONTRACT_VERSION).toBe(51);
+    // Story 25.24 (same batch) moved the contract to 52: 50 stays refused.
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(51);
+    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(51);
     const old = await h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': '50' } });
     expect(old.status).toBe(426);
     expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');

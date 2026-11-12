@@ -10,6 +10,7 @@ import { blockTypeLabelIn } from '../relatorio/tree.ts';
 import { typeVersionOf } from '../schemas/block-config.ts';
 import { snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import type { BlockRow } from '../schemas/entities.ts';
 import type { AuditTarget } from './schema.ts';
 
 /*
@@ -93,6 +94,11 @@ export function auditSectionLabel(number: number, rowKey: string): string {
 function sheetLabelOf(snapshot: RelatorioSnapshot, sheet: PrintSheet): string {
   const block = snapshot.blocks.find((row) => row.id === sheet.blockId);
   if (block === undefined) return screenLabel(sheet.title);
+  return auditBlockLabel(snapshot, block);
+}
+
+/** "Chave seccionadora SEC-C01": a sheet's type as the screen names it, then its TAG (Story 25.24: the fixed rules name sheets so too). */
+export function auditBlockLabel(snapshot: RelatorioSnapshot, block: Pick<BlockRow, 'equipment_id' | 'seed_version' | 'block_type' | 'config'>): string {
   const tag = block.equipment_id === null ? '' : (snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
   // Story 14.6: a company sheet is named by the label of the version its block references.
   const type = blockTypeLabelIn(snapshotDefinitionContext(snapshot), block.seed_version, block.block_type, typeVersionOf(block.config));

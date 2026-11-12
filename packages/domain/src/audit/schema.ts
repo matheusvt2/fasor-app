@@ -12,9 +12,11 @@ import { uuidV7Schema } from '../ids.ts';
  * - `conclusion_vs_nc`: a sheet's conclusion that disagrees with its NC items;
  * - `reading_out_of_family`: a reading far out of family across phases or units, with no mark;
  * - `parecer_vs_restricoes`: a parecer that disagrees with the restrições it summarizes;
- * - `caption_equipment`: a photo caption naming an equipment the relatório does not carry.
+ * - `caption_equipment`: a photo caption naming an equipment the relatório does not carry;
+ * - `observation_vs_items` (Story 25.24, contract 52, prompt `audit-2`): a sheet's OBSERVAÇÕES or an
+ *   item's observation that names an item by a number or a description its checklist does not have.
  */
-export const AUDIT_FINDING_KINDS = ['conclusion_vs_nc', 'reading_out_of_family', 'parecer_vs_restricoes', 'caption_equipment'] as const;
+export const AUDIT_FINDING_KINDS = ['conclusion_vs_nc', 'reading_out_of_family', 'parecer_vs_restricoes', 'caption_equipment', 'observation_vs_items'] as const;
 export type AuditFindingKind = (typeof AUDIT_FINDING_KINDS)[number];
 
 /**

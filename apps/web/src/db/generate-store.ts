@@ -12,6 +12,8 @@ import {
   type GenerationJobRow,
   type RelatorioRow,
   type RevisionRow,
+  type RelatorioStream,
+  type StreamCandidate,
 } from '@app/domain';
 import { byClientTsThenOpId } from './commit.ts';
 import { blockRowsOf } from './home-store.ts';
@@ -72,6 +74,20 @@ export async function latestGenerationJob(db: AppDatabase, relatorioId: string, 
  * the equipment its live blocks reference, the same rule the api's generate barrier reads.
  */
 export async function editedSinceSnapshot(db: AppDatabase, relatorioId: string, snapshotSeq: number): Promise<boolean> {
+  const { pulled, unsent, stream } = await streamOpsSince(db, relatorioId, snapshotSeq);
+  return editedOnDevice(pulled, unsent, snapshotSeq, stream);
+}
+
+/**
+ * The device's ops of the relatório's stream that `editedOnDevice` reads against `snapshotSeq`: the
+ * pulled ones past it (and this device's acked ones), this device's unsent ones, and the stream.
+ * Story 25.24: the audit's out-of-date test (`auditRunStale`) reads the same lists.
+ */
+export async function streamOpsSince(
+  db: AppDatabase,
+  relatorioId: string,
+  snapshotSeq: number,
+): Promise<{ pulled: StreamCandidate[]; unsent: StreamCandidate[]; stream: RelatorioStream }> {
   const blocks = await blockRowsOf(db, relatorioId);
   const stream = { relatorioId, equipmentIds: referencedEquipmentIds(blocks) };
   // Full review 2026-09-30: only what the stream can hold is read -- the relatório's own ops
@@ -87,7 +103,7 @@ export async function editedSinceSnapshot(db: AppDatabase, relatorioId: string, 
   // An op of this device the server acked (its `seq` known) before the pull brought it back.
   const acked = (await db.outbox.where('seq').above(snapshotSeq).toArray()).filter((op) => op.status === 'acked');
   const unsent = await db.outbox.where('status').anyOf('pending', 'sent').toArray();
-  return editedOnDevice([...pulled, ...acked], unsent, snapshotSeq, stream);
+  return { pulled: [...pulled, ...acked], unsent, stream };
 }
 
 /** `editedSinceSnapshot`, live; true (the next number) until the first read lands or with no snapshot. */

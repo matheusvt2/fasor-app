@@ -1179,3 +1179,15 @@ export function conclusionTextOnConclude(block: BlockRow, definition: BlockDefin
   const composed = composeConclusion(block, definition, equipmentTag, visit);
   return { text: composed.text, basis: composed.basis };
 }
+
+/**
+ * Story 25.24: the stored pair of a sheet named as the reason line names a pair ("Aprovado · Sem
+ * restrições", "Reprovado" alone where the result takes no restriction), for the audit's first fixed
+ * rule (`audit/rules.ts`); null while no result is stored, or on a sheet marked Não ensaiado.
+ */
+export function storedConclusionPairText(block: BlockRow): string | null {
+  const result = block.not_tested === null ? conclusionResultOf(block) : null;
+  if (result === null) return null;
+  const restriction = restrictionApplies(block, result) ? conclusionRestrictionOf(block) : null;
+  return restriction === null ? RESULT_WORDS[result] : pairWords({ result, restriction });
+}
