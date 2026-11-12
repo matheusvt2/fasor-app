@@ -12,6 +12,7 @@ import {
   queuedReadingRows,
   syncBadgeState,
   syncCounts,
+  syncLateText,
   syncHeadlineText,
   syncSummaryBadges,
   type DownloadRow,
@@ -63,6 +64,7 @@ import type { SyncFailure } from '../sync/client.ts';
 import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
 import { followOnlineEvents } from '../sync/online.ts';
+import { followCommits, followVisible } from '../sync/nudges.ts';
 import { startWait, trackError } from '../telemetry/hooks.ts';
 import { failureCode, observeCycle, syncWaitOutcome } from '../telemetry/sync-observer.ts';
 import { configureTelemetry } from '../telemetry/track.ts';
@@ -70,6 +72,7 @@ import type { AppDatabase } from '../db/schema.ts';
 import { useDefinitionContext } from './definition-context.ts';
 import { useSession } from './session.tsx';
 import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
+import { useCanSendSince, useLateOpCount } from './late-ops.ts';
 
 /*
  * AD-1, UX-DR10: the sync badge, the counts and the Sync status surface render
@@ -81,6 +84,12 @@ import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
 export interface SyncState {
   counts: SyncCounts;
   badgeState: SyncBadgeState;
+  /**
+   * Story 25.3: how many waiting ops (`pending`, `sent`) have waited more than one minute, and
+   * the kernel's line for the late alert ('' when none). Optional for the older test doubles.
+   */
+  lateCount?: number;
+  lateText?: string;
   /** "3 fichas", "1 ficha e 2 fotos", "5 alterações" or '' (kernel). */
   pendingText: string;
   pendingCount: number;
@@ -224,6 +233,7 @@ export const SyncContext = createContext<SyncState | null>(null);
 
 const IDLE: EngineStatus = {
   running: false,
+  pushing: false,
   paused: false,
   outdated: false,
   lastResult: null,
@@ -328,11 +338,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setEngineReady(true);
     const nudge = () => engine.nudge();
     cycleRequests.add(nudge);
+    // Story 25.3: a local commit asks the engine to send it (coalesced in `COMMIT_SYNC_WINDOW_MS`); fix batch e25x
+    // (A2): that is a push-only pass (`pushNow`), not a whole cycle. The app coming back to the front asks a cycle.
+    const stopCommits = followCommits(() => engine.pushNow(), browserTimers, undefined, nudge);
+    const stopVisible = followVisible(nudge);
     return () => {
       current = false;
       configureTelemetry(null);
       statusRef.current = IDLE;
       cycleRequests.delete(nudge);
+      stopCommits();
+      stopVisible();
       engine.stop();
       stopFollowing();
       engineRef.current = null;
@@ -391,10 +407,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [rows, reading, status.merges, photoUploads],
   );
   const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
+  // Story 25.3: the waiting ops that waited more than one minute while the device could send them (the kernel's
+  // rule, its own timer): the wait counts from the later of each op's commit and the moment the device last became
+  // online, signed in, reaching the server and not paused, so work done offline is not late the moment it reconnects.
+  // Fix batch e25x (A5, A7): that moment is taken in the very render where sending becomes possible, on the late
+  // clock (a duration clock), so no render after a reconnect reads the old one ("Envio atrasado" for one frame).
+  const canSend = session.online && unreachable === null && !status.paused;
+  const canSendSince = useCanSendSince(canSend);
+  const lateCount = useLateOpCount(rows, canSendSince);
   // Story 14.10 lane B: a server that fails the sync but answers its health probe; a session to renew stays as today.
   const serverAnswers = unreachable === 'server' && status.serverAnswers === true;
-  // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight.
-  const requestOpen = status.running && session.online && unreachable === null;
+  // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight; fix batch e25x (A2): a
+  // push-only pass's request is one too.
+  const requestOpen = (status.running || status.pushing) && session.online && unreachable === null;
   const sheetContext = useLiveQuery(() => (db === null ? Promise.resolve(NO_SHEET_CONTEXT) : pendingSheetContext(db, rows)), [db, rows], NO_SHEET_CONTEXT);
   const pendingSheets = useMemo(() => pendingSheetRows(rows, sheetContext, { requestOpen }), [rows, sheetContext, requestOpen]);
   const uploads = useMemo(() => pendingPhotoRows(photoUploads), [photoUploads]);
@@ -545,7 +570,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     () => ({
       counts,
       // Story 14.10 lane B: a server that fails the sync but answers its health probe reads "Tentando de novo"; a session to renew stays as today.
-      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, serverAnswers, conflicts: decisionCount }),
+      // Story 25.3: `late` only while sync is not paused (the kernel's precedence keeps the explaining states first).
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, serverAnswers, conflicts: decisionCount, late: lateCount, paused: status.paused }),
+      lateCount,
+      lateText: lateCount > 0 ? syncLateText(lateCount) : '',
       serverAnswers,
       headline: syncHeadlineText({ counts, ...split }),
       summaryBadges: syncSummaryBadges({ counts, ...split }),
@@ -585,7 +613,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
     }),
-    [counts, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (

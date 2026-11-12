@@ -2,9 +2,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { describe, expect, it, vi } from 'vitest';
-import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { requestSyncCycle, SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
 import { SyncStatusSurface } from './sync-status-surface.tsx';
+
+// Story 25.3: the surface asks for a cycle when it opens; the spy stands for the provider's engine.
+vi.mock('../../state/sync.tsx', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../state/sync.tsx')>()),
+  requestSyncCycle: vi.fn(),
+}));
 
 const state = (over: SyncStateOverrides = {}): SyncState =>
   makeSyncState({
@@ -335,5 +341,39 @@ describe('Sync status surface: the full 85-sync surface (Story 10.4)', () => {
     expect(details).toHaveAttribute('open');
     expect(details.querySelector('.how-body')).toHaveTextContent('NC vence C.');
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('25.3-WEB Sync status asks for a cycle and says when edits are late (`85-sync-atrasado.html`)', () => {
+  it('opening the surface asks for one cycle, with no tap on "Sincronizar agora"', () => {
+    vi.mocked(requestSyncCycle).mockClear();
+    const value = state({ badgeState: 'pending', counts: { pending: 2 } });
+    renderWith(value);
+    expect(requestSyncCycle).toHaveBeenCalledTimes(1);
+    expect(value.syncNow).not.toHaveBeenCalled();
+  });
+
+  it('late: the headline reads "Envio atrasado", the kernel\'s line sits under it with the one "Sincronizar agora" beside it', async () => {
+    const line = 'O aparelho está com conexão, mas 3 alterações aguardam envio há mais de 1 minuto.';
+    const value = state({ badgeState: 'late', lateCount: 3, lateText: line, counts: { pending: 3, sheets_pending: 3 } });
+    const { container } = renderWith(value);
+    expect(container.querySelector('.sync-headline')).toHaveAttribute('data-tone', 'late');
+    expect(container.querySelector('.sh-state')).toHaveTextContent('Envio atrasado');
+    const alert = container.querySelector('.e25-late')!;
+    expect(alert.previousElementSibling).toHaveClass('sync-headline');
+    expect(alert.querySelector('.e25-late-line')).toHaveTextContent(line);
+    expect(screen.getAllByRole('button', { name: 'Sincronizar agora' })).toHaveLength(1);
+    expect(alert).toContainElement(screen.getByRole('button', { name: 'Sincronizar agora' }));
+    expect(container.querySelector('.sync-actions')).toBeNull();
+    // One line and a badge state: nothing live, no toast.
+    expect(container.querySelectorAll('[aria-live], [role="status"], [role="alert"]')).toHaveLength(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Sincronizar agora' }));
+    expect(value.syncNow).toHaveBeenCalledTimes(1);
+  });
+
+  it('not late: no line, and the button stays in its row', () => {
+    const { container } = renderWith(state({ badgeState: 'pending', lateCount: 0, lateText: '', counts: { pending: 1 } }));
+    expect(container.querySelector('.e25-late')).toBeNull();
+    expect(container.querySelector('.sync-actions')).toContainElement(screen.getByRole('button', { name: 'Sincronizar agora' }));
   });
 });

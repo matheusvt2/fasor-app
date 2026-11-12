@@ -20,6 +20,7 @@ import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schem
 import {
   applyPulled,
   deviceId,
+  hasPendingOps,
   heldOpsOnPaths,
   markAcked,
   markDead,
@@ -61,13 +62,21 @@ import {
  * followed project stream, Epic 4 retro item 17), run on launch, on `online`, every
  * 60 s and on "Sincronizar agora". The timer and the events call `runCycle()`; a mutex
  * makes a concurrent call a no-op. The button and "Reenviar" call `runFreshCycle()` (W-4),
- * which waits out a cycle in flight and runs its own.
+ * which waits out a cycle in flight and runs its own. Fix batch e25x (A2): a local commit asks only
+ * for a push-only pass (`pushNow`), never a whole cycle; a pass and a cycle never overlap.
  */
 
 export type CycleResult = 'ran' | 'busy' | 'offline' | 'paused';
 
 export interface EngineStatus {
+  /** A full cycle is in flight (push, uploads, pulls): what the Sync status word and button, and `sync_result`, read. */
   running: boolean;
+  /**
+   * Fix batch e25x (A2): a push-only pass (`pushNow`, the commit nudge) has its push request open.
+   * Never true together with `running`, and false outside a pass. Read only to say a `sent` row
+   * is "Enviando…" (Design Notes D1 of the e25x spec).
+   */
+  pushing: boolean;
   paused: boolean;
   /** A pull answered 426: pulls stop, pushes continue, the app shows "Atualizar". */
   outdated: boolean;
@@ -161,6 +170,14 @@ export interface SyncEngine {
    * offline, paused or stopped, nothing happens (the `online` event covers the return).
    */
   nudge(): void;
+  /**
+   * Fix batch e25x (A2), the commit nudge: a push-only pass that sends the waiting ops and nothing
+   * else (no pull, upload, thumb, eviction, prune or sweep, no `running`). Nothing happens when not
+   * started, stopped, paused, offline, or held after a failed pass until a full cycle has started.
+   * During a full cycle it asks one pass after it (none when that cycle asks another cycle); during
+   * a pass it asks one more after it. A pass and a cycle never overlap: a cycle waits for the pass.
+   */
+  pushNow(): void;
   /** Final: ends the in-flight cycle at its next step and silences the engine (a new session builds a new engine). */
   stop(): void;
   pause(): void;
@@ -213,6 +230,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   const subscribeOnline = deps.subscribeOnline ?? defaultSubscribeOnline;
   const status: EngineStatus = {
     running: false,
+    pushing: false,
     paused: false,
     outdated: false,
     lastResult: null,
@@ -242,6 +260,23 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   let onlineWhileRunning = false;
   /** Resolves when the cycle in flight ends (resolved while none runs). */
   let cycleEnded: Promise<void> = Promise.resolve();
+  /**
+   * Story 25.3: the push run between two file uploads of the cycle in flight. `running` is the
+   * one in flight, which every worker awaits before its next attempt (one push at a time, the
+   * ops in their order); `off` is set when the cycle's own push ended in a failure, or a push
+   * between files did, so no more run in this cycle.
+   */
+  let filePush: { running: Promise<void> | null; off: boolean } = { running: null, off: false };
+  /**
+   * Fix batch e25x (A2): the push-only pass in flight (`pushNow`), resolved and cleared when it ends; a
+   * cycle asked meanwhile waits for it. `pushAfterCycle`: a commit nudge came during a full cycle, so one
+   * pass runs after it. `pushAgain`: one came during a pass, so one more pass runs after it. `pushHold`: a
+   * pass failed, so no pass runs until a full cycle has started (the cycle owns the retry).
+   */
+  let pushPass: Promise<void> | null = null;
+  let pushAfterCycle = false;
+  let pushAgain = false;
+  let pushHold = false;
 
   const emit = () => {
     if (!stopped) deps.onChange({ ...status });
@@ -290,9 +325,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
   }
 
-  async function pushPhase(): Promise<void> {
+  /** Sends the waiting rows (`pending` and `sent`); true when at least one push was answered. */
+  async function pushPhase(): Promise<boolean> {
     const rows = await takePending(deps.db);
-    if (rows.length === 0) return;
+    if (rows.length === 0) return false;
     // Every outbox row already carries this device's id: `commitBatch` stamps it (AD-3).
     // Story 20.9: each push stays under the server's body cap (`SYNC_PUSH_MAX_BYTES`), measured
     // on the op the body serializes, so a long offline backlog never earns a 413.
@@ -310,6 +346,91 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       queueMergePairs(response.superseded);
       emit();
     }
+    return true;
+  }
+
+  /**
+   * Fix batch e25x (A2): one push-only pass, the waiting ops and nothing else. With no `pending` row it
+   * ends with no request and publishes nothing. Its verdicts are a cycle's push verdicts (a 401 pauses, a
+   * 426 flags outdated), but it never touches `running`, `lastResult` or the failure of a cycle in
+   * flight: any failure but going offline is published as `lastFailure`, holds later passes until a full
+   * cycle starts, and runs the health probe when it says the server was unreachable. A pass whose push was
+   * answered clears an unreachable `lastFailure` (the server answered), nothing else. Never rejects;
+   * answers false when it failed.
+   */
+  async function runPushPass(): Promise<boolean> {
+    let opened = false;
+    try {
+      if (!(await hasPendingOps(deps.db))) return true;
+      if (stopped || status.paused || !deps.isOnline()) return true;
+      status.pushing = true;
+      opened = true;
+      emit();
+      const answered = await pushPhase();
+      if (answered && !stopped && status.lastFailure !== null && isUnreachableFailure(status.lastFailure)) {
+        status.lastFailure = null;
+        status.serverAnswers = null;
+      }
+      return true;
+    } catch (error) {
+      if (stopped) return false;
+      let failure: SyncFailure;
+      if (error instanceof PhaseEnd) {
+        // The device went offline: no server verdict, nothing recorded (the `online` event resumes).
+        if (error.failure === OFFLINE) return true;
+        failure = error.failure;
+        if (error.action === 'reauth') {
+          status.paused = true;
+          deps.onReAuth();
+        } else if (error.action === 'outdated' && !status.outdated) {
+          status.outdated = true;
+          deps.onOutdated();
+        }
+      } else {
+        // W-10: a store error (a database closed by sign-out, a quota) is a failure on the device.
+        console.error('sync push pass failed', error);
+        failure = { kind: 'apply' };
+      }
+      status.lastFailure = failure;
+      pushHold = true;
+      if (isUnreachableFailure(failure)) {
+        if (deps.isOnline()) void probeServer(failure);
+      } else {
+        status.serverAnswers = null;
+      }
+      return false;
+    } finally {
+      if (opened) {
+        status.pushing = false;
+        emit();
+      }
+    }
+  }
+
+  /** Fix batch e25x (A2): `SyncEngine.pushNow`, also run on a zero timer after a cycle or a pass that asked one more. */
+  function pushNow(): void {
+    if (!started || stopped || status.paused || pushHold || !deps.isOnline()) return;
+    if (status.running) {
+      pushAfterCycle = true;
+      return;
+    }
+    if (pushPass !== null) {
+      pushAgain = true;
+      return;
+    }
+    pushAgain = false;
+    const end = (clean: boolean): void => {
+      if (pushPass === pass) pushPass = null;
+      const again = pushAgain;
+      pushAgain = false;
+      // A cycle that waited for this pass resumes first (a microtask); the next pass then waits for it.
+      if (again && clean && !stopped) deps.timers.setTimeout(() => pushNow(), 0);
+    };
+    const pass: Promise<void> = runPushPass().then(end, (error: unknown) => {
+      console.error('sync push pass failed', error);
+      end(false);
+    });
+    pushPass = pass;
   }
 
   /** A pair already listed, or already waiting, is not queued twice. */
@@ -376,15 +497,50 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   /** AD-7: two uploads at a time, so one big certificate never holds the queue. */
   const UPLOAD_CONCURRENCY = 2;
 
+  /**
+   * Story 25.3 (M03): an edit committed while files upload is pushed before the next file starts,
+   * not after the last one. Single-flight: a worker that finds one running awaits it. A re-auth or
+   * outdated verdict ends the upload phase, as `uploadOne`'s does; any other failure is recorded
+   * and no more pushes run between files in this cycle (the next cycle, or its own push, sends them).
+   */
+  function pushBetweenFiles(): Promise<void> {
+    if (filePush.off || stopped || status.paused) return Promise.resolve();
+    if (filePush.running !== null) return filePush.running;
+    const run = (async () => {
+      if (!(await hasPendingOps(deps.db))) return;
+      try {
+        await pushPhase();
+      } catch (error) {
+        if (!(error instanceof PhaseEnd)) throw error;
+        if (error.action === 'reauth' || error.action === 'outdated') throw error;
+        recordFailure(error.failure);
+        filePush.off = true;
+      }
+    })();
+    const running = run.finally(() => {
+      if (filePush.running === running) filePush.running = null;
+    });
+    filePush.running = running;
+    return running;
+  }
+
   /** The code a failure is recorded under on the blob row (Story 6.2 `upload_error`). */
   const failureCode = (failure: SyncFailure): string =>
     failure.kind === 'http' ? (failure.code ?? String(failure.status)) : failure.kind;
 
-  /** One file, with the upload retry table; throws PhaseEnd only for re-auth and outdated. */
-  async function uploadOne(item: PendingUpload): Promise<'uploaded' | 'deferred' | 'failed'> {
+  /**
+   * One file, with the upload retry table; throws PhaseEnd only for re-auth and outdated.
+   * Story 25.3: `beforeAttempt` runs before every attempt (the push between files).
+   */
+  async function uploadOne(item: PendingUpload, beforeAttempt: () => Promise<void> = () => Promise.resolve()): Promise<'uploaded' | 'deferred' | 'failed'> {
     for (let attempt = 1; ; attempt++) {
       if (stopped || !deps.isOnline()) {
         cycleWentOffline = true;
+        return 'deferred';
+      }
+      await beforeAttempt();
+      if (stopped || status.paused || !deps.isOnline()) {
+        if (!stopped && !status.paused) cycleWentOffline = true;
         return 'deferred';
       }
       try {
@@ -445,11 +601,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
     let cursor = 0;
     let uploaded = 0;
+    // Story 25.3: every attempt after the phase's first is preceded by the push between files
+    // (the cycle's own push has just run before the first).
+    let attempts = 0;
+    const beforeAttempt = (): Promise<void> => (attempts++ === 0 ? Promise.resolve() : pushBetweenFiles());
     const worker = async (): Promise<void> => {
       for (;;) {
         const item = queue[cursor++];
         if (item === undefined) return;
-        const result = await uploadOne(item);
+        const result = await uploadOne(item, beforeAttempt);
         if (result === 'uploaded') uploaded += 1;
       }
     };
@@ -612,6 +772,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
   async function cycle(): Promise<CycleResult> {
     if (status.running) return 'busy';
+    // Fix batch e25x (A2): a push-only pass in flight ends first, so the two never push at once and
+    // the ops leave in their order; the cycle asked meanwhile is not dropped, it starts after it.
+    while (pushPass !== null) await pushPass;
+    if (status.running) return 'busy';
     if (status.paused || stopped) return 'paused';
     if (!deps.isOnline()) {
       status.lastResult = 'offline';
@@ -619,6 +783,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       return 'offline';
     }
     status.running = true;
+    // Fix batch e25x (A2): a full cycle owns the retry of a failed pass; the passes may run again.
+    pushHold = false;
     status.lastResult = null;
     cycleFailure = null;
     cycleWentOffline = false;
@@ -629,6 +795,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     emit();
     try {
       await runPhase(pushPhase);
+      // Story 25.3: a push that failed in this cycle is not tried again between files.
+      filePush = { running: null, off: cycleFailure !== null || cycleWentOffline };
       // AD-7: the upload sits between the push and the pull, so a file whose create op
       // this cycle just acked is uploaded now and its `uploaded_at` arrives below.
       if (!status.paused && !stopped) await runPhase(uploadPhase);
@@ -659,7 +827,13 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (unreachableFailure !== null && !stopped && deps.isOnline()) void probeServer(unreachableFailure);
       if (onlineWhileRunning && !stopped) {
         onlineWhileRunning = false;
+        // The next cycle pushes too: no pass is needed after this one.
+        pushAfterCycle = false;
         deps.timers.setTimeout(() => void fireCycle(), 0);
+      } else if (pushAfterCycle && !stopped) {
+        // Fix batch e25x (A2): a commit nudge came during this cycle; one pass sends what it left (silent when nothing waits).
+        pushAfterCycle = false;
+        deps.timers.setTimeout(() => pushNow(), 0);
       }
     }
     return 'ran';
@@ -684,7 +858,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   }
 
   /** Applies the end-of-phase policy: pause on re-auth, flag outdated, otherwise record and move on. */
-  async function runPhase(phase: () => Promise<void>): Promise<void> {
+  async function runPhase(phase: () => Promise<unknown>): Promise<void> {
     try {
       await phase();
     } catch (error) {
@@ -828,10 +1002,14 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (status.running) onlineWhileRunning = true;
       else void fireCycle();
     },
+    pushNow,
     stop() {
       started = false;
       stopped = true;
       onlineWhileRunning = false;
+      pushAfterCycle = false;
+      pushAgain = false;
+      pushHold = false;
       if (timer !== null) deps.timers.clearTimeout(timer);
       timer = null;
       unsubscribe?.();

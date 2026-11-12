@@ -735,3 +735,145 @@ describe('e23f focusRunEnd (R8LAY, Matheus 2026-11-08)', () => {
     expect(inView.scroll).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * Story 25.2 (M02): FABRICAÇÃO on the sheet. The field's own React Aria null selections stay dropped (a created
+ * name not landed yet, a stored name the registry does not hold); a clear the technician made is written, once.
+ */
+describe('25.2-WEB the manufacturer field of the sheet', () => {
+  const MAKER: FieldDef = { key: 'fabricacao', label: 'FABRICAÇÃO', kind: 'manufacturer' };
+  const row = (id: string, name: string) => ({ id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null }) as unknown as NonNullable<Parameters<typeof SheetField>[0]['registries']>['manufacturer'][number];
+  const SIEMENS = row('siemens', 'Siemens');
+
+  function maker(props: { value: string | null; commit: (value: unknown) => void; rows?: readonly ReturnType<typeof row>[]; onCreateWord?: (kind: 'manufacturer' | 'voltage_class', name: string) => void }) {
+    return (
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField
+            field={MAKER}
+            value={props.value}
+            commit={props.commit}
+            draft={{ entityId: 'b', field: MAKER.key }}
+            invalidText="Número não reconhecido"
+            selectEmpty="Selecione"
+            registries={{ manufacturer: props.rows ?? [SIEMENS], voltage_class: [] }}
+            onCreateWord={props.onCreateWord ?? vi.fn()}
+          />
+          <button type="button">fora</button>
+        </ToastProvider>
+      </I18nProvider>
+    );
+  }
+
+  async function openCombobox(): Promise<HTMLElement> {
+    const other = screen.queryByRole('button', { name: 'Outro…' });
+    if (other !== null) await userEvent.click(other);
+    return screen.getByRole('combobox', { name: /FABRICAÇÃO/i });
+  }
+
+  it('a stored name the registry does not hold, emptied and left, writes the clear once; the screen and the store agree', async () => {
+    const commit = vi.fn();
+    render(maker({ value: 'Hi-Tech', commit }));
+    const input = await openCombobox();
+    expect(input).toHaveValue('Hi-Tech');
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledWith(null);
+    expect(input).toHaveValue('');
+  });
+
+  it('the same clear made with the sheet left (the field unmounts with the focus in it) is written once', async () => {
+    const commit = vi.fn();
+    const { unmount } = render(maker({ value: 'Hi-Tech', commit }));
+    const input = await openCombobox();
+    await userEvent.clear(input);
+    unmount();
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledWith(null);
+  });
+
+  it('a stored name the registry does not hold, focused and left untouched, writes nothing', async () => {
+    const commit = vi.fn();
+    const { unmount } = render(maker({ value: 'Hi-Tech', commit }));
+    await openCombobox();
+    await userEvent.click(screen.getByText('fora'));
+    await userEvent.click(screen.getByRole('combobox', { name: /FABRICAÇÃO/i }));
+    unmount();
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('a registered name typed with the focus in the field is stored when the sheet is left', async () => {
+    const commit = vi.fn();
+    const { unmount } = render(maker({ value: null, commit }));
+    const input = await openCombobox();
+    await userEvent.type(input, 'siemens');
+    unmount();
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenCalledWith('Siemens');
+  });
+
+  it('a new name typed with the focus in the field is created once, as "Criar" does, when the sheet is left', async () => {
+    const commit = vi.fn();
+    const onCreateWord = vi.fn();
+    const { unmount } = render(maker({ value: null, commit, onCreateWord }));
+    const input = await openCombobox();
+    await userEvent.type(input, 'Megabras');
+    unmount();
+    expect(onCreateWord).toHaveBeenCalledTimes(1);
+    expect(onCreateWord).toHaveBeenCalledWith('manufacturer', 'Megabras');
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('D2 (fix batch e24z lead): "Criar", then leaves while the registry row and the value land one after the other, never write a clear', async () => {
+    const commit = vi.fn();
+    const onCreateWord = vi.fn();
+    const { rerender } = render(maker({ value: null, commit, onCreateWord }));
+    const input = await openCombobox();
+    await userEvent.type(input, 'Fabricante R8CAP');
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “Fabricante R8CAP”' }));
+    expect(onCreateWord).toHaveBeenCalledTimes(1);
+    // Left before anything lands.
+    await userEvent.click(screen.getByText('fora'));
+    // The registry row lands first (its live read), the value second.
+    const created = row('r8cap', 'Fabricante R8CAP');
+    rerender(maker({ value: null, commit, onCreateWord, rows: [SIEMENS, created] }));
+    await userEvent.click(input);
+    await userEvent.click(screen.getByText('fora'));
+    rerender(maker({ value: 'Fabricante R8CAP', commit, onCreateWord, rows: [SIEMENS, created] }));
+    await userEvent.click(input);
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit).not.toHaveBeenCalledWith(null);
+    expect(onCreateWord).toHaveBeenCalledTimes(1);
+    expect(input).toHaveValue('Fabricante R8CAP');
+  });
+
+  /*
+   * Fix batch e25x, "e25x A9": a clear the technician makes is written, whatever happened to an earlier clear. A leave
+   * of the emptied field is the clear of `onClear`. The `onChange` clear resets the same way; no gesture on the
+   * manufacturer reaches it (React Aria reports no null here while the field keeps the focus), so it has no test.
+   */
+  const WEG = row('weg', 'WEG');
+
+  it('e25x A9: clear "Siemens", pick "WEG" before the store read null, "Siemens" again later, then clear: the last clear is written', async () => {
+    const commit = vi.fn();
+    const rows = [SIEMENS, WEG];
+    const { rerender } = render(maker({ value: 'Siemens', commit, rows }));
+    const input = await openCombobox();
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit).toHaveBeenLastCalledWith(null);
+    await userEvent.type(input, 'weg');
+    await userEvent.click(await screen.findByRole('option', { name: 'WEG' }));
+    expect(commit).toHaveBeenLastCalledWith('WEG');
+    await userEvent.click(screen.getByText('fora'));
+    // The store skips the null: the next read already holds the name picked, and later "Siemens" again (an undo, a pull).
+    rerender(maker({ value: 'WEG', commit, rows }));
+    rerender(maker({ value: 'Siemens', commit, rows }));
+    const before = commit.mock.calls.length;
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit.mock.calls.length).toBe(before + 1);
+    expect(commit).toHaveBeenLastCalledWith(null);
+  });
+});

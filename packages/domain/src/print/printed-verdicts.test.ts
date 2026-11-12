@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { layoutLockSnapshot } from '../../fixtures/layout-lock/op-log.ts';
+import { makeOp } from '../ops/op.ts';
+import { replay } from '../ops/replay.ts';
 import { effectiveConclusionPair, type EffectiveConclusionPair } from '../relatorio/conclusion.ts';
+import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { effectiveParecer, parecerVerdictLabel } from '../relatorio/parecer.ts';
+import { blockingRows, preIssue } from '../relatorio/pre-issue.ts';
+import { cellAddressesOf } from '../relatorio/readings.ts';
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import { visitContextOf } from '../relatorio/visit-context.ts';
 import { revisionRowSchema, type BlockRow, type Cell, type RevisionRow } from '../schemas/entities.ts';
-import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, findDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { standardTemplate } from '../seed/template.ts';
+import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { layoutSpec } from './layout.ts';
 import { printedVerdicts, relatorioVerdicts } from './printed-verdicts.ts';
-import type { LayoutSection10 } from './section-10.ts';
+import { PARECER_MISSING_TITLE, type LayoutSection10 } from './section-10.ts';
 import type { LayoutSectionSheets, PrintTable, SheetPart } from './section-9.ts';
 
 /*
@@ -288,6 +295,56 @@ describe('25.4-UNIT (e) the revision row', () => {
     expect(revisionRowSchema.safeParse({ ...row, printed_conclusions: { [id(5)]: { result: 'apto', restriction: null } } }).success).toBe(false);
     expect(revisionRowSchema.safeParse({ ...row, printed_conclusions: { 'not-a-block': { result: null, restriction: null } } }).success).toBe(false);
     expect(revisionRowSchema.safeParse({ ...row, printed_parecer: 'aprovado' }).success).toBe(false);
+  });
+});
+
+// --- fix batch e25r (T4 of the wave 1 review of batch e25b): a sheet reopened before the freeze ---------
+
+/** A new relatório of the standard template on v14, nothing filled. */
+function freshV14(): RelatorioSnapshot {
+  const { relatorioId, drafts } = instantiateTemplate(
+    standardTemplate({ id: id(800), seedVersion: 'v14' }),
+    { id: TEST_PROJECT },
+    { service_start: '2026-11-03', service_end: '2026-11-04', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+    { newId: idSequence('019a6100-0e25-7001-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
+  );
+  const ops = drafts.map((draft, i) => ({ ...makeOp({ ...draft, device_id: 'tablet-test' }, { newId: idSequence('019a6100-0e25-7002-8000-'), now: T0 }), seq: i + 1 }));
+  return buildSnapshot(replay(ops), relatorioId);
+}
+
+/** The block judged and concluded Aprovado · Sem restrições: every item C, every insulation reading 147 GΩ (within), concluded. */
+function concludedWithin(block: BlockRow): BlockRow {
+  const definition = findDefinition(block.seed_version, block.block_type)!;
+  const next = stored(block, 'aprovado', 'sem_restricoes');
+  next.sheet.checklist = Object.fromEntries((definition.checklist ?? []).map((item, n) => [item.key, { result: storedCell('C', 10 + n) }]));
+  const cells: Record<string, Record<string, Cell>> = {};
+  cellAddressesOf(definition, 'isolacao').forEach((address, n) => {
+    (cells[String(address.row)] ??= {})[String(address.col)] = { value: { raw: '147', unit: 'GΩ', state: 'measured' }, source_suggestion_id: null, op_id: id(91_000 + n) };
+  });
+  next.sheet.test = { ...next.sheet.test, isolacao: { ...next.sheet.test.isolacao, cells } };
+  return { ...next, concluded_by: { actor_id: TEST_USER, at: ISSUED_AT } };
+}
+
+describe('25.4-UNIT (g) pins today\'s behaviour, it does not approve it: a sheet reopened before the snapshot is frozen', () => {
+  it('the route saw a concluded sheet (Apto, nothing blocking); the job froze it reopened: section 10 prints "[Parecer]" and the revision records printed_parecer null, the value of "section 10 not printed"', () => {
+    const empty = freshV14();
+    const seccionadora = liveSheet(empty, 'chave_seccionadora');
+    const concluded = edit(empty, seccionadora.id, concludedWithin);
+    // What the route checked: a concluded sheet gives Apto, and nothing blocks the issue.
+    expect(effectiveParecer(concluded)).toBe('apto');
+    expect(blockingRows(preIssue(concluded))).toEqual([]);
+    expect(printedVerdicts(concluded).printed_parecer).toBe('apto');
+    // What the job froze: the sheet reopened ("Reabrir ficha" clears `concluded_by`; the stored pair stays).
+    const reopened = edit(concluded, seccionadora.id, (block) => ({ ...block, concluded_by: null }));
+    expect(effectiveParecer(reopened)).toBeNull();
+    expect(blockingRows(preIssue(reopened)).map((row) => row.kind)).toEqual(['parecer_missing']);
+    expect(section10Of(reopened)?.parecer.title).toBe(PARECER_MISSING_TITLE);
+    const verdicts = printedVerdicts(reopened);
+    expect(verdicts).toHaveProperty('printed_parecer', null);
+    // The same value a relatório whose section 10 does not print records: the record cannot tell the two apart.
+    const withoutTen = withoutSection(reopened, 'section_10');
+    expect(section10Of(withoutTen)).toBeUndefined();
+    expect(printedVerdicts(withoutTen).printed_parecer).toBe(verdicts.printed_parecer);
   });
 });
 

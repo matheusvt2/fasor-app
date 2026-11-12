@@ -281,8 +281,8 @@ test('@p1 10.4-E2E-004 while a relatório stream is still coming down, Sync stat
   });
   const { relatorioId } = await pushNewRelatorio(page, account, database);
 
+  // Story 25.3: opening Sync status starts the cycle itself; its held relatório page keeps "Sincronizar agora" disabled, so no tap.
   await openSyncStatus(page);
-  await page.getByRole('button', { name: 'Sincronizar agora' }).click();
   const row = page.getByTestId('sync-download-row').and(page.locator(`[data-relatorio-id="${relatorioId}"]`));
   await expect(row.locator('.sr-secondary')).toHaveText(/^Baixando… \d+ de \d+ fichas$/, { timeout: 30_000 });
   await expect(row.locator('.sr-state')).toHaveText(/^\d+ %$/);
@@ -449,6 +449,9 @@ test('@p0 14.10-E2E-002 a sync answered 503 while the server answers its health 
   await expect(page.getByText('Sem conexão', { exact: true })).toHaveCount(0);
 
   // Released: the next tap sends it and the badge is back to "Sincronizado".
+  // Story 25.3: the commit and the opening of Sync status each start a cycle too, so one may still be pushing when the
+  // badge first reads "Tentando de novo"; the route is released once none runs (a push held across the release hangs).
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 60_000 });
   await page.unroute(pushRoute);
   await syncNow(page);
   await expect(badge).toHaveAttribute('data-state', 'ok', { timeout: 60_000 });

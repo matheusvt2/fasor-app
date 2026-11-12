@@ -491,7 +491,8 @@ test('@p0 14.5-E2E-001 at 1280: the composer adds a Chave de transferência auto
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => lastWritten(page, `sheet/${blockId}/conclusion/result`)).toBe('reprovado');
   await expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Com restrições' })).toHaveAttribute('aria-checked', 'true');
-  const text = page.getByRole('textbox', { name: 'Texto da conclusão' });
+  // Story 25.2: the suggested text reads as text, no longer a textbox.
+  const text = page.locator('.ficha-conc-text .generated-text');
   await expect(text).toContainText(`chave de transferência automática ${tag}`);
   await expect(text).toContainText('Polo C, Lado Emergência (63 µΩ');
   await expect(text).toContainText(phrase);

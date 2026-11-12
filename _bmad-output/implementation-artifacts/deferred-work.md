@@ -3873,7 +3873,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: no test runs three hung push attempts of one sync cycle against the capped bound (about 18 min).
   evidence: `apps/web/src/sync/engine.ts` (`withRetry` of the push); `apps/web/src/sync/client.test.ts`.
   class: test-gap
-  state: open (owner: the next batch touching sync; low)
+  state: ~~open (owner: the next batch touching sync; low)~~ *(2026-11-11, batch e25a: done; `apps/web/src/sync/engine.test.ts` "25.3-WEB" runs three hung push attempts of one cycle at the capped bound and the cycle goes on to its pulls)*
 - source_spec: `spec-e24x-review-fixes.md` (review X8)
   summary: no test re-issues a top entry from before Story 24.15 (no `service_date`) after the reading relatório's service date, where D3 and D4 meet.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`.
@@ -3991,7 +3991,7 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   summary: red in the gate's parallel group, green alone. Its waits are not wall-clock windows against a render (a 45 s retry of 15 s waits), so it stays in the parallel group. e24z reproduced it under load (`--repeat-each 6` then 8, three workers, a unit loop beside): 3 red in 14 runs, in two different ways. (1) Twice at the first "Criar": the combobox holds "Fabricante R8CAP", the list is closed and no option ever shows; the retry of `createManufacturer` (e24f) fills the same text again, which changes nothing in the input, so the list never reopens and the retry cannot recover. A test defect: a retry that changes the text (clear, or delete and retype the last letter) would reopen it. (2) Once, as in the gate, at the second "Criar": after the two `syncNowAndReturn`, FABRICAÇÃO was drawn empty with "Celtta" as a fill suggestion ("Sugerido", "Criar Celtta?"), so there was no replace line and no combobox, while the sync badge read "1 pendente"; in the seven passing runs of the probe the outbox and the device row held "Fabricante R8CAP" at both points. Where the stored manufacturer went is not proven. An unproven lead: `RegistryPickerField` releases a held null selection when the leave decides nothing (`commitLeft` `release()`), and leaving the field right after "Criar", before the created entry lands in the options, may be such a leave; if so a stored manufacturer can be cleared by a leave, a product defect. No product code was changed.
   evidence: the gate log `run2-7773aafa/e2e-full.log` (failure 3); `.scratch-e24z/e2e-r8cap.log` and `e2e-probe.log` of the batch; `e2e/review-photo-failures.spec.ts` (`createManufacturer`); `apps/web/src/components/registry-picker-field.tsx` (`commitLeft`, `heldNull`).
   class: gap
-  state: open (owner: the next batch touching the manufacturer field or this spec: a probe that dumps the field's ops after each sync, under load; then the retry fix of (1))
+  state: open (owner: the next batch touching the manufacturer field or this spec: a probe that dumps the field's ops after each sync, under load; then the retry fix of (1)) *(2026-11-11, batch e25a: (1) fixed, the retry of `createManufacturer` retypes the last letter so the list reopens; (2) still unproven, see § e25a)*
 - source_spec: fix batch e24z (`e2e/plate-shot-fallback.spec.ts` 14.10-E2E-003)
   summary: the test samples the focus every 50 ms in the page for a fixed 6 s and asserts more than 50 samples; in the gate's parallel group the page's timers took 17. It times a wait against a render, so the file moved to the `solo` lane (`e2e/support/groups.ts`).
   evidence: `e2e/support/plate-focus.ts` `samplePlateFocus`; `e2e/support/groups.ts`.
@@ -4060,3 +4060,83 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `epic-24-retro-2026-11-11.md` § Diff-scope review.
   class: note
   state: closed (2026-11-11, the Epic 24 retrospective: read; the rule for next time is E24-A3)
+
+## Deferred from: Epic 25 batch e25a (2026-11-11)
+
+- source_spec: `spec-e25a-saving-and-sync.md` (Design Notes D2, the e24z R8CAP-E2E-010 lead (2))
+  summary: not reproduced by reading the code. On the sheet, `WordField` drops every null React Aria reports while a created name has not landed (`created`) or while the stored name is not in the registry, so the leave whose text equals its baseline (`commitLeft` `release()`) cannot clear a stored name through it; a clear now goes only through `onClear` (the technician emptied the field). Two component tests drive "Criar" then leaves before and after the registry row and the value land (`registry-picker-field.test.tsx`, `ficha-fields.test.tsx`, "D2"); ~~they pass on the reading of the code, to be confirmed in the batch's runs.~~ *(2026-11-11, phase B: both ran green, so no leave clears a stored name through the sheet's field; R8CAP-E2E-010 ran green in the touched specs.)* The empty FABRICAÇÃO with "1 pendente" of the e24z gate stays unexplained; the retry of (1) no longer fills the same text.
+  evidence: `apps/web/src/components/registry-picker-field.tsx` (`commitLeft`, `release`); `apps/web/src/surfaces/ficha/ficha-fields.tsx` `WordField`; `e2e/review-photo-failures.spec.ts` `createManufacturer`.
+  class: gap
+  state: open (owner: the next run of R8CAP-E2E-010 under `--repeat-each`; a red there with the outbox dump names the op)
+- source_spec: `spec-e25a-saving-and-sync.md` (Design Notes D5, fix batch e24x B1)
+  summary: a hung push still holds its cycle up to about 18 min (three attempts at 360 s): this batch bounds the file transfers, not the push; edits wait behind it, now with the `late` badge and line after one minute.
+  evidence: `apps/web/src/sync/client.ts` `requestHeadersTimeoutMs`; `apps/web/src/sync/engine.ts` `withRetry`.
+  class: note
+  state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e25a-saving-and-sync.md` (open question O1)
+  summary: the Etapa 6 parecer summary uses the same Generated text field and keeps its blur-only commit and its bordered look (the frame did not draw it); whether it gets the same saving is Matheus's.
+  evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx`; `apps/web/src/components/generated-text-field.tsx` (`presentation`, `commitWhileTyping`).
+  class: decision
+  state: open (owner: Matheus; the coordinator recommends the same correction for the parecer in a follow-up if he agrees)
+- source_spec: `spec-e25a-saving-and-sync.md` (G1, coordinator item from the Epic 24 final hands-on pass, `behaviour-pass-e24-2026-11-11.md` G1)
+  summary: a point stored with a Prazo typed by hand left a `drafts` row, so "Rascunho encontrado" came back on every load. Cause: the draft was written right after the write landed while it still compared the typed Prazo with a deadline that caught up only on the next render, and the close never wrote it again. Older than Epic 24: the same code is at production `1528183f`, from Stories 11.9 and 11.10 (`31740f59`, 2026-09-30).
+  evidence: `apps/web/src/surfaces/points/point-editor.tsx` (`storedDeadline`, `finish`); `point-editor-draft.test.tsx` G1-WEB (red on the baseline, test and NC routes); `e2e/typed-values-kept.spec.ts` G1-E2E-001.
+  class: defect
+  state: done (e25a; the "Epic 24 integrated gate" section's G1 row is closed by it)
+- source_spec: `spec-e25a-saving-and-sync.md` (Story 25.3, the late alert's clock)
+  summary: the moment the device last became able to send (`canSendSince`, `state/sync.tsx`) is read at mount on the corrected clock; on the very first load of a device whose clock is fast, before any server answer has taught the offset, it is read on the raw clock, so the alert can come late by up to the offset, on that load only (the offset is stored afterwards). Never early.
+  evidence: `apps/web/src/state/sync.tsx` (`canSendSince`); `apps/web/src/clock.ts` (`now`, `learnServerClock`).
+  class: note
+  state: open (owner: the next batch touching sync; low)
+- source_spec: `spec-e25a-saving-and-sync.md` (story gate on `2a862662`)
+  summary: two reds in the gate, both green alone. (1) `journeys-12-3-12-4.spec.ts` 24.10-E2E-005 (solo lane): the tap on "Nº série" right after "Criar" on FABRICAÇÃO found the page still inert (`pointer-events: none` while React Aria draws the list closed) after the 2 s settle of `humanTap`, so its centre hit `div.nameplate-grid`; green 3 of 3 alone. Since this batch a commit asks for a cycle 2 s later, which adds a push, a pull and a render in that settle window, so the batch adds load at that moment without a defect of its own. (2) `device-clock.durability.spec.ts` e20f-DUR-001 on `durability-webkit`: the press on Home's "Novo relatório" opened no dialog while the launch cycle's pull was drawing the relatório list (the snapshot shows it drawn); no code of this batch runs between the load and that press (no commit, no visibility change); green 3 of 3 alone on each of the three durability projects (36 of 36 for the spec).
+  evidence: `.scratch-e25a/gate/` and `.scratch-e25a/reruns/` logs of the batch (load 3.7 at the gate's start, 7.1 at its end; 2.8 to 5.4 for the reruns).
+  class: test-gap
+  state: open (owner: the wave 1 integrated gate; if either goes red again, harden it: wait for the list to be gone after "Criar" in the journey helpers, and wait for Home's list before "Novo relatório" in `createProjectFromHome`)
+
+
+## Deferred from: Epic 25 fix batch e25r (2026-11-11)
+
+- source_spec: `spec-e25r-like-with-like.md` (R-1, E24-A1; design D5)
+  summary: a `last_results` entry written before contract 49 whose plate another issue already wrote over (a v14 relatório issued or re-issued between the 2026-11-11 deploy and this fix) carries no `plate_measured` and has no plate to fill it from, so its sheet still compares as v13 (the false drop or variation stays for that equipment until its next visit). No backfill in this batch.
+  evidence: `packages/domain/src/relatorio/visit-context.ts` `previousPlateKeysOf`; pinned by e25r-R1-UNIT-004 row 8 and e25r-R1-API-002. The PR body carries a read-only count query (counts only) for production.
+  class: decision
+  state: open (owner: Matheus: run the count in production, then decide whether a backfill is worth it)
+- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B1; test T4)
+  summary: `printed_parecer: null` on a revision has two meanings. (1) Section 10 was not printed (its block removed or switched off). (2) Section 10 printed "[Parecer]" because an op reopened a sheet between the route's check and the snapshot the job froze (the job does not run the check again). The print is older than Story 25.4; the ambiguous record is new. Behaviour not changed; pinned by `25.4-UNIT (g)` in `print/printed-verdicts.test.ts` (kernel only: a test cannot reach the worker without the route).
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `printedVerdicts`; `apps/api/src/jobs/generate/job.ts` (no second check).
+  class: decision
+  state: open (owner: Matheus: keep one null, record a third value, or have the job refuse)
+- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B2)
+  summary: a sheet marked not tested with a defect reason floors the parecer but has no entry in `printed_conclusions` (section 9 prints no CONCLUSÃO row for it). A count that reads the record to explain a Não apto will not find that sheet there.
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `conclusionSheets` (`printsConclusionRow`).
+  class: note
+  state: open (owner: the first story that counts from the record)
+- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B3)
+  summary: revisions written before contract 48 carry no printed keys and get no backfill; a raw reader falls back to the effective values (the story's own fallback). Pinned through the sync route by 25.4-API-003 (T1).
+  evidence: `packages/domain/src/print/printed-verdicts.ts` `relatorioVerdicts`.
+  class: note
+  state: open (owner: Matheus, only if an old revision's printed verdicts are ever needed)
+
+## Deferred from: Epic 25 fix batch e25x, the wave 1 review fixes (2026-11-12)
+
+- source_spec: `spec-e25x-wave1-web-fixes.md` (A6 of the wave 1 integrated review, not fixed)
+  summary: the late alert ("Envio atrasado") shows during slow photo uploads that work as designed: an edit waits one upload attempt before the push between files, and a `sent` row in flight for more than 60 s counts as late. Story 25.3 allows it.
+  evidence: `apps/web/src/state/late-ops.ts`; `apps/web/src/sync/engine.ts` `pushBetweenFiles`.
+  class: question
+  state: open (owner: a question for the field engineer after field use: does the alert show while photos upload, and does it worry the technician?)
+- source_spec: `spec-e25x-wave1-web-fixes.md` (Design Notes Q1)
+  summary: "Fechar" on a draft offered at launch keeps its row (retro U7), so it is offered at every launch until "Recuperar"; a saved conclusion text does not drop its offered draft (it commits on every 500 ms pause, which is no answer to an offer). This batch drops only a reading's draft answered by a saved value, and a draft offered on return and closed with its field on screen.
+  evidence: `apps/web/src/state/drafts.tsx` (`persistOne` `committed`/`answersOffer`, the toast's `onDismiss`).
+  class: decision
+  state: open (owner: Matheus: should "Fechar" drop a launch draft, and should a saved text drop its offered draft?)
+- source_spec: `spec-e25x-wave1-web-fixes.md` (A3 and A4, scope)
+  summary: the drop of an older draft row after a saved value is wired in the number input and the generated text only. The other draft sources (`ficha-fields.tsx` text fields, `state/draft-autosave.ts`, the fixtures surface) were not read for the same hazard; the point editor has its own rule (G1).
+  evidence: `grep -rln useDraftSource apps/web/src`.
+  class: gap
+  state: open (owner: the next batch touching drafts; low)
+- source_spec: `spec-e25x-wave1-web-fixes.md` (A8, scope)
+  summary: `send` (file transfers) now reads a refused answer's body within a bound; `request` (the JSON routes: push, pulls, generate) still reads its answer body with no bound, as e24f left it ("the answer's download is not cut").
+  evidence: `apps/web/src/sync/client.ts` `request`.
+  class: note
+  state: open (owner: the next batch touching sync, with fix batch e24x B1; low)

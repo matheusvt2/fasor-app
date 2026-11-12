@@ -2,6 +2,7 @@ import { previousResultsFor, type PreviousResults } from '../print/reading-slots
 import { relatorioVisitDate } from '../print/visit-date.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import { cabineOf } from './cabine.ts';
+import { plateCelsiusOf } from './plate-temperature.ts';
 
 /*
  * Batch e23v (Stories 23.5 and 23.6, seed v13): the two inputs of a sheet's judging that are not on
@@ -20,12 +21,18 @@ export interface VisitContext {
   /** The previous visit the sheet reads (`previousResultsFor`), or null. */
   previous: PreviousResults | null;
   /**
-   * Fix batch e24y (Y1, seed v14 `history_needs_like_with_like`): the plate that previous visit issued
-   * (the equipment's `last_nameplate`, when it is that visit's: the same relatório and revision), so a
-   * reading can tell whether the previous one was corrected from its plate's temperature. Absent when
-   * unknown (no plate kept, or the plate of another visit).
+   * Fix batch e24y (Y1, seed v14 `history_needs_like_with_like`): what a reading needs to tell whether the
+   * previous one was corrected from its plate's temperature. ~~The plate that previous visit issued (the
+   * equipment's `last_nameplate`, when it is that visit's), `previousPlate`.~~ Fix batch e25r (R-1 of the
+   * Epic 24 retrospective, contract 49; the issue writes `last_nameplate` over with its own plate, so once
+   * the relatório itself was issued that plate was "not known" and the rule compared as v13): the plate
+   * keys of the previous visit that held a number (`plateCelsiusOf`), from that visit's own
+   * `plate_measured`, kept on its `last_results` entry and moved into `prior` with it; else, for an entry
+   * written before 49, from the equipment's `last_nameplate` while it is still that visit's (the same
+   * relatório and revision). Absent when not known (an entry written before 49 whose plate another issue
+   * has since written over).
    */
-  previousPlate?: Readonly<Record<string, unknown>>;
+  previousPlateKeys?: readonly string[];
 }
 
 /** The context with neither input: what every reader takes when its caller gives none. */
@@ -33,12 +40,26 @@ export const NO_VISIT_CONTEXT: VisitContext = Object.freeze({ ambientC: null, pr
 
 /**
  * Fix batch e24y (Y1): true when the previous visit's plate held `key` measured (its TEMPERATURA DO ÓLEO, or DO
- * ENROLAMENTO, typed at that visit); false when it did not; null when that plate is not known.
+ * ENROLAMENTO, typed at that visit); false when it did not; null when that plate is not known. Fix batch e25r (R-1, E24-A1
+ * item 2): measured means a finite number (`plateCelsiusOf`), read from `previousPlateKeys`.
  */
 export function previousPlateMeasured(visit: VisitContext, key: string | undefined): boolean | null {
-  if (visit.previousPlate === undefined || key === undefined) return null;
-  const value = visit.previousPlate[key];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) && (value as { state?: unknown }).state === 'measured';
+  if (visit.previousPlateKeys === undefined || key === undefined) return null;
+  return visit.previousPlateKeys.includes(key);
+}
+
+/**
+ * Fix batch e25r (D4): the plate keys `previous` typed as numbers: its own `plate_measured` when the
+ * entry keeps one; else the keys of `plate` (the equipment's `last_nameplate`) whose cell holds a number,
+ * sorted, when that plate is the previous visit's (the same relatório and revision); else null (not known).
+ */
+function previousPlateKeysOf(previous: PreviousResults, plate: EquipmentRow['last_nameplate'] | undefined): readonly string[] | null {
+  if (previous.plate_measured !== undefined) return previous.plate_measured;
+  if (plate === null || plate === undefined || plate.relatorio_id !== previous.relatorio_id || plate.revision_number !== previous.revision_number) return null;
+  const fields = plate.fields;
+  return Object.keys(fields)
+    .filter((key) => plateCelsiusOf(fields[key]) !== null)
+    .sort();
 }
 
 /** The ambient of a cabine row: its `env.temperature_c` when measured and finite. */
@@ -91,11 +112,11 @@ export function visitContextOf(
   if (hit !== undefined) return hit;
   const ambientC = ambientOf(cabine);
   const previous = previousResultsFor(equipment, block, block.relatorio_id, visitDate);
-  // Fix batch e24y (Y1): the previous visit's own plate, when the equipment keeps that visit's.
-  const plate = equipment?.last_nameplate ?? null;
-  const previousPlate = previous !== null && plate !== null && plate.relatorio_id === previous.relatorio_id && plate.revision_number === previous.revision_number ? plate.fields : null;
+  // Fix batch e24y (Y1): ~~the previous visit's own plate, when the equipment keeps that visit's~~. Fix batch e25r (D4): the plate
+  // keys the previous visit typed as numbers, from its own entry first, else from the equipment's plate while it is that visit's.
+  const previousPlateKeys = previous === null ? null : previousPlateKeysOf(previous, equipment?.last_nameplate);
   const context =
-    ambientC === null && previous === null ? NO_VISIT_CONTEXT : Object.freeze({ ambientC, previous, ...(previousPlate === null ? {} : { previousPlate: previousPlate as Readonly<Record<string, unknown>> }) });
+    ambientC === null && previous === null ? NO_VISIT_CONTEXT : Object.freeze({ ambientC, previous, ...(previousPlateKeys === null ? {} : { previousPlateKeys }) });
   byBlock.set(key, context);
   return context;
 }

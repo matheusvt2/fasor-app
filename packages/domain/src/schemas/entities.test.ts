@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { FUNCAO_KEYS, FUNCAO_MAX_LENGTH, ITEM_KEYS, SITE_ITEM_KEYS, siteItemKeySchema } from './block-config.ts';
-import { ENTITIES, ENTITY_SCOPE, entityKeys, entityRowSchemas, registryKeys, type Entity } from './entities.ts';
+import { ENTITIES, ENTITY_SCOPE, entityKeys, entityRowSchemas, lastResultsSchema, registryKeys, type Entity } from './entities.ts';
 import { snapshotFileSchema } from './snapshot.ts';
 
 /** Every `*_id` key reachable in a schema, with its path, ignoring the given branches. */
@@ -222,4 +222,43 @@ describe('Story 14.3 (contract 18): the cabine row gains `checklist`, the photo 
       }
     },
   );
+});
+
+describe('e25r-R1-UNIT-SCHEMA (fix batch e25r, contract 49): a last_results entry and its prior take the optional plate_measured', () => {
+  const A = '019a6400-0e25-7000-8000-00000000000a';
+  const B = '019a6400-0e25-7000-8000-00000000000b';
+  const PROJECT = '019a6400-0e25-7000-8000-0000000000e0';
+  const EQUIPMENT = '019a6400-0e25-7000-8000-0000000000e1';
+  /** One visit's entry, its keys in the schema's order. */
+  const entry = (relatorioId: string, plate?: string[]) => ({
+    relatorio_id: relatorioId,
+    revision_number: 1,
+    issued_at: '2026-11-05T12:00:00.000Z',
+    seed_version: 'v14',
+    block_type: 'transformador_forca',
+    readings: { 'isolacao|isolacao:AT|1 MINUTO': { raw: '10', unit: 'GΩ', state: 'measured', corrected: { raw: '40', unit: 'GΩ' } } },
+    ...(plate === undefined ? {} : { plate_measured: plate }),
+  });
+  const equipment = (lastResults: unknown) => ({ id: EQUIPMENT, project_id: PROJECT, tag: 'TR-01', type: 'transformador_forca', last_nameplate: null, last_results: lastResults, removed_at: null });
+
+  it('an entry written before 49 (no key, on the top or the prior) parses to the same JSON and gains no key', () => {
+    const old = { ...entry(B), prior: entry(A) };
+    const parsed = lastResultsSchema.parse(old);
+    expect(JSON.stringify(parsed)).toBe(JSON.stringify(old));
+    expect(Object.hasOwn(parsed, 'plate_measured')).toBe(false);
+    expect(Object.hasOwn(parsed.prior!, 'plate_measured')).toBe(false);
+  });
+
+  it('with the key (an empty one included) on the top and the prior, the same JSON; the equipment row keeps it, as the fold re-reads a put', () => {
+    const keyed = { ...entry(B, ['temperatura_enrolamento_c']), prior: entry(A, []) };
+    expect(JSON.stringify(lastResultsSchema.parse(keyed))).toBe(JSON.stringify(keyed));
+    expect(entityRowSchemas.equipment.parse(equipment(keyed))).toMatchObject({ last_results: { plate_measured: ['temperatura_enrolamento_c'], prior: { plate_measured: [] } } });
+  });
+
+  it('a value that is no array of strings is refused, on the top and on the prior', () => {
+    for (const bad of ['temperatura_oleo_c', [1], null, { temperatura_oleo_c: true }]) {
+      expect(lastResultsSchema.safeParse({ ...entry(B), plate_measured: bad, prior: null }).success, JSON.stringify(bad)).toBe(false);
+      expect(lastResultsSchema.safeParse({ ...entry(B), prior: { ...entry(A), plate_measured: bad } }).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
 });

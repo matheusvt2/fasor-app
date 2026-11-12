@@ -1,7 +1,7 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { ui } from '../copy/ui.ts';
 import { useFieldCommit } from '../input/use-field-commit.ts';
-import { useDraftSource } from '../state/drafts.tsx';
+import { useDraftSource, type PersistOptions } from '../state/drafts.tsx';
 import { CharCount } from './char-count.tsx';
 
 export type GeneratedTextState = 'unconfirmed' | 'confirmed' | 'edited' | 'stale';
@@ -30,6 +30,18 @@ export interface GeneratedTextFieldProps {
    * and the shared counter shows under it from 90 % of the cap.
    */
   maxLength?: number;
+  /**
+   * Story 25.2 (`60-ficha.html`, Story 25.1 Part A): `text` draws the text before "Editar" as the frame does, a plain
+   * element with no field look and no `textbox` role ("Editar" is the only way to type); `field` (the default) keeps
+   * the bordered `textbox` the Etapa 6 parecer summary still uses.
+   */
+  presentation?: 'field' | 'text';
+  /**
+   * Story 25.2 (M02): the typed text is committed after a 500 ms pause while the cursor is still in the field, on
+   * blur, and when the field leaves the screen; a text equal to the last one committed or stored is never committed.
+   * Without it a typed text is committed on blur only (the Etapa 6 parecer summary).
+   */
+  commitWhileTyping?: boolean;
 }
 
 /**
@@ -43,7 +55,22 @@ export interface GeneratedTextFieldProps {
  * and stops describing the stored text (E5-Q5). The texts are the caller's (the kernel's). Read-only, it shows the text alone and
  * offers no action.
  */
-export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper, readOnly = false, maxLength }: GeneratedTextFieldProps) {
+export function GeneratedTextField({
+  label,
+  text,
+  criteriaItems,
+  state,
+  onConfirm,
+  onReplace,
+  onEdit,
+  draft,
+  helper,
+  confirmedHelper,
+  readOnly = false,
+  maxLength,
+  presentation = 'field',
+  commitWhileTyping = false,
+}: GeneratedTextFieldProps) {
   const t = ui.generatedText;
   const labelId = useId();
   const criteriaId = useId();
@@ -55,13 +82,75 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
   const current = useRef(value);
   current.current = value;
   const committer = useFieldCommit<string>({ commit: (next) => onEdit(next) });
+  /** Story 25.2: the last text committed from typing, or stored: a typed text equal to it is never committed again. */
+  const lastCommitted = useRef(text);
+  /** Fix batch e25x (A4): this field's draft writer, set below from `useDraftSource` (a test double may supply none). */
+  const persistDraft = useRef<((options?: PersistOptions) => Promise<void>) | null>(null);
+  // Story 25.2: the typed text's own committer, with the 500 ms idle commit; Editar and a recovered draft use `committer`.
+  const typed = useFieldCommit<string>({
+    commit: (next) => {
+      if (next === lastCommitted.current) {
+        if (current.current === next) dirty.current = false;
+        return;
+      }
+      const previous = lastCommitted.current;
+      lastCommitted.current = next;
+      // Nothing typed since this value: the field is clean again, so the stored echo may show.
+      if (current.current === next) dirty.current = false;
+      // A refused write leaves the text unstored: the next blur or flush commits it again, and it is a draft meanwhile.
+      const refused = () => {
+        if (lastCommitted.current === next) lastCommitted.current = previous;
+        dirty.current = true;
+      };
+      // Fix batch e25x (A4): the write succeeded, so an older draft row of this field (a tab-hide while typing) would
+      // only put older text back over it: dropped, unless the field is dirty again. A row on offer stays (Design Notes D2).
+      const succeeded = () => {
+        const persist = persistDraft.current;
+        if (persist === null) return;
+        try {
+          void persist({ committed: true })?.catch(() => undefined);
+        } catch {
+          // A test double with no draft store.
+        }
+      };
+      let result: void | Promise<void>;
+      try {
+        result = onEdit(next);
+      } catch (error) {
+        refused();
+        throw error;
+      }
+      if (result instanceof Promise) {
+        return result.then(succeeded, (error: unknown) => {
+          refused();
+          throw error;
+        });
+      }
+      succeeded();
+      return result;
+    },
+  });
   // The stored text moved while nobody types here: show it.
   const shown = useRef(text);
   if (shown.current !== text) {
     shown.current = text;
+    lastCommitted.current = text;
     if (!dirty.current) setValue(text);
   }
-  useDraftSource({
+  // Story 25.2 (M02): leaving the screen mid-typing (the tree, "Voltar", the stepper) commits the typed text. A layout
+  // cleanup, so it runs before `useFieldCommit`'s passive dispose and before a blur fired by the removal (which then
+  // finds nothing pending).
+  const typedRef = useRef(typed);
+  typedRef.current = typed;
+  const flushOnLeave = useRef(commitWhileTyping);
+  flushOnLeave.current = commitWhileTyping;
+  useLayoutEffect(
+    () => () => {
+      if (flushOnLeave.current && typedRef.current.pending) typedRef.current.flush();
+    },
+    [],
+  );
+  const persist = useDraftSource({
     surface: draft.surface,
     entityId: draft.entityId,
     field: draft.field,
@@ -72,9 +161,11 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
       setEditing(true);
       setValue(next);
       dirty.current = false;
+      lastCommitted.current = next;
       committer.immediate(next);
     },
   });
+  persistDraft.current = typeof persist === 'function' ? persist : null;
 
   const suggested = state === 'unconfirmed';
   // E5-Q5: a stale text's criteria line is the recomposed text's, the evidence of the
@@ -107,13 +198,24 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           onChange={(event) => {
             dirty.current = true;
             setValue(event.target.value);
+            current.current = event.target.value;
+            if (commitWhileTyping) typed.change(event.target.value);
           }}
           onBlur={() => {
+            if (commitWhileTyping) {
+              typed.blur();
+              return;
+            }
             if (!dirty.current) return;
             dirty.current = false;
             committer.immediate(current.current);
           }}
         />
+      ) : presentation === 'text' ? (
+        // Story 25.2: the text as the frame draws it, no field look and no textbox role; "Editar" opens the field.
+        <div className="generated-text" aria-labelledby={labelId} aria-describedby={describedBy}>
+          {text}
+        </div>
       ) : (
         <div className="generated-text" role="textbox" aria-multiline="true" aria-readonly="true" aria-labelledby={labelId} aria-describedby={describedBy}>
           {text}
@@ -132,6 +234,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
             onClick={() => {
               setEditing(false);
               dirty.current = false;
+              typed.dispose();
               onReplace();
             }}
           >
@@ -158,6 +261,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
               onClick={() => {
                 setValue(text);
                 dirty.current = false;
+                lastCommitted.current = text;
                 committer.immediate(text);
                 setEditing(true);
                 requestAnimationFrame(() => area.current?.focus());

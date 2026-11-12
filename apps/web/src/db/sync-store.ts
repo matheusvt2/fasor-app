@@ -61,6 +61,11 @@ export async function takePending(db: AppDatabase): Promise<OutboxRow[]> {
   return rows.sort(byClientTsThenOpId);
 }
 
+/** Story 25.3: whether an op committed on this device is still waiting to leave (`pending`), for the push between two file uploads. */
+export async function hasPendingOps(db: AppDatabase): Promise<boolean> {
+  return (await db.outbox.where('status').equals('pending').count()) > 0;
+}
+
 export async function markSent(db: AppDatabase, opIds: readonly string[]): Promise<void> {
   await db.transaction('rw', db.outbox, async () => {
     for (const op_id of opIds) await db.outbox.update(op_id, { status: 'sent' });

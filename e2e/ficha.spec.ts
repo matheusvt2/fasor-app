@@ -1046,7 +1046,8 @@ test('@p0 5.8-E2E-001 22.4-E2E one tap on the suggestion sets both pairs, the co
   expect(new Set(pair.map((row) => row.batch_id)).size).toBe(1);
 
   // The paragraph composed on the device, its Criteria line as its description.
-  const text = page.getByRole('textbox', { name: 'Texto da conclusão' });
+  // Story 25.2: the text before "Editar" reads as text, no longer a textbox (its Criteria line still describes it).
+  const text = page.locator('.ficha-conc-text .generated-text');
   await expect(text).toHaveText(`A seccionadora ${tag} (X, X kV, 630 A) apresentou valores medidos dentro dos critérios de aceitação e todos os itens verificados conformes.`);
   await expect(text).toHaveAccessibleDescription(/Critérios usados.*R_iso T1–T2 150 GΩ · critério >400 MΩ/);
   await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Confirmar' }).click();
@@ -1501,7 +1502,9 @@ test('@p0 5.9-E2E-004 a Não ensaiada sheet: readings, instrument and conclusion
   await expect(restrictionGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
   await expect(page.getByRole('group', { name: 'Prévia da conclusão' })).toHaveCount(0);
   const generated = page.locator('.suggestion-field.is-generated');
-  await expect(generated.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveAttribute('aria-readonly', 'true');
+  // Story 25.2: read-only, the text reads as text: no textbox at all, no action.
+  await expect(generated.locator('.generated-text')).toBeVisible();
+  await expect(generated.getByRole('textbox')).toHaveCount(0);
   await expect(generated.getByRole('button')).toHaveCount(0);
   expect(await readingAndConclusionOps()).toBe(opsBefore);
 

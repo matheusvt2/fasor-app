@@ -286,6 +286,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         }
         if (result.kind === 'written') {
           wrote.current = true;
+          // G1: a held deadline went into this batch, so it is stored now.
+          if (held.deadline !== undefined) storedDeadline.current = held.deadline;
           // The pending priority and deadline went into this batch.
           if (pendingRef.current === held && Object.keys(held).length > 0) setPending({});
         }
@@ -323,8 +325,15 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     setTypedDeadlineState(next);
   };
   const shownDeadline = useRef(deadline);
+  /**
+   * G1 (2026-11-11): the deadline the store holds as far as this editor wrote or read it. The live row
+   * (`shownDeadline`) catches up only on a later render, so the draft written right after a deadline write
+   * landed read the typed Prazo as unsaved and kept a draft of a stored point; the draft source reads this.
+   */
+  const storedDeadline = useRef(deadline);
   if (deadline !== shownDeadline.current) {
     shownDeadline.current = deadline;
+    storedDeadline.current = deadline;
     typedRef.current = deadline;
     if (deadline !== typedDeadline) setTypedDeadlineState(deadline);
   }
@@ -344,6 +353,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         wrote.current = true;
         if (result.created) {
           stored.current = taken;
+          // G1: a create carries the held deadline.
+          if (held.deadline !== undefined) storedDeadline.current = held.deadline;
           if (pendingRef.current === held) setPending({});
           void saveDraftRef.current();
         }
@@ -357,7 +368,11 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     const taken = { ...values.current };
     const run = edits.commit(async () => {
       const held = pendingRef.current;
-      noteFieldsWrite(await writeDeadline(db, author, relatorioId, pointId, next, linkRef.current, taken, held), taken, held);
+      const result = await writeDeadline(db, author, relatorioId, pointId, next, linkRef.current, taken, held);
+      noteFieldsWrite(result, taken, held);
+      // G1: written (a put, or a create carrying it) or already so, the typed Prazo is what the store holds; after
+      // `noteFieldsWrite`, whose create branch would leave an older held Prazo there.
+      if (result.kind === 'written' || result.kind === 'unchanged') storedDeadline.current = next;
       void saveDraftRef.current();
     });
     // E20-A1 (R-7): a close waits for it; `useFieldCommit` still gets the refusal (it toasts and
@@ -440,6 +455,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
             wrote.current = true;
             if (result.created) {
               stored.current = taken;
+              // G1: a create carries the held deadline.
+              if (pendingHeld.deadline !== undefined) storedDeadline.current = pendingHeld.deadline;
               if (pendingRef.current === pendingHeld) setPending({});
               void saveDraftRef.current();
             }
@@ -511,7 +528,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       const before = stored.current;
       // Story 11.9: a typed Prazo not committed yet, and what a point not stored holds pending.
       const heldPending: PointPriorityWrites = { ...pendingRef.current };
-      if (typedRef.current !== shownDeadline.current) heldPending.deadline = typedRef.current;
+      // G1: compared with what the store holds as far as this editor knows, not the live row's last render.
+      if (typedRef.current !== storedDeadline.current) heldPending.deadline = typedRef.current;
       const link = linkRef.current;
       const unsaved =
         link !== null && !wrote.current
@@ -587,6 +605,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         finishing.current = false;
         return;
       }
+      // G1: every write landed unrefused: the draft is written once more, which drops it when nothing is unsaved.
+      await saveDraftRef.current().catch(() => undefined);
       if (!wrote.current || db === null) {
         onDoneRef.current(null);
         return;

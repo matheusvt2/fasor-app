@@ -235,7 +235,8 @@ test('@p1 24.4-E2E-002 a v14 NC observation typed in two lines prints its conclu
 
   // Concluded at its floor (the NC row: Aprovado · Com restrições), with OBSERVAÇÕES typed.
   await openStep(page, cable.relatorioId, cable.blockId, 'Conclusão');
-  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toContainText('Mufla com sinais de aquecimento; Verificar na próxima visita (item 2, NC)');
+  // Story 25.2: the suggested text reads as text, no longer a textbox.
+  await expect(page.locator('.ficha-conc-text .generated-text')).toContainText('Mufla com sinais de aquecimento; Verificar na próxima visita (item 2, NC)');
   await observationField(page).fill('Mufla a acompanhar.');
   await observationField(page).press('Tab');
   await page.getByRole('button', { name: `Mais opções da ficha ${cable.tag}` }).click();

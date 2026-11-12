@@ -158,10 +158,10 @@ describe('4.1-API relatório creation as one batch', () => {
 
 describe('24.2-API-001 seed v14 through the sync route', () => {
   it(
-    'a relatório created from the standard template is born on v14, every sheet on v14; a version-46 client is refused its stream with 426, a current one reads it (contract 48 since batch e25b)',
+    'a relatório created from the standard template is born on v14, every sheet on v14; a version-46 client is refused its stream with 426, a current one reads it (contract 49 since fix batch e25r)',
     async () => {
       expect(SEED_VERSION).toBe('v14');
-      expect(MIN_CONTRACT_VERSION).toBe(48);
+      expect(MIN_CONTRACT_VERSION).toBe(49);
       const projectId = newId();
       const projectDraft: OpDraft = {
         kind: 'create',
