@@ -72,7 +72,7 @@ import type { AppDatabase } from '../db/schema.ts';
 import { useDefinitionContext } from './definition-context.ts';
 import { useSession } from './session.tsx';
 import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
-import { useLateOpCount } from './late-ops.ts';
+import { useCanSendSince, useLateOpCount } from './late-ops.ts';
 
 /*
  * AD-1, UX-DR10: the sync badge, the counts and the Sync status surface render
@@ -233,6 +233,7 @@ export const SyncContext = createContext<SyncState | null>(null);
 
 const IDLE: EngineStatus = {
   running: false,
+  pushing: false,
   paused: false,
   outdated: false,
   lastResult: null,
@@ -337,9 +338,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setEngineReady(true);
     const nudge = () => engine.nudge();
     cycleRequests.add(nudge);
-    // Story 25.3: a local commit asks for a cycle (coalesced in `COMMIT_SYNC_WINDOW_MS`), and so
-    // does the app coming back to the front.
-    const stopCommits = followCommits(nudge, browserTimers);
+    // Story 25.3: a local commit asks the engine to send it (coalesced in `COMMIT_SYNC_WINDOW_MS`); fix batch e25x
+    // (A2): that is a push-only pass (`pushNow`), not a whole cycle. The app coming back to the front asks a cycle.
+    const stopCommits = followCommits(() => engine.pushNow(), browserTimers);
     const stopVisible = followVisible(nudge);
     return () => {
       current = false;
@@ -409,18 +410,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Story 25.3: the waiting ops that waited more than one minute while the device could send them (the kernel's
   // rule, its own timer): the wait counts from the later of each op's commit and the moment the device last became
   // online, signed in, reaching the server and not paused, so work done offline is not late the moment it reconnects.
+  // Fix batch e25x (A5, A7): that moment is taken in the very render where sending becomes possible, on the late
+  // clock (a duration clock), so no render after a reconnect reads the old one ("Envio atrasado" for one frame).
   const canSend = session.online && unreachable === null && !status.paused;
-  const [canSendSince, setCanSendSince] = useState(() => now().getTime());
-  const couldSend = useRef(canSend);
-  useEffect(() => {
-    if (canSend && !couldSend.current) setCanSendSince(now().getTime());
-    couldSend.current = canSend;
-  }, [canSend]);
+  const canSendSince = useCanSendSince(canSend);
   const lateCount = useLateOpCount(rows, canSendSince);
   // Story 14.10 lane B: a server that fails the sync but answers its health probe; a session to renew stays as today.
   const serverAnswers = unreachable === 'server' && status.serverAnswers === true;
-  // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight.
-  const requestOpen = status.running && session.online && unreachable === null;
+  // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight; fix batch e25x (A2): a
+  // push-only pass's request is one too.
+  const requestOpen = (status.running || status.pushing) && session.online && unreachable === null;
   const sheetContext = useLiveQuery(() => (db === null ? Promise.resolve(NO_SHEET_CONTEXT) : pendingSheetContext(db, rows)), [db, rows], NO_SHEET_CONTEXT);
   const pendingSheets = useMemo(() => pendingSheetRows(rows, sheetContext, { requestOpen }), [rows, sheetContext, requestOpen]);
   const uploads = useMemo(() => pendingPhotoRows(photoUploads), [photoUploads]);

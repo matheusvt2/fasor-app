@@ -2,10 +2,14 @@ import type { Timers } from '../input/field-commit.ts';
 import { COMMIT_SYNC_WINDOW_MS, onCommit } from './commit-signal.ts';
 
 /*
- * Story 25.3 (M03): the moments that ask the engine for a cycle besides the launch, `online`,
- * the 60 s tick and "Sincronizar agora": a local commit (coalesced) and the app coming back to
- * the front. Each returns its unsubscribe; the sync provider wires them to `engine.nudge`, which
- * does nothing offline, paused or stopped and runs at most one cycle at a time.
+ * Story 25.3 (M03): the moments that ask the engine for work besides the launch, `online`, the
+ * 60 s tick and "Sincronizar agora": a local commit (coalesced) and the app coming back to the
+ * front. Each returns its unsubscribe. Fix batch e25x (A2), which moment asks for what:
+ * - a local commit (`followCommits`) asks for a push-only pass, `engine.pushNow`: the ops leave,
+ *   nothing is pulled, uploaded or swept, and no cycle is reported;
+ * - the app coming back to the front (`followVisible`) asks for a full cycle, `engine.nudge`, and
+ *   so do a photo captured or a reading asked for and the Sync screen opening (`requestSyncCycle`).
+ * Both do nothing offline, paused or stopped; a pass and a cycle never run at once.
  */
 
 const globalTimers: Timers = {

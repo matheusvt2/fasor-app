@@ -1,11 +1,18 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../state/toast.tsx';
 import { GeneratedTextField, type GeneratedTextState } from './generated-text-field.tsx';
 import { SuggestionField } from './suggestion-field.tsx';
 
-vi.mock('../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
+// Fix batch e25x (A4): the draft writer records what the field asks of it, with what its source read then.
+const drafts = vi.hoisted(() => ({ persists: [] as { value: unknown; options: unknown }[] }));
+vi.mock('../state/drafts.tsx', () => ({
+  useDraftSource: (source: { read: () => unknown }) => (options?: unknown) => {
+    drafts.persists.push({ value: source.read(), options });
+    return Promise.resolve();
+  },
+}));
 
 function renderField(state: GeneratedTextState, handlers: { onConfirm?: () => void; onReplace?: () => void; onEdit?: (text: string) => void } = {}) {
   return render(
@@ -200,6 +207,24 @@ describe('25.2-WEB the conclusion text is saved as it is typed', () => {
     await user.click(screen.getByRole('button', { name: 'fora' }));
     expect(onEdit).toHaveBeenCalledTimes(2);
     expect(onEdit).toHaveBeenLastCalledWith(`${STORED} Mais.`);
+  });
+
+  it('e25x A4: a typed commit that succeeded drops the field\'s older draft (not answering an offer); a refused one drops nothing until it is written', async () => {
+    drafts.persists = [];
+    const user = userEvent.setup();
+    const onEdit = vi.fn<(text: string) => Promise<void>>().mockRejectedValueOnce(Object.assign(new Error('refused'), { name: 'QuotaExceededError' })).mockResolvedValue(undefined);
+    render(typingField(onEdit));
+    const area = screen.getByRole('textbox', { name: 'Texto da conclusão' });
+    await user.click(area);
+    await user.type(area, ' Mais.');
+    await pause(650);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    // Refused: no drop, the text stays a draft.
+    expect(drafts.persists).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'fora' }));
+    expect(onEdit).toHaveBeenCalledTimes(2);
+    // Written: the drop, read with nothing typed since; without `answersOffer`, so a row on offer stays.
+    await waitFor(() => expect(drafts.persists).toEqual([{ value: null, options: { committed: true } }]));
   });
 
   it('typed back to the stored text and left: nothing is written, no "edited" mark', async () => {

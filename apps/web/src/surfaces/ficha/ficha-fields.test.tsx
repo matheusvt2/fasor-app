@@ -1,5 +1,5 @@
 import { acceptsVoltagePair, type FieldDef } from '@app/domain';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider } from 'react-aria-components';
 import { useState } from 'react';
@@ -846,5 +846,51 @@ describe('25.2-WEB the manufacturer field of the sheet', () => {
     expect(commit).not.toHaveBeenCalledWith(null);
     expect(onCreateWord).toHaveBeenCalledTimes(1);
     expect(input).toHaveValue('Fabricante R8CAP');
+  });
+
+  /*
+   * Fix batch e25x, "e25x A9": a clear the technician makes is written, whatever happened to an earlier clear. The
+   * first clear of a registered name goes through React Aria's null selection (`onChange`, an Enter on the emptied
+   * text); a leave of the emptied field is the clear of `onClear`.
+   */
+  const WEG = row('weg', 'WEG');
+
+  it('e25x A9: a clear through onChange that the store refused does not block the next clear', async () => {
+    const commit = vi.fn<(value: unknown) => Promise<void>>().mockRejectedValueOnce(new Error('refused')).mockResolvedValue(undefined);
+    render(maker({ value: 'Siemens', commit }));
+    const input = await openCombobox();
+    await userEvent.clear(input);
+    await userEvent.keyboard('{Enter}');
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit).toHaveBeenLastCalledWith(null);
+    // The refusal lands; the store still holds "Siemens".
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // The technician clears again: leaving the emptied field.
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit).toHaveBeenCalledTimes(2);
+    expect(commit).toHaveBeenLastCalledWith(null);
+  });
+
+  it('e25x A9: clear "Siemens", pick "WEG" before the store read null, "Siemens" again later, then clear: the last clear is written', async () => {
+    const commit = vi.fn();
+    const rows = [SIEMENS, WEG];
+    const { rerender } = render(maker({ value: 'Siemens', commit, rows }));
+    const input = await openCombobox();
+    await userEvent.clear(input);
+    await userEvent.keyboard('{Enter}');
+    expect(commit).toHaveBeenLastCalledWith(null);
+    await userEvent.type(input, 'weg');
+    await userEvent.click(await screen.findByRole('option', { name: 'WEG' }));
+    expect(commit).toHaveBeenLastCalledWith('WEG');
+    // The store skips the null: the next read already holds the name picked, and later "Siemens" again (an undo, a pull).
+    rerender(maker({ value: 'WEG', commit, rows }));
+    rerender(maker({ value: 'Siemens', commit, rows }));
+    const before = commit.mock.calls.length;
+    await userEvent.clear(input);
+    await userEvent.keyboard('{Enter}');
+    expect(commit.mock.calls.length).toBe(before + 1);
+    expect(commit).toHaveBeenLastCalledWith(null);
   });
 });

@@ -152,7 +152,22 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
   current.current = text;
   const latest = useRef(options);
   latest.current = options;
-  const committer = useFieldCommit<ParsedNumber | null>({ commit: (value) => latest.current.commit(value) });
+  /** Fix batch e25x (A3, A4): set below from `useDraftSource`; drops this field's draft once a commit succeeded. */
+  const dropCommittedDraft = useRef<(() => void) | null>(null);
+  // Fix batch e25x (A3, A4): a commit that succeeded (blur, Enter, idle, `commitValue`, the unmount flush) drops this
+  // field's older draft and answers its offer; it reads `dirty` then, so text typed meanwhile keeps it. A rejection
+  // drops nothing and is passed on unchanged, so the refused value stays pending and its draft stays.
+  const committer = useFieldCommit<ParsedNumber | null>({
+    commit: (value) => {
+      const result = latest.current.commit(value);
+      if (result instanceof Promise)
+        return result.then(() => {
+          dropCommittedDraft.current?.();
+        });
+      dropCommittedDraft.current?.();
+      return result;
+    },
+  });
 
   // The stored value moved: take it only when the engineer is not typing here.
   const seen = useRef(`${storedRaw ?? ''}\u0000${storedText}`);
@@ -239,6 +254,17 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
   /** Story 25.2: writes this input's draft now and offers it when the sheet is opened again (a test double may supply none). */
   const persistDraft = useRef<(() => Promise<void>) | null>(null);
   persistDraft.current = typeof persist === 'function' ? () => persist({ offerOnReturn: true }) : null;
+  dropCommittedDraft.current =
+    typeof persist === 'function'
+      ? () => {
+          // A draft-store failure never turns a commit that succeeded into a refused one.
+          try {
+            void persist({ committed: true, answersOffer: true })?.catch(() => undefined);
+          } catch {
+            // A test double with no draft store.
+          }
+        }
+      : null;
 
   const parsed = parse(text);
   const echoFn = options.echo;
