@@ -4032,3 +4032,31 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/api/src/jobs/generate/golden/layout-lock-v14/`; `packages/domain/fixtures/layout-lock/op-log.ts` `LAYOUT_LOCK_VERSIONS`.
   class: note
   state: done (owner of the second fixture: Story 25.5, batch e25c)
+
+## Deferred from: the Epic 24 retrospective (2026-11-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md` (R-1, owner: E24-A1)
+  summary: On seed v14 the "like with like" rule of fix batch e24y (Y1) stops holding once the relatório itself is issued. The issue job overwrites the equipment's `last_nameplate` with the issuing relatório's own plate, so the previous visit's plate no longer matches the previous visit, `previousPlateMeasured` answers "not known" and the drop and variation rules compare as v13. A second visit of a transformer whose first visit typed TEMPERATURA DO ÓLEO, and this one did not, flags nothing before the issue and flags the drop again after it, with nothing edited. The same when a later relatório is issued on top. Read in the code, not reproduced; what a re-issue then prints was not traced. A previous value that is measured and not a number also counts as a typed temperature.
+  evidence: `packages/domain/src/relatorio/visit-context.ts:38-42,95-96`; `apps/api/src/jobs/generate/job.ts:508-510` (504-506 at `2009fa30`); `packages/domain/src/print/reading-slots.ts:108-118`; `packages/domain/src/relatorio/reading-evaluation.ts:1029-1037`; `packages/domain/src/relatorio/measurement-evaluation.ts:994-999`; `packages/domain/src/relatorio/e24y-pass-fixes.test.ts:342-348` (pins only "plate not known: compared as v13").
+  class: defect
+  state: open (owner: E24-A1, batch e25c of Epic 25: a kernel test that fails on `2009fa30`, then the fix, with its contract choice stated)
+- source_spec: `_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md` (R-2, owner: E24-A5)
+  summary: Review patch X3 of fix batch e24x pairs a stored point with its test on every seed, with no seed flag, so the "Origem resolvida" flag of a v1 to v13 point can change (a point of a restricted reading whose test now fails; a point of a failed reading whose test is now only restricted). Screen only; no verdict and no print reads it. The patch inverted the v13 assertion. It was not in the list put to Matheus with X7.
+  evidence: `packages/domain/src/points/derived.ts:474-487`; `apps/web/src/surfaces/points/points-surface.tsx:197`; `packages/domain/src/relatorio/e23w-wave2-fixes.test.ts:178-188`; commit `8ea60738`.
+  class: decision
+  state: open (owner: Matheus: it stands, or it goes behind a v14 flag)
+- source_spec: `_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md` (R-4)
+  summary: In the instrument panel a leave can clear the manufacturer right after "Criar": a registered maker is stored, a new name is typed and created, the field is left, focused again and left before the row re-reads; the held null is released and `manufacturer: null` is written after the new name. The sheet's field has a guard against this and the panel has none. Read in the code, not reproduced; it rests on React Aria reporting null on blur. This also denies, for the sheet, the lead fix batch e24z left on R8CAP-E2E-010: there the picker cannot clear a stored manufacturer, so that red is still unexplained.
+  evidence: `apps/web/src/surfaces/registries/instrument-panel.tsx:316-319`; `apps/web/src/components/registry-picker-field.tsx:97-99,128-146`; `apps/web/src/surfaces/ficha/ficha-fields.tsx:793`; `apps/web/src/components/registry-picker-field.test.tsx:260-279` (no leave between the create and the option's arrival).
+  class: gap
+  state: open (owner: the next batch touching the registry picker or the instrument panel; low)
+- source_spec: `_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md` (R-7, owner: E24-A1, batch e25a)
+  summary: G1 of the final hands-on pass (a deadline typed by hand leaves a draft, so "Rascunho encontrado" shows on the next load) is older than Epic 24. The editor calls it a draft while the typed deadline differs from the shown one; `persistDeadline` saves the draft right after the write, and the shown deadline catches up only on the next render, so the draft is rewritten and never dropped, and "Concluir" does not drop it. A priority tap never arms that autosave. Story 24.17 made the editor easier to reach.
+  evidence: `apps/web/src/surfaces/points/point-editor.tsx:318-330,354-361,512-514`, all from `31740f59` (2026-09-30, PR #71); `apps/web/src/state/drafts.tsx:151-205`.
+  class: defect
+  state: open (owner: batch e25a of Epic 25, where the final pass already sent G1)
+- source_spec: `_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md` (P-2)
+  summary: Three commits were written after their fix batch's own review and read by no reviewer before the deploy of `2009fa30`: `8ea60738` (e24x, X1 to X5), `c65c93ca` (e24y, Y3) and `5a8b8958` (e24y, Y1, Y2, Y4, Y7). The retrospective's two readers read them: R-1 and R-2 above came from that read; the rest was found sound. Fix batch e24z (tests only) has no spec file; its record is PR #322 and its heading above.
+  evidence: `epic-24-retro-2026-11-11.md` § Diff-scope review.
+  class: note
+  state: closed (2026-11-11, the Epic 24 retrospective: read; the rule for next time is E24-A3)

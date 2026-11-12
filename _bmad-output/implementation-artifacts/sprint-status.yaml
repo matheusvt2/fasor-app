@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-11-2026 10:30
+last_updated: 11-11-2026 21:28
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -286,7 +286,7 @@ development_status:
   23-21-a-new-type-malha-de-aterramento: done  # 2026-11-09: e23e, PR #295 (7f29b243), contract 39; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e, last; contract 39; placement at a local is the coordinator's reading (M-6)
 
   epic-24: done  # 2026-11-11: deployed as 2009fa30 on Matheus's word (smoke 8 of 8, tag v0.9.0, seed v14 frozen, contract 47); the paid plate eval of bedrock-structuring-9 ran before it; the release page and the retrospective are open | was in-progress  # 2026-11-11, evening: every story done on main (ee0859cc, contract 47, seed v14 open); the paid plate eval, the v14 golden, the deploy and the release wait for Matheus's word; the retrospective follows the deploy | 2026-11-11: every story is built and merged, not deployed (e24b #310, e24a #311, e24c #312, e24p #314, e24s #315; main 716e26b8, contract 47); the stories stay in review until fix batch e24x (the integrated review's findings, epic-24-context.md § Integrated review) merges and the integrated gate runs on main | was backlog  # 2026-11-10 evening: two more decisions of Matheus: Story 24.21 added (M-5), and no automatic points of attention (Bruno through Matheus, urgent), built first and alone as fix batch e24h (contract 41 with MIN 41, its own deploy, not a story); fix batch e24f starts after e24h merges; contracts now e24a 42, e24b 43 (Story 24.21), e24s 44, e24p 45; Stories 24.1, 24.2, 24.3, 24.4, 24.7, 24.11, 24.12, 24.13, 24.16 and 24.17 revised with dated notes | added 2026-11-10 (Bruno's answers of 2026-11-10 to questions 18, 19, 22 to 30 and 32 to 34; Matheus's ten decisions of the same day): seed v14 for new relatorios only, older relatorios conclude and print byte-identical, screen-only behaviour on every seed; waves 0 (24.1), 1 (e24a, e24b), 2 (e24s), 3 (e24p, beside e24s); contracts 41 to 44 reserved; the hands-on pass runs before the single deploy; sprint-change-proposal-2026-11-10.md, epic-24-context.md
-  epic-24-retrospective: optional
+  epic-24-retrospective: done  # 2026-11-11: epic-24-retro-2026-11-11.md, headless; machine verdict accepted-with-open-items (all 21 stories done; open: E24-A1 to E24-A7, chiefly the v14 like-with-like rule that stops holding once the relatorio is issued, the records of the v14 layout lock (taken after the deploy by batch e25b, #325), the playbook rules of Epics 23 and 24 still unwritten, a second round of test hardening, Matheus's decisions on the fix batches' open readings)
   24-1-the-epic-24-frames-in-the-mocks: done  # 2026-11-10: approved by Matheus in the browser ("o resto ta ok") with one correction, the unit column of the measurement table aligned (PR #306) | was review  # 2026-11-10 frames drawn on docs/e24-frames (the list of Story 24.1 with its three evening frames, key-print-section-9-v14.html, dated amendments to DESIGN.md and EXPERIENCE.md, MOCK-GUIDE.md § 2026-11-10), checked in a browser at 390, 768 and 1280 px; approval in the browser pending | 2026-11-10 evening: three more frames after decision 12 (the Pontos screen with stored points only, the create action on a reading, the editor it opens); the UX documents strike every sentence that says a point enters by itself | added 2026-11-10; wave 0, coordinator with bmad-ux; Matheus approves the frames; the printed frame and the small controls are John's addition to the proposal's frame list
   24-2-seed-v14-opens-and-the-v13-layout-is-locked: done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24a, merged in #311 (dee6d567); contract 44 with MIN 44 (e24b took 43); the seed-level `rules` with `seedRule`; v13 goldens taken on 8bddd986, v5, v11, v12 and Porto Seguro unchanged; row 3522 closed |2026-11-10 evening: contract 42 over 41 (fix batch e24h takes 41); the v13 lock is taken after e24h and e24f; its fixture carries a stored point for the recommendation in section 8 | added 2026-11-10 (decision 5); wave 1, e24a, first; contract 41; the v13 layout lock is taken on main before any other Epic 24 change
   24-3-out-of-criterion-gives-reprovado-only-restriction-is-the-technicians-choice: done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24a, merged in #311 (dee6d567); flags conclusion_restriction_by_choice and prerequisite_needs_nameplate; the four coordinator's readings built as written; rows 3025 and 3351 closed; review: 2 medium and 1 low patched |2026-11-10 evening: two criteria revised after decision 12: no row and no prerequisite derives a point | added 2026-11-10 (Bruno 25, 26; decisions 1, 3, 5); wave 1, e24a, after 24.2; v14 only; DoR: 24.1 frames approved; NC row and restricted reading unchanged, the observation required under Reprovado and row 3344 on v14 only are the coordinator's reading
@@ -1992,3 +1992,105 @@ action_items:
     owner: "coordinator (Epic 24 planning)"
     status: done  # 2026-11-10: handed over in sprint-change-proposal-2026-11-10.md and epics.md, Epic 24
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-24-retro-item-180-e24-a1-like-with-like-after-issue"
+    epic: 24
+    action: "E24-A1 Fix R-1 red-first in the first Epic 25 batch that touches the
+      kernel's rules: on seed v14 the like-with-like rule (history_needs_like_with_like)
+      still holds after the relatorio itself is issued and when a later relatorio
+      is issued on top (the previous visit's plate read from where it survives the
+      issue, or kept beside its results); a previous temperature counts only when
+      it is a number; the batch states its contract choice, since seed v14 is frozen
+      and in production; G1's cause (the shown deadline catches up one render late
+      in point-editor.tsx, code older than Epic 24) goes to batch e25a with its fix.
+      Done when a kernel test that fails on 2009fa30 issues revision 1, edits nothing
+      and finds the flags as before the issue, and G1 is closed by a test that types
+      a deadline, concludes and reloads."
+    owner: "batch e25c of Epic 25 (R-1); batch e25a (G1); the coordinator assigns"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-181-e24-a2-v14-layout-lock"
+    epic: 24
+    action: "E24-A2 The v14 layout lock, close its records: batch e25b took the lock
+      from 2009fa30 (PR #325, commit 7a8c7aa6) after the deploy, while the retrospective
+      ran (R-3). Close the e24a ledger row on the v14 lock with the commit; a dated
+      line in epic-24-context.md, Deploy: the v14 golden, listed before the deploy,
+      was taken after it, and by whom; Story 25.5's text and DoR say what is left
+      of the v14 lock (it keeps the golden byte-equal and adds its second fixture);
+      check the golden once against R-3's list (a second visit with previous values
+      on the paired tables, an ACEITAVEL column, the No-break sheet, section 10 with
+      a finding, the DOCX). Done when the three records are dated and the check is
+      written in the ledger row."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-182-e24-a3-process-rules"
+    epic: 24
+    action: "E24-A3 Playbook section 11, one dated line each, carrying the eight unwritten
+      lines of E23-A3 and these: a broken word or number seen in a golden or a PDF
+      is a defect row with an owner batch, and a finding a pass repeats is put to
+      Matheus the first time (P-1); the last product-code commit before a deploy gets
+      a read, and a test of an editor types into it and waits past its autosave (P-2);
+      a batch's PR body lists the grep it ran over e2e and the web tests for what
+      it changes, with its hits, and the integrated gate never runs beside a building
+      batch (P-3); a batch's Auto Run Result has one line per orchestrator cut, and
+      the handoff file is written at each phase boundary (P-5); a corrected sentence
+      is checked in its place on the screen before it is built, and the deploy record
+      closes or carries each before-the-deploy row by name (P-6); the questions for
+      the field engineer go out when the stories are written, and a story that rests
+      on an open question says so in its DoR (P-7). Done when the lines are dated
+      in the playbook, the KB line is in workflow/story-delivery.md and E23-A3 is
+      closed with it."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-183-e24-a4-test-hardening-second-round"
+    epic: 24
+    action: "E24-A4 Test hardening, second round: find why the relatorio tree's unit
+      tests time out at 15 s under load (relatorio-tree-edges, relatorio-tree, relatorio-tree-painel,
+      measurement-test-section), a longer wait is not the fix; R8CAP-E2E-010, the
+      probe of its e24z ledger row and then the retry that changes the text (R-4 says
+      where the lead does not apply); 14.5-E2E-001, its 30 s wait follows the document
+      job's own bound; the api survives a restart of its database, or the compose
+      service restarts it; a test for a chip then Conforme at once, once Matheus decides
+      its wording (R-6). Done when each test is green in three full runs under the
+      lock with no other stack up, or its cause is written in its ledger row."
+    owner: "a carry-over batch of Epic 25; the coordinator assigns"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-184-e24-a5-matheus-decisions"
+    epic: 24
+    action: "E24-A5 Matheus decisions, one dated line each: the open readings of the
+      fix batches (the Marcar como form of the other pills; the plus-minus and >=
+      signs on seeded criteria; the helper after a rename typed in the plate's field;
+      B4, a copy that never binds its base type's equipment; whether v13 also takes
+      like with like; a stale conclusion in another open relatorio of the obra); X3's
+      change of Origem resolvida on older seeds (R-2); Story 24.6 after fix A1, a
+      learned or recent chip left untouched is kept with the warning; publish the
+      release page of v0.9.0; the three proposed status transitions (E23-A1 done,
+      E23-A4 and E23-A7 in progress)."
+    owner: "Matheus (decision); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-185-e24-a6-records"
+    epic: 24
+    action: "E24-A6 Records, no code: the Epic 24 story rows of sprint-status.yaml
+      that still say not deployed; the ledger rows the deploy left open (close the
+      paid eval row of e24s with its result, carry the v14 lock row to E24-A2); a
+      dated line under the byte-identical rule of Epic 24 in epics.md (what changed
+      on older seeds, and on whose word); whether Nova Pro's 5 of 6 real plates on
+      prompt 9 is variation, one more run, counts only; the read-only preview of Bruno's
+      v5 relatorio, run and recorded or dropped with the reason (planned in two epics,
+      run in neither); the four lines of E23-A5, still unwritten."
+    owner: "coordinator (draft); Matheus (approve the epics.md lines; the AWS login
+      for the eval run)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-186-e24-a7-carried-from-epic-23"
+    epic: 24
+    action: "E24-A7 Carried from Epic 23, still open: import Bruno's test base in
+      production and check one relatorio (E23-A6); the Epic 23 rows that wait for
+      Bruno go out with the Epic 25 questions B-1 to B-16 (E23-A7)."
+    owner: "Matheus (the import, the message); coordinator (the check, the list and
+      the record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
