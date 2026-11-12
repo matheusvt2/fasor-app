@@ -33,6 +33,7 @@ import { typeVersionState } from './type-store.ts';
 import { newId as mintId } from '../ids.ts';
 import { deviceId } from './device-id.ts';
 import { publishStatusChanges, type CommittedStatusChange } from './status-changes.ts';
+import { announceCommit } from '../sync/commit-signal.ts';
 
 /*
  * AD-1, AD-3: the only write path of apps/web for user changes. Every op is
@@ -117,6 +118,8 @@ export async function commitOps(
   await db.transaction('rw', db.entities, db.outbox, async () => {
     for (const op of stamped) committed.push(await applyOne(db, op));
   });
+  // Story 25.3: an op waits in the outbox; the sync provider asks for a cycle (coalesced).
+  if (committed.length > 0) announceCommit();
   return committed;
 }
 
@@ -173,6 +176,8 @@ export async function commitBatch(
   });
   // Status flow 2026-10-10: said only once the batch is committed (a rolled-back one says nothing).
   publishStatusChanges(statusChanges);
+  // Story 25.3: an op waits in the outbox; the sync provider asks for a cycle (coalesced).
+  if (committed.ops.length > 0) announceCommit();
   return committed;
 }
 
@@ -204,6 +209,7 @@ export async function commitBatchIf(
   if (result === null) return null;
   const { statusChanges, ...committed } = result;
   publishStatusChanges(statusChanges);
+  if (committed.ops.length > 0) announceCommit();
   return committed;
 }
 
@@ -322,6 +328,7 @@ export async function commitFileBatch(
     return { batch_id, ops, statusChanges };
   });
   publishStatusChanges(statusChanges);
+  if (committed.ops.length > 0) announceCommit();
   return committed;
 }
 
@@ -362,6 +369,7 @@ export async function commitPhotoBatch(
     return { batch_id, ops: committed, localSeq, statusChanges };
   });
   publishStatusChanges(statusChanges);
+  if (committed.ops.length > 0) announceCommit();
   return committed;
 }
 

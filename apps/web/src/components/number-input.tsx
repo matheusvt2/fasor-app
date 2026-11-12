@@ -69,9 +69,16 @@ export interface NumberInputOptions {
   onFocusChange?: (focused: boolean) => void;
   /**
    * F-01: typed text not committed yet is committed when the input leaves the page (a plate
-   * suggestion landing on this empty field swaps it out), never silently dropped.
+   * suggestion landing on this empty field swaps it out), never silently dropped. Story 25.2:
+   * text that does not parse is written to the draft store at that moment instead, so the
+   * sheet offers it on return ("Rascunho encontrado — Recuperar").
    */
   flushOnUnmount?: boolean;
+  /**
+   * Story 25.2: typed text the unmount drops with no draft (the lone ">" a "> limite" with no
+   * limit put in a Measurement field). Read at unmount only.
+   */
+  discardOnUnmount?: (text: string) => boolean;
   /**
    * Fix batch fxpw G4: the keyboard the input asks for; `decimal` by default. A field that
    * accepts a two-level voltage ("380/220") asks for `text`: the decimal keypad has no "/".
@@ -186,13 +193,24 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
 
   const settleLatest = useRef(settle);
   settleLatest.current = settle;
+  /** Story 25.2: set by the unmount below, so a blur fired by the removal reports and commits nothing more. */
+  const unmounted = useRef(false);
   // Layout cleanup: it runs before `useFieldCommit`'s own (passive) dispose drops the value.
-  useLayoutEffect(
-    () => () => {
-      if (latest.current.flushOnUnmount === true && dirty.current) settleLatest.current();
-    },
-    [],
-  );
+  useLayoutEffect(() => {
+    // A StrictMode remount runs the cleanup once at mount: the input is live again here.
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
+      if (latest.current.flushOnUnmount !== true || !dirty.current) return;
+      // Story 25.2 (M02): text that parses is committed as a blur commits it; text that does not is a draft now.
+      if (latest.current.parse(current.current) === 'invalid') {
+        if (latest.current.discardOnUnmount?.(current.current) === true) return;
+        void persistDraft.current?.();
+        return;
+      }
+      settleLatest.current();
+    };
+  }, []);
 
   const commitValue = (value: ParsedNumber): void => {
     movedWhileFocused.current = false;
@@ -204,7 +222,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     if (format !== undefined) setText(format(value));
   };
 
-  useDraftSource({
+  const persist = useDraftSource({
     surface: draft.surface,
     entityId: draft.entityId,
     field: draft.field,
@@ -217,6 +235,10 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
       settle();
     },
   });
+
+  /** Story 25.2: writes this input's draft now and offers it when the sheet is opened again (a test double may supply none). */
+  const persistDraft = useRef<(() => Promise<void>) | null>(null);
+  persistDraft.current = typeof persist === 'function' ? () => persist({ offerOnReturn: true }) : null;
 
   const parsed = parse(text);
   const echoFn = options.echo;
@@ -271,6 +293,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
         latest.current.onFocusChange?.(true);
       },
       onBlur: () => {
+        if (unmounted.current) return;
         focusedRef.current = false;
         echoKept.current = false;
         setFocused(false);

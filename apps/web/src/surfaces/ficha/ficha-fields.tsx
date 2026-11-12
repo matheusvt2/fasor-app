@@ -770,6 +770,9 @@ function WordField({ field, value, commit, missing, label, registries, recents: 
   // which must not clear the value the "Criar" just wrote.
   const created = useRef<string | null>(null);
   if (created.current !== null && selected !== null && current === created.current) created.current = null;
+  // Story 25.2: the stored name a clear was just written for, until the store says null, so a clear is written once.
+  const clearedFrom = useRef<string | null>(null);
+  if (current === null) clearedFrom.current = null;
   // E78-Q4: a stored manufacturer the registry does not hold shows its name and "Criar ⟨nome⟩?",
   // until the tap's registry row lands (one tap, one create).
   const [registering, setRegistering] = useState<string | null>(null);
@@ -790,8 +793,25 @@ function WordField({ field, value, commit, missing, label, registries, recents: 
         {...(kind === 'voltage_class' ? { matchKey: voltageMatchKey } : {})}
         onChange={(id) => {
           const chosen = rows.find((row) => row.id === id);
+          // React Aria's own null selections (a created name not landed yet, an unregistered stored name) are dropped;
+          // a clear the technician made comes through `onClear`.
           if (chosen === undefined && (created.current !== null || (current !== null && selected === null))) return;
+          if (chosen === undefined && current !== null) {
+            if (clearedFrom.current === current) return;
+            clearedFrom.current = current;
+          }
           void commit(chosen === undefined ? null : chosen.name);
+        }}
+        // Story 25.2 (M02): the technician emptied the field and left it: the clear is written whatever the stored
+        // name is (also one the registry does not hold), once.
+        onClear={() => {
+          if (current === null || clearedFrom.current === current) return;
+          clearedFrom.current = current;
+          created.current = null;
+          // A refused write lets the next clear try again.
+          void Promise.resolve(commit(null)).catch(() => {
+            clearedFrom.current = null;
+          });
         }}
         onCreate={(text) => {
           const name = kind === 'voltage_class' ? parseVoltageClassKv(text) : text.trim();

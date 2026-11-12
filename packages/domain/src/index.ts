@@ -134,6 +134,7 @@ export * from './points/priority.ts';
 export * from './points/link.ts';
 export * from './drafts/key.ts';
 export * from './sync/counts.ts';
+export * from './sync/late.ts';
 export * from './sync/status.ts';
 export * from './merge/index.ts';
 export * from './format/datetime.ts';

@@ -450,6 +450,13 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 25.4: issues two revisions through the shared queue and LibreOffice to read the verdicts each DOCX printed beside the ones its revision row stores',
   },
+  // Batch e25a (Story 25.3): 25.3-E2E-001 times the push of an edit against its commit (within 5 s), 25.3-E2E-002 the
+  // order of an edit's push against slowed uploads, and 25.3-E2E-003 jumps the page's clock against a held push.
+  {
+    file: 'sync-by-itself.spec.ts',
+    lane: 'solo',
+    why: 'Story 25.3: times an edit\'s push against its commit and against slowed photo uploads, and jumps the page\'s clock a minute against a held push, so it must not share the CPU with other workers',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

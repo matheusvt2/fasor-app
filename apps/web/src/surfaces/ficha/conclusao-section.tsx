@@ -543,6 +543,9 @@ export function ConclusaoSection({
                 helper={t.textHelper(section9)}
                 confirmedHelper={t.textConfirmed(section9)}
                 readOnly={readOnly}
+                // Story 25.2 (M02): the text reads as text before "Editar", and what is typed is saved while typing and on leaving.
+                presentation="text"
+                commitWhileTyping
               />
             </div>
           )}

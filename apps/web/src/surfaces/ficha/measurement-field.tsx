@@ -215,6 +215,9 @@ export function MeasurementField<Address extends FieldAddress>({
   // Story 22.10: "> limite" with no instrument limit put "> " in the input: the no-limit text is
   // its helper until the field is left or a value is stored.
   const [limitHint, setLimitHint] = useState(false);
+  /** Story 25.2: the hint as the unmount reads it (a ">" it put there is dropped, never a draft). */
+  const limitHintRef = useRef(limitHint);
+  limitHintRef.current = limitHint;
   const hintKey = useRef(storedKey);
   if (hintKey.current !== storedKey) {
     hintKey.current = storedKey;
@@ -245,6 +248,11 @@ export function MeasurementField<Address extends FieldAddress>({
       if (!focused) setLimitHint(false);
     },
     draft: { surface: DRAFT_SURFACE, entityId: api.blockId, field: `test-${address.testKey}-${address.row}-${address.col}${presentation === 'card' ? '-card' : ''}` },
+    // Story 25.2 (M02): a reading typed and left with the sheet (the tree, "Voltar", the stepper) is committed as a blur
+    // commits it; text that is no number becomes a draft offered on return.
+    flushOnUnmount: true,
+    // Story 22.10 (review fix), mirrored at unmount: the lone ">" that "> limite" put there is dropped, no draft.
+    discardOnUnmount: (text) => limitHintRef.current && text.trim() === '>',
     onEnter: (event) => {
       if (onRun(address, 'next')) event.preventDefault();
     },

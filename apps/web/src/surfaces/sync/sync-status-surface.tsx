@@ -1,8 +1,8 @@
 import { formatShortDateTime, opRejectReasonText, rejectedText, syncStatusWord } from '@app/domain';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Button, LoadingNote, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { useSync } from '../../state/sync.tsx';
+import { requestSyncCycle, useSync } from '../../state/sync.tsx';
 import { DecisionsSection, DownloadingSection, HowItWorks, LastSendSection, ReadingsSection, SendingSection } from './sync-sections.tsx';
 import { ResolvableDecisions } from './resolvable-decisions.tsx';
 import './sync.css';
@@ -23,6 +23,11 @@ export function SyncStatusSurface() {
   const sync = useSync();
   const titleId = useId();
   const [resending, setResending] = useState(false);
+  // Story 25.3: opening Sync status asks for a cycle (online only, coalesced with one in flight),
+  // with no tap on "Sincronizar agora".
+  useEffect(() => {
+    requestSyncCycle();
+  }, []);
 
   // F-14: the word and the button's reason read the same `running`, so they never disagree.
   const word = syncStatusWord(sync.badgeState, sync.counts, sync.running);
@@ -33,6 +38,18 @@ export function SyncStatusSurface() {
   const headline = sync.headline;
   const badges = sync.summaryBadges;
   const disabledReason = sync.running ? copy.sync.syncing : !sync.online ? copy.sync.offlineReason : undefined;
+  // Story 25.3 (`85-sync-atrasado.html`): while edits are late the one "Sincronizar agora" sits beside the kernel's line.
+  const late = sync.badgeState === 'late' && (sync.lateText ?? '') !== '';
+  const syncNowButton = (
+    <Button
+      isDisabled={disabledReason !== undefined}
+      disabledReason={disabledReason}
+      data-telemetry="sync.now"
+      onPress={() => void sync.syncNow()}
+    >
+      {copy.sync.syncNow}
+    </Button>
+  );
 
   async function resend() {
     if (resending) return;
@@ -72,6 +89,13 @@ export function SyncStatusSurface() {
             <HowItWorks />
           </div>
 
+          {late ? (
+            <div className="e25-late" data-testid="sync-late">
+              <p className="e25-late-line">{sync.lateText}</p>
+              {syncNowButton}
+            </div>
+          ) : null}
+
           {badges.length > 0 ? (
             <div className="sync-summary" data-testid="sync-summary">
               {badges.map((badge) => (
@@ -85,16 +109,7 @@ export function SyncStatusSurface() {
             </div>
           ) : null}
 
-          <div className="sync-actions">
-            <Button
-              isDisabled={disabledReason !== undefined}
-              disabledReason={disabledReason}
-              data-telemetry="sync.now"
-              onPress={() => void sync.syncNow()}
-            >
-              {copy.sync.syncNow}
-            </Button>
-          </div>
+          {late ? null : <div className="sync-actions">{syncNowButton}</div>}
 
           {/* The badge reads "Sem conexão" for both causes (kernel); this line names the real one. Story 14.10 lane B: "Tentando de novo" has its own line. */}
           {sync.online && sync.unreachable !== null ? (

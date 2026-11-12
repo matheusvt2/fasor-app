@@ -134,7 +134,8 @@ test('@p0 R8CONC-E2E-001 "Concluir e avançar" on a sheet whose text was never c
   // Back on the sheet: the stored text, confirmed, nothing left to confirm.
   await openSheet(page, relatorioId, sheet.blockId);
   await openConclusao(page);
-  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveText(stored);
+  // Story 25.2: the confirmed text reads as text, no longer a textbox.
+  await expect(generated(page).locator('.generated-text')).toHaveText(stored);
   await expect(generated(page).locator('.helper')).toHaveText(CONFIRMED_HELPER);
   await expect(generated(page).getByRole('button', { name: 'Confirmar' })).toHaveCount(0);
   await expect(generated(page).locator('.suggestion-alt')).toHaveCount(0);
@@ -204,7 +205,8 @@ test('@p0 R8CONC-E2E-003 a TAG renamed after the conclude: a confirmed, unedited
   await openSumario(page, relatorioId);
   const warningsBefore = await exportWarnings(page);
   const textOps = async () => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === `sheet/${sheet.blockId}/conclusion/text`).map((row) => String(row.value));
-  const editor = page.getByRole('textbox', { name: 'Texto da conclusão' });
+  // Story 25.2: the confirmed text is a plain element and the edited one the field; this reads whichever is shown.
+  const editor = generated(page).locator('.generated-text, textarea');
 
   // (a) The confirmed text was never edited: the rename writes it again under the new TAG, still confirmed.
   const renamed = `${sheet.tag}-R`;

@@ -396,3 +396,146 @@ describe('R8LAY DH-1 typed text left in the field', () => {
     expect(onCreate).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * Story 25.2 (M02): a sheet left while FABRICAÇÃO holds the focus (the tree, "Voltar", the stepper: no blur first)
+ * decides as a leave does, and an emptied field left writes the clear (`onClear`), also for a name the registry does
+ * not hold.
+ */
+describe('25.2-WEB the manufacturer typed and left with the sheet', () => {
+  function picker(props: { onChange?: (id: string | null) => void; onCreate?: (text: string) => string | null | void; onClear?: () => void; value?: string | null; initialText?: string; options?: typeof OPTIONS }) {
+    return (
+      <>
+        <RegistryPickerField
+          label="Fabricante"
+          options={props.options ?? OPTIONS}
+          recentIds={[]}
+          value={props.value ?? null}
+          {...(props.initialText === undefined ? {} : { initialText: props.initialText })}
+          onChange={props.onChange ?? vi.fn()}
+          onCreate={props.onCreate ?? vi.fn()}
+          {...(props.onClear === undefined ? {} : { onClear: props.onClear })}
+        />
+        <button type="button">Nome</button>
+      </>
+    );
+  }
+
+  it('a name the registry holds, typed with the focus still in the field, is selected when the field unmounts', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn();
+    const { unmount } = render(picker({ onChange, onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('siemens');
+    expect(onChange).not.toHaveBeenCalled();
+    unmount();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('siemens');
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it('an option picked with the focus kept in the field is its new baseline: the unmount that follows writes it no second time', async () => {
+    const onChange = vi.fn();
+    const { unmount } = render(picker({ onChange }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('sie');
+    await userEvent.click(await screen.findByRole('option', { name: 'Siemens' }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('siemens');
+  });
+
+  it('a new name is created once when the field unmounts, and not again after "Criar"', async () => {
+    const onCreate = vi.fn();
+    const first = render(picker({ onCreate }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('Megabras');
+    first.unmount();
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith('Megabras');
+
+    const created = vi.fn();
+    const second = render(picker({ onCreate: created }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('Celtta');
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “Celtta”' }));
+    expect(created).toHaveBeenCalledTimes(1);
+    second.unmount();
+    expect(created).toHaveBeenCalledTimes(1);
+  });
+
+  it('a stored name focused and left untouched writes nothing when the field unmounts', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn();
+    const onClear = vi.fn();
+    const { unmount } = render(picker({ onChange, onCreate, onClear, initialText: 'Hi-Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    expect(screen.getByRole('combobox', { name: 'Fabricante' })).toHaveValue('Hi-Tech');
+    unmount();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it('a stored name the registry does not hold, emptied and left, is cleared once', async () => {
+    const onChange = vi.fn();
+    const onClear = vi.fn();
+    render(picker({ onChange, onClear, initialText: 'Hi-Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalledWith(expect.any(String));
+    expect(input).toHaveValue('');
+  });
+
+  it('a registered name emptied and left is cleared, and the stored entry is not written back', async () => {
+    const onChange = vi.fn();
+    const onClear = vi.fn();
+    render(picker({ onChange, onClear, value: 'siemens' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('Nome'));
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalledWith('siemens');
+    expect(input).toHaveValue('');
+  });
+
+  it('an emptied field that unmounts with the focus in it is cleared', async () => {
+    const onClear = vi.fn();
+    const { unmount } = render(picker({ onClear, initialText: 'Hi-Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.clear(screen.getByRole('combobox', { name: 'Fabricante' }));
+    unmount();
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('D2 (fix batch e24z lead): after "Criar", leaves before and after the entry lands, with the options late, create once and never clear', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn(() => 'Fabricante R8CAP');
+    const onClear = vi.fn();
+    const { rerender } = render(picker({ onChange, onCreate, onClear }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('Fabricante R8CAP');
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “Fabricante R8CAP”' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    // Left before the entry lands.
+    await userEvent.click(screen.getByText('Nome'));
+    // The registry row lands before the sheet's value does (two live reads), then the value.
+    const landed = [...OPTIONS, { id: 'r8cap', label: 'Fabricante R8CAP' }];
+    rerender(picker({ onChange, onCreate, onClear, options: landed }));
+    await userEvent.click(input);
+    await userEvent.click(screen.getByText('Nome'));
+    rerender(picker({ onChange, onCreate, onClear, options: landed, value: 'r8cap' }));
+    await userEvent.click(input);
+    await userEvent.click(screen.getByText('Nome'));
+    // The picker may still hand React Aria's null on to its caller (the leave whose text equals its baseline releases
+    // it); the sheet's field drops it (`ficha-fields.test.tsx`, the same case through WordField). It never clears.
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onClear).not.toHaveBeenCalled();
+    expect(input).toHaveValue('Fabricante R8CAP');
+  });
+});

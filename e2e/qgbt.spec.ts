@@ -308,7 +308,8 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   );
   await suggestion.getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => lastWritten(page, `sheet/${blockId}/conclusion/result`)).toBe('reprovado');
-  const text = page.getByRole('textbox', { name: 'Texto da conclusão' });
+  // Story 25.2: the suggested text reads as text, no longer a textbox.
+  const text = page.locator('.ficha-conc-text .generated-text');
   await expect(text).toContainText(`quadro elétrico ${localTag}`);
   await expect(text).toContainText('0,4 MΩ em Fase C–Massa');
   await expect(text).toContainText(`(item ${nc + 1}, NC)`);

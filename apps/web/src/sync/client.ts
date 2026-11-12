@@ -123,7 +123,9 @@ export const HEALTH_PROBE_TIMEOUT_MS = 5000;
  * runs), so an answer that never came held the cycle, and every poll, until a reload. A request with a body gets its
  * upload on top, at `SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S` (fix batch e24x, B1: a 300 KB push gets 360 s; a body-less
  * request 60 s), its share at most `SYNC_REQUEST_BODY_SHARE_MAX_MS`, so a larger push gets 360 s too; the answer's
- * download is never cut, nor are the uploads and downloads of `send`.
+ * download is never cut. Story 25.3: the file transfers of `send` are bounded too: an upload by
+ * `requestHeadersTimeoutMs` of its size until the answer's headers; a download by this bound until its headers, then
+ * its body by `fileBodyTimeoutMs`.
  */
 export const SYNC_REQUEST_TIMEOUT_MS = 60_000;
 
@@ -144,6 +146,15 @@ export const SYNC_REQUEST_BODY_SHARE_MAX_MS = 300_000;
 /** Fix batch e24f: the wait for the answer's headers of a request whose body is `bodyBytes` long. */
 export function requestHeadersTimeoutMs(bodyBytes: number): number {
   return SYNC_REQUEST_TIMEOUT_MS + Math.min(SYNC_REQUEST_BODY_SHARE_MAX_MS, Math.ceil((bodyBytes / SYNC_REQUEST_FLOOR_UPLINK_BYTES_PER_S) * 1000));
+}
+
+/**
+ * Story 25.3: the wait for a downloaded file's body once its headers came: `requestHeadersTimeoutMs` of its
+ * `Content-Length`, or of the capped share (60 + 300 s) when the length is unknown.
+ */
+export function fileBodyTimeoutMs(contentLength: string | null): number {
+  const length = contentLength === null || contentLength.trim() === '' ? Number.NaN : Number(contentLength);
+  return requestHeadersTimeoutMs(Number.isFinite(length) && length >= 0 ? length : Number.POSITIVE_INFINITY);
 }
 
 /** Story 14.10 lane B: the probe's route (`apps/api/src/http/health.ts`). */
@@ -205,6 +216,26 @@ export interface SyncClientDeps {
   fetch: FetchLike;
   rawNowMs?: () => number;
   onServerDate?: (serverDate: string | null, sentAtMs: number, receivedAtMs: number) => void;
+}
+
+/** Story 25.3: a body read that ends as a `network` failure after `ms` (aborting the transfer) or when it fails. */
+function readBounded<T>(read: () => Promise<T>, ms: number, controller: AbortController): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      controller.abort();
+      reject(new SyncRequestError({ kind: 'network' }));
+    }, ms);
+    read().then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        reject(new SyncRequestError({ kind: 'network' }));
+      },
+    );
+  });
 }
 
 export function createSyncClient(deps: SyncClientDeps): SyncClient {
@@ -270,8 +301,14 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
     return parsed.data;
   }
 
-  /** The binary sibling of `request`: no JSON body, the same `SyncFailure` on every path. */
-  async function send(path: string, method: string, init: RequestInit): Promise<Response> {
+  /**
+   * The binary sibling of `request`: no JSON body, the same `SyncFailure` on every path. Story 25.3 (M03): the wait
+   * for the answer's headers is bounded by `headersTimeoutMs` (`controller` aborts it), so a file transfer whose
+   * answer never comes no longer holds the sync cycle until a reload; an abort is a `network` failure, which the
+   * upload retry table takes.
+   */
+  async function send(path: string, method: string, init: RequestInit, headersTimeoutMs: number, controller: AbortController = new AbortController()): Promise<Response> {
+    const timer = setTimeout(() => controller.abort(), headersTimeoutMs);
     let response: Response;
     try {
       response = await timedFetch(path, {
@@ -279,9 +316,12 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
         method,
         credentials: 'same-origin',
         headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION), ...(init.headers as Record<string, string>) },
+        signal: controller.signal,
       });
     } catch {
       throw new SyncRequestError({ kind: 'network' });
+    } finally {
+      clearTimeout(timer);
     }
     if (!response.ok) {
       let json: unknown;
@@ -309,33 +349,41 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
     pullProject: (id, since) => request(SYNC_ROUTES.pullProject(id), syncPullResponseSchema, `since=${since}`),
     async uploadFile(id, blob, sha256) {
       const route = FILE_ROUTES.put(id);
-      const response = await send(route.path, route.method, {
-        body: blob,
-        headers: {
-          accept: 'application/json',
-          'content-type': blob.type === '' ? 'application/octet-stream' : blob.type,
-          [FILE_SHA256_HEADER]: sha256,
+      // Story 25.3: the upload's bound is the JSON requests' rule over the file's size; its small answer body is read
+      // within `SYNC_REQUEST_TIMEOUT_MS`, so a stalled one ends as a `network` failure too.
+      const controller = new AbortController();
+      const response = await send(
+        route.path,
+        route.method,
+        {
+          body: blob,
+          headers: {
+            accept: 'application/json',
+            'content-type': blob.type === '' ? 'application/octet-stream' : blob.type,
+            [FILE_SHA256_HEADER]: sha256,
+          },
         },
-      });
-      let json: unknown;
-      try {
-        json = await response.json();
-      } catch {
-        json = undefined;
-      }
+        requestHeadersTimeoutMs(blob.size),
+        controller,
+      );
+      // A body that is no JSON stays `invalid_response` below; only the bound running out is a `network` failure.
+      const json: unknown = await readBounded(() => response.json().catch(() => undefined), SYNC_REQUEST_TIMEOUT_MS, controller);
       const parsed = filePutResponseSchema.safeParse(json);
       if (!parsed.success) throw new SyncRequestError({ kind: 'http', status: response.status, code: 'invalid_response' });
       return parsed.data;
     },
     async fetchFile(id, variant) {
       const route = FILE_ROUTES.get(id, variant);
-      const response = await send(route.path, route.method, { headers: { accept: '*/*' } });
-      return response.blob();
+      // Story 25.3: the headers within `SYNC_REQUEST_TIMEOUT_MS`, then the body within its own bound; either
+      // running out aborts the transfer as a `network` failure.
+      const controller = new AbortController();
+      const response = await send(route.path, route.method, { headers: { accept: '*/*' } }, SYNC_REQUEST_TIMEOUT_MS, controller);
+      return readBounded(() => response.blob(), fileBodyTimeoutMs(response.headers.get('content-length')), controller);
     },
     generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
     preview: (relatorioId, body) => request(GENERATE_ROUTES.preview(relatorioId), previewResponseSchema, undefined, body),
     async rereadPhoto(photoId) {
-      await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } });
+      await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } }, SYNC_REQUEST_TIMEOUT_MS);
     },
     audit: (relatorioId, body) => request(auditRoute(relatorioId), auditResponseSchema, undefined, body),
     async health() {

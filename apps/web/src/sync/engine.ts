@@ -20,6 +20,7 @@ import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schem
 import {
   applyPulled,
   deviceId,
+  hasPendingOps,
   heldOpsOnPaths,
   markAcked,
   markDead,
@@ -242,6 +243,13 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   let onlineWhileRunning = false;
   /** Resolves when the cycle in flight ends (resolved while none runs). */
   let cycleEnded: Promise<void> = Promise.resolve();
+  /**
+   * Story 25.3: the push run between two file uploads of the cycle in flight. `running` is the
+   * one in flight, which every worker awaits before its next attempt (one push at a time, the
+   * ops in their order); `off` is set when the cycle's own push ended in a failure, or a push
+   * between files did, so no more run in this cycle.
+   */
+  let filePush: { running: Promise<void> | null; off: boolean } = { running: null, off: false };
 
   const emit = () => {
     if (!stopped) deps.onChange({ ...status });
@@ -376,15 +384,50 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   /** AD-7: two uploads at a time, so one big certificate never holds the queue. */
   const UPLOAD_CONCURRENCY = 2;
 
+  /**
+   * Story 25.3 (M03): an edit committed while files upload is pushed before the next file starts,
+   * not after the last one. Single-flight: a worker that finds one running awaits it. A re-auth or
+   * outdated verdict ends the upload phase, as `uploadOne`'s does; any other failure is recorded
+   * and no more pushes run between files in this cycle (the next cycle, or its own push, sends them).
+   */
+  function pushBetweenFiles(): Promise<void> {
+    if (filePush.off || stopped || status.paused) return Promise.resolve();
+    if (filePush.running !== null) return filePush.running;
+    const run = (async () => {
+      if (!(await hasPendingOps(deps.db))) return;
+      try {
+        await pushPhase();
+      } catch (error) {
+        if (!(error instanceof PhaseEnd)) throw error;
+        if (error.action === 'reauth' || error.action === 'outdated') throw error;
+        recordFailure(error.failure);
+        filePush.off = true;
+      }
+    })();
+    const running = run.finally(() => {
+      if (filePush.running === running) filePush.running = null;
+    });
+    filePush.running = running;
+    return running;
+  }
+
   /** The code a failure is recorded under on the blob row (Story 6.2 `upload_error`). */
   const failureCode = (failure: SyncFailure): string =>
     failure.kind === 'http' ? (failure.code ?? String(failure.status)) : failure.kind;
 
-  /** One file, with the upload retry table; throws PhaseEnd only for re-auth and outdated. */
-  async function uploadOne(item: PendingUpload): Promise<'uploaded' | 'deferred' | 'failed'> {
+  /**
+   * One file, with the upload retry table; throws PhaseEnd only for re-auth and outdated.
+   * Story 25.3: `beforeAttempt` runs before every attempt (the push between files).
+   */
+  async function uploadOne(item: PendingUpload, beforeAttempt: () => Promise<void> = () => Promise.resolve()): Promise<'uploaded' | 'deferred' | 'failed'> {
     for (let attempt = 1; ; attempt++) {
       if (stopped || !deps.isOnline()) {
         cycleWentOffline = true;
+        return 'deferred';
+      }
+      await beforeAttempt();
+      if (stopped || status.paused || !deps.isOnline()) {
+        if (!stopped && !status.paused) cycleWentOffline = true;
         return 'deferred';
       }
       try {
@@ -445,11 +488,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
     let cursor = 0;
     let uploaded = 0;
+    // Story 25.3: every attempt after the phase's first is preceded by the push between files
+    // (the cycle's own push has just run before the first).
+    let attempts = 0;
+    const beforeAttempt = (): Promise<void> => (attempts++ === 0 ? Promise.resolve() : pushBetweenFiles());
     const worker = async (): Promise<void> => {
       for (;;) {
         const item = queue[cursor++];
         if (item === undefined) return;
-        const result = await uploadOne(item);
+        const result = await uploadOne(item, beforeAttempt);
         if (result === 'uploaded') uploaded += 1;
       }
     };
@@ -629,6 +676,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     emit();
     try {
       await runPhase(pushPhase);
+      // Story 25.3: a push that failed in this cycle is not tried again between files.
+      filePush = { running: null, off: cycleFailure !== null || cycleWentOffline };
       // AD-7: the upload sits between the push and the pull, so a file whose create op
       // this cycle just acked is uploaded now and its `uploaded_at` arrives below.
       if (!status.paused && !stopped) await runPhase(uploadPhase);

@@ -352,8 +352,13 @@ test('@p0 R8CAP-E2E-006 a reading landing on typed nameplate values: "Manter o d
  * twice in three runs of 2026-11-10), so the press is retried, typing again, until it lands.
  */
 async function createManufacturer(page: Page, name: string): Promise<void> {
+  // Batch e25a (fix batch e24z, R8CAP-E2E-010 (1)): each try types the name after the field's last letter is gone, so
+  // the text changes and a list a failed try left closed opens again; filling the same text changed nothing.
   await expect(async () => {
-    await field(page, 'fabricacao').getByRole('combobox').fill(name);
+    const combobox = field(page, 'fabricacao').getByRole('combobox');
+    await combobox.fill(name.slice(0, -1));
+    await combobox.press('End');
+    await combobox.pressSequentially(name.slice(-1));
     await page.getByRole('option', { name: `Criar “${name}”` }).click({ timeout: 5_000 });
   }).toPass({ timeout: 45_000 });
 }

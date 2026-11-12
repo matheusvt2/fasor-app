@@ -1,5 +1,5 @@
 import { normalizeRegistryName } from '@app/domain';
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ui } from '../copy/ui.ts';
 import { Chip } from './chip.tsx';
@@ -33,6 +33,12 @@ export interface RegistryPickerFieldProps {
   initialText?: string;
   /** F-09: the line under the field while `options` is empty ("Nenhuma classe … — digite … para criar"). */
   emptyHint?: string;
+  /**
+   * Story 25.2 (M02): the technician emptied the field's text (it held a name when the focus arrived) and left it, by
+   * a real leave or by the field leaving the screen. The caller writes the clear, also for a stored name the registry
+   * does not hold. Without it an emptied field keeps today's behaviour (React Aria's own selection decides).
+   */
+  onClear?: () => void;
 }
 
 /**
@@ -51,6 +57,7 @@ export function RegistryPickerField({
   initialText,
   matchKey = normalizeRegistryName,
   emptyHint,
+  onClear,
 }: RegistryPickerFieldProps) {
   const showEmptyHint = emptyHint !== undefined && options.length === 0;
   const byId = new Map(options.map((option) => [option.id, option] as const));
@@ -98,7 +105,16 @@ export function RegistryPickerField({
       heldNull.current = true;
       return;
     }
-    if (id !== null) setInputValue(byId.get(id)?.label ?? '');
+    // Story 25.2: leaving a field the technician emptied is a clear (`onClear`); React Aria's re-selection of the
+    // stored entry on that leave would write the name back and refill the text.
+    if (id !== null && leaving.current && onClear !== undefined && emptiedByTechnician()) return;
+    if (id !== null) {
+      const label = byId.get(id)?.label ?? '';
+      setInputValue(label);
+      // Story 25.2: a pick made while the field holds the focus is its new baseline, so the field leaving the screen
+      // right after writes it no second time.
+      if (textOnFocus.current !== null) textOnFocus.current = label;
+    }
     onChange(id);
   };
   // DH-1 (review 2026-10-08): typed text the engineer leaves is never lost. When the focus leaves the
@@ -123,6 +139,8 @@ export function RegistryPickerField({
   // by-value name shown as it is (an unregistered "Hi-Tech", a copied manufacturer) focused and left
   // untouched writes nothing; its own "Criar ⟨nome⟩?" line registers it.
   const textOnFocus = useRef<string | null>(null);
+  /** Story 25.2: the field held a name when the focus arrived and its text is empty now. */
+  const emptiedByTechnician = (): boolean => textOnFocus.current !== null && textOnFocus.current.trim() !== '' && latestText.current.trim() === '';
   const commitLeft = () => {
     const before = textOnFocus.current;
     textOnFocus.current = null;
@@ -134,6 +152,8 @@ export function RegistryPickerField({
     };
     if (before !== null && latestText.current === before) return release();
     const text = latestText.current.trim();
+    // Story 25.2: an emptied field left is the clear, written once by the caller (React Aria's held null is consumed).
+    if (text === '' && onClear !== undefined && before !== null && before.trim() !== '') return onClear();
     if (text === '') return release();
     const key = matchKey(text);
     const match = options.find((option) => matchKey(option.label) === key);
@@ -145,6 +165,24 @@ export function RegistryPickerField({
     if (createdKeys.current.has(key)) return;
     if (!create(text)) release();
   };
+  // Story 25.2 (M02): a field that leaves the screen while it holds the focus (a sheet left from the tree, "Voltar" or
+  // the stepper, with no blur first) decides as a leave does: a name of the registry is selected, a new one created
+  // once, an emptied one cleared, an untouched one left alone. A layout cleanup, so it runs before a blur fired by
+  // the removal, which then finds the field already decided (`unmounted`).
+  const unmounted = useRef(false);
+  const leaveOnUnmount = useRef(commitLeft);
+  leaveOnUnmount.current = commitLeft;
+  useLayoutEffect(() => {
+    // A StrictMode remount runs the cleanup once at mount: the field is live again here.
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
+      if (textOnFocus.current === null) return;
+      leaving.current = false;
+      heldNull.current = false;
+      leaveOnUnmount.current();
+    };
+  }, []);
   /** A focusout that is not a leave: into the field's own list or chevron, or the window losing the focus (lock, app switch) while the input keeps it. */
   const staysIn = (host: HTMLElement, next: EventTarget | null): boolean =>
     (next instanceof Element && (host.contains(next) || next.closest('.combobox-list') !== null)) ||
@@ -183,9 +221,11 @@ export function RegistryPickerField({
           if (textOnFocus.current === null) textOnFocus.current = latestText.current;
         }}
         onBlurCapture={(event) => {
+          if (unmounted.current) return;
           leaving.current = !staysIn(event.currentTarget, event.relatedTarget);
         }}
         onBlur={() => {
+          if (unmounted.current) return;
           const left = leaving.current;
           leaving.current = false;
           if (!left) {

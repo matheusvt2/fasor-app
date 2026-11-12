@@ -623,6 +623,25 @@ body {
    `.sync-headline[data-tone="pending"] .sh-state` verbatim. */
 .sync-headline[data-tone="retrying"] .sh-state { color: var(--sync-pending); }
 
+/* Story 25.3 (`mockups/prototype/screens/85-sync-atrasado.html` lines 10-21, Story 25.1 Part A): the
+   seventh badge state, `late` (edits waited more than one minute while the device could send them).
+   `#bar-sync[data-state="late"]` and its `.pill` become every `.sync-badge[data-state="late"]` (the
+   App bar's badge is the only one that reads it; Home cards never do); the screen rules keep the
+   mock's declarations verbatim under the app's `/sync` route. */
+.sync-badge[data-state="late"] { color: var(--sync-pending); }
+.sync-badge[data-state="late"] .pill { background: var(--fora-do-limite-fill); }
+/* Mock: `[data-route="/sync/atrasado"] .sync-headline[data-tone="late"] .sh-state`. */
+[data-route="/sync"] .sync-headline[data-tone="late"] .sh-state { color: var(--sync-pending); }
+/* Mock: `[data-route="/sync/atrasado"] .e25-late` and its line and button: the line and "Sincronizar agora"
+   in one row, the button dropping under the line when the width is short. */
+[data-route="/sync"] .e25-late { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-5); }
+[data-route="/sync"] .e25-late .e25-late-line { flex: 1 1 320px; margin: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); color: var(--ink-primary); }
+[data-route="/sync"] .e25-late .btn { flex: none; }
+/* Mock: `.frame-phone [data-route="/sync/atrasado"] .e25-late .btn` (AGENTS.md § Mock container selectors). */
+@media (max-width: 767.98px) {
+  [data-route="/sync"] .e25-late .btn { width: 100%; }
+}
+
 /* The status board tile is a filter, not a link (UX-DR63, EXPERIENCE.md › Home), so it
    carries `aria-pressed`. `components.css` has `.status-board`, `.status-tile` and
    `.tile-count.is-zero` and no pressed state at all — the mock's tiles only navigate.
@@ -1300,3 +1319,10 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
   .priority-picker .pr-text { min-width: auto; }
   .priority-picker .priority-pill { white-space: nowrap; }
 }
+
+/* Story 25.2 (`mockups/prototype/screens/60-ficha.html` lines 382-383, Story 25.1 Part A): the sheet's "Texto da
+   conclusão" before "Editar" reads as text, not as a field. The mock's `#ficha-conc-text-sf > .generated-text` is the
+   app's `.ficha-conc-text` Generated text field, and its `.is-confirmed` state is the field's `data-state="confirmed"`
+   (a stale text is confirmed too). Declarations verbatim; the Etapa 6 parecer summary keeps its look. */
+.ficha-conc-text .suggestion-field.is-generated > .generated-text { border: 0; min-height: 0; }
+.ficha-conc-text .suggestion-field.is-generated[data-state="confirmed"] > .generated-text { background: transparent; padding: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); }
