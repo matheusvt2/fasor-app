@@ -1,4 +1,4 @@
-import { blockDefinitionIn, composeParecer, conclusionFloorReasonText, getDefinition, SEED_VERSION, snapshotDefinitionContext, visitContextOf, type BlockRow, type FieldDef, type JsonValue } from '@app/domain';
+import { blockDefinitionIn, composeParecer, conclusionFloorReasonText, getDefinition, snapshotDefinitionContext, visitContextOf, type BlockRow, type FieldDef, type JsonValue } from '@app/domain';
 import type { BrowserContext, Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -69,14 +69,17 @@ interface Cable {
   tag: string;
 }
 
-/** A new relatório (on `seedVersion`, else the current seed), Em campo, its first cabos de saída with the plate and every row Conforme from the office. */
-async function setUp(page: Page, seedVersion?: string): Promise<Cable> {
+/**
+ * A new relatório on `seedVersion`, Em campo, its first cabos de saída with the plate and every row Conforme from the office.
+ * v14 by default: pinned since seed v15 opened (Story 25.5), as these walks assert v14 verdicts and pages.
+ */
+async function setUp(page: Page, seedVersion = 'v14'): Promise<Cable> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account, seedVersion === undefined ? {} : { seedVersion });
+  const built = newRelatorioDrafts(account, { seedVersion });
   const cable = built.sheets.find((sheet) => sheet.blockType === TYPE)!;
-  const definition = getDefinition(seedVersion ?? SEED_VERSION, 'cabine_primaria', TYPE);
+  const definition = getDefinition(seedVersion, 'cabine_primaria', TYPE);
   const scope = { relatorioId: built.relatorioId };
   await pushDrafts(page, database, [
     ...built.drafts,

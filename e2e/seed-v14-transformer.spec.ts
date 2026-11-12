@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, oilCrossingToastText, oilFieldExcusedReason, screenLabel, SEED_VERSION, type BlockRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, oilCrossingToastText, oilFieldExcusedReason, screenLabel, type BlockRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { openStep, outbox, setUpRelatorio, testSection } from './support/e23t-flow.ts';
@@ -31,7 +31,7 @@ test.beforeEach(({ seed }) => {
   database = deviceDatabaseName(account.userId);
 });
 
-const TF = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+const TF = getDefinition('v14', 'cabine_primaria', 'transformador_forca');
 const RULE = TF.oil_rule!;
 const OIL_VALUE = RULE.oil_values[0]!;
 const DRY = RULE.dry_items!;
@@ -75,8 +75,8 @@ async function addTransformer(page: Page, relatorioId: string): Promise<string> 
 
 test('@p0 24.11-E2E-001 at 1024: a v14 oil transformer asks 17 items with the three dry ones NA (an NC answer wins), a dry one the eight oil items NA and the dry ones asked, its oil sampling NA and VOL. ÓLEO read-only; the DOCX prints both lists', async ({ page }) => {
   test.setTimeout(480_000);
-  expect(SEED_VERSION).toBe('v14');
-  const { relatorioId } = await setUpRelatorio(page, account, database);
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
+  const { relatorioId } = await setUpRelatorio(page, account, database, undefined, 'v14');
   await page.setViewportSize({ width: 1024, height: 900 });
   expect(TF.checklist).toHaveLength(17);
 
@@ -150,7 +150,7 @@ test('@p0 24.11-E2E-001 at 1024: a v14 oil transformer asks 17 items with the th
 
 test('@p0 24.11-E2E-002 the crossing dry to oil clears the answered dry items in one batch with the kernel\'s toast, back to dry keeps a dry answer; on a v12 dry TP and transformer VOL. ÓLEO is read-only with its reason, ÓLEO MINERAL makes it editable', async ({ page }) => {
   test.setTimeout(300_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database);
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, undefined, 'v14');
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   await page.goto(`/relatorio/${relatorioId}/ficha/${tf.blockId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });

@@ -3,6 +3,8 @@ import {
   blockFieldPath,
   blockReadings,
   buildSnapshot,
+  choiceValue,
+  conclusionFloor,
   conclusionTextOnConclude,
   defaultBlockConfig,
   defaultBlockConfigIn,
@@ -12,21 +14,27 @@ import {
   findDefinitionIn,
   getDefinition,
   instantiateTemplate,
+  locationEnvPath,
   makeOp,
   recommendedPointText,
+  relatorioSetupPath,
   replay,
+  restrictionApplies,
   SECTION_BLOCK_TYPES,
   sheetChecklistPath,
   sheetConclusionPath,
   sheetNameplatePath,
   sheetObservationsPath,
+  sheetPointFindings,
   sheetTestCellPath,
   sheetTestPath,
+  sheetTestValuePath,
   snapshotDefinitionContext,
   visitContextOf,
   type BlockDefinition,
   type CompanyTypeDefinition,
   type DefinitionContext,
+  type EquipmentBlockType,
   type EquipmentTypeRow,
   type EquipmentTypeVersionRow,
   type FieldDef,
@@ -572,5 +580,372 @@ function epic24Extras(version: string, relatorioId: string, sheets: readonly She
 /** The snapshot the renderer reads for the synthetic relatório of `version`. */
 export function layoutLockSnapshot(version: string, options: LayoutLockOptions = {}): RelatorioSnapshot {
   const fixture = layoutLockFixture(version, DEFAULT_ACTOR, options);
+  return buildSnapshot(replay(fixture.log), fixture.relatorioId);
+}
+
+// --- Story 25.5: the second v14 fixture, the cases Epic 25 changes on v15 -------------------------
+
+/*
+ * Story 25.5 (Epic 25 layout lock, batch e25c, 2026-11-12): the first v14 golden (PR #325, taken from
+ * the product code deployed as 2009fa30) stays byte-equal. This second synthetic v14 relatório holds,
+ * one sheet each, the cases the later Epic 25 stories change on v15, so every one of them has its v14
+ * pin before any rule moves. Its golden (`golden/layout-lock-v14-epic25`) is taken once, from code that
+ * changes no rule (Story 25.5's own), and every later Epic 25 PR keeps it byte-equal:
+ *   - Story 25.6: a cabos de entrada whose every reading is "Não medido", concluded Aprovado;
+ *   - Story 25.7: a cabos de saída the technician reproved over readings within their criteria, and a
+ *     seccionadora with its insulation measured and its contact left "Não medido", each concluded with
+ *     its confirmed text;
+ *   - Story 25.8: a breaker whose contact rose exactly 50 % since the previous visit;
+ *   - Story 25.9: a TP whose third phase is "Não medido";
+ *   - Story 25.10: a stored point written from a test with three readings out of its criterion (the
+ *     text and action the kernel offers today, `sheetPointFindings`);
+ *   - Story 25.15: three arresters' thermography, measured on its four points in load, one with
+ *     "Equipamento em carga" Não, and one left unanswered;
+ *   - Stories 25.16 and 25.17: the Malha de aterramento with its five continuity rows, a No-break de comando;
+ *   - Stories 25.18 and 25.19: a TC and an oil transformer with every item answered, and a transformer of
+ *     each TIPO DE ISOLAÇÃO (ÓLEO ISOLANTE, EPÓXI, Á SECO);
+ *   - Story 25.20: the oil transformer's winding-resistance table, the breaker's paired insulation tables
+ *     corrected to 20 °C (the cabine's ambient), and a company type's table with a "nominal ± %" row, each
+ *     with a previous visit;
+ *   - Story 25.21: the oil transformer's second visit, whose note line names more than three cells;
+ *   - Story 25.22: Etapa 2's Local and the obra's site filled, an exclusion naming the relays, a blank ART,
+ *     and the TP's and the TC's ratio tables.
+ * Every value is invented by rule (R-023 does not apply). The same builder runs on v15 for
+ * "25.5-UNIT-SAME": a v15 relatório with the same answers concludes and prints as the v14 one.
+ */
+
+/** The seed versions whose Epic 25 fixture is locked (its golden directory: `layoutLockEpic25Golden`). */
+export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14'] as const;
+
+/** The golden directory of a version's Epic 25 fixture, beside `layout-lock-{version}`. */
+export const layoutLockEpic25Golden = (version: string): string => `layout-lock-${version}-epic25`;
+
+/** Fixed entity ids of the Epic 25 fixture: `019a6100-02VV-7000-8000-NNNNNNNNNNNN`. */
+const epic25Id = (version: string, n: number): string => `019a6100-02${hex(versionNumber(version), 2)}-7000-8000-${hex(n, 12)}`;
+/** Fixed op ids of the Epic 25 fixture: `019a6100-03VV-7000-8000-NNNNNNNNNNNN`. */
+const epic25OpId = (version: string, n: number): string => `019a6100-03${hex(versionNumber(version), 2)}-7000-8000-${hex(n, 12)}`;
+
+/** The equipment the Epic 25 template places, in order, with how many of each. */
+const EPIC25_BLOCKS: readonly [EquipmentBlockType, number][] = [
+  ['cabos_entrada', 1],
+  ['para_raio', 3],
+  ['chave_seccionadora', 1],
+  ['disjuntor_mt', 2],
+  ['tp', 1],
+  ['tc', 1],
+  ['cabos_saida', 1],
+  ['transformador_forca', 3],
+  ['malha_aterramento', 1],
+  ['no_break_comando', 1],
+];
+
+/** The synthetic company type of the Epic 25 fixture: a rectifier whose output voltage is judged "nominal ± %". */
+const EPIC25_COMPANY_DEFINITION: CompanyTypeDefinition = {
+  ...COMPANY_DEFINITION,
+  label: 'Retificador nominal sintético',
+  tag_prefix: 'RN',
+  measurement_tests: [
+    {
+      ...COMPANY_DEFINITION.measurement_tests![0]!,
+      criteria: [
+        { type: 'absolute', seeded: 'tensao_nominal_saida', rows: ['saida'], source: { name: 'Manual do fabricante', edition: 'rev. 2' } },
+        { type: 'absolute', seeded: 'tensao_saida', rows: ['flutuacao'], source: { name: 'Manual do fabricante', edition: 'rev. 1' } },
+      ],
+    },
+  ],
+  criteria: [
+    ...COMPANY_DEFINITION.criteria,
+    { key: 'tensao_nominal_saida', label: 'Tensão nominal de saída', operator: 'nominal_pct', value: 125, tolerance_pct: 5, unit: 'Vcc', type: 'deviation_between', source: { name: 'Manual do fabricante', edition: 'rev. 2' } },
+  ],
+};
+
+const notMeasured = (unit: string | null): JsonValue => ({ raw: '', unit, state: 'not_measured' });
+
+/** A measurement test's column index by key, so a cell is addressed as the sheet addresses it. */
+function columnOf(definition: BlockDefinition, testKey: string, columnKey: string): number {
+  return definition.measurement_tests!.find((test) => test.key === testKey)!.columns.findIndex((column) => column.key === columnKey);
+}
+
+/** The by-rule writes of one sheet with every capture cell of `testKey` (rows `rows`, or all) written "Não medido". */
+function withNotMeasured(writes: [string, JsonValue][], blockId: string, testKey: string, rows: ReadonlySet<number> | null = null): [string, JsonValue][] {
+  const cell = new RegExp(`^${sheetTestCellPath(blockId, testKey, 0, 0).replace(/\/0\/0$/, '')}/(\\d+)/\\d+$`);
+  return writes.map(([path, value]): [string, JsonValue] => {
+    const match = cell.exec(path);
+    if (match === null || (rows !== null && !rows.has(Number(match[1])))) return [path, value];
+    return [path, notMeasured((value as { unit: string | null }).unit)];
+  });
+}
+
+/** The by-rule writes with every checklist row Conforme and no OBSERVAÇÕES (a sheet whose verdict is its readings alone). */
+function allConforming(writes: [string, JsonValue][], blockId: string): [string, JsonValue][] {
+  return writes
+    .filter(([path]) => !(path.includes('/checklist/') && path.endsWith('/observation')))
+    .filter(([path]) => path !== sheetObservationsPath(blockId))
+    .map(([path, value]): [string, JsonValue] => (path.includes('/checklist/') && path.endsWith('/result') && value !== 'C' ? [path, 'C'] : [path, value]));
+}
+
+/** The op log of the Epic 25 synthetic relatório of `version` (v14 locked; v15 compared with it). */
+export function layoutLockEpic25Fixture(version: string, actor: LayoutLockActor = DEFAULT_ACTOR): LayoutLockFixture {
+  let ids = 10;
+  const newId = () => epic25Id(version, ids++);
+  let ops = 0;
+  const base = Date.parse('2026-11-12T09:00:00.000Z');
+  const nextOp = () => ({ newId: () => epic25OpId(version, ++ops), now: new Date(base + ops * 1000) });
+  const opOf = (draft: OpDraft): Op => makeOp({ ...draft, device_id: actor.deviceId }, nextOp());
+
+  // The company type, its published version and its context.
+  const typeId = epic25Id(version, 700);
+  const versionId = epic25Id(version, 701);
+  const typeRow: EquipmentTypeRow = { id: typeId, derived_from: { seed_version: version, block_type: 'quadro_eletrico' }, draft: null, retired_at: null, removed_at: null, latest_version: 0 };
+  const versionRow: EquipmentTypeVersionRow = { id: versionId, type_id: typeId, version: 1, definition: EPIC25_COMPANY_DEFINITION, published_by: actor.actorId, published_at: '2026-11-01T12:00:00.000Z' };
+  const ctx = definitionContext([versionRow], [{ ...typeRow, latest_version: 1 }]);
+  const companyBlockType = `type:${typeId}` as const;
+  const companyDraft = (path: string, value: unknown): OpDraft => ({
+    kind: 'create',
+    scope: 'company',
+    company_id: actor.companyId,
+    project_id: null,
+    relatorio_id: null,
+    path,
+    value: value as JsonValue,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: actor.actorId,
+  });
+
+  const projectId = epic25Id(version, 4);
+  const project = companyDraft(`project/${projectId}`, { id: projectId, client_id: null, name: `Obra sintética ${version} das regras novas`, site: 'Avenida Sintética, 250', removed_at: null });
+  const ref = 'cabine-regras';
+  const template: TemplateRow = {
+    id: epic25Id(version, 3),
+    name: 'Trava de layout das regras novas',
+    version: 1,
+    seed_version: version,
+    blocks: [
+      ...SECTION_BLOCK_TYPES.map((type) => ({ ...defaultBlockConfig(version, type), quantity: 1, skeleton_location_ref: null, section_text: null })),
+      ...EPIC25_BLOCKS.map(([type, quantity]) => ({ ...defaultBlockConfig(version, type), quantity, skeleton_location_ref: ref, section_text: null })),
+      { ...defaultBlockConfigIn(ctx, version, companyBlockType, { version: 1, id: versionId }), quantity: 1, skeleton_location_ref: ref, section_text: null },
+    ],
+    skeleton: [{ ref, kind: 'cabine', parent_ref: null, name: 'Subestação das Regras', agrupar_por_tipo: false }],
+    archived_at: null,
+    removed_at: null,
+  };
+  const { relatorioId, drafts } = instantiateTemplate(
+    template,
+    { id: projectId },
+    { service_start: '2026-11-10', service_end: '2026-11-11', existingEquipment: [], responsible_user_id: null, definitions: ctx, tagRule: 'legacy' },
+    { newId, actorId: actor.actorId, companyId: actor.companyId },
+  );
+  const log = [companyDraft(`equipment_type/${typeId}`, typeRow), companyDraft(`equipment_type_version/${versionId}`, versionRow), project, ...drafts].map(opOf);
+  const put = (path: string, value: JsonValue, meta: OpDraft['meta'] = null): void => {
+    log.push(opOf({ kind: 'put', scope: 'relatorio', company_id: actor.companyId, project_id: null, relatorio_id: relatorioId, path, value, prev_op_id: null, batch_id: null, meta, actor_id: actor.actorId }));
+  };
+
+  const sheets = drafts
+    .filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/'))
+    .map((draft) => draft.value as unknown as SheetCreate)
+    .filter((block) => block.equipment_id !== null);
+  const all = (type: string) => sheets.filter((block) => block.block_type === type);
+  const [noMeasure] = all('cabos_entrada');
+  const [thermoInLoad, thermoOff, thermoUnanswered] = all('para_raio');
+  const [partly] = all('chave_seccionadora');
+  const [rise, threeOut] = all('disjuntor_mt');
+  const [tp] = all('tp');
+  const [byHand] = all('cabos_saida');
+  const [oil, epoxy, dry] = all('transformador_forca');
+  const [grid] = all('malha_aterramento');
+  const [company] = all(companyBlockType);
+  const definitionOf = (block: SheetCreate) => findDefinitionIn(ctx, version, block.block_type, { version: 1, id: versionId })!;
+
+  // --- each sheet's answers: the by-rule writes, amended where the sheet pins a case ---
+  sheets.forEach((block, n) => {
+    const definition = definitionOf(block);
+    let writes = sheetWrites(version, block.id, definition, n);
+    if (block.id === noMeasure!.id) writes = withNotMeasured(allConforming(writes, block.id), block.id, 'isolacao');
+    if (block.id === partly!.id) writes = withNotMeasured(writes, block.id, 'resistencia_contato');
+    if (block.id === tp!.id) writes = withNotMeasured(withNotMeasured(writes, block.id, 'isolacao', new Set([2])), block.id, 'relacao_transformacao', new Set([2]));
+    if (block.id === byHand!.id) writes = [...writes.filter(([path]) => path !== sheetObservationsPath(block.id)), [sheetObservationsPath(block.id), 'Reprovado pelo técnico: isolação dentro do critério, mas o terminal apresenta trinca.']];
+    if (block.id === rise!.id) {
+      // Every contact reading 45 µΩ, the previous visit's 30 µΩ: a rise of exactly 50 %. The insulation within its criterion.
+      writes = writes.map(([path, value]): [string, JsonValue] => {
+        if (/\/test\/resistencia_contato\/cell\//.test(path)) return [path, num('45', 'µΩ')];
+        if (/\/test\/isolacao\/cell\//.test(path) && (value as { state?: string }).state === 'measured' && (value as { unit?: string }).unit === 'GΩ') return [path, num('12', 'GΩ')];
+        return [path, value];
+      });
+    }
+    if (block.id === threeOut!.id) {
+      // The first three insulation rows below the criterion (≥ 5.000 MΩ, the column in GΩ): one test, three readings out.
+      writes = writes.map(([path, value]): [string, JsonValue] => {
+        const cell = /\/test\/isolacao\/cell\/(\d+)\/0$/.exec(path);
+        return cell !== null && Number(cell[1]) < 3 ? [path, num(String(0.5 + Number(cell[1]) * 0.5), 'GΩ')] : [path, value];
+      });
+    }
+    if (block.id === epoxy!.id || block.id === dry!.id) {
+      const kind = block.id === epoxy!.id ? 'EPÓXI' : 'Á SECO';
+      writes = writes.map(([path, value]): [string, JsonValue] => (path === sheetNameplatePath(block.id, 'tipo_de_isolacao') ? [path, kind] : [path, value]));
+    }
+    if (block.id === oil!.id) {
+      // The oil transformer: its oil and winding temperatures, and the winding resistance on its four rows.
+      const temperatures = new Map([
+        [sheetNameplatePath(block.id, 'temperatura_oleo_c'), num('40', '°C')],
+        [sheetNameplatePath(block.id, 'temperatura_enrolamento_c'), num('45', '°C')],
+      ]);
+      writes = writes.map(([path, value]): [string, JsonValue] => [path, temperatures.get(path) ?? value]);
+      for (const [row, raw, unit] of [
+        [0, 1.2, 'Ω'],
+        [1, 1.25, 'Ω'],
+        [2, 1.15, 'Ω'],
+        [3, 3.1, 'mΩ'],
+      ] as const) {
+        [0, 0.005, 0.01].forEach((step, col) => writes.push([sheetTestCellPath(block.id, 'resistencia_enrolamento', row, col), num(String(Math.round(raw * (1 + step) * 1000) / 1000), unit)]));
+      }
+    }
+    for (const [path, value] of writes) put(path, value);
+  });
+
+  // The thermography of the three arresters: in load and measured on its four points, out of load, unanswered.
+  const thermo = definitionOf(thermoInLoad!);
+  put(sheetTestValuePath(thermoInLoad!.id, 'termografia', 'em_carga'), choiceValue('sim'));
+  thermo.measurement_tests!.find((test) => test.key === 'termografia')!.rows.forEach((_, row) => {
+    put(sheetTestCellPath(thermoInLoad!.id, 'termografia', row, columnOf(thermo, 'termografia', 'delta_t_similares')), num(String(1 + row), '°C'));
+    put(sheetTestCellPath(thermoInLoad!.id, 'termografia', row, columnOf(thermo, 'termografia', 'delta_t_ambiente')), num(String(4 + row * 2), '°C'));
+  });
+  put(sheetTestValuePath(thermoOff!.id, 'termografia', 'em_carga'), choiceValue('nao'));
+  void thermoUnanswered;
+
+  // The Malha de aterramento: its resistance and its five continuity rows.
+  const malha = definitionOf(grid!);
+  put(sheetTestCellPath(grid!.id, 'resistencia_malha', 0, columnOf(malha, 'resistencia_malha', 'resistencia')), num('4.2', 'Ω'));
+  malha.measurement_tests!.find((test) => test.key === 'continuidade_malha')!.rows.forEach((_, row) => {
+    put(sheetTestCellPath(grid!.id, 'continuidade_malha', row, columnOf(malha, 'continuidade_malha', 'resistencia')), num(String(0.1 + row * 0.05), 'Ω'));
+  });
+
+  // The company sheet: its output at 127 Vcc (125 ± 5 %), its floating voltage at 125 Vcc.
+  put(sheetTestCellPath(company!.id, 'tensoes_medidas', 0, 0), num('127', 'Vcc'));
+  put(sheetTestCellPath(company!.id, 'tensoes_medidas', 1, 0), num('125', 'Vcc'));
+
+  // The cabine's ambient temperature, so the breaker's and the seccionadora's insulation print at 20 °C beside the reading.
+  const cabine = buildSnapshot(replay(log), relatorioId).locations.find((row) => row.kind === 'cabine')!;
+  put(locationEnvPath(cabine.id, 'temperature_c'), num('30', '°C'));
+
+  // Etapa 2: the Local beside the obra's site, an exclusion naming the relays; the ART left blank.
+  put(relatorioSetupPath('local'), 'Galpão de utilidades');
+  put(relatorioSetupPath('exclusions'), ['Quadros elétricos terminais, localizados nos respectivos setores;', 'Ensaios dos relés de proteção, executados por terceiros.']);
+
+  // --- the previous visit, as another relatório's issue job leaves it, from the readings this one holds now ---
+  const snapshot = buildSnapshot(replay(log), relatorioId);
+  const ctxNow = snapshotDefinitionContext(snapshot);
+  const previous = (block: SheetCreate, reading: (key: string, value: LastReading) => LastReading): [string, LastResults] => {
+    const row = snapshot.blocks.find((one) => one.id === block.id)!;
+    const readings = blockReadings(row, blockDefinitionIn(ctxNow, row)!, visitContextOf(snapshot, row));
+    return [
+      row.equipment_id!,
+      {
+        relatorio_id: epic25Id(version, 800),
+        revision_number: 1,
+        issued_at: '2025-11-06T12:00:00.000Z',
+        seed_version: version,
+        block_type: row.block_type,
+        readings: Object.fromEntries(Object.entries(readings).map(([key, value]) => [key, reading(key, value)])),
+        prior: null,
+      },
+    ];
+  };
+  const visits: [string, LastResults][] = [
+    // Story 25.8: the contact 30 µΩ then, 45 µΩ now; the insulation as it was.
+    previous(rise!, (key, value) => (key.startsWith('resistencia_contato|') ? { ...value, raw: '30' } : value)),
+    // Stories 25.20 and 25.21: the oil transformer's insulation three times higher then, its winding 20 % lower: many cells named.
+    previous(oil!, (key, value) => (key.startsWith('isolacao|') ? scaledReading(value, 3) : key.startsWith('resistencia_enrolamento|') ? scaledReading(value, 0.8) : value)),
+    // Story 25.20: the company sheet's output and floating voltages 10 % lower then.
+    previous(company!, (_key, value) => scaledReading(value, 0.9)),
+  ];
+  for (const [equipmentId, value] of visits) {
+    log.push(
+      makeOp(
+        {
+          kind: 'put',
+          scope: 'project',
+          company_id: actor.companyId,
+          project_id: projectId,
+          relatorio_id: null,
+          path: `equipment/${equipmentId}/last_results`,
+          value: value as unknown as JsonValue,
+          prev_op_id: null,
+          batch_id: null,
+          meta: null,
+          actor_id: 'system:generate',
+          device_id: 'server',
+        },
+        nextOp(),
+      ),
+    );
+  }
+
+  // --- the conclusions, each as "Concluir ficha" writes it: the pair (its restriction as the floor and the seed give it),
+  // the text the kernel composes, confirmed with its basis, then `concluded_by` ---
+  const concludedBy: JsonValue = { actor_id: actor.actorId, at: '2026-11-11T17:00:00.000Z' };
+  for (const [block, result] of [
+    [noMeasure!, 'aprovado'],
+    [byHand!, 'reprovado'],
+    [partly!, 'aprovado'],
+  ] as const) {
+    const state = buildSnapshot(replay(log), relatorioId);
+    const row = state.blocks.find((one) => one.id === block.id)!;
+    const definition = blockDefinitionIn(snapshotDefinitionContext(state), row)!;
+    const visit = visitContextOf(state, row);
+    const restriction = restrictionApplies(row, result) ? (conclusionFloor(row, definition, visit)?.pair.restriction ?? 'sem_restricoes') : null;
+    put(sheetConclusionPath(block.id, 'result'), result);
+    put(sheetConclusionPath(block.id, 'restriction'), restriction);
+    const after = buildSnapshot(replay(log), relatorioId);
+    const concluded = after.blocks.find((one) => one.id === block.id)!;
+    const tag = after.equipment.find((one) => one.id === concluded.equipment_id)?.tag ?? '';
+    const text = conclusionTextOnConclude(concluded, blockDefinitionIn(snapshotDefinitionContext(after), concluded)!, tag, visitContextOf(after, concluded));
+    if (text !== null) {
+      put(sheetConclusionPath(block.id, 'text'), text.text, { composed: true });
+      put(sheetConclusionPath(block.id, 'text_status'), 'confirmed');
+      put(sheetConclusionPath(block.id, 'text_basis'), text.basis);
+    }
+    put(blockFieldPath(block.id, 'concluded_by'), concludedBy);
+  }
+
+  // Story 25.10: the point the breaker's insulation finding offers today, stored as its editor closes.
+  const state = buildSnapshot(replay(log), relatorioId);
+  const finding = sheetPointFindings(state, threeOut!.id).find((one) => one.origin === 'reading' && one.testKey === 'isolacao')!;
+  const pointId = epic25Id(version, 702);
+  log.push(
+    opOf({
+      kind: 'create',
+      scope: 'relatorio',
+      company_id: actor.companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path: `point/${pointId}`,
+      value: {
+        id: pointId,
+        relatorio_id: relatorioId,
+        text: finding.text,
+        equipment_id: threeOut!.equipment_id,
+        origin: 'reading',
+        order_key: 'a0',
+        removed_at: null,
+        action: finding.action === '' ? null : finding.action,
+        priority: null,
+        deadline: null,
+        owner: null,
+        test_key: 'isolacao',
+      },
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: actor.actorId,
+    }),
+  );
+  return { version, relatorioId, projectId, log, companyEntityIds: [typeId, versionId] };
+}
+
+/** The snapshot the renderer reads for the Epic 25 synthetic relatório of `version`. */
+export function layoutLockEpic25Snapshot(version: string): RelatorioSnapshot {
+  const fixture = layoutLockEpic25Fixture(version);
   return buildSnapshot(replay(fixture.log), fixture.relatorioId);
 }

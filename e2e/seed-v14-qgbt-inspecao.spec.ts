@@ -1,4 +1,4 @@
-import { choiceValue, getDefinition, screenLabel, SEED_VERSION, type BlockRow } from '@app/domain';
+import { choiceValue, getDefinition, screenLabel, type BlockRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { deviceSnapshot, kernelOf, kernelTablesTitled, openStep, outbox, outboxValues, setUpRelatorio, tablesTitled, testSection, typeCell } from './support/e23t-flow.ts';
@@ -36,7 +36,7 @@ test.beforeEach(({ seed }) => {
 });
 
 const TYPE = 'inspecao_qgbt';
-const DEFINITION = getDefinition(SEED_VERSION, 'cabine_primaria', TYPE);
+const DEFINITION = getDefinition('v14', 'cabine_primaria', TYPE);
 const LOCAL = 'Geradores';
 const KEY = 'termografia';
 /** ~~A library type numbers its measurement tests: the inspection's thermography prints as E1.~~ Fix batch e24y (P9): it prints "TERMOGRAFIA", as the eight types' do. */
@@ -48,8 +48,8 @@ test('@p0 24.12-E2E-001 at 1024: a v14 Inspeção de QGBT asks twelve items (REA
   page,
 }) => {
   test.setTimeout(480_000);
-  expect(SEED_VERSION).toBe('v14');
-  const { relatorioId } = await setUpRelatorio(page, account, database);
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
+  const { relatorioId } = await setUpRelatorio(page, account, database, undefined, 'v14');
   await page.setViewportSize({ width: 1024, height: 900 });
 
   // --- the field palette of the local: the Inspeção de QGBT under "Outros equipamentos" ---
@@ -58,7 +58,7 @@ test('@p0 24.12-E2E-001 at 1024: a v14 Inspeção de QGBT asks twelve items (REA
   await expandLocation(page, LOCAL);
   await page.getByRole('button', { name: `Adicionar equipamento no local ${LOCAL}`, exact: true }).click();
   const fieldPalette = page.getByRole('dialog', { name: 'Adicionar bloco' });
-  expect(paletteTypes(SEED_VERSION).library).toContain(TYPE);
+  expect(paletteTypes('v14').library).toContain(TYPE);
   const row = typeRows(fieldPalette, [TYPE]);
   await expect(row.locator('.pi-text > span').first()).toHaveText(DEFINITION.label);
   await row.click();

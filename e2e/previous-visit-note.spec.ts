@@ -7,7 +7,7 @@ import {
   getDefinition,
   historyNoteText,
   instantiateTemplate,
-  SEED_VERSION,
+ 
   standardTemplate,
   testHistoryItems,
   visitContextOf,
@@ -59,8 +59,8 @@ const entities = (page: Page) => readStore<EntityRecord>(page, database, 'entiti
 const outbox = (page: Page) => readStore<{ path: string; value: unknown }>(page, database, 'outbox');
 const toast = (page: Page) => page.getByTestId('toast');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
-const DISJUNTOR = getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt');
-const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+const DISJUNTOR = getDefinition('v14', 'cabine_primaria', 'disjuntor_mt');
+const TRANSFORMER = getDefinition('v14', 'cabine_primaria', 'transformador_forca');
 const POLES = cellAddressesOf(DISJUNTOR, CONTACT);
 const AT = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 const cellOf = (page: Page, testKey: string, address: { row: number; col: number }): Locator =>
@@ -113,10 +113,10 @@ test('@p0 24.16-E2E-001 relatório B of the obra with a contact rise and an insu
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  expect(SEED_VERSION).toBe('v14');
+  // Pinned to v14 since seed v15 opened (Story 25.5): this walk asserts v14 sheets; v15 changes them story by story.
 
   // Relatório A: the breaker's poles at 40, 44 and 44 µΩ, the transformer's AT row at 10 GΩ (20 °C), issued.
-  const a = newRelatorioDrafts(account);
+  const a = newRelatorioDrafts(account, { seedVersion: 'v14' });
   const djA = a.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const trA = a.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const blockRows = (drafts: readonly OpDraft[]) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
@@ -133,7 +133,7 @@ test('@p0 24.16-E2E-001 relatório B of the obra with a contact rise and an insu
   // Relatório B of the same obra, its TAGs bound to the obra's equipment, its transformer's plate at 20 °C.
   const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
   const b = instantiateTemplate(
-    standardTemplate({ id: newId() }),
+    standardTemplate({ id: newId(), seedVersion: 'v14' }),
     { id: a.projectId },
     { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
     { newId, actorId: account.userId, companyId: account.companyId },

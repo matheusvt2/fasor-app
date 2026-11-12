@@ -1,10 +1,10 @@
-import { BASE_EQUIPMENT_BLOCK_TYPES, getDefinition, SEED_VERSION, type BlockRow, type FieldDef, type JsonValue, type OpDraft } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, getDefinition, type BlockRow, type FieldDef, type JsonValue, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
@@ -17,6 +17,8 @@ import { syncNowAndReturn } from './support/sync.ts';
  * device with its answers, and the relatório generates its DOCX through the api, which prints
  * every filled sheet. A v13 relatório beside it, filled the same way, still generates. At its
  * opening v14 equals v13, so nothing here judges a rule: the rules come with Stories 24.3 and 24.4.
+ * Since seed v15 opened (Story 25.5) a new relatório is born on v15 (`seed-v15.spec.ts`), so the v14
+ * relatório here is pushed on v14 from the office device, as the v13 one beside it is.
  * It generates through the one queue and LibreOffice of the api, so the file is in the serial group.
  */
 
@@ -111,16 +113,16 @@ async function tagsOf(page: Page, sheets: readonly BlockRow[]): Promise<string[]
   return sheets.map((block) => equipment.find((row) => row.id === block.equipment_id)!.tag);
 }
 
-test('@p0 24.2-E2E-001 a new relatório is born on v14: one sheet of each of the eight types filled opens and prints in its DOCX; a v13 relatório beside it still generates', async ({ page }) => {
+test('@p0 24.2-E2E-001 a v14 relatório (pinned since seed v15): one sheet of each of the eight types filled opens and prints in its DOCX; a v13 relatório beside it still generates', async ({ page }) => {
   test.setTimeout(600_000);
-  expect(SEED_VERSION).toBe('v14');
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
 
-  // --- the new relatório, created as a person creates it, is on v14 ---
-  await createProjectFromHome(page);
-  const relatorioId = await createRelatorio(page);
+  // --- a v14 relatório, pushed on v14 (a new one is born on v15 since Story 25.5) ---
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true, seedVersion: 'v14' });
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect
     .poll(async () => (await entities<{ seed_version: string }>(page)).find((record) => record.entity === 'relatorio' && record.id === relatorioId)?.row.seed_version)
     .toBe('v14');

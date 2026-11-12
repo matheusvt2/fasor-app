@@ -579,7 +579,15 @@
  * client can push the key); field keys only, no id and no instant. Never defaulted: an entry written
  * before 49 parses to the same bytes. MIN follows to 49 (below).
  */
-export const CONTRACT_VERSION = 49;
+/*
+ * 50 (2026-11-12, Story 25.5, batch e25c): no new op or path family. Seed v15 opens equal to v14 (the
+ * same content and the same rule flags) and becomes the version a new Template is created with
+ * (`SEED_VERSION`); the server's boot step moves every template to it (`templateSeedUpgrade`), so every
+ * relatório created afterwards is born on v15 and every one already made keeps its seed. The later
+ * Epic 25 stories change what a v15 relatório concludes and prints through v15 keys and rule flags,
+ * each without a contract of its own. MIN follows to 50 (below).
+ */
+export const CONTRACT_VERSION = 50;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -922,7 +930,14 @@ export const CONTRACT_VERSION = 49;
  * prints the like-with-like result. Its pull answers `426 contract_outdated` and it updates first;
  * its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 49;
+/*
+ * 50 (2026-11-12, Story 25.5, batch e25c): a version-49 (or older) bundle ships no seed v15, so it cannot
+ * resolve a single definition of a v15 relatório or of a template the server moved to v15: a pulled
+ * block create or template put naming `v15` fails to fold, and the sheets it could show would have no
+ * nameplate, checklist or tests, nor judge them by v15's rules once the later stories add them. Its pull
+ * answers `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 50;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

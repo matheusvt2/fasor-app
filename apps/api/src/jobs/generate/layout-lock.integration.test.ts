@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, generationJobRowSchema, previewResponseSchema, type GenerationJobRow, type Op } from '@app/domain';
-import { LAYOUT_LOCK_VERSIONS, layoutLockFixture, type LayoutLockFixture } from '@app/domain/fixtures/layout-lock';
+import { LAYOUT_LOCK_EPIC25_VERSIONS, LAYOUT_LOCK_VERSIONS, layoutLockEpic25Fixture, layoutLockEpic25Golden, layoutLockFixture, type LayoutLockFixture } from '@app/domain/fixtures/layout-lock';
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -27,6 +27,10 @@ import { applyOps } from '../../sync/apply.ts';
  *
  * Story 24.2 (24.2-INT-LOCK): v13 joins, its relatório carrying what Epic 24 changes on v14 and a
  * company type of its own (removed with the fixtures, `companyEntityIds`).
+ *
+ * Story 25.5 (25.5-INT-LOCK): the v14 golden stays byte-equal, and the second v14 relatório, holding the
+ * cases Epic 25 changes on v15 (`layoutLockEpic25Fixture`, its own ids beside the first), prints its own
+ * golden text in `golden/layout-lock-v14-epic25/pdf-text.json`, taken once on this batch's first commit.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -36,9 +40,13 @@ const { sql, db } = createDb(config.DATABASE_URL);
 const auth = createAuth({ db, secret: config.SESSION_SECRET, baseURL: config.AUTH_BASE_URL, trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS) });
 const GOLDEN_DIR = resolve(__dirname, 'golden');
 
-const fixtures: LayoutLockFixture[] = LAYOUT_LOCK_VERSIONS.map((version) =>
-  layoutLockFixture(version, { companyId: companyA.companyId, actorId: companyA.userId, deviceId: 'tablet-layout-lock' }),
-);
+const actor = { companyId: companyA.companyId, actorId: companyA.userId, deviceId: 'tablet-layout-lock' };
+/** Each locked relatório with its golden directory: one per locked version, then the Epic 25 one (Story 25.5). */
+const locked: { golden: string; fixture: LayoutLockFixture }[] = [
+  ...LAYOUT_LOCK_VERSIONS.map((version) => ({ golden: `layout-lock-${version}`, fixture: layoutLockFixture(version, actor) })),
+  ...LAYOUT_LOCK_EPIC25_VERSIONS.map((version) => ({ golden: layoutLockEpic25Golden(version), fixture: layoutLockEpic25Fixture(version, actor) })),
+];
+const fixtures: LayoutLockFixture[] = locked.map((one) => one.fixture);
 
 function call(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${apiUrl}${path}`, {
@@ -127,10 +135,10 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe('24.2-INT-LOCK (23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
-  it.each(fixtures.map((fixture) => [fixture.version, fixture] as const))(
+describe('25.5-INT-LOCK (24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
+  it.each(locked.map(({ golden, fixture }) => [golden, fixture] as const))(
     '%s: the preview PDF of the synthetic relatório prints its golden text, page by page',
-    async (version, fixture) => {
+    async (golden, fixture) => {
       const res = await call(`/api/relatorios/${fixture.relatorioId}/preview`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', cookie },
@@ -143,7 +151,7 @@ describe('24.2-INT-LOCK (23.2-INT-LOCK) the PDF text of the locked seed versions
       const pdf = await call(`/api/relatorios/${fixture.relatorioId}/preview.pdf?v=${job.result_file_id}`, { headers: { cookie } });
       expect(pdf.status).toBe(200);
       const pages = await pageTexts(Buffer.from(await pdf.arrayBuffer()));
-      const file = resolve(GOLDEN_DIR, `layout-lock-${version}`, 'pdf-text.json');
+      const file = resolve(GOLDEN_DIR, golden, 'pdf-text.json');
       const text = `${JSON.stringify(pages, null, 2)}\n`;
       if (process.env.GOLDEN_UPDATE === '1') {
         mkdirSync(dirname(file), { recursive: true });
@@ -151,9 +159,9 @@ describe('24.2-INT-LOCK (23.2-INT-LOCK) the PDF text of the locked seed versions
       } else if (!existsSync(file)) {
         throw new Error(`${file} is missing; the layout lock is taken once, deliberately, with GOLDEN_UPDATE=1`);
       }
-      const golden = readFileSync(file, 'utf8');
-      expect(pages, `${version} PDF text`).toEqual(JSON.parse(golden));
-      expect(text === golden, `${version} PDF text bytes`).toBe(true);
+      const pinned = readFileSync(file, 'utf8');
+      expect(pages, `${golden} PDF text`).toEqual(JSON.parse(pinned));
+      expect(text === pinned, `${golden} PDF text bytes`).toBe(true);
     },
     200_000,
   );

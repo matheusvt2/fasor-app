@@ -195,12 +195,18 @@ test('@p0 24.10-E2E-002 the tap budget on seed v14 at 768 px, offline: J1 with t
   await budgetRun(page, context, 'v14', TAP_BUDGET_V14);
 });
 
+// 2026-11-12, batch e25c (Story 25.5, seed v15 opens): the same journeys on seed v15, within the limits accepted on v13.
+test('@p0 25.5-E2E-002 the tap budget on seed v15 at 768 px, offline: J1 with the plate copied from the last visit and TIPO DE SECCIONADORA picked, and J3, stay within TAP_BUDGET_V14, every tap on the first try', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await budgetRun(page, context, 'v15', TAP_BUDGET_V14);
+});
+
 /**
  * One run of J1 and J3 on a relatório of `seedVersion`. On v12 the plate the budget was measured on; from v13 on
  * the seccionadora asks TIPO DE SECCIONADORA, which a plate copied from a v2 visit lacks: J1 picks it (SEM CARGA,
  * so the HH fuses do not apply), its tap and its option.
  */
-async function budgetRun(page: Page, context: BrowserContext, seedVersion: 'v12' | 'v14', budget: Budget): Promise<void> {
+async function budgetRun(page: Page, context: BrowserContext, seedVersion: 'v12' | 'v14' | 'v15', budget: Budget): Promise<void> {
   const picksType = seedVersion !== 'v12';
   await context.addInitScript(installCounter);
   await resetEmpresaB(account, { standard: true });

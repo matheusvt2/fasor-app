@@ -45,9 +45,9 @@ describe('standardTemplate', () => {
       expect(withVersionSubBlocks(built.blocks, SEED_VERSION), version).toEqual(template.blocks);
       expect(built.skeleton, version).toEqual(template.skeleton);
     }
-    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type (v14 opens equal to v13).
+    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type (v14 opens equal to v13, v15 to v14).
     const v12 = standardTemplate({ id: ID, seedVersion: 'v12' }).blocks;
-    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
+    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14' && one !== 'v15')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
     expect(withVersionSubBlocks(v12, 'v12')).toEqual(v12);
   });
 

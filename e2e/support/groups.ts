@@ -189,6 +189,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'generates two revisions through the shared queue and LibreOffice, a v14 relatório\'s and a v13 one\'s, to read their filled sheets in the DOCX',
   },
+  // Story 25.5 (batch e25c): 25.5-E2E-001 generates the DOCX of a new v15 relatório and of a v14 one beside it.
+  {
+    file: 'seed-v15.spec.ts',
+    lane: 'queue',
+    why: 'generates two revisions through the shared queue and LibreOffice, a v15 relatório\'s and a v14 one\'s, to read their filled sheets in the DOCX',
+  },
   // Stories 24.3 and 24.4 (batch e24a): every test issues a revision (and one previews a draft) to read the CONCLUSÃO boxes and section 10.
   {
     file: 'conclusion-v14.spec.ts',

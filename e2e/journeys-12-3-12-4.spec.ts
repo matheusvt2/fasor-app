@@ -136,8 +136,14 @@ test('@p1 24.10-E2E-005 on seed v14: J1, J3 and J2 at 768 px, TIPO DE SECCIONADO
   await journeysRun(page, 'v14');
 });
 
+// 2026-11-12, batch e25c (Story 25.5, seed v15 opens): the same journeys on seed v15, within the counts measured on v13.
+test('@p1 25.5-E2E-005 on seed v15: J1, J3 and J2 at 768 px, TIPO DE SECCIONADORA picked, every tap on the first try, within the counts measured on v13', async ({ page }) => {
+  test.setTimeout(300_000);
+  await journeysRun(page, 'v15');
+});
+
 /** One run of J1, J3 and J2 on a relatório of `seedVersion`; from v13 on J1 also picks TIPO DE SECCIONADORA. */
-async function journeysRun(page: Page, seedVersion: 'v12' | 'v14'): Promise<void> {
+async function journeysRun(page: Page, seedVersion: 'v12' | 'v14' | 'v15'): Promise<void> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
