@@ -186,6 +186,32 @@ describe('InstrumentosTab (B5)', () => {
     expect(screen.getByRole('heading', { name: t.newInstrument })).toBeInTheDocument();
   });
 
+  it('25.13: two rows sharing a certificate number (trimmed, without case) name each other; two of one model carry the lighter line', async () => {
+    database = await freshDb();
+    const valid = { calibrated_at: '2026-01-10', calibration_interval_months: 480, certificate_file_id: '019966b0-0072-7000-8000-0000000000ff' };
+    await seed(database, [
+      instrument('019966b0-0072-7000-8000-000000000011', { ...valid, code: '3M', name: 'Microhmímetro', model: 'HTMO-10', cert_number: 'RBC-1234' }),
+      instrument('019966b0-0072-7000-8000-000000000012', { ...valid, code: '6M', name: 'Microhmímetro', model: 'HTMO-10', cert_number: '  rbc-1234 ' }),
+      instrument('019966b0-0072-7000-8000-000000000013', { ...valid, code: '2E', name: 'Megôhmetro', model: 'DMG10Ki', cert_number: 'RBC 1' }),
+      instrument('019966b0-0072-7000-8000-000000000014', { ...valid, code: '7E', name: 'Megôhmetro', model: 'DMG10Ki', cert_number: 'RBC 2' }),
+      instrument('019966b0-0072-7000-8000-000000000015', { ...valid, code: '0Z', name: 'Arquivado', model: 'HTMO-10', cert_number: 'RBC-1234', removed_at: '2026-09-01T12:00:00.000Z' }),
+    ]);
+    renderTab();
+    const list = await screen.findByRole('list', { name: copy.registries.tabInstrumentos });
+    await waitFor(() => expect(within(list).getAllByRole('button')).toHaveLength(4));
+    const row = (code: string) => within(list).getByRole('button', { name: new RegExp(`^${code} `) });
+
+    expect(row('3M').querySelector('.e25-rr-warn')).toHaveTextContent(/^Mesmo certificado de 6M$/);
+    expect(row('6M').querySelector('.e25-rr-warn')).toHaveTextContent(/^Mesmo certificado de 3M$/);
+    // A twin that shares the certificate is not named again as a model.
+    expect(row('3M').querySelector('.e25-rr-light')).toBeNull();
+    expect(row('2E').querySelector('.e25-rr-light')).toHaveTextContent(/^Mesmo modelo de 7E: confira$/);
+    expect(row('7E').querySelector('.e25-rr-light')).toHaveTextContent(/^Mesmo modelo de 2E: confira$/);
+    expect(row('2E').querySelector('.e25-rr-warn')).toBeNull();
+    expect(row('6M')).toHaveAccessibleName(/, Mesmo certificado de 3M$/);
+    expect(row('7E')).toHaveAccessibleName(/, Mesmo modelo de 2E: confira$/);
+  });
+
   it('an empty registry shows its sentence and one action, which opens a new panel', async () => {
     const user = userEvent.setup();
     database = await freshDb();

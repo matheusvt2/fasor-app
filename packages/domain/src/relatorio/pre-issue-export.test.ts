@@ -289,7 +289,8 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
         instrument({ id: '019966b0-0085-7000-8000-000000000003', code: 'TTR-01', calibrated_at: '2026-06-01' }),
       ],
     };
-    const rows = preIssueRowsFor(preIssue(snapshot, undefined, { now: NOW }), 'section_11').filter((r) => r.kind !== 'setup_missing');
+    // Story 25.13: no sheet uses them, so each is also ticked-unused (information), left out here.
+    const rows = preIssueRowsFor(preIssue(snapshot, undefined, { now: NOW }), 'section_11').filter((r) => r.kind !== 'setup_missing' && r.kind !== 'instrument_unused');
     expect(kinds(rows)).toEqual([
       ['calibration', 'section_11', 'pending', 'MEG-01 — calibração vencida em 01/08/2026'],
       ['calibration', 'section_11', 'info', 'MIC-01 — calibração vence em 20/09/2026'],

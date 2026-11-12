@@ -1793,6 +1793,8 @@ export const copy = {
       m.prints ? `Marque os instrumentos desta obra: o certificado de cada um entra na ${m.ref}.` : `Marque os instrumentos desta obra. Os certificados não saem no documento: o relatório não tem a ${m.ref}.`,
     // authored: the inline note beside an instrument a sheet still references.
     instrumentReferenced: (m: Mention) => (m.prints ? `Continua na ${m.ref} porque uma ficha usa este instrumento` : 'Continua marcado porque uma ficha usa este instrumento'),
+    // Story 25.13 (`50-relatorio-setup.html` Etapa 4 `.e25-unused`), verbatim; authored "Marcado, sem uso nas fichas" (for Bruno).
+    instrumentUnused: (m: Mention) => (m.prints ? `Marcado, sem uso nas fichas. Desmarque se não foi usado: ele sai da ${m.ref}.` : 'Marcado, sem uso nas fichas.'),
     // authored (Story 12.2): the note in place of the list while the registry is empty,
     // the same sentence the sheet's instrument picker says.
     noInstruments: 'Nenhum instrumento cadastrado',

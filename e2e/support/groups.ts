@@ -33,6 +33,7 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'oil-liquid-sampling.spec.ts', lane: 'queue', why: 'Story 23.17: issues a revision through the shared queue and LibreOffice to read the liquid fields and the absent sampling of the DOCX' },
   { file: 'header-test-voltage.spec.ts', lane: 'queue', why: 'Story 25.11: issues a revision through the shared queue and LibreOffice to read the TENSÃO ENSAIO of the DOCX' },
   { file: 'warnings-before-generating.spec.ts', lane: 'queue', why: 'Story 25.12: issues a revision through the shared queue and LibreOffice to check the sheets of a removed local are absent from the DOCX' },
+  { file: 'instruments-from-sheets.spec.ts', lane: 'queue', why: 'Story 25.13: issues a revision through the shared queue and LibreOffice to read section 11 of the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.
   { file: 'voltage-defaults.spec.ts', lane: 'queue', why: 'Story 23.13: issues a revision through the shared queue and LibreOffice to read the TENSÃO column of the DOCX' },

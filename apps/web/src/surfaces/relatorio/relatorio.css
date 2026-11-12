@@ -272,6 +272,11 @@
 [data-route="/relatorio/:id/setup"] .instrument-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
 [data-route="/relatorio/:id/setup"] .instrument-list li { border-bottom: 1px solid var(--border-hairline); padding: var(--sp-2) 0; }
 [data-route="/relatorio/:id/setup"] .instrument-list .checkbox .ip-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* Story 25.13 (Story 25.1 Part B, 50-relatorio-setup.html): an instrument marked from the sheets, its count line and the
+   ticked-unused warning line. Declarations verbatim. */
+[data-route="/relatorio/:id/setup"] .instrument-list .e25-used { margin: var(--sp-1) 0 0 calc(28px + var(--sp-3)); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/setup"] .instrument-list .e25-unused { margin: var(--sp-1) 0 0 calc(28px + var(--sp-3)); }
+[data-route="/relatorio/:id/setup"] .instrument-list .checkbox[aria-disabled="true"] { cursor: default; }
 [data-route="/relatorio/:id/setup"] .altitude-field .measurement-field { width: 100%; }
 [data-route="/relatorio/:id/setup"] .altitude-field .confirm-btn { cursor: pointer; }
 

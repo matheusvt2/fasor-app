@@ -7,7 +7,7 @@ import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
-import type { SuggestionRow } from '../schemas/entities.ts';
+import type { RegistryRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, findSeed, getSeed, sectionText, snapshotDefinitionContext, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
@@ -20,6 +20,7 @@ import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
 import { calibrationLack, calibrationLackText, deadlineOverdueText, overduePointPositions, sheetsUnderRemovedLocalsText } from './pre-issue-warnings.ts';
+import { sharedCertificateText, sharedCertificateTwins, tickedUnusedInstruments, tickedUnusedText } from './instrument-use.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { composeConclusion, conclusionTextForPrint, conclusionTextState } from './conclusion.ts';
 import { visitContextOf } from './visit-context.ts';
@@ -74,6 +75,8 @@ export type PreIssueKind =
   | 'deadline_overdue'
   | 'sheets_removed_local'
   | 'calibration_missing'
+  | 'certificate_shared'
+  | 'instrument_unused'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
@@ -163,6 +166,12 @@ export interface PreIssueContext {
    * (`sheetsUnderRemovedLocals`, read from the device's state: the snapshot hides them). Default: none.
    */
   removedLocalSheets?: readonly string[];
+  /**
+   * Story 25.13: the company's live instrument rows (`liveRegistryInstruments`, read from the
+   * device's state: the snapshot holds only the relatório's), for a certificate number an
+   * instrument of the relatório shares with another row. Default: none, no such row.
+   */
+  registryInstruments?: readonly Extract<RegistryRow, { kind: 'instrument' }>[];
 }
 
 const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
@@ -546,6 +555,18 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     if (!entry.cert_mismatch) continue;
     rows.push({ id: `cert_number_mismatch:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certNumberMismatchText(entry.code), kind: 'cert_number_mismatch' });
   }
+  // Story 25.13 (M25): an instrument section 11 prints that shares its certificate number with
+  // another live registry row (trimmed, without case) is pending, naming the twin; one ticked in
+  // Etapa 4 that no live sheet uses is information (a shared model raises nothing here).
+  const certificateTwins = sharedCertificateTwins(context.registryInstruments ?? []);
+  for (const entry of printedInstruments) {
+    const twins = certificateTwins.get(entry.instrument_id);
+    if (twins === undefined) continue;
+    rows.push({ id: `certificate_shared:${entry.instrument_id}`, row: 'section_11', severity: 'pending', text: sharedCertificateText(entry.code, twins), kind: 'certificate_shared' });
+  }
+  for (const instrument of tickedUnusedInstruments(snapshot)) {
+    rows.push({ id: `instrument_unused:${instrument.id}`, row: 'section_11', severity: 'info', text: tickedUnusedText(instrument.code), kind: 'instrument_unused' });
+  }
 
   // The Export dialog's own lines: what this device could not send, and when the others last sent.
   const rejected = context.rejected ?? 0;
@@ -586,6 +607,9 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   'deadline_overdue',
   'calibration_missing',
   'sheets_removed_local',
+  // Story 25.13 (`73-exportar.html`): a shared certificate and a ticked, unused instrument.
+  'certificate_shared',
+  'instrument_unused',
   'rejected',
   'last_send',
 ]);

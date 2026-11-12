@@ -156,7 +156,8 @@ describe('25.12-UNIT an instrument with no calibration data (section 11)', () =>
       instruments: [instrument({ id: ID_A, code: '7E', calibrated_at: null, calibration_interval_months: null, certificate_file_id: null }), instrument({ id: ID_B, code: '3M', calibration_interval_months: null })],
     };
     const rows = preIssue(snapshot, undefined, { now: NOW });
-    expect(view(preIssueRowsFor(rows, 'section_11').filter((row) => row.kind !== 'setup_missing'))).toEqual([
+    // Story 25.13: no sheet uses them, so each is also ticked-unused (information), left out here.
+    expect(view(preIssueRowsFor(rows, 'section_11').filter((row) => row.kind !== 'setup_missing' && row.kind !== 'instrument_unused'))).toEqual([
       ['calibration_missing', 'section_11', 'pending', '7E: sem data de calibração'],
       ['calibration_missing', 'section_11', 'pending', '3M: sem validade de calibração'],
       ['certificate_missing', 'section_11', 'pending', '7E sem certificado'],
@@ -259,11 +260,13 @@ describe('25.12-UNIT the Export dialog names the three rows', () => {
       ['deadline_overdue', 8],
       ['sheets_removed_local', 9],
       ['calibration_missing', 11],
+      // Story 25.13: no sheet uses the ticked instrument.
+      ['instrument_unused', 11],
     ]);
     expect(precheck.blocking.filter((row) => namedWarningSection(row) !== null)).toEqual([]);
     expect(exportPrecheck(plain).explicit.filter((row) => namedWarningSection(row) !== null)).toEqual([]);
     // The other rows stay today's (the parecer row follows the points, which this relatório adds).
-    const others = (list: readonly PreIssueRow[]) => list.filter((row) => !['deadline_overdue', 'sheets_removed_local', 'calibration_missing', 'setup_missing', 'parecer_missing'].includes(row.kind)).map((row) => row.id);
+    const others = (list: readonly PreIssueRow[]) => list.filter((row) => !['deadline_overdue', 'sheets_removed_local', 'calibration_missing', 'instrument_unused', 'setup_missing', 'parecer_missing'].includes(row.kind)).map((row) => row.id);
     expect(others(rows)).toEqual(others(plain));
   });
 });

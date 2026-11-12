@@ -359,3 +359,6 @@
 /* Story 25.12 (Story 25.1 Part B): `[data-route="/cadastros"] .e25-rr-warn` (80-cadastros.html), a registry
    row's line of what the instrument lacks, in the `.rr-expired` amber. Declarations verbatim. */
 .e25-rr-warn { display: block; margin-top: 2px; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+/* Story 25.13 (Story 25.1 Part B): `[data-route="/cadastros"] .e25-rr-light` (80-cadastros.html), the lighter line of two
+   instruments of one model. Declarations verbatim. */
+.e25-rr-light { display: block; margin-top: 2px; font-size: var(--t-label-size); line-height: var(--t-label-lh); color: var(--ink-secondary); }

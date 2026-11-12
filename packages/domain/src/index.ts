@@ -61,6 +61,7 @@ export * from './relatorio/sheet-state.ts';
 export * from './relatorio/progress.ts';
 export * from './relatorio/pre-issue.ts';
 export * from './relatorio/pre-issue-warnings.ts';
+export * from './relatorio/instrument-use.ts';
 export * from './relatorio/sumario.ts';
 export * from './relatorio/section-position.ts';
 export * from './relatorio/project.ts';

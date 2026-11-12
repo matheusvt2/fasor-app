@@ -116,10 +116,12 @@ export function sheetsUnderRemovedLocalsText(names: readonly string[]): string {
 }
 
 /**
- * The section a named warning of Story 25.12 stands on, for the Export dialog's "— seção 8"
+ * The section a named warning of Stories 25.12 and 25.13 stands on, for the Export dialog's "— seção 8"
  * (`73-exportar.html`); null for every other row, which keeps its line as before.
  */
 export function namedWarningSection(row: Pick<PreIssueRow, 'kind' | 'row'>): number | null {
-  if (row.kind !== 'deadline_overdue' && row.kind !== 'calibration_missing' && row.kind !== 'sheets_removed_local') return null;
+  // Story 25.13: and its two section 11 rows.
+  const named = ['deadline_overdue', 'calibration_missing', 'sheets_removed_local', 'certificate_shared', 'instrument_unused'];
+  if (!named.includes(row.kind)) return null;
   return relatorioSectionNumber(row.row);
 }

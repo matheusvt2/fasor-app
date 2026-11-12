@@ -64,8 +64,11 @@ function testKeysOf(block: BlockRow, ctx: DefinitionContext): string[] {
   return [...defined, ...Object.keys(block.sheet.test).filter((key) => !defined.includes(key))];
 }
 
-/** The instrument headers a live, tested sheet copied into its enabled tests, in test order. */
-function sheetHeaders(block: BlockRow, ctx: DefinitionContext): InstrumentHeader[] {
+/**
+ * The instrument headers a live, tested sheet copied into its enabled tests, in test order.
+ * Story 25.13: exported, so Etapa 4's "Usado em N fichas" counts exactly what section 11 prints.
+ */
+export function sheetHeaders(block: BlockRow, ctx: DefinitionContext): InstrumentHeader[] {
   if (block.removed_at !== null || block.not_tested !== null) return [];
   const enabled = enabledSubBlocksOf(block);
   const own = companySubBlockKeys(block.config);
