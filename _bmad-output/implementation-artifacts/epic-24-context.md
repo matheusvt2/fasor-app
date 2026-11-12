@@ -410,6 +410,19 @@ Gaps not sent, kept here: no test presses "Ditar o motivo" (24.14); with the No-
 - **Seed v14 is frozen from here.** Contract 47, minimum 47. A change to seed content or to printed text now needs seed v15 (Epic 25, Story 25.5), and the v14 layout lock is taken from `2009fa30`.
 - **Tag** `v0.9.0` is on `2009fa30`. The release page waits for Matheus's word.
 
+*(2026-11-11, coordinator, after the retrospective `epic-24-retro-2026-11-11.md`: the records of E24-A2 and E24-A6.)*
+
+- **The v14 golden was taken after the deploy, not before it.** This file puts it at the deploy or before it: "There is no v14 golden yet. It is due at the deploy" and "Before the deploy: the paid plate eval … and the v14 golden". That is not what happened: `2009fa30` went to production with no v14 golden. Batch e25b of Epic 25 took it afterwards, on the coordinator's ask: commit `7a8c7aa6`, PR #325, merged as `2b299da1` on 2026-11-11 (2026-11-12 00:28 UTC), 36 minutes after the deploy ended. The seven files under `apps/api/src/jobs/generate/golden/layout-lock-v14/` were generated from the product code of `2009fa30`, and `LAYOUT_LOCK_VERSIONS` holds `v14`. Story 25.5 keeps them byte-equal and adds its second fixture (the dated line under the story in `epics.md`).
+- **The "before the deploy" rows of `deferred-work.md`, by name.**
+  - The v14 layout lock (batch e24a's row): closed, with what the golden covers of the retrospective's R-3 list and what it does not.
+  - The paid eval of `bedrock-structuring-9` (batch e24s's row): closed with the result above.
+  - The optional production count of the fichas whose confirmed conclusion text goes stale (fix batch e24h's row, owner Matheus): no run is on record. The row stays open.
+- **`sprint-status.yaml`:** the rows of Stories 24.2 to 24.21 said "done on main, not deployed". They now say deployed as `2009fa30`.
+- **Still open from E24-A6. Each waits for Matheus.**
+  - Item 3: the dated line under the "byte-identical" rule in `epics.md` § Epic 24 (what changed on older seeds, and on whose word) is not written. He approves `epics.md` lines.
+  - Item 4: whether Nova Pro's 5 of 6 real plates on prompt 9 is run-to-run variation is not known. One more run of the real set needs his AWS login.
+  - Item 5: the read-only preview of Bruno's v5 relatório after the deploy has no run on record, in Epic 23 or in Epic 24. It is run and recorded, or dropped with the reason, on his word.
+
 ## Batch plan
 
 There are at most two batch stacks up at a time (the 2026-10-08 load rules). Each batch runs `bmad-build-auto` in its own worktree, following `epic-batch-orchestrator.md`. The coordinator hands out a free port base before each launch (`podman ps --filter name=fasor-`).

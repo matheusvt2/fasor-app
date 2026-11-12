@@ -6355,7 +6355,7 @@ This epic cites the base by row ID ("Base rev08 TR-OL-02") and by table name, ne
   - e23e: 23.13, 23.18, 23.20, 23.21. Contract 39.
 - **Wave 4.** e23x: 23.12, on Matheus's decision M-1.
 - Contract numbers are reserved in merge order. A batch whose spec finds no fold change takes none, and the coordinator renumbers the later batches before they launch.
-- The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Epic 23 deploys once, after wave 3's gate and its review (Matheus's M-2). Seed v13 freezes at that deploy.
+- The 2026-10-08 story gate applies to every story. The full `@p0`, `test:e2e:full` and the matrix run once per wave on the integrated main. Epic 23 deploys once, after wave 3's gate and its review (Matheus's M-2). Seed v13 freezes at that deploy. *(2026-11-11, coordinator, E23-A5 item 1 of the Epic 23 retrospective: Epic 23 was deployed three times, not once. `ef099d41` went to production on 2026-11-09, after wave 3's gate and before wave 3's fix batch e23z; the record does not say on whose word. `47be2638` (e23z and chore T3, contract 40) followed on 2026-11-10. The browser behaviour pass then ran on that code and failed items 1 and 2, the v13 transformer insulation table in print, so fix batch e23p (`9add87b5`) was deployed the same day, on Matheus's word. Seed v13 froze at the first deploy. Source: `epic-23-context.md` § Deploy; `epic-23-retro-2026-11-10.md` P-1 and P-2.)*
 
 ### Story 23.1: The Epic 23 sheet frames in the mocks
 
@@ -6779,6 +6779,8 @@ So that the app can pick the tests, the voltages and the corrections from them.
 - `docs/kbs/log.md`.
 
 *(2026-11-09, built as batch e23b with 23.8 and 23.9, PR #287 merged as `6be0a5ec` (contract 35). Narrowings: M-4 (ÓLEO ISOLANTE) stays with Story 23.17 and the temperature help text with Story 23.5; the temperatures are optional (decision B's fallback to the ambient, open to Bruno); the cables carry no default fake fixture; TAP ATUAL is a new key picked from TAPS. Before the deploy: the paid eval of prompt `bedrock-structuring-6`.)*
+
+*(2026-11-11, coordinator, E23-A5 item 2 of the Epic 23 retrospective: the paid eval did not run before the deploy. Prompt `bedrock-structuring-6` was never measured alone. The eval ran on `bedrock-structuring-8`, which carries this story's field notes, on 2026-11-10 (05:50 to 05:54 UTC). That is after the first deploy (`ef099d41`, 2026-11-09), which already served prompt 8. Result: synthetic set, 15 plates, Haiku 4.5 97,6 % of the fields (80 of 82) and Nova Pro 98,8 % (81 of 82), with no failed call; six real plates, Haiku 5 of 6 and Nova Pro 6 of 6; every citation valid. The table is in `epic-23-context.md` § Deploy.)*
 
 ### Story 23.8: The TTR has one row per tap of the plate
 
@@ -7262,6 +7264,8 @@ So that the relatório names the liquid right and says what goes to the laborato
 
 *(2026-11-09, built in batch e23t, PR #294 merged as `fc0aa508`. Narrowings: the sampling reason is a closed choice, free text going in Observações; a silicone liquid applies the sampling, as the AC says, a reading listed for Bruno against the base row TR-OL-07.)*
 
+*(2026-11-11, coordinator, E23-A5 item 2 of the Epic 23 retrospective: the paid eval did not run before the deploy. This story's prompt is `bedrock-structuring-7`; no eval of it is on record. The one eval on record ran on `bedrock-structuring-8` on 2026-11-10 (05:50 to 05:54 UTC), after the first deploy (`ef099d41`, 2026-11-09), which already served prompt 8. Result: synthetic set, 15 plates, Haiku 4.5 97,6 % of the fields (80 of 82) and Nova Pro 98,8 % (81 of 82), with no failed call; six real plates, Haiku 5 of 6 and Nova Pro 6 of 6; every citation valid. The table is in `epic-23-context.md` § Deploy.)*
+
 ### Story 23.18: TC and TP: polarity, the TC's function and the S classes (decision E)
 
 **Dev model:** opus · **Effort:** high · on v13 a polarity result per TC and TP (OK or Invertida, Invertida failing); the TC's FUNÇÃO (medição, proteção, faturamento) with the faturamento notice; the TC classes 0,3S and 0,6S and the notation 5P20 and 10P20; the printed note under the ratio test; the plate structuring told about the function
@@ -7306,6 +7310,8 @@ So that the relatório says what was verified and does not pass for an accuracy 
 - `docs/kbs/log.md`.
 
 *(2026-11-09, built in batch e23e, PR #295 merged as `7f29b243`. Narrowing: polarity is a choice column of the seeded ratio table, the mock's shape, so a failing choice lives on that grammar, not on the measurement grammar.)*
+
+*(2026-11-11, coordinator, E23-A5 item 2 of the Epic 23 retrospective: the paid eval ran after the first deploy, not before it. This story's prompt is `bedrock-structuring-8`. Its eval ran on 2026-11-10 (05:50 to 05:54 UTC), when the first deploy (`ef099d41`, 2026-11-09) was already serving it. Result: synthetic set, 15 plates, Haiku 4.5 97,6 % of the fields (80 of 82) and Nova Pro 98,8 % (81 of 82), with no failed call; six real plates, Haiku 5 of 6 and Nova Pro 6 of 6; every citation valid. The table is in `epic-23-context.md` § Deploy.)*
 
 ### Story 23.19: HH fuse resistance on the seccionadora
 
@@ -9630,6 +9636,7 @@ So that the new rules and the new print reach only the relatórios created after
   - a second visit whose note line names more than three cells (Story 25.21);
   - a relatório with Etapa 2's Local filled and the obra's site filled, an exclusion that names the relays, a blank ART, and a TP and a TC with their ratio tables (Story 25.22).
 - **The goldens are taken on main at the start of wave 2**, after fix batch e24y and the Epic 24 deploy, before any other Epic 25 change to print.
+- *(2026-11-11, coordinator, E24-A2 of the Epic 24 retrospective.)* **What is left of "the v14 layout is locked".** The lock exists since PR #325 (batch e25b, merged as `2b299da1` on 2026-11-11): `LAYOUT_LOCK_VERSIONS` holds `'v14'`, and the golden under `apps/api/src/jobs/generate/golden/layout-lock-v14/` was generated from the product code deployed as `2009fa30`, with the v14 fixture as it stood. So "There is no v14 golden yet" (under "Today") and "if the Epic 24 deploy did not add it" are settled: the golden exists. This story does not take it and does not regenerate it. It keeps it byte-equal, and it adds the second v14 fixture, with its own golden, for the cases of the list above that the first golden lacks. In the first acceptance criterion, "generated" applies to the second fixture's golden only.
 - **One contract number.** A client on the contract before cannot resolve a v15 definition. `MIN_CONTRACT_VERSION` moves unless the PR shows why not.
 - **Out of scope:** every rule change. At the end of this story a v15 relatório concludes and prints exactly as a v14 one.
 
