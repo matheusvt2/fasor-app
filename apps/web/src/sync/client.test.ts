@@ -362,6 +362,23 @@ describe('25.3-WEB a file transfer whose answer never comes', () => {
     await endsAt(createSyncClient({ fetch: stalled(null) }).fetchFile('f', 'original'), fileBodyTimeoutMs(null));
   });
 
+  it('an upload whose answer headers came but whose body never does ends as a network failure after SYNC_REQUEST_TIMEOUT_MS', async () => {
+    vi.useFakeTimers();
+    const client = createSyncClient({
+      fetch: async (_input, init) =>
+        ({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+            }),
+        }) as unknown as Response,
+    });
+    await endsAt(client.uploadFile('f', new Blob(['abcd']), 'a'.repeat(64)), SYNC_REQUEST_TIMEOUT_MS);
+  });
+
   it('a transfer that answers in time keeps its answer and leaves no timer behind', async () => {
     vi.useFakeTimers();
     const client = createSyncClient({ fetch: async () => new Response('bytes', { status: 200, headers: { 'content-length': '5' } }) });

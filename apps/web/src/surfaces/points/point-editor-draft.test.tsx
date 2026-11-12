@@ -51,13 +51,19 @@ const session = (): SessionState => ({
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
 // A refused deadline write (a closed database, a quota) for the control below.
-const refuse = vi.hoisted(() => ({ deadline: false }));
+const refuse = vi.hoisted(() => ({ deadline: false, heldOnce: null as string | null }));
 vi.mock('./point-writes.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('./point-writes.ts')>();
   return {
     ...original,
     writeDeadline: (...args: Parameters<typeof original.writeDeadline>) => {
       if (refuse.deadline) return Promise.reject(Object.assign(new Error('refused'), { name: 'QuotaExceededError' }));
+      // An older Prazo held for a point not stored yet (as a blank new point holds it), written nowhere.
+      if (refuse.heldOnce !== null) {
+        const deadline = refuse.heldOnce;
+        refuse.heldOnce = null;
+        return Promise.resolve({ kind: 'pending' as const, pending: { deadline } });
+      }
       return original.writeDeadline(...args);
     },
   };
@@ -136,6 +142,28 @@ describe('G1-WEB a new point with a typed Prazo leaves no draft once "Concluir" 
       database.close();
     });
   }
+
+  it('an older Prazo held, then a new one typed that creates the point: "Concluir" leaves no draft (the create stores the new one)', async () => {
+    database = await freshDatabase();
+    refuse.deadline = false;
+    refuse.heldOnce = '2030-01-01';
+    renderAction(FROM_TEST);
+    // The first typed Prazo is held (the stand-in for a point that held nothing to print yet).
+    const dialog = await openAndTypePrazo();
+    expect(await pointCreates()).toEqual([]);
+    // A second Prazo, typed over it, creates the point with it.
+    const prazo = within(dialog).getByRole('group', { name: 'Prazo' });
+    await userEvent.click(within(prazo).getAllByRole('spinbutton')[0]!);
+    await userEvent.keyboard('20042032');
+    await pause(900);
+    await waitFor(async () => expect(await pointCreates()).toHaveLength(1));
+    expect(((await pointCreates())[0]!.value as { deadline: string | null }).deadline).toBe('2032-04-20');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Concluir' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await pause(600);
+    expect(await pointDrafts()).toEqual([]);
+    database.close();
+  });
 
   it('control: a refused deadline write keeps the editor open and the draft of the typed Prazo', async () => {
     database = await freshDatabase();

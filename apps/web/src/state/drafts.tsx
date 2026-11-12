@@ -77,6 +77,9 @@ export function DraftProvider({ children }: { children: ReactNode }) {
    * launch offers it again.
    */
   const [declined, setDeclined] = useState(false);
+  /** The dismissal as `register` reads it (its identity stays stable). */
+  const declinedRef = useRef(declined);
+  declinedRef.current = declined;
   // `recover` is called from a toast button, outside a render: it reads the current
   // offer through a ref so its identity stays stable and no side effect runs inside a
   // state updater (which React invokes twice under StrictMode).
@@ -93,8 +96,13 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     const key = draftKey(source);
     sources.current.set(key, source);
     if (returnOffers.current.delete(key)) {
-      setOffer((current) => (current === null ? [key] : current.includes(key) ? current : [...current, key]));
-      setDeclined(false);
+      if (declinedRef.current) {
+        // The person put the earlier offer away: only the draft that came back is offered, not the rows dismissed.
+        setOffer([key]);
+        setDeclined(false);
+      } else {
+        setOffer((current) => (current === null ? [key] : current.includes(key) ? current : [...current, key]));
+      }
     }
     return () => {
       // Only drop this registration: a remount may already have replaced it.

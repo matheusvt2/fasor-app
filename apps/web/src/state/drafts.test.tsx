@@ -320,14 +320,14 @@ describe('offering a draft on reopen', () => {
  * the screen (`persist({ offerOnReturn: true })`), and going back to the sheet offers it, with no reload.
  */
 describe('25.2-WEB a draft written as its field leaves is offered on return', () => {
-  function Leaving() {
+  function Leaving({ field = TARGET.field }: { field?: string }) {
     const [text, setText] = useState('');
     const latest = useRef(text);
     latest.current = text;
     const persist = useDraftSource({
       surface: TARGET.surface,
       entityId: TARGET.entity_id,
-      field: TARGET.field,
+      field,
       read: () => (latest.current === '' ? null : latest.current),
       apply: (value) => setText(String(value)),
     });
@@ -365,5 +365,38 @@ describe('25.2-WEB a draft written as its field leaves is offered on return', ()
     expect(screen.getByLabelText('leitura')).toHaveValue('');
     await userEvent.click(screen.getByRole('button', { name: 'Recuperar' }));
     expect(screen.getByLabelText('leitura')).toHaveValue('abc');
+  });
+
+  it('after the person put the launch offer away, a draft that comes back is offered alone, not the rows dismissed', async () => {
+    await saveDraft(database!, TARGET, 'guardado', new Date('2026-09-21T10:00:00.000Z'));
+    function Both() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <Field />
+          {open ? <Leaving field="leitura" /> : <span>outra ficha</span>}
+          <button type="button" onClick={() => setOpen((value) => !value)}>
+            alternar
+          </button>
+        </>
+      );
+    }
+    render(<Both />, { wrapper: Wrapper });
+    await screen.findByTestId('toast');
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByTestId('toast')).toBeNull();
+    await userEvent.type(screen.getByLabelText('leitura'), 'abc');
+    await userEvent.click(screen.getByRole('button', { name: 'alternar' }));
+    await waitFor(async () => expect((await listDrafts(database!)).map((row) => row.value).sort()).toEqual(['abc', 'guardado']));
+    await userEvent.click(screen.getByRole('button', { name: 'alternar' }));
+    expect(await screen.findByTestId('toast')).toHaveTextContent('Rascunho encontrado');
+    await userEvent.click(screen.getByRole('button', { name: 'Recuperar' }));
+    expect(screen.getByLabelText('leitura')).toHaveValue('abc');
+    // The dismissed launch row is neither applied nor offered again.
+    expect(screen.getByLabelText('texto')).toHaveValue('');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId('toast')).toBeNull();
   });
 });

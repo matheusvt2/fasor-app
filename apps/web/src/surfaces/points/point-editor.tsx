@@ -369,9 +369,10 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     const run = edits.commit(async () => {
       const held = pendingRef.current;
       const result = await writeDeadline(db, author, relatorioId, pointId, next, linkRef.current, taken, held);
-      // G1: written (a put, or a create carrying it) or already so, the typed Prazo is what the store holds.
-      if (result.kind === 'written' || result.kind === 'unchanged') storedDeadline.current = next;
       noteFieldsWrite(result, taken, held);
+      // G1: written (a put, or a create carrying it) or already so, the typed Prazo is what the store holds; after
+      // `noteFieldsWrite`, whose create branch would leave an older held Prazo there.
+      if (result.kind === 'written' || result.kind === 'unchanged') storedDeadline.current = next;
       void saveDraftRef.current();
     });
     // E20-A1 (R-7): a close waits for it; `useFieldCommit` still gets the refusal (it toasts and

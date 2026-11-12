@@ -16,14 +16,25 @@ function instantOf(clientTs: string): number | null {
 }
 
 /**
- * Story 25.3: how many of the waiting ops (their `client_ts`, the outbox rows still `pending` or
- * `sent`) have waited strictly more than `SYNC_LATE_AFTER_MS` at `nowMs`. A `client_ts` that
- * cannot be read counts as not late.
+ * When an op's wait counts from: its `client_ts`, or `sinceMs` when the device became able to send
+ * later (online, signed in, reaching the server, not paused): an op committed offline is not late
+ * the moment the device reconnects.
  */
-export function lateOpCount(waitingClientTs: readonly string[], nowMs: number): number {
+function waitStart(clientTs: string, sinceMs: number): number | null {
+  const at = instantOf(clientTs);
+  return at === null ? null : Math.max(at, sinceMs);
+}
+
+/**
+ * Story 25.3: how many of the waiting ops (their `client_ts`, the outbox rows still `pending` or
+ * `sent`) have waited strictly more than `SYNC_LATE_AFTER_MS` at `nowMs`, the wait counted from
+ * the later of `client_ts` and `sinceMs` (when the device last became able to send; omitted, from
+ * `client_ts`). A `client_ts` that cannot be read counts as not late.
+ */
+export function lateOpCount(waitingClientTs: readonly string[], nowMs: number, sinceMs: number = Number.NEGATIVE_INFINITY): number {
   let late = 0;
   for (const clientTs of waitingClientTs) {
-    const at = instantOf(clientTs);
+    const at = waitStart(clientTs, sinceMs);
     if (at !== null && nowMs - at > SYNC_LATE_AFTER_MS) late += 1;
   }
   return late;
@@ -31,13 +42,13 @@ export function lateOpCount(waitingClientTs: readonly string[], nowMs: number): 
 
 /**
  * Story 25.3: the instant (ms) at which the next waiting op turns late, the first instant where
- * `lateOpCount` grows, or null when every waiting op is already late or none waits. The caller
+ * `lateOpCount` grows (with the same `sinceMs`), or null when every waiting op is already late or none waits. The caller
  * arms one timer at it so the badge flips without waiting for another render.
  */
-export function syncLateAt(waitingClientTs: readonly string[], nowMs: number): number | null {
+export function syncLateAt(waitingClientTs: readonly string[], nowMs: number, sinceMs: number = Number.NEGATIVE_INFINITY): number | null {
   let next: number | null = null;
   for (const clientTs of waitingClientTs) {
-    const at = instantOf(clientTs);
+    const at = waitStart(clientTs, sinceMs);
     if (at === null) continue;
     // `lateOpCount` counts strictly more than the bound: the op turns late one millisecond after it.
     const turns = at + SYNC_LATE_AFTER_MS + 1;

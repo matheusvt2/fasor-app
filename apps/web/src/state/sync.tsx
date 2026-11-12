@@ -405,9 +405,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     () => syncCounts(rows, reading, status.merges, photoUploads.map((upload) => ({ id: upload.id, error: upload.error }))),
     [rows, reading, status.merges, photoUploads],
   );
-  // Story 25.3: the waiting ops that waited more than one minute (the kernel's rule, its own timer).
-  const lateCount = useLateOpCount(rows);
   const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
+  // Story 25.3: the waiting ops that waited more than one minute while the device could send them (the kernel's
+  // rule, its own timer): the wait counts from the later of each op's commit and the moment the device last became
+  // online, signed in, reaching the server and not paused, so work done offline is not late the moment it reconnects.
+  const canSend = session.online && unreachable === null && !status.paused;
+  const [canSendSince, setCanSendSince] = useState(() => now().getTime());
+  const couldSend = useRef(canSend);
+  useEffect(() => {
+    if (canSend && !couldSend.current) setCanSendSince(now().getTime());
+    couldSend.current = canSend;
+  }, [canSend]);
+  const lateCount = useLateOpCount(rows, canSendSince);
   // Story 14.10 lane B: a server that fails the sync but answers its health probe; a session to renew stays as today.
   const serverAnswers = unreachable === 'server' && status.serverAnswers === true;
   // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight.

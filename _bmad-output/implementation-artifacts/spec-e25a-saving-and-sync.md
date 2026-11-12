@@ -2,7 +2,7 @@
 title: 'e25a: what is typed is saved (conclusion text, manufacturer, readings) and a sheet edit is sent by itself (Stories 25.2 and 25.3)'
 type: 'feature'
 created: '2026-11-11'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '203226f5545f77aebbc0b26a01c4e156002756e1'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -122,6 +122,26 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-11 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer (opus) over the diff `203226f5..1d3e78ed`. Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+- verdicts: 15 findings — high 0, medium 3, low 7, false 2, maybe-false 0 (VG1 to VG5 pre-verified gaps; E1 to E10 edge cases)
+- findings:
+  - `[medium]` `[patch]` VG1: no test covers the `filePush.off` setup after a failed cycle push; with `off: false` an edit during the uploads re-runs the failed push and its retry table before each file — engine test added: the cycle's push fails, an edit is committed during the uploads, no push runs between files.
+  - `[low]` `[patch]` VG2: nothing checks that `SyncProvider` wires the visible-again nudge (only `followVisible` alone is tested) — `sync.test.tsx` case added.
+  - `[low]` `[patch]` VG3: the announcement of a writing `commitBatchIf` and of `commitFileBatch` is untested ("Marcar como enviado", an accepted suggestion, a certificate) — `nudges.test.ts` extended.
+  - `[low]` `[patch]` VG4: no test of a picked registered name followed by the sheet's unmount (the focus baseline moved to the label prevents a second write) — `registry-picker-field.test.tsx` case added.
+  - `[low]` `[patch]` VG5: `cta.spec.ts` 14.5-E2E-002 lost its pending-badge check on a premise its own offline setup contradicts — assertion restored, the "Changed tests" line corrected.
+  - `[low]` `[patch]` E1: `persistDeadline` sets `storedDeadline` to the typed Prazo, then `noteFieldsWrite` overwrites it with an older held one on a create, so G1's draft can come back — order fixed, unit case added.
+  - `[medium]` `[patch]` E2: the conclusion text's `lastCommitted` is set before `onEdit` settles; a refused write's retry is deduplicated and `dirty` cleared, so the refused text and its draft are lost (AD-8) — restored on rejection, test added.
+  - `[low]` `[patch]` E3: after an upload answer's headers, `response.json()` is unbounded, so a stalled body holds the upload phase — read through `readBounded` with the upload's controller, client test added.
+  - `[false]` `[reject]` E4: "late while outdated" — `app.tsx:62` replaces the whole app with `ContractOutdatedSurface` once `sync.outdated`, so no badge shows; a non-5xx push failure leaves ops truly waiting, and the late line with "Sincronizar agora" is the honest state.
+  - `[low]` `[patch]` E5: a returning draft key calls `setDeclined(false)` and re-raises the rows the person dismissed this session — only the returning key is raised once the offer was declined; drafts test added.
+  - `[low]` `[reject]` E6: a `flushOnUnmount` cell swapped out mid-sheet with unparseable text now writes a returnable draft. "Recuperar" puts the text back unparsed and commits nothing (`apply` calls `settle`, which refuses invalid text), so no stored value is overwritten; the swap needs typed invalid text on an empty plate field at the moment a suggestion lands. Rare, and the fix adds a caller flag.
+  - `[low]` `[reject]` E7: a `saveDrafts` rejection after the return key was noted leaves an offer whose "Recuperar" finds no row and does nothing; needs a refused draft write (quota) in the same session; the fix reorders a deliberate "noted before the write" rule.
+  - `[low]` `[reject]` E8: a synchronous throw of `commit(null)` leaves `clearedFrom` set, so a later clear of the same name is ignored until the store reads null; `commit` is an async edit-queue write, a synchronous throw is not shown reachable.
+  - `[medium]` `[patch]` E9: the late age counted from `client_ts` includes offline time, so edits made offline read "Envio atrasado" on reconnect before any push was tried; the story counts the wait while online — counted from the later of `client_ts` and the moment the device last became online and reachable, with boundary tests (`late.test.ts`).
+  - `[false]` `[reject]` E10: a store error inside the push between files rejects the upload phase and ends the cycle as an `apply` failure, skipping the pull; that is exactly what a store error in the cycle's own push phase does (`runPhase` rethrows, `cycle` records `apply`), so the claim of a divergence does not hold; the spec's "other failure" names `PhaseEnd` failures.
+
 ## Design Notes
 
 - **D1, the window.** 2 s, fixed from the first commit and not restarted, so continuous typing never starves it and the first edit is sent within 2 s plus one cycle (the AC asks 5 s). The engine's single-flight plus `onlineWhileRunning` keeps it at one cycle at a time; during non-stop typing that is at most one cycle per about 2 s: one push and one small pull per followed stream, each a few hundred bytes when nothing changed (about 1.5 MB over ten minutes of non-stop typing on a relatório with a few streams). No cycle runs offline, paused or signed out (`nudge` returns). A shorter window would send more cycles while typing; a longer one would miss the 5 s target under a slow cycle.
@@ -176,7 +196,7 @@ deferred: []
 - `e2e/ficha.spec.ts` (Story 5.8 conclusion steps; the read-only sheet): the text before "Editar" is read through `.ficha-conc-text .generated-text`, and the read-only text asserts no textbox, since the text is no longer a `textbox` (Story 25.2).
 - `e2e/qgbt.spec.ts`, `e2e/cta.spec.ts`, `e2e/parecer-names-finding.spec.ts`: the suggested text is read through `.ficha-conc-text .generated-text`, for the same reason.
 - `e2e/review-concluir-text.spec.ts`: the confirmed text is read through `.generated-text`, and the R8CONC-E2E-003 locator reads whichever of the text and the field is shown.
-- `e2e/cta.spec.ts` (palette add): the read of the badge's non-zero `data-pending` right after the add is dropped (the add is now sent within seconds); the outbox creates are still asserted.
+- ~~`e2e/cta.spec.ts` (palette add): the read of the badge's non-zero `data-pending` right after the add is dropped (the add is now sent within seconds); the outbox creates are still asserted.~~ *(Review fix: restored unchanged; 14.5-E2E-002 is offline from the palette add on, so the add stays pending and the badge read holds.)*
 - `e2e/review-photo-failures.spec.ts` `createManufacturer`: each retry retypes the name's last letter so a list a failed try left closed opens again (fix batch e24z, R8CAP-E2E-010 cause (1)).
 - `e2e/sync-status.spec.ts` 10.4-E2E-004 (phase B): no tap on "Sincronizar agora" after opening Sync status; the opening's own cycle starts the download, and its held relatório page keeps the button disabled (Story 25.3).
 - `e2e/sync-status.spec.ts` 14.10-E2E-002 (phase B): the push route is released only once no cycle runs; the commit and the opening now each start a cycle, and a push held across the release hung the next one (red once in phase B).
@@ -204,4 +224,16 @@ deferred: []
 - Results: the G1-WEB file 4 of 4; the points unit tests with `point-place.test.tsx` 7 files, 38 tests green (`point-draft-recovery.test.tsx` included); lint 0 errors (28 warnings: one more, the 1.5 s wait of G1-E2E-001, as 6.6-E2E-014's); static green; `e2e/typed-values-kept.spec.ts` (with the new "G1-E2E-001": a point from a test with a typed Prazo, "Concluir", reload, no "Rascunho encontrado" and no drafts row) and `e2e/points.spec.ts`: 28 of 28 on `desktop-chrome` and `durability-desktop-chrome`.
 - Mutation run: the draft source back on `shownDeadline` and the close's draft write removed: G1-WEB's two point tests red (the controls green), and G1-E2E-001 red; restored, green.
 - The cause's age: the same `read()` comparison (`typedRef.current !== shownDeadline.current`) and the same `finish` are at production `1528183f` (`.scratch-e25a/point-editor-1528183f.tsx`, lines 508 and 589); the comparison came with Stories 11.9 and 11.10 (`31740f59`, 2026-09-30), not with Epic 24.
+
+**Review fixes (loop 1, 2026-11-11):**
+- `engine.test.ts` 25.3-WEB: a cycle whose own push failed (400) pushes nothing between its files though an edit is committed during the uploads (covers `filePush.off`).
+- `state/sync.test.tsx` 25.3-WEB: `visibilitychange` to visible nudges the engine once, to hidden not at all.
+- `nudges.test.ts`: a writing `commitBatchIf` and a `commitFileBatch` each announce once.
+- `registry-picker-field.test.tsx` 25.2-WEB: an option picked with the focus kept is the new baseline; the unmount writes it no second time.
+- `e2e/cta.spec.ts` 14.5-E2E-002: the badge read restored (the test is offline there).
+- `point-editor.tsx` `persistDeadline`: the stored Prazo is set after `noteFieldsWrite`, whose create branch put an older held one there; `point-editor-draft.test.tsx` case "an older Prazo held, then a new one typed that creates the point".
+- `generated-text-field.tsx`: a refused typed write puts `lastCommitted` back and marks the field dirty, so the next blur or flush commits the text again and its draft stays; test "a refused write is not lost".
+- `client.ts` `uploadFile`: the answer body is read within `SYNC_REQUEST_TIMEOUT_MS` on the upload's controller (`readBounded`); test "an upload whose answer headers came but whose body never does".
+- `drafts.tsx` `register`: after the person put the offer away, a returning draft is offered alone; test "after the person put the launch offer away".
+- `late.ts`, `late-ops.ts`, `state/sync.tsx`: the wait counts from the later of `client_ts` and when the device last became online, reaching the server and not paused (`sinceMs`); `late.test.ts` boundary case (10 min old, online 30 s: not late; 60 000 ms not, 60 001 ms late).
 

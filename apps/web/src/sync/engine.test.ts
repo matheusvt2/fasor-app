@@ -1927,6 +1927,40 @@ describe('25.3-WEB edits do not wait for the uploads', () => {
     h.db.close();
   });
 
+  it('a cycle whose own push failed pushes nothing between its files, though an edit is committed during the uploads', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    for (const [i, id] of PHOTOS.slice(0, 3).entries()) await photo(h, id, `2026-09-21T16:5${i}:00.000Z`);
+    // Cycle 1: the creates are acked, the files wait (409 file_row_missing defers them).
+    let deferred = true;
+    const upload = h.server.uploadFile.bind(h.server);
+    const held = gate();
+    let started = 0;
+    h.server.uploadFile = async (id, blob, sha256) => {
+      if (deferred) throw new SyncRequestError({ kind: 'http', status: 409, code: 'file_row_missing' });
+      started += 1;
+      if (started === 1) await held.promise;
+      return upload(id, blob, sha256);
+    };
+    expect(await h.engine.runCycle()).toBe('ran');
+    // Cycle 2: an edit waits, its push is refused (400), then the files upload, the first one held.
+    deferred = false;
+    const newId = ids('019966b0-0257-7000-8000-');
+    await commitOps(h.db, [localPut(newId, 'Siemens')]);
+    h.server.failNext.pushes = [{ kind: 'http', status: 400, code: 'sync_batch_invalid' }];
+    const before = h.server.pushAttempts;
+    const cycle = h.engine.runCycle();
+    await waitFor(() => started >= 1, 'the held upload');
+    expect(h.server.pushAttempts).toBe(before + 1);
+    // An edit committed during the uploads: no push runs between the files of this cycle.
+    await commitOps(h.db, [localPut(newId, 'WEG', { path: `sheet/${BLOCK_1_ID}/nameplate/n_serie` })]);
+    held.open();
+    expect(await cycle).toBe('ran');
+    expect(h.server.pushAttempts).toBe(before + 1);
+    expect(h.server.uploads).toHaveLength(3);
+    h.db.close();
+  });
+
   it('a push between files that fails is recorded and not tried again in that cycle; the uploads go on and the next cycle sends the edit', async () => {
     const h = await harness();
     await commitOps(h.db, seedLog());

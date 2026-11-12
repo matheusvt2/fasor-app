@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { makeOp, type OpInput } from '@app/domain';
 import { BLOCK_1_ID, COMPANY_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
-import { commitBatch, commitBatchIf, commitOps } from '../db/commit.ts';
+import { commitBatch, commitBatchIf, commitFileBatch, commitOps } from '../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { announceCommit, COMMIT_SYNC_WINDOW_MS, onCommit } from './commit-signal.ts';
@@ -149,7 +149,7 @@ const draft = (value: string): OpInput => ({
 });
 
 describe('25.3-WEB every committed transaction announces itself once, from db/commit.ts', () => {
-  it('commitBatch and commitOps announce once each; a commitBatchIf that wrote nothing is silent', async () => {
+  it('commitBatch, commitOps, a writing commitBatchIf and commitFileBatch announce once each; a commitBatchIf that wrote nothing is silent', async () => {
     const db = await freshDb();
     // The fixture up to its block creates, so the sheet puts have a target.
     const upTo = replaySmall.log.findIndex((op) => op.path === `block/${BLOCK_1_ID}` && op.kind === 'create');
@@ -165,6 +165,33 @@ describe('25.3-WEB every committed transaction announces itself once, from db/co
     expect(heard).toHaveBeenCalledTimes(2);
     expect(await commitBatchIf(db, async () => false, [draft('D')], { newId, now })).toBeNull();
     expect(heard).toHaveBeenCalledTimes(2);
+    expect(await commitBatchIf(db, async () => true, [draft('E')], { newId, now })).not.toBeNull();
+    expect(heard).toHaveBeenCalledTimes(3);
+    const fileId = '019966b0-0000-7000-8000-0000000025f1';
+    await commitFileBatch(
+      db,
+      {
+        ops: [
+          {
+            kind: 'create',
+            scope: 'company',
+            company_id: COMPANY_ID,
+            relatorio_id: null,
+            project_id: null,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            path: `file/${fileId}`,
+            value: { id: fileId, company_id: COMPANY_ID, relatorio_id: null, kind: 'certificate', sha256: 'abc', mime: 'application/pdf', size: 4, uploaded_at: null, variants: null, removed_at: null },
+            actor_id: USER_ID,
+          },
+        ],
+        blob: new Blob(['abcd']),
+        fileId,
+      },
+      { newId, now },
+    );
+    expect(heard).toHaveBeenCalledTimes(4);
     stop();
     db.close();
   });

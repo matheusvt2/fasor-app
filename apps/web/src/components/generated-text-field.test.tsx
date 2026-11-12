@@ -188,6 +188,20 @@ describe('25.2-WEB the conclusion text is saved as it is typed', () => {
     expect(onEdit).toHaveBeenCalledWith(`${STORED}X`);
   });
 
+  it('a refused write is not lost: the blur that follows commits the same text again', async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn<(text: string) => Promise<void>>().mockRejectedValueOnce(Object.assign(new Error('refused'), { name: 'QuotaExceededError' })).mockResolvedValue(undefined);
+    render(typingField(onEdit));
+    const area = screen.getByRole('textbox', { name: 'Texto da conclusão' });
+    await user.click(area);
+    await user.type(area, ' Mais.');
+    await pause(650);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'fora' }));
+    expect(onEdit).toHaveBeenCalledTimes(2);
+    expect(onEdit).toHaveBeenLastCalledWith(`${STORED} Mais.`);
+  });
+
   it('typed back to the stored text and left: nothing is written, no "edited" mark', async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();

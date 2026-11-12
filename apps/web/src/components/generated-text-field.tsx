@@ -91,10 +91,28 @@ export function GeneratedTextField({
         if (current.current === next) dirty.current = false;
         return;
       }
+      const previous = lastCommitted.current;
       lastCommitted.current = next;
       // Nothing typed since this value: the field is clean again, so the stored echo may show.
       if (current.current === next) dirty.current = false;
-      return onEdit(next);
+      // A refused write leaves the text unstored: the next blur or flush commits it again, and it is a draft meanwhile.
+      const refused = () => {
+        if (lastCommitted.current === next) lastCommitted.current = previous;
+        dirty.current = true;
+      };
+      let result: void | Promise<void>;
+      try {
+        result = onEdit(next);
+      } catch (error) {
+        refused();
+        throw error;
+      }
+      return result instanceof Promise
+        ? result.catch((error: unknown) => {
+            refused();
+            throw error;
+          })
+        : result;
     },
   });
   // The stored text moved while nobody types here: show it.

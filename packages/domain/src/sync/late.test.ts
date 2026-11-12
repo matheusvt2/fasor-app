@@ -25,6 +25,17 @@ describe('25.3-UNIT the one-minute rule', () => {
     expect(syncLateAt([], T0)).toBeNull();
   });
 
+  it('the wait counts from when the device became able to send: an op 10 min old, online for 30 s, is not late; 60 000 ms is not, 60 001 ms is', () => {
+    const tenMinutesOld = [at(-10 * 60_000)];
+    expect(lateOpCount(tenMinutesOld, T0, T0 - 30_000)).toBe(0);
+    expect(lateOpCount(tenMinutesOld, T0, T0 - 60_000)).toBe(0);
+    expect(lateOpCount(tenMinutesOld, T0, T0 - 60_001)).toBe(1);
+    // An op committed after the device came online counts from its own client_ts.
+    expect(lateOpCount([at(0)], T0 + 60_001, T0 - 5_000)).toBe(1);
+    // The next instant follows the same start.
+    expect(syncLateAt(tenMinutesOld, T0, T0 - 30_000)).toBe(T0 + 30_001);
+  });
+
   it('the line: the frame\'s plural, the authored singular', () => {
     expect(syncLateText(3)).toBe('O aparelho está com conexão, mas 3 alterações aguardam envio há mais de 1 minuto.');
     expect(syncLateText(1)).toBe('O aparelho está com conexão, mas 1 alteração aguarda envio há mais de 1 minuto.');

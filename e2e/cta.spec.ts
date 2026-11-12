@@ -23,7 +23,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { addLocal } from './support/local.ts';
-import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { pinTemplateSeed } from './support/push-server-ops.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
@@ -659,8 +659,7 @@ test('@p0 14.5-E2E-002 at 768 then 390: offline, the field palette lists the eig
   await expect(fieldPalette).toBeHidden();
   await expect(toast(page)).toContainText(`${tag} criada em ${LOCAL}`);
   await expect(eqRow(page, tag).locator('.s9-eq-name')).toHaveText(CTA_NAME);
-  // Story 25.3: the add is sent by itself within seconds, so the badge's count is no longer read here; the
-  // outbox keeps the creates either way.
+  await expect(syncBadge(page)).not.toHaveAttribute('data-pending', '0');
   // The equipment and the block creates are in the outbox, the block on the relatório's seed version.
   const created = (await outbox(page)).filter((op) => op.kind === 'create');
   const blockCreate = created.find((op) => op.path.startsWith('block/') && (op.value as { block_type?: string }).block_type === CTA)!;

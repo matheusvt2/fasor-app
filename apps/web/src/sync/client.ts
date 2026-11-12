@@ -349,7 +349,9 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
     pullProject: (id, since) => request(SYNC_ROUTES.pullProject(id), syncPullResponseSchema, `since=${since}`),
     async uploadFile(id, blob, sha256) {
       const route = FILE_ROUTES.put(id);
-      // Story 25.3: the upload's bound is the JSON requests' rule over the file's size.
+      // Story 25.3: the upload's bound is the JSON requests' rule over the file's size; its small answer body is read
+      // within `SYNC_REQUEST_TIMEOUT_MS`, so a stalled one ends as a `network` failure too.
+      const controller = new AbortController();
       const response = await send(
         route.path,
         route.method,
@@ -362,13 +364,10 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
           },
         },
         requestHeadersTimeoutMs(blob.size),
+        controller,
       );
-      let json: unknown;
-      try {
-        json = await response.json();
-      } catch {
-        json = undefined;
-      }
+      // A body that is no JSON stays `invalid_response` below; only the bound running out is a `network` failure.
+      const json: unknown = await readBounded(() => response.json().catch(() => undefined), SYNC_REQUEST_TIMEOUT_MS, controller);
       const parsed = filePutResponseSchema.safeParse(json);
       if (!parsed.success) throw new SyncRequestError({ kind: 'http', status: response.status, code: 'invalid_response' });
       return parsed.data;

@@ -434,6 +434,18 @@ describe('25.2-WEB the manufacturer typed and left with the sheet', () => {
     expect(onCreate).not.toHaveBeenCalled();
   });
 
+  it('an option picked with the focus kept in the field is its new baseline: the unmount that follows writes it no second time', async () => {
+    const onChange = vi.fn();
+    const { unmount } = render(picker({ onChange }));
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('sie');
+    await userEvent.click(await screen.findByRole('option', { name: 'Siemens' }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('siemens');
+  });
+
   it('a new name is created once when the field unmounts, and not again after "Criar"', async () => {
     const onCreate = vi.fn();
     const first = render(picker({ onCreate }));

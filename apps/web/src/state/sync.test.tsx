@@ -122,6 +122,24 @@ describe('SyncProvider', () => {
     expect(renders.actions).toBe(settled.actions);
   });
 
+  it('25.3-WEB: the page turning visible again asks the engine for one cycle; turning hidden asks nothing', async () => {
+    database = await freshDb();
+    render(
+      <SyncProvider>
+        <></>
+      </SyncProvider>,
+    );
+    await waitFor(() => expect(engine.start).toHaveBeenCalled());
+    const turn = (state: DocumentVisibilityState) => {
+      Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    turn('hidden');
+    expect(engine.nudge).not.toHaveBeenCalled();
+    turn('visible');
+    expect(engine.nudge).toHaveBeenCalledTimes(1);
+  });
+
   it('E19-A2 (R-3): summaryRead is false before the sync states are read, true once they are', async () => {
     database = await freshDb();
     const seen: (boolean | undefined)[] = [];
