@@ -20,6 +20,7 @@ import {
   revisionRowSegments,
   sectionMention,
   sectionRefText,
+  namedWarningSection,
   suggestionRowsOf,
   sumarioLineOf,
   sumarioRows,
@@ -205,7 +206,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   // Story 8.6: the device's pending suggestion rows (section 9's warning and the sheets count).
   const pending = useMemo(() => (entityState === null ? [] : pendingSuggestions(suggestionRowsOf(entityState, relatorioId))), [entityState, relatorioId]);
   const computed = useMemo(() => (snapshot === null ? null : progress(snapshot, pending)), [snapshot, pending]);
-  const issues = usePreIssue(db, snapshot, computed, pending);
+  const issues = usePreIssue(db, snapshot, computed, pending, entityState);
   const precheck = useMemo(() => exportPrecheck(issues), [issues]);
   // F-03 (D1): with empty sheets or blank fields, "Gerar relatório" first asks, naming the counts.
   const confirmCounts = useIssueConfirmation(snapshot);
@@ -484,7 +485,15 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               ))}
               {precheck.explicit.map((row) => (
                 <li key={row.id}>
-                  <span className="pc-text">{row.text}</span>
+                  <span className="pc-text">
+                    {row.text}
+                    {snapshot === null || namedWarningSection(row) === null ? null : (
+                      <>
+                        {' '}
+                        <span className="pc-meta">{copy.export.warningWhere(sectionRefText(snapshot, namedWarningSection(row) ?? 0))}</span>
+                      </>
+                    )}
+                  </span>
                   {row.kind === 'rejected' ? (
                     <span className="pc-actions">
                       <TextButton onPress={() => void resendDead()}>{copy.export.resend}</TextButton>

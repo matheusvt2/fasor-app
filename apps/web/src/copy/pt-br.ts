@@ -784,6 +784,8 @@ export const copy = {
     blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
     editInSetup: 'Editar em Dados do relatório',
     seeInSumario: 'Ver no sumário',
+    // Story 25.12 (`73-exportar.html`, Story 25.1 Part B): where a named warning stands; `section` is the kernel's `sectionRefText`.
+    warningWhere: (section: string) => `— ${section}`,
     // authored: the Sync status surface's own word for resending rejected changes.
     resend: 'Reenviar',
     docControlLabel: 'Controle do documento',

@@ -277,7 +277,7 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     expect(preIssue({ ...snapshot, blocks }, undefined, { now: NOW }).some((r) => r.kind === 'suggestions_pending')).toBe(false);
   });
 
-  it('calibration per instrument on section 11: expired pending, about to expire a warning; a missing certificate a warning', () => {
+  it('calibration per instrument on section 11: expired pending, about to expire a warning; a missing certificate pending (Story 25.12)', () => {
     const base = fresh();
     const snapshot = {
       ...base,
@@ -293,7 +293,8 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     expect(kinds(rows)).toEqual([
       ['calibration', 'section_11', 'pending', 'MEG-01 — calibração vencida em 01/08/2026'],
       ['calibration', 'section_11', 'info', 'MIC-01 — calibração vence em 20/09/2026'],
-      ['certificate_missing', 'section_11', 'info', 'MIC-01 sem certificado'],
+      // Story 25.12: a missing certificate file is pending.
+      ['certificate_missing', 'section_11', 'pending', 'MIC-01 sem certificado'],
     ]);
     // With no service end the caller's now is the reference; with neither, nothing is judged (the kernel reads no clock).
     const noEnd = withSetup(snapshot, { service_end: null });

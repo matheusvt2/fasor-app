@@ -140,14 +140,18 @@ describe('InstrumentosTab (B5)', () => {
     expect(expired.querySelector('.rr-primary')).toHaveTextContent('7M — Megôhmetro digital MI-10');
     expect(expired.querySelector('.rr-secondary')).toHaveTextContent('Minipa · série S-77 · Vencida em 15/01/2021');
     expect(expired.querySelector('.rr-expired')).toHaveTextContent('Vencida em 15/01/2021');
-    expect(expired).toHaveAccessibleName('7M — Megôhmetro digital MI-10, Vencida em 15/01/2021');
+    // Story 25.12: the row says what it lacks (`80-cadastros.html` `.e25-rr-warn`), in its name too.
+    expect(expired.querySelector('.e25-rr-warn')).toHaveTextContent(/^Sem certificado$/);
+    expect(expired).toHaveAccessibleName('7M — Megôhmetro digital MI-10, Vencida em 15/01/2021, Sem certificado');
 
     expect(valid.querySelector('.rr-secondary')).toHaveTextContent('Válida até 10/01/2066');
     expect(valid.querySelector('.rr-expired')).toBeNull();
 
     // No calibration data yet: no clause, never flagged.
     expect(uncalibrated.querySelector('.rr-secondary')).toHaveTextContent(/^$/);
-    expect(uncalibrated).toHaveAccessibleName('1A — Terrômetro');
+    // Story 25.12: no calibration date and no certificate, said on the row; the fields stay optional.
+    expect(uncalibrated.querySelector('.e25-rr-warn')).toHaveTextContent(/^Sem data de calibração · sem certificado$/);
+    expect(uncalibrated).toHaveAccessibleName('1A — Terrômetro, Sem data de calibração · sem certificado');
 
     // With rows, the toolbar's "Novo instrumento" is the action and there is no empty state.
     expect(screen.getByRole('button', { name: t.newInstrument })).toBeInTheDocument();

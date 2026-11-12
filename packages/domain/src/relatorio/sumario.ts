@@ -226,7 +226,8 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
     return join([
       pointsSummaryText(pointsSummary(snapshot)),
       // ~~e22f S2: the possible duplicates too.~~ Fix batch e24h: no such row any more.
-      ...issues.filter((row) => row.kind === 'point_photo_removed' || row.kind === 'points_sem_prazo').map((row) => row.text),
+      // Story 25.12: and the overdue deadlines.
+      ...issues.filter((row) => row.kind === 'point_photo_removed' || row.kind === 'points_sem_prazo' || row.kind === 'deadline_overdue').map((row) => row.text),
     ]);
   }
   // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.

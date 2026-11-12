@@ -19,6 +19,7 @@ import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWi
 import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
+import { calibrationLack, calibrationLackText, deadlineOverdueText, overduePointPositions, sheetsUnderRemovedLocalsText } from './pre-issue-warnings.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { composeConclusion, conclusionTextForPrint, conclusionTextState } from './conclusion.ts';
 import { visitContextOf } from './visit-context.ts';
@@ -70,6 +71,9 @@ export type PreIssueKind =
   | 'points_sem_acao'
   | 'point_photo_removed'
   | 'points_sem_prazo'
+  | 'deadline_overdue'
+  | 'sheets_removed_local'
+  | 'calibration_missing'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
@@ -154,6 +158,11 @@ export interface PreIssueContext {
    * a warning that never blocks. Default: none.
    */
   pendingSuggestions?: readonly SuggestionRow[];
+  /**
+   * Story 25.12: the live sheets of this relatório under a removed local, named
+   * (`sheetsUnderRemovedLocals`, read from the device's state: the snapshot hides them). Default: none.
+   */
+  removedLocalSheets?: readonly string[];
 }
 
 const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
@@ -387,6 +396,13 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   if (semPrazo > 0) {
     rows.push({ id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: pointsSemPrazoText(semPrazo), kind: 'points_sem_prazo' });
   }
+  // Story 25.12 (M26): the live points whose deadline is before the day of generating
+  // (America/Sao_Paulo; a month only once it has passed), one pending row naming them. The
+  // caller's clock is the day: without it nothing is judged.
+  const overdue = now === null ? [] : overduePointPositions(snapshot.points, calendarDateOfInstant(now));
+  if (overdue.length > 0) {
+    rows.push({ id: 'deadline_overdue', row: 'section_8', severity: 'pending', text: deadlineOverdueText(overdue), kind: 'deadline_overdue' });
+  }
 
   // Fix batch fxpw G5: the remaining work, a not-tested sheet counted as handled.
   if (computed.sheets_handled < computed.sheets_total) {
@@ -405,6 +421,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const withSuggestions = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, context.pendingSuggestions ?? [], [], snapshotDefinitionContext(snapshot))).size;
   if (withSuggestions > 0) {
     rows.push({ id: 'suggestions_pending', row: 'section_9', severity: 'pending', text: fichasComSugestoesText(withSuggestions), kind: 'suggestions_pending' });
+  }
+  // Story 25.12 (M32): live sheets under a removed local, which the snapshot leaves out of the
+  // tree, the counts and the print; one pending row names them.
+  const removedLocalSheets = context.removedLocalSheets ?? [];
+  if (removedLocalSheets.length > 0) {
+    rows.push({ id: 'sheets_removed_local', row: 'section_9', severity: 'pending', text: sheetsUnderRemovedLocalsText(removedLocalSheets), kind: 'sheets_removed_local' });
   }
   // Story 7.5: a concluded sheet whose conclusion text is not confirmed prints without it.
   const definitions = snapshotDefinitionContext(snapshot);
@@ -507,9 +529,18 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       kind: 'calibration',
     });
   }
-  // Story 7.3's rule (section 11 prints a placeholder line for each of these).
+  // Story 25.12 (M18): an instrument section 11 prints with no calibration date, or no interval
+  // to compute its validity from, is pending and named, whatever the reference date.
+  for (const entry of printedInstruments) {
+    const instrument = registryInstruments.get(entry.instrument_id);
+    const lack = instrument === undefined ? null : calibrationLack(instrument);
+    if (instrument === undefined || lack === null) continue;
+    rows.push({ id: `calibration_missing:${instrument.id}`, row: 'section_11', severity: 'pending', text: calibrationLackText(instrument.code, lack), kind: 'calibration_missing' });
+  }
+  // Story 7.3's rule (section 11 prints a placeholder line for each of these). Story 25.12:
+  // pending, no longer information.
   for (const entry of missingCertificates(snapshot)) {
-    rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
+    rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'pending', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
   }
   for (const entry of printedInstruments) {
     if (!entry.cert_mismatch) continue;
@@ -551,6 +582,10 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   'photos_pending_upload',
   'photos_upload_error',
   'cert_number_mismatch',
+  // Story 25.12 (`73-exportar.html`, Story 25.1 Part B): the three warnings are named rows.
+  'deadline_overdue',
+  'calibration_missing',
+  'sheets_removed_local',
   'rejected',
   'last_send',
 ]);

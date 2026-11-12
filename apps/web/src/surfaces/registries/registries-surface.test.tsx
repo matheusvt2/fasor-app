@@ -226,7 +226,8 @@ describe('Cadastros tabs (B5)', () => {
 
   it.each([
     ['clientes', r.tabClientes, 'Hospital Central, CNPJ não informado', r.clientes.newClient, 'Hospital Central'],
-    ['instrumentos', r.tabInstrumentos, '2E — Microhmímetro', r.instrumentos.newInstrument, '2E — Microhmímetro'],
+    // Story 25.12: the row's name carries what the instrument lacks.
+    ['instrumentos', r.tabInstrumentos, '2E — Microhmímetro, Sem data de calibração · sem certificado', r.instrumentos.newInstrument, '2E — Microhmímetro'],
     ['fabricantes', r.tabFabricantes, 'WEG', r.fabricantes.newRow, 'WEG'],
     ['classes-tensao', r.tabClassesTensao, '15 kV', r.classesTensao.newRow, '15 kV'],
   ])('%s: lists its rows, opens one, and adds from the toolbar', async (id, tabName, rowName, toolbarAction, rowHeading) => {
