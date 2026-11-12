@@ -212,25 +212,29 @@ test('@p0 18.1-E2E-002 a 429 on the telemetry post keeps every queued event and 
   await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible();
   await expect.poll(async () => (await queued(page)).some((event) => event.name === 'undo' && event.target === 'toast.undo' && event.screen === 'cadastros'), { timeout: 15_000 }).toBe(true);
 
-  // "Sincronizar agora" while the limiter refuses: one post, answered 429, and no row deleted.
+  // The launch cycle's flush met the limiter: one post, answered 429.
+  await expect.poll(() => refused, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  // "Sincronizar agora" while the limiter's 60 s window stands (fix batch e25x: opening Sync status runs a cycle and
+  // the button another, Story 25.3; neither posts inside the window): at most one more post (none while the window
+  // of the launch's 429 stands; one when a slow run let it lapse, which opens a new window), and no row deleted.
   const held = await queued(page);
   expect(held.length).toBeGreaterThan(0);
   const refusedBefore = refused;
   await syncNow(page);
-  await expect.poll(() => refused, { timeout: 15_000 }).toBe(refusedBefore + 1);
-  // The flush ended on the 429: no second post follows, and every held row is still queued.
   await page.waitForTimeout(1_000);
-  expect(refused).toBe(refusedBefore + 1);
+  expect(refused - refusedBefore).toBeLessThanOrEqual(1);
   const ids = new Set((await queued(page)).map((event) => event.id));
   expect(held.filter((event) => !ids.has(event.id))).toEqual([]);
 
-  // The limiter lets go: the next "Sincronizar agora" ships the queue, every answer 204.
+  // The limiter lets go, and the window is the page's own (a reload starts without it): the launch cycle or the next
+  // "Sincronizar agora" ships the queue, every answer 204.
   await page.unroute(`**${TELEMETRY_ROUTE.path}`);
   const statuses: number[] = [];
   page.on('requestfinished', (request) => {
     if (request.method() !== TELEMETRY_ROUTE.method || new URL(request.url()).pathname !== TELEMETRY_ROUTE.path) return;
     void request.response().then((response) => statuses.push(response?.status() ?? 0));
   });
+  await page.reload();
   await syncNow(page);
   await expect.poll(async () => (await queued(page)).length, { timeout: 30_000 }).toBe(0);
   await expect.poll(() => statuses.length, { timeout: 15_000 }).toBeGreaterThan(0);

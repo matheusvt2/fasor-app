@@ -36,6 +36,7 @@ const engine = {
   retryUpload: vi.fn(async () => 'ran' as const),
   start: vi.fn(),
   nudge: vi.fn(),
+  pushNow: vi.fn(),
   stop: vi.fn(),
   pause: vi.fn(),
   resume: vi.fn(),
@@ -69,7 +70,7 @@ vi.mock('../sync/client.ts', async (importOriginal) => ({
   createBrowserSyncClient: () => client,
 }));
 
-const IDLE: EngineStatus = { running: false, paused: false, outdated: false, lastResult: null, lastFailure: null, serverAnswers: null, merges: [] };
+const IDLE: EngineStatus = { running: false, pushing: false, paused: false, outdated: false, lastResult: null, lastFailure: null, serverAnswers: null, merges: [] };
 const RELATORIO = '019966b0-0076-7000-8000-000000000071';
 
 afterEach(() => {

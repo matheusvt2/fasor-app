@@ -99,7 +99,9 @@ describe('25.2-WEB a reading left with the sheet', () => {
     expect(written()[0]).toMatchObject({ raw: '548', state: 'measured' });
     // Its unit: the cell's own (the slot's), never none.
     expect(insulation().units).toContain((written()[0] as { unit: string | null }).unit);
-    expect(drafts.writes).toEqual([]);
+    // No draft is written. Fix batch e25x (A4): once the commit succeeded, the field's older draft is dropped
+    // (the source reads nothing typed then).
+    await waitFor(() => expect(drafts.writes).toEqual([{ value: null, options: { committed: true, answersOffer: true } }]));
   });
 
   it('text that is no number is not committed; its draft is written at once and offered on return', async () => {

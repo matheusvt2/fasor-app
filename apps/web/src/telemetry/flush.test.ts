@@ -103,7 +103,9 @@ describe('flushTelemetry (Story 18.1)', () => {
     expect(await db.ux_events.count()).toBe(0);
   });
 
-  it('E18-A1 (R-A1): a 429 mid-drain keeps that batch and the rest and ends the flush; the next flush resumes', async () => {
+  it('E18-A1 (R-A1): a 429 mid-drain keeps that batch and the rest and ends the flush; e25x: a flush inside the 60 s window posts nothing, the first one after it resumes', async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
     await queue(db, 600);
     const fake = fakeTransport([204, 429, 204]);
     await flushTelemetry(db, fake.transport);
@@ -111,11 +113,19 @@ describe('flushTelemetry (Story 18.1)', () => {
     expect(fake.posts.map((p) => p.length)).toEqual([200, 200]);
     expect(await db.ux_events.count()).toBe(400);
     expect((await queuedUxEvents(db)).map((e) => e.duration_ms)).toEqual(Array.from({ length: 400 }, (_, i) => i + 200));
+    // e25x: a cycle that ends inside the limiter's window (the Sync screen opening, then "Sincronizar agora") posts nothing.
+    const inside = fakeTransport([204, 204]);
+    clock.mockReturnValue(start + RATE_LIMIT_WINDOW_MS - 1);
+    await flushTelemetry(db, inside.transport);
+    expect(inside.posts).toEqual([]);
+    expect(await db.ux_events.count()).toBe(400);
+    clock.mockReturnValue(start + RATE_LIMIT_WINDOW_MS);
     const next = fakeTransport([204, 204]);
     await flushTelemetry(db, next.transport);
     expect(next.posts.map((p) => p.length)).toEqual([200, 200]);
     expect(next.posts[0]![0]!.duration_ms).toBe(200);
     expect(await db.ux_events.count()).toBe(0);
+    clock.mockRestore();
   });
 
   it('keeps the batch on a 5xx and stops', async () => {

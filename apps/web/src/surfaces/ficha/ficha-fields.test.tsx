@@ -847,4 +847,33 @@ describe('25.2-WEB the manufacturer field of the sheet', () => {
     expect(onCreateWord).toHaveBeenCalledTimes(1);
     expect(input).toHaveValue('Fabricante R8CAP');
   });
+
+  /*
+   * Fix batch e25x, "e25x A9": a clear the technician makes is written, whatever happened to an earlier clear. A leave
+   * of the emptied field is the clear of `onClear`. The `onChange` clear resets the same way; no gesture on the
+   * manufacturer reaches it (React Aria reports no null here while the field keeps the focus), so it has no test.
+   */
+  const WEG = row('weg', 'WEG');
+
+  it('e25x A9: clear "Siemens", pick "WEG" before the store read null, "Siemens" again later, then clear: the last clear is written', async () => {
+    const commit = vi.fn();
+    const rows = [SIEMENS, WEG];
+    const { rerender } = render(maker({ value: 'Siemens', commit, rows }));
+    const input = await openCombobox();
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit).toHaveBeenLastCalledWith(null);
+    await userEvent.type(input, 'weg');
+    await userEvent.click(await screen.findByRole('option', { name: 'WEG' }));
+    expect(commit).toHaveBeenLastCalledWith('WEG');
+    await userEvent.click(screen.getByText('fora'));
+    // The store skips the null: the next read already holds the name picked, and later "Siemens" again (an undo, a pull).
+    rerender(maker({ value: 'WEG', commit, rows }));
+    rerender(maker({ value: 'Siemens', commit, rows }));
+    const before = commit.mock.calls.length;
+    await userEvent.clear(input);
+    await userEvent.click(screen.getByText('fora'));
+    expect(commit.mock.calls.length).toBe(before + 1);
+    expect(commit).toHaveBeenLastCalledWith(null);
+  });
 });

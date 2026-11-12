@@ -1,8 +1,9 @@
 /*
  * Story 25.3 (M03): every local commit that leaves an op in the outbox says so here, once its
  * transaction has committed. `db/commit.ts` is the one place a commit of this device passes
- * (pulls do not), so it announces; the sync provider listens and asks the engine for one cycle,
- * coalescing the announcements of `COMMIT_SYNC_WINDOW_MS` into one nudge (`state/sync.tsx`).
+ * (pulls do not), so it announces; the sync provider listens and asks the engine to send it,
+ * coalescing the announcements of `COMMIT_SYNC_WINDOW_MS` into one push-only pass (fix batch e25x,
+ * A2: `SyncEngine.pushNow`, `state/sync.tsx`).
  * Nothing here knows the engine, and a listener's failure never reaches the write.
  */
 
@@ -13,7 +14,13 @@
  */
 export const COMMIT_SYNC_WINDOW_MS = 2_000;
 
-type Listener = () => void;
+/**
+ * Fix batch e25x (coordinator, 2026-11-12): what a commit left to send. `ops`: outbox ops only. `file`: also a
+ * file's bytes (a certificate, any non-photo file), which only a full cycle uploads.
+ */
+export type CommitKind = 'ops' | 'file';
+
+type Listener = (kind: CommitKind) => void;
 
 const listeners = new Set<Listener>();
 
@@ -26,10 +33,10 @@ export function onCommit(listener: Listener): () => void {
 }
 
 /** Called by `db/commit.ts` after a transaction that wrote at least one outbox op has committed. */
-export function announceCommit(): void {
+export function announceCommit(kind: CommitKind = 'ops'): void {
   for (const listener of [...listeners]) {
     try {
-      listener();
+      listener(kind);
     } catch (error) {
       console.error('commit listener failed', error);
     }

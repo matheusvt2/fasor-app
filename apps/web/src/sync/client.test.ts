@@ -379,6 +379,35 @@ describe('25.3-WEB a file transfer whose answer never comes', () => {
     await endsAt(client.uploadFile('f', new Blob(['abcd']), 'a'.repeat(64)), SYNC_REQUEST_TIMEOUT_MS);
   });
 
+  it('e25x A8: a refused upload (413) whose body never ends is that refusal, with no code, after SYNC_REQUEST_TIMEOUT_MS and not before', async () => {
+    vi.useFakeTimers();
+    let aborted = false;
+    const client = createSyncClient({
+      fetch: async (_input, init) =>
+        ({
+          ok: false,
+          status: 413,
+          headers: new Headers(),
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener('abort', () => {
+                aborted = true;
+                reject(new DOMException('aborted', 'AbortError'));
+              });
+            }),
+        }) as unknown as Response,
+    });
+    let settled: SyncFailure | null = null;
+    const failure = failureOf(client.uploadFile('f', new Blob(['abcd']), 'a'.repeat(64))).then((one) => (settled = one));
+    await vi.advanceTimersByTimeAsync(SYNC_REQUEST_TIMEOUT_MS - 1);
+    expect(settled).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await failure).toEqual({ kind: 'http', status: 413 });
+    // The transfer itself is cut, not left to run on.
+    expect(aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('a transfer that answers in time keeps its answer and leaves no timer behind', async () => {
     vi.useFakeTimers();
     const client = createSyncClient({ fetch: async () => new Response('bytes', { status: 200, headers: { 'content-length': '5' } }) });

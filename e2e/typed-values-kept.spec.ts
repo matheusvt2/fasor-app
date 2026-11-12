@@ -15,7 +15,11 @@ import { syncNow } from './support/sync.ts';
  *   sheet left; each op is in the outbox; after a reload and a sync the server holds each value. Offline, the same
  *   three land in the outbox.
  * - 25.2-E2E-002: a confirmed conclusion text reads as text (no textbox, no border) and "Editar" opens the field; a
- *   reading that is no number, left with the sheet, is offered on return as a draft.
+ *   reading that is no number, left with the sheet, is offered on return as a draft. Fix batch e25x (A3): an offer on
+ *   return answered by a valid value typed in that field, or closed with "Fechar" beside it, leaves no draft and no
+ *   offer after a reload.
+ * - 25.2-E2E-003 (fix batch e25x, A10): a reading, FABRICAÇÃO and the conclusion text are each typed and left by a
+ *   stepper tap that moves no focus; each op is in the outbox with no other action.
  */
 
 let account: SeedAccount;
@@ -202,6 +206,78 @@ test('@p1 25.2-E2E-002 a confirmed conclusion text reads as text and "Editar" op
   const again = await firstReading(page, blockId);
   await expect(again.input).toHaveValue('abc');
   expect((await outbox(page)).filter((row) => row.path === reading.path)).toEqual([]);
+
+  // Fix batch e25x (A3): offered on return again, then answered by a valid value typed in that field and blurred: the
+  // value is saved, the draft and its offer are gone, and a reload offers nothing.
+  const drafts = async () => (await readStore<{ value: unknown }>(page, database, 'drafts')).map((row) => row.value);
+  await again.input.click();
+  await leaveWithoutBlur(page, blockId, again.input);
+  await expect.poll(drafts).toContain('abc');
+  await backToSheet(page, blockId);
+  await expect(toast).toContainText('Rascunho encontrado');
+  const answered = await firstReading(page, blockId);
+  await answered.input.click();
+  await answered.input.press('Control+A');
+  await answered.input.pressSequentially('548');
+  await answered.input.press('Tab');
+  await expect.poll(() => lastValue(page, reading.path)).toMatchObject({ raw: '548', state: 'measured' });
+  await expect.poll(drafts).toEqual([]);
+  await expect(page.getByTestId('toast').filter({ hasText: 'Rascunho encontrado' })).toHaveCount(0);
+  await page.reload();
+  await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
+  expect(await drafts()).toEqual([]);
+  await expect(page.getByTestId('toast').filter({ hasText: 'Rascunho encontrado' })).toHaveCount(0);
+
+  // Fix batch e25x (A3): offered on return, its field on screen holding the saved value, then closed with "Fechar":
+  // the draft is gone, and a reload offers nothing.
+  const closing = await firstReading(page, blockId);
+  await closing.input.click();
+  await closing.input.press('Control+A');
+  await closing.input.pressSequentially('xyz');
+  await leaveWithoutBlur(page, blockId, closing.input);
+  await expect.poll(drafts).toContain('xyz');
+  await backToSheet(page, blockId);
+  await expect(toast).toContainText('Rascunho encontrado');
+  await toast.getByRole('button', { name: 'Fechar' }).click();
+  await expect.poll(drafts).toEqual([]);
+  await page.reload();
+  await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
+  expect(await drafts()).toEqual([]);
+  await expect(page.getByTestId('toast').filter({ hasText: 'Rascunho encontrado' })).toHaveCount(0);
+  expect(await lastValue(page, reading.path)).toMatchObject({ raw: '548', state: 'measured' });
+});
+
+test('@p1 25.2-E2E-003 on the tablet, a reading, FABRICAÇÃO and the conclusion text typed and left by a stepper tap that moves no focus are each in the outbox, with no other action', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { blockId } = await openChaveSheet(page, account, database, { width: 768 });
+  await page.setViewportSize({ width: 768, height: 1024 });
+  /**
+   * A tablet tap on a stepper section: a click that moves no focus by itself. Found by its label, not its role: an open
+   * combobox list hides the rest of the page from the accessibility tree (React Aria).
+   */
+  const tapStep = (section: string) => page.locator(`.section-stepper button[aria-label^="${section},"]`).first().dispatchEvent('click');
+
+  // The reading: "548", the focus in the cell, then the stepper's "Placa".
+  const reading = await firstReading(page, blockId);
+  await reading.input.click();
+  await reading.input.pressSequentially('548');
+  await expect(reading.input).toBeFocused();
+  await tapStep('Placa');
+  await expect.poll(() => lastValue(page, reading.path)).toMatchObject({ raw: '548', state: 'measured' });
+
+  // FABRICAÇÃO: a name typed, the focus in the field, then the stepper's "Conclusão".
+  const name = `Fabricante E25X ${Date.now()}`;
+  const makerInput = await typeMaker(page, name);
+  await expect(makerInput).toBeFocused();
+  await tapStep('Conclusão');
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/nameplate/fabricacao`)).toBe(name);
+
+  // The conclusion text: typed, the focus in the field, then the stepper's "Ensaios".
+  const text = await typeConclusionText(page, blockId, ' Texto deixado pelo stepper.');
+  const expected = await text.expected();
+  await expect(text.editor).toBeFocused();
+  await tapStep('Ensaios');
+  await expect.poll(() => lastValue(page, `sheet/${blockId}/conclusion/text`)).toBe(expected);
 });
 
 test('@p0 G1-E2E-001 a point from a test with a Prazo typed by hand, stored by "Concluir", leaves no draft: after a reload no "Rascunho encontrado"', async ({ page }) => {

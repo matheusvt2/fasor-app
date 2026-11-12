@@ -772,7 +772,16 @@ function WordField({ field, value, commit, missing, label, registries, recents: 
   if (created.current !== null && selected !== null && current === created.current) created.current = null;
   // Story 25.2: the stored name a clear was just written for, until the store says null, so a clear is written once.
   const clearedFrom = useRef<string | null>(null);
-  if (current === null) clearedFrom.current = null;
+  // Fix batch e25x (A9): once the store holds anything but the cleared name (null, or a name picked or written since,
+  // even when no render saw the null), a later clear of that name is a new one.
+  if (clearedFrom.current !== null && current !== clearedFrom.current) clearedFrom.current = null;
+  /** Fix batch e25x (A9): writes the clear of `from` once; a refused write lets the next clear try again. */
+  const writeClear = (from: string) => {
+    clearedFrom.current = from;
+    void Promise.resolve(commit(null)).catch(() => {
+      if (clearedFrom.current === from) clearedFrom.current = null;
+    });
+  };
   // E78-Q4: a stored manufacturer the registry does not hold shows its name and "Criar ⟨nome⟩?",
   // until the tap's registry row lands (one tap, one create).
   const [registering, setRegistering] = useState<string | null>(null);
@@ -798,20 +807,19 @@ function WordField({ field, value, commit, missing, label, registries, recents: 
           if (chosen === undefined && (created.current !== null || (current !== null && selected === null))) return;
           if (chosen === undefined && current !== null) {
             if (clearedFrom.current === current) return;
-            clearedFrom.current = current;
+            writeClear(current);
+            return;
           }
+          // Fix batch e25x (A9): a name picked ends any clear in flight; clearing it later is a new clear.
+          if (chosen !== undefined) clearedFrom.current = null;
           void commit(chosen === undefined ? null : chosen.name);
         }}
         // Story 25.2 (M02): the technician emptied the field and left it: the clear is written whatever the stored
         // name is (also one the registry does not hold), once.
         onClear={() => {
           if (current === null || clearedFrom.current === current) return;
-          clearedFrom.current = current;
           created.current = null;
-          // A refused write lets the next clear try again.
-          void Promise.resolve(commit(null)).catch(() => {
-            clearedFrom.current = null;
-          });
+          writeClear(current);
         }}
         onCreate={(text) => {
           const name = kind === 'voltage_class' ? parseVoltageClassKv(text) : text.trim();

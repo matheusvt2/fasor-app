@@ -4094,3 +4094,26 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   class: test-gap
   state: open (owner: the wave 1 integrated gate; if either goes red again, harden it: wait for the list to be gone after "Criar" in the journey helpers, and wait for Home's list before "Novo relatório" in `createProjectFromHome`)
 
+
+## Deferred from: Epic 25 fix batch e25x, the wave 1 review fixes (2026-11-12)
+
+- source_spec: `spec-e25x-wave1-web-fixes.md` (A6 of the wave 1 integrated review, not fixed)
+  summary: the late alert ("Envio atrasado") shows during slow photo uploads that work as designed: an edit waits one upload attempt before the push between files, and a `sent` row in flight for more than 60 s counts as late. Story 25.3 allows it.
+  evidence: `apps/web/src/state/late-ops.ts`; `apps/web/src/sync/engine.ts` `pushBetweenFiles`.
+  class: question
+  state: open (owner: a question for the field engineer after field use: does the alert show while photos upload, and does it worry the technician?)
+- source_spec: `spec-e25x-wave1-web-fixes.md` (Design Notes Q1)
+  summary: "Fechar" on a draft offered at launch keeps its row (retro U7), so it is offered at every launch until "Recuperar"; a saved conclusion text does not drop its offered draft (it commits on every 500 ms pause, which is no answer to an offer). This batch drops only a reading's draft answered by a saved value, and a draft offered on return and closed with its field on screen.
+  evidence: `apps/web/src/state/drafts.tsx` (`persistOne` `committed`/`answersOffer`, the toast's `onDismiss`).
+  class: decision
+  state: open (owner: Matheus: should "Fechar" drop a launch draft, and should a saved text drop its offered draft?)
+- source_spec: `spec-e25x-wave1-web-fixes.md` (A3 and A4, scope)
+  summary: the drop of an older draft row after a saved value is wired in the number input and the generated text only. The other draft sources (`ficha-fields.tsx` text fields, `state/draft-autosave.ts`, the fixtures surface) were not read for the same hazard; the point editor has its own rule (G1).
+  evidence: `grep -rln useDraftSource apps/web/src`.
+  class: gap
+  state: open (owner: the next batch touching drafts; low)
+- source_spec: `spec-e25x-wave1-web-fixes.md` (A8, scope)
+  summary: `send` (file transfers) now reads a refused answer's body within a bound; `request` (the JSON routes: push, pulls, generate) still reads its answer body with no bound, as e24f left it ("the answer's download is not cut").
+  evidence: `apps/web/src/sync/client.ts` `request`.
+  class: note
+  state: open (owner: the next batch touching sync, with fix batch e24x B1; low)

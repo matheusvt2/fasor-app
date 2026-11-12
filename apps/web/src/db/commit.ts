@@ -328,7 +328,8 @@ export async function commitFileBatch(
     return { batch_id, ops, statusChanges };
   });
   publishStatusChanges(statusChanges);
-  if (committed.ops.length > 0) announceCommit();
+  // Fix batch e25x: the bytes need a full cycle (the upload phase), asked once; a photo's capture asks its own.
+  if (committed.ops.length > 0) announceCommit('file');
   return committed;
 }
 

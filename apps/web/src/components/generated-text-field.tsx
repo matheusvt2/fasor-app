@@ -1,7 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { ui } from '../copy/ui.ts';
 import { useFieldCommit } from '../input/use-field-commit.ts';
-import { useDraftSource } from '../state/drafts.tsx';
+import { useDraftSource, type PersistOptions } from '../state/drafts.tsx';
 import { CharCount } from './char-count.tsx';
 
 export type GeneratedTextState = 'unconfirmed' | 'confirmed' | 'edited' | 'stale';
@@ -84,6 +84,8 @@ export function GeneratedTextField({
   const committer = useFieldCommit<string>({ commit: (next) => onEdit(next) });
   /** Story 25.2: the last text committed from typing, or stored: a typed text equal to it is never committed again. */
   const lastCommitted = useRef(text);
+  /** Fix batch e25x (A4): this field's draft writer, set below from `useDraftSource` (a test double may supply none). */
+  const persistDraft = useRef<((options?: PersistOptions) => Promise<void>) | null>(null);
   // Story 25.2: the typed text's own committer, with the 500 ms idle commit; Editar and a recovered draft use `committer`.
   const typed = useFieldCommit<string>({
     commit: (next) => {
@@ -100,6 +102,17 @@ export function GeneratedTextField({
         if (lastCommitted.current === next) lastCommitted.current = previous;
         dirty.current = true;
       };
+      // Fix batch e25x (A4): the write succeeded, so an older draft row of this field (a tab-hide while typing) would
+      // only put older text back over it: dropped, unless the field is dirty again. A row on offer stays (Design Notes D2).
+      const succeeded = () => {
+        const persist = persistDraft.current;
+        if (persist === null) return;
+        try {
+          void persist({ committed: true })?.catch(() => undefined);
+        } catch {
+          // A test double with no draft store.
+        }
+      };
       let result: void | Promise<void>;
       try {
         result = onEdit(next);
@@ -107,12 +120,14 @@ export function GeneratedTextField({
         refused();
         throw error;
       }
-      return result instanceof Promise
-        ? result.catch((error: unknown) => {
-            refused();
-            throw error;
-          })
-        : result;
+      if (result instanceof Promise) {
+        return result.then(succeeded, (error: unknown) => {
+          refused();
+          throw error;
+        });
+      }
+      succeeded();
+      return result;
     },
   });
   // The stored text moved while nobody types here: show it.
@@ -135,7 +150,7 @@ export function GeneratedTextField({
     },
     [],
   );
-  useDraftSource({
+  const persist = useDraftSource({
     surface: draft.surface,
     entityId: draft.entityId,
     field: draft.field,
@@ -150,6 +165,7 @@ export function GeneratedTextField({
       committer.immediate(next);
     },
   });
+  persistDraft.current = typeof persist === 'function' ? persist : null;
 
   const suggested = state === 'unconfirmed';
   // E5-Q5: a stale text's criteria line is the recomposed text's, the evidence of the
