@@ -4148,3 +4148,21 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/export/use-generate.ts` (the `catch` of the generate request, about line 314).
   class: gap
   state: open (owner: the next batch touching the Export dialog; low)
+
+## Deferred from: Epic 25 batch e25p, the review of PR #333 (2026-11-12)
+
+- source_spec: Story 25.23 (review of PR #333, finding 2; not fixed)
+  summary: `planTestBaseUpdate` does not check that the file is newer than the revision the types hold, so an older revision applied after a newer one restores its older texts, shown only in the "Substitui N textos" count.
+  evidence: `packages/domain/src/types/test-base-update.ts` `planTestBaseUpdate` (about line 233).
+  class: gap
+  state: open (owner: the next batch touching the test base update; low)
+- source_spec: Story 25.20 (review of PR #333, finding 4; not fixed)
+  summary: `connectionLabel` and the reading cell's label are not gated by seed, so a company copy whose connection column is named like "XXs" prints as written on v14 too. No seeded column is affected; goldens byte-equal.
+  evidence: `packages/domain/src/print/section-9.ts` `connectionLabel` (about lines 53-65); `packages/domain/src/relatorio/reading-cells.ts` (about line 364).
+  class: gap
+  state: open (owner: the next batch touching section 9; low)
+- source_spec: Story 25.23 (seen while fixing finding 1 of the review of PR #333; not fixed)
+  summary: the update's draft for a copy of an older seed (v12) that gains current-seed tests fails the strict definition schema (`applies_when` and `winding_correction` name nameplate fields the old copy lacks), so that draft cannot be published as is.
+  evidence: `packages/domain/src/types/test-base-update.ts` `addSeedTests`; reproduce with `companyTypeDefinitionSchema.safeParse` on the TR-OL draft of the AC2 case in `test-base-update.test.ts`.
+  class: bug
+  state: open (owner: Matheus to decide; medium)

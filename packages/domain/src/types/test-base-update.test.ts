@@ -205,6 +205,18 @@ describe('25.23-UNIT the update plan', () => {
     expect(plan.updates.find((update) => update.label === TR_OL)).toBeUndefined();
   });
 
+  it('AC2: a test an earlier update added and the office then removed is not added again by a later update (review of PR #333)', () => {
+    const state = imported(planTestBaseImport(A, EMPTY_DEFINITION_CONTEXT, 'v12'));
+    const first = planTestBaseUpdate(A, state.ctx);
+    expect(first.updates.find((update) => update.label === TR_OL)!.added).toContain('resistencia_enrolamento');
+    const updated = updatedAndPublished(state, first);
+    const definition = structuredClone(latest(updated, TR_OL)) as unknown as { measurement_tests: Entry[] };
+    definition.measurement_tests = definition.measurement_tests.filter((test) => test.key !== 'resistencia_enrolamento');
+    const removed = published(updated, typeOf(updated, TR_OL).id, definition as unknown as CompanyTypeDraft);
+    const second = planTestBaseUpdate(B, removed.ctx);
+    expect(second.updates.find((update) => update.label === TR_OL)?.added ?? []).not.toContain('resistencia_enrolamento');
+  });
+
   it('AC3: a text the office edited that the revision also changed is listed and kept unless the office takes the base', () => {
     const state = officeEdit(imported(IMPORT_A), DJ, 'isolacao', 'recommendation', 'Texto da empresa.');
     const plan = planTestBaseUpdate(B, state.ctx);

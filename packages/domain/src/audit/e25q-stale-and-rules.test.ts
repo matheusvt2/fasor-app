@@ -15,7 +15,7 @@ import { sumarioRows } from '../relatorio/sumario.ts';
 import { visitContextOf } from '../relatorio/visit-context.ts';
 import { auditRunRowSchema, type AuditRunRow, type BlockRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, EMPTY_DEFINITION_CONTEXT, findDefinition, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
 import type { RelatorioStream, StreamCandidate } from '../status/edited-since.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
@@ -212,6 +212,21 @@ describe('25.24-UNIT the three fixed rules', () => {
     // Concluded again (Reprovado), the rule goes.
     const again = withPuts(base, [...contact(breaker.id, ['45', '47', '5000']), [`sheet/${breaker.id}/conclusion/result`, 'reprovado']]);
     expect(auditRuleRows(again)).toEqual([]);
+  });
+
+  it('1. a Reprovado ficha keeping a restriction stored before is never named against a restriction floor (review of PR #333)', () => {
+    const breaker = base.breakers[0]!;
+    const item = findDefinition(breaker.seed_version, 'disjuntor_mt')!.checklist![0]!.key;
+    const snapshot = withPuts(base, [
+      ...contact(breaker.id, ['45', '47', '46']),
+      [`sheet/${breaker.id}/checklist/${item}/result`, 'NC'],
+      // A restriction stored before, then Reprovado written alone (an older client, another device).
+      [`sheet/${breaker.id}/conclusion/restriction`, 'sem_restricoes'],
+      [`sheet/${breaker.id}/conclusion/result`, 'reprovado'],
+    ]);
+    const block = snapshot.blocks.find((row) => row.id === breaker.id)!;
+    expect(conclusionFloorReasonText(block, blockDefinitionIn(snapshotDefinitionContext(snapshot), block), visitContextOf(snapshot, block))).toMatch(/^A ficha exige no mínimo Aprovado · Com restrições/);
+    expect(auditRuleRows(snapshot)).toEqual([]);
   });
 
   it('2. two breakers whose contact readings are the same three values in the same order, naming both', () => {

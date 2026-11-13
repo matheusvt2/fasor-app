@@ -162,7 +162,8 @@ test('@p0 24.21-E2E-001 a transformer born TR-01 through "Novo relatório" and r
   expect(printedB.paragraphs).toContain('TRANSFORMADOR DE FORÇA TF-A');
   const withPrevious = printedB.tables.filter((table) => table[0]?.[0] === 'PONTO DE ENSAIO/CONEXÃO' && table[1]?.at(-1) === previousHeaderText(last, SEED_VERSION));
   expect(withPrevious).toHaveLength(1);
-  expect(withPrevious[0]![2]!.at(-1)).toBe('4,9 GΩ');
+  // Story 25.20 (seed v15): MANUT. ANTERIOR keeps the value with its unit (a no-break space, `joinUnits`).
+  expect(withPrevious[0]![2]!.at(-1)).toBe('4,9\u00a0GΩ');
 });
 
 test('24.21-E2E-002 a breaker added from the palette as "QM8", the relatório saved with "Salvar como template", and a relatório created from that template binds both breakers of Coluna 1, none created', async ({ page }) => {

@@ -604,7 +604,9 @@
  * `audit-2`: an observation naming an item its checklist does not have). The device marks a finished run
  * out of date when an edit of the relatório is newer than that point (`auditRunStale`). Optional and
  * never defaulted on the run row: a run written before 52 parses to the same bytes and reads as out of
- * date. No id and no instant. MIN follows to 52 (below).
+ * date. No id and no instant. MIN follows to 52 (below). Review of PR #333: a company type's definition and
+ * draft gain the optional `base_added_tests` (the tests an update of the test base added, so a later update never
+ * adds back one the office removed); a definition without it parses as before.
  */
 export const CONTRACT_VERSION = 52;
 

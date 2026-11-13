@@ -29,7 +29,8 @@ import {
  * - a held type (`heldTestBaseType`: same seeded source and name) gets a new draft built over its
  *   open draft, else its latest published version, with
  *   - each test the current seed's type has and the held type lacks, with the base's texts, unless
- *     the seed the type was copied from already had it (the office removed it: never re-added);
+ *     the seed the type was copied from already had it, or an earlier update added it (`base_added_tests`):
+ *     the office removed it, never re-added;
  *   - each text the held test lacks (and never received from the base), filled;
  *   - each text nobody edited since the base filled it (equal to its record in `base_texts`),
  *     replaced by the newer revision's by itself;
@@ -132,7 +133,9 @@ function addSeedTests(draft: Entry, type: EquipmentTypeRow, rows: TestBaseTypeRo
   const seed = duplicateSeededType(seedVersion, rows.blockType).draft as unknown as Entry;
   const from = type.derived_from;
   const original = from !== null && 'seed_version' in from ? findDefinition(from.seed_version, rows.blockType) : null;
-  const originalKeys = new Set(original === null ? [] : [...original.tests, ...(original.measurement_tests ?? [])].map((test) => test.key));
+  // Review of PR #333 (finding 1): a test an earlier update added (`base_added_tests`) and the office then removed is its removal too.
+  const earlier = Array.isArray(draft.base_added_tests) ? (draft.base_added_tests as unknown[]).filter((key): key is string => typeof key === 'string') : [];
+  const originalKeys = new Set([...(original === null ? [] : [...original.tests, ...(original.measurement_tests ?? [])].map((test) => test.key)), ...earlier]);
   const added: string[] = [];
   for (const part of ['tests', 'measurement_tests'] as const) {
     const seedTests = listOf(seed, part);
@@ -166,6 +169,7 @@ function addSeedTests(draft: Entry, type: EquipmentTypeRow, rows: TestBaseTypeRo
       have.add(key);
     }
     draft.criteria = criteria;
+    draft.base_added_tests = [...earlier, ...added];
   }
   return added;
 }

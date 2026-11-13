@@ -1,5 +1,5 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
-import { conclusionFloorReasonText, conclusionRestrictionOf, conclusionResultOf, isLooserThanFloor, storedConclusionPairText } from '../relatorio/conclusion.ts';
+import { conclusionFloorReasonText, conclusionRestrictionOf, conclusionResultOf, isLooserThanFloor, restrictionApplies, storedConclusionPairText } from '../relatorio/conclusion.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
 import { isEquipmentBlock } from '../relatorio/sheet-state.ts';
@@ -144,7 +144,8 @@ export function auditRuleRows(snapshot: RelatorioSnapshot): AuditFindingRow[] {
     // 1. The stored result looser than the floor.
     const stored = storedConclusionPairText(sheet.block);
     const result = conclusionResultOf(sheet.block);
-    const restriction = conclusionRestrictionOf(sheet.block);
+    // Review of PR #333 (finding 3): a Reprovado ficha has no restriction (seed v14 on); one stored before is ignored, as every reader ignores it.
+    const restriction = result !== null && restrictionApplies(sheet.block, result) ? conclusionRestrictionOf(sheet.block) : null;
     const looser = result !== null && (isLooserThanFloor(sheet.block, result, sheet.definition, visit) || (restriction !== null && isLooserThanFloor(sheet.block, restriction, sheet.definition, visit)));
     const floorText = looser ? conclusionFloorReasonText(sheet.block, sheet.definition, visit) : null;
     // authored (Story 25.24, listed for Bruno): the first rule's sentence, then the ficha's own reason line.

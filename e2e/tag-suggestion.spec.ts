@@ -191,5 +191,6 @@ test('@p0 24.8-E2E-002 an obra with the old TAGs issued once; a second relatóri
   expect(structure.paragraphs).toContain('TRANSFORMADOR DE FORÇA TR-1');
   const withPrevious = structure.tables.filter((table) => table[0]?.[0] === 'PONTO DE ENSAIO/CONEXÃO' && table[1]?.at(-1) === previousHeaderText(last, SEED_VERSION));
   expect(withPrevious).toHaveLength(1);
-  expect(withPrevious[0]![2]!.at(-1)).toBe('4,9 GΩ');
+  // Story 25.20 (seed v15): MANUT. ANTERIOR keeps the value with its unit (a no-break space, `joinUnits`).
+  expect(withPrevious[0]![2]!.at(-1)).toBe('4,9\u00a0GΩ');
 });
