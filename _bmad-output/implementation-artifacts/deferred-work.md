@@ -1044,7 +1044,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E78-Q10. Section 10's validity line prints the literal placeholder `[ART]` when the ART number is blank ("Este relatório tem validade apenas acompanhada da ART [ART]").
   evidence: `reviews/epic-7-8-review-qa.md` E78-Q10 (Rev. 1 PDF p.106); tracked under E7-A3 (2026-09-28).
   class: question
-  state: open (owner: Matheus decides the blank-ART wording (E7-A5); the next batch touching section 10 applies it)
+  state: ~~open (owner: Matheus decides the blank-ART wording (E7-A5); the next batch touching section 10 applies it)~~ closed for seed v15 (2026-11-12, Story 25.22, batch e25p: the validity line reads "Este relatório tem validade apenas acompanhado da respectiva ART." with no number, so a blank one prints no bracket); v1 to v14 keep "[ART]" by design (byte-identical print)
 
 - source_spec: spec-epic-7-8-fix-qa.md
   summary: E78-Q12. "82 aguardando envio" (pre-issue row, gallery header, tiles) reads as if this device will send the photos; on an office device that never held them the server simply lacks them. The gallery's static note "Os números são provisórios até a exportação" sits beside "Números da revisão 1".
@@ -3437,7 +3437,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: a company that already imported the base never gets texts for tests a later seed adds: a held copy (same seeded source and name, not removed) is skipped, never updated, so a re-import cannot refresh it without overwriting the office's edits. Updating held copies is a product choice.
   evidence: `packages/domain/src/types/test-base-import.ts` `alreadyHeld`, `planTestBaseImport`.
   class: decision
-  state: ~~open (owner: Matheus; harmless for the first production import, which runs after the single v13 deploy with e23e's tests)~~ decided (2026-11-10, Matheus: accepted, no change): a re-import does not update the types already imported, so the office's edits are not lost. Open only until Bruno sends a new revision of the base, when it is decided again (owner: Matheus)
+  state: ~~open (owner: Matheus; harmless for the first production import, which runs after the single v13 deploy with e23e's tests)~~ ~~decided (2026-11-10, Matheus: accepted, no change): a re-import does not update the types already imported, so the office's edits are not lost. Open only until Bruno sends a new revision of the base, when it is decided again (owner: Matheus)~~ closed (2026-11-12, Story 25.23, batch e25p): a second import still skips a held copy, and "Atualizar base de ensaios" applies a newer revision over it as a draft: the tests the current seed adds and the empty texts are filled, a text nobody edited since the last update is replaced by itself, an edited one is listed and kept unless the office takes the base's (`types/test-base-update.ts` `planTestBaseUpdate`; 25.23-UNIT, 25.23-API-001, 25.23-E2E-001). Built against a synthetic revision B; the real new revision has not arrived and its format is checked before a production run.
 
 ## Deferred from: Epic 23 fix batch e23z (2026-11-10)
 
@@ -4148,3 +4148,21 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/export/use-generate.ts` (the `catch` of the generate request, about line 314).
   class: gap
   state: open (owner: the next batch touching the Export dialog; low)
+
+## Deferred from: Epic 25 batch e25p, the review of PR #333 (2026-11-12)
+
+- source_spec: Story 25.23 (review of PR #333, finding 2; not fixed)
+  summary: `planTestBaseUpdate` does not check that the file is newer than the revision the types hold, so an older revision applied after a newer one restores its older texts, shown only in the "Substitui N textos" count.
+  evidence: `packages/domain/src/types/test-base-update.ts` `planTestBaseUpdate` (about line 233).
+  class: gap
+  state: open (owner: the next batch touching the test base update; low)
+- source_spec: Story 25.20 (review of PR #333, finding 4; not fixed)
+  summary: `connectionLabel` and the reading cell's label are not gated by seed, so a company copy whose connection column is named like "XXs" prints as written on v14 too. No seeded column is affected; goldens byte-equal.
+  evidence: `packages/domain/src/print/section-9.ts` `connectionLabel` (about lines 53-65); `packages/domain/src/relatorio/reading-cells.ts` (about line 364).
+  class: gap
+  state: open (owner: the next batch touching section 9; low)
+- source_spec: Story 25.23 (seen while fixing finding 1 of the review of PR #333; not fixed)
+  summary: the update's draft for a copy of an older seed (v12) that gains current-seed tests fails the strict definition schema (`applies_when` and `winding_correction` name nameplate fields the old copy lacks), so that draft cannot be published as is.
+  evidence: `packages/domain/src/types/test-base-update.ts` `addSeedTests`; reproduce with `companyTypeDefinitionSchema.safeParse` on the TR-OL draft of the AC2 case in `test-base-update.test.ts`.
+  class: bug
+  state: open (owner: Matheus to decide; medium)

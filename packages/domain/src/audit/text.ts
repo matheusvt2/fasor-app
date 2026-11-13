@@ -1,6 +1,7 @@
 import { formatTimeOfDay } from '../format/datetime.ts';
 import { isJobActive } from '../print/revisions.ts';
 import type { AuditRunRow } from '../schemas/entities.ts';
+import { editedOnDevice, type RelatorioStream, type StreamCandidate } from '../status/edited-since.ts';
 import { plural } from '../text/plural.ts';
 import type { AuditFindingKind, AuditTarget } from './schema.ts';
 
@@ -23,6 +24,8 @@ export const AUDIT_FINDING_KIND_LABELS: Readonly<Record<AuditFindingKind, string
   reading_out_of_family: 'Leitura fora do padrão',
   parecer_vs_restricoes: 'Parecer e restrições',
   caption_equipment: 'Legenda e equipamento',
+  // authored (Story 25.24, listed for Bruno; the frame's word, `73-exportar.html`): the model's new kind.
+  observation_vs_items: 'Observação e itens',
 };
 
 /** A run that still counts as running: `isJobActive`'s rule with the audit queue's two ages. */
@@ -65,6 +68,8 @@ export interface AuditFindingRow {
   text: string;
   /** Where "Ver" goes. */
   target: AuditTarget;
+  /** Story 25.24: a fixed rule of the kernel (`audit/rules.ts`), always current, shown with "Regra"; absent on the model's findings. */
+  rule?: true;
 }
 
 /** The rows of a finished run, in the model's order; none for a run that is not done. */
@@ -79,10 +84,14 @@ export function auditFindingRows(run: AuditRunRow | null): AuditFindingRow[] {
   }));
 }
 
-/** "Nenhum ponto encontrado", "1 ponto para conferir", "3 pontos para conferir"; '' for a run that is not done. */
-export function auditSummaryText(run: AuditRunRow | null): string {
+/**
+ * "Nenhum ponto encontrado", "1 ponto para conferir", "3 pontos para conferir"; '' for a run that is
+ * not done. Story 25.24: `rules`, the fixed rules listed beside the run's findings, count with them
+ * (the frame's "3 pontos para conferir" over a rule and two findings).
+ */
+export function auditSummaryText(run: AuditRunRow | null, rules = 0): string {
   if (run === null || run.status !== 'done') return '';
-  const n = run.findings.length;
+  const n = run.findings.length + rules;
   // authored: a finished run with nothing to point at (open for Matheus).
   if (n === 0) return 'Nenhum ponto encontrado';
   return plural(n, 'ponto para conferir', 'pontos para conferir');
@@ -92,6 +101,22 @@ export function auditSummaryText(run: AuditRunRow | null): string {
 export function auditCheckedAtText(run: AuditRunRow | null): string {
   const time = run === null || run.status !== 'done' ? '' : formatTimeOfDay(run.finished_at);
   return time === '' ? '' : `Conferido às ${time}`;
+}
+
+/**
+ * Story 25.24 (M16): whether a finished run is out of date, the relatório changed after the point it
+ * read. `pulled` and `unsent` are the device's ops of the relatório (`editedOnDevice`'s two lists:
+ * the pulled ones past the run's `snapshot_seq`, and this device's ops the server has not applied),
+ * `stream` its own ops plus those of the equipment its live blocks reference. An edit is what AD-15
+ * counts (`countsAsEdit`): never a system op, so the run's own puts never make it stale. A run with
+ * no recorded point (written before contract 52) is out of date: what it read is not known. False
+ * for a run that is not done (nothing shown to mark).
+ */
+export function auditRunStale(run: AuditRunRow | null, pulled: readonly StreamCandidate[], unsent: readonly StreamCandidate[], stream: RelatorioStream): boolean {
+  if (run === null || run.status !== 'done') return false;
+  const point = run.snapshot_seq ?? null;
+  if (point === null) return true;
+  return editedOnDevice(pulled, unsent, point, stream);
 }
 
 /**

@@ -277,7 +277,8 @@ describe('13.8-API-001 one tap, one run, one job', () => {
     expect(done!.status).toBe('done');
     expect(done!.prompt_version).toBe('fake-audit-1');
     expect(done!.finished_at).not.toBeNull();
-    expect(done!.findings.map((finding) => finding.kind)).toEqual([...AUDIT_FINDING_KINDS]);
+    // Story 25.24: no sheet of this relatório cites an item number, so the fifth kind's canned finding is skipped.
+    expect(done!.findings.map((finding) => finding.kind)).toEqual(AUDIT_FINDING_KINDS.filter((kind) => kind !== 'observation_vs_items'));
     // The fake cites the first sheet and the first row in text order (the template's own sheets come first).
     const sheetIds = new Set((await db.select({ id: entities.id }).from(entities).where(and(eq(entities.entity, 'block'), eq(entities.relatorio_id, relatorioId)))).map((row) => row.id));
     expect(sheetIds.has(blockId)).toBe(true);
@@ -445,6 +446,75 @@ describe('13.8-API-002 refusals', () => {
     const res = await request(app, `/api/sync/relatorios/${newId()}?since=0`, {}, 14);
     expect(res.status).toBe(426);
     expect(errorResponseSchema.parse(await res.json()).code).toBe('contract_outdated');
+  });
+});
+
+describe("25.24-API-001 the run's point, the new kind, the 426 and another company's read", () => {
+  it('the job records the point it read under the lock; an observation citing "item 9" gets the new kind on its sheet; a version-51 pull is refused; company B reads nothing of it', async () => {
+    const sent: AuditPayload[] = [];
+    const app = appWith(sent);
+    const { relatorioId, blockId } = await relatorio(app);
+    // The sheet's OBSERVAÇÕES cite an item its checklist does not have (the fake's `sheet-citing:item 9`).
+    const observation = stamp({
+      kind: 'put',
+      scope: 'relatorio',
+      company_id: companyA.companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path: `sheet/${blockId}/observations`,
+      value: 'Conforme o item 9 da lista, o terminal foi reapertado.',
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: companyA.userId,
+    });
+    await push(app, [observation]);
+
+    const res = await postAudit(app, relatorioId, observation.op_id);
+    expect(res.status, await res.clone().text()).toBe(202);
+    const { audit_run_id: runId } = auditResponseSchema.parse(await res.json());
+    expect(await runAuditJob(jobDeps(createAuditProvider({ LLM_PROVIDER: 'fake', AI_FEATURES: 'on' })), sent[0]!)).toBe('done');
+
+    const [done] = await runsOf(relatorioId);
+    expect(done!.status).toBe('done');
+    // The point: at or after the observation (the run read it), before the run's own done batch.
+    const seqOf = async (path: string) => (await db.select({ seq: ops.seq }).from(ops).where(and(eq(ops.company_id, companyA.companyId), eq(ops.path, path))))[0]!.seq;
+    const observed = (await db.select({ seq: ops.seq }).from(ops).where(and(eq(ops.company_id, companyA.companyId), eq(ops.op_id, observation.op_id))))[0]!.seq;
+    expect(done!.snapshot_seq).toBeGreaterThanOrEqual(observed);
+    expect(done!.snapshot_seq).toBeLessThan(await seqOf(`audit_run/${runId}/findings`));
+    expect(done!.snapshot_seq).toBeGreaterThanOrEqual(await seqOf(`audit_run/${runId}/started_at`));
+    const fifth = done!.findings.find((finding) => finding.kind === 'observation_vs_items');
+    expect(fifth).toMatchObject({ ref: `sheet:${blockId}`, target: { kind: 'sheet', blockId } });
+
+    // The relatório stream at 52 carries the point; a version-51 pull is refused, a push of 51 still lands (AD-13).
+    const pull = await request(app, `/api/sync/relatorios/${relatorioId}?since=0`);
+    expect(pull.status).toBe(200);
+    const pulled = syncPullResponseSchema.parse(await pull.json()).ops.map((op) => opSchema.parse(op));
+    expect(pulled.find((op) => op.path === `audit_run/${runId}/snapshot_seq`)?.value).toBe(done!.snapshot_seq);
+    const old = await request(app, `/api/sync/relatorios/${relatorioId}?since=0`, {}, 51);
+    expect(old.status).toBe(426);
+    expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
+
+    // Company B: its pull of A's relatório and its tap on it are refused, and nothing of A's run reaches its stream.
+    const companyB = TEST_SEED.companies[1];
+    const signInB = await fetch(`${apiUrl}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { origin: apiUrl, 'content-type': 'application/json' },
+      body: JSON.stringify({ email: companyB.email, password: TEST_SEED.password }),
+    });
+    expect(signInB.status).toBe(200);
+    const cookieB = signInB.headers
+      .getSetCookie()
+      .map((value) => value.split(';')[0])
+      .join('; ');
+    const asB = (path: string, init: RequestInit = {}) => app.request(path, { ...init, headers: { cookie: cookieB, [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION), ...(init.headers as Record<string, string>) } });
+    expect((await asB(`/api/sync/relatorios/${relatorioId}?since=0`)).status).toBe(404);
+    const tap = await asB(`/api/relatorios/${relatorioId}/audit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ last_op_id: null, file_ids_expected: [] }) });
+    expect(tap.status).toBe(404);
+    const companyStream = await asB('/api/sync/company?since=0');
+    expect(companyStream.status).toBe(200);
+    expect(JSON.stringify(await companyStream.json())).not.toContain(runId);
+    expect(sent).toHaveLength(1);
   });
 });
 

@@ -2,9 +2,9 @@ import { auditInput, layoutSpec, toIso, validateAuditFindings, type AuditFinding
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
 import { log, logError } from '../../log.ts';
-import { applyOps, applyServerBatch } from '../../sync/apply.ts';
+import { applyOps, applyServerBatch, lockCompany, type Tx } from '../../sync/apply.ts';
 import { serverOp } from '../../sync/server-op.ts';
-import { toSnapshot } from '../../sync/snapshot.ts';
+import { freezeSnapshot } from '../../sync/snapshot.ts';
 import { AiFeaturesOffError, PermanentReadingError, ProviderError, ProviderRefusedError, ProviderTimeoutError } from '../../ai/errors.ts';
 import { AUDIT_ACTOR, type AuditPayload } from './payload.ts';
 import type { AuditProvider } from './provider.ts';
@@ -15,7 +15,10 @@ import type { AuditProvider } from './provider.ts';
  * kernel's draft layout and the assembled text (`auditInput`: text and values only, capped),
  * makes ONE provider call, keeps the findings the kernel validates against the refs it sent,
  * and writes them in one server batch with `status: done`, with the run's `coverage` (Story
- * 14.10 lane B, contract 20: the sheets the text carried of the ones the layout prints). A failure writes `status: failed`
+ * 14.10 lane B, contract 20: the sheets the text carried of the ones the layout prints) and its
+ * `snapshot_seq` (Story 25.24, contract 52: the point of the relatório it read, frozen under the
+ * company lock as the generate job freezes it; the device marks the result out of date once an
+ * edit is newer). The job never starts by itself: only a tap's route enqueues it. A failure writes `status: failed`
  * and its error code; nothing is retried (one tap is at most one LLM call). The job writes
  * only `audit_run/{id}/*` ops: no sheet, block, relatório field, suggestion or count.
  *
@@ -37,7 +40,7 @@ export interface AuditJobDeps {
   provider: AuditProvider;
 }
 
-type AuditField = 'status' | 'findings' | 'error' | 'prompt_version' | 'started_at' | 'finished_at' | 'coverage';
+type AuditField = 'status' | 'findings' | 'error' | 'prompt_version' | 'started_at' | 'finished_at' | 'coverage' | 'snapshot_seq';
 
 /** One `audit_run/{id}/{field}` put of the run, as the server's op. */
 export function auditRunPut(payload: Pick<AuditPayload, 'run_id' | 'company_id' | 'relatorio_id'>, now: string, newId: NewId, field: AuditField, value: unknown): Op {
@@ -75,7 +78,12 @@ export async function runAuditJob(deps: AuditJobDeps, payload: AuditPayload): Pr
     const running = await applyOps(deps.db, companyId, [put('status', 'running', startedAt), put('started_at', startedAt, startedAt)], { now: deps.now, origin: 'server' });
     if (running.rejected.length > 0) throw new Error(`audit run ${payload.run_id}: running puts rejected (${running.rejected.map((r) => r.code).join(', ')})`);
 
-    const snapshot = await toSnapshot(deps.db, companyId, payload.relatorio_id);
+    // Story 25.24 (contract 52): the snapshot as the generate job freezes it, under the company lock, so no
+    // op interleaves between what the run reads and the point it records (`snapshot_seq`).
+    const { snapshot, snapshotSeq } = await deps.db.transaction(async (tx: Tx) => {
+      await lockCompany(tx, companyId);
+      return freezeSnapshot(tx, companyId, payload.relatorio_id);
+    });
     // The draft layout, as the preview prints it: no revision number, RASCUNHO, the same text.
     const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: startedAt, art: snapshot.relatorio.setup.art_trt_number, draft: true });
     const input = auditInput(layout, snapshot);
@@ -91,6 +99,7 @@ export async function runAuditJob(deps: AuditJobDeps, payload: AuditPayload): Pr
         put('findings', kept satisfies AuditFinding[], finishedAt),
         put('prompt_version', answer.prompt_version, finishedAt),
         put('coverage', { sent: input.sheetsSent, total: input.sheetsTotal }, finishedAt),
+        put('snapshot_seq', snapshotSeq, finishedAt),
         put('finished_at', finishedAt, finishedAt),
         put('status', 'done', finishedAt),
       ],

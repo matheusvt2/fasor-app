@@ -129,8 +129,9 @@ describe('4.3-UNIT sumarioRows', () => {
     const meta = Object.fromEntries(rows.map((r) => [r.rowKey, r.meta]));
     expect(meta.capa).toBe('Cliente em branco · Responsável técnico em branco · Número da ART/TRT em branco · Razão social não cadastrada · Logo da empresa não cadastrado');
     expect(meta.controle).toBe('montado dos dados do relatório · Rev. 1 na primeira emissão');
-    // Story 7.5: section 1's text names the client, the site and the company, none known yet.
-    expect(meta.section_1).toBe('Dados do relatório em branco: Empresa executora, Obra e Cliente');
+    // Story 7.5: section 1's text names the client, the site and the company, none known yet. Story 25.22 (seed v15): the
+    // client before the obra, as the v15 sentence names them.
+    expect(meta.section_1).toBe('Dados do relatório em branco: Empresa executora, Cliente e Obra');
     expect(meta.section_3).toBe('editado em Dados do relatório › Etapa 2');
     expect(meta.section_2).toBe('texto padrão');
     // Story 12.3: every cabine of a new relatório still asks its six fields (pending, never blocking).

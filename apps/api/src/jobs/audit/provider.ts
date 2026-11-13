@@ -46,13 +46,35 @@ const fakeAuditFixtureSchema = z.object({
   findings: z.array(z.object({ kind: z.string(), ref: z.string(), text: z.string() })),
 });
 
+/** Story 25.24: the selector naming the sheet whose lines carry a text (`sheet-citing:item 9`). */
+const SHEET_CITING = 'sheet-citing:';
+
+/**
+ * Story 25.24: the sheet ref of the first sheet whose lines in `text` carry `needle` (case-folded),
+ * the `[sheet:...]` line at or above the line that holds it; null when no sheet's line does.
+ */
+function sheetCiting(needle: string, text: string, refs: readonly AuditRef[]): string | null {
+  const lines = text.split('\n');
+  const wanted = needle.toLocaleLowerCase('pt-BR');
+  let sheet: string | null = null;
+  for (const line of lines) {
+    const head = /^\[(sheet:[^\]]+)\]/.exec(line);
+    if (head !== null) sheet = head[1]!;
+    else if (/^\[(section|photo):/.test(line)) sheet = null;
+    if (sheet !== null && line.toLocaleLowerCase('pt-BR').includes(wanted)) return refs.some((ref) => ref.id === sheet) ? sheet : null;
+  }
+  return null;
+}
+
 /**
  * A fixture ref as a ref the run sent: `first-sheet`, `first-row` and `first-photo` name the
- * first of that sort in text order; anything else is a ref id as written. Null when the run
- * sent none (the finding is then skipped).
+ * first of that sort in text order; `sheet-citing:<text>` (Story 25.24) the first sheet whose
+ * lines carry that text; anything else is a ref id as written. Null when the run sent none
+ * (the finding is then skipped).
  */
-export function resolveFakeSelector(selector: string, refs: readonly AuditRef[]): string | null {
+export function resolveFakeSelector(selector: string, refs: readonly AuditRef[], text = ''): string | null {
   const firstWith = (prefix: string) => refs.find((ref) => ref.id.startsWith(prefix))?.id ?? null;
+  if (selector.startsWith(SHEET_CITING)) return sheetCiting(selector.slice(SHEET_CITING.length), text, refs);
   switch (selector) {
     case 'first-sheet':
       return firstWith('sheet:');
@@ -71,7 +93,7 @@ export function fakeAuditProvider(fixturePath: string = DEFAULT_AUDIT_FIXTURE): 
     async audit(input) {
       const fixture = fakeAuditFixtureSchema.parse(JSON.parse(readFileSync(fixturePath, 'utf8')));
       const findings = fixture.findings.flatMap((finding) => {
-        const ref = resolveFakeSelector(finding.ref, input.refs);
+        const ref = resolveFakeSelector(finding.ref, input.refs, input.text);
         return ref === null ? [] : [{ kind: finding.kind, ref, text: finding.text }];
       });
       return { findings, model: FAKE_AUDIT_MODEL, prompt_version: FAKE_AUDIT_PROMPT_VERSION, usage: { input_tokens: 0, output_tokens: 0, usd: 0 } };

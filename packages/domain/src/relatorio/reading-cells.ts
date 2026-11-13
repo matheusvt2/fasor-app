@@ -361,6 +361,8 @@ const VOWEL = /[aeiouáéíóúâêôãõà]/i;
  */
 export function readingLabelText(label: string): string {
   const words = label.split(' ').map((word) => {
+    // Story 25.22 (seed v15's ratio headers "TPs" and "TCs"): an acronym's plain plural is kept as written, not read as "TPS".
+    if (/^\p{Lu}{2,}s$/u.test(word)) return word;
     const acronym = screenAcronym(word);
     if (acronym !== null) return acronym;
     if (word.length <= 2 || /[\d']/.test(word) || !VOWEL.test(word)) return word;

@@ -148,6 +148,9 @@ const SCREEN_FORMS: Record<string, string> = {
   TERRA: 'Terra',
   "TP's": "TP's",
   TPS: 'TPS',
+  // Story 25.22 (seed v15): the ratio tables' plain plurals.
+  TPs: 'TPs',
+  TCs: 'TCs',
   'PONTO DE ENSAIO/CONEXÃO': 'Ponto de ensaio/conexão',
   // value columns and their groups
   '1 MINUTO': '1 minuto',

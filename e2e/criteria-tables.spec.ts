@@ -8,6 +8,7 @@ import { readStore } from './support/outbox.ts';
 import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { joinUnits } from '../packages/domain/src/print/section-9.ts';
 
 /*
  * Batch e23a (Stories 23.2 and 23.4, seed v13): a new relatório's dry transformer (EPÓXI, 13,8 kV /
@@ -160,11 +161,12 @@ test('@p0 23.2-E2E-001 a v13 dry transformer judged by NETA Table 100.5 row by r
   const header = structure.tables.find((table) => table[0]?.[0] === 'ENSAIO DE ISOLAÇÃO' && table[2]?.[0] === 'Megger');
   expect(header?.[1]?.at(-1)).toBe('ACEITÁVEL');
   expect(header?.[2]?.at(-1)).toBe('POR LINHA');
-  // The reading table: each row's minimum last, POLARIZAÇÃO N/A on the row above the limit.
-  const table = structure.tables.find((candidate) => candidate[1]?.at(-1) === 'ACEITÁVEL' && candidate.some((r) => r.includes('> 2 TΩ') || r.includes('> 2')))!;
+  // The reading table: each row's minimum last, POLARIZAÇÃO N/A on the row above the limit. Story 25.20 (seed v15):
+  // the table with its corrected column keeps each value with its unit (`joinUnits`, a no-break space).
+  const table = structure.tables.find((candidate) => candidate[1]?.at(-1) === 'ACEITÁVEL' && candidate.some((r) => r.includes(joinUnits('> 2 TΩ')) || r.includes(joinUnits('> 2'))))!;
   expect(table).toBeDefined();
   const polarization = table[1]!.indexOf('POLARIZAÇÃO');
-  expect(table.slice(2).map((r) => r.at(-1))).toEqual(final.tables[0]!.rows.map((r) => r.criterionText));
+  expect(table.slice(2).map((r) => r.at(-1))).toEqual(final.tables[0]!.rows.map((r) => joinUnits(r.criterionText ?? '')));
   expect(table.slice(2).map((r) => r[polarization])).toEqual([NOT_APPLICABLE_TEXT, '-', '-']);
   expect(structure.paragraphs).toContain(final.limitNote);
 });

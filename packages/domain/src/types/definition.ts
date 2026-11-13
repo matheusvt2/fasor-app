@@ -325,6 +325,12 @@ const companyTypeDefinitionShape = {
   // Seed v14, batch e24s (Story 24.14): a copy of the v14 Malha keeps its plate block's title and its "no plate to photograph".
   nameplate_title: notBlank.optional(),
   nameplate_photo: z.literal(false).optional(),
+  /*
+   * Review of PR #333 (Story 25.23, finding 1): the keys of the tests an update of the test base added to this
+   * type, kept after the office removes one, so a later update never adds it again. Optional: a definition
+   * written before it (contract 51 and 52 rows) parses as it is.
+   */
+  base_added_tests: z.array(notBlank).optional(),
 };
 
 /** A version's definition: strict (AD-21 item 2), what `applyOp` checks on publish. */
@@ -394,4 +400,6 @@ export const companyTypeDraftSchema = z.object({
   // Batch e24s (Story 24.14): the copy's plate block title and photo flag, kept as written (the strict schema checks them).
   nameplate_title: z.string().optional(),
   nameplate_photo: z.boolean().optional(),
+  // Review of PR #333 (Story 25.23): the tests an update of the test base added, kept as written.
+  base_added_tests: z.array(z.string()).optional(),
 }) as unknown as z.ZodType<CompanyTypeDraft>;

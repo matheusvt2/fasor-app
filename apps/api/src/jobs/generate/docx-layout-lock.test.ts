@@ -51,6 +51,18 @@ vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importO
       if (rulesOff.v15ReadsV14 && version === 'v15') return actual.seedRule('v14', flag);
       return actual.seedRule(version, flag);
     },
+    // Story 25.22 (25.5-UNIT-SAME): v15's own section texts and ratio headers are seed content, not flags; while v15
+    // reads v14's flags it reads v14's section texts and the TP's and the TC's v14 ratio headers too.
+    sectionText: (version: string, section: number, date: string) => actual.sectionText(rulesOff.v15ReadsV14 && version === 'v15' ? 'v14' : version, section, date),
+    blockDefinitionIn: (...[ctx, block]: Parameters<typeof actual.blockDefinitionIn>) => {
+      const definition = actual.blockDefinitionIn(ctx, block);
+      if (!rulesOff.v15ReadsV14 || block.seed_version !== 'v15' || (block.block_type !== 'tp' && block.block_type !== 'tc') || definition === null) return definition;
+      const v14Ratio = actual.getDefinition('v14', 'cabine_primaria', block.block_type).tests.find((test) => test.key === 'relacao_transformacao')!.tables![0]!;
+      return {
+        ...definition,
+        tests: definition.tests.map((test) => (test.key === 'relacao_transformacao' ? { ...test, tables: test.tables!.map((table, i) => (i === 0 ? { ...table, connection_columns: v14Ratio.connection_columns } : table)) } : test)),
+      };
+    },
   };
 });
 
@@ -254,7 +266,8 @@ describe('24.2-UNIT-SAME a v14 relatório with the v13 fixture\'s answers lays o
  * nothing but the ids the fixture derives from the version, its op ids and the version's own name. The
  * comparison reads v15 through v14's rule flags only (`rulesOff.v15ReadsV14`), so a later Epic 25 story
  * that adds a v15 flag keeps this pin: every v15 difference comes through a flag. Story 25.8's v15
- * definition key is read off the same way (the `restriction.ts` mock above).
+ * definition key is read off the same way (the `restriction.ts` mock above). Story 25.22's v15 section texts
+ * and ratio headers likewise (the `sectionText` and `blockDefinitionIn` of the `definitions.ts` mock above).
  */
 describe('25.5-UNIT-SAME a v15 relatório with the v14 Epic 25 fixture\'s answers concludes and prints as the v14 one', () => {
   beforeEach(() => {

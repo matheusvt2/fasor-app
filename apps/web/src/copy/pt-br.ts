@@ -546,8 +546,8 @@ export const copy = {
       para_raio: 'Para-raio',
       chave_seccionadora: 'Chave seccionadora',
       disjuntor_mt: 'Disjuntor MT',
-      tp: 'TP — proteção',
-      tc: 'TC — proteção',
+      tp: 'TP',
+      tc: 'TC',
       cabos_saida: 'Cabos de saída / alimentação TRn',
       transformador_forca: 'Transformador de força',
       // Story 14.5 (seed v5): the library type, verbatim from the mock's "Outros equipamentos" group.
@@ -597,6 +597,14 @@ export const copy = {
     importBase: 'Importar base de ensaios',
     importConfirm: 'Importar',
     importFileLabel: 'Arquivo JSON da base de ensaios',
+    // Story 25.23 (`41-templates.html` `#tpl-dlg-base-update`): the update's static words. The preview's
+    // lines and the toast are the kernel's (`testBaseUpdatePreview`, `testBaseUpdatedText`).
+    updateBase: 'Atualizar base de ensaios',
+    updateConfirm: 'Atualizar',
+    keepCompanyText: 'Manter o da empresa',
+    useBaseText: 'Usar o da base',
+    // authored (Story 25.23, listed for Bruno): the hidden file input's name.
+    updateFileLabel: 'Arquivo JSON da nova revisão da base de ensaios',
   },
   // Story 14.7 (`43-tipo-equipamento.html`): the type editor's static words. Tab labels with
   // their counts, the head line, the publish label and reason, every row line and every issue
@@ -735,6 +743,9 @@ export const copy = {
     },
     // The section head's text button and the dialog's kicker, close and secondary button.
     open: 'Como ensaiar',
+    // authored (Story 25.23, listed for Bruno): the polarization index's own "Como ensaiar" under the test's tables, and its dialog's title.
+    openIndex: 'Como ensaiar o índice de polarização',
+    indexTitle: 'Índice de polarização',
     kicker: 'Como ensaiar',
     close: 'Fechar Como ensaiar',
     back: 'Voltar ao ensaio',
@@ -2203,6 +2214,12 @@ export const copy = {
     seeLabel: (target: string) => `Ver ${target}`,
     // authored: the findings list's accessible name.
     listLabel: 'Pontos apontados pela conferência por IA',
+    // authored (Story 25.24, listed for Bruno; `73-exportar.html` #exportar-audit-stale): the mark over a run the relatório changed after.
+    staleMark: 'Conferência desatualizada: o relatório mudou depois dela.',
+    // authored (Story 25.24, listed for Bruno; the same frame): the mark's action, a new run on a tap.
+    runAgain: 'Conferir de novo',
+    // authored (Story 25.24, listed for Bruno; the same frame): the pill of a fixed rule's row.
+    ruleWord: 'Regra',
   },
   // Story 13.5 (WAIT-3): the field palette's panel photos whose result dialog was left.
   panelAwaiting: {

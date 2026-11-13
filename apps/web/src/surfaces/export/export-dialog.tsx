@@ -1,4 +1,5 @@
 import {
+  auditRuleRows,
   documentControlRows,
   empresaRegistered,
   quotaExceededText,
@@ -212,6 +213,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const computed = useMemo(() => (snapshot === null ? null : progress(snapshot, pending)), [snapshot, pending]);
   const issues = usePreIssue(db, snapshot, computed, pending, entityState);
   const precheck = useMemo(() => exportPrecheck(issues), [issues]);
+  // Story 25.24: the audit's fixed rules, the kernel's, from the snapshot this device holds; information only (no row above, no count).
+  const auditRules = useMemo(() => (snapshot === null ? [] : auditRuleRows(snapshot)), [snapshot]);
   // F-03 (D1): with empty sheets or blank fields, "Gerar relatório" first asks, naming the counts.
   const confirmCounts = useIssueConfirmation(snapshot);
   const confirmText = confirmCounts === null ? null : issueConfirmText(confirmCounts);
@@ -553,7 +556,15 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           <div className="audit-block">
             <p className="field-label">{copy.audit.heading}</p>
             <p className="audit-note">{copy.audit.note}</p>
-            <AuditFindings run={audit.display.done} onSee={onSeeAuditTarget} />
+            {/* Story 25.24: the fixed rules beside the run's findings, and the out-of-date mark with "Conferir de novo" (a tap, never by itself). */}
+            <AuditFindings
+              run={audit.display.done}
+              onSee={onSeeAuditTarget}
+              rules={auditRules}
+              stale={audit.stale}
+              onRunAgain={audit.start}
+              runAgainDisabledReason={!audit.online ? copy.audit.offlineReason : audit.running ? copy.audit.runningReason : undefined}
+            />
             {audit.blocked ? (
               <div className="gen-error" role="alert">
                 <span>{copy.audit.deadOpsReason}</span>

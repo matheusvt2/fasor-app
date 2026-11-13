@@ -227,3 +227,22 @@ Wave 1 (e25a, e25b, fix batches #329 and #330) is on main and NOT deployed; prod
 - **First wave gate on `132ad4a1`:** 1 unit red (known flaky, E24-A4) and 4 e2e reds. 18.1-E2E-002 had a real cause (the telemetry flush against the push limiter), fixed in #329; the other three passed 3 of 3 on #329's head. Host load line: not recorded for these runs.
 - **Hands-on pass, 2026-11-12, local dev company:** a reading typed and left at once, by the tree and by browser back, is kept; no "Rascunho encontrado"; the badge went from "1 pendente" to "sincronizado" by itself with one push.
 - **Read-only production count, 2026-11-12 (production on `2009fa30`):** 32 equipment with results, 0 with a prior entry whose plate is unknown, 3 top entries unknown; no backfill needed.
+
+## Wave 2 record (2026-11-12)
+
+- PR #332 merged as add464e1 (head 13acbafe), contract 50, seed v15.
+- Single review, four findings: (1) Etapa 4 could not clear the "no instrument" gap; (2) a v15 company-type sheet counted concluded while its stored Aprovado was refused; (3) Etapa 4 advice contradicted its refusal; all three fixed in 314ea49c. (4) the server's 409 `pre_issue_blocked` shows no reason: open in `deferred-work.md`.
+- Single full gate on 314ea49c, 2026-11-12: lint and static clean; test:api and test:unit passed; `test:e2e:full` 732 of 738, 2 failed, 4 skipped; matrix 152 passed, 0 failed, 16 skipped.
+- R8LAY-E2E-001 was a real v15 regression (the 25.9 row action widened the TTR table at 1280 px), fixed in 13acbafe, green alone 2 of 2. 24.17-E2E-001 was machine load, green alone 4 of 4. No full gate re-run after 13acbafe (touched specs 18 of 18).
+- Deploys on Matheus's word, both smoke 8 of 8: wave 1 as e13a89b0 (tag v0.9.1), wave 2 as add464e1 (tag v0.10.0). Release v0.9.0 published 2026-11-12.
+- Short production pass on v15, smoke company, after the deploy: no defect. Not checked by hand: Etapa 4 fixes, the 25.12/25.13 export rows, the print.
+- Known small gaps, not fixed: company-type sheet-state context not passed in the merge-conflict label, `unitTapNeedsEdit` and the Home cards; the row action's label has an empty name on an unnamed row.
+- 2026-11-12, Matheus: Epic 25 paused after wave 2, then waves 4 and 5 released as one batch (e25p); wave 3 waits.
+
+## Waves 4 and 5 record (batch e25p, 2026-11-12)
+
+- Stories 25.20, 25.22, 25.23, 25.24 built in one PR; 25.21 left out (B-7 unanswered); wave 3 (25.14 to 25.19) not built. The "wave 3 merged" dependency of 25.20, 25.22 and 25.23 is ordering only: none uses a row added in the field.
+- Contract 51 (25.23: `base_texts`, `index_help`), contract 52 (25.24: the run's new key and the new kind). Seed v15 changed in place by 25.20 and 25.22 (v15 not frozen by a layout lock); `V15_HASH` re-pinned. v1 to v14 byte-equal.
+- A relatorio already born on v15 changes its print (25.20 columns and headers; 25.22 cover, sections 1 to 6 and 10, ratio headers): needs Matheus's decision.
+- 25.24: prompt `audit-2`; paid eval owed before deploy (section 11 item 5).
+

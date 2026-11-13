@@ -1,5 +1,6 @@
-import { auditDisplay, auditRunRowSchema, toIso, type AuditDisplay, type AuditRunRow } from '@app/domain';
+import { auditDisplay, auditRunRowSchema, auditRunStale, toIso, type AuditDisplay, type AuditRunRow } from '@app/domain';
 import { now } from '../clock.ts';
+import { streamOpsSince } from './generate-store.ts';
 import { useLiveQuery } from './live.ts';
 import type { AppDatabase } from './schema.ts';
 
@@ -44,4 +45,18 @@ export function useAuditRuns(db: AppDatabase | null, relatorioId: string): Audit
 export function useLatestAuditRun(db: AppDatabase | null, relatorioId: string): AuditDisplay {
   const runs = useAuditRuns(db, relatorioId);
   return auditDisplay(runs, toIso(now()));
+}
+
+/** Story 25.24: whether `run` (the newest finished one) is out of date on this device's view (the kernel's `auditRunStale`). */
+export async function auditStale(db: AppDatabase, relatorioId: string, run: AuditRunRow | null): Promise<boolean> {
+  if (run === null || run.status !== 'done') return false;
+  const point = run.snapshot_seq ?? null;
+  if (point === null) return auditRunStale(run, [], [], { relatorioId, equipmentIds: new Set() });
+  const { pulled, unsent, stream } = await streamOpsSince(db, relatorioId, point);
+  return auditRunStale(run, pulled, unsent, stream);
+}
+
+/** `auditStale`, live: it follows each edit as it lands or is pulled; false until the first read lands. */
+export function useAuditStale(db: AppDatabase | null, relatorioId: string, run: AuditRunRow | null): boolean {
+  return useLiveQuery(() => (db === null ? Promise.resolve(false) : auditStale(db, relatorioId, run)), [db, relatorioId, run?.id ?? null, run?.status ?? null, run?.snapshot_seq ?? null], false);
 }

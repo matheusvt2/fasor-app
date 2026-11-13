@@ -876,6 +876,14 @@ export const auditRunRowSchema = z.object({
     .object({ sent: z.number().int().nonnegative(), total: z.number().int().nonnegative() })
     .nullable()
     .default(null),
+  /**
+   * Story 25.24 (contract 52): the point of the relatório the run read, the `max(seq)` of its stream
+   * when the job froze its snapshot (`freezeSnapshot`, the generate job's `snapshot_seq`), written
+   * with the done batch. A newer edit of the stream (`editedOnDevice`) marks the result out of date
+   * (`auditRunStale`). Optional and never defaulted: a run written before 52 parses to the same
+   * bytes, and absent or null means the point is not known.
+   */
+  snapshot_seq: z.number().int().nonnegative().nullable().optional(),
 });
 
 // --- entity registry -------------------------------------------------------

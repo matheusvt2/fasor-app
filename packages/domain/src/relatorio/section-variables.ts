@@ -1,6 +1,6 @@
 import { dateRangeText } from '../format/datetime.ts';
 import { flattenSectionText } from '../templates/section-text.ts';
-import { sectionText, type SectionVariable } from '../seed/definitions.ts';
+import { sectionText, seedRule, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { sectionPosition } from './section-position.ts';
@@ -33,7 +33,10 @@ function present(value: string | null | undefined): string | undefined {
  */
 export function sectionVariables(snapshot: RelatorioSnapshot, responsibleName: string | null): Partial<Record<SectionVariable, string>> {
   const setup = snapshot.relatorio.setup;
-  const obra = present(setup.local) ?? snapshot.project?.site ?? snapshot.project?.name ?? undefined;
+  // Story 25.22 (seed v15 `obra_reads_site`): the obra's site, then its name; the setup's Local no longer feeds `{obra}`.
+  const obra = seedRule(snapshot.relatorio.seed_version, 'obra_reads_site')
+    ? (present(snapshot.project?.site) ?? present(snapshot.project?.name))
+    : (present(setup.local) ?? snapshot.project?.site ?? snapshot.project?.name ?? undefined);
   const datas = dateRangeText(setup.service_start, setup.service_end);
   const escopo = present(setup.additional_info);
   return {
@@ -73,13 +76,35 @@ export function resultsItemsText(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'r
  * the flat text's plain-text ambiguity (`flattenSectionText`'s own limitation).
  */
 export function section3Blocks(seedVersion: string, date: string, exclusions: readonly string[] | null): readonly TextBlock[] {
-  const blocks = sectionText(seedVersion, 3, date);
-  if (exclusions === null) return blocks;
+  const seeded = sectionText(seedVersion, 3, date);
+  const blocks = exclusions === null ? seeded : withOverrideItems(seeded, exclusions);
+  if (!seedRule(seedVersion, 'relay_clause_by_exclusions')) return blocks;
+  // Story 25.22 (seed v15 `relay_clause_by_exclusions`): the first paragraph names the relay only while no exclusion does.
+  if (!blocks.some((block) => block.kind === 'item' && namesRelay(block.text))) return blocks;
+  const first = blocks.findIndex((block) => block.kind === 'paragraph');
+  return blocks.map((block, index) => (index === first ? { ...block, text: withoutRelayClause(block.text) } : block));
+}
+
+function withOverrideItems(blocks: readonly TextBlock[], exclusions: readonly string[]): TextBlock[] {
   const kept = blocks.filter((block) => block.kind !== 'item');
   const items: TextBlock[] = printedExclusions(exclusions).map((text) => ({ kind: 'item', text }));
   // The seed's items sit after its fixed paragraphs and "Exclusões:" line, so the override
   // items take the same trailing position.
   return [...kept, ...items];
+}
+
+/** Story 25.22: the clause of section 3's first paragraph that names the relay. */
+export const RELAY_CLAUSE = ', incluindo o relé de proteção';
+
+/** Story 25.22: whether an exclusion names a relay ("relé", "relés", "Rele"), compared without case and without accents. */
+export function namesRelay(text: string): boolean {
+  const plain = text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR');
+  return /(^|[^\p{L}\p{N}])reles?($|[^\p{L}\p{N}])/u.test(plain);
+}
+
+/** Section 3's first paragraph without `RELAY_CLAUSE`: "… de Média Tensão, incluindo o relé de proteção." reads "… de Média Tensão.". */
+function withoutRelayClause(text: string): string {
+  return text.replace(RELAY_CLAUSE, '');
 }
 
 /** `section3Blocks`, flattened to one plain text (the section text editor's own shape, FR-13). */

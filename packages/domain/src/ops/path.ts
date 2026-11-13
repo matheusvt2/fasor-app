@@ -61,8 +61,9 @@ export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'resu
 /**
  * Story 13.8 (contract 15): the fields the audit job writes on its `audit_run` row.
  * Story 14.10 lane B (contract 20): `coverage`, the sheets the run sent of the ones printed.
+ * Story 25.24 (contract 52): `snapshot_seq`, the point of the relatório the run read.
  */
-export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version', 'started_at', 'finished_at', 'coverage'] as const;
+export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version', 'started_at', 'finished_at', 'coverage', 'snapshot_seq'] as const;
 /**
  * Story 14.6 (contract 33): the fields an `equipment_type/{id}/{field}` put writes: the draft
  * (written whole on every editor change), "Aposentar"/"Reativar" and "Descartar rascunho".

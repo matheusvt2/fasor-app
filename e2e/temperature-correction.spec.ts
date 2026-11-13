@@ -1,4 +1,4 @@
-import { buildSnapshot, cellAddressesOf, entityKey, evaluateTest, getDefinition, SEED_VERSION, visitContextOf, type Entity, type EntityRow, type OpDraft, type TestEvaluation } from '@app/domain';
+import { buildSnapshot, cellAddressesOf, entityKey, evaluateTest, getDefinition, visitContextOf, type Entity, type EntityRow, type OpDraft, type TestEvaluation } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -30,6 +30,8 @@ test.beforeEach(({ seed }) => {
   database = deviceDatabaseName(account.userId);
 });
 
+/** Story 25.20: the seed the relatório is born on, v14, whose print this test reads. */
+const RELATORIO_SEED = 'v14';
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const sheetTitle = (page: Page) => page.locator('.sheet-header .sheet-title');
 const toast = (page: Page) => page.getByTestId('toast');
@@ -69,7 +71,9 @@ test('@p0 23.5-E2E-001 a v13 oil transformer: 2 GΩ at 40 °C of oil is 8 GΩ at
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Story 25.20 (batch e25p): pinned to seed v14, whose printed "20 °C" column this test reads (v15 prints "20 °C
+  // (corrigido)" and keeps each value with its unit, read by `print-criterion-per-row.spec.ts`).
+  const built = newRelatorioDrafts(account, { seedVersion: RELATORIO_SEED });
   const tf = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const cable = built.sheets.find((sheet) => sheet.blockType === 'cabos_entrada')!;
   // The transformer's cabine, the root of its location (`cabineOf`).
@@ -102,7 +106,7 @@ test('@p0 23.5-E2E-001 a v13 oil transformer: 2 GΩ at 40 °C of oil is 8 GΩ at
   await expect.poll(async () => ((await outboxValues(page, oilPath)).at(-1) as { raw?: string } | undefined)?.raw).toBe('40');
 
   // The AT row at 2 GΩ: 8 GΩ at 20 °C, within ≥ 5.000 MΩ.
-  const [at] = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'), 'isolacao');
+  const [at] = cellAddressesOf(getDefinition(RELATORIO_SEED, 'cabine_primaria', 'transformador_forca'), 'isolacao');
   const cellPath = `sheet/${tf.blockId}/test/isolacao/cell/${at!.row}/${at!.col}`;
   const atCell = section(page).locator(`.ficha-cell[data-cell="isolacao:${at!.row}:${at!.col}"]`).filter({ visible: true });
   await openEnsaios(page, built.relatorioId, tf.blockId);

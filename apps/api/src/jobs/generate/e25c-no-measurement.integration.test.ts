@@ -52,7 +52,9 @@ describe('25.6-INT the DOCX of a v15 relatório with a sheet on which nothing wa
     expect(cableTag(v15.snapshot)).toBe(tag);
     expect(v15.tables.some((table) => isConclusion(table) && (table[2]?.[0] ?? '').startsWith(subject))).toBe(false);
     expect(v15.tables).toHaveLength(v14.tables.length);
-    const differing = v15.tables.flatMap((table, n) => (JSON.stringify(table) === JSON.stringify(v14.tables[n]) ? [] : [n]));
+    // Story 25.22: v15's ratio tables are headed "TPs" and "TCs" (v14: "TP's" and "TPS"), read as v14's here.
+    const asV14Ratio = (json: string) => json.replace('["TPs",', '["TP\'s",').replace('["TCs",', '["TPS",');
+    const differing = v15.tables.flatMap((table, n) => (asV14Ratio(JSON.stringify(table)) === JSON.stringify(v14.tables[n]) ? [] : [n]));
     // Section 10's Parecer box (found by its summary's opening) counts the cable as not concluded on v15.
     const parecer = v14.tables.findIndex((table) => (table[0]?.[0] ?? '').includes('Foram registradas'));
     expect(parecer).toBeGreaterThan(-1);

@@ -47,6 +47,35 @@ export type TestHelp = Partial<Record<TestHelpKey, string>>;
 /** "Recomendação se reprovado". */
 export const testRecommendationSchema = testTextSchema;
 
+/*
+ * Story 25.23 (contract 51): the texts the test base fills on a test, each with where it came from.
+ * A company type's test may carry `base_texts`, one record per text the base filled: the revision
+ * of the file it came from (its `versao`, null when the file names none) and the text as the base
+ * gave it. The update compares the held text with that record: equal, nobody edited it, and a newer
+ * revision replaces it by itself; different, the office edited it, and the preview lists it when the
+ * base changed it too. A test with no record (a type imported before this story) has every differing
+ * text listed and none replaced by itself. Optional and never defaulted: no seed carries it, so every
+ * seed parses to the bytes it shipped with; never shown and never printed.
+ */
+
+/** The four texts the base fills on a test: "Como ensaiar", the recommendation, and the polarization index's two. */
+export const BASE_TEXT_KEYS = ['help', 'recommendation', 'index_help', 'index_recommendation'] as const;
+export type BaseTextKey = (typeof BASE_TEXT_KEYS)[number];
+
+/** The longest revision name a record keeps (a longer `versao` is recorded as none). */
+export const TEST_BASE_REVISION_MAX_LENGTH = 200;
+
+const baseRevisionSchema = z.string().max(TEST_BASE_REVISION_MAX_LENGTH).nullable();
+
+/** Story 25.23: a test's record of the base's texts, one entry per text the base filled. */
+export const testBaseTextsSchema = z.strictObject({
+  help: z.strictObject({ revision: baseRevisionSchema, value: testHelpSchema }).optional(),
+  recommendation: z.strictObject({ revision: baseRevisionSchema, value: testRecommendationSchema }).optional(),
+  index_help: z.strictObject({ revision: baseRevisionSchema, value: testHelpSchema }).optional(),
+  index_recommendation: z.strictObject({ revision: baseRevisionSchema, value: testRecommendationSchema }).optional(),
+});
+export type TestBaseTexts = z.infer<typeof testBaseTextsSchema>;
+
 /** What the helpers read of a definition: its tests in both grammars, each with its key and the two optional texts. */
 interface TestTextsLike {
   key: string;
@@ -54,6 +83,8 @@ interface TestTextsLike {
   recommendation?: unknown;
   /** Fix batch e23z (W3-7): the recommendation of a failed polarization index (a seeded-grammar test only). */
   index_recommendation?: unknown;
+  /** Story 25.23: the polarization index's own "Como ensaiar" (a seeded-grammar test only). */
+  index_help?: unknown;
 }
 interface DefinitionTextsLike {
   tests: readonly TestTextsLike[];
@@ -87,6 +118,16 @@ export function testHelpEntries(help: TestHelp | null | undefined): TestHelpEntr
 /** The help of a test with at least one filled heading; null when the test has none (no "Como ensaiar" on its head). */
 export function testHelpOf(definition: DefinitionTextsLike, testKey: string): TestHelp | null {
   const help = testOf(definition, testKey)?.help;
+  if (help === null || typeof help !== 'object' || Array.isArray(help)) return null;
+  return testHelpEntries(help as TestHelp).length === 0 ? null : (help as TestHelp);
+}
+
+/**
+ * Story 25.23: the polarization index's own "Como ensaiar" (`index_help`, the base's IP row) with at
+ * least one filled heading; null when the test has none.
+ */
+export function testIndexHelpOf(definition: DefinitionTextsLike, testKey: string): TestHelp | null {
+  const help = testOf(definition, testKey)?.index_help;
   if (help === null || typeof help !== 'object' || Array.isArray(help)) return null;
   return testHelpEntries(help as TestHelp).length === 0 ? null : (help as TestHelp);
 }

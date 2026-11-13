@@ -3,6 +3,7 @@ import { uuidV7Schema } from './ids.ts';
 import type { OpDraft } from './ops/op.ts';
 import { formatPath } from './ops/path.ts';
 import { councilSchema, type Council } from './schemas/council.ts';
+import { seedRule } from './seed/definitions.ts';
 import type { UserRow } from './schemas/entities.ts';
 
 export { councilSchema, type Council };
@@ -50,10 +51,13 @@ export function artOrTrtLabel(council: Council): 'ART' | 'TRT' {
  * Relatório setup (Story 4.2, Etapa 3): "Na seção 10: 'Este relatório tem validade apenas
  * acompanhada da ART 2620262602583'", null until both the council's label and a number
  * exist. UX pass 2026-10-22 (F43): `section` is how the relatório names section 10
- * (`sectionRefText`, "seção 6" by its Sumário position).
+ * (`sectionRefText`, "seção 6" by its Sumário position). Story 25.22: null on a seed whose validity line carries
+ * no number (`seedVersion`, flag `validity_line_without_number`).
  */
-export function artTrtEchoText(label: 'ART' | 'TRT' | null, number: string | null, section: string): string | null {
+export function artTrtEchoText(label: 'ART' | 'TRT' | null, number: string | null, section: string, seedVersion?: string): string | null {
   if (label === null || number === null || number.trim() === '') return null;
+  // Story 25.22 (seed v15 `validity_line_without_number`): section 10 no longer prints the number, so nothing to echo.
+  if (seedVersion !== undefined && seedRule(seedVersion, 'validity_line_without_number')) return null;
   return `Na ${section}: "Este relatório tem validade apenas acompanhada da ${label} ${number}"`;
 }
 

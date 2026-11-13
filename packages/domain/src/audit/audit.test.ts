@@ -268,8 +268,8 @@ describe('13.8-UNIT-003 validateAuditFindings', () => {
     expect(validateAuditFindings({ findings: [] }, refs)).toEqual({ kept: [], dropped: [{ index: -1, reason: 'not_a_list' }] });
   });
 
-  it('names the four kinds and a label for each', () => {
-    expect([...AUDIT_FINDING_KINDS]).toEqual(['conclusion_vs_nc', 'reading_out_of_family', 'parecer_vs_restricoes', 'caption_equipment']);
+  it('names the four kinds and a label for each (Story 25.24: and the fifth, an observation naming an item the checklist lacks)', () => {
+    expect([...AUDIT_FINDING_KINDS]).toEqual(['conclusion_vs_nc', 'reading_out_of_family', 'parecer_vs_restricoes', 'caption_equipment', 'observation_vs_items']);
     for (const kind of AUDIT_FINDING_KINDS) expect(AUDIT_FINDING_KIND_LABELS[kind]).toMatch(/\S/);
   });
 });

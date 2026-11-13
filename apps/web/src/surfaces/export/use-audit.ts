@@ -1,7 +1,7 @@
 import { AUDIT_RUN_EXPIRE_S, auditRunActive, auditRunningDetailsSchema, expectedFileIds, toIso, type AuditDisplay } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { elapsedNowMs, now } from '../../clock.ts';
-import { auditRunRow, useLatestAuditRun } from '../../db/audit-store.ts';
+import { auditRunRow, useAuditStale, useLatestAuditRun } from '../../db/audit-store.ts';
 import { lastOpIdFor } from '../../db/generate-store.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { useSession } from '../../state/session.tsx';
@@ -30,6 +30,11 @@ import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
 export interface AuditState {
   /** The kernel's view of the relatório's runs on this device. */
   display: AuditDisplay;
+  /**
+   * Story 25.24 (M16): the newest finished run is out of date, the relatório changed after the point
+   * it read (`auditRunStale`). Never a reason to run: the check runs only on a tap (M-8).
+   */
+  stale: boolean;
   /** A tap is in flight (draining, asking or waiting on the run) or a run still counts as running: the button waits. */
   running: boolean;
   /** The last tap failed before or after its run (a request refused, a run failed or gone stale). */
@@ -57,6 +62,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
   const syncRef = useRef(sync);
   syncRef.current = sync;
   const display = useLatestAuditRun(db, relatorioId);
+  const stale = useAuditStale(db, relatorioId, display.done);
   const [busy, setBusy] = useState(false);
   const [requestFailed, setRequestFailed] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -197,6 +203,7 @@ export function useAudit(relatorioId: string, timing: GenerateTiming = DEFAULT_T
   const failed = !busy && display.active === null && (requestFailed || display.failed);
   return {
     display,
+    stale,
     running: busy || display.active !== null,
     failed,
     blocked: !busy && blocked,

@@ -12,7 +12,7 @@ import {
 } from '../schemas/block-config.ts';
 import type { CriterionSeed } from './criteria.ts';
 import { criterionRowStatusSchema, criterionTableSchema } from './criteria-tables.ts';
-import { testHelpSchema, testRecommendationSchema } from './test-help.ts';
+import { testBaseTextsSchema, testHelpSchema, testRecommendationSchema } from './test-help.ts';
 import { checkMeasurementDefinition, plateAppliesWhenSchema, configFieldSchema, criterionSourceSchema, isValueCondition, measurementTestSchema, type AppliesWhen, type MeasurementTest } from './measurement.ts';
 
 /*
@@ -453,6 +453,14 @@ export const testDefSchema = z.object({
    * carries it), the same cap as `recommendation`.
    */
   index_recommendation: testRecommendationSchema.optional(),
+  /**
+   * Story 25.23 (contract 51): the polarization index's own "Como ensaiar" (the base's IP row, filled
+   * only by the base import and update on a company copy; shown under the index on the sheet, never
+   * printed, never in the editor), and the record of the texts the base filled (`testBaseTextsSchema`).
+   * Optional and never defaulted (no seed carries them).
+   */
+  index_help: testHelpSchema.optional(),
+  base_texts: testBaseTextsSchema.optional(),
   /*
    * Seed v13, batch e23t (Story 23.16). Optional and never defaulted, so v1 to v12 parse to the
    * bytes they shipped with; a test without it judges no index.
@@ -1067,6 +1075,16 @@ export const seedRulesSchema = z
     reading_not_applicable: z.literal(true).optional(),
     /** Story 25.10 (seed v15, M14 and M-6): a point started from a test, the conclusion paragraph and the parecer's Reprovado sentence name every reading out of its criterion in row order, not only the worst one. */
     names_every_reading_out: z.literal(true).optional(),
+    /** Story 25.20 (seed v15, M24): every measurement table but a choice test prints a CRITÉRIO and a RESULTADO column on each row, after its values and MANUT. ANTERIOR, fitted whole with each value kept with its unit. */
+    criterion_result_per_row: z.literal(true).optional(),
+    /** Story 25.20 (seed v15, M24): the corrected columns print "20 °C (corrigido)" and "75 °C (corrigido)", and a table printed alone with one keeps each value with its unit. */
+    corrected_headers_corrigido: z.literal(true).optional(),
+    /** Story 25.22 (seed v15): the section variable `{obra}` (the cover's "Cidade/local", section 1) reads the obra's site, then its name; the setup's Local no longer feeds it. */
+    obra_reads_site: z.literal(true).optional(),
+    /** Story 25.22 (seed v15): section 3's first paragraph ends ", incluindo o relé de proteção" only while no exclusion of the relatório names a relay. */
+    relay_clause_by_exclusions: z.literal(true).optional(),
+    /** Story 25.22 (seed v15; M-4 of the Epic 24 proposal): section 10's validity line names the ART (or TRT) with no number: "acompanhado da respectiva ART." */
+    validity_line_without_number: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

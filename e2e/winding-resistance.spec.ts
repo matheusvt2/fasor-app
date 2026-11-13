@@ -27,11 +27,19 @@ const conclusionHint = (page: Page) => page.locator('.conclusion-hint:not(.e24-p
 
 test('@p0 23.15-E2E-001 a v13 oil transformer\'s winding resistance: 3 % between phases restricts, 6 % fails, each phase shown at 75 °C; dry with an open circuit fails; the DOCX prints the table with its 75 °C group', async ({ page }) => {
   test.setTimeout(300_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [
-    { blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'ÓLEO ISOLANTE' },
-    { blockType: 'transformador_forca', key: 'material_enrolamento', value: 'Cu' },
-    { blockType: 'transformador_forca', key: 'temperatura_oleo_c', value: { raw: '30', unit: '°C', state: 'measured' } },
-  ]);
+  // Story 25.20 (batch e25p): pinned to seed v14, whose printed winding table this test reads (v15 adds CRITÉRIO,
+  // RESULTADO and "75 °C (corrigido)", read by `print-criterion-per-row.spec.ts`).
+  const { relatorioId, sheets } = await setUpRelatorio(
+    page,
+    account,
+    database,
+    () => [
+      { blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'ÓLEO ISOLANTE' },
+      { blockType: 'transformador_forca', key: 'material_enrolamento', value: 'Cu' },
+      { blockType: 'transformador_forca', key: 'temperatura_oleo_c', value: { raw: '30', unit: '°C', state: 'measured' } },
+    ],
+    'v14',
+  );
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   await openStep(page, relatorioId, tf.blockId, 'Ensaios');
   const section = testSection(page, KEY);

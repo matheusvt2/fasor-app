@@ -8,6 +8,7 @@ import {
   issuedBannerText,
   makeOp,
   registrationNumberLabel,
+  SEED_VERSION,
   type InstrumentRow,
   STANDARD_TEMPLATE_NAME,
 } from '@app/domain';
@@ -594,7 +595,9 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(page.getByText('CRT', { exact: true })).toBeVisible();
   await expect(page.getByText(registrationNumberLabel('crt'))).toBeVisible();
   await page.getByLabel(artOrTrtLabel('crt'), { exact: true }).fill('2620262602583');
-  await expect(page.getByText(artTrtEchoText(artOrTrtLabel('crt'), '2620262602583', 'seção 10')!)).toBeVisible();
+  // Story 25.22 (seed v15 `validity_line_without_number`): section 10 prints no number, so the field echoes none.
+  expect(artTrtEchoText(artOrTrtLabel('crt'), '2620262602583', 'seção 10', SEED_VERSION)).toBeNull();
+  await expect(page.getByText(/Este relatório tem validade apenas acompanhada/)).toHaveCount(0);
 
   // Etapa 4 — Instrumentos: two checked, one unchecked back.
   const m1 = page.getByRole('checkbox', { name: /^M1/ });

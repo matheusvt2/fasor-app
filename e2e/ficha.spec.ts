@@ -657,7 +657,7 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   // F42 (UX pass 2026-10-22): an input header names its unit on screen. Batch e23e (seed v13, Story 23.18): the TP's
   // POLARIDADE, a choice column, sits right before Condição where the kernel's ratio table has one.
   const polarity = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!.value_columns.some((column) => column.role === 'choice');
-  await expect(ttr.locator('thead th')).toHaveText(["TP's", 'V primário (V)', 'V secundário (V)', 'Calculado', 'H1-H2 / X1-X2', ...(polarity ? ['Polaridade'] : []), 'Condição']);
+  await expect(ttr.locator('thead th')).toHaveText([getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').tests.find((test) => test.key === 'relacao_transformacao')!.tables[0]!.connection_columns[0]!, 'V primário (V)', 'V secundário (V)', 'Calculado', 'H1-H2 / X1-X2', ...(polarity ? ['Polaridade'] : []), 'Condição']);
   await cellInput(page, 'Fase R, V primário').click();
   await page.keyboard.type('13800');
   await page.keyboard.press('Tab');

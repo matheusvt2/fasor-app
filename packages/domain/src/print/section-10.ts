@@ -70,10 +70,13 @@ export function parecerOwnTextParagraph(text: string): string {
 /**
  * "Este relatório tem validade apenas acompanhada da ART 2620262602583" (CREA), "… da TRT 9"
  * (CRT), "… da ART/TRT …" while the council is unknown; a blank number prints the label in
- * brackets (`[ART]`, `[TRT]`, `[ART/TRT]`), the `[Label]` form of a missing value.
+ * brackets (`[ART]`, `[TRT]`, `[ART/TRT]`), the `[Label]` form of a missing value. Story 25.22 (`withoutNumber`, seed
+ * v15): "Este relatório tem validade apenas acompanhado da respectiva ART." whatever the number.
  */
-export function validityLine(council: Council | null, number: string | null): string {
+export function validityLine(council: Council | null, number: string | null, withoutNumber = false): string {
   const label = artLabel(council);
+  // Story 25.22 (seed v15 `validity_line_without_number`; M-4 of the Epic 24 proposal): no number, so a blank one prints no bracket.
+  if (withoutNumber) return `Este relatório tem validade apenas acompanhado da respectiva ${label}.`;
   const value = number === null || number.trim() === '' ? `[${label}]` : number.trim();
   return `Este relatório tem validade apenas acompanhada da ${label} ${value}`;
 }
@@ -151,7 +154,11 @@ export function section10Layout(
         text: positioned(paragraph.text),
         runs: paragraph.runs === undefined ? [{ text: positioned(paragraph.text) }] : positionedRuns(paragraph.runs),
       })),
-    validityLine: validityLine(snapshot.responsible?.council ?? null, snapshot.relatorio.setup.art_trt_number),
+    validityLine: validityLine(
+      snapshot.responsible?.council ?? null,
+      snapshot.relatorio.setup.art_trt_number,
+      seedRule(snapshot.relatorio.seed_version, 'validity_line_without_number'),
+    ),
     signature: signatureOf(snapshot.responsible),
   };
 }
