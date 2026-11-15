@@ -642,6 +642,12 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
 /** The data attribute an added row's name input carries, which the focus after "Adicionar ponto" finds it by. */
 const ADDED_NAME_ATTRIBUTE = 'data-added-name';
 
+/** The first element of `selector` the page draws (a table that stacks on phone draws its rows twice; CSS shows one), else the first. */
+function visibleIn<T extends HTMLElement>(selector: string): T | null {
+  const found = [...document.querySelectorAll<T>(selector)];
+  return found.find((element) => element.getClientRects().length > 0) ?? found[0] ?? null;
+}
+
 /**
  * Story 25.14 (`60-ficha.html` #/ficha/MA-02 `.e25-added`, DESIGN.md › Measurement table): the name of a row the
  * technician added, a Field whose label is visually hidden (the kernel's "Nome do ponto"), committed on blur or Enter as
@@ -679,7 +685,10 @@ function AddedRowName({ api, test, row, readOnly, presentation }: { api: FichaAp
         return [addedRowRemoveOp(by, api.relatorioId, api.blockId, test.testKey, added.id)];
       })
       .then((batch) => {
-        if (batch !== null) api.undoable(addedRowRemovedText(view.key, row.label), batch);
+        if (batch === null) return;
+        // The focus goes to the action under the table (the row and its controls left); "Desfazer" brings it back to the name.
+        visibleIn<HTMLElement>(`.lib-test[data-test-key="${test.testKey}"] [data-add-row]`)?.focus();
+        api.undoable(addedRowRemovedText(view.key, row.label), batch, () => visibleIn<HTMLElement>(`[${ADDED_NAME_ATTRIBUTE}="${added.id}"]`));
       })
       .catch(() => undefined);
   };
@@ -733,9 +742,9 @@ function AddedRowActions({ api, test }: { api: FichaApi; test: MeasurementTestEv
   const [focusRow, setFocusRow] = useState<string | null>(null);
   useEffect(() => {
     if (focusRow === null) return;
-    const inputs = document.querySelectorAll<HTMLInputElement>(`[${ADDED_NAME_ATTRIBUTE}="${focusRow}"]`);
-    const visible = [...inputs].find((input) => input.getClientRects().length > 0) ?? inputs[0];
-    if (visible === undefined) return;
+    // Once the new row is drawn (the evaluation's rows follow the store).
+    const visible = visibleIn<HTMLInputElement>(`[${ADDED_NAME_ATTRIBUTE}="${focusRow}"]`);
+    if (visible === null) return;
     visible.focus();
     setFocusRow(null);
   }, [focusRow, test.rows]);
@@ -766,7 +775,7 @@ function AddedRowActions({ api, test }: { api: FichaApi; test: MeasurementTestEv
           <span className="btn-reason">{addedRowsPlateReason(view.key, fromPlate.count)}</span>
         </>
       )}
-      <TextButton isDisabled={!view.canAdd} disabledReason={view.canAdd ? undefined : addedRowsAtMaxText(view.key)} onPress={() => add([view.nextName])}>
+      <TextButton data-add-row="" isDisabled={!view.canAdd} disabledReason={view.canAdd ? undefined : addedRowsAtMaxText(view.key)} onPress={() => add([view.nextName])}>
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-plus" />
         </svg>

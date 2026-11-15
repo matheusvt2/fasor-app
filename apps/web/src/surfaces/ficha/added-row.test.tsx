@@ -198,11 +198,15 @@ describe.each([
     expect(edits).toEqual([[expect.objectContaining({ kind: 'put', path: sheetTestRowCellPath(ADDED_ROWS_BLOCK_ID, BATTERIES_TEST, addedRowId(1), 1), value: choiceValue('falhou') })]]);
   });
 
-  it('the remove action writes the row\'s removal and raises the toast with "Desfazer" (the frame\'s words)', async () => {
+  it('the remove action writes the row\'s removal, hands the focus to the action under the table and raises the toast with "Desfazer" (the frame\'s words), whose undo brings the focus back to the name', async () => {
     const { container, edits, undoable } = renderSheet(withRows(POINTS_TEST, [{ id: addedRowId(1), name: 'Quadro geral de baixa tensão', cells: { 0: reading('0.19', 'Ω') } }]));
-    await userEvent.click(within(sectionOf(container, POINTS_TEST)).getByRole('button', { name: 'Remover ponto Quadro geral de baixa tensão' }));
-    await waitFor(() => expect(undoable).toHaveBeenCalledWith('Ponto removido: Quadro geral de baixa tensão', 'batch'));
+    const points = sectionOf(container, POINTS_TEST);
+    await userEvent.click(within(points).getByRole('button', { name: 'Remover ponto Quadro geral de baixa tensão' }));
+    await waitFor(() => expect(undoable).toHaveBeenCalledWith('Ponto removido: Quadro geral de baixa tensão', 'batch', expect.any(Function)));
     expect(edits).toEqual([[expect.objectContaining({ kind: 'remove', path: sheetTestRowPath(ADDED_ROWS_BLOCK_ID, POINTS_TEST, addedRowId(1), 'removed_at'), value: null })]]);
+    expect(within(points).getByRole('button', { name: 'Adicionar ponto' })).toHaveFocus();
+    const focusAfterUndo = undoable.mock.calls[0]![2] as () => HTMLElement | null;
+    expect(focusAfterUndo()).toBe(within(points).getByRole('textbox', { name: 'Nome do ponto' }));
   });
 
   it('"Adicionar ponto" adds one row with no name (a new UUIDv7 row id) and says so; "Adicionar bateria" names it with the stem\'s next number', async () => {

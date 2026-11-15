@@ -52,6 +52,8 @@ import {
 import { composeConclusion } from './conclusion.ts';
 import { evaluateSheetMeasurements, measurementCounts, measurementRunTarget, type MeasurementTestEvaluation } from './measurement-evaluation.ts';
 import { sheetProgress } from './sheet-progress.ts';
+import { sheetState } from './sheet-state.ts';
+import { nameplateCopyFields } from './nameplate-copy.ts';
 
 /*
  * 25.14-UNIT (batch e25s, Story 25.14, contract 54; M23, M30, M19; Matheus's decision 3): a row the technician adds
@@ -306,6 +308,12 @@ describe('25.14-UNIT the order and the evaluation', () => {
     expect(measurementRunTarget(evaluations, { testKey: POINTS_TEST, row: 3, col: 0, rowId: addedRowId(2) }, 'previous')).toEqual({ testKey: POINTS_TEST, row: 2, col: 0, rowId: addedRowId(1) });
   });
 
+  it('"Igual à" copies the plate only: a sheet holding added rows gives no row to another sheet', () => {
+    const source = addedRowsBlock(sheetWith(POINTS_TEST, [{ id: addedRowId(1), name: 'Ponto A', cells: { 0: reading('0.2', 'Ω') } }]));
+    source.sheet.nameplate.fabricante = cell('Fabricante X');
+    expect(nameplateCopyFields(source, definition).map((field) => field.fieldKey)).toEqual(['fabricante']);
+  });
+
   it('no previous visit is read for an added row: its key never meets a slot of the definition, and the issue keeps none of it', () => {
     const block = addedRowsBlock(sheetWith(POINTS_TEST, [{ id: addedRowId(1), name: 'Ponto A', cells: { 0: reading('0.2', 'Ω') } }]));
     const slots = new Set(readingSlotsOf(definition, block).map(readingAddressKey));
@@ -420,6 +428,13 @@ const tablesOf = (sheet: PrintSheet): PrintTable[] => sheet.parts.flatMap((part)
 const grid = (table: PrintTable) => table.rows.map((row) => row.cells.map((one) => one.text.replaceAll(' ', ' ')));
 
 describe('25.14-UNIT the readers', () => {
+  it('the sheet\'s state: a sheet holding only an added row is being filled (so removing it asks first); a removed row is no data', () => {
+    expect(sheetState(addedRowsBlock())).toBe('vazia');
+    expect(sheetState(addedRowsBlock(sheetWith(POINTS_TEST, [{ id: addedRowId(1), name: 'Ponto A' }])))).toBe('em_preenchimento');
+    expect(sheetState(addedRowsBlock(sheetWith(POINTS_TEST, [{ id: addedRowId(1), name: null, cells: { 0: reading('0.2', 'Ω') } }])))).toBe('em_preenchimento');
+    expect(sheetState(addedRowsBlock(sheetWith(POINTS_TEST, [{ id: addedRowId(1), name: 'Ponto A', removedAt: '2026-11-15T12:00:00.000Z' }])))).toBe('vazia');
+  });
+
   it('the progress: the Ensaios step counts an added row\'s empty cell and a missing name', () => {
     const complete = snapshotWith(readerSheet());
     const base = sheetProgress(complete, ADDED_ROWS_BLOCK_ID).steps.ensaios.missing;
