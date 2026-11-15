@@ -63,6 +63,9 @@ vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importO
     sectionText: (version: string, section: number, date: string) =>
       actual.sectionText(rulesOff.v15ReadsV14 && version === 'v15' ? 'v14' : rulesOff.v16ReadsV15 && version === 'v16' ? 'v15' : version, section, date),
     blockDefinitionIn: (...[ctx, block]: Parameters<typeof actual.blockDefinitionIn>) => {
+      // Batch e25s (e25s-UNIT-SAME): while v16 reads v15's flags, a seeded v16 sheet reads v15's definition too, so the
+      // wave's v16 items, hints and options (Stories 25.18 and 25.19) stay out of the comparison.
+      if (rulesOff.v16ReadsV15 && block.seed_version === 'v16' && !block.block_type.startsWith('type:')) return actual.blockDefinitionIn(ctx, { ...block, seed_version: 'v15' });
       const definition = actual.blockDefinitionIn(ctx, block);
       if (!rulesOff.v15ReadsV14 || block.seed_version !== 'v15' || (block.block_type !== 'tp' && block.block_type !== 'tc') || definition === null) return definition;
       const v14Ratio = actual.getDefinition('v14', 'cabine_primaria', block.block_type).tests.find((test) => test.key === 'relacao_transformacao')!.tables![0]!;

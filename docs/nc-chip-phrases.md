@@ -219,6 +219,24 @@ Block types: `tc`.
 | 5 | FIAÇÃO SECUNDÁRIA | `fiacao_secundaria` | fiação secundária danificada · terminal secundário frouxo · fiação secundária sem identificação |
 | 6 | BUCHAS | `buchas` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
 
+## TC on seed v16 (Epic 25, Story 25.18)
+
+*(2026-11-15, batch e25s, seed `v16` in `packages/domain/src/seed/v16.ts`; Bruno's answer 11 to B-11 of Epic 24, M22.)* The TC asks the six items of seed `v14` above with the same phrases, and a seventh, appended: its label is Bruno's wording; its three NC phrases are authored from the label's two parts (the secondary never open, the test terminals in good order), pending Bruno's review. The TP does not get it: its rule is the opposite one. A TC on seeds `v14` and `v15` keeps its six rows.
+
+Block types: `tc`.
+
+| # | Item | Key | NC phrases |
+| --- | --- | --- | --- |
+| 1 | LIMPEZA, PINTURA E CORROSÃO | `limpeza_pintura_e_corrosao` | acúmulo de poeira e sujeira · pintura descascada · pontos de corrosão |
+| 2 | VASAMENTO | `vasamento` | vazamento de óleo pela junta · vazamento de óleo pela bucha · resíduos de óleo na base |
+| 3 | ATERRAMENTO | `aterramento` | aterramento desconectado · cordoalha de aterramento danificada · oxidação na conexão de terra |
+| 4 | CONEXÕES | `conexoes` | conexão frouxa · oxidação nos terminais · sinais de aquecimento na conexão |
+| 5 | FIAÇÃO SECUNDÁRIA | `fiacao_secundaria` | fiação secundária danificada · terminal secundário frouxo · fiação secundária sem identificação |
+| 6 | BUCHAS | `buchas` | trinca na bucha · lascamento na bucha · sinais de aquecimento na bucha |
+| 7 | SECUNDÁRIO FECHADO OU CURTO-CIRCUITADO NOS BORNES (NUNCA ABERTO); BORNES DE AFERIÇÃO EM BOM ESTADO | `secundario_fechado_ou_curto_circuitado` | secundário aberto nos bornes · bornes de aferição danificados · bornes de aferição oxidados ou com conexão frouxa |
+
+The transformer on seed `v16` keeps the seventeen rows and phrases of seed `v14` below. Six items gain a hint, shown under the label on the sheet only and never printed (Story 25.18, M21, the story's wording, pending Bruno's confirmation, B-5): ÓLEO ISOLANTE/INDICADOR DE NÍVEL "NÍVEL DE ÓLEO"; JUNTAS, VEDAÇÕES E VAZAMENTOS "VAZAMENTOS DE ÓLEO"; ELEMENTO SECANTE "SÍLICA GEL DO SECADOR"; TERMÔMETRO "TERMÔMETRO DE ÓLEO"; RELÉ DE GÁS, FUNCIONAMENTO "RELÉ BUCHHOLZ, QUANDO HOUVER"; VÁLVULA DE ALÍVIO "VÁLVULA DE ALÍVIO DE PRESSÃO, QUANDO HOUVER".
+
 ## Transformador de força on seed v14 (Epic 24, Story 24.11)
 
 *(2026-11-11, batch e24s, seed `v14`; Bruno's question 19.)* Items 1 to 14 keep the seed `v9` list and its phrases; item 5 reads VENTILAÇÃO FORÇADA (key `ventiladores`, phrases kept) and becomes a dry item. Items 15 to 17 are appended: TANQUE E ALETAS, an oil item; LIMPEZA DAS BOBINAS and TRINCAS NA RESINA, dry items. Their phrases are authored, pending Bruno's review. A transformer on seeds `v9` to `v13` keeps its 14 rows, item 5 VENTILADORES.

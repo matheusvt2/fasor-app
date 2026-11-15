@@ -155,9 +155,15 @@ export function oilFieldExcusedReason(block: StateBlock, fieldKey: string, ctx: 
   const definition = blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
   const stored = block.sheet.nameplate[rule.field]?.value;
   const subtype = subtypeOf(block.config);
-  const value = typeof stored === 'string' && stored.trim() !== '' ? stored.trim() : (definition?.subtypes.find((one) => one.key === subtype)?.label ?? null);
+  const field = definition?.nameplate.find((candidate) => candidate.key === rule.field);
+  // Seed v16 (Story 25.19): a stored alias of a dry subtype's option is named by it ("Á SECO" as "A SECO"); any other value
+  // (the oil spellings included) is named as stored, and no dry spelling is an alias on v1 to v15.
+  const aliases = field?.option_aliases;
+  const option = typeof stored === 'string' && aliases !== undefined && Object.hasOwn(aliases, stored.trim()) ? aliases[stored.trim()]! : null;
+  const dry = option !== null && (definition?.subtypes.some((one) => DRY_SUBTYPES.has(one.key) && one.label === option) ?? false) ? option : null;
+  const value = typeof stored === 'string' && stored.trim() !== '' ? (dry ?? stored.trim()) : (definition?.subtypes.find((one) => one.key === subtype)?.label ?? null);
   if (value === null) return null;
-  const label = definition?.nameplate.find((field) => field.key === rule.field)?.label ?? rule.field;
+  const label = field?.label ?? rule.field;
   // authored (e23p, listed for Bruno): the same reason as under a dry field of an oil unit.
   return `Não se aplica: ${label} é ${value}.`;
 }

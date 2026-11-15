@@ -1,4 +1,4 @@
-import { materializeEntity, naDefaultsCountText, naDefaultsFor, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { getDefinition, materializeEntity, naDefaultsCountText, naDefaultsFor, screenLabel, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { pullAll, readStore } from './support/outbox.ts';
 import {
@@ -869,10 +869,11 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
   await dialog.getByRole('button', { name: 'Fechar' }).click();
   await expect(dialog).toBeHidden();
 
-  // "Á SECO" on the TP pre-marks its oil items: the current seed's count (seven on v9, Story 15.3).
+  // The dry subtype on the TP pre-marks its oil items: the current seed's count (seven on v9, Story 15.3); it reads
+  // "A seco" since seed v16 (Story 25.19), "Á seco" before.
   await palette(page).getByRole('button', { name: 'Editar padrões de TP' }).click();
   dialog = page.getByRole('dialog', { name: 'Padrões de TP' });
-  await pickSubtype(page, dialog, 'Á seco');
+  await pickSubtype(page, dialog, screenLabel(getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').subtypes.find((subtype) => subtype.key === 'a_seco')!.label));
   await expect(dialog.getByText(naDefaultsCountText(naDefaultsFor(SEED_VERSION, 'tp', 'a_seco').length))).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();

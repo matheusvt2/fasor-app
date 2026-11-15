@@ -269,6 +269,9 @@ export const ITEM_KEYS = [
   'baterias',
   'aterramento_bypass_e_identificacao',
   'cargas_alimentadas_identificadas',
+  // Appended (seed v16, batch e25s, Story 25.18, contract 54): the TC's item 7, on its secondary
+  // (`docs/nc-chip-phrases.md`, "TC on seed v16"); a key shorter than its label.
+  'secundario_fechado_ou_curto_circuitado',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);

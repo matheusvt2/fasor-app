@@ -48,6 +48,8 @@ const OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'
 /** Story 22.7 (seed v12): the oil value of TIPO DE ISOLAÇÃO is the kernel's (ÓLEO MINERAL since v12), never a literal. */
 const OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.oil_values[0]!;
 const TIPOS_DE_ISOLACAO = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').nameplate.find((f) => f.key === 'tipo_de_isolacao')!.options!;
+/** Story 25.19 (seed v16): the dry option of TIPO DE ISOLAÇÃO is the kernel's ("A SECO" since v16, "Á SECO" before), never a literal. */
+const DRY_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').subtypes.find((subtype) => subtype.key === 'a_seco')!.label;
 /** The TP's own oil items (seed v12: VASAMENTO alone, the TC's list). */
 const TP_OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').oil_rule!.items;
 /** Batch e23t (seed v13, M-4): the TP keeps ÓLEO MINERAL where the transformer reads ÓLEO ISOLANTE; its own oil value. */
@@ -124,7 +126,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   await expect(select(page, 'tipo_de_isolacao').locator('option')).toContainText(TIPOS_DE_ISOLACAO);
 
   // Á SECO: the oil items (the current seed's, seven on v9) read NA with no tap, VOL. ÓLEO is not missing, no chip.
-  await pick(page, 'tipo_de_isolacao', 'Á SECO');
+  await pick(page, 'tipo_de_isolacao', DRY_VALUE);
   for (const key of OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
   await expect(checked(page, 'limpeza')).toHaveCount(0);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
@@ -156,13 +158,13 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   await expect(strip(page)).toHaveAccessibleName('Fotos da ficha (1)');
 
   // ÓLEO to Á SECO: one batch clears the three, with the toast that counts them.
-  await pick(page, 'tipo_de_isolacao', 'Á SECO');
+  await pick(page, 'tipo_de_isolacao', DRY_VALUE);
   await expect(toast(page)).toContainText('2 itens de óleo apagados');
   await expect(checked(page, 'termometro')).toHaveAttribute('data-value', 'na');
   // Batch e24s (Story 24.11): VOL. ÓLEO of the dry unit is drawn read-only and empty with the kernel's reason.
   await expect(volume).toHaveCount(0);
   await expect(page.locator('#ficha-nameplate').getByRole('textbox', { name: 'Vol. óleo', exact: true })).toHaveAttribute('aria-readonly', 'true');
-  await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper')).toHaveText('Não se aplica: TIPO DE ISOLAÇÃO é Á SECO.');
+  await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper')).toHaveText(`Não se aplica: TIPO DE ISOLAÇÃO é ${DRY_VALUE}.`);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   await expect(row(page, 'termometro').locator('.photo-list .photo-row')).toHaveCount(0);
   // The photo stays on the sheet: in its strip, untied from the item, never removed.
@@ -173,7 +175,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
     const insulation = ops.filter((op) => op.path === `sheet/${blockId}/nameplate/tipo_de_isolacao`).at(-1)!;
     const batch = ops.filter((op) => op.batch_id === insulation.batch_id).map((op) => [op.path, op.value]);
     expect(batch).toEqual([
-      [`sheet/${blockId}/nameplate/tipo_de_isolacao`, 'Á SECO'],
+      [`sheet/${blockId}/nameplate/tipo_de_isolacao`, DRY_VALUE],
       [`sheet/${blockId}/checklist/termometro/result`, null],
       [`sheet/${blockId}/nameplate/vol_oleo`, null],
       [`file/${photo.id}/item_key`, null],
@@ -271,7 +273,7 @@ test('@p0 14.11-E2E-004 fix batch fxpw G10: a pending VOL. ÓLEO suggestion leav
   await expect(banner).toContainText('Sugestões prontas — 1 campo para confirmar');
 
   // Á SECO excuses VOL. ÓLEO: no row, no banner; the suggestion is only hidden.
-  await pick(page, 'tipo_de_isolacao', 'Á SECO');
+  await pick(page, 'tipo_de_isolacao', DRY_VALUE);
   await expect(suggestionRow).toHaveCount(0);
   await expect(banner).toHaveCount(0);
   expect(await status()).toBe('pending');

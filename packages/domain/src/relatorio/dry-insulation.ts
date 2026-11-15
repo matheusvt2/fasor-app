@@ -44,11 +44,17 @@ const DRY_SUBTYPE_KEYS: ReadonlySet<string> = new Set(['epoxi', 'a_seco']);
  * The dry subtype an insulation value names on this definition: the subtype whose label
  * equals the value (`EPÓXI` → `epoxi`, `Á SECO` → `a_seco`), else null (an empty or other
  * value, or a definition with no TIPO DE ISOLAÇÃO or no dry subtype).
+ *
+ * Seed v16 (Story 25.19): a value the field names as an alias reads as its option, so a stored
+ * "Á SECO" names the subtype labelled "A SECO". No dry spelling is an alias on v1 to v15, so a
+ * value names the subtype it named before.
  */
 export function drySubtypeOfInsulation(definition: Pick<BlockDefinition, 'nameplate' | 'subtypes'> | null, value: unknown): SubtypeDef | null {
   if (definition === null || typeof value !== 'string' || value.trim() === '') return null;
-  if (!definition.nameplate.some((field) => field.key === INSULATION_FIELD_KEY)) return null;
-  return definition.subtypes.find((subtype) => DRY_SUBTYPE_KEYS.has(subtype.key) && subtype.label === value) ?? null;
+  const field = definition.nameplate.find((candidate) => candidate.key === INSULATION_FIELD_KEY);
+  if (field === undefined) return null;
+  const option = field.option_aliases !== undefined && Object.hasOwn(field.option_aliases, value) ? field.option_aliases[value]! : null;
+  return definition.subtypes.find((subtype) => DRY_SUBTYPE_KEYS.has(subtype.key) && (subtype.label === value || subtype.label === option)) ?? null;
 }
 
 /** The block's config subtype, when its config names one. */

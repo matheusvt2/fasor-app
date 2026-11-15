@@ -616,7 +616,17 @@
  * keeps its seed. The wave's stories change v16's sheet definitions (items, test rows, options) through v16
  * keys and rule flags, each without a contract of its own. MIN follows to 53 (below).
  */
-export const CONTRACT_VERSION = 53;
+/*
+ * 54 (2026-11-15, Story 25.18, batch e25s): no new op or path family. The closed item enum (`ITEM_KEYS`) gains
+ * `secundario_fechado_ou_curto_circuitado`, the v16 TC's item 7 on its secondary, so the NC phrase the server learns on
+ * it (`registry/nc_phrase/{id}`, its `item_key`) parses only here, and a `sheet/{id}/checklist/{item_key}` put on
+ * it folds only on a v16 TC, whose list asks it (`SeedPathError`, answered `op_invalid`, on every other sheet).
+ * The v16 transformer's six hints and Story 25.19's
+ * "A SECO" (the dry option and subtype of the transformer, the TP and the TC, "Á SECO" its alias) are v16 seed
+ * content with no key of their own. Every seed of v1 to v15 parses to the same bytes and a row written before 54
+ * parses to the same bytes. MIN follows to 54 (below).
+ */
+export const CONTRACT_VERSION = 54;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -987,7 +997,14 @@ export const CONTRACT_VERSION = 53;
  * or tests, nor ask the items, rows and options the wave's stories add to them. Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 53;
+/*
+ * 54 (2026-11-15, Story 25.18, batch e25s): a version-53 (or older) bundle's seed v16 is v15's, whose TC asks six
+ * items, so its fold refuses a pulled `sheet/{id}/checklist/secundario_fechado_ou_curto_circuitado/...` put of a v16
+ * TC (`materializeEntity` throws on a pulled op its fold refuses), and its `itemKeySchema` refuses the NC phrase
+ * the server learns on the item (`registry/nc_phrase`, on the company stream); it would also read "Á SECO" where
+ * the server reads "A SECO". Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 54;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

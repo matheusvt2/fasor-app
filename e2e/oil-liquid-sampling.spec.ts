@@ -34,7 +34,8 @@ test('@p0 23.17-E2E-001 the liquid fields follow NATUREZA DO LÍQUIDO, the sampl
 
   // The plate: ÓLEO ISOLANTE (M-4), then the liquid.
   await openStep(page, relatorioId, tf.blockId, 'Placa');
-  await expect(select('tipo_de_isolacao').locator('option')).toContainText(['EPÓXI', 'Á SECO', 'ÓLEO ISOLANTE']);
+  // Story 25.19 (seed v16, the relatório's seed here): the dry option reads "A SECO" ("Á SECO" on v13 to v15).
+  await expect(select('tipo_de_isolacao').locator('option')).toContainText(['EPÓXI', 'A SECO', 'ÓLEO ISOLANTE']);
   await choose(tf.blockId, 'tipo_de_isolacao', 'ÓLEO ISOLANTE');
   await expect(plateField(page, 'tipo_anp')).toBeVisible();
   await choose(tf.blockId, 'natureza_liquido', 'SILICONE');

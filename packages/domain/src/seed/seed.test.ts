@@ -29,6 +29,8 @@ import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { STORY_25_22_RATIO_HEADERS, STORY_25_8_TESTS } from './v15.ts';
+import { STORY_25_18_TC_ITEM, STORY_25_18_TRANSFORMER_HINTS, STORY_25_19_DRY, STORY_25_19_DRY_ALIAS, STORY_25_19_TYPES } from './v16.ts';
+import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
 
@@ -301,7 +303,8 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     expect(ITEM_KEYS[44]).toBe('no_break_de_comando');
     // Batch e24s (seed v14, contract 47) appended four: the transformer's three and the Inspeção de QGBT's function test.
     // Batch e24s (Story 24.13) then the No-break de comando's six.
-    expect(ITEM_KEYS).toHaveLength(89);
+    // Batch e25s (seed v16, Story 25.18, contract 54) appended the TC's item 7 on its secondary.
+    expect(ITEM_KEYS).toHaveLength(90);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -2524,7 +2527,9 @@ describe('25.5-UNIT seed v15 (Epic 25) opens equal to v14, and v14 is frozen as 
  * v16 as it ships (Epic 25 wave 3); until its deploy each batch of the wave re-pins it, after it a change is a new version.
  * Batch e25s, first commit (2026-11-15): v16 opens equal to v15, the same content and the same rule flags.
  */
-const V16_HASH = 'd7b11b94330701fb52ae935c8dae57092e32166e01d337683eb9eeb0a0a31d1a';
+// Story 25.18 (batch e25s): the TC's item 7 and the transformer's six hints (`withoutE25s18` below).
+// Story 25.19 (batch e25s, the "A SECO" half): the dry option and subtype, "Á SECO" its alias (`withoutE25s19` below).
+const V16_HASH = '44ef5687045e1ca264b3b74258bdf376e6879ef7feb303470412f44ee4f3ad5e';
 
 /**
  * Batch e25s: each story's delta on v16, undone, in the order `seed/v16.ts` applies them. A story that adds a v16 key,
@@ -2532,7 +2537,28 @@ const V16_HASH = 'd7b11b94330701fb52ae935c8dae57092e32166e01d337683eb9eeb0a0a31d
  * own `withoutE25s<N>` helper below this line (e.g. `withoutE25s18`), and names it here, so `withoutE25s(v16)` stays v15
  * and "e25s-UNIT-V16" keeps pinning that every other byte of v16 is v15's.
  */
-const E25S_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [];
+const E25S_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25s18, withoutE25s19];
+
+/** Story 25.18's delta undone: the TC's item 7 dropped, the transformer's six hints deleted. */
+function withoutE25s18(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  out.blocks.tc.checklist = out.blocks.tc.checklist!.filter((item) => item.key !== STORY_25_18_TC_ITEM.key);
+  for (const item of out.blocks.transformador_forca.checklist!) if (Object.hasOwn(STORY_25_18_TRANSFORMER_HINTS, item.key)) delete item.hint;
+  return out;
+}
+
+/** Story 25.19's delta undone ("A SECO" half): the dry option and subtype read "Á SECO" again, the alias dropped. */
+function withoutE25s19(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  for (const type of STORY_25_19_TYPES) {
+    const definition = out.blocks[type];
+    const field = definition.nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')!;
+    field.options = field.options!.map((option) => (option === STORY_25_19_DRY ? STORY_25_19_DRY_ALIAS : option));
+    delete field.option_aliases![STORY_25_19_DRY_ALIAS];
+    definition.subtypes.find((subtype) => subtype.key === 'a_seco')!.label = STORY_25_19_DRY_ALIAS;
+  }
+  return out;
+}
 
 /** v16 with every batch e25s story's delta undone: v15 as it shipped. */
 function withoutE25s(seed: ReportSeed): ReportSeed {
@@ -2569,6 +2595,110 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
   it('keeps every rule flag v15 turns on (a v16 relatório concludes and prints as a v15 one until a story says otherwise)', () => {
     expect(withoutE25s(v16).rules).toEqual(v15.rules);
     for (const flag of Object.keys(v15.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v16', flag), flag).toBe(true);
+  });
+});
+
+describe('25.18-UNIT seed v16 (Story 25.18): the TC asks its secondary as item 7, the transformer\'s six items carry hints; the TP and v15 unchanged', () => {
+  const v15 = getSeed('v15', 'cabine_primaria');
+  const v16 = getSeed('v16', 'cabine_primaria');
+  const keys = (definition: BlockDefinition) => definition.checklist!.map((item) => item.key);
+
+  it('the v16 TC asks seven items: v15\'s six, then the secondary with Bruno\'s wording and three NC phrases', () => {
+    const tc = v16.blocks.tc.checklist!;
+    expect(tc).toHaveLength(7);
+    expect(tc.slice(0, 6)).toEqual(v15.blocks.tc.checklist);
+    expect(tc[6]).toEqual(STORY_25_18_TC_ITEM);
+    expect(tc[6]!.label).toBe('SECUNDÁRIO FECHADO OU CURTO-CIRCUITADO NOS BORNES (NUNCA ABERTO); BORNES DE AFERIÇÃO EM BOM ESTADO');
+    expect(tc[6]!.nc_phrases).toHaveLength(3);
+    expect(tc[6]!.hint).toBeUndefined();
+    // Asked on every TC: no subtype marks it NA and the oil rule does not name it.
+    expect(v16.blocks.tc.subtypes.flatMap((subtype) => subtype.na_defaults)).not.toContain(STORY_25_18_TC_ITEM.key);
+    expect(v16.blocks.tc.oil_rule!.items).toEqual(v15.blocks.tc.oil_rule!.items);
+    expect(ITEM_KEYS.at(-1)).toBe(STORY_25_18_TC_ITEM.key);
+  });
+
+  it('the v16 TP is the v15 list (its rule is the opposite one)', () => {
+    expect(v16.blocks.tp.checklist).toEqual(v15.blocks.tp.checklist);
+    expect(keys(v16.blocks.tp)).not.toContain(STORY_25_18_TC_ITEM.key);
+  });
+
+  it('the v16 transformer\'s six items carry their hints; no label, key or order changes, no other item gains one', () => {
+    expect(STORY_25_18_TRANSFORMER_HINTS).toEqual({
+      oleo_isolante_indicador_de_nivel: 'NÍVEL DE ÓLEO',
+      juntas_vedacoes_e_vazamentos: 'VAZAMENTOS DE ÓLEO',
+      elemento_secante: 'SÍLICA GEL DO SECADOR',
+      termometro: 'TERMÔMETRO DE ÓLEO',
+      rele_de_gas_funcionamento: 'RELÉ BUCHHOLZ, QUANDO HOUVER',
+      valvula_de_alivio: 'VÁLVULA DE ALÍVIO DE PRESSÃO, QUANDO HOUVER',
+    });
+    const before = v15.blocks.transformador_forca.checklist!;
+    const after = v16.blocks.transformador_forca.checklist!;
+    const shape = (items: typeof before) => items.map(({ key, label, nc_phrases }) => ({ key, label, nc_phrases }));
+    expect(shape(after)).toEqual(shape(before));
+    for (const item of after) expect(item.hint, item.key).toBe(STORY_25_18_TRANSFORMER_HINTS[item.key] ?? before.find((one) => one.key === item.key)!.hint);
+    expect(after.filter((item) => item.hint !== undefined)).toHaveLength(6);
+  });
+
+  it('v15 and v14 keep a six-item TC and a transformer with no hint on those items', () => {
+    for (const version of ['v14', 'v15']) {
+      const seed = getSeed(version, 'cabine_primaria');
+      expect(seed.blocks.tc.checklist, version).toHaveLength(6);
+      expect(keys(seed.blocks.tc), version).not.toContain(STORY_25_18_TC_ITEM.key);
+      for (const key of Object.keys(STORY_25_18_TRANSFORMER_HINTS)) {
+        expect(seed.blocks.transformador_forca.checklist!.find((item) => item.key === key)!.hint, `${version} ${key}`).toBeUndefined();
+      }
+    }
+  });
+});
+
+describe('25.19-UNIT seed v16 (Story 25.19, the "A SECO" half): the dry option and subtype read "A SECO" with "Á SECO" its alias; the oil option and v1 to v15 unchanged', () => {
+  const v15 = getSeed('v15', 'cabine_primaria');
+  const v16 = getSeed('v16', 'cabine_primaria');
+  const insulation = (seed: ReportSeed, type: (typeof STORY_25_19_TYPES)[number]) => seed.blocks[type].nameplate.find((field) => field.key === 'tipo_de_isolacao')!;
+
+  it.each(STORY_25_19_TYPES)('%s: TIPO DE ISOLAÇÃO reads EPÓXI, A SECO and v15\'s oil option; "Á SECO" is an alias of "A SECO", the oil aliases kept', (type) => {
+    const before = insulation(v15, type);
+    const after = insulation(v16, type);
+    expect(after.options).toEqual(before.options!.map((option) => (option === 'Á SECO' ? 'A SECO' : option)));
+    expect(after.options).toContain(STORY_25_19_DRY);
+    expect(after.options).not.toContain(STORY_25_19_DRY_ALIAS);
+    expect(after.option_aliases).toEqual({ ...before.option_aliases, 'Á SECO': 'A SECO' });
+    expect(fieldDefSchema.safeParse(after).success).toBe(true);
+    // The oil rule, its values and the sampling's condition are v15's (the oil half waits for B-4).
+    expect(v16.blocks[type].oil_rule).toEqual(v15.blocks[type].oil_rule);
+    expect(v16.blocks[type].measurement_tests).toEqual(v15.blocks[type].measurement_tests);
+  });
+
+  it.each(STORY_25_19_TYPES)('%s: the dry subtype keeps its key `a_seco` and its NA defaults, labelled "A SECO"', (type) => {
+    const before = v15.blocks[type].subtypes;
+    const after = v16.blocks[type].subtypes;
+    expect(after.map((subtype) => subtype.key)).toEqual(before.map((subtype) => subtype.key));
+    expect(after.find((subtype) => subtype.key === 'a_seco')).toEqual({ ...before.find((subtype) => subtype.key === 'a_seco')!, label: 'A SECO' });
+    expect(after.find((subtype) => subtype.key === 'epoxi')).toEqual(before.find((subtype) => subtype.key === 'epoxi'));
+  });
+
+  it.each(STORY_25_19_TYPES)('%s: a value of an older visit reads as the v16 option ("Á SECO" lands on "A SECO", the oil spellings as on v15)', (type) => {
+    const field = insulation(v16, type);
+    expect(selectOptionFor(field, 'Á SECO')).toBe('A SECO');
+    expect(selectOptionFor(field, 'A SECO')).toBe('A SECO');
+    expect(selectOptionFor(field, 'á seco')).toBe('A SECO');
+    expect(selectOptionFor(field, 'EPÓXI')).toBe('EPÓXI');
+    for (const spelling of ['ÓLEO', 'ÓLEO MINERAL', 'ÓLEO ISOLANTE']) expect(selectOptionFor(field, spelling), spelling).toBe(selectOptionFor(insulation(v15, type), spelling));
+  });
+
+  it('every seed of v1 to v15 still reads "Á SECO" in its options and its subtypes', () => {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16')) {
+      const seed = getSeed(version, 'cabine_primaria');
+      for (const type of STORY_25_19_TYPES) {
+        const options = seed.blocks[type].nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')?.options;
+        if (options !== undefined) {
+          expect(options, `${version} ${type}`).toContain('Á SECO');
+          expect(options, `${version} ${type}`).not.toContain('A SECO');
+        }
+        const subtype = seed.blocks[type].subtypes.find((one) => one.key === 'a_seco');
+        if (subtype !== undefined) expect(subtype.label, `${version} ${type}`).toBe('Á SECO');
+      }
+    }
   });
 });
 
