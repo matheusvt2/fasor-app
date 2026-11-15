@@ -1033,6 +1033,8 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
                     v: cell.verdict,
                     ...(cell.corrected == null ? {} : { c: cell.corrected.raw }),
                     ...(cell.restriction == null ? {} : { x: cell.restriction.reason }),
+                    // Story 25.14: an added row's name joins its cells (the paragraph names it), only where one is added.
+                    ...(row.added === undefined ? {} : { n: row.added.name }),
                   })),
               ),
             })),

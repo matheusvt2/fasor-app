@@ -1,4 +1,12 @@
 import {
+  addedRowNameLabel,
+  addedRowNameTaken,
+  addedRowRemoveLabel,
+  addedRowRemovedText,
+  addedRowsAddedText,
+  addedRowsAtMaxText,
+  addedRowsFromPlateLabel,
+  addedRowsPlateReason,
   appendObservation,
   blockConfigWithSubBlock,
   choiceValue,
@@ -19,16 +27,17 @@ import {
   type MeasurementTestEvaluation,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { OverflowMenu, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Button, OverflowMenu, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { newId } from '../../ids.ts';
 import { wrapsOnPhone } from './configuracao-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { ReadOnlyField, SheetField, useTypedText } from './ficha-fields.tsx';
 import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
-import { conclusionOp, testCellOp, testChoiceCellOp, testValueOp } from './ficha-ops.ts';
+import { addedRowNameOp, addedRowRemoveOp, conclusionOp, measurementCellOp, measurementChoiceCellOp, testValueOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, MeasurementField, ReadOnlyMeasurementField, useRestrictionOffered, type RunDirection } from './measurement-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
@@ -556,8 +565,9 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
           </thead>
           <tbody>
             {test.rows.map((row) => (
-              <tr key={row.row} data-row-key={row.key}>
-                <td className="cell-point">{row.label}</td>
+              <tr key={row.added?.id ?? row.row} data-row-key={row.key} data-added-row={row.added === undefined ? undefined : ''}>
+                {/* Story 25.14 (`60-ficha.html` #/ficha/MA-02): an added row's first cell is its name, with its remove action. */}
+                <td className="cell-point">{row.added === undefined ? row.label : <AddedRowName api={api} test={test} row={row} readOnly={readOnly} presentation="table" />}</td>
                 {row.cells.map((cell) =>
                   cell.fixed !== null ? (
                     <td key={cell.address.col} className="cell-dim">
@@ -590,8 +600,15 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
             {test.rows.map((row) => {
               const fixed = row.cells.filter((cell) => cell.fixed !== null);
               return (
-                <div key={row.row} className="measurement-card" data-row-key={row.key}>
-                  <p className="card-point">{row.label}</p>
+                <div key={row.added?.id ?? row.row} className="measurement-card" data-row-key={row.key} data-added-row={row.added === undefined ? undefined : ''}>
+                  {/* Story 25.14: on the phone an added row is a card whose title is its name Field (the frame's `.card-point.e25-card-added`). */}
+                  {row.added === undefined ? (
+                    <p className="card-point">{row.label}</p>
+                  ) : (
+                    <div className="card-point e25-card-added">
+                      <AddedRowName api={api} test={test} row={row} readOnly={readOnly} presentation="card" />
+                    </div>
+                  )}
                   {fixed.length === 0 ? null : <p className="card-dims">{fixed.map((cell) => t.measurement.cardPart(cell.column, cell.fixed ?? '')).join(t.measurement.cardSeparator)}</p>}
                   {row.cells
                     .filter((cell) => cell.fixed === null)
@@ -615,6 +632,146 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
           </div>
         </div>
       ) : null}
+      {test.addedRows === undefined || readOnly ? null : <AddedRowActions api={api} test={test} />}
+    </div>
+  );
+}
+
+// --- Story 25.14: A row the technician adds in the field -------------------------------------------
+
+/** The data attribute an added row's name input carries, which the focus after "Adicionar ponto" finds it by. */
+const ADDED_NAME_ATTRIBUTE = 'data-added-name';
+
+/**
+ * Story 25.14 (`60-ficha.html` #/ficha/MA-02 `.e25-added`, DESIGN.md › Measurement table): the name of a row the
+ * technician added, a Field whose label is visually hidden (the kernel's "Nome do ponto"), committed on blur or Enter as
+ * a `sheet/{b}/test/{t}/row/{rowId}/name` put (null when emptied: the row then counts as missing), with the remove
+ * action (trash) beside it: the row and its readings leave with one toast and "Desfazer". A name another row of the
+ * table already has is refused on this device (the kernel's `addedRowNameTaken`) and says so under the field. On a
+ * read-only sheet the name is text and nothing is removed.
+ */
+function AddedRowName({ api, test, row, readOnly, presentation }: { api: FichaApi; test: MeasurementTestEvaluation; row: EvaluatedMeasurementRow; readOnly: boolean; presentation: 'table' | 'card' }) {
+  const view = test.addedRows!;
+  const added = row.added!;
+  const fieldId = useId();
+  const helperId = useId();
+  const typed = useTypedText(
+    added.name ?? '',
+    (text) => {
+      const name = text.trim();
+      // A name another row already has is not written; the field keeps it with the helper under it.
+      if (name !== '' && addedRowNameTaken(test.rows, added.id, name)) return undefined;
+      if (api.author === null || name === (added.name ?? '')) return undefined;
+      return api.commit([addedRowNameOp(api.author, api.relatorioId, api.blockId, test.testKey, added.id, name === '' ? null : name)]);
+    },
+    { entityId: api.blockId, field: `linha-${test.testKey}-${added.id}${presentation === 'card' ? '-card' : ''}` },
+    { cap: view.nameMax },
+  );
+  if (readOnly) return <>{row.label}</>;
+  const taken = addedRowNameTaken(test.rows, added.id, typed.text);
+  const missing = added.nameMissing && typed.text.trim() === '';
+  const remove = () => {
+    void api
+      .edit((blocks, by) => {
+        // The row as the freshest block holds it: one another device already removed is not removed again.
+        const fresh = blocks.find((block) => block.id === api.blockId)?.sheet.test[test.testKey]?.added_rows?.[added.id];
+        if (fresh === undefined || (fresh.removed_at ?? null) !== null) return null;
+        return [addedRowRemoveOp(by, api.relatorioId, api.blockId, test.testKey, added.id)];
+      })
+      .then((batch) => {
+        if (batch !== null) api.undoable(addedRowRemovedText(view.key, row.label), batch);
+      })
+      .catch(() => undefined);
+  };
+  return (
+    <div className="e25-added" data-added-row-id={added.id}>
+      <div className="field" data-missing-field={missing ? '' : undefined}>
+        <label className="field-label visually-hidden" htmlFor={fieldId}>
+          {addedRowNameLabel(view.key)}
+        </label>
+        <input
+          id={fieldId}
+          className="input"
+          type="text"
+          value={typed.text}
+          maxLength={view.nameMax}
+          aria-invalid={missing || taken || undefined}
+          aria-describedby={taken ? helperId : undefined}
+          data-added-name={added.id}
+          onChange={(event) => typed.change(event.target.value)}
+          onBlur={() => typed.blur()}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            typed.enter();
+          }}
+        />
+        {taken ? (
+          <span className="helper" id={helperId}>
+            {copy.ficha.measurement.addedRowNameTaken}
+          </span>
+        ) : null}
+      </div>
+      <button type="button" className="icon-btn" aria-label={addedRowRemoveLabel(view.key, row.label)} onClick={remove}>
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-trash" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Story 25.14 (`60-ficha.html` #/ficha/MA-02 and #/ficha/NB-02 `.e25-add-row`): under the table, the definition's action
+ * ("Adicionar ponto") adding one row, named with the stem's next number when the key has one, else left for the
+ * technician to name (its name field takes the focus); and, where the plate's count asks for rows still missing, one
+ * secondary action that adds them all with their numbered names, the plate's count beside it. Nothing is added by
+ * itself. At the test's maximum the action is off with its reason.
+ */
+function AddedRowActions({ api, test }: { api: FichaApi; test: MeasurementTestEvaluation }) {
+  const view = test.addedRows!;
+  const [focusRow, setFocusRow] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusRow === null) return;
+    const inputs = document.querySelectorAll<HTMLInputElement>(`[${ADDED_NAME_ATTRIBUTE}="${focusRow}"]`);
+    const visible = [...inputs].find((input) => input.getClientRects().length > 0) ?? inputs[0];
+    if (visible === undefined) return;
+    visible.focus();
+    setFocusRow(null);
+  }, [focusRow, test.rows]);
+  const add = (names: readonly (string | null)[]) => {
+    const ids = names.map(() => newId());
+    void api
+      .edit((_blocks, by) => names.map((name, i) => addedRowNameOp(by, api.relatorioId, api.blockId, test.testKey, ids[i]!, name)))
+      .then((batch) => {
+        if (batch === null) return;
+        api.announce(addedRowsAddedText(view.key, names));
+        // A row with no name yet: its name field takes the focus, so the name is typed at once.
+        if (names.length === 1 && names[0] === null) setFocusRow(ids[0]!);
+      })
+      .catch(() => undefined);
+  };
+  const plate = view.fromPlate;
+  const fromPlate = plate === null || plate.names.length === 0 ? null : plate;
+  return (
+    <div className="row-wrap e25-add-row" data-added-row-actions="">
+      {fromPlate === null || !view.canAdd ? null : (
+        <>
+          <Button variant="secondary" onPress={() => add(fromPlate.names)}>
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-plus" />
+            </svg>
+            {addedRowsFromPlateLabel(view.key, fromPlate.names.length)}
+          </Button>
+          <span className="btn-reason">{addedRowsPlateReason(view.key, fromPlate.count)}</span>
+        </>
+      )}
+      <TextButton isDisabled={!view.canAdd} disabledReason={view.canAdd ? undefined : addedRowsAtMaxText(view.key)} onPress={() => add([view.nextName])}>
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-plus" />
+        </svg>
+        {view.label}
+      </TextButton>
     </div>
   );
 }
@@ -645,9 +802,10 @@ function ChoiceCell({ api, cell, label, readOnly }: { api: FichaApi; cell: Evalu
   }
 
   const edit = (build: Parameters<FichaApi['edit']>[0]) => void api.edit(build).catch(() => undefined);
-  const choose = (optionKey: string) => edit((_blocks, by) => [testChoiceCellOp(by, api.relatorioId, api.blockId, address.testKey, address.row, address.col, optionKey)]);
-  const markNotMeasured = () => edit((_blocks, by) => [testCellOp(by, api.relatorioId, api.blockId, address.testKey, address.row, address.col, { raw: '', unit: null, state: 'not_measured' })]);
-  const clear = () => edit((_blocks, by) => [testCellOp(by, api.relatorioId, api.blockId, address.testKey, address.row, address.col, null)]);
+  // Story 25.14: by the address, so an added row's cell goes through its own path.
+  const choose = (optionKey: string) => edit((_blocks, by) => [measurementChoiceCellOp(by, api.relatorioId, api.blockId, address, optionKey)]);
+  const markNotMeasured = () => edit((_blocks, by) => [measurementCellOp(by, api.relatorioId, api.blockId, address, { raw: '', unit: null, state: 'not_measured' })]);
+  const clear = () => edit((_blocks, by) => [measurementCellOp(by, api.relatorioId, api.blockId, address, null)]);
   const markRestricted = () => {
     void api
       .edit((blocks, by) => {

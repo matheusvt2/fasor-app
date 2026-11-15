@@ -626,6 +626,16 @@
  * content with no key of their own. Every seed of v1 to v15 parses to the same bytes and a row written before 54
  * parses to the same bytes. MIN follows to 54 (below).
  */
+/*
+ * 54, the same number (2026-11-15, Story 25.14, batch e25s): two client put families are new, a row the technician
+ * adds to a measurement test whose definition carries the new optional key `added_rows`:
+ * `sheet/{block_id}/test/{test_key}/row/{row_id}/{name|removed_at}` (the name, whose first put adds the row; the
+ * tombstone, a `remove` or a put of null) and `sheet/{block_id}/test/{test_key}/row/{row_id}/cell/{col}` (one of its
+ * readings), stored at `sheet.test[test_key].added_rows[row_id]`. The fold refuses them on a test without the key and
+ * past the test's caps (`SeedPathError`, answered `op_invalid`). The definition schemas gain the optional key, the
+ * sheet's test entry the optional `added_rows`, both never defaulted: no seed carries the key and a row written
+ * before 54 parses to the same bytes. MIN follows to 54 (below).
+ */
 export const CONTRACT_VERSION = 54;
 
 /**
@@ -1003,6 +1013,13 @@ export const CONTRACT_VERSION = 54;
  * TC (`materializeEntity` throws on a pulled op its fold refuses), and its `itemKeySchema` refuses the NC phrase
  * the server learns on the item (`registry/nc_phrase`, on the company stream); it would also read "Á SECO" where
  * the server reads "A SECO". Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+/*
+ * 54, the same number (2026-11-15, Story 25.14, batch e25s): a version-53 (or older) bundle's path enum lacks
+ * `sheet/test/row` and `sheet/test/row/cell`, so a pulled op of a row added on another device fails to parse
+ * (`materializeEntity` throws on a pulled op its fold refuses) and the relatório stops syncing on it; its block schema
+ * would also strip `added_rows` from the sheet (a pulled op is not folded again) and its readers would never show,
+ * count or print the row. Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
 export const MIN_CONTRACT_VERSION = 54;
 

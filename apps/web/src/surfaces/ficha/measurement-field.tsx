@@ -27,7 +27,7 @@ import { ui } from '../../copy/ui.ts';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { DRAFT_SURFACE } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
-import { conclusionOp, testCellOp } from './ficha-ops.ts';
+import { conclusionOp, measurementCellOp, testCellOp } from './ficha-ops.ts';
 
 /*
  * The Measurement field (Story 5.5, UX-DR39; `key-equipment-sheet.html`, `60-ficha.html`):
@@ -51,6 +51,8 @@ export interface FieldAddress {
   testKey: string;
   row: number;
   col: number;
+  /** Story 25.14: a cell of a row the technician added, written through `sheet/{b}/test/{t}/row/{rowId}/cell/{col}`. */
+  rowId?: string;
 }
 
 /**
@@ -174,9 +176,15 @@ const NUMBER_FIELD = { kind: 'number' } as const;
 const UnitTapGuardContext = createContext<(cell: Pick<EvaluatedCell, 'state'>) => boolean>(() => false);
 export const UnitTapGuardProvider = UnitTapGuardContext.Provider;
 
-/** The data attribute the continuous run finds a cell's input by. */
+/** The data attribute the continuous run finds a cell's input by; Story 25.14: an added row's cell by its row id, never its place. */
 export function cellKey(address: FieldAddress): string {
-  return `${address.testKey}:${address.row}:${address.col}`;
+  return address.rowId === undefined ? `${address.testKey}:${address.row}:${address.col}` : `${address.testKey}:+${address.rowId}:${address.col}`;
+}
+
+/** The draft key of a cell's typed text (Story 25.14: an added row's by its row id, so a draft never moves to another row). */
+function cellDraftField(address: FieldAddress, presentation: 'table' | 'card'): string {
+  const row = address.rowId === undefined ? String(address.row) : address.rowId;
+  return `test-${address.testKey}-${row}-${address.col}${presentation === 'card' ? '-card' : ''}`;
 }
 
 export function MeasurementField<Address extends FieldAddress>({
@@ -237,7 +245,8 @@ export function MeasurementField<Address extends FieldAddress>({
 
   const write = (value: Parameters<typeof testCellOp>[6]) => {
     if (api.author === null) return undefined;
-    return api.commit([testCellOp(api.author, api.relatorioId, api.blockId, address.testKey, address.row, address.col, value)]);
+    // Story 25.14: by the address, so an added row's cell goes through its own path.
+    return api.commit([measurementCellOp(api.author, api.relatorioId, api.blockId, address, value)]);
   };
 
   const number = useNumberInput({
@@ -258,7 +267,7 @@ export function MeasurementField<Address extends FieldAddress>({
     onFocusChange: (focused) => {
       if (!focused) setLimitHint(false);
     },
-    draft: { surface: DRAFT_SURFACE, entityId: api.blockId, field: `test-${address.testKey}-${address.row}-${address.col}${presentation === 'card' ? '-card' : ''}` },
+    draft: { surface: DRAFT_SURFACE, entityId: api.blockId, field: cellDraftField(address, presentation) },
     // Story 25.2 (M02): a reading typed and left with the sheet (the tree, "Voltar", the stepper) is committed as a blur
     // commits it; text that is no number becomes a draft offered on return.
     flushOnUnmount: true,
@@ -348,7 +357,7 @@ export function MeasurementField<Address extends FieldAddress>({
   /** Story 25.9 (seed v15): "Não se aplica" through the edit queue, with the frame's toast and "Desfazer". */
   const markNotApplicable = () => {
     void api
-      .edit((_blocks, by) => [testCellOp(by, api.relatorioId, api.blockId, address.testKey, address.row, address.col, notApplicableReadingValue(slotUnit))])
+      .edit((_blocks, by) => [measurementCellOp(by, api.relatorioId, api.blockId, address, notApplicableReadingValue(slotUnit))])
       .then((batch) => {
         if (batch !== null) api.undoable(copy.ficha.ensaios.notApplicableMarked, batch);
       })

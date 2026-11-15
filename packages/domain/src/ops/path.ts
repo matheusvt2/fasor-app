@@ -70,6 +70,11 @@ export const AUDIT_RUN_FIELDS = ['status', 'findings', 'error', 'prompt_version'
  * `derived_from` is fixed at create and `latest_version` is derived (`applyOp`), so neither is here.
  */
 export const EQUIPMENT_TYPE_FIELDS = ['draft', 'retired_at', 'removed_at'] as const;
+/**
+ * Story 25.14 (contract 54): the fields a `sheet/{b}/test/{t}/row/{row_id}/{field}` write takes on a row the
+ * technician added: its name (a put, which also creates the row) and its tombstone (a `remove`, or a put).
+ */
+export const ADDED_ROW_FIELDS = ['name', 'removed_at'] as const;
 
 /**
  * Keys a `{field}` segment may never name: identity, ownership and derived values are set
@@ -196,6 +201,9 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('equipment_type'), id: uuidV7Schema }),
   z.object({ family: z.literal('equipment_type/field'), id: uuidV7Schema, field: z.enum(EQUIPMENT_TYPE_FIELDS) }),
   z.object({ family: z.literal('equipment_type_version'), id: uuidV7Schema }),
+  // Story 25.14 (contract 54): a row the technician adds to a measurement test, and one cell of it.
+  z.object({ family: z.literal('sheet/test/row'), block_id: uuidV7Schema, test_key: seedKey, row_id: uuidV7Schema, field: z.enum(ADDED_ROW_FIELDS) }),
+  z.object({ family: z.literal('sheet/test/row/cell'), block_id: uuidV7Schema, test_key: seedKey, row_id: uuidV7Schema, col: cellIndex }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -396,6 +404,22 @@ export const FAMILIES: readonly FamilyDef[] = [
   { family: 'equipment_type', entity: 'equipment_type', create: true, segments: [lit('equipment_type'), id()] },
   { family: 'equipment_type/field', entity: 'equipment_type', segments: [lit('equipment_type'), id(), en(EQUIPMENT_TYPE_FIELDS)] },
   { family: 'equipment_type_version', entity: 'equipment_type_version', create: true, segments: [lit('equipment_type_version'), id()] },
+  // Story 25.14 (2026-11-15, contract 54): a row the technician adds to a measurement test whose definition
+  // carries `added_rows`, stored at `sheet.test[test_key].added_rows[row_id]`. `…/row/{row_id}/name` is a
+  // put (the first one creates the row; null while it has no name), `…/row/{row_id}/removed_at` a `remove`
+  // (or a put: null restores it); `…/row/{row_id}/cell/{col}` a put of one of its readings, `col` the index
+  // in the test's columns. Every key is structural here; that the block's definition lets the test take
+  // added rows, the row exists and the caps hold is `applyOp`'s check (`SeedPathError`).
+  {
+    family: 'sheet/test/row',
+    entity: 'block',
+    segments: [lit('sheet'), id('block_id'), lit('test'), key('test_key'), lit('row'), id('row_id'), en(ADDED_ROW_FIELDS)],
+  },
+  {
+    family: 'sheet/test/row/cell',
+    entity: 'block',
+    segments: [lit('sheet'), id('block_id'), lit('test'), key('test_key'), lit('row'), id('row_id'), lit('cell'), int('col')],
+  },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));
@@ -593,6 +617,18 @@ export const sheetTestCellPath = (blockId: string, testKey: string, row: number,
 /** Story 14.5: one value of a measurement test outside its table (`sheet.test[testKey].values[valueKey]`). */
 export const sheetTestValuePath = (blockId: string, testKey: string, valueKey: string): string =>
   formatPath({ family: 'sheet/test/value', block_id: blockId, test_key: testKey, value_key: valueKey });
+/** Story 25.14: a row the technician added to a measurement test: its name, or its tombstone. */
+export const sheetTestRowPath = (blockId: string, testKey: string, rowId: string, field: (typeof ADDED_ROW_FIELDS)[number]): string =>
+  formatPath({ family: 'sheet/test/row', block_id: blockId, test_key: testKey, row_id: rowId, field });
+/** Story 25.14: one reading of a row the technician added (`sheet.test[testKey].added_rows[rowId].cells[col]`). */
+export const sheetTestRowCellPath = (blockId: string, testKey: string, rowId: string, col: number): string =>
+  formatPath({ family: 'sheet/test/row/cell', block_id: blockId, test_key: testKey, row_id: rowId, col });
+/**
+ * Story 25.14: the path of a measurement test's cell by its evaluated address: a definition row's
+ * `sheet/test/cell`, an added row's (`rowId`) `sheet/test/row/cell`. Every cell write of the sheet goes through it.
+ */
+export const measurementCellPath = (blockId: string, address: { testKey: string; row: number; col: number; rowId?: string | undefined }): string =>
+  address.rowId === undefined ? sheetTestCellPath(blockId, address.testKey, address.row, address.col) : sheetTestRowCellPath(blockId, address.testKey, address.rowId, address.col);
 export const sheetConclusionPath = (blockId: string, field: (typeof CONCLUSION_FIELDS)[number]): string =>
   formatPath({ family: 'sheet/conclusion', block_id: blockId, field });
 export const sheetObservationsPath = (blockId: string): string => formatPath({ family: 'sheet/observations', block_id: blockId });

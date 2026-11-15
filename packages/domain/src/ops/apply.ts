@@ -1,14 +1,17 @@
 import { BASE_EQUIPMENT_BLOCK_TYPES, companyTypeIdOf, isCompanyBlockType, isEquipmentBlockType, sameTypeVersion, typeVersionIdOf, typeVersionOf } from '../schemas/block-config.ts';
 import { definitionContextOf, findDefinition, findDefinitionIn, siteItems, typeVersionText, type DefinitionContext } from '../seed/definitions.ts';
-import type { MeasurementTest, MeasurementValueKind } from '../seed/measurement.ts';
+import { ADDED_ROW_NAME_MAX_LENGTH, ADDED_ROWS_DEFAULT_MAX, type MeasurementTest, type MeasurementValueKind } from '../seed/measurement.ts';
+import { isoTimestampSchema } from '../clock.ts';
 import type { BlockDefinition, TableDef, TestDef } from '../seed/schema.ts';
 import { isApplicabilityValue } from '../relatorio/applicability.ts';
 import { tapRowAccepted, tapRowClearable } from '../relatorio/tap-rows.ts';
 import { isChoiceCellValue, manufacturerRefusal } from '../relatorio/reading-evaluation.ts';
 import {
+  addedRowSchema,
   blockRowSchema,
   cellSchema,
   entityRowSchemas,
+  type AddedRow,
   type BlockRow,
   type Cell,
   type Entity,
@@ -245,6 +248,11 @@ export function sheetCellAt(sheet: Sheet, path: OpPath): Cell | undefined {
       return sheet.test[path.test_key]?.cells[String(path.row)]?.[String(path.col)];
     case 'sheet/test/value':
       return sheet.test[path.test_key]?.values?.[path.value_key];
+    // Story 25.14: an added row's name is a cell; its tombstone is a plain value, never a cell.
+    case 'sheet/test/row':
+      return path.field === 'name' ? sheet.test[path.test_key]?.added_rows?.[path.row_id]?.name : undefined;
+    case 'sheet/test/row/cell':
+      return sheet.test[path.test_key]?.added_rows?.[path.row_id]?.cells[String(path.col)];
     case 'sheet/conclusion':
       return sheet.conclusion[path.field];
     case 'sheet/observations':
@@ -462,7 +470,9 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
     path.family !== 'sheet/checklist' &&
     path.family !== 'sheet/test' &&
     path.family !== 'sheet/test/cell' &&
-    path.family !== 'sheet/test/value'
+    path.family !== 'sheet/test/value' &&
+    path.family !== 'sheet/test/row' &&
+    path.family !== 'sheet/test/row/cell'
   ) {
     return false;
   }
@@ -491,12 +501,17 @@ function assertSeedPath(block: BlockRow, path: OpPath, ctx: () => DefinitionCont
       if (path.family === 'sheet/test/value') {
         throw new SeedPathError(formatPath(path), `sheet/test/value: ${block.block_type}/${test.key} declares no value "${path.value_key}"`);
       }
+      // Story 25.14: a test of the four seeded grammars takes no row added on the sheet.
+      if (path.family === 'sheet/test/row' || path.family === 'sheet/test/row/cell') {
+        throw new SeedPathError(formatPath(path), `${path.family}: ${block.block_type}/${test.key} takes no added row`);
+      }
       if (path.family === 'sheet/test' && path.field === 'applicability') assertApplicability(block, test.applies_when, op, path);
       return false;
     }
     const measurement = (definition.measurement_tests ?? []).find((t) => t.key === path.test_key);
     if (measurement === undefined) throw new SeedPathError(formatPath(path), `${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
-    if (path.family === 'sheet/test/cell') assertMeasurementCell(block, measurement, path);
+    if (path.family === 'sheet/test/row' || path.family === 'sheet/test/row/cell') assertAddedRow(block, measurement, path, op);
+    else if (path.family === 'sheet/test/cell') assertMeasurementCell(block, measurement, path);
     else if (path.family === 'sheet/test/value') {
       const declared = (measurement.values ?? []).find((value) => value.key === path.value_key);
       if (declared === undefined) {
@@ -574,6 +589,52 @@ function assertMeasurementCell(block: BlockRow, test: MeasurementTest, path: OpP
   }
 }
 
+// --- Story 25.14: A row the technician adds in the field (contract 54) ------------------------------
+
+/** The live rows (no tombstone) among a test's added rows. */
+function liveAddedRows(rows: Readonly<Record<string, AddedRow>>): number {
+  return Object.values(rows).filter((row) => (row.removed_at ?? null) === null).length;
+}
+
+/**
+ * Story 25.14 (contract 54): a write on a row the technician adds to a measurement test, accepted only on a
+ * test whose definition carries `added_rows` (on any seed, a company type's included). Its name is a string
+ * of at most `ADDED_ROW_NAME_MAX_LENGTH` characters, or null; the first put of it creates the row, refused
+ * while the test already holds its maximum of live rows (`max`, else `ADDED_ROWS_DEFAULT_MAX`). Its cells
+ * and its tombstone are written only on a row that exists, a cell on a column of the test (an added row has
+ * no fixed cell); a removed row's cells are still written (they stay under its tombstone, as a removed
+ * block's do), and restoring one is refused while the test holds its maximum. A permanent refusal
+ * (`SeedPathError`, answered `op_invalid`). Replay safety: thrown only for paths that could not exist before
+ * contract 54. Each rule reads only the row the op targets, so the device's fold of a pulled op (over the
+ * server log alone, `materializeEntity`) gives what the server's did.
+ */
+function assertAddedRow(block: BlockRow, test: MeasurementTest, path: OpPath & { family: 'sheet/test/row' | 'sheet/test/row/cell' }, op: Op): void {
+  const where = formatPath(path);
+  const key = test.added_rows;
+  if (key === undefined) throw new SeedPathError(where, `${path.family}: ${block.block_type}/${test.key} takes no added row`);
+  const rows = block.sheet.test[test.key]?.added_rows ?? {};
+  const row = rows[path.row_id];
+  const max = key.max ?? ADDED_ROWS_DEFAULT_MAX;
+  if (path.family === 'sheet/test/row/cell') {
+    if (row === undefined) throw new SeedPathError(where, `sheet/test/row/cell: ${path.row_id} is not a row of ${block.block_type}/${test.key}`);
+    if (test.columns[path.col] === undefined) throw new SeedPathError(where, `sheet/test/row/cell: column ${path.col} is outside ${block.block_type}/${test.key}`);
+    return;
+  }
+  if (path.field === 'name') {
+    const value = op.value ?? null;
+    if (value !== null && typeof value !== 'string') throw new SeedPathError(where, 'sheet/test/row: a row name is a string or null');
+    if (typeof value === 'string' && value.length > ADDED_ROW_NAME_MAX_LENGTH) throw new SeedPathError(where, `sheet/test/row: a row name holds ${value.length} characters, over ${ADDED_ROW_NAME_MAX_LENGTH}`);
+    if (row === undefined && liveAddedRows(rows) >= max) throw new SeedPathError(where, `sheet/test/row: ${block.block_type}/${test.key} already holds its ${max} added rows`);
+    return;
+  }
+  if (row === undefined) throw new SeedPathError(where, `sheet/test/row: ${path.row_id} is not a row of ${block.block_type}/${test.key}`);
+  const value = op.kind === 'remove' ? op.client_ts : (op.value ?? null);
+  if (value !== null && !isoTimestampSchema.safeParse(value).success) throw new SeedPathError(where, 'sheet/test/row: removed_at is an instant or null');
+  if (value === null && (row.removed_at ?? null) !== null && liveAddedRows(rows) >= max) {
+    throw new SeedPathError(where, `sheet/test/row: ${block.block_type}/${test.key} already holds its ${max} added rows`);
+  }
+}
+
 /**
  * Story 23.9 (contract 35): the override of a test the nameplate makes not applicable,
  * `sheet/{b}/test/{k}/applicability`: accepted only on a test (either grammar) whose definition
@@ -648,6 +709,8 @@ function assertCellGeometry(block: BlockRow, definition: BlockDefinition, test: 
 const CHECKLIST_ITEM_KEYS = Object.keys(blockRowSchema.shape.sheet.shape.checklist.valueType.shape);
 const TEST_ENTRY_KEYS = Object.keys(blockRowSchema.shape.sheet.shape.test.valueType.shape);
 const CONCLUSION_KEYS = Object.keys(blockRowSchema.shape.sheet.shape.conclusion.shape);
+/** Story 25.14: an added row's keys in their schema's order (`name`, `removed_at`, `cells`). */
+const ADDED_ROW_KEYS = Object.keys(addedRowSchema.shape);
 const attributionSchema = blockRowSchema.pick({
   first_edited_at: true,
   last_modified_by: true,
@@ -660,6 +723,20 @@ function inShapeOrder<T extends object>(value: T, keys: readonly string[]): T {
   const out: Record<string, unknown> = {};
   for (const key of keys) if (key in value) out[key] = (value as Record<string, unknown>)[key];
   return out as T;
+}
+
+/**
+ * Story 25.14: the block with one added row of a measurement test rewritten by `update` (a row not there yet
+ * starts as `{cells: {}}`), the row and the test entry written in their schema's key order.
+ */
+function withAddedRow(block: BlockRow, path: OpPath & { family: 'sheet/test/row' | 'sheet/test/row/cell' }, update: (row: AddedRow) => AddedRow): BlockRow {
+  return withSheet(block, (s) => {
+    const test = s.test[path.test_key];
+    const rows = test?.added_rows ?? {};
+    const row = inShapeOrder(update(rows[path.row_id] ?? { cells: {} }), ADDED_ROW_KEYS);
+    const entry = { cells: {}, ...test, added_rows: { ...rows, [path.row_id]: row } };
+    return { ...s, test: { ...s.test, [path.test_key]: inShapeOrder(entry, TEST_ENTRY_KEYS) } };
+  });
 }
 
 function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
@@ -695,6 +772,11 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
         const entry = { cells: {}, ...test, values: { ...test?.values, [path.value_key]: cell } };
         return { ...s, test: { ...s.test, [path.test_key]: inShapeOrder(entry, TEST_ENTRY_KEYS) } };
       });
+    // Story 25.14: an added row's name (its first put creates the row) and one of its readings.
+    case 'sheet/test/row':
+      return withAddedRow(block, path, (row) => ({ ...row, name: cell }));
+    case 'sheet/test/row/cell':
+      return withAddedRow(block, path, (row) => ({ ...row, cells: { ...row.cells, [String(path.col)]: cell } }));
     case 'sheet/conclusion':
       return withSheet(block, (s) => ({ ...s, conclusion: inShapeOrder({ ...s.conclusion, [path.field]: cell }, CONCLUSION_KEYS) }));
     case 'sheet/observations':
@@ -712,6 +794,14 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
 function writeSheet(block: BlockRow, op: Op, path: OpPath, ctx: () => DefinitionContext): BlockRow {
   // Fix batch e24f (R-5): a clear of a tap row off the plate holding nothing is accepted and changes nothing.
   if (assertSeedPath(block, path, ctx, op)) return block;
+  // Story 25.14: an added row's tombstone is written as a block's is (`remove` writes the op's time, a put
+  // its value, null restoring), never merged: the latest write in `seq` order stands (`assertAddedRow` checked it).
+  if (path.family === 'sheet/test/row' && path.field === 'removed_at') {
+    const removedAt = (op.kind === 'remove' ? op.client_ts : (op.value ?? null)) as string | null;
+    const next = attributed(withAddedRow(block, path, (row) => ({ ...row, removed_at: removedAt })), op);
+    attributionSchema.parse(next);
+    return next;
+  }
   assertManufacturerValue(block, op, path, ctx);
   const cell = cellSchema.parse(cellOf(block, op, path));
   const next = attributed(putSheet(block, path, cell), op);
@@ -767,9 +857,16 @@ export function readPath(state: EntityState, op: Op): unknown {
     case 'sheet/test':
     case 'sheet/test/cell':
     case 'sheet/test/value':
+    case 'sheet/test/row/cell':
     case 'sheet/conclusion':
     case 'sheet/observations':
       return sheetCellAt((row as BlockRow).sheet, path)?.value;
+    case 'sheet/test/row': {
+      // Story 25.14: the tombstone of an added row as a block's reads (absent and null both mean live), its name as a cell.
+      if (path.field === 'name') return sheetCellAt((row as BlockRow).sheet, path)?.value;
+      const added = (row as BlockRow).sheet.test[path.test_key]?.added_rows?.[path.row_id];
+      return added === undefined ? undefined : (added.removed_at ?? null);
+    }
     default:
       return typeof (path as { field?: string }).field === 'string' ? r[(path as { field: string }).field] : undefined;
   }
@@ -868,6 +965,8 @@ function writeRow(row: EntityRow, op: Op, path: OpPath, ctx: () => DefinitionCon
     case 'sheet/test':
     case 'sheet/test/cell':
     case 'sheet/test/value':
+    case 'sheet/test/row':
+    case 'sheet/test/row/cell':
     case 'sheet/conclusion':
     case 'sheet/observations':
       return writeSheet(row as BlockRow, op, path, ctx);

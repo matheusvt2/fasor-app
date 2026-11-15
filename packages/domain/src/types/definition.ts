@@ -268,7 +268,8 @@ function checkCompanyDefinition(
     if (refusal !== undefined && !criterionRulesFor(definition, criterion.key).includes(criterion.operator)) issue(['criteria', c, 'operator'], refusal);
   });
   checkSeedV6Definition(definition, ctx);
-  checkMeasurementDefinition({ sub_blocks: companySubBlocksOf(definition), measurement_tests: definition.measurement_tests, config_fields: definition.config_fields }, ctx);
+  // Story 25.14: with the plate, so a test's added rows count from a number field of it.
+  checkMeasurementDefinition({ sub_blocks: companySubBlocksOf(definition), measurement_tests: definition.measurement_tests, config_fields: definition.config_fields, nameplate: definition.nameplate }, ctx);
 }
 
 /**

@@ -52,6 +52,9 @@ const FAMILY_DECISIONS = {
   'sheet/test/cell': 'edit',
   // Story 14.5: a measurement test's value (how the test was run on site) is filled on site: an edit, and field content.
   'sheet/test/value': 'edit',
+  // Story 25.14: a row the technician adds (its name, its tombstone) and its readings are sheet edits.
+  'sheet/test/row': 'edit',
+  'sheet/test/row/cell': 'edit',
   'sheet/conclusion': 'edit',
   'sheet/observations': 'edit',
   file: 'edit',
@@ -162,6 +165,7 @@ export function countsAsFieldContent(op: EditCandidate): boolean {
     case 'sheet/test':
     case 'sheet/test/cell':
     case 'sheet/test/value':
+    case 'sheet/test/row/cell':
     case 'sheet/conclusion':
     case 'sheet/observations':
     case 'location/se':
@@ -170,6 +174,10 @@ export function countsAsFieldContent(op: EditCandidate): boolean {
     case 'file':
     case 'point':
       return true;
+    // Story 25.14: an added row's readings (`sheet/test/row/cell`, above) and its name (its first put adds the row) are filled
+    // on site; its tombstone (a put of null restores it) is not.
+    case 'sheet/test/row':
+      return parsed.field === 'name';
     case 'block/field':
       return BLOCK_CONTENT_FIELDS.has(parsed.field);
     case 'file/field':

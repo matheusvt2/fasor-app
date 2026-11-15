@@ -52,6 +52,7 @@ import {
   type TestTemperatureView,
 } from './temperature-correction.ts';
 import { NO_VISIT_CONTEXT, previousPlateMeasured, type VisitContext } from './visit-context.ts';
+import { addedRowName, addedRowsView, addedRowUnnamedText, type AddedRowsView } from './added-rows.ts';
 
 /*
  * Story 14.5 (seed v5): THE evaluation of a sheet's measurement tests, the tests of the
@@ -138,10 +139,18 @@ function holds(when: WhenConfig | undefined, config: Readonly<Record<string, str
 
 export interface MeasurementAddress {
   testKey: MeasurementTestKey;
-  /** The index in the test's `rows` (the op path's `row`). */
+  /**
+   * The index in the test's `rows` (the op path's `row`). Story 25.14: on a row the technician added, its place
+   * after the definition's rows (`rows.length` and on, in the order the rows were created), never an op path's.
+   */
   row: number;
   /** The index in the test's `columns` (the op path's `col`). */
   col: number;
+  /**
+   * Story 25.14: the id of the row the technician added (`sheet/{b}/test/{t}/row/{rowId}/cell/{col}`, through
+   * `measurementCellPath`); absent on a definition row's cell.
+   */
+  rowId?: string;
 }
 
 export interface EvaluatedMeasurementColumn {
@@ -235,11 +244,18 @@ export interface EvaluatedMeasurementCell {
 }
 
 export interface EvaluatedMeasurementRow {
-  /** The index in the test's `rows` (the op path's `row`). */
+  /** The index in the test's `rows` (the op path's `row`); Story 25.14: an added row's place after them. */
   row: number;
+  /** The row's seed key; Story 25.14: an added row's id, which names no row of any criterion. */
   key: string;
+  /** The row's label; Story 25.14: an added row's name, or `ADDED_ROW_UNNAMED` while it has none. */
   label: string;
   cells: EvaluatedMeasurementCell[];
+  /**
+   * Story 25.14: on a row the technician added only: its id, its name as typed (null while it has none) and whether
+   * that name is missing (it counts as missing, as an empty cell does, while its test is live).
+   */
+  added?: { id: string; name: string | null; nameMissing: boolean };
 }
 
 /** The row under the table that shows each column's lowest measured value (E1's "Menor do lado"). */
@@ -324,7 +340,7 @@ export interface MeasurementTestEvaluation {
   instrumentOf: InstrumentOf | null;
   rowHeader: string;
   columns: EvaluatedMeasurementColumn[];
-  /** The rows the block's configuration shows, in the test's order. */
+  /** The rows the block's configuration shows, in the test's order; Story 25.14: then the rows the technician added. */
   rows: EvaluatedMeasurementRow[];
   reference: MeasurementReference | null;
   values: EvaluatedMeasurementValue[];
@@ -365,6 +381,8 @@ export interface MeasurementTestEvaluation {
    * restricted one), so a point written from the test's `restricao` entry is not "Origem resolvida".
    */
   restrictionStands?: true;
+  /** Story 25.14: on a test whose definition carries `added_rows` only, what the sheet offers to add (`addedRowsView`). */
+  addedRows?: AddedRowsView;
   /**
    * W3-2 (Epic 14 QA Q-3, Story 14.9): a live test judged by the deviation between phases holds a measured number
    * cell no criterion judged (a cell at zero or below, a group with one positive cell, every cell while the medium is
@@ -1014,6 +1032,8 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
   // Batch e24p (Story 24.15): the previous visit's date as the block's seed names it (the visit's date on v14).
   const dateText = context.seedVersion === undefined ? formatDateOfInstant(entry.issued_at) : previousVisitDateText(entry, context.seedVersion);
   for (const row of rows) {
+    // Story 25.14: a row the technician added has no previous visit; no history rule judges it.
+    if (row.added !== undefined) continue;
     for (const cell of row.cells) {
       const now = cell.corrected ?? null;
       // Like every restriction rule, it runs only on a cell already judged (never an unjudged one: medium unknown, a lone
@@ -1054,6 +1074,58 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
 
 function columnsOf(test: MeasurementTest): EvaluatedMeasurementColumn[] {
   return test.columns.map((column: MeasurementColumn, col) => ({ col, key: column.key, label: column.label, kind: column.kind, unit: column.unit ?? null, optional: column.optional === true }));
+}
+
+/**
+ * Story 25.14 (seed v16, contract 54): the live rows the technician added to `test` (no tombstone), in the
+ * order they were created (by id: a UUIDv7 sorts by its time, and the rows of two devices never share one),
+ * placed after the definition's rows. Only on a test whose definition carries `added_rows`: a row stored
+ * under any other is neither shown nor counted. Each takes one cell per column of the test, by the column's
+ * kind, unit and options (an added row has no fixed cell and is never optional), so its cells are judged by
+ * the criteria of their columns and an empty one counts as missing; its name is required.
+ */
+function evaluateAddedRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, notApplicable: boolean): EvaluatedMeasurementRow[] {
+  const stored = test.added_rows === undefined ? undefined : block.sheet.test[test.key]?.added_rows;
+  if (stored === undefined) return [];
+  const live = Object.entries(stored)
+    .filter(([, row]) => (row.removed_at ?? null) === null)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return live.map(([id, row], position): EvaluatedMeasurementRow => {
+    const name = addedRowName(row.name?.value);
+    const at = test.rows.length + position;
+    const cells = test.columns.map((column, col): EvaluatedMeasurementCell => {
+      const kind = column.kind;
+      const options = kind === 'choice' ? (column.options ?? []) : [];
+      const defaultUnit = kind === 'choice' ? null : (column.unit ?? null);
+      const value = read(row.cells[String(col)], kind, options, notApplicable);
+      const state: ReadingState = value?.state ?? 'empty';
+      return {
+        address: { testKey: test.key, row: at, col, rowId: id },
+        rowKey: id,
+        columnKey: column.key,
+        column: column.label,
+        kind,
+        fixed: null,
+        optional: column.optional === true,
+        state,
+        raw: value?.raw ?? '',
+        unit: kind === 'choice' ? null : (value?.unit ?? defaultUnit),
+        units: unitsOf(defaultUnit),
+        options,
+        displayText: displayOf(value, kind, options),
+        overRange: kind === 'number' ? OVER_RANGE_ALLOWED : { allowed: false, refusal: '' },
+        verdict: null,
+        helperText: null,
+        criterionText: null,
+        sourceName: null,
+        excess: 0,
+        missing: column.optional !== true && state === 'empty',
+        positiveOnlyText: null,
+        toCheck: false,
+      };
+    });
+    return { row: at, key: id, label: name ?? addedRowUnnamedText(test.added_rows!), cells, added: { id, name, nameMissing: name === null } };
+  });
 }
 
 function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, config: Readonly<Record<string, string>>, notApplicable = false): EvaluatedMeasurementRow[] {
@@ -1098,6 +1170,8 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
     });
     rows.push({ row: index, key: row.key, label: row.label, cells });
   });
+  // Story 25.14: the rows the technician added, after the definition's, in the order they were created.
+  rows.push(...evaluateAddedRows(block, test, notApplicable));
   // The unit an empty cell of a tap-cycle column shows: the previous shown row's (Story 5.5 AC 2).
   test.columns.forEach((_, col) => {
     let previous: string | null = null;
@@ -1383,6 +1457,8 @@ function evaluate(
     ...(notes.length === 0 ? {} : { notes }),
     ...(live && stands ? { restrictionStands: true as const } : {}),
     ...(unjudged ? { unjudged: true as const } : {}),
+    // Story 25.14: only on a test whose definition takes added rows, so every other test reads as before.
+    ...(test.added_rows === undefined ? {} : { addedRows: addedRowsView(block, context.definition.nameplate, test.added_rows, rows) }),
   };
 }
 
@@ -1558,11 +1634,19 @@ export function measurementValues(evaluations: readonly MeasurementTestEvaluatio
   return evaluations.filter((test) => test.enabled && test.applicability.state !== 'na').flatMap((test) => test.values.filter((value) => value.shown));
 }
 
-/** What `sheetProgress` adds to the Ensaios step: the required cells and values still empty, and the cells out of criterion. */
+/** Story 25.14: the rows the technician added to the live tests that hold no name yet, each one missing. */
+export function unnamedAddedRows(evaluations: readonly MeasurementTestEvaluation[]): EvaluatedMeasurementRow[] {
+  return liveTests(evaluations).flatMap((test) => test.rows.filter((row) => row.added?.nameMissing === true));
+}
+
+/**
+ * What `sheetProgress` adds to the Ensaios step: the required cells and values still empty, and the cells out of
+ * criterion. Story 25.14: an added row with no name counts one missing more, as an empty cell does.
+ */
 export function measurementCounts(evaluations: readonly MeasurementTestEvaluation[]): { missing: number; outOfLimit: number } {
   const cells = measurementCells(evaluations);
   return {
-    missing: cells.filter((cell) => cell.missing).length + measurementValues(evaluations).filter((value) => value.missing).length,
+    missing: cells.filter((cell) => cell.missing).length + measurementValues(evaluations).filter((value) => value.missing).length + unnamedAddedRows(evaluations).length,
     outOfLimit: cells.filter((cell) => cell.verdict === 'out').length,
   };
 }
@@ -1668,7 +1752,8 @@ export function restrictedMeasurements(evaluations: readonly MeasurementTestEval
 // --- the continuous Enter run ---------------------------------------------------------------------
 
 function sameMeasurementAddress(a: MeasurementAddress, b: MeasurementAddress): boolean {
-  return a.testKey === b.testKey && a.row === b.row && a.col === b.col;
+  // Story 25.14: an added row's cell is the same cell only of the same row id.
+  return a.testKey === b.testKey && a.row === b.row && a.col === b.col && a.rowId === b.rowId;
 }
 
 /** One column of one test, its typed number cells in the rows shown: the run's unit of "down". A choice or a fixed cell is never a stop. */
@@ -1779,7 +1864,7 @@ export function measurementValueLabel(definition: Pick<BlockDefinition, 'measure
 export function measurementStoredText(
   definition: Pick<BlockDefinition, 'measurement_tests'> | null,
   testKey: string,
-  at: { row: number; col: number } | { valueKey: string },
+  at: { row: number; col: number } | { valueKey: string } | { addedCol: number },
   value: unknown,
 ): string | null {
   const test = testOf(definition, testKey)?.test;
@@ -1793,6 +1878,13 @@ export function measurementStoredText(
     ({ kind } = def);
     options = def.options ?? [];
     unit = def.unit ?? null;
+  } else if ('addedCol' in at) {
+    // Story 25.14: a cell of a row the technician added takes its column's kind, options and unit.
+    const column = test.columns[at.addedCol];
+    if (column === undefined || test.added_rows === undefined) return null;
+    kind = column.kind;
+    options = column.options ?? [];
+    unit = column.unit ?? null;
   } else {
     const row = test.rows[at.row];
     const column = test.columns[at.col];

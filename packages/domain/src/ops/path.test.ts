@@ -58,6 +58,10 @@ const EXTRA_PATHS = [
   `equipment_type/${ID}/retired_at`,
   `equipment_type/${ID}/removed_at`,
   `equipment_type_version/${ID}`,
+  // Story 25.14 (contract 54): a row the technician adds to a measurement test, its tombstone and one of its readings.
+  `sheet/${BLOCK}/test/continuidade/row/${ID}/name`,
+  `sheet/${BLOCK}/test/continuidade/row/${ID}/removed_at`,
+  `sheet/${BLOCK}/test/continuidade/row/${ID}/cell/0`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -73,9 +77,10 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    // Fix batch fxrm (contract 28): `relatorio/removed_at`; Story 22.12 (contract 32): `equipment/last_results`; Story 14.6 (contract 33): the three equipment type families, appended last.
-    expect(FAMILIES.length).toBe(50);
-    expect(FAMILIES.slice(-5).map((f) => f.family)).toEqual(['relatorio/removed_at', 'equipment/last_results', 'equipment_type', 'equipment_type/field', 'equipment_type_version']);
+    // Fix batch fxrm (contract 28): `relatorio/removed_at`; Story 22.12 (contract 32): `equipment/last_results`; Story 14.6 (contract 33): the three equipment type families.
+    // Story 25.14 (contract 54): the two families of a row added on the sheet, appended last.
+    expect(FAMILIES.length).toBe(52);
+    expect(FAMILIES.slice(-7).map((f) => f.family)).toEqual(['relatorio/removed_at', 'equipment/last_results', 'equipment_type', 'equipment_type/field', 'equipment_type_version', 'sheet/test/row', 'sheet/test/row/cell']);
   });
 
   it('returns typed segments', () => {
@@ -270,6 +275,11 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     [builders.equipmentTypeFieldPath(ID, 'draft'), { family: 'equipment_type/field', id: ID, field: 'draft' }],
     [builders.equipmentTypeFieldPath(ID, 'retired_at'), { family: 'equipment_type/field', id: ID, field: 'retired_at' }],
     [builders.equipmentTypeVersionPath(ID), { family: 'equipment_type_version', id: ID }],
+    // Story 25.14 (contract 54).
+    [builders.sheetTestRowPath(BLOCK, 'continuidade', ID, 'name'), { family: 'sheet/test/row', block_id: BLOCK, test_key: 'continuidade', row_id: ID, field: 'name' }],
+    [builders.sheetTestRowPath(BLOCK, 'continuidade', ID, 'removed_at'), { family: 'sheet/test/row', block_id: BLOCK, test_key: 'continuidade', row_id: ID, field: 'removed_at' }],
+    [builders.sheetTestRowCellPath(BLOCK, 'continuidade', ID, 2), { family: 'sheet/test/row/cell', block_id: BLOCK, test_key: 'continuidade', row_id: ID, col: 2 }],
+    [builders.measurementCellPath(BLOCK, { testKey: 'continuidade', row: 5, col: 2, rowId: ID }), { family: 'sheet/test/row/cell', block_id: BLOCK, test_key: 'continuidade', row_id: ID, col: 2 }],
   ];
 
   it.each(cases)('%s parses back to its family and segments', (path, expected) => {

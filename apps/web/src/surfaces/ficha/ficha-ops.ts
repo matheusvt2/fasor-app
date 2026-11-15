@@ -6,6 +6,7 @@ import {
   safeParsePath,
   locationEnvPath,
   locationSePath,
+  measurementCellPath,
   putBlockOp,
   registryPath,
   relatorioOpEnvelope,
@@ -15,6 +16,7 @@ import {
   sheetObservationsPath,
   sheetTestCellPath,
   sheetTestPath,
+  sheetTestRowPath,
   sheetTestValuePath,
   type Author,
   type OilCrossingPut,
@@ -142,6 +144,33 @@ export function testCellOp(
  */
 export function testChoiceCellOp(author: Author, relatorioId: string, blockId: string, testKey: string, row: number, col: number, optionKey: string): OpDraft {
   return put(author, relatorioId, sheetTestCellPath(blockId, testKey, row, col), choiceValue(optionKey));
+}
+
+/** What a cell of a test holds as `testCellOp` writes it. */
+type TestCellValue = Parameters<typeof testCellOp>[6];
+
+/**
+ * Story 25.14: a measurement cell's put by its evaluated address: a definition row's `sheet/{b}/test/{t}/cell/{row}/{col}`,
+ * a row the technician added's `sheet/{b}/test/{t}/row/{rowId}/cell/{col}` (the kernel's `measurementCellPath`). Every
+ * cell write of the measurement tests goes through it.
+ */
+export function measurementCellOp(author: Author, relatorioId: string, blockId: string, address: { testKey: string; row: number; col: number; rowId?: string | undefined }, value: TestCellValue | JsonValue): OpDraft {
+  return put(author, relatorioId, measurementCellPath(blockId, address), value);
+}
+
+/** Story 25.14: a choice cell of a measurement test by its evaluated address (`measurementCellOp`), the kernel's `choiceValue`. */
+export function measurementChoiceCellOp(author: Author, relatorioId: string, blockId: string, address: { testKey: string; row: number; col: number; rowId?: string | undefined }, optionKey: string): OpDraft {
+  return measurementCellOp(author, relatorioId, blockId, address, choiceValue(optionKey));
+}
+
+/** Story 25.14 (contract 54): `sheet/{blockId}/test/{testKey}/row/{rowId}/name` put: a row's name, null while it has none. The first put adds the row. */
+export function addedRowNameOp(author: Author, relatorioId: string, blockId: string, testKey: string, rowId: string, name: string | null): OpDraft {
+  return put(author, relatorioId, sheetTestRowPath(blockId, testKey, rowId, 'name'), name);
+}
+
+/** Story 25.14 (contract 54): `sheet/{blockId}/test/{testKey}/row/{rowId}/removed_at` remove: the row and its readings leave the sheet ("Desfazer" puts null back). */
+export function addedRowRemoveOp(author: Author, relatorioId: string, blockId: string, testKey: string, rowId: string): OpDraft {
+  return { ...envelope(author, relatorioId), kind: 'remove', path: sheetTestRowPath(blockId, testKey, rowId, 'removed_at'), value: null };
 }
 
 /**

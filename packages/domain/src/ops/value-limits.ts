@@ -1,4 +1,5 @@
 import { FUNCAO_MAX_LENGTH } from '../schemas/block-config.ts';
+import { ADDED_ROW_NAME_MAX_LENGTH } from '../seed/measurement.ts';
 import { NC_PHRASE_MAX_LENGTH, rowIndexColumns, rowRemovedAt, type Entity, type EntityRow } from '../schemas/entities.ts';
 import { applyOp, splitEntityKey, type EntityKey, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
@@ -192,6 +193,10 @@ const VALUE_RULES = {
   equipment_type: { kind: 'row', fields: { draft: structured }, otherwise: schema },
   'equipment_type/field': { kind: 'fields', fields: { draft: structured }, otherwise: schema },
   equipment_type_version: { kind: 'row', fields: { definition: structured }, otherwise: schema },
+  // Story 25.14 (contract 54): an added row's name is a text cell of its own cap (the fold checks it too, `assertAddedRow`),
+  // its tombstone an instant or null; its readings are test cells as a definition row's are.
+  'sheet/test/row': { kind: 'fields', fields: { name: textCell(ADDED_ROW_NAME_MAX_LENGTH), removed_at: schema } },
+  'sheet/test/row/cell': { kind: 'value', rule: { kind: 'test_cell', cap: TEXT_CAPS.short } },
 } as const satisfies Record<PathFamily, FamilyValueRule>;
 
 /** The rule of every path family (read by the guard test). */
