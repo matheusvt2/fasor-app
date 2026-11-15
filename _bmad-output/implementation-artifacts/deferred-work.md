@@ -4207,3 +4207,21 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `epics.md` § Story 25.14, DoD; `apps/web/src/surfaces/ficha/added-row.test.tsx`.
   class: gap
   state: open (owner: the agent building Story 25.16; before the batch's PR) *(2026-11-15, Story 25.16: the walk is written, `e2e/added-row.spec.ts` 25.14-E2E-001 and 25.16-E2E-001 @p0 at 768 x 1024, in the queue lane (`e2e/support/groups.ts`), not run by its agent (the coordinator's order). Still open: its first run, the touched durability specs on the matrix projects and the tap budgets (owner: the coordinator, before the batch's PR). The 390 and 1280 px controls stay covered by `added-row.test.tsx` only.)*
+
+## Deferred from: Epic 25 batch e25s, Story 25.15 (2026-11-15)
+
+- source_spec: Story 25.15 (authored strings, listed for Bruno)
+  summary: The batch's authored pt-BR texts: the four reasons "Equipamento fora de carga", "Sem acesso seguro ao equipamento", "Sem termovisor disponível", "Outro" (B-17); the printed line "TERMOGRAFIA: NÃO REALIZADA. MOTIVO: ⟨motivo⟩." ("MOTIVO: OUTRO, ⟨texto⟩" under "Outro", Story 24.14's form); the paragraph's clause "Termografia não realizada (⟨motivo⟩)."; the row names where Bruno's answer gives a phrase: "Terminal de entrada, fase A" to "Terminal de saída, fase C" (breaker and switch), "Terminais do primário" and "Terminais do secundário" (TP and TC). From the frame (`60-ficha.html` #/ficha/DJ-02), not authored here: the chips' group name "Motivo da termografia não realizada" and the helper "O motivo sai no relatório, numa linha no lugar da tabela. Não é restrição.".
+  evidence: `packages/domain/src/seed/v16.ts` § Story 25.15; `packages/domain/src/print/section-9.ts` `notPerformedPrintLine`; `packages/domain/src/relatorio/measurement-evaluation.ts` `notPerformedClause`; `apps/web/src/copy/pt-br.ts` `ficha.measurement.performedReason*`.
+  class: decision
+  state: open (owner: Bruno, through Matheus, with B-17)
+- source_spec: Story 25.15 (what the story did not settle)
+  summary: Two readings of the agent's, open to Matheus. (1) Under "Outro" the paragraph's clause says the typed text in the reason's place, as typed and without its final period ("Termografia não realizada (Termovisor em calibração)."), while the printed line keeps Story 24.14's "MOTIVO: OUTRO, ⟨texto⟩"; "Outro" with no text reads "(outro)". (2) The line prints as a plain paragraph: the frame's bold "TERMOGRAFIA:" would need a run style the section-9 paragraph part does not have. Also: a v16 thermography's points are new row keys, so a next visit after a v15 relatório prints "-" in MANUT. ANTERIOR for them.
+  evidence: `packages/domain/src/relatorio/e25s-thermography.test.ts`; `key-print-section-9-v15.html` (`p.pp-line` with `<b>`).
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: Story 25.15 (DoD: the Playwright walk, the tap budgets)
+  summary: `e2e/thermography-v16.spec.ts` (25.15-E2E-001 @p0, the `queue` lane) is written and not run (the coordinator's order). The required answer adds one tap and one missing answer to every v16 sheet of the eight types and the Inspeção de QGBT whose template keeps the test on, so every Playwright spec that concludes such a sheet on the default seed (v16) without answering the thermography now meets "Faltam obrigatórios" instead of concluding. Candidates found by grep (default seed, a "Concluir" tap, one of the nine types): `conflicts`, `conclusion-preview`, `e24y-tag-rename`, `ficha`, `local-painel-coluna`, `parecer-names-finding`, `observation-free`, `review-concluir-text`, `revision-verdicts`, `review-field-defects-2`, `sheet-knows-12-3-12-4`, `v13-nameplate`, `polarization-index`; none was changed. Each needs either the answer in its fill helper or a pin to v15. The tap budgets' journeys (`e2e/tap-budget.spec.ts`) have no v16 run. The two specs that asserted "Equipamento em carga" on the default seed are pinned to v15 (`pass-screen-fixes.spec.ts` 24.9-E2E-001, `print-criterion-per-row.spec.ts` 25.20-E2E-001).
+  evidence: `grep -rln "Concluir ficha\|Concluir e avançar" e2e/*.spec.ts`; `epics.md` § Story 25.15, DoD.
+  class: gap
+  state: open (owner: the coordinator, at the wave gate; high)
