@@ -7,7 +7,7 @@ import { isValueCondition } from '../seed/measurement.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
-import { measurementCells, outMeasurements, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
+import { measurementCells, notPerformedClause, outMeasurements, restrictedMeasurements, worstMeasurements, type MeasurementTestEvaluation, type WorstMeasurement } from './measurement-evaluation.ts';
 import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, namedReadings, readingRowLabel, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
@@ -262,7 +262,8 @@ function computeFloor(block: BlockRow, definition: BlockDefinition | null, visit
 function nothingToMeasure(definition: BlockDefinition, measurements: readonly MeasurementTestEvaluation[]): boolean {
   if (definition.tests.length > 0) return false;
   return (definition.measurement_tests ?? []).every((test) => {
-    if (test.applies_when === undefined || !isValueCondition(test.applies_when)) return false;
+    // Story 25.15 (seed v16): a test done by its own answer ("Realizada") asks for readings only on that answer too.
+    if ((test.applies_when === undefined || !isValueCondition(test.applies_when)) && test.performed === undefined) return false;
     const evaluated = measurements.find((one) => one.testKey === test.key);
     return evaluated === undefined || !evaluated.enabled || evaluated.skipped || evaluated.applicability.state === 'na';
   });
@@ -639,6 +640,15 @@ function unmeasuredTests(evaluations: readonly TestEvaluation[], measurements: r
 }
 
 /**
+ * Story 25.15 (seed v16 `performed`; M23): the clause of each measurement test answered not done, switched on and
+ * applicable, in sheet order ("Termografia não realizada (equipamento fora de carga)."). It is not a restriction and
+ * not a "Não medido" (the test is not run, so neither the floor nor `unmeasuredTests` reads it).
+ */
+function notPerformedClauses(measurements: readonly MeasurementTestEvaluation[]): string[] {
+  return measurements.flatMap((test) => (test.enabled && test.applicability.state !== 'na' && test.performance?.state === 'not_done' ? [notPerformedClause(test.performance)] : []));
+}
+
+/**
  * e23f (the production check of 2026-11-07): an NC observation as the clause before "(item N,
  * NC)" reads it, without its final period(s), so "acúmulo de poeira." never prints "poeira. (item
  * 9, NC)". "etc." keeps its period (section 8's `SENTENCE_END` rule); "!" and "?" stay.
@@ -966,7 +976,10 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
             ? `${verb} ${checklist}`
             : `${verb} ${checklist}, sem valores medidos registrados`
           : `não ${verb} valores medidos nem itens verificados registrados`;
+  // Story 25.15 (seed v16 `performed`): each switched-on, applicable test answered "Não realizada" says so with its reason.
+  const notPerformed = notPerformedClauses(measurements);
   const v15Sentences = [
+    ...notPerformed,
     ...(unmeasured.length === 0 ? [] : [unmeasuredSentence(unmeasured)]),
     ...(byHand === 'reprovado' ? [REPROVED_BY_HAND] : byHand === 'com_restricoes' ? [RESTRICTED_BY_HAND] : []),
   ];
@@ -1012,6 +1025,8 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
       // only where present, so every basis of v1 to v14 (and of a v15 sheet without them) keeps its bytes.
       ...(unmeasured.length === 0 ? {} : { unmeasured }),
       ...(byHand === null ? {} : { by_hand: byHand }),
+      // Story 25.15 (seed v16): the tests not done, with their reasons, join only where one is, so every other basis keeps its bytes.
+      ...(notPerformed.length === 0 ? {} : { not_performed: notPerformed }),
       // Story 14.5: only a type with measurement tests adds its key, so the basis of every
       // sheet of the eight (and every `text_basis` already stored) is the bytes it always was.
       ...(measurements.length === 0

@@ -351,9 +351,26 @@ describe('e25s-UNIT-SAME a v16 relatório with the v15 fixtures\' answers conclu
     return out.replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
   };
 
+  /**
+   * Story 25.15: on v16 the Epic 25 fixture answers the thermography by v16's `realizacao` (v16 no longer declares
+   * "Equipamento em carga", so the fold refuses it there). Read through v15's definition, as the comparison reads v16,
+   * those answers are v15's: "Realizada" is "Sim", "Não realizada" is "Não" (its reason dropped).
+   */
+  const withV15Thermography = (snapshot: RelatorioSnapshot): RelatorioSnapshot => ({
+    ...snapshot,
+    blocks: snapshot.blocks.map((block) => {
+      const test = block.sheet.test.termografia;
+      const answer = test?.values?.realizacao;
+      if (block.seed_version !== 'v16' || test === undefined || answer === undefined) return block;
+      const raw = (answer.value as { raw?: string } | null)?.raw;
+      const values = { em_carga: { ...answer, value: { raw: raw === 'realizada' ? 'sim' : 'nao', unit: null, state: 'measured' } } };
+      return { ...block, sheet: { ...block.sheet, test: { ...block.sheet.test, termografia: { ...test, values } } } };
+    }),
+  });
+
   const FIXTURES = [
     ['the rule-built fixture', (version: string) => layoutLockSnapshot(version)],
-    ['the Epic 25 fixture', layoutLockEpic25Snapshot],
+    ['the Epic 25 fixture', (version: string) => withV15Thermography(layoutLockEpic25Snapshot(version))],
   ] as const;
 
   /** Every equipment sheet's effective conclusion pair, by masked block id, and the composed parecer. */

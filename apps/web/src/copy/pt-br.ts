@@ -1715,6 +1715,9 @@ export const copy = {
       // thermalPhoto: 'Foto térmica'~~ Story 24.9 (F11): the control's words carry the kernel's count (`thermalPhotoText`).
       // authored (e25s, Story 25.14, listed for Bruno): the helper of an added row's name that another row of the table already has.
       addedRowNameTaken: 'Outra linha desta tabela já tem este nome.',
+      // Story 25.15 (seed v16): the thermography's reason chips' group name and the helper under them, verbatim from `60-ficha.html` #/ficha/DJ-02.
+      performedReasonGroup: 'Motivo da termografia não realizada',
+      performedReasonHelper: 'O motivo sai no relatório, numa linha no lugar da tabela. Não é restrição.',
     },
     // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
     // sheet Observation field and the Generated text field.

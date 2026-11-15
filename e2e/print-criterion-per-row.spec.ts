@@ -60,11 +60,12 @@ async function kernelTable(page: Page, relatorioId: string, blockId: string, tit
 
 test('@p0 25.20-E2E-001 a v15 transformer\'s winding and thermography typed in the browser: the PDF prints CRITÉRIO and RESULTADO on each row and the corrected headers say "(corrigido)"', async ({ page, context }) => {
   test.setTimeout(360_000);
+  // Story 25.15: pinned to seed v15, the seed this story's frame prints (v16's thermography asks "Realizada" instead of the load).
   const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [
     { blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'ÓLEO ISOLANTE' },
     { blockType: 'transformador_forca', key: 'material_enrolamento', value: 'Cu' },
     { blockType: 'transformador_forca', key: 'temperatura_oleo_c', value: { raw: '30', unit: '°C', state: 'measured' } },
-  ]);
+  ], 'v15');
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   await openStep(page, relatorioId, tf.blockId, 'Ensaios');
 

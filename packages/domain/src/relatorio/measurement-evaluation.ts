@@ -315,6 +315,30 @@ export interface MeasurementLinePart {
   typed?: string;
 }
 
+/**
+ * Story 25.15 (`performed`): whether the test was done, by its own choice value (`valueKey`). `unanswered` and
+ * `not_done` make the test not run (`skipped`): nothing of its table is asked, judged or printed. On `not_done` the
+ * words the print's line and the conclusion's clause are composed from, all the definition's: the test's `label`
+ * ("Termografia") and the value's chosen option's (`answer`, "Não realizada"); the reason's label ("Motivo") and its chosen
+ * option's, null while unanswered; and a text typed under that option ("Outro"), as typed, null when none
+ * (`notPerformedPrintLine` in `print/section-9.ts`, `notPerformedClause`).
+ */
+export type MeasurementPerformance =
+  | { state: 'unanswered' | 'done'; valueKey: string }
+  | { state: 'not_done'; valueKey: string; label: string; answer: string; reasonLabel: string | null; reason: string | null; typed: string | null };
+
+/**
+ * Story 25.15: the sentence the conclusion's paragraph adds for a test not done: "Termografia não realizada
+ * (equipamento fora de carga).", the answer and the reason sentence-cased into the clause; a text typed under the
+ * reason ("Outro") is said in its place, as typed; with no reason given, "Termografia não realizada.".
+ */
+export function notPerformedClause(performance: Extract<MeasurementPerformance, { state: 'not_done' }>): string {
+  const lower = (text: string) => `${text.charAt(0).toLocaleLowerCase('pt-BR')}${text.slice(1)}`;
+  const reason = performance.typed ?? (performance.reason === null ? null : lower(performance.reason));
+  // authored (e25s, Story 25.15, listed for Bruno): "Termografia não realizada (⟨motivo⟩)."
+  return `${performance.label} ${lower(performance.answer)}${reason === null ? '' : ` (${reason})`}.`;
+}
+
 export interface MeasurementTestEvaluation {
   testKey: MeasurementTestKey;
   /** 1-based position among the definition's measurement tests: the "E1" of the heading. */
@@ -383,6 +407,8 @@ export interface MeasurementTestEvaluation {
   restrictionStands?: true;
   /** Story 25.14: on a test whose definition carries `added_rows` only, what the sheet offers to add (`addedRowsView`). */
   addedRows?: AddedRowsView;
+  /** Story 25.15: on a test whose definition carries `performed` only, whether it was done and, when not, its texts (`performanceOf`). */
+  performance?: MeasurementPerformance;
   /**
    * W3-2 (Epic 14 QA Q-3, Story 14.9): a live test judged by the deviation between phases holds a measured number
    * cell no criterion judged (a cell at zero or below, a group with one positive cell, every cell while the medium is
@@ -1242,6 +1268,58 @@ function shownUnder(
   return depth < (test.values ?? []).length && shownUnder(depends!.when, test, heldBy, block, depth + 1);
 }
 
+// --- Story 25.15: "Realizada" or "Não realizada" -------------------------------------------------
+
+/** Story 25.15: the value a test is done by (`performed.value`) and every value shown under it, in a chain; empty without the key. */
+function performedFamily(test: MeasurementTest): ReadonlySet<string> {
+  const family = new Set<string>();
+  if (test.performed === undefined) return family;
+  family.add(test.performed.value);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const value of test.values ?? []) {
+      const when = value.when;
+      if (family.has(value.key) || when === undefined || 'cell' in when || !family.has(when.value)) continue;
+      family.add(value.key);
+      grew = true;
+    }
+  }
+  return family;
+}
+
+/**
+ * Story 25.15: whether a test with `performed` was done, by its value: `done` under the option `performed.done`,
+ * `not_done` under another, with the words its line and clause say (the reason's chosen option and the text typed
+ * under it, each when shown and filled); `unanswered` while the value is empty. Undefined on every other test.
+ */
+function performanceOf(test: MeasurementTest, values: readonly EvaluatedMeasurementValue[]): MeasurementPerformance | undefined {
+  const performed = test.performed;
+  if (performed === undefined) return undefined;
+  const value = values.find((candidate) => candidate.key === performed.value);
+  if (value === undefined || value.state !== 'measured') return { state: 'unanswered', valueKey: performed.value };
+  if (value.raw === performed.done) return { state: 'done', valueKey: performed.value };
+  const reason = performed.reason === undefined ? undefined : values.find((candidate) => candidate.key === performed.reason);
+  const chosen = reason !== undefined && reason.shown && reason.state === 'measured' ? reason.options.find((option) => option.key === reason.raw) : undefined;
+  // A text value shown under the chosen reason ("Descreva o motivo" under "Outro"), as typed.
+  const typedValue =
+    chosen === undefined
+      ? undefined
+      : values.find((candidate) => {
+          const when = (test.values ?? []).find((definition) => definition.key === candidate.key)?.when;
+          return candidate.kind === 'text' && candidate.shown && candidate.state === 'measured' && candidate.raw.trim() !== '' && when !== undefined && !('cell' in when) && when.value === reason!.key;
+        });
+  return {
+    state: 'not_done',
+    valueKey: performed.value,
+    label: test.label,
+    answer: value.options.find((option) => option.key === value.raw)?.label ?? value.displayText,
+    reasonLabel: reason?.label ?? null,
+    reason: chosen?.label ?? null,
+    // Without its final period(s), since the line and the clause close the sentence themselves.
+    typed: typedValue === undefined ? null : typedValue.raw.trim().replace(/[\s.]+$/u, '') || null,
+  };
+}
+
 /** A choice's wording inside the values line: the option's `phrase`, else its label. */
 function phraseOf(value: EvaluatedMeasurementValue): string {
   const option = value.options.find((candidate) => candidate.key === value.raw);
@@ -1255,8 +1333,10 @@ function phraseOf(value: EvaluatedMeasurementValue): string {
  */
 function valuesLineOf(test: MeasurementTest, values: readonly EvaluatedMeasurementValue[], skipped: boolean): MeasurementTestEvaluation['valuesLine'] {
   const defs = new Map((test.values ?? []).map((value) => [value.key, value]));
+  // Story 25.15: whether the test was done, and why not, never enter the line (the test's table, or its one line, says it).
+  const asked = performedFamily(test);
   // A test that was not run says only that: nothing else about how it was run is in force.
-  const live = values.filter((value) => value.group === null && value.shown && value.state === 'measured' && (!skipped || value.key === test.skip_when?.value));
+  const live = values.filter((value) => !asked.has(value.key) && value.group === null && value.shown && value.state === 'measured' && (!skipped || value.key === test.skip_when?.value));
   const parts: MeasurementLinePart[] = [];
   for (const value of live) {
     const when = defs.get(value.key)?.when;
@@ -1334,7 +1414,9 @@ function evaluate(
   const rows = evaluateRows(block, test, config, context.seedVersion !== undefined && seedRule(context.seedVersion, 'reading_not_applicable'));
   const values = evaluateValues(block, test);
   const skipValue = test.skip_when === undefined ? undefined : values.find((value) => value.key === test.skip_when!.value);
-  const skipped = skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals;
+  // Story 25.15 (`performed`): a test not done, or not yet answered, is not run, as a skipped one is.
+  const performance = performanceOf(test, values);
+  const skipped = (skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals) || (performance !== undefined && performance.state !== 'done');
   // Story 23.9: a test the nameplate makes not applicable is not live, as a switched-off one is not.
   const live = enabled && !skipped && applicability.state !== 'na';
   const criteria = test.criteria.filter((criterion) => holds(criterion.when, config));
@@ -1393,7 +1475,8 @@ function evaluate(
   }
   for (const value of values) {
     // The value that says the test was not run is the one thing a skipped test still asks for; it is filled by definition.
-    if (!enabled || skipped || applicability.state === 'na') value.missing = false;
+    // Story 25.15: a test done by its own value keeps asking that value and, not done, the reason shown under it.
+    if (!enabled || applicability.state === 'na' || (skipped && performance === undefined)) value.missing = false;
   }
   // Fix batch e23z (W3-2): a live test judged by the deviation between phases with a measured number cell left with no
   // verdict (and not to check) is unjudged: the floor withholds Aprovado · Sem restrições.
@@ -1459,6 +1542,7 @@ function evaluate(
     ...(unjudged ? { unjudged: true as const } : {}),
     // Story 25.14: only on a test whose definition takes added rows, so every other test reads as before.
     ...(test.added_rows === undefined ? {} : { addedRows: addedRowsView(block, context.definition.nameplate, test.added_rows, rows) }),
+    ...(performance === undefined ? {} : { performance }),
   };
 }
 

@@ -815,13 +815,21 @@ export function layoutLockEpic25Fixture(version: string, actor: LayoutLockActor 
   });
 
   // The thermography of the three arresters: in load and measured on its four points, out of load, unanswered.
+  // Story 25.15 (seed v16, `performed`): the same three answered "Realizada", "Não realizada" (Equipamento fora de carga) and unanswered;
+  // v14 and v15 write "Equipamento em carga" as their goldens hold.
   const thermo = definitionOf(thermoInLoad!);
-  put(sheetTestValuePath(thermoInLoad!.id, 'termografia', 'em_carga'), choiceValue('sim'));
-  thermo.measurement_tests!.find((test) => test.key === 'termografia')!.rows.forEach((_, row) => {
+  const thermoTest = thermo.measurement_tests!.find((test) => test.key === 'termografia')!;
+  const performed = thermoTest.performed;
+  put(sheetTestValuePath(thermoInLoad!.id, 'termografia', performed?.value ?? 'em_carga'), choiceValue(performed?.done ?? 'sim'));
+  thermoTest.rows.forEach((_, row) => {
     put(sheetTestCellPath(thermoInLoad!.id, 'termografia', row, columnOf(thermo, 'termografia', 'delta_t_similares')), num(String(1 + row), '°C'));
     put(sheetTestCellPath(thermoInLoad!.id, 'termografia', row, columnOf(thermo, 'termografia', 'delta_t_ambiente')), num(String(4 + row * 2), '°C'));
   });
-  put(sheetTestValuePath(thermoOff!.id, 'termografia', 'em_carga'), choiceValue('nao'));
+  if (performed === undefined) put(sheetTestValuePath(thermoOff!.id, 'termografia', 'em_carga'), choiceValue('nao'));
+  else {
+    put(sheetTestValuePath(thermoOff!.id, 'termografia', performed.value), choiceValue('nao_realizada'));
+    put(sheetTestValuePath(thermoOff!.id, 'termografia', performed.reason!), choiceValue('fora_de_carga'));
+  }
   void thermoUnanswered;
 
   // The Malha de aterramento: its resistance and its five continuity rows.

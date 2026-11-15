@@ -159,7 +159,8 @@ function MeasurementTestSection({
   };
 
   // The values drawn above the table (how the test was run); the grouped ones come after it.
-  const above = test.values.filter((value) => value.shown && value.group === null);
+  // Story 25.15: the answer a test is done by is drawn by `PerformedChoice`, never again above the table.
+  const above = test.values.filter((value) => value.shown && value.group === null && value.key !== test.performance?.valueKey);
   const value = (item: EvaluatedMeasurementValue) => <TestValue key={item.key} api={api} testKey={test.testKey} value={item} readOnly={readOnly} />;
   // The head's end: the read-only reason, or a switchable test's switch (kept on an NA test too).
   const headEnd = readOnly ? (
@@ -187,7 +188,19 @@ function MeasurementTestSection({
     );
   }
   const applied = test.enabled && test.applicability.state === 'applied';
-  const sectionClass = ['section lib-test', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
+  // Story 25.15 (seed v16, `60-ficha.html` #/ficha/DJ-02): a test done by its own answer is the frame's `.e25-thermo`; its body
+  // (`.e25-tm-body`) is drawn only on "Realizada".
+  const performance = test.performance;
+  const sectionClass = ['section lib-test', performance === undefined ? null : 'e25-thermo', readOnly ? 'is-readonly' : null, applied ? APPLIED_SECTION_CLASS : null].filter(Boolean).join(' ');
+  const body = (children: ReactNode) =>
+    performance === undefined ? (
+      children
+    ) : (
+      <>
+        <PerformedChoice api={api} test={test} readOnly={readOnly} />
+        {performance.state === 'done' ? <div className="e25-tm-body">{children}</div> : null}
+      </>
+    );
 
   return (
     <section
@@ -217,6 +230,8 @@ function MeasurementTestSection({
       {test.enabled ? (
         <AppliedBody applied={applied}>
         <div className="lib-test-body">
+          {body(
+          <>
           {test.instrumentOf === null ? null : (
             <InstrumentPicker
               api={api}
@@ -270,6 +285,8 @@ function MeasurementTestSection({
             </div>
           ))}
           {pointPlace}
+          </>,
+          )}
         </div>
         </AppliedBody>
       ) : null}
@@ -339,6 +356,74 @@ function SingleChoiceTest({ api, test, readOnly }: { api: FichaApi; test: Measur
       ))}
       {texts.map((value) => (
         <TextTestValue key={value.key} api={api} testKey={test.testKey} value={value} readOnly={readOnly} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Story 25.15 (seed v16, `60-ficha.html` #/ficha/DJ-02, SEC-02, TR-03): the required answer of a test done by its own
+ * value ("Realizada" or "Não realizada"), the frame's `.v13-choice` with a Segmented control; under "Não realizada" the
+ * kernel shows the reason (`shown`), drawn as the frame's `.v13-reason.e25-tm-reason` chips, the text it shows under
+ * "Outro" and the frame's helper. Each answer is a `sheet/{b}/test/{t}/value/{key}` put; the kernel says what is missing.
+ */
+function PerformedChoice({ api, test, readOnly }: { api: FichaApi; test: MeasurementTestEvaluation; readOnly: boolean }) {
+  const t = copy.ficha.measurement;
+  const labelId = useId();
+  const answer = test.values.find((value) => value.key === test.performance!.valueKey);
+  if (answer === undefined) return null;
+  const reasons = test.values.filter((value) => value.shown && value.kind === 'choice' && value.key !== answer.key);
+  const texts = test.values.filter((value) => value.shown && value.kind === 'text');
+  const choose = (value: EvaluatedMeasurementValue, optionKey: string) => {
+    void api.edit((_blocks, by) => [testValueOp(by, api.relatorioId, api.blockId, test.testKey, value.key, choiceValue(optionKey))]).catch(() => undefined);
+  };
+  const chosen = answer.state === 'measured' ? answer.raw : '';
+  return (
+    <div className="v13-choice" data-value-key={answer.key} data-missing-field={answer.missing ? '' : undefined}>
+      {readOnly ? (
+        <ReadOnlyField field={{ kind: 'text', label: answer.label }} value={answer.state === 'measured' ? answer.displayText : null} />
+      ) : (
+        <>
+        <span className="field-label" id={labelId}>
+          {answer.label}
+        </span>
+        <SegmentedControl
+          aria-labelledby={labelId}
+          aria-required="true"
+          value={chosen}
+          onChange={(optionKey) => {
+            if (optionKey !== chosen) choose(answer, optionKey);
+          }}
+          options={answer.options.map((option) => ({ value: option.key, label: option.label }))}
+          wrap={wrapsOnPhone(answer.options.map((option) => option.label))}
+        />
+        </>
+      )}
+      {reasons.map((value) => (
+        <div key={value.key} className="v13-reason e25-tm-reason" data-value-key={value.key} data-missing-field={value.missing ? '' : undefined}>
+          <span className="field-label">{value.label}</span>
+          <div className="chip-row chips-recent" role="group" aria-label={t.performedReasonGroup}>
+            {value.options.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                className="chip"
+                aria-pressed={value.state === 'measured' && value.raw === option.key}
+                disabled={readOnly}
+                data-value={option.key}
+                onClick={() => {
+                  if (!(value.state === 'measured' && value.raw === option.key)) choose(value, option.key);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {texts.map((text) => (
+            <TextTestValue key={text.key} api={api} testKey={test.testKey} value={text} readOnly={readOnly} />
+          ))}
+          <p className="helper">{t.performedReasonHelper}</p>
+        </div>
       ))}
     </div>
   );

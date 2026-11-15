@@ -29,7 +29,7 @@ import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { STORY_25_22_RATIO_HEADERS, STORY_25_8_TESTS } from './v15.ts';
-import { STORY_25_16_ADDED_ROWS, STORY_25_16_TEST, STORY_25_18_TC_ITEM, STORY_25_18_TRANSFORMER_HINTS, STORY_25_19_DRY, STORY_25_19_DRY_ALIAS, STORY_25_19_TYPES } from './v16.ts';
+import { STORY_25_15_ADDED_ROWS, STORY_25_15_PERFORMED, STORY_25_15_ROWS, STORY_25_15_TEST, STORY_25_15_TYPES, STORY_25_15_VALUES, STORY_25_16_ADDED_ROWS, STORY_25_16_TEST, STORY_25_18_TC_ITEM, STORY_25_18_TRANSFORMER_HINTS, STORY_25_19_DRY, STORY_25_19_DRY_ALIAS, STORY_25_19_TYPES } from './v16.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
@@ -2530,7 +2530,8 @@ describe('25.5-UNIT seed v15 (Epic 25) opens equal to v14, and v14 is frozen as 
 // Story 25.16 (batch e25s): the Malha's continuity test takes added points (`withoutE25s16` below).
 // Story 25.18 (batch e25s): the TC's item 7 and the transformer's six hints (`withoutE25s18` below).
 // Story 25.19 (batch e25s, the "A SECO" half): the dry option and subtype, "Á SECO" its alias (`withoutE25s19` below).
-const V16_HASH = 'f125c927b02d1449a1852d96bb94d55e59b6746afb0179214c2fc7d7f8e9bdf6';
+// Story 25.15 (batch e25s): every type's thermography asks "Realizada" or "Não realizada", points by type (`withoutE25s15` below).
+const V16_HASH = 'a1fad5c273bac572960b3f4642b9f9bb9acc7c9040d0d5ef7164e3d7179d27cc';
 
 /**
  * Batch e25s: each story's delta on v16, undone, in the order `seed/v16.ts` applies them. A story that adds a v16 key,
@@ -2538,7 +2539,34 @@ const V16_HASH = 'f125c927b02d1449a1852d96bb94d55e59b6746afb0179214c2fc7d7f8e9bd
  * own `withoutE25s<N>` helper below this line (e.g. `withoutE25s18`), and names it here, so `withoutE25s(v16)` stays v15
  * and "e25s-UNIT-V16" keeps pinning that every other byte of v16 is v15's.
  */
-const E25S_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25s16, withoutE25s18, withoutE25s19];
+const E25S_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25s15, withoutE25s16, withoutE25s18, withoutE25s19];
+
+/** v13's "Equipamento em carga" and the condition the thermography applies by, as v15 still carries them (Story 23.20). */
+const V15_THERMOGRAPHY_LOAD = {
+  values: [{ key: 'em_carga', label: 'Equipamento em carga', kind: 'choice', options: [{ key: 'sim', label: 'Sim' }, { key: 'nao', label: 'Não' }] }],
+  applies_when: { op: 'in', value: 'em_carga', values: ['sim'], needs_value: true, unmet: 'Equipamento fora de carga', empty: 'Informe se o equipamento está em carga' },
+} as const;
+/** v13's four points of the thermography, which v15 carries on every type. */
+const V15_THERMOGRAPHY_ROWS = [
+  { key: 'conexoes', label: 'Conexões', optional: true },
+  { key: 'terminacoes', label: 'Terminações', optional: true },
+  { key: 'contatos', label: 'Contatos', optional: true },
+  { key: 'buchas', label: 'Buchas', optional: true },
+] as const;
+
+/** Story 25.15's delta undone: every type's thermography asks "Equipamento em carga" again, applies by it, takes no added row and has v13's four points. */
+function withoutE25s15(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  for (const type of STORY_25_15_TYPES) {
+    const test = out.blocks[type]!.measurement_tests!.find((candidate) => candidate.key === STORY_25_15_TEST)!;
+    if (Object.hasOwn(STORY_25_15_ROWS, type)) test.rows = structuredClone([...V15_THERMOGRAPHY_ROWS]);
+    test.values = structuredClone(V15_THERMOGRAPHY_LOAD.values) as unknown as MeasurementTest['values'];
+    delete test.performed;
+    delete test.added_rows;
+    test.applies_when = structuredClone(V15_THERMOGRAPHY_LOAD.applies_when) as unknown as MeasurementTest['applies_when'];
+  }
+  return out;
+}
 
 /** Story 25.16's delta undone: the Malha's continuity test without Story 25.14's key. */
 function withoutE25s16(seed: ReportSeed): ReportSeed {
@@ -2603,6 +2631,95 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
   it('keeps every rule flag v15 turns on (a v16 relatório concludes and prints as a v15 one until a story says otherwise)', () => {
     expect(withoutE25s(v16).rules).toEqual(v15.rules);
     for (const flag of Object.keys(v15.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v16', flag), flag).toBe(true);
+  });
+});
+
+describe('25.15-UNIT seed v16 (Story 25.15): the thermography asks "Realizada" or "Não realizada", a reason under the second, points by type and "Adicionar ponto"; v1 to v15 unchanged', () => {
+  const v15 = getSeed('v15', 'cabine_primaria');
+  const v16 = getSeed('v16', 'cabine_primaria');
+  const thermography = (seed: ReportSeed, type: string): MeasurementTest => (seed.blocks as Record<string, BlockDefinition>)[type]!.measurement_tests!.find((test) => test.key === STORY_25_15_TEST)!;
+  const labels = (seed: ReportSeed, type: string) => thermography(seed, type).rows.map((row) => row.label);
+
+  it('the types that carry the thermography on v15 are the ones Story 25.15 changes, the eight and the Inspeção de QGBT', () => {
+    const carrying = Object.values(v15.blocks)
+      .filter((block) => (block.measurement_tests ?? []).some((test) => test.key === STORY_25_15_TEST))
+      .map((block) => block.block_type);
+    expect(new Set(carrying)).toEqual(new Set(STORY_25_15_TYPES));
+  });
+
+  it.each(STORY_25_15_TYPES)('%s: one required choice (Realizada, Não realizada), the reasons under the second and "Outro"\'s text; no condition, no "Equipamento em carga"; "Adicionar ponto"', (type) => {
+    const test = thermography(v16, type);
+    expect(measurementTestSchema.safeParse(test).success).toBe(true);
+    expect(test.values).toEqual(STORY_25_15_VALUES);
+    expect(test.values![0]).toMatchObject({ key: 'realizacao', label: 'Termografia', kind: 'choice', options: [{ key: 'realizada', label: 'Realizada' }, { key: 'nao_realizada', label: 'Não realizada' }] });
+    expect(test.values![0]!.optional).toBeUndefined();
+    expect(test.values![0]!.when).toBeUndefined();
+    expect(test.values![1]!.options!.map((option) => option.label)).toEqual(['Equipamento fora de carga', 'Sem acesso seguro ao equipamento', 'Sem termovisor disponível', 'Outro']);
+    expect(test.values![1]!.when).toEqual({ value: 'realizacao', equals: 'nao_realizada' });
+    expect(test.values![2]).toEqual({ key: 'motivo_texto', label: 'Descreva o motivo', kind: 'text', when: { value: 'motivo', equals: 'outro' } });
+    expect(test.performed).toEqual(STORY_25_15_PERFORMED);
+    expect(test.applies_when).toBeUndefined();
+    expect(test.values!.some((value) => value.key === 'em_carga')).toBe(false);
+    expect(test.added_rows).toEqual(STORY_25_15_ADDED_ROWS);
+    expect(STORY_25_15_ADDED_ROWS).toEqual({ label: 'Adicionar ponto' });
+    // The rest (label, switch, columns, bands, help) is v15's.
+    const rest: Partial<MeasurementTest> = structuredClone(test);
+    const v15Rest: Partial<MeasurementTest> = structuredClone(thermography(v15, type));
+    for (const key of ['rows', 'values', 'performed', 'added_rows'] as const) delete rest[key];
+    for (const key of ['rows', 'values', 'applies_when'] as const) delete v15Rest[key];
+    expect(rest).toEqual(v15Rest);
+    expect(test.criteria.map((criterion) => criterion.text)).toEqual(['ΔT entre similares ≤ 3 °C (com restrição até 15 °C)', 'ΔT sobre o ambiente ≤ 10 °C (com restrição até 40 °C)']);
+    expect(test.switchable).toBeDefined();
+  });
+
+  it('the points by type, each optional, from Bruno\'s answer; the cables and the surge arrester keep v13\'s four until B-9', () => {
+    expect(labels(v16, 'transformador_forca')).toEqual(['Buchas MT', 'Buchas e conexões BT', 'Tanque ou bobinas']);
+    const terminals = ['Terminal de entrada, fase A', 'Terminal de entrada, fase B', 'Terminal de entrada, fase C', 'Terminal de saída, fase A', 'Terminal de saída, fase B', 'Terminal de saída, fase C'];
+    expect(labels(v16, 'disjuntor_mt')).toEqual(terminals);
+    expect(labels(v16, 'chave_seccionadora')).toEqual(terminals);
+    for (const type of ['tp', 'tc']) expect(labels(v16, type), type).toEqual(['Terminais do primário', 'Terminais do secundário']);
+    expect(labels(v16, 'inspecao_qgbt')).toEqual(['Disjuntor geral', 'Barramentos', 'Saídas', 'Neutro']);
+    for (const type of ['cabos_entrada', 'cabos_saida', 'para_raio']) {
+      expect(Object.hasOwn(STORY_25_15_ROWS, type), type).toBe(false);
+      expect(thermography(v16, type).rows, type).toEqual(thermography(v15, type).rows);
+      expect(labels(v16, type), type).toEqual(['Conexões', 'Terminações', 'Contatos', 'Buchas']);
+    }
+    for (const type of STORY_25_15_TYPES) for (const row of thermography(v16, type).rows) expect(row.optional, `${type} ${row.key}`).toBe(true);
+  });
+
+  it('the breaker\'s and the switch\'s phase words are the ones their other v16 tables use ("Fase A")', () => {
+    const phases = (type: string) => thermography(v16, type).rows.slice(0, 3).map((row) => row.label.split(', ')[1]!);
+    for (const type of ['disjuntor_mt', 'chave_seccionadora']) expect(phases(type), type).toEqual(['fase A', 'fase B', 'fase C']);
+  });
+
+  it('a performed key names a required, always shown choice of the test and a reason shown under its other option; never beside skip_when', () => {
+    const base = thermography(v16, 'tp');
+    const refused = (change: (copy: MeasurementTest) => void) => {
+      const copy = structuredClone(base);
+      change(copy);
+      return !measurementTestSchema.safeParse(copy).success;
+    };
+    expect(refused(() => undefined)).toBe(false);
+    expect(refused((copy) => (copy.performed = { ...copy.performed!, value: 'motivo_texto' }))).toBe(true);
+    expect(refused((copy) => (copy.performed = { ...copy.performed!, done: 'sim' }))).toBe(true);
+    expect(refused((copy) => (copy.values![0] = { ...copy.values![0]!, optional: true }))).toBe(true);
+    expect(refused((copy) => (copy.performed = { ...copy.performed!, reason: 'motivo_texto' }))).toBe(true);
+    expect(refused((copy) => (copy.values![1] = { ...copy.values![1]!, when: { value: 'realizacao', equals: 'realizada' } }))).toBe(true);
+    expect(refused((copy) => (copy.skip_when = { value: 'realizacao', equals: 'nao_realizada' }))).toBe(true);
+  });
+
+  it('v15 and v14 keep "Equipamento em carga", its condition, v13\'s four points and no added row on every type\'s thermography', () => {
+    for (const version of ['v14', 'v15']) {
+      const seed = getSeed(version, 'cabine_primaria');
+      for (const type of STORY_25_15_TYPES) {
+        const test = thermography(seed, type);
+        expect(test.values, `${version} ${type}`).toEqual(V15_THERMOGRAPHY_LOAD.values);
+        expect(test.applies_when, `${version} ${type}`).toEqual(V15_THERMOGRAPHY_LOAD.applies_when);
+        expect(test.rows, `${version} ${type}`).toEqual(V15_THERMOGRAPHY_ROWS);
+        expect(test.performed, `${version} ${type}`).toBeUndefined();
+        expect(test.added_rows, `${version} ${type}`).toBeUndefined();
+      }
+    }
   });
 });
 
@@ -2713,7 +2830,8 @@ describe('25.19-UNIT seed v16 (Story 25.19, the "A SECO" half): the dry option a
     expect(fieldDefSchema.safeParse(after).success).toBe(true);
     // The oil rule, its values and the sampling's condition are v15's (the oil half waits for B-4).
     expect(v16.blocks[type].oil_rule).toEqual(v15.blocks[type].oil_rule);
-    expect(v16.blocks[type].measurement_tests).toEqual(v15.blocks[type].measurement_tests);
+    // Story 25.15 changes the thermography of the three types; with its delta undone their tests are v15's.
+    expect(withoutE25s15(v16).blocks[type].measurement_tests).toEqual(v15.blocks[type].measurement_tests);
   });
 
   it.each(STORY_25_19_TYPES)('%s: the dry subtype keeps its key `a_seco` and its NA defaults, labelled "A SECO"', (type) => {

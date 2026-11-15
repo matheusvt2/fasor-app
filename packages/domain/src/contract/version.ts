@@ -636,6 +636,15 @@
  * sheet's test entry the optional `added_rows`, both never defaulted: no seed carries the key and a row written
  * before 54 parses to the same bytes. MIN follows to 54 (below).
  */
+/*
+ * 54, the same number (2026-11-15, Story 25.15, batch e25s): no new op or path family. The measurement-test
+ * definition schemas (the seed's and a company type's) gain the optional key `performed` (the test value a test is
+ * done by, its "done" option and the reason shown under the other one), never defaulted, so every seed of v1 to v15
+ * parses to the same bytes. The v16 thermography carries it, with Story 25.14's `added_rows`, and no longer asks
+ * "Equipamento em carga": a `sheet/{id}/test/termografia/value/{realizacao|motivo|motivo_texto}` put folds only on a
+ * v16 sheet and `.../value/em_carga` only on v13 to v15 (`SeedPathError`, answered `op_invalid`, elsewhere). No bundle
+ * of 54 without the key ever left the batch, so the number is not raised.
+ */
 export const CONTRACT_VERSION = 54;
 
 /**

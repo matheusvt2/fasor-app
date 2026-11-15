@@ -1,4 +1,5 @@
 import type { AddedRowsKey } from './measurement.ts';
+import type { MeasurementRow, MeasurementTest, MeasurementValue, PerformedKey } from './measurement.ts';
 import type { BlockDefinition, ChecklistItem, FieldDef, ReportSeed } from './schema.ts';
 import { CABINE_PRIMARIA_V15 } from './v15.ts';
 
@@ -30,6 +31,7 @@ const v15 = CABINE_PRIMARIA_V15;
 
 function cabinePrimariaV16(): ReportSeed {
   const seed = structuredClone(v15);
+  story25_15(seed);
   story25_16(seed);
   story25_18(seed);
   story25_19(seed);
@@ -41,6 +43,107 @@ function itemOf(definition: BlockDefinition, key: string): ChecklistItem {
   const item = definition.checklist?.find((candidate) => candidate.key === key);
   if (item === undefined) throw new Error(`seed v16: ${definition.block_type} lacks the item ${key}`);
   return item;
+}
+
+// --- Story 25.15: The thermography: "Não realizada" with a reason, printed, and points by equipment type ---
+
+/** The thermography's test key, on the eight types (since v13) and the Inspeção de QGBT (since v14). */
+export const STORY_25_15_TEST = 'termografia';
+/** Every type whose v15 definition carries the thermography: each one changes on v16. */
+export const STORY_25_15_TYPES = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca', 'inspecao_qgbt'] as const;
+
+/**
+ * The v16 thermography's values (M23, Bruno's answer 4, decision 3): one required choice, "Realizada" or "Não
+ * realizada", in place of v13's "Equipamento em carga" (the coordinator's reading: "fora de carga" becomes a reason);
+ * under "Não realizada" a reason from a closed list, required, and under "Outro" its text, required, as the oil
+ * sampling's of seed v14 (Story 24.14). The choice's label is the frame's (`60-ficha.html` #/ficha/DJ-02).
+ */
+export const STORY_25_15_VALUES: readonly MeasurementValue[] = [
+  {
+    key: 'realizacao',
+    label: 'Termografia',
+    kind: 'choice',
+    options: [
+      { key: 'realizada', label: 'Realizada' },
+      { key: 'nao_realizada', label: 'Não realizada' },
+    ],
+  },
+  {
+    key: 'motivo',
+    label: 'Motivo',
+    kind: 'choice',
+    // authored (e25s, Story 25.15, listed for Bruno, B-17): the reasons of a thermography not done.
+    options: [
+      { key: 'fora_de_carga', label: 'Equipamento fora de carga' },
+      { key: 'sem_acesso_seguro', label: 'Sem acesso seguro ao equipamento' },
+      { key: 'sem_termovisor', label: 'Sem termovisor disponível' },
+      { key: 'outro', label: 'Outro' },
+    ],
+    when: { value: 'realizacao', equals: 'nao_realizada' },
+  },
+  { key: 'motivo_texto', label: 'Descreva o motivo', kind: 'text', when: { value: 'motivo', equals: 'outro' } },
+];
+
+/** The v16 thermography is done by its `realizacao` answer, and says why not by `motivo` (`performedSchema`). */
+export const STORY_25_15_PERFORMED: PerformedKey = { value: 'realizacao', done: 'realizada', reason: 'motivo' };
+
+/** Story 25.14's key on every type's thermography: the action "Adicionar ponto", no stem, no plate count, the default maximum. */
+export const STORY_25_15_ADDED_ROWS: AddedRowsKey = { label: 'Adicionar ponto' };
+
+/** The input and output terminals, one row per phase, in the phase words the type's other tables use ("Fase A"). */
+const terminalRows = (): MeasurementRow[] =>
+  (['entrada', 'saida'] as const).flatMap((side) =>
+    (['a', 'b', 'c'] as const).map((phase): MeasurementRow => ({ key: `terminal_${side}_fase_${phase}`, label: `Terminal de ${side === 'entrada' ? 'entrada' : 'saída'}, fase ${phase.toUpperCase()}`, optional: true })),
+  );
+const instrumentTransformerRows = (): MeasurementRow[] => [
+  { key: 'terminais_primario', label: 'Terminais do primário', optional: true },
+  { key: 'terminais_secundario', label: 'Terminais do secundário', optional: true },
+];
+
+/**
+ * The points by type (Bruno's answer 4), each optional as v13's are and judged by v13's bands. The row names are
+ * Bruno's words where he gave a label; where he gave a phrase they are authored (listed for Bruno): the breaker's and
+ * the switch's six terminals, the TP's and the TC's two. The Cabos de entrada, the Cabos de saída and the Para-raio keep
+ * v13's four rows until Bruno answers B-9, so they are not listed.
+ */
+export const STORY_25_15_ROWS: Readonly<Partial<Record<(typeof STORY_25_15_TYPES)[number], readonly MeasurementRow[]>>> = {
+  transformador_forca: [
+    { key: 'buchas_mt', label: 'Buchas MT', optional: true },
+    { key: 'buchas_conexoes_bt', label: 'Buchas e conexões BT', optional: true },
+    { key: 'tanque_bobinas', label: 'Tanque ou bobinas', optional: true },
+  ],
+  // authored (e25s, Story 25.15, listed for Bruno): the six terminal rows and the two rows of the TP and the TC.
+  disjuntor_mt: terminalRows(),
+  chave_seccionadora: terminalRows(),
+  tp: instrumentTransformerRows(),
+  tc: instrumentTransformerRows(),
+  inspecao_qgbt: [
+    { key: 'disjuntor_geral', label: 'Disjuntor geral', optional: true },
+    { key: 'barramentos', label: 'Barramentos', optional: true },
+    { key: 'saidas', label: 'Saídas', optional: true },
+    { key: 'neutro', label: 'Neutro', optional: true },
+  ],
+};
+
+/**
+ * Story 25.15: on every type that carries it, the thermography asks "Realizada" or "Não realizada" in place of
+ * "Equipamento em carga" and no longer applies by a condition (nothing makes it N.A. by itself, so the override band
+ * never shows on it); it takes added points; and, on the six types Bruno's answer names, its rows are that type's
+ * points. Its label, columns, bands, switch (a template may still switch it off) and help are v15's.
+ */
+function story25_15(seed: ReportSeed): void {
+  for (const type of STORY_25_15_TYPES) {
+    const test: MeasurementTest | undefined = seed.blocks[type]?.measurement_tests?.find((candidate) => candidate.key === STORY_25_15_TEST);
+    if (test === undefined) throw new Error(`seed v16: the ${type} lacks the thermography`);
+    if (test.applies_when === undefined || !(test.values ?? []).some((value) => value.key === 'em_carga')) throw new Error(`seed v16: the ${type}'s thermography lacks "Equipamento em carga"`);
+    if (test.performed !== undefined || test.added_rows !== undefined) throw new Error(`seed v16: the ${type}'s thermography already asks whether it was done`);
+    delete test.applies_when;
+    test.values = structuredClone([...STORY_25_15_VALUES]);
+    test.performed = structuredClone(STORY_25_15_PERFORMED);
+    test.added_rows = structuredClone(STORY_25_15_ADDED_ROWS);
+    const rows = STORY_25_15_ROWS[type];
+    if (rows !== undefined) test.rows = structuredClone([...rows]);
+  }
 }
 
 // --- Story 25.16: The ground grid takes continuity points beyond the five --------------------------

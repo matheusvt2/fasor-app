@@ -433,6 +433,21 @@ export const addedRowsSchema = z
   });
 export type AddedRowsKey = z.infer<typeof addedRowsSchema>;
 
+// --- Story 25.15: The thermography, "Realizada" or "Não realizada" -----------------------------
+
+/**
+ * Story 25.15 (contract 54, batch e25s; M23, Bruno's answer 4): the test first asks whether it was done, through one
+ * of its own choice values (`value`, required and always shown). Under the option `done` its table is asked, judged
+ * and printed as any test's. Under another option the test is not run (as `skip_when` makes one): its rows are neither
+ * asked, judged nor printed, and the same holds while the value is unanswered. `reason` names the choice value shown
+ * under that other option (its `when`): it stays asked while the test is not run, with any value shown under it
+ * ("Descreva o motivo" under "Outro"). The print sets one line in the test's place and the conclusion's paragraph one
+ * clause, both composed from the definition's words (`relatorio/measurement-evaluation.ts` `performanceOf`). Never
+ * beside `skip_when`. Optional and never defaulted, so every seed of v1 to v15 parses to the bytes it shipped with.
+ */
+export const performedSchema = z.object({ value: seedKey, done: seedKey, reason: seedKey.optional() });
+export type PerformedKey = z.infer<typeof performedSchema>;
+
 /** The seeded test kinds whose registry instruments a measurement test's picker offers. */
 export const instrumentOfSchema = z.enum(['isolacao', 'resistencia_contato']);
 export type InstrumentOf = z.infer<typeof instrumentOfSchema>;
@@ -485,6 +500,8 @@ export const measurementTestShape = {
   history_deviation_pct: z.number().gt(0).lt(100).optional(),
   /** Story 25.14 (contract 54): the rows the technician adds on the sheet (`addedRowsSchema`). Optional and never defaulted. */
   added_rows: addedRowsSchema.optional(),
+  /** Story 25.15 (contract 54): the value that says whether the test was done (`performedSchema`). Optional and never defaulted. */
+  performed: performedSchema.optional(),
 };
 
 /** What `checkMeasurementTest` reads of a test: the seed's shape, its key and criteria any (Story 14.6: the company variant shares the rule). */
@@ -549,6 +566,24 @@ export function checkMeasurementTest(test: MeasurementTestLike, ctx: z.Refinemen
     if (target === undefined || target.kind !== 'choice') issue(['applies_when', 'value'], `"${condition.value}" is not a choice value of the test`);
     else for (const key of condition.values) if (!(target.options ?? []).some((option) => option.key === key)) issue(['applies_when', 'values'], `"${key}" is not an option of "${condition.value}"`);
     if (target?.when !== undefined) issue(['applies_when', 'value'], 'the value a test applies by is always shown');
+  }
+  // Story 25.15: the value a test is done by is one required, always shown choice of the test and `done` one of its
+  // options; the reason is a choice shown under another of its options; a test is skipped by one rule only.
+  const performed = test.performed;
+  if (performed !== undefined) {
+    const target = values.get(performed.value);
+    if (target === undefined || target.kind !== 'choice') issue(['performed', 'value'], `"${performed.value}" is not a choice value of the test`);
+    else {
+      if (target.when !== undefined || target.optional === true) issue(['performed', 'value'], 'the value a test is done by is required and always shown');
+      if (!(target.options ?? []).some((option) => option.key === performed.done)) issue(['performed', 'done'], `"${performed.done}" is not an option of "${performed.value}"`);
+    }
+    if (performed.reason !== undefined) {
+      const reason = values.get(performed.reason);
+      const when = reason?.when;
+      if (reason === undefined || reason.kind !== 'choice') issue(['performed', 'reason'], `"${performed.reason}" is not a choice value of the test`);
+      else if (when === undefined || 'cell' in when || when.value !== performed.value || when.equals === performed.done) issue(['performed', 'reason'], 'the reason is shown under an option of the value other than done');
+    }
+    if (test.skip_when !== undefined) issue(['performed'], 'a test is skipped by one rule: performed or skip_when');
   }
   // Seed v13 (batch e23t, Story 23.15): the history rule compares corrected values.
   if (test.history_deviation_pct !== undefined && test.winding_correction === undefined) issue(['history_deviation_pct'], 'a history rule needs the test\'s winding_correction');

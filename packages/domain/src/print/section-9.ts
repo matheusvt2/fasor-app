@@ -1430,13 +1430,29 @@ function judgedTable(
 }
 
 /**
+ * Story 25.15 (seed v16 `performed`; M23): the line a test answered not done prints in its place, the definition's words
+ * in caps as a label prints, a text typed under the reason after it as typed ("MOTIVO: OUTRO, <texto>", Story 24.14's
+ * form): "TERMOGRAFIA: NÃO REALIZADA. MOTIVO: EQUIPAMENTO FORA DE CARGA."; with no reason given, "TERMOGRAFIA: NÃO REALIZADA.".
+ */
+export function notPerformedPrintLine(performance: Extract<NonNullable<MeasurementTestEvaluation['performance']>, { state: 'not_done' }>): string {
+  // authored (e25s, Story 25.15, listed for Bruno): "TERMOGRAFIA: NÃO REALIZADA. MOTIVO: ⟨motivo⟩."
+  const head = `${printLabel(performance.label)}: ${printLabel(performance.answer)}.`;
+  if (performance.reason === null) return head;
+  const reason = `${printLabel(performance.reason)}${performance.typed === null ? '' : `, ${performance.typed}`}`;
+  return `${head} ${printLabel(performance.reasonLabel ?? '')}: ${reason}.`;
+}
+
+/**
  * One measurement test as one table; null for a test switched off and (2026-10-14, Bruno) for
  * one marked not run (`skipped`, E5's método "Não realizado"): neither prints a title, a
  * method or a criterion line. The other tests keep their numbers ("E6 · …").
  */
 function measurementTestPart(block: BlockRow, definition: BlockDefinition, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
   // Story 23.9: a test the nameplate makes not applicable is omitted, as a switched-off one is (FR-11).
-  if (!test.enabled || test.skipped || test.applicability.state === 'na') return null;
+  if (!test.enabled || test.applicability.state === 'na') return null;
+  // Story 25.15 (seed v16 `performed`): a test answered "Não realizada" prints one line in its place; unanswered, nothing.
+  if (test.performance?.state === 'not_done') return { kind: 'paragraph', text: notPerformedPrintLine(test.performance) };
+  if (test.skipped) return null;
   // Batch e23t (Story 23.15, seed v13): a test corrected to 75 °C repeats its columns in a "75 °C" group after them.
   const corrected = test.temperature ?? null;
   const width = 1 + test.columns.length * (corrected === null ? 1 : 2);
