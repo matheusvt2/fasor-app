@@ -13,7 +13,8 @@ import { expandLocation, section9Chevron } from './support/tree.ts';
  * 25.14-E2E-001 and 25.16-E2E-001 (batch e25s, Stories 25.14 and 25.16, seed v16; M23, M30; Bruno's answer 6): a row
  * the technician adds in the field, walked as a person taps it on the first sheet that takes one, the v16 Malha de
  * aterramento's continuity test, at a tablet viewport (768 x 1024). The Malha is added from the local's field palette
- * (at 1280 px, where the tree draws it), then the sheet is worked at 768 px.
+ * (at 1024 px, as `ground-grid.spec.ts` adds it: the field rows `.pf-field` show below 1280 px), then the sheet is worked
+ * at 768 px.
  * - 25.14-E2E-001: "Adicionar ponto" adds a row whose name field takes the focus; it is named and filled; a second
  *   row is added, named, filled and renamed; a name the other row has is refused with its helper; the first row is
  *   removed (one toast, "Desfazer") and "Desfazer" brings it back with its reading; the two rows reach a second
@@ -54,6 +55,8 @@ const addedRows = (page: Page) => testSection(page, TEST).locator('tr[data-added
 /** A v16 relatório with a Malha de aterramento added at the local Geradores, its sheet open on Ensaios at 768 px. */
 async function malhaSheet(page: Page): Promise<{ relatorioId: string; blockId: string; tag: string }> {
   const { relatorioId } = await setUpRelatorio(page, account, database, () => [], VERSION);
+  // The field palette's rows (`.pf-field`) are drawn below 1280 px; at 1280 the office rows stand in their place.
+  await page.setViewportSize({ width: 1024, height: 900 });
   const chevron = section9Chevron(page);
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expandLocation(page, LOCAL);

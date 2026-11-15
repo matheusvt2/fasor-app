@@ -149,7 +149,7 @@ test('@p0 25.15-E2E-001 the v16 thermography on a transformer and a breaker: "Re
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: 150_000 });
   const revision = (await readStore<{ entity: string; row: { id: string; number: number } }>(page, database, 'entities')).find((record) => record.entity === 'revision' && record.row.number === 1)!;
   const structure = extractStructure(Buffer.from(await (await page.request.get(`/api/revisions/${revision.row.id}/docx`)).body()));
-  const clean = (value: string) => value.replaceAll(' ', ' ');
+  const clean = (value: string) => value.replaceAll('\u00a0', ' ');
   expect(structure.paragraphs.filter((paragraph) => clean(paragraph) === 'TERMOGRAFIA: NÃO REALIZADA. MOTIVO: EQUIPAMENTO FORA DE CARGA.')).toHaveLength(1);
   const tables = structure.tables.filter((table) => clean(table[0]?.[0] ?? '') === 'TERMOGRAFIA');
   // Only the breaker prints a thermography table; every other sheet of the standard relatório is unanswered.

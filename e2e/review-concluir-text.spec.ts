@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { conclusionOpOf, concludeBatch, expectConcludeConfirmsText, lastTextStatus } from './support/conclude-batch.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
@@ -57,7 +57,7 @@ async function exportWarnings(page: Page): Promise<number> {
   return count;
 }
 
-/** The plate (TAG from the block), every checklist item C and every reading within its criterion; no conclusion. */
+/** The plate (TAG from the block), every checklist item C, every reading within its criterion and the thermography answered; no conclusion. */
 function filledSheet(scope: Scope, blockId: string): OpDraft[] {
   const plate = (kind: string, unit: string | undefined, options: readonly string[] | undefined, key: string): unknown =>
     kind === 'number' ? { raw: '630', unit: unit ?? null, state: 'measured' } : kind === 'date' ? '2020-01-01' : kind === 'select' ? options![0] : kind === 'voltage_class' ? '15' : `P-${key}`;
@@ -69,6 +69,8 @@ function filledSheet(scope: Scope, blockId: string): OpDraft[] {
       .map((c) =>
         officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
       ),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, scope, blockId, SECC),
   ];
 }
 

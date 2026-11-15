@@ -4,7 +4,7 @@ import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { pdfTextItems } from './support/pdf-text.ts';
-import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
@@ -43,7 +43,7 @@ const sumario = (page: Page) => page.getByRole('list', { name: 'Sumário do rela
 const toast = (page: Page) => page.getByTestId('toast');
 const compact = (text: string) => text.replace(/\s+/g, '');
 
-/** The standard relatório (Em campo) with a painel and its coluna in Geradores holding one Inspeção de QGBT, its plate filled and its items Conforme. */
+/** The standard relatório (Em campo) with a painel and its coluna in Geradores holding one Inspeção de QGBT, its plate filled, its items Conforme and the thermography answered. */
 function relatorioWithInspection(): { relatorioId: string; blockId: string; drafts: OpDraft[] } {
   const built = newRelatorioDrafts(account);
   const scope = { relatorioId: built.relatorioId };
@@ -85,6 +85,8 @@ function relatorioWithInspection(): { relatorioId: string; blockId: string; draf
       officeDraft(account, scope, `block/${block.id}`, block, 'create'),
       ...plate,
       ...conforme,
+      // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional, so the ficha is complete.
+      ...performedDrafts(account, scope, block.id, DEFINITION),
       emCampoDraft(account, built.relatorioId),
     ],
   };

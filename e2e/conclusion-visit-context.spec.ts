@@ -4,7 +4,6 @@ import {
   composeConclusion,
   entityKey,
   getDefinition,
-  SEED_VERSION,
   visitContextOf,
   type BlockRow,
   type Entity,
@@ -30,6 +29,10 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * expected value is the kernel's over the device's own rows.
  */
 
+// The relatório's seed (batch e24a pinned it to v13): every definition the expectations read is that version's, not the
+// current seed's (Story 25.15 changed v16's thermography, so a v16 definition composes another basis).
+const VERSION = 'v13';
+
 let account: SeedAccount;
 let database: string;
 test.beforeEach(({ seed }) => {
@@ -54,7 +57,7 @@ async function deviceSnapshot(page: Page, relatorioId: string): Promise<Relatori
 
 /** The first capture cell of the type's insulation test. */
 function firstCapture(type: 'disjuntor_mt' | 'chave_seccionadora'): { row: number; col: number } {
-  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', type);
+  const definition = getDefinition(VERSION, 'cabine_primaria', type);
   const test = definition.tests.find((one) => one.key === 'isolacao')!;
   return cellAddressesOf(definition, 'isolacao').find((address) => test.tables[0]!.value_columns[address.col]?.role === 'capture')!;
 }
@@ -65,7 +68,7 @@ test('@p0 e23w-W2-4-E2E-001 under a cabine at 5 °C: "Confirmar" of "Conclusão 
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
   // Batch e24a (Story 24.3): pinned to seed v13, whose adjusted pair this spec asserts (Reprovado · Com restrições).
-  const built = newRelatorioDrafts(account, { seedVersion: 'v13' });
+  const built = newRelatorioDrafts(account, { seedVersion: VERSION });
   const dj = built.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const sc = built.sheets.find((sheet) => sheet.blockType === 'chave_seccionadora')!;
   const created = (prefix: string) => built.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);
@@ -88,7 +91,7 @@ test('@p0 e23w-W2-4-E2E-001 under a cabine at 5 °C: "Confirmar" of "Conclusão 
     ...djBlock,
     sheet: { ...djBlock.sheet, test: { ...djBlock.sheet.test, isolacao: { ...djBlock.sheet.test.isolacao, cells: { [String(at.row)]: { [String(at.col)]: { value: { raw: '600', unit: 'MΩ', state: 'measured' }, source_suggestion_id: null, op_id: 'x' } } } } } },
   };
-  const before = composeConclusion(raw, getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt'), djTag);
+  const before = composeConclusion(raw, getDefinition(VERSION, 'cabine_primaria', 'disjuntor_mt'), djTag);
   const conclusion = (blockId: string, key: string, value: unknown) => officeDraft(account, scope, `sheet/${blockId}/conclusion/${key}`, value);
   const cabines = [...new Set([cabineOf(dj.blockId), cabineOf(sc.blockId)])];
   await pushDrafts(page, database, [
@@ -131,7 +134,7 @@ test('@p0 e23w-W2-4-E2E-001 under a cabine at 5 °C: "Confirmar" of "Conclusão 
   expect(committedText).toContain('a 20 °C');
   expect(committedText).not.toBe(before.text);
   // The committed text and basis are the kernel's under the context over the committed rows; one batch.
-  const now = composeConclusion(djStored, getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt'), djTag, djVisit);
+  const now = composeConclusion(djStored, getDefinition(VERSION, 'cabine_primaria', 'disjuntor_mt'), djTag, djVisit);
   expect(committedText).toBe(now.text);
   expect(djOps.find((row) => row.path === djPath('text_basis'))!.value).toBe(now.basis);
   expect(djOps.find((row) => row.path === djPath('text_status'))!.value).toBe('confirmed');
@@ -148,7 +151,7 @@ test('@p0 e23w-W2-4-E2E-001 under a cabine at 5 °C: "Confirmar" of "Conclusão 
   const scSnapshot = await deviceSnapshot(page, built.relatorioId);
   const scStored = scSnapshot.blocks.find((row) => row.id === sc.blockId)!;
   const scTag = scSnapshot.equipment.find((row) => row.id === scStored.equipment_id)!.tag.trim();
-  const scDefinition = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora');
+  const scDefinition = getDefinition(VERSION, 'cabine_primaria', 'chave_seccionadora');
   const composed = composeConclusion(scStored, scDefinition, scTag, visitContextOf(scSnapshot, scStored));
   expect(composed.text).toContain('a 20 °C');
   expect(composed.basis).not.toBe(composeConclusion(scStored, scDefinition, scTag).basis);

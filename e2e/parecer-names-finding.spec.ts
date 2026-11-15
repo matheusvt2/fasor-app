@@ -23,7 +23,7 @@ import { deviceSnapshot, openStep, outbox, typeCell } from './support/e23t-flow.
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue } from './support/relatorio-flow.ts';
-import { emCampoDraft, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, officeDraft, performedDrafts, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
@@ -84,7 +84,7 @@ interface Sheet {
 /**
  * A new v14 relatório of the standard template (`ownConclusao`: its Conclusão text the template's own, and
  * no sections 3 to 6), Em campo, its first sheet of `type` with the plate (and, unless `checklist` says
- * otherwise, every row Conforme) from the office.
+ * otherwise, every row Conforme) and the thermography's answer from the office.
  */
 async function setUp(page: Page, type: string, options: { ownConclusao?: boolean; checklist?: (key: string, n: number) => string | null } = {}): Promise<Sheet> {
   await resetEmpresaB(account, { standard: true });
@@ -135,6 +135,8 @@ async function setUp(page: Page, type: string, options: { ownConclusao?: boolean
       const result = checklistOf(item.key, n);
       return result === null ? [] : [officeDraft(account, scope, `sheet/${block.id as string}/checklist/${item.key}/result`, result)];
     }),
+    // Story 25.15 (seed v16): the thermography answered "Realizada" from the office, its points optional.
+    ...performedDrafts(account, scope, block.id as string, definition),
   ]);
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(sumario(page).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });

@@ -6,7 +6,7 @@ import { signInForDurability } from './support/durability.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { newRelatorioDrafts, notPerformedDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { syncNow } from './support/sync.ts';
 import { humanTap, touchPressAcross } from './support/taps.ts';
 
@@ -79,6 +79,13 @@ const seedReadings = (scope: Scope, blockId: string, except: readonly number[] =
   CELLS.filter((_cell, index) => !except.includes(index)).map((c) =>
     officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
   );
+
+/**
+ * Story 25.15 (seed v16): the thermography answered "Não realizada" with its reason, so its points are not drawn and the
+ * Enter run ends on the primary after the last reading, as on v15 where the test stayed NA (under "Realizada" the run
+ * goes on into its empty points, `sheetRunTarget`).
+ */
+const seedNotPerformed = (scope: Scope, blockId: string): OpDraft[] => notPerformedDrafts(account, scope, blockId, getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora'));
 
 const seedConclusion = (scope: Scope, blockId: string): OpDraft[] => [
   officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
@@ -245,7 +252,7 @@ test('@p0 12.1-E2E-004 lost tap: "Concluir ficha" right after Enter on the last 
   const { relatorioId, secc } = await setUp(page, context, (scope, rows) =>
     DELAYS.flatMap((_d, i) => {
       const blockId = target(rows, i).blockId;
-      return [...seedPlate(scope, blockId), ...seedChecklist(scope, blockId), ...seedReadings(scope, blockId, [lastIndex]), ...seedConclusion(scope, blockId)];
+      return [...seedPlate(scope, blockId), ...seedChecklist(scope, blockId), ...seedReadings(scope, blockId, [lastIndex]), ...seedNotPerformed(scope, blockId), ...seedConclusion(scope, blockId)];
     }),
   );
   const cell = CELLS[lastIndex]!;

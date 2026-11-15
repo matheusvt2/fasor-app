@@ -5,7 +5,7 @@ import { colleagueContext } from './support/colleague.ts';
 import { deviceDatabaseName, expect, SEED_PASSWORD, signIn, syncBadge, syncWord, test, timed, type SeedAccount, type WorkerSeed } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { serverRow } from './support/reading-ops.ts';
-import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { withSeedDb } from './support/reset-empresa-b.ts';
 import { syncNow } from './support/sync.ts';
 
@@ -763,7 +763,7 @@ for (const choice of ['Manter', 'Remover'] as const) {
   });
 }
 
-/** SEC-C12 complete from the office (plate, every item C, every reading within, the pair set), its text never confirmed. */
+/** SEC-C12 complete from the office (plate, every item C, every reading within, the thermography answered, the pair set), its text never confirmed. */
 function completeSec12(seed: WorkerSeed, relatorioId: string, sheets: SeededSheet[]): OpDraft[] {
   const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora');
   const blockId = sheets.find((s) => s.tag === 'SEC-C12')!.blockId;
@@ -779,6 +779,8 @@ function completeSec12(seed: WorkerSeed, relatorioId: string, sheets: SeededShee
       .map((c) =>
         officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
       ),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, scope, blockId, definition),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];
