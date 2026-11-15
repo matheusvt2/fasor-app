@@ -131,7 +131,8 @@ interface Fresh {
 
 function fresh(): Fresh {
   const { relatorioId, drafts } = instantiateTemplate(
-    standardTemplate({ id: '019966c1-0e25-7024-8000-0000000000f0' }),
+    // Pinned to seed v15, the version the rules were written on, since seed v16 opened (batch e25s).
+    standardTemplate({ id: '019966c1-0e25-7024-8000-0000000000f0', seedVersion: 'v15' }),
     { id: TEST_PROJECT },
     { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
     { newId: idSequence('019966c1-0e25-7024-8001-'), actorId: TEST_USER, companyId: TEST_COMPANY },

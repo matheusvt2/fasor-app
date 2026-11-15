@@ -33,6 +33,11 @@ import { placeholderPages } from './toc.ts';
  * (`layoutLockEpic25Fixture`) is pinned in `golden/layout-lock-v14-epic25/`, taken once on this batch's
  * first commit (seed v15 opened equal to v14, no rule changed). Every later Epic 25 PR keeps every golden
  * of this directory byte-equal.
+ *
+ * Batch e25s, Epic 25 wave 3 (e25s-UNIT-LOCK): seed v15 froze at the deploy of 8d5e9e2e and v16 opens equal to
+ * it, so v15 joins the lock: `golden/layout-lock-v15/` (the relatório by the rule, every type v15 offers) and
+ * `golden/layout-lock-v15-epic25/` (the Epic 25 relatório on v15, which holds what the wave changes on v16), both
+ * taken once on the batch's first commit, whose product code is 8d5e9e2e's. Every other golden stays byte-equal.
  */
 
 /*
@@ -40,7 +45,7 @@ import { placeholderPages } from './toc.ts';
  * only through `seedRule` (`seed/definitions.ts`), so the one module is mocked; every other test of the
  * file reads the flags as shipped (v5 to v13 carry none).
  */
-const rulesOff = vi.hoisted(() => ({ v14: false, v15ReadsV14: false }));
+const rulesOff = vi.hoisted(() => ({ v14: false, v15ReadsV14: false, v16ReadsV15: false }));
 vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../../packages/domain/src/seed/definitions.ts')>();
   return {
@@ -49,11 +54,14 @@ vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importO
       if (rulesOff.v14 && version === 'v14') return false;
       // Story 25.5 (25.5-UNIT-SAME): v15 reads v14's flags only, so a later Epic 25 flag stays out of the comparison.
       if (rulesOff.v15ReadsV14 && version === 'v15') return actual.seedRule('v14', flag);
+      // Batch e25s (e25s-UNIT-SAME): v16 reads v15's flags only, so a later wave-3 flag stays out of the comparison.
+      if (rulesOff.v16ReadsV15 && version === 'v16') return actual.seedRule('v15', flag);
       return actual.seedRule(version, flag);
     },
     // Story 25.22 (25.5-UNIT-SAME): v15's own section texts and ratio headers are seed content, not flags; while v15
     // reads v14's flags it reads v14's section texts and the TP's and the TC's v14 ratio headers too.
-    sectionText: (version: string, section: number, date: string) => actual.sectionText(rulesOff.v15ReadsV14 && version === 'v15' ? 'v14' : version, section, date),
+    sectionText: (version: string, section: number, date: string) =>
+      actual.sectionText(rulesOff.v15ReadsV14 && version === 'v15' ? 'v14' : rulesOff.v16ReadsV15 && version === 'v16' ? 'v15' : version, section, date),
     blockDefinitionIn: (...[ctx, block]: Parameters<typeof actual.blockDefinitionIn>) => {
       const definition = actual.blockDefinitionIn(ctx, block);
       if (!rulesOff.v15ReadsV14 || block.seed_version !== 'v15' || (block.block_type !== 'tp' && block.block_type !== 'tc') || definition === null) return definition;
@@ -96,7 +104,7 @@ async function partsOf(version: string, snapshotOf: (version: string) => Relator
   return parts;
 }
 
-describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
+describe('e25s-UNIT-LOCK (24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_VERSIONS)(
     '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
     async (version) => expectGolden(version, `layout-lock-${version}`, await partsOf(version)),
@@ -109,9 +117,9 @@ describe('24.2-UNIT-LOCK (23.2-UNIT-LOCK) the DOCX of the locked seed versions i
   }, 120_000);
 });
 
-describe('25.5-UNIT-LOCK the DOCX of the Epic 25 v14 relatório is byte-equal to its golden', () => {
+describe('e25s-UNIT-LOCK (25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 and v15 relatórios is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_EPIC25_VERSIONS)(
-    '%s: every layout part of the relatório holding the cases Epic 25 changes on v15 matches golden/layout-lock-v14-epic25',
+    '%s: every layout part of the relatório holding the cases Epic 25 changes matches its golden/layout-lock-{version}-epic25',
     async (version) => expectGolden(version, layoutLockEpic25Golden(version), await partsOf(version, layoutLockEpic25Snapshot)),
     120_000,
   );
@@ -313,4 +321,66 @@ describe('25.5-UNIT-SAME a v15 relatório with the v14 Epic 25 fixture\'s answer
     expect([...b.keys()]).toEqual([...a.keys()]);
     for (const [name, text] of a) expect(masked('v15', b.get(name)!) === masked('v14', text), name).toBe(true);
   }, 120_000);
+});
+
+/**
+ * Batch e25s (e25s-UNIT-SAME): at its opening seed v16 changes no rule, so a v16 relatório with the same answers as
+ * the v15 one (the rule-built fixture and the Epic 25 fixture, each built on both versions) concludes and prints
+ * the same: every ficha's effective pair and the composed parecer are equal, and the layout and the DOCX parts
+ * differ in nothing but the ids the fixtures derive from the version, their op ids and the version's own name. The
+ * comparison reads v16 through v15's rule flags and section texts only (`rulesOff.v16ReadsV15`), so a later story
+ * of the wave that adds a v16 flag keeps this pin; one that adds a v16 definition key (an item, a row, an option)
+ * reads it off in the mocks above, as Stories 25.8 and 25.22 did for v15.
+ */
+describe('e25s-UNIT-SAME a v16 relatório with the v15 fixtures\' answers concludes and prints as the v15 one', () => {
+  beforeEach(() => {
+    rulesOff.v16ReadsV15 = true;
+  });
+  afterEach(() => {
+    rulesOff.v16ReadsV15 = false;
+  });
+
+  /** The version's ids, op ids and name masked (`019a6100-0NVV-…` for the four id families, `vVV`). */
+  const masked = (version: string, text: string) => {
+    const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
+    let out = text;
+    for (const family of ['00', '01', '02', '03']) out = out.replaceAll(`019a6100-${family}${hex}-`, `019a6100-${family}VV-`);
+    return out.replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
+  };
+
+  const FIXTURES = [
+    ['the rule-built fixture', (version: string) => layoutLockSnapshot(version)],
+    ['the Epic 25 fixture', layoutLockEpic25Snapshot],
+  ] as const;
+
+  /** Every equipment sheet's effective conclusion pair, by masked block id, and the composed parecer. */
+  const verdictsOf = (version: string, snapshotOf: (version: string) => RelatorioSnapshot) => {
+    const snapshot = snapshotOf(version);
+    const ctx = snapshotDefinitionContext(snapshot);
+    const pairs = snapshot.blocks
+      .filter((block) => block.equipment_id !== null)
+      .map((block) => [masked(version, block.id), effectiveConclusionPair(block, blockDefinitionIn(ctx, block)!, visitContextOf(snapshot, block))] as const);
+    return { pairs, parecer: masked(version, JSON.stringify(composeParecer(snapshot))) };
+  };
+
+  it.each(FIXTURES)('%s: v15 and v16 give the same verdicts, each ficha\'s pair and the parecer', (_name, snapshotOf) => {
+    expect(snapshotOf('v16').relatorio.seed_version).toBe('v16');
+    const a = verdictsOf('v15', snapshotOf);
+    const b = verdictsOf('v16', snapshotOf);
+    expect(a.pairs.length).toBeGreaterThan(10);
+    expect(b.pairs).toEqual(a.pairs);
+    expect(b.parecer).toBe(a.parecer);
+  });
+
+  it.each(FIXTURES)(
+    '%s: v15 and v16 give one layout and one DOCX once ids and the version are masked',
+    async (_name, snapshotOf) => {
+      const layoutOf = (version: string) => masked(version, JSON.stringify(layoutSpec(snapshotOf(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT })));
+      expect(layoutOf('v16')).toBe(layoutOf('v15'));
+      const [a, b] = await Promise.all([partsOf('v15', snapshotOf), partsOf('v16', snapshotOf)]);
+      expect([...b.keys()]).toEqual([...a.keys()]);
+      for (const [name, text] of a) expect(masked('v16', b.get(name)!) === masked('v15', text), name).toBe(true);
+    },
+    120_000,
+  );
 });

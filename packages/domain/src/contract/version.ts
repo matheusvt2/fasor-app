@@ -608,7 +608,15 @@
  * draft gain the optional `base_added_tests` (the tests an update of the test base added, so a later update never
  * adds back one the office removed); a definition without it parses as before.
  */
-export const CONTRACT_VERSION = 52;
+/*
+ * 53 (2026-11-15, batch e25s, Epic 25 wave 3): no new op or path family. Seed v16 opens equal to v15 (the
+ * same content and the same rule flags; v15 froze at the deploy of 8d5e9e2e) and becomes the version a new
+ * Template is created with (`SEED_VERSION`); the server's boot step moves every template to it
+ * (`templateSeedUpgrade`), so every relatório created afterwards is born on v16 and every one already made
+ * keeps its seed. The wave's stories change v16's sheet definitions (items, test rows, options) through v16
+ * keys and rule flags, each without a contract of its own. MIN follows to 53 (below).
+ */
+export const CONTRACT_VERSION = 53;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -972,7 +980,14 @@ export const CONTRACT_VERSION = 52;
  * old run's findings with no out-of-date mark. Its pull answers `426 contract_outdated` and it updates; its
  * pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 52;
+/*
+ * 53 (2026-11-15, batch e25s): a version-52 (or older) bundle ships no seed v16, so it cannot resolve a
+ * single definition of a v16 relatório or of a template the server moved to v16: a pulled block create or
+ * template put naming `v16` fails to fold, and the sheets it could show would have no nameplate, checklist
+ * or tests, nor ask the items, rows and options the wave's stories add to them. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 53;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

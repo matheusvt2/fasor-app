@@ -1,4 +1,4 @@
-import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentTypesOf, getDefinition, SEED_VERSION, type BlockRow, type FieldDef, type JsonValue, type OpDraft } from '@app/domain';
+import { BASE_EQUIPMENT_BLOCK_TYPES, equipmentTypesOf, getDefinition, type BlockRow, type FieldDef, type JsonValue, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
@@ -6,7 +6,7 @@ import { outbox } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { paletteTypes, typeRows } from './support/palette.ts';
-import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
@@ -23,6 +23,9 @@ import { expandLocation, section9Chevron } from './support/tree.ts';
  * beside it, filled the same way, still generates. At its opening v15 equals v14, so nothing here
  * judges a rule: the rules come with Stories 25.6 to 25.10. It generates through the one queue and
  * LibreOffice of the api, so the file is in the serial group.
+ *
+ * Since seed v16 opened (batch e25s) a new relatório is born on v16, so the v15 relatório here is pushed on
+ * v15 from the office device, as the v14 one beside it is.
  */
 
 let account: SeedAccount;
@@ -147,9 +150,8 @@ async function storedSeed(page: Page, relatorioId: string): Promise<string | und
   return (await entities<{ seed_version: string }>(page)).find((record) => record.entity === 'relatorio' && record.id === relatorioId)?.row.seed_version;
 }
 
-test('@p0 25.5-E2E-001 a new relatório is born on v15: one sheet of every type v15 offers filled opens and prints in its DOCX; a v14 relatório beside it still generates', async ({ page }) => {
+test('@p0 25.5-E2E-001 a v15 relatório (pinned since seed v16): one sheet of every type v15 offers filled opens and prints in its DOCX; a v14 relatório beside it still generates', async ({ page }) => {
   test.setTimeout(720_000);
-  expect(SEED_VERSION).toBe('v15');
   // At its opening v15 offers v14's types; the library ones are the five beyond the standard template's eight.
   expect(equipmentTypesOf('v15')).toEqual(equipmentTypesOf('v14'));
   expect(LIBRARY).toHaveLength(5);
@@ -159,9 +161,10 @@ test('@p0 25.5-E2E-001 a new relatório is born on v15: one sheet of every type 
   await page.setViewportSize({ width: 1024, height: 900 });
   await signIn(page, account.email);
 
-  // --- the new relatório, created as a person creates it, is on v15 ---
-  await createProjectFromHome(page);
-  const relatorioId = await createRelatorio(page);
+  // --- a v15 relatório, pushed on v15 (a new one is born on v16 since batch e25s) ---
+  const { relatorioId } = await pushNewRelatorio(page, account, database, { emCampo: true, seedVersion: 'v15' });
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => storedSeed(page, relatorioId)).toBe('v15');
   const blocks = await liveSheets(page, relatorioId);
   expect(blocks.length).toBeGreaterThan(BASE_EQUIPMENT_BLOCK_TYPES.length);

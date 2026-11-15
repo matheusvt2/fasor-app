@@ -74,10 +74,20 @@ import {
  * deployed as 2009fa30, seed v14 frozen): v14 is locked too, its goldens taken from the product code of
  * 2009fa30 (main 928dad15) with this fixture as it stands (every type v14 offers); Story 25.5 keeps
  * them and adds its own second fixture.
+ *
+ * 2026-11-15, batch e25s (Epic 25 wave 3, seed v16 opened equal to v15): v15 is locked too, as it shipped in
+ * 8d5e9e2e. Its relatório is built by the rule alone, as v5 to v12 are (one sheet of every type v15 offers; the
+ * Epic 24 additions stay on v13 and v14 only, `EPIC24_EXTRAS`, so every test that builds a v15 relatório reads the
+ * same ops as before), and its Epic 25 relatório
+ * (`layoutLockEpic25Fixture`, `LAYOUT_LOCK_EPIC25_VERSIONS`) holds what the wave changes on v16: the oil
+ * transformer, the TP and the TC with every item answered, a transformer of each TIPO DE ISOLAÇÃO, the
+ * thermography measured on its four points and one answered "Equipamento em carga" Não, and the Malha de
+ * aterramento with its five continuity rows. Both goldens were taken on the batch's first commit, which changes no
+ * rule; the v5 and v11 to v14 goldens are untouched.
  */
 
 /** The seed versions whose printed layout is locked. */
-export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14'] as const;
+export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14', 'v15'] as const;
 export type LayoutLockVersion = (typeof LAYOUT_LOCK_VERSIONS)[number];
 
 /** The issue instant the DOCX golden renders with. */
@@ -615,7 +625,7 @@ export function layoutLockSnapshot(version: string, options: LayoutLockOptions =
  */
 
 /** The seed versions whose Epic 25 fixture is locked (its golden directory: `layoutLockEpic25Golden`). */
-export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14'] as const;
+export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14', 'v15'] as const;
 
 /** The golden directory of a version's Epic 25 fixture, beside `layout-lock-{version}`. */
 export const layoutLockEpic25Golden = (version: string): string => `layout-lock-${version}-epic25`;
@@ -684,7 +694,7 @@ function allConforming(writes: [string, JsonValue][], blockId: string): [string,
     .map(([path, value]): [string, JsonValue] => (path.includes('/checklist/') && path.endsWith('/result') && value !== 'C' ? [path, 'C'] : [path, value]));
 }
 
-/** The op log of the Epic 25 synthetic relatório of `version` (v14 locked; v15 compared with it). */
+/** The op log of the Epic 25 synthetic relatório of `version` (v14 locked; v15 compared with it, then locked by batch e25s; v16 compared with v15). */
 export function layoutLockEpic25Fixture(version: string, actor: LayoutLockActor = DEFAULT_ACTOR): LayoutLockFixture {
   let ids = 10;
   const newId = () => epic25Id(version, ids++);
