@@ -4184,3 +4184,26 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/seed/v16.ts` § Story 25.19; `epics.md` § Story 25.19; `source-deltas.md`, the row on Story 23.17.
   class: decision
   state: open (owner: Bruno, B-4; Matheus for the paid plate eval before the deploy, E21-A4)
+
+## Deferred from: Epic 25 batch e25s, Story 25.14 (2026-11-15)
+
+- source_spec: Story 25.14 (out of scope: the previous visit of an added row)
+  summary: A row the technician adds is the sheet's, not the equipment's (the coordinator's reading). It has no previous visit: the issue keeps none of its readings in `last_results` (`readingSlotsOf` keys only the definition's rows), its MANUT. ANTERIOR prints "-", no history rule judges it, and the next visit starts without it. Whether a later visit should offer the rows the last one added (by name, from the issued revision) is open.
+  evidence: `packages/domain/src/print/reading-slots.ts` `readingAddressKey` (an added row keys by its id); `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory` (skips added rows); 25.14-UNIT "no previous visit is read for an added row".
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: Story 25.14 (AC "a row added on one device and removed on another while a third fills its cells")
+  summary: Built as the merge rules give a removed block's cells: the removal stands and the readings written after it stay under the row's tombstone ("Desfazer" or a later restore brings them back); nothing throws on any device. A removed block also raises a removal decision in the conflict view ("Manter" or "Remover"); a removed row raises none, so the third device's readings leave the sheet without a word to it.
+  evidence: `packages/domain/src/ops/apply.ts` `assertAddedRow` and `writeSheet` (the tombstone); 25.14-UNIT "two devices"; `packages/domain/src/merge/conflicts.ts` (a removed row's cells are not decided).
+  class: decision
+  state: open (owner: Matheus; a row-level removal decision would be a new decision kind and contract)
+- source_spec: Story 25.14 (authored strings, listed for Bruno)
+  summary: The batch's authored pt-BR texts, composed by the kernel from the key's words (`relatorio/added-rows.ts`) after the frames of `60-ficha.html` #/ficha/MA-02 and #/ficha/NB-02: "Ponto sem nome" ("{Stem} sem nome"), "Nome do ponto" ("Nome da bateria"), "Remover ponto {nome}", "Ponto removido: {nome}" ("Bateria removida: {nome}"), "Ponto acrescentado: dê um nome a ele", "Bateria acrescentada: {nome}", "{n} baterias acrescentadas: {nomes}", "Adicionar as {n} baterias que faltam" ("Adicionar a bateria que falta"), "A placa diz {n} baterias.", "Máximo de {n} pontos nesta tabela."; and the screen's fixed helper "Outra linha desta tabela já tem este nome." (`apps/web/src/copy/pt-br.ts`). Where the NB-02 frame says "Ponto removido: Bateria 1" and "Nome do ponto" on a battery, the kernel agrees the words with the stem ("Bateria removida", "Nome da bateria"), as the frame's own "Bateria acrescentada" does.
+  evidence: `packages/domain/src/relatorio/added-rows.ts` (`// authored (e25s, Story 25.14, listed for Bruno)`); `apps/web/src/copy/pt-br.ts` `ficha.measurement.addedRowNameTaken`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: Story 25.14 (DoD: the Playwright walk and the durability specs on the matrix)
+  summary: `e2e/added-row.spec.ts` is built with Story 25.16, the first sheet that takes added rows (the v16 Malha), in the same batch; this batch ran no Playwright (the coordinator's order), so the walk of the controls at 390, 768 and 1280 px in a real browser, the touched durability specs on the matrix projects (the fold and a live query of the ficha changed) and the tap budgets wait for it. The web unit tests (`apps/web/src/surfaces/ficha/added-row.test.tsx`) cover the controls at the three widths against the stylesheet's rules.
+  evidence: `epics.md` § Story 25.14, DoD; `apps/web/src/surfaces/ficha/added-row.test.tsx`.
+  class: gap
+  state: open (owner: the agent building Story 25.16; before the batch's PR)
