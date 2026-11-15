@@ -1,3 +1,4 @@
+import type { AddedRowsKey } from './measurement.ts';
 import type { BlockDefinition, ChecklistItem, FieldDef, ReportSeed } from './schema.ts';
 import { CABINE_PRIMARIA_V15 } from './v15.ts';
 
@@ -29,6 +30,7 @@ const v15 = CABINE_PRIMARIA_V15;
 
 function cabinePrimariaV16(): ReportSeed {
   const seed = structuredClone(v15);
+  story25_16(seed);
   story25_18(seed);
   story25_19(seed);
   return seed;
@@ -39,6 +41,31 @@ function itemOf(definition: BlockDefinition, key: string): ChecklistItem {
   const item = definition.checklist?.find((candidate) => candidate.key === key);
   if (item === undefined) throw new Error(`seed v16: ${definition.block_type} lacks the item ${key}`);
   return item;
+}
+
+// --- Story 25.16: The ground grid takes continuity points beyond the five --------------------------
+
+/** The Malha de aterramento's continuity test, which takes the points the technician adds on v16. */
+export const STORY_25_16_TEST = 'continuidade_malha';
+
+/**
+ * Story 25.14's key on that test (Bruno's answer 6: the five points are a minimum; M30): the action "Adicionar
+ * ponto", no stem (the technician names each point), no plate count, the default maximum. The action's label is
+ * the story's.
+ */
+export const STORY_25_16_ADDED_ROWS: AddedRowsKey = { label: 'Adicionar ponto' };
+
+/**
+ * Story 25.16: the v16 Malha's continuity test takes added points (Story 25.14), each judged by the test's one
+ * criterion ("≤ 0,5 Ω entre pontos"), as the five rows are. The five rows stay as they are, optional, the
+ * suggested minimum; an added point is not optional (it exists because it was measured). Nothing else of the
+ * Malha changes.
+ */
+function story25_16(seed: ReportSeed): void {
+  const test = seed.blocks.malha_aterramento?.measurement_tests?.find((candidate) => candidate.key === STORY_25_16_TEST);
+  if (test === undefined) throw new Error(`seed v16: the Malha de aterramento lacks ${STORY_25_16_TEST}`);
+  if (test.added_rows !== undefined) throw new Error('seed v16: the Malha\'s continuity test already takes added rows');
+  test.added_rows = structuredClone(STORY_25_16_ADDED_ROWS);
 }
 
 // --- Story 25.18: The TC asks about its secondary, and the oil transformer's items say what they mean ---

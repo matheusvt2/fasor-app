@@ -417,8 +417,9 @@ export const ADDED_ROW_NAME_MAX_LENGTH = 80;
  * gender its sentences agree with ("2 baterias acrescentadas"); `plate_field` names a number field of the
  * plate whose value says how many rows the sheet expects, for one action that adds the ones still missing
  * (it needs `stem`, whose numbered names they take); `max` caps the live rows of the test
- * (`ADDED_ROWS_DEFAULT_MAX` when absent). A definition without the key takes no added row, and no seed of
- * v1 to v16 carries it. Optional and never defaulted, so every seed parses to the bytes it shipped with.
+ * (`ADDED_ROWS_DEFAULT_MAX` when absent). A definition without the key takes no added row; no seed of v1 to
+ * v15 carries it, and on v16 the Malha's continuity test (Story 25.16) and every type's thermography
+ * (Story 25.15) do. Optional and never defaulted, so every seed parses to the bytes it shipped with.
  */
 export const addedRowsSchema = z
   .object({

@@ -29,7 +29,7 @@ import { CABINE_PRIMARIA_V3 } from './v3.ts';
 import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { STORY_25_22_RATIO_HEADERS, STORY_25_8_TESTS } from './v15.ts';
-import { STORY_25_18_TC_ITEM, STORY_25_18_TRANSFORMER_HINTS, STORY_25_19_DRY, STORY_25_19_DRY_ALIAS, STORY_25_19_TYPES } from './v16.ts';
+import { STORY_25_16_ADDED_ROWS, STORY_25_16_TEST, STORY_25_18_TC_ITEM, STORY_25_18_TRANSFORMER_HINTS, STORY_25_19_DRY, STORY_25_19_DRY_ALIAS, STORY_25_19_TYPES } from './v16.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
@@ -2527,9 +2527,10 @@ describe('25.5-UNIT seed v15 (Epic 25) opens equal to v14, and v14 is frozen as 
  * v16 as it ships (Epic 25 wave 3); until its deploy each batch of the wave re-pins it, after it a change is a new version.
  * Batch e25s, first commit (2026-11-15): v16 opens equal to v15, the same content and the same rule flags.
  */
+// Story 25.16 (batch e25s): the Malha's continuity test takes added points (`withoutE25s16` below).
 // Story 25.18 (batch e25s): the TC's item 7 and the transformer's six hints (`withoutE25s18` below).
 // Story 25.19 (batch e25s, the "A SECO" half): the dry option and subtype, "Á SECO" its alias (`withoutE25s19` below).
-const V16_HASH = '44ef5687045e1ca264b3b74258bdf376e6879ef7feb303470412f44ee4f3ad5e';
+const V16_HASH = 'f125c927b02d1449a1852d96bb94d55e59b6746afb0179214c2fc7d7f8e9bdf6';
 
 /**
  * Batch e25s: each story's delta on v16, undone, in the order `seed/v16.ts` applies them. A story that adds a v16 key,
@@ -2537,7 +2538,14 @@ const V16_HASH = '44ef5687045e1ca264b3b74258bdf376e6879ef7feb303470412f44ee4f3ad
  * own `withoutE25s<N>` helper below this line (e.g. `withoutE25s18`), and names it here, so `withoutE25s(v16)` stays v15
  * and "e25s-UNIT-V16" keeps pinning that every other byte of v16 is v15's.
  */
-const E25S_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25s18, withoutE25s19];
+const E25S_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE25s16, withoutE25s18, withoutE25s19];
+
+/** Story 25.16's delta undone: the Malha's continuity test without Story 25.14's key. */
+function withoutE25s16(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  delete out.blocks.malha_aterramento!.measurement_tests!.find((test) => test.key === STORY_25_16_TEST)!.added_rows;
+  return out;
+}
 
 /** Story 25.18's delta undone: the TC's item 7 dropped, the transformer's six hints deleted. */
 function withoutE25s18(seed: ReportSeed): ReportSeed {
@@ -2595,6 +2603,45 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
   it('keeps every rule flag v15 turns on (a v16 relatório concludes and prints as a v15 one until a story says otherwise)', () => {
     expect(withoutE25s(v16).rules).toEqual(v15.rules);
     for (const flag of Object.keys(v15.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v16', flag), flag).toBe(true);
+  });
+});
+
+describe('25.16-UNIT seed v16 (Story 25.16): the Malha\'s continuity test takes added points ("Adicionar ponto", no stem); its five rows, its criterion and v1 to v15 unchanged', () => {
+  const v15 = getSeed('v15', 'cabine_primaria');
+  const v16 = getSeed('v16', 'cabine_primaria');
+  const continuity = (seed: ReportSeed) => seed.blocks.malha_aterramento!.measurement_tests!.find((test) => test.key === STORY_25_16_TEST)!;
+
+  it('the v16 continuity test carries the key: the action "Adicionar ponto", no stem, no plate count, the default maximum', () => {
+    expect(STORY_25_16_ADDED_ROWS).toEqual({ label: 'Adicionar ponto' });
+    expect(continuity(v16).added_rows).toEqual({ label: 'Adicionar ponto' });
+    expect(measurementTestSchema.safeParse(continuity(v16)).success).toBe(true);
+  });
+
+  it('its five rows stay optional, in order, judged by the one criterion "≤ 0,5 Ω entre pontos"; the rest of the test is v15\'s', () => {
+    const rest = structuredClone(continuity(v16));
+    delete rest.added_rows;
+    expect(rest).toEqual(continuity(v15));
+    expect(continuity(v16).rows.map((row) => [row.label, row.optional])).toEqual([
+      ['Carcaças', true],
+      ['Portas', true],
+      ['Neutro do transformador', true],
+      ['Para-raios', true],
+      ['Blindagens', true],
+    ]);
+    expect(continuity(v16).criteria.map((criterion) => criterion.text)).toEqual(['≤ 0,5 Ω entre pontos']);
+  });
+
+  it('no test of v1 to v15 carries the key; on v16 only the Malha\'s continuity test and the thermography (Story 25.15) do', () => {
+    for (const version of Object.keys(SEED_VERSIONS)) {
+      for (const block of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const test of block.measurement_tests ?? []) {
+          const where = `${version} ${block.block_type}/${test.key}`;
+          if (version !== 'v16') expect(test.added_rows, where).toBeUndefined();
+          else if (block.block_type === 'malha_aterramento' && test.key === STORY_25_16_TEST) expect(test.added_rows, where).toEqual(STORY_25_16_ADDED_ROWS);
+          else if (test.key !== 'termografia') expect(test.added_rows, where).toBeUndefined();
+        }
+      }
+    }
   });
 });
 

@@ -40,6 +40,7 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'print-criterion-per-row.spec.ts', lane: 'queue', why: 'Story 25.20: previews through the shared queue and LibreOffice to read the CRITÉRIO and RESULTADO columns of the PDF' },
   { file: 'fixed-texts-v15.spec.ts', lane: 'queue', why: 'Story 25.22: issues a revision through the shared queue and LibreOffice to read the cover, the fixed texts and the ratio headers of the DOCX' },
   { file: 'seed-v16-lists.spec.ts', lane: 'queue', why: 'Story 25.18: issues a revision through the shared queue and LibreOffice to read the v16 TC\'s seven rows and the transformer\'s labels in the DOCX' },
+  { file: 'added-row.spec.ts', lane: 'queue', why: 'Stories 25.14 and 25.16: issues a revision through the shared queue and LibreOffice to read the Malha\'s added continuity points in the DOCX' },
   { file: 'seed-v16-insulation.spec.ts', lane: 'queue', why: 'Story 25.19: issues a revision through the shared queue and LibreOffice to read "A SECO" on the three plates of the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.

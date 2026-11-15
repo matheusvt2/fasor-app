@@ -23,8 +23,8 @@ import { companyA, routeHarness, type SeededRelatorio } from './rules.test-suppo
 
 /*
  * 25.14-API-001 (Story 25.14, batch e25s, contract 54) through `POST /api/sync/ops` and the pulls: a row the technician
- * adds to a measurement test whose definition carries `added_rows`. No seed of v1 to v16 carries the key before Story
- * 25.16, so the definition is the kernel's fixture company type (`@app/domain/fixtures/added-rows`), published by
+ * adds to a measurement test whose definition carries `added_rows`. On a seed only the v16 Malha's continuity test carries
+ * the key (Story 25.16, "Adicionar ponto" alone), so the whole key's definition is the kernel's fixture company type (`@app/domain/fixtures/added-rows`), published by
  * company A and placed on a v16 relatório. The new paths (a row's name, which adds it; its readings; its removal and
  * restore) are applied and stored under the test; a test whose definition lacks the key, a seeded one, a row that
  * does not exist and a row past the test's maximum are refused `op_invalid`; two devices that each add a row keep

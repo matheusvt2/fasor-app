@@ -17,9 +17,9 @@ import {
 } from '../src/index.ts';
 
 /*
- * Story 25.14 ("25.14-UNIT", "25.14-API-001"): the test definition of the capability. No seed of v1 to v16 carries
- * `added_rows` until Story 25.16 gives the ground grid's continuity test its key, so the tests take it through a
- * company type, the one way a definition reaches the fold without a seed (`findDefinitionIn`). Three measurement
+ * Story 25.14 ("25.14-UNIT", "25.14-API-001"): the test definition of the capability. On a seed only the v16 ground
+ * grid's continuity test carries `added_rows` (Story 25.16, "Adicionar ponto" alone), so the tests of the whole key
+ * take it through a company type, the one way a definition reaches the fold without a seed (`findDefinitionIn`). Three measurement
  * tests, invented data: the continuity points ("Adicionar ponto", no stem, the default maximum), the batteries'
  * float voltage ("Adicionar bateria", the stem "Bateria", counted from the plate's BATERIAS: QUANTIDADE, at most 12)
  * with a choice column, and a test whose definition lacks the key. Fixed uuidv7 ids and timestamps.

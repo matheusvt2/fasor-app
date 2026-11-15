@@ -59,7 +59,8 @@ import { nameplateCopyFields } from './nameplate-copy.ts';
  * 25.14-UNIT (batch e25s, Story 25.14, contract 54; M23, M30, M19; Matheus's decision 3): a row the technician adds
  * to a measurement test whose definition carries `added_rows`. The fold's paths and refusals, the caps, the order,
  * the evaluation, the progress, the conclusion paragraph, the point's finding, the audit text, the print rows and the
- * merge of two devices. No seed of v1 to v16 carries the key until Story 25.16, so every case reads the fixture's
+ * merge of two devices. On a seed only v16 carries the key (the Malha's continuity test, Story 25.16, its own tests
+ * in `e25s-ground-grid-points.test.ts`; the thermography, Story 25.15), so every case here reads the fixture's
  * company type (`fixtures/added-rows.ts`, invented data) on a v16 block.
  */
 
@@ -123,15 +124,19 @@ describe('25.14-UNIT the definition key', () => {
     expect(companyTypeDefinitionSchema.safeParse(withField('nao_existe')).success).toBe(false);
   });
 
-  it('no seeded definition of v1 to v16 carries it, so every relatório of a seed reads as before', () => {
+  it('no seeded definition of v1 to v15 carries it, so every relatório of those seeds reads as before; on v16 the Malha\'s continuity test (Story 25.16) and the thermography (Story 25.15) do', () => {
     for (const [version, bundle] of Object.entries(SEED_VERSIONS)) {
       for (const block of Object.values(bundle.report_types.cabine_primaria.blocks)) {
-        for (const test of block.measurement_tests ?? []) expect(test.added_rows, `${version} ${block.block_type}/${test.key}`).toBeUndefined();
+        for (const test of block.measurement_tests ?? []) {
+          const story2516 = version === 'v16' && block.block_type === 'malha_aterramento' && test.key === 'continuidade_malha';
+          if (story2516) expect(test.added_rows).toEqual({ label: 'Adicionar ponto' });
+          else if (version !== 'v16' || test.key !== 'termografia') expect(test.added_rows, `${version} ${block.block_type}/${test.key}`).toBeUndefined();
+        }
       }
     }
-    // The seed grammar takes the key (Story 25.16 puts it on the v16 Malha).
-    const malha = getDefinition('v16', 'cabine_primaria', 'malha_aterramento').measurement_tests![0]!;
-    expect(measurementTestSchema.safeParse({ ...malha, added_rows: { label: 'Adicionar ponto' } }).success).toBe(true);
+    // The seed grammar takes the key.
+    const malha = getDefinition('v16', 'cabine_primaria', 'malha_aterramento').measurement_tests!.find((test) => test.key === 'continuidade_malha')!;
+    expect(measurementTestSchema.safeParse(malha).success).toBe(true);
   });
 });
 
