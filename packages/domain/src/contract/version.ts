@@ -608,7 +608,44 @@
  * draft gain the optional `base_added_tests` (the tests an update of the test base added, so a later update never
  * adds back one the office removed); a definition without it parses as before.
  */
-export const CONTRACT_VERSION = 52;
+/*
+ * 53 (2026-11-15, batch e25s, Epic 25 wave 3): no new op or path family. Seed v16 opens equal to v15 (the
+ * same content and the same rule flags; v15 froze at the deploy of 8d5e9e2e) and becomes the version a new
+ * Template is created with (`SEED_VERSION`); the server's boot step moves every template to it
+ * (`templateSeedUpgrade`), so every relatório created afterwards is born on v16 and every one already made
+ * keeps its seed. The wave's stories change v16's sheet definitions (items, test rows, options) through v16
+ * keys and rule flags, each without a contract of its own. MIN follows to 53 (below).
+ */
+/*
+ * 54 (2026-11-15, Story 25.18, batch e25s): no new op or path family. The closed item enum (`ITEM_KEYS`) gains
+ * `secundario_fechado_ou_curto_circuitado`, the v16 TC's item 7 on its secondary, so the NC phrase the server learns on
+ * it (`registry/nc_phrase/{id}`, its `item_key`) parses only here, and a `sheet/{id}/checklist/{item_key}` put on
+ * it folds only on a v16 TC, whose list asks it (`SeedPathError`, answered `op_invalid`, on every other sheet).
+ * The v16 transformer's six hints and Story 25.19's
+ * "A SECO" (the dry option and subtype of the transformer, the TP and the TC, "Á SECO" its alias) are v16 seed
+ * content with no key of their own. Every seed of v1 to v15 parses to the same bytes and a row written before 54
+ * parses to the same bytes. MIN follows to 54 (below).
+ */
+/*
+ * 54, the same number (2026-11-15, Story 25.14, batch e25s): two client put families are new, a row the technician
+ * adds to a measurement test whose definition carries the new optional key `added_rows`:
+ * `sheet/{block_id}/test/{test_key}/row/{row_id}/{name|removed_at}` (the name, whose first put adds the row; the
+ * tombstone, a `remove` or a put of null) and `sheet/{block_id}/test/{test_key}/row/{row_id}/cell/{col}` (one of its
+ * readings), stored at `sheet.test[test_key].added_rows[row_id]`. The fold refuses them on a test without the key and
+ * past the test's caps (`SeedPathError`, answered `op_invalid`). The definition schemas gain the optional key, the
+ * sheet's test entry the optional `added_rows`, both never defaulted: no seed carries the key and a row written
+ * before 54 parses to the same bytes. MIN follows to 54 (below).
+ */
+/*
+ * 54, the same number (2026-11-15, Story 25.15, batch e25s): no new op or path family. The measurement-test
+ * definition schemas (the seed's and a company type's) gain the optional key `performed` (the test value a test is
+ * done by, its "done" option and the reason shown under the other one), never defaulted, so every seed of v1 to v15
+ * parses to the same bytes. The v16 thermography carries it, with Story 25.14's `added_rows`, and no longer asks
+ * "Equipamento em carga": a `sheet/{id}/test/termografia/value/{realizacao|motivo|motivo_texto}` put folds only on a
+ * v16 sheet and `.../value/em_carga` only on v13 to v15 (`SeedPathError`, answered `op_invalid`, elsewhere). No bundle
+ * of 54 without the key ever left the batch, so the number is not raised.
+ */
+export const CONTRACT_VERSION = 54;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -972,7 +1009,28 @@ export const CONTRACT_VERSION = 52;
  * old run's findings with no out-of-date mark. Its pull answers `426 contract_outdated` and it updates; its
  * pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 52;
+/*
+ * 53 (2026-11-15, batch e25s): a version-52 (or older) bundle ships no seed v16, so it cannot resolve a
+ * single definition of a v16 relatório or of a template the server moved to v16: a pulled block create or
+ * template put naming `v16` fails to fold, and the sheets it could show would have no nameplate, checklist
+ * or tests, nor ask the items, rows and options the wave's stories add to them. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+/*
+ * 54 (2026-11-15, Story 25.18, batch e25s): a version-53 (or older) bundle's seed v16 is v15's, whose TC asks six
+ * items, so its fold refuses a pulled `sheet/{id}/checklist/secundario_fechado_ou_curto_circuitado/...` put of a v16
+ * TC (`materializeEntity` throws on a pulled op its fold refuses), and its `itemKeySchema` refuses the NC phrase
+ * the server learns on the item (`registry/nc_phrase`, on the company stream); it would also read "Á SECO" where
+ * the server reads "A SECO". Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+/*
+ * 54, the same number (2026-11-15, Story 25.14, batch e25s): a version-53 (or older) bundle's path enum lacks
+ * `sheet/test/row` and `sheet/test/row/cell`, so a pulled op of a row added on another device fails to parse
+ * (`materializeEntity` throws on a pulled op its fold refuses) and the relatório stops syncing on it; its block schema
+ * would also strip `added_rows` from the sheet (a pulled op is not folded again) and its readers would never show,
+ * count or print the row. Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 54;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -275,6 +275,9 @@ describe('P9: every editedSince family is decided as content or structure', () =
     // Story 14.5: a measurement table's cell (a number or a choice) and a test value are filled on site.
     'sheet/test/cell': { content: [`sheet/${A}/test/isolacao/cell/0/0`, `sheet/${A}/test/cta_resistencia_contato/cell/2/1`], structure: [] },
     'sheet/test/value': { content: [`sheet/${A}/test/cta_transferencia/value/metodo`, `sheet/${A}/test/cta_termografia/value/temperatura_ambiente`], structure: [] },
+    // Story 25.14: a row added on the sheet: its name (which adds it) and its readings are filled on site, its tombstone is not.
+    'sheet/test/row': { content: [`sheet/${A}/test/continuidade/row/${A}/name`], structure: [`sheet/${A}/test/continuidade/row/${A}/removed_at`] },
+    'sheet/test/row/cell': { content: [`sheet/${A}/test/continuidade/row/${A}/cell/0`], structure: [] },
     'sheet/conclusion': { content: [`sheet/${A}/conclusion/result`], structure: [] },
     'sheet/observations': { content: [`sheet/${A}/observations`], structure: [] },
     file: { content: [`file/${A}`], structure: [] },
@@ -458,7 +461,7 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
     }
   });
 
-  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2), `location/checklist` (Story 14.3) and `sheet/test/value` (Story 14.5), and the never-edit `relatorio/removed_at` (fix batch fxrm): the twenty-three edit families and the twenty-seven that never are: (Story 22.12) the never-edit `equipment/last_results` and the three equipment type families of Story 14.6', () => {
+  it('the classification of 2026-10-10 is unchanged, plus `location/funcao` (Story 14.2), `location/checklist` (Story 14.3) and `sheet/test/value` (Story 14.5), and the never-edit `relatorio/removed_at` (fix batch fxrm): the twenty-five edit families (Story 25.14: the two of a row added on the sheet) and the twenty-seven that never are: (Story 22.12) the never-edit `equipment/last_results` and the three equipment type families of Story 14.6', () => {
     expect([...EDITED_SINCE_FAMILIES].sort()).toEqual(
       [
         'block',
@@ -484,9 +487,12 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
         'sheet/test',
         'sheet/test/cell',
         'sheet/test/value',
+        // Story 25.14 (contract 54): a row added on the sheet, and its readings.
+        'sheet/test/row',
+        'sheet/test/row/cell',
       ].sort(),
     );
-    expect(EDITED_SINCE_FAMILIES.size).toBe(23);
+    expect(EDITED_SINCE_FAMILIES.size).toBe(25);
     // Story 14.6 (contract 33): the three equipment type families never count, as `template` never does; with Story 22.12 `equipment/last_results`.
     expect(NEVER_EDIT_FAMILIES.size).toBe(27);
     expect([...NEVER_EDIT_FAMILIES.keys()].sort()).toEqual(

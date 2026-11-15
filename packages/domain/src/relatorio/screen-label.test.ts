@@ -302,6 +302,16 @@ const SCREEN_FORMS: Record<string, string> = {
   'ATERRAMENTO, BYPASS E IDENTIFICAÇÃO': 'Aterramento, bypass e identificação',
   'CARGAS ALIMENTADAS IDENTIFICADAS': 'Cargas alimentadas identificadas',
   'RELÉS, BOBINAS DE ABERTURA': 'Relés, bobinas de abertura',
+  // Seed v16 (batch e25s, Story 25.18): the TC's item 7 and the transformer's six hints; Story 25.19: the dry option.
+  'SECUNDÁRIO FECHADO OU CURTO-CIRCUITADO NOS BORNES (NUNCA ABERTO); BORNES DE AFERIÇÃO EM BOM ESTADO':
+    'Secundário fechado ou curto-circuitado nos bornes (nunca aberto); bornes de aferição em bom estado',
+  'NÍVEL DE ÓLEO': 'Nível de óleo',
+  'VAZAMENTOS DE ÓLEO': 'Vazamentos de óleo',
+  'SÍLICA GEL DO SECADOR': 'Sílica gel do secador',
+  'TERMÔMETRO DE ÓLEO': 'Termômetro de óleo',
+  'RELÉ BUCHHOLZ, QUANDO HOUVER': 'Relé Buchholz, quando houver',
+  'VÁLVULA DE ALÍVIO DE PRESSÃO, QUANDO HOUVER': 'Válvula de alívio de pressão, quando houver',
+  'A SECO': 'A seco',
 };
 
 /** Every label of every shipped seed version that renders on screen. */

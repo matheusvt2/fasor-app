@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, naoEnsaiadasText, SEED_VERSION, type BlockRow, type FieldDef, type JsonValue } from '@app/domain';
+import { cellAddressesOf, getDefinition, naoEnsaiadasText, type BlockRow, type FieldDef, type JsonValue } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { cellOf, outbox, stepper } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -61,10 +61,10 @@ test('@p0 25.6-E2E-001 a v15 breaker with every reading "Não medido": Aprovado 
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Pinned to v15 since seed v16 opened (batch e25s): a new relatório is born on v16.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v15' });
   const breaker = built.sheets.find((sheet) => sheet.blockType === TYPE)!;
-  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', TYPE);
-  expect(SEED_VERSION).toBe('v15');
+  const definition = getDefinition('v15', 'cabine_primaria', TYPE);
   const scope = { relatorioId: built.relatorioId };
   // Every capture "Não medido" from the office but the last insulation one, left for the technician.
   const captures = definition.tests.flatMap((t) => cellAddressesOf(definition, t.key));

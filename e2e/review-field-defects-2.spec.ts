@@ -11,7 +11,7 @@ import { readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
 import { holdPhotoBytes } from './support/reading-ops.ts';
 import { setParecer } from './support/relatorio-flow.ts';
-import { instrumentDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { instrumentDraft, newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
 
@@ -120,7 +120,7 @@ function enelSeccionadoras(built: Built): [SeededSheet, SeededSheet] {
   return enel as [SeededSheet, SeededSheet];
 }
 
-/** A seccionadora complete from the office: plate, checklist C, readings within criterion, the instruments, the pair. */
+/** A seccionadora complete from the office: plate, checklist C, readings within criterion, the instruments, the thermography answered, the pair. */
 function completeSheet(scope: Scope, blockId: string, instrument: InstrumentRow): OpDraft[] {
   const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora');
   const plate = (kind: string, unit: string | undefined, options: readonly string[] | undefined, key: string): unknown =>
@@ -134,6 +134,8 @@ function completeSheet(scope: Scope, blockId: string, instrument: InstrumentRow)
         officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
       ),
     ...definition.tests.map((t) => officeDraft(account, scope, `sheet/${blockId}/test/${t.key}/instrument`, instrumentHeaderOf(instrument, t.key))),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, scope, blockId, definition),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];

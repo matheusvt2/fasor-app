@@ -6,7 +6,7 @@ import { openStep, outbox, typeCell } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
-import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
@@ -74,7 +74,7 @@ interface Cable {
   tag: string;
 }
 
-/** A new relatório on the current seed, Em campo, its first cabos de saída with the plate and every row Conforme from the office. */
+/** A new relatório on the current seed, Em campo, its first cabos de saída with the plate, every row Conforme and the thermography answered from the office. */
 async function setUp(page: Page): Promise<Cable> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -88,6 +88,8 @@ async function setUp(page: Page): Promise<Cable> {
     emCampoDraft(account, built.relatorioId),
     ...definition.nameplate.map((field, n) => officeDraft(account, scope, `sheet/${cable.blockId}/nameplate/${field.key}`, plateValue(field, n))),
     ...definition.checklist!.map((item) => officeDraft(account, scope, `sheet/${cable.blockId}/checklist/${item.key}/result`, 'C')),
+    // Story 25.15 (seed v16): the thermography answered "Realizada" from the office, its points optional.
+    ...performedDrafts(account, scope, cable.blockId, definition),
   ]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(sumario(page).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });

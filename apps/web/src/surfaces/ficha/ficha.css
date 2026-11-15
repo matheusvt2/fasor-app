@@ -422,3 +422,16 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .measurement-field[data-state="na"] { background: var(--nao-aplica-fill); }
 [data-route="/relatorio/:id/ficha/:blockId"] .e25-na, [data-route="/relatorio/:id/ficha/:blockId"] .measurement-field[data-state="na"] .mf-value::placeholder { color: var(--nao-aplica); font-weight: 600; }
 [data-route="/relatorio/:id/ficha/:blockId"] .e25-row-head { display: inline-flex; align-items: center; gap: var(--sp-1); }
+/* `60-ficha.html` (Story 25.1 Part B frame, Story 25.14) `[data-route="/ficha/:tag"] .e25-added`, its `.field` and `.input`,
+   `.measurement-table td.cell-point:has(.e25-added)`, `.card-point.e25-card-added` and `.e25-add-row`, declarations verbatim: a
+   row added in the field has its name as a Field with the remove action beside it; "Adicionar ponto" under the table. */
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-added { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-added .field { flex: 1; min-width: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-added .input { min-width: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-point:has(.e25-added) { min-width: 220px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .card-point.e25-card-added { margin-bottom: var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-add-row { margin-top: var(--sp-3); align-items: center; }
+/* `60-ficha.html` (Story 25.1 Part B frame, Story 25.15) `[data-route="/ficha/:tag"] .e25-thermo .e25-tm-body`, declarations
+   verbatim. The frame's `display` rules on `.v13-reason` and `.e25-tm-body` are states the kernel draws instead: the reason
+   only while "Não realizada" is chosen, the body only on "Realizada". */
+[data-route="/relatorio/:id/ficha/:blockId"] .e25-thermo .e25-tm-body { margin-top: var(--sp-4); }

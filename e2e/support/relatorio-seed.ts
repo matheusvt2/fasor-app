@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, instantiateTemplate, makeOp, standardTemplate, type JsonValue, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, choiceValue, instantiateTemplate, makeOp, standardTemplate, type BlockDefinition, type JsonValue, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../../apps/api/src/ids.ts';
 import { expect, timed, type SeedAccount } from './merged-fixtures.ts';
@@ -90,6 +90,36 @@ export function officeDraft(account: Account, scope: { relatorioId: string } | {
     meta: null,
     actor_id: account.userId,
   };
+}
+
+/**
+ * Story 25.15 (seed v16, `performed`): the answer "Realizada" on every measurement test of `definition` that asks
+ * whether it was done (the thermography), as a technician who did it gives it. Its points are optional, so a sheet
+ * filled from the office with this answer is complete as it was on v15, where the test stayed NA until the load was
+ * answered. Nothing on a definition without the key (v1 to v15).
+ */
+export function performedDrafts(account: Account, scope: { relatorioId: string }, blockId: string, definition: BlockDefinition): OpDraft[] {
+  return (definition.measurement_tests ?? []).flatMap((test) =>
+    test.performed === undefined ? [] : [officeDraft(account, scope, `sheet/${blockId}/test/${test.key}/value/${test.performed.value}`, choiceValue(test.performed.done))],
+  );
+}
+
+/**
+ * Story 25.15 (seed v16, `performed`): the other answer, "Não realizada", with the reason's first option ("Equipamento
+ * fora de carga"), on every measurement test of `definition` that asks whether it was done. The test's points are then
+ * not drawn, as on v15 where the test stayed NA until its load was answered, so the sheet's Enter run ends where it did
+ * there; its conclusion names the test not done. Nothing on a definition without the key (v1 to v15).
+ */
+export function notPerformedDrafts(account: Account, scope: { relatorioId: string }, blockId: string, definition: BlockDefinition): OpDraft[] {
+  return (definition.measurement_tests ?? []).flatMap((test) => {
+    const performed = test.performed;
+    if (performed === undefined) return [];
+    const value = (key: string) => (test.values ?? []).find((one) => one.key === key);
+    const answer = value(performed.value)!.options!.find((option) => option.key !== performed.done)!.key;
+    const path = (key: string) => `sheet/${blockId}/test/${test.key}/value/${key}`;
+    const reason = performed.reason === undefined ? undefined : value(performed.reason)!.options![0]!.key;
+    return [officeDraft(account, scope, path(performed.value), choiceValue(answer)), ...(reason === undefined ? [] : [officeDraft(account, scope, path(performed.reason!), choiceValue(reason))])];
+  });
 }
 
 /** Stories 12.3-12.4: the instrument MG-01 of the account's company, created from the office device (pulled with "Sincronizar agora"). */

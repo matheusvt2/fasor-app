@@ -5,7 +5,7 @@ import { openStep } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { pdfTextItems } from './support/pdf-text.ts';
-import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
@@ -47,7 +47,7 @@ const resultGroup = (page: Page) => page.getByRole('radiogroup', { name: 'Result
 const restrictionGroup = (page: Page) => page.getByRole('radiogroup', { name: 'Restrições' });
 const previewRow = (page: Page) => page.getByRole('group', { name: 'Prévia da conclusão' });
 
-/** The standard relatório (Em campo) with a painel and its coluna in Geradores holding two Inspeções de QGBT, plates filled and items Conforme. */
+/** The standard relatório (Em campo) with a painel and its coluna in Geradores holding two Inspeções de QGBT, plates filled, items Conforme and the thermography answered. */
 function relatorioWithInspections(): { relatorioId: string; blockIds: string[]; drafts: OpDraft[] } {
   const built = newRelatorioDrafts(account);
   const scope = { relatorioId: built.relatorioId };
@@ -85,6 +85,8 @@ function relatorioWithInspections(): { relatorioId: string; blockIds: string[]; 
         ),
       ),
       ...DEFINITION.checklist!.map((item) => officeDraft(account, scope, `sheet/${block.id}/checklist/${item.key}/result`, 'C')),
+      // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional, so the ficha is complete.
+      ...performedDrafts(account, scope, block.id, DEFINITION),
     );
   });
   drafts.push(emCampoDraft(account, built.relatorioId));

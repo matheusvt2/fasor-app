@@ -1,4 +1,4 @@
-import { RELAY_CLAUSE, SEED_VERSION, STANDARD_TEMPLATE_NAME } from '@app/domain';
+import { RELAY_CLAUSE, STANDARD_TEMPLATE_NAME } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { extractStructure, type DocxStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -48,11 +48,11 @@ async function issueAndRead(page: Page, relatorioId: string): Promise<DocxStruct
 
 test('@p0 25.22-E2E-001 a v15 relatório: the cover and section 1 read the site, the fixed texts and the ratio headers are corrected, and the TP and the TC are named plainly', async ({ page }) => {
   test.setTimeout(300_000);
-  expect(SEED_VERSION).toBe('v15');
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Pinned to v15 since seed v16 opened (batch e25s): a new relatório is born on v16.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v15' });
   const project = built.drafts[0]!;
   project.value = { ...(project.value as Record<string, unknown>), name: NAME, site: SITE };
   const scope = { relatorioId: built.relatorioId };

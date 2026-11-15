@@ -117,9 +117,12 @@ describe('contract constants', () => {
   // e25c (Story 25.5, seed v15 opens equal to v14, 2026-11-12): 50, after e25r's 49; MIN follows.
   // e25p (Story 25.23, the index's "Como ensaiar" and the record of the base's texts, 2026-11-12): 51, after e25c's 50; MIN follows.
   // e25p (Story 25.24, the audit run's point and the model's new kind, 2026-11-12): 52, after Story 25.23's 51; MIN follows.
-  it('speaks version 52 and refuses version 51 (batch e25p, Story 25.24: a version-51 bundle cannot fold a run that records its point nor the new kind)', () => {
-    expect(CONTRACT_VERSION).toBe(52);
-    expect(MIN_CONTRACT_VERSION).toBe(52);
+  // e25s (Epic 25 wave 3, seed v16 opens equal to v15, 2026-11-15): 53, after e25p's 52; MIN follows.
+  // e25s (Story 25.18, the v16 TC's item on its secondary, a new ITEM_KEYS value, 2026-11-15): 54, after the wave's 53; MIN follows.
+  // e25s (Story 25.14, the two families of a row added on the sheet, 2026-11-15): the same 54 (25.14-API-001 pulls the row at 53: 426).
+  it('speaks version 54 and refuses version 53 (Story 25.18: a version-53 bundle lacks the v16 TC\'s item 7)', () => {
+    expect(CONTRACT_VERSION).toBe(54);
+    expect(MIN_CONTRACT_VERSION).toBe(54);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

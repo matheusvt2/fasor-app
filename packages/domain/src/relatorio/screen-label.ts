@@ -47,6 +47,8 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'DPS',
   // Seed v14 (batch e24s, Story 24.13): the No-break de comando's item DISPLAY, ALARMES E LEDS.
   'LEDs',
+  // Seed v16 (batch e25s, Story 25.18): a proper name, in the transformer's hint "RELÉ BUCHHOLZ, QUANDO HOUVER".
+  'Buchholz',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));

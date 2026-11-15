@@ -31,6 +31,10 @@ import { applyOps } from '../../sync/apply.ts';
  * Story 25.5 (25.5-INT-LOCK): the v14 golden stays byte-equal, and the second v14 relatório, holding the
  * cases Epic 25 changes on v15 (`layoutLockEpic25Fixture`, its own ids beside the first), prints its own
  * golden text in `golden/layout-lock-v14-epic25/pdf-text.json`, taken once on this batch's first commit.
+ *
+ * Batch e25s (e25s-INT-LOCK): seed v15 froze at the deploy of 8d5e9e2e and v16 opens equal to it, so v15 joins the
+ * lock with both relatórios (`golden/layout-lock-v15/` and `golden/layout-lock-v15-epic25/`), taken once on the
+ * batch's first commit; every other golden stays byte-equal.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -135,7 +139,7 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe('25.5-INT-LOCK (24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
+describe('e25s-INT-LOCK (25.5-INT-LOCK, 24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
   it.each(locked.map(({ golden, fixture }) => [golden, fixture] as const))(
     '%s: the preview PDF of the synthetic relatório prints its golden text, page by page',
     async (golden, fixture) => {

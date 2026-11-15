@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { emptyTemplate, getDefinition, moveSection, naDefaultsCountText, naDefaultsFor, removeSection, SEED_VERSION, standardTemplate, type TemplateRow } from '@app/domain';
+import { emptyTemplate, getDefinition, moveSection, naDefaultsCountText, naDefaultsFor, removeSection, screenLabel, SEED_VERSION, standardTemplate, type TemplateRow } from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -237,8 +237,9 @@ describe('3.5 composer: sub-block defaults per type', () => {
     expect(after.sub_blocks.cta_transferencia?.enabled).toBe(true);
   });
 
-  it('"Á SECO" on the TP pre-marks the seed\'s oil items (seven on v9), and a new TP placement follows the type', async () => {
+  it('the dry subtype ("A SECO" since seed v16, Story 25.19) on the TP pre-marks the seed\'s oil items (seven on v9), and a new TP placement follows the type', async () => {
     const dry = naDefaultsFor(SEED_VERSION, 'tp', 'a_seco').length;
+    const dryLabel = screenLabel(getDefinition(SEED_VERSION, 'cabine_primaria', 'tp').subtypes.find((subtype) => subtype.key === 'a_seco')!.label);
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
@@ -246,8 +247,9 @@ describe('3.5 composer: sub-block defaults per type', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP' });
     expect(within(dialog).getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('Sem subtipo');
     await user.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'Epóxi', 'Á seco']);
-    await user.click(screen.getByRole('option', { name: 'Á seco' }));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'Epóxi', dryLabel]);
+    expect(dryLabel).toBe('A seco');
+    await user.click(screen.getByRole('option', { name: dryLabel }));
     await waitFor(() => expect(within(dialog).getByText(naDefaultsCountText(dry))).toBeVisible());
     // "IA e IP lidos do visor" ships off and can be switched on.
     expect(within(dialog).getByRole('switch', { name: 'IA e IP lidos do visor' })).toHaveAttribute('aria-checked', 'false');

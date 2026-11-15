@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { instrumentDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
+import { instrumentDraft, newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { expandLocation } from './support/tree.ts';
 
@@ -60,7 +60,7 @@ function plateValue(f: FieldDef): unknown {
 
 /**
  * A complete sheet of `blockType` but its instruments: plate (never the TAG, which the block
- * prefills), checklist C, readings within criterion, the pair.
+ * prefills), checklist C, readings within criterion, the thermography answered, the pair.
  */
 function completeButInstruments(scope: Scope, blockId: string, blockType = 'chave_seccionadora'): OpDraft[] {
   // Batch e23b: the current seed's plate, read from the kernel (E15-A3; v13 adds TIPO DE SECCIONADORA, required).
@@ -73,6 +73,8 @@ function completeButInstruments(scope: Scope, blockId: string, blockType = 'chav
       .map((c) =>
         officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
       ),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, scope, blockId, definition),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];

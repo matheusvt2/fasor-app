@@ -6,6 +6,7 @@ import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
+import { addedRowName, addedRowNameConflictLabel, addedRowUnnamedText } from '../relatorio/added-rows.ts';
 import { nameplateTitleOf } from '../relatorio/nameplate-block.ts';
 import { overRangeText } from '../relatorio/over-range.ts';
 import { evaluateTest, manufacturerValueText } from '../relatorio/reading-evaluation.ts';
@@ -343,6 +344,24 @@ function cellConflictsOf(
     for (const valueKey of valueKeys) {
       push({ family: 'sheet/test/value', block_id: blockId, test_key: key, value_key: valueKey }, values[valueKey], title, measurementValueLabel(definition, key, valueKey) ?? valueKey);
     }
+    // Story 25.14: the rows the technician added, after the table's, in the order they were created; a removed one is
+    // out of the sheet and its cells are not decided (as a removed block's).
+    const addedKey = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.added_rows;
+    const added = Object.entries(stored.added_rows ?? {})
+      .filter(([, row]) => (row.removed_at ?? null) === null)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    const definitionRows = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.rows.length ?? 0;
+    for (const [position, [rowId, row]] of added.entries()) {
+      const name = addedRowName(row.name?.value);
+      const rowLabel = name ?? (addedKey === undefined ? rowId : addedRowUnnamedText(addedKey));
+      // Review of PR #334: the contested name is labelled by its row (as the evaluation places it, after the definition's rows).
+      push({ family: 'sheet/test/row', block_id: blockId, test_key: key, row_id: rowId, field: 'name' }, row.name, title, addedKey === undefined ? rowLabel : addedRowNameConflictLabel(addedKey, name, definitionRows + position));
+      const columns = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.columns ?? [];
+      for (const col of Object.keys(row.cells).map(Number).sort((a, b) => a - b)) {
+        const column = columns[col]?.label ?? `coluna ${col + 1}`;
+        push({ family: 'sheet/test/row/cell', block_id: blockId, test_key: key, row_id: rowId, col }, row.cells[String(col)], title, `${rowLabel} · ${column}`);
+      }
+    }
   }
 
   for (const field of ['result', 'restriction'] as const) {
@@ -435,7 +454,15 @@ function sheetCells(block: Pick<BlockRow, 'sheet'>): Cell[] {
     ...Object.values(sheet.nameplate),
     ...Object.values(sheet.checklist).flatMap((entry) => [entry.result, entry.observation]),
     // Story 14.5: a measurement test's values outside its table are cells of the sheet too.
-    ...Object.values(sheet.test).flatMap((test) => [test.instrument, test.criterion_override, test.applicability, ...Object.values(test.cells).flatMap((row) => Object.values(row)), ...Object.values(test.values ?? {})]),
+    // Story 25.14: so are the name and the readings of every row the technician added.
+    ...Object.values(sheet.test).flatMap((test) => [
+      test.instrument,
+      test.criterion_override,
+      test.applicability,
+      ...Object.values(test.cells).flatMap((row) => Object.values(row)),
+      ...Object.values(test.values ?? {}),
+      ...Object.values(test.added_rows ?? {}).flatMap((row) => [row.name, ...Object.values(row.cells)]),
+    ]),
     ...Object.values(sheet.conclusion),
     sheet.observations,
   ];
@@ -680,6 +707,8 @@ function measurementValueText(path: string, value: unknown, block: Pick<BlockRow
   if (parsed === null) return null;
   if (parsed.family === 'sheet/test/cell') return measurementStoredText(definitionOf(block, ctx), parsed.test_key, { row: parsed.row, col: parsed.col }, value);
   if (parsed.family === 'sheet/test/value') return measurementStoredText(definitionOf(block, ctx), parsed.test_key, { valueKey: parsed.value_key }, value);
+  // Story 25.14: a reading of a row the technician added, by its column.
+  if (parsed.family === 'sheet/test/row/cell') return measurementStoredText(definitionOf(block, ctx), parsed.test_key, { addedCol: parsed.col }, value);
   return null;
 }
 

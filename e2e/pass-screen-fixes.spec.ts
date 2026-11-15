@@ -90,7 +90,8 @@ async function issue(page: Page, relatorioId: string, number: number): Promise<D
 
 test('@p0 24.9-E2E-001 TAPS names its separator, "Foto térmica" counts its shots, the applied band reads one lead, and the TP shows its fallback sentence', async ({ page }) => {
   test.setTimeout(300_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database);
+  // Story 25.15: pinned to seed v15, whose thermography asks "Equipamento em carga" and offers the applied band (v16 asks "Realizada" instead).
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [], 'v15');
   const tr = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const tp = sheets.find((sheet) => sheet.blockType === 'tp')!;
 

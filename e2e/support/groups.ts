@@ -39,11 +39,15 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'point-names-readings.spec.ts', lane: 'queue', why: 'Story 25.10: issues a revision through the shared queue and LibreOffice to read the point\'s readings in section 8 of the DOCX' },
   { file: 'print-criterion-per-row.spec.ts', lane: 'queue', why: 'Story 25.20: previews through the shared queue and LibreOffice to read the CRITÉRIO and RESULTADO columns of the PDF' },
   { file: 'fixed-texts-v15.spec.ts', lane: 'queue', why: 'Story 25.22: issues a revision through the shared queue and LibreOffice to read the cover, the fixed texts and the ratio headers of the DOCX' },
+  { file: 'seed-v16-lists.spec.ts', lane: 'queue', why: 'Story 25.18: issues a revision through the shared queue and LibreOffice to read the v16 TC\'s seven rows and the transformer\'s labels in the DOCX' },
+  { file: 'added-row.spec.ts', lane: 'queue', why: 'Stories 25.14 and 25.16: issues a revision through the shared queue and LibreOffice to read the Malha\'s added continuity points in the DOCX' },
+  { file: 'seed-v16-insulation.spec.ts', lane: 'queue', why: 'Story 25.19: issues a revision through the shared queue and LibreOffice to read "A SECO" on the three plates of the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.
   { file: 'voltage-defaults.spec.ts', lane: 'queue', why: 'Story 23.13: issues a revision through the shared queue and LibreOffice to read the TENSÃO column of the DOCX' },
   { file: 'tc-polarity.spec.ts', lane: 'queue', why: 'Story 23.18: issues revisions through the shared queue and LibreOffice to read POLARIDADE, CONDIÇÕES and the note of the DOCX' },
   { file: 'thermography.spec.ts', lane: 'queue', why: 'Story 23.20: issues a revision through the shared queue and LibreOffice to read the thermography tables and the thermal photo line of the DOCX' },
+  { file: 'thermography-v16.spec.ts', lane: 'queue', why: 'Story 25.15: issues a revision through the shared queue and LibreOffice to read the v16 thermography\'s "Não realizada" line and its table with an added point in the DOCX' },
   { file: 'ground-grid.spec.ts', lane: 'queue', why: 'Story 23.21: issues a revision through the shared queue and LibreOffice to read where the Malha de aterramento prints in the DOCX' },
   // Fix batch e23z (W3-3): e23z-E2E-004 issues a revision to read where the imported copies print in section 9.
   { file: 'test-base-import.spec.ts', lane: 'queue', why: 'Fix batch e23z (W3-3): issues a revision through the shared queue and LibreOffice to read the section 9 groups the imported copies print in' },

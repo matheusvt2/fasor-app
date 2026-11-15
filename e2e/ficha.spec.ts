@@ -1,5 +1,6 @@
 import {
   cellAddressesOf,
+  choiceValue,
   evaluateTest,
   getDefinition,
   ratioFormulaHelperText,
@@ -22,7 +23,7 @@ import { syncNowAndReturn } from './support/sync.ts';
 import { expandLocation } from './support/tree.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
-import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, performedDrafts, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { openTransformerSheet } from './support/reading-ops.ts';
 
 /*
@@ -127,7 +128,8 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
 
   // The stepper counts what is missing; the Progress counter sums it.
   const checklistCount = PARA_RAIO.checklist!.length;
-  const cells = paraRaioCells().length;
+  // Story 25.15 (seed v16): the thermography's "Realizada" or "Não realizada" counts as one more missing in Ensaios.
+  const cells = paraRaioCells().length + (PARA_RAIO.measurement_tests ?? []).filter((one) => one.performed !== undefined).length;
   await expect(stepper(page).getByRole('button')).toHaveText([/Placa/, /Verificações/, /Ensaios/, /Conclusão/]);
   await expect(stepper(page).getByRole('button', { name: `Placa, ${PARA_RAIO.nameplate.length} faltando` })).toHaveAttribute('aria-current', 'step');
   await expect(stepper(page).getByRole('button', { name: `Verificações, ${checklistCount} faltando` })).toBeVisible();
@@ -411,6 +413,8 @@ test('@p0 5.1-E2E-003 "Concluir ficha" on a complete sheet emits concluded_by an
     ),
     ...PARA_RAIO.checklist!.map((item) => officeDraft(account, scope, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')),
     ...paraRaioCells().map((c) => officeDraft(account, scope, `sheet/${target.blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, { raw: '1000', unit: 'MΩ', state: 'measured' })),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, scope, target.blockId, PARA_RAIO),
     officeDraft(account, scope, `sheet/${target.blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${target.blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];
@@ -483,6 +487,12 @@ const restrictionGroup = (page: Page) => page.getByRole('radiogroup', { name: 'R
 async function typeAndEnter(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
   await page.keyboard.press('Enter');
+}
+
+/** Story 25.15 (seed v16): taps "Realizada" on the open sheet's thermography and waits for its put in the outbox. */
+async function answerThermography(page: Page, blockId: string): Promise<void> {
+  await page.locator('section[data-test-key="termografia"]').getByRole('radiogroup', { name: 'Termografia' }).getByRole('radio', { name: 'Realizada', exact: true }).click();
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/test/termografia/value/realizacao`).at(-1)?.value).toEqual(choiceValue('realizada'));
 }
 
 /** One instrument create, company scope, pushed from the office device. */
@@ -639,6 +649,8 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
       ...Array.from({ length: fuses }, (_, row) => `resistencia_fusiveis/cell/${row}/0`),
     ].sort(),
   );
+  // Story 25.15 (seed v16): the thermography's answer is the step's one choice left, a tap and not a reading of the run.
+  await answerThermography(page, blockId);
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible();
 
   // "Não medido" from the cell's Overflow: stored not_measured, shown "-".
@@ -1141,6 +1153,8 @@ test('@p0 5.8-E2E-002 22.4-E2E "Concluir ficha" lands on the first empty reading
       officeDraft(account, { relatorioId }, `sheet/${target.blockId}/nameplate/${f.key}`, f.kind === 'number' ? { raw: '630', unit: f.unit ?? null, state: 'measured' } : f.kind === 'date' ? '2020-01-01' : f.kind === 'select' ? f.options![0] : 'X'),
     ),
     ...SECCIONADORA.checklist!.map((item) => officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, { relatorioId }, target.blockId, SECCIONADORA),
   ]);
   await syncNowAndReturn(page);
   await openEnel(page);
@@ -1223,6 +1237,8 @@ test('@p0 12.1-E2E-011 D-2: the NC chip completing the checklist keeps it open; 
         i === 0 ? { raw: '330', unit: 'MΩ', state: 'measured' } : c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' },
       ),
     ),
+    // Story 25.15 (seed v16): the thermography answered "Realizada", its points optional.
+    ...performedDrafts(account, { relatorioId }, target.blockId, SECCIONADORA),
   ]);
   await syncNowAndReturn(page);
   await openEnel(page);

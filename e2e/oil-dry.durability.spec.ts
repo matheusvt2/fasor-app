@@ -27,6 +27,8 @@ const select = (page: Page, key: string): Locator => page.locator(`#ficha-namepl
 const OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.items;
 /** Story 22.7 (seed v12): the oil value of TIPO DE ISOLAÇÃO is the kernel's (ÓLEO MINERAL since v12). */
 const OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.oil_values[0]!;
+/** Story 25.19 (seed v16): the dry option of TIPO DE ISOLAÇÃO is the kernel's ("A SECO" since v16, "Á SECO" before). */
+const DRY_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').subtypes.find((subtype) => subtype.key === 'a_seco')!.label;
 /** The checklist number of RELÉ DE GÁS on the current seed (8 on v1 to v8, 7 on v9), read from the kernel. */
 const RELE_DE_GAS_NUMBER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').checklist!.findIndex((item) => item.key === 'rele_de_gas_funcionamento') + 1;
 
@@ -60,7 +62,7 @@ test('@p0 14.11-E2E-003 two devices, one crossing Á SECO to ÓLEO (with a reloa
   await pushDrafts(page, database, [
     ...built.drafts,
     emCampoDraft(account, built.relatorioId),
-    officeDraft(account, scope, `sheet/${sheet.blockId}/nameplate/tipo_de_isolacao`, 'Á SECO'),
+    officeDraft(account, scope, `sheet/${sheet.blockId}/nameplate/tipo_de_isolacao`, DRY_VALUE),
     officeDraft(account, scope, `sheet/${sheet.blockId}/checklist/termometro/result`, 'C'),
   ]);
   const url = `/relatorio/${built.relatorioId}/ficha/${sheet.blockId}`;

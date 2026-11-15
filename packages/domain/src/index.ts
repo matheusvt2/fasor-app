@@ -102,6 +102,8 @@ export * from './relatorio/tap-rows.ts';
 export * from './relatorio/applicability.ts';
 export * from './relatorio/vector-group.ts';
 export * from './relatorio/measurement-evaluation.ts';
+// Story 25.14 (contract 54): a row the technician adds to a measurement test.
+export * from './relatorio/added-rows.ts';
 // Batch e23t gate fix: the sheet's one Enter run over the seeded and the measurement tests.
 export * from './relatorio/sheet-run.ts';
 export * from './relatorio/over-range.ts';

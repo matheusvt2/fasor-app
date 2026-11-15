@@ -75,7 +75,7 @@ export const STRUCTURAL_BLOCK_FIELDS: ReadonlySet<string> = new Set(['location_i
 
 export const isServerActor = (actorId: string): boolean => actorId.startsWith('system:');
 
-/** The block a path targets, for the families D1 and D2 count; null otherwise. */
+/** The block a path targets, for the families D1 and D2 count; null otherwise. Story 25.14: a row added on the sheet, and its readings, are sheet work too. */
 export function blockOfPath(path: OpPath): string | null {
   switch (path.family) {
     case 'block':
@@ -86,6 +86,8 @@ export function blockOfPath(path: OpPath): string | null {
     case 'sheet/test':
     case 'sheet/test/cell':
     case 'sheet/test/value':
+    case 'sheet/test/row':
+    case 'sheet/test/row/cell':
     case 'sheet/conclusion':
     case 'sheet/observations':
       return path.block_id;

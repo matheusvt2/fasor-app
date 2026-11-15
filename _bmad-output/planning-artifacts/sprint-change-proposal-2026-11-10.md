@@ -326,7 +326,7 @@ A third read-only count in production the same day found no relatório on seed v
 | Item | Question | Owner |
 | --- | --- | --- |
 | M-5 | ~~Story 24.21 for the renamed TAG, as recommended above~~ *(2026-11-10, evening, Matheus: approved. Story 24.21 is written.)* | Matheus |
-| B-11 | Should the TC's list ask an item on its secondary (never open, the short-circuit terminals)? | Bruno, with B-1 to B-10 |
+| B-11 | Should the TC's list ask an item on its secondary (never open, the short-circuit terminals)? | Bruno, with B-1 to B-10 *(2026-11-15, closed: Bruno answered on 2026-11-11 (answer 11) with the wording, built as the v16 TC's item 7 in Story 25.18, batch e25s)* |
 
 John's other readings are listed in `epic-24-context.md` § "Coordinator's readings (open to Matheus)". Each one is the most conservative choice and is taken unless Matheus corrects it before its batch starts.
 

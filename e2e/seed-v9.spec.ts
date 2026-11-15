@@ -95,15 +95,17 @@ test('@p0 15.3-E2E-001 v9 sheets: the transformer asks about the oil level once 
 
   // Á SECO: the oil rule shows its items NA (seven on v9); no chip offers to mark them.
   const insulation = plateField(page, 'tipo_de_isolacao').locator('select');
-  await insulation.selectOption('Á SECO');
-  await expect(insulation).toHaveValue('Á SECO');
-  // Seven on v9 to v13; batch e24s (Story 24.11): eight on v14, TANQUE E ALETAS appended; v15 (Story 25.5) keeps v14's eight.
-  expect(OIL).toEqual([...getDefinition('v9', 'cabine_primaria', 'transformador_forca').oil_rule!.items, ...(['v14', 'v15'].includes(SEED_VERSION) ? ['tanque_e_aletas'] : [])]);
+  // Story 25.19 (seed v16): the dry option is the kernel's ("A SECO" since v16, "Á SECO" before).
+  const dry = TRANSFORMER.subtypes.find((subtype) => subtype.key === 'a_seco')!.label;
+  await insulation.selectOption(dry);
+  await expect(insulation).toHaveValue(dry);
+  // Seven on v9 to v13; batch e24s (Story 24.11): eight on v14, TANQUE E ALETAS appended; v15 (Story 25.5) and v16 (batch e25s) keep v14's eight.
+  expect(OIL).toEqual([...getDefinition('v9', 'cabine_primaria', 'transformador_forca').oil_rule!.items, ...(['v14', 'v15', 'v16'].includes(SEED_VERSION) ? ['tanque_e_aletas'] : [])]);
   for (const key of OIL) await expect(checked(page, key), key).toHaveAttribute('data-value', 'na');
   await expect(checked(page, 'limpeza')).toHaveCount(0);
   await expect(page.getByRole('button', { name: oilNaChipText(OIL.length) })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /itens? de óleo como NA$/ })).toHaveCount(0);
-  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `sheet/${transformer.blockId}/nameplate/tipo_de_isolacao`).at(-1)?.value).toBe('Á SECO');
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `sheet/${transformer.blockId}/nameplate/tipo_de_isolacao`).at(-1)?.value).toBe(dry);
 
   // The TC: every field of its definition, none of them POTÊNCIA NOMINAL.
   const tc = getDefinition(SEED_VERSION, 'cabine_primaria', 'tc');

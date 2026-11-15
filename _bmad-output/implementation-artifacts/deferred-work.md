@@ -3394,7 +3394,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: AT-02's "the technician can add a row" (a continuity point beyond the five authored ones) is not built: no seeded or measurement table takes a row the definition does not hold (`ops/apply.ts` `assertMeasurementCell`, `assertCellGeometry`). A point outside the five goes in Observações until a row-adding capability is decided.
   evidence: `packages/domain/src/seed/v13.ts` `CONTINUIDADE_MALHA`; `packages/domain/src/ops/apply.ts`.
   class: decision
-  state: ~~open (owner: Matheus)~~ decided (2026-11-10, Matheus: accepted, no change): the technician cannot add a point beyond the five, and an extra point goes in Observações. Open only for the question to Bruno (owner: Matheus, the next list of questions for Bruno)
+  state: ~~open (owner: Matheus)~~ ~~decided (2026-11-10, Matheus: accepted, no change): the technician cannot add a point beyond the five, and an extra point goes in Observações. Open only for the question to Bruno (owner: Matheus, the next list of questions for Bruno)~~ closed (2026-11-15, batch e25s, Story 25.16): Bruno answered on 2026-11-11 that the five points are a minimum (answer 6). On seed v16 the Malha's continuity test carries Story 25.14's key, "Adicionar ponto" with no stem: the technician adds, names and fills each point beyond the five, judged by "≤ 0,5 Ω entre pontos" and printed after the five (`seed/v16.ts` § Story 25.16; 25.16-UNIT in `seed.test.ts` and `relatorio/e25s-ground-grid-points.test.ts`, 25.16-INT in `apps/api/src/jobs/generate/e25s-ground-grid-docx.test.ts`, 25.16-E2E-001 in `e2e/added-row.spec.ts`). v13 to v15 keep the five rows and no action.
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23e-tc-thermo-ground.md` (Design Notes, "Readings taken" and "Narrowings")
   summary: the readings and authored wordings of the batch for Bruno: polarity and FUNÇÃO DO TC required; thermography NA until "Equipamento em carga" is Sim (its rows and ΔT optional); the arrester with MCOV empty takes the instrument's voltage; the TC's and TP's secondaries at 1 kV apply to no row; the Malha's continuity rows optional and the Malha last under "Outros equipamentos"; thermal photos are sheet photos in the sheet's photo block. Authored texts: the faturamento notice, the ratio print note, the polarity helper (the frame's) and point ("polaridade invertida em Fase R"), the conclusion clause, the thermography's off note, row header, points, criteria wordings, band classes and actions, NA reasons ("Informe se o equipamento está em carga", "Equipamento fora de carga") and applied sentence ("Aplicado mesmo assim: …"), "Foto térmica", the caption's "ensaios de termografia", the Malha's label, test labels, row headers, points, criteria wordings, the out helper and the default's note ("Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω."), its nouns and TAG prefix MA. Added by the review loop: the floor reason and the parecer's `choice` group for a sheet failed by polarity alone ("polaridade invertida", "Polaridade invertida em N fichas", its Critérios item).
   evidence: every `// authored (Story 23.13`, `23.18`, `23.20` or `23.21, listed for Bruno)` in `packages/domain/src/seed/v13.ts`, `relatorio/reading-evaluation.ts`, `relatorio/measurement-evaluation.ts`, `relatorio/applicability.ts`, `relatorio/conclusion.ts`, `points/derived.ts`, `photos/caption.ts`, `templates/text.ts`, `types/duplicate.ts`, `apps/web/src/copy/pt-br.ts`.
@@ -3805,7 +3805,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Built as the coordinator read them, open to Matheus: the TC gains no item on its secondary (B-11 for Bruno) and the TP's fuse wording is a hint; forced ventilation is item 5 renamed and made a dry item, the three new transformer items appended, nothing printed about the laboratory's report; the QGBT function test is one item with a hint and the thermography keeps its four points (B-3); the No-break has six items, "Potência (VA/W)" is two fields (W optional), the battery fields carry "BATERIAS:" and the photo fills them only when it shows them; the "Outro" text is required while it shows; the grid's block is "Dados da malha", on v14 only.
   evidence: `epics.md` § Stories 24.10 to 24.14, "Coordinator's reading"; `packages/domain/src/seed/v14.ts` (the batch's fenced sections).
   class: decision
-  state: open (owner: Matheus)
+  state: open (owner: Matheus) *(2026-11-15, batch e25s, Story 25.18: the part on the TC's secondary is closed. Bruno answered B-11 on 2026-11-11 (answer 11) with the wording, and seed v16's TC asks it as item 7, `seed/v16.ts` § Story 25.18; v14 and v15 keep six items. The rest of the row stays open.)*
 - source_spec: `spec-e24s-seed-v14-sheets.md` (authored strings, listed for Bruno)
   summary: The batch's authored pt-BR texts: the TP's FUSÍVEIS hint; the transformer's three new items' NC phrases; the QGBT inspection's two hints and the function test's four phrases; the No-break's name, print title, eighteen plate labels, six items, two hints and nineteen NC phrases, and its nouns; "Descreva o motivo", "Ditar o motivo", the printed form "MOTIVO: OUTRO, <texto>"; "Dados da malha"; the toast for cleared dry items (the reason line of an oil field on a non-oil unit reuses e23p's form).
   evidence: every `// authored (e24s, listed for Bruno)` in `packages/domain/src` and `apps/web/src/copy/pt-br.ts`; `docs/nc-chip-phrases.md`.
@@ -4166,3 +4166,70 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/types/test-base-update.ts` `addSeedTests`; reproduce with `companyTypeDefinitionSchema.safeParse` on the TR-OL draft of the AC2 case in `test-base-update.test.ts`.
   class: bug
   state: open (owner: Matheus to decide; medium)
+
+## Deferred from: Epic 25 batch e25s, Stories 25.18 and 25.19 (2026-11-15)
+
+- source_spec: Story 25.18 (authored strings, listed for Bruno)
+  summary: The batch's authored pt-BR texts: the three NC phrases of the v16 TC's item 7 ("secundário aberto nos bornes", "bornes de aferição danificados", "bornes de aferição oxidados ou com conexão frouxa"). The item's label and the transformer's six hints are the story's wording; the hints wait for Bruno's confirmation (B-5). On screen the hint reads "Relé Buchholz, quando houver" ("Buchholz" kept as a proper name, `SCREEN_LABEL_ACRONYMS`).
+  evidence: `packages/domain/src/seed/v16.ts` § Story 25.18 (`// authored (e25s, Story 25.18, listed for Bruno)`); `docs/nc-chip-phrases.md` § "TC on seed v16".
+  class: decision
+  state: open (owner: Bruno, through Matheus, with B-5)
+- source_spec: Story 25.18 (DoD "the tap budgets checked on the TC")
+  summary: The tap budget's journeys (`e2e/tap-budget.spec.ts`, J1 and J3) run on the seccionadora, so the TC's new item changes neither of them; 25.18-E2E-001 checks the TC's own count instead (NC, one chip, one "Marcar os restantes como Conforme" for the six others). No v16 run of `budgetRun` was added by this batch, to leave the spec to the wave's other lane.
+  evidence: `e2e/seed-v16-lists.spec.ts`; `e2e/tap-budget.spec.ts` (`budgetRun`, v12, v14 and v15 runs).
+  class: gap
+  state: open (owner: the coordinator, at the wave gate; low)
+- source_spec: Story 25.19 (the oil half, not built)
+  summary: Only the "A SECO" half is built, on seed v16 (not v15, frozen). The oil option's name on the three types (ÓLEO ISOLANTE on the transformer, ÓLEO MINERAL on the TP and the TC), a vegetable option and what becomes of NATUREZA DO LÍQUIDO wait for Bruno's answer to B-4; no oil name, threshold or field was invented. The plate prompt reads the options and "A SECO" changed one of them: the plate eval has not run.
+  evidence: `packages/domain/src/seed/v16.ts` § Story 25.19; `epics.md` § Story 25.19; `source-deltas.md`, the row on Story 23.17.
+  class: decision
+  state: open (owner: Bruno, B-4; Matheus for the paid plate eval before the deploy, E21-A4)
+
+## Deferred from: Epic 25 batch e25s, Story 25.14 (2026-11-15)
+
+- source_spec: Story 25.14 (out of scope: the previous visit of an added row)
+  summary: A row the technician adds is the sheet's, not the equipment's (the coordinator's reading). It has no previous visit: the issue keeps none of its readings in `last_results` (`readingSlotsOf` keys only the definition's rows), its MANUT. ANTERIOR prints "-", no history rule judges it, and the next visit starts without it. Whether a later visit should offer the rows the last one added (by name, from the issued revision) is open.
+  evidence: `packages/domain/src/print/reading-slots.ts` `readingAddressKey` (an added row keys by its id); `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory` (skips added rows); 25.14-UNIT "no previous visit is read for an added row".
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: Story 25.14 (AC "a row added on one device and removed on another while a third fills its cells")
+  summary: Built as the merge rules give a removed block's cells: the removal stands and the readings written after it stay under the row's tombstone ("Desfazer" or a later restore brings them back); nothing throws on any device. A removed block also raises a removal decision in the conflict view ("Manter" or "Remover"); a removed row raises none, so the third device's readings leave the sheet without a word to it.
+  evidence: `packages/domain/src/ops/apply.ts` `assertAddedRow` and `writeSheet` (the tombstone); 25.14-UNIT "two devices"; `packages/domain/src/merge/conflicts.ts` (a removed row's cells are not decided).
+  class: decision
+  state: open (owner: Matheus; a row-level removal decision would be a new decision kind and contract)
+- source_spec: Story 25.14 (authored strings, listed for Bruno)
+  summary: The batch's authored pt-BR texts, composed by the kernel from the key's words (`relatorio/added-rows.ts`) after the frames of `60-ficha.html` #/ficha/MA-02 and #/ficha/NB-02: "Ponto sem nome" ("{Stem} sem nome"), "Nome do ponto" ("Nome da bateria"), "Remover ponto {nome}", "Ponto removido: {nome}" ("Bateria removida: {nome}"), "Ponto acrescentado: dê um nome a ele", "Bateria acrescentada: {nome}", "{n} baterias acrescentadas: {nomes}", "Adicionar as {n} baterias que faltam" ("Adicionar a bateria que falta"), "A placa diz {n} baterias.", "Máximo de {n} pontos nesta tabela."; and the screen's fixed helper "Outra linha desta tabela já tem este nome." (`apps/web/src/copy/pt-br.ts`). Where the NB-02 frame says "Ponto removido: Bateria 1" and "Nome do ponto" on a battery, the kernel agrees the words with the stem ("Bateria removida", "Nome da bateria"), as the frame's own "Bateria acrescentada" does.
+  evidence: `packages/domain/src/relatorio/added-rows.ts` (`// authored (e25s, Story 25.14, listed for Bruno)`); `apps/web/src/copy/pt-br.ts` `ficha.measurement.addedRowNameTaken`.
+  class: decision
+  state: open (owner: Bruno, through Matheus)
+- source_spec: Story 25.14 (DoD: the Playwright walk and the durability specs on the matrix)
+  summary: `e2e/added-row.spec.ts` is built with Story 25.16, the first sheet that takes added rows (the v16 Malha), in the same batch; this batch ran no Playwright (the coordinator's order), so the walk of the controls at 390, 768 and 1280 px in a real browser, the touched durability specs on the matrix projects (the fold and a live query of the ficha changed) and the tap budgets wait for it. The web unit tests (`apps/web/src/surfaces/ficha/added-row.test.tsx`) cover the controls at the three widths against the stylesheet's rules.
+  evidence: `epics.md` § Story 25.14, DoD; `apps/web/src/surfaces/ficha/added-row.test.tsx`.
+  class: gap
+  state: open (owner: the agent building Story 25.16; before the batch's PR) *(2026-11-15, Story 25.16: the walk is written, `e2e/added-row.spec.ts` 25.14-E2E-001 and 25.16-E2E-001 @p0 at 768 x 1024, in the queue lane (`e2e/support/groups.ts`), not run by its agent (the coordinator's order). Still open: its first run, the touched durability specs on the matrix projects and the tap budgets (owner: the coordinator, before the batch's PR). The 390 and 1280 px controls stay covered by `added-row.test.tsx` only.)*
+
+## Deferred from: Epic 25 batch e25s, Story 25.15 (2026-11-15)
+
+- source_spec: Story 25.15 (authored strings, listed for Bruno)
+  summary: The batch's authored pt-BR texts: the four reasons "Equipamento fora de carga", "Sem acesso seguro ao equipamento", "Sem termovisor disponível", "Outro" (B-17); the printed line "TERMOGRAFIA: NÃO REALIZADA. MOTIVO: ⟨motivo⟩." ("MOTIVO: OUTRO, ⟨texto⟩" under "Outro", Story 24.14's form); the paragraph's clause "Termografia não realizada (⟨motivo⟩)."; the row names where Bruno's answer gives a phrase: "Terminal de entrada, fase A" to "Terminal de saída, fase C" (breaker and switch), "Terminais do primário" and "Terminais do secundário" (TP and TC). From the frame (`60-ficha.html` #/ficha/DJ-02), not authored here: the chips' group name "Motivo da termografia não realizada" and the helper "O motivo sai no relatório, numa linha no lugar da tabela. Não é restrição.".
+  evidence: `packages/domain/src/seed/v16.ts` § Story 25.15; `packages/domain/src/print/section-9.ts` `notPerformedPrintLine`; `packages/domain/src/relatorio/measurement-evaluation.ts` `notPerformedClause`; `apps/web/src/copy/pt-br.ts` `ficha.measurement.performedReason*`.
+  class: decision
+  state: open (owner: Bruno, through Matheus, with B-17)
+- source_spec: Story 25.15 (what the story did not settle)
+  summary: Two readings of the agent's, open to Matheus. (1) Under "Outro" the paragraph's clause says the typed text in the reason's place, as typed and without its final period ("Termografia não realizada (Termovisor em calibração)."), while the printed line keeps Story 24.14's "MOTIVO: OUTRO, ⟨texto⟩"; "Outro" with no text reads "(outro)". (2) The line prints as a plain paragraph: the frame's bold "TERMOGRAFIA:" would need a run style the section-9 paragraph part does not have. Also: a v16 thermography's points are new row keys, so a next visit after a v15 relatório prints "-" in MANUT. ANTERIOR for them.
+  evidence: `packages/domain/src/relatorio/e25s-thermography.test.ts`; `key-print-section-9-v15.html` (`p.pp-line` with `<b>`).
+  class: decision
+  state: open (owner: Matheus)
+- source_spec: Story 25.15 (DoD: the Playwright walk, the tap budgets)
+  summary: `e2e/thermography-v16.spec.ts` (25.15-E2E-001 @p0, the `queue` lane) is written and not run (the coordinator's order). The required answer adds one tap and one missing answer to every v16 sheet of the eight types and the Inspeção de QGBT whose template keeps the test on, so every Playwright spec that concludes such a sheet on the default seed (v16) without answering the thermography now meets "Faltam obrigatórios" instead of concluding. Candidates found by grep (default seed, a "Concluir" tap, one of the nine types): `conflicts`, `conclusion-preview`, `e24y-tag-rename`, `ficha`, `local-painel-coluna`, `parecer-names-finding`, `observation-free`, `review-concluir-text`, `revision-verdicts`, `review-field-defects-2`, `sheet-knows-12-3-12-4`, `v13-nameplate`, `polarization-index`; none was changed. Each needs either the answer in its fill helper or a pin to v15. The tap budgets' journeys (`e2e/tap-budget.spec.ts`) have no v16 run. The two specs that asserted "Equipamento em carga" on the default seed are pinned to v15 (`pass-screen-fixes.spec.ts` 24.9-E2E-001, `print-criterion-per-row.spec.ts` 25.20-E2E-001).
+  evidence: `grep -rln "Concluir ficha\|Concluir e avançar" e2e/*.spec.ts`; `epics.md` § Story 25.15, DoD.
+  class: gap
+  state: open (owner: the coordinator, at the wave gate; high)
+
+## Deferred from: Epic 25 batch e25s, the review of PR #334 (2026-11-15)
+
+- source_spec: Story 25.14 (review of PR #334; not fixed)
+  summary: Undoing the removal of an added row fails with the generic write-error toast when the table is back at its maximum (another row was added after the removal): the fold refuses the restore (`removed_at` back to null over a full table), and the device's commit path applies the inverse op straight through `applyOp`, so the refusal surfaces as a write error instead of a reason such as "Máximo de 30 pontos nesta tabela.".
+  evidence: `packages/domain/src/ops/apply.ts` `assertAddedRow` (the `value === null` restore over `liveAddedRows(rows) >= max`, about line 633); `apps/web/src/db/commit.ts` `applyOne` (calls `applyOp` directly, about line 82).
+  class: gap
+  state: open (owner: the next batch touching added rows; low)

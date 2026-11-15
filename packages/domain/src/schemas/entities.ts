@@ -545,6 +545,20 @@ export const notTestedSchema = z.object({
 
 export const concludedBySchema = z.object({ actor_id: actorIdSchema, at: isoTimestampSchema });
 
+/**
+ * Story 25.14 (contract 54): one row the technician added to a measurement test. `name` is the cell its name
+ * is put in (a string, or null while it has none; merged as every sheet cell is); `removed_at` its tombstone,
+ * written as a block's is (a `remove` writes the op's time, a put of null restores it; absent or null, the row
+ * is live): its cells stay under it, so "Desfazer" brings both back; `cells` its readings by column index, as
+ * a definition row's are under `cells[row]`.
+ */
+export const addedRowSchema = z.object({
+  name: cellSchema.optional(),
+  removed_at: nullableIso.optional(),
+  cells: cellMap,
+});
+export type AddedRow = z.infer<typeof addedRowSchema>;
+
 export const sheetSchema = z.object({
   nameplate: cellMap,
   checklist: z.record(z.string(), checklistEntrySchema),
@@ -570,6 +584,14 @@ export const sheetSchema = z.object({
        * last: a test entry that never took it holds no key, so no stored row changes bytes.
        */
       applicability: cellSchema.optional(),
+      /**
+       * Story 25.14 (contract 54): the rows the technician added to a measurement test whose definition
+       * carries `added_rows`, by row id (a UUIDv7 the device mints, so the rows of two devices never meet
+       * and sort in the order they were created), written only through `sheet/{block_id}/test/{test_key}/row/{row_id}/…`.
+       * Optional and never defaulted, appended last: a test entry that never took one holds no key, so no
+       * stored row changes bytes.
+       */
+      added_rows: z.record(z.string(), addedRowSchema).optional(),
     }),
   ),
   conclusion: z.object({

@@ -26,7 +26,7 @@ import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type Seed
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushRevision } from './support/push-server-ops.ts';
-import { emCampoDraft, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { emCampoDraft, officeDraft, performedDrafts, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
 import { syncNow, syncNowAndReturn, waitForCompanyPull } from './support/sync.ts';
 import { expandLocation, section9Chevron } from './support/tree.ts';
@@ -192,13 +192,16 @@ function completeSheet(scope: Scope, blockId: string, blockType: string): OpDraf
     // Batch e23t (seed v13, Story 23.15): the measurement tests a sheet draws after its seeded ones (the transformer's
     // winding resistance, "Sempre" and required), every number cell at one value, so the phases agree (within).
     // The plate's first options (EPÓXI, SEM CARGA) make the oil sampling and the HH fuses NA.
-    ...(definition.measurement_tests ?? []).flatMap((t) =>
+    // Story 25.15 (seed v16): the thermography is answered "Realizada" below and its points, optional, left empty (a
+    // 100 there would read as a ΔT of 100 °C, out); on v15 the test stayed NA until its load was answered.
+    ...(definition.measurement_tests ?? []).filter((t) => t.performed === undefined).flatMap((t) =>
       t.rows.flatMap((row, r) =>
         t.columns.flatMap((column, c) =>
           (row.kind ?? column.kind) === 'number' ? [officeDraft(account, scope, `sheet/${blockId}/test/${t.key}/cell/${r}/${c}`, n('100', row.unit ?? column.unit ?? null))] : [],
         ),
       ),
     ),
+    ...performedDrafts(account, scope, blockId, definition),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/result`, 'aprovado'),
     officeDraft(account, scope, `sheet/${blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];

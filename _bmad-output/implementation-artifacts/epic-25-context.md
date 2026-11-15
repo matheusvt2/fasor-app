@@ -246,3 +246,17 @@ Wave 1 (e25a, e25b, fix batches #329 and #330) is on main and NOT deployed; prod
 - A relatorio already born on v15 changes its print (25.20 columns and headers; 25.22 cover, sections 1 to 6 and 10, ratio headers): needs Matheus's decision.
 - 25.24: prompt `audit-2`; paid eval owed before deploy (section 11 item 5).
 
+
+## Records of 2026-11-15
+
+- Waves 4 and 5 deployed on 2026-11-12 as 8d5e9e2e on Matheus's word, production smoke 8 of 8, tag v0.11.0. Releases v0.9.1, v0.10.0 and v0.11.0 published.
+- The new audit prompt ran once in production on the smoke company with the real model: 2 findings on 3 sheets; the planted observation-versus-items case was not verified. A measured eval is owed.
+- 2026-11-15, Matheus: wave 3 released without the field engineer's answers. Story 25.17 (B-1, B-2), the oil half of 25.19 (B-4) and Story 25.21 (B-7) stay out.
+
+## Wave 3 record (batch e25s, 2026-11-15)
+
+- Built: 25.14, 25.15, 25.16, 25.18 and the "A SECO" half of 25.19. Every story changes a v15 sheet definition, so v15 was frozen (layout lock `layout-lock-v15` and `-v15-epic25`, `V15_HASH` unchanged) and seed v16 opened for new relatorios. Contract 53 (v16 opened) then 54 (new item key and op paths); MIN 54. v1 to v15 byte-equal. A relatorio already on v15 changes nothing.
+- Added row (`added_rows` key, `sheet/test/row` paths) lives on v16 only; used by the Malha and the thermography.
+- The thermography answer is required on v16: one extra tap per sheet; 13 specs and fill helpers updated for it.
+- Owed: paid plate eval before the deploy (the plate options now read "A SECO"); previous visit of an added row (Matheus).
+- 2026-11-15, review and gate fixes on PR #334: (C) an added row under optional columns (the v16 thermography's two ΔT) counted nothing missing with every number cell empty; now those cells are missing until one is filled, seed rows unchanged. (D) Under "Não realizada" and "Outro", a text with no letter or digit ("...") counted as given; it now counts missing (the field still echoes it) and the clause reads no text. (E) The conflict view labelled every added row's contested name "Nome do ponto"; it now names the row ("Nome do ponto · Portão sul", or "· Linha N" without a name). The wave gate's two reds: e23z-E2E-001 asked v16's thermography for "Equipamento em carga", which Story 25.15 replaced, so it is pinned to v15 (what it protects, the hand-applied band and "Seguir a placa", is v13 to v15 behaviour); 21.1-E2E-002 (Escape left the Export dialog open) was green alone twice, read as load, not changed. The undo of a removal at the table's maximum is a ledger row (`deferred-work.md`, the review of PR #334).

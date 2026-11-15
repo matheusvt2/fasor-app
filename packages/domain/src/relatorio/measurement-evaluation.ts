@@ -52,6 +52,7 @@ import {
   type TestTemperatureView,
 } from './temperature-correction.ts';
 import { NO_VISIT_CONTEXT, previousPlateMeasured, type VisitContext } from './visit-context.ts';
+import { addedRowName, addedRowsView, addedRowUnnamedText, type AddedRowsView } from './added-rows.ts';
 
 /*
  * Story 14.5 (seed v5): THE evaluation of a sheet's measurement tests, the tests of the
@@ -138,10 +139,18 @@ function holds(when: WhenConfig | undefined, config: Readonly<Record<string, str
 
 export interface MeasurementAddress {
   testKey: MeasurementTestKey;
-  /** The index in the test's `rows` (the op path's `row`). */
+  /**
+   * The index in the test's `rows` (the op path's `row`). Story 25.14: on a row the technician added, its place
+   * after the definition's rows (`rows.length` and on, in the order the rows were created), never an op path's.
+   */
   row: number;
   /** The index in the test's `columns` (the op path's `col`). */
   col: number;
+  /**
+   * Story 25.14: the id of the row the technician added (`sheet/{b}/test/{t}/row/{rowId}/cell/{col}`, through
+   * `measurementCellPath`); absent on a definition row's cell.
+   */
+  rowId?: string;
 }
 
 export interface EvaluatedMeasurementColumn {
@@ -235,11 +244,18 @@ export interface EvaluatedMeasurementCell {
 }
 
 export interface EvaluatedMeasurementRow {
-  /** The index in the test's `rows` (the op path's `row`). */
+  /** The index in the test's `rows` (the op path's `row`); Story 25.14: an added row's place after them. */
   row: number;
+  /** The row's seed key; Story 25.14: an added row's id, which names no row of any criterion. */
   key: string;
+  /** The row's label; Story 25.14: an added row's name, or `ADDED_ROW_UNNAMED` while it has none. */
   label: string;
   cells: EvaluatedMeasurementCell[];
+  /**
+   * Story 25.14: on a row the technician added only: its id, its name as typed (null while it has none) and whether
+   * that name is missing (it counts as missing, as an empty cell does, while its test is live).
+   */
+  added?: { id: string; name: string | null; nameMissing: boolean };
 }
 
 /** The row under the table that shows each column's lowest measured value (E1's "Menor do lado"). */
@@ -299,6 +315,30 @@ export interface MeasurementLinePart {
   typed?: string;
 }
 
+/**
+ * Story 25.15 (`performed`): whether the test was done, by its own choice value (`valueKey`). `unanswered` and
+ * `not_done` make the test not run (`skipped`): nothing of its table is asked, judged or printed. On `not_done` the
+ * words the print's line and the conclusion's clause are composed from, all the definition's: the test's `label`
+ * ("Termografia") and the value's chosen option's (`answer`, "Não realizada"); the reason's label ("Motivo") and its chosen
+ * option's, null while unanswered; and a text typed under that option ("Outro"), as typed, null when none
+ * (`notPerformedPrintLine` in `print/section-9.ts`, `notPerformedClause`).
+ */
+export type MeasurementPerformance =
+  | { state: 'unanswered' | 'done'; valueKey: string }
+  | { state: 'not_done'; valueKey: string; label: string; answer: string; reasonLabel: string | null; reason: string | null; typed: string | null };
+
+/**
+ * Story 25.15: the sentence the conclusion's paragraph adds for a test not done: "Termografia não realizada
+ * (equipamento fora de carga).", the answer and the reason sentence-cased into the clause; a text typed under the
+ * reason ("Outro") is said in its place, as typed; with no reason given, "Termografia não realizada.".
+ */
+export function notPerformedClause(performance: Extract<MeasurementPerformance, { state: 'not_done' }>): string {
+  const lower = (text: string) => `${text.charAt(0).toLocaleLowerCase('pt-BR')}${text.slice(1)}`;
+  const reason = performance.typed ?? (performance.reason === null ? null : lower(performance.reason));
+  // authored (e25s, Story 25.15, listed for Bruno): "Termografia não realizada (⟨motivo⟩)."
+  return `${performance.label} ${lower(performance.answer)}${reason === null ? '' : ` (${reason})`}.`;
+}
+
 export interface MeasurementTestEvaluation {
   testKey: MeasurementTestKey;
   /** 1-based position among the definition's measurement tests: the "E1" of the heading. */
@@ -324,7 +364,7 @@ export interface MeasurementTestEvaluation {
   instrumentOf: InstrumentOf | null;
   rowHeader: string;
   columns: EvaluatedMeasurementColumn[];
-  /** The rows the block's configuration shows, in the test's order. */
+  /** The rows the block's configuration shows, in the test's order; Story 25.14: then the rows the technician added. */
   rows: EvaluatedMeasurementRow[];
   reference: MeasurementReference | null;
   values: EvaluatedMeasurementValue[];
@@ -365,6 +405,10 @@ export interface MeasurementTestEvaluation {
    * restricted one), so a point written from the test's `restricao` entry is not "Origem resolvida".
    */
   restrictionStands?: true;
+  /** Story 25.14: on a test whose definition carries `added_rows` only, what the sheet offers to add (`addedRowsView`). */
+  addedRows?: AddedRowsView;
+  /** Story 25.15: on a test whose definition carries `performed` only, whether it was done and, when not, its texts (`performanceOf`). */
+  performance?: MeasurementPerformance;
   /**
    * W3-2 (Epic 14 QA Q-3, Story 14.9): a live test judged by the deviation between phases holds a measured number
    * cell no criterion judged (a cell at zero or below, a group with one positive cell, every cell while the medium is
@@ -1014,6 +1058,8 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
   // Batch e24p (Story 24.15): the previous visit's date as the block's seed names it (the visit's date on v14).
   const dateText = context.seedVersion === undefined ? formatDateOfInstant(entry.issued_at) : previousVisitDateText(entry, context.seedVersion);
   for (const row of rows) {
+    // Story 25.14: a row the technician added has no previous visit; no history rule judges it.
+    if (row.added !== undefined) continue;
     for (const cell of row.cells) {
       const now = cell.corrected ?? null;
       // Like every restriction rule, it runs only on a cell already judged (never an unjudged one: medium unknown, a lone
@@ -1054,6 +1100,62 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
 
 function columnsOf(test: MeasurementTest): EvaluatedMeasurementColumn[] {
   return test.columns.map((column: MeasurementColumn, col) => ({ col, key: column.key, label: column.label, kind: column.kind, unit: column.unit ?? null, optional: column.optional === true }));
+}
+
+/**
+ * Story 25.14 (seed v16, contract 54): the live rows the technician added to `test` (no tombstone), in the
+ * order they were created (by id: a UUIDv7 sorts by its time, and the rows of two devices never share one),
+ * placed after the definition's rows. Only on a test whose definition carries `added_rows`: a row stored
+ * under any other is neither shown nor counted. Each takes one cell per column of the test, by the column's
+ * kind, unit and options (an added row has no fixed cell and is never optional), so its cells are judged by
+ * the criteria of their columns and an empty one counts as missing; its name is required.
+ */
+function evaluateAddedRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, notApplicable: boolean): EvaluatedMeasurementRow[] {
+  const stored = test.added_rows === undefined ? undefined : block.sheet.test[test.key]?.added_rows;
+  if (stored === undefined) return [];
+  const live = Object.entries(stored)
+    .filter(([, row]) => (row.removed_at ?? null) === null)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return live.map(([id, row], position): EvaluatedMeasurementRow => {
+    const name = addedRowName(row.name?.value);
+    const at = test.rows.length + position;
+    const cells = test.columns.map((column, col): EvaluatedMeasurementCell => {
+      const kind = column.kind;
+      const options = kind === 'choice' ? (column.options ?? []) : [];
+      const defaultUnit = kind === 'choice' ? null : (column.unit ?? null);
+      const value = read(row.cells[String(col)], kind, options, notApplicable);
+      const state: ReadingState = value?.state ?? 'empty';
+      return {
+        address: { testKey: test.key, row: at, col, rowId: id },
+        rowKey: id,
+        columnKey: column.key,
+        column: column.label,
+        kind,
+        fixed: null,
+        optional: column.optional === true,
+        state,
+        raw: value?.raw ?? '',
+        unit: kind === 'choice' ? null : (value?.unit ?? defaultUnit),
+        units: unitsOf(defaultUnit),
+        options,
+        displayText: displayOf(value, kind, options),
+        overRange: kind === 'number' ? OVER_RANGE_ALLOWED : { allowed: false, refusal: '' },
+        verdict: null,
+        helperText: null,
+        criterionText: null,
+        sourceName: null,
+        excess: 0,
+        missing: column.optional !== true && state === 'empty',
+        positiveOnlyText: null,
+        toCheck: false,
+      };
+    });
+    // Review of PR #334 (Stories 25.14 and 25.16): an added row is never optional, even under optional columns (the
+    // thermography's two ΔT): while every number cell of it is empty, those cells count as missing. One filled is enough.
+    const numbers = cells.filter((cell) => cell.kind === 'number');
+    if (numbers.length > 0 && numbers.every((cell) => cell.state === 'empty')) for (const cell of numbers) cell.missing = true;
+    return { row: at, key: id, label: name ?? addedRowUnnamedText(test.added_rows!), cells, added: { id, name, nameMissing: name === null } };
+  });
 }
 
 function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, config: Readonly<Record<string, string>>, notApplicable = false): EvaluatedMeasurementRow[] {
@@ -1098,6 +1200,8 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
     });
     rows.push({ row: index, key: row.key, label: row.label, cells });
   });
+  // Story 25.14: the rows the technician added, after the definition's, in the order they were created.
+  rows.push(...evaluateAddedRows(block, test, notApplicable));
   // The unit an empty cell of a tap-cycle column shows: the previous shown row's (Story 5.5 AC 2).
   test.columns.forEach((_, col) => {
     let previous: string | null = null;
@@ -1115,6 +1219,9 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
 function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): EvaluatedMeasurementValue[] {
   const stored = block.sheet.test[test.key]?.values ?? {};
   const heldBy = (value: MeasurementValue) => read(stored[value.key], value.kind, value.options ?? []);
+  // Review of PR #334 (Story 25.15): the text of why a test was not done ("Descreva o motivo" under "Outro") with no
+  // letter or digit ("...") is not a reason: it counts as missing, as an empty one does, while the field still echoes it.
+  const asked = performedFamily(test);
   return (test.values ?? []).map((value): EvaluatedMeasurementValue => {
     const held = heldBy(value);
     const state: ReadingState = held?.state ?? 'empty';
@@ -1133,9 +1240,14 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
       state,
       raw: held?.raw ?? '',
       displayText: value.kind === 'number' && isReadingValue(state) ? withUnit(text, unit) : text,
-      missing: shown && value.optional !== true && state === 'empty',
+      missing: shown && value.optional !== true && (state === 'empty' || (value.kind === 'text' && asked.has(value.key) && state === 'measured' && !hasWords(held!.raw))),
     };
   });
+}
+
+/** Review of PR #334 (Story 25.15): whether a typed text says anything, by holding one letter or digit at least. */
+function hasWords(text: string): boolean {
+  return /[\p{L}\p{N}]/u.test(text);
 }
 
 /**
@@ -1168,6 +1280,58 @@ function shownUnder(
   return depth < (test.values ?? []).length && shownUnder(depends!.when, test, heldBy, block, depth + 1);
 }
 
+// --- Story 25.15: "Realizada" or "Não realizada" -------------------------------------------------
+
+/** Story 25.15: the value a test is done by (`performed.value`) and every value shown under it, in a chain; empty without the key. */
+function performedFamily(test: MeasurementTest): ReadonlySet<string> {
+  const family = new Set<string>();
+  if (test.performed === undefined) return family;
+  family.add(test.performed.value);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const value of test.values ?? []) {
+      const when = value.when;
+      if (family.has(value.key) || when === undefined || 'cell' in when || !family.has(when.value)) continue;
+      family.add(value.key);
+      grew = true;
+    }
+  }
+  return family;
+}
+
+/**
+ * Story 25.15: whether a test with `performed` was done, by its value: `done` under the option `performed.done`,
+ * `not_done` under another, with the words its line and clause say (the reason's chosen option and the text typed
+ * under it, each when shown and filled); `unanswered` while the value is empty. Undefined on every other test.
+ */
+function performanceOf(test: MeasurementTest, values: readonly EvaluatedMeasurementValue[]): MeasurementPerformance | undefined {
+  const performed = test.performed;
+  if (performed === undefined) return undefined;
+  const value = values.find((candidate) => candidate.key === performed.value);
+  if (value === undefined || value.state !== 'measured') return { state: 'unanswered', valueKey: performed.value };
+  if (value.raw === performed.done) return { state: 'done', valueKey: performed.value };
+  const reason = performed.reason === undefined ? undefined : values.find((candidate) => candidate.key === performed.reason);
+  const chosen = reason !== undefined && reason.shown && reason.state === 'measured' ? reason.options.find((option) => option.key === reason.raw) : undefined;
+  // A text value shown under the chosen reason ("Descreva o motivo" under "Outro"), as typed.
+  const typedValue =
+    chosen === undefined
+      ? undefined
+      : values.find((candidate) => {
+          const when = (test.values ?? []).find((definition) => definition.key === candidate.key)?.when;
+          return candidate.kind === 'text' && candidate.shown && candidate.state === 'measured' && hasWords(candidate.raw) && when !== undefined && !('cell' in when) && when.value === reason!.key;
+        });
+  return {
+    state: 'not_done',
+    valueKey: performed.value,
+    label: test.label,
+    answer: value.options.find((option) => option.key === value.raw)?.label ?? value.displayText,
+    reasonLabel: reason?.label ?? null,
+    reason: chosen?.label ?? null,
+    // Without its final period(s), since the line and the clause close the sentence themselves.
+    typed: typedValue === undefined ? null : typedValue.raw.trim().replace(/[\s.]+$/u, '') || null,
+  };
+}
+
 /** A choice's wording inside the values line: the option's `phrase`, else its label. */
 function phraseOf(value: EvaluatedMeasurementValue): string {
   const option = value.options.find((candidate) => candidate.key === value.raw);
@@ -1181,8 +1345,10 @@ function phraseOf(value: EvaluatedMeasurementValue): string {
  */
 function valuesLineOf(test: MeasurementTest, values: readonly EvaluatedMeasurementValue[], skipped: boolean): MeasurementTestEvaluation['valuesLine'] {
   const defs = new Map((test.values ?? []).map((value) => [value.key, value]));
+  // Story 25.15: whether the test was done, and why not, never enter the line (the test's table, or its one line, says it).
+  const asked = performedFamily(test);
   // A test that was not run says only that: nothing else about how it was run is in force.
-  const live = values.filter((value) => value.group === null && value.shown && value.state === 'measured' && (!skipped || value.key === test.skip_when?.value));
+  const live = values.filter((value) => !asked.has(value.key) && value.group === null && value.shown && value.state === 'measured' && (!skipped || value.key === test.skip_when?.value));
   const parts: MeasurementLinePart[] = [];
   for (const value of live) {
     const when = defs.get(value.key)?.when;
@@ -1260,7 +1426,9 @@ function evaluate(
   const rows = evaluateRows(block, test, config, context.seedVersion !== undefined && seedRule(context.seedVersion, 'reading_not_applicable'));
   const values = evaluateValues(block, test);
   const skipValue = test.skip_when === undefined ? undefined : values.find((value) => value.key === test.skip_when!.value);
-  const skipped = skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals;
+  // Story 25.15 (`performed`): a test not done, or not yet answered, is not run, as a skipped one is.
+  const performance = performanceOf(test, values);
+  const skipped = (skipValue !== undefined && skipValue.state === 'measured' && skipValue.raw === test.skip_when!.equals) || (performance !== undefined && performance.state !== 'done');
   // Story 23.9: a test the nameplate makes not applicable is not live, as a switched-off one is not.
   const live = enabled && !skipped && applicability.state !== 'na';
   const criteria = test.criteria.filter((criterion) => holds(criterion.when, config));
@@ -1319,7 +1487,8 @@ function evaluate(
   }
   for (const value of values) {
     // The value that says the test was not run is the one thing a skipped test still asks for; it is filled by definition.
-    if (!enabled || skipped || applicability.state === 'na') value.missing = false;
+    // Story 25.15: a test done by its own value keeps asking that value and, not done, the reason shown under it.
+    if (!enabled || applicability.state === 'na' || (skipped && performance === undefined)) value.missing = false;
   }
   // Fix batch e23z (W3-2): a live test judged by the deviation between phases with a measured number cell left with no
   // verdict (and not to check) is unjudged: the floor withholds Aprovado · Sem restrições.
@@ -1383,6 +1552,9 @@ function evaluate(
     ...(notes.length === 0 ? {} : { notes }),
     ...(live && stands ? { restrictionStands: true as const } : {}),
     ...(unjudged ? { unjudged: true as const } : {}),
+    // Story 25.14: only on a test whose definition takes added rows, so every other test reads as before.
+    ...(test.added_rows === undefined ? {} : { addedRows: addedRowsView(block, context.definition.nameplate, test.added_rows, rows) }),
+    ...(performance === undefined ? {} : { performance }),
   };
 }
 
@@ -1558,11 +1730,19 @@ export function measurementValues(evaluations: readonly MeasurementTestEvaluatio
   return evaluations.filter((test) => test.enabled && test.applicability.state !== 'na').flatMap((test) => test.values.filter((value) => value.shown));
 }
 
-/** What `sheetProgress` adds to the Ensaios step: the required cells and values still empty, and the cells out of criterion. */
+/** Story 25.14: the rows the technician added to the live tests that hold no name yet, each one missing. */
+export function unnamedAddedRows(evaluations: readonly MeasurementTestEvaluation[]): EvaluatedMeasurementRow[] {
+  return liveTests(evaluations).flatMap((test) => test.rows.filter((row) => row.added?.nameMissing === true));
+}
+
+/**
+ * What `sheetProgress` adds to the Ensaios step: the required cells and values still empty, and the cells out of
+ * criterion. Story 25.14: an added row with no name counts one missing more, as an empty cell does.
+ */
 export function measurementCounts(evaluations: readonly MeasurementTestEvaluation[]): { missing: number; outOfLimit: number } {
   const cells = measurementCells(evaluations);
   return {
-    missing: cells.filter((cell) => cell.missing).length + measurementValues(evaluations).filter((value) => value.missing).length,
+    missing: cells.filter((cell) => cell.missing).length + measurementValues(evaluations).filter((value) => value.missing).length + unnamedAddedRows(evaluations).length,
     outOfLimit: cells.filter((cell) => cell.verdict === 'out').length,
   };
 }
@@ -1668,7 +1848,8 @@ export function restrictedMeasurements(evaluations: readonly MeasurementTestEval
 // --- the continuous Enter run ---------------------------------------------------------------------
 
 function sameMeasurementAddress(a: MeasurementAddress, b: MeasurementAddress): boolean {
-  return a.testKey === b.testKey && a.row === b.row && a.col === b.col;
+  // Story 25.14: an added row's cell is the same cell only of the same row id.
+  return a.testKey === b.testKey && a.row === b.row && a.col === b.col && a.rowId === b.rowId;
 }
 
 /** One column of one test, its typed number cells in the rows shown: the run's unit of "down". A choice or a fixed cell is never a stop. */
@@ -1779,7 +1960,7 @@ export function measurementValueLabel(definition: Pick<BlockDefinition, 'measure
 export function measurementStoredText(
   definition: Pick<BlockDefinition, 'measurement_tests'> | null,
   testKey: string,
-  at: { row: number; col: number } | { valueKey: string },
+  at: { row: number; col: number } | { valueKey: string } | { addedCol: number },
   value: unknown,
 ): string | null {
   const test = testOf(definition, testKey)?.test;
@@ -1793,6 +1974,13 @@ export function measurementStoredText(
     ({ kind } = def);
     options = def.options ?? [];
     unit = def.unit ?? null;
+  } else if ('addedCol' in at) {
+    // Story 25.14: a cell of a row the technician added takes its column's kind, options and unit.
+    const column = test.columns[at.addedCol];
+    if (column === undefined || test.added_rows === undefined) return null;
+    kind = column.kind;
+    options = column.options ?? [];
+    unit = column.unit ?? null;
   } else {
     const row = test.rows[at.row];
     const column = test.columns[at.col];

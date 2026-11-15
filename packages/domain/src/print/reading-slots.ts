@@ -24,9 +24,13 @@ export interface ReadingSlot {
   key: string;
 }
 
-/** The op-path address of a cell as one string: `${testKey}/${row}/${col}`. */
-export function readingAddressKey(address: { testKey: string; row: number; col: number }): string {
-  return `${address.testKey}/${address.row}/${address.col}`;
+/**
+ * The op-path address of a cell as one string: `${testKey}/${row}/${col}`. Story 25.14: a cell of a row the
+ * technician added (`rowId`) keys by that id (`${testKey}/+${rowId}/${col}`), which no slot of a definition
+ * ever holds: an added row has no previous visit (`readingSlotsOf` keys only the definition's rows).
+ */
+export function readingAddressKey(address: { testKey: string; row: number; col: number; rowId?: string | undefined }): string {
+  return address.rowId === undefined ? `${address.testKey}/${address.row}/${address.col}` : `${address.testKey}/+${address.rowId}/${address.col}`;
 }
 
 /** What `readingSlotsOf` reads of a definition: its tests, and the nameplate a `rows_from` table's list is on. */

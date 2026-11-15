@@ -39,7 +39,8 @@ test('@p0 25.9-E2E-001 a v15 TP: phase T\'s insulation N/A from the cell\'s menu
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Pinned to v15 since seed v16 opened (batch e25s): a new relatório is born on v16.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v15' });
   const tp = built.sheets.find((sheet) => sheet.blockType === 'tp')!;
   const definition = getDefinition('v15', 'cabine_primaria', 'tp');
   expect(definition.tests.map((one) => one.key)).toEqual(['isolacao', 'relacao_transformacao']);

@@ -57,7 +57,8 @@ function malhaCreates(seeded: { relatorioId: string; projectId: string; location
 
 describe('23.18 to 23.21-INT the thermography, the polarity and the Malha de aterramento through the route (contract 39)', () => {
   it('a v13 config switching the thermography, its value and cells, a TC polarity and a Malha block with its readings are accepted', async () => {
-    const seeded = await h.seedRelatorio(companyA);
+    // Story 25.15: pinned to seed v13, whose thermography asks "Equipamento em carga" (seed v16 asks "Realizada" instead).
+    const seeded = await h.seedRelatorio(companyA, new Date(), 'v13');
     const relatorio_id = seeded.relatorioId;
     const pr = seeded.blocks.find((block) => block.blockType === 'para_raio')!;
     const tc = seeded.blocks.find((block) => block.blockType === 'tc')!;

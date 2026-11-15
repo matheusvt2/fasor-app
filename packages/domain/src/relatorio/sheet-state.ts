@@ -94,6 +94,12 @@ export function enabledCells(block: BlockRow): Cell[] {
     for (const row of Object.values(test.cells)) cells.push(...Object.values(row));
     // Story 14.5: a measurement test's values outside its table.
     cells.push(...Object.values(test.values ?? {}));
+    // Story 25.14: the name and the readings of every row the technician added that is still on the sheet.
+    for (const row of Object.values(test.added_rows ?? {})) {
+      if ((row.removed_at ?? null) !== null) continue;
+      if (row.name !== undefined) cells.push(row.name);
+      cells.push(...Object.values(row.cells));
+    }
   }
   if (enabled.has('conclusion')) cells.push(...Object.values(s.conclusion).filter((c): c is Cell => c !== undefined));
   if (enabled.has('observations') && s.observations) cells.push(s.observations);
