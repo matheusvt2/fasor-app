@@ -37,6 +37,7 @@ import { asBlockDefinition } from '../types/block-definition.ts';
 import { companyTypeDefinitionSchema, type CompanyTypeDefinition } from '../types/definition.ts';
 import {
   addedRowName,
+  addedRowNameConflictLabel,
   addedRowNameLabel,
   addedRowNameTaken,
   addedRowRemoveLabel,
@@ -525,7 +526,12 @@ describe('25.14-UNIT two devices', () => {
     const b = addedRowsOp('put', namePath(rowId), 'Portão sul', { deviceId: 'tablet-b', prevOpId: create.op_id });
     const fillA = addedRowsOp('put', cellPath(rowId, 0), reading('0.2', 'Ω'), { deviceId: 'tablet-a' });
     const fillB = addedRowsOp('put', cellPath(rowId, 0), reading('0.3', 'Ω'), { deviceId: 'tablet-b' });
-    const block = fold([create, a, b, fillA, fillB]);
+    // Review of PR #334: a second row whose name is contested too; its label must not read as the first one's.
+    const otherId = addedRowId(2);
+    const createOther = addedRowsOp('put', namePath(otherId), 'Cerca', { deviceId: 'tablet-a' });
+    const otherA = addedRowsOp('put', namePath(otherId), 'Cerca leste', { deviceId: 'tablet-a', prevOpId: createOther.op_id });
+    const otherB = addedRowsOp('put', namePath(otherId), 'Cerca oeste', { deviceId: 'tablet-b', prevOpId: createOther.op_id });
+    const block = fold([create, a, b, fillA, fillB, createOther, otherA, otherB]);
     const stored = block.sheet.test[POINTS_TEST]!.added_rows![rowId]!;
     expect(stored.name?.value).toBe('Portão sul');
     expect(stored.name?.conflict?.value).toBe('Portão norte');
@@ -540,11 +546,19 @@ describe('25.14-UNIT two devices', () => {
       definitions: { versions: new Map([[`${ADDED_ROWS_TYPE_ID}@1`, addedRowsVersionRow()]]), byId: new Map([[addedRowsVersionRow().id, addedRowsVersionRow()]]), types: new Map() },
     });
     const cells = decisions.flatMap((decision) => (decision.kind === 'cell' ? decision.cells : []));
+    const otherName = block.sheet.test[POINTS_TEST]!.added_rows![otherId]!.name!;
+    expect(otherName.conflict).toBeDefined();
     expect(cells.map((one) => [one.section, one.label])).toEqual([
-      ['E1 · Continuidade', 'Nome do ponto'],
+      ['E1 · Continuidade', 'Nome do ponto · Portão sul'],
       ['E1 · Continuidade', 'Portão sul · Resistência'],
+      ['E1 · Continuidade', `Nome do ponto · ${otherName.value as string}`],
     ]);
     expect(cells[0]!.path).toBe(namePath(rowId));
+    expect(cells[2]!.path).toBe(namePath(otherId));
+    // A row with no name is labelled by its place in the table, after the definition's rows.
+    const [pointsKey, batteriesKey] = [ADDED_ROWS_DEFINITION.measurement_tests![0]!.added_rows!, ADDED_ROWS_DEFINITION.measurement_tests![1]!.added_rows!];
+    expect(addedRowNameConflictLabel(pointsKey, null, 6)).toBe('Nome do ponto · Linha 7');
+    expect(addedRowNameConflictLabel(batteriesKey, 'Bateria 2', 0)).toBe('Nome da bateria · Bateria 2');
   });
 
   it('the block type of the fixture is a company type of the fixture\'s id', () => {

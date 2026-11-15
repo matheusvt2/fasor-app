@@ -4225,3 +4225,11 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `grep -rln "Concluir ficha\|Concluir e avançar" e2e/*.spec.ts`; `epics.md` § Story 25.15, DoD.
   class: gap
   state: open (owner: the coordinator, at the wave gate; high)
+
+## Deferred from: Epic 25 batch e25s, the review of PR #334 (2026-11-15)
+
+- source_spec: Story 25.14 (review of PR #334; not fixed)
+  summary: Undoing the removal of an added row fails with the generic write-error toast when the table is back at its maximum (another row was added after the removal): the fold refuses the restore (`removed_at` back to null over a full table), and the device's commit path applies the inverse op straight through `applyOp`, so the refusal surfaces as a write error instead of a reason such as "Máximo de 30 pontos nesta tabela.".
+  evidence: `packages/domain/src/ops/apply.ts` `assertAddedRow` (the `value === null` restore over `liveAddedRows(rows) >= max`, about line 633); `apps/web/src/db/commit.ts` `applyOne` (calls `applyOp` directly, about line 82).
+  class: gap
+  state: open (owner: the next batch touching added rows; low)

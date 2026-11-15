@@ -63,6 +63,15 @@ export function addedRowNameLabel(key: AddedRowsKey): string {
   return `Nome d${noun.gender === 'f' ? 'a' : 'o'} ${noun.singular}`;
 }
 
+/**
+ * Review of PR #334 (Story 25.14): the label the conflict view gives a row's contested name, by the row, so two rows'
+ * names in conflict never read alike: "Nome do ponto · Portão sul" (its current name, as its cells' labels say), and for
+ * a row with no name "Nome do ponto · Linha 7" (its place in the table, 1-based, after the definition's rows).
+ */
+export function addedRowNameConflictLabel(key: AddedRowsKey, name: string | null, tableRow: number): string {
+  return `${addedRowNameLabel(key)} · ${name ?? `Linha ${tableRow + 1}`}`;
+}
+
 /** The accessible name of a row's remove action: "Remover ponto Quadro geral de baixa tensão", "Remover bateria Bateria 1" (the frames'). */
 export function addedRowRemoveLabel(key: AddedRowsKey, label: string): string {
   return `Remover ${nounOf(key).singular} ${label}`;

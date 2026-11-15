@@ -1150,6 +1150,10 @@ function evaluateAddedRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest
         toCheck: false,
       };
     });
+    // Review of PR #334 (Stories 25.14 and 25.16): an added row is never optional, even under optional columns (the
+    // thermography's two ΔT): while every number cell of it is empty, those cells count as missing. One filled is enough.
+    const numbers = cells.filter((cell) => cell.kind === 'number');
+    if (numbers.length > 0 && numbers.every((cell) => cell.state === 'empty')) for (const cell of numbers) cell.missing = true;
     return { row: at, key: id, label: name ?? addedRowUnnamedText(test.added_rows!), cells, added: { id, name, nameMissing: name === null } };
   });
 }
@@ -1215,6 +1219,9 @@ function evaluateRows(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, con
 function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): EvaluatedMeasurementValue[] {
   const stored = block.sheet.test[test.key]?.values ?? {};
   const heldBy = (value: MeasurementValue) => read(stored[value.key], value.kind, value.options ?? []);
+  // Review of PR #334 (Story 25.15): the text of why a test was not done ("Descreva o motivo" under "Outro") with no
+  // letter or digit ("...") is not a reason: it counts as missing, as an empty one does, while the field still echoes it.
+  const asked = performedFamily(test);
   return (test.values ?? []).map((value): EvaluatedMeasurementValue => {
     const held = heldBy(value);
     const state: ReadingState = held?.state ?? 'empty';
@@ -1233,9 +1240,14 @@ function evaluateValues(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest): 
       state,
       raw: held?.raw ?? '',
       displayText: value.kind === 'number' && isReadingValue(state) ? withUnit(text, unit) : text,
-      missing: shown && value.optional !== true && state === 'empty',
+      missing: shown && value.optional !== true && (state === 'empty' || (value.kind === 'text' && asked.has(value.key) && state === 'measured' && !hasWords(held!.raw))),
     };
   });
+}
+
+/** Review of PR #334 (Story 25.15): whether a typed text says anything, by holding one letter or digit at least. */
+function hasWords(text: string): boolean {
+  return /[\p{L}\p{N}]/u.test(text);
 }
 
 /**
@@ -1306,7 +1318,7 @@ function performanceOf(test: MeasurementTest, values: readonly EvaluatedMeasurem
       ? undefined
       : values.find((candidate) => {
           const when = (test.values ?? []).find((definition) => definition.key === candidate.key)?.when;
-          return candidate.kind === 'text' && candidate.shown && candidate.state === 'measured' && candidate.raw.trim() !== '' && when !== undefined && !('cell' in when) && when.value === reason!.key;
+          return candidate.kind === 'text' && candidate.shown && candidate.state === 'measured' && hasWords(candidate.raw) && when !== undefined && !('cell' in when) && when.value === reason!.key;
         });
   return {
     state: 'not_done',

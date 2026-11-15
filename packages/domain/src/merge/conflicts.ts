@@ -6,7 +6,7 @@ import { avatarInitial } from '../registration.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { sheetOrder, fieldValueText } from '../relatorio/ficha.ts';
 import { measurementCellLabel, measurementStoredText, measurementTestTitle, measurementValueLabel } from '../relatorio/measurement-evaluation.ts';
-import { addedRowName, addedRowNameLabel, addedRowUnnamedText } from '../relatorio/added-rows.ts';
+import { addedRowName, addedRowNameConflictLabel, addedRowUnnamedText } from '../relatorio/added-rows.ts';
 import { nameplateTitleOf } from '../relatorio/nameplate-block.ts';
 import { overRangeText } from '../relatorio/over-range.ts';
 import { evaluateTest, manufacturerValueText } from '../relatorio/reading-evaluation.ts';
@@ -350,10 +350,12 @@ function cellConflictsOf(
     const added = Object.entries(stored.added_rows ?? {})
       .filter(([, row]) => (row.removed_at ?? null) === null)
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    for (const [rowId, row] of added) {
+    const definitionRows = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.rows.length ?? 0;
+    for (const [position, [rowId, row]] of added.entries()) {
       const name = addedRowName(row.name?.value);
       const rowLabel = name ?? (addedKey === undefined ? rowId : addedRowUnnamedText(addedKey));
-      push({ family: 'sheet/test/row', block_id: blockId, test_key: key, row_id: rowId, field: 'name' }, row.name, title, addedKey === undefined ? rowLabel : addedRowNameLabel(addedKey));
+      // Review of PR #334: the contested name is labelled by its row (as the evaluation places it, after the definition's rows).
+      push({ family: 'sheet/test/row', block_id: blockId, test_key: key, row_id: rowId, field: 'name' }, row.name, title, addedKey === undefined ? rowLabel : addedRowNameConflictLabel(addedKey, name, definitionRows + position));
       const columns = (definition?.measurement_tests ?? []).find((row) => row.key === key)?.columns ?? [];
       for (const col of Object.keys(row.cells).map(Number).sort((a, b) => a - b)) {
         const column = columns[col]?.label ?? `coluna ${col + 1}`;

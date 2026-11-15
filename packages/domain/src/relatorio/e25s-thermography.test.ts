@@ -27,8 +27,8 @@ interface Answer {
   texto?: string;
   /** `[row, col, raw]` readings of the definition's rows. */
   cells?: [number, number, string][];
-  /** One added point, its name and its two ΔT. */
-  added?: { name: string; similares: string; ambiente: string };
+  /** One added point, its name and its two ΔT (a ΔT left out is an empty cell). */
+  added?: { name: string; similares?: string; ambiente?: string };
 }
 
 const v16 = layoutLockSnapshot('v16');
@@ -49,7 +49,14 @@ function answered(snapshot: RelatorioSnapshot, type: string, answer: Answer): Re
   const test: Record<string, unknown> = { ...entry };
   if (answer.added !== undefined) {
     test.added_rows = {
-      [ROW_ID]: { name: cell(answer.added.name), cells: { '0': cell(degrees(answer.added.similares)), '1': cell(degrees(answer.added.ambiente)) }, removed_at: null },
+      [ROW_ID]: {
+        name: cell(answer.added.name),
+        cells: {
+          ...(answer.added.similares === undefined ? {} : { '0': cell(degrees(answer.added.similares)) }),
+          ...(answer.added.ambiente === undefined ? {} : { '1': cell(degrees(answer.added.ambiente)) }),
+        },
+        removed_at: null,
+      },
     };
   }
   (block.sheet.test as Record<string, unknown>)[STORY_25_15_TEST] = test;
@@ -97,6 +104,37 @@ describe('25.15-UNIT the v16 thermography over both answers: the progress', () =
     expect(notDone.skipped).toBe(true);
     expect(measurementCounts([notDone])).toEqual({ missing: 0, outOfLimit: 0 });
     expect(notDone.rows.flatMap((row) => row.cells).every((one) => one.verdict === null && !one.missing)).toBe(true);
+  });
+
+  it('review of PR #334: an added point with both ΔT empty is missing (an added row is never optional); one ΔT typed is enough', () => {
+    const base = ensaiosMissing(answered(v16, 'transformador_forca', { realizacao: 'realizada' }), 'transformador_forca');
+    const empty = answered(v16, 'transformador_forca', { realizacao: 'realizada', added: { name: 'Conexão do para-raio' } });
+    const point = thermographyOf(empty, 'transformador_forca').rows.find((row) => row.added !== undefined)!;
+    expect(point.cells.map((one) => one.missing)).toEqual([true, true]);
+    expect(ensaiosMissing(empty, 'transformador_forca')).toBeGreaterThan(base);
+    expect(measurementCounts([thermographyOf(empty, 'transformador_forca')]).missing).toBe(2);
+    const one = answered(v16, 'transformador_forca', { realizacao: 'realizada', added: { name: 'Conexão do para-raio', ambiente: '4' } });
+    expect(thermographyOf(one, 'transformador_forca').rows.find((row) => row.added !== undefined)!.cells.map((cell) => cell.missing)).toEqual([false, false]);
+    expect(ensaiosMissing(one, 'transformador_forca')).toBe(base);
+    // The definition's rows stay optional: "Realizada" with no point typed still counts none.
+    expect(measurementCounts([thermographyOf(answered(v16, 'transformador_forca', { realizacao: 'realizada' }), 'transformador_forca')]).missing).toBe(0);
+  });
+
+  it('review of PR #334: under "Outro", a text with no letter or digit ("...") is no reason: it counts missing and the clause reads none', () => {
+    const base = ensaiosMissing(answered(v16, 'disjuntor_mt', { realizacao: 'realizada' }), 'disjuntor_mt');
+    for (const texto of ['...', ' - ', '!?']) {
+      const snapshot = answered(v16, 'disjuntor_mt', { realizacao: 'nao_realizada', motivo: 'outro', texto });
+      const test = thermographyOf(snapshot, 'disjuntor_mt');
+      const typed = test.values.find((value) => value.key === 'motivo_texto')!;
+      // The field still echoes what was typed.
+      expect([typed.state, typed.raw, typed.missing]).toEqual(['measured', texto, true]);
+      expect(ensaiosMissing(snapshot, 'disjuntor_mt')).toBe(base + 1);
+      expect(test.performance).toMatchObject({ state: 'not_done', reason: 'Outro', typed: null });
+    }
+    // A text with one letter or digit is a reason.
+    const given = thermographyOf(answered(v16, 'disjuntor_mt', { realizacao: 'nao_realizada', motivo: 'outro', texto: 'Chuva.' }), 'disjuntor_mt');
+    expect(given.values.find((value) => value.key === 'motivo_texto')!.missing).toBe(false);
+    expect(given.performance).toMatchObject({ typed: 'Chuva' });
   });
 
   it('a template that switched the test off asks nothing, whatever it holds', () => {

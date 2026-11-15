@@ -118,10 +118,12 @@ test('@p0 23.20-E2E-001 thermography on a para-raio and a TC in load (out, restr
  * shows the applied band with "Desfazer a aplicação" (never "Seguir a placa"); tapping it toasts "Aplicação
  * desfeita — não se aplica" and writes the override back to null. A plate condition (the seccionadora's HH
  * fuses with TIPO DE SECCIONADORA SEM CARGA) keeps "Seguir a placa".
+ * Batch e25s (Story 25.15): pinned to seed v15, the last seed whose thermography asks "Equipamento em carga" and
+ * offers the override band; on v16 the thermography asks "Realizada" or "Não realizada" and nothing makes it N.A.
  */
 test('@p0 e23z-E2E-001 W3-6 thermography applied by hand under its own value: the band and its button name no plate; a plate condition keeps "Seguir a placa"', async ({ page }) => {
   test.setTimeout(180_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, (all) => [{ blockType: 'chave_seccionadora', key: 'tipo_seccionadora', value: 'SEM CARGA' }].filter((write) => all.some((sheet) => sheet.blockType === write.blockType)));
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, (all) => [{ blockType: 'chave_seccionadora', key: 'tipo_seccionadora', value: 'SEM CARGA' }].filter((write) => all.some((sheet) => sheet.blockType === write.blockType)), 'v15');
   const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const sc = sheets.find((sheet) => sheet.blockType === 'chave_seccionadora')!;
   const path = `sheet/${dj.blockId}/test/${KEY}/applicability`;
