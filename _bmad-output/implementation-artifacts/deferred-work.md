@@ -3805,7 +3805,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: Built as the coordinator read them, open to Matheus: the TC gains no item on its secondary (B-11 for Bruno) and the TP's fuse wording is a hint; forced ventilation is item 5 renamed and made a dry item, the three new transformer items appended, nothing printed about the laboratory's report; the QGBT function test is one item with a hint and the thermography keeps its four points (B-3); the No-break has six items, "Potência (VA/W)" is two fields (W optional), the battery fields carry "BATERIAS:" and the photo fills them only when it shows them; the "Outro" text is required while it shows; the grid's block is "Dados da malha", on v14 only.
   evidence: `epics.md` § Stories 24.10 to 24.14, "Coordinator's reading"; `packages/domain/src/seed/v14.ts` (the batch's fenced sections).
   class: decision
-  state: open (owner: Matheus)
+  state: open (owner: Matheus) *(2026-11-15, batch e25s, Story 25.18: the part on the TC's secondary is closed. Bruno answered B-11 on 2026-11-11 (answer 11) with the wording, and seed v16's TC asks it as item 7, `seed/v16.ts` § Story 25.18; v14 and v15 keep six items. The rest of the row stays open.)*
 - source_spec: `spec-e24s-seed-v14-sheets.md` (authored strings, listed for Bruno)
   summary: The batch's authored pt-BR texts: the TP's FUSÍVEIS hint; the transformer's three new items' NC phrases; the QGBT inspection's two hints and the function test's four phrases; the No-break's name, print title, eighteen plate labels, six items, two hints and nineteen NC phrases, and its nouns; "Descreva o motivo", "Ditar o motivo", the printed form "MOTIVO: OUTRO, <texto>"; "Dados da malha"; the toast for cleared dry items (the reason line of an oil field on a non-oil unit reuses e23p's form).
   evidence: every `// authored (e24s, listed for Bruno)` in `packages/domain/src` and `apps/web/src/copy/pt-br.ts`; `docs/nc-chip-phrases.md`.
@@ -4166,3 +4166,21 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/types/test-base-update.ts` `addSeedTests`; reproduce with `companyTypeDefinitionSchema.safeParse` on the TR-OL draft of the AC2 case in `test-base-update.test.ts`.
   class: bug
   state: open (owner: Matheus to decide; medium)
+
+## Deferred from: Epic 25 batch e25s, Stories 25.18 and 25.19 (2026-11-15)
+
+- source_spec: Story 25.18 (authored strings, listed for Bruno)
+  summary: The batch's authored pt-BR texts: the three NC phrases of the v16 TC's item 7 ("secundário aberto nos bornes", "bornes de aferição danificados", "bornes de aferição oxidados ou com conexão frouxa"). The item's label and the transformer's six hints are the story's wording; the hints wait for Bruno's confirmation (B-5). On screen the hint reads "Relé Buchholz, quando houver" ("Buchholz" kept as a proper name, `SCREEN_LABEL_ACRONYMS`).
+  evidence: `packages/domain/src/seed/v16.ts` § Story 25.18 (`// authored (e25s, Story 25.18, listed for Bruno)`); `docs/nc-chip-phrases.md` § "TC on seed v16".
+  class: decision
+  state: open (owner: Bruno, through Matheus, with B-5)
+- source_spec: Story 25.18 (DoD "the tap budgets checked on the TC")
+  summary: The tap budget's journeys (`e2e/tap-budget.spec.ts`, J1 and J3) run on the seccionadora, so the TC's new item changes neither of them; 25.18-E2E-001 checks the TC's own count instead (NC, one chip, one "Marcar os restantes como Conforme" for the six others). No v16 run of `budgetRun` was added by this batch, to leave the spec to the wave's other lane.
+  evidence: `e2e/seed-v16-lists.spec.ts`; `e2e/tap-budget.spec.ts` (`budgetRun`, v12, v14 and v15 runs).
+  class: gap
+  state: open (owner: the coordinator, at the wave gate; low)
+- source_spec: Story 25.19 (the oil half, not built)
+  summary: Only the "A SECO" half is built, on seed v16 (not v15, frozen). The oil option's name on the three types (ÓLEO ISOLANTE on the transformer, ÓLEO MINERAL on the TP and the TC), a vegetable option and what becomes of NATUREZA DO LÍQUIDO wait for Bruno's answer to B-4; no oil name, threshold or field was invented. The plate prompt reads the options and "A SECO" changed one of them: the plate eval has not run.
+  evidence: `packages/domain/src/seed/v16.ts` § Story 25.19; `epics.md` § Story 25.19; `source-deltas.md`, the row on Story 23.17.
+  class: decision
+  state: open (owner: Bruno, B-4; Matheus for the paid plate eval before the deploy, E21-A4)
