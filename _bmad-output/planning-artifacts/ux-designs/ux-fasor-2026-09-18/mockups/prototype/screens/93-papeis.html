@@ -1,0 +1,245 @@
+<style data-screen="papeis">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.10: Papéis e permissões, the second tab of Usuários (its own route, /usuarios/papeis,
+   only with roles.manage). Signed in as Bruno, Admin. The five seeded roles plus one the company created ("Estagiário", invented sample).
+
+   Layout choice (MOCK-GUIDE.md § 2026-11-21): roles as columns, modules as rows, each module row opening into its keys.
+     - From 768 px every role is a column: five seeded roles and one custom role fit in the 720 px content box with no horizontal
+       scroll, because a cell holds only a switch (the 52 px track, no "Ativado" word) and the label column is 168 px at 768 px.
+       Seven modules are seven rows, so the table stays short; the twelve keys show only under an opened module.
+     - On a phone (below 768 px) one role at a time: the Filter chips "Papel" pick the column, the table keeps the label column and
+       that role's column. A seventh or eighth role adds a chip, never a column.
+   Components: Tabs; the switch of "Localização nas fotos" (.toggle, 90-account.html) in every key cell; Filter chips; the Overflow menu
+   on a role's name; the Form dialog and the Confirm dialog; the Sticky action bar with its btn-reason line. Page CSS on existing tokens:
+     - a module of several keys carries a module switch, role="checkbox": on when the role holds every key, off when none, and the
+       mixed look (primary outline, focus-fill track, knob in the middle) with "N de M" under it when some. A tap on it gives all the
+       keys, a second tap takes them all (the select-all rule). One-key modules carry the key's own switch, role="switch".
+     - the Admin column: every switch on and aria-disabled, the lock glyph in its head, and one note above the grid.
+     - a changed, unsaved cell carries a 8 px primary dot and the hidden words "alterado, não salvo".
+   Governs: EXPERIENCE.md § IA › Usuários › Papéis e permissões; § Component Patterns › Permissions grid (2026-11-21). */
+[data-route="/usuarios/papeis"] .tab { text-decoration: none; }
+[data-route="/usuarios/papeis"] .pp-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }
+[data-route="/usuarios/papeis"] .pp-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.frame-phone [data-route="/usuarios/papeis"] .pp-head .btn { width: 100%; }
+[data-route="/usuarios/papeis"] .pp-admin-note { display: flex; align-items: flex-start; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+[data-route="/usuarios/papeis"] .pp-admin-note .ico { flex: none; color: var(--ink-secondary); margin-top: 2px; }
+/* phone role picker */
+[data-route="/usuarios/papeis"] .pp-pick { display: none; margin-bottom: var(--sp-3); }
+.frame-phone [data-route="/usuarios/papeis"] .pp-pick { display: flex; }
+[data-route="/usuarios/papeis"] .chip[role="radio"] { cursor: pointer; }
+[data-route="/usuarios/papeis"] .chip[role="radio"][aria-checked="true"] { background: var(--focus-fill); border-color: var(--primary); color: var(--primary); }   /* mirrors components.css .chip[aria-pressed="true"] */
+/* the grid */
+[data-route="/usuarios/papeis"] .pp-grid { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
+[data-route="/usuarios/papeis"] .pp-grid th, [data-route="/usuarios/papeis"] .pp-grid td { border-top: 1px solid var(--border-hairline); vertical-align: middle; }
+[data-route="/usuarios/papeis"] .pp-grid thead th { border-top: 0; border-bottom: 1px solid var(--border-strong); background: var(--surface-base); }
+[data-route="/usuarios/papeis"] .pp-grid thead th:first-child { border-top-left-radius: var(--r-md); }
+[data-route="/usuarios/papeis"] .pp-grid thead th:last-child { border-top-right-radius: var(--r-md); }
+[data-route="/usuarios/papeis"] .pp-grid tbody:first-of-type tr:first-child > * { border-top: 0; }
+[data-route="/usuarios/papeis"] .pp-corner { width: 168px; padding: var(--sp-2) var(--sp-3); text-align: left; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); vertical-align: bottom; }
+.frame-tablet-landscape [data-route="/usuarios/papeis"] .pp-corner { width: 232px; }
+.frame-desktop [data-route="/usuarios/papeis"] .pp-corner { width: 272px; }
+[data-route="/usuarios/papeis"] .pp-role { padding: var(--sp-2) 2px; text-align: center; vertical-align: bottom; }
+[data-route="/usuarios/papeis"] .pp-role-name, [data-route="/usuarios/papeis"] .pp-role-btn { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px; min-height: var(--touch-min); padding: 0 2px; font-size: var(--t-label-size); font-weight: 600; line-height: 1.25; color: var(--ink-primary); white-space: normal; hyphens: auto; overflow-wrap: break-word; text-align: center; }
+[data-route="/usuarios/papeis"] .pp-role-btn { cursor: pointer; color: var(--primary); border-radius: var(--r-sm); }
+[data-route="/usuarios/papeis"] .pp-role-name .ico { color: var(--ink-secondary); }
+[data-route="/usuarios/papeis"] .pp-role-meta { display: block; font-size: 12px; line-height: 1.3; color: var(--ink-secondary); }
+[data-route="/usuarios/papeis"] .pp-label { padding: 0 var(--sp-2) 0 0; text-align: left; font-weight: 400; }
+[data-route="/usuarios/papeis"] .pp-mod-toggle { display: flex; align-items: center; gap: var(--sp-1); width: 100%; min-height: var(--touch-field); padding: var(--sp-1) 0; text-align: left; }
+[data-route="/usuarios/papeis"] button.pp-mod-toggle { cursor: pointer; }
+[data-route="/usuarios/papeis"] .pp-chev, [data-route="/usuarios/papeis"] .pp-chev-space { flex: none; width: var(--touch-min); display: inline-flex; justify-content: center; }
+[data-route="/usuarios/papeis"] .pp-chev { width: 24px; margin: 0 12px; color: var(--ink-secondary); transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/usuarios/papeis"] .pp-module.is-open .pp-chev { transform: none; }
+[data-route="/usuarios/papeis"] .pp-mod-text { display: flex; flex-direction: column; min-width: 0; }
+[data-route="/usuarios/papeis"] .pp-mod-name { font-size: var(--t-body-size); font-weight: 600; color: var(--ink-primary); }
+[data-route="/usuarios/papeis"] .pp-mod-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.frame-tablet [data-route="/usuarios/papeis"] .pp-mod-meta { display: none; }   /* at 768 px the 168 px label column keeps only the names */
+[data-route="/usuarios/papeis"] .pp-mod-row > * { background: var(--surface-raised); }
+[data-route="/usuarios/papeis"] .pp-module:not(.is-open) .pp-key-row { display: none; }
+[data-route="/usuarios/papeis"] .pp-key-row > * { background: var(--surface-base); }
+[data-route="/usuarios/papeis"] .pp-key { padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--touch-min); }
+[data-route="/usuarios/papeis"] .pp-key-name { display: block; font-size: var(--t-body-size); color: var(--ink-primary); }
+[data-route="/usuarios/papeis"] .pp-key-help { display: block; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/usuarios/papeis"] .pp-cell { position: relative; padding: var(--sp-1) 2px; text-align: center; }
+[data-route="/usuarios/papeis"] .pp-cell .toggle { cursor: pointer; justify-content: center; }
+[data-route="/usuarios/papeis"] .pp-count { display: block; font-size: 12px; line-height: 1.3; color: var(--primary); font-weight: 600; }
+[data-route="/usuarios/papeis"] .pp-cell:not(:has([aria-checked="mixed"])) .pp-count { display: none; }
+/* mixed look of a module switch (some keys of the module, not all) */
+[data-route="/usuarios/papeis"] .toggle[aria-checked="mixed"] .track { border-color: var(--primary); background: var(--focus-fill); }
+[data-route="/usuarios/papeis"] .toggle[aria-checked="mixed"] .knob { left: 14px; background: var(--primary); }
+/* the Admin column: on and locked */
+[data-route="/usuarios/papeis"] .toggle[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+/* a changed, unsaved cell */
+[data-route="/usuarios/papeis"] .pp-cell.is-changed::after { content: ""; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+[data-route="/usuarios/papeis"] .pp-root.is-saved .pp-cell.is-changed::after { display: none; }
+/* phone: one role at a time, picked by the chips */
+.frame-phone [data-route="/usuarios/papeis"] .pp-corner { width: auto; }
+.frame-phone [data-route="/usuarios/papeis"] .pp-role { width: 104px; }
+.frame-phone [data-route="/usuarios/papeis"] .pp-root:has(#pp-pick-admin[aria-checked="true"]) .pp-grid [data-role]:not([data-role="admin"]),
+.frame-phone [data-route="/usuarios/papeis"] .pp-root:has(#pp-pick-campo[aria-checked="true"]) .pp-grid [data-role]:not([data-role="campo"]),
+.frame-phone [data-route="/usuarios/papeis"] .pp-root:has(#pp-pick-gestor[aria-checked="true"]) .pp-grid [data-role]:not([data-role="gestor"]),
+.frame-phone [data-route="/usuarios/papeis"] .pp-root:has(#pp-pick-rt[aria-checked="true"]) .pp-grid [data-role]:not([data-role="rt"]),
+.frame-phone [data-route="/usuarios/papeis"] .pp-root:has(#pp-pick-consulta[aria-checked="true"]) .pp-grid [data-role]:not([data-role="consulta"]),
+.frame-phone [data-route="/usuarios/papeis"] .pp-root:has(#pp-pick-estag[aria-checked="true"]) .pp-grid [data-role]:not([data-role="estag"]) { display: none; }
+/* the Sticky action bar: unsaved, then saved */
+[data-route="/usuarios/papeis"] .pp-saved-line { display: none; }
+[data-route="/usuarios/papeis"] .screen-wrap:has(.pp-root.is-saved) .pp-saved-line { display: block; }
+[data-route="/usuarios/papeis"] .screen-wrap:has(.pp-root.is-saved) .pp-dirty-line { display: none; }
+[data-route="/usuarios/papeis"] .screen-wrap:has(.pp-root.is-saved) .pp-save, [data-route="/usuarios/papeis"] .screen-wrap:has(.pp-root.is-saved) .pp-discard { opacity: .4; }
+[data-route="/usuarios/papeis"] .screen-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+[data-route="/usuarios/papeis"] .sim-foot { margin-top: var(--sp-5); display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+[data-route="/usuarios/papeis"] .sim-foot .btn-text { font-size: var(--t-meta-size); }
+.frame-phone [data-route="/usuarios/papeis"] .confirm-dialog { margin: auto var(--sp-4); }
+</style>
+<section class="screen" data-route="/usuarios/papeis" data-title="Usuários" data-shell="app" data-rail="false">
+
+  <nav class="tabs" role="tablist" aria-label="Usuários">
+    <a class="tab" role="tab" aria-selected="false" href="#/usuarios">Usuários</a>
+    <a class="tab" role="tab" aria-selected="true" href="#/usuarios/papeis">Papéis e permissões</a>
+  </nav>
+
+  <div class="screen-wrap">
+  <div class="content pp-root" id="pp-root">
+
+    <div class="pp-head">
+      <h2>Papéis e permissões</h2>
+      <button class="btn btn-secondary" data-open="#pp-dlg-novo"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo papel</button>
+    </div>
+    <p class="section-note">Cada coluna é um papel; cada linha, um módulo do aplicativo. Abra um módulo para ver as permissões dele. Uma mudança vale para todos os usuários do papel, na próxima sincronização de cada aparelho.</p>
+    <p class="section-note pp-admin-note"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-lock"/></svg><span>Admin tem todas as permissões, sempre. A coluna não muda, para a empresa nunca ficar sem quem cuide dos usuários.</span></p>
+
+    <!-- Phone only: one role at a time -->
+    <div class="field pp-pick">
+      <span class="field-label" id="pp-pick-l">Papel</span>
+      <div class="chip-row" role="radiogroup" aria-labelledby="pp-pick-l">
+        <button class="chip" role="radio" id="pp-pick-admin" aria-checked="false">Admin</button>
+        <button class="chip" role="radio" id="pp-pick-campo" aria-checked="true">Engenheiro de Campo</button>
+        <button class="chip" role="radio" id="pp-pick-gestor" aria-checked="false">Gestor do Projeto</button>
+        <button class="chip" role="radio" id="pp-pick-rt" aria-checked="false">Responsável Técnico</button>
+        <button class="chip" role="radio" id="pp-pick-consulta" aria-checked="false">Consulta</button>
+        <button class="chip" role="radio" id="pp-pick-estag" aria-checked="false">Estagiário</button>
+      </div>
+    </div>
+
+    <table class="pp-grid" aria-label="Permissões por papel">
+      <thead><tr>
+        <th class="pp-corner" scope="col">Módulo</th>
+        <th class="pp-role" data-role="admin" scope="col"><span class="pp-role-name"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-lock"/></svg>Admin</span><span class="pp-role-meta">1 usuário</span></th>
+        <th class="pp-role" data-role="campo" scope="col"><button class="pp-role-btn" data-open="#pp-menu-padrao" aria-label="Opções do papel Engenheiro de Campo">Engenheiro de Campo<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="pp-role-meta">2 usuários</span></th>
+        <th class="pp-role" data-role="gestor" scope="col"><button class="pp-role-btn" data-open="#pp-menu-padrao" aria-label="Opções do papel Gestor do Projeto">Gestor do Projeto<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="pp-role-meta">1 usuário</span></th>
+        <th class="pp-role" data-role="rt" scope="col"><button class="pp-role-btn" data-open="#pp-menu-padrao" aria-label="Opções do papel Responsável Técnico">Responsável Técnico<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="pp-role-meta">1 usuário</span></th>
+        <th class="pp-role" data-role="consulta" scope="col"><button class="pp-role-btn" data-open="#pp-menu-padrao" aria-label="Opções do papel Consulta">Consulta<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="pp-role-meta">1 usuário</span></th>
+        <th class="pp-role" data-role="estag" scope="col"><button class="pp-role-btn" data-open="#pp-menu-custom" aria-label="Opções do papel Estagiário">Estagiário<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="pp-role-meta">1 usuário · criado</span></th>
+      </tr></thead>
+      <tbody class="pp-module is-open">
+        <tr class="pp-mod-row"><th class="pp-label" scope="row"><button class="pp-mod-toggle" data-toggle-class="is-open" data-toggle-target="closest:tbody" aria-label="Abrir ou fechar as permissões de Relatórios"><svg class="ico pp-chev" aria-hidden="true"><use href="#i-chev-down"/></svg><span class="pp-mod-text"><span class="pp-mod-name">Relatórios</span><span class="pp-mod-meta">Início, projeto e sumário; criar e remover relatórios</span></span></button></th><td class="pp-cell" data-role="admin"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="Relatórios — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle pp-mod" role="checkbox" aria-checked="mixed" aria-label="Relatórios — Engenheiro de Campo, 2 de 3"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="pp-count" aria-hidden="true">2 de 3</span></td><td class="pp-cell" data-role="gestor"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-label="Relatórios — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle pp-mod" role="checkbox" aria-checked="mixed" aria-label="Relatórios — Responsável Técnico, 2 de 3"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="pp-count" aria-hidden="true">2 de 3</span></td><td class="pp-cell" data-role="consulta"><button class="toggle pp-mod" role="checkbox" aria-checked="mixed" aria-label="Relatórios — Consulta, 1 de 3"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="pp-count" aria-hidden="true">1 de 3</span></td><td class="pp-cell" data-role="estag"><button class="toggle pp-mod" role="checkbox" aria-checked="mixed" aria-label="Relatórios — Estagiário, 1 de 3"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="pp-count" aria-hidden="true">1 de 3</span></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Ver relatórios</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Ver relatórios — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="true" aria-label="Ver relatórios — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Ver relatórios — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Ver relatórios — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="true" aria-label="Ver relatórios — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="true" aria-label="Ver relatórios — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Criar relatório</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Criar relatório — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell is-changed" data-role="campo"><button class="toggle" role="switch" aria-checked="true" aria-label="Criar relatório — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="visually-hidden">alterado, não salvo</span></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Criar relatório — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Criar relatório — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Criar relatório — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Criar relatório — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Remover relatório</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Remover relatório — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Remover relatório — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Remover relatório — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Remover relatório — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Remover relatório — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Remover relatório — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+      <tbody class="pp-module">
+        <tr class="pp-mod-row"><th class="pp-label pp-single" scope="row"><span class="pp-mod-toggle"><span class="pp-chev-space" aria-hidden="true"></span><span class="pp-mod-text"><span class="pp-mod-name">Preenchimento em campo</span><span class="pp-mod-meta">Fichas, fotos, pontos, textos das seções e verificações do local</span></span></span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Preencher fichas, fotos e pontos — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="true" aria-label="Preencher fichas, fotos e pontos — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Preencher fichas, fotos e pontos — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Preencher fichas, fotos e pontos — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Preencher fichas, fotos e pontos — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="true" aria-label="Preencher fichas, fotos e pontos — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+      <tbody class="pp-module">
+        <tr class="pp-mod-row"><th class="pp-label" scope="row"><button class="pp-mod-toggle" data-toggle-class="is-open" data-toggle-target="closest:tbody" aria-label="Abrir ou fechar as permissões de Emissão"><svg class="ico pp-chev" aria-hidden="true"><use href="#i-chev-down"/></svg><span class="pp-mod-text"><span class="pp-mod-name">Emissão</span><span class="pp-mod-meta">Gerar relatório, pré-visualizar, Conferência por IA, Emitido; baixar DOCX e PDF</span></span></button></th><td class="pp-cell" data-role="admin"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="Emissão — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Emissão — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle pp-mod" role="checkbox" aria-checked="mixed" aria-label="Emissão — Gestor do Projeto, 1 de 2"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="pp-count" aria-hidden="true">1 de 2</span></td><td class="pp-cell" data-role="rt"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-label="Emissão — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle pp-mod" role="checkbox" aria-checked="mixed" aria-label="Emissão — Consulta, 1 de 2"><span class="track" aria-hidden="true"><span class="knob"></span></span></button><span class="pp-count" aria-hidden="true">1 de 2</span></td><td class="pp-cell" data-role="estag"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Emissão — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Gerar e emitir relatório</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Gerar e emitir relatório — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerar e emitir relatório — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerar e emitir relatório — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Gerar e emitir relatório — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerar e emitir relatório — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerar e emitir relatório — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Baixar DOCX e PDF emitidos</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Baixar DOCX e PDF emitidos — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Baixar DOCX e PDF emitidos — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Baixar DOCX e PDF emitidos — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Baixar DOCX e PDF emitidos — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="true" aria-label="Baixar DOCX e PDF emitidos — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Baixar DOCX e PDF emitidos — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+      <tbody class="pp-module">
+        <tr class="pp-mod-row"><th class="pp-label pp-single" scope="row"><span class="pp-mod-toggle"><span class="pp-chev-space" aria-hidden="true"></span><span class="pp-mod-text"><span class="pp-mod-name">Modelos</span><span class="pp-mod-meta">Templates e o compositor</span></span></span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Editar modelos — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar modelos — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+      <tbody class="pp-module">
+        <tr class="pp-mod-row"><th class="pp-label pp-single" scope="row"><span class="pp-mod-toggle"><span class="pp-chev-space" aria-hidden="true"></span><span class="pp-mod-text"><span class="pp-mod-name">Tipos de equipamento</span><span class="pp-mod-meta">O editor de tipos e a base de ensaios</span></span></span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Editar tipos de equipamento — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar tipos de equipamento — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+      <tbody class="pp-module">
+        <tr class="pp-mod-row"><th class="pp-label" scope="row"><button class="pp-mod-toggle" data-toggle-class="is-open" data-toggle-target="closest:tbody" aria-label="Abrir ou fechar as permissões de Cadastros"><svg class="ico pp-chev" aria-hidden="true"><use href="#i-chev-down"/></svg><span class="pp-mod-text"><span class="pp-mod-name">Cadastros</span><span class="pp-mod-meta">As abas de Cadastros; aceitar sugestões</span></span></button></th><td class="pp-cell" data-role="admin"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="Cadastros — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Cadastros — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-label="Cadastros — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-label="Cadastros — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Cadastros — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Cadastros — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Editar cadastros</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Editar cadastros — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar cadastros — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar cadastros — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar cadastros — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar cadastros — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar cadastros — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Aceitar sugestões de cadastro</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Aceitar sugestões de cadastro — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Aceitar sugestões de cadastro — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Aceitar sugestões de cadastro — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Aceitar sugestões de cadastro — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Aceitar sugestões de cadastro — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Aceitar sugestões de cadastro — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+      <tbody class="pp-module">
+        <tr class="pp-mod-row"><th class="pp-label" scope="row"><button class="pp-mod-toggle" data-toggle-class="is-open" data-toggle-target="closest:tbody" aria-label="Abrir ou fechar as permissões de Usuários e papéis"><svg class="ico pp-chev" aria-hidden="true"><use href="#i-chev-down"/></svg><span class="pp-mod-text"><span class="pp-mod-name">Usuários e papéis</span><span class="pp-mod-meta">A tela Usuários; esta grade e os papéis criados</span></span></button></th><td class="pp-cell" data-role="admin"><button class="toggle pp-mod" role="checkbox" aria-checked="true" aria-disabled="true" aria-label="Usuários e papéis — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Usuários e papéis — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Usuários e papéis — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Usuários e papéis — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Usuários e papéis — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle pp-mod" role="checkbox" aria-checked="false" aria-label="Usuários e papéis — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Gerenciar usuários</span><span class="pp-key-help">Quem tem esta permissão pode mudar usuários e papéis, inclusive os próprios.</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Gerenciar usuários — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar usuários — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar usuários — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar usuários — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar usuários — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar usuários — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Gerenciar papéis e permissões</span><span class="pp-key-help">Quem tem esta permissão pode mudar usuários e papéis, inclusive os próprios.</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Gerenciar papéis e permissões — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar papéis e permissões — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar papéis e permissões — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar papéis e permissões — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar papéis e permissões — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Gerenciar papéis e permissões — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Prototype only -->
+    <div class="sim-foot">
+      <button class="btn btn-text" data-open="#pp-dlg-remover-ok">Simular: remover um papel que ninguém tem</button>
+      <a class="btn btn-text" href="#/home/campo">Ver o Início do Engenheiro de Campo</a>
+    </div>
+  </div><!-- /content -->
+
+  <!-- One save for the whole grid. Unsaved: the count; saved: when it takes effect. -->
+  <div class="sticky-action-bar">
+    <span class="btn-reason pp-dirty-line">1 alteração não salva: Engenheiro de Campo · Criar relatório.</span>
+    <span class="btn-reason pp-saved-line" role="status">Permissões salvas. Cada aparelho passa a segui-las na próxima sincronização.</span>
+    <div class="bar-buttons">
+      <button class="btn btn-secondary pp-discard" data-toast="A grade volta ao que estava salvo — não prototipado">Descartar</button>
+      <button class="btn btn-primary pp-save" data-toggle-class="is-saved" data-toggle-target="#pp-root" data-toast="Permissões salvas">Salvar alterações</button>
+    </div>
+  </div>
+  </div><!-- /screen-wrap -->
+
+  <!-- ================= A role's menu (on its name in the column head) ================= -->
+  <div class="dialog-scrim" id="pp-menu-padrao" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de um papel do sistema">
+      <button class="menu-item" role="menuitem" data-close data-toast="Permissões padrão de volta na grade. Salve para aplicar.">Restaurar permissões padrão</button>
+      <p class="btn-reason" style="padding: var(--sp-1) var(--sp-4) var(--sp-2)">Papel do sistema: não pode ser renomeado nem removido.</p>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="pp-menu-custom" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de Estagiário">
+      <button class="menu-item" role="menuitem" data-close data-open="#pp-dlg-renomear">Renomear</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-open="#pp-dlg-remover">Remover</button></div>
+    </div>
+  </div>
+
+  <!-- ================= Novo papel, Renomear (Form dialog); Remover (Confirm dialog) ================= -->
+  <div class="dialog-scrim" id="pp-dlg-novo" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="pp-novo-title" aria-describedby="pp-novo-desc">
+      <h2 class="dialog-title" id="pp-novo-title">Novo papel</h2>
+      <div class="field">
+        <span class="field-label" id="pp-novo-nome-l">Nome do papel</span>
+        <div class="input is-focus" role="textbox" aria-labelledby="pp-novo-nome-l">Supervisor de campo</div>
+        <span class="helper" id="pp-novo-desc">O papel nasce sem nenhuma permissão. Marque as permissões na grade e salve.</span>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Papel Supervisor de campo criado. Ele aparece como uma coluna nova.">Criar papel</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="pp-dlg-renomear" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="pp-ren-title">
+      <h2 class="dialog-title" id="pp-ren-title">Renomear papel</h2>
+      <div class="field">
+        <span class="field-label" id="pp-ren-nome-l">Nome do papel</span>
+        <div class="input is-focus" role="textbox" aria-labelledby="pp-ren-nome-l">Estagiário</div>
+        <span class="helper">O nome muda para o usuário que tem este papel. As permissões não mudam.</span>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Papel renomeado">Salvar</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="pp-dlg-remover" hidden>
+    <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="pp-rm-title" aria-describedby="pp-rm-desc">
+      <h2 class="dialog-title" id="pp-rm-title">Não é possível remover Estagiário</h2>
+      <p class="t-body" id="pp-rm-desc">1 usuário tem este papel: Marcos Teixeira. Mude o papel dele em Usuários e tente de novo.</p>
+      <div class="dialog-actions">
+        <a class="btn btn-secondary" href="#/usuarios">Ir para Usuários</a>
+        <button class="btn btn-primary is-focus-ring" data-close>Entendi</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="pp-dlg-remover-ok" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pp-rmo-title" aria-describedby="pp-rmo-desc">
+      <h2 class="dialog-title" id="pp-rmo-title">Remover o papel Supervisor de campo?</h2>
+      <p class="t-body" id="pp-rmo-desc">Nenhum usuário tem este papel. Ele sai da grade e da lista de papéis.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-destructive" data-close data-toast="Papel removido">Remover</button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,36 @@
+<style data-screen="login-pausada">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.11: Login refused for a paused account. The sign-in answers with the inactive code and the
+   form shows one red line under the password, the place and class of the wrong-password line (components.css .login-form .login-error).
+   The fields keep their values; nothing on the device is deleted.
+   Governs: EXPERIENCE.md § Component Patterns › Login form; § State Patterns › Account paused (2026-11-21). */
+[data-route="/login/pausada"] .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
+.frame-phone [data-route="/login/pausada"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
+[data-route="/login/pausada"] .login-form .btn-primary { margin-top: var(--sp-2); }
+[data-route="/login/pausada"] .login-forgot { align-self: center; }
+[data-route="/login/pausada"] .login-foot { margin-top: var(--sp-5); text-align: center; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/login/pausada" data-title="Login" data-shell="bare" data-rail="false">
+  <div class="login-screen">
+    <div class="login-form" role="form" aria-labelledby="lp-title">
+      <h1 class="login-wordmark" id="lp-title">Conforme</h1>
+
+      <div class="field">
+        <span class="field-label" id="lp-email-l">E-mail</span>
+        <div class="input" role="textbox" aria-labelledby="lp-email-l">diego@exemplo.com.br</div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="lp-pass-l">Senha</span>
+        <div class="input">
+          <span class="grow" role="textbox" aria-labelledby="lp-pass-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+        <span class="login-error" role="alert">Conta pausada. Fale com o administrador.</span>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-block" data-toast="Conta pausada. Fale com o administrador.">Entrar</button>
+      <button type="button" class="btn btn-text login-forgot" data-go="#/login/esqueci">Esqueci minha senha</button>
+
+      <p class="login-foot">Acesso fornecido pela sua empresa. Sem cadastro por aqui.</p>
+    </div>
+  </div>
+</section>

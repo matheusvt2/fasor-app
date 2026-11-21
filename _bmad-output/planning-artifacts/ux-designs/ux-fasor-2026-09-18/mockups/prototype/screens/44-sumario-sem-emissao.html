@@ -1,0 +1,72 @@
+<style data-screen="sumario-sem-emissao">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.5: a control the user stands in front of and may not use. The Sumário as the Engenheiro
+   de Campo (Eduardo) sees it: he fills (relatorio.fill), so the Sumário and every ficha open and take input, but he does not hold
+   relatorio.issue, so "Pré-visualizar" and "Gerar relatório" in the Sticky action bar are shown disabled with one line of reason.
+   The rows are an excerpt of 40-relatorio-overview.html (rows 7 to 10; the same classes); the layout rules below copy that screen's
+   declarations under this route. The reason is the kernel's refusal text. Existing tokens only.
+   Governs: EXPERIENCE.md § IA › Relatório overview; § State Patterns › A control the role lacks (2026-11-21). */
+[data-route="/relatorio/porto-seguro/sem-emissao"] .overview-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
+.frame-phone [data-route="/relatorio/porto-seguro/sem-emissao"] .overview-content { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-summary { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); margin: var(--sp-2) 0 0; }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-summary .btn-text { min-height: 44px; padding: 0; font-size: var(--t-meta-size); }
+.frame-phone [data-route="/relatorio/porto-seguro/sem-emissao"] .sum-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-3); }
+.frame-phone [data-route="/relatorio/porto-seguro/sem-emissao"] .sum-summary .btn-text { justify-content: flex-start; min-height: var(--touch-min); white-space: normal; text-align: left; line-height: var(--t-meta-lh); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sumario { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-raised); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: 0 var(--sp-3) 0 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-row:first-child { border-top: 0; }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-1); text-align: left; cursor: pointer; }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-open > .ico { color: var(--ink-secondary); flex: none; }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-row > .sum-pos { flex: none; margin-left: var(--sp-3); border-color: transparent; background: transparent; color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-title { font-size: var(--t-body-size); font-weight: 600; color: var(--ink-primary); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-status { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-status.is-blocking { color: var(--nao-conforme); font-weight: 600; font-size: var(--t-body-size); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-ctrls { flex: none; display: flex; align-items: center; gap: var(--sp-1); }
+[data-route="/relatorio/porto-seguro/sem-emissao"] .sum-excerpt { margin-bottom: var(--sp-2); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/sem-emissao" data-title="Porto Seguro · Torres A e B" data-shell="app" data-rail="false" data-user="E">
+
+  <div class="sheet-header">
+    <div>
+      <h2 class="sheet-title">Porto Seguro · Torres A e B</h2>
+      <p class="sheet-meta"><span class="status-pill" data-status="em-campo">Em campo</span> 06–08/09/2026 · template Porto Seguro — Torres A e B · responsável Rafael Lamonde</p>
+      <p class="sum-summary" role="group" aria-label="Resumo do relatório">
+        <button class="btn btn-text" data-go="#/relatorio/porto-seguro">42 de 95 fichas concluídas</button>
+        <button class="btn btn-text" data-go="#/relatorio/porto-seguro/pontos">2 NC abertos</button>
+        <button class="btn btn-text" data-go="#/ficha/DJ-C14">1 não ensaiada</button>
+        <button class="btn btn-text" data-go="#/ficha/SEC-C05">12 sugestões por confirmar</button>
+      </p>
+    </div>
+  </div>
+
+  <div class="overview-content">
+    <p class="sum-excerpt">Trecho do sumário (linhas 7 a 10). As demais linhas são as de <a href="#/relatorio/porto-seguro">#/relatorio/porto-seguro</a>.</p>
+    <ol class="sumario" aria-label="Sumário do relatório">
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="7" aria-label="Número de Registro fotográfico"><button class="sum-open" data-go="#/relatorio/porto-seguro/fotos"><span class="sum-body"><span class="sum-title">Registro fotográfico</span><span class="sum-status">82 fotos · 1 sem legenda · 12 legendas sugeridas</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Registro fotográfico"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="8" aria-label="Número de Pontos de atenção"><button class="sum-open" data-go="#/relatorio/porto-seguro/pontos"><span class="sum-body"><span class="sum-title">Pontos de atenção</span><span class="sum-status">7 pontos · 1 sem ação</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Pontos de atenção"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="9" aria-label="Número de Relatórios dos ensaios"><button class="sum-open" data-go="#/ficha/SEC-C05"><span class="sum-body"><span class="sum-title">Relatórios dos ensaios</span><span class="sum-status">42 de 95 fichas · organizados por local aqui</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Relatórios dos ensaios"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="10" aria-label="Número de Conclusão e parecer"><button class="sum-open" data-go="#/relatorio/porto-seguro/setup"><span class="sum-body"><span class="sum-title">Conclusão e parecer</span><span class="sum-status is-blocking">parecer pendente</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Conclusão e parecer"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+    </ol>
+  </div>
+
+  <!-- The two Emissão controls, disabled (relatorio.issue). One reason line for both, the bar's own btn-reason slot. -->
+  <div class="sticky-action-bar">
+    <span class="btn-reason" id="sse-gerar-reason">Seu papel não permite pré-visualizar nem gerar o relatório.</span>
+    <div class="bar-buttons">
+      <button class="btn btn-secondary" aria-disabled="true" aria-describedby="sse-gerar-reason"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Pré-visualizar</button>
+      <button class="btn btn-primary" aria-disabled="true" aria-describedby="sse-gerar-reason"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Gerar relatório</button>
+    </div>
+  </div>
+</section>

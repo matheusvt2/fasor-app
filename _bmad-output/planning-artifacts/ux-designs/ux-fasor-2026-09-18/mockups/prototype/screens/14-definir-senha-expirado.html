@@ -1,0 +1,20 @@
+<style data-screen="definir-senha-expirado">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.6: the same page when the link expired or was already used. One sentence for both causes
+   (the page does not say which), and two ways out. The Login form's shell and classes.
+   Governs: EXPERIENCE.md § IA › Set a password; § State Patterns › Link expired (2026-11-21). */
+[data-route="/definir-senha/expirado"] .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
+.frame-phone [data-route="/definir-senha/expirado"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
+[data-route="/definir-senha/expirado"] .login-form h2 { font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); }
+[data-route="/definir-senha/expirado"] .login-form .btn-text { align-self: center; }
+</style>
+<section class="screen" data-route="/definir-senha/expirado" data-title="Criar senha" data-shell="bare" data-rail="false">
+  <div class="login-screen">
+    <div class="login-form" role="form" aria-labelledby="dse-title">
+      <h1 class="login-wordmark">Conforme</h1>
+      <h2 id="dse-title">Este link não vale mais</h2>
+      <p class="t-body" role="alert">O link venceu ou já foi usado. Se era um convite, peça ao administrador da sua empresa que o reenvie. Se era para trocar a senha, peça um link novo.</p>
+      <button type="button" class="btn btn-primary btn-block" data-go="#/login/esqueci">Pedir um link novo</button>
+      <button type="button" class="btn btn-text" data-go="#/login">Voltar ao login</button>
+    </div>
+  </div>
+</section>
