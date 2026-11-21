@@ -10892,6 +10892,680 @@ So that I do not act on old alerts, and the obvious ones do not depend on a mode
 - *Bruno asks that the check run again when a sheet changes, or be marked out of date. The mark was taken. A run on every change would be a paid call per edit, against the monthly ceiling of the Policy.*
 - *The first rule compares the stored result with the floor. The document already prints the stricter one; the rule tells the technician that the ficha was not concluded again.*
 
+## Epic 26: Users, roles and permissions: the Admin manages who enters, each role sees only its modules, and the server refuses the rest (Matheus, 2026-11-21)
+
+On 2026-11-21 Matheus asked for user management: create, edit, pause and remove users; give each a role; turn features on or off by permission; let the Admin change what each role may do. Until now the product had no roles and no user screen: `SPEC.md` lists roles as a non-goal and says "the office assembler and the field engineer are the same people", `EXPERIENCE.md` § Information Architecture says "no roles... users are provisioned outside the app", and users are created by `scripts/seed-users.ts`. This epic overrides those sentences through a `source-deltas.md` row of the same date.
+
+John wrote the plan with three read-only inputs of the same day: Winston (architecture), Sally (UX) and Amelia (build). Where they disagree the choice is named below.
+
+**Matheus's decisions (2026-11-21):**
+1. **Who issues.** Only the Responsável Técnico and the Admin generate and issue a relatório. The Gestor do Projeto does not.
+2. **What the Engenheiro de Campo sees.** Every relatório of the company, as today. He fills and does not create one. A relatório assigned to one person is not built here ("we can create a multi-tenant architecture in the future").
+3. **Roles.** The fixed roles plus roles the Admin creates.
+4. **A new user's password comes by e-mail,** through Amazon SES on the project's AWS account.
+5. **Unsent work of a paused or removed user** stays on the device and is sent when the user is reactivated. "Sair" warns before it deletes.
+6. **Every user that exists today becomes Admin** in the migration. Matheus lowers each one afterwards.
+7. **Two more roles enter:** Responsável Técnico and Consulta.
+
+*(John, on answers 4 and 5: Matheus wrote "ok" on line 4 and the e-mail sentence on line 5. The e-mail sentence answers the password question, so it is read as decision 4 above and the "ok" as decision 5. If that reading is wrong, Story 26.11 changes, nothing else.)*
+
+**The modules and the permission keys.** A permission key is a fixed word of the kernel. A module is the group of keys the Admin sees as one line of the grid. Twelve keys:
+
+| Module (pt-BR, on screen) | Keys | What a key opens |
+| --- | --- | --- |
+| Relatórios | `relatorio.view`, `relatorio.create`, `relatorio.delete` | Home, Project, Sumário; "Novo relatório" and the setup; removing a relatório |
+| Preenchimento em campo | `relatorio.fill` | the ficha, photos, points, section texts, the site checks, the structure in the field |
+| Emissão | `relatorio.issue`, `export.download` | "Gerar relatório", the preview, the Conferência por IA, the move to Emitido; downloading an issued DOCX or PDF |
+| Modelos | `template.edit` | Templates and the composer |
+| Tipos de equipamento | `equipment_type.edit` | the type editor, the test base |
+| Cadastros | `registry.edit`, `suggestion.review` | the Cadastros tabs; accepting a suggestion |
+| Usuários e papéis | `users.manage`, `roles.manage` | the Usuários screen; the permissions grid and custom roles |
+
+Always open to an active user, with no key: sign-in, Conta, the user's own profile fields, Sync status, the pull, telemetry.
+
+**The roles as they are seeded** (the Admin can change every line but the Admin's own):
+
+| Key | Admin | Engenheiro de Campo | Gestor do Projeto | Responsável Técnico | Consulta |
+| --- | --- | --- | --- | --- | --- |
+| `relatorio.view` | yes | yes | yes | yes | yes |
+| `relatorio.fill` | yes | yes | yes | yes | no |
+| `relatorio.create` | yes | no | yes | yes | no |
+| `relatorio.delete` | yes | no | yes | no | no |
+| `relatorio.issue` | yes | no | no | yes | no |
+| `export.download` | yes | no | yes | yes | yes |
+| `template.edit` | yes | no | yes | no | no |
+| `equipment_type.edit` | yes | no | yes | no | no |
+| `registry.edit` | yes | no | yes | yes | no |
+| `suggestion.review` | yes | no | yes | yes | no |
+| `users.manage` | yes | no | no | no | no |
+| `roles.manage` | yes | no | no | no | no |
+
+- The Admin role holds every key, always. Its line is computed, never stored, and cannot be edited, so no company can lock itself out.
+- There are no "view only" keys for Modelos, Tipos de equipamento and Cadastros. A user without the edit key does not get the screen; the data still reaches the device, because the ficha's pickers read it. *(John: the first map shown to Matheus gave the Responsável Técnico "view only" on Modelos and Tipos. A read-only state on every editor is a second look for each screen; it is left out until someone asks.)*
+- Left out, with nothing in the product behind them: Financeiro, Auditor, a client portal with its own login.
+
+**Not in this epic, and why:**
+- **A relatório assigned to one person,** and any rule by project or by team. Decision 2.
+- **More than one company per person.** `user_email_unique` stays global; one e-mail is one user of one company.
+- **Sign-up, billing, seats.** `SPEC.md`'s SaaS non-goal stands. The first Admin of a new company is still created by the seed CLI.
+- **A module registry** (code loaded or not by module). "Modular" here means every screen, control, route and op is behind a key. Coordinator's reading, open to Matheus.
+- **Two-factor sign-in, single sign-on.**
+
+**Stories, waves and batches:**
+
+| Story | Title | Layer | Wave · batch | Contract | Dev model · Effort |
+| --- | --- | --- | --- | --- | --- |
+| 26.1 | The Epic 26 frames in the mocks | mocks | 0 · coordinator | no | opus · medium |
+| 26.2 | The kernel knows the keys, the roles and who may do what | kernel | 1 · e26a | yes | opus · high |
+| 26.3 | Roles and user status live in the company's data, and today's users become Admin | api | 1 · e26a | the batch's | opus · high |
+| 26.4 | The server refuses what the role does not allow | api | 1 · e26a | the batch's | opus · high |
+| 26.5 | The app shows each role only its modules | web | 1 · e26b | no | opus · medium |
+| 26.6 | E-mail leaves the app: the invitation and the password reset | api, web | 2 · e26c | no | opus · high |
+| 26.7 | Amazon SES in Terraform, inside the budget | infra | 2 · coordinator | no | opus · medium |
+| 26.8 | The Admin's routes: create, edit, pause, reactivate, remove, change role | api | 2 · e26c | none expected | opus · high |
+| 26.9 | The Usuários screen | web | 2 · e26d | no | sonnet · high |
+| 26.10 | Papéis e permissões: the grid and the roles the Admin creates | api, web | 3 · e26e | none expected | opus · high |
+| 26.11 | A paused user keeps the unsent work | web, api | 2 · e26d | no | opus · high |
+
+"The batch's" means the story rides on the one number its batch takes. Side by side: e26b beside e26a once Story 26.2 is merged into the wave branch; e26d beside e26c; Story 26.7 beside both.
+
+**Rules every story keeps:**
+- **The server is the authority.** What the app hides is a courtesy. Every refusal is decided on the server from the role stored there, never from what the device says.
+- **One verdict, in the kernel (AD-1 to AD-3, AD-13).** `packages/domain` holds the keys, the map from each op path family and each route to its key, and the one function that answers "may this set of keys do this". `apps/web` and `apps/api` call it. Neither writes a role name in a condition.
+- **No role name in code outside the seed of roles.** Code asks for a key. A condition on "Admin" exists in one place: the kernel function that gives the Admin role every key.
+- **Nothing is deleted.** A removed user is a status. The row, the name in every relatório's history and the printed responsável stay.
+- **No relatório changes.** No seed, no fold of a sheet, no printed page. Every golden and the layout locks stay byte-identical.
+- **The existing tests stay green without edits to what they assert.** Every seeded test user is Admin by default; a spec that needs another role seeds it inside its own worker's pair of companies (the leak check treats the pair as one unit).
+- **Local first.** `EMAIL_PROVIDER` defaults to `fake`, like `LLM_PROVIDER` and `OCR_PROVIDER`; no story needs the AWS account to build or to pass its gate. Only Story 26.7 touches AWS, through Terraform, on Matheus's login.
+- **Strings.** Derived text (a role's name, a status word, a count, a refusal's reason) in `packages/domain`; static copy in `apps/web/src/copy/pt-br.ts`; component words in `copy/ui.ts`. Every authored pt-BR sentence is marked `// authored (Story 26.x)` and listed in the PR. The product is "Conforme" on every screen and in every e-mail; neither the codename nor the Fasor name appears, the sender address included.
+- **Not guessed.** What nobody decided is written under its story as open and is not built. A choice the story must still make is "Coordinator's reading, open to Matheus".
+
+**Waves and gates:**
+- **Wave 0.** Story 26.1, by the coordinator with `bmad-ux` (Sally). Approved by Matheus before any web story starts.
+- **Wave 1, roles are enforced.** e26a (26.2, 26.3, 26.4) and e26b (26.5). After it a role set through the seed CLI already limits a user, with no user screen yet. One contract number. Every tablet must update the app at this deploy.
+- **Wave 2, the Admin manages users.** e26c (26.6, 26.8), e26d (26.9, 26.11), and Story 26.7 by the coordinator. Its deploy needs SES out of the sandbox (Story 26.7's Definition of Ready).
+- **Wave 3, the Admin changes the roles.** e26e (26.10).
+- ~~One batch gate before each PR (`lint`, `static`, `test:unit`, `test:api`, the touched specs), one full gate and one review per wave on the integrated branch (decision of 2026-11-12). Stories that touch the commit path or the sign-out (26.5, 26.11) run their durability specs on the matrix.~~ *(2026-11-21, Matheus, on approving the story list: "quero um teste completo somente no final das ondas, nao quero testes e2e para cada onda individualmente. quero entregar rapido". One full gate for the whole epic, after wave 3 is merged: `pnpm test:e2e:full` and the matrix, once, on the integrated main, with one review. No wave runs the full `@p0`, `test:e2e:full` or the matrix by itself. A batch still runs `lint`, `static`, `test:unit`, `test:api` and only the specs it wrote or touched before its PR. Batches run in parallel wherever their files do not touch, on the cheaper model for orchestration and records. This amends the 2026-11-12 decision for this epic only.)*
+- Contract numbers are not reserved. Main is at 54; a batch that needs one takes main's number plus one when it merges main before its PR.
+- ~~Each wave deploys on Matheus's word, after a hands-on pass in the browser as each of the five roles.~~ *(2026-11-21, same decision: one deploy at the end, on Matheus's word, after the full gate and one hands-on pass in the browser as each of the five roles. Coordinator's reading, open to Matheus: the deploy waits for Story 26.7, because wave 2 cannot invite a user in production without it.)*
+
+**Definition of Done of the epic:**
+- Every story merged with its gate pasted in its PR; ~~each wave gate green and its review accepted~~ *(2026-11-21: the one full gate green on the integrated main after wave 3, and its one review accepted)*.
+- AD-29 in the architecture spine and the `source-deltas.md` row carry the built record, not "planned".
+- `EXPERIENCE.md` § Information Architecture and `SPEC.md`'s two non-goal lines struck through and dated, beside the new text.
+- The hands-on pass as each role, on a tablet width and on desktop, tracked under `_bmad-output/test-artifacts/manual/`.
+- In production: every existing user is Admin after the migration, counted with the read-only recipe; one invitation e-mail received on a real address.
+- `docs/kbs/` updated: a new concept `architecture/roles-and-permissions.md`, `architecture/sync.md` (session and tenancy lines), `code/` maps and `log.md`.
+
+### Story 26.1: The Epic 26 frames in the mocks
+
+**Dev model:** opus · **Effort:** medium · mocks only, by the coordinator with `bmad-ux`; no app code; the web stories build from these frames
+
+As Amelia building the screens,
+I want every new screen and state drawn in the mocks first,
+So that the build copies class names and copy instead of inventing a look.
+
+**Today (verified 2026-11-21):** no frame shows a user list, a role or a refused control. The app bar has the wordmark, the Sync badge and the avatar that opens Conta; Home has two shortcuts, Templates and Cadastros (`apps/web/src/app.tsx`, Sally's reading). There is no drawer. The session-expired banner and the "Sair" confirmation exist (Story 20.11).
+
+*(Definition of Ready, met 2026-11-21 by decisions 1 to 7.)*
+- **Frames to draw,** each at 390, 768 and 1280 px where the layout changes:
+  1. Home with a third shortcut, "Usuários", and Home as an Engenheiro de Campo sees it (no shortcut he cannot use).
+  2. Usuários: the list (name, e-mail, role, status pill "Ativo", "Pausado", "Convite pendente", "Removido" behind a filter), empty, and the row's menu.
+  3. The user dialog: new and edit; the duplicate e-mail error; the last-Admin refusal.
+  4. The confirmations: pause, reactivate, remove, "Enviar redefinição de senha", "Reenviar convite".
+  5. Papéis e permissões, the second tab of Usuários: the grid of roles by module with switches, a module opened into its keys, the Admin line locked, "Novo papel", rename and remove of a custom role, unsaved and saved.
+  6. A control the user stands in front of and may not use: "Gerar relatório" disabled with its reason line.
+  7. Login with "Esqueci minha senha", the request sent, "Conta pausada. Fale com o administrador.", and the page that sets a password from a link (new, expired link).
+  8. The banner of a paused account during work, and the "Sair" dialog with unsent work for a paused user.
+  9. The two e-mails as plain frames: invitation and reset.
+- Reuse `registry-row`, `chip` filters, the status pill, `tabs`, the switch of "Localização nas fotos", the form dialog of "Novo relatório" and the Confirm dialog. A new component only where none of these fits, named in `MOCK-GUIDE.md`.
+- `MOCK-GUIDE.md` and `EXPERIENCE.md` gain the rules in words: a module the user cannot use is hidden; a control inside a screen he does use is shown disabled with one line of reason; a direct address of a hidden screen goes to Home with a toast.
+- **Out of scope:** any app code.
+
+**Acceptance Criteria:**
+
+**Given** the nine frame groups
+**When** Matheus opens the prototype
+**Then** each is reachable from the prototype's index and uses only tokens of `tokens.css`
+
+**Given** the Papéis e permissões frame
+**When** it is read at 768 px
+**Then** five seeded roles and one custom role fit without a horizontal page scroll
+
+**Given** any frame
+**When** its text is searched
+**Then** the product is "Conforme" and neither the codename nor an emoji appears
+
+**Definition of Done, in addition:**
+- Matheus's approval recorded with its date in `MOCK-GUIDE.md`.
+- Every authored sentence listed in the PR.
+- `docs/kbs/ux/` and `docs/kbs/log.md`.
+
+### Story 26.2: The kernel knows the keys, the roles and who may do what
+
+**Dev model:** opus · **Effort:** high · kernel: the permission catalog, the role entity, the one verdict and the map from op families and routes to keys; AD-29; one contract number
+
+As the coordinator of every later story,
+I want one place that says what each key opens and whether a set of keys may do an action,
+So that the server and the app can never disagree about a permission.
+
+**Today (verified 2026-11-21 on main `b90eff3d`):**
+- A `user` entity already lives in the op log: its create is server-only and `user/field` ops exist with `email` immutable (`packages/domain/src/ops/path.ts`). The seed writes it (`apps/api/src/db/seed.ts`).
+- The op path families are the `opPathSchema` union, about 60 families (`ops/path.ts`, `FAMILIES`).
+- `opRejectCodeSchema` is append-only and has `op_forbidden` (`contract/errors.ts`). `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` are 54.
+- The highest architecture decision is AD-28.
+
+*(Definition of Ready, met 2026-11-21.)*
+- **AD-29, written first** in the architecture spine, with the `source-deltas.md` row: roles and permissions. It records the choices below and the one Winston and Amelia split on.
+- **The catalog.** A closed zod enum of the twelve keys, each with its module, in a new `packages/domain/src/permissions/`. The module names and the keys' pt-BR labels are derived text of the kernel.
+- **The role.** A company entity `role/{id}`: `name`, `permissions` (a set of keys), `system` (one of the five seeded identifiers, or absent for a custom role). The five seeded sets are the table of this epic, as data.
+- **The user gains** `role_id` and `status` (`active`, `invited`, `paused`, `removed`).
+- **The verdict.** `can(role, key)`; the Admin system role answers yes to every key whatever is stored. `permissionForPath(path, op)` returns the key an op needs or "none"; `permissionForRoute(name)` does the same for the HTTP routes that are not ops. `activeUser(user)` says whether a status may act at all.
+- **The map covers every family.** A kernel test lists `FAMILIES` and fails when one has no entry, so a new family cannot ship unmapped.
+- **Transport (AD-29).** Role rows, a user's role and a user's status travel as server-only ops in the sync log, written by the Admin's online routes (Stories 26.8, 26.10), and reach every device by the normal pull, so the app renders roles from IndexedDB like everything else. A client op on these families is `op_server_only`. *(Amelia's alternative: the keys on the account answer, cached like `features.ai`. Not taken: it is read at boot only, so a change would wait for a restart, and the Usuários screen would need its own cache.)*
+- **Last Admin.** `lastAdminVerdict(users, change)` refuses a change that would leave the company with no active Admin.
+- **Out of scope:** any table, route or screen.
+
+**Acceptance Criteria:**
+
+**Given** each of the five seeded roles
+**When** `can` is asked for each of the twelve keys
+**Then** the answers are the epic's table, cell by cell
+
+**Given** the Admin role stored with an empty set
+**When** `can` is asked for any key
+**Then** the answer is yes
+
+**Given** every op path family of the contract
+**When** `permissionForPath` is called with a sample path of it
+**Then** it returns one of the twelve keys or "none", and never throws
+
+**Given** a company with one active Admin
+**When** the change is to pause, remove or give another role to that user
+**Then** `lastAdminVerdict` refuses it, and allows it when a second active Admin exists
+
+**Given** a client op that creates a role or writes `user/role_id` or `user/status`
+**When** the path is parsed
+**Then** it is a server-only family
+
+**Given** a bundle on contract 54
+**When** it pulls from a server on the new number
+**Then** the answer is `426 contract_outdated`
+
+**Definition of Done, in addition:**
+- Kernel "26.2-UNIT": the table, the locked Admin, the full-coverage test over `FAMILIES`, the last-Admin cases, the status words.
+- AD-29 and the `source-deltas.md` row; the dated reason for the new number in `contract/version.ts`.
+- `docs/kbs/architecture/roles-and-permissions.md` (new) and `log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *Moving a relatório to "Em revisão" belongs to `relatorio.fill`, so the Engenheiro de Campo can hand his work over. Generating and the move to Emitido belong to `relatorio.issue`.*
+- *Creating equipment and locals inside a relatório in the field belongs to `relatorio.fill`. Options the ficha teaches the registry are written by the server (`system:registry`), so they need no key.*
+- *A custom role can hold any key except that it can never be the locked Admin.*
+
+### Story 26.3: Roles and user status live in the company's data, and today's users become Admin
+
+**Dev model:** opus · **Effort:** high · api: the migration, the seeded roles per company, every existing user Admin, the seed CLI's role flag; rides on the batch's contract number
+
+As Matheus deploying the first wave,
+I want every company to hold the five roles and every existing user to be Admin,
+So that nobody loses access on the day roles start to count.
+
+**Today (verified 2026-11-21):** `user`, `session`, `account` and `company` are in `apps/api/src/db/schema.ts`; there is no role and no status. Every user is created by `seedUser` / `seedAccount` (`db/seed.ts`), which the test seeds, the e2e worker seed, the smoke seed and `scripts/seed-users.ts` all call.
+
+*(Definition of Ready, met 2026-11-21 by decision 6. Needs Story 26.2.)*
+- **The migration** writes, for each company, the five system roles as server-only ops (actor `system:admin`), then gives every existing user the Admin role and the status `active`. It runs once and is safe to run again.
+- **The seed functions** take a role, default Admin. `scripts/seed-users.ts` gains `--role`. A new company gets its five roles with its first user.
+- **Test seeds** keep every existing user Admin. The e2e worker seed gains, inside each worker's pair, one user per other seeded role, for the specs of Stories 26.4 and 26.5.
+- **The devices** receive the roles and the users' role and status through the company pull.
+- **Out of scope:** refusing anything (Story 26.4).
+
+**Acceptance Criteria:**
+
+**Given** a database with two companies and five users, migrated
+**When** the roles and users are read
+**Then** each company holds the five system roles and every user is an active Admin
+
+**Given** the migration run a second time
+**When** the roles are counted
+**Then** the count is unchanged
+
+**Given** `seed-users` with `--role engenheiro_de_campo`
+**When** the user signs in and the device pulls
+**Then** the device holds that user's role and its keys
+
+**Given** the e2e worker seed
+**When** the leak check runs after a suite
+**Then** it passes with the new users inside their pair
+
+**Definition of Done, in addition:**
+- "26.3-API-001": the migration on a copy of the fixture database, twice; the CLI flag; the pull.
+- The migration listed in the deploy record with the production count before and after (read-only recipe).
+- `docs/kbs/code/api-app.md`, `log.md`.
+
+### Story 26.4: The server refuses what the role does not allow
+
+**Dev model:** opus · **Effort:** high · api: one check for ops, one for HTTP routes, the block of a paused or removed user; the largest story of the epic
+
+As the company's Admin,
+I want the server to refuse an action a role may not do,
+So that a permission holds even against an old app or a hand-made request.
+
+**Today (verified 2026-11-21):**
+- `checkClientOp` in `apps/api/src/sync/rules.ts` judges every client op and already answers `op_forbidden` for another user's `user/field` (`sync/apply.ts`). It does not know a role.
+- `sessionMiddleware` (`apps/api/src/http/session.ts`) resolves `{userId, companyId}` only. The routes that are not ops: `/api/relatorios/:id/{generate,preview,preview.pdf}`, `/api/revisions/:id/{docx,pdf}`, the audit and reread POSTs, `/api/files/*`.
+- A rejected op becomes `dead` in the device's outbox with its code, keeps its value and offers "Reenviar".
+
+*(Definition of Ready, met 2026-11-21. Needs Stories 26.2 and 26.3.)*
+- **Ops.** `checkClientOp` asks the kernel for the op's key and refuses with `op_forbidden` when the actor's role lacks it. The role is read once per push, inside the push's transaction. One refused op never blocks the rest of its batch, as today.
+- **Routes.** `SessionContext` gains the actor's role; `requirePermission` beside `requireSession` answers `403` with a new `forbidden` code of `errorCodeSchema`. Generate, preview, audit and reread need `relatorio.issue`; a revision's DOCX or PDF needs `export.download`; an upload needs `relatorio.fill`; a file read needs `relatorio.view`.
+- **A user who is not active.** Sign-in is refused for `paused` and `removed` with a code the Login can name; every other request of such a user is `401`, so the device's existing re-auth path keeps the outbox. Sessions are revoked when the status changes (Story 26.8).
+- **The reason the device shows** for `op_forbidden` gains a kernel text for "your role does not allow this", distinct from the two causes it names today.
+- **Out of scope:** hiding anything in the app (Story 26.5); the Admin's routes.
+
+**Acceptance Criteria:**
+
+**Given** an Engenheiro de Campo
+**When** his device pushes a sheet reading, a template edit and a registry edit in one batch
+**Then** the reading is applied and the two others are rejected with `op_forbidden`, each alone
+
+**Given** a Gestor do Projeto
+**When** he calls generate on a relatório
+**Then** the answer is `403 forbidden` and no job is queued
+
+**Given** a Consulta user
+**When** he downloads an issued PDF and then pushes a sheet reading
+**Then** the download is served and the reading is rejected
+
+**Given** a Responsável Técnico
+**When** he generates and issues a relatório
+**Then** it works as it does for every user today
+
+**Given** each of the twelve keys and a role that lacks only that key
+**When** one action of that key is tried
+**Then** it is refused, and the same action by a role that holds the key is accepted
+
+**Given** a user of company A with the Admin role
+**When** he acts on company B's data
+**Then** the tenant refusal of today is unchanged
+
+**Given** a paused user with a valid cookie
+**When** his device pushes
+**Then** the answer is `401` and nothing is applied
+
+**Given** the whole existing api suite, where every user is Admin
+**When** it runs
+**Then** it passes with no change to what it asserts
+
+**Definition of Done, in addition:**
+- "26.4-API-001" to "-003": the matrix of keys by role over ops; the routes; the inactive user.
+- `e2e/roles-server.spec.ts` "26.4-E2E-001 @p0": an Engenheiro de Campo's refused op shows as rejected in Sync status with the new reason.
+- The refusal's pt-BR reason, authored, listed in the PR.
+- `docs/kbs/architecture/sync.md`, `roles-and-permissions.md`, `log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *A role change takes effect on the user's next request; his session is not ended. Only pause and remove end sessions.*
+
+### Story 26.5: The app shows each role only its modules
+
+**Dev model:** opus · **Effort:** medium · web: one provider, one route guard, one hook; every shortcut, route and control behind its key; works offline from the last pull
+
+As a field engineer,
+I want to see only what I can use,
+So that the tablet shows the ficha and nothing I would be refused.
+
+**Today (verified 2026-11-21):** every route of `apps/web/src/app.tsx` opens for every signed-in user. Home's `ShortcutRow` links to Templates and Cadastros. The Sumário mixes filling, status moves and "Gerar relatório" (`sumario-surface.tsx`, `sumario-actions.ts`); the setup mixes the relatório with the obra and the client.
+
+*(Definition of Ready: Story 26.1's frames approved; Story 26.2 merged into the wave branch.)*
+- **One source.** A provider reads the signed-in user's role from IndexedDB and exposes the kernel's `can`. One route guard and one hook; no component compares a role name.
+- **Hidden:** a shortcut and a route whose module the user lacks. A direct address goes to Home with the toast of the frame.
+- **Disabled with a reason:** a control inside a screen the user does use. "Gerar relatório" without `relatorio.issue`; "Novo relatório" without `relatorio.create`; removing a relatório without `relatorio.delete`; the download without `export.download`.
+- **Read-only relatório.** Without `relatorio.fill` the ficha, the photos, the points and the section texts open and take no input, with the look the frames give.
+- **Offline.** The app follows the role of the last pull. A change reaches the screen on the pull that brings it, with no restart.
+- **Out of scope:** the Usuários screen.
+
+**Acceptance Criteria:**
+
+**Given** an Engenheiro de Campo on Home
+**When** the page renders
+**Then** there is no Templates, Cadastros or Usuários shortcut, and the relatórios list is the company's
+
+**Given** that user
+**When** he types the address of `/templates`
+**Then** he lands on Home with the toast
+
+**Given** that user on a Sumário
+**When** the page renders
+**Then** "Gerar relatório" is disabled with its reason line, and the fichas open and take input
+
+**Given** a Consulta user on a ficha
+**When** he taps a cell
+**Then** nothing is editable and no op enters the outbox
+
+**Given** a Gestor do Projeto
+**When** he opens Templates, a type editor and Cadastros
+**Then** each works as it does for every user today
+
+**Given** an Engenheiro de Campo offline, whose role the Admin changed to Gestor do Projeto
+**When** the device comes back and pulls
+**Then** the Templates shortcut appears without a reload
+
+**Given** every existing e2e spec, where the user is Admin
+**When** it runs
+**Then** it passes unchanged
+
+**Definition of Done, in addition:**
+- Web tests of the guard and the hook per key.
+- `e2e/roles-screens.spec.ts` "26.5-E2E-001 @p0" (one walk per seeded role) and "-002 @p1" (the change that arrives by pull).
+- The real-browser pass at 390, 768 and 1280 px as an Engenheiro de Campo.
+- `docs/kbs/code/web-app.md`, `log.md`.
+
+### Story 26.6: E-mail leaves the app: the invitation and the password reset
+
+**Dev model:** opus · **Effort:** high · api and web: the e-mail seam with a fake default, the one-time link that sets a password, "Esqueci minha senha"; no AWS needed to build
+
+As a new user,
+I want an e-mail with a link where I choose my password,
+So that the Admin never knows it and nobody reads it off a screen.
+
+**Today (verified 2026-11-21):** no outbound e-mail exists (`apps/api/src/auth/auth.ts`, AD-9, FR-6). Sign-up is disabled. `AUTH_ROUTES` lets only sign-in, sign-out and get-session reach better-auth (Story 20.13). A `verification` table exists. better-auth is 1.7.5; its reset API at that version was not checked (the container holds `node_modules`).
+
+*(Definition of Ready, met 2026-11-21 by decision 4. Story 26.1's frames approved for the web half.)*
+- **First task, a spike of one hour:** read better-auth 1.7.5's reset-password API in the container and record what is used. If it does not fit, the link is our own token in `verification`.
+- **The seam.** `EMAIL_PROVIDER` is `fake` (default) or `ses`. `fake` stores each message where the api tests and the e2e helpers can read it and logs one line with no address. `ses` sends through the AWS SDK with the task role, no stored key.
+- **Two messages,** pt-BR, plain text plus simple HTML, from the kernel: the invitation and the reset. Each carries one link to the app's own origin, valid once, for 72 hours (invitation) or 1 hour (reset).
+- **The page of the link** sets the password (the rule of today's seed for length), then lands on Login. An expired or used link says so and offers to ask for another.
+- **"Esqueci minha senha"** on Login asks for the e-mail and always answers the same sentence, whether the address exists or not. It is rate-limited per address and per IP. A paused or removed user receives nothing.
+- **`AUTH_ROUTES`** opens only what this needs; the origin guard applies.
+- **Out of scope:** verifying an e-mail address on change; any marketing mail; the SES resources (Story 26.7).
+
+**Acceptance Criteria:**
+
+**Given** an invited user and the fake provider
+**When** the invitation is sent
+**Then** one stored message holds a link, and opening it lets the user set a password and sign in
+
+**Given** that link used once
+**When** it is opened again
+**Then** the page says the link is no longer valid
+
+**Given** an invitation older than 72 hours
+**When** its link is opened
+**Then** it is refused the same way
+
+**Given** Login
+**When** "Esqueci minha senha" is sent for an address that exists and for one that does not
+**Then** the screen shows the same sentence both times, and only the first stores a message
+
+**Given** a paused user
+**When** he asks for a reset
+**Then** no message is stored
+
+**Given** six requests for one address in a minute
+**When** the sixth arrives
+**Then** it is rate-limited
+
+**Given** `EMAIL_PROVIDER=ses` with the SDK client faked
+**When** a message is sent
+**Then** the call carries the configured sender and the message's two bodies
+
+**Definition of Done, in addition:**
+- "26.6-API-001": the link's life, the same-answer rule, the rate limit, the provider seam.
+- `e2e/password-by-email.spec.ts` "26.6-E2E-001 @p0": invitation to first sign-in; "-002 @p1": forgot password.
+- The two messages and every screen sentence authored and listed in the PR.
+- AD-9's line in the spine and `docs/kbs/architecture/sync.md` (session), dated; `log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *72 hours and 1 hour are authored. A reset ends the user's other sessions.*
+
+### Story 26.7: Amazon SES in Terraform, inside the budget
+
+**Dev model:** opus · **Effort:** medium · infra, by the coordinator: the sender identity, DKIM, the task role's permission, the alarm; Terraform only, on Matheus's AWS login
+
+As Matheus,
+I want the app to send its two e-mails from the project's AWS account,
+So that an invitation reaches a real inbox for cents a month.
+
+**Today (verified 2026-11-21):** `infra/production/` has no SES resource and no DNS zone (no Route 53 resource; `app_domain` is a variable). The task role is in `iam.tf`; the budget alert in `budget.tf`.
+
+*(Definition of Ready, open. Not started before the three points are answered.)*
+
+*(2026-11-21, Matheus: on hold. He talks to Bruno first about the sender's domain, the DNS records and the sandbox request. Everything else is built with `EMAIL_PROVIDER=fake` and does not wait.)*
+- **Open, Matheus:** the sender's domain and address. It must not show the codename or the Fasor name (Policy), so the app's public domain may not serve.
+- **Open, Matheus:** who adds the DKIM and SPF records, and where. The DNS is outside Terraform today; the records are listed as Terraform outputs and typed by hand, or the zone moves into Terraform.
+- **Open, Matheus:** the request to leave the SES sandbox. A new account sends only to verified addresses until AWS approves it; the request is made by the account's owner and can take a day or more. Wave 2 is not deployed before it.
+- **Cost, written in the PR before the apply:** SES charges about USD 0.10 per thousand messages after its free allowance; this product sends tens a month. The line is added to the budget's table.
+- **Resources:** the domain identity with DKIM, a configuration set, the task role's `ses:SendEmail` limited to that identity, an alarm on bounces and complaints, `EMAIL_PROVIDER=ses` and the sender in the task's environment.
+- **Out of scope:** receiving mail; a dedicated IP.
+
+**Acceptance Criteria:**
+
+**Given** the Terraform plan
+**When** it is read before the apply
+**Then** it adds only SES, IAM, alarm and environment changes, and the PR states the monthly cost
+
+**Given** the identity verified and the account out of the sandbox
+**When** an invitation is sent in production to an address outside the account
+**Then** it arrives, signed by DKIM, and not in spam on one Gmail and one Outlook inbox
+
+**Given** the task role
+**When** it tries to send from another identity
+**Then** AWS refuses
+
+**Definition of Done, in addition:**
+- The plan and the apply output in the PR; `infra/README.md` gains the e-mail runbook.
+- `docs/kbs/architecture/infra-aws.md`, `log.md`.
+
+### Story 26.8: The Admin's routes: create, edit, pause, reactivate, remove, change role
+
+**Dev model:** opus · **Effort:** high · api: online-only routes under `/api/admin/users`, each writing server-only ops; the last-Admin guard; sessions ended on pause and remove
+
+As the company's Admin,
+I want to add a person, change the role, pause and remove,
+So that who enters the company's data is my decision and not a script's.
+
+**Today (verified 2026-11-21):** `seedUser` creates the user, the account and the `user/{id}` op; `revokeSessions` exists; `readUsers` (`db/users-read.ts`) lists users with session counts and the last sign-in; `/api/account` is read-only. There is no users route.
+
+*(Definition of Ready, met 2026-11-21. Needs Stories 26.4 and 26.6.)*
+- **Routes,** all needing `users.manage`, all inside the caller's company, all online:
+  - list: name, e-mail, role, status, last sign-in;
+  - create: name, e-mail, role. The user is born `invited` and the invitation is sent. A duplicate e-mail is refused with its own code;
+  - edit: name and role. The e-mail does not change (it is immutable in the kernel);
+  - pause and reactivate; remove; resend the invitation; send a password reset.
+- **Each change is one transaction:** the row, the server-only op that carries it to the devices, and, for pause and remove, the end of that user's sessions.
+- **Last Admin.** The kernel's verdict is checked inside the transaction with the company's users locked. The Admin can pause or remove himself only when another active Admin exists.
+- **Remove is a status.** The user's row, name and every `actor_id` stay. A removed user's e-mail cannot be invited again as a new user; "reactivate" brings the same person back.
+- **An invited user who has set a password** becomes `active` at his first sign-in.
+- **Usage events** (AD-28) for each action, with ids and no names.
+- **Rate limit** on create and on the two e-mail actions.
+- **Out of scope:** changing a role's keys (Story 26.10); the screen.
+
+**Acceptance Criteria:**
+
+**Given** an Admin
+**When** he creates a user with the role Engenheiro de Campo
+**Then** the user is listed as "Convite pendente", one invitation is stored, and after the link the user signs in and holds that role
+
+**Given** a Gestor do Projeto
+**When** he calls any of these routes
+**Then** the answer is `403 forbidden`
+
+**Given** an Admin of company A
+**When** he names a user of company B
+**Then** the answer is the tenant refusal and nothing changes
+
+**Given** an active user with an open session
+**When** the Admin pauses him
+**Then** his next request is `401`, and after "reactivate" he signs in again with the same password
+
+**Given** the only active Admin
+**When** he tries to pause, remove or lower himself
+**Then** the answer is refused with the last-Admin code, and two simultaneous requests that would each leave one Admin cannot both pass
+
+**Given** a removed user who is the responsável of an issued relatório
+**When** the relatório and its history are read
+**Then** his name is still there
+
+**Given** an e-mail that already belongs to a user
+**When** it is used in create
+**Then** the answer is the duplicate code and no message is stored
+
+**Definition of Done, in addition:**
+- "26.8-API-001" to "-003": each route; the last-Admin race; the cross-company cases.
+- The codes in `errorCodeSchema`; the usage events in `docs/kbs/architecture/usage-events.md`.
+- `docs/kbs/code/api-app.md`, `log.md`.
+
+### Story 26.9: The Usuários screen
+
+**Dev model:** sonnet · **Effort:** high · web: the list, the dialog and the confirmations from the approved frames, over Story 26.8's routes; online only
+
+As the company's Admin,
+I want a screen with everyone, their role and their state,
+So that I add, change, pause and remove a person in a few taps.
+
+**Today (verified 2026-11-21):** no user screen exists. Home has two shortcuts.
+
+*(Definition of Ready: Story 26.1's frames approved; Story 26.8 merged into the wave branch.)*
+- **Where.** A Home shortcut "Usuários" and the route `/usuarios`, both only with `users.manage`.
+- **The list** renders from IndexedDB (the users and roles the pull brings); the last sign-in comes from the route. Filters by role and status; removed users behind the status filter.
+- **The dialog** for new and edit, and the confirmations, as the frames. Every error of Story 26.8 has its sentence: duplicate e-mail, last Admin, no connection.
+- **Offline** the list shows and every action is disabled with one line: the change needs a connection.
+- **After an action** the screen says when it takes effect: at the device's next contact with the server.
+- **Out of scope:** the second tab (Story 26.10).
+
+**Acceptance Criteria:**
+
+**Given** an Admin on Home
+**When** he opens Usuários and creates a user
+**Then** the row appears as "Convite pendente" with its role
+
+**Given** the list
+**When** he pauses a user and confirms
+**Then** the pill reads "Pausado" and the row's menu offers "Reativar"
+
+**Given** the only Admin
+**When** he tries to remove himself
+**Then** the dialog shows the last-Admin sentence and nothing changes
+
+**Given** the device offline
+**When** the screen opens
+**Then** the list shows and the actions are disabled with their line
+
+**Given** the screen at 390, 768 and 1280 px and a dialog open
+**When** it is checked with axe and by keyboard
+**Then** there is no violation and every action is reachable
+
+**Definition of Done, in addition:**
+- Web tests of the list, the dialog and each error.
+- `e2e/users-screen.spec.ts` "26.9-E2E-001 @p0": create, the link, first sign-in, change role, pause, reactivate, remove, as a person would.
+- Static copy in `pt-br.ts`, status words from the kernel; authored sentences listed.
+- `docs/kbs/code/web-app.md`, `log.md`.
+
+### Story 26.10: Papéis e permissões: the grid and the roles the Admin creates
+
+**Dev model:** opus · **Effort:** high · api and web: the Admin edits each role's keys, creates, renames and removes custom roles; the Admin line locked
+
+As the company's Admin,
+I want to change what each role may do and to create my own roles,
+So that the app follows how my company divides the work.
+
+**Today:** after waves 1 and 2 the five roles exist with their seeded keys and no way to change them.
+
+*(Definition of Ready, met 2026-11-21 by decision 3. Story 26.1's frames approved. Needs Stories 26.4, 26.5 and 26.9.)*
+- **Routes** under `/api/admin/roles`, needing `roles.manage`, online: list, change a role's keys, create, rename, remove. Each writes server-only ops.
+- **Rules, in the kernel:**
+  - the Admin role's keys cannot be changed, and it cannot be renamed or removed;
+  - the other four seeded roles can have their keys changed and can be restored to the seeded set; they cannot be removed;
+  - a custom role has a name unique in the company and any set of keys; it is removed only when no user holds it;
+  - `users.manage` and `roles.manage` given to a role make its users able to manage users and roles. The screen says so before saving.
+- **The screen,** second tab of Usuários: the grid of roles by module, a module opening into its keys, saved with one action, as the frame.
+- **The change reaches each device by pull** and the screens follow it (Story 26.5).
+- **Out of scope:** copying a role; a history view of changes (the op log holds them).
+
+**Acceptance Criteria:**
+
+**Given** an Admin on the grid
+**When** he gives `relatorio.create` to Engenheiro de Campo and saves
+**Then** a field engineer's device shows "Novo relatório" after its next pull, and the server accepts his create
+
+**Given** the same grid
+**When** he takes `relatorio.fill` from a role and a user of that role pushes a reading written before the change
+**Then** the reading is rejected with the role's reason and stays in the outbox with "Reenviar"
+
+**Given** the Admin line
+**When** the screen renders
+**Then** every switch is on and locked, and the route refuses a change to it
+
+**Given** a new role "Estagiário" with only `relatorio.view` and `relatorio.fill`
+**When** it is given to a user
+**Then** that user fills fichas and sees no Templates, Cadastros or Usuários
+
+**Given** a custom role held by one user
+**When** the Admin removes it
+**Then** it is refused with a sentence that names the count of users
+
+**Given** a seeded role whose keys were changed
+**When** the Admin restores it
+**Then** its keys are the epic's table again
+
+**Given** a Gestor do Projeto
+**When** he opens the tab's address or calls its routes
+**Then** he lands on Home, and the routes answer `403 forbidden`
+
+**Definition of Done, in addition:**
+- Kernel "26.10-UNIT": the rules. "26.10-API-001": the routes and the refusals.
+- `e2e/roles-editor.spec.ts` "26.10-E2E-001 @p0": change a seeded role and see a second user's screen follow; create, give and remove a custom role.
+- Authored sentences listed in the PR.
+- `docs/kbs/architecture/roles-and-permissions.md`, `log.md`.
+
+*Coordinator's reading, open to Matheus:*
+- *An op written under the old keys and pushed after the change is judged by the new keys. Nothing is lost: it stays on the device, and "Reenviar" sends it if the key comes back.*
+
+### Story 26.11: A paused user keeps the unsent work
+
+**Dev model:** opus · **Effort:** high · web and api: the paused banner, "Sair" that warns, the queue sent after reactivation; a durability spec on the matrix
+
+As a field engineer paused while I work without signal,
+I want what I filled to stay on the tablet,
+So that the company does not lose a day of measurements because of an access change.
+
+**Today (verified 2026-11-21):** a `401` pauses sync and shows "Sua sessão expirou. Nada foi apagado deste aparelho." with "Entrar de novo"; the outbox is kept (AD-9). A confirmed "Sair" sends what it can, confirms the unsent count, then deletes this account's database on the device (Story 20.11). Nothing distinguishes a paused account from an expired session.
+
+*(Definition of Ready, met 2026-11-21 by decision 5. Story 26.1's frames approved. Needs Story 26.4.)*
+- **The device learns the cause.** The `401` of an inactive user carries a code; sign-in is refused with the same code.
+- **The banner** of a paused account replaces the session one, with its own sentence: the work is saved on this device and is sent after the reactivation. Filling stays possible offline, as today.
+- **"Sair" with unsent work while paused** shows the count and says the work cannot be sent now and will be deleted; the confirming action is not the default one.
+- **After reactivation** the user signs in on the same device and the queue is sent in its order; ops his role no longer allows are rejected one by one, as in Story 26.4.
+- **A removed user** follows the same path: the device keeps the work until someone signs him out; only a reactivation sends it.
+- **Out of scope:** an Admin view of what a device holds unsent (the server cannot know it); exporting the unsent work to a file. Both are named in `deferred-work.md`.
+
+**Acceptance Criteria:**
+
+**Given** a field engineer offline with five unsent readings, paused by the Admin
+**When** his device comes back and syncs
+**Then** the paused banner shows, the five ops are still pending, and nothing was deleted
+
+**Given** that state
+**When** he taps "Sair"
+**Then** the dialog names five unsent items and what happens to them, and cancelling keeps them
+
+**Given** that state and a reactivation
+**When** he signs in again on the same device
+**Then** the five readings reach the server and the banner is gone
+
+**Given** that state, on each project of the durability matrix
+**When** the page is reloaded and the browser restarted
+**Then** the five ops are still in the outbox
+
+**Given** a paused user on a device with no data of his
+**When** he tries to sign in
+**Then** Login says "Conta pausada. Fale com o administrador."
+
+**Definition of Done, in addition:**
+- `e2e/paused-user-unsent.spec.ts` "26.11-E2E-001 @p0" on `durability-desktop-chrome`, and on the matrix projects for the wave gate.
+- Web tests of the banner and the dialog.
+- The two `deferred-work.md` rows; authored sentences listed.
+- `docs/kbs/architecture/sync.md`, `log.md`.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.

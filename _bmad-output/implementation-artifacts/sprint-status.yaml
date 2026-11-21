@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-16-2026 12:00
+last_updated: 11-21-2026 12:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -330,6 +330,20 @@ development_status:
   25-22-the-fixed-texts-the-cover-and-the-headers: done  # 2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M09, M10, M12, M13; decision 11); wave 4, e25p; v15, the names TP and TC on every seed; B-12 and B-14 open, not blocking
   25-23-the-test-base-is-updated-without-importing-it-again: done  # 2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M27; Bruno's answers 7 and 10); wave 4, e25t; company types; DoR open: the new revision's file has not arrived (built against a synthetic one)
   25-24-the-conferencia-por-ia-says-when-it-is-out-of-date: done  # 2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M16 and the last part of M20; decision 10); wave 5, e25q, last; every seed, one contract number; never runs by itself (M-8)
+
+  epic-26: backlog  # added 2026-11-21: users, roles and permissions; Matheus's seven decisions of 2026-11-21; inputs from Winston, Sally and Amelia; 11 stories in four waves; AD-29 and the source-deltas row are planned; story list approved by Matheus 2026-11-21 ("ok"), with one full gate at the end of the epic instead of one per wave and batches in parallel; 26.7 on hold
+  epic-26-retrospective: optional
+  26-1-the-epic-26-frames-in-the-mocks: backlog  # added 2026-11-21; wave 0, coordinator with bmad-ux; no app code
+  26-2-the-kernel-knows-the-keys-the-roles-and-who-may-do-what: backlog  # added 2026-11-21; wave 1, e26a, first; AD-29; one contract number
+  26-3-roles-and-user-status-live-in-the-companys-data: backlog  # added 2026-11-21; wave 1, e26a; every existing user becomes Admin (decision 6)
+  26-4-the-server-refuses-what-the-role-does-not-allow: backlog  # added 2026-11-21; wave 1, e26a
+  26-5-the-app-shows-each-role-only-its-modules: backlog  # added 2026-11-21; wave 1, e26b; DoR: 26.1 approved
+  26-6-email-leaves-the-app-the-invitation-and-the-password-reset: backlog  # added 2026-11-21 (decision 4); wave 2, e26c; EMAIL_PROVIDER fake by default
+  26-7-amazon-ses-in-terraform-inside-the-budget: backlog  # 2026-11-21: ON HOLD by Matheus, who talks to Bruno first (sender domain, DNS records, sandbox exit); the rest is built with EMAIL_PROVIDER=fake | was added 2026-11-21 (decision 4); wave 2, coordinator; DoR open: sender domain, DNS records, sandbox exit (Matheus)
+  26-8-the-admins-routes-create-edit-pause-reactivate-remove-change-role: backlog  # added 2026-11-21; wave 2, e26c
+  26-9-the-usuarios-screen: backlog  # added 2026-11-21; wave 2, e26d; DoR: 26.1 approved
+  26-10-papeis-e-permissoes-the-grid-and-the-roles-the-admin-creates: backlog  # added 2026-11-21 (decision 3); wave 3, e26e
+  26-11-a-paused-user-keeps-the-unsent-work: backlog  # added 2026-11-21 (decision 5); wave 2, e26d
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
