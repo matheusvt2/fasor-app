@@ -26,6 +26,7 @@ import {
   type PreviewResponse,
   type RevisionFileFormat,
   type RevisionRow,
+  permissionForRoute,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { and, eq, sql } from 'drizzle-orm';
@@ -42,7 +43,7 @@ import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
 import { editedAfter } from '../sync/edited-after.ts';
 import { serverOp } from '../sync/server-op.ts';
 import { toSnapshot } from '../sync/snapshot.ts';
-import { type AppEnv, requireSession, type SessionContext } from './session.ts';
+import { type AppEnv, requirePermission, type SessionContext } from './session.ts';
 
 /*
  * AD-15: `POST /api/relatorios/:id/generate` is the flush barrier and the one place an
@@ -216,8 +217,10 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
    */
   async function caughtUpRequest(
     c: Context<AppEnv>,
+    route: 'relatorio.generate' | 'relatorio.preview',
   ): Promise<{ response: Response } | { session: SessionContext; relatorioId: string; relatorio: { project_id: string } }> {
-    const session = requireSession(c);
+    // Story 26.4 (AD-29): the role holds the route's key, before anything is read or queued.
+    const session = requirePermission(c, permissionForRoute(route));
     const relatorioId = c.req.param('id') ?? '';
     c.set('relatorioId', relatorioId);
     const relatorio = await readRelatorio(session.companyId, relatorioId);
@@ -237,7 +240,8 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
   /** `GET /api/revisions/:id/docx` and `/pdf` (A-28): the revision's stored file, as a download. */
   function serveRevisionFile(format: RevisionFileFormat) {
     return async (c: Context<AppEnv>) => {
-      const session = requireSession(c);
+      // Story 26.4 (AD-29): downloading an issued DOCX or PDF needs `export.download`.
+      const session = requirePermission(c, permissionForRoute(format === 'docx' ? 'revision.docx' : 'revision.pdf'));
       const id = c.req.param('id') ?? '';
       if (!uuidV7Schema.safeParse(id).success) return c.json(notFound, 404);
       const [record] = await db
@@ -262,7 +266,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
   }
 
   routes.post('/api/relatorios/:id/generate', async (c) => {
-    const request = await caughtUpRequest(c);
+    const request = await caughtUpRequest(c, 'relatorio.generate');
     if ('response' in request) return request.response;
     const { session, relatorioId, relatorio } = request;
 
@@ -292,7 +296,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
   });
 
   routes.post('/api/relatorios/:id/preview', async (c) => {
-    const request = await caughtUpRequest(c);
+    const request = await caughtUpRequest(c, 'relatorio.preview');
     if ('response' in request) return request.response;
     const { session, relatorioId, relatorio } = request;
 
@@ -303,7 +307,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
   });
 
   routes.get('/api/relatorios/:id/preview.pdf', async (c) => {
-    const session = requireSession(c);
+    const session = requirePermission(c, permissionForRoute('relatorio.preview_pdf'));
     const relatorio = await readRelatorio(session.companyId, c.req.param('id'));
     if (relatorio === null || relatorio.preview_file_id === null) return c.json(notFound, 404);
     // The key is derived from the session's company and the id the relatório names.

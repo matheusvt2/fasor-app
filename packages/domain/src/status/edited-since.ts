@@ -93,6 +93,11 @@ const FAMILY_DECISIONS = {
   equipment_type: never('a company equipment type is company scope; a relatório keeps the version its blocks were created with'),
   'equipment_type/field': never('a type draft, its retirement or its discard is company scope; no relatório reads a draft'),
   equipment_type_version: never('publishing a type version is company scope; a relatório keeps the version its blocks reference'),
+  // Story 26.2 (contract 55, AD-29): roles and a user's role and status are company data, written only by the server.
+  role: never('server-only: a company role, written by the seed, the migration and the Admin routes'),
+  'role/field': never('server-only: a role name, key set or tombstone, written by the Admin routes'),
+  'user/role_id': never('server-only: the role of a user, written by the seed, the migration and the Admin routes'),
+  'user/status': never('server-only: the status of a user, written by the seed, the migration and the Admin routes'),
 } as const satisfies Record<PathFamily, FamilyDecision>;
 
 const DECIDED = Object.entries(FAMILY_DECISIONS) as ReadonlyArray<[PathFamily, FamilyDecision]>;

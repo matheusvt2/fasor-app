@@ -11,6 +11,7 @@ import {
   type ErrorCode,
   type ErrorResponse,
   type NewId,
+  permissionForRoute,
 } from '@app/domain';
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -24,7 +25,7 @@ import { log, logError } from '../log.ts';
 import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
 import { serverOp } from '../sync/server-op.ts';
 import { barrierMissing, readLiveRelatorio } from './barrier.ts';
-import { type AppEnv, requireSession } from './session.ts';
+import { type AppEnv, requirePermission } from './session.ts';
 
 /*
  * Story 13.8 (AI-3): `POST /api/relatorios/:id/audit`, "Conferir antes de emitir". The order
@@ -89,7 +90,8 @@ export function createAuditRoutes(db: Db, deps: AuditRouteDeps): Hono<AppEnv> {
   }
 
   routes.post(AUDIT_ROUTE_PATH, async (c) => {
-    const session = requireSession(c);
+    // Story 26.4 (AD-29): the Conferência por IA belongs to the issuing step.
+    const session = requirePermission(c, permissionForRoute('relatorio.audit'));
     const relatorioId = c.req.param('id') ?? '';
     c.set('relatorioId', relatorioId);
     const relatorio = await readLiveRelatorio(db, session.companyId, relatorioId);

@@ -28,6 +28,9 @@ import { z } from 'zod';
  *   since e20f also an op whose value names a row (`valueReferencesOf`: an equipment, a local,
  *   a photo, a registry entry, ...) that does not exist or belongs elsewhere;
  * - `op_forbidden` also refuses, alone, the removal of an Emitido relatório.
+ *
+ * Contract 55 (2026-11-21, Story 26.2, AD-29): `op_forbidden` also refuses, alone, a client op whose
+ * key (`permissionForPath`) the actor's role does not hold (`can`). No code is added for it.
  */
 export const opRejectCodeSchema = z.enum([
   'op_invalid',
@@ -89,6 +92,12 @@ export const errorCodeSchema = z.enum([
   // Contract 29 (2026-11-03): reserved here for Story 20.13 (batch e20e implements it): a
   // mutating `/api` request from an origin the server does not trust.
   'forbidden_origin',
+  // Contract 55 (2026-11-21, Story 26.2, AD-29): a route whose key (`permissionForRoute`) the
+  // actor's role does not hold answers 403 `forbidden`; any request of a user who is not active
+  // (`activeUser`: invited, paused, removed) answers 401 `user_inactive`, which the device reads
+  // to keep its outbox, and the sign-in of a paused or removed user is refused with it.
+  'forbidden',
+  'user_inactive',
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 

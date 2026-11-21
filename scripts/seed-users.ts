@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { councilSchema, uuidV7Schema, type NewId } from '@app/domain';
+import { councilSchema, SYSTEM_ROLE_IDS, systemRoleIdSchema, uuidV7Schema, type NewId, type SystemRoleId } from '@app/domain';
 import { parseTrustedOrigins } from '../apps/api/src/auth/trusted-origins.ts';
 import { createAuth } from '../apps/api/src/auth/auth.ts';
 import { loadConfig } from '../apps/api/src/config.ts';
@@ -22,7 +22,7 @@ import { assertInCompose } from './test-reset.ts';
  *   docker compose run --rm tools pnpm exec tsx scripts/seed-users.ts \
  *     --company-id 019966b0-5b6d-7e7f-9a0b-1c2d3e4f5a6b --company "Acme Engenharia" --email a@acme.com \
  *     --password "..." --name "Ana Alves" --council crea --number "SP 1234" [--title "..."] \
- *     [--standard-template] [--sample-relatorio]
+ *     [--standard-template] [--sample-relatorio] [--role <system role>]
  *
  * The company id is a uuidv7 (AD-4): every op carries it, and the op schema accepts no
  * other shape, so a company provisioned under a v4 id could never sync. Leave
@@ -30,6 +30,10 @@ import { assertInCompose } from './test-reset.ts';
  * the company's next users; a supplied id that is not a uuidv7 is refused before the
  * database is touched, with a freshly minted example. User ids are always minted here
  * (uuidv7), never typed.
+ *
+ * Story 26.3 (AD-29): `--role` names the user's seeded role (`admin`, `engenheiro_de_campo`,
+ * `gestor_do_projeto`, `responsavel_tecnico`, `consulta`). A new user without it is Admin; a
+ * re-run with it puts the role when it changed, and a re-run without it keeps the user's role.
  *
  * The registration flags (`--council`, `--number`, `--title`) seed a new user's initial
  * values only. Re-running for an existing e-mail resets the password and updates the name,
@@ -53,12 +57,13 @@ const USAGE = `usage:
   seed-users --test
   seed-users [--company-id <uuidv7>] --company <name> --email <email> --password <password> \\
              --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>] \\
-             [--standard-template] [--sample-relatorio]
+             [--standard-template] [--sample-relatorio] [--role <${SYSTEM_ROLE_IDS.join('|')}>]
   (--password may be left out when SEED_USER_PASSWORD holds it: prefer the variable, it stays off the command line;
    the registration flags set a new user's initial values; a re-run resets the password and the name only;
    --standard-template also seeds the company's "Cabine primária — padrão" template once;
    --sample-relatorio also seeds the small Porto Seguro relatório under ids derived for the company;
-   a re-run replaces the company's own copy, and test:api and the e2e setup never touch it)`;
+   a re-run replaces the company's own copy, and test:api and the e2e setup never touch it;
+   --role gives the user that seeded role: a new user without it is admin, a re-run without it keeps the user's role)`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};
@@ -150,6 +155,20 @@ export function wantsSampleRelatorio(args: Record<string, string | true>): boole
   return wanted;
 }
 
+/**
+ * Story 26.3: the `--role` value, one of the seeded roles' identifiers, or undefined when the
+ * flag is left out. Only for a named user (never with `--test`, whose users are Admin). Checked
+ * before the database is opened.
+ */
+export function resolveRole(args: Record<string, string | true>): SystemRoleId | undefined {
+  const value = args.role;
+  if (value === undefined) return undefined;
+  if (args.test === true) throw new Error(`--role needs a named user, not --test\n${USAGE}`);
+  const parsed = systemRoleIdSchema.safeParse(typeof value === 'string' ? value.trim() : value);
+  if (!parsed.success) throw new Error(`--role must be one of ${SYSTEM_ROLE_IDS.join(', ')}, got "${String(value)}"\n${USAGE}`);
+  return parsed.data;
+}
+
 function bareSwitch(args: Record<string, string | true>, key: string): boolean {
   const value = args[key];
   if (value === undefined) return false;
@@ -170,6 +189,7 @@ async function main(): Promise<void> {
   const company = args.test === true ? null : resolveCompanyId(args);
   const standardTemplate = wantsStandardTemplate(args);
   const sampleRelatorio = wantsSampleRelatorio(args);
+  const role = resolveRole(args);
   const config = loadConfig();
   const { sql, db } = createDb(config.DATABASE_URL);
   try {
@@ -201,8 +221,9 @@ async function main(): Promise<void> {
       council: councilSchema.parse(required(args, 'council')),
       registrationNumber: required(args, 'number'),
       title: typeof title === 'string' ? title : undefined,
+      role,
     });
-    console.log(`seeded ${result.email} as user ${result.userId} in company ${result.companyId}`);
+    console.log(`seeded ${result.email} as user ${result.userId} in company ${result.companyId}${role === undefined ? '' : ` with role ${role}`}`);
     if (standardTemplate) {
       const templateId = await seedStandardTemplate(db, result.companyId);
       console.log(

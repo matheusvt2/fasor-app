@@ -436,7 +436,7 @@ describe('the relatório budget (e20f, aggregate)', () => {
   });
 
   it('E20-A1 (R-1d): the rows only the server creates are never counted; a row of another relatório neither', () => {
-    expect([...RELATORIO_BUDGET_SERVER_ENTITIES].sort()).toEqual(['audit_run', 'generation_job', 'revision', 'suggestion', 'user']);
+    expect([...RELATORIO_BUDGET_SERVER_ENTITIES].sort()).toEqual(['audit_run', 'generation_job', 'revision', 'role', 'suggestion', 'user']);
     const job = { id: POINT, relatorio_id: RELATORIO, removed_at: null, kind: 'preview' } as never;
     expect(relatorioBudgetRowBytes('generation_job', job, RELATORIO)).toBe(0);
     expect(relatorioBudgetRowBytes('audit_run', job, RELATORIO)).toBe(0);

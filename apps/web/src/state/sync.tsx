@@ -35,6 +35,8 @@ import {
   type FileVariantName,
   type SyncCounts,
   type UserRow,
+  type RoleRow,
+  rejectionCause,
   EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -45,6 +47,7 @@ import { heldDecisions, type HeldDecisions } from '../db/decision-store.ts';
 import {
   deviceId,
   downloadRowsContext,
+  localRoleOf,
   localUsers,
   mergeTextContext,
   outboxRows,
@@ -370,12 +373,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const rows = loadedRows ?? NO_ROWS;
   // Matheus, 2026-09-30: the Sync status surface says it is loading until the outbox is read.
   const outboxRead = db === null || loadedRows !== undefined;
-  // Stories 20.7 to 20.10: why the server refused the dead rows, one code each, first met first.
+  // Story 26.4: the viewer's role on this device, so an `op_forbidden` its role explains is named so.
+  const viewerUserId = session.user?.id ?? null;
+  const viewerRole = useLiveQuery(() => (db === null || viewerUserId === null ? Promise.resolve(null) : localRoleOf(db, viewerUserId)), [db, viewerUserId], null as RoleRow | null);
+  // Stories 20.7 to 20.10: why the server refused the dead rows, one code each, first met first
+  // (Story 26.4: the kernel's cause, `rejectionCause`, which names a refusal by role apart).
   const rejectedCodes = useMemo(() => {
     const codes: string[] = [];
-    for (const row of rows) if (row.status === 'dead' && row.error_code !== null && !codes.includes(row.error_code)) codes.push(row.error_code);
+    for (const row of rows) {
+      if (row.status !== 'dead') continue;
+      const cause = rejectionCause(row, viewerRole);
+      if (cause !== null && !codes.includes(cause)) codes.push(cause);
+    }
     return codes;
-  }, [rows]);
+  }, [rows, viewerRole]);
   // Epic 18: an op the server refused for good (a dead row) is an api error code the user
   // sees on Sync status; each one is tracked once, the rows already dead at boot excepted.
   const deadSeen = useRef<{ db: AppDatabase; ids: Set<string> } | null>(null);

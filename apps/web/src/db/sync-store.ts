@@ -15,6 +15,8 @@ import {
   splitEntityKey,
   userFieldPath,
   userRowSchema,
+  roleRowSchema,
+  type RoleRow,
   type BlockRow,
   type DownloadTotals,
   type EntityKey,
@@ -341,6 +343,19 @@ export async function localUser(db: AppDatabase, userId: string): Promise<UserRo
   const record = await db.entities.get(['user', userId]);
   if (record === undefined) return null;
   const parsed = userRowSchema.safeParse(record.row);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Story 26.4: the role this device holds for one user, the `role/{id}` row its user row's
+ * `role_id` names (both pulled with the company), or null until both are here.
+ */
+export async function localRoleOf(db: AppDatabase, userId: string): Promise<RoleRow | null> {
+  const user = await localUser(db, userId);
+  if (user === null || user.role_id === undefined) return null;
+  const record = await db.entities.get(['role', user.role_id]);
+  if (record === undefined) return null;
+  const parsed = roleRowSchema.safeParse(record.row);
   return parsed.success ? parsed.data : null;
 }
 
