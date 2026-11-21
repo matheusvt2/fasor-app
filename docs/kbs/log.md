@@ -267,3 +267,4 @@ timestamp: 2026-09-30T00:00:00Z
 - 2026-11-15: wave 3 (batch e25s, PR #334) merged as 4ecc3009 and deployed the same day on Matheus's word: smoke 8 of 8, tag v0.12.0, seed v16 live for new relatorios, v15 frozen, contract 54. 25.17, the oil half of 25.19 and 25.21 stay held. Records in `epic-25-context.md`.
 - 2026-11-16: Epic 25 retrospective (`implementation-artifacts/epic-25-retro-2026-11-16.md`), accepted-with-open-items, action items E25-A1 to E25-A6; `sprint-status.yaml` and `epic-25-context.md` carry the wave 3 deploy record.
 - 2026-11-21: Epic 26 planned (users, roles and permissions; `epics.md`, 11 stories, AD-29 planned, `source-deltas.md` row, `sprint-status.yaml`). Nothing built; `planning/artifact-locator.md` gains its line.
+- 2026-11-21: Epic 26 story list approved by Matheus; `implementation-artifacts/epic-26-context.md` written (batch plan, one full gate at the end of the epic, Story 26.7 on hold).
