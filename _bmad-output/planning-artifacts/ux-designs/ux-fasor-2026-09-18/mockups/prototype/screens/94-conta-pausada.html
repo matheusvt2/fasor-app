@@ -1,0 +1,65 @@
+<style data-screen="conta-pausada">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.11: a field engineer (Diego) paused by the Admin while he worked offline with five unsent
+   readings. The device came back, the server answered 401 with the inactive code, and the shell's banner slot shows the paused banner
+   (#slot-paused in shell-head.html; it replaces the session banner and leads the slot on every surface). Filling goes on; the outbox is kept.
+   This route is Conta for that user: the Sessão section and the "Sair" Confirm dialog of the paused case, where the default (focused)
+   action is "Cancelar" and the confirming one says what it deletes. Classes of 90-account.html; layout rules copied under this route.
+   Governs: EXPERIENCE.md § IA › Account; § Component Patterns › Banner, Confirm dialog; § State Patterns › Account paused (2026-11-21). */
+[data-route="/conta/pausada"] .account-name { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+[data-route="/conta/pausada"] .account-name .avatar { width: 56px; height: 56px; font-size: var(--t-title-size); }
+[data-route="/conta/pausada"] .account-name h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/conta/pausada"] .account-name p { font-size: var(--t-body-size); color: var(--ink-secondary); }
+[data-route="/conta/pausada"] .sign-out { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.frame-phone [data-route="/conta/pausada"] .sign-out .btn { width: 100%; }
+.frame-phone [data-route="/conta/pausada"] .dialog-actions .btn { flex: 1 1 100%; }
+.frame-phone [data-route="/conta/pausada"] .confirm-dialog { margin: auto var(--sp-4); }
+</style>
+<section class="screen" data-route="/conta/pausada" data-title="Conta" data-shell="app" data-rail="false" data-user="D" data-sync="pending" data-sync-label="5 pendentes" data-banner="#slot-paused">
+  <div class="content">
+
+    <section class="section" aria-labelledby="cp-h-id">
+      <h2 id="cp-h-id" class="visually-hidden">Identificação</h2>
+      <div class="account-name">
+        <span class="avatar" aria-hidden="true">D</span>
+        <div>
+          <h2>Diego Alves</h2>
+          <p>diego@exemplo.com.br · Engenheiro de Campo</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="cp-h-storage">
+      <div class="section-head"><h2 id="cp-h-storage">Armazenamento neste aparelho</h2></div>
+      <ul class="settings-list">
+        <li class="settings-row">
+          <span class="grow">
+            <span class="sr-label">Aguardando envio</span><br>
+            <span class="sr-value">5 alterações · SEC-C05, DJ-C05</span>
+          </span>
+          <a class="btn btn-text" href="#/sync">Ver status de sincronização<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="section" aria-labelledby="cp-h-sair">
+      <div class="section-head"><h2 id="cp-h-sair">Sessão</h2></div>
+      <div class="sign-out">
+        <button class="btn btn-destructive" data-open="#cp-dlg-sair" aria-describedby="cp-sair-note">Sair</button>
+        <span class="btn-reason" id="cp-sair-note">5 alterações aguardando envio. Com a conta pausada, elas só podem ser enviadas depois da reativação.</span>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <!-- "Sair" with unsent work while paused: Cancelar is the default; the confirming action names the loss -->
+  <div class="dialog-scrim" id="cp-dlg-sair" hidden>
+    <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="cp-sair-title" aria-describedby="cp-sair-desc">
+      <h2 class="dialog-title" id="cp-sair-title">Sair e apagar o que não foi enviado?</h2>
+      <p class="t-body" id="cp-sair-desc">5 alterações ainda não foram enviadas e não podem ser enviadas agora, porque a sua conta está pausada. Se você sair, elas são apagadas deste aparelho. Se ficar, elas são enviadas quando a conta for reativada.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-destructive" data-close data-go="#/login/pausada">Sair e apagar</button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -47,9 +47,9 @@
     $('#bar-sync-label').textContent = syncLabel;
     $('#bar-sync-short').textContent = (sync === 'pending' && /^\d+/.test(syncLabel)) ? syncLabel.match(/^\d+/)[0] : (SYNC_SHORT[sync] || syncLabel);   // phone: dot + short word
     $('#bar-avatar').textContent = screen.dataset.user || 'B';
-    $('#browser-url').textContent = 'produto.app/#' + path;
+    $('#browser-url').textContent = 'Conforme · #' + path;   // 2026-11-21, Story 26.1: the product name (Story 20.1), no invented domain
     $('#proto-route').textContent = '#' + path;
-    document.title = 'PRODUTO — ' + (title || path);
+    document.title = 'Conforme — ' + (title || path);
     // banner slot: reset, then open what the screen declares (data-banner="#slot-a,#slot-b")
     $$('#banner-slot > *').forEach(b => { b.hidden = true; });
     (screen.dataset.banner || '').split(',').map(s => s.trim()).filter(Boolean).forEach(id => { const b = $(id); if (b) b.hidden = false; });

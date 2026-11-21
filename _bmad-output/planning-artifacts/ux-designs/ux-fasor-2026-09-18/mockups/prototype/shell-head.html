@@ -51,6 +51,10 @@
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></symbol>
   <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <!-- 2026-11-21, Story 26.1 (Epic 26): the Usuários shortcut, the locked Admin column, the e-mail frames -->
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
 </svg>
 
 <!-- ============ Prototype bar (not product UI) ============ -->
@@ -85,7 +89,8 @@
   <header class="app-bar" id="app-bar">
     <div class="app-bar-left">
       <button class="icon-btn" id="bar-back" data-back aria-label="Voltar"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg></button>
-      <button class="wordmark" id="bar-wordmark" data-go="#/home" aria-label="PRODUTO — início">PRODUTO</button>
+      <!-- 2026-11-21, Story 26.1: the wordmark reads the product name, Conforme (Story 20.1), as the app does; the static key-*.html mocks keep PRODUTO -->
+      <button class="wordmark" id="bar-wordmark" data-go="#/home" aria-label="Conforme — início">Conforme</button>
       <button class="icon-btn" id="bar-rail-btn" data-rail-toggle aria-label="Abrir árvore do relatório" aria-expanded="false"><svg class="ico" aria-hidden="true"><use href="#i-tree"/></svg></button>
     </div>
     <h1 class="app-bar-title" id="bar-title">Início</h1>
@@ -99,6 +104,9 @@
        a screen reveals one with data-open="#slot-…" (or lists them on its <section data-banner="#slot-a,#slot-b">).
        Only the first visible child is drawn; proto.js writes "+N" into .banner-more of that child. Reset on every route. -->
   <div class="banner-slot" id="banner-slot" data-banner-slot>
+    <!-- 2026-11-21, Story 26.1 for Story 26.11: the paused account replaces the session banner ("Sua sessão expirou…") and leads the slot.
+         No action: signing in again cannot help until the Admin reactivates the account; filling goes on and the outbox is kept. -->
+    <div class="banner" id="slot-paused" role="status" hidden><span class="banner-text"><strong>Conta pausada.</strong> O que você preencher fica salvo neste aparelho e é enviado quando o administrador reativar a sua conta.</span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-conflict" data-variant="conflict" role="alert" hidden><span class="banner-text"><strong>Contradição</strong> — SEC-C12: 1 célula em contradição com Eduardo.</span><span class="banner-actions"><button class="btn btn-text" data-go="#/sync/conflito">Ver</button><button class="btn btn-text" data-close="#slot-conflict">Depois</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-draft" data-variant="info" role="status" hidden><span class="banner-text"><strong>Rascunho encontrado</strong> — esta ficha tem alterações não salvas neste aparelho.</span><span class="banner-actions"><button class="btn btn-text" data-close="#slot-draft" data-toast="Rascunho recuperado">Recuperar</button><button class="btn btn-text" data-close="#slot-draft">Agora não</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-suggestions" data-variant="info" role="status" hidden><span class="banner-text"><strong>Sugestões prontas</strong> — 3 leituras aguardam confirmação nesta ficha.</span><span class="banner-actions"><button class="btn btn-text" data-close="#slot-suggestions" data-toast="Rolando até a primeira sugestão">Ver</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>

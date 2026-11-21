@@ -1,0 +1,104 @@
+<style data-screen="ficha-consulta">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.5, added after Matheus's approval of the frames (question 10): the read-only ficha as the
+   Consulta role sees it (Fernanda), who holds relatorio.view and no relatorio.fill. The ficha, its photos and its points open; nothing
+   takes input and no op enters the outbox. One info Banner under the sheet header carries the one line of reason for the whole screen,
+   instead of a reason beside every control: every field of the screen is the same refused action.
+   Reused looks, no new one: the read-only field of the Não ensaiado sheet (components.css "Read-only field": .is-readonly on the section,
+   hairline borders on surface-base, tri-states without pointer events, no Overflow), the Banner (info), the sheet header, the Section
+   stepper (it still moves between steps: reading is allowed), Photo tiles that open the viewer, and a Point line that opens the point.
+   Hidden, as 60-ficha.html hides them on a read-only sheet: the camera button and the Sticky action bar, "Adicionar foto", "Criar ponto
+   de atenção", "Ler visor", the dictation button, the chips of quick texts, the Bulk action bar, the Overflow menus.
+   Layout rules copied from 60-ficha.html under this route. Sample values invented. Existing tokens only.
+   Governs: EXPERIENCE.md § State Patterns › A relatório the role cannot fill (2026-11-21). */
+[data-route="/consulta/ficha/DJ-C05"] .ficha-body { padding: var(--sp-4) var(--gutter-tablet) var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-5); }
+.frame-phone [data-route="/consulta/ficha/DJ-C05"] .ficha-body { padding: var(--sp-4) var(--gutter-phone) var(--sp-6); }
+.frame-desktop [data-route="/consulta/ficha/DJ-C05"] .ficha-body { padding: var(--sp-5) var(--gutter-desktop) var(--sp-6); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); }
+[data-route="/consulta/ficha/DJ-C05"] .fc-banner { margin: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .section-stepper { margin: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .section-stepper .step { cursor: pointer; }
+[data-route="/consulta/ficha/DJ-C05"] .nameplate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3) var(--sp-4); }
+.frame-phone [data-route="/consulta/ficha/DJ-C05"] .nameplate-grid { grid-template-columns: 1fr; }
+[data-route="/consulta/ficha/DJ-C05"] .checklist { list-style: none; margin: 0; padding: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .is-readonly .observation-field { border-color: var(--border-hairline); background: var(--surface-base); min-height: 0; }   /* mirrors 60-ficha.html's read-only observation */
+[data-route="/consulta/ficha/DJ-C05"] .is-readonly .tri-state .seg[aria-checked="false"] { color: var(--ink-secondary); }
+[data-route="/consulta/ficha/DJ-C05"] .measurement-table th { text-align: left; padding: var(--sp-2) var(--sp-3); font-size: var(--t-label-size); color: var(--ink-secondary); border-bottom: 1px solid var(--border-strong); }
+[data-route="/consulta/ficha/DJ-C05"] .measurement-table td { padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/consulta/ficha/DJ-C05"] .measurement-table .measurement-field { min-height: var(--touch-min); }
+[data-route="/consulta/ficha/DJ-C05"] .fc-photos { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+[data-route="/consulta/ficha/DJ-C05"] .fc-photos .photo-tile { cursor: pointer; }
+[data-route="/consulta/ficha/DJ-C05"] .fc-point { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-raised); text-align: left; width: 100%; cursor: pointer; }
+[data-route="/consulta/ficha/DJ-C05"] .fc-point .grow { flex: 1; min-width: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .fc-point .ico { color: var(--ink-secondary); flex: none; }
+</style>
+<section class="screen" data-route="/consulta/ficha/DJ-C05" data-title="DJ-C05" data-shell="app" data-rail="false" data-user="F">
+
+  <div class="sheet-header">
+    <div>
+      <h2 class="sheet-title">Disjuntor MT — DJ-C05</h2>
+      <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 5</p>
+      <p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-07T15:10">07/09 15:10</time></p>
+    </div>
+    <div class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>Concluída</div>
+  </div>
+
+  <div class="ficha-body">
+    <div class="banner fc-banner" data-variant="info" role="status"><span class="banner-text"><strong>Somente leitura.</strong> Seu papel não permite preencher fichas, fotos e pontos.</span></div>
+
+    <nav class="section-stepper" aria-label="Etapas da ficha">
+      <button class="step" data-missing="0" aria-current="step"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span></button>
+      <button class="step" data-missing="0"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span></button>
+      <button class="step" data-missing="0"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span></button>
+      <button class="step" data-missing="0"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span></button>
+    </nav>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-placa">
+      <div class="section-head"><h2 id="fc-h-placa">Dados de placa</h2></div>
+      <div class="nameplate-grid">
+        <div class="field combobox"><span class="field-label">Fabricante</span><div class="input" role="textbox" aria-readonly="true" aria-label="Fabricante">Schneider</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+        <div class="field"><span class="field-label">Nº de série</span><div class="input" role="textbox" aria-readonly="true" aria-label="Nº de série">SF1-21-04417</div></div>
+        <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Corrente nominal"><span class="mf-value">630</span><span class="mf-unit">A</span></div></div>
+        <div class="field"><span class="field-label">Tensão nominal</span><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Tensão nominal"><span class="mf-value">17,5</span><span class="mf-unit">kV</span></div></div>
+      </div>
+    </section>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-verif">
+      <div class="section-head"><h2 id="fc-h-verif">Verificações</h2></div>
+      <ul class="checklist">
+        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Limpeza</span><div class="tri-state" role="radiogroup" aria-label="1. Limpeza" aria-readonly="true"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div></li>
+        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Isoladores</span><div class="tri-state" role="radiogroup" aria-label="2. Isoladores" aria-readonly="true"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div></li>
+        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Sinalização de estado (aberto/fechado)</span><div class="tri-state" role="radiogroup" aria-label="3. Sinalização de estado" aria-readonly="true"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="true" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div>
+          <div class="row-expand"><div class="field"><span class="field-label">Observação do item 3</span><div class="observation-field" role="textbox" aria-readonly="true" aria-multiline="true" aria-label="Observação do item 3">Indicador mecânico de posição ilegível</div></div></div></li>
+      </ul>
+    </section>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-ens">
+      <div class="section-head"><h2 id="fc-h-ens">Resistência ôhmica de contato</h2></div>
+      <table class="measurement-table">
+        <thead><tr><th scope="col">Polo</th><th scope="col">Leitura</th><th scope="col">Aceitável</th></tr></thead>
+        <tbody>
+          <tr><td>R</td><td><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Polo R"><span class="mf-value">42</span><span class="mf-unit">µΩ</span></div></td><td class="t-value">&lt; 250 µΩ</td></tr>
+          <tr><td>S</td><td><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Polo S"><span class="mf-value">45</span><span class="mf-unit">µΩ</span></div></td><td class="t-value">&lt; 250 µΩ</td></tr>
+          <tr><td>T</td><td><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Polo T"><span class="mf-value">41</span><span class="mf-unit">µΩ</span></div></td><td class="t-value">&lt; 250 µΩ</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" aria-labelledby="fc-h-fotos">
+      <div class="section-head"><h2 id="fc-h-fotos">Fotos (2)</h2></div>
+      <div class="fc-photos">
+        <button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 31, placa de identificação do DJ-C05, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">31</span></span><span class="caption">Placa de identificação — DJ-C05</span></button>
+        <button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 32, sinalização de estado do DJ-C05, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">32</span></span><span class="caption">Indicador de posição ilegível — DJ-C05</span></button>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="fc-h-pontos">
+      <div class="section-head"><h2 id="fc-h-pontos">Pontos de atenção</h2></div>
+      <button class="fc-point" data-go="#/relatorio/porto-seguro/pontos"><span class="priority-pill" data-p="2">P2 · Médio prazo</span><span class="grow">Ponto de atenção 3 · Indicador mecânico de posição ilegível</span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+    </section>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-conc">
+      <div class="section-head"><h2 id="fc-h-conc">Conclusão</h2></div>
+      <div class="field"><span class="field-label">Conclusão da ficha</span><div class="input" role="textbox" aria-readonly="true" aria-label="Conclusão da ficha">Aprovado · Com restrições</div></div>
+    </section>
+  </div>
+</section>
