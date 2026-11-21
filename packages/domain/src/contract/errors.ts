@@ -98,6 +98,16 @@ export const errorCodeSchema = z.enum([
   // to keep its outbox, and the sign-in of a paused or removed user is refused with it.
   'forbidden',
   'user_inactive',
+  // 2026-11-21, Story 26.8 (batch e26c, AD-29): the Admin's user routes. No op carries them, so no
+  // contract number moves. `user_email_taken`: the address already belongs to a user (any
+  // company, a removed user's included); `last_admin`: the change would leave the company with no
+  // active Admin (`lastAdminVerdict`); `role_not_found`: the role is no live role of the company;
+  // `user_state_invalid`: the action does not apply to the user's status (pause an invited user,
+  // resend the invitation of an active one, edit a removed one, ...).
+  'user_email_taken',
+  'last_admin',
+  'role_not_found',
+  'user_state_invalid',
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 

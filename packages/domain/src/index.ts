@@ -9,6 +9,8 @@ export * from './schemas/snapshot.ts';
 export * from './ops/path.ts';
 // Story 26.2 (AD-29): the permission keys, the roles, the one verdict and the map from ops and routes to keys.
 export * from './permissions/index.ts';
+// Story 26.6 (AD-9): the password link and the two e-mails.
+export * from './email/index.ts';
 export * from './ops/op.ts';
 export * from './ops/apply.ts';
 export * from './ops/outbox.ts';
