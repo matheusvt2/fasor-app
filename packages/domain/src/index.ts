@@ -7,6 +7,8 @@ export * from './schemas/entities.ts';
 export * from './schemas/block-config.ts';
 export * from './schemas/snapshot.ts';
 export * from './ops/path.ts';
+// Story 26.2 (AD-29): the permission keys, the roles, the one verdict and the map from ops and routes to keys.
+export * from './permissions/index.ts';
 export * from './ops/op.ts';
 export * from './ops/apply.ts';
 export * from './ops/outbox.ts';

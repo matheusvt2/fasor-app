@@ -8,6 +8,8 @@ import { equipmentBlockTypeSchema, funcaoSchema, itemKeySchema, nodeNameSchema, 
 import { councilSchema } from './council.ts';
 import { AUDIT_RUN_STATUSES, auditFindingSchema } from '../audit/schema.ts';
 import { companyTypeDraftSchema, companyTypeVersionDefinitionSchema } from '../types/definition.ts';
+import { roleRowSchema } from '../permissions/roles.ts';
+import { userStatusSchema } from '../permissions/user.ts';
 
 /*
  * Row schemas for every entity the op log materializes (AD-5, AD-10, AD-18).
@@ -324,6 +326,14 @@ export const userRowSchema = z.object({
   registration_number: nullableString,
   title: nullableString,
   photo_location_enabled: z.boolean(),
+  /**
+   * Story 26.2 (contract 55, AD-29): the user's role (a `role/{id}` row of the company) and status,
+   * written only by the server-only `user/{id}/role_id` and `user/{id}/status` puts (and by the
+   * seed's create). Optional and never defaulted: a row born before 55 lacks both until the
+   * migration (Story 26.3) writes them; an absent role grants no key, an absent status is active.
+   */
+  role_id: uuidV7Schema.optional(),
+  status: userStatusSchema.optional(),
 });
 
 // --- project scope ---------------------------------------------------------
@@ -928,6 +938,8 @@ export const entityRowSchemas = {
   // Appended (Story 14.6, contract 33): company equipment types and their published versions.
   equipment_type: equipmentTypeRowSchema,
   equipment_type_version: equipmentTypeVersionRowSchema,
+  // Appended (Story 26.2, contract 55, AD-29): a company role, written only by the server.
+  role: roleRowSchema,
 } as const;
 
 export type Entity = keyof typeof entityRowSchemas;
@@ -951,6 +963,7 @@ export type RevisionRow = EntityRowOf<'revision'>;
 export type AuditRunRow = EntityRowOf<'audit_run'>;
 export type EquipmentTypeRow = EntityRowOf<'equipment_type'>;
 export type EquipmentTypeVersionRow = EntityRowOf<'equipment_type_version'>;
+export type RoleEntityRow = EntityRowOf<'role'>;
 export type EntityRow = EntityRowOf<Entity>;
 
 export const scopeSchema = z.enum(['company', 'project', 'relatorio']);
@@ -978,6 +991,7 @@ export const ENTITY_SCOPE: Readonly<Record<Entity, readonly Scope[]>> = {
   file: ['company', 'relatorio'],
   equipment_type: ['company'],
   equipment_type_version: ['company'],
+  role: ['company'],
 };
 
 function keysOf(schema: z.ZodType): string[] {

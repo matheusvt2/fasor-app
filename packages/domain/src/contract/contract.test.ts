@@ -120,9 +120,10 @@ describe('contract constants', () => {
   // e25s (Epic 25 wave 3, seed v16 opens equal to v15, 2026-11-15): 53, after e25p's 52; MIN follows.
   // e25s (Story 25.18, the v16 TC's item on its secondary, a new ITEM_KEYS value, 2026-11-15): 54, after the wave's 53; MIN follows.
   // e25s (Story 25.14, the two families of a row added on the sheet, 2026-11-15): the same 54 (25.14-API-001 pulls the row at 53: 426).
-  it('speaks version 54 and refuses version 53 (Story 25.18: a version-53 bundle lacks the v16 TC\'s item 7)', () => {
-    expect(CONTRACT_VERSION).toBe(54);
-    expect(MIN_CONTRACT_VERSION).toBe(54);
+  // e26a (Story 26.2, the role families and the user's role and status, 2026-11-21): 55, after e25s's 54; MIN follows.
+  it('speaks version 55 and refuses version 54 (Story 26.2: a version-54 bundle lacks the role families)', () => {
+    expect(CONTRACT_VERSION).toBe(55);
+    expect(MIN_CONTRACT_VERSION).toBe(55);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
@@ -182,7 +183,8 @@ describe('contract constants', () => {
       expect(syncPushResponseSchema.safeParse({ applied: [], rejected: [{ op_id: 'x', code }], superseded: [] }).success, code).toBe(true);
     }
     const codes = errorCodeSchema.options;
-    expect(codes.slice(codes.indexOf('telemetry_invalid'))).toEqual(['telemetry_invalid', 'quota_exceeded', 'forbidden_origin']);
+    // Story 26.2 (contract 55): `forbidden` and `user_inactive` appended after them.
+    expect(codes.slice(codes.indexOf('telemetry_invalid'))).toEqual(['telemetry_invalid', 'quota_exceeded', 'forbidden_origin', 'forbidden', 'user_inactive']);
   });
 
   it('contract 29 (Story 20.9): the push body is capped at 4 MiB', () => {
