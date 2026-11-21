@@ -12,7 +12,9 @@ context:
   - '{project-root}/AGENTS.md'
   - '{project-root}/_bmad-output/implementation-artifacts/epic-26-context.md'
 warnings: ['batched']
-deferred: []
+deferred:
+  - 'Narrowed (2026-11-21, approved by the orchestrator): the epic context says the e2e users of the other four roles are seeded once at global setup inside the pair; built as defined in the pair (workerRoleUser), seeded on demand (seedRoleUser), in Empresa B, because Empresa A is never reset and 1.8-E2E-004/007 assert its "2 pessoas da equipe". The coordinator writes the dated line.'
+  - 'suggestion.review, users.manage and roles.manage have no client op or route yet (26.4-API-001 covers the nine other keys and asserts that none reaches these three); the Admin routes come in Stories 26.8 and 26.10.'
 ---
 
 <!-- batched: three stories of one wave share one contract number, one set of files (ops/path.ts, contract/*, sync/rules.ts, session.ts, seed.ts) and are strictly dependent (26.3 needs 26.2, 26.4 needs both). The coordinator's launch prompt batches them. -->
@@ -96,6 +98,8 @@ PHASE 2 (Stories 26.3 and 26.4):
 - Given a `git diff origin/main --stat`, then no golden, no seed v14-v16 file and no `docx`/`layout` file changed.
 
 ## Spec Change Log
+
+- 2026-11-21, orchestrator: `relatorio/setup` splits into `SETUP_CREATE_FIELDS` (`relatorio.create`) and `SETUP_FILL_FIELDS` (`relatorio.fill`); the e2e role users go to Empresa B, seeded on demand (see `deferred`).
 
 ## Review Triage Log
 

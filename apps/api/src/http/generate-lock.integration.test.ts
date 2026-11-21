@@ -17,6 +17,7 @@ import type { GeneratePayload } from '../jobs/generate/job.ts';
 import { lockCompany, type Tx } from '../sync/apply.ts';
 import { createGenerateRoutes } from './generate.ts';
 import type { AppEnv } from './session.ts';
+import { standInRole } from '../db/roles.test-support.ts';
 
 /*
  * Review 2026-09-30, A-12: "Gerar relatório" decides "unchanged" under the company lock
@@ -36,7 +37,8 @@ const RELATORIO_ID = SMALL_FIXTURE_RELATORIO_ID;
 const enqueued: GeneratePayload[] = [];
 const app = new Hono<AppEnv>();
 app.use('*', async (c, next) => {
-  c.set('session', { userId: companyA.userId, companyId });
+  // Story 26.4: the stand-in session carries the actor's role (the seeded user is an Admin).
+  c.set('session', { userId: companyA.userId, companyId, role: standInRole(), status: 'active' });
   await next();
 });
 app.route('/', createGenerateRoutes(db, {} as S3Client, config.S3_BUCKET, { now, newId, enqueue: async (payload) => void enqueued.push(payload) }));

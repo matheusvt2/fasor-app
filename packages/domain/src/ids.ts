@@ -20,6 +20,12 @@ export const actorIdSchema = z.string().min(1);
 /** The actor of the server-only `user/{id}` create emitted by provisioning. */
 export const SYSTEM_IDENTITY_ACTOR = 'system:identity';
 
+/**
+ * Story 26.3 (AD-29): the actor of the server-only role ops (`role/*`, `user/{id}/role_id`,
+ * `user/{id}/status`) the seed, the migration and the Admin's routes write.
+ */
+export const SYSTEM_ADMIN_ACTOR = 'system:admin';
+
 /** Devices are client-minted ids or the literal `server` (AD-3). */
 export const deviceIdSchema = z.string().min(1);
 

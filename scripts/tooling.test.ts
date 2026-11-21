@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
-import { parseArgs, resolveCompanyId, resolvePassword, validateCompanyId, wantsSampleRelatorio, wantsStandardTemplate } from './seed-users.ts';
+import { parseArgs, resolveCompanyId, resolvePassword, resolveRole, validateCompanyId, wantsSampleRelatorio, wantsStandardTemplate } from './seed-users.ts';
 import { assertInCompose } from './test-reset.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -171,6 +171,16 @@ describe('seed-users CLI', () => {
       council: 'crea',
       test: true,
     });
+  });
+
+  it('26.3-UNIT-002 --role names one of the seeded roles, is left out for Admin, and never goes with --test', () => {
+    expect(resolveRole(parseArgs(['--email', 'a@b.c']))).toBeUndefined();
+    for (const role of ['admin', 'engenheiro_de_campo', 'gestor_do_projeto', 'responsavel_tecnico', 'consulta']) {
+      expect(resolveRole(parseArgs(['--role', role]))).toBe(role);
+    }
+    expect(() => resolveRole(parseArgs(['--role', 'auditor']))).toThrow(/--role must be one of admin, engenheiro_de_campo, gestor_do_projeto, responsavel_tecnico, consulta, got "auditor"/);
+    expect(() => resolveRole(parseArgs(['--role']))).toThrow(/--role must be one of/);
+    expect(() => resolveRole(parseArgs(['--test', '--role', 'consulta']))).toThrow(/needs a named user/);
   });
 });
 

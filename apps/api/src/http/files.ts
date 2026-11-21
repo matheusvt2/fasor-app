@@ -16,6 +16,7 @@ import {
   type FileVariantName,
   type FileVariants,
   type PixelLimitDetails,
+  permissionForRoute,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
@@ -30,7 +31,7 @@ import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, imagePixelCount, renderVariants } from '../storage/variants.ts';
 import { applyServerBatch } from '../sync/apply.ts';
 import { serverOp } from '../sync/server-op.ts';
-import { type AppEnv, requireSession } from './session.ts';
+import { type AppEnv, requirePermission } from './session.ts';
 
 /*
  * AD-7, AD-10: the two file routes. Both resolve the company from the session and scope
@@ -189,7 +190,8 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
   }
 
   routes.put('/api/files/:id', async (c) => {
-    const session = requireSession(c);
+    // Story 26.4 (AD-29): an upload needs `relatorio.fill`.
+    const session = requirePermission(c, permissionForRoute('file.upload'));
     const id = c.req.param('id');
 
     // The limit is checked on the declared length first, so an oversized upload is
@@ -329,7 +331,8 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
   });
 
   routes.get('/api/files/:id/:variant', async (c) => {
-    const session = requireSession(c);
+    // Story 26.4 (AD-29): a file read needs `relatorio.view`.
+    const session = requirePermission(c, permissionForRoute('file.read'));
     const id = c.req.param('id');
     const parsedVariant = fileVariantSchema.safeParse(c.req.param('variant'));
     if (!parsedVariant.success) return c.json(notFound, 404);

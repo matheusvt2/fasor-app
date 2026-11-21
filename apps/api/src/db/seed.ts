@@ -7,10 +7,14 @@ import {
   STANDARD_TEMPLATE_NAME,
   standardTemplate,
   SYSTEM_IDENTITY_ACTOR,
+  SYSTEM_ROLE_ROW_IDS,
   toIso,
+  userRolePath,
+  userStatusPath,
   uuidV7Schema,
   type Council,
   type Op,
+  type SystemRoleId,
   type UserRow,
 } from '@app/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -23,7 +27,8 @@ import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
 import { account, aiUsageDaily, company, entities, ops, readingRuns, session, syncDevicePush, user } from './schema.ts';
-import { isE2eWorkerCompany, workerSeed, type SeedAccount } from './e2e-worker-seed.ts';
+import { isE2eWorkerCompany, workerRoleUser, workerSeed, type SeedAccount, type WorkerRole } from './e2e-worker-seed.ts';
+import { ensureSystemRoles, roleOp } from './roles.ts';
 import { LEGACY_TEST_COMPANY_IDS, TEST_SEED } from './test-seed.ts';
 
 export { LEGACY_TEST_COMPANY_IDS, TEST_SEED };
@@ -54,6 +59,12 @@ export interface SeedUserInput {
    * one is minted (AD-4). An existing user always keeps the id it has.
    */
   userId?: string | undefined;
+  /**
+   * Story 26.3 (AD-29): the seeded role the user gets, Admin by default. A new user is created
+   * with it; a re-seed that names a role puts `user/{id}/role_id` when it changed, and a re-seed
+   * that names none leaves the role the user has (the Admin's routes may have changed it).
+   */
+  role?: SystemRoleId | undefined;
 }
 
 export interface SeedUserResult {
@@ -109,27 +120,32 @@ function provisioningOp(companyId: CompanyId, input: { kind: Op['kind']; path: s
  * log two creates. A decision the lock shows stale is recomputed once from the row the
  * other seed wrote.
  */
-async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<void> {
+async function projectUser(db: Db, companyId: CompanyId, row: UserRow, explicitRole: boolean): Promise<void> {
   const decide = async (reader: Db | Tx) => {
     const [existing] = await reader
       .select({ row: entities.row })
       .from(entities)
       .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'user'), eq(entities.id, row.id)))
       .limit(1);
-    return projectionDecision(existing?.row as Partial<UserRow> | undefined, row);
+    return projectionDecision(existing?.row as Partial<UserRow> | undefined, row, explicitRole);
   };
   for (let attempt = 1; ; attempt++) {
     const decision = await decide(db);
-    if (decision === 'none') return;
-    const op =
-      decision === 'create'
-        ? provisioningOp(companyId, { kind: 'create', path: `user/${row.id}`, value: row })
-        : provisioningOp(companyId, { kind: 'put', path: `user/${row.id}/name`, value: row.name });
+    if (decision.length === 0) return;
+    const batchId = decision.length > 1 ? newId() : undefined;
+    const ops = decision.map((step) => {
+      const at = batchId === undefined ? {} : { batchId };
+      if (step === 'create') return provisioningOp(companyId, { kind: 'create', path: `user/${row.id}`, value: row, ...at });
+      if (step === 'name') return provisioningOp(companyId, { kind: 'put', path: `user/${row.id}/name`, value: row.name, ...at });
+      // Story 26.3: the role and the status are the role families' (`system:admin`).
+      if (step === 'role') return roleOp(companyId, { kind: 'put', path: userRolePath(row.id), value: row.role_id, batchId: batchId ?? null });
+      return roleOp(companyId, { kind: 'put', path: userStatusPath(row.id), value: row.status, batchId: batchId ?? null });
+    });
     try {
-      await applyServerBatch(db, companyId, [op], {
+      await applyServerBatch(db, companyId, ops, {
         now,
         before: async (tx: Tx) => {
-          if ((await decide(tx)) !== decision) throw new ProjectionChanged();
+          if ((await decide(tx)).join(',') !== decision.join(',')) throw new ProjectionChanged();
         },
       });
       return;
@@ -149,13 +165,22 @@ async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<
 /** Thrown under the company lock when another seed changed the user's projection first. */
 class ProjectionChanged extends Error {}
 
+/** One write of a user's projection. */
+type ProjectionStep = 'create' | 'name' | 'role' | 'status';
+
 /**
  * What a seed writes for one user: a create when the company stream holds no `user/{id}`
- * row, a `name` put when the identity-owned name changed, else nothing.
+ * row, a `name` put when the identity-owned name changed. Story 26.3: a `role_id` put when the
+ * row has no role, or when the seed names a role other than the stored one, and a `status` put
+ * when the row has none (a row born before contract 55). Empty when nothing changed.
  */
-function projectionDecision(current: Partial<UserRow> | undefined, row: UserRow): 'create' | 'name' | 'none' {
-  if (current === undefined) return 'create';
-  return current.name !== row.name ? 'name' : 'none';
+function projectionDecision(current: Partial<UserRow> | undefined, row: UserRow, explicitRole: boolean): ProjectionStep[] {
+  if (current === undefined) return ['create'];
+  const steps: ProjectionStep[] = [];
+  if (current.name !== row.name) steps.push('name');
+  if (current.role_id === undefined || (explicitRole && current.role_id !== row.role_id)) steps.push('role');
+  if (current.status === undefined) steps.push('status');
+  return steps;
 }
 
 /**
@@ -175,6 +200,8 @@ export async function seedUser(
     throw new Error(`user id must be a uuidv7, got "${input.userId}"`);
   }
   await ensureCompany(db, companyId, input.companyName);
+  // Story 26.3: a company holds its five seeded roles from its first user on.
+  await ensureSystemRoles(db, companyId);
 
   const email = input.email.trim().toLowerCase();
   const council = councilSchema.parse(input.council);
@@ -245,7 +272,10 @@ export async function seedUser(
     title,
     // Default on: epics.md, the capture story and the Account toggle "Localização nas fotos".
     photo_location_enabled: true,
-  });
+    // Story 26.3 (AD-29): Admin by default, active.
+    role_id: SYSTEM_ROLE_ROW_IDS[input.role ?? 'admin'],
+    status: 'active',
+  }, input.role !== undefined);
 
   // Re-seeding an existing user is the documented password-reset path, so the old
   // password must stop working everywhere: drop that user's sessions.
@@ -585,9 +615,20 @@ export async function seedAccount(
     council: seeded.council,
     registrationNumber: seeded.registrationNumber,
     userId: seeded.userId,
+    role: seeded.role,
   });
   if (standardTemplate) await seedStandardTemplate(db, result.companyId);
   return result;
+}
+
+/**
+ * Story 26.3: provisions, on demand, the user of one seeded role in e2e worker `index`'s Empresa B
+ * (`workerRoleUser`), with the company's roles; idempotent like `seedAccount`. A spec calls it
+ * right before it signs the user in, since a reset of Empresa B empties its data.
+ */
+export async function seedRoleUser(db: Db, auth: Auth, index: number, role: WorkerRole): Promise<SeedUserResult> {
+  const seeded = workerRoleUser(index, role);
+  return seedAccount(db, auth, seeded, seeded.password, { standardTemplate: false });
 }
 
 /**

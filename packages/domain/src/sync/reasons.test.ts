@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OP_REJECT_CODES } from '../contract/errors.ts';
-import { CHAR_COUNT_FROM, charCountText, opRejectReasonText, rejectedText } from './counts.ts';
+import { CHAR_COUNT_FROM, charCountText, OP_FORBIDDEN_BY_ROLE, opRejectReasonText, rejectedText, rejectionCause } from './counts.ts';
+import { systemRoleRow } from '../permissions/roles.ts';
 
 /*
  * Stories 20.7 to 20.10 (contract 29): the sentence of each refusal a business rule gives, and
@@ -41,5 +42,29 @@ describe('charCountText', () => {
     expect(charCountText(900, 1000)).toBe('900 de 1.000 caracteres');
     expect(charCountText(20_000, 20_000)).toBe('20.000 de 20.000 caracteres');
     expect(charCountText(0, 0)).toBeNull();
+  });
+});
+
+describe('26.4-UNIT-001 rejectionCause: an op_forbidden the role explains', () => {
+  const ID = '019966b0-0000-7000-8000-0000000000aa';
+  const campo = systemRoleRow('engenheiro_de_campo');
+  const forbidden = (path: string, value: unknown = null) => ({ error_code: 'op_forbidden', path, kind: 'put' as const, value });
+
+  it('names the role when the viewer\'s role lacks the op\'s key, with its own sentence', () => {
+    expect(rejectionCause(forbidden(`registry/client/${ID}/name`, 'X'), campo)).toBe(OP_FORBIDDEN_BY_ROLE);
+    expect(rejectionCause(forbidden(`template/${ID}/name`, 'X'), campo)).toBe(OP_FORBIDDEN_BY_ROLE);
+    expect(rejectionCause(forbidden('relatorio/status', 'emitido'), campo)).toBe(OP_FORBIDDEN_BY_ROLE);
+    // No role on this device yet: no key, so the role is the cause.
+    expect(rejectionCause(forbidden(`template/${ID}/name`, 'X'), null)).toBe(OP_FORBIDDEN_BY_ROLE);
+    expect(opRejectReasonText(OP_FORBIDDEN_BY_ROLE)).toBe('Alteração recusada: o seu papel não permite esta alteração. Fale com o administrador da empresa.');
+    expect(opRejectReasonText(OP_FORBIDDEN_BY_ROLE)).not.toBe(opRejectReasonText('op_forbidden'));
+  });
+
+  it('keeps op_forbidden when the role holds the key (the Emitido removal, another user\'s row) and every other code as it came', () => {
+    expect(rejectionCause(forbidden('relatorio/removed_at', null), systemRoleRow('admin'))).toBe('op_forbidden');
+    expect(rejectionCause(forbidden(`user/${ID}/title`, 'X'), campo)).toBe('op_forbidden');
+    expect(rejectionCause({ error_code: 'op_status_transition', path: 'relatorio/status', value: 'emitido' }, campo)).toBe('op_status_transition');
+    expect(rejectionCause({ error_code: null, path: 'relatorio/status' }, campo)).toBeNull();
+    expect(rejectionCause(forbidden('not/a/path'), campo)).toBe('op_forbidden');
   });
 });

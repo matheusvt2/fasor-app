@@ -1,9 +1,16 @@
 import { PRODUTO } from '@app/domain';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { eq } from 'drizzle-orm';
+import { APIError } from 'better-auth/api';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
-import { schema, user } from '../db/schema.ts';
+import { entities, schema, user } from '../db/schema.ts';
+
+/**
+ * Story 26.4 (AD-29): the statuses whose sign-in is refused. The kernel row's status is read
+ * here, in the hook that creates the session, so no session is ever born for such a user.
+ */
+const SIGN_IN_REFUSED_STATUSES: ReadonlySet<unknown> = new Set(['paused', 'removed']);
 
 /** 30-day sliding session (AD-9). */
 export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -73,6 +80,16 @@ export function createAuth(options: AuthOptions) {
               .limit(1);
             const companyId = rows[0]?.companyId;
             if (companyId === undefined) return;
+            // Story 26.4 (AD-29): a paused or removed user does not sign in; the code is the one
+            // every other request of such a user answers (`user_inactive`), so the Login can name it.
+            const [kernel] = await options.db
+              .select({ row: entities.row })
+              .from(entities)
+              .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'user'), eq(entities.id, createdSession.userId)))
+              .limit(1);
+            if (SIGN_IN_REFUSED_STATUSES.has((kernel?.row as { status?: unknown } | undefined)?.status)) {
+              throw new APIError('UNAUTHORIZED', { code: 'user_inactive', message: 'This user is not active.' });
+            }
             return { data: { ...createdSession, companyId } };
           },
         },

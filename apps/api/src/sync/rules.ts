@@ -1,4 +1,6 @@
 import {
+  can,
+  permissionForPath,
   attributionIssue,
   createProjectOf,
   entityKey,
@@ -29,12 +31,14 @@ import {
   type OpPath,
   type OpRejectCode,
   type RelatorioRow,
+  type RoleRow,
   type StatusMoveInput,
   vectorGroupPublishIssue,
 } from '@app/domain';
 import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { liveRevisions } from '../db/repositories/revisions.ts';
+import { roleOfUser } from '../db/roles.ts';
 import { entities, ops } from '../db/schema.ts';
 import type { Tx } from './apply.ts';
 import { editedAfter } from './edited-after.ts';
@@ -64,10 +68,12 @@ export interface ClientCheckCache {
   createdAt: Map<string, string>;
   /** e20f: a relatório's stored bytes, read once, then moved by the growth of each op that passes the budget (E20-A1). */
   relatorioBytes: Map<string, number>;
+  /** Story 26.4: the actor's role (null for none), read once per push. */
+  roles: Map<string, RoleRow | null>;
 }
 
 export function clientCheckCache(): ClientCheckCache {
-  return { relatorios: new Map(), projects: new Set(), createdAt: new Map(), relatorioBytes: new Map() };
+  return { relatorios: new Map(), projects: new Set(), createdAt: new Map(), relatorioBytes: new Map(), roles: new Map() };
 }
 
 /** What `checkClientOp` reads besides the transaction. */
@@ -91,12 +97,16 @@ interface Target {
  * move (20.7), the removal of an Emitido relatório (20.10), the responsible user (`op_value_invalid`)
  * and, e20f, every other row the op names (`op_target_missing`), then
  * the attribution history and the lower bound of its instants (20.8). A refused op writes nothing.
- * Story 24.20: first, a published version whose ratio table can never compute
+ * Story 26.4: first of all, the actor's role must hold the op's key (`roleIssue`, `op_forbidden`).
+ * Story 24.20: then, a published version whose ratio table can never compute
  * (`vectorGroupPublishIssue`) is refused `op_invalid`, the code a strict-schema refusal of a publish
  * gets; the rule is the push route's, not the fold's, so a version published before it still folds.
  */
 export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target, deps: ClientCheckDeps): Promise<OpRejectCode | null> {
   const { op, path } = target;
+  // Story 26.4 (AD-29): the actor's role must hold the key the op needs, first of all.
+  const forbidden = await roleIssue(tx, companyId, op, path, deps.cache);
+  if (forbidden !== null) return forbidden;
   if (path.family === 'equipment_type_version' && op.kind === 'create' && op.value !== null && typeof op.value === 'object' && vectorGroupPublishIssue((op.value as { definition?: object }).definition) !== null) return 'op_invalid';
   if (!(await targetHolds(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
   const project = createProjectOf(op, path);
@@ -120,6 +130,23 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
   const attribution = await attributionStateIssue(tx, companyId, op, path, deps.now, deps.cache);
   if (attribution !== null) return attribution;
   return budgetIssue(tx, companyId, op, deps.state, deps.cache);
+}
+
+/**
+ * Story 26.4 (AD-29): `op_forbidden` when the key the op needs (`permissionForPath`) is one the
+ * actor's role does not hold (`can`). The role is the row the actor's user row names, read once
+ * per push inside its transaction (`cache.roles`); a user with no role, or a role the company does
+ * not hold, holds no key (fail closed). An op that needs no key passes.
+ */
+async function roleIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, cache: ClientCheckCache | undefined): Promise<OpRejectCode | null> {
+  const need = permissionForPath(path, op);
+  if (need === 'none') return null;
+  let role = cache?.roles.get(op.actor_id);
+  if (role === undefined) {
+    role = (await roleOfUser(tx, companyId, op.actor_id)).role;
+    cache?.roles.set(op.actor_id, role);
+  }
+  return can(role, need) ? null : 'op_forbidden';
 }
 
 /**

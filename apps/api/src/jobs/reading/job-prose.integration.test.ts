@@ -26,6 +26,7 @@ import { createDb } from '../../db/client.ts';
 import { asCompanyId } from '../../db/repositories/company-id.ts';
 import { entities, ops, readingRuns } from '../../db/schema.ts';
 import { dropCompany } from '../../db/test-cleanup.ts';
+import { seedRoleActor } from '../../db/roles.test-support.ts';
 import { newId } from '../../ids.ts';
 import { createS3, putObject } from '../../storage/s3.ts';
 import { renderVariants } from '../../storage/variants.ts';
@@ -52,7 +53,8 @@ const bucket = config.S3_BUCKET;
 
 const companyId = newId();
 const company = asCompanyId(companyId);
-const ACTOR = 'reading-prose-test-user';
+// Story 26.4: the push refuses an op whose key the actor's role lacks, so this suite's actor is a uuid with an Admin row in the company (setup only).
+const ACTOR = '01996626-0000-7000-8000-00000000a0c2';
 const DEVICE = 'tablet-reading-prose';
 const fixturesDir = mkdtempSync(join(tmpdir(), 'reading-prose-fixtures-'));
 const IMAGES = join(DEFAULT_FIXTURES_DIR, 'images');
@@ -100,6 +102,7 @@ async function withPrev(drafts: OpDraft[]): Promise<Op[]> {
 }
 
 async function apply(drafts: OpDraft[]): Promise<void> {
+  await seedRoleActor(db, company, ACTOR);
   const result = await applyOps(db, company, await withPrev(drafts), { origin: 'client', actorId: ACTOR, now });
   expect(result.rejected).toEqual([]);
 }
