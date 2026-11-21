@@ -232,7 +232,7 @@
 
 <!-- ===================== screens/12-login-pausada.html ===================== -->
 <style data-screen="login-pausada">
-/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.11: Login refused for a paused account. The sign-in answers with the inactive code and the
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.11: Login refused for a paused account; a removed account sees the same line (Matheus, 2026-11-21). The sign-in answers with the inactive code and the
    form shows one red line under the password, the place and class of the wrong-password line (components.css .login-form .login-error).
    The fields keep their values; nothing on the device is deleted.
    Governs: EXPERIENCE.md § Component Patterns › Login form; § State Patterns › Account paused (2026-11-21). */
@@ -313,7 +313,7 @@
 <!-- ===================== screens/14-definir-senha-expirado.html ===================== -->
 <style data-screen="definir-senha-expirado">
 /* 2026-11-21, Story 26.1 (Epic 26) for Story 26.6: the same page when the link expired or was already used. One sentence for both causes
-   (the page does not say which), and two ways out. The Login form's shell and classes.
+   (the page does not say which), and two ways out. "Esqueci minha senha" also serves an invited user whose link expired (Matheus, 2026-11-21). The Login form's shell and classes.
    Governs: EXPERIENCE.md § IA › Set a password; § State Patterns › Link expired (2026-11-21). */
 [data-route="/definir-senha/expirado"] .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
 .frame-phone [data-route="/definir-senha/expirado"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
@@ -325,7 +325,7 @@
     <div class="login-form" role="form" aria-labelledby="dse-title">
       <h1 class="login-wordmark">Conforme</h1>
       <h2 id="dse-title">Este link não vale mais</h2>
-      <p class="t-body" role="alert">O link venceu ou já foi usado. Se era um convite, peça ao administrador da sua empresa que o reenvie. Se era para trocar a senha, peça um link novo.</p>
+      <p class="t-body" role="alert">O link venceu ou já foi usado. Peça um link novo com o seu e-mail: ele serve também para um convite que venceu.</p>
       <button type="button" class="btn btn-primary btn-block" data-go="#/login/esqueci">Pedir um link novo</button>
       <button type="button" class="btn btn-text" data-go="#/login">Voltar ao login</button>
     </div>
@@ -5401,6 +5401,112 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
 
 </section>
 
+<!-- ===================== screens/62-ficha-consulta.html ===================== -->
+<style data-screen="ficha-consulta">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.5, added after Matheus's approval of the frames (question 10): the read-only ficha as the
+   Consulta role sees it (Fernanda), who holds relatorio.view and no relatorio.fill. The ficha, its photos and its points open; nothing
+   takes input and no op enters the outbox. One info Banner under the sheet header carries the one line of reason for the whole screen,
+   instead of a reason beside every control: every field of the screen is the same refused action.
+   Reused looks, no new one: the read-only field of the Não ensaiado sheet (components.css "Read-only field": .is-readonly on the section,
+   hairline borders on surface-base, tri-states without pointer events, no Overflow), the Banner (info), the sheet header, the Section
+   stepper (it still moves between steps: reading is allowed), Photo tiles that open the viewer, and a Point line that opens the point.
+   Hidden, as 60-ficha.html hides them on a read-only sheet: the camera button and the Sticky action bar, "Adicionar foto", "Criar ponto
+   de atenção", "Ler visor", the dictation button, the chips of quick texts, the Bulk action bar, the Overflow menus.
+   Layout rules copied from 60-ficha.html under this route. Sample values invented. Existing tokens only.
+   Governs: EXPERIENCE.md § State Patterns › A relatório the role cannot fill (2026-11-21). */
+[data-route="/consulta/ficha/DJ-C05"] .ficha-body { padding: var(--sp-4) var(--gutter-tablet) var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-5); }
+.frame-phone [data-route="/consulta/ficha/DJ-C05"] .ficha-body { padding: var(--sp-4) var(--gutter-phone) var(--sp-6); }
+.frame-desktop [data-route="/consulta/ficha/DJ-C05"] .ficha-body { padding: var(--sp-5) var(--gutter-desktop) var(--sp-6); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); }
+[data-route="/consulta/ficha/DJ-C05"] .fc-banner { margin: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .section-stepper { margin: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .section-stepper .step { cursor: pointer; }
+[data-route="/consulta/ficha/DJ-C05"] .nameplate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3) var(--sp-4); }
+.frame-phone [data-route="/consulta/ficha/DJ-C05"] .nameplate-grid { grid-template-columns: 1fr; }
+[data-route="/consulta/ficha/DJ-C05"] .checklist { list-style: none; margin: 0; padding: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .is-readonly .observation-field { border-color: var(--border-hairline); background: var(--surface-base); min-height: 0; }   /* mirrors 60-ficha.html's read-only observation */
+[data-route="/consulta/ficha/DJ-C05"] .is-readonly .tri-state .seg[aria-checked="false"] { color: var(--ink-secondary); }
+[data-route="/consulta/ficha/DJ-C05"] .measurement-table th { text-align: left; padding: var(--sp-2) var(--sp-3); font-size: var(--t-label-size); color: var(--ink-secondary); border-bottom: 1px solid var(--border-strong); }
+[data-route="/consulta/ficha/DJ-C05"] .measurement-table td { padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/consulta/ficha/DJ-C05"] .measurement-table .measurement-field { min-height: var(--touch-min); }
+[data-route="/consulta/ficha/DJ-C05"] .fc-photos { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+[data-route="/consulta/ficha/DJ-C05"] .fc-photos .photo-tile { cursor: pointer; }
+[data-route="/consulta/ficha/DJ-C05"] .fc-point { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-raised); text-align: left; width: 100%; cursor: pointer; }
+[data-route="/consulta/ficha/DJ-C05"] .fc-point .grow { flex: 1; min-width: 0; }
+[data-route="/consulta/ficha/DJ-C05"] .fc-point .ico { color: var(--ink-secondary); flex: none; }
+</style>
+<section class="screen" data-route="/consulta/ficha/DJ-C05" data-title="DJ-C05" data-shell="app" data-rail="false" data-user="F">
+
+  <div class="sheet-header">
+    <div>
+      <h2 class="sheet-title">Disjuntor MT — DJ-C05</h2>
+      <p class="sheet-meta">Cabine primária — 1° Subsolo › Painel de média tensão › Coluna 5</p>
+      <p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-07T15:10">07/09 15:10</time></p>
+    </div>
+    <div class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>Concluída</div>
+  </div>
+
+  <div class="ficha-body">
+    <div class="banner fc-banner" data-variant="info" role="status"><span class="banner-text"><strong>Somente leitura.</strong> Seu papel não permite preencher fichas, fotos e pontos.</span></div>
+
+    <nav class="section-stepper" aria-label="Etapas da ficha">
+      <button class="step" data-missing="0" aria-current="step"><span class="step-name"><span class="long">Placa</span><span class="short">Placa</span></span></button>
+      <button class="step" data-missing="0"><span class="step-name"><span class="long">Verificações</span><span class="short">Verif.</span></span></button>
+      <button class="step" data-missing="0"><span class="step-name"><span class="long">Ensaios</span><span class="short">Ensaios</span></span></button>
+      <button class="step" data-missing="0"><span class="step-name"><span class="long">Conclusão</span><span class="short">Concl.</span></span></button>
+    </nav>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-placa">
+      <div class="section-head"><h2 id="fc-h-placa">Dados de placa</h2></div>
+      <div class="nameplate-grid">
+        <div class="field combobox"><span class="field-label">Fabricante</span><div class="input" role="textbox" aria-readonly="true" aria-label="Fabricante">Schneider</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+        <div class="field"><span class="field-label">Nº de série</span><div class="input" role="textbox" aria-readonly="true" aria-label="Nº de série">SF1-21-04417</div></div>
+        <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Corrente nominal"><span class="mf-value">630</span><span class="mf-unit">A</span></div></div>
+        <div class="field"><span class="field-label">Tensão nominal</span><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Tensão nominal"><span class="mf-value">17,5</span><span class="mf-unit">kV</span></div></div>
+      </div>
+    </section>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-verif">
+      <div class="section-head"><h2 id="fc-h-verif">Verificações</h2></div>
+      <ul class="checklist">
+        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Limpeza</span><div class="tri-state" role="radiogroup" aria-label="1. Limpeza" aria-readonly="true"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div></li>
+        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Isoladores</span><div class="tri-state" role="radiogroup" aria-label="2. Isoladores" aria-readonly="true"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div></li>
+        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Sinalização de estado (aberto/fechado)</span><div class="tri-state" role="radiogroup" aria-label="3. Sinalização de estado" aria-readonly="true"><button class="seg" role="radio" data-value="c" aria-checked="false" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="true" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div></div>
+          <div class="row-expand"><div class="field"><span class="field-label">Observação do item 3</span><div class="observation-field" role="textbox" aria-readonly="true" aria-multiline="true" aria-label="Observação do item 3">Indicador mecânico de posição ilegível</div></div></div></li>
+      </ul>
+    </section>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-ens">
+      <div class="section-head"><h2 id="fc-h-ens">Resistência ôhmica de contato</h2></div>
+      <table class="measurement-table">
+        <thead><tr><th scope="col">Polo</th><th scope="col">Leitura</th><th scope="col">Aceitável</th></tr></thead>
+        <tbody>
+          <tr><td>R</td><td><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Polo R"><span class="mf-value">42</span><span class="mf-unit">µΩ</span></div></td><td class="t-value">&lt; 250 µΩ</td></tr>
+          <tr><td>S</td><td><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Polo S"><span class="mf-value">45</span><span class="mf-unit">µΩ</span></div></td><td class="t-value">&lt; 250 µΩ</td></tr>
+          <tr><td>T</td><td><div class="measurement-field" role="textbox" aria-readonly="true" aria-label="Polo T"><span class="mf-value">41</span><span class="mf-unit">µΩ</span></div></td><td class="t-value">&lt; 250 µΩ</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" aria-labelledby="fc-h-fotos">
+      <div class="section-head"><h2 id="fc-h-fotos">Fotos (2)</h2></div>
+      <div class="fc-photos">
+        <button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 31, placa de identificação do DJ-C05, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">31</span></span><span class="caption">Placa de identificação — DJ-C05</span></button>
+        <button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto 32, sinalização de estado do DJ-C05, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">32</span></span><span class="caption">Indicador de posição ilegível — DJ-C05</span></button>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="fc-h-pontos">
+      <div class="section-head"><h2 id="fc-h-pontos">Pontos de atenção</h2></div>
+      <button class="fc-point" data-go="#/relatorio/porto-seguro/pontos"><span class="priority-pill" data-p="2">P2 · Médio prazo</span><span class="grow">Ponto de atenção 3 · Indicador mecânico de posição ilegível</span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+    </section>
+
+    <section class="section is-readonly" aria-labelledby="fc-h-conc">
+      <div class="section-head"><h2 id="fc-h-conc">Conclusão</h2></div>
+      <div class="field"><span class="field-label">Conclusão da ficha</span><div class="input" role="textbox" aria-readonly="true" aria-label="Conclusão da ficha">Aprovado · Com restrições</div></div>
+    </section>
+  </div>
+</section>
+
 <!-- ===================== screens/63-ficha-cta.html ===================== -->
 <style data-screen="cta">
 /* Story 14.1 (2026-10-09, revised 2026-10-10): library-type sheet, /biblioteca/cta. Source: sprint-change-proposal-2026-10-08.md § 8.2, § 8.4 and § 10
@@ -8258,7 +8364,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
         <div class="role-options">
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Admin<br><span class="lr-meta">Todas as permissões</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
-          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Modelos · Tipos de equipamento · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Templates · Tipos de equipamento · Cadastros</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Responsável Técnico<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo · Emissão · Cadastros</span></span></div>
           <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Consulta<br><span class="lr-meta">Relatórios (em parte) · Emissão (em parte)</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Estagiário<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
@@ -8317,7 +8423,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
         <div class="role-options">
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Admin<br><span class="lr-meta">Todas as permissões</span></span></div>
           <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
-          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Modelos · Tipos de equipamento · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Templates · Tipos de equipamento · Cadastros</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Responsável Técnico<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo · Emissão · Cadastros</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Consulta<br><span class="lr-meta">Relatórios (em parte) · Emissão (em parte)</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Estagiário<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
@@ -8349,7 +8455,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
         <div class="role-options">
           <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Admin<br><span class="lr-meta">Todas as permissões</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
-          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Modelos · Tipos de equipamento · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Templates · Tipos de equipamento · Cadastros</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Responsável Técnico<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo · Emissão · Cadastros</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Consulta<br><span class="lr-meta">Relatórios (em parte) · Emissão (em parte)</span></span></div>
           <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Estagiário<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
@@ -8445,12 +8551,13 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
        scroll, because a cell holds only a switch (the 52 px track, no "Ativado" word) and the label column is 168 px at 768 px.
        Seven modules are seven rows, so the table stays short; the twelve keys show only under an opened module.
      - On a phone (below 768 px) one role at a time: the Filter chips "Papel" pick the column, the table keeps the label column and
-       that role's column. A seventh or eighth role adds a chip, never a column.
+       that role's column. A seventh or eighth role adds a chip, never a column;
+       with eight or more roles the tablet also shows one role at a time (Matheus, 2026-11-21; drawn here with six).
    Components: Tabs; the switch of "Localização nas fotos" (.toggle, 90-account.html) in every key cell; Filter chips; the Overflow menu
    on a role's name; the Form dialog and the Confirm dialog; the Sticky action bar with its btn-reason line. Page CSS on existing tokens:
      - a module of several keys carries a module switch, role="checkbox": on when the role holds every key, off when none, and the
-       mixed look (primary outline, focus-fill track, knob in the middle) with "N de M" under it when some. A tap on it gives all the
-       keys, a second tap takes them all (the select-all rule). One-key modules carry the key's own switch, role="switch".
+       mixed look (primary outline, focus-fill track, knob in the middle) with "N de M" under it when some. A tap on a mixed or off one turns all its
+       keys on (Matheus, 2026-11-21), a tap on an on one takes them all (the select-all rule). One-key modules carry the key's own switch, role="switch".
      - the Admin column: every switch on and aria-disabled, the lock glyph in its head, and one note above the grid.
      - a changed, unsaved cell carries a 8 px primary dot and the hidden words "alterado, não salvo".
    Governs: EXPERIENCE.md § IA › Usuários › Papéis e permissões; § Component Patterns › Permissions grid (2026-11-21). */
@@ -8582,7 +8689,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
         <tr class="pp-key-row"><th class="pp-label pp-key" scope="row"><span class="pp-key-name">Baixar DOCX e PDF emitidos</span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Baixar DOCX e PDF emitidos — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Baixar DOCX e PDF emitidos — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Baixar DOCX e PDF emitidos — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="true" aria-label="Baixar DOCX e PDF emitidos — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="true" aria-label="Baixar DOCX e PDF emitidos — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Baixar DOCX e PDF emitidos — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
       </tbody>
       <tbody class="pp-module">
-        <tr class="pp-mod-row"><th class="pp-label pp-single" scope="row"><span class="pp-mod-toggle"><span class="pp-chev-space" aria-hidden="true"></span><span class="pp-mod-text"><span class="pp-mod-name">Modelos</span><span class="pp-mod-meta">Templates e o compositor</span></span></span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Editar modelos — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar modelos — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar modelos — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
+        <tr class="pp-mod-row"><th class="pp-label pp-single" scope="row"><span class="pp-mod-toggle"><span class="pp-chev-space" aria-hidden="true"></span><span class="pp-mod-text"><span class="pp-mod-name">Templates</span><span class="pp-mod-meta">A lista de templates e o compositor</span></span></span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Editar templates — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar templates — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar templates — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar templates — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar templates — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar templates — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
       </tbody>
       <tbody class="pp-module">
         <tr class="pp-mod-row"><th class="pp-label pp-single" scope="row"><span class="pp-mod-toggle"><span class="pp-chev-space" aria-hidden="true"></span><span class="pp-mod-text"><span class="pp-mod-name">Tipos de equipamento</span><span class="pp-mod-meta">O editor de tipos e a base de ensaios</span></span></span></th><td class="pp-cell" data-role="admin"><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Editar tipos de equipamento — Admin, sempre"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="campo"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Engenheiro de Campo"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="gestor"><button class="toggle" role="switch" aria-checked="true" aria-label="Editar tipos de equipamento — Gestor do Projeto"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="rt"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Responsável Técnico"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="consulta"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Consulta"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td><td class="pp-cell" data-role="estag"><button class="toggle" role="switch" aria-checked="false" aria-label="Editar tipos de equipamento — Estagiário"><span class="track" aria-hidden="true"><span class="knob"></span></span></button></td></tr>
@@ -8638,7 +8745,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
       <div class="field">
         <span class="field-label" id="pp-novo-nome-l">Nome do papel</span>
         <div class="input is-focus" role="textbox" aria-labelledby="pp-novo-nome-l">Supervisor de campo</div>
-        <span class="helper" id="pp-novo-desc">O papel nasce sem nenhuma permissão. Marque as permissões na grade e salve.</span>
+        <span class="helper" id="pp-novo-desc">O papel nasce só com "Ver relatórios". Marque as outras permissões na grade e salve.</span>
       </div>
       <div class="dialog-actions">
         <button class="btn btn-secondary" data-close>Cancelar</button>
@@ -8871,6 +8978,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
       <!-- 2026-11-21, Story 26.1 (Epic 26): users, roles and permissions -->
       <li data-route="/home/campo"><a href="#/home/campo">/home/campo</a><small>Início como Engenheiro de Campo (Story 26.1)</small></li>
       <li data-route="/relatorio/porto-seguro/sem-emissao"><a href="#/relatorio/porto-seguro/sem-emissao">/relatorio/porto-seguro/sem-emissao</a><small>Sumário sem a permissão de emitir (Story 26.1)</small></li>
+      <li data-route="/consulta/ficha/DJ-C05"><a href="#/consulta/ficha/DJ-C05">/consulta/ficha/DJ-C05</a><small>Ficha somente leitura, papel Consulta (Story 26.1)</small></li>
       <li data-route="/usuarios"><a href="#/usuarios">/usuarios</a><small>Usuários (Story 26.1)</small></li>
       <li data-route="/usuarios/papeis"><a href="#/usuarios/papeis">/usuarios/papeis</a><small>Papéis e permissões (Story 26.1)</small></li>
       <li data-route="/login/esqueci"><a href="#/login/esqueci">/login/esqueci</a><small>Esqueci minha senha (Story 26.1)</small></li>

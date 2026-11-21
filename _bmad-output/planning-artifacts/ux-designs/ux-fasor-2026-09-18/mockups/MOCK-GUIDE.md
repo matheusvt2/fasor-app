@@ -392,6 +392,7 @@ What the app hides is a courtesy; the server refuses on its own (Story 26.4).
 | 5 | Papéis e permissões | `#/usuarios/papeis` (`93-papeis.html`, new) | The grid (below); "Relatórios" opened into its three keys; one unsaved change (Engenheiro de Campo · Criar relatório) with its dot and the bar "1 alteração não salva…"; "Salvar alterações" shows the saved line | 26.10 |
 | 5 | Novo papel, rename, remove | "Novo papel" (`#pp-dlg-novo`); the head of "Estagiário" › Renomear, Remover (refused: one user holds it); "Simular: remover um papel que ninguém tem" (`#pp-dlg-remover-ok`); a seeded role's head › "Restaurar permissões padrão" | Form and Confirm dialogs | 26.10 |
 | 6 | "Gerar relatório" disabled | `#/relatorio/porto-seguro/sem-emissao` (`44-sumario-sem-emissao.html`, new) | An excerpt of the Sumário as the Engenheiro de Campo sees it: the rows open, "Pré-visualizar" and "Gerar relatório" disabled with "Seu papel não permite pré-visualizar nem gerar o relatório." | 26.5 |
+| 6b | The read-only ficha *(added 2026-11-21 after the approval, question 10)* | `#/consulta/ficha/DJ-C05` (`62-ficha-consulta.html`, new) | The ficha as the Consulta role sees it: the info Banner "Somente leitura. Seu papel não permite preencher fichas, fotos e pontos." once for the screen; plate, checklist (one NC with its observation), a measurement table and the conclusion in the read-only look of the Não ensaiado sheet; the stepper moves; two photos and one point open; no camera, "Adicionar foto", "Criar ponto de atenção", "Ler visor", chips or Overflow | 26.5 |
 | 7 | Login | `#/login` (`10-login.html`) | "Esqueci minha senha" under "Entrar" | 26.6 |
 | 7 | The request sent | `#/login/esqueci` (`11-login-esqueci.html`, new) | The request, then "Enviar link" shows the same answer for a known or unknown address | 26.6 |
 | 7 | Paused at sign-in | `#/login/pausada` (`12-login-pausada.html`, new) | "Conta pausada. Fale com o administrador." in the wrong-password line's place | 26.11 |
@@ -417,8 +418,24 @@ Page CSS only, candidates to promote to `components.css` when Stories 26.9 and 2
 ### Other changes made with them
 
 - The prototype shell's wordmark, its browser line and the document title read "Conforme" (see § 2026-11-03 above); `10-login.html`'s e-mail moved to the sample domain.
-- Not drawn here, written in words only: the read-only ficha of a user without `relatorio.fill` (Story 26.5 says "with the look the frames give"; Story 26.1 lists no frame for it, so it is a question for Matheus), the role filter actually filtering, the removal of a relatório disabled, the download disabled in Export, a seeded role's restore confirmation (a Toast), the rename's duplicate-name error.
+- Not drawn here, written in words only: ~~the read-only ficha of a user without `relatorio.fill` (Story 26.5 says "with the look the frames give"; Story 26.1 lists no frame for it, so it is a question for Matheus),~~ *(2026-11-21: drawn after the approval, frame 6b)* the role filter actually filtering, the removal of a relatório disabled, the download disabled in Export, a seeded role's restore confirmation (a Toast), the rename's duplicate-name error.
 - Older frames that still carry the codename in sample data and are not Epic 26 frames: `90-account.html` and `80-cadastros.html` (an e-mail and the company name). Left as they are.
 - `prototype/index.html` was rebuilt with `build.py` (no warnings).
 
-**Approval:** pending, Matheus in the browser.
+~~**Approval:** pending, Matheus in the browser.~~
+
+### 2026-11-21, after Matheus looked at the frames
+
+- **Approved by Matheus on 2026-11-21** ("aprovado"), with the coordinator's recommendations on the twelve questions of PR #341:
+  1. With eight or more roles the tablet also shows one role at a time (the phone layout); up to seven, every role is a column.
+  2. The module of `template.edit` is named **"Templates"**, the word of its screen and shortcut, not "Modelos" (`epics.md` keeps "Modelos" in its table; this frame wins on the screen word). The grid's module line reads "Templates" / "A lista de templates e o compositor", the key "Editar templates", and the role lines in the user dialog say "Templates".
+  3. A tap on a mixed module switch turns all its keys on (as drawn).
+  4. A new role starts with "Ver relatórios" on; the "Novo papel" helper now says so.
+  5. The duplicate e-mail wording is kept.
+  6. "Reenviar convite" cancels the old link (as drawn).
+  7. A removed user sees the same "Conta pausada. Fale com o administrador." line at Login.
+  8. "Esqueci minha senha" serves an invited user whose link expired; the expired-link page now reads "O link venceu ou já foi usado. Peça um link novo com o seu e-mail: ele serve também para um convite que venceu."
+  9. The sender address stays open with Story 26.7.
+  10. The read-only ficha is drawn (frame 6b above).
+  11. and 12. Kept as drawn: "Sair e apagar" destructive with "Cancelar" first; Pausado in the amber of "Em revisão", Removido grey with a dashed border.
+- Rechecked after the changes at 390, 768 and 1280 px in a headless browser: no horizontal scroll. `prototype/index.html` rebuilt with `build.py` (no warnings).
