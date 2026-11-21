@@ -11566,6 +11566,705 @@ So that the company does not lose a day of measurements because of an access cha
 - The two `deferred-work.md` rows; authored sentences listed.
 - `docs/kbs/architecture/sync.md`, `log.md`.
 
+## Epic 27: The manual pass of 2026-11-21: the document carries what the screen shows, the impossible is refused, the words are right and the screens fit (seed v17; Matheus, 2026-11-21)
+
+On 2026-11-21 Matheus asked for a pass over every screen as a user: the local stack, Playwright driving the app as a person would, two personas, three widths. The report is `_bmad-output/test-artifacts/manual/ux-pass-2026-11-21.md`, findings F1 to F41 with a severity each (S1 a wrong document or wrong data reaches the client; S2 a user error the app lets through or a broken layout; S3 wording; S4 polish). Seven are grave: the PDF carried another company's identity (F1), humidity of 150 % and 999 °C were printed (F2), a reading of 0 µΩ passed an absolute criterion (F3), and a ficha not yet concluded printed as "reprovada" (F7). This epic fixes them all. The approved plan, in Portuguese, is Matheus's session plan of the same day; every file and line below was checked again on main `ff6c8c2d`.
+
+**Matheus's decisions (2026-11-21):**
+1. **All findings are fixed, in three waves:** grave, then wording and user errors, then layout.
+2. **The form words are corrected on screen and in the document:** "ÍTEM", "TP's e TC's", "Para-raio", "1° Subsolo". This takes a new seed version, v17; the earlier seeds stay frozen.
+3. **Validation refuses the impossible and remarks the improbable without blocking.** An impossible value is refused where it is typed. An improbable one gets an amber remark beside the field and a row in "Antes de emitir"; it never blocks issuing.
+
+**Beside Epic 26.** Epic 26 (users, roles and permissions) is built now by another session: batches e26a to e26f, contract 55, port bases 26 and 27. This epic keeps out of its way:
+- **Contract 56 onward.** e27a takes 56. e27b takes the next number. If Epic 26 has taken more than 55 when an e27 batch merges main, the batch takes main's number plus one (the rule of 2026-11-11).
+- **Batch tags** e27a (wave 1), e27b (wave 2), e27c (wave 3). **Port bases** 28 and 29.
+- **Shared files.** Stories 27.1 (`apps/api/src/sync/rules.ts`) and 27.2 (`packages/domain/src/contract/version.ts`) start only after batch e26a is on main. Stories 27.10 and 27.11 (`apps/web/src/surfaces/relatorio/sumario-surface.tsx`) start only after Story 26.5 is on main.
+- **The load rules.** At most two batch stacks up at a time across both epics, one gate at a time under `lockf /tmp/fasor-verify.lock`. No e27 batch is launched while Epic 26 holds both stack slots. The coordinator tells the Epic 26 session before a launch and before a merge.
+
+**Not in this epic, and why:**
+- **F27, the return to the asked path after sign-in.** Story 26.5 took it, since it already changes `apps/web/src/app.tsx` and the Login screen.
+- **F22 and F41 are questions for Bruno,** listed at the end of this epic. Both are words of the form.
+- **Two things the pass looked at are already right:** the "Características da SE" block collapses once complete (`apps/web/src/surfaces/ficha/cabine-block.tsx:100`), and "Ver recorte da placa" has a 48 px touch target (`components.css:433`).
+
+**Stories, waves and batches:**
+
+| Story | Title | Findings | Applies to | Wave · batch | Contract | Dev model · Effort |
+| --- | --- | --- | --- | --- | --- | --- |
+| 27.1 | The document carries the company the screen shows | F1 | every seed | 1 · e27a | the batch's | opus · high |
+| 27.2 | The impossible value is refused, the improbable one is remarked | F2, F3, F4, F5, F6, F11 | every seed, new ops | 1 · e27a | 56 | opus · high |
+| 27.3 | A ficha not yet concluded does not read as reprovada | F7 | the screen on every seed; the print on v17 | 1 · e27a | the batch's | opus · high |
+| 27.4 | A point of attention says what it lacks, and the Gerar dialog lists it | F8, F12 | every seed | 1 · e27a | no | opus · high |
+| 27.5 | The template numbers its sections as the relatório will | F9 | every seed | 1 · e27a | no | sonnet · medium |
+| 27.6 | Critérios de aceitação shows every criterion the fichas judge by | F10 | every seed | 1 · e27a | no | sonnet · medium |
+| 27.7 | The corrected column fits on a tablet in landscape | F13 | every seed | 1 · e27a | no | sonnet · medium |
+| 27.8 | The form's words, right on screen and in the document (seed v17) | F30, F35 | v17; "TPs e TCs" on every new revision | 2 · e27b | yes | opus · high |
+| 27.9 | Agreement, one name for each thing, and no internal words on screen | F29, F31, F32, F33, F34, F36, F37, F38, F39, F40 | every seed, the print held | 2 · e27b | no | sonnet · medium |
+| 27.10 | The user errors the app lets through | F23, F24, F25, F26, F28 | every seed | 2 · e27b | no | sonnet · medium |
+| 27.11 | The fixed bars leave room for the work | F14 | every seed | 3 · e27c | no | sonnet · medium |
+| 27.12 | Dados do relatório: the cover's thumbnail and a text area for long text | F15, F16 | every seed | 3 · e27c | no | sonnet · low |
+| 27.13 | Dialogs and fichas: one hint at a time, Confirmar buttons that differ, a required mark after the field | F17, F18, F19 | every seed | 3 · e27c | no | sonnet · medium |
+| 27.14 | Templates and Home: a readable local card, one number per section, cards that tell themselves apart | F20, F21 | every seed | 3 · e27c | no | sonnet · low |
+
+"The batch's" means the story rides on the one number its batch takes. Every finding of the report is closed by exactly one story, except F22 and F41 (questions for Bruno) and F27 (Story 26.5).
+
+**Rules every story keeps:**
+- **Seed v17, new relatórios only (AD-21).** Production runs seed v16 (deployed as `4ecc3009` on 2026-11-15), so v16 is frozen. Story 27.8 opens v17, derived from v16 with `V16_HASH` pinned as shipped, and locks the v16 layout. A change to a printed page or to seed content is reached through a key of the v17 seed or a flag of its `rules` object read by `seedRule`. No relatório migrates its seed. No rule compares version numbers.
+- **The printed layout of every older relatório stays byte-identical,** with one named exception: the group title "TPs e TCs" (Story 27.8), which is code and reaches every new revision. The v5, v11, v12, v13, v14 and v15 goldens, the two Epic 25 goldens and the Porto Seguro goldens change only where a story names the change. A sentence a story changes on screen that also reaches the print of a v16 or older relatório through a derived function keeps its printed form there; the story either gates the printed half behind a v17 rule or stops and asks the coordinator.
+- **Screen-only behaviour applies to every seed.** A refusal, a remark, a pre-issue row, a label, a layout fix and a screen sentence change no printed page by themselves.
+- **Old data is not rewritten.** An op already stored is not judged again by a new limit. An op still queued on an offline device and refused by the new limit takes the existing rejected-ops path ("Reenviar", the rejected list); nothing is deleted.
+- **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` computes every status, count, text, order, limit and verdict, once. `apps/web` renders from IndexedDB and writes ops only. `apps/api` applies ops and renders documents. `applyOp` is the only reducer.
+- **Strings (AGENTS.md "Where a new user-facing string goes").** Derived text in `packages/domain`; static surface copy in `apps/web/src/copy/pt-br.ts`; component chrome in `apps/web/src/copy/ui.ts`; seeded content in the seed. Every pt-BR sentence a story authors is marked `// authored (Story 27.x, listed for Bruno)` and listed in the PR.
+- **A mock departed from is amended.** A story whose screen departs from a mock writes, in the same PR, the dated strike-through amendment to `DESIGN.md` or `EXPERIENCE.md` (the reading order of AGENTS.md: they win over the mock). New `.frame-*` translations go in `apps/web/src/styles/app.css` with a comment naming the mock rule, and the real-browser pass checks 390, 768 and 1280 px plus a dialog.
+- **Not guessed.** What nobody decided is written under its story as open and is not built. A choice the story must still make is "Coordinator's reading, open to Matheus".
+
+**Waves and gates:**
+- **Wave 1, the grave findings.** e27a: 27.1 to 27.7, on port base 28, contract 56. The kernel stories (27.1 to 27.4) and the screen stories (27.5 to 27.7) do not touch the same files, so the coordinator may run 27.5 to 27.7 as a second stack under the same tag on port base 29. One PR for the wave (two only when the lanes stay apart, the rule of 2026-11-12).
+- **Wave 2, the form words, the wording and the user errors.** e27b: 27.8, then 27.9 and 27.10, on port base 28. Story 27.8 is first, since 27.9 reads the seed it opens. One contract number, for seed v17.
+- **Wave 3, layout.** e27c: 27.11 to 27.14, on port base 28. No contract expected.
+- **Gates (the decision of 2026-11-12).** A batch runs `lint`, `static`, `test:unit`, `test:api` and the Playwright specs it wrote or touched before its PR. Once a wave's PR is merged, one full gate runs on the integrated main (`pnpm test:e2e:full` and the matrix, `api` and `web` restarted first) with one review. A red gate becomes a fix batch before the next wave.
+- **Deploy on Matheus's word only.** Seed v17 freezes at the deploy that ships it.
+
+**Definition of Done of the epic:**
+- Every story merged with its batch gate pasted in its PR; each wave's full gate green on the integrated main and its review accepted.
+- The pass repeated with the Playwright MCP as `dev@local.dev` before the deploy: the PDF carries the company of Cadastros and its form revision, "ITEM", "TPs e TCs" and "Para-raios"; 150 % humidity, 0 µΩ and an invalid CNPJ are refused; the ficha at 1024x768 shows the corrected column; the Sumário at 390 px leaves the content at least half the screen. Its report is tracked under `_bmad-output/test-artifacts/manual/`.
+- The production count of Story 27.1 run on Matheus's AWS login, its numbers recorded; a fix of its own planned if it finds a company with two `empresa` rows.
+- After the deploy, one message to Bruno, sent by Matheus: the corrected words in the document, every authored sentence, and the two questions below.
+- `docs/kbs/` updated where a story says, and `log.md`.
+
+### Story 27.1: The document carries the company the screen shows
+
+**Dev model:** opus · **Effort:** high · kernel, api and a script: one `empresa` selector for the web and the snapshot; the server refuses a second live `empresa` row; the script that wrote a row with no op found and fixed; the Gerar dialog's document control equal to the printed one; rides on the batch's contract number
+
+As Bruno sending a relatório to a client,
+I want the PDF to carry the company, the CNPJ, the logo and the form revision that Cadastros shows,
+So that no document reaches a client under another company's name (F1).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- The local dev company holds two live `registry` rows of kind `empresa` on the server. The older-id one (`01a0f32f…`, another company's name) has no row in `ops`: it was written straight into `entities` about 2026-11-04. Sync hands out ops (`apps/api/src/sync/pull.ts`), so no device ever receives it.
+- The server snapshot takes the first live `empresa` row by id: `pick('empresa')[0]` (`packages/domain/src/schemas/snapshot.ts:227`) and `liveRegistry('empresa')[0]` (`:368`). The web takes the first it finds in IndexedDB: `empresaRow` (`apps/web/src/db/home-store.ts:83`, the `find` at `:85`). With two rows they disagree, and the document prints the one the devices cannot see.
+- Nothing enforces one `empresa` row per company: `apps/api/src/sync/rules.ts` has no rule for it.
+- `packages/domain/src/registry/empresa.ts` holds the row's schema and helpers; there is no `pickEmpresa`.
+- The Gerar dialog's "Controle do documento" and the printed one (`packages/domain/src/print/document-control.ts`) are composed from the two different reads above.
+
+*(Definition of Ready, met 2026-11-21 by decision 1. Starts only after batch e26a is on main, since both change `apps/api/src/sync/rules.ts`.)*
+- **Task 1, an investigation with a stated unknown.** Which script wrote an `empresa` row into `entities` with no op is not known. The candidates are `apps/api/src/db/test-fixtures.ts`, `scripts/seed-users.ts --sample-relatorio` (through `apps/api/src/db/sample-relatorio.ts`) and the eval recipes. Expected output: the file and the function named in the PR, with the command that reproduces the row on an empty company; then the script fixed so that it writes no `empresa` into a company that already has one, and writes any row it does write through an op. If no candidate reproduces it, the PR says so, and the story goes on with the guard below, which holds whoever writes the row.
+- **One selector.** `pickEmpresa(rows)` in `packages/domain/src/registry/empresa.ts`, used by `empresaRow` on the web and by both reads of `snapshot.ts`. Its order is explicit and the same everywhere. *Coordinator's reading, open to Matheus:* the live row with the earliest `created_at`, then the smaller id.
+- **The server refuses a second live `empresa` row** (`apps/api/src/sync/rules.ts`): an op that creates an `empresa` in a company that already holds a live one is rejected. The batch uses an existing reject code if one fits, or appends one on the batch's contract number, and names it in the PR.
+- **The local data is cleaned:** the extra row of the local dev company is removed through the `tools` container, local data only, and the command is written in the PR.
+- **Production, read-only, on Matheus's AWS login (an owner action, not a blocker).** Count the companies with more than one live `empresa` row and the `entities` rows with no op, with the read-only recipe (`sql.begin('read only')`, counts only). The story is built and merged without it; when Matheus has logged in, the coordinator runs it and records the numbers. If either count is above zero, it becomes a fix of its own, not part of this story.
+- **Out of scope:** any change to how Cadastros › Empresa edits the row.
+
+**Acceptance Criteria:**
+
+**Given** a company with two live `empresa` rows in any order of ids and dates
+**When** the web reads the company and the server builds the snapshot
+**Then** both return the same row, the one `pickEmpresa` chooses
+
+**Given** a company that already holds a live `empresa` row
+**When** a device pushes an op that creates a second one
+**Then** the server rejects it with the named code, and the first row is unchanged
+
+**Given** one relatório
+**When** the Gerar dialog shows "Controle do documento" and the server prints the document
+**Then** the company name, CNPJ, address, logo and form revision are equal in both
+
+**Given** the script Task 1 names, run on a company that already has an `empresa` row
+**When** it finishes
+**Then** the company still has exactly one live `empresa` row, and every row the script wrote has its op
+
+**Definition of Done, in addition:**
+- Kernel "27.1-UNIT": `pickEmpresa` over zero, one and two rows in each order; the dialog's document control and `document-control.ts` from the same snapshot, field by field.
+- "27.1-API-001": the second `empresa` refused through the sync route; "27.1-API-002": the script of Task 1 on a company that has a row.
+- `e2e/document-company.spec.ts` "27.1-E2E-001 @p0": a company with its empresa set in Cadastros generates a relatório, and the PDF's text carries that name, CNPJ and form revision.
+- The Task 1 finding and the production count (or "not run yet, waits for Matheus's login") in the PR and in `deferred-work.md`.
+- `docs/kbs/architecture/sync.md` (the rule) and `log.md`.
+
+### Story 27.2: The impossible value is refused, the improbable one is remarked
+
+**Dev model:** opus · **Effort:** high · kernel: humidity refused outside 0 to 100, temperature remarked outside -10 to 60 °C, a resistance of zero refused on an absolute criterion, the CNPJ check digits, the ART and altitude messages, the reading message in the unit typed; contract 56
+
+As an engineer typing in the field,
+I want the app to refuse a value that cannot exist and to point at one that is unlikely,
+So that a typing slip never reaches the client's document (F2, F3, F4, F5, F6, F11).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- `ENV_VALUE_RULES` (`packages/domain/src/ops/value-limits.ts:115`) gives `altitude_m` a range (`SITE_ALTITUDE_RANGE_M`) and `temperature_c` and `humidity_pct` only `numberValue`, so 150 % and 999 °C are accepted and printed.
+- `parseMeasurementReadingPtBr` (`packages/domain/src/relatorio/measurement-evaluation.ts:1667`) accepts 0 on an absolute criterion such as "≤ 50 µΩ". The refusal `not_positive` exists in `packages/domain/src/checks/input-refusal.ts` (`:34`, `:42`).
+- `isValidCnpjFormat` (`packages/domain/src/checks/cnpj.ts:8`) checks only the 14 digits; its comment says a full checksum was "a later story's concern". The message is `cnpjInvalid` (`apps/web/src/copy/pt-br.ts:1938`, "CNPJ inválido — informe 14 dígitos").
+- The ART field (`apps/web/src/surfaces/relatorio/setup/etapa3-responsavel.tsx:43`) takes any text; "abc" printed in the document control and the signature.
+- The altitude field (`setup/etapa5-local.tsx`, its input near `:227`) kept 99999 with no message seen; whether the op was written is not known.
+- The remark of a reading typed in GΩ cites the criterion in MΩ: "0,129 GΩ (≥ 5.000 MΩ)".
+- `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` are 54 (`packages/domain/src/contract/version.ts:648`, `:1033`). Epic 26 takes 55.
+
+*(Definition of Ready, met 2026-11-21 by decision 3. Starts only after batch e26a is on main, since both change `contract/version.ts`.)*
+- **Refused, the impossible:** a relative humidity below 0 or above 100 %; a resistance reading of zero or below on an absolute criterion, through the same `not_positive` refusal the input already uses; a CNPJ whose check digits do not match (the standard modulo-11 rule). The message of the CNPJ says the number is not valid, not only that it needs 14 digits.
+- **Remarked, the improbable, never blocking:** a temperature below -10 °C or above 60 °C gets an amber remark under the field and one row in "Antes de emitir" (`packages/domain/src/relatorio/pre-issue.ts`); an ART/TRT number that is not numeric (digits, with the separators the councils use) gets the same treatment. The relatório still issues.
+- **The altitude.** Task: find whether 99999 is written as an op or only kept in the field. Expected output, one line in the PR. Either way the field shows the range message ("-500 a 9000 m") when the value is out of it, and nothing out of range is written.
+- **The reading message in the unit typed.** A reading typed in GΩ cites its criterion in GΩ ("0,129 GΩ (≥ 5 GΩ)"), on screen. The printed criterion is unchanged on every seed.
+- **Contract 56.** `CONTRACT_VERSION` 56 with the dated reason; `MIN_CONTRACT_VERSION` moves to 56 unless the PR shows why not. A device on 55 or older is refused with 426 and the update notice.
+- **Old data.** Stored ops are not judged again. A queued op refused by the new limits lands in the rejected list, as any rejected op does.
+- **Authored, for Bruno:** the two remark sentences and their pre-issue rows; the CNPJ message.
+- **Out of scope:** a range for any other field; a refusal of an ART; the printed criterion text.
+
+**Acceptance Criteria:**
+
+**Given** the environment step of a ficha
+**When** 150 is typed in UMIDADE RELATIVA
+**Then** the value is refused with its message, no op is written, and the field keeps the last valid value
+
+**Given** the same step
+**When** 999 is typed in TEMPERATURA
+**Then** the value is saved, an amber remark shows under it, "Antes de emitir" lists one row naming the ficha, and "Gerar relatório" stays enabled
+
+**Given** a contact resistance test with an absolute criterion
+**When** 0 is typed in a reading cell
+**Then** the cell refuses it as it refuses a negative value
+
+**Given** Cadastros › Clientes and Etapa 1
+**When** 11.111.111/1111-11 is typed as a CNPJ
+**Then** it is refused with the new message, and a CNPJ with valid check digits is accepted
+
+**Given** Etapa 3
+**When** "abc" is typed as the ART
+**Then** it is saved, the field shows the amber remark, "Antes de emitir" lists it, and issuing is not blocked
+
+**Given** Etapa 5
+**When** 99999 is typed as the altitude
+**Then** the range message shows and no out-of-range value is stored
+
+**Given** a device on contract 55
+**When** it syncs with a server on 56
+**Then** it gets 426 and the update notice
+
+**Given** an op stored before this story with a humidity of 150
+**When** the relatório is opened and printed
+**Then** it prints as before, and the stored op is not rejected
+
+**Definition of Done, in addition:**
+- Kernel "27.2-UNIT": the humidity bounds (0 and 100 accepted, -0,1 and 100,1 refused), the temperature remark at -10, 60 and beyond, zero on an absolute and on a relative criterion, the CNPJ check digits over known valid and invalid numbers, the ART pattern, the unit of the message, the two pre-issue rows.
+- "27.2-API-001": a humidity of 150 refused by the server's fold; a queued op refused into the rejected list; the 426.
+- `e2e/value-limits.spec.ts` "27.2-E2E-001 @p0": the seven screens above as a user types them.
+- The layout-lock goldens byte-equal.
+- A dated `source-deltas.md` row for decision 3; the dated reason in `contract/version.ts`.
+- `docs/kbs/architecture/ops-and-local-first.md` (the limits) and `log.md`.
+
+### Story 27.3: A ficha not yet concluded does not read as reprovada
+
+**Dev model:** opus · **Effort:** high · kernel: the parecer counts concluded reproved fichas apart from open fichas with a reading out of criterion; the minimum "Não apto" stays; Etapa 6 and the Sumário say when the user's choice was replaced; the printed sentence of section 10 on v17 only
+
+As Bruno reading section 10,
+I want it to say which fichas were reproved and which are still open with a reading out of criterion,
+So that a ficha nobody concluded is not printed as reprovada (F7).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- `composeParecer` (`packages/domain/src/relatorio/parecer.ts:363`) counts as reprovada a ficha still open, because of the derived floor of `effectiveConclusionPair` (`relatorio/conclusion.ts:356`). In the pass, section 10 printed "94 ainda não concluídas. 1 ficha foi reprovada: DJ-01", and the parecer chosen (Apto) became Não apto.
+- The reason shows only in Etapa 6 (`parecerReasonText`, `parecer.ts:212`); the Sumário says nothing.
+
+*(Definition of Ready, met 2026-11-21 by decision 1.)*
+- **The protection stays.** A relatório with an open ficha holding a reading out of criterion still has the minimum parecer "Não apto".
+- **The text separates the two.** Concluded fichas reproved are named as reprovadas. Open fichas with a reading out of criterion are named apart: "1 ficha em aberto com leitura fora do critério: DJ-01". The kernel composes both; nothing in `apps/*` counts them.
+- **The replaced choice is said.** Where the user's parecer was replaced by the minimum, Etapa 6 and the Sumário say so in one line, from `parecerReasonText`.
+- **The print, on v17 only.** The printed sentence of section 10 changes through a flag of the v17 seed's `rules`. Seed v17 opens with Story 27.8 in wave 2, so this story adds the flag to `seedRulesSchema` and the composer, and Story 27.8 sets it on v17; this story's print criterion is verified in batch e27b. A v16 or older relatório prints section 10 as today, and its goldens hold.
+- **Authored, for Bruno:** the open-ficha sentence, singular and plural, and the replaced-choice line.
+- *Coordinator's reading, open to Matheus:* the plan asked for the printed sentence to change and the goldens to be updated. The repository's rule keeps older prints byte-identical, so the print change is read as v17 only. If Matheus wants it on every seed, the older goldens are regenerated in the same PR with his dated word.
+
+**Acceptance Criteria:**
+
+**Given** a relatório with one open ficha holding a reading out of criterion and no ficha concluded
+**When** the parecer is composed
+**Then** it is "Não apto", its text names the ficha as open with a reading out of criterion, and no ficha is named reprovada
+
+**Given** that relatório with Apto chosen in Etapa 6
+**When** Etapa 6 and the Sumário render
+**Then** both say in one line that the choice was replaced by "Não apto" and why
+
+**Given** a relatório with one ficha concluded Reprovado and one open with a reading out
+**When** the parecer is composed
+**Then** the text names each in its own sentence
+
+**Given** a v17 relatório in that state
+**When** it prints
+**Then** section 10 carries the two sentences (verified in batch e27b, after Story 27.8)
+
+**Given** a v16 relatório in that state
+**When** it prints
+**Then** section 10 prints as today and the layout-lock goldens hold
+
+**Definition of Done, in addition:**
+- Kernel "27.3-UNIT": the counts and the texts over open, concluded reproved and concluded approved fichas, singular and plural, the replaced-choice line, the flag off on v16.
+- "27.3-INT" (written in e27b): the DOCX of a v17 relatório in each state.
+- `e2e/parecer-open-ficha.spec.ts` "27.3-E2E-001 @p0": a reading out of criterion, Apto chosen, the Etapa 6 and Sumário lines.
+- `docs/kbs/architecture/kernel-and-seed.md` and `log.md`.
+
+### Story 27.4: A point of attention says what it lacks, and the Gerar dialog lists it
+
+**Dev model:** opus · **Effort:** high · kernel and web: the points without action, deadline, priority or owner listed one by one in the Gerar dialog, the count sentence rewritten, "Falta: …" in amber on the point's card and editor; the "Último envio" lines scoped; no blocking
+
+As Bruno about to issue,
+I want to see which points of attention are missing an action, a deadline, a priority or an owner,
+So that the action plan table does not print dashes I did not notice (F8, F12).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- A point saves with no action, deadline, priority or owner, and the action plan table prints dashes.
+- The checks exist: `pointsWithoutAction` (`packages/domain/src/points/checks.ts`, used by `points/summary.ts:91`) and `pointsSemPrazo` (`points/priority.ts:133`). Their pre-issue rows are not in `EXPLICIT_KINDS` (`packages/domain/src/relatorio/pre-issue.ts:621`), so the dialog folds them into a count.
+- The count sentence is `precheckCountMetaText` (`pre-issue.ts:655`): the pass read "13 avisos" under a list of six.
+- "Último envio de {nome}: {data}" lines (`pre-issue.ts:314`) carried dates older than the relatório.
+- The point card (`apps/web/src/surfaces/points/points-surface.tsx`) and the editor (`points/point-editor.tsx`) show dashes for the missing fields.
+
+*(Definition of Ready, met 2026-11-21 by decision 3: nothing here blocks saving or issuing.)*
+- **Listed one by one.** The pre-issue kinds of a point without action, without deadline, without priority and without owner join `EXPLICIT_KINDS`, so the Gerar dialog names them. The kernel adds the kinds that do not exist yet (priority, owner).
+- **The count says where the rest are.** `precheckCountMetaText` reads "e mais N avisos nas linhas do sumário", singular and plural, and counts only the rows the dialog does not list.
+- **On the point.** The card and the editor show "Falta: ação, prazo, prioridade, responsável" (the missing ones only) in amber in place of the dashes. Saving stays allowed.
+- **"Último envio".** Task: read how the lines are composed (`pre-issue.ts` around `:303` to `:317`). Expected output: the lines name only sends of this relatório when the device holds that fact; when it does not, the line's words say the date is the device's last send of any relatório. The PR says which.
+- **Authored, for Bruno:** the count sentence, the four row sentences, the "Falta:" line.
+
+**Acceptance Criteria:**
+
+**Given** a relatório with one point saved with no action, deadline, priority or owner
+**When** the Gerar dialog opens
+**Then** it lists that point's missing fields as named rows, and "Gerar relatório" stays enabled
+
+**Given** a dialog that lists six rows and has seven more on the Sumário
+**When** it renders
+**Then** the count reads "e mais 7 avisos nas linhas do sumário"
+
+**Given** that point
+**When** its card and its editor render
+**Then** each shows "Falta: ação, prazo, prioridade, responsável" in amber, and the line loses a word as each field is filled
+
+**Given** another device whose last send was before this relatório was created
+**When** the dialog renders
+**Then** its line does not present that date as a send of this relatório
+
+**Definition of Done, in addition:**
+- Kernel "27.4-UNIT": the new kinds, `EXPLICIT_KINDS`, the count sentence at 0, 1 and many, the "Falta:" text for each subset, the "Último envio" rule.
+- `e2e/point-missing-fields.spec.ts` "27.4-E2E-001 @p0": a point saved bare, its card, the dialog's rows and count, then filled one field at a time.
+- `docs/kbs/architecture/kernel-and-seed.md` (pre-issue) and `log.md`.
+
+### Story 27.5: The template numbers its sections as the relatório will
+
+**Dev model:** sonnet · **Effort:** medium · web and the composer's kernel view: the section number the relatório will give, the fixed note and the type editor's "seção 9" through `sectionRefText`
+
+As Bruno composing a template,
+I want the template to show the section numbers the relatório and the document will carry,
+So that "seção 9" means the same thing on every screen (F9).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- The template editor shows the form's numbers: `number: sectionNumber(block.block_type)` in the composer view (`packages/domain/src/templates/compose.ts:720`), drawn as the `block-tag` of each row (`apps/web/src/surfaces/templates/section-list.tsx:108`). It read 7 Registro fotográfico, 8 Pontos de atenção, 9 Relatórios dos ensaios.
+- The relatório numbers by position (`creationPosition`, `packages/domain/src/relatorio/instantiate.ts:80`, used at `:307`): 8 ensaios, 9 pontos in the pass.
+- The fixed note `sectionsNote` (`apps/web/src/copy/pt-br.ts:419`) names "7 Registro fotográfico e 9 Relatórios dos ensaios"; the type editor's `nameHelper` and `printTitleHelper` (`pt-br.ts:625`, `:631`) say "seção 9". `sectionRefText` exists (`packages/domain/src/relatorio/section-position.ts:43`).
+
+*(Definition of Ready, met 2026-11-21.)*
+- The composer view gives each section the number the relatório created from it will carry, computed in the kernel by the same rule as `creationPosition`.
+- The fixed note names the two automatic sections by `sectionRefText`, not by fixed numbers. The type editor's two helpers do the same; where no relatório is in view, the helpers name the section by its title. *Coordinator's reading, open to Matheus.*
+- Story 27.14 later leaves one number per row; this story decides which number that is.
+
+**Acceptance Criteria:**
+
+**Given** the standard template
+**When** its section list renders
+**Then** each section's number equals the number of that section in a relatório created from it
+
+**Given** a template whose sections are reordered
+**When** the list renders
+**Then** the numbers follow the new order, and a relatório created from it numbers its sections the same
+
+**Given** the type editor
+**When** its name and print title helpers render
+**Then** neither says a fixed "seção 9"
+
+**Definition of Done, in addition:**
+- Kernel "27.5-UNIT": the composer number against `instantiate` over the standard template and a reordered one.
+- `e2e/template-section-numbers.spec.ts` "27.5-E2E-001": the template's numbers, then a relatório from it, compared.
+- `docs/kbs/ux/copy-homes.md` if a string moves, and `log.md`.
+
+### Story 27.6: Critérios de aceitação shows every criterion the fichas judge by
+
+**Dev model:** sonnet · **Effort:** medium · web: Cadastros › Critérios de aceitação lists the Tabela 100.1 beside the seeded criteria and says when each applies
+
+As an engineer checking a criterion,
+I want Cadastros to show the table the ficha uses to judge insulation,
+So that ">400 MΩ" on one screen and "≥ 5.000 MΩ" on the ficha stop contradicting each other (F10).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- `apps/web/src/surfaces/registries/criterios-tab.tsx:25` lists only `SEEDED_CRITERIA` (">400 MΩ" for insulation).
+- The ficha judged by the ANSI/NETA MTS-2023 Tabela 100.1, `NETA_100_1` (`packages/domain/src/seed/criteria-tables.ts:75`), by the plate's rated voltage.
+
+*(Definition of Ready, met 2026-11-21.)*
+- The tab shows the Tabela 100.1 rows (rated voltage up to, test voltage, minimum) beside the seeded criteria, read from the kernel, no number in `apps/web` (NFR-14).
+- Each criterion says when it applies: the table when the plate gives a rated voltage; the seeded value when it does not. The sentence comes from the kernel, where the rule lives.
+- **Authored, for Bruno:** the two "when it applies" sentences.
+- **Out of scope:** editing a criterion from this tab.
+
+**Acceptance Criteria:**
+
+**Given** Cadastros › Critérios de aceitação
+**When** it renders
+**Then** it lists the seeded criteria and every row of the Tabela 100.1, each with the line saying when it applies
+
+**Given** a ficha with a rated voltage on its plate
+**When** its insulation reading is judged
+**Then** the criterion it shows is a row the tab lists
+
+**Definition of Done, in addition:**
+- Web test of the tab over the kernel's rows.
+- `e2e/criterios-tab.spec.ts` "27.6-E2E-001": the tab, then a ficha whose criterion is one of its rows.
+- `log.md`.
+
+### Story 27.7: The corrected column fits on a tablet in landscape
+
+**Dev model:** sonnet · **Effort:** medium · web CSS: between 1024 and 1279 px with the tree open, the readings table uses the stacked corrected line that exists below 768 px; 768 to 1023 px checked too
+
+As an engineer on a tablet held sideways,
+I want to see the "Corrigido a 20 °C" value,
+So that the corrected reading is not cut off with no sign that it scrolls (F13).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- At 1024x768 with the tree open, the readings table is 730 to 800 px wide in 656 px, and the corrected column is cut.
+- Below 768 px the corrected column is hidden and the value stands under its reading as `.corrected-stacked` (`apps/web/src/styles/app.css:1267`, the media rule `:1268` to `:1271`, batch e23v).
+
+*(Definition of Ready, met 2026-11-21.)*
+- From 1024 to 1279.98 px, with the tree open, the table uses the stacked line in place of the column. *Coordinator's reading, open to Matheus:* by the tree's state, through the class the layout already sets when the tree is open; if none exists, for the whole width range.
+- 768 to 1023.98 px is measured. If the table does not fit there either, the same rule covers it; the PR says which.
+- `app.css` carries the rule with a comment naming the e23v rule it extends.
+
+**Acceptance Criteria:**
+
+**Given** a ficha at 1024x768 with the tree open
+**When** the insulation table renders
+**Then** the corrected value is visible under each reading and the table has no horizontal overflow
+
+**Given** the same ficha at 1280x800
+**When** the table renders
+**Then** the corrected column shows as today
+
+**Given** 768x1024
+**When** the table renders
+**Then** no column is cut
+
+**Definition of Done, in addition:**
+- `e2e/corrected-column-fit.spec.ts` "27.7-E2E-001": the table's width against its container at 1024, 1280 and 768 px.
+- The dated amendment in `EXPERIENCE.md` › Measurement table (the stacked line also on a landscape tablet with the tree open).
+- `log.md`.
+
+### Story 27.8: The form's words, right on screen and in the document (seed v17)
+
+**Dev model:** opus · **Effort:** high · seed v17 derived from v16 with `V16_HASH` pinned; the v16 layout lock; "ITEM", "Para-raios", "1º Subsolo", "limpeza e reaperto" masculine plural on v17; "TPs e TCs" in code on every new revision; the goldens regenerated; one contract number
+
+As Bruno sending the document,
+I want the form's words spelled right,
+So that the client does not read "ÍTEM", "TP's e TC's", "Para-raio" or "1° Subsolo" (F35, F30).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- `SEED_VERSION` is `'v16'` (`packages/domain/src/seed/definitions.ts:68`); v16 shipped in `4ecc3009` and `V16_HASH` is pinned (`seed/seed.test.ts:2534`).
+- The words: the checklist header "ÍTEM" (`seed/v1.ts:655`); the block label "Para-raio" (`seed/v1.ts:514`), its screen name (`apps/web/src/copy/pt-br.ts:546`) and its caption word (`packages/domain/src/photos/caption.ts:28`); the local "1° Subsolo" of the standard template (`seed/template.ts:202`); the activity word `word('limpeza e reaperto', 'f', 'singular')` (`seed/v1.ts:630`), which makes the caption "Detalhe da limpeza e reaperto realizada no para-raio" (`photos/caption.ts:228`).
+- The group title "TP's e TC's dos Cubículos de MT" is code, not seed (`packages/domain/src/print/group-for-print.ts:123`).
+- The layout lock covers v5, v11, v12, v13, v14 and v15 (`LAYOUT_LOCK_VERSIONS`, `packages/domain/fixtures/layout-lock/op-log.ts:90`); there is no v16 golden yet.
+
+*(Definition of Ready, met 2026-11-21 by decision 2. Bruno approved the current document; only the named words change, and he is told after the deploy.)*
+- **Seed v17** derives from v16. Its first commit holds only v17 = v16 and the v16 layout lock, taken from main before any change (as Story 25.5 did for v14). Then the words go into v17's own definitions: `seed/v1.ts` is not edited, since v1 to v16 share it and their hashes are pinned.
+- **The words on v17:** "ITEM"; "Para-raios"; "1º Subsolo" (the ordinal sign, not the degree sign); "limpeza e reaperto" masculine plural, so the caption reads "realizados". A word that lives in code (the caption word of `photos/caption.ts:28`) follows the relatório's seed through a v17 key or rule flag, so a v16 relatório keeps "para-raio".
+- **The screen.** The screen names of the type (`pt-br.ts:546`) change on every seed; they print nothing.
+- **"TPs e TCs" in code.** `group-for-print.ts:123` reads "TPs e TCs dos Cubículos de MT" for every relatório, so a new revision of an older relatório carries it too (decision 2, as the plan states it). The older layout-lock goldens are regenerated for that one line only, and each golden's diff, pasted in the PR, is that title alone.
+- **The standard template.** A template seeded after this story names the local "1º Subsolo"; a relatório keeps the local name it was created with. *Coordinator's reading, open to Matheus:* a company's stored template is not renamed by itself.
+- **Story 27.3's flag** is set on v17 here, and its print test is written in this batch.
+- **One contract number.** A client on the number before cannot resolve a v17 definition. `MIN_CONTRACT_VERSION` moves unless the PR shows why not.
+- **Out of scope:** any other word or layout change; the contact resistance headers "Linha / Terra / Guard" (question 1 for Bruno).
+
+**Acceptance Criteria:**
+
+**Given** seed v17 at its opening commit
+**When** `seed.test.ts` runs
+**Then** `V16_HASH` is the value v16 shipped with, `SEED_VERSION` is `'v17'`, `Object.keys(SEED_VERSIONS)` is v1 to v17, and v17 stringifies equal to v16
+
+**Given** a v17 relatório
+**When** it prints
+**Then** the checklist header reads "ITEM", the block reads "Para-raios", the local reads "1º Subsolo", the retightening caption reads "Detalhe da limpeza e reaperto realizados…", and nothing else differs from a v16 relatório with the same answers but its ids and dates
+
+**Given** a v16 relatório
+**When** a new revision prints
+**Then** it keeps "ÍTEM", "Para-raio" and "1° Subsolo", and its group title reads "TPs e TCs dos Cubículos de MT"
+
+**Given** the v5 to v16 layout-lock goldens and the Porto Seguro goldens after this story
+**When** each is compared with main before it
+**Then** the only difference is the group title line
+
+**Given** a client on the contract before
+**When** it syncs
+**Then** it is refused with 426 and the update notice
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "27.8-UNIT": the pins above; every test that pins `SEED_VERSION` or the version list updated, found by grep; every test that asserts a v16 word pinned to v16 by an addition.
+- `docx-layout-lock.test.ts` and `layout-lock.integration.test.ts` over v5 to v16 ("27.8-UNIT-LOCK", "27.8-INT-LOCK"); a v17 golden that pins the new words.
+- `golden/porto-seguro-skeleton.json` regenerated, its diff in the PR.
+- `e2e/seed-v17.spec.ts` "27.8-E2E-001 @p0": a new relatório is on v17, a Para-raios ficha with a retightening photo, the PDF's text carries the four words; a v16 relatório beside it keeps its words.
+- A dated `source-deltas.md` row for decision 2; the dated reason in `contract/version.ts`.
+- `docs/kbs/architecture/kernel-and-seed.md` (seed v17) and `log.md`.
+
+### Story 27.9: Agreement, one name for each thing, and no internal words on screen
+
+**Dev model:** sonnet · **Effort:** medium · kernel derived text and screen copy: gender and number, NC phrase joins, one name per concept, no jargon, the caption of an NC photo, the Home search message; the print of v16 and older held
+
+As an engineer reading the screens,
+I want the sentences to agree and each thing to have one name,
+So that the app reads like the company wrote it (F29, F31, F32, F33, F34, F36, F37, F38, F39, F40).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- Agreement: "Some-se à calibração" (`apps/web/src/copy/pt-br.ts:2009`); "NC aberto/abertos" (`packages/domain/src/relatorio/progress.ts:281`); the photo filter chip "Todos" (`packages/domain/src/photos/gallery.ts:142`); "Ainda não enviada ao cliente" (`print/revisions.ts:253`) beside "Marcar como enviado ao cliente" (`relatorio/sumario.ts:470`).
+- NC quick phrases join as "ausentes, Luvas com furos" (`insertPhrase`, `relatorio/ficha.ts:256`); a point's text ends "ressecadas Imagem 1" with no punctuation (`ncText` and `withPhotoTokens`, `points/derived.ts:111`, `:604`).
+- "Não se aplica: MEIO DE EXTINÇÃO não é Óleo." (`relatorio/applicability.ts:156`, the field's printed label in capitals).
+- Several names: "Início/Fim da parada" (`pt-br.ts:904`, `:905`, and `pre-issue.ts:119`, `:120`) and "Início da execução" (`pt-br.ts:1777`); "Local (obra)" (`pt-br.ts:161`, `:1776`) and "Obra / local" (`:855`); "Revisão 01" (the form's revision) and "Rev. 1" (the relatório's).
+- Internal words: "Do setup do relatório" (`pt-br.ts:1497`), "com a flag" (`:812`), "Altitude do site" (`:1834`), "Único tipo disponível nesta versão" (`:902`), "Semente v16" (`packages/domain/src/templates/text.ts:145`), "montado sozinho" (`relatorio/sumario.ts:177`).
+- The automatic caption of a photo taken on a non-conforming item reads "Verificação de luvas … com ensaio dielétrico válido" (`photos/caption.ts:106`, `:321`).
+- Home search with a status filter says "Nenhum relatório encontrado para X" (`home/cards.ts:389`) though other statuses match, and it does not match a date or a template name (`home/cards.ts:284`).
+
+*(Definition of Ready, met 2026-11-21 by decision 1.)*
+- **Agreement:** "Soma-se"; "NC aberta/abertas"; "Todas"; "Ainda não enviado ao cliente", the masculine of the action it answers.
+- **Joins:** a quick phrase after a comma starts in lower case; a point's text ends ", conforme Imagem 1" (with "Imagens 1 e 2" for two).
+- **Applicability:** the reason names the field in sentence case ("Meio de extinção").
+- **One name:** "execução" for the service window ("Início da execução", "Fim da execução"); "Obra" for the place label; on screen, "Revisão do formulário" for the form's revision and "Rev. N" for the relatório's. *Coordinator's reading, open to Matheus:* "Obra" and "execução" are the words of the form.
+- **No internal words:** "Dados do relatório" for "setup"; the "flag" sentence reworded; "Altitude do local"; "Semente v16" leaves the template line (the line keeps its counts); "montado sozinho" becomes "preenchido automaticamente"; "Único tipo disponível nesta versão" leaves.
+- **The caption of an NC photo:** "Não conformidade em {item}…" in place of the item's conforming wording.
+- **Home search:** with a status filter active, the empty message names the filter and how many match in the other statuses; the search also matches the template name and the date as the card shows it. *(John: the plan named only the message; the second half of F29 is added so the finding closes here.)*
+- **The print.** A sentence above that a v16 or older relatório prints (a stored text is not rewritten; a derived one is held) keeps its printed form there. Where a change reaches the print, it is gated on v17 through Story 27.8's seed, or the batch asks.
+- **Authored, for Bruno:** every changed sentence, listed with its old form in the PR.
+
+**Acceptance Criteria:**
+
+**Given** each sentence above
+**When** its screen renders on a v17 relatório
+**Then** it reads the new form, and kernel tests pin each one
+
+**Given** two quick phrases tapped one after the other
+**When** the observation renders
+**Then** they read "…ausentes, luvas com furos"
+
+**Given** a point created from an NC row with one photo
+**When** its text renders
+**Then** it ends ", conforme Imagem 1"
+
+**Given** Home with the filter "Em revisão" and a search that matches only an Emitido relatório
+**When** the list is empty
+**Then** the message names the filter and says one relatório matches in another status
+
+**Given** a search by a template name or by a card's date
+**When** the list renders
+**Then** the matching cards show
+
+**Given** the layout-lock goldens of v5 to v16
+**When** the story's PR is compared with main
+**Then** they are byte-equal
+
+**Definition of Done, in addition:**
+- Kernel "27.9-UNIT": each derived sentence old and new; the join; the point's ending; the search.
+- Web tests for the static copy changed.
+- `e2e/wording-pass.spec.ts` "27.9-E2E-001": the screens of the pass where each sentence shows.
+- Every test that pins an old sentence updated, found by grep, and named in the PR.
+- `docs/nc-chip-phrases.md` if a phrase's join changes its listed form; `log.md`.
+
+### Story 27.10: The user errors the app lets through
+
+**Dev model:** sonnet · **Effort:** medium · web and pre-issue rows: a repeated client warned in Cadastros, an empty section text warned, an empty exclusion dropped on conclude, the missing items said beside "Concluir verificações", "Restaurar ficha removida" disabled with nothing to restore
+
+As an engineer filling a relatório,
+I want the app to catch the slips it can see,
+So that a duplicate, an empty text or a forgotten item does not reach the document unnoticed (F23, F24, F25, F26, F28).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- Cadastros › Clientes creates a second client with the same name (`apps/web/src/surfaces/registries/client-panel.tsx:69`); the Novo relatório dialog already checks it with `normalizeRegistryName` (`home/new-project-dialog.tsx:102`; `packages/domain/src/text/normalize-name.ts:9`).
+- A section text emptied in the editor shows as "texto editado" and nothing warns (`relatorio/section-text-surface.tsx:134`).
+- An empty exclusion row survives "Concluir dados do relatório" (`relatorio/setup-surface.tsx:175`) and is dropped only at print.
+- "Concluir verificações" with unanswered items scrolls and focuses (`local/verificacoes-surface.tsx:263`); the toast it shows was not seen in the pass.
+- "Restaurar ficha removida" is offered in the Sumário's overflow menu when nothing was removed (`relatorio/sumario-surface.tsx`, the restore list near `:185`).
+- F27, the return to the asked path after sign-in, is not here: Story 26.5 took it.
+
+*(Definition of Ready, met 2026-11-21 by decision 3. Starts only after Story 26.5 is on main, since the restore menu lives in `sumario-surface.tsx`.)*
+- **A repeated client:** Cadastros warns with the same rule and words as the Novo relatório dialog, before the client is created; the user may still create it.
+- **An empty section text:** one row in "Antes de emitir" naming the section, and the Sumário's row reads "texto vazio" in place of "texto editado". Issuing is not blocked.
+- **An empty exclusion** is dropped when "Concluir dados do relatório" writes, so the stored list has no empty row.
+- **"Concluir verificações" with items missing:** a message beside the button says how many items are unanswered, besides the scroll and the focus.
+- **"Restaurar ficha removida"** is disabled, with its reason, when the restore list is empty.
+- **Authored, for Bruno:** the empty-text row, the missing-items message, the disabled reason.
+
+**Acceptance Criteria:**
+
+**Given** a client "Cliente Local" in Cadastros
+**When** "cliente  local" is typed as a new client's name
+**Then** the warning of the Novo relatório dialog shows before saving
+
+**Given** a section text emptied in the editor
+**When** the Sumário and the Gerar dialog render
+**Then** the row reads "texto vazio" and the dialog lists it, and "Gerar relatório" stays enabled
+
+**Given** an exclusion row left empty
+**When** "Concluir dados do relatório" is tapped
+**Then** the stored exclusions hold no empty row
+
+**Given** Verificações do local with three items unanswered
+**When** "Concluir verificações" is tapped
+**Then** a message beside the button says three items are missing, and the first is focused
+
+**Given** a relatório with nothing removed
+**When** the Sumário's overflow menu opens
+**Then** "Restaurar ficha removida" is disabled with its reason
+
+**Definition of Done, in addition:**
+- Kernel "27.10-UNIT": the empty-text pre-issue row, the exclusion drop.
+- `e2e/user-errors.spec.ts` "27.10-E2E-001 @p0": the five slips above as a user makes them.
+- `log.md`.
+
+### Story 27.11: The fixed bars leave room for the work
+
+**Dev model:** sonnet · **Effort:** medium · web layout: on the phone the Sumário footer keeps the main action and moves the others to the menu, with a height limit; on the ficha the bulk bar does not add to the fixed bar
+
+As an engineer on a phone or a tablet,
+I want the fixed bars to take a small part of the screen,
+So that I see what I am filling (F14).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- At 390 px the Sumário footer stacks three buttons (`apps/web/src/styles/app.css:125`, the phone rule `.sticky-action-bar .bar-buttons { flex-direction: column; }`, the mock's `.frame-phone` translation), and with the app bar and the banner it leaves about a third of the screen (`relatorio/sumario-surface.tsx:526`).
+- On the ficha at 1024x768 the stepper, the bulk bar ("Marcar os restantes como Conforme", `pt-br.ts:1567`) and the action bar take about a quarter.
+
+*(Definition of Ready, met 2026-11-21 by decision 1. Starts only after Story 26.5 is on main, since both change `sumario-surface.tsx`.)*
+- **The Sumário on the phone:** the footer keeps the main action; the other actions move to the Sumário's overflow menu; the footer's height is capped. From 768 px the footer is as today.
+- **The ficha:** the bulk bar is not stacked on top of the fixed action bar; it sits in the flow of the checklist or joins the action bar. *Coordinator's reading, open to Matheus:* in the flow, above the first unanswered item.
+- The departure from `40-relatorio-overview.html`'s phone frame and from `60-ficha.html` is written in `DESIGN.md` and `EXPERIENCE.md`.
+
+**Acceptance Criteria:**
+
+**Given** the Sumário at 390x844
+**When** it renders with its banner
+**Then** the footer shows one button, the other actions are in the overflow menu, and the content keeps at least half the screen's height
+
+**Given** the ficha at 1024x768 with items unanswered
+**When** it renders
+**Then** the fixed bars together take no more than the action bar's own height plus the stepper
+
+**Given** the Sumário at 768 and 1280 px
+**When** it renders
+**Then** the footer is as today
+
+**Definition of Done, in addition:**
+- `e2e/fixed-bars.spec.ts` "27.11-E2E-001": the heights measured at 390, 768, 1024 and 1280 px; every action still reachable.
+- The dated strike-through amendments in `DESIGN.md` (the phone footer) and `EXPERIENCE.md` (where the other actions go, where the bulk bar sits), beside the old text.
+- The real-browser pass at 390, 768 and 1280 px plus the menu.
+- `docs/kbs/ux/mockups-and-css.md` and `log.md`.
+
+### Story 27.12: Dados do relatório: the cover's thumbnail and a text area for long text
+
+**Dev model:** sonnet · **Effort:** low · web: Etapa 1 passes the cover photo's preview to its `UploadTile`, and "Informações adicionais" becomes a text area
+
+As an engineer filling the cover,
+I want to see the photo I chose and room to write the additional information,
+So that I know the cover is right and can read what I typed (F15, F16).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- `setup/etapa1-capa.tsx` renders the cover's `UploadTile` (from `:115`) without `previewSrc`, which the tile supports (`apps/web/src/components/upload-tile.tsx:46`).
+- "Informações adicionais" is an `<input>` (`etapa1-capa.tsx:105`) for text capped at 20000.
+
+*(Definition of Ready, met 2026-11-21.)*
+- The tile shows the cover photo's thumbnail once uploaded, from the local file as other tiles do.
+- "Informações adicionais" is a text area of the mock's textarea class, with its count.
+- The departure from `50-relatorio-setup.html`, if the mock draws an input, is written in `DESIGN.md`.
+
+**Acceptance Criteria:**
+
+**Given** Etapa 1
+**When** a cover photo is chosen
+**Then** its thumbnail shows in the tile, offline too
+
+**Given** "Informações adicionais"
+**When** three paragraphs are typed
+**Then** they show on several lines, are saved on leaving the field, and the count follows
+
+**Definition of Done, in addition:**
+- `e2e/setup-cover.spec.ts` "27.12-E2E-001": the photo, the thumbnail, the long text kept after a reload.
+- The dated amendment in `DESIGN.md` where the mock differs.
+- `log.md`.
+
+### Story 27.13: Dialogs and fichas: one hint at a time, Confirmar buttons that differ, a required mark after the field
+
+**Dev model:** sonnet · **Effort:** medium · web: the caption dialog shows one hint by its state; the conclusion's buttons say what each confirms; "Obrigatória" shows after the field is left
+
+As an engineer in a ficha,
+I want each hint and each button to say one thing,
+So that I do not read contradictions or press the wrong Confirmar (F17, F18, F19).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- The caption dialog shows three hints at once ("Legenda gerada", "Texto editado à mão", "montada com os três campos") (`apps/web/src/surfaces/photos/caption-composer.tsx:285` to `:293`).
+- The ficha's conclusion carries up to three buttons all "Confirmar" (`ficha/conclusao-section.tsx:459`, `:535`, `:559`).
+- "Obrigatória em item não conforme" shows in red before anything is typed (`ficha/checklist-section.tsx:472`).
+
+*(Definition of Ready, met 2026-11-21.)*
+- **The caption dialog** shows the one hint that matches its state: generated, edited by hand, or composed from the three fields.
+- **The conclusion's buttons** name what each writes: "Confirmar resultado", "Confirmar texto", "Confirmar observação". *Coordinator's reading, open to Matheus:* those three words; the accessible names follow.
+- **"Obrigatória"** shows once the observation field was left empty, or on a conclude attempt, not on first render.
+- The departures from `60-ficha.html` and the caption frame are written in `EXPERIENCE.md`.
+- **Authored, for Bruno:** the three button words.
+
+**Acceptance Criteria:**
+
+**Given** the caption dialog in each of its three states
+**When** it renders
+**Then** exactly one hint shows, the one of its state
+
+**Given** a conclusion with the adjusted note, the text and an observation pending
+**When** it renders
+**Then** the three buttons have three different visible labels and accessible names
+
+**Given** an item just marked NC
+**When** the row renders
+**Then** no red "Obrigatória" shows until the field is left empty or the step is concluded
+
+**Definition of Done, in addition:**
+- Web tests of the three states, the labels and the blur rule.
+- `e2e/ficha-dialog-words.spec.ts` "27.13-E2E-001": the three cases as a user meets them; the specs that click "Confirmar" by name updated, found by grep.
+- The dated strike-through amendments in `EXPERIENCE.md` (the caption hint, the button words, when "Obrigatória" shows).
+- `log.md`.
+
+### Story 27.14: Templates and Home: a readable local card, one number per section, cards that tell themselves apart
+
+**Dev model:** sonnet · **Effort:** low · web and the Home card's kernel text: the local card's meta text not squeezed, one number per section row, a date on cards not on the device, cards with the same client and obra told apart
+
+As Bruno looking at the template and the Home list,
+I want each card to be readable and different from its neighbour,
+So that I open the right one (F20, F21).
+
+**Today (verified 2026-11-21 on main `ff6c8c2d`):**
+- The template editor's local card wraps its meta text in a narrow column (`apps/web/src/surfaces/templates/skeleton-list.tsx:215`, `templates/templates.css:98`).
+- Each section row shows two numbers ("2 8 Pontos de atenção"): its position and the `block-tag` number (`templates/section-list.tsx:108`).
+- Home: cards with the same client and obra look alike, and cards not on the device show no date (`packages/domain/src/home/cards.ts`).
+
+*(Definition of Ready, met 2026-11-21. After Story 27.5, which decides the section number.)*
+- **The local card:** the meta text takes the card's width and wraps as a sentence.
+- **One number per section:** the row shows the one number Story 27.5 decided; the position stays as the move control's value only.
+- **Home:** a card not on the device shows the date the server holds; two cards with the same client and obra show what differs (the template's name or the service start). *Coordinator's reading, open to Matheus:* the service start first, the template's name when the dates are equal. The kernel composes the line.
+- The departures from `41-templates.html`, `42-template-composer.html` and the Home frame are written in `DESIGN.md`.
+
+**Acceptance Criteria:**
+
+**Given** the template editor at 1024 and 768 px
+**When** a local card renders
+**Then** its meta text is not wrapped into a column narrower than half the card
+
+**Given** the template's section list
+**When** it renders
+**Then** each row shows one number
+
+**Given** Home with two relatórios of the same client and obra and one not on the device
+**When** the list renders
+**Then** the two cards show different lines and the one not on the device shows its date
+
+**Definition of Done, in addition:**
+- Kernel "27.14-UNIT": the Home card's line for twins and for a card not on the device.
+- `e2e/templates-home-cards.spec.ts` "27.14-E2E-001": the three cases.
+- The dated amendments in `DESIGN.md`.
+- `log.md`.
+
+**Questions for Bruno (Epic 27), sent by Matheus with the message on the corrected words:**
+1. **F22.** The contact resistance table's column headers read "Linha / Terra / Guard" over the rows "T1-T2 / Fase A / Massa" (`packages/domain/src/seed/v1.ts:355`, `:433`). Are these the form's headers to keep, or should they change?
+2. **F41.** The standard text of Definições mixes number ("mantê-lo … torná-los", "protegendo-os"). Should the text be corrected, and to which number?
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
