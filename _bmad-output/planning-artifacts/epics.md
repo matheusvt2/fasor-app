@@ -11102,6 +11102,8 @@ So that the server and the app can never disagree about a permission.
 - *Creating equipment and locals inside a relatório in the field belongs to `relatorio.fill`. Options the ficha teaches the registry are written by the server (`system:registry`), so they need no key.*
 - *A custom role can hold any key except that it can never be the locked Admin.*
 
+*(2026-11-21, built in batch e26a, PR #342 merged as `b43effe6`, contract 55. Readings taken, all in AD-29: `suggestion/status` needs `relatorio.fill`; the registry kinds the ficha writes (`manufacturer`, `voltage_class`) need `relatorio.fill` for their create, every other kind `registry.edit`; `relatorio/setup` splits by field (the creation form needs `relatorio.create`; parecer, altitude, next intervention and instruments need `relatorio.fill`); `relatorio/export/scheme` needs `relatorio.issue`; a removed role grants nothing; a user with no resolved role holds no key.)*
+
 ### Story 26.3: Roles and user status live in the company's data, and today's users become Admin
 
 **Dev model:** opus · **Effort:** high · api: the migration, the seeded roles per company, every existing user Admin, the seed CLI's role flag; rides on the batch's contract number
@@ -11141,6 +11143,8 @@ So that nobody loses access on the day roles start to count.
 - "26.3-API-001": the migration on a copy of the fixture database, twice; the CLI flag; the pull.
 - The migration listed in the deploy record with the production count before and after (read-only recipe).
 - `docs/kbs/code/api-app.md`, `log.md`.
+
+*(2026-11-21, built in batch e26a, PR #342. Narrowing: the e2e users of the other four roles are defined in each worker's pair but seeded on demand in Empresa B (`workerRoleUser`, `seedRoleUser`), not at global setup, because two durability specs assert the team count of Empresa A.)*
 
 ### Story 26.4: The server refuses what the role does not allow
 
@@ -11205,6 +11209,8 @@ So that a permission holds even against an old app or a hand-made request.
 *Coordinator's reading, open to Matheus:*
 - *A role change takes effect on the user's next request; his session is not ended. Only pause and remove end sessions.*
 
+*(2026-11-21, built in batch e26a, PR #342. Narrowing: `suggestion.review`, `users.manage` and `roles.manage` have no client op or route yet; 26.4-API-001 covers the other nine keys. Their refusal tests come with Stories 26.8 and 26.10.)*
+
 ### Story 26.5: The app shows each role only its modules
 
 **Dev model:** opus · **Effort:** medium · web: one provider, one route guard, one hook; every shortcut, route and control behind its key; works offline from the last pull
@@ -11221,6 +11227,7 @@ So that the tablet shows the ficha and nothing I would be refused.
 - **Disabled with a reason:** a control inside a screen the user does use. "Gerar relatório" without `relatorio.issue`; "Novo relatório" without `relatorio.create`; removing a relatório without `relatorio.delete`; the download without `export.download`.
 - **Read-only relatório.** Without `relatorio.fill` the ficha, the photos, the points and the section texts open and take no input, with the look the frames give.
 - **Offline.** The app follows the role of the last pull. A change reaches the screen on the pull that brings it, with no restart.
+- *(2026-11-21, added from the manual pass of the same day, handed over by the Epic 27 session:)* **After sign-in the app returns to the address that was asked.** Today a protected address while signed out goes to Login with no memory of it, and sign-in always lands on "/" (`apps/web/src/app.tsx`, the two `Navigate`). The asked address is kept through Login and opened after sign-in, when the user's role allows it; otherwise Home with the toast.
 - **Out of scope:** the Usuários screen.
 
 **Acceptance Criteria:**
@@ -11248,6 +11255,10 @@ So that the tablet shows the ficha and nothing I would be refused.
 **Given** an Engenheiro de Campo offline, whose role the Admin changed to Gestor do Projeto
 **When** the device comes back and pulls
 **Then** the Templates shortcut appears without a reload
+
+**Given** a signed-out user who opens the address of a relatório
+**When** he signs in
+**Then** he lands on that relatório, not on Home
 
 **Given** every existing e2e spec, where the user is Admin
 **When** it runs
