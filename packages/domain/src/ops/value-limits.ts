@@ -197,6 +197,11 @@ const VALUE_RULES = {
   // its tombstone an instant or null; its readings are test cells as a definition row's are.
   'sheet/test/row': { kind: 'fields', fields: { name: textCell(ADDED_ROW_NAME_MAX_LENGTH), removed_at: schema } },
   'sheet/test/row/cell': { kind: 'value', rule: { kind: 'test_cell', cap: TEXT_CAPS.short } },
+  // Story 26.2 (contract 55, AD-29): written only by the server.
+  role: SERVER_ONLY,
+  'role/field': SERVER_ONLY,
+  'user/role_id': SERVER_ONLY,
+  'user/status': SERVER_ONLY,
 } as const satisfies Record<PathFamily, FamilyValueRule>;
 
 /** The rule of every path family (read by the guard test). */

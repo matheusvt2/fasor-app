@@ -192,6 +192,9 @@ export const REFERENCE_FIELDS: readonly ReferenceField[] = [
   { pointer: 'audit_run.id', exempt: SERVER_ONLY_ID },
   { pointer: 'audit_run.relatorio_id', exempt: SERVER_ONLY_ID },
   { pointer: 'audit_run.findings[].target.blockId', exempt: SERVER_ONLY_ID },
+  // Story 26.2 (contract 55, AD-29): a company role and a user's role, written only by the server.
+  { pointer: 'role.id', exempt: SERVER_ONLY_ID },
+  { pointer: 'user.role_id', exempt: SERVER_ONLY_ID },
 ];
 
 /** A row a value names by id, with where it must belong. */

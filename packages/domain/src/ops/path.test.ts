@@ -62,6 +62,11 @@ const EXTRA_PATHS = [
   `sheet/${BLOCK}/test/continuidade/row/${ID}/name`,
   `sheet/${BLOCK}/test/continuidade/row/${ID}/removed_at`,
   `sheet/${BLOCK}/test/continuidade/row/${ID}/cell/0`,
+  // Story 26.2 (contract 55): a company role, its puts, and a user's role and status (all server-only).
+  `role/${ID}`,
+  `role/${ID}/permissions`,
+  `user/${ID}/role_id`,
+  `user/${ID}/status`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -79,8 +84,9 @@ describe('1.4-UNIT-001 path round trip', () => {
     expect(missing).toEqual([]);
     // Fix batch fxrm (contract 28): `relatorio/removed_at`; Story 22.12 (contract 32): `equipment/last_results`; Story 14.6 (contract 33): the three equipment type families.
     // Story 25.14 (contract 54): the two families of a row added on the sheet, appended last.
-    expect(FAMILIES.length).toBe(52);
-    expect(FAMILIES.slice(-7).map((f) => f.family)).toEqual(['relatorio/removed_at', 'equipment/last_results', 'equipment_type', 'equipment_type/field', 'equipment_type_version', 'sheet/test/row', 'sheet/test/row/cell']);
+    // Story 26.2 (contract 55): the four role families, appended last.
+    expect(FAMILIES.length).toBe(56);
+    expect(FAMILIES.slice(-11).map((f) => f.family)).toEqual(['relatorio/removed_at', 'equipment/last_results', 'equipment_type', 'equipment_type/field', 'equipment_type_version', 'sheet/test/row', 'sheet/test/row/cell', 'role', 'role/field', 'user/role_id', 'user/status']);
   });
 
   it('returns typed segments', () => {

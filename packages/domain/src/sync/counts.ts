@@ -1,6 +1,8 @@
 import type { MergeInfo } from '../merge/info.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath } from '../ops/path.ts';
+import { can, type RoleLike } from '../permissions/can.ts';
+import { permissionForPath } from '../permissions/map.ts';
 import { peopleCount, plural, relatoriosCount } from '../text/plural.ts';
 
 /*
@@ -255,9 +257,32 @@ export function opRejectReasonText(code: string | null | undefined): string | nu
       // authored: 2026-11-03, Story 20.10 (review): both refusals of the code, the removal of an
       // Emitido relatório and a write to another user's own row (`user/{id}`).
       return 'Alteração recusada: o servidor não permite esta alteração, como remover um relatório emitido ou mudar o cadastro de outra pessoa.';
+    case OP_FORBIDDEN_BY_ROLE:
+      // authored (Story 26.4): the third cause of `op_forbidden`, the user's role lacks the op's key.
+      return 'Alteração recusada: o seu papel não permite esta alteração. Fale com o administrador da empresa.';
     default:
       return null;
   }
+}
+
+/**
+ * Story 26.4 (AD-29): the cause Sync status names for an `op_forbidden` the role explains, a
+ * device-side word beside the server's codes, never sent nor stored.
+ */
+export const OP_FORBIDDEN_BY_ROLE = 'op_forbidden_role';
+
+/**
+ * Story 26.4 (AD-29): why one dead outbox row was refused, as `opRejectReasonText` reads it. The
+ * server answers `op_forbidden` for three causes; when the user's role on this device (the role
+ * row its `role_id` names, pulled with the company) lacks the key the op needs (`permissionForPath`,
+ * `can`), the cause is the role's (`OP_FORBIDDEN_BY_ROLE`). Every other code passes as it came.
+ */
+export function rejectionCause(row: { error_code: string | null; path: string; kind?: Op['kind']; value?: unknown }, role: RoleLike | null | undefined): string | null {
+  if (row.error_code !== 'op_forbidden') return row.error_code;
+  const path = safeParsePath(row.path);
+  if (path === null) return row.error_code;
+  const need = permissionForPath(path, { kind: row.kind ?? 'put', value: (row.value ?? null) as Op['value'] });
+  return need !== 'none' && !can(role, need) ? OP_FORBIDDEN_BY_ROLE : row.error_code;
 }
 
 /** Story 20.9: the share of a text field's cap from which its character count shows (authored, 90 %). */

@@ -113,6 +113,8 @@ export const ATTRIBUTED_FIELDS: readonly AttributedField[] = [
   { pointer: 'audit_run.created_at', instant: 'exempt', reason: SERVER_ONLY },
   { pointer: 'audit_run.started_at', instant: 'exempt', reason: SERVER_ONLY },
   { pointer: 'audit_run.finished_at', instant: 'exempt', reason: SERVER_ONLY },
+  // Story 26.2 (contract 55, AD-29): a company role's tombstone, written only by the server.
+  { pointer: 'role.removed_at', instant: 'exempt', reason: SERVER_ONLY },
 ];
 
 /**

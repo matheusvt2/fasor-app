@@ -645,7 +645,16 @@
  * v16 sheet and `.../value/em_carga` only on v13 to v15 (`SeedPathError`, answered `op_invalid`, elsewhere). No bundle
  * of 54 without the key ever left the batch, so the number is not raised.
  */
-export const CONTRACT_VERSION = 54;
+/*
+ * 55 (2026-11-21, Story 26.2, batch e26a, AD-29): roles and permissions. Four server-only path
+ * families are new: `role/{id}` (a company role's create), `role/{id}/{name|permissions|removed_at}`,
+ * `user/{id}/role_id` and `user/{id}/status`, and the `role` entity with them (company scope). The
+ * user row gains the optional `role_id` and `status`, never defaulted, so a row written before 55
+ * parses to the same bytes. `errorCodeSchema` gains `forbidden` (a route the role does not open,
+ * 403) and `user_inactive` (a user who is not active, 401). MIN follows to 55 (below). Epic 27
+ * takes 56 after this.
+ */
+export const CONTRACT_VERSION = 55;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1030,7 +1039,14 @@ export const CONTRACT_VERSION = 54;
  * would also strip `added_rows` from the sheet (a pulled op is not folded again) and its readers would never show,
  * count or print the row. Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 54;
+/*
+ * 55 (2026-11-21, Story 26.2, batch e26a): a version-54 (or older) bundle's path enum lacks the
+ * `role` families and `user/{id}/role_id|status`, so a pulled op of them fails to fold
+ * (`materializeEntity` throws on a pulled op its fold refuses) and the company stream stops
+ * syncing on the first role the migration writes. Its pull answers `426 contract_outdated` and it
+ * updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 55;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

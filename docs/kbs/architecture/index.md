@@ -18,6 +18,7 @@ timestamp: 2026-09-30T00:00:00Z
 - [rendering](/architecture/rendering.md) AD-15, AD-16, AD-26: snapshot, generate job, revisions, print order, section 8 tokens.
 - [ui-system](/architecture/ui-system.md) AD-23: mockup CSS as design system, React Aria.
 - [usage-events](/architecture/usage-events.md) AD-28, Epic 18: the usage-event contract, the device queue `ux_events`, `POST /api/telemetry`, its sink and the ux-events log group. Open for anything that records how the app is used.
+- [roles-and-permissions](/architecture/roles-and-permissions.md) AD-29, Epic 26: the twelve keys, the seeded roles, `can`, the map from ops and routes to keys, `op_forbidden`, `403 forbidden`, `401 user_inactive`. Open for anything that asks what a user may do.
 - [infra-aws](/architecture/infra-aws.md) AD-27: containers, AWS services, Terraform, cost ceiling.
 - [decisions](/architecture/decisions.md) AD number to file lookup, one line each. Open when a task names an AD-n.
 

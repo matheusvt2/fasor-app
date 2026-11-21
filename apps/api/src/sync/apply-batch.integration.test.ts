@@ -5,6 +5,7 @@ import { now } from '../clock.ts';
 import { createDb, type Db } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
+import { seedRoleActor } from '../db/roles.test-support.ts';
 import { newId } from '../ids.ts';
 import { applyOps, applyServerBatch, isPermanentRefusal, ServerBatchRejectedError } from './apply.ts';
 
@@ -221,6 +222,8 @@ describe('Story 20.7: a refused status op does not roll back its batch', () => {
 
   /** A Rascunho relatório of a new obra and one block, created as a device creates them; then the server holds `status`. */
   async function relatorioAt(status: 'em_revisao' | 'rascunho'): Promise<{ relatorioId: string; blockId: string }> {
+    // Story 26.4 (setup only): the push reads the actor's role from the company's rows, so the actor is an Admin there.
+    await seedRoleActor(db, asCompanyId(companyId), ACTOR);
     const projectId = newId();
     const relatorioId = newId();
     const blockId = newId();
