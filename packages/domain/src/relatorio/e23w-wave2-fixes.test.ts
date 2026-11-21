@@ -139,7 +139,7 @@ describe('e23w-UNIT W2-2 the arrester\'s failed disconnector is read whatever it
     snapshot.blocks = snapshot.blocks.map((block) => (block.id !== arrester.id && block.equipment_id !== null ? { ...block, removed_at: '2026-11-09T10:00:00.000Z' } : block));
     expect(hasPointSource(snapshot)).toBe(true);
     const tag = snapshot.equipment.find((row) => row.id === arrester.equipment_id)!.tag;
-    expect(composeParecer(snapshot).text).toContain(`1 ficha foi reprovada por pré-requisito do ensaio não atendido (${tag}).`);
+    expect(composeParecer(snapshot, { print: true }).text).toContain(`1 ficha foi reprovada por pré-requisito do ensaio não atendido (${tag}).`);
   });
 });
 

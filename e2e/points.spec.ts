@@ -645,7 +645,9 @@ test('@p0 6.6-E2E-005 Sumário row 8 reads "2 pontos · 1 sem ação" for 2 manu
   await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2)' })).toBeVisible();
   await expect(cards(page)).toHaveCount(2);
   await expect(autoCards(page)).toHaveCount(0);
-  await expect(cards(page).nth(1).locator('.poa-fields dd').first()).toHaveText('—');
+  // ~~The missing action reads "—".~~ Story 27.4: the card names what it lacks in amber, and draws no dash for it.
+  await expect(cards(page).nth(1).locator('.helper[data-tone="amber"][data-missing]')).toHaveText('Falta: ação, prazo, prioridade, responsável');
+  await expect(cards(page).nth(1).locator('.poa-fields')).toHaveCount(0);
 });
 
 // ~~Fix batch fx15q (Matheus, 2026-10-23): with untested sheets and no manual point, row 8 reads
@@ -707,6 +709,9 @@ test('@p1 6.6-E2E-007 a card dragged by its handle lands where it is dropped, wi
     return built.drafts;
   });
   await openPoints(page);
+  // Story 27.4: each card now says what its point lacks ("Falta: …"), so the three are taller; the window holds
+  // all three, so the third card's handle is pressed inside it.
+  await page.setViewportSize({ width: 1280, height: 1200 });
   const texts = () => cards(page).locator('.poa-text');
   await expect(texts()).toHaveText(['Primeiro', 'Segundo', 'Terceiro']);
   const handle = page.getByRole('button', { name: 'Reordenar ponto 3, Geral' });

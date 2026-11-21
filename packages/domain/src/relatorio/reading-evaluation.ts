@@ -266,7 +266,7 @@ export function manufacturerUnitsOf(test: TestDef): readonly string[] {
 }
 
 /** The text a manufacturer's value prints as a criterion on a table test: "≥ 5 GΩ" (a NETA minimum, approved at it). */
-function minimumText(raw: string, unit: string | null): string {
+export function minimumText(raw: string, unit: string | null): string {
   return `≥ ${formatDecimalGroupedPtBr(raw)}${unit === null ? '' : ` ${unit}`}`;
 }
 
@@ -349,7 +349,7 @@ export function plateVolts(definition: Pick<BlockDefinition, 'nameplate'>, block
 }
 
 /** A rated voltage as a helper reads it: "13,8 kV" from 1000 V up, else "380 V". */
-function voltsText(volts: number): string {
+export function voltsText(volts: number): string {
   return volts >= 1000 ? `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts / 1000)))} kV` : `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts)))} V`;
 }
 

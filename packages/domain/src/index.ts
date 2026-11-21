@@ -35,6 +35,7 @@ export * from './registry/word-row.ts';
 export * from './seed/criteria.ts';
 // Story 23.2 (seed v13): the NETA criterion tables.
 export * from './seed/criteria-tables.ts';
+export * from './seed/criteria-view.ts';
 export * from './seed/schema.ts';
 export * from './seed/measurement.ts';
 // Batch e23h (Stories 23.10 and 23.11, contract 37): a test's "Como ensaiar" and recommendation.
@@ -57,6 +58,7 @@ export * from './templates/rich-text.ts';
 export * from './relatorio/tag.ts';
 export * from './relatorio/integrity.ts';
 export * from './relatorio/instantiate.ts';
+export * from './relatorio/creation-order.ts';
 export * from './relatorio/sheet-state.ts';
 export * from './relatorio/progress.ts';
 export * from './relatorio/pre-issue.ts';

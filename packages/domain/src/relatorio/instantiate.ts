@@ -16,6 +16,7 @@ import {
 } from '../schemas/entities.ts';
 import { canonicalSkeleton, sectionNumber, withoutOrphans } from '../templates/compose.ts';
 import { listPtBr, plural } from '../text/plural.ts';
+import { sortForCreation } from './creation-order.ts';
 import { legacySuggestTag, normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
 
 /*
@@ -72,14 +73,7 @@ export function relatorioSectionNumber(type: string): number | null {
   return isRelatorioSectionType(type) ? Number(type.slice('section_'.length)) : null;
 }
 
-/**
- * Story 20.3: where a section of the given FO.SERV-03 number sits among a new relatório's
- * section blocks: its number, except that section 9 (RELATÓRIOS DOS ENSAIOS) comes before
- * section 8 (PONTOS DE ATENÇÃO).
- */
-function creationPosition(number: number): number {
-  return number === 9 ? 8 : number === 8 ? 9 : number;
-}
+// Story 20.3's `creationPosition` (section 9 before section 8) moved to `creation-order.ts` (Story 27.5), which the composer reads too.
 
 /** What the creation reads of the project's equipment: enough to bind a block to a live row and keep new TAGs unique. */
 export type PriorEquipment = Pick<EquipmentRow, 'id' | 'tag' | 'type' | 'removed_at' | 'reuse_key'>;
@@ -304,8 +298,8 @@ export function instantiateTemplate(
   for (const type of GENERATED_SECTION_TYPES) {
     sections.push({ number: relatorioSectionNumber(type)!, type, config: { block_type: type, sub_blocks: {}, na_defaults: [], section_text: null } });
   }
-  sections.sort((a, b) => creationPosition(a.number) - creationPosition(b.number));
-  sections.forEach((section, n) => {
+  // Story 27.5: the one creation sort, which the composer's section numbers read too (`creationSectionNumbers`).
+  sortForCreation(sections, (section) => section.number).forEach((section, n) => {
     const id = deps.newId();
     const row = blockRow(id, relatorioId, seedVersion, {
       location_id: null,

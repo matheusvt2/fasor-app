@@ -2,7 +2,8 @@
 title: 'e27a slice 1: the grave findings of the 2026-11-21 pass (Stories 27.3 to 27.7)'
 type: 'bugfix'
 created: '2026-11-21'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: 'e7cd4259f86ee6caacea578eb697b08b988a0dd7'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

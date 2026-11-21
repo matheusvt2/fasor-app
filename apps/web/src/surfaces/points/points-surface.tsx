@@ -4,6 +4,8 @@ import {
   moveLandingIndex,
   numberPhotos,
   photoRefLabel,
+  pointMissingFields,
+  pointMissingText,
   pointMovedText,
   pointMoveOrderKey,
   pointOrderText,
@@ -21,6 +23,7 @@ import {
   resolvedOriginPoints,
   sectionEightEntries,
   type EntityState,
+  type PointMissingField,
   type PointRow,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -297,6 +300,12 @@ function PointCard({
   const title = pointTitle(point, snapshot);
   const name = t.cardName(position, title);
   const refs = extractPhotoRefs(point.text);
+  // Story 27.4 (F8): the kernel's "Falta: …" in amber stands for the missing fields, whose rows the list drops.
+  const missing = pointMissingFields(point);
+  const missingText = pointMissingText(missing);
+  const shows = (field: PointMissingField) => !missing.includes(field);
+  const deadline = point.deadline ?? null;
+  const priority = point.priority ?? null;
   const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .overflow-trigger') ?? null;
   const items: OverflowMenuAction[] = [];
   if (position > 1) items.push({ id: 'up', label: t.moveUp, onAction: () => void reorder.moveTo(position - 2, trigger) });
@@ -346,33 +355,44 @@ function PointCard({
             <p className="poa-photos-meta">{t.photosMeta}</p>
           </div>
         )}
-        <dl className="poa-fields">
-          <div>
-            <dt>{t.actionDt}</dt>
-            <dd>{point.action === null || point.action.trim() === '' ? t.none : point.action}</dd>
-          </div>
-          {/* Story 11.9: `72-pontos.html` 89-94. */}
-          <div>
-            <dt>{t.deadlineDt}</dt>
-            <dd className={point.deadline === null ? undefined : 'tabular'}>{point.deadline === null ? t.none : formatCalendarDate(point.deadline)}</dd>
-          </div>
-          <div>
-            <dt>{t.priorityDt}</dt>
-            <dd>
-              {point.priority === null ? (
-                t.none
-              ) : (
-                <span className="priority-pill" data-p={priorityTone(point.priority)}>
-                  {priorityLabel(point.priority)}
-                </span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt>{t.ownerDt}</dt>
-            <dd>{point.owner === null || point.owner.trim() === '' ? t.none : point.owner}</dd>
-          </div>
-        </dl>
+        {missingText === null ? null : (
+          <p className="helper" data-tone="amber" data-missing="">
+            {missingText}
+          </p>
+        )}
+        {missing.length === 4 ? null : (
+          <dl className="poa-fields">
+            {shows('acao') ? (
+              <div>
+                <dt>{t.actionDt}</dt>
+                <dd>{point.action === null || point.action.trim() === '' ? t.none : point.action}</dd>
+              </div>
+            ) : null}
+            {/* Story 11.9: `72-pontos.html` 89-94. */}
+            {shows('prazo') && deadline !== null ? (
+              <div>
+                <dt>{t.deadlineDt}</dt>
+                <dd className="tabular">{formatCalendarDate(deadline)}</dd>
+              </div>
+            ) : null}
+            {shows('prioridade') && priority !== null ? (
+              <div>
+                <dt>{t.priorityDt}</dt>
+                <dd>
+                  <span className="priority-pill" data-p={priorityTone(priority)}>
+                    {priorityLabel(priority)}
+                  </span>
+                </dd>
+              </div>
+            ) : null}
+            {shows('responsavel') ? (
+              <div>
+                <dt>{t.ownerDt}</dt>
+                <dd>{point.owner}</dd>
+              </div>
+            ) : null}
+          </dl>
+        )}
         {/* While another point is open in edit mode, "Editar" is absent: one editor at a time. */}
         {editable ? (
           <div className="row-wrap">

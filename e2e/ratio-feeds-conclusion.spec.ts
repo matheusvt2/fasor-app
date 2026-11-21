@@ -111,16 +111,18 @@ test('@p0 17.5-E2E-001 22.4-E2E 22.6-E2E a transformer ratio row INSATISFATÓRIO
   await expect(verdicts.getByRole('radio', { name: 'Não apto', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(verdicts.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
   await expect(verdicts.getByRole('radio', { name: 'Apto com restrições', exact: true })).toBeDisabled();
-  await expect(page.locator('.conclusion-hint').first()).toHaveText(/^O relatório exige no mínimo Não apto: 1 ficha reprovada \(.+\)\.$/);
+  // Story 27.3: the ficha is not concluded (its pair confirmed, never "Concluir ficha"), so it is named as open with a reading out.
+  await expect(page.locator('.conclusion-hint').first()).toHaveText(/^O relatório exige no mínimo Não apto: 1 ficha em aberto com leitura fora do critério \(.+\)\.$/);
   await expect(page.locator('.parecer-box .pb-verdict')).toHaveText('Não apto');
   const summary = page.locator('.suggestion-field.is-generated');
   // Read-only: no Confirmar, Editar or Substituir.
   await expect(summary.getByRole('button')).toHaveCount(0);
-  await expect(summary.locator('.generated-text')).toContainText(/1 ficha foi reprovada por relação de transformação insatisfatória \(.+\)\./);
+  await expect(summary.locator('.generated-text')).toContainText(/1 ficha em aberto com leitura fora do critério: .+\./);
+  await expect(summary.locator('.generated-text')).not.toContainText('reprovada');
   // e22f N1: the Reprovado sheet is named once, with its reason; no separate ratio sentence repeats it.
   await expect(summary.locator('.generated-text')).not.toContainText('Relação de transformação insatisfatória em');
-  // e22f N1: the Critérios line names it once, as reprovada.
-  await expect(summary.locator('.criteria-line')).toContainText(/1 reprovada \(.+\)/);
+  // e22f N1: the Critérios line names it once; Story 27.3: as open with a reading out.
+  await expect(summary.locator('.criteria-line')).toContainText(/em aberto com leitura fora do critério \(.+\)/);
   await expect(summary.locator('.criteria-line')).not.toContainText('relação de transformação insatisfatória');
   // No verdict op was written: the derived one stands.
   expect((await outbox(page)).filter((row) => row.path === 'relatorio/setup/parecer')).toEqual([]);

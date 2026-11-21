@@ -45,6 +45,57 @@ export function pointsSemAcaoText(n: number): string {
   return `${plural(n, 'ponto', 'pontos')} sem ação`;
 }
 
+// A row stored before a field existed may lack it: read as unset.
+const blank = (value: string | null | undefined): boolean => (value ?? '').trim() === '';
+
+/** Story 27.4 (F8): the live points with no priority (the action plan prints a dash); information only. */
+export function pointsSemPrioridade(points: readonly PointRow[]): PointRow[] {
+  return livePoints(points).filter((point) => (point.priority ?? null) === null);
+}
+
+/** Story 27.4 (F8): the live points with a blank owner (the action plan prints a dash); information only. */
+export function pointsSemResponsavel(points: readonly PointRow[]): PointRow[] {
+  return livePoints(points).filter((point) => blank(point.owner));
+}
+
+/** "1 ponto sem prioridade" / "2 pontos sem prioridade". */
+export function pointsSemPrioridadeText(n: number): string {
+  // authored (Story 27.4, listed for Bruno): the pre-issue row of the points with no priority.
+  return `${plural(n, 'ponto', 'pontos')} sem prioridade`;
+}
+
+/** "1 ponto sem responsável" / "2 pontos sem responsável". */
+export function pointsSemResponsavelText(n: number): string {
+  // authored (Story 27.4, listed for Bruno): the pre-issue row of the points with no owner.
+  return `${plural(n, 'ponto', 'pontos')} sem responsável`;
+}
+
+/** Story 27.4: a field of the action plan a point may lack, in the order the plan prints them. */
+export type PointMissingField = 'acao' | 'prazo' | 'prioridade' | 'responsavel';
+
+/**
+ * Story 27.4 (F8): the action-plan fields a point lacks, in order. A point written from an untested
+ * sheet is not asked for an action (as `pointsWithoutAction`), so its "ação" is never named.
+ */
+export function pointMissingFields(point: Pick<PointRow, 'action' | 'deadline' | 'priority' | 'owner' | 'origin'>): PointMissingField[] {
+  const missing: PointMissingField[] = [];
+  if (point.origin !== 'not_tested' && blank(point.action)) missing.push('acao');
+  if ((point.deadline ?? null) === null) missing.push('prazo');
+  if ((point.priority ?? null) === null) missing.push('prioridade');
+  if (blank(point.owner)) missing.push('responsavel');
+  return missing;
+}
+
+// authored (Story 27.4, listed for Bruno): the words of the "Falta:" line.
+const MISSING_WORDS: Readonly<Record<PointMissingField, string>> = { acao: 'ação', prazo: 'prazo', prioridade: 'prioridade', responsavel: 'responsável' };
+
+/** Story 27.4 (F8): "Falta: ação, prazo, prioridade, responsável", the missing ones only; null with none missing. */
+export function pointMissingText(fields: readonly PointMissingField[]): string | null {
+  if (fields.length === 0) return null;
+  // authored (Story 27.4, listed for Bruno): the amber line on a point's card and editor.
+  return `Falta: ${fields.map((field) => MISSING_WORDS[field]).join(', ')}`;
+}
+
 /** "Ponto 2 cita uma foto removida": the pre-issue row of a point whose text references a photo that is gone. */
 export function pointPhotoRemovedText(position: number): string {
   // authored: no mock draws this row.

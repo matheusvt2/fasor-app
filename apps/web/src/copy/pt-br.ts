@@ -416,7 +416,10 @@ export const copy = {
     selectNode: 'Selecione um local ou uma coluna.',
     // Review fixes 2026-10-06 (F-24, D11): the list shows each section's number beside its Position box
     // (EXPERIENCE.md keeps both); authored: the second sentence says why 7 and 9 are not in it.
-    sectionsNote: 'Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.',
+    // ~~'... 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.'~~
+    // authored (Story 27.5, listed for Bruno): the two automatic sections named by the numbers the relatório gives them.
+    sectionsNote: (photos: number, tests: number) =>
+      `Ordem inicial da árvore; o engenheiro reordena no relatório. ${photos} Registro fotográfico e ${tests} Relatórios dos ensaios entram sozinhos no relatório.`,
     sectionsListLabel: 'Blocos do template',
     // authored: p020 P-1a, the sections warning's action (opens the palette's "Seções" group).
     addSectionAction: 'Adicionar seção',
@@ -622,13 +625,15 @@ export const copy = {
     // Identificação
     nameLabel: 'Nome do tipo',
     // authored (e24y, corrected by Bruno 2026-11-11): "na lista de tipos" (was "nas paletas").
-    nameHelper: 'Aparece na lista de tipos, no título da ficha e na seção 9 impressa. Mudar o nome publica com a próxima versão.',
+    // ~~'... no título da ficha e na seção 9 impressa. ...'~~ authored (Story 27.5, listed for Bruno): the section named by its title, no fixed number.
+    nameHelper: 'Aparece na lista de tipos, no título da ficha e na seção "Relatórios dos ensaios" impressa. Mudar o nome publica com a próxima versão.',
     prefixLabel: 'Prefixo da TAG',
     printGroupLabel: 'Grupo na impressão',
     printGroupValue: 'Outros equipamentos, depois de Transformadores',
     // authored (Story 14.7): the optional print title, not drawn in the mock.
     printTitleLabel: 'Título impresso (opcional)',
-    printTitleHelper: 'Sai no título da ficha na seção 9; em branco, o nome do tipo.',
+    // ~~'Sai no título da ficha na seção 9; ...'~~ authored (Story 27.5, listed for Bruno): the section named by its title.
+    printTitleHelper: 'Sai no título da ficha na seção "Relatórios dos ensaios"; em branco, o nome do tipo.',
     singularLabel: 'Nome no singular',
     pluralLabel: 'Nome no plural',
     genderLabel: 'Gênero',
@@ -2158,6 +2163,10 @@ export const copy = {
       columnCriterion: 'Critério',
       columnSource: 'Fonte',
       columnUsedBy: 'Aplica-se a',
+      // authored (Story 27.6, listed for Bruno): the column headers of the ANSI/NETA tables.
+      columnRated: 'Tensão nominal',
+      columnTestVoltage: 'Tensão de ensaio',
+      columnMinimum: { min: 'Mínimo', oil: 'Mínimo (óleo)', dry: 'Mínimo (seco)' },
     },
   },
   // ---------- Epic 13 batch C (Stories 13.3 and 13.5) ----------

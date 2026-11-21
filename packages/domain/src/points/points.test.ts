@@ -193,6 +193,9 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     expect(preIssue(snapshot, computed).filter((row) => row.row === 'section_8')).toEqual([
       { id: 'points_sem_acao', row: 'section_8', severity: 'pending', text: '1 ponto sem ação', kind: 'points_sem_acao' },
       { id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: '2 pontos sem prazo', kind: 'points_sem_prazo' },
+      // Story 27.4: and the points with no priority and no owner.
+      { id: 'points_sem_prioridade', row: 'section_8', severity: 'info', text: '2 pontos sem prioridade', kind: 'points_sem_prioridade' },
+      { id: 'points_sem_responsavel', row: 'section_8', severity: 'info', text: '2 pontos sem responsável', kind: 'points_sem_responsavel' },
     ]);
   });
 

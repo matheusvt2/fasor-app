@@ -387,8 +387,8 @@ test('@p1 F-15 three instruments and no certificate: row 11 reads "3 instrumento
     await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
     const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
     const line = dialog.locator('.precheck li').filter({ has: page.getByRole('button', { name: 'Ver no sumário' }) }).locator('.pc-text');
-    await expect(line).toContainText(/^\d+ avisos? — /);
-    const count = Number(/^(\d+)/.exec((await line.textContent()) ?? '')![1]);
+    await expect(line).toContainText(/^(?:e mais )?\d+ avisos? nas? linhas? do sumário; /);
+    const count = Number(/^(?:e mais )?(\d+)/.exec((await line.textContent()) ?? '')![1]);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     return count;
@@ -591,10 +591,10 @@ test('@p1 F-24 the composer says why the section numbers skip 7 and 9', async ({
   await page.getByRole('button', { name: `Abrir template ${STANDARD_TEMPLATE_NAME}`, exact: true }).click({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/templates\/[0-9a-f-]{36}$/);
   const note = page.locator('.section-note').filter({ hasText: 'entram sozinhos no relatório' });
-  await expect(note).toHaveText('Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.');
+  await expect(note).toHaveText('Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 8 Relatórios dos ensaios entram sozinhos no relatório.');
   await expect(note).toBeVisible();
-  // Both numbers stay (EXPERIENCE.md keeps the Position box): the tags skip 7 and 9.
-  await expect(page.getByRole('list', { name: 'Blocos do template' }).locator('.block-tag')).toHaveText(['1', '2', '3', '4', '5', '6', '8', '10', '11']);
+  // Both numbers stay (EXPERIENCE.md keeps the Position box). Story 27.5: the tags are the relatório's numbers, so they skip 7 and 8.
+  await expect(page.getByRole('list', { name: 'Blocos do template' }).locator('.block-tag')).toHaveText(['1', '2', '3', '4', '5', '6', '9', '10', '11']);
 });
 
 test('@p1 F-26 "Fotografar placa" while the camera permission prompt is open reads "Abrindo câmera…", is busy, and a second press asks nothing more', async ({ page }) => {

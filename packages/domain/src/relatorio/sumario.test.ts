@@ -321,7 +321,8 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
 
   it('with the parecer set, nothing blocks and row 10 reads the effective verdict (Story 22.6: a stored Apto com restrições under the fichas\' Não apto reads Não apto)', () => {
     const { rows, issues } = both(withParecer(ps));
-    expect(rows.find((r) => r.rowKey === 'section_10')).toMatchObject({ meta: 'Não apto', blocking: false });
+    // Story 27.3: the line saying the chosen verdict was replaced, and why, follows it.
+    expect(rows.find((r) => r.rowKey === 'section_10')).toMatchObject({ meta: expect.stringMatching(/^Não apto · O parecer escolhido \(Apto com restrições\) foi substituído por Não apto: \d+ fichas em aberto com leitura fora do critério \(/), blocking: false });
     expect(exportPrecheck(issues).blocking).toEqual([]);
     expect(generateReason(rows, issues)).toBe('Nada impede gerar.');
     // F-03 (D1): nothing blocks, but the issue asks first while sheets are empty or fields blank.

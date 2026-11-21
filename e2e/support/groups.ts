@@ -481,6 +481,11 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'solo',
     why: 'Story 25.3: times an edit\'s push against its commit and against slowed photo uploads, and jumps the page\'s clock a minute against a held push, so it must not share the CPU with other workers',
   },
+  {
+    file: 'corrected-column-fit.spec.ts',
+    lane: 'solo',
+    why: 'Story 27.7 (batch e27a): measures the readings table\'s width against its scroller at 1024, 1280 and 768 px with the tree open and collapsed, a layout measure under a quiet CPU',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

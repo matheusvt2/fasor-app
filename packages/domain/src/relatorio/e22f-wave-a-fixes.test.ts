@@ -226,7 +226,7 @@ describe('e22f S2 and N4: possible duplicates (fix batch e24h: none can exist)',
   it('a pre-31 manual point of the equipment beside two NC rows: one entry, no flag, no pre-issue row on section 8 but its own', () => {
     const snapshot = { ...withNc, points: [legacyPoint(withNc, '019966b0-e22f-7003-8000-000000000003', trafo.equipment_id)] };
     expect(sectionEightEntries(snapshot)).toHaveLength(1);
-    expect(preIssue(snapshot).filter((r) => r.row === 'section_8').map((r) => r.kind)).toEqual(['points_sem_prazo']);
+    expect(preIssue(snapshot).filter((r) => r.row === 'section_8').map((r) => r.kind)).toEqual(['points_sem_prazo', 'points_sem_prioridade', 'points_sem_responsavel']); // Story 27.4: the two new rows.
   });
 
   it('a manual point written since, with or without the item: one entry each, the NC rows list nothing', () => {
@@ -250,12 +250,12 @@ describe('e22f N1: a Reprovado sheet is named once in the summary', () => {
     const dj = firstOf(base, 'disjuntor_mt');
     let snapshot = edit(base, sec.id, (b) => insulation(allC(b), '300'));
     snapshot = edit(snapshot, dj.id, (b) => insulation(allC(b), '300'));
-    const text = composeParecer(snapshot).text;
+    const text = composeParecer(snapshot, { print: true }).text;
     expect(text).toMatch(/2 fichas foram reprovadas por leituras fora do critério de aceitação \([^)]+ e [^)]+\)\./);
     expect(text).not.toContain('apresentaram restrições');
     expect(text).not.toContain('apresentou restrições');
     expect(text).not.toContain('Leituras fora do critério de aceitação em');
-    expect(composeParecer(snapshot).criteriaItems.filter((item) => item.includes('com restrições'))).toEqual([]);
+    expect(composeParecer(snapshot, { print: true }).criteriaItems.filter((item) => item.includes('com restrições'))).toEqual([]);
   });
 });
 

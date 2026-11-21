@@ -68,7 +68,7 @@ describe('7.4-UNIT section 10 layout', () => {
       title: 'CONCLUSÃO E OBSERVAÇÕES TÉCNICAS',
       kind: 'section_10',
       // The stored Apto com restrições is looser than the fichas' Não apto: the effective verdict prints; a confirmed text never prints, the composed one does.
-      parecer: { title: 'Não apto', text: composeParecer(snapshot).text, ownText: null },
+      parecer: { title: 'Não apto', text: composeParecer(snapshot, { print: true }).text, ownText: null },
       // Under Não apto the third bullet ("Apesar dos resultados dos testes serem positivos...") is left out (DF-4).
       bullets: seeded.slice(0, 2).map((block) => ({ kind: 'item', text: block.text, runs: [{ text: block.text }] })),
       validityLine: 'Este relatório tem validade apenas acompanhada da ART 2620262602583',
@@ -80,10 +80,10 @@ describe('7.4-UNIT section 10 layout', () => {
 
   it('22.6-UNIT prints the derived verdict with no parecer stored, and an own text typed before as "Observações do responsável"', () => {
     const none = section10Layout(base(), { number: 10, title: 'T', paragraphs: [{ text: 'a' }] });
-    expect(none.parecer).toEqual({ title: 'Não apto', text: composeParecer(base()).text, ownText: null });
+    expect(none.parecer).toEqual({ title: 'Não apto', text: composeParecer(base(), { print: true }).text, ownText: null });
     expect(none.signature).toEqual({ name: '[Responsável]', title: '', registration: '' });
     const edited = section10Layout(withParecer(base(), { verdict: 'nao_apto', text: ' Texto digitado pelo engenheiro. ', text_status: 'edited', text_basis: 'x' }), { number: 10, title: 'T' });
-    expect(edited.parecer).toEqual({ title: 'Não apto', text: composeParecer(base()).text, ownText: 'Texto digitado pelo engenheiro.' });
+    expect(edited.parecer).toEqual({ title: 'Não apto', text: composeParecer(base(), { print: true }).text, ownText: 'Texto digitado pelo engenheiro.' });
     expect(edited.bullets).toEqual([]);
     expect(parecerOwnTextParagraph('Texto.')).toBe('Observações do responsável: Texto.');
     expect(PARECER_OWN_TEXT_LABEL).toBe('Observações do responsável');

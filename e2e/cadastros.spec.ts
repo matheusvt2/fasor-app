@@ -263,7 +263,7 @@ test('@p2 tabs-phone-selector-003 Cadastros: Critérios de aceitação keeps its
   await page.getByRole('menuitemradio', { name: 'Critérios de aceitação' }).click();
 
   const noteBox = await page.locator('.section-note').first().boundingBox();
-  const tableBox = await page.getByRole('table').boundingBox();
+  const tableBox = await page.getByRole('table').first().boundingBox();
   expect(noteBox).not.toBeNull();
   expect(tableBox).not.toBeNull();
   expect(noteBox!.y).toBeLessThan(tableBox!.y);
@@ -582,7 +582,7 @@ test('@p0 2.6-E2E-001 Critérios de aceitação renders the seeded criteria as a
   await page.getByRole('link', { name: /Cadastros/ }).click();
   await page.getByRole('tab', { name: 'Critérios de aceitação' }).click();
 
-  const table = page.getByRole('table');
+  const table = page.getByRole('table').first(); // Story 27.6: the seeded criteria; the ANSI/NETA tables follow (27.6-E2E-001).
   await expect(table).toBeVisible();
   for (const criterion of SEEDED_CRITERIA) {
     await expect(table).toContainText(criterion.label);

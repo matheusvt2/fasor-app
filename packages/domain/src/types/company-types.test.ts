@@ -765,7 +765,7 @@ describe('Story 14.6 review: the next visit, photos, parecer and pre-issue over 
 
   it('the parecer: a company sheet reprovado by its own criteria gives Não apto, named by its TAG', () => {
     expect(derivedParecer(fixtureSnapshot)).toBe('nao_apto');
-    expect(composeParecer(fixtureSnapshot).text).toContain('1 ficha foi reprovada por leituras fora do critério de aceitação (NB-01).');
+    expect(composeParecer(fixtureSnapshot, { print: true }).text).toContain('1 ficha foi reprovada por leituras fora do critério de aceitação (NB-01).');
   });
 
   it('a pre-issue row names a company sheet without a TAG by its version\'s label', () => {

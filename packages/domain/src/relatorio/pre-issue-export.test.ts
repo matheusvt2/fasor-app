@@ -371,7 +371,7 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     const rows = preIssue(snapshot, undefined, { now: NOW, rejected: 2, lastPushes: [{ name: 'Eduardo', at: '2026-09-06T21:10:00.000Z' }] });
     expect(kinds(preIssueRowsFor(rows, 'sync'))).toEqual([
       ['rejected', 'sync', 'pending', '2 alterações rejeitadas'],
-      ['last_send', 'sync', 'info', 'Último envio de Eduardo: 06/09 18:10'],
+      ['last_send', 'sync', 'info', 'Último envio de Eduardo (qualquer relatório): 06/09 18:10'],
     ]);
   });
 });
@@ -393,7 +393,7 @@ describe('2026-10-10 (m2) latestPushPerUser', () => {
       { user_id: 'u1', at: '2026-09-07T12:00:00.000Z' },
     ]).map((push) => ({ name: 'Eduardo', at: push.at }));
     const rows = preIssue(fresh(), undefined, { now: NOW, lastPushes: pushes });
-    expect(preIssueRowsFor(rows, 'sync').map((row) => row.text)).toEqual(['Último envio de Eduardo: 07/09 09:00']);
+    expect(preIssueRowsFor(rows, 'sync').map((row) => row.text)).toEqual(['Último envio de Eduardo (qualquer relatório): 07/09 09:00']);
   });
 });
 
@@ -406,12 +406,12 @@ describe('7.5-UNIT exportPrecheck and the blocked reason', () => {
     // F-03: the empty sheets are one of the dialog's own lines.
     expect(precheck.explicit.map((r) => r.kind)).toEqual(['sheets_empty', 'rejected']);
     expect(precheck.summarizedCount).toBe(rows.length - 3);
-    expect(precheck.countText).toBe(`${rows.length - 3} avisos`);
+    expect(precheck.countText).toBe(`e mais ${rows.length - 3} avisos`);
     expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countText).toBe('1 aviso');
     expect(exportPrecheck([]).countText).toBe('');
     // XC-4 (review 2026-10-08): the sentence after the count agrees with it.
-    expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countMetaText).toBe(' — está na linha do sumário; não impede gerar.');
-    expect(precheck.countMetaText).toBe(' — estão nas linhas do sumário; nenhum impede gerar.');
+    expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countMetaText).toBe(' na linha do sumário; não impede gerar.');
+    expect(precheck.countMetaText).toBe(' nas linhas do sumário; nenhum impede gerar.');
     expect(exportPrecheck([]).countMetaText).toBe('');
   });
 
