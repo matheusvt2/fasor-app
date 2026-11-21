@@ -28,6 +28,38 @@ type FamilyNeed = PermissionNeed | ((path: OpPath, op: PermissionOp) => Permissi
  */
 export const FICHA_REGISTRY_KINDS: readonly RegistryKind[] = ['manufacturer', 'voltage_class'];
 
+/**
+ * `relatorio/setup`: the fields of the creation form ("Novo relatório" and its setup) need
+ * `relatorio.create`; the fields written in the field (the parecer, the site altitude, the next
+ * intervention, the instruments carried) need `relatorio.fill`. Every key of `RELATORIO_SETUP_KEYS`
+ * is in exactly one list (`permissions/map.test.ts`), and a key in neither fails closed to
+ * `relatorio.create`. Coordinator's reading, open to Matheus (AD-29).
+ */
+export const SETUP_CREATE_FIELDS: readonly string[] = [
+  'service_start',
+  'service_end',
+  'atividade',
+  'local',
+  'responsible_user_id',
+  'cover_photo_file_id',
+  'escopo',
+  'exclusions',
+  'additional_info',
+  'art_trt_number',
+];
+export const SETUP_FILL_FIELDS: readonly string[] = [
+  'parecer',
+  'site_altitude_m',
+  'site_altitude_na',
+  'site_altitude_confirmed',
+  'next_intervention_date',
+  'next_intervention_justification',
+  'instrument_ids',
+];
+
+const setupNeed = (path: OpPath): PermissionNeed =>
+  path.family === 'relatorio/setup' && SETUP_FILL_FIELDS.includes(path.field) ? 'relatorio.fill' : 'relatorio.create';
+
 /** `relatorio/status`: the move to Emitido issues; every other move (Em revisão, back to Rascunho) fills. */
 const statusNeed = (_path: OpPath, op: PermissionOp): PermissionNeed => (op.kind === 'put' && op.value === 'emitido' ? 'relatorio.issue' : 'relatorio.fill');
 
@@ -39,7 +71,7 @@ const FAMILY_NEEDS = {
   project: 'relatorio.create',
   'project/field': 'relatorio.create',
   relatorio: 'relatorio.create',
-  'relatorio/setup': 'relatorio.create',
+  'relatorio/setup': setupNeed,
   'relatorio/removed_at': 'relatorio.delete',
   // Emissão: the order the printed document lists the sheets in is chosen at the issuing step.
   'relatorio/export/scheme': 'relatorio.issue',

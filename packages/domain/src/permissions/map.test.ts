@@ -3,10 +3,10 @@ import { CONTRACT_VERSION, MIN_CONTRACT_VERSION } from '../contract/version.ts';
 import { errorCodeSchema, opRejectCodeSchema } from '../contract/errors.ts';
 import { applyOp, entityKey } from '../ops/apply.ts';
 import { FAMILIES, formatPath, isServerOnly, parsePath, roleFieldPath, rolePath, safeParsePath, userFieldPath, userRolePath, userStatusPath } from '../ops/path.ts';
-import { ENTITY_SCOPE, registryKindSchema, type UserRow } from '../schemas/entities.ts';
+import { ENTITY_SCOPE, registryKindSchema, RELATORIO_SETUP_KEYS, type UserRow } from '../schemas/entities.ts';
 import { opFactory } from '../test-support.ts';
 import { PERMISSION_KEYS } from './keys.ts';
-import { FAMILY_PERMISSION_NEEDS, FICHA_REGISTRY_KINDS, permissionForPath, permissionForRoute, PERMISSION_ROUTES, type PermissionNeed } from './map.ts';
+import { FAMILY_PERMISSION_NEEDS, FICHA_REGISTRY_KINDS, SETUP_CREATE_FIELDS, SETUP_FILL_FIELDS, permissionForPath, permissionForRoute, PERMISSION_ROUTES, type PermissionNeed } from './map.ts';
 import { ADMIN_ROLE_ID, SYSTEM_ROLE_ROW_IDS, systemRoleRow } from './roles.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000aa';
@@ -72,6 +72,18 @@ describe('26.2-UNIT-007 the coordinator readings of Story 26.2', () => {
     expect(permissionForPath('relatorio/removed_at', remove)).toBe('relatorio.delete');
     expect(permissionForPath('relatorio/removed_at', put())).toBe('relatorio.delete');
     expect(permissionForPath('relatorio/export/scheme', put('by_location'))).toBe('relatorio.issue');
+  });
+
+  it('relatorio/setup: every key is in exactly one group, the creation form creates and the field fills', () => {
+    for (const key of RELATORIO_SETUP_KEYS) {
+      const groups = Number(SETUP_CREATE_FIELDS.includes(key)) + Number(SETUP_FILL_FIELDS.includes(key));
+      expect(groups, `relatorio/setup/${key} must be in exactly one of SETUP_CREATE_FIELDS and SETUP_FILL_FIELDS (permissions/map.ts)`).toBe(1);
+    }
+    expect([...SETUP_CREATE_FIELDS, ...SETUP_FILL_FIELDS].sort()).toEqual([...RELATORIO_SETUP_KEYS].sort());
+    expect([...SETUP_CREATE_FIELDS]).toEqual(['service_start', 'service_end', 'atividade', 'local', 'responsible_user_id', 'cover_photo_file_id', 'escopo', 'exclusions', 'additional_info', 'art_trt_number']);
+    expect([...SETUP_FILL_FIELDS]).toEqual(['parecer', 'site_altitude_m', 'site_altitude_na', 'site_altitude_confirmed', 'next_intervention_date', 'next_intervention_justification', 'instrument_ids']);
+    for (const key of SETUP_CREATE_FIELDS) expect(permissionForPath(`relatorio/setup/${key}`, put()), key).toBe('relatorio.create');
+    for (const key of SETUP_FILL_FIELDS) expect(permissionForPath(`relatorio/setup/${key}`, put()), key).toBe('relatorio.fill');
   });
 
   it('the field: locals, blocks, sheets, equipment, files, points and suggestions fill', () => {

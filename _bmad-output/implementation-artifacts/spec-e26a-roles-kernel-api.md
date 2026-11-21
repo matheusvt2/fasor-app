@@ -2,7 +2,8 @@
 title: 'Epic 26, batch e26a: roles in the kernel and the api (Stories 26.2, 26.3, 26.4)'
 type: 'feature'
 created: '2026-11-21'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '6fe7aeb8bbe13b7ee1e271c764c70ad469e7b9fa'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
