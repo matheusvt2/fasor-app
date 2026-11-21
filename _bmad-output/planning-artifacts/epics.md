@@ -10985,12 +10985,12 @@ Always open to an active user, with no key: sign-in, Conta, the user's own profi
 - **Wave 1, roles are enforced.** e26a (26.2, 26.3, 26.4) and e26b (26.5). After it a role set through the seed CLI already limits a user, with no user screen yet. One contract number. Every tablet must update the app at this deploy.
 - **Wave 2, the Admin manages users.** e26c (26.6, 26.8), e26d (26.9, 26.11), and Story 26.7 by the coordinator. Its deploy needs SES out of the sandbox (Story 26.7's Definition of Ready).
 - **Wave 3, the Admin changes the roles.** e26e (26.10).
-- One batch gate before each PR (`lint`, `static`, `test:unit`, `test:api`, the touched specs), one full gate and one review per wave on the integrated branch (decision of 2026-11-12). Stories that touch the commit path or the sign-out (26.5, 26.11) run their durability specs on the matrix.
+- ~~One batch gate before each PR (`lint`, `static`, `test:unit`, `test:api`, the touched specs), one full gate and one review per wave on the integrated branch (decision of 2026-11-12). Stories that touch the commit path or the sign-out (26.5, 26.11) run their durability specs on the matrix.~~ *(2026-11-21, Matheus, on approving the story list: "quero um teste completo somente no final das ondas, nao quero testes e2e para cada onda individualmente. quero entregar rapido". One full gate for the whole epic, after wave 3 is merged: `pnpm test:e2e:full` and the matrix, once, on the integrated main, with one review. No wave runs the full `@p0`, `test:e2e:full` or the matrix by itself. A batch still runs `lint`, `static`, `test:unit`, `test:api` and only the specs it wrote or touched before its PR. Batches run in parallel wherever their files do not touch, on the cheaper model for orchestration and records. This amends the 2026-11-12 decision for this epic only.)*
 - Contract numbers are not reserved. Main is at 54; a batch that needs one takes main's number plus one when it merges main before its PR.
-- Each wave deploys on Matheus's word, after a hands-on pass in the browser as each of the five roles.
+- ~~Each wave deploys on Matheus's word, after a hands-on pass in the browser as each of the five roles.~~ *(2026-11-21, same decision: one deploy at the end, on Matheus's word, after the full gate and one hands-on pass in the browser as each of the five roles. Coordinator's reading, open to Matheus: the deploy waits for Story 26.7, because wave 2 cannot invite a user in production without it.)*
 
 **Definition of Done of the epic:**
-- Every story merged with its gate pasted in its PR; each wave gate green and its review accepted.
+- Every story merged with its gate pasted in its PR; ~~each wave gate green and its review accepted~~ *(2026-11-21: the one full gate green on the integrated main after wave 3, and its one review accepted)*.
 - AD-29 in the architecture spine and the `source-deltas.md` row carry the built record, not "planned".
 - `EXPERIENCE.md` § Information Architecture and `SPEC.md`'s two non-goal lines struck through and dated, beside the new text.
 - The hands-on pass as each role, on a tablet width and on desktop, tracked under `_bmad-output/test-artifacts/manual/`.
@@ -11328,6 +11328,8 @@ So that an invitation reaches a real inbox for cents a month.
 **Today (verified 2026-11-21):** `infra/production/` has no SES resource and no DNS zone (no Route 53 resource; `app_domain` is a variable). The task role is in `iam.tf`; the budget alert in `budget.tf`.
 
 *(Definition of Ready, open. Not started before the three points are answered.)*
+
+*(2026-11-21, Matheus: on hold. He talks to Bruno first about the sender's domain, the DNS records and the sandbox request. Everything else is built with `EMAIL_PROVIDER=fake` and does not wait.)*
 - **Open, Matheus:** the sender's domain and address. It must not show the codename or the Fasor name (Policy), so the app's public domain may not serve.
 - **Open, Matheus:** who adds the DKIM and SPF records, and where. The DNS is outside Terraform today; the records are listed as Terraform outputs and typed by hand, or the zone moves into Terraform.
 - **Open, Matheus:** the request to leave the SES sandbox. A new account sends only to verified addresses until AWS approves it; the request is made by the account's owner and can take a day or more. Wave 2 is not deployed before it.
