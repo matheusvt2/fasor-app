@@ -2,7 +2,7 @@
 title: 'Epic 26, batch e26a: roles in the kernel and the api (Stories 26.2, 26.3, 26.4)'
 type: 'feature'
 created: '2026-11-21'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '6fe7aeb8bbe13b7ee1e271c764c70ad469e7b9fa'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -115,3 +115,13 @@ PHASE 2 (Stories 26.3 and 26.4):
 **Commands (inside the tools container, under the host lock for the gate):**
 - `pnpm test:unit -- packages/domain/src/permissions` -- expected: green (Phase 1).
 - `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api`, then `pnpm exec tsx scripts/e2e.ts e2e/roles-server.spec.ts --project desktop-chrome` -- expected: all green, logs under `.scratch-e26a/`.
+
+## Auto Run Result
+
+Status: done (no review loop inside the batch, Matheus's decision of 2026-11-21; Edge Case Hunter and Verification Gap Reviewer not run: token economy, the coordinator's one review covers them).
+
+- Kernel slice (Story 26.2): `a667d61e`, pushed first; setup split `55cfb6d1`; Stories 26.3 and 26.4: `8d12d78b`; merge of main (docs only, one conflict in `docs/kbs/log.md` kept both sides): `a0147618`.
+- Contract number taken: 55 (`CONTRACT_VERSION` and `MIN_CONTRACT_VERSION`). Epic 27 takes 56.
+- Gate on `8d12d78b`: `lint` 0 errors (28 warnings in untouched files); `static` clean; `test:api` 1085 passed, 6 skipped (618 s); `test:e2e` spec `e2e/roles-server.spec.ts` 1 of 1 passed (26.4-E2E-001 @p0, leak check passed). `test:unit` first run 7310 passed, 2 failed (`relatorio-tree-painel.test.tsx`, one 15 s timeout under load average 7.7 beside the e27a stack, and its follower); the file alone 16 of 16; full `test:unit` re-run alone under the host lock on the merge commit `a0147618`: 464 files, 7312 of 7312 passed, 319.6 s, lock wait 548 s, load 2.44 at the start and 8.84 at the end.
+- Orchestrator cuts: none. Handoff: `.scratch-e26a/HANDOFF.md`.
+- Open readings and narrowings: see `deferred` above and AD-29.
