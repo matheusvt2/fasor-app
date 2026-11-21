@@ -1,9 +1,10 @@
 import { serve } from '@hono/node-server';
 import { createAuth } from './auth/auth.ts';
 import { parseTrustedOrigins } from './auth/trusted-origins.ts';
-import { loadConfigOrExit, rateLimitEnabled, requestLimits } from './config.ts';
+import { emailLimits, loadConfigOrExit, rateLimitEnabled, requestLimits } from './config.ts';
 import { bedrockClientSource } from './ai/bedrock.ts';
 import { createDb } from './db/client.ts';
+import { emailProviderOf } from './email/index.ts';
 import { migrate } from './db/migrate.ts';
 import { upgradeTemplateSeeds } from './db/template-seed-upgrade.ts';
 import { upgradeRolesAndUsers } from './db/roles.ts';
@@ -103,11 +104,18 @@ if (config.WORKER === '1') {
 }
 
 const trustedOrigins = parseTrustedOrigins(config.TRUSTED_ORIGINS);
+// Story 26.6: one e-mail provider, shared by the forgot-password hook and the Admin's routes.
+const email = emailProviderOf(config, db);
+log('email provider', { provider: config.EMAIL_PROVIDER });
+if (config.NODE_ENV === 'production' && config.EMAIL_PROVIDER === 'fake') {
+  logError('EMAIL_PROVIDER is fake in production: invitations and password resets are stored, not sent');
+}
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,
   baseURL: config.AUTH_BASE_URL,
   trustedOrigins,
+  email,
 });
 
 // Epic 18 (AD-28): the usage-event sink; `cloudwatch` through the default credential chain.
@@ -127,6 +135,9 @@ const app = createApp({
   // Story 20.13: the origins better-auth trusts, its base URL's among them.
   originGuard: { trustedOrigins: [...trustedOrigins, ...(config.AUTH_BASE_URL === undefined ? [] : [new URL(config.AUTH_BASE_URL).origin])] },
   ...(rateLimits === undefined ? {} : { rateLimits }),
+  // Stories 26.6 and 26.8: the e-mail provider and the always-on limits of the e-mail routes.
+  email,
+  emailLimits: emailLimits(config),
   probes: {
     db: () => sql`select 1`,
     queue: () => boss.getQueues(),

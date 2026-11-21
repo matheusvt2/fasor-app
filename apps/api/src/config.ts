@@ -25,6 +25,9 @@ export const DEFAULT_BEDROCK_PANEL_MODEL_ID = 'qwen.qwen3-vl-235b-a22b';
 /** Story 11.6 (Matheus, 2026-10-05): the larger model a low-confidence plate reading is retried on. */
 export const DEFAULT_BEDROCK_ESCALATION_MODEL_ID = 'us.amazon.nova-pro-v1:0';
 
+/** Story 26.6: the sender address until Story 26.7 names one; it shows neither the codename nor a brand. */
+export const DEFAULT_EMAIL_FROM = 'nao-responda@example.invalid';
+
 export const configSchema = z
   .object({
     DATABASE_URL: z.string().url(),
@@ -129,6 +132,30 @@ export const configSchema = z
      */
     READING_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_READING_DAILY_QUOTA)),
     AUDIT_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_AUDIT_DAILY_QUOTA)),
+    /**
+     * Story 26.6 (AD-9): where the two e-mails go. `fake` (the default: local, tests, every gate)
+     * stores each message in the `fake_email` table the tests and the e2e helpers read; `ses`
+     * sends through Amazon SES v2 with the SDK's default credential chain (the ECS task role, no
+     * stored key; the identity is Story 26.7's).
+     */
+    EMAIL_PROVIDER: z.preprocess(unsetWhenEmpty, z.enum(['fake', 'ses']).default('fake')),
+    /** The sender address; its display name is the product's (`EMAIL_SENDER_NAME`). A placeholder until Story 26.7. */
+    EMAIL_FROM: z.preprocess(unsetWhenEmpty, z.email().default(DEFAULT_EMAIL_FROM)),
+    /** The region of the `ses` provider. */
+    SES_REGION: z.preprocess(unsetWhenEmpty, z.string().min(1).default('us-east-1')),
+    /**
+     * Story 26.6: "Esqueci minha senha" (`POST /api/auth/request-password-reset`) per e-mail address
+     * in one window, and per client address in the same window; always on (not tied to RATE_LIMIT).
+     */
+    PASSWORD_RESET_RATE_LIMIT_MAX: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(5)),
+    PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(60)),
+    PASSWORD_RESET_IP_RATE_LIMIT_MAX: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(20)),
+    /**
+     * Story 26.8: the Admin's create, resend-invitation and password-reset routes share one window
+     * per Admin; always on.
+     */
+    ADMIN_EMAIL_RATE_LIMIT_MAX: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(30)),
+    ADMIN_EMAIL_RATE_LIMIT_WINDOW_SECONDS: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(600)),
   })
   .superRefine((config, ctx) => {
     // The compose default is public (this repository is): a production process refuses it.
@@ -178,6 +205,37 @@ export function requestLimits(
   return {
     signIn: { max: config.SIGN_IN_RATE_LIMIT_MAX, windowMs: config.SIGN_IN_RATE_LIMIT_WINDOW_SECONDS * 1000 },
     push: { max: config.PUSH_RATE_LIMIT_MAX, windowMs: config.PUSH_RATE_LIMIT_WINDOW_SECONDS * 1000 },
+    trustProxy: config.TRUST_PROXY === '1',
+  };
+}
+
+/** A limit rule of `http/rate-limit.ts`. */
+interface LimitRule {
+  max: number;
+  windowMs: number;
+}
+
+/**
+ * Story 26.6 and 26.8: the limits of the e-mail routes, always on: "Esqueci minha senha" per
+ * address and per client address, "Definir senha" per client address, and the Admin's three
+ * e-mail actions per Admin.
+ */
+export function emailLimits(
+  config: Pick<
+    Config,
+    | 'PASSWORD_RESET_RATE_LIMIT_MAX'
+    | 'PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS'
+    | 'PASSWORD_RESET_IP_RATE_LIMIT_MAX'
+    | 'ADMIN_EMAIL_RATE_LIMIT_MAX'
+    | 'ADMIN_EMAIL_RATE_LIMIT_WINDOW_SECONDS'
+    | 'TRUST_PROXY'
+  >,
+): { passwordResetEmail: LimitRule; passwordResetAddress: LimitRule; adminEmail: LimitRule; trustProxy: boolean } {
+  const resetWindowMs = config.PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS * 1000;
+  return {
+    passwordResetEmail: { max: config.PASSWORD_RESET_RATE_LIMIT_MAX, windowMs: resetWindowMs },
+    passwordResetAddress: { max: config.PASSWORD_RESET_IP_RATE_LIMIT_MAX, windowMs: resetWindowMs },
+    adminEmail: { max: config.ADMIN_EMAIL_RATE_LIMIT_MAX, windowMs: config.ADMIN_EMAIL_RATE_LIMIT_WINDOW_SECONDS * 1000 },
     trustProxy: config.TRUST_PROXY === '1',
   };
 }
