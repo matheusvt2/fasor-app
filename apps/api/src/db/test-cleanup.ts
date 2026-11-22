@@ -1,6 +1,6 @@
-import { eq, inArray, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { Db } from './client.ts';
-import { account, aiUsageDaily, company, entities, ops, readingRuns, session, syncDevicePush, user, verification } from './schema.ts';
+import { account, aiUsageDaily, company, entities, ops, readingRuns, session, syncDevicePush, user } from './schema.ts';
 
 /**
  * Test support only: removes a throwaway company an integration test provisioned, with
@@ -12,9 +12,6 @@ export async function dropCompany(db: Db, companyId: string): Promise<void> {
   await db.transaction(async (tx) => {
     await tx.delete(session).where(eq(session.companyId, companyId));
     await tx.delete(account).where(eq(account.companyId, companyId));
-    // Story 26.6: the company's password links (the rows better-auth inserted carry the user's id).
-    const users = tx.select({ id: user.id }).from(user).where(eq(user.companyId, companyId));
-    await tx.delete(verification).where(or(eq(verification.companyId, companyId), inArray(verification.value, users)));
     await tx.delete(user).where(eq(user.companyId, companyId));
     await tx.delete(ops).where(eq(ops.company_id, companyId));
     await tx.delete(entities).where(eq(entities.company_id, companyId));

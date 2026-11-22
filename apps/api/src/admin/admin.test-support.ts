@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, userStatusPath, type AdminUserEvent, type SystemRoleId, type UserStatus } from '@app/domain';
-import { and, eq, like } from 'drizzle-orm';
+import { and, eq, inArray, like, or } from 'drizzle-orm';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
 import { now } from '../clock.ts';
@@ -10,7 +10,7 @@ import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { roleOp } from '../db/roles.ts';
-import { entities, verification } from '../db/schema.ts';
+import { entities, user, verification } from '../db/schema.ts';
 import { seedUser, TEST_SEED } from '../db/seed.ts';
 import { dropCompany } from '../db/test-cleanup.ts';
 import { clearFakeEmails } from '../email/fake-store.ts';
@@ -148,7 +148,13 @@ export function adminHarness(options: Partial<AppOptions> = {}) {
   const remember = (address: string) => void addresses.add(address.toLowerCase());
 
   async function cleanup(): Promise<void> {
-    for (const id of companies) await dropCompany(db, id);
+    for (const id of companies) {
+      // The company's password links first (`dropCompany` leaves `verification` alone; the rows
+      // better-auth inserted carry the user's id and, once stamped, the company).
+      const users = db.select({ id: user.id }).from(user).where(eq(user.companyId, id));
+      await db.delete(verification).where(or(eq(verification.companyId, id), inArray(verification.value, users)));
+      await dropCompany(db, id);
+    }
     for (const address of addresses) await clearFakeEmails(db, { to: address });
     rmSync(staticDir, { recursive: true, force: true });
   }
