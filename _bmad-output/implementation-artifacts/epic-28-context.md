@@ -52,7 +52,7 @@ At most two batch stacks up at a time. The main checkout's stack is stopped whil
 
 ## Open items
 
-- Questions Q-1 to Q-7 at the end of the Epic 28 section of `epics.md`. None blocks a batch: each story builds its written reading unless answered before it starts. Q-1, Q-3, Q-4 and Q-5 go to Bruno with the post-deploy message; Q-2, Q-6 and Q-7 are Matheus's.
+- Questions Q-1 to Q-7 at the end of the Epic 28 section of `epics.md`. None blocks a batch: each story builds its written reading unless answered before it starts. ~~Q-1, Q-3, Q-4 and Q-5 go to Bruno with the post-deploy message;~~ *(2026-11-22: Bruno answered Q-1, Q-3, Q-4 and Q-5 the same day; the dated lines after the questions in `epics.md` win over the readings in Stories 28.3 and 28.4: EPÓXI leaves the transformer and a field CONSTRUÇÃO enters on the dry one; the two new items are asked on both kinds with their own words; the utility reason has his editable sentence; the battery date label names the exchange.)* Q-2, Q-6 and Q-7 are Matheus's.
 - B-10 has no story: the hands-on pass reproduces the two sheets under a removed local; a screen that shows them as live becomes a fix batch.
 - The frames of Story 28.1 need Matheus's approval before wave 2.
 - The paid plate eval needs Matheus's word for the spend.
