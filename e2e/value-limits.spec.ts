@@ -66,7 +66,14 @@ test('@p0 27.2-E2E-001 humidity 150 refused, 999 °C remarked, 0 µΩ refused, A
   let cabine = locations.get(created('block/').find((row) => row.id === disjuntor.blockId)!.location_id as string)!;
   while (cabine.parent_id !== null) cabine = locations.get(cabine.parent_id as string)!;
   const cabineId = cabine.id as string;
-  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), officeDraft(account, scope, 'relatorio/setup/responsible_user_id', account.userId)]);
+  // A stored parecer, so "Parecer não preenchido" (the one blocking row of a relatório nothing was judged in) is not
+  // the reason a disabled "Gerar relatório" would show: the two remarks of this story must not block by themselves.
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    officeDraft(account, scope, 'relatorio/setup/responsible_user_id', account.userId),
+    officeDraft(account, scope, 'relatorio/setup/parecer', { verdict: 'apto', text: null, text_status: null, text_basis: null }),
+  ]);
 
   // The ficha's AMBIENTE DE ENSAIO: 60 % is saved, then 150 % is refused with the range and writes nothing.
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${disjuntor.blockId}`);
@@ -150,6 +157,7 @@ test('@p0 27.2-E2E-001 humidity 150 refused, 999 °C remarked, 0 µΩ refused, A
   await expect(dialog(page).locator('ul.precheck')).toBeVisible();
   const listed = await dialog(page).locator('ul.precheck > li:not(.is-blocking) .pc-text').allTextContents();
   for (const text of named) expect(listed).toContain(text);
+  await expect(dialog(page).locator('ul.precheck > li.is-blocking')).toHaveCount(0);
   await expect(dialog(page).getByRole('button', { name: 'Gerar relatório', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
 });

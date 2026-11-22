@@ -2,7 +2,7 @@
 title: 'e27a slice 2: the company the screen shows, and the impossible refused (Stories 27.1 and 27.2)'
 type: 'bugfix'
 created: '2026-11-21'
-status: 'in-progress'
+status: 'in-review'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -74,3 +74,11 @@ deferred: []
 ## Verification
 
 **Commands:** this worktree, compose project `fasor-e27a`. Write the code first. Before `podman compose up -d postgres minio api`, run `podman ps`; bring the stack up only if fewer than two batch stacks (`fasor-e2*`) are running. Otherwise wait with a Monitor until-loop polling every 60 s or more, never busy polling. Every test command runs as `nohup lockf -t 20000 /tmp/fasor-verify.lock sh -c 'podman compose --profile tools run --rm --user root tools pnpm ...' > .scratch-e27a/<name>.log 2>&1`, polled in bounded loops of at most 55 s, reading only the tail. Run `podman compose restart api` after any change under `packages/domain` or `apps/api`. With `scripts/e2e.ts`, spec paths go before `--project`. Use the narrowest suite while iterating.
+
+## Auto Run Result
+
+Status: in-review (slice 2 built and gated on the merge with main bf893f05; PR #345, not merged).
+
+- Implementation: subagent bmad-dev-opus-high a113bf33c2b541927 (written while both stack slots were held; resumed once for the gate reds).
+- Gate on 2f6e3c94: lint 0, static 0, test:api 1123 passed and 6 skipped, test:unit 7374 of 7374, 18 specs 113 of 114. The one red was value-limits.spec.ts with no parecer stored; fixed in the test, then lint 0, static 0 and value-limits 3 of 3 on the head.
+- Orchestrator cuts: two hand-backs forced by the runtime while waiting for a stack slot and for the implementer; handoff file .scratch-e27a/HANDOFF.md.
