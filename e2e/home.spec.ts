@@ -229,7 +229,7 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(page.locator('.app-bar h1.app-bar-title.visually-hidden')).toHaveText('Início');
   await expect(syncWord(page)).toHaveText('Sincronizado');
   const shortcuts = page.locator('.shortcut-card');
-  await expect(shortcuts).toHaveCount(2);
+  await expect(shortcuts).toHaveCount(3);
   // Both shortcuts open their surfaces: Templates since Story 3.2, Cadastros since 2.1.
   await expect(shortcuts.first()).toHaveAttribute('href', '/templates');
   await expect(shortcuts.first()).not.toHaveAttribute('aria-disabled');

@@ -1,13 +1,10 @@
-import { pausedSignOutNoteText, pausedSignOutText, userStatusPath } from '@app/domain';
+import { pausedSignOutNoteText, pausedSignOutText } from '@app/domain';
 import type { BrowserContext, Page } from '@playwright/test';
 import { loadConfig } from '../apps/api/src/config.ts';
 import { createDb } from '../apps/api/src/db/client.ts';
 import { workerRoleUser } from '../apps/api/src/db/e2e-worker-seed.ts';
-import { roleOp } from '../apps/api/src/db/roles.ts';
-import { asCompanyId } from '../apps/api/src/db/repositories/company-id.ts';
 import { seedRoleUser } from '../apps/api/src/db/seed.ts';
-import { now } from '../apps/api/src/clock.ts';
-import { applyServerBatch } from '../apps/api/src/sync/apply.ts';
+import { adminApi } from './support/admin-route.ts';
 import { signInForDurability } from './support/durability.ts';
 import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, SEED_PASSWORD, test } from './support/merged-fixtures.ts';
@@ -68,25 +65,15 @@ async function restartBrowser(context: BrowserContext): Promise<Page> {
   return fresh;
 }
 
-/**
- * The Admin's pause and reactivation as the status put the server writes (`user/{id}/status`), with the user's
- * session left in place. The route (`POST /api/admin/users/:id/pause`) also deletes his sessions, so his device's
- * next request is `401 unauthenticated` and cannot tell a pause from an expiry (open item of batch e26d).
- */
-async function setStatus(companyId: string, userId: string, status: 'paused' | 'active'): Promise<void> {
-  await withSeedDb((db) =>
-    applyServerBatch(db, asCompanyId(companyId), [roleOp(asCompanyId(companyId), { kind: 'put', path: userStatusPath(userId), value: status })], { now }),
-  );
-}
-
 const pausedBanner = (page: Page) => page.locator('.banner-slot .banner[data-banner="paused"]');
 
-test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings through the banner, "Sair", a reload and a restart, and sends them after the reactivation', async ({ page, context, seed }) => {
+test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings through the banner, "Sair", a reload and a restart, and sends them after the reactivation', async ({ page, context, request, seed }) => {
   test.setTimeout(300_000);
   const fixture = await resetEmpresaBWithFixture(seed.companies[1]);
   await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'engenheiro_de_campo'));
   const campo = workerRoleUser(seed.index, 'engenheiro_de_campo');
   const database = deviceDatabaseName(campo.userId);
+  const admin = await adminApi(request, seed.companies[1].email);
 
   await signInForDurability(page, context, campo.email);
   await waitForCompanyPull(page, database);
@@ -109,7 +96,7 @@ test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings throu
   await expect.poll(async () => (await unsentReadings(page, database, fixture.blockChaveId)).length).toBe(5);
 
   // The Admin pauses him while the device has no signal.
-  await setStatus(campo.companyId, campo.userId, 'paused');
+  await admin.act('pause', campo.userId);
 
   // The device comes back: the server refuses the push, the paused banner replaces the session one.
   await context.setOffline(false);
@@ -146,7 +133,7 @@ test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings throu
   expect(await unsentReadings(tab, database, fixture.blockChaveId)).toHaveLength(5);
 
   // Reactivated, he signs in again on the same device: the five reach the server and the banner is gone.
-  await setStatus(campo.companyId, campo.userId, 'active');
+  await admin.act('reactivate', campo.userId);
   await expect(tab.getByLabel('E-mail')).toHaveValue(campo.email);
   await tab.getByLabel('Senha').fill(SEED_PASSWORD);
   await tab.getByRole('button', { name: 'Entrar', exact: true }).click();
@@ -156,12 +143,13 @@ test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings throu
   await expect(tab.locator('.banner-slot .banner[data-banner="paused"], .banner-slot .banner[data-banner="re-auth"]')).toHaveCount(0);
 });
 
-test('@p0 26.11-E2E-001b a paused user on a device with no data of his reads "Conta pausada. Fale com o administrador." at Login', async ({ page, seed }) => {
+test('@p0 26.11-E2E-001b a paused user on a device with no data of his reads "Conta pausada. Fale com o administrador." at Login', async ({ page, request, seed }) => {
   test.setTimeout(120_000);
   await resetEmpresaBWithFixture(seed.companies[1]);
   await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'engenheiro_de_campo'));
   const campo = workerRoleUser(seed.index, 'engenheiro_de_campo');
-  await setStatus(campo.companyId, campo.userId, 'paused');
+  const admin = await adminApi(request, seed.companies[1].email);
+  await admin.act('pause', campo.userId);
   try {
     await page.goto('/login');
     await page.getByLabel('E-mail').fill(campo.email);
@@ -178,6 +166,6 @@ test('@p0 26.11-E2E-001b a paused user on a device with no data of his reads "Co
     const names = await page.evaluate(async () => (await indexedDB.databases()).map((entry) => entry.name ?? ''));
     expect(names).not.toContain(deviceDatabaseName(campo.userId));
   } finally {
-    await setStatus(campo.companyId, campo.userId, 'active');
+    await admin.act('reactivate', campo.userId);
   }
 });
