@@ -74,14 +74,14 @@ export function artTrtNotNumeric(number: string | null): boolean {
 }
 
 /** The amber remark under an ART/TRT number that is not numeric, or null: "Confira o número da ART: ele costuma ter só algarismos". */
-export function artTrtRemarkText(label: 'ART' | 'TRT' | 'ART/TRT', number: string | null): string | null {
+export function artTrtRemarkText(label: string, number: string | null): string | null {
   if (!artTrtNotNumeric(number)) return null;
   // authored (Story 27.2, listed for Bruno): the remark under an ART/TRT number with letters or symbols; it never blocks.
   return `Confira o número da ${label}: ele costuma ter só algarismos`;
 }
 
 /** The pre-issue row of an ART/TRT number that is not numeric, or null: "Número da ART com letras ou símbolos: abc". */
-export function artTrtRowText(label: 'ART' | 'TRT' | 'ART/TRT', number: string | null): string | null {
+export function artTrtRowText(label: string, number: string | null): string | null {
   if (number === null || !artTrtNotNumeric(number)) return null;
   // authored (Story 27.2, listed for Bruno): the "Antes de emitir" row of an ART/TRT number that is not numeric.
   return `Número da ${label} com letras ou símbolos: ${number.trim()}`;

@@ -6,7 +6,6 @@ import type { InstrumentRange } from '../relatorio/over-range.ts';
 import { isNotApplicableText, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { outsideRange, type NumberRange } from '../ops/value-limits.ts';
-import { numberFieldValue } from '../relatorio/ficha.ts';
 import { isValidCnpjFormat } from './cnpj.ts';
 import { outOfRangeText } from './value-remarks.ts';
 
@@ -37,9 +36,12 @@ export function refusedNumberKind(typed: string, unit: string | null = null, ran
  */
 export function numberRangeRefusal(typed: string, unit: string | null, range: NumberRange | null): string | null {
   if (range === null) return null;
-  const parsed = numberFieldValue(typed, unit);
-  if (parsed === null || parsed === 'invalid' || parsed.state !== 'measured') return null;
-  return outsideRange(parsed.raw, range) ? outOfRangeText(range, unit) : null;
+  // The plain decimal parse `numberFieldValue` makes for a field with no options; read here directly,
+  // since importing `relatorio/ficha.ts` closes a module cycle through the tree (a TDZ at the api's boot).
+  if (typed.trim() === '' || isNotApplicableText(typed)) return null;
+  const raw = parseDecimalPtBr(typed);
+  if (raw === null) return null;
+  return outsideRange(raw, range) ? outOfRangeText(range, unit) : null;
 }
 
 /**

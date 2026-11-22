@@ -3,7 +3,9 @@ import { and, eq, inArray, isNull, sql as drizzleSql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
-import { sampleRelatorioIds, seedSampleRelatorio } from '../db/sample-relatorio.ts';
+import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
+import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
+import { sampleRelatorioIds, sampleRelatorioLog, seedSampleRelatorio } from '../db/sample-relatorio.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { applyOps } from './apply.ts';
@@ -100,6 +102,15 @@ describe('27.1-API-002 the scripts of Task 1, on a company that already has an e
     expect(rows.length).toBeGreaterThan(1);
     const orphans = rows.filter((row) => !paths.some((path) => path.split('/').includes(row.id)));
     expect(orphans, 'entity rows with no op naming them').toEqual([]);
+  });
+
+  it('27.1-API-003 the Porto Seguro replay test\'s reclaim (`porto-seguro.integration.test.ts` beforeAll, ops deleted by the fixtures\' fixed op ids in any company) cannot reach a company the sample relatório was seeded into: its op ids are derived per company and meet neither fixture\'s', () => {
+    const fixed = new Set([...portoSeguro.log, ...portoSeguroSmall.log].map((op) => op.op_id));
+    for (const companyId of [newId(), newId()]) {
+      const sampleOps = sampleRelatorioLog(companyId).map((op) => op.op_id);
+      expect(sampleOps.length).toBeGreaterThan(0);
+      expect(sampleOps.filter((id) => fixed.has(id))).toEqual([]);
+    }
   });
 });
 

@@ -172,7 +172,8 @@ describe('23.5-UNIT a v13 insulation judged at 20 °C', () => {
       print: '-',
     });
     expect(captures(test)[0]!.corrected).toBeNull();
-    expect(captures(test)[0]!.helperText).toBe('Abaixo do aceitável (≥ 5.000 MΩ)');
+    // Story 27.2 (F11): the helper cites the criterion in the reading's unit (GΩ), on screen only.
+    expect(captures(test)[0]!.helperText).toBe('Abaixo do aceitável (≥ 5 GΩ)');
     expect(evaluation(sheet('disjuntor_mt'), 'isolacao').temperature!.line.note).toBe('Informe a temperatura do ambiente de ensaio no local: sem ela, as leituras são julgadas sem correção a 20 °C.');
   });
 
@@ -206,7 +207,7 @@ describe('23.5-UNIT a v13 insulation judged at 20 °C', () => {
 
   it('a corrected reading still out names its value at 20 °C', () => {
     const test = evaluation(readings(oilTransformer('10'), 'isolacao', { '0/1': measured('8', 'GΩ') }), 'isolacao');
-    expect(captures(test)[0]).toMatchObject({ verdict: 'out', corrected: { raw: '4', text: '4 GΩ' }, helperText: 'Abaixo do aceitável a 20 °C: 4 GΩ (≥ 5.000 MΩ)' });
+    expect(captures(test)[0]).toMatchObject({ verdict: 'out', corrected: { raw: '4', text: '4 GΩ' }, helperText: 'Abaixo do aceitável a 20 °C: 4 GΩ (≥ 5 GΩ)' });
   });
 
   it('a v13 cable, TC, TP and arrester carry no correction: no line, no corrected cell, raw judged as before', () => {

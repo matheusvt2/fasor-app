@@ -136,9 +136,14 @@ test('@p0 27.2-E2E-001 humidity 150 refused, 999 °C remarked, 0 µΩ refused, A
 
   // The Gerar dialog: the temperature row naming the local and the ART row, by the kernel; "Gerar relatório" enabled.
   const rows = preIssue(await deviceSnapshot(page, database, built.relatorioId), undefined, { now: new Date() });
-  const named = exportPrecheck(rows).explicit.filter((row) => row.kind === 'temperature_unusual' || row.kind === 'art_trt_not_numeric').map((row) => row.text);
-  expect(named).toHaveLength(2);
-  expect(named[0]).toContain(cabine.name as string);
+  const explicit = exportPrecheck(rows).explicit;
+  const temperatureRows = explicit.filter((row) => row.kind === 'temperature_unusual');
+  const artRows = explicit.filter((row) => row.kind === 'art_trt_not_numeric');
+  expect(temperatureRows).toHaveLength(1);
+  expect(artRows).toHaveLength(1);
+  expect(temperatureRows[0]!.text).toContain(cabine.name as string);
+  expect(artRows[0]!.text).toMatch(/: abc$/);
+  const named = [temperatureRows[0]!.text, artRows[0]!.text];
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RESISTANCE_POSITIVE_ONLY_TEXT } from '../seed/criteria.ts';
 import { applyOp, entityKey } from '../ops/apply.ts';
 import { blockFieldPath, sheetConclusionPath, sheetObservationsPath } from '../ops/path.ts';
 import type { BlockRow, JsonValue } from '../schemas/entities.ts';
@@ -178,7 +179,7 @@ describe('Epic 14 QA Q-3: a zero or negative reading on E1 is refused at input, 
     expect(anyMeasurementToCheck(evaluate(off))).toBe(false);
   });
 
-  it('the field\'s parse refuses 0 and below on an E1 cell with the kernel message; an E2 cell (absolute) takes 0', () => {
+  it('the field\'s parse refuses 0 and below on an E1 cell with the kernel message; Story 27.2: an E2 cell (absolute, MΩ) refuses 0 too', () => {
     const e1 = cellOf(ctaBlock({ polos: '3' }), E1, 'polo_a', 'lado_normal');
     expect(parseMeasurementReadingPtBr('0', e1, 'µΩ')).toBe('invalid');
     expect(parseMeasurementReadingPtBr('0,0', e1, 'µΩ')).toBe('invalid');
@@ -189,9 +190,11 @@ describe('Epic 14 QA Q-3: a zero or negative reading on E1 is refused at input, 
     expect(measurementReadingRefusal('abc', e1, 'µΩ')).toBeNull();
     expect(measurementReadingRefusal('41', e1, 'µΩ')).toBeNull();
     const e2 = cellOf(ctaBlock(), E2, 'a_t', 'aberta');
-    expect(e2.positiveOnlyText).toBeNull();
-    expect(parseMeasurementReadingPtBr('0', e2, 'MΩ')).toEqual({ raw: '0', unit: 'MΩ' });
-    expect(measurementReadingRefusal('0', e2, 'MΩ')).toBeNull();
+    // Story 27.2 (F3): a resistance of zero on an absolute criterion is refused with its own message.
+    expect(e2.positiveOnlyText).toBe(RESISTANCE_POSITIVE_ONLY_TEXT);
+    expect(parseMeasurementReadingPtBr('0', e2, 'MΩ')).toBe('invalid');
+    expect(measurementReadingRefusal('0', e2, 'MΩ')).toBe(RESISTANCE_POSITIVE_ONLY_TEXT);
+    expect(parseMeasurementReadingPtBr('0,1', e2, 'MΩ')).toEqual({ raw: '0.1', unit: 'MΩ' });
   });
 });
 
