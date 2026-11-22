@@ -47,7 +47,7 @@ async function call<T>(method: string, path: string, body: unknown, read: (json:
   } catch {
     return { ok: false, failure: { kind: 'offline' } };
   }
-  let json: unknown = null;
+  let json: unknown;
   try {
     json = await response.json();
   } catch {
