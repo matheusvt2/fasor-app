@@ -947,7 +947,7 @@ export const copy = {
     otherLabel: 'Qual função',
     otherHelper: 'Escrita como deve aparecer na árvore e no relatório.',
     nameLabel: 'Nome',
-    nameHelper: 'Vem da função; complete com o lugar, como em "Cabine primária — 1° Subsolo".',
+    nameHelper: 'Vem da função; complete com o lugar, como em "Cabine primária — 1º Subsolo".',
     cancel: 'Cancelar',
     add: 'Adicionar local',
     // authored: the primary of the dialog when it edits.
