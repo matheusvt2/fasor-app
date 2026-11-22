@@ -11388,7 +11388,7 @@ So that who enters the company's data is my decision and not a script's.
   - create: name, e-mail, role. The user is born `invited` and the invitation is sent. A duplicate e-mail is refused with its own code;
   - edit: name and role. The e-mail does not change (it is immutable in the kernel);
   - pause and reactivate; remove; resend the invitation; send a password reset.
-- **Each change is one transaction:** the row, the server-only op that carries it to the devices, and, for pause and remove, the end of that user's sessions.
+- **Each change is one transaction:** the row, the server-only op that carries it to the devices, and, for pause and remove, ~~the end of that user's sessions~~ *(2026-11-22, Matheus, "corrija": the user's sessions are kept and inert; every request with them answers `401 user_inactive`, so the device learns the cause and shows the paused banner of Story 26.11; the pending invitation and reset links still end; PR #353)*.
 - **Last Admin.** The kernel's verdict is checked inside the transaction with the company's users locked. The Admin can pause or remove himself only when another active Admin exists.
 - **Remove is a status.** The user's row, name and every `actor_id` stay. A removed user's e-mail cannot be invited again as a new user; "reactivate" brings the same person back.
 - **An invited user who has set a password** becomes `active` at his first sign-in.
@@ -11412,7 +11412,7 @@ So that who enters the company's data is my decision and not a script's.
 
 **Given** an active user with an open session
 **When** the Admin pauses him
-**Then** his next request is `401`, and after "reactivate" he signs in again with the same password
+**Then** his next request is `401`, and after "reactivate" he signs in again with the same password *(2026-11-22: the `401` carries `user_inactive`; after "reactivate" a kept session works again with no new sign-in, and a new sign-in uses the same password)*
 
 **Given** the only active Admin
 **When** he tries to pause, remove or lower himself
@@ -11478,6 +11478,8 @@ So that I add, change, pause and remove a person in a few taps.
 - `e2e/users-screen.spec.ts` "26.9-E2E-001 @p0": create, the link, first sign-in, change role, pause, reactivate, remove, as a person would.
 - Static copy in `pt-br.ts`, status words from the kernel; authored sentences listed.
 - `docs/kbs/code/web-app.md`, `log.md`.
+
+*(2026-11-22, built in batch e26d, PR #353 merged as `3b4fd755`, no contract number, no migration. Readings taken, open to Matheus: the pill reads "Convite pendente" from a new kernel function `userStatusPillLabel`, while `userStatusLabel` still says "Convidado"; the user's own row reads "· você"; when the user-list route gives no answer the screen counts as offline; Home gains a third shortcut card, "Usuários", for `users.manage`, and the usage events gain the screen `usuarios`. Not built: the row menu's `menu-head` line and the Confirm dialog's phone margin. With Matheus's "sim" of 2026-11-22, four existing assertions were extended by one entry each: the usage-event screens, the sprite icons (`i-lock`, `i-mail`, `i-users`), and the Home shortcut count in a web test and in "1.6-E2E-001". The web half of Story 26.6 came in the same PR: `/login/esqueci` and `/definir-senha`, specs "26.6-E2E-001" and "-002"; the set-password page shows no name, e-mail or expiry, because no route looks a token up, and a used link is known only when "Salvar senha" is pressed.)*
 
 ### Story 26.10: Papéis e permissões: the grid and the roles the Admin creates
 
@@ -11584,6 +11586,8 @@ So that the company does not lose a day of measurements because of an access cha
 - Web tests of the banner and the dialog.
 - The two `deferred-work.md` rows; authored sentences listed.
 - `docs/kbs/architecture/sync.md`, `log.md`.
+
+*(2026-11-22, built in batch e26d, PR #353 merged as `3b4fd755`. The spec is `e2e/paused-user-unsent.durability.spec.ts`, in the queue lane; it pauses and reactivates through the real Admin route. Matheus's "corrija" of 2026-11-22: pause and remove keep the sessions, see the dated text in Story 26.8; a guard closes better-auth's own get-session for an inactive user; "26.11-API-001" covers seven routes plus get-session. Readings, open to Matheus: after "reactivate" the kept session works again with no new sign-in; a removed user and a paused one read the same Login sentence; sign-out with the server session already gone treats 400 and 401 as signed out.)*
 
 ## Epic 27: The manual pass of 2026-11-21: the document carries what the screen shows, the impossible is refused, the words are right and the screens fit (seed v17; Matheus, 2026-11-21)
 
