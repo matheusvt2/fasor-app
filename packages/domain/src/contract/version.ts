@@ -658,11 +658,16 @@
  * 56 (2026-11-21, Stories 27.1 and 27.2, batch e27a): no new op or path family; the server and the
  * kernel refuse what could not exist. Story 27.1 (F1): a create of a second live `empresa` registry
  * row in a company that holds one is refused `op_forbidden` (`apps/api/src/sync/rules.ts`), and every
- * reader takes the company row through `pickEmpresa` (the live row of the smallest id). Story 27.2
+ * reader takes the company row through `pickEmpresa` (the live row of the smallest id). *(2026-11-22, fix
+ * batch e27a-review, R5: so is the restore of a removed `empresa` row, a put of null on
+ * `registry/empresa/{id}/removed_at`, while another live one exists; the same rule on its second path, inside
+ * this unreleased number.)* Story 27.2
  * (F2 to F6, F11): a cabine's relative humidity outside 0 to 100 % is refused `op_value_invalid`
  * (`ENV_VALUE_RULES`), and the device refuses where it is typed a humidity out of range, a resistance
  * reading of zero or below on an absolute criterion (`not_positive`) and a CNPJ whose check digits
- * do not match. No code is added to `contract/errors.ts`. MIN follows to 56 (below). Stored ops are
+ * do not match. *(2026-11-22, R3: of these the server refuses only the humidity; the zero resistance and the
+ * CNPJ check digits are the device's refusals alone, as Story 27.2 asks.)* No code is added to
+ * `contract/errors.ts`. MIN follows to 56 (below). Stored ops are
  * not judged again; an op queued on an older device and refused takes the rejected-ops path.
  */
 export const CONTRACT_VERSION = 56;
@@ -1059,11 +1064,13 @@ export const CONTRACT_VERSION = 56;
  */
 /*
  * 56 (2026-11-21, Stories 27.1 and 27.2, batch e27a): a version-55 (or older) bundle still queues a
- * humidity above 100 %, a zero resistance on an absolute criterion and a CNPJ with wrong check digits,
- * which the server now refuses, and still picks the first `empresa` row it finds rather than the
- * one the print takes, so its Gerar dialog could show another company than the document. Its pull
- * answers `426 contract_outdated` and it updates; its pushes are still accepted, and an op the new
- * limits refuse lands in its rejected list.
+ * humidity above 100 %, which the server now refuses, ~~a zero resistance on an absolute criterion and a
+ * CNPJ with wrong check digits, which the server now refuses~~ *(2026-11-22, fix batch e27a-review, R3: the
+ * server refuses only the humidity; a zero resistance and a CNPJ with wrong check digits are refused where
+ * they are typed, on a 56 device, and the server still takes them from an older one)*, and still picks the
+ * first `empresa` row it finds rather than the one the print takes, so its Gerar dialog could show another
+ * company than the document. Its pull answers `426 contract_outdated` and it updates; its pushes are still
+ * accepted, and an op the new limits refuse lands in its rejected list.
  */
 export const MIN_CONTRACT_VERSION = 56;
 

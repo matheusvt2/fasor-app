@@ -4,6 +4,7 @@ import {
   moveLandingIndex,
   numberPhotos,
   photoRefLabel,
+  pointCardFields,
   pointMissingFields,
   pointMissingText,
   pointMovedText,
@@ -301,9 +302,10 @@ function PointCard({
   const name = t.cardName(position, title);
   const refs = extractPhotoRefs(point.text);
   // Story 27.4 (F8): the kernel's "Falta: …" in amber stands for the missing fields, whose rows the list drops.
-  const missing = pointMissingFields(point);
-  const missingText = pointMissingText(missing);
-  const shows = (field: PointMissingField) => !missing.includes(field);
+  const missingText = pointMissingText(pointMissingFields(point));
+  // Fix batch e27a-review (R7): the rows the card lists are the kernel's (`pointCardFields`); none, no list.
+  const listed = pointCardFields(point);
+  const shows = (field: PointMissingField) => listed.includes(field);
   const deadline = point.deadline ?? null;
   const priority = point.priority ?? null;
   const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .overflow-trigger') ?? null;
@@ -360,7 +362,7 @@ function PointCard({
             {missingText}
           </p>
         )}
-        {missing.length === 4 ? null : (
+        {listed.length === 0 ? null : (
           <dl className="poa-fields">
             {shows('acao') ? (
               <div>

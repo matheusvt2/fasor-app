@@ -2,6 +2,7 @@ import {
   acceptsVoltagePair,
   appendObservation,
   cabineDataNoteText,
+  cabineEnvCopy,
   cabineLineText,
   cabineProgress,
   envFieldRemarkText,
@@ -174,12 +175,16 @@ export function CabineBlock({
 
   function copyPrevious(): void {
     if (previous === null) return;
+    // Fix batch e27a-review (R2): a value the cabine's range refuses (a humidity stored before Story 27.2) is skipped,
+    // never queued, and the toast says so (the kernel's `cabineEnvCopy`).
+    const plan = cabineEnvCopy(previous, cabine.id, snapshot.relatorio.seed_version);
+    if (plan.values.length === 0) {
+      if (plan.skippedText !== null) api.announce(plan.skippedText);
+      return;
+    }
     void api
-      .edit((_blocks, by) => [
-        cabineEnvOp(by, api.relatorioId, cabine.id, 'temperature_c', previous.temperature_c),
-        cabineEnvOp(by, api.relatorioId, cabine.id, 'humidity_pct', previous.humidity_pct),
-      ])
-      .then((batch) => api.undoable(t.copiedFrom(previous.name), batch))
+      .edit((_blocks, by) => plan.values.map(({ key, value }) => cabineEnvOp(by, api.relatorioId, cabine.id, key, value)))
+      .then((batch) => api.undoable(plan.skippedText === null ? t.copiedFrom(previous.name) : t.copiedFromSkipping(previous.name, plan.skippedText), batch))
       .catch(() => undefined);
   }
 

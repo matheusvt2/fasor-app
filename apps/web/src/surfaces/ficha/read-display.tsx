@@ -22,7 +22,6 @@ import {
   measurementConfirmAllCandidates,
   measurementSuggestions,
   measurementTableVerifyCount,
-  parseFieldInput,
   parseReadingPtBr,
   refusedFieldInputKind,
   refusedReadingKind,
@@ -33,6 +32,8 @@ import {
   showsConfirmedGlyph,
   storedTestCell,
   suggestionAnnouncement,
+  suggestionConfirmRefusal,
+  suggestionCorrection,
   suggestionRowsOf,
   suggestionValueText,
   type BlockDefinition,
@@ -198,6 +199,13 @@ export function useDisplaySuggestions({
 
   const once = useOncePerSuggestion();
   const confirm = (s: SuggestionRow, label: string) => {
+    // Fix batch e27a-review (R2): a value its target refuses (a humidity outside 0 to 100 %) is never confirmed; the
+    // kernel's message says why, and the suggestion stays pending (`confirmSuggestionOps` writes nothing for it either).
+    const refusal = suggestionConfirmRefusal(s);
+    if (refusal !== null) {
+      said(refusal);
+      return;
+    }
     const text = confirmedFieldToastText(label, suggestionValueText(NUMBER, s.value));
     once(s, () =>
       api
@@ -694,7 +702,8 @@ export interface EnvDisplayModel {
   retake?: DisplayRetake;
   tiles: readonly PhotoTile[];
   confirm: (s: SuggestionRow, label: string) => void;
-  type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | 'invalid' | 'unchanged';
+  /** Fix batch e27a-review (R2): a refused correction carries the kernel's message (null: the field's generic one). */
+  type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | { refused: string | null } | 'unchanged';
   keepTyped: (s: SuggestionRow) => void;
   openCrop: (s: SuggestionRow) => void;
   viewer: ReactNode;
@@ -716,6 +725,13 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: LocalApi;
   };
   const once = useOncePerSuggestion();
   const confirm = (s: SuggestionRow, label: string) => {
+    // Fix batch e27a-review (R2): a value its target refuses (a humidity outside 0 to 100 %) is never confirmed; the
+    // kernel's message says why, and the suggestion stays pending (`confirmSuggestionOps` writes nothing for it either).
+    const refusal = suggestionConfirmRefusal(s);
+    if (refusal !== null) {
+      said(refusal);
+      return;
+    }
     const text = confirmedFieldToastText(label, suggestionValueText(NUMBER, s.value));
     once(s, () =>
       api
@@ -725,10 +741,11 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: LocalApi;
         }),
     );
   };
-  const type = (s: SuggestionRow, field: FieldDef, text: string): Promise<boolean> | 'invalid' | 'unchanged' => {
+  const type = (s: SuggestionRow, field: FieldDef, text: string): Promise<boolean> | { refused: string | null } | 'unchanged' => {
     if (text === formatDecimalGroupedPtBr(numberOf(s.value).raw)) return 'unchanged';
-    const parsed = parseFieldInput(field, text);
-    if (!parsed.ok) return 'invalid';
+    // Fix batch e27a-review (R2): the correction is judged by its target's range as the typed field is, so a refused one queues nothing.
+    const parsed = suggestionCorrection(field, text, s.target_path);
+    if (!parsed.ok) return { refused: parsed.refusal };
     const value = parsed.value;
     return api
       .edit((_blocks, by) => (value === null ? [discardSuggestionOp(by, s)] : [cabineEnvOp(by, api.relatorioId, cabine.id, field.key, value), discardSuggestionOp(by, s)]))
@@ -823,7 +840,8 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
   const helperId = useId();
   const initial = formatDecimalGroupedPtBr(numberOf(suggestion.value).raw);
   const [text, setText] = useState(initial);
-  const [invalid, setInvalid] = useState(false);
+  // Fix batch e27a-review (R2): false, or the message of the refusal (null: the field's generic one).
+  const [invalid, setInvalid] = useState<false | { message: string | null }>(false);
   const written = useRef(false);
   const label = screenLabel(field.label);
   const unit = numberOf(suggestion.value).unit ?? field.unit ?? null;
@@ -832,16 +850,24 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
     const result = model.type(suggestion, field, text);
     if (result === 'unchanged') {
       if (!confirmIfUnchanged) return;
+      // R2: the suggested value its target refuses cannot be confirmed; the field says why and nothing is written.
+      const refusal = suggestionConfirmRefusal(suggestion);
+      if (refusal !== null) {
+        setInvalid({ message: refusal });
+        trackInputRefused('ficha.reading', 'out_of_range');
+        return;
+      }
       written.current = true;
       model.confirm(suggestion, label);
       return;
     }
-    setInvalid(result === 'invalid');
-    if (result === 'invalid') {
+    if (!(result instanceof Promise)) {
+      setInvalid({ message: result.refused });
       // Story 18.4: the kernel's reason, never the text.
-      trackInputRefused('ficha.reading', refusedFieldInputKind(field, text));
+      trackInputRefused('ficha.reading', result.refused === null ? refusedFieldInputKind(field, text) : 'out_of_range');
       return;
     }
+    setInvalid(false);
     written.current = true;
     void result.then((ok) => {
       if (!ok) written.current = false;
@@ -861,7 +887,7 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
         after={
           invalid ? (
             <span className="helper" data-tone="red" id={helperId}>
-              {copy.ficha.cabine.invalidNumber}
+              {invalid.message ?? copy.ficha.cabine.invalidNumber}
             </span>
           ) : null
         }
@@ -872,12 +898,12 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
           inputMode="decimal"
           autoComplete="off"
           aria-labelledby={labelId}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid ? helperId : undefined}
+          aria-invalid={invalid === false ? undefined : true}
+          aria-describedby={invalid === false ? undefined : helperId}
           value={text}
           onChange={(event) => {
             setText(event.target.value);
-            if (invalid) setInvalid(false);
+            if (invalid !== false) setInvalid(false);
           }}
           onBlur={(event) => {
             const next = event.relatedTarget;
