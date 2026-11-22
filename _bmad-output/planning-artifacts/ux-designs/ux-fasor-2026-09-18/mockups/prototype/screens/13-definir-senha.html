@@ -1,0 +1,40 @@
+<style data-screen="definir-senha">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.6: the page a link opens, the invitation's or the reset's, to set a password. The Login
+   form's shell and classes. The e-mail is shown, never typed (the link carries it). "Salvar senha" lands on Login with a toast.
+   The length rule is the one of today's sign-in (better-auth's default, 8 characters; confirm in Story 26.6's spike).
+   Governs: EXPERIENCE.md § IA › Set a password; § Component Patterns › Login form (2026-11-21). */
+[data-route="/definir-senha"] .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
+.frame-phone [data-route="/definir-senha"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
+[data-route="/definir-senha"] .login-form h2 { font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); }
+[data-route="/definir-senha"] .ds-who { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/definir-senha" data-title="Criar senha" data-shell="bare" data-rail="false">
+  <div class="login-screen">
+    <div class="login-form" role="form" aria-labelledby="ds-title">
+      <h1 class="login-wordmark">Conforme</h1>
+      <h2 id="ds-title">Crie a sua senha</h2>
+      <p class="t-body">Olá, Fernanda. Escolha a senha que você vai usar para entrar.</p>
+      <div class="field">
+        <span class="field-label" id="ds-email-l">E-mail</span>
+        <div class="input is-readonly" aria-labelledby="ds-email-l">fernanda@exemplo.com.br</div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="ds-p1-l">Senha</span>
+        <div class="input is-focus">
+          <span class="grow" role="textbox" aria-labelledby="ds-p1-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+        <span class="helper">Pelo menos 8 caracteres.</span>
+      </div>
+      <div class="field">
+        <span class="field-label" id="ds-p2-l">Repita a senha</span>
+        <div class="input">
+          <span class="grow" role="textbox" aria-labelledby="ds-p2-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary btn-block" data-go="#/login" data-toast="Senha criada. Entre com o seu e-mail e a senha nova.">Salvar senha</button>
+      <p class="ds-who">Link de convite · vale até 23/11 10:30 · só pode ser usado uma vez</p>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,39 @@
+<style data-screen="login-esqueci">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.6: "Esqueci minha senha", reached from Login. The Login form's shell and classes
+   (10-login.html, components.css .login-form). Two states on one route: the request, then the same answer whether the address exists or
+   not ("Enviar link" toggles .is-sent; the app never says whether the e-mail is known). A paused or removed user receives nothing.
+   Governs: EXPERIENCE.md § IA › Login; § Component Patterns › Login form (2026-11-21). */
+[data-route="/login/esqueci"] .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
+.frame-phone [data-route="/login/esqueci"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
+[data-route="/login/esqueci"] .login-form h2 { font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); }
+[data-route="/login/esqueci"] .login-form .btn-text { align-self: center; }
+[data-route="/login/esqueci"] .fg-sent { display: none; }
+[data-route="/login/esqueci"] .login-form.is-sent .fg-ask { display: none; }
+[data-route="/login/esqueci"] .login-form.is-sent .fg-sent { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/login/esqueci"] .fg-ask { display: flex; flex-direction: column; gap: var(--sp-4); }
+</style>
+<section class="screen" data-route="/login/esqueci" data-title="Esqueci minha senha" data-shell="bare" data-rail="false">
+  <div class="login-screen">
+    <div class="login-form" role="form" aria-labelledby="fg-title" id="fg-form">
+      <h1 class="login-wordmark">Conforme</h1>
+
+      <div class="fg-ask">
+        <h2 id="fg-title">Criar uma senha nova</h2>
+        <p class="t-body">Informe o seu e-mail. Enviamos um link para você criar uma senha nova.</p>
+        <div class="field">
+          <span class="field-label" id="fg-email-l">E-mail</span>
+          <div class="input is-focus" role="textbox" aria-labelledby="fg-email-l">eduardo@exemplo.com.br</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-block" data-toggle-class="is-sent" data-toggle-target="#fg-form">Enviar link</button>
+        <button type="button" class="btn btn-text" data-go="#/login">Voltar ao login</button>
+      </div>
+
+      <div class="fg-sent" role="status">
+        <h2>Confira o seu e-mail</h2>
+        <p class="t-body">Se este e-mail estiver cadastrado, o link chega em alguns minutos. Ele vale por 1 hora. Veja também a caixa de spam.</p>
+        <button type="button" class="btn btn-secondary btn-block" data-go="#/login">Voltar ao login</button>
+        <button type="button" class="btn btn-text" data-toggle-class="is-sent" data-toggle-target="#fg-form">Usar outro e-mail</button>
+      </div>
+    </div>
+  </div>
+</section>
