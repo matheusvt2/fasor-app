@@ -151,13 +151,19 @@ List prices for `us-east-1` as the builder knows them on 2026-09-30 (not re-read
 | CloudFront fallback (off by default; within 1 TB and 10 M requests if on) | free tier | 0.00 |
 | Textract `DetectDocumentText`, allowance of 5 000 pages | 5 000 / 1 000 x 1.50 | 7.50 |
 | Bedrock allowance (Story 11.6 picks the model) | allowance | 30.00 |
-| **Total** | | ~~78.83~~ ~~82.52~~ ~~83.27~~ ~~83.37~~ (2026-10-29, the usage events counted at USD 0.10) **89.09** (2026-11-04, the instance always on) |
+| Amazon SES (Epic 26, Story 26.7, 2026-11-21): the invitation and the password reset, tens of messages a month, at USD 0.10 per 1 000 after the free allowance; two CloudWatch alarms inside the ten free ones | 0.1 x 0.10 = 0.01, counted at 0.05 | 0.05 |
+| **Total** | | ~~78.83~~ ~~82.52~~ ~~83.27~~ ~~83.37~~ (2026-10-29, the usage events counted at USD 0.10) ~~89.09~~ (2026-11-04, the instance always on) **89.14** (2026-11-21, SES) |
 
 Bedrock, measured on 2026-10-05 with Claude Haiku 4.5 on the synthetic nameplate (about 3 300 input and 750 output tokens): about USD 0.007 a plate reading, and up to USD 0.0115 when the Nova Pro escalation runs too; a panel or a caption costs less than half of that. 1 000 plate readings a month cost USD 7 to 12 on Bedrock plus USD 1.50 of Textract, so the USD 30 allowance above covers about 2 600 plate readings with every one escalated. Re-reads are not capped, and the budget action is what stops them.
 
 The total stays below USD 100 with Textract and a Bedrock allowance included; the 90 % budget action stops Bedrock and Textract before the ceiling is crossed. Without the night schedule the instance costs 730 h x 0.0376 = USD 27.45 and the database 730 h x 0.016 = USD 11.68 (total USD 86.78). With `arm64` (`t4g.medium`, 577.9 h x 0.0336) the instance costs USD 19.42. With `t3a.large` (577.9 h x 0.0752 = USD 43.46) the total becomes USD 100.56, so that switch also needs the Bedrock allowance cut to about USD 29 or less. *(2026-11-04, the night schedule off: the instance runs 730 h, already counted in the table above at USD 27.45, total USD 89.09; `t3a.large` always on costs 730 h x 0.0752 = USD 54.90 and would bring the total to USD 116.54, over the ceiling unless the Bedrock allowance is cut to about USD 2.)*
 
 ## Runbook
+
+- **E-mail (Epic 26, Story 26.7, 2026-11-21):** `email.tf` creates the SES domain identity of `email_domain` (untracked `terraform.tfvars`), its configuration set, the app role's `ses:SendEmail` from the one address `no-reply@<email_domain>`, and two reputation alarms. No mailbox exists or is needed: the address only sends. Three steps are outside Terraform:
+  1. **DNS.** The domain's DNS is at its registrar, not in this account. `infra/bin/tf production output email_dkim_records` lists three CNAME records; the domain's owner types them there. `infra/bin/aws sesv2 get-email-identity --email-identity <email_domain> --query VerifiedForSendingStatus` turns `true` once they resolve (minutes to a day).
+  2. **Leaving the sandbox.** A new SES account sends only to verified addresses, 200 a day. The account's owner asks once: `infra/bin/aws sesv2 put-account-details --mail-type TRANSACTIONAL --website-url https://<app_domain> --contact-language EN --use-case-description "<what is sent, to whom, how bounces are handled>" --production-access-enabled`. `infra/bin/aws sesv2 get-account --query ProductionAccessEnabled` shows the answer (AWS takes about a day).
+  3. **Turning it on.** `EMAIL_PROVIDER=ses` and `EMAIL_FROM` enter the api task in `ecs.tf` with the deploy that carries Story 26.6's code; until then the api does not send.
 
 - **First deploy of an empty stack:** `infra/bin/tf production init`, then `infra/bin/tf production apply` (creates everything; the services cannot start until their images exist), then `infra/bin/deploy`.
 - **Logs:** `infra/bin/aws logs tail /fasor/production/api --since 1h` (also `ocr`, `caddy`, `migrate`, `smoke`).
