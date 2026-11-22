@@ -186,6 +186,7 @@ describe('contract constants', () => {
     const codes = errorCodeSchema.options;
     // Story 26.2 (contract 55): `forbidden` and `user_inactive` appended after them.
     // Story 26.8 (batch e26c): extended, the four codes of the Admin's user routes appended after them.
+    // Story 26.10 (batch e26e): extended, the four codes of the Admin's role routes appended after them.
     expect(codes.slice(codes.indexOf('telemetry_invalid'))).toEqual([
       'telemetry_invalid',
       'quota_exceeded',
@@ -196,6 +197,10 @@ describe('contract constants', () => {
       'last_admin',
       'role_not_found',
       'user_state_invalid',
+      'role_name_taken',
+      'role_locked',
+      'role_in_use',
+      'role_name_invalid',
     ]);
   });
 

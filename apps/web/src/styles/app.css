@@ -1359,3 +1359,99 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 /* authored: an Etapa of the setup the role cannot write sits in a disabled `fieldset`; the browser's own fieldset box
    (border, padding, margin, min-width) is cleared so the Etapa keeps its band look. */
 .setup-locked { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+/* ---------- Story 26.10: Papéis e permissões ----------
+   `mockups/prototype/screens/93-papeis.html` `<style data-screen="papeis">`, translated per AGENTS.md § Mock container
+   selectors. The `[data-route="/usuarios/papeis"]` prefix is dropped for the screen's own `.pp-*` scope: the content root
+   carries `.pp-root`, the tab strip `.pp-tabs`, the column wrapper `.pp-wrap` beside the mock's `.screen-wrap`, and a role
+   head's menu `.pp-role-menu`. `.frame-phone` becomes `max-width: 767.98px`, `.frame-tablet` 768-1279.98px,
+   `.frame-tablet-landscape` 1024-1279.98px, `.frame-desktop` 1280px and up. Declarations verbatim. The mock's
+   `.chip[role="radio"][aria-checked="true"]` mirror is the app-wide rule above (Story 26.5's chips); the mock's
+   `.screen-wrap:has(.pp-root.is-saved) .pp-save, .pp-discard { opacity: .4 }` is the disabled `.btn`'s own `.4`. */
+.pp-tabs .tab { text-decoration: none; }
+.pp-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }
+.pp-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.pp-admin-note { display: flex; align-items: flex-start; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.pp-admin-note .ico { flex: none; color: var(--ink-secondary); margin-top: 2px; }
+/* the role picker: one role at a time */
+.pp-pick { display: none; margin-bottom: var(--sp-3); }
+.pp-pick .chip[role="radio"] { cursor: pointer; }
+/* the grid */
+.pp-grid { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
+.pp-grid th, .pp-grid td { border-top: 1px solid var(--border-hairline); vertical-align: middle; }
+.pp-grid thead th { border-top: 0; border-bottom: 1px solid var(--border-strong); background: var(--surface-base); }
+.pp-grid thead th:first-child { border-top-left-radius: var(--r-md); }
+.pp-grid thead th:last-child { border-top-right-radius: var(--r-md); }
+.pp-grid tbody:first-of-type tr:first-child > * { border-top: 0; }
+.pp-corner { width: 168px; padding: var(--sp-2) var(--sp-3); text-align: left; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); vertical-align: bottom; }
+.pp-role { padding: var(--sp-2) 2px; text-align: center; vertical-align: bottom; }
+.pp-role-name, .pp-role-btn { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px; min-height: var(--touch-min); padding: 0 2px; font-size: var(--t-label-size); font-weight: 600; line-height: 1.25; color: var(--ink-primary); white-space: normal; hyphens: auto; overflow-wrap: break-word; text-align: center; }
+.pp-role-btn { cursor: pointer; color: var(--primary); border-radius: var(--r-sm); }
+.pp-role-name .ico { color: var(--ink-secondary); }
+.pp-role-meta { display: block; font-size: 12px; line-height: 1.3; color: var(--ink-secondary); }
+.pp-label { padding: 0 var(--sp-2) 0 0; text-align: left; font-weight: 400; }
+.pp-mod-toggle { display: flex; align-items: center; gap: var(--sp-1); width: 100%; min-height: var(--touch-field); padding: var(--sp-1) 0; text-align: left; }
+button.pp-mod-toggle { cursor: pointer; }
+.pp-chev, .pp-chev-space { flex: none; width: var(--touch-min); display: inline-flex; justify-content: center; }
+.pp-chev { width: 24px; margin: 0 12px; color: var(--ink-secondary); transition: transform .15s; transform: rotate(-90deg); }
+.pp-module.is-open .pp-chev { transform: none; }
+.pp-mod-text { display: flex; flex-direction: column; min-width: 0; }
+.pp-mod-name { font-size: var(--t-body-size); font-weight: 600; color: var(--ink-primary); }
+.pp-mod-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.pp-mod-row > * { background: var(--surface-raised); }
+.pp-module:not(.is-open) .pp-key-row { display: none; }
+.pp-key-row > * { background: var(--surface-base); }
+.pp-key { padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--touch-min); }
+.pp-key-name { display: block; font-size: var(--t-body-size); color: var(--ink-primary); }
+.pp-key-help { display: block; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.pp-cell { position: relative; padding: var(--sp-1) 2px; text-align: center; }
+.pp-cell .toggle { cursor: pointer; justify-content: center; }
+.pp-count { display: block; font-size: 12px; line-height: 1.3; color: var(--primary); font-weight: 600; }
+.pp-cell:not(:has([aria-checked="mixed"])) .pp-count { display: none; }
+/* `[data-route="/usuarios/papeis"] .toggle[aria-checked="mixed"]`: the mixed look of a module switch */
+.pp-cell .toggle[aria-checked="mixed"] .track { border-color: var(--primary); background: var(--focus-fill); }
+.pp-cell .toggle[aria-checked="mixed"] .knob { left: 14px; background: var(--primary); }
+/* `[data-route="/usuarios/papeis"] .toggle[aria-disabled="true"]`: the Admin column, on and locked */
+.pp-cell .toggle[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+/* a changed, unsaved cell */
+.pp-cell.is-changed::after { content: ""; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+.pp-root.is-saved .pp-cell.is-changed::after { display: none; }
+/* the Sticky action bar: unsaved, then saved */
+.pp-saved-line { display: none; }
+.pp-wrap:has(.pp-root.is-saved) .pp-saved-line { display: block; }
+.pp-wrap:has(.pp-root.is-saved) .pp-dirty-line { display: none; }
+.pp-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* authored: the mock's inline `style` on the seeded role's menu line (`#pp-menu-padrao .btn-reason`). */
+.pp-role-menu .btn-reason { padding: var(--sp-1) var(--sp-4) var(--sp-2); }
+/* `.frame-tablet-landscape [data-route="/usuarios/papeis"] .pp-corner` */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .pp-corner { width: 232px; }
+}
+/* `.frame-desktop [data-route="/usuarios/papeis"] .pp-corner` */
+@media (min-width: 1280px) {
+  .pp-corner { width: 272px; }
+}
+/* `.frame-tablet [data-route="/usuarios/papeis"] .pp-mod-meta`: at 768 px the 168 px label column keeps only the names */
+@media (min-width: 768px) and (max-width: 1279.98px) {
+  .pp-mod-meta { display: none; }
+}
+/* `.frame-phone [data-route="/usuarios/papeis"]` `.pp-head .btn`, `.pp-pick`, `.pp-corner`, `.pp-role`, `.confirm-dialog`, and the
+   `.pp-root:has(#pp-pick-…[aria-checked="true"]) .pp-grid [data-role]:not([data-role="…"])` rules: the columns of every role but
+   the picked one (the root's `data-picked`) carry `.is-unpicked`. */
+@media (max-width: 767.98px) {
+  .pp-head .btn { width: 100%; }
+  .pp-pick { display: flex; }
+  .pp-corner { width: auto; }
+  .pp-role { width: 104px; }
+  .pp-grid .is-unpicked { display: none; }
+  .pp-dialog.confirm-dialog { margin: auto var(--sp-4); }
+}
+/* Story 26.10 (MOCK-GUIDE § 2026-11-21, answer 1): with eight roles or more (`rolesOneAtATime`, the root's `.pp-many`) every
+   width below 1280 px shows one role at a time, as the phone does (reading open to the owner: "tablet" is every width below
+   1280 px). The phone rules above, under `.pp-many`. */
+@media (max-width: 1279.98px) {
+  .pp-root.pp-many .pp-pick { display: flex; }
+  .pp-root.pp-many .pp-corner { width: auto; }
+  .pp-root.pp-many .pp-role { width: 104px; }
+  .pp-root.pp-many .pp-grid .is-unpicked { display: none; }
+}

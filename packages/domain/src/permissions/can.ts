@@ -6,8 +6,11 @@ import { ADMIN_ROLE_ID, type RoleRow } from './roles.ts';
  * name in a condition. `isAdminRole` is the one "Admin" condition of the codebase.
  */
 
-/** The fields of a role the verdict reads. */
-export type RoleLike = Pick<RoleRow, 'id' | 'permissions'> & Partial<Pick<RoleRow, 'system' | 'removed_at'>>;
+/**
+ * The fields of a role the verdict reads. Story 26.10: `system` may also be null, as the Admin's
+ * role list sends a custom role (`adminRoleViewSchema`).
+ */
+export type RoleLike = Pick<RoleRow, 'id' | 'permissions'> & Partial<Pick<RoleRow, 'removed_at'>> & { system?: RoleRow['system'] | null };
 
 /**
  * The locked Admin role: the seeded row (its constant id and its `system`). A custom role can

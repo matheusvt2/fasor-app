@@ -38,6 +38,8 @@ import { TemplateComposerSurface } from './surfaces/templates/template-composer.
 import { TypeEditorSurface } from './surfaces/templates/type-editor.tsx';
 import { TemplatesSurface } from './surfaces/templates/templates-surface.tsx';
 import { GallerySurface } from './surfaces/photos/gallery-surface.tsx';
+// Story 26.10: Papéis e permissões.
+import { PapeisSurface } from './surfaces/papeis/papeis-surface.tsx';
 
 /** While the cookie is being read, render nothing decisive: never flash Login; say what loads (Matheus, 2026-09-30). */
 function Booting() {
@@ -253,6 +255,9 @@ export const appRoutes: RouteObject[] = [
                 element: <SectionTextSurface />,
                 handle: { title: copy.sectionText.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
               },
+              // Story 26.10: Papéis e permissões, the second tab of Usuários (`93-papeis.html`), behind
+              // `roles.manage` through the kernel's screen map; online only.
+              { path: '/usuarios/papeis', element: <PapeisSurface />, handle: { title: copy.papeis.title } },
               ...fixtureRoutes,
             ],
           },

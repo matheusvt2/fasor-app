@@ -23,7 +23,13 @@ const BLOCK = '019966b0-0035-7000-8000-000000000072';
 const SAMPLE_ID = '019966b0-0035-7000-8000-0000000000aa';
 
 /** The routes that read `other` on purpose: the section text, the dev fixture and the catch-all. */
-const OTHER_ON_PURPOSE = new Set(['/relatorio/:id/secao/:blockId', '/__fixture/field', '*']);
+const OTHER_ON_PURPOSE = new Set([
+  '/relatorio/:id/secao/:blockId',
+  '/__fixture/field',
+  '*',
+  // Story 26.10: Papéis e permissões has no screen of its own in the event contract (no contract number moves).
+  '/usuarios/papeis',
+]);
 
 function pathsOf(routes: readonly RouteObject[], parent = ''): string[] {
   return routes.flatMap((route) => {
