@@ -12,7 +12,7 @@ import type { BlockDefinition } from '../seed/schema.ts';
  * subsection per cabine holding a sheet, titled with the cabine's name, its sheets in tree
  * order (`sheetOrder`, the order "Próxima ficha" walks). `por_local_e_tipo` maps that result
  * and splits only the cabines with "Agrupar por tipo" on, into the fixed groups Seccionadoras
- * › Disjuntores › TP's e TC's › Transformadores e Cabos de Alimentação, an empty group
+ * › Disjuntores › TPs e TCs › Transformadores e Cabos de Alimentação, an empty group
  * skipped. Grouping only filters and pairs: the tree is never reordered, every sheet prints
  * once, and inside a group the sheets keep their tree order. Story 14.5: a fifth group,
  * "Outros equipamentos", holds the sheets of the library types (the Chave de transferência
@@ -120,7 +120,9 @@ type TypeGroup = Exclude<PrintGroupKind, 'cabine' | 'painel'>;
 const GROUP_WORDS: readonly { kind: TypeGroup; words: string }[] = [
   { kind: 'seccionadoras', words: 'Seccionadoras dos Cubículos de MT' },
   { kind: 'disjuntores', words: 'Disjuntores dos Cubículos de MT' },
-  { kind: 'tps_tcs', words: "TP's e TC's dos Cubículos de MT" },
+  // Story 27.8 (F35, decision 2 of 2026-11-21): "TPs e TCs", no apostrophe, on every relatório, since the title is code
+  // and reaches every new revision; the only line it changes on a relatório of seed v16 or older.
+  { kind: 'tps_tcs', words: 'TPs e TCs dos Cubículos de MT' },
   { kind: 'transformadores', words: 'Transformadores e Cabos de Alimentação' },
   // Story 14.5: the library types, after the four groups of the eight ("Outros equipamentos dos Geradores").
   { kind: 'outros', words: LIBRARY_GROUP_LABEL },

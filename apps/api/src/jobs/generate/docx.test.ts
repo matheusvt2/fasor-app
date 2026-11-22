@@ -168,14 +168,14 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
       '9.1 Cubículo Enel',
       '9.2 Seccionadoras dos Cubículos de MT do 1° Subsolo',
       '9.3 Disjuntores dos Cubículos de MT do 1° Subsolo',
-      "9.4 TP's e TC's dos Cubículos de MT do 1° Subsolo",
+      '9.4 TPs e TCs dos Cubículos de MT do 1° Subsolo',
       '9.5 Transformadores e Cabos de Alimentação do 1° Subsolo',
       '9.6 Oxigênio',
       '9.7 Cobertura A',
       '9.8 Cobertura B',
       '9.9 Seccionadoras dos Cubículos de MT dos Geradores',
       '9.10 Disjuntores dos Cubículos de MT dos Geradores',
-      "9.11 TP's e TC's dos Cubículos de MT dos Geradores",
+      '9.11 TPs e TCs dos Cubículos de MT dos Geradores',
     ]);
     const styles = readZipEntries(await renderFixture()).get('word/styles.xml')!.toString('utf8');
     const heading2 = /<w:style [^>]*w:styleId="Heading2"[^>]*>(?:(?!<\/w:style>).)*<w:outlineLvl w:val="1"\/>(?:(?!<\/w:style>).)*<\/w:style>/s.exec(styles);

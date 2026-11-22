@@ -728,14 +728,14 @@ describe('7.1 NFR-17: section 9 of the Porto Seguro fixture and its Sumário row
       '9.1 Cubículo Enel',
       '9.2 Seccionadoras dos Cubículos de MT do 1° Subsolo',
       '9.3 Disjuntores dos Cubículos de MT do 1° Subsolo',
-      "9.4 TP's e TC's dos Cubículos de MT do 1° Subsolo",
+      '9.4 TPs e TCs dos Cubículos de MT do 1° Subsolo',
       '9.5 Transformadores e Cabos de Alimentação do 1° Subsolo',
       '9.6 Oxigênio',
       '9.7 Cobertura A',
       '9.8 Cobertura B',
       '9.9 Seccionadoras dos Cubículos de MT dos Geradores',
       '9.10 Disjuntores dos Cubículos de MT dos Geradores',
-      "9.11 TP's e TC's dos Cubículos de MT dos Geradores",
+      '9.11 TPs e TCs dos Cubículos de MT dos Geradores',
     ]);
     expect(section.subsections.map((s) => s.sheets.length)).toEqual([9, 13, 14, 12, 10, 5, 6, 6, 7, 4, 8]);
   });

@@ -266,7 +266,7 @@ describe('e23z-UNIT W3-3 a company copy of one of the eight prints in its base\'
     expect(printBlockTypeOf(asBlockDefinition(versions[5]!), companyBlockType(versions[5]!.type_id))).toBe(companyBlockType(versions[5]!.type_id));
     expect(printBlockTypeOf(null, 'tp')).toBe('tp');
     expect(printGroupWordsOf('transformador_forca')).toBe('Transformadores e Cabos de Alimentação');
-    expect(printGroupWordsOf('tc')).toBe("TP's e TC's dos Cubículos de MT");
+    expect(printGroupWordsOf('tc')).toBe('TPs e TCs dos Cubículos de MT');
     expect(printGroupWordsOf('para_raio')).toBe('Seccionadoras dos Cubículos de MT');
     // A company block carries no role, so a cabos de saída copy groups with the seccionadoras (`byType`).
     expect(printGroupWordsOf('cabos_saida')).toBe('Seccionadoras dos Cubículos de MT');
