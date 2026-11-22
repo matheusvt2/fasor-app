@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const signInEmail = vi.fn();
+const signOutCall = vi.fn();
 
 vi.mock('better-auth/client', () => ({
-  createAuthClient: () => ({ signIn: { email: signInEmail }, signOut: vi.fn() }),
+  createAuthClient: () => ({ signIn: { email: signInEmail }, signOut: signOutCall }),
 }));
 
-const { isClientRejection, signIn } = await import('./auth-client.ts');
+const { isClientRejection, onReAuthRequired, publishReAuth, requestPasswordReset, resetPassword, signIn, signOut } = await import('./auth-client.ts');
 
 const profile = {
   id: '0a000000-0000-7000-8000-0000000000a1',
@@ -106,5 +107,100 @@ describe('signIn classifies failures', () => {
     expect(isClientRejection(500)).toBe(false);
     expect(isClientRejection(503)).toBe(false);
     expect(isClientRejection(undefined)).toBe(false);
+  });
+
+  it('26.11 reads the inactive code as a paused account, never as a wrong password', async () => {
+    signInEmail.mockResolvedValue({ data: null, error: { status: 401, code: 'user_inactive', message: 'This user is not active.' } });
+    const result = await signIn('a@teste.local', 'right');
+    expect(result).toEqual({ ok: false, reason: 'inactive', message: 'Conta pausada. Fale com o administrador.' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('26.11 the re-auth cause and the sign-out with no session on the server', () => {
+  beforeEach(() => {
+    signOutCall.mockReset();
+  });
+
+  it('a listener hears the cause the publisher names, expired by default', () => {
+    const heard: unknown[] = [];
+    const stop = onReAuthRequired((cause) => heard.push(cause));
+    publishReAuth('paused');
+    publishReAuth();
+    stop();
+    publishReAuth('paused');
+    expect(heard).toEqual(['paused', 'expired']);
+  });
+
+  it('a confirmed sign-out resolves', async () => {
+    signOutCall.mockResolvedValue({ data: { success: true }, error: null });
+    await expect(signOut()).resolves.toBeUndefined();
+  });
+
+  it('a server that holds no session (401, or 400 with the cookie gone) signs out', async () => {
+    signOutCall.mockResolvedValue({ data: null, error: { status: 401, message: 'Unauthorized' } });
+    await expect(signOut()).resolves.toBeUndefined();
+    signOutCall.mockResolvedValue({ data: null, error: { status: 400, code: 'FAILED_TO_GET_SESSION', message: 'Failed to get session' } });
+    await expect(signOut()).resolves.toBeUndefined();
+  });
+
+  it('any other failure still throws, so the session is kept', async () => {
+    signOutCall.mockResolvedValue({ data: null, error: { status: 500, message: 'db down' } });
+    await expect(signOut()).rejects.toMatchObject({ name: 'ApiError', status: 500 });
+    signOutCall.mockResolvedValue({ data: null, error: { status: 403, message: 'origin' } });
+    await expect(signOut()).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+describe('26.6 the two password routes', () => {
+  const fetchMock = vi.fn();
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('requestPasswordReset posts the address as JSON and reads any 200 as sent', async () => {
+    fetchMock.mockResolvedValue(json(200, { status: true, message: 'If this email exists...' }));
+    expect(await requestPasswordReset('a@teste.local')).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/request-password-reset',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'a@teste.local' }), headers: expect.objectContaining({ 'content-type': 'application/json' }) }),
+    );
+  });
+
+  it('requestPasswordReset tells the limit, the server and no network apart', async () => {
+    fetchMock.mockResolvedValue(json(429, { code: 'rate_limited', message: 'Too many' }));
+    expect(await requestPasswordReset('a@teste.local')).toEqual({ ok: false, reason: 'rate-limited' });
+    fetchMock.mockResolvedValue(json(503, { code: 'internal_error', message: 'down' }));
+    expect(await requestPasswordReset('a@teste.local')).toEqual({ ok: false, reason: 'server' });
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    expect(await requestPasswordReset('a@teste.local')).toEqual({ ok: false, reason: 'server' });
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    expect(await requestPasswordReset('a@teste.local')).toEqual({ ok: false, reason: 'offline' });
+  });
+
+  it('resetPassword posts the token and the password, and maps each answer', async () => {
+    fetchMock.mockResolvedValue(json(200, { status: true }));
+    expect(await resetPassword('tok', 'segredo-novo')).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/reset-password', expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'tok', newPassword: 'segredo-novo' }) }));
+    fetchMock.mockResolvedValue(json(400, { code: 'INVALID_TOKEN', message: 'invalid token' }));
+    expect(await resetPassword('tok', 'segredo-novo')).toEqual({ ok: false, reason: 'invalid-link' });
+    fetchMock.mockResolvedValue(json(400, { code: 'PASSWORD_TOO_SHORT', message: 'short' }));
+    expect(await resetPassword('tok', 'curta')).toEqual({ ok: false, reason: 'too-short' });
+    fetchMock.mockResolvedValue(json(400, { code: 'PASSWORD_TOO_LONG', message: 'long' }));
+    expect(await resetPassword('tok', 'x'.repeat(129))).toEqual({ ok: false, reason: 'too-long' });
+    fetchMock.mockResolvedValue(json(429, { code: 'rate_limited', message: 'Too many' }));
+    expect(await resetPassword('tok', 'segredo-novo')).toEqual({ ok: false, reason: 'rate-limited' });
+    fetchMock.mockResolvedValue(new Response('down', { status: 502 }));
+    expect(await resetPassword('tok', 'segredo-novo')).toEqual({ ok: false, reason: 'server' });
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    expect(await resetPassword('tok', 'segredo-novo')).toEqual({ ok: false, reason: 'server' });
   });
 });

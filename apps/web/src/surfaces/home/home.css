@@ -58,6 +58,19 @@
   min-width: 0;
 }
 
+/* Story 26.9: `20-home.html` `[data-route="/home"] .shortcut-row.has-3`, the third shortcut "Usuários":
+   three in one row from 768 px, and `.frame-phone [data-route="/home"] .shortcut-row.has-3` one per row
+   below (AGENTS.md § Mock container selectors). Declarations verbatim. */
+.home-screen .shortcut-row.has-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 767.98px) {
+  .home-screen .shortcut-row.has-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .home-screen .section + .section {
   margin-top: var(--sp-5);
 }

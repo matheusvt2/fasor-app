@@ -227,6 +227,78 @@ describe('Account: sign out with pending work (Story 20.11)', () => {
   });
 });
 
+describe('26.11 Account: "Sair" while the account is paused (frame 94-conta-pausada.html)', () => {
+  async function pausedDeviceWith(ops: number) {
+    const db = openDatabase(`account-paused-${ops}-${Math.random()}`);
+    await db.open();
+    for (let i = 0; i < ops; i++) await db.outbox.put({ op_id: `op-${i}`, status: i === 0 ? 'sent' : 'pending', path: 'x/y' } as never);
+    uploadsWaiting = 0;
+    session = { ...signedIn, database: db, reAuthRequired: true, reAuthCause: 'paused', signOut: vi.fn(async () => {}) };
+    return db;
+  }
+
+  afterEach(async () => {
+    const db = session.database;
+    session = signedIn;
+    uploadsWaiting = 0;
+    if (db !== null) {
+      db.close();
+      await db.delete();
+    }
+  });
+
+  it('the Sessão note names the five waiting; the dialog names them and what happens, Cancelar is the default and keeps them', async () => {
+    const db = await pausedDeviceWith(5);
+    renderAccount(syncState('5 alterações', 5));
+
+    const sair = await screen.findByRole('button', { name: 'Sair' });
+    await waitFor(() =>
+      expect(sair).toHaveAccessibleDescription('5 alterações aguardando envio. Com a conta pausada, elas só podem ser enviadas depois da reativação.'),
+    );
+    // The storage row is still there, with what waits.
+    expect(screen.getByTestId('account-pending-value')).toHaveTextContent('5 alterações aguardando envio');
+
+    await userEvent.click(sair);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Sair e apagar o que não foi enviado?');
+    expect(dialog).toHaveAccessibleDescription(
+      '5 alterações ainda não foram enviadas e não podem ser enviadas agora, porque a sua conta está pausada. Se você sair, elas são apagadas deste aparelho. Se ficar, elas são enviadas quando a conta for reativada.',
+    );
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Sair e apagar' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(session.signOut).not.toHaveBeenCalled();
+    expect(await db.outbox.count()).toBe(5);
+
+    // Confirming signs out (the session deletes the device data).
+    await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
+    await screen.findByRole('dialog');
+    await userEvent.click(screen.getByRole('button', { name: 'Sair e apagar' }));
+    await waitFor(() => expect(session.signOut).toHaveBeenCalledTimes(1));
+  });
+
+  it('paused with nothing unsent keeps the plain dialog', async () => {
+    await pausedDeviceWith(0);
+    renderAccount(syncState('', 0));
+    const sair = await screen.findByRole('button', { name: 'Sair' });
+    expect(sair).toHaveAccessibleDescription('Sair envia o que estiver pendente e apaga deste aparelho os dados desta conta.');
+    await userEvent.click(sair);
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName('Sair desta conta?');
+  });
+
+  it('an ended session (not a pause) keeps the Story 20.11 dialog', async () => {
+    const db = await pausedDeviceWith(2);
+    session = { ...session, database: db, reAuthCause: 'expired' };
+    renderAccount(syncState('2 fichas', 2));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sair' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Sair com envios pendentes?');
+    expect(dialog).toHaveAccessibleDescription('2 alterações ainda não foram enviadas. Sair apaga-as deste aparelho.');
+  });
+});
+
 describe('Account: Tema', () => {
   it('the visible .seg button carries aria-checked and the root element follows at once', async () => {
     const { container } = renderAccount(syncState('', 0));

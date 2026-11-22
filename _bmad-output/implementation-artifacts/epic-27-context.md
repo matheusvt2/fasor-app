@@ -49,3 +49,17 @@ Epic 26 is built at the same time by another session (batches e26a to e26f, cont
 - Which local script wrote an `empresa` row into `entities` with no op (Story 27.1, first task).
 - Bruno: the corrected form words, the contact table headers (F22), the Definições text (F41). Matheus sends it after the deploy.
 - The coordinator's readings marked in Stories 27.3, 27.4, 27.9 and 27.14.
+
+## Records, wave 1 (2026-11-22)
+
+- **Wave 1 = Stories 27.1 to 27.7, merged, not deployed.** PR #345 merged as `4d5c961a`: contract 56, current and minimum, no migration; no golden document, layout lock or `pdf-text.json` changed. Review fixes PR #350 merged as `f29a1b15`: no contract bump.
+- **Contract numbers used:** 56 for wave 1 (Story 27.2; Story 27.1 rides on it). Wave 2 (e27b, seed v17) takes main's number plus one. Story 27.8 must also lock the v16 layout and set the seed rule `parecer_open_apart` on v17.
+- **Wave gate on integrated main `4d5c961a`:** `test:e2e:full` 752 passed, 1 failed, 4 skipped of 757; matrix 151 passed, 1 failed, 16 skipped of 168. Both reds passed alone and were read as load: `test-recommendation.spec.ts` 23.11-E2E-001 (queue lane, generate job over 150 s at load 11) and `lost-taps.durability.spec.ts` 12.1-E2E-007 (durability-android-chrome).
+- **Wave review:** no blocker, three should-fix, six minor; R1 to R8 fixed in #350 and gated at batch level (lint, static, 1124 api, 7457 unit, 11 of 11 in seven specs); R9 recorded as a narrowing. The full gate was not rerun after #350 and falls to wave 2's gate.
+- **Story 27.1:** the cause of the op-less `empresa` row was not found. Two suspects ruled out with tests (27.1-API-002 the sample relatório seeded twice, 27.1-API-003 the Porto Seguro test cleanup). The stray row is a device-minted UUIDv7 of 2026-09-30 whose op was removed later. The guard stands (`pickEmpresa`; the server refuses a second live `empresa` by create or by restore). Production counted read-only on 2026-11-21: no duplicate. The extra row in the local dev database is not cleaned yet. R5 (the restore refusal) changed the server without a contract bump, which stays a decision for the coordinator or Matheus.
+- **Story 27.2:** zero resistance and the CNPJ check digits are refused on the device only; the server refuses humidity outside 0 to 100. The temperature row names the local, not the ficha (stored per cabine).
+- **Story 27.3:** the printed sentence splits only under `parecer_open_apart`, set by Story 27.8 on v17. Etapa 6's "as printed" text is composed by `printedParecer`.
+- **Story 27.5: AC2 (numbers follow a reorder) is not met.** `instantiate` ignores the template's order across section types. Open decision for Matheus: remove the cross-type reorder from the template (coordinator's recommendation) or make the relatório follow it. Story 27.14 reuses 27.5's number and waits on this.
+- **Known open, for wave 3 (e27c):** an oil transformer's readings table overflows at 1280 px (predates the epic); at 768 px with the tree opened by hand the disjuntor table scrolls inside its box.
+- **Not done yet:** the manual pass points of wave 1 are not repeated in the browser; the coordinator runs them once before the deploy, when a stack slot is free.
+- **Wave 2** (batch e27b, Stories 27.8 to 27.10) launched 2026-11-22. The dependency of Stories 27.10 and 27.11 (Story 26.5) is on main since PR #348.

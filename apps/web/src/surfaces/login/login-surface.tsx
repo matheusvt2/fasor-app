@@ -1,14 +1,13 @@
 import { PRODUTO } from '@app/domain';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { Button as AriaButton } from 'react-aria-components';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { SignInFailure } from '../../api/auth-client.ts';
 import { readLastSession } from '../../state/last-session.ts';
 import { useSession } from '../../state/session.tsx';
+import { emailIssue } from './email-check.ts';
 import './login.css';
-
-/** Something shaped like an address: text, one "@", a dot in the domain part. */
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface FieldErrors {
   email: string | null;
@@ -19,9 +18,8 @@ const NO_FIELD_ERRORS: FieldErrors = { email: null, password: null };
 
 /** The device's own check, before anything is sent: nothing empty, an e-mail with a shape. */
 export function validateLogin(email: string, password: string): FieldErrors {
-  const trimmed = email.trim();
   return {
-    email: trimmed === '' ? copy.login.emailRequired : EMAIL_SHAPE.test(trimmed) ? null : copy.login.emailInvalid,
+    email: emailIssue(email),
     password: password === '' ? copy.login.passwordRequired : null,
   };
 }
@@ -38,8 +36,14 @@ export function validateLogin(email: string, password: string): FieldErrors {
  * caught here and named under that field, with no request sent; the server rejecting the
  * pair is "E-mail ou senha incorretos." under the password; a server that does not answer is its own
  * sentence and marks no field, because nothing typed was wrong.
+ *
+ * Story 26.6 (`10-login.html`): "Esqueci minha senha" under "Entrar" opens the request page with
+ * the typed e-mail (`onForgot`, the route owns the navigation); `notice` is the line a set-password
+ * page carries here ("Senha criada…"). Story 26.11 (`12-login-pausada.html`): a paused or removed
+ * account reads "Conta pausada. Fale com o administrador." in the wrong-password line's place,
+ * marking no field; the fields keep their values and nothing on the device is touched.
  */
-export function LoginSurface() {
+export function LoginSurface({ notice = null, onForgot }: { notice?: string | null; onForgot?: (email: string) => void } = {}) {
   const session = useSession();
   const titleId = useId();
   const emailLabelId = useId();
@@ -67,8 +71,11 @@ export function LoginSurface() {
   // incorreta", the server being down) is not shown beside it.
   const shownFailure = offline ? null : failure;
   const wrongPair = shownFailure?.reason === 'credentials';
-  const passwordMessage = fieldErrors.password ?? (wrongPair ? shownFailure.message : null);
-  const formMessage = shownFailure !== null && !wrongPair ? shownFailure.message : null;
+  // Story 26.11: the paused line sits under the password, where the wrong-password one does, but marks no field.
+  const inactive = shownFailure?.reason === 'inactive';
+  const passwordInvalid = fieldErrors.password ?? (wrongPair ? shownFailure.message : null);
+  const passwordMessage = passwordInvalid ?? (inactive ? shownFailure.message : null);
+  const formMessage = shownFailure !== null && !wrongPair && !inactive ? shownFailure.message : null;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,6 +105,12 @@ export function LoginSurface() {
           <h1 className="login-wordmark" id={titleId}>
             {PRODUTO}
           </h1>
+
+          {notice === null ? null : (
+            <p className="login-notice" role="status">
+              {notice}
+            </p>
+          )}
 
           {offline ? (
             <p className="login-offline" role="status">
@@ -135,7 +148,7 @@ export function LoginSurface() {
             <span className="field-label" id={passwordLabelId}>
               {copy.login.passwordLabel}
             </span>
-            <div className={passwordMessage === null ? 'input' : 'input is-invalid'}>
+            <div className={passwordInvalid === null ? 'input' : 'input is-invalid'}>
               <input
                 ref={passwordRef}
                 className="grow"
@@ -143,7 +156,7 @@ export function LoginSurface() {
                 name="password"
                 autoComplete="current-password"
                 aria-labelledby={passwordLabelId}
-                aria-invalid={passwordMessage === null ? undefined : true}
+                aria-invalid={passwordInvalid === null ? undefined : true}
                 aria-describedby={passwordMessage === null ? undefined : passwordErrorId}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -179,6 +192,11 @@ export function LoginSurface() {
           >
             {submitting ? copy.login.signingIn : copy.login.submit}
           </Button>
+          {onForgot === undefined ? null : (
+            <AriaButton type="button" className="btn btn-text login-forgot" onPress={() => onForgot(email.trim())}>
+              {copy.login.forgot}
+            </AriaButton>
+          )}
 
           <p className="login-foot">{copy.login.foot}</p>
         </form>

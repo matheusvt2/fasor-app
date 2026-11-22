@@ -749,7 +749,7 @@ describe('Home: empty state and shortcuts', () => {
     await waitFor(() => expect(screen.getByText('1 template')).toBeVisible());
     expect(screen.getByText('Empresa · Clientes · Instrumentos · Fabricantes · Frases de NC · Classes de tensão · Critérios')).toBeVisible();
     const row = container.querySelector('.shortcut-row')!;
-    expect(row.querySelectorAll('.shortcut-card')).toHaveLength(2);
+    expect(row.querySelectorAll('.shortcut-card')).toHaveLength(3);
     expect(row.querySelectorAll('.sync-badge')).toHaveLength(0);
     // Templates opens the Templates surface (Story 3.2); Cadastros the Registries surface (Story 2.1).
     const templates = screen.getByText('Templates').closest('.shortcut-card')!;

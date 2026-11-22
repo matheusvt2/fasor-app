@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { BANNER_PRIORITY, BannerSlot, bannerCandidates, pickBanner, type Banner } from './banner-slot.tsx';
+import { BANNER_PRIORITY, BannerSlot, bannerCandidates, pickBanner, SLOT_PRIORITY, type Banner } from './banner-slot.tsx';
 
 /*
  * Test 1.6-UNIT-002, second half (AR-27, UX-DR11): the seven-kind order, one banner at
@@ -153,5 +153,42 @@ describe('BannerSlot', () => {
   it('renders nothing when there is no candidate', () => {
     const { container } = render(<BannerSlot banners={[]} onOpenSync={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('26.11 the paused banner (frame 94-conta-pausada.html, #slot-paused)', () => {
+  const PAUSED_TEXT = 'Conta pausada. O que você preencher fica salvo neste aparelho e é enviado quando o administrador reativar a sua conta.';
+
+  it('leads the slot before every kind of the spine list', () => {
+    expect([...SLOT_PRIORITY]).toEqual(['paused', ...BANNER_PRIORITY]);
+    expect(pickBanner([...BANNER_PRIORITY.map(banner), banner('paused')])?.kind).toBe('paused');
+  });
+
+  it('replaces the session banner when the cause is a pause: the frame words, no action, role status', () => {
+    const candidates = bannerCandidates({ reAuthRequired: true, reAuthCause: 'paused', online: true, reAuthAction: <button type="button">Entrar de novo</button> });
+    expect(candidates).toEqual([{ kind: 'paused', variant: 'warning', role: 'status', text: PAUSED_TEXT }]);
+    expect(candidates.map((b) => b.kind)).not.toContain('re-auth');
+  });
+
+  it('an ended session (or no cause) keeps the session banner', () => {
+    expect(bannerCandidates({ reAuthRequired: true, reAuthCause: 'expired', online: true }).map((b) => b.kind)).toEqual(['re-auth']);
+    expect(bannerCandidates({ reAuthRequired: true, reAuthCause: null, online: true }).map((b) => b.kind)).toEqual(['re-auth']);
+    expect(bannerCandidates({ reAuthRequired: false, reAuthCause: 'paused', online: true })).toEqual([]);
+  });
+
+  it('offline beside it is counted, and the paused banner keeps the slot', () => {
+    const candidates = bannerCandidates({ reAuthRequired: true, reAuthCause: 'paused', online: false });
+    expect(candidates.map((b) => b.kind)).toEqual(['paused', 'offline']);
+    expect(pickBanner(candidates)?.kind).toBe('paused');
+  });
+
+  it('renders as a status line with no action, over a conflict', () => {
+    const conflict: Banner = { kind: 'conflict', variant: 'conflict', role: 'alert', text: 'conflito' };
+    render(<BannerSlot banners={[conflict, ...bannerCandidates({ reAuthRequired: true, reAuthCause: 'paused', online: true })]} onOpenSync={vi.fn()} />);
+    const slot = document.querySelector('.banner-slot > .banner');
+    expect(slot).toHaveAttribute('data-banner', 'paused');
+    expect(screen.getByRole('status')).toHaveTextContent(PAUSED_TEXT);
+    expect(document.querySelector('.banner-actions')).toBeNull();
+    expect(screen.getByRole('button', { name: '+1, outra condição — abrir status de sincronização' })).toBeVisible();
   });
 });

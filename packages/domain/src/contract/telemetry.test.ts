@@ -83,6 +83,7 @@ describe('usage events contract (Epic 18, AD-28)', () => {
       'cadastros',
       'sync',
       'account',
+      'usuarios',
       'recovery',
       'update',
       'other',

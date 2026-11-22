@@ -117,6 +117,8 @@ export function AppShell() {
 
   const banners = bannerCandidates({
     reAuthRequired: session.reAuthRequired,
+    // Story 26.11: a paused account shows its own banner in place of the session one.
+    reAuthCause: session.reAuthCause ?? null,
     online: sync.online,
     unsyncedForDays: unsyncedForDays(oldest, now()),
     storage,
