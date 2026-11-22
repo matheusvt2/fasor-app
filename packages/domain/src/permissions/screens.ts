@@ -28,3 +28,13 @@ export function permissionForScreen(pathname: string): PermissionNeed {
   for (const [pattern, need] of SCREENS) if (pattern.test(path)) return need;
   return 'none';
 }
+
+/**
+ * Story 26.10: the screens that open with no role at all, because they are how a user reads the device's own
+ * state (Conta, Sync status) or are not behind the session (Login). Every other screen, Home included, waits for
+ * the role (`ROLE_UNKNOWN_TEXT` while offline).
+ */
+export function screenNeedsKnownRole(pathname: string): boolean {
+  const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  return !/^\/(account|sync|login|__fixture\/.+)$/.test(path);
+}

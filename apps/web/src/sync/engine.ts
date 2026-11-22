@@ -164,6 +164,13 @@ export interface SyncEngine {
    * the retried upload never waits for the 60 s tick (test-speed batch, 2026-09-27).
    */
   retryUpload(fileId: string): Promise<CycleResult>;
+  /**
+   * Story 26.10 (the sign-in's first pull): the company stream alone, to its head, with no push,
+   * upload or relatório pull, so the user's own row and role row are on the device before the app
+   * opens. `busy` while a cycle runs, `offline` with no network; a failure is recorded and ends it
+   * (the later cycle carries on). Never rejects.
+   */
+  pullCompany(): Promise<CycleResult>;
   start(): void;
   /**
    * E6-Q14: new work was committed (a photo captured or imported). Online, a cycle runs
@@ -977,6 +984,26 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     return result;
   }
 
+  async function pullCompanyOnly(): Promise<CycleResult> {
+    if (status.running) return 'busy';
+    if (status.paused || stopped) return 'paused';
+    if (!deps.isOnline()) return 'offline';
+    status.running = true;
+    emit();
+    try {
+      await runPhase(async () => {
+        await pullStream(COMPANY_STREAM, (since) => deps.client.pullCompany(since));
+      });
+    } catch (error) {
+      console.error('company pull failed', error);
+      recordFailure({ kind: 'apply' });
+    } finally {
+      status.running = false;
+      emit();
+    }
+    return 'ran';
+  }
+
   async function retryUpload(fileId: string): Promise<CycleResult> {
     await clearUploadError(deps.db, fileId);
     return runFreshCycle();
@@ -988,6 +1015,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     syncRelatorio: (relatorioId) => guarded(() => syncRelatorio(relatorioId)),
     syncProject: (projectId) => guarded(() => syncProject(projectId)),
     retryUpload: (fileId) => guarded(() => retryUpload(fileId)),
+    pullCompany: () => guarded(pullCompanyOnly),
     start() {
       if (started) return;
       started = true;

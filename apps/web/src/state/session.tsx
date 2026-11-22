@@ -26,6 +26,7 @@ import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
 import { localUser, unsentRegistration, type UnsentRegistration } from '../db/sync-store.ts';
 import { databaseExists, databaseName, deleteDatabase, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { newId } from '../ids.ts';
+import { firstCompanyPull } from '../sync/first-pull.ts';
 import { flushTelemetry } from '../telemetry/flush.ts';
 import { configureTelemetry } from '../telemetry/track.ts';
 import { clearUserStorage } from './user-storage.ts';
@@ -382,6 +383,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // The form path never raises the recovery screen: a first sign-in always comes
         // through here, and a fresh database is then exactly what is expected.
         await attachDatabase(result.user.id);
+        // Story 26.10: the first company pull finishes before the user leaves Login (his own row and his
+        // role row reach the device), inside Login's busy state and bounded; a pull that cannot finish
+        // never stops the sign-in.
+        if (databaseRef.current !== null) await firstCompanyPull(databaseRef.current);
         // Story 20.11: a wipe a sign-out left pending for this user's database ran before
         // this open (IndexedDB queues the open behind the delete); the next boot must not
         // delete the database this sign-in just opened.

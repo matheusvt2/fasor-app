@@ -1,4 +1,4 @@
-import { can as roleCan, permissionForScreen, permissionRefusalText, PRODUTO, SCREEN_UNAVAILABLE_TEXT, type PermissionKey, type PermissionNeed, type RoleRow } from '@app/domain';
+import { can as roleCan, permissionForScreen, permissionRefusalText, PRODUTO, ROLE_UNKNOWN_TEXT, SCREEN_UNAVAILABLE_TEXT, screenNeedsKnownRole, type PermissionKey, type PermissionNeed, type RoleRow } from '@app/domain';
 import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { LoadingNote } from '../components/index.ts';
@@ -23,6 +23,11 @@ import { useToast } from './toast.tsx';
 export interface PermissionsState {
   status: 'loading' | 'ready';
   role: RoleRow | null;
+  /**
+   * Story 26.10: the device is offline and does not hold the user's own role (a first sign-in cut off
+   * before its company pull): no key is held, and a screen says so instead of drawing an empty one.
+   */
+  unknownOffline: boolean;
   /** Whether the role holds the key; false while loading. */
   can: (key: PermissionKey) => boolean;
 }
@@ -50,8 +55,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const status = permissionsStatus(role, cycled || sync.lastResult !== null, session.online);
   const held = role ?? null;
   const value = useMemo<PermissionsState>(
-    () => ({ status, role: held, can: (key) => status === 'ready' && roleCan(held, key) }),
-    [status, held],
+    () => ({ status, role: held, unknownOffline: status === 'ready' && held === null && !session.online, can: (key) => status === 'ready' && roleCan(held, key) }),
+    [status, held, session.online],
   );
   return <PermissionsContext value={value}>{children}</PermissionsContext>;
 }
@@ -61,7 +66,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
  * mounts `PermissionsProvider`). `role` null holds no key.
  */
 export function PermissionsFixture({ role, children }: { role: RoleRow | null; children: ReactNode }) {
-  const value = useMemo<PermissionsState>(() => ({ status: 'ready', role, can: (key) => roleCan(role, key) }), [role]);
+  const value = useMemo<PermissionsState>(() => ({ status: 'ready', role, unknownOffline: false, can: (key) => roleCan(role, key) }), [role]);
   return <PermissionsContext value={value}>{children}</PermissionsContext>;
 }
 
@@ -121,6 +126,18 @@ export function RequirePermission({ need, children }: { need?: PermissionNeed; c
     );
   }
   if (refused) return <Refused pathname={pathname} />;
+  // Story 26.10: offline with no role on the device, no screen is drawn empty.
+  if (permissions !== null && permissions.unknownOffline && screenNeedsKnownRole(pathname)) {
+    return (
+      <main className="screen">
+        <div className="content">
+          <p className="section-note" role="status">
+            {ROLE_UNKNOWN_TEXT}
+          </p>
+        </div>
+      </main>
+    );
+  }
   return children === undefined ? <Outlet /> : <>{children}</>;
 }
 
