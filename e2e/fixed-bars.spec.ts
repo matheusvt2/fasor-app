@@ -1,4 +1,14 @@
+import { DOCX_MIME, makeOp, objectKey, PDF_MIME, permissionRefusalText, SERVER_DEVICE_ID, toIso, type OpInput, type RevisionRow } from '@app/domain';
 import type { Page } from '@playwright/test';
+import { loadConfig } from '../apps/api/src/config.ts';
+import { seedRoleUser } from '../apps/api/src/db/seed.ts';
+import { workerRoleUser } from '../apps/api/src/db/e2e-worker-seed.ts';
+import { newId } from '../apps/api/src/ids.ts';
+import { createS3, putObject } from '../apps/api/src/storage/s3.ts';
+import { downloadBytes, downloadFrom } from './support/download.ts';
+import { applyAsServer, pushStatusAsServer } from './support/push-server-ops.ts';
+import { withSeedDb } from './support/reset-empresa-b.ts';
+import { waitForCompanyPull } from './support/sync.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -18,7 +28,8 @@ import { copy } from '../apps/web/src/copy/pt-br.ts';
  * 1280 and 768 px the foot is as before (its three buttons); at 390x844 the foot shows "Gerar relatório" alone, the
  * content keeps at least half the screen, and the header menu holds "Pré-visualizar" and "Marcar como enviado ao
  * cliente", which issues (the outbox holds the `emitido` put); offline the menu's "Pré-visualizar" is disabled
- * with its reason. No width scrolls sideways. It measures the layout, so it runs in the `solo` lane.
+ * with its reason. No width scrolls sideways. 27.11-E2E-002: the same phone Sumário of an Emitido relatório opened by the
+ * Consulta (no `relatorio.issue`), with its banner and the issued files. It measures the layout, so it runs in the `solo` lane.
  */
 
 let account: SeedAccount;
@@ -49,6 +60,31 @@ interface OutboxOp {
   relatorio_id: string | null;
 }
 const outbox = (page: Page) => readStore<OutboxOp>(page, database, 'outbox');
+
+/** Revision 1 of `relatorioId` as the generate job leaves it, its two files stored (small stand-ins, no generation; the e26r recipe of `roles-screens.spec.ts`). */
+async function storedRevision(owner: { companyId: string; userId: string }, relatorioId: string, pdf: Buffer): Promise<void> {
+  const config = loadConfig();
+  const s3 = createS3(config);
+  const at = new Date();
+  const row: RevisionRow = { id: newId(), relatorio_id: relatorioId, number: 1, snapshot_seq: 0, created_by: owner.userId, docx_file_id: newId(), pdf_file_id: newId(), created_at: toIso(at) };
+  await putObject(s3, config.S3_BUCKET, objectKey(owner.companyId, 'pdf', row.pdf_file_id), pdf, PDF_MIME);
+  await putObject(s3, config.S3_BUCKET, objectKey(owner.companyId, 'docx', row.docx_file_id), Buffer.from('PK e27c'), DOCX_MIME);
+  const input: OpInput = {
+    kind: 'create',
+    scope: 'relatorio',
+    company_id: owner.companyId,
+    project_id: null,
+    relatorio_id: relatorioId,
+    path: `revision/${row.id}`,
+    value: row as never,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: 'system:generate',
+    device_id: SERVER_DEVICE_ID,
+  };
+  await applyAsServer(owner.companyId, [makeOp(input, { newId, now: at })]);
+}
 
 /** The checklist rows' item keys in order, and the first one with no result checked (null when every row has one). */
 async function checklistState(page: Page): Promise<{ keys: string[]; unanswered: string[]; firstUnanswered: string | null }> {
@@ -206,4 +242,56 @@ test('@p0 27.11-E2E-001 the fixed bars leave room for the work: no bulk bar in t
   await expect(offline).toContainText(copy.export.offlineReason);
   await page.keyboard.press('Escape');
   await context.setOffline(false);
+});
+
+test('@p0 27.11-E2E-002 at 390x844 an Emitido relatório opened by the Consulta (no `relatorio.issue`): its banner and the issued files shown, the content at least half the screen, the moved actions disabled with the role\'s reason, the files reachable', async ({ page, seed }) => {
+  test.setTimeout(150_000);
+  const fixture = await resetEmpresaBWithFixture(account);
+  const pdf = Buffer.from('%PDF-1.4\n% e27c stand-in of an issued revision\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n', 'latin1');
+  await storedRevision(account, fixture.relatorioId, pdf);
+  await pushStatusAsServer(account, fixture.relatorioId, 'emitido');
+  await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'consulta'));
+  const consulta = workerRoleUser(seed.index, 'consulta');
+  await page.setViewportSize(WIDTHS[0]);
+  await signIn(page, consulta.email);
+  await waitForCompanyPull(page, deviceDatabaseName(consulta.userId));
+
+  await page.goto(`/relatorio/${fixture.relatorioId}`);
+  await expect(sumarioList(page)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Emitido');
+  const issued = page.locator('.revision-row');
+  await expect(issued).toBeAttached({ timeout: 30_000 });
+  await expect(page.locator('.banner-slot .banner').first()).toBeVisible();
+
+  // One foot button, the content at least half the screen under the App bar and the banner.
+  await expect(bar(page).getByRole('button')).toHaveCount(1);
+  await expect(bar(page).getByRole('button', { name: 'Gerar relatório' })).toHaveAttribute('aria-disabled', 'true');
+  const boxes = await sumarioBoxes(page);
+  const readOnly = await page.locator('.fc-banner').count();
+  console.log(`MEASURE 27.11 sumario-consulta-emitido 390x844 ${JSON.stringify({ ...boxes, fcBanner: readOnly })}`);
+  expect(boxes.content, JSON.stringify(boxes)).toBeGreaterThanOrEqual(boxes.viewport / 2);
+  expect(boxes.footTop + boxes.foot).toBeLessThanOrEqual(boxes.viewport + 1);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+
+  // The phone menu: the moved action disabled with the role's reason; no "Marcar como enviado ao cliente" on an Emitido relatório.
+  await headerTrigger(page).click();
+  const menu = page.getByRole('menu');
+  const previewItem = menu.getByRole('menuitem', { name: 'Pré-visualizar' });
+  await expect(previewItem).toHaveAttribute('aria-disabled', 'true');
+  await expect(previewItem).toContainText(permissionRefusalText('relatorio.issue'));
+  await expect(menu.getByRole('menuitem', { name: MARK_SENT })).toHaveCount(0);
+  const menuBox = (await menu.boundingBox())!;
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(390);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  // The issued files: scrolled to and pressed above the foot, the PDF downloaded as stored.
+  await issued.scrollIntoViewIfNeeded();
+  const fileBox = (await issued.boundingBox())!;
+  const footTop = await bar(page).evaluate((element) => element.getBoundingClientRect().top);
+  expect(fileBox.y + fileBox.height).toBeLessThanOrEqual(footTop + 1);
+  const download = await downloadFrom(page, () => issued.locator('.rev-files').getByRole('button', { name: 'PDF' }).click());
+  expect(download.suggestedFilename()).toBe('relatorio-rev-1.pdf');
+  expect((await downloadBytes(download)).byteLength).toBe(pdf.byteLength);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
