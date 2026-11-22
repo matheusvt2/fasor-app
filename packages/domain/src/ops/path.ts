@@ -11,6 +11,7 @@ import {
   type RegistryKind,
 } from '../schemas/entities.ts';
 import { SITE_ITEM_KEYS, siteItemKeySchema } from '../schemas/block-config.ts';
+import { ROLE_FIELDS } from '../permissions/roles.ts';
 
 /*
  * AD-3: `OpPath` is a discriminated union of families, read and written only
@@ -94,7 +95,10 @@ const TEMPLATE_FIELDS = mutableKeys(entityKeys('template'));
 // `user.email` is identity-owned: better-auth writes it, never an op (AD-9). It is
 // immutable for the `user` entity alone -- the Empresa registry's own `email` is a
 // contact field a device edits like any other (Story 2.3).
-const USER_FIELDS = mutableKeys(entityKeys('user'), ['email']);
+// Story 26.2 (contract 55, AD-29): `role_id` and `status` are not profile fields: each has its own
+// server-only family (`user/role_id`, `user/status`), so a client put naming either parses to it and
+// is refused `op_server_only`.
+const USER_FIELDS = mutableKeys(entityKeys('user'), ['email', 'role_id', 'status']);
 
 /**
  * Story 14.12 (contract 23): the keys of a registry kind a `registry/{kind}/{id}/{field}` put may
@@ -204,6 +208,11 @@ export const opPathSchema = z.discriminatedUnion('family', [
   // Story 25.14 (contract 54): a row the technician adds to a measurement test, and one cell of it.
   z.object({ family: z.literal('sheet/test/row'), block_id: uuidV7Schema, test_key: seedKey, row_id: uuidV7Schema, field: z.enum(ADDED_ROW_FIELDS) }),
   z.object({ family: z.literal('sheet/test/row/cell'), block_id: uuidV7Schema, test_key: seedKey, row_id: uuidV7Schema, col: cellIndex }),
+  // Story 26.2 (contract 55, AD-29): roles and a user's role and status, all server-only.
+  z.object({ family: z.literal('role'), id: uuidV7Schema }),
+  z.object({ family: z.literal('role/field'), id: uuidV7Schema, field: z.enum(ROLE_FIELDS) }),
+  z.object({ family: z.literal('user/role_id'), id: uuidV7Schema, field: z.literal('role_id') }),
+  z.object({ family: z.literal('user/status'), id: uuidV7Schema, field: z.literal('status') }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -420,6 +429,16 @@ export const FAMILIES: readonly FamilyDef[] = [
     entity: 'block',
     segments: [lit('sheet'), id('block_id'), lit('test'), key('test_key'), lit('row'), id('row_id'), lit('cell'), int('col')],
   },
+  // Story 26.2 (2026-11-21, contract 55, AD-29): a company role (`role/{id}` its create,
+  // `role/{id}/{name|permissions|removed_at}` its puts) and a user's role and status
+  // (`user/{id}/role_id`, `user/{id}/status`). All four are server-only: the Admin's online routes
+  // (Stories 26.8, 26.10), the seed and the migration write them with actor `system:admin`, and
+  // every device gets them by the company pull. `role_id` and `status` are not in `USER_FIELDS`,
+  // so `user/{id}/role_id` never parses as a profile field.
+  { family: 'role', entity: 'role', create: true, serverOnly: true, segments: [lit('role'), id()] },
+  { family: 'role/field', entity: 'role', serverOnly: true, segments: [lit('role'), id(), en(ROLE_FIELDS)] },
+  { family: 'user/role_id', entity: 'user', serverOnly: true, segments: [lit('user'), id(), en(['role_id'])] },
+  { family: 'user/status', entity: 'user', serverOnly: true, segments: [lit('user'), id(), en(['status'])] },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));
@@ -652,3 +671,8 @@ export const userFieldPath = (id: string, field: string): string => formatPath({
 export const equipmentTypePath = (id: string): string => formatPath({ family: 'equipment_type', id });
 export const equipmentTypeFieldPath = (id: string, field: (typeof EQUIPMENT_TYPE_FIELDS)[number]): string => formatPath({ family: 'equipment_type/field', id, field });
 export const equipmentTypeVersionPath = (id: string): string => formatPath({ family: 'equipment_type_version', id });
+/** Story 26.2 (server-only): a company role's create and its puts, and a user's role and status. */
+export const rolePath = (id: string): string => formatPath({ family: 'role', id });
+export const roleFieldPath = (id: string, field: (typeof ROLE_FIELDS)[number]): string => formatPath({ family: 'role/field', id, field });
+export const userRolePath = (id: string): string => formatPath({ family: 'user/role_id', id, field: 'role_id' });
+export const userStatusPath = (id: string): string => formatPath({ family: 'user/status', id, field: 'status' });

@@ -1,0 +1,424 @@
+<style data-screen="usuarios">
+/* 2026-11-21, Story 26.1 (Epic 26) for Stories 26.9 and 26.8: the Usuários screen, first tab. Reached by the Home shortcut "Usuários" and the
+   route /usuarios, both only with users.manage. Signed in as Bruno, the company's only Admin. Sample people and addresses are invented.
+   Built from existing components: Tabs (the second tab is its own route, 93-papeis.html), Filter chips (Situação), the Combobox (Papel),
+   Registry rows with the Avatar, the Status pill, the Overflow menu, the Form dialog of "Novo relatório" (30-project.html) and the Confirm
+   dialog. No new component. Page CSS on existing tokens:
+   - the user status pill: Ativo = conforme (as Emitido), Convite pendente = primary (as Em campo), Pausado = fora-do-limite (as Em revisão),
+     Removido = ink-secondary with a dashed border. The word always carries the state.
+   - a Filter chip is drawn as role="radio" in a radiogroup, so the pressed look of components.css (.chip[aria-pressed="true"]) is mirrored
+     for aria-checked, as AGENTS.md "On states" asks.
+   - the Situação filter hides rows with :has(); "Todos" hides the removed ones (removed users sit behind the filter). The Papel filter is
+     drawn, not simulated.
+   - an Option row's radio dot follows .is-selected (mirrors .radio.is-on).
+   Governs: EXPERIENCE.md § IA › Usuários; § Component Patterns › Registry row, Filter chip, Form dialog, Confirm dialog; § State Patterns ›
+   A module the role lacks, A control the role lacks, Users offline (2026-11-21). */
+[data-route="/usuarios"] .tab { text-decoration: none; }
+[data-route="/usuarios"] .usr-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+[data-route="/usuarios"] .usr-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.frame-phone [data-route="/usuarios"] .usr-head .btn { width: 100%; }
+[data-route="/usuarios"] .usr-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-4); }
+[data-route="/usuarios"] .usr-filters .usr-f-status { flex: 1 1 420px; min-width: 0; }
+[data-route="/usuarios"] .usr-filters .usr-f-role { flex: 0 1 280px; min-width: 0; position: relative; }
+.frame-phone [data-route="/usuarios"] .usr-filters .usr-f-role { flex-basis: 100%; }
+[data-route="/usuarios"] .chip[role="radio"] { cursor: pointer; }
+[data-route="/usuarios"] .chip[role="radio"][aria-checked="true"] { background: var(--focus-fill); border-color: var(--primary); color: var(--primary); }   /* mirrors components.css .chip[aria-pressed="true"] */
+[data-route="/usuarios"] .combobox-list { list-style: none; margin: var(--sp-1) 0 0; padding: 0; }
+[data-route="/usuarios"] .combobox-option[role="option"] { cursor: pointer; }
+[data-route="/usuarios"] .usr-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/usuarios"] .usr-row { padding-left: var(--sp-1); }
+[data-route="/usuarios"] .usr-row .rr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/usuarios"] .usr-row .rr-primary { font-weight: 600; }
+[data-route="/usuarios"] .usr-row .rr-secondary { overflow-wrap: anywhere; }
+[data-route="/usuarios"] .usr-row .usr-you { font-weight: 400; color: var(--ink-secondary); }
+[data-route="/usuarios"] .usr-row .avatar { flex: none; }
+[data-route="/usuarios"] .usr-row .usr-state { flex: none; }
+[data-route="/usuarios"] .usr-row[data-status="removido"] .avatar { background: var(--surface-sunken); color: var(--ink-secondary); }
+.frame-phone [data-route="/usuarios"] .usr-row { flex-wrap: wrap; row-gap: 0; }
+.frame-phone [data-route="/usuarios"] .usr-row .rr-text { flex: 1 1 0; }
+.frame-phone [data-route="/usuarios"] .usr-row .usr-state { order: 5; flex-basis: 100%; padding: 0 0 var(--sp-1) 48px; }
+/* the user status words (Status pill, page CSS on existing tokens) */
+[data-route="/usuarios"] .status-pill[data-status="ativo"] { color: var(--conforme); }
+[data-route="/usuarios"] .status-pill[data-status="convite"] { color: var(--primary); }
+[data-route="/usuarios"] .status-pill[data-status="pausado"] { color: var(--fora-do-limite); }
+[data-route="/usuarios"] .status-pill[data-status="removido"] { color: var(--ink-secondary); border-style: dashed; }
+/* Situação filter: "Todos" hides the removed; every other chip keeps only its status */
+[data-route="/usuarios"] .usr-root:has(#usr-f-todos[aria-checked="true"]) .usr-row[data-status="removido"],
+[data-route="/usuarios"] .usr-root:has(#usr-f-ativo[aria-checked="true"]) .usr-row:not([data-status="ativo"]),
+[data-route="/usuarios"] .usr-root:has(#usr-f-convite[aria-checked="true"]) .usr-row:not([data-status="convite"]),
+[data-route="/usuarios"] .usr-root:has(#usr-f-pausado[aria-checked="true"]) .usr-row:not([data-status="pausado"]),
+[data-route="/usuarios"] .usr-root:has(#usr-f-removido[aria-checked="true"]) .usr-row:not([data-status="removido"]) { display: none; }
+[data-route="/usuarios"] .usr-count-removido { display: none; }
+[data-route="/usuarios"] .usr-root:has(#usr-f-removido[aria-checked="true"]) .usr-count-removido { display: inline; }
+[data-route="/usuarios"] .usr-root:has(#usr-f-removido[aria-checked="true"]) .usr-count-main { display: none; }
+/* Empty (prototype: "Simular: nenhum resultado") */
+[data-route="/usuarios"] .usr-empty { display: none; padding: var(--sp-6) var(--sp-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--r-md); }
+[data-route="/usuarios"] .usr-empty p { margin-bottom: var(--sp-2); }
+[data-route="/usuarios"] .usr-root.is-empty .usr-list, [data-route="/usuarios"] .usr-root.is-empty .usr-count { display: none; }
+[data-route="/usuarios"] .usr-root.is-empty .usr-empty { display: block; }
+/* Offline (prototype: "Simular: sem conexão"): the list stays, every action is disabled, one line says why */
+[data-route="/usuarios"] .usr-offline { display: none; margin-bottom: var(--sp-3); }
+[data-route="/usuarios"] .usr-root.is-offline .usr-offline { display: block; }
+[data-route="/usuarios"] .usr-root.is-offline .usr-new, [data-route="/usuarios"] .usr-root.is-offline .usr-row .overflow-trigger { opacity: .4; pointer-events: none; }
+[data-route="/usuarios"] .usr-count { margin: var(--sp-2) 0 0; }
+[data-route="/usuarios"] .sim-foot { margin-top: var(--sp-6); display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+[data-route="/usuarios"] .sim-foot .btn-text { font-size: var(--t-meta-size); }
+/* Dialogs */
+[data-route="/usuarios"] .menu-head { padding: var(--sp-2) var(--sp-4); font-size: var(--t-label-size); font-weight: 600; color: var(--ink-secondary); }
+[data-route="/usuarios"] .form-dialog .option-row { cursor: pointer; min-height: var(--touch-field); padding: var(--sp-2) var(--sp-3); }
+[data-route="/usuarios"] .form-dialog .option-row.is-selected .radio { border-color: var(--primary); }   /* mirrors .radio.is-on */
+[data-route="/usuarios"] .form-dialog .option-row.is-selected .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+[data-route="/usuarios"] .form-dialog .option-row[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+[data-route="/usuarios"] .form-dialog .lr-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/usuarios"] .role-options { display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/usuarios"] .input.is-invalid { border: 2px solid var(--nao-conforme); }   /* mirrors components.css .login-form .input.is-invalid */
+[data-route="/usuarios"] .dialog-banner { margin: 0; }
+.frame-phone [data-route="/usuarios"] .dialog-scrim { padding: 0; align-items: stretch; }
+.frame-phone [data-route="/usuarios"] .form-dialog { border-radius: 0; min-height: 100%; }
+.frame-phone [data-route="/usuarios"] .confirm-dialog { margin: auto var(--sp-4); }
+</style>
+<section class="screen" data-route="/usuarios" data-title="Usuários" data-shell="app" data-rail="false">
+
+  <nav class="tabs" role="tablist" aria-label="Usuários">
+    <a class="tab" role="tab" aria-selected="true" href="#/usuarios">Usuários</a>
+    <a class="tab" role="tab" aria-selected="false" href="#/usuarios/papeis">Papéis e permissões</a>
+  </nav>
+
+  <div class="content usr-root" id="usr-root">
+
+    <div class="usr-head">
+      <h2>Usuários</h2>
+      <button class="btn btn-primary usr-new" data-open="#usr-dlg-novo"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo usuário</button>
+    </div>
+
+    <!-- Offline: the list from the last pull; the actions need the server (Story 26.9) -->
+    <div class="banner usr-offline" data-variant="info" role="status"><span class="banner-text"><strong>Sem conexão.</strong> A lista é a da última sincronização. Criar ou alterar um usuário precisa de conexão.</span></div>
+
+    <div class="usr-filters">
+      <div class="field usr-f-status">
+        <span class="field-label" id="usr-f-st-l">Situação</span>
+        <div class="chip-row" role="radiogroup" aria-labelledby="usr-f-st-l">
+          <button class="chip" role="radio" id="usr-f-todos" aria-checked="true">Todos</button>
+          <button class="chip" role="radio" id="usr-f-ativo" aria-checked="false">Ativo</button>
+          <button class="chip" role="radio" id="usr-f-convite" aria-checked="false">Convite pendente</button>
+          <button class="chip" role="radio" id="usr-f-pausado" aria-checked="false">Pausado</button>
+          <button class="chip" role="radio" id="usr-f-removido" aria-checked="false">Removido</button>
+        </div>
+      </div>
+      <div class="field combobox usr-f-role">
+        <span class="field-label" id="usr-f-role-l">Papel</span>
+        <div class="input" role="combobox" aria-labelledby="usr-f-role-l" aria-expanded="false" aria-controls="usr-f-role-list" data-open="#usr-f-role-list"><span id="usr-f-role-v">Todos os papéis</span></div>
+        <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+        <ul class="combobox-list" id="usr-f-role-list" role="listbox" aria-label="Papel" hidden>
+          <li class="combobox-option" role="option" aria-selected="true" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Todos os papéis">Todos os papéis</li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Admin">Admin</li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Engenheiro de Campo">Engenheiro de Campo</li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Gestor do Projeto">Gestor do Projeto</li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Responsável Técnico">Responsável Técnico</li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Consulta">Consulta</li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#usr-f-role-list" data-set-text="#usr-f-role-v|Estagiário">Estagiário<span class="option-meta">criado pela empresa</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <ul class="usr-list" aria-label="Usuários da empresa">
+      <li class="registry-row usr-row" data-status="ativo">
+        <span class="avatar" aria-hidden="true">B</span>
+        <span class="rr-text"><span class="rr-primary">Bruno Matsui <span class="usr-you">· você</span></span><span class="rr-secondary">bruno@exemplo.com.br</span><span class="rr-secondary">Admin · último acesso hoje 08:12</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="ativo">Ativo</span></span>
+        <button class="overflow-trigger" data-open="#usr-menu-bruno" aria-label="Mais opções de Bruno Matsui"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="ativo">
+        <span class="avatar" aria-hidden="true">R</span>
+        <span class="rr-text"><span class="rr-primary">Rafael Lamonde</span><span class="rr-secondary">rafael@exemplo.com.br</span><span class="rr-secondary">Responsável Técnico · último acesso 19/11 16:40</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="ativo">Ativo</span></span>
+        <button class="overflow-trigger" data-toast="O mesmo menu de Eduardo Prado — não prototipado" aria-label="Mais opções de Rafael Lamonde"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="ativo">
+        <span class="avatar" aria-hidden="true">C</span>
+        <span class="rr-text"><span class="rr-primary">Carla Mendes</span><span class="rr-secondary">carla@exemplo.com.br</span><span class="rr-secondary">Gestor do Projeto · último acesso 20/11 09:05</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="ativo">Ativo</span></span>
+        <button class="overflow-trigger" data-toast="O mesmo menu de Eduardo Prado — não prototipado" aria-label="Mais opções de Carla Mendes"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="ativo">
+        <span class="avatar" aria-hidden="true">E</span>
+        <span class="rr-text"><span class="rr-primary">Eduardo Prado</span><span class="rr-secondary">eduardo@exemplo.com.br</span><span class="rr-secondary">Engenheiro de Campo · último acesso 20/11 17:45</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="ativo">Ativo</span></span>
+        <button class="overflow-trigger" data-open="#usr-menu-eduardo" aria-label="Mais opções de Eduardo Prado"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="ativo">
+        <span class="avatar" aria-hidden="true">M</span>
+        <span class="rr-text"><span class="rr-primary">Marcos Teixeira</span><span class="rr-secondary">marcos@exemplo.com.br</span><span class="rr-secondary">Estagiário · último acesso 18/11 11:20</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="ativo">Ativo</span></span>
+        <button class="overflow-trigger" data-toast="O mesmo menu de Eduardo Prado — não prototipado" aria-label="Mais opções de Marcos Teixeira"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="convite">
+        <span class="avatar" aria-hidden="true">F</span>
+        <span class="rr-text"><span class="rr-primary">Fernanda Rocha</span><span class="rr-secondary">fernanda@exemplo.com.br</span><span class="rr-secondary">Consulta · convite enviado em 20/11, vale até 23/11 10:30</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="convite">Convite pendente</span></span>
+        <button class="overflow-trigger" data-open="#usr-menu-fernanda" aria-label="Mais opções de Fernanda Rocha"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="pausado">
+        <span class="avatar" aria-hidden="true">D</span>
+        <span class="rr-text"><span class="rr-primary">Diego Alves</span><span class="rr-secondary">diego@exemplo.com.br</span><span class="rr-secondary">Engenheiro de Campo · pausado em 15/11 por Bruno Matsui</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="pausado">Pausado</span></span>
+        <button class="overflow-trigger" data-open="#usr-menu-diego" aria-label="Mais opções de Diego Alves"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+      <li class="registry-row usr-row" data-status="removido">
+        <span class="avatar" aria-hidden="true">P</span>
+        <span class="rr-text"><span class="rr-primary">Paulo Nunes</span><span class="rr-secondary">paulo@exemplo.com.br</span><span class="rr-secondary">Engenheiro de Campo · removido em 02/11 por Bruno Matsui</span></span>
+        <span class="usr-state"><span class="status-pill" data-status="removido">Removido</span></span>
+        <button class="overflow-trigger" data-open="#usr-menu-paulo" aria-label="Mais opções de Paulo Nunes"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      </li>
+    </ul>
+    <p class="section-note usr-count"><span class="usr-count-main">7 usuários · 1 removido, no filtro Removido</span><span class="usr-count-removido">1 usuário removido. O nome continua nos relatórios que ele preencheu ou assinou.</span></p>
+
+    <div class="usr-empty" role="status">
+      <p>Nenhum usuário com estes filtros.</p>
+      <button class="btn btn-text" data-toggle-class="is-empty" data-toggle-target="#usr-root">Limpar filtros</button>
+    </div>
+
+    <!-- Prototype only -->
+    <div class="sim-foot">
+      <button class="btn btn-text" data-toggle-class="is-empty" data-toggle-target="#usr-root">Simular: nenhum resultado</button>
+      <button class="btn btn-text" data-toggle-class="is-offline" data-toggle-target="#usr-root">Simular: sem conexão</button>
+      <button class="btn btn-text" data-open="#usr-dlg-novo-dup">Simular: e-mail já cadastrado</button>
+    </div>
+  </div><!-- /content -->
+
+  <!-- ================= Row menus (Overflow menu); the items follow the user's status ================= -->
+  <div class="dialog-scrim" id="usr-menu-eduardo" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de Eduardo Prado">
+      <p class="menu-head" aria-hidden="true">Eduardo Prado · Ativo</p>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-editar">Editar</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-reset">Enviar redefinição de senha</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-pausar">Pausar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-open="#usr-dlg-remover">Remover</button></div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-menu-bruno" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de Bruno Matsui">
+      <p class="menu-head" aria-hidden="true">Bruno Matsui · você</p>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-editar-eu">Editar</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-ultimo-admin">Pausar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-open="#usr-dlg-ultimo-admin">Remover</button></div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-menu-fernanda" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de Fernanda Rocha">
+      <p class="menu-head" aria-hidden="true">Fernanda Rocha · Convite pendente</p>
+      <button class="menu-item" role="menuitem" data-close data-toast="O mesmo diálogo de edição — não prototipado">Editar</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-reenviar">Reenviar convite</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="A mesma confirmação de Remover — não prototipado">Remover</button></div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-menu-diego" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de Diego Alves">
+      <p class="menu-head" aria-hidden="true">Diego Alves · Pausado</p>
+      <button class="menu-item" role="menuitem" data-close data-toast="O mesmo diálogo de edição — não prototipado">Editar</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-reativar">Reativar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="A mesma confirmação de Remover — não prototipado">Remover</button></div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-menu-paulo" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções de Paulo Nunes">
+      <p class="menu-head" aria-hidden="true">Paulo Nunes · Removido</p>
+      <button class="menu-item" role="menuitem" data-close data-open="#usr-dlg-reativar-paulo">Reativar</button>
+    </div>
+  </div>
+
+  <!-- ================= Novo usuário (Form dialog, the shell of "Novo relatório") ================= -->
+  <div class="dialog-scrim" id="usr-dlg-novo" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-novo-title" aria-describedby="usr-novo-desc">
+      <h2 class="dialog-title" id="usr-novo-title">Novo usuário</h2>
+      <p class="t-body" id="usr-novo-desc">A pessoa recebe um e-mail com um link para criar a própria senha. Você nunca vê a senha.</p>
+      <div class="field">
+        <span class="field-label" id="usr-novo-nome-l">Nome</span>
+        <div class="input is-focus" role="textbox" aria-labelledby="usr-novo-nome-l">Fernanda Rocha</div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="usr-novo-email-l">E-mail</span>
+        <div class="input" role="textbox" aria-labelledby="usr-novo-email-l">fernanda@exemplo.com.br</div>
+        <span class="helper">O convite chega neste endereço. O link vale por 72 horas.</span>
+      </div>
+      <div class="field" role="radiogroup" aria-labelledby="usr-novo-papel-l">
+        <span class="field-label" id="usr-novo-papel-l">Papel</span>
+        <div class="role-options">
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Admin<br><span class="lr-meta">Todas as permissões</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Templates · Tipos de equipamento · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Responsável Técnico<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo · Emissão · Cadastros</span></span></div>
+          <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Consulta<br><span class="lr-meta">Relatórios (em parte) · Emissão (em parte)</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Estagiário<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+        </div>
+        <a class="btn btn-text" href="#/usuarios/papeis" style="align-self:flex-start; margin-left: calc(-1 * var(--sp-3))">Ver o que cada papel pode</a>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Convite enviado para fernanda@exemplo.com.br. Vale por 72 horas.">Enviar convite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Novo usuário, the duplicate e-mail refused (Story 26.8's duplicate code); nothing is sent -->
+  <div class="dialog-scrim" id="usr-dlg-novo-dup" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-dup-title">
+      <h2 class="dialog-title" id="usr-dup-title">Novo usuário</h2>
+      <div class="field">
+        <span class="field-label" id="usr-dup-nome-l">Nome</span>
+        <div class="input" role="textbox" aria-labelledby="usr-dup-nome-l">Paulo Nunes</div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="usr-dup-email-l">E-mail</span>
+        <div class="input is-invalid is-focus" role="textbox" aria-labelledby="usr-dup-email-l" aria-invalid="true" aria-describedby="usr-dup-email-h">paulo@exemplo.com.br</div>
+        <span class="helper" data-tone="red" id="usr-dup-email-h" role="alert">Este e-mail já está cadastrado. Se a pessoa foi removida, use Reativar na lista, filtro Removido.</span>
+      </div>
+      <div class="field" role="radiogroup" aria-labelledby="usr-dup-papel-l">
+        <span class="field-label" id="usr-dup-papel-l">Papel</span>
+        <div class="role-options">
+          <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+        </div>
+        <span class="helper">Os outros cinco papéis como no diálogo acima.</span>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" aria-disabled="true" aria-describedby="usr-dup-email-h">Enviar convite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Editar usuário: name and role; the e-mail does not change ================= -->
+  <div class="dialog-scrim" id="usr-dlg-editar" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-ed-title">
+      <h2 class="dialog-title" id="usr-ed-title">Editar usuário</h2>
+      <div class="field">
+        <span class="field-label" id="usr-ed-nome-l">Nome</span>
+        <div class="input" role="textbox" aria-labelledby="usr-ed-nome-l">Eduardo Prado</div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="usr-ed-email-l">E-mail</span>
+        <div class="input is-readonly" aria-labelledby="usr-ed-email-l">eduardo@exemplo.com.br</div>
+        <span class="helper">O e-mail não muda depois do convite.</span>
+      </div>
+      <div class="field" role="radiogroup" aria-labelledby="usr-ed-papel-l">
+        <span class="field-label" id="usr-ed-papel-l">Papel</span>
+        <div class="role-options">
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Admin<br><span class="lr-meta">Todas as permissões</span></span></div>
+          <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Templates · Tipos de equipamento · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Responsável Técnico<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo · Emissão · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Consulta<br><span class="lr-meta">Relatórios (em parte) · Emissão (em parte)</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Estagiário<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Eduardo Prado alterado. O aparelho dele segue o novo papel na próxima sincronização.">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editar usuário, yourself as the only active Admin: the other roles are disabled with the last-Admin sentence -->
+  <div class="dialog-scrim" id="usr-dlg-editar-eu" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-edeu-title">
+      <h2 class="dialog-title" id="usr-edeu-title">Editar usuário</h2>
+      <div class="field">
+        <span class="field-label" id="usr-edeu-nome-l">Nome</span>
+        <div class="input" role="textbox" aria-labelledby="usr-edeu-nome-l">Bruno Matsui</div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="usr-edeu-email-l">E-mail</span>
+        <div class="input is-readonly" aria-labelledby="usr-edeu-email-l">bruno@exemplo.com.br</div>
+        <span class="helper">O e-mail não muda depois do convite.</span>
+      </div>
+      <div class="field" role="radiogroup" aria-labelledby="usr-edeu-papel-l" aria-describedby="usr-edeu-reason">
+        <span class="field-label" id="usr-edeu-papel-l">Papel</span>
+        <div class="banner dialog-banner" role="status" id="usr-edeu-reason"><span class="banner-text">Você é o único Admin ativo. Dê o papel Admin a outra pessoa antes de pausar, remover ou mudar o seu papel.</span></div>
+        <div class="role-options">
+          <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0"><span class="radio" aria-hidden="true"></span><span class="grow">Admin<br><span class="lr-meta">Todas as permissões</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Engenheiro de Campo<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Gestor do Projeto<br><span class="lr-meta">Relatórios · Preenchimento em campo · Emissão (em parte) · Templates · Tipos de equipamento · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Responsável Técnico<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo · Emissão · Cadastros</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Consulta<br><span class="lr-meta">Relatórios (em parte) · Emissão (em parte)</span></span></div>
+          <div class="option-row" role="radio" aria-checked="false" aria-disabled="true" tabindex="-1"><span class="radio" aria-hidden="true"></span><span class="grow">Estagiário<br><span class="lr-meta">Relatórios (em parte) · Preenchimento em campo</span></span></div>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Nome salvo.">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Confirmations (Confirm dialog). Cancel is focused first; the toast says when the change takes effect. ================= -->
+  <div class="dialog-scrim" id="usr-dlg-pausar" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-pa-title" aria-describedby="usr-pa-desc">
+      <h2 class="dialog-title" id="usr-pa-title">Pausar Eduardo Prado?</h2>
+      <p class="t-body" id="usr-pa-desc">Ele não entra mais até ser reativado. O aparelho dele para na próxima vez que falar com o servidor. O que ele ainda não enviou fica guardado no aparelho e é enviado depois da reativação.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Eduardo Prado pausado. O aparelho dele para na próxima vez que falar com o servidor.">Pausar</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-dlg-reativar" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-re-title" aria-describedby="usr-re-desc">
+      <h2 class="dialog-title" id="usr-re-title">Reativar Diego Alves?</h2>
+      <p class="t-body" id="usr-re-desc">Ele volta a entrar com a mesma senha e o mesmo papel, Engenheiro de Campo. O que ficou guardado no aparelho dele é enviado quando ele entrar.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Diego Alves reativado. Ele já pode entrar.">Reativar</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-dlg-reativar-paulo" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-rp-title" aria-describedby="usr-rp-desc">
+      <h2 class="dialog-title" id="usr-rp-title">Reativar Paulo Nunes?</h2>
+      <p class="t-body" id="usr-rp-desc">Ele volta a entrar com a mesma senha e o mesmo papel, Engenheiro de Campo. O que ficou guardado no aparelho dele é enviado quando ele entrar.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Paulo Nunes reativado. Ele já pode entrar.">Reativar</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-dlg-remover" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-rm-title" aria-describedby="usr-rm-desc">
+      <h2 class="dialog-title" id="usr-rm-title">Remover Eduardo Prado?</h2>
+      <p class="t-body" id="usr-rm-desc">Ele perde o acesso. O nome dele continua nos relatórios que preencheu ou assinou. Para trazê-lo de volta, use Reativar no filtro Removido.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-destructive" data-close data-toast="Eduardo Prado removido. O aparelho dele para na próxima vez que falar com o servidor.">Remover</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-dlg-reset" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-rs-title" aria-describedby="usr-rs-desc">
+      <h2 class="dialog-title" id="usr-rs-title">Enviar redefinição de senha?</h2>
+      <p class="t-body" id="usr-rs-desc">Eduardo Prado recebe em eduardo@exemplo.com.br um link para criar uma senha nova. O link vale por 1 hora.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Link enviado para eduardo@exemplo.com.br.">Enviar</button>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-scrim" id="usr-dlg-reenviar" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="usr-rv-title" aria-describedby="usr-rv-desc">
+      <h2 class="dialog-title" id="usr-rv-title">Reenviar convite?</h2>
+      <p class="t-body" id="usr-rv-desc">Fernanda Rocha recebe em fernanda@exemplo.com.br um link novo, que vale por 72 horas. O link anterior deixa de valer.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Convite reenviado para fernanda@exemplo.com.br. Vale por 72 horas.">Reenviar</button>
+      </div>
+    </div>
+  </div>
+  <!-- The last-Admin refusal, for "Pausar" and "Remover" on yourself as the only active Admin -->
+  <div class="dialog-scrim" id="usr-dlg-ultimo-admin" hidden>
+    <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="usr-ua-title" aria-describedby="usr-ua-desc">
+      <h2 class="dialog-title" id="usr-ua-title">Não é possível</h2>
+      <p class="t-body" id="usr-ua-desc">Você é o único Admin ativo. Dê o papel Admin a outra pessoa antes de pausar, remover ou mudar o seu papel.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-primary is-focus-ring" data-close>Entendi</button>
+      </div>
+    </div>
+  </div>
+</section>

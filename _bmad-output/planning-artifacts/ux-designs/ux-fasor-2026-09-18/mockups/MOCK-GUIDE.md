@@ -214,7 +214,7 @@ Matheus's decision on Sally's option B (`_bmad-output/implementation-artifacts/b
 
 ## 2026-11-03 — The product is called Conforme (Epic 20, Story 20.1)
 
-The app shows the name Conforme from the constant `PRODUTO` (`packages/domain/src/product.ts`). The mocks keep drawing the placeholder "PRODUTO": they are drawings, and `tokens.css` and `components.css`, copied byte-identical into the app, keep their "PRODUTO (fasor)" header comments.
+The app shows the name Conforme from the constant `PRODUTO` (`packages/domain/src/product.ts`). ~~The mocks keep drawing the placeholder "PRODUTO": they are drawings,~~ *(2026-11-21, Story 26.1: the static `key-*.html` mocks keep drawing the placeholder "PRODUTO"; the navigable prototype's App bar wordmark, its browser line and the Login wordmark now read "Conforme", because Story 26.1 requires every new frame, the e-mails included, to name the product. The prototype bar's own label "PRODUTO · protótipo" is chrome, not a frame.)* They are drawings, and `tokens.css` and `components.css`, copied byte-identical into the app, keep their "PRODUTO (fasor)" header comments.
 
 ## 2026-11-03 — Home: the search by client and obra (Epic 20, Story 20.2)
 
@@ -360,3 +360,82 @@ Other changes made with them:
 - The Conferência por IA (Story 13.8) is drawn in `73-exportar.html` for the first time, from the build's words.
 - Page CSS only: in `60-ficha.html` `.e25-nm`, `.e25-na`, `.e25-cell`, `.e25-row-head`, `.e25-calc`, `.e25-dim`, `.e25-added`, `.e25-card-added`, `.e25-add-row`, `.e25-thermo` (with `.e25-tm-reason`, `.e25-tm-body`), `.e25-header-param`, `.e25-changed`, `.e25-changed-word`, `.e25-new-item`, `.e25-mt`, and the state `.measurement-field[data-state="na"]`; `.e25-used`, `.e25-unused` (Etapa 4); `.e25-rr-warn`, `.e25-rr-light` (Cadastros); `.e25-base-actions`, `.e25-diff-list` (Templates); `.audit-block`, `.audit-summary` (as the build names them), `.e25-audit-stale`, `.e25-audit-old`, `.e25-rule-word` (Export); `.sum-status .is-blocking` (Sumário). Candidates to promote to `components.css` when the stories are built: the N/A state of the Measurement field, the added row, the "Regra" pill.
 - Not drawn: the conclusion paragraph and section 10 naming every reading on screen (Story 25.10's dated criterion), the paragraph of a Reprovado chosen by hand (Story 25.7), the other two rules' sentences (Story 25.24, the batch writes them), the rise of exactly 50 % (Story 25.8, no new control). Found while checking, older than this story: at 390 px `#/templates` still scrolls sideways by 29 px (the row actions), and at 768 px a table of `#/biblioteca/cta` is 18 px wider than its box (it scrolls inside it). `prototype/index.html` was rebuilt with `build.py` (no warnings).
+
+
+## 2026-11-21 — The Epic 26 frames: users, roles and permissions (Story 26.1)
+
+Source: `epics.md` § Epic 26 (the modules, the twelve keys, the five seeded roles, the rules) and § Story 26.1, with Stories 26.5, 26.6, 26.9, 26.10 and 26.11 for the behaviour each frame serves; Matheus's decisions 1 to 7 of 2026-11-21. Amendments of the same date in `EXPERIENCE.md`: Foundation › Access (the "no roles" and "provisioned outside the app" words struck, the new text beside them), IA › Login, Home, and the new rows Usuários, Set a password, E-mails; Component Patterns › Permissions grid (new); State Patterns, five new rows. `tokens.css` and `components.css` did not change and no color token was added: every new look is page CSS on existing tokens under a dated comment in each fragment's `<style>`. People, e-mail addresses (`@exemplo.com.br`), the company "Exemplo Engenharia" and the role "Estagiário" are **invented sample data**. Each frame is one route of the prototype: check it with the prototype bar at Celular 390, Tablet retrato 768 and Desktop 1280, Claro and Escuro.
+
+### The three rules, in words
+
+1. **A module the user cannot use is hidden.** Its Home shortcut, its menu entries and its route are not rendered. A row of shortcuts with none left is not drawn at all.
+2. **A control inside a screen the user does use is shown disabled, with one line of reason** under or beside it (the `btn-reason` slot), the kernel's refusal text, "Seu papel não permite …". Two disabled controls side by side share one line. It is never hidden: the user learns the action exists and whom to ask.
+3. **A direct address of a hidden screen goes to Home with a Toast**, "Essa tela não está disponível para o seu papel."
+
+What the app hides is a courtesy; the server refuses on its own (Story 26.4).
+
+### Frames
+
+| # | Frame | Route (file) | What it shows | Built by |
+| --- | --- | --- | --- | --- |
+| 1 | Home of the Admin | `#/home` (`20-home.html`) | A third shortcut "Usuários" ("Pessoas, papéis e permissões", `i-users`); the three in one row from 768 px, one per row on a phone | 26.9 |
+| 1 | Home of the Engenheiro de Campo | `#/home/campo` (`21-home-campo.html`, new) | No Atalhos row (he holds none of the three keys); "Novo relatório" disabled with "Seu papel não permite criar relatórios."; the company's list; "Simular: endereço #/templates digitado" shows the Toast of rule 3 | 26.5 |
+| 2 | Usuários, the list | `#/usuarios` (`92-usuarios.html`, new) | Tabs; "Novo usuário"; Filter chips "Situação" (Todos · Ativo · Convite pendente · Pausado · Removido, working: "Todos" leaves the removed out); the Combobox "Papel" (drawn, not simulated); Registry rows with Avatar, name, e-mail, role and last access, the Status pill; the count line | 26.9 |
+| 2 | Usuários, empty | the same, "Simular: nenhum resultado" | "Nenhum usuário com estes filtros." and "Limpar filtros" | 26.9 |
+| 2 | Usuários, offline | the same, "Simular: sem conexão" | The info Banner, "Novo usuário" and the row menus disabled | 26.9 |
+| 2 | The row's menu | the same, ⋯ on Eduardo (Ativo), Fernanda (Convite pendente), Diego (Pausado), Paulo (Removido, under its chip), Bruno (you) | The Overflow menu, items by status, Remover last and red | 26.9 |
+| 3 | User dialog, new | "Novo usuário" (`#usr-dlg-novo`) | The Form dialog of "Novo relatório": Nome, E-mail with the 72-hour helper, Papel as six Option rows each naming the modules it opens, "Ver o que cada papel pode", "Enviar convite" | 26.9 |
+| 3 | User dialog, edit | Eduardo › Editar (`#usr-dlg-editar`) | E-mail read-only with "O e-mail não muda depois do convite." | 26.9 |
+| 3 | Duplicate e-mail | "Simular: e-mail já cadastrado" (`#usr-dlg-novo-dup`) | The red field and helper; "Enviar convite" disabled | 26.8, 26.9 |
+| 3 | Last Admin | Bruno › Editar (`#usr-dlg-editar-eu`); Bruno › Pausar or Remover (`#usr-dlg-ultimo-admin`) | The sentence in a Banner above the roles, the other five disabled; the refusal dialog for pause and remove | 26.8, 26.9 |
+| 4 | Confirmations | Eduardo › Pausar, Remover, Enviar redefinição de senha; Diego and Paulo › Reativar; Fernanda › Reenviar convite | Confirm dialogs, "Cancelar" focused first; each Toast says when the change takes effect | 26.9 |
+| 5 | Papéis e permissões | `#/usuarios/papeis` (`93-papeis.html`, new) | The grid (below); "Relatórios" opened into its three keys; one unsaved change (Engenheiro de Campo · Criar relatório) with its dot and the bar "1 alteração não salva…"; "Salvar alterações" shows the saved line | 26.10 |
+| 5 | Novo papel, rename, remove | "Novo papel" (`#pp-dlg-novo`); the head of "Estagiário" › Renomear, Remover (refused: one user holds it); "Simular: remover um papel que ninguém tem" (`#pp-dlg-remover-ok`); a seeded role's head › "Restaurar permissões padrão" | Form and Confirm dialogs | 26.10 |
+| 6 | "Gerar relatório" disabled | `#/relatorio/porto-seguro/sem-emissao` (`44-sumario-sem-emissao.html`, new) | An excerpt of the Sumário as the Engenheiro de Campo sees it: the rows open, "Pré-visualizar" and "Gerar relatório" disabled with "Seu papel não permite pré-visualizar nem gerar o relatório." | 26.5 |
+| 6b | The read-only ficha *(added 2026-11-21 after the approval, question 10)* | `#/consulta/ficha/DJ-C05` (`62-ficha-consulta.html`, new) | The ficha as the Consulta role sees it: the info Banner "Somente leitura. Seu papel não permite preencher fichas, fotos e pontos." once for the screen; plate, checklist (one NC with its observation), a measurement table and the conclusion in the read-only look of the Não ensaiado sheet; the stepper moves; two photos and one point open; no camera, "Adicionar foto", "Criar ponto de atenção", "Ler visor", chips or Overflow | 26.5 |
+| 7 | Login | `#/login` (`10-login.html`) | "Esqueci minha senha" under "Entrar" | 26.6 |
+| 7 | The request sent | `#/login/esqueci` (`11-login-esqueci.html`, new) | The request, then "Enviar link" shows the same answer for a known or unknown address | 26.6 |
+| 7 | Paused at sign-in | `#/login/pausada` (`12-login-pausada.html`, new) | "Conta pausada. Fale com o administrador." in the wrong-password line's place | 26.11 |
+| 7 | Set a password | `#/definir-senha`, `#/definir-senha/expirado` (`13-`, `14-…html`, new) | The page of the link; the expired or used link | 26.6 |
+| 8 | Paused while working | `#/conta/pausada` (`94-conta-pausada.html`, new) | The shell's new banner `#slot-paused` (leads the slot, no action) over Conta; "Sair" with five unsent changes opens "Sair e apagar o que não foi enviado?" | 26.11 |
+| 9 | The two e-mails | `#/email/convite`, `#/email/redefinicao` (`96-`, `97-…html`, new) | Plain frames: De, Para, Assunto, the body with one button and the link written out; the sender address is a placeholder until Story 26.7 | 26.6 |
+
+### The grid: layout choice
+
+**Roles as columns, modules as rows, a module opening into its keys; on a phone, one role at a time.** Why:
+
+- Seven modules against twelve keys: rows by module keep the table short (seven rows closed) and let the Admin read a role top to bottom, which is how he thinks ("what can a Gestor do?"). Keys show only under an opened module.
+- At 768 px the content box is 720 px. A cell holds only a switch (the 52 px track of "Localização nas fotos", without the "Ativado" word, its name read by the screen reader), so six role columns of about 92 px fit beside a 168 px label column. Measured in a headless browser at 768 px: no horizontal scroll, the head names wrap on two lines ("Responsá-vel Técnico" hyphenates). The modules' line of what they open is hidden at tablet portrait only.
+- On a phone six columns cannot fit, and a horizontal scroll inside a table is what the product avoids (Varredura 2026-09-21). Filter chips "Papel" choose the role; a seventh role adds a chip, never a column. The same choice would serve a tablet if the company created more than two roles beyond the five; with eight or more columns at 768 px the switches no longer fit, and the app should fall back to the phone layout there (coordinator's reading, open to Matheus).
+- A module of several keys gets a module switch with three states (on, off, and a mixed look with "N de M"), the select-all rule: one tap gives or takes the whole module.
+
+### Components
+
+No new component. Reused: Tabs (as links, one route per tab), Filter chips (drawn as `role="radio"`; the pressed look of `.chip[aria-pressed="true"]` is mirrored for `aria-checked`, as AGENTS.md "On states" asks), the Combobox, Registry rows with the Avatar, the Status pill, the Overflow menu, the Toggle of "Localização nas fotos", the Form dialog of "Novo relatório" with Option rows, the Confirm dialog, the Banner and its slot, the Toast, the Sticky action bar with its `btn-reason`, the Login form.
+
+Page CSS only, candidates to promote to `components.css` when Stories 26.9 and 26.10 build them: the user status pill words (`.status-pill[data-status="ativo|convite|pausado|removido"]`: conforme, primary, fora-do-limite, ink-secondary with a dashed border), the mixed state of the Toggle (`.toggle[aria-checked="mixed"]`), the locked Toggle (`.toggle[aria-disabled="true"]`), the unsaved-cell dot (`.pp-cell.is-changed`), the grid itself (`.pp-grid` and its rows). The sprite gains `i-users`, `i-lock`, `i-mail`. The shell's banner slot gains `#slot-paused`, first in priority.
+
+### Other changes made with them
+
+- The prototype shell's wordmark, its browser line and the document title read "Conforme" (see § 2026-11-03 above); `10-login.html`'s e-mail moved to the sample domain.
+- Not drawn here, written in words only: ~~the read-only ficha of a user without `relatorio.fill` (Story 26.5 says "with the look the frames give"; Story 26.1 lists no frame for it, so it is a question for Matheus),~~ *(2026-11-21: drawn after the approval, frame 6b)* the role filter actually filtering, the removal of a relatório disabled, the download disabled in Export, a seeded role's restore confirmation (a Toast), the rename's duplicate-name error.
+- Older frames that still carry the codename in sample data and are not Epic 26 frames: `90-account.html` and `80-cadastros.html` (an e-mail and the company name). Left as they are.
+- `prototype/index.html` was rebuilt with `build.py` (no warnings).
+
+~~**Approval:** pending, Matheus in the browser.~~
+
+### 2026-11-21, after Matheus looked at the frames
+
+- **Approved by Matheus on 2026-11-21** ("aprovado"), with the coordinator's recommendations on the twelve questions of PR #341:
+  1. With eight or more roles the tablet also shows one role at a time (the phone layout); up to seven, every role is a column.
+  2. The module of `template.edit` is named **"Templates"**, the word of its screen and shortcut, not "Modelos" (`epics.md` keeps "Modelos" in its table; this frame wins on the screen word). The grid's module line reads "Templates" / "A lista de templates e o compositor", the key "Editar templates", and the role lines in the user dialog say "Templates".
+  3. A tap on a mixed module switch turns all its keys on (as drawn).
+  4. A new role starts with "Ver relatórios" on; the "Novo papel" helper now says so.
+  5. The duplicate e-mail wording is kept.
+  6. "Reenviar convite" cancels the old link (as drawn).
+  7. A removed user sees the same "Conta pausada. Fale com o administrador." line at Login.
+  8. "Esqueci minha senha" serves an invited user whose link expired; the expired-link page now reads "O link venceu ou já foi usado. Peça um link novo com o seu e-mail: ele serve também para um convite que venceu."
+  9. The sender address stays open with Story 26.7.
+  10. The read-only ficha is drawn (frame 6b above).
+  11. and 12. Kept as drawn: "Sair e apagar" destructive with "Cancelar" first; Pausado in the amber of "Em revisão", Removido grey with a dashed border.
+- Rechecked after the changes at 390, 768 and 1280 px in a headless browser: no horizontal scroll. `prototype/index.html` rebuilt with `build.py` (no warnings).

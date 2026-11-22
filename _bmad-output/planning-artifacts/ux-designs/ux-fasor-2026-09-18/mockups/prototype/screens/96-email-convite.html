@@ -1,0 +1,41 @@
+<style data-screen="email-convite">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.6: the invitation e-mail as a plain frame. Not an app screen: it shows what the message
+   says, in the order a mail program shows it. Plain text plus simple HTML (Story 26.6): one heading line, short paragraphs, one button
+   that is a link, and the same link written out for mail programs that strip buttons. The sender's name is the product; the sender
+   address is set by Story 26.7 and is drawn as a placeholder here. The company name is invented sample data.
+   Page CSS on existing tokens. Governs: EXPERIENCE.md § IA › E-mails; § Voice and Tone (2026-11-21). */
+[data-route="/email/convite"] .mail-stage { flex: 1; padding: var(--sp-6) var(--gutter-tablet); background: var(--surface-base); }
+.frame-phone [data-route="/email/convite"] .mail-stage { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/email/convite"] .mail-kicker { max-width: 600px; margin: 0 auto var(--sp-2); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/email/convite"] .mail { max-width: 600px; margin: 0 auto; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
+[data-route="/email/convite"] .mail-meta { margin: 0; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border-hairline); display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-3); font-size: var(--t-meta-size); }
+[data-route="/email/convite"] .mail-meta dt { color: var(--ink-secondary); }
+[data-route="/email/convite"] .mail-meta dd { margin: 0; overflow-wrap: anywhere; }
+[data-route="/email/convite"] .mail-body { padding: var(--sp-5) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+[data-route="/email/convite"] .mail-brand { font-size: var(--t-heading-size); font-weight: 700; }
+[data-route="/email/convite"] .mail-body .btn { align-self: flex-start; text-decoration: none; }
+.frame-phone [data-route="/email/convite"] .mail-body .btn { align-self: stretch; }
+[data-route="/email/convite"] .mail-link { font-size: var(--t-meta-size); color: var(--ink-secondary); overflow-wrap: anywhere; }
+[data-route="/email/convite"] .mail-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border-hairline); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/email/convite" data-title="E-mail · convite" data-shell="bare" data-rail="false">
+  <div class="mail-stage">
+    <p class="mail-kicker">Frame de e-mail, não é uma tela do aplicativo. Outro e-mail: <a href="#/email/redefinicao">redefinição de senha</a>.</p>
+    <article class="mail" aria-label="E-mail de convite">
+      <dl class="mail-meta">
+        <dt>De</dt><dd>Conforme &lt;nao-responda@⟨domínio da Story 26.7⟩&gt;</dd>
+        <dt>Para</dt><dd>fernanda@exemplo.com.br</dd>
+        <dt>Assunto</dt><dd><strong>Convite para o Conforme</strong></dd>
+      </dl>
+      <div class="mail-body">
+        <p class="mail-brand">Conforme</p>
+        <p>Olá, Fernanda Rocha.</p>
+        <p>Bruno Matsui convidou você para usar o Conforme na empresa Exemplo Engenharia, com o papel Consulta.</p>
+        <a class="btn btn-primary" href="#/definir-senha">Criar minha senha</a>
+        <p>O link vale por 72 horas e só pode ser usado uma vez. Depois de criar a senha, entre com este e-mail, fernanda@exemplo.com.br.</p>
+        <p class="mail-link">Se o botão não abrir, copie este endereço no navegador: https://⟨endereço do aplicativo⟩/definir-senha#⟨código⟩</p>
+      </div>
+      <p class="mail-foot">Você recebeu este e-mail porque alguém da Exemplo Engenharia cadastrou este endereço. Se não esperava o convite, ignore esta mensagem.</p>
+    </article>
+  </div>
+</section>

@@ -1,7 +1,7 @@
 import { makeOp, syncPushResponseSchema } from '@app/domain';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
@@ -9,6 +9,7 @@ import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import type { AppEnv } from '../http/session.ts';
 import { newId } from '../ids.ts';
+import { seedRoleActor, standInRole } from '../db/roles.test-support.ts';
 
 /*
  * Review 2026-09-30, A-15: the push's "last push" stamp (`recordPush`) runs after the ops
@@ -33,10 +34,16 @@ const userId = newId();
 
 const app = new Hono<AppEnv>();
 app.use('*', async (c, next) => {
-  c.set('session', { userId, companyId });
+  // Story 26.4: the stand-in session carries the actor's role, an Admin as every suite's actor.
+  c.set('session', { userId, companyId, role: standInRole(), status: 'active' });
   await next();
 });
 app.route('/', createSyncRoutes(db, { now }));
+
+// Story 26.4: the push reads the actor's role from the company's rows, so the actor gets one (Admin).
+beforeAll(async () => {
+  await seedRoleActor(db, companyId, userId);
+});
 
 afterAll(async () => {
   await db.delete(ops).where(eq(ops.company_id, companyId));

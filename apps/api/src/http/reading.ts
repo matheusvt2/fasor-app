@@ -6,6 +6,7 @@ import {
   type ErrorResponse,
   type NewId,
   type ReadingRereadResponse,
+  permissionForRoute,
 } from '@app/domain';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
@@ -14,7 +15,7 @@ import { findFileRow } from '../db/repositories/files.ts';
 import { readingKindHandler } from '../jobs/reading/kinds/index.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { startReading } from '../jobs/reading/status.ts';
-import { type AppEnv, requireSession } from './session.ts';
+import { type AppEnv, requirePermission } from './session.ts';
 
 /*
  * Story 8.4: `POST /api/photos/{id}/reread` reads an uploaded reading photo again (Story 9.1:
@@ -49,7 +50,8 @@ export function createReadingRoutes(db: Db, deps: ReadingRoutesDeps): Hono<AppEn
   const routes = new Hono<AppEnv>();
 
   routes.post(READING_REREAD_PATH, async (c) => {
-    const session = requireSession(c);
+    // Story 26.4 (AD-29): a reread is a paid run of the issuing step (`relatorio.issue`).
+    const session = requirePermission(c, permissionForRoute('reading.reread'));
     const id = c.req.param('id');
     const record = await findFileRow(db, session.companyId, id);
     if (record === null || record.row.kind !== 'photo') return c.json(notFound, 404);

@@ -13,6 +13,9 @@
 [data-route="/home"] .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
 [data-route="/home"] .section + .section { margin-top: var(--sp-5); }
 .frame-phone [data-route="/home"] .shortcut-row { grid-template-columns: 1fr; }
+/* 2026-11-21, Story 26.1 (Epic 26): a third shortcut, "Usuários", only with users.manage. Three in one row from 768 px; one per row on a phone. */
+[data-route="/home"] .shortcut-row.has-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.frame-phone [data-route="/home"] .shortcut-row.has-3 { grid-template-columns: 1fr; }
 [data-route="/home"] .shortcut-card { min-width: 0; }
 </style>
 <section class="screen" data-route="/home" data-title="Início" data-shell="app" data-rail="false">
@@ -33,9 +36,12 @@
     <!-- Shortcuts -->
     <section class="section" aria-labelledby="home-h-atalhos">
       <h2 id="home-h-atalhos" class="visually-hidden">Atalhos</h2>
-      <div class="shortcut-row">
+      <!-- 2026-11-21, Story 26.1: each shortcut shows only with its key (Templates: template.edit; Cadastros: registry.edit; Usuários: users.manage).
+           This is the Admin's Home. The Engenheiro de Campo's Home is #/home/campo (21-home-campo.html). -->
+      <div class="shortcut-row has-3">
         <a class="shortcut-card" href="#/templates"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates<span class="shortcut-sub">2 templates · padrão FO.SERV-03</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
         <a class="shortcut-card" href="#/cadastros"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros<span class="shortcut-sub">Clientes · Instrumentos · Fabricantes · Classes de tensão</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+        <a class="shortcut-card" href="#/usuarios"><svg class="ico" aria-hidden="true"><use href="#i-users"/></svg><span>Usuários<span class="shortcut-sub">Pessoas, papéis e permissões</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
       </div>
     </section>
 

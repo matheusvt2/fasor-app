@@ -1,0 +1,39 @@
+<style data-screen="email-redefinicao">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.6: the password reset e-mail as a plain frame, the same shape as the invitation
+   (96-email-convite.html; rules copied under this route). It serves both ways in: "Esqueci minha senha" on Login and the Admin's
+   "Enviar redefinição de senha". Page CSS on existing tokens. Governs: EXPERIENCE.md § IA › E-mails (2026-11-21). */
+[data-route="/email/redefinicao"] .mail-stage { flex: 1; padding: var(--sp-6) var(--gutter-tablet); background: var(--surface-base); }
+.frame-phone [data-route="/email/redefinicao"] .mail-stage { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/email/redefinicao"] .mail-kicker { max-width: 600px; margin: 0 auto var(--sp-2); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/email/redefinicao"] .mail { max-width: 600px; margin: 0 auto; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--r-md); }
+[data-route="/email/redefinicao"] .mail-meta { margin: 0; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border-hairline); display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-3); font-size: var(--t-meta-size); }
+[data-route="/email/redefinicao"] .mail-meta dt { color: var(--ink-secondary); }
+[data-route="/email/redefinicao"] .mail-meta dd { margin: 0; overflow-wrap: anywhere; }
+[data-route="/email/redefinicao"] .mail-body { padding: var(--sp-5) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+[data-route="/email/redefinicao"] .mail-brand { font-size: var(--t-heading-size); font-weight: 700; }
+[data-route="/email/redefinicao"] .mail-body .btn { align-self: flex-start; text-decoration: none; }
+.frame-phone [data-route="/email/redefinicao"] .mail-body .btn { align-self: stretch; }
+[data-route="/email/redefinicao"] .mail-link { font-size: var(--t-meta-size); color: var(--ink-secondary); overflow-wrap: anywhere; }
+[data-route="/email/redefinicao"] .mail-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border-hairline); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/email/redefinicao" data-title="E-mail · redefinição" data-shell="bare" data-rail="false">
+  <div class="mail-stage">
+    <p class="mail-kicker">Frame de e-mail, não é uma tela do aplicativo. Outro e-mail: <a href="#/email/convite">convite</a>.</p>
+    <article class="mail" aria-label="E-mail de redefinição de senha">
+      <dl class="mail-meta">
+        <dt>De</dt><dd>Conforme &lt;nao-responda@⟨domínio da Story 26.7⟩&gt;</dd>
+        <dt>Para</dt><dd>eduardo@exemplo.com.br</dd>
+        <dt>Assunto</dt><dd><strong>Crie uma senha nova no Conforme</strong></dd>
+      </dl>
+      <div class="mail-body">
+        <p class="mail-brand">Conforme</p>
+        <p>Olá, Eduardo Prado.</p>
+        <p>Recebemos um pedido para criar uma senha nova para a sua conta do Conforme.</p>
+        <a class="btn btn-primary" href="#/definir-senha">Criar senha nova</a>
+        <p>O link vale por 1 hora e só pode ser usado uma vez.</p>
+        <p class="mail-link">Se o botão não abrir, copie este endereço no navegador: https://⟨endereço do aplicativo⟩/definir-senha#⟨código⟩</p>
+      </div>
+      <p class="mail-foot">Se você não pediu uma senha nova, ignore esta mensagem: a sua senha atual continua valendo.</p>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,101 @@
+<style data-screen="home-campo">
+/* 2026-11-21, Story 26.1 (Epic 26) for Story 26.5: Home as an Engenheiro de Campo sees it, signed in as Eduardo.
+   His seeded keys are relatorio.view, relatorio.fill: no template.edit, registry.edit or users.manage, so the Atalhos section is absent
+   (a module he cannot use is hidden, and a row with no shortcut left is not drawn). "Novo relatório" is a control of a screen he uses,
+   so it stays, disabled, with its one-line reason (relatorio.create). The list is the company's, as for every role (decision 2).
+   The foot button simulates a typed address of a hidden screen: the app lands on Home and shows the toast.
+   Same markup and classes as 20-home.html; layout rules copied under this route. Existing tokens only.
+   Governs: EXPERIENCE.md § IA › Home, Usuários; § State Patterns › A module the role lacks, A control the role lacks (2026-11-21). */
+[data-route="/home/campo"] .home-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+[data-route="/home/campo"] .home-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/home/campo"] .home-search { flex: 1 1 280px; min-width: 0; }
+.frame-phone [data-route="/home/campo"] .home-search { flex-basis: 100%; order: 3; }
+[data-route="/home/campo"] .home-new { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); }
+[data-route="/home/campo"] .home-new .btn-reason { max-width: 240px; text-align: right; }
+.frame-phone [data-route="/home/campo"] .home-new { width: 100%; align-items: stretch; }
+.frame-phone [data-route="/home/campo"] .home-new .btn { width: 100%; }
+.frame-phone [data-route="/home/campo"] .home-new .btn-reason { max-width: none; text-align: left; }
+[data-route="/home/campo"] .relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/home/campo"] .relatorio-card { cursor: pointer; }
+[data-route="/home/campo"] .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
+[data-route="/home/campo"] .section + .section { margin-top: var(--sp-5); }
+[data-route="/home/campo"] .sim-foot { margin-top: var(--sp-6); display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+[data-route="/home/campo"] .sim-foot .btn-text { font-size: var(--t-meta-size); }
+</style>
+<section class="screen" data-route="/home/campo" data-title="Início" data-shell="app" data-rail="false" data-user="E">
+  <div class="content">
+
+    <section class="section" aria-labelledby="homec-h-status">
+      <h2 id="homec-h-status" class="visually-hidden">Relatórios por status</h2>
+      <div class="status-board" role="group" aria-label="Relatórios por status">
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Rascunho, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="rascunho">Rascunho</span></button>
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Em campo, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-campo">Em campo</span></button>
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Em revisão, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-revisao">Em revisão</span></button>
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Emitido, 5 relatórios"><span class="tile-count">5</span><span class="status-pill" data-status="emitido">Emitido</span></button>
+      </div>
+    </section>
+
+    <!-- No Atalhos section: none of its three shortcuts is open to this role. -->
+
+    <section class="section" aria-labelledby="homec-h-rel">
+      <div class="home-head">
+        <h2 id="homec-h-rel">Relatórios</h2>
+        <div class="field home-search">
+          <span class="field-label visually-hidden">Buscar relatório</span>
+          <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Cliente ou obra</span></div>
+        </div>
+        <!-- Disabled with its reason (relatorio.create): the reason is the kernel's refusal text -->
+        <div class="home-new">
+          <button class="btn btn-primary" aria-disabled="true" aria-describedby="homec-new-reason"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
+          <span class="btn-reason" id="homec-new-reason">Seu papel não permite criar relatórios.</span>
+        </div>
+      </div>
+
+      <div class="relatorio-cards">
+        <div class="relatorio-card is-current" role="link" tabindex="0" data-go="#/relatorio/porto-seguro/sem-emissao" aria-label="Porto Seguro Companhia de Seguros Gerais, Torres A e B, em campo, 42 de 94 fichas, abrir o sumário">
+          <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Torres A e B</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">06–08/09/2026 · Template Porto Seguro — Torres A e B · 6 cabines</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="em-campo">Em campo</span>
+            <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <div class="card-continue">
+            <button class="btn btn-primary" data-go="#/ficha/SEC-C05">Continuar: <span class="tabular">SEC-C05 · 42 de 94</span></button>
+            <button class="btn btn-text" data-go="#/relatorio/porto-seguro/sem-emissao">Ver sumário</button>
+          </div>
+          <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+        </div>
+
+        <a class="relatorio-card" role="link" tabindex="0" data-toast="Só o relatório Porto Seguro · Torres A e B está prototipado" aria-label="Porto Seguro Companhia de Seguros Gerais, Oxigênio, rascunho, 0 de 12 fichas">
+          <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Oxigênio</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">10–11/09/2026 · Cabine primária — padrão</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="rascunho">Rascunho</span>
+            <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+        </a>
+
+        <a class="relatorio-card" role="link" tabindex="0" data-toast="Só o relatório Porto Seguro · Torres A e B está prototipado" aria-label="Condomínio Edifício Alameda Jaú, Cabine 13,8 kV, em revisão, 38 de 38 fichas">
+          <div class="card-title"><span>Condomínio Edifício Alameda Jaú · Cabine 13,8 kV</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">15–16/08/2026 · Cabine primária — padrão</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="em-revisao">Em revisão</span>
+            <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>38 de 38 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <p class="card-device">Não está neste aparelho · baixa ao abrir</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- Prototype only: a typed address of a screen the role does not hold lands here with the toast -->
+    <div class="sim-foot">
+      <button class="btn btn-text" data-toast="Essa tela não está disponível para o seu papel.">Simular: endereço #/templates digitado</button>
+      <button class="btn btn-text" data-go="#/home">Ver o Início do Admin</button>
+    </div>
+
+  </div><!-- /content -->
+</section>

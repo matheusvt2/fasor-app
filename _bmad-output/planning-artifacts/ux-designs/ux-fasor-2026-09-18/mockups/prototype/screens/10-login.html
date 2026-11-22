@@ -4,15 +4,18 @@
 .frame-phone [data-route="/login"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
 [data-route="/login"] .login-form .btn-primary { margin-top: var(--sp-2); }
 [data-route="/login"] .login-foot { margin-top: var(--sp-5); text-align: center; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* 2026-11-21, Story 26.1 for Story 26.6: "Esqueci minha senha" under "Entrar", a Text button centred in the form */
+[data-route="/login"] .login-forgot { align-self: center; }
 </style>
 <section class="screen" data-route="/login" data-title="Login" data-shell="bare" data-rail="false">
   <div class="login-screen">
     <div class="login-form" role="form" aria-labelledby="login-title">
-      <h1 class="login-wordmark" id="login-title">PRODUTO</h1>
+      <!-- 2026-11-21, Story 26.1: the product name Conforme (Story 20.1) and an e-mail of the sample domain -->
+      <h1 class="login-wordmark" id="login-title">Conforme</h1>
 
       <div class="field">
         <span class="field-label" id="login-email-label">E-mail</span>
-        <div class="input" role="textbox" aria-labelledby="login-email-label" id="login-email">bruno@fasor.eng.br</div>
+        <div class="input" role="textbox" aria-labelledby="login-email-label" id="login-email">bruno@exemplo.com.br</div>
       </div>
 
       <div class="field">
@@ -24,6 +27,8 @@
       </div>
 
       <button type="button" class="btn btn-primary btn-block" data-go="#/home">Entrar</button>
+      <!-- 2026-11-21, Story 26.1 for Story 26.6 -->
+      <button type="button" class="btn btn-text login-forgot" data-go="#/login/esqueci">Esqueci minha senha</button>
 
       <p class="login-foot">Acesso fornecido pela sua empresa. Sem cadastro por aqui.</p>
     </div>

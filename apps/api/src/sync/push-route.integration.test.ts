@@ -21,6 +21,7 @@ import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import type { AppEnv } from '../http/session.ts';
 import { newId } from '../ids.ts';
+import { seedRoleActor, standInRole } from '../db/roles.test-support.ts';
 import { applyOps, lockCompany, type Tx } from './apply.ts';
 import { createSyncRoutes } from './routes.ts';
 
@@ -40,7 +41,8 @@ const DEVICE = 'tablet-a10-old-client';
 
 const app = new Hono<AppEnv>();
 app.use('*', async (c, next) => {
-  c.set('session', { userId, companyId });
+  // Story 26.4: the stand-in session carries the actor's role, an Admin as every suite's actor.
+  c.set('session', { userId, companyId, role: standInRole(), status: 'active' });
   await next();
 });
 app.route('/', createSyncRoutes(db, { now }));
@@ -59,6 +61,8 @@ function deviceOp(draft: Omit<OpDraft, 'company_id' | 'actor_id' | 'scope' | 'pr
 }
 
 beforeAll(async () => {
+  // Story 26.4: the push reads the actor's role from the company's rows, so the actor gets one (Admin).
+  await seedRoleActor(db, companyId, userId);
   const projectId = newId();
   const template = standardTemplate({ id: newId() });
   const built = instantiateTemplate(

@@ -30,8 +30,19 @@ function stubAuth(signedIn: boolean): Auth {
   } as unknown as Auth;
 }
 
+/**
+ * Story 26.4 (setup only): the session now reads the user's role and status from the company's
+ * rows; this stub answers every query with no row (no role, no status: an active user).
+ */
+function emptyDb(): Db {
+  const chain: unknown = new Proxy(() => undefined, {
+    get: (_target, key) => (key === 'then' ? (resolve: (rows: unknown[]) => void) => resolve([]) : () => chain),
+  });
+  return { select: () => chain } as unknown as Db;
+}
+
 function makeApp(overrides: Partial<AppOptions> = {}, signedIn = false) {
-  return createApp({ probes, auth: stubAuth(signedIn), db: {} as Db, s3: {} as S3Client, bucket: 'test', originGuard: 'off', ...overrides });
+  return createApp({ probes, auth: stubAuth(signedIn), db: emptyDb(), s3: {} as S3Client, bucket: 'test', originGuard: 'off', ...overrides });
 }
 
 const signIn = (email: string, address: string) => ({

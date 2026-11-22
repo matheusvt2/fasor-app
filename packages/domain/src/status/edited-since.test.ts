@@ -494,7 +494,8 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
     );
     expect(EDITED_SINCE_FAMILIES.size).toBe(25);
     // Story 14.6 (contract 33): the three equipment type families never count, as `template` never does; with Story 22.12 `equipment/last_results`.
-    expect(NEVER_EDIT_FAMILIES.size).toBe(27);
+    // Story 26.2 (contract 55): the four server-only role families never count.
+    expect(NEVER_EDIT_FAMILIES.size).toBe(31);
     expect([...NEVER_EDIT_FAMILIES.keys()].sort()).toEqual(
       [
         'audit_run',
@@ -524,6 +525,10 @@ describe('2026-10-13: every op path family is decided, an edit or never one', ()
         'template/seed_version',
         'user',
         'user/field',
+        'role',
+        'role/field',
+        'user/role_id',
+        'user/status',
       ].sort(),
     );
   });

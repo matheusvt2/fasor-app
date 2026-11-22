@@ -29,7 +29,18 @@ import { createReadingRoutes } from './reading.ts';
 import { createTelemetryRoutes } from './telemetry.ts';
 import { pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
 import { htmlContentSecurityPolicy, securityHeaders } from './security-headers.ts';
-import { type AppEnv, sessionMiddleware, SessionUnavailableError, sessionUnavailableError, UnauthenticatedError, unauthenticatedError } from './session.ts';
+import {
+  type AppEnv,
+  ForbiddenError,
+  forbiddenError,
+  sessionMiddleware,
+  SessionUnavailableError,
+  sessionUnavailableError,
+  UnauthenticatedError,
+  unauthenticatedError,
+  UserInactiveError,
+  userInactiveError,
+} from './session.ts';
 
 // `apps/web/dist` is bind-mounted alongside the api source; api commands run
 // with cwd = apps/api (pnpm --filter cds into the package), so the built web
@@ -215,6 +226,9 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   app.onError((error, c) => {
     if (error instanceof UnauthenticatedError) return c.json(unauthenticatedError, 401);
     if (error instanceof SessionUnavailableError) return c.json(sessionUnavailableError, 503);
+    // Story 26.4 (AD-29): a user who is not active, and a route the role does not open.
+    if (error instanceof UserInactiveError) return c.json(userInactiveError, 401);
+    if (error instanceof ForbiddenError) return c.json(forbiddenError, 403);
     logError('unhandled route error', { path: c.req.path, error: String(error) });
     const body: ErrorResponse = { code: 'internal_error', message: 'Unexpected server error.' };
     return c.json(body, 500);
@@ -245,7 +259,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
 
   app.route('/', createHealthRoutes(options.probes));
 
-  app.use('/api/*', sessionMiddleware(options.auth));
+  app.use('/api/*', sessionMiddleware(options.auth, options.db));
   if (limits !== undefined) app.use('/api/sync/ops', pushRateLimit({ rule: limits.push }));
   const aiFeatures = options.aiFeatures ?? true;
   const quotas = options.quotas ?? DEFAULT_DAILY_QUOTAS;
