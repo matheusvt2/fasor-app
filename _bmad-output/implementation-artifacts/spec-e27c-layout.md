@@ -2,7 +2,7 @@
 title: 'e27c: layout and organisation (Stories 27.11 to 27.14)'
 type: 'feature'
 created: '2026-11-22'
-status: 'ready-for-dev'
+status: 'in-progress'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -104,6 +104,13 @@ baseline_revision: '42b0d25b0914054731f0996fe6735b0294abca6b'
 - **Ficha bulk bar:** the coordinator's reading (in the flow, above the first unanswered item). Answering in order, the bar moves below the item just answered, so the next unanswered item does not move under the finger.
 
 ## Verification
+
+Machine rules (podman host, two implementers share this worktree):
+- Never run pnpm/node on the host; never `docker`; never `podman compose up` or `down` yourself; never `-v`; never `pkill` by pattern; never commit (the orchestrator commits). Touch only your own tasks' files; `pt-br.ts` and `app.css` are shared: small `Edit` calls only, never a whole-file rewrite.
+- The stack `fasor-e27c` is brought up by the orchestrator's watcher when a slot frees; it is up when `.scratch-e27c/stack.log` holds a `STACK_UP` line. Write code first; before a test run wait for that line with short polls (`timeout 55 sh -c 'until grep -q STACK_UP .scratch-e27c/stack.log; do sleep 5; done'`, repeated; long waits are expected, never end your turn to wait).
+- Every test run, one lock per command, started with `nohup` in the background and polled (never block a call on the lock):
+  `(t0=$(date +%s); lockf -t 7200 /tmp/fasor-verify.lock sh -c 'echo LOCKED_AFTER=$(( $(date +%s) - '$t0' ))s; podman compose --profile tools run --rm --user root tools <command>'; echo EXIT=$?) > .scratch-e27c/<you>-<name>.log 2>&1`
+  then poll `timeout 55 sh -c 'until grep -q EXIT= <log>; do sleep 5; done'; tail -3 <log>` and read only the tail (grep `FAIL|failed|Error` on a red). Run the narrowest suite while iterating. After a change under `packages/domain` or `apps/api`, `podman compose restart api` before an e2e.
 
 All under `lockf -t 7200 /tmp/fasor-verify.lock`, inside the tools container (`podman compose --profile tools run --rm --user root tools ...`), output to `.scratch-e27c/<name>.log`, tail only:
 - `pnpm lint`, `pnpm static` -- exit 0.
