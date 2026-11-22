@@ -48,3 +48,10 @@ export const READ_ONLY_LEAD_TEXT = 'Somente leitura.';
 
 /** The read-only Banner of a screen the role cannot fill, lead and reason (`62-ficha-consulta.html`). */
 export const READ_ONLY_BANNER_TEXT = `${READ_ONLY_LEAD_TEXT} ${REFUSALS['relatorio.fill']}`;
+
+/**
+ * Story 26.10 (authored): the line a screen shows, instead of an empty one, while the device is offline and
+ * does not hold the user's own role yet (a first sign-in cut off before its company pull). Fails closed as
+ * the provider does; the access comes when the device reaches the server.
+ */
+export const ROLE_UNKNOWN_TEXT = 'Seu acesso será carregado quando houver conexão.';

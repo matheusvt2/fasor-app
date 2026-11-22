@@ -34,6 +34,7 @@ const engine = {
   syncRelatorio: vi.fn(async () => 'ran' as const),
   syncProject: vi.fn(async () => 'ran' as const),
   retryUpload: vi.fn(async () => 'ran' as const),
+  pullCompany: vi.fn(async () => 'ran' as const),
   start: vi.fn(),
   nudge: vi.fn(),
   pushNow: vi.fn(),

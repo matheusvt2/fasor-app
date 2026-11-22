@@ -148,6 +148,8 @@ describe('26.2-UNIT-007 the coordinator readings of Story 26.2', () => {
       telemetry: 'none',
       // Story 26.8: appended.
       'admin.users': 'users.manage',
+      // Story 26.10: appended.
+      'admin.roles': 'roles.manage',
     });
   });
 });

@@ -2390,4 +2390,56 @@ export const copy = {
     // authored: each row's name; its second line is the kernel's state or proposal.
     row: 'Foto do equipamento',
   },
+  // Story 26.10: Papéis e permissões, verbatim from `mockups/prototype/screens/93-papeis.html` unless marked
+  // `// authored (Story 26.10)`. The module names, key labels, counts, cell names, the unsaved line, the
+  // grant warning, the refusals and the name issues are the kernel's (`permissions/role-editor.ts`).
+  papeis: {
+    // The App bar's title (the frame's `data-title`).
+    title: 'Usuários',
+    heading: 'Papéis e permissões',
+    newRole: 'Novo papel',
+    note: 'Cada coluna é um papel; cada linha, um módulo do aplicativo. Abra um módulo para ver as permissões dele. Uma mudança vale para todos os usuários do papel, na próxima sincronização de cada aparelho.',
+    pickLabel: 'Papel',
+    gridLabel: 'Permissões por papel',
+    corner: 'Módulo',
+    roleMenuLabel: (name: string) => `Opções do papel ${name}`,
+    moduleToggleLabel: (module: string) => `Abrir ou fechar as permissões de ${module}`,
+    changedHidden: 'alterado, não salvo',
+    restore: 'Restaurar permissões padrão',
+    restoredToast: 'Permissões padrão de volta na grade. Salve para aplicar.',
+    rename: 'Renomear',
+    remove: 'Remover',
+    nameLabel: 'Nome do papel',
+    newTitle: 'Novo papel',
+    newHelper: 'O papel nasce só com "Ver relatórios". Marque as outras permissões na grade e salve.',
+    newSubmit: 'Criar papel',
+    createdToast: (name: string) => `Papel ${name} criado. Ele aparece como uma coluna nova.`,
+    renameTitle: 'Renomear papel',
+    renameHelper: 'O nome muda para o usuário que tem este papel. As permissões não mudam.',
+    renameSubmit: 'Salvar',
+    renamedToast: 'Papel renomeado',
+    removeTitle: (name: string) => `Remover o papel ${name}?`,
+    removeDescription: 'Nenhum usuário tem este papel. Ele sai da grade e da lista de papéis.',
+    removeConfirm: 'Remover',
+    removedToast: 'Papel removido',
+    inUseTitle: (name: string) => `Não é possível remover ${name}`,
+    goToUsers: 'Ir para Usuários',
+    understood: 'Entendi',
+    discard: 'Descartar',
+    save: 'Salvar alterações',
+    saved: 'Permissões salvas. Cada aparelho passa a segui-las na próxima sincronização.',
+    savedToast: 'Permissões salvas',
+    // The frame's Toast without its prototype note ("— não prototipado").
+    discardedToast: 'A grade volta ao que estava salvo',
+    // authored (Story 26.10): the bar's line with nothing changed (the frame draws only the dirty and saved states).
+    noChanges: 'Nenhuma alteração para salvar.',
+    // authored (Story 26.10): the list could not be read (the grid is online only).
+    loadFailed: 'Não foi possível carregar os papéis agora.',
+    // authored (Story 26.10): the load failure's way back.
+    retry: 'Tentar de novo',
+    // authored (Story 26.10): a save, a create, a rename or a removal the server did not answer; the grid keeps the draft.
+    writeFailed: 'Não foi possível salvar agora. Nada do que está na grade foi perdido.',
+    // authored (Story 26.10): a role another Admin removed meanwhile; the list is read again.
+    roleGone: 'Um papel da grade não existe mais. A grade foi atualizada.',
+  },
 } as const;

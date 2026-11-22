@@ -32,7 +32,8 @@ describe('26.2-UNIT-001 the catalog', () => {
       ['Relatórios', ['relatorio.view', 'relatorio.create', 'relatorio.delete']],
       ['Preenchimento em campo', ['relatorio.fill']],
       ['Emissão', ['relatorio.issue', 'export.download']],
-      ['Modelos', ['template.edit']],
+      // Story 26.10: the frame's word for the module (MOCK-GUIDE § 2026-11-21, answer 2).
+      ['Templates', ['template.edit']],
       ['Tipos de equipamento', ['equipment_type.edit']],
       ['Cadastros', ['registry.edit', 'suggestion.review']],
       ['Usuários e papéis', ['users.manage', 'roles.manage']],
