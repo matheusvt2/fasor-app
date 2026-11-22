@@ -213,7 +213,7 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   // 1280 px: the rows are Comboboxes.
   await composer.getByRole('combobox', { name: 'Atividade' }).fill('limpeza');
   await page.getByRole('option', { name: 'limpeza e reaperto' }).click();
-  const edited = 'Detalhe da limpeza e reaperto realizada na chave seccionadora SEC-ENEL do Cubículo Enel';
+  const edited = 'Detalhe da limpeza e reaperto realizados na chave seccionadora SEC-ENEL do Cubículo Enel';
   await expect(composer.locator('.caption-preview')).toHaveText(edited);
   await composer.getByRole('button', { name: 'Salvar legenda' }).click();
   await expect(page.locator('.caption-composer')).toHaveCount(0);
@@ -464,15 +464,15 @@ test('@p0 6.5-E2E-001 "Legendar" on a sheet tile: prefilled chips, agreement on 
   const composer = page.getByRole('dialog', { name: 'Legenda' });
   await expect(composer).toBeVisible();
   const group = (name: string) => composer.getByRole('group', { name });
-  await expect(group('Atividade').getByRole('button', { name: 'verificação de contatos' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(group('Atividade').getByRole('button', { name: 'contatos', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(group('Equipamento').getByRole('button', { name: 'chave seccionadora SEC-ENEL', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(group('Local').getByRole('button', { name: 'Cubículo Enel' })).toHaveAttribute('aria-pressed', 'true');
   const preview = composer.locator('.caption-preview');
   await expect(preview).toHaveText(NC_CAPTION);
 
-  // A chip change rebuilds the preview with agreement (feminine singular "realizada").
+  // A chip change rebuilds the preview with agreement (Story 27.8, seed v17: the article agrees with "limpeza", the participle "realizados" with the pair).
   await group('Atividade').getByRole('button', { name: 'limpeza e reaperto' }).click();
-  await expect(preview).toHaveText('Detalhe da limpeza e reaperto realizada na chave seccionadora SEC-ENEL do Cubículo Enel');
+  await expect(preview).toHaveText('Detalhe da limpeza e reaperto realizados na chave seccionadora SEC-ENEL do Cubículo Enel');
   await group('Atividade').getByRole('button', { name: 'ensaios de resistência de isolação' }).click();
   await expect(preview).toHaveText('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora SEC-ENEL do Cubículo Enel');
 
@@ -551,9 +551,9 @@ test('@p1 6.5-E2E-002 on a desktop the composer rows are Comboboxes; Sumário ro
   await page.getByRole('option', { name: 'limpeza e reaperto' }).click();
   await composer.getByRole('combobox', { name: 'Local' }).fill('Oxigênio');
   await page.getByRole('option', { name: 'Oxigênio', exact: true }).click();
-  await expect(composer.locator('.caption-preview')).toHaveText('Detalhe da limpeza e reaperto realizada no Oxigênio');
+  await expect(composer.locator('.caption-preview')).toHaveText('Detalhe da limpeza e reaperto realizados no Oxigênio');
   await composer.getByRole('button', { name: 'Salvar legenda' }).click();
-  await expect(itemOf(page, first!.id).locator('.photo-meta')).toHaveText('Detalhe da limpeza e reaperto realizada no Oxigênio');
+  await expect(itemOf(page, first!.id).locator('.photo-meta')).toHaveText('Detalhe da limpeza e reaperto realizados no Oxigênio');
   await expect(page.locator('.section-head .progress-counter')).toHaveText('2 fotos aguardando envio · 1 sem legenda');
 
   await page.goto(`/relatorio/${relatorioId}`);

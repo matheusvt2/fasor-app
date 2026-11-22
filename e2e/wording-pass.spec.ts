@@ -9,7 +9,7 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
  * Story 27.9 (F29 to F40, the manual pass of 2026-11-21): the wording pass on the screens where each sentence shows,
- * as a person meets them on a new relatório (seed v17, read from the kernel). Spec 27.9-E2E-001.
+ * as a person meets them on a new relatório (seed v17, read from the kernel). Specs 27.9-E2E-001 and 27.9-E2E-002.
  *
  *   - Home › "Novo relatório": the place is "Obra"; the Project's meta says "Obra"; the type note "Único tipo
  *     disponível nesta versão" is gone; the dates read "Início/Fim da execução" (F38, F39).
@@ -113,7 +113,7 @@ test('@p1 27.9-E2E-001 the words of a new relatório: Obra, execução, Altitude
   expect(MARK_SENT_LABEL).toBe('Marcar como enviado ao cliente');
 });
 
-test('@p1 27.9-E2E-001 a local\'s NC item: two quick phrases join in lower case, its photo names the non-conformity, the point ends ", conforme Imagem 1", the gallery filter reads "Todas"', async ({ page }) => {
+test('@p1 27.9-E2E-002 a local\'s NC item: two quick phrases join in lower case, its photo names the non-conformity, the point ends ", conforme Imagem 1", the gallery filter reads "Todas"', async ({ page }) => {
   test.setTimeout(240_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });

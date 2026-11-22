@@ -228,7 +228,9 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   const entryText = `Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}) não conforme`;
   await expect(textArea(dialog)).toContainText(entryText);
   await textArea(dialog).click();
-  await page.keyboard.press('Home');
+  // Story 27.9 (", conforme Imagem 1"): the longer text wraps before the photo chip, so "Home" would land on the
+  // chip's line; the start of the whole text is Control+Home.
+  await page.keyboard.press('Control+Home');
   await page.keyboard.type('Contato com sinais de aquecimento ');
   await dialog.getByRole('textbox', { name: 'Ação recomendada' }).fill('Reapertar e medir de novo');
   await dialog.getByRole('button', { name: 'Concluir' }).click();
