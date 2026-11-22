@@ -2,7 +2,7 @@
 title: 'e27b: form words on seed v17, wording and user errors (Stories 27.8 to 27.10)'
 type: 'feature'
 created: '2026-11-22'
-status: 'ready-for-dev'
+status: 'in-review'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -132,3 +132,13 @@ Run inside the tools container of this worktree's stack (`fasor-e27b`, already u
 - `pnpm test:api -- <paths>` for the layout-lock, docx, porto-seguro, sync, template-upgrade tests (`GOLDEN_UPDATE=1` only where step 1, 2 or 4 says) -- green.
 - `pnpm exec tsx scripts/e2e.ts e2e/<spec>.spec.ts --project desktop-chrome --project durability-desktop-chrome` for each spec written or touched -- green.
 - Restart the api (`podman compose restart api`) after any change under `packages/domain` or `apps/api` before `test:api` or an e2e: it serves stale domain code otherwise.
+
+## Auto Run Result
+
+Status: in-review (PR open, not merged; no review loop inside the batch, the 2026-11-12 rule).
+
+- Implementers, all on opus: 27.8 `bmad-dev-opus-high` (a16176c2..ded10deb), returned; 27.9 `bmad-dev-opus-medium` (0dce4dc8..ec1461f8), returned, but the e2e run it started in the background died with it; the orchestrator re-ran it (4 reds, fixed in 09294c0b); 27.10 `bmad-dev-opus-medium` (d6c56c61..c59fb070), returned.
+- Orchestrator cuts and waits: about 1 h waiting for a stack slot (fasor-e26d and fasor-e26e up), while 27.8 was written with `--no-deps` unit runs only; idle from 05:00 to 09:40 after the 27.9 implementer handed back with its e2e run dead (the coordinator's nudge resumed the batch; handoff file `.scratch-e27b/HANDOFF.md`).
+- Goldens: the v16 lock goldens were generated with `GOLDEN_UPDATE=1` on the opening commit a16176c2 (checked out detached) and committed as a0ae3dbe; the v17 goldens and the Porto Seguro skeleton on 0242be9c. v5 to v15 goldens are byte-equal to main; the skeleton differs by the two "TPs e TCs" titles only; v17 differs from v16 by ITEM, PARA-RAIOS and the section 10 sentence only.
+- Main merged twice (1e65ff27, 8a214062); contract 57 against main's 56.
+- Gate on the final head: see the PR body.
