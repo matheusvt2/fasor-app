@@ -117,12 +117,14 @@ test('@p0 17.5-E2E-001 22.4-E2E 22.6-E2E a transformer ratio row INSATISFATÓRIO
   const summary = page.locator('.suggestion-field.is-generated');
   // Read-only: no Confirmar, Editar or Substituir.
   await expect(summary.getByRole('button')).toHaveCount(0);
-  await expect(summary.locator('.generated-text')).toContainText(/1 ficha em aberto com leitura fora do critério: .+\./);
-  await expect(summary.locator('.generated-text')).not.toContainText('reprovada');
+  // Fix batch e27a-review (R1): the summary is the text section 10 prints; on this v12 relatório (no `parecer_open_apart`)
+  // the print names the open ficha among the reprovadas, as before Story 27.3.
+  await expect(summary.locator('.generated-text')).toContainText(/1 ficha foi reprovada por relação de transformação insatisfatória \(.+\)\./);
+  await expect(summary.locator('.generated-text')).not.toContainText('em aberto com leitura fora do critério');
   // e22f N1: the Reprovado sheet is named once, with its reason; no separate ratio sentence repeats it.
   await expect(summary.locator('.generated-text')).not.toContainText('Relação de transformação insatisfatória em');
-  // e22f N1: the Critérios line names it once; Story 27.3: as open with a reading out.
-  await expect(summary.locator('.criteria-line')).toContainText(/em aberto com leitura fora do critério \(.+\)/);
+  // e22f N1: the Critérios line names it once, as reprovada.
+  await expect(summary.locator('.criteria-line')).toContainText(/1 reprovada \(.+\)/);
   await expect(summary.locator('.criteria-line')).not.toContainText('relação de transformação insatisfatória');
   // No verdict op was written: the derived one stands.
   expect((await outbox(page)).filter((row) => row.path === 'relatorio/setup/parecer')).toEqual([]);

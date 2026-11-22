@@ -5,9 +5,9 @@ import { measurementReadingRefusal, overRangeRefusal, type ReadingCellInput } fr
 import type { InstrumentRange } from '../relatorio/over-range.ts';
 import { isNotApplicableText, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { FieldDef } from '../seed/schema.ts';
-import { outsideRange, type NumberRange } from '../ops/value-limits.ts';
+import type { NumberRange } from '../ops/value-limits.ts';
 import { isValidCnpjFormat } from './cnpj.ts';
-import { outOfRangeText } from './value-remarks.ts';
+import { rawRangeRefusal } from './value-remarks.ts';
 
 /*
  * Story 18.4 (AD-1): why a typed value was refused, as the closed `kind` of an `input_refused`
@@ -41,7 +41,8 @@ export function numberRangeRefusal(typed: string, unit: string | null, range: Nu
   if (typed.trim() === '' || isNotApplicableText(typed)) return null;
   const raw = parseDecimalPtBr(typed);
   if (raw === null) return null;
-  return outsideRange(raw, range) ? outOfRangeText(range, unit) : null;
+  // Fix batch e27a-review (R2): the one range rule every device path asks (`rawRangeRefusal`).
+  return rawRangeRefusal(raw, range, unit);
 }
 
 /**
