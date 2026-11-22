@@ -1,7 +1,7 @@
 import { formatDecimalGroupedPtBr, INSULATION_UNITS, parseOverRangePtBr, parseReadingPtBr, type ParsedReading } from '../parse/pt-br-number.ts';
 import type { BlockRow, Cell, JsonValue } from '../schemas/entities.ts';
 import { isBaseEquipmentBlockType, isEquipmentBlockType } from '../schemas/block-config.ts';
-import { formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
+import { criterionTextInUnit, formatCriterionValue, OHM_UNITS, RESISTANCE_POSITIVE_ONLY_TEXT, scaleToUnit, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type {
   ConfigField,
   InstrumentOf,
@@ -498,6 +498,17 @@ interface Limit {
   unit: string | null;
   /** The limit alone, for the helper text ("≥ 100 MΩ", ">400 MΩ"). */
   text: string;
+  /** Story 27.2 (F11, screen only): the limit in a reading's own unit ("≥ 0,1 GΩ" for "≥ 100 MΩ"); `text` when it cannot be scaled. */
+  textIn: (unit: string | null) => string;
+}
+
+/** Story 27.2 (F11): a one-sided typed limit in `unit`, scaled through the Ω table; `text` otherwise. */
+function typedLimitTextIn(operator: string, value: number, from: string | null, text: string, unit: string | null): string {
+  if (unit === null || from === null || unit === from || OPERATOR_SIGN[operator] === undefined) return text;
+  const scaled = scaleToUnit(value, from, unit);
+  if (scaled === null) return text;
+  const raw = String(Number(scaled.toPrecision(12)));
+  return /^\d+(\.\d+)?$/.test(raw) ? withUnit(`${OPERATOR_SIGN[operator]} ${numberText(Number(raw))}`, unit) : text;
 }
 
 /** The limit of an absolute criterion: its own, or the seeded criterion's it names. Null when it names none. */
@@ -506,11 +517,13 @@ function limitOf(criterion: Extract<MeasurementCriterion, { type: 'absolute' }>)
     // Story 14.6: a company type's criterion carries the row of its type's criteria table it names, taken first.
     const seeded = criterion.seeded_criterion ?? SEEDED_CRITERIA.find((candidate) => candidate.key === criterion.seeded);
     if (seeded === undefined) return null;
-    return { operator: seeded.operator, value: seeded.value, ...(seeded.value_max === undefined ? {} : { value_max: seeded.value_max }), unit: seeded.unit, text: formatCriterionValue(seeded) };
+    return { operator: seeded.operator, value: seeded.value, ...(seeded.value_max === undefined ? {} : { value_max: seeded.value_max }), unit: seeded.unit, text: formatCriterionValue(seeded), textIn: (unit) => criterionTextInUnit(seeded, unit) };
   }
   if (criterion.operator === undefined || criterion.value === undefined || criterion.unit === undefined) return null;
   const sign = OPERATOR_SIGN[criterion.operator] ?? criterion.operator;
-  return { operator: criterion.operator, value: criterion.value, unit: criterion.unit, text: withUnit(`${sign} ${numberText(criterion.value)}`, criterion.unit) };
+  const { operator, value, unit: from } = criterion;
+  const text = withUnit(`${sign} ${numberText(value)}`, from);
+  return { operator, value, unit: from, text, textIn: (unit) => typedLimitTextIn(operator, value, from, text, unit) };
 }
 
 /** The criterion's wording: its own text, or the seeded criterion's value (">400 MΩ"). */
@@ -616,18 +629,18 @@ function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
   const limit = limitOf(criterion);
   if (limit === null) return;
   // authored: the seeded tables' own helper wording (`reading-evaluation.ts`); Story 14.6: "Fora do aceitável" for a company criterion with two sides.
-  const helper = limit.operator.startsWith('>')
-    ? `Abaixo do aceitável (${limit.text})`
-    : limit.operator.startsWith('<')
-      ? `Acima do aceitável (${limit.text})`
-      : `Fora do aceitável (${limit.text})`;
+  // Story 27.2 (F11): the limit cited in the reading's own unit, on screen only.
+  const helper = (unit: string | null) => {
+    const text = limit.textIn(unit);
+    return limit.operator.startsWith('>') ? `Abaixo do aceitável (${text})` : limit.operator.startsWith('<') ? `Acima do aceitável (${text})` : `Fora do aceitável (${text})`;
+  };
   for (const row of rows) {
     if (criterion.rows !== undefined && !criterion.rows.includes(row.key)) continue;
     for (const cell of row.cells) {
       if (cell.kind !== 'number' || cell.fixed !== null || !isReadingValue(cell.state)) continue;
       if (criterion.columns !== undefined && !criterion.columns.includes(cell.columnKey)) continue;
       const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
-      if (answer !== null) mark(cell, answer.within, criterion, helper, answer.excess);
+      if (answer !== null) mark(cell, answer.within, criterion, helper(cell.unit), answer.excess);
       // Fix batch e24x (C1): a limit the criterion cannot judge (inside a range, units that do not compare).
       else if (cell.state === 'over_range') {
         unanswered.push(cell);
@@ -708,6 +721,27 @@ function markPositiveOnly(rows: readonly EvaluatedMeasurementRow[], criterion: E
       cell.verdict = null;
       // authored: Epic 14 QA Q-3 (open for Bruno).
       cell.helperText = `Conferir: valor zero ou negativo, sem comparação com o ${reference}`;
+    }
+  }
+}
+
+/**
+ * Story 27.2 (F3): the cells an absolute criterion in Ω covers take only a reading above zero, refused
+ * as `not_positive` where it is typed (`positiveOnlyText`); a relative criterion's own message, set
+ * first, stands. Nothing stored is judged again: a zero already stored keeps its verdict.
+ */
+function markResistancePositiveOnly(rows: readonly EvaluatedMeasurementRow[], criteria: readonly MeasurementCriterion[]): void {
+  for (const criterion of criteria) {
+    if (criterion.type !== 'absolute') continue;
+    const limit = limitOf(criterion);
+    if (limit === null || limit.unit === null || !OHM_UNITS.includes(limit.unit)) continue;
+    for (const row of rows) {
+      if (criterion.rows !== undefined && !criterion.rows.includes(row.key)) continue;
+      for (const cell of row.cells) {
+        if (cell.kind !== 'number' || cell.fixed !== null || cell.positiveOnlyText !== null) continue;
+        if (criterion.columns !== undefined && !criterion.columns.includes(cell.columnKey)) continue;
+        cell.positiveOnlyText = RESISTANCE_POSITIVE_ONLY_TEXT;
+      }
     }
   }
 }
@@ -937,7 +971,8 @@ function plateNumber(block: Pick<BlockRow, 'sheet'>, nameplate: readonly FieldDe
 function maxFieldLimit(block: Pick<BlockRow, 'sheet'>, nameplate: readonly FieldDef[], criterion: Extract<MeasurementCriterion, { type: 'max_field' }>): { limit: Limit; byDefault: boolean } {
   const plate = plateNumber(block, nameplate, criterion.field, criterion.unit);
   const value = plate ?? criterion.default;
-  return { limit: { operator: '<=', value, unit: criterion.unit, text: withUnit(`≤ ${numberText(value)}`, criterion.unit) }, byDefault: plate === null };
+  const text = withUnit(`≤ ${numberText(value)}`, criterion.unit);
+  return { limit: { operator: '<=', value, unit: criterion.unit, text, textIn: () => text }, byDefault: plate === null };
 }
 
 /**
@@ -1485,6 +1520,7 @@ function evaluate(
     reference = referenceOf(rows, columns, relative);
     markPositiveOnly(rows, relative, live);
   }
+  markResistancePositiveOnly(rows, criteria);
   for (const value of values) {
     // The value that says the test was not run is the one thing a skipped test still asks for; it is filled by definition.
     // Story 25.15: a test done by its own value keeps asking that value and, not done, the reason shown under it.

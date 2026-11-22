@@ -38,6 +38,23 @@ export function defaultEmpresaRow(id: string): EmpresaRow {
 }
 
 /**
+ * Story 27.1 (F1): THE company row every reader takes (the device's Cadastros and Gerar
+ * dialog through `empresaRow`, the server's snapshot and so the print): the live `empresa`
+ * rows (`removed_at` null), the smallest id first. Registry rows carry no creation instant;
+ * their ids are UUIDv7, time-ordered, so the smallest id is also the earliest row. Null with
+ * none. One order everywhere, so two rows of one company (written before the server refused a
+ * second one) can no longer read as two different companies on screen and on paper.
+ */
+export function pickEmpresa(rows: readonly RegistryRow[]): EmpresaRow | null {
+  let picked: EmpresaRow | null = null;
+  for (const row of rows) {
+    if (row.kind !== 'empresa' || (row.removed_at ?? null) !== null) continue;
+    if (picked === null || row.id < picked.id) picked = row;
+  }
+  return picked;
+}
+
+/**
  * The footer line the generated document composes from the company row: address, phone
  * and e-mail, in that order, separated by the document's middot, skipping what is empty.
  */

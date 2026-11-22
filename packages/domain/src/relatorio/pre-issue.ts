@@ -1,6 +1,7 @@
 import { calibrationCheck, calibrationValidUntil } from '../checks/calibration.ts';
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
+import { artTrtRowText, temperatureRowText } from '../checks/value-remarks.ts';
 import { calendarDateOfInstant, formatCalendarDate, formatShortDateTime } from '../format/datetime.ts';
 import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts';
 import { livePhotos } from '../photos/order.ts';
@@ -91,7 +92,10 @@ export type PreIssueKind =
   | 'section_variables'
   | 'seed_unknown'
   | 'rejected'
-  | 'last_send';
+  | 'last_send'
+  // Story 27.2 (decision 3 of 2026-11-21): an improbable value, remarked and never blocking.
+  | 'temperature_unusual'
+  | 'art_trt_not_numeric';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -376,6 +380,10 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   for (const warning of clientPreIssueRows(snapshot.client)) {
     rows.push({ id: `client:${warning.key}`, row: 'controle', severity: 'info', text: warning.text, kind: 'client' });
   }
+  // Story 27.2 (F4): an ART/TRT number that is not numeric prints as typed in the document control;
+  // the row asks to check it and never blocks.
+  const artText = artTrtRowText(artLabel(snapshot.responsible?.council ?? null), setup.art_trt_number);
+  if (artText !== null) rows.push({ id: 'art_trt_not_numeric', row: 'controle', severity: 'pending', text: artText, kind: 'art_trt_not_numeric' });
 
   // Story 7.5: a section text with a variable that has no value prints `[Label]`; its row says which.
   for (const { block, unresolved } of sectionVariableGaps(snapshot, now)) {
@@ -536,6 +544,14 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     }
   }
 
+  // Story 27.2 (F2): a cabine's temperature outside -10 to 60 °C is saved and printed as typed; one
+  // row per local names it, pending, never blocking.
+  for (const location of snapshot.locations) {
+    if (location.kind !== 'cabine') continue;
+    const text = temperatureRowText(location.name, location.env.temperature_c);
+    if (text !== null) rows.push({ id: `temperature_unusual:${location.id}`, row: 'section_9', severity: 'pending', text, kind: 'temperature_unusual' });
+  }
+
   // Story 14.3: one row naming every live local with unanswered site items and its count;
   // pending, never blocking. A relatório whose seed ships no site list raises none.
   const siteText = siteUnansweredText(siteUnanswered(snapshot));
@@ -660,6 +676,9 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   'points_sem_responsavel',
   'rejected',
   'last_send',
+  // Story 27.2 (decision 3): an unusual temperature and an ART/TRT number that is not numeric, named one by one.
+  'temperature_unusual',
+  'art_trt_not_numeric',
 ]);
 
 export interface ExportPrecheck {

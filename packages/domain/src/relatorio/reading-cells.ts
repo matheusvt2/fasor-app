@@ -100,6 +100,12 @@ export interface EvaluatedCell {
   /** "Abaixo do aceitável (>400 MΩ)" when out of criterion. */
   helperText: string | null;
   outlier: { text: string } | null;
+  /**
+   * Story 27.2 (F3): on a capture an absolute criterion in Ω judges, the refusal of a reading of zero
+   * or below (`RESISTANCE_POSITIVE_ONLY_TEXT`), which the input parse reads (`parseMeasurementReadingPtBr`);
+   * absent on every other cell.
+   */
+  positiveOnlyText?: string;
   /** Counted by `sheetProgress`: a capture not filled, or an input with no effective value. */
   missing: boolean;
   /*

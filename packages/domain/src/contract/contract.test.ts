@@ -121,9 +121,10 @@ describe('contract constants', () => {
   // e25s (Story 25.18, the v16 TC's item on its secondary, a new ITEM_KEYS value, 2026-11-15): 54, after the wave's 53; MIN follows.
   // e25s (Story 25.14, the two families of a row added on the sheet, 2026-11-15): the same 54 (25.14-API-001 pulls the row at 53: 426).
   // e26a (Story 26.2, the role families and the user's role and status, 2026-11-21): 55, after e25s's 54; MIN follows.
-  it('speaks version 55 and refuses version 54 (Story 26.2: a version-54 bundle lacks the role families)', () => {
-    expect(CONTRACT_VERSION).toBe(55);
-    expect(MIN_CONTRACT_VERSION).toBe(55);
+  // e27a (Stories 27.1 and 27.2, the second empresa and the new value refusals, 2026-11-21): 56, after e26a's 55; MIN follows.
+  it('speaks version 56 and refuses version 55 (Stories 27.1 and 27.2: a version-55 bundle queues what the server now refuses)', () => {
+    expect(CONTRACT_VERSION).toBe(56);
+    expect(MIN_CONTRACT_VERSION).toBe(56);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

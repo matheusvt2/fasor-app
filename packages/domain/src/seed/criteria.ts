@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 
 /*
  * Story 2.6, NFR-14: "No criterion number may exist outside the seed module." Every
@@ -148,6 +149,43 @@ export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' |
   if (criterion.operator === 'between' && criterion.value_max !== undefined) return withUnit(`entre ${value} e ${String(criterion.value_max).replace('.', ',')}`);
   if (criterion.operator === 'pass_fail') return 'aprovado ou reprovado';
   return withUnit(`${criterion.operator}${value}`);
+}
+
+/**
+ * Story 27.2 (F3): the refusal of a resistance reading of zero or below on a cell an absolute criterion
+ * judges (a minimum or a maximum in Ω units): a resistance measured is never zero, and a zero would
+ * pass a maximum as Aprovado. The input refuses it as `not_positive`, as on a relative criterion; a
+ * value stored before the story is not judged again.
+ */
+// authored (Story 27.2, listed for Bruno): the message of a zero or negative resistance on an absolute criterion.
+export const RESISTANCE_POSITIVE_ONLY_TEXT = 'Informe um valor maior que zero: uma resistência medida nunca é zero';
+
+/** Story 27.2: whether an absolute criterion judges a resistance (its unit on the Ω table), so its cells take only a positive reading. */
+export function judgesResistance(criterion: Pick<CriterionSeed, 'type' | 'unit'>): boolean {
+  return (criterion.type === 'absolute_min' || criterion.type === 'absolute_max') && criterion.unit !== null && criterion.unit in OHM_SCALE;
+}
+
+/**
+ * Story 27.2 (F11, screen only): a criterion as a reading's remark cites it, in the unit the reading
+ * was typed in, through the same Ω table `compareCriterion` scales with ("≥ 5 GΩ" for a GΩ reading
+ * judged by "≥ 5.000 MΩ", ">0,4 GΩ" by ">400 MΩ"). The criterion's own text when the units are equal,
+ * not both on the Ω table, or the operator is no one-sided bound. The printed criterion never reads this.
+ */
+export function criterionTextInUnit(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'> & { tolerance_pct?: number | undefined }, unit: string | null): string {
+  const base = formatCriterionValue(criterion);
+  if (unit === null || criterion.unit === null || unit === criterion.unit) return base;
+  if (!(unit in OHM_SCALE) || !(criterion.unit in OHM_SCALE)) return base;
+  if (!['>', '<', '>=', '<='].includes(criterion.operator)) return base;
+  const scaled = scaleToUnit(criterion.value, criterion.unit, unit);
+  if (scaled === null) return base;
+  const raw = String(Number(scaled.toPrecision(12)));
+  if (!/^\d+(\.\d+)?$/.test(raw)) return base;
+  if (criterion.text !== undefined) {
+    // A criterion with its own text is a NETA minimum or a manufacturer's value ("≥ 5.000 MΩ"): the same shape, scaled.
+    const sign = criterion.operator === '>=' ? '≥' : criterion.operator === '<=' ? '≤' : null;
+    return sign === null ? base : `${sign} ${formatDecimalGroupedPtBr(raw)} ${unit}`;
+  }
+  return formatCriterionValue({ operator: criterion.operator, value: Number(raw), unit });
 }
 
 /**

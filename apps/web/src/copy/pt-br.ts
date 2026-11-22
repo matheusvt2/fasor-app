@@ -1938,9 +1938,12 @@ export const copy = {
     tabFrasesNc: 'Frases de NC',
     tabClassesTensao: 'Classes de tensão',
     tabCriterios: 'Critérios de aceitação',
-    // authored: Story 2.4 AC1's literal "14 digits when present" length check (Boundaries),
+    // ~~authored: Story 2.4 AC1's literal "14 digits when present" length check (Boundaries),
     // no mock draws the error state. Shared by Clientes and, since Epic 2 retro D-8, Empresa.
-    cnpjInvalid: 'CNPJ inválido — informe 14 dígitos',
+    // 'CNPJ inválido — informe 14 dígitos'~~
+    // authored (Story 27.2, listed for Bruno): the CNPJ is refused by its length and its check digits (F5),
+    // so the message says the number is not valid. Shared by Clientes and Empresa.
+    cnpjInvalid: 'CNPJ inválido: este número não existe. Confira os 14 dígitos.',
     // Empresa (`key-registries.html` frame 0, `80-cadastros.html` Empresa panel): the
     // company's document identity, the only surface where the brand is edited.
     empresa: {

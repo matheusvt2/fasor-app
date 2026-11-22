@@ -4,10 +4,12 @@ import {
   cabineDataNoteText,
   cabineLineText,
   cabineProgress,
+  envFieldRemarkText,
   getSeed,
   humidityNoteSurfaced,
   locationEnvPath,
   locationSePath,
+  numberRangeOf,
   previousCabineEnv,
   quickNotes,
   SITE_CHECKLIST_LABEL,
@@ -134,19 +136,33 @@ export function CabineBlock({
   const envLine = envLineField(envDisplay, envFields, (field) => (cabine.env as Record<string, unknown>)[field.key] ?? null);
   const fieldOf = (group: 'se' | 'env', field: FieldDef, after?: (value: unknown) => ReactNode) => {
     const value = (cabine[group] as Record<string, unknown>)[field.key] ?? null;
+    const path = group === 'se' ? locationSePath(cabine.id, field.key) : locationEnvPath(cabine.id, field.key);
+    // Story 27.2: an improbable value (a temperature outside -10 to 60 °C) is saved and remarked in amber, never refused.
+    const remark = group === 'env' ? envFieldRemarkText(field.key, value) : null;
     return (
       <SheetField
         key={field.key}
         field={field}
         value={value}
-        after={after?.(value)}
+        after={
+          <>
+            {after?.(value)}
+            {remark === null ? null : (
+              <span className="helper" data-tone="amber" data-remark="">
+                {remark}
+              </span>
+            )}
+          </>
+        }
         missing={missingKeys.has(`${group}/${field.key}`)}
         draft={{ entityId: cabine.id, field: `${group}-${field.key.replace(/_/g, '-')}` }}
         invalidText={t.invalidNumber}
         selectEmpty={t.selectEmpty}
         acceptsNotApplicable
         acceptsPair={acceptsVoltagePair(group, field.key)}
-        maxLength={textCapOf(group === 'se' ? locationSePath(cabine.id, field.key) : locationEnvPath(cabine.id, field.key)) ?? undefined}
+        maxLength={textCapOf(path) ?? undefined}
+        // Story 27.2 (F2): the kernel's range of the path (the humidity's 0 to 100 %), refused where it is typed.
+        range={numberRangeOf(path) ?? undefined}
         commit={(next) =>
           api.author === null
             ? undefined

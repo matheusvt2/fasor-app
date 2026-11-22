@@ -29,10 +29,19 @@ export type TextCapKind = keyof typeof TEXT_CAPS;
 /** The site altitude, in meters (the Dead Sea shore to above any Brazilian site, with headroom). */
 export const SITE_ALTITUDE_RANGE_M = { min: -500, max: 9000 } as const;
 
-interface Range {
+/**
+ * Story 27.2 (F2, contract 56): a relative humidity, in percent, both ends included. Outside it the
+ * value cannot exist: refused where it is typed and by the push route, never stored. A value stored
+ * before the range is not judged again (this check reads new client ops only).
+ */
+export const HUMIDITY_RANGE_PCT = { min: 0, max: 100 } as const;
+
+/** A number's accepted range, both ends included. */
+export interface NumberRange {
   readonly min: number;
   readonly max: number;
 }
+type Range = NumberRange;
 
 /** The check of one value, or of one field of a value. */
 export type ValueRule =
@@ -111,8 +120,16 @@ export const SETUP_VALUE_RULES: Readonly<Record<string, ValueRule>> = {
 
 /** CARACTERÍSTICAS DA SE (`locationSeSchema`). */
 const SE_VALUE_RULES: Readonly<Record<string, ValueRule>> = { type: short, primary_kv: numberValue, secondary_kv: numberValue, installed_kva: numberValue };
-/** AMBIENTE DE ENSAIO (`locationEnvSchema`): the cabine's altitude shares the site altitude's range. */
-const ENV_VALUE_RULES: Readonly<Record<string, ValueRule>> = { altitude_m: { kind: 'number_value', range: SITE_ALTITUDE_RANGE_M }, temperature_c: numberValue, humidity_pct: numberValue };
+/**
+ * AMBIENTE DE ENSAIO (`locationEnvSchema`): the cabine's altitude shares the site altitude's range.
+ * Story 27.2 (contract 56): the humidity takes `HUMIDITY_RANGE_PCT`; the temperature keeps no range
+ * (an unusual one is remarked, never refused: `temperatureRemarkText`).
+ */
+const ENV_VALUE_RULES: Readonly<Record<string, ValueRule>> = {
+  altitude_m: { kind: 'number_value', range: SITE_ALTITUDE_RANGE_M },
+  temperature_c: numberValue,
+  humidity_pct: { kind: 'number_value', range: HUMIDITY_RANGE_PCT },
+};
 /** A Não ensaiado mark (`notTestedSchema`): its note is medium text. */
 const NOT_TESTED_RULE: ValueRule = { kind: 'object', fields: { text: medium } };
 
@@ -587,4 +604,33 @@ export function textCapOf(pathOrFamily: string, field?: string): number | null {
   const parsed = safeParsePath(pathOrFamily);
   if (parsed === null || familyDef(parsed.family).create === true) return null;
   return capOfFamily(parsed.family, putField(parsed));
+}
+
+/**
+ * Story 27.2: the range a number input takes, by the op path it writes (`numberRangeOf(locationEnvPath(id,
+ * 'humidity_pct'))` is 0 to 100), so the device refuses where it is typed what the push route would refuse.
+ * Null for a path with no range, or one that does not parse.
+ */
+export function numberRangeOf(path: string): NumberRange | null {
+  const parsed = safeParsePath(path);
+  if (parsed === null || familyDef(parsed.family).create === true) return null;
+  const rule: FamilyValueRule = VALUE_RULES[parsed.family];
+  let valueRule: ValueRule | undefined;
+  if (rule.kind === 'value') valueRule = rule.rule;
+  else if (rule.kind === 'fields') {
+    const field = putField(parsed);
+    valueRule = field === null ? undefined : rule.fields[field];
+  }
+  if (valueRule === undefined) return null;
+  if (valueRule.kind === 'integer') return valueRule.range;
+  if (valueRule.kind === 'number_value') return valueRule.range ?? null;
+  return null;
+}
+
+/** Story 27.2: whether a plain decimal `raw` (AD-11, dot-decimal) lies outside `range`; false for a raw that is no plain decimal ("<1000"). */
+export function outsideRange(raw: string, range: NumberRange): boolean {
+  const trimmed = raw.trim();
+  if (!PLAIN_DECIMAL.test(trimmed)) return false;
+  const value = Number(trimmed);
+  return !Number.isFinite(value) || !inRange(value, range);
 }

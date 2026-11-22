@@ -141,7 +141,8 @@ test('@p0 23.5-E2E-001 a v13 oil transformer: 2 GΩ at 40 °C of oil is 8 GΩ at
   await expect(section(page).locator(`td[data-corrected-cell="${at!.row}"]`)).toContainText(ambientAt.corrected!.text);
   await expect(atCell.locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
   await expect(atCell.locator('.mf-helper[role="status"]')).toContainText(ambientAt.helperText!);
-  expect(ambientAt.helperText).toBe('Abaixo do aceitável a 20 °C: 2,83 GΩ (≥ 5.000 MΩ)');
+  // Story 27.2 (F11): the helper cites the criterion in the reading's own unit (GΩ), on screen only.
+  expect(ambientAt.helperText).toBe('Abaixo do aceitável a 20 °C: 2,83 GΩ (≥ 5 GΩ)');
 
   // The phone (390 px): the "Corrigido a 20 °C" column hidden, the value stacked under its reading as the card's line
   // ("A 20 °C: 2,83 GΩ calc."), the kernel's lead and value.

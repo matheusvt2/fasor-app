@@ -5,7 +5,10 @@ import { measurementReadingRefusal, overRangeRefusal, type ReadingCellInput } fr
 import type { InstrumentRange } from '../relatorio/over-range.ts';
 import { isNotApplicableText, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { FieldDef } from '../seed/schema.ts';
+import { outsideRange, type NumberRange } from '../ops/value-limits.ts';
+import { numberFieldValue } from '../relatorio/ficha.ts';
 import { isValidCnpjFormat } from './cnpj.ts';
+import { outOfRangeText } from './value-remarks.ts';
 
 /*
  * Story 18.4 (AD-1): why a typed value was refused, as the closed `kind` of an `input_refused`
@@ -17,9 +20,26 @@ import { isValidCnpjFormat } from './cnpj.ts';
  * accepted). None returns or keeps the text.
  */
 
-/** A sheet number field refused `typed`: an "N/A" spelling where the field takes none, else no number. */
-export function refusedNumberKind(typed: string): InputRefusalKind {
-  return isNotApplicableText(typed) ? 'not_applicable' : 'not_a_number';
+/**
+ * A sheet number field refused `typed`: an "N/A" spelling where the field takes none, Story 27.2 a
+ * number outside the field's range (`numberRangeRefusal`), else no number.
+ */
+export function refusedNumberKind(typed: string, unit: string | null = null, range: NumberRange | null = null): InputRefusalKind {
+  if (isNotApplicableText(typed)) return 'not_applicable';
+  return numberRangeRefusal(typed, unit, range) !== null ? 'out_of_range' : 'not_a_number';
+}
+
+/**
+ * Story 27.2 (F2): why a sheet number field refuses `typed` when it reads as a number
+ * (`numberFieldValue`) outside `range` (the field's, `numberRangeOf`): "Fora da faixa: 0 a 100 %".
+ * Null for a number inside it, a text that is no number (the field's generic message) and a field
+ * with no range.
+ */
+export function numberRangeRefusal(typed: string, unit: string | null, range: NumberRange | null): string | null {
+  if (range === null) return null;
+  const parsed = numberFieldValue(typed, unit);
+  if (parsed === null || parsed === 'invalid' || parsed.state !== 'measured') return null;
+  return outsideRange(parsed.raw, range) ? outOfRangeText(range, unit) : null;
 }
 
 /**
@@ -62,7 +82,7 @@ export function refusedFieldInputKind(field: Pick<FieldDef, 'kind'>, text: strin
   }
 }
 
-/** A CNPJ field's text: null when blank or 14 digits (`isValidCnpjFormat`), else `bad_format`. */
+/** A CNPJ field's text: null when blank or a valid CNPJ (`isValidCnpjFormat`: 14 digits, Story 27.2 its check digits), else `bad_format`. */
 export function cnpjInputRefusal(text: string): InputRefusalKind | null {
   return text.trim() === '' || isValidCnpjFormat(text) ? null : 'bad_format';
 }
