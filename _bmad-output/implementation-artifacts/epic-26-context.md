@@ -56,3 +56,13 @@ At most two batch stacks up at a time. The main checkout's stack is stopped whil
 - Whether the deploy waits for 26.7 (coordinator's reading: yes).
 - The coordinator's readings under Stories 26.2, 26.4, 26.6 and 26.10.
 - The frames of Story 26.1 need Matheus's approval before e26b and e26d start.
+
+## Record of 2026-11-22
+
+- **On main, not deployed:** every story but 26.7. PRs #341 (26.1), #342 (26.2 to 26.4), #346 (26.8 and the api half of 26.6), #348 (26.5), #353 (26.9, 26.11, the web half of 26.6), #352 (26.10 and the first company pull at sign-in).
+- **The one full gate, on `8a214062`, in the main checkout's stack, under the host lock:** `lint` and `static` green; `test:unit` 489 files, 7604 passed; `test:api` 1138 passed, 6 skipped; `test:e2e:full` 769 of 773, 4 skipped, 0 failed, 0 flaky (parallel 1420 s, queue 2153 s, solo 623 s); `test:e2e:matrix` 158 of 174, 16 skipped, 0 failed. The first `test:unit` and `test:api` runs died at start with `EACCES` on two root-owned `node_modules/.vite-temp` folders (`apps/api`, `packages/domain`, dated 2026-11-12) in the main stack's volumes; a `chown` to uid 1000 inside the tools container fixed it and both were run again.
+- **The one review, read-only, on `8a214062`:** no blocker. Should-fix: reactivation revives the kept sessions of a paused or removed user; a reactivated user may hold a removed role; production boots with `EMAIL_PROVIDER=fake`. Notes: a fill-only role can take a relatório out of Emitido; the first-pull engine drops merge notices on a re-sign-in; the 10 s cut can move a cursor back; stale comments.
+- **Decisions, Matheus, 2026-11-22:** four old test lists may gain the story's entries ("sim"); pause and remove keep the user's sessions so the device shows the paused banner ("corrija"); leaving Emitido needs `relatorio.issue`, and a role with `export.download` gets a direct download on an issued relatório ("sim nos dois"); one deploy carries Epics 26 and 27 together ("tudo junto"); Epic 27 wave 2's own full gate folds into one shared final gate ("pode ficar so no teste final compartilhado").
+- **Fix batch e26r** (branch `e26r-review-fixes`): the review's fixes and the two decisions above; reactivate ends the user's sessions; production refuses the fake mailer, and `EMAIL_PROVIDER` and `EMAIL_FROM` enter `infra/production/ecs.tf`.
+- **Before the deploy:** e26r and Epic 27 wave 3 on main; one shared full gate and matrix and one hands-on pass as each of the five roles on that main (whoever merges last launches the gate); Story 26.7's DKIM records at the registrar, the SES identity verified, the sandbox exit; then the deploy on Matheus's word.
+
