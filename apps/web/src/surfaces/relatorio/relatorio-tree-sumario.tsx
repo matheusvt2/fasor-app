@@ -7,7 +7,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { DragHandle, PositionBox } from '../templates/reorder-controls.tsx';
 import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useReorder, type Reorder } from '../templates/use-reorder.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { blockTrigger, locationTrigger } from './tree-actions.ts';
 import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relatorio-tree-shared.tsx';
 
@@ -47,7 +47,8 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
   });
   const trigger = () => locationTrigger(reorder.row());
   // Story 26.5: without `relatorio.fill` the structure takes no edit: no move, no Overflow, no "Adicionar".
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill } = useFillAccess();
   const menu = locationMenu(node, shared, reorder, trigger);
   const rowProps = canFill ? reorder.rowProps : {};
   const overflow = canFill ? <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} /> : null;
@@ -304,7 +305,8 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
   const trigger = () => blockTrigger(reorder.row());
   const menu = equipmentMenu(node, shared, reorder, trigger);
   // Story 26.5: without `relatorio.fill` the card opens the sheet and takes no edit.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill } = useFillAccess();
   const current = shared.currentBlockId === node.blockId;
   const className = ['s9-eq', 'eq-card', 'block-card', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
   return (

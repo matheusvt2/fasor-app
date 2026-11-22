@@ -39,7 +39,7 @@ import { useHeldWhilePressed } from '../../input/press-hold.ts';
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useSession } from '../../state/session.tsx';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { CabineBlock } from '../ficha/cabine-block.tsx';
@@ -165,7 +165,8 @@ function VerificacoesBody({
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
   useStickyBarScrollPadding();
   // Story 26.5: a role without `relatorio.fill` reads the site checks and answers none.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill, reason: fillReason } = useFillAccess();
 
   const api: ChecklistRowApi = useMemo(
     () => ({ relatorioId, author: editor.author, commit: (drafts: OpDraft[]) => editor.commit(drafts), edit: (build: Build) => editor.edit(build), undoable: editor.undoable }),
@@ -257,7 +258,8 @@ function VerificacoesBody({
 
   // --- the one banner slot: on an Emitido relatório, editing reopens it
   const issued = useLocalIssuedBanner(state, relatorioId, relatorio.status);
-  const banner = useMemo(() => pickBanner([issued].filter((row): row is Banner => row !== null)), [issued]);
+  // e26r: a screen the role cannot write draws its one read-only Banner instead ("editing reopens it" is not its case).
+  const banner = useMemo(() => pickBanner([canFill ? issued : null].filter((row): row is Banner => row !== null)), [canFill, issued]);
   useExtraBanner(banner);
 
   // --- the Sticky action bar
@@ -305,7 +307,7 @@ function VerificacoesBody({
       </div>
 
       <div className="content" ref={content}>
-        {canFill ? null : <ReadOnlyBanner />}
+        {canFill ? null : <ReadOnlyBanner reason={fillReason} />}
         <CabineBlock api={localApi} state={state} snapshot={snapshot} cabine={location} first siteLine={false} />
         <div className="vl-intro">
           {/* The mock's reason line under the bar is its prototype's toggle; the action's toast carries "Desfazer". */}

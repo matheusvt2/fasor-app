@@ -6,7 +6,8 @@ import { FAMILIES, formatPath, isServerOnly, parsePath, roleFieldPath, rolePath,
 import { ENTITY_SCOPE, registryKindSchema, RELATORIO_SETUP_KEYS, type UserRow } from '../schemas/entities.ts';
 import { opFactory } from '../test-support.ts';
 import { PERMISSION_KEYS } from './keys.ts';
-import { FAMILY_PERMISSION_NEEDS, FICHA_REGISTRY_KINDS, SETUP_CREATE_FIELDS, SETUP_FILL_FIELDS, permissionForPath, permissionForRoute, PERMISSION_ROUTES, type PermissionNeed } from './map.ts';
+import { FAMILY_PERMISSION_NEEDS, FICHA_REGISTRY_KINDS, SETUP_CREATE_FIELDS, SETUP_FILL_FIELDS, permissionForPath, permissionForRoute, PERMISSION_ROUTES, relatorioWriteRefusal, reopenNeed, type PermissionNeed } from './map.ts';
+import { readOnlyReasonText } from './refusal.ts';
 import { ADMIN_ROLE_ID, SYSTEM_ROLE_ROW_IDS, systemRoleRow } from './roles.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000aa';
@@ -214,5 +215,55 @@ describe('26.2-UNIT-009 contract 55 and the new codes', () => {
     expect(errorCodeSchema.options).toContain('user_inactive');
     expect(opRejectCodeSchema.options).toContain('op_forbidden');
     expect(opRejectCodeSchema.options).not.toContain('forbidden');
+  });
+});
+
+describe('e26r-UNIT-002 leaving Emitido needs relatorio.issue (2026-11-22, Matheus "sim nos dois")', () => {
+  const USER = '019966b0-0000-7000-8000-0000000000bb';
+  const edit = (path: string, value: unknown = 'x', kind: 'put' | 'create' | 'remove' = 'put') => ({ path, kind, value, actor_id: USER });
+
+  it('a status put on a relatório the server holds as Emitido issues, whatever its target; elsewhere the old reading holds', () => {
+    for (const to of ['em_revisao', 'em_campo', 'rascunho', 'emitido']) {
+      expect(permissionForPath('relatorio/status', put(to), { relatorioStatus: 'emitido' })).toBe('relatorio.issue');
+    }
+    for (const server of ['rascunho', 'em_campo', 'em_revisao', null, undefined] as const) {
+      expect(permissionForPath('relatorio/status', put('em_revisao'), { relatorioStatus: server })).toBe('relatorio.fill');
+      expect(permissionForPath('relatorio/status', put('emitido'), { relatorioStatus: server })).toBe('relatorio.issue');
+    }
+  });
+
+  it('reopenNeed: on Emitido every op that would reopen (a status move, an edit AD-22 counts) needs relatorio.issue; nothing else does', () => {
+    const reopening = [
+      edit('relatorio/status', 'em_revisao'),
+      edit(`sheet/${ID}/nameplate/fabricacao`),
+      edit(`sheet/${ID}/observations`),
+      edit(`sheet/${ID}/conclusion/result`),
+      edit(`file/${ID}`, { kind: 'photo' }, 'create'),
+      edit(`file/${ID}/caption`),
+      edit(`point/${ID}`, {}, 'create'),
+      edit('relatorio/setup/parecer'),
+      edit(`block/${ID}`, {}, 'create'),
+      edit(`location/${ID}/name`),
+    ].filter((op) => safeParsePath(op.path) !== null);
+    expect(reopening.length).toBeGreaterThanOrEqual(8);
+    for (const op of reopening) expect(reopenNeed(op, 'emitido'), op.path).toBe('relatorio.issue');
+    for (const status of ['rascunho', 'em_campo', 'em_revisao', null, undefined] as const) for (const op of reopening) expect(reopenNeed(op, status)).toBe('none');
+    // Never an edit: a suggestion confirmed (its value lands as a sheet op, which counts), a non-photo file, a server op.
+    expect(reopenNeed(edit(`suggestion/${ID}/status`, 'confirmed'), 'emitido')).toBe('none');
+    expect(reopenNeed(edit(`file/${ID}`, { kind: 'certificate' }, 'create'), 'emitido')).toBe('none');
+    expect(reopenNeed({ ...edit(`sheet/${ID}/observations`), actor_id: 'system:files' }, 'emitido')).toBe('none');
+  });
+
+  it('relatorioWriteRefusal: no fill refuses everywhere; on Emitido a role that fills and does not issue is refused by issue; Admin and Responsável Técnico write', () => {
+    expect(relatorioWriteRefusal(systemRoleRow('consulta'), 'rascunho')).toBe('relatorio.fill');
+    expect(relatorioWriteRefusal(systemRoleRow('consulta'), 'emitido')).toBe('relatorio.fill');
+    expect(relatorioWriteRefusal(systemRoleRow('engenheiro_de_campo'), 'em_revisao')).toBeNull();
+    expect(relatorioWriteRefusal(systemRoleRow('engenheiro_de_campo'), 'emitido')).toBe('relatorio.issue');
+    expect(relatorioWriteRefusal(systemRoleRow('gestor_do_projeto'), 'emitido')).toBe('relatorio.issue');
+    expect(relatorioWriteRefusal(systemRoleRow('responsavel_tecnico'), 'emitido')).toBeNull();
+    expect(relatorioWriteRefusal(systemRoleRow('admin'), 'emitido')).toBeNull();
+    expect(relatorioWriteRefusal(null, 'emitido')).toBe('relatorio.fill');
+    expect(readOnlyReasonText('relatorio.issue')).toBe('Seu papel não permite alterar um relatório emitido.');
+    expect(readOnlyReasonText('relatorio.fill')).toBe('Seu papel não permite preencher fichas, fotos e pontos.');
   });
 });

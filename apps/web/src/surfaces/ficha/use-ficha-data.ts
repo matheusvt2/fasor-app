@@ -26,7 +26,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { usePageTitle } from '../../state/page-title.tsx';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useProjectEquipment, useRelatorioEditor, type Build } from '../relatorio/relatorio-editor.ts';
@@ -85,7 +85,8 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
 
   // Story 26.5: a role without `relatorio.fill` sees the sheet read-only; behind the read-only look,
   // the sheet's own write path writes nothing either (the server refuses on its own).
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill } = useFillAccess();
   const api: FichaApi = useMemo(
     () => ({
       relatorioId,

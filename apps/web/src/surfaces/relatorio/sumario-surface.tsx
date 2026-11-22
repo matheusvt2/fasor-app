@@ -67,7 +67,7 @@ import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useDefinitionContext } from '../../state/definition-context.ts';
-import { useCan, useCanFn } from '../../state/permissions.tsx';
+import { useCan, useCanFn, useFillAccess } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useStickyBarScrollPadding } from '../../components/toast.tsx';
@@ -81,6 +81,7 @@ import { SessionExpiredNote } from '../export/session-expired.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
+import { IssuedFiles } from './issued-files.tsx';
 import { RelatorioGate } from './relatorio-gate.tsx';
 import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
@@ -275,10 +276,17 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // (`permissionForPath`; the path's family is what the map reads) or of its route.
   const canIssue = useCan('relatorio.issue');
   const canWrite = useCanFn();
-  const editable = canWrite(permissionForPath(blockPath(relatorioId), { kind: 'create', value: null }));
+  // e26r (2026-11-22, Matheus "sim nos dois"): on an Emitido relatório a role that does not issue
+  // writes nothing (every write would reopen it), and moving it back needs `relatorio.issue`.
+  const fill = useFillAccess();
+  const editable = canWrite(permissionForPath(blockPath(relatorioId), { kind: 'create', value: null })) && !fill.issuedLocked;
   const canSaveTemplate = canWrite(permissionForPath(templatePath(relatorioId), { kind: 'create', value: null }));
-  const canMoveBack = backMove !== null && canWrite(permissionForPath(relatorioStatusPath(), { kind: 'put', value: backMove.to }));
+  const canMoveBack = backMove !== null && canWrite(permissionForPath(relatorioStatusPath(), { kind: 'put', value: backMove.to }, { relatorioStatus: relatorio.status }));
   const sentNeed = permissionForPath(relatorioStatusPath(), { kind: 'put', value: 'emitido' });
+  // e26r: the latest revision of an Emitido relatório, for a role that downloads and does not issue.
+  const canDownload = useCan('export.download');
+  const issuedFiles = relatorio.status === 'emitido' && canDownload && !canIssue ? latestRevision(revisions) : null;
+  const issuedHeadingId = useId();
   const canMarkSent = canWrite(sentNeed);
 
   // One write path for the rows and the tree: the serialised edit queue, the announcer and
@@ -533,6 +541,15 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </h3>
             <p className="audit-note">{copy.audit.note}</p>
             <AuditFindings run={audit.done} onSee={(target) => seeAuditTarget(target)} />
+          </section>
+        )}
+        {/* e26r (2026-11-22, Matheus "sim nos dois"): a role that downloads and does not issue gets the issued files here, no dialog. */}
+        {issuedFiles === null ? null : (
+          <section aria-labelledby={issuedHeadingId}>
+            <h3 className="field-label revisions-label" id={issuedHeadingId}>
+              {copy.export.revisionsLabel}
+            </h3>
+            <IssuedFiles revision={issuedFiles} />
           </section>
         )}
       </div>

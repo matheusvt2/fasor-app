@@ -2,7 +2,7 @@ import type { MergeInfo } from '../merge/info.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath } from '../ops/path.ts';
 import { can, type RoleLike } from '../permissions/can.ts';
-import { permissionForPath } from '../permissions/map.ts';
+import { permissionForPath, reopenNeed } from '../permissions/map.ts';
 import { peopleCount, plural, relatoriosCount } from '../text/plural.ts';
 
 /*
@@ -282,7 +282,11 @@ export function rejectionCause(row: { error_code: string | null; path: string; k
   const path = safeParsePath(row.path);
   if (path === null) return row.error_code;
   const need = permissionForPath(path, { kind: row.kind ?? 'put', value: (row.value ?? null) as Op['value'] });
-  return need !== 'none' && !can(role, need) ? OP_FORBIDDEN_BY_ROLE : row.error_code;
+  if (need !== 'none' && !can(role, need)) return OP_FORBIDDEN_BY_ROLE;
+  // e26r (2026-11-22): an op that would reopen an issued relatório (`reopenNeed`), from a role that
+  // does not issue: no other cause of `op_forbidden` reaches such an op, so the role explains it.
+  const reopening = reopenNeed({ path: row.path, actor_id: '', kind: row.kind ?? 'put', value: row.value ?? null }, 'emitido');
+  return reopening !== 'none' && !can(role, reopening) ? OP_FORBIDDEN_BY_ROLE : row.error_code;
 }
 
 /** Story 20.9: the share of a text field's cap from which its character count shows (authored, 90 %). */

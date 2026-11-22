@@ -1,6 +1,8 @@
 import type { Op } from '../ops/op.ts';
-import { parsePath, type OpPath, type PathFamily } from '../ops/path.ts';
-import type { RegistryKind } from '../schemas/entities.ts';
+import { parsePath, safeParsePath, type OpPath, type PathFamily } from '../ops/path.ts';
+import type { RegistryKind, RelatorioStatus } from '../schemas/entities.ts';
+import { countsAsEdit, type EditCandidate } from '../status/edited-since.ts';
+import { can, type RoleLike } from './can.ts';
 import type { PermissionKey } from './keys.ts';
 
 /*
@@ -17,7 +19,16 @@ export type PermissionNeed = PermissionKey | 'none';
 /** The fields of an op the map reads beside its path. */
 export type PermissionOp = Pick<Op, 'kind' | 'value'>;
 
-type FamilyNeed = PermissionNeed | ((path: OpPath, op: PermissionOp) => PermissionNeed);
+/**
+ * 2026-11-22 (Matheus, "sim nos dois", e26r): what the reader holds of the relatório the op writes
+ * into, for the needs that depend on it. The server passes the status it holds (never the op's
+ * claim); a device passes the status on its store. Absent, no such need applies.
+ */
+export interface PermissionContext {
+  relatorioStatus?: RelatorioStatus | null | undefined;
+}
+
+type FamilyNeed = PermissionNeed | ((path: OpPath, op: PermissionOp, context: PermissionContext) => PermissionNeed);
 
 /**
  * The registry kinds the ficha creates from a field surface (the nameplate's "Criar “…”" chip,
@@ -60,8 +71,14 @@ export const SETUP_FILL_FIELDS: readonly string[] = [
 const setupNeed = (path: OpPath): PermissionNeed =>
   path.family === 'relatorio/setup' && SETUP_FILL_FIELDS.includes(path.field) ? 'relatorio.fill' : 'relatorio.create';
 
-/** `relatorio/status`: the move to Emitido issues; every other move (Em revisão, back to Rascunho) fills. */
-const statusNeed = (_path: OpPath, op: PermissionOp): PermissionNeed => (op.kind === 'put' && op.value === 'emitido' ? 'relatorio.issue' : 'relatorio.fill');
+/**
+ * `relatorio/status`: the move to Emitido issues; every other move (Em revisão, back to Rascunho) fills.
+ * 2026-11-22 (Matheus, "sim nos dois", e26r): a move away from Emitido issues too, whatever its target
+ * (the backward move, and the reopen an edit appends, `advanceOnEdit`): only a role that issues takes
+ * an issued relatório back. The status is the context's, the one the server holds.
+ */
+const statusNeed = (_path: OpPath, op: PermissionOp, context: PermissionContext): PermissionNeed =>
+  op.kind === 'put' && (op.value === 'emitido' || context.relatorioStatus === 'emitido') ? 'relatorio.issue' : 'relatorio.fill';
 
 const registryCreateNeed = (path: OpPath): PermissionNeed =>
   path.family === 'registry' && FICHA_REGISTRY_KINDS.includes(path.kind) ? 'relatorio.fill' : 'registry.edit';
@@ -138,11 +155,38 @@ const FAMILY_NEEDS = {
 /** The need of every path family (read by the coverage test). */
 export const FAMILY_PERMISSION_NEEDS: Readonly<Record<PathFamily, FamilyNeed>> = FAMILY_NEEDS;
 
-/** The key an op needs, or `'none'`. Never throws on a parsed path; a string is parsed first. */
-export function permissionForPath(path: OpPath | string, op: PermissionOp): PermissionNeed {
+/**
+ * The key an op needs, or `'none'`. Never throws on a parsed path; a string is parsed first.
+ * `context` (e26r): the relatório's current status, read by the `relatorio/status` need.
+ */
+export function permissionForPath(path: OpPath | string, op: PermissionOp, context: PermissionContext = {}): PermissionNeed {
   const parsed = typeof path === 'string' ? parsePath(path) : path;
   const need: FamilyNeed = FAMILY_PERMISSION_NEEDS[parsed.family];
-  return typeof need === 'function' ? need(parsed, op) : need;
+  return typeof need === 'function' ? need(parsed, op, context) : need;
+}
+
+/**
+ * 2026-11-22 (Matheus, "sim nos dois", e26r): leaving Emitido needs `relatorio.issue`. On a relatório
+ * whose current status is Emitido, an op that would reopen it needs `relatorio.issue` beside its own
+ * key (`permissionForPath`): a `relatorio/status` put (any move away), and every edit AD-22's emitter
+ * answers with Emitido to Em revisão (`countsAsEdit`: a sheet value, a photo, a point, the parecer,
+ * the tree). `'none'` for every other op and in every other status.
+ */
+export function reopenNeed(op: EditCandidate, relatorioStatus: RelatorioStatus | null | undefined): PermissionNeed {
+  if (relatorioStatus !== 'emitido') return 'none';
+  if (safeParsePath(op.path)?.family === 'relatorio/status') return op.kind === 'put' ? 'relatorio.issue' : 'none';
+  return countsAsEdit(op) ? 'relatorio.issue' : 'none';
+}
+
+/**
+ * e26r: the key that keeps a role from writing into a relatório in this status, or null when it
+ * writes: `relatorio.fill` when the role does not fill, `relatorio.issue` when the relatório is
+ * Emitido and the role does not issue (every write there would reopen it). The read-only screens read it.
+ */
+export function relatorioWriteRefusal(role: RoleLike | null | undefined, relatorioStatus: RelatorioStatus | null | undefined): 'relatorio.fill' | 'relatorio.issue' | null {
+  if (!can(role, 'relatorio.fill')) return 'relatorio.fill';
+  if (relatorioStatus === 'emitido' && !can(role, 'relatorio.issue')) return 'relatorio.issue';
+  return null;
 }
 
 /**
