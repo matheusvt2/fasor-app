@@ -90,7 +90,7 @@ describe('11.3-UNIT what is carried and what is not', () => {
     const { relatorioId, state } = build();
     let s: EntityState = state;
     const snap0 = buildSnapshot(s, relatorioId);
-    const subsolo = snap0.locations.find((row) => row.name === '1° Subsolo')!;
+    const subsolo = snap0.locations.find((row) => row.name === '1º Subsolo')!;
     const coluna5 = snap0.locations.find((row) => row.name === 'Coluna 5')!;
     const col5Blocks = locationBlocks(snap0.blocks, coluna5.id);
     const [first, second] = col5Blocks;

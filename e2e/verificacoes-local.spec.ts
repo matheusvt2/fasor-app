@@ -1,4 +1,4 @@
-import { newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { getSeed, newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -301,7 +301,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(headerPill(page)).toHaveText('Rascunho');
   const before = await locals(page, relatorioId);
   // The standard template's six locals, then the new one.
-  const names = [ENEL, '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores', EMPTY_LOCAL];
+  const names = [ENEL, STANDARD_SUBSOLO_NAME, 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores', EMPTY_LOCAL];
   expect(before.map((location) => location.name)).toEqual(names);
   const enelId = before[0]!.id;
   const emptyId = before.at(-1)!.id;
@@ -527,7 +527,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await openSumario(page, relatorioId);
   const row9 = sumario(page).locator('li.sum-s9 .sum-status').first();
   await expect(row9).toContainText(
-    `Verificações do local sem resposta: 1° Subsolo (${N} itens), Oxigênio (${N} itens), Cobertura A (${N} itens), Cobertura B (${N} itens), Geradores (${N} itens) e Sala dos painéis (${N} itens)`,
+    `Verificações do local sem resposta: ${STANDARD_SUBSOLO_NAME} (${N} itens), Oxigênio (${N} itens), Cobertura A (${N} itens), Cobertura B (${N} itens), Geradores (${N} itens) e Sala dos painéis (${N} itens)`,
   );
   await expect(row9).not.toContainText('Cubículo Enel (');
   // Epic 14 QA Q-4: the NC item has its point now: no row names it.
@@ -559,10 +559,10 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   const withTable = parts.filter((part) => tablesOf(part.xml).some((table) => table[0]![0] === SITE_TITLE));
   expect(paragraphsOf(nine).filter((paragraph) => paragraph === SITE_TITLE)).toHaveLength(names.length);
   expect(withTable).toHaveLength(names.length);
-  // A local with no type grouping prints under its own name; 1° Subsolo and Geradores (grouped by type) under their first type group.
+  // A local with no type grouping prints under its own name; 1º Subsolo and Geradores (grouped by type) under their first type group.
   expect(withTable.map((part) => part.heading.replace(/^8\.\d+ /, ''))).toEqual([
     ENEL,
-    expect.stringContaining('1° Subsolo'),
+    expect.stringContaining(STANDARD_SUBSOLO_NAME),
     'Oxigênio',
     'Cobertura A',
     'Cobertura B',
@@ -575,7 +575,8 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
     expect(tables.slice(0, 3).map((table) => table[0]![0]), part.heading).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', SITE_TITLE]);
     expect(tables.filter((table) => table[0]![0] === SITE_TITLE), part.heading).toHaveLength(1);
     const table = tables[2]!;
-    expect(table[1]).toEqual(['ÍTEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
+    // The seed's normalized columns, read from the kernel (Story 27.8: "ITEM" since seed v17).
+    expect(table[1]).toEqual([...getSeed(SEED_VERSION, 'cabine_primaria').checklist_columns]);
     expect(table.filter((cells) => cells.length === 1).map((cells) => cells[0])).toEqual([SITE_TITLE, ...GROUPS]);
     const items = itemRows(table);
     expect(items).toHaveLength(N);
@@ -966,7 +967,7 @@ test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no t
   const v4 = await setUp(page, 1280, { keepSheets: true });
   await openSection9(page);
   // One per local of the standard template. Story 15.2: the card is drawn under its open local.
-  for (const name of [ENEL, '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']) await expandLocation(page, name);
+  for (const name of [ENEL, STANDARD_SUBSOLO_NAME, 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']) await expandLocation(page, name);
   await expect(tree(page).locator('.s9-verif')).toHaveCount(6);
   await expect(tree(page).locator('li.s9-coluna').first()).toBeVisible();
   await expect(tree(page).locator('li.s9-coluna .s9-verif')).toHaveCount(0);

@@ -16,6 +16,7 @@ import {
   type LocationRow,
   type OpDraft,
   type TemplateRow,
+  STANDARD_SUBSOLO_NAME,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -932,9 +933,9 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
   await waitForCompanyPull(page, database);
   await openSection9(page);
 
-  // The standard relatório: six locals, 94 sheets. Oxigênio holds five sheets itself; 1° Subsolo holds ten, and seventeen colunas.
+  // The standard relatório: six locals, 94 sheets. Oxigênio holds five sheets itself; 1º Subsolo holds ten, and seventeen colunas.
   const PAINEL_LOCAL = 'Oxigênio';
-  const OTHER_LOCAL = '1° Subsolo';
+  const OTHER_LOCAL = STANDARD_SUBSOLO_NAME;
   const PAINEL = painelInTree('Painel 1', PAINEL_LOCAL);
   const COLUNA_1 = colunaInTree('Coluna 1', 'Painel 1', PAINEL_LOCAL);
   const COLUNA_2 = colunaInTree('Coluna 2', 'Painel 1', PAINEL_LOCAL);
@@ -1118,7 +1119,7 @@ test('@p0 14.2-E2E-004 at 768: a coluna holding a sheet is removed after its con
   await expect(total(96)).toBeVisible();
   expect(await removedAtOf(painelKeys)).toEqual(painelKeys.map(() => null));
 
-  // --- a local: 1° Subsolo, with its seventeen colunas and every sheet under it ---
+  // --- a local: 1º Subsolo, with its seventeen colunas and every sheet under it ---
   const standing = await deviceTreeRows(page);
   const rowsOf = <T extends TreeRow>(entity: string) => [...standing].filter(([key]) => key.startsWith(`${entity}/`)).map(([, row]) => row as T);
   const otherLocal = rowsOf<LocationRow>('location').find((row) => row.relatorio_id === relatorioId && row.parent_id === null && row.name === OTHER_LOCAL)!;

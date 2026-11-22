@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, previousHeaderText, SEED_VERSION, visitDateText, type EquipmentRow, type LastResults } from '@app/domain';
+import { cellAddressesOf, getDefinition, previousHeaderText, SEED_VERSION, visitDateText, type EquipmentRow, type LastResults, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, type DocxStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -52,12 +52,12 @@ const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 /** `60-ficha.html` TAG field helper (Story 24.8). */
 const TAG_HELPER = 'Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.';
 
-/** Opens section 9 of the Sumário and the 1° Subsolo local. */
+/** Opens section 9 of the Sumário and the 1º Subsolo local. */
 async function openSubsolo(page: Page): Promise<void> {
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  const local = page.getByRole('button', { name: /^(Expandir|Recolher) 1° Subsolo$/ });
+  const local = page.getByRole('button', { name: new RegExp(`^(Expandir|Recolher) ${STANDARD_SUBSOLO_NAME}$`) });
   if ((await local.getAttribute('aria-label'))?.startsWith('Expandir') === true) await local.click();
   await expect(coluna(page, 'Coluna 5')).toBeVisible();
 }
@@ -103,7 +103,7 @@ test('@p0 24.8-E2E-001 at 1280: "Novo relatório" names every sheet PREFIX-NN wi
   await expect(tagsIn(coluna(page, 'Coluna 5'))).toHaveText(['SC-07', 'DJ-06']);
 
   // The office palette on Coluna 1: Disjuntor MT asks its TAG prefilled with the next free number; "QM8" typed over it stands.
-  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
+  await menuOf(page, `Coluna 1 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.getByText('Ou escolha o tipo · TAG sugerida por tipo e número')).toBeVisible();

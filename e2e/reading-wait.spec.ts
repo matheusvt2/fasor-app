@@ -1,3 +1,4 @@
+import { STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Locator, Page, Request } from '@playwright/test';
@@ -285,24 +286,24 @@ const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter
 const tagsIn = (li: Locator) => li.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
 const result = (page: Page) => page.getByRole('dialog', { name: 'Fotografar equipamento' });
 
-/** The Sumário with section 9 and 1° Subsolo open. */
+/** The Sumário with section 9 and 1º Subsolo open. */
 async function openSumario(page: Page, relatorioId: string): Promise<void> {
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  const expand = page.getByRole('button', { name: 'Expandir 1° Subsolo' });
+  const expand = page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` });
   if ((await expand.count()) > 0) await expand.click();
   await expect(coluna(page, 'Coluna 1')).toBeVisible();
 }
 
 /** The field palette on Coluna 1. */
 async function openPalette(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
+  await page.getByRole('button', { name: `Mais opções de Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
-  await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();
+  await expect(palette.getByText(`Em: ${STANDARD_SUBSOLO_NAME} › Coluna 1`)).toBeVisible();
   return palette;
 }
 

@@ -14,7 +14,7 @@ import { EMPTY_DEFINITION_CONTEXT, SEED_VERSION, siteItems } from '../seed/defin
 const SITE_COUNT = siteItems(SEED_VERSION).length;
 
 const TEMPLATE_ID = '019966b0-0051-7000-8000-000000000001';
-const CABINES = ['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'];
+const CABINES = ['Cubículo Enel', '1º Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'];
 
 /** A fresh relatório from the standard template, no setup, no client, no empresa. */
 function fresh(): RelatorioSnapshot {

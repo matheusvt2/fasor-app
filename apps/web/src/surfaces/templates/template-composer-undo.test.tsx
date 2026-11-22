@@ -103,7 +103,7 @@ describe('3.4 composer: skeleton', () => {
   it('leaving the composer takes its removal undo away, so a later visit\'s edits can never be discarded by it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 2 em 1° Subsolo' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 2 em 1º Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 2?' })).getByRole('button', { name: 'Remover' }));
     expect(await screen.findByRole('button', { name: 'Desfazer' })).toBeVisible();
@@ -117,7 +117,7 @@ describe('3.4 composer: skeleton', () => {
   it('an undo pressed while an edit is queued runs after it, never racing it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 2 em 1° Subsolo' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 2 em 1º Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 2?' })).getByRole('button', { name: 'Remover' }));
     const undo = await screen.findByRole('button', { name: 'Desfazer' });
@@ -175,11 +175,11 @@ describe('3.4 composer: skeleton', () => {
     };
 
     // A coluna in the middle of its cabine: the coluna after it.
-    // A coluna's controls name it with its local (the standard template's colunas sit directly under "1° Subsolo").
-    const coluna3 = (await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1° Subsolo' })).closest('li')!;
+    // A coluna's controls name it with its local (the standard template's colunas sit directly under "1º Subsolo").
+    const coluna3 = (await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1º Subsolo' })).closest('li')!;
     const after = (coluna3.nextElementSibling as HTMLElement).querySelector('.col-name')!.textContent!;
-    await removeVia('Mais opções de Coluna 3 em 1° Subsolo', 'Coluna 3');
-    await waitFor(() => expect(screen.getByRole('button', { name: `Mais opções de ${after} em 1° Subsolo` })).toHaveFocus());
+    await removeVia('Mais opções de Coluna 3 em 1º Subsolo', 'Coluna 3');
+    await waitFor(() => expect(screen.getByRole('button', { name: `Mais opções de ${after} em 1º Subsolo` })).toHaveFocus());
 
     // The last section: the one before it.
     const sections = screen.getByRole('list', { name: 'Blocos do template' });
@@ -191,7 +191,7 @@ describe('3.4 composer: skeleton', () => {
   it('removes a coluna with its blocks after a Confirm dialog, in one batch, and "Desfazer" restores both fields', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1° Subsolo' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1º Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remover Coluna 3?' });
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toHaveFocus());

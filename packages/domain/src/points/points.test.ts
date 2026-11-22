@@ -241,13 +241,13 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
   it('Story 20.4: the title follows a relink written as both fields (equipment, local, Geral)', () => {
     const order = sheetOrder(base);
     const equipmentId = base.blocks.find((row) => row.id === order[0]!.blockId)!.equipment_id;
-    const local = base.locations.find((row) => row.kind === 'cabine' && row.name === '1° Subsolo')!;
+    const local = base.locations.find((row) => row.kind === 'cabine' && row.name === '1º Subsolo')!;
     const geral = point(base, { equipment_id: null, location_id: null });
     expect(pointTitle(geral, base)).toBe('Geral');
     const toEquipment = { ...geral, ...pointLinkValues({ equipmentId, locationId: null }) };
     expect(pointTitle(toEquipment, base)).toBe(`${order[0]!.name} · Cubículo Enel`);
     const toLocal = { ...toEquipment, ...pointLinkValues({ equipmentId: null, locationId: local.id }) };
-    expect(pointTitle(toLocal, base)).toBe('1° Subsolo · Verificações do local');
+    expect(pointTitle(toLocal, base)).toBe('1º Subsolo · Verificações do local');
     expect(pointTitle({ ...toLocal, ...pointLinkValues({ equipmentId: null, locationId: null }) }, base)).toBe('Geral');
   });
 });

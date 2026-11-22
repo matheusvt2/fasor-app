@@ -31,6 +31,14 @@ import type { BlockDefinition } from './schema.ts';
 
 export const STANDARD_TEMPLATE_NAME = 'Cabine primária — padrão';
 
+/**
+ * Story 27.8 (F30, decision 2 of 2026-11-21): the standard template's second local, written with the ordinal sign
+ * (U+00BA), not the degree sign of "1° Subsolo" it carried before. A template built after this story names it so; a
+ * company's stored template and a relatório keep the name they were created with (coordinator's reading, open to
+ * Matheus: a stored template is not renamed by itself).
+ */
+export const STANDARD_SUBSOLO_NAME = '1º Subsolo';
+
 /** FR-11: sub-blocks that ship switched off in a new BlockConfig. */
 export const DEFAULT_OFF_SUB_BLOCKS: readonly SubBlockKey[] = ['ia_ip_display'];
 
@@ -146,7 +154,7 @@ const SUBTYPE_OF: Partial<Record<EquipmentBlockType, Subtype>> = { chave_seccion
 
 const one = (type: EquipmentBlockType, role?: Role): Placement => ({ type, quantity: 1, ...(role ? { role } : {}) });
 
-/** Which columns of the 1° Subsolo hold which equipment, and how many (reference job 9.2-9.4). */
+/** Which columns of the 1º Subsolo hold which equipment, and how many (reference job 9.2-9.4). */
 const SUBSOLO_COLUMNS: Readonly<Record<number, Placement[]>> = {
   1: [one('chave_seccionadora')],
   2: [{ type: 'chave_seccionadora', quantity: 2 }, one('disjuntor_mt'), one('tp'), one('tc')],
@@ -199,7 +207,7 @@ const CABINES: CabineSpec[] = [
   },
   {
     ref: 'subsolo-1',
-    name: '1° Subsolo',
+    name: STANDARD_SUBSOLO_NAME,
     agrupar_por_tipo: true,
     blocks: [
       { type: 'transformador_forca', quantity: 5 },
@@ -264,7 +272,7 @@ export interface StandardTemplateInput {
 /**
  * The "Cabine primária — padrão" template row: the section blocks 1-6, 8, 10 and 11 in
  * FO.SERV-03 order, then the equipment blocks location by location, over the skeleton
- * Cubículo Enel · 1° Subsolo (Coluna 1 to 17) · Oxigênio · Cobertura A · Cobertura B ·
+ * Cubículo Enel · 1º Subsolo (Coluna 1 to 17) · Oxigênio · Cobertura A · Cobertura B ·
  * Geradores. Pure: the same id gives the same row.
  */
 export function standardTemplate({ id, seedVersion = SEED_VERSION }: StandardTemplateInput): TemplateRow {

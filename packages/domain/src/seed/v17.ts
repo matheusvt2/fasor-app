@@ -1,4 +1,4 @@
-import type { ReportSeed } from './schema.ts';
+import type { ReportSeed, SeedWord } from './schema.ts';
 import { CABINE_PRIMARIA_V16 } from './v16.ts';
 
 /*
@@ -28,7 +28,40 @@ const v16 = CABINE_PRIMARIA_V16;
 
 function cabinePrimariaV17(): ReportSeed {
   const seed = structuredClone(v16);
+  story27_8(seed);
   return seed;
+}
+
+// --- Story 27.8: The form's words, right on screen and in the document -------------------------
+
+/** The first column of VERIFICAÇÕES GERAIS on v17 (F35), and the spelling of v1 to v16 it replaces. */
+export const STORY_27_8_CHECKLIST_HEADER = 'ITEM';
+export const STORY_27_8_CHECKLIST_HEADER_BEFORE = 'ÍTEM';
+/** The surge arrester's block label on v17 (F35), and v1 to v16's. */
+export const STORY_27_8_PARA_RAIO_LABEL = 'Para-raios';
+export const STORY_27_8_PARA_RAIO_LABEL_BEFORE = 'Para-raio';
+/** The caption activity whose participle agrees with the compound (F30): "Detalhe da limpeza e reaperto realizados". */
+export const STORY_27_8_ACTIVITY = 'limpeza e reaperto';
+export const STORY_27_8_ACTIVITY_PARTICIPLE: NonNullable<SeedWord['participle']> = { gender: 'm', number: 'plural' };
+
+/**
+ * Story 27.8 (F30, F35; decision 2 of 2026-11-21): the form's words spelled right on a new relatório. The checklist
+ * header reads "ITEM", the surge arrester's label "Para-raios", and the activity "limpeza e reaperto" keeps its article
+ * ("da", from its first noun) while its participle agrees with the compound, "realizados". Two rule flags: the caption's
+ * equipment word of the surge arrester reads "para-raios" (`caption_para_raios`), and Story 27.3's section 10 sentence
+ * names the open fichas with a reading out apart from the reprovadas (`parecer_open_apart`). The standard template's
+ * "1º Subsolo" and the group title "TPs e TCs" are code (`seed/template.ts`, `print/group-for-print.ts`).
+ */
+function story27_8(seed: ReportSeed): void {
+  if (seed.checklist_columns[0] !== STORY_27_8_CHECKLIST_HEADER_BEFORE) throw new Error(`seed v17: the checklist's first column is not ${STORY_27_8_CHECKLIST_HEADER_BEFORE}`);
+  seed.checklist_columns = [STORY_27_8_CHECKLIST_HEADER, ...seed.checklist_columns.slice(1)];
+  if (seed.blocks.para_raio.label !== STORY_27_8_PARA_RAIO_LABEL_BEFORE) throw new Error(`seed v17: the surge arrester is not labelled ${STORY_27_8_PARA_RAIO_LABEL_BEFORE}`);
+  seed.blocks.para_raio.label = STORY_27_8_PARA_RAIO_LABEL;
+  const activity = seed.atividades.find((word) => word.name === STORY_27_8_ACTIVITY);
+  if (activity === undefined || activity.participle !== undefined) throw new Error(`seed v17: the activity ${STORY_27_8_ACTIVITY} is missing or already carries its participle`);
+  activity.participle = structuredClone(STORY_27_8_ACTIVITY_PARTICIPLE);
+  if (seed.rules?.caption_para_raios !== undefined || seed.rules?.parecer_open_apart !== undefined) throw new Error('seed v17: a Story 27.8 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), caption_para_raios: true, parecer_open_apart: true };
 }
 
 export const CABINE_PRIMARIA_V17: ReportSeed = cabinePrimariaV17();

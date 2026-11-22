@@ -546,7 +546,8 @@ export const copy = {
     // Equipment row names, verbatim from the mock's palette and `.qty-name`.
     equipmentNames: {
       cabos_entrada: 'Cabos de entrada',
-      para_raio: 'Para-raio',
+      // Story 27.8 (F35): the form's word, on every seed (the screen name prints nothing).
+      para_raio: 'Para-raios',
       chave_seccionadora: 'Chave seccionadora',
       disjuntor_mt: 'Disjuntor MT',
       tp: 'TP',

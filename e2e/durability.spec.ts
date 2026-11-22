@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, PRODUTO, type Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, PRODUTO, type Op, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import {
@@ -579,13 +579,13 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   await chevron.tap();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).tap();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).tap();
   const col1 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 1$/ }) });
   const tags = col1.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
   await expect(tags).toHaveText(['SEC-C01']);
 
   // The palette from the coluna row: a bottom sheet across the phone.
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).tap();
+  await page.getByRole('button', { name: `Mais opções de Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true }).tap();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).tap();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.locator('.sheet-grip')).toBeVisible();

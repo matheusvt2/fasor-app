@@ -103,7 +103,7 @@ describe('3.4-UNIT skeleton edits', () => {
     expect(moved.filter((n) => n.kind === 'cabine').map((n) => n.name)).toEqual([
       'Geradores',
       'Cubículo Enel',
-      '1° Subsolo',
+      '1º Subsolo',
       'Oxigênio',
       'Cobertura A',
       'Cobertura B',
@@ -289,7 +289,7 @@ describe('3.4-UNIT composerView', () => {
     expect(view.colunaCount).toBe(17);
     expect(view.blockCount).toBe(94);
     const subsolo = view.cabines[1]!;
-    expect(subsolo).toMatchObject({ name: '1° Subsolo', position: 2, siblings: 6, agrupar_por_tipo: true });
+    expect(subsolo).toMatchObject({ name: '1º Subsolo', position: 2, siblings: 6, agrupar_por_tipo: true });
     expect(subsolo.colunas).toHaveLength(17);
     expect(subsolo.colunas[2]).toMatchObject({ name: 'Coluna 3', position: 3, siblings: 17, blockCount: 7 });
     expect(subsolo.quantities).toMatchObject({ transformador_forca: 5, cabos_saida: 5 });

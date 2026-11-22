@@ -11,6 +11,7 @@ import {
   SEED_VERSION,
   type InstrumentRow,
   STANDARD_TEMPLATE_NAME,
+  STANDARD_SUBSOLO_NAME,
 } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
@@ -255,7 +256,7 @@ test('@p0 4.1-E2E-003 a second relatório of the same obra reuses its equipment 
 
   // The tree shows the same TAGs the first relatório got (Story 24.8: PREFIX-NN, Coluna 5's after the six seccionadoras and five breakers before it).
   await page.getByRole('button', { name: 'Expandir ou recolher a seção 8' }).click();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   const coluna5 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 5$/ }) });
   await expect(coluna5.locator(':scope > .s9-eqs > li.s9-eq .block-tag')).toHaveText(['SC-07', 'DJ-06']);
 

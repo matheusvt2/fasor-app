@@ -50,9 +50,9 @@ describe('20.4-UNIT pointLinkGroups', () => {
     expect(enel.id).toBe(`group:local:${locals[0]!.id}`);
     expect(enel.options[0]).toEqual({ key: `local:${locals[0]!.id}`, equipmentId: null, locationId: locals[0]!.id, text: 'Cubículo Enel · Verificações do local' });
     expect(enel.options[1]!.text).toBe('CE-ENEL · Cabos de entrada · Cubículo Enel');
-    const subsolo = groups.find((group) => group.label === '1° Subsolo')!;
+    const subsolo = groups.find((group) => group.label === '1º Subsolo')!;
     // A coluna's sheets sit in their local's group, named with their full place.
-    expect(subsolo.options.map((option) => option.text)).toContain('SEC-C12 · Chave seccionadora · 1° Subsolo › Coluna 12');
+    expect(subsolo.options.map((option) => option.text)).toContain('SEC-C12 · Chave seccionadora · 1º Subsolo › Coluna 12');
   });
 
   it('names every equipment once, by the photo capture text, in sheet order', () => {
@@ -89,7 +89,7 @@ describe('20.4-UNIT pointLinkGroups', () => {
     const v3Groups = pointLinkGroups(v3);
     expect(v3Groups[0]!.id).toBe('group:geral');
     expect(pointLinkOptions(v3Groups).some((option) => option.locationId !== null)).toBe(false);
-    expect(v3Groups.slice(1).map((group) => group.label)).toContain('1° Subsolo › Coluna 12');
+    expect(v3Groups.slice(1).map((group) => group.label)).toContain('1º Subsolo › Coluna 12');
     const equipment = pointLinkOptions(v3Groups).filter((option) => option.equipmentId !== null);
     expect(equipment).toHaveLength(sheetOrder(v3).filter((node) => node.equipmentId !== null).length);
   });

@@ -1,4 +1,4 @@
-import { getDefinition, newPointRow, photoToken, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { getDefinition, newPointRow, photoToken, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -895,7 +895,7 @@ test.describe('on a touch screen', () => {
       // A labelled listbox with groups, the current link selected.
       await expect(list.getByRole('option', { name: 'Geral', exact: true })).toHaveAttribute('aria-selected', 'true');
       await expect(list.getByRole('group', { name: 'Cubículo Enel' })).toBeVisible();
-      await expect(list.getByRole('group', { name: '1° Subsolo' })).toBeAttached();
+      await expect(list.getByRole('group', { name: STANDARD_SUBSOLO_NAME })).toBeAttached();
       await list.getByRole('option', { name: chaveOption(chave), exact: true }).tap();
       await expect(list).toHaveCount(0);
       await expect(picker).toBeFocused();
@@ -1214,7 +1214,7 @@ test('@p0 20.4-E2E-006 a pick in a new point\'s editor goes into its create: fro
   await expect(picker).toContainText('Geral');
   const before = (await pointOutbox(page)).length;
   await picker.click();
-  const option = linkList(page).getByRole('group', { name: '1° Subsolo' }).getByRole('option').nth(1);
+  const option = linkList(page).getByRole('group', { name: STANDARD_SUBSOLO_NAME }).getByRole('option').nth(1);
   const key = (await option.getAttribute('data-key'))!;
   const text = (await option.textContent())!;
   expect(key).toMatch(/^equipment:/);

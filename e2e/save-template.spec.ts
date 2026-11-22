@@ -1,4 +1,4 @@
-import { templateRowSchema, type TemplateRow } from '@app/domain';
+import { templateRowSchema, type TemplateRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -81,7 +81,7 @@ test('@p0 11.3-E2E-001 "Salvar como template" from the Sumário header: one temp
   expect(template).toMatchObject({ name: 'Modelo da árvore', version: 1, archived_at: null, removed_at: null });
   expect(template.skeleton.filter((node) => node.kind === 'cabine')).toHaveLength(6);
   expect(template.skeleton.filter((node) => node.kind === 'coluna')).toHaveLength(17);
-  expect(template.skeleton.find((node) => node.name === '1° Subsolo')).toMatchObject({ kind: 'cabine', agrupar_por_tipo: true });
+  expect(template.skeleton.find((node) => node.name === STANDARD_SUBSOLO_NAME)).toMatchObject({ kind: 'cabine', agrupar_por_tipo: true });
   expect(template.blocks.filter((block) => block.skeleton_location_ref !== null).reduce((sum, block) => sum + block.quantity, 0)).toBe(94);
   const text = JSON.stringify(template);
   expect(text).not.toContain('SEC-C05');
@@ -118,11 +118,11 @@ test('@p1 11.3-E2E-003 11.3-AFTER-MOVE: SEC-C05 moved to Coluna 9, then saved: t
   await openRelatorio(page, account);
   await page.getByRole('button', { name: 'Expandir ou recolher a seção 8' }).click();
   await expect(tree(page)).toBeVisible();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   await page.getByRole('button', { name: 'Mais opções de SEC-C05', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Mover para…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Mover SEC-C05 para…' });
-  await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
+  await dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true }).click();
   await dialog.getByRole('button', { name: 'Mover', exact: true }).click();
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
 

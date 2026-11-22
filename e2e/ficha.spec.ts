@@ -15,6 +15,7 @@ import {
   vectorGroupShortText,
   type BlockRow,
   type OpDraft,
+  STANDARD_SUBSOLO_NAME,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
@@ -54,6 +55,7 @@ interface OutboxRow {
 }
 
 // Batch e23b: the current seed's, read from the kernel (E15-A3); seed v13 appends MCOV, INVÓLUCRO and DESLIGADOR ÍNTEGRO.
+// Story 27.8: its label, the tree's type name, reads "Para-raios" since seed v17.
 const PARA_RAIO = getDefinition(SEED_VERSION, 'cabine_primaria', 'para_raio');
 const toast = (page: Page) => page.getByTestId('toast');
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
@@ -116,11 +118,11 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId, tag } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
 
   // The App bar title is the TAG; the header shows type + TAG (the rename button), the location.
   await expect(page.locator('.app-bar-title')).toHaveText(tag);
-  await expect(page.locator('.sheet-title')).toContainText('Para-raio');
+  await expect(page.locator('.sheet-title')).toContainText(PARA_RAIO.label);
   await expect(page.getByRole('button', { name: `TAG ${tag} — renomear` })).toBeVisible();
   await expect(page.locator('.sheet-header .sheet-meta').first()).toHaveText('Cubículo Enel');
   const box = (await page.getByRole('button', { name: `TAG ${tag} — renomear` }).boundingBox())!;
@@ -203,7 +205,7 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   const items = PARA_RAIO.checklist!;
 
   // The legend heads the session's first checklist.
@@ -336,11 +338,11 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
   await expect(page.getByLabel('Tipo de SE', { exact: true })).toHaveValue('BLINDADA');
   await expect(page.locator('.se-block.is-readonly')).toHaveCount(0);
 
-  // 1° Subsolo's first sheet copies Cubículo Enel's environment, with an undo.
+  // 1º Subsolo's first sheet copies Cubículo Enel's environment, with an undo.
   await page.goto(`/relatorio/${relatorioId}`);
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-  await page.getByRole('button', { name: 'Mais opções de 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Mais opções de ${STANDARD_SUBSOLO_NAME}` }).click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados do local)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
   await page.getByRole('button', { name: 'Copiar do local anterior' }).click();
@@ -356,7 +358,7 @@ test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain op
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
-  const source = await rowIds(rowOfType(page, 'Para-raio', 0));
+  const source = await rowIds(rowOfType(page, PARA_RAIO.label, 0));
   await pushDrafts(page, database, [
     officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/fabricacao`, 'Celtta'),
     officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/n_serie`, 'PR-0009'),
@@ -364,7 +366,7 @@ test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain op
   ]);
   await syncNowAndReturn(page);
   await openEnel(page);
-  const target = await openSheet(page, rowOfType(page, 'Para-raio', 1));
+  const target = await openSheet(page, rowOfType(page, PARA_RAIO.label, 1));
 
   await page.getByRole('button', { name: `Igual à ${source.tag}?` }).click();
   await expect(toast(page)).toContainText(`Copiado de ${source.tag}`);
@@ -383,7 +385,7 @@ test('@p0 5.1-E2E-002 "Concluir ficha" with missing fields jumps to the first in
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId, tag } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   // Move away from the plate first, so the jump is visible.
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
@@ -401,7 +403,7 @@ test('@p0 5.1-E2E-003 "Concluir ficha" on a complete sheet emits concluded_by an
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
-  const target = await rowIds(rowOfType(page, 'Para-raio'));
+  const target = await rowIds(rowOfType(page, PARA_RAIO.label));
   const order = await enelRows(page).evaluateAll((rows) => rows.map((row) => row.getAttribute('data-block-id')));
   const next = order[order.indexOf(target.blockId) + 1]!;
 
@@ -421,7 +423,7 @@ test('@p0 5.1-E2E-003 "Concluir ficha" on a complete sheet emits concluded_by an
   await pushDrafts(page, database, drafts);
   await syncNowAndReturn(page);
   await openEnel(page);
-  await openSheet(page, rowOfType(page, 'Para-raio'));
+  await openSheet(page, rowOfType(page, PARA_RAIO.label));
 
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
   await expect(stepper(page).getByRole('button', { name: 'Conclusão, 0 faltando' })).toBeVisible();
@@ -444,7 +446,7 @@ test('@p0 5.1-E2E-004 uncommitted observation text survives a dead tab as "Rascu
   test.setTimeout(120_000);
   await openRelatorio(page, 390);
   await openEnel(page);
-  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   expect(await horizontalOverflow(page)).toBe(0);
   await expect(page.locator('aside.rail')).toBeHidden();
   await expect(page.locator('aside.rail-collapsed')).toBeHidden();
@@ -1345,7 +1347,7 @@ test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number rea
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   const corrente = page.getByLabel('Corrente nominal', { exact: true });
   await corrente.click();
   await corrente.pressSequentially('3.3');
@@ -1403,7 +1405,7 @@ test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId, tag } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
 
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
@@ -1567,8 +1569,8 @@ test('@p0 5.4-E2E-002 "Repetir da ficha anterior do mesmo tipo" writes only the 
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
   const items = PARA_RAIO.checklist!;
-  const source = await rowIds(rowOfType(page, 'Para-raio', 0));
-  const target = await rowIds(rowOfType(page, 'Para-raio', 1));
+  const source = await rowIds(rowOfType(page, PARA_RAIO.label, 0));
+  const target = await rowIds(rowOfType(page, PARA_RAIO.label, 1));
   const scope = { relatorioId };
   const drafts: OpDraft[] = [
     ...items.map((item) => officeDraft(account, scope, `sheet/${source.blockId}/checklist/${item.key}/result`, 'C')),
@@ -1579,7 +1581,7 @@ test('@p0 5.4-E2E-002 "Repetir da ficha anterior do mesmo tipo" writes only the 
   await pushDrafts(page, database, drafts);
   await syncNowAndReturn(page);
   await openEnel(page);
-  await openSheet(page, rowOfType(page, 'Para-raio', 1));
+  await openSheet(page, rowOfType(page, PARA_RAIO.label, 1));
 
   const bulk = page.locator('#ficha-step-verificacoes .bulk-action-bar');
   await bulk.getByRole('button', { name: 'Repetir da ficha anterior do mesmo tipo' }).click();
@@ -1636,7 +1638,7 @@ test('@p1 E5-Q8 Space, ArrowRight and Delete in quick succession always leave th
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   const row = checklistRow(page, 1);
   const path = `sheet/${blockId}/checklist/${PARA_RAIO.checklist![0]!.key}/result`;
   // E5-R1: each round starts from a committed non-null value (NA), so the poll for the
@@ -1677,7 +1679,7 @@ test('@p1 E5-Q17 the sheet Overflow "Limpar conclusão" clears both groups in on
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId, tag } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   const menu = page.getByRole('button', { name: `Mais opções da ficha ${tag}` });
   // Nothing set: no entry.
   await menu.click();
@@ -1790,7 +1792,7 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   const [, concludedBefore, total] = /^(\d+) de (\d+) fichas concluídas$/.exec((await concludedButton.textContent())!.trim())!;
 
   await openEnel(page);
-  const { tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { tag } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
@@ -1834,7 +1836,7 @@ test('@p1 E5-Q18f the saved line changes at most once for a burst of commits, ne
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const { blockId } = await openSheet(page, rowOfType(page, PARA_RAIO.label));
   const items = PARA_RAIO.checklist!;
   expect(items.length).toBeGreaterThan(4);
   const region = page.getByTestId('ficha-saved');

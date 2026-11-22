@@ -5,7 +5,7 @@ import { cabineOf } from '../relatorio/cabine.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import type { SheetStep } from '../relatorio/sheet-progress.ts';
 import { siteLocalOf } from '../relatorio/site-checklist.ts';
-import { blockDefinitionIn, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, seedRule, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { SeedWord } from '../seed/schema.ts';
 
 /*
@@ -44,6 +44,12 @@ export const CAPTION_EQUIPMENT_WORDS: Readonly<Record<EquipmentBlockType, SeedWo
   no_break_comando: { name: 'no-break de comando', gender: 'm', number: 'singular' },
 };
 
+/**
+ * Story 27.8 (seed v17, F35): the surge arrester's caption word on a seed whose `caption_para_raios` flag is on, the
+ * form's "para-raios" (masculine singular, as "para-raio" was). A sheet of an older seed keeps "para-raio".
+ */
+export const CAPTION_PARA_RAIOS_WORD: SeedWord = { name: 'para-raios', gender: 'm', number: 'singular' };
+
 /** The seed atividade a test table on screen names ("ensaios de resistência de isolação"). */
 const TEST_ACTIVITY: Readonly<Record<string, string>> = {
   isolacao: 'ensaios de resistência de isolação',
@@ -59,6 +65,15 @@ const MASCULINE_PLURAL: Agreement = { gender: 'm', number: 'plural' };
 /** The article that agrees with a word: o, a, os, as. */
 function article(word: Agreement): string {
   return `${word.gender === 'f' ? 'a' : 'o'}${word.number === 'plural' ? 's' : ''}`;
+}
+
+/** A seed word's agreement, with its participle's when the seed names one (Story 27.8, seed v17). */
+function agreementOf(word: Agreement & { participle?: Agreement }): Agreement & { participle?: Agreement } {
+  return { gender: word.gender, number: word.number, ...(word.participle === undefined ? {} : { participle: { gender: word.participle.gender, number: word.participle.number } }) };
+}
+
+function sameAgreement(a: Agreement | undefined, b: Agreement | undefined): boolean {
+  return a === undefined || b === undefined ? a === b : a.gender === b.gender && a.number === b.number;
 }
 
 function sameName(a: string, b: string): boolean {
@@ -85,6 +100,8 @@ export interface ContextCaptionMeta {
 /** One part of a caption: its words and their gender and number. */
 export interface CaptionWord extends Agreement {
   name: string;
+  /** Story 27.8 (seed v17): an activity's participle agreement when it is not the word's own (`SeedWord.participle`). */
+  participle?: Agreement;
 }
 
 /** Story 6.5: the three parts a caption is composed of; a null part is left out. */
@@ -110,7 +127,7 @@ function activityOf(photo: { item_key: string | null }, block: BlockRow, meta: C
   const name = key === null ? undefined : TEST_ACTIVITY[key];
   if (name === undefined) return null;
   const seeded = meta.words.atividades.find((word) => sameName(word.name, name));
-  return { name, ...(seeded === undefined ? MASCULINE_PLURAL : { gender: seeded.gender, number: seeded.number }) };
+  return { name, ...(seeded === undefined ? MASCULINE_PLURAL : agreementOf(seeded)) };
 }
 
 /**
@@ -179,6 +196,8 @@ function localOf(block: BlockRow, snapshot: RelatorioSnapshot, meta: ContextCapt
  * company type's its version's noun, singular, with its gender (from the snapshot's type versions).
  */
 function equipmentWordOf(block: Pick<BlockRow, 'block_type' | 'seed_version' | 'config'>, snapshot: Pick<RelatorioSnapshot, 'equipment_types'>): CaptionWord | null {
+  // Story 27.8: on a seed that turns `caption_para_raios` on, the surge arrester reads "para-raios".
+  if (block.block_type === 'para_raio' && seedRule(block.seed_version, 'caption_para_raios')) return CAPTION_PARA_RAIOS_WORD;
   if (isEquipmentBlockType(block.block_type)) return CAPTION_EQUIPMENT_WORDS[block.block_type];
   const noun = blockDefinitionIn(snapshotDefinitionContext(snapshot), block)?.noun;
   return noun === undefined ? null : { name: noun.singular, gender: noun.gender, number: 'singular' };
@@ -217,7 +236,9 @@ function usable(word: CaptionWord | null): CaptionWord | null {
 /**
  * The one caption grammar (Stories 6.1 and 6.5): "Detalhe d⟨o/a⟩(s) ⟨atividade⟩
  * realizad⟨o/a⟩(s) n⟨o/a⟩(s) ⟨equipamento⟩ d⟨o/a⟩(s) ⟨local⟩", a missing part left out;
- * null when no part is given. No trailing period.
+ * null when no part is given. No trailing period. Story 27.8: the participle agrees with the
+ * activity's own `participle` when it names one ("Detalhe da limpeza e reaperto realizados"),
+ * else with the activity, as the article does.
  */
 export function composeCaption(parts: CaptionParts): string | null {
   const activity = usable(parts.atividade);
@@ -225,7 +246,8 @@ export function composeCaption(parts: CaptionParts): string | null {
   const local = usable(parts.local);
   const out: string[] = [];
   if (activity !== null) {
-    out.push(`Detalhe d${article(activity)} ${activity.name} realizad${activity.gender === 'f' ? 'a' : 'o'}${activity.number === 'plural' ? 's' : ''}`);
+    const participle = activity.participle ?? activity;
+    out.push(`Detalhe d${article(activity)} ${activity.name} realizad${participle.gender === 'f' ? 'a' : 'o'}${participle.number === 'plural' ? 's' : ''}`);
     if (equipment !== null) {
       out.push(`n${article(equipment)} ${equipment.name}`);
       if (local !== null) out.push(`d${article(local)} ${local.name}`);
@@ -268,7 +290,8 @@ export function captionPartsOf(
   const options = (first: CaptionWord | null, more: readonly (CaptionWord | null)[]): (CaptionWord | null)[] => {
     const out: (CaptionWord | null)[] = [];
     for (const word of [first, null, ...more]) {
-      if (!out.some((known) => (known === null ? word === null : word !== null && known.name === word.name && known.gender === word.gender && known.number === word.number))) out.push(word);
+      // Story 27.8: two words that differ only by their participle (seed v17's "limpeza e reaperto") are kept apart.
+      if (!out.some((known) => (known === null ? word === null : word !== null && known.name === word.name && known.gender === word.gender && known.number === word.number && sameAgreement(known.participle, word.participle)))) out.push(word);
     }
     return out;
   };
@@ -362,7 +385,7 @@ export function captionWordFor(
   }
   const pool = kind === 'equipamento' ? [...words, ...Object.values(CAPTION_EQUIPMENT_WORDS)] : words;
   const seeded = pool.find((word) => sameName(word.name, trimmed));
-  if (seeded !== undefined) return { name: trimmed, gender: seeded.gender, number: seeded.number };
+  if (seeded !== undefined) return { name: trimmed, ...agreementOf(seeded) };
   if (kind === 'equipamento') {
     // E6-Q5: an equipment word and its TAG ("chave seccionadora SEC-C01") agree with the word.
     const lower = trimmed.toLocaleLowerCase('pt-BR');

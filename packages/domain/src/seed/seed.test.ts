@@ -30,6 +30,14 @@ import { CABINE_PRIMARIA_V4 } from './v4.ts';
 import { CABINE_PRIMARIA_V5 } from './v5.ts';
 import { STORY_25_22_RATIO_HEADERS, STORY_25_8_TESTS } from './v15.ts';
 import { STORY_25_15_ADDED_ROWS, STORY_25_15_PERFORMED, STORY_25_15_ROWS, STORY_25_15_TEST, STORY_25_15_TYPES, STORY_25_15_VALUES, STORY_25_16_ADDED_ROWS, STORY_25_16_TEST, STORY_25_18_TC_ITEM, STORY_25_18_TRANSFORMER_HINTS, STORY_25_19_DRY, STORY_25_19_DRY_ALIAS, STORY_25_19_TYPES } from './v16.ts';
+import {
+  STORY_27_8_ACTIVITY,
+  STORY_27_8_ACTIVITY_PARTICIPLE,
+  STORY_27_8_CHECKLIST_HEADER,
+  STORY_27_8_CHECKLIST_HEADER_BEFORE,
+  STORY_27_8_PARA_RAIO_LABEL,
+  STORY_27_8_PARA_RAIO_LABEL_BEFORE,
+} from './v17.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
@@ -2263,6 +2271,8 @@ const E25P20_FLAGS = ['criterion_result_per_row', 'corrected_headers_corrigido']
 const E25P22_FLAGS = ['obra_reads_site', 'relay_clause_by_exclusions', 'validity_line_without_number'] as const;
 // Story 27.3 (batch e27a): set by no shipped seed; Story 27.8 turns it on in v17.
 const E27A_FLAGS = ['parecer_open_apart'] as const;
+/** Story 27.8 (batch e27b, seed v17): the caption's "para-raios". */
+const E27B8_NEW_FLAGS = ['caption_para_raios'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2336,7 +2346,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2365,7 +2375,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2643,7 +2653,8 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
  * v17 as it ships (Epic 27 wave 2); until its deploy each batch of the wave re-pins it, after it a change is a new version.
  * Batch e27b, first commit (2026-11-22): v17 opens equal to v16, the same content and the same rule flags.
  */
-const V17_HASH = 'd2d990ea46bd45f980e9fa90ce45197da5f02e6804707205247126e89d597020';
+// Story 27.8 (batch e27b): "ITEM", "Para-raios", the participle of "limpeza e reaperto" and two flags (`withoutE27b8` below).
+const V17_HASH = 'dd52c08a2b76b36cc961f9a33ba1ecd579751bb65d6b6c5cdf9d32e78fbf1ecc';
 
 /**
  * Batch e27b: each story's delta on v17, undone, in the order `seed/v17.ts` applies them. A story that adds a v17 key,
@@ -2651,7 +2662,18 @@ const V17_HASH = 'd2d990ea46bd45f980e9fa90ce45197da5f02e6804707205247126e89d5970
  * `withoutE27b<N>` helper below this line (e.g. `withoutE27b8`), and names it here, so `withoutE27b(v17)` stays v16
  * and "27.8-UNIT" keeps pinning that every other byte of v17 is v16's.
  */
-const E27B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [];
+const E27B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE27b8];
+
+/** Story 27.8's delta undone: "ÍTEM" and "Para-raio" back, the activity's participle and the two flags dropped. */
+function withoutE27b8(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  out.checklist_columns = [STORY_27_8_CHECKLIST_HEADER_BEFORE, ...out.checklist_columns.slice(1)];
+  out.blocks.para_raio.label = STORY_27_8_PARA_RAIO_LABEL_BEFORE;
+  delete out.atividades.find((word) => word.name === STORY_27_8_ACTIVITY)!.participle;
+  if (out.rules !== undefined) for (const flag of E27B8_FLAGS) delete out.rules[flag];
+  return out;
+}
+const E27B8_FLAGS: readonly SeedRuleFlag[] = [...E27B8_NEW_FLAGS, ...E27A_FLAGS];
 
 /** v17 with every batch e27b story's delta undone: v16 as it shipped. */
 function withoutE27b(seed: ReportSeed): ReportSeed {
@@ -2689,6 +2711,42 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
   it('keeps every rule flag v16 turns on (a v17 relatório concludes and prints as a v16 one until a story says otherwise)', () => {
     expect(withoutE27b(v17).rules).toEqual(v16.rules);
     for (const flag of Object.keys(v16.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v17', flag), flag).toBe(true);
+  });
+});
+
+describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios" and "realizados"; v1 to v16 unchanged', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17');
+
+  it('the checklist header reads "ITEM" on v17 and "ÍTEM" on every older seed; the other columns are v16\'s', () => {
+    expect(STORY_27_8_CHECKLIST_HEADER).toBe('ITEM');
+    expect(v17.checklist_columns).toEqual(['ITEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
+    for (const version of older) expect(getSeed(version, 'cabine_primaria').checklist_columns[0], version).toBe('ÍTEM');
+  });
+
+  it('the surge arrester reads "Para-raios" on v17 and "Para-raio" on every older seed; nothing else of its definition moves', () => {
+    expect(getDefinition('v17', 'cabine_primaria', 'para_raio').label).toBe(STORY_27_8_PARA_RAIO_LABEL);
+    for (const version of older) expect(getDefinition(version, 'cabine_primaria', 'para_raio').label, version).toBe('Para-raio');
+    expect({ ...getDefinition('v17', 'cabine_primaria', 'para_raio'), label: 'Para-raio' }).toEqual(getDefinition('v16', 'cabine_primaria', 'para_raio'));
+  });
+
+  it('"limpeza e reaperto" keeps its article (feminine singular) and takes a masculine plural participle on v17 only; no other word names one', () => {
+    const word = v17.atividades.find((one) => one.name === STORY_27_8_ACTIVITY)!;
+    expect(word).toEqual({ name: 'limpeza e reaperto', gender: 'f', number: 'singular', participle: { gender: 'm', number: 'plural' } });
+    expect(STORY_27_8_ACTIVITY_PARTICIPLE).toEqual({ gender: 'm', number: 'plural' });
+    expect(v17.atividades.filter((one) => one.participle !== undefined)).toHaveLength(1);
+    expect(v17.locais.some((one) => one.participle !== undefined)).toBe(false);
+    for (const version of older) {
+      const seed = getSeed(version, 'cabine_primaria');
+      expect([...seed.atividades, ...seed.locais].some((one) => Object.hasOwn(one, 'participle')), version).toBe(false);
+    }
+  });
+
+  it('turns on caption_para_raios and Story 27.3\'s parecer_open_apart on v17 only', () => {
+    for (const flag of E27B8_FLAGS) {
+      expect(seedRule('v17', flag), flag).toBe(true);
+      for (const version of older) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+    }
   });
 });
 

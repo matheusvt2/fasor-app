@@ -14,6 +14,7 @@ import {
   type BlockRow,
   type FieldDef,
   type OpDraft,
+  STANDARD_SUBSOLO_NAME,
 } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
@@ -365,7 +366,7 @@ test('@p0 e23p-E2E-001 "Copiar da última visita" on a v13 transformer copies it
 
 test('@p1 e24f-E2E-002 "Igual à ⟨TAG⟩?" between two v13 transformers copies the plate but never the two temperatures measured on the day: no op on them, the copied fields only', async ({ page }) => {
   test.setTimeout(180_000);
-  // The first transformer of the 1° Subsolo with its plate and both day-measured fields filled (values invented).
+  // The first transformer of the 1º Subsolo with its plate and both day-measured fields filled (values invented).
   const plate: Record<string, unknown> = {
     fabricacao: 'WEG',
     impedancia_pct: measured('5.5', '%'),
@@ -373,10 +374,10 @@ test('@p1 e24f-E2E-002 "Igual à ⟨TAG⟩?" between two v13 transformers copies
     temperatura_oleo_c: measured('40', '°C'),
     temperatura_enrolamento_c: measured('45', '°C'),
   };
-  const subsolo = (sheets: readonly SeededSheet[]) => sheets.filter((one) => one.blockType === 'transformador_forca' && one.locationName === '1° Subsolo');
+  const subsolo = (sheets: readonly SeededSheet[]) => sheets.filter((one) => one.blockType === 'transformador_forca' && one.locationName === STANDARD_SUBSOLO_NAME);
   const built = await setUp(page, (scope, sheets) => Object.entries(plate).map(([key, value]) => officeDraft(account, scope, `sheet/${subsolo(sheets)[0]!.blockId}/nameplate/${key}`, value)));
   const [source, target] = subsolo(built.sheets);
-  expect(target, 'two transformers in the 1° Subsolo').toBeDefined();
+  expect(target, `two transformers in the ${STANDARD_SUBSOLO_NAME}`).toBeDefined();
   await openSheet(page, built.relatorioId, target!.blockId);
 
   // The kernel's copy, from the device's own row of the source: every filled field but the two temperatures.

@@ -1,4 +1,4 @@
-import { cellAddressesOf, getDefinition, previousHeaderText, SEED_VERSION, visitDateText, type EquipmentRow, type LastResults, type TemplateRow } from '@app/domain';
+import { cellAddressesOf, getDefinition, previousHeaderText, SEED_VERSION, visitDateText, type EquipmentRow, type LastResults, type TemplateRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { extractStructure, type DocxStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
@@ -50,12 +50,12 @@ const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da fic
 const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
 const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
-/** Opens section 9 of the Sumário and the 1° Subsolo local. */
+/** Opens section 9 of the Sumário and the 1º Subsolo local. */
 async function openSubsolo(page: Page): Promise<void> {
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  const local = page.getByRole('button', { name: /^(Expandir|Recolher) 1° Subsolo$/ });
+  const local = page.getByRole('button', { name: new RegExp(`^(Expandir|Recolher) ${STANDARD_SUBSOLO_NAME}$`) });
   if ((await local.getAttribute('aria-label'))?.startsWith('Expandir') === true) await local.click();
   await expect(coluna(page, 'Coluna 1')).toBeVisible();
 }
@@ -102,7 +102,7 @@ test('@p0 24.21-E2E-001 a transformer born TR-01 through "Novo relatório" and r
   const projectId = new URL(page.url()).pathname.split('/')[2]!;
   const a = await createRelatorio(page);
 
-  // A's creation batch: the transformer of 1° Subsolo is TR-01 with its placement key.
+  // A's creation batch: the transformer of 1º Subsolo is TR-01 with its placement key.
   const first = await creationBatch(page, a);
   const tr = first.equipment.find((row) => row.reuse_key === 'TR-1')!;
   expect(tr.tag).toBe('TR-01');
@@ -179,7 +179,7 @@ test('24.21-E2E-002 a breaker added from the palette as "QM8", the relatório sa
   await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01']);
 
   // The office palette on Coluna 1: a Disjuntor MT typed "QM8".
-  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
+  await menuOf(page, `Coluna 1 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   const type = palette.locator('.pf-office').filter({ hasText: 'Disjuntor MT' });

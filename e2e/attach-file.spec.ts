@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { displayEnvTarget, PLATE_CAPTION, photosImportedText, suggestionAnnouncement } from '@app/domain';
+import { displayEnvTarget, PLATE_CAPTION, photosImportedText, suggestionAnnouncement, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { FileChooser, Locator, Page } from '@playwright/test';
 import { withoutServiceWorker } from './support/durability.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -199,10 +199,10 @@ for (const width of WIDTHS) {
     await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
     const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-    await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+    await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
     // The bytes stay on the device: the dialog opens on the stored row, no real job runs beside it.
     await holdPhotoBytes(page);
-    await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
+    await page.getByRole('button', { name: `Mais opções de Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true }).click();
     await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
     const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
     const button = palette.locator('.pal-camera').getByRole('button', { name: 'Anexar arquivo' });

@@ -93,9 +93,9 @@ export interface CaptionComposerProps {
   suggestion?: { text: string; onUse: () => void };
 }
 
-/** A seed word as a caption part: its name and agreement only. */
+/** A seed word as a caption part: its name and agreement only (Story 27.8: with its participle's when the seed names one). */
 function asWord(word: CaptionWord): CaptionWord {
-  return { name: word.name, gender: word.gender, number: word.number };
+  return { name: word.name, gender: word.gender, number: word.number, ...(word.participle === undefined ? {} : { participle: word.participle }) };
 }
 
 function sameName(a: string, b: string): boolean {

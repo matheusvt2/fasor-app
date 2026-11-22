@@ -1,4 +1,4 @@
-import { getDefinition, SEED_VERSION, type BlockRow, type EquipmentRow, type JsonValue, type OpDraft } from '@app/domain';
+import { getDefinition, SEED_VERSION, type BlockRow, type EquipmentRow, type JsonValue, type OpDraft, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { resetTestCompanyData, seedAccount } from '../apps/api/src/db/seed.ts';
@@ -75,7 +75,7 @@ function photoDrafts(account: SeedAccount, relatorioId: string, blockId: string)
 
 /**
  * Pushes a standard relatório with SEC-C05 holding a filled checklist item and two photos,
- * opens its Sumário with section 9 and 1° Subsolo expanded, and returns the ids.
+ * opens its Sumário with section 9 and 1º Subsolo expanded, and returns the ids.
  */
 async function openWithSec05(page: Page, account: SeedAccount, width = 1280): Promise<{ relatorioId: string; sec: SeededSheet; sheets: SeededSheet[] }> {
   const database = deviceDatabaseName(account.userId);
@@ -99,7 +99,7 @@ async function openSubsolo(page: Page): Promise<void> {
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  await expandLocation(page, '1° Subsolo');
+  await expandLocation(page, STANDARD_SUBSOLO_NAME);
   await expect(coluna(page, 'Coluna 5')).toBeVisible();
 }
 
@@ -139,8 +139,8 @@ test('@p0 11.2-E2E-001 "Mover para…" from the Sumário: SEC-C05 moves to Colun
   await expect(dialog.locator('[role="radio"][aria-checked="true"]')).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Mover', exact: true })).toHaveAttribute('aria-disabled', 'true');
   await expect(dialog.getByText('Escolha o local de destino')).toBeVisible();
-  await expect(dialog.getByRole('radio', { name: '1° Subsolo › Coluna 5', exact: true })).toHaveCount(0);
-  await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
+  await expect(dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 5`, exact: true })).toHaveCount(0);
+  await dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true }).click();
   // Story 24.8: the TAG no longer depends on the local, so the dialog asks nothing about it.
   await expect(dialog.getByText('Sugerir TAG para Coluna 9?')).toHaveCount(0);
   await expect(dialog.getByRole('checkbox')).toHaveCount(0);
@@ -182,7 +182,7 @@ test('@p0 11.2-E2E-002 11.2-UNDO: "Desfazer" puts SEC-C05 back in Coluna 5 with 
   const coluna5Id = (await coluna(page, 'Coluna 5').getAttribute('data-location-id'))!;
   const before = (await deviceRow<BlockRow>(page, database, 'block', sec.blockId))!;
 
-  await moveFromTree(page, 'SEC-C05', '1° Subsolo › Coluna 9', false);
+  await moveFromTree(page, 'SEC-C05', `${STANDARD_SUBSOLO_NAME} › Coluna 9`, false);
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
   await expect(eqRow(page, 'SEC-C05')).toBeVisible();
@@ -226,7 +226,7 @@ test('@p1 11.2-E2E-003 "Mover para…" from the sheet header, after "Marcar não
   expect(labels[labels.indexOf('Marcar não ensaiado') + 1]).toBe('Mover para…');
   await page.getByRole('menuitem', { name: 'Mover para…' }).click();
   const dialog = moveDialog(page, 'SEC-C05');
-  await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
+  await dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true }).click();
   await dialog.getByRole('button', { name: 'Mover', exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(toast(page)).toContainText('SEC-C05 movida para a Coluna 9');
@@ -262,7 +262,7 @@ test('@p1 11.2-E2E-004 keyboard only: the Overflow, the target and "Mover" by ke
   const dialog = moveDialog(page, 'SEC-C05');
   await expect(dialog).toBeVisible();
   // Tab reaches the chip group (its first chip), the arrows pick; Coluna 9 is some presses away.
-  const target = dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true });
+  const target = dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true });
   for (let i = 0; i < 5 && !(await dialog.getByRole('radio').first().evaluate((el) => el === document.activeElement || el.parentElement?.contains(document.activeElement) === true)); i++) {
     await page.keyboard.press('Tab');
   }
@@ -289,9 +289,9 @@ test('@p1 11.2-E2E-005 at 390 px the Move dialog fits: no sideways scroll on the
   await page.getByRole('menuitem', { name: 'Mover para…' }).click();
   const dialog = moveDialog(page, 'SEC-C05');
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
+  await dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true }).click();
   // Story 24.8: no rename checkbox any more; the chips and the actions must fit.
-  await expect(dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true })).toHaveAttribute('aria-checked', 'true');
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(Math.max(before, 0));
   const box = (await dialog.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
@@ -364,7 +364,7 @@ test('@p1 11.2-E2E-006 11.2-MERGE: a move on one tablet and a cell edit on the o
     await openSubsolo(ana.page);
     await ana.context.setOffline(true);
     await eduardo.context.setOffline(true);
-    await moveFromTree(ana.page, 'SEC-C05', '1° Subsolo › Coluna 9', false);
+    await moveFromTree(ana.page, 'SEC-C05', `${STANDARD_SUBSOLO_NAME} › Coluna 9`, false);
     await expect(tagsIn(coluna(ana.page, 'Coluna 9'))).toHaveText(['SEC-C05']);
     const radio = eduardo.page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${ITEM}"]`).getByRole('radio', { name: 'Conforme', exact: true });
     await radio.click();
@@ -392,8 +392,8 @@ test('@p1 11.2-E2E-006 11.2-MERGE: a move on one tablet and a cell edit on the o
 
     // Round 2: both move SEC-C06 offline, to different colunas; the later stands, said once.
     for (const device of [ana, eduardo]) await device.context.setOffline(true);
-    await moveFromTree(eduardo.page, 'SEC-C06', '1° Subsolo › Coluna 10', false);
-    await moveFromTree(ana.page, 'SEC-C06', '1° Subsolo › Coluna 9', false);
+    await moveFromTree(eduardo.page, 'SEC-C06', `${STANDARD_SUBSOLO_NAME} › Coluna 10`, false);
+    await moveFromTree(ana.page, 'SEC-C06', `${STANDARD_SUBSOLO_NAME} › Coluna 9`, false);
     await eduardo.context.setOffline(false);
     await syncNow(eduardo.page);
     await ana.context.setOffline(false);

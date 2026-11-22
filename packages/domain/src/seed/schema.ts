@@ -974,6 +974,13 @@ export const seedWordSchema = z.object({
   name: z.string().min(1),
   gender: z.enum(['m', 'f']),
   number: z.enum(['singular', 'plural']),
+  /**
+   * Story 27.8 (seed v17, F30): the agreement of the caption's participle ("realizad⟨o/a⟩(s)") when it is not the
+   * word's own: "limpeza e reaperto" takes its article from its first noun ("da", feminine singular) and its participle
+   * from the compound ("realizados", masculine plural). Optional and never defaulted, so v1 to v16 parse to the bytes
+   * they shipped with; absent, the participle agrees with the word (`composeCaption`).
+   */
+  participle: z.object({ gender: z.enum(['m', 'f']), number: z.enum(['singular', 'plural']) }).optional(),
 });
 export type SeedWord = z.infer<typeof seedWordSchema>;
 
@@ -1087,6 +1094,8 @@ export const seedRulesSchema = z
     validity_line_without_number: z.literal(true).optional(),
     /** Story 27.3 (F7): section 10 names the open fichas with a reading out of criterion apart from the reprovadas; set on v17 by Story 27.8. */
     parecer_open_apart: z.literal(true).optional(),
+    /** Story 27.8 (seed v17, F30): a photo caption names the surge arrester "para-raios" (masculine singular), not "para-raio". */
+    caption_para_raios: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

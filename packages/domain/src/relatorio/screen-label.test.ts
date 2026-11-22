@@ -39,6 +39,8 @@ const SCREEN_FORMS: Record<string, string> = {
   'Chave seccionadora': 'Chave seccionadora',
   'Disjuntor MT': 'Disjuntor MT',
   'Para-raio': 'Para-raio',
+  // Story 27.8 (seed v17): the form's word.
+  'Para-raios': 'Para-raios',
   TC: 'TC',
   TP: 'TP',
   'Transformador de força': 'Transformador de força',
@@ -81,6 +83,8 @@ const SCREEN_FORMS: Record<string, string> = {
   NC: 'NC',
   OBSERVAÇÕES: 'Observações',
   ÍTEM: 'Ítem',
+  // Story 27.8 (seed v17): the checklist header without the accent.
+  ITEM: 'Item',
   // checklist items
   'ABERTURA E FECHAMENTO ELÉTRICO': 'Abertura e fechamento elétrico',
   'ABERTURA E FECHAMENTO ELÉTRICO/REMOTO': 'Abertura e fechamento elétrico/remoto',

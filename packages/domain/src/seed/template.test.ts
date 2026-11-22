@@ -144,16 +144,16 @@ describe('standardTemplate', () => {
 
   it('has the skeleton of the reference job', () => {
     const cabines = template.skeleton.filter((n) => n.kind === 'cabine');
-    expect(cabines.map((n) => n.name)).toEqual(['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']);
+    expect(cabines.map((n) => n.name)).toEqual(['Cubículo Enel', '1º Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']);
     const colunas = template.skeleton.filter((n) => n.kind === 'coluna');
     expect(colunas.map((n) => n.name)).toEqual(Array.from({ length: 17 }, (_, i) => `Coluna ${i + 1}`));
     for (const coluna of colunas) expect(coluna.parent_ref).toBe('subsolo-1');
     expect(new Set(template.skeleton.map((n) => n.ref)).size).toBe(template.skeleton.length);
   });
 
-  it('turns agrupar_por_tipo on only for 1° Subsolo and Geradores', () => {
+  it('turns agrupar_por_tipo on only for 1º Subsolo and Geradores', () => {
     const grouped = template.skeleton.filter((n) => n.kind === 'cabine' && n.agrupar_por_tipo).map((n) => n.name);
-    expect(grouped).toEqual(['1° Subsolo', 'Geradores']);
+    expect(grouped).toEqual(['1º Subsolo', 'Geradores']);
   });
 
   it('places every equipment block on a skeleton node', () => {
