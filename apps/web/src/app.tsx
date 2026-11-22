@@ -1,4 +1,4 @@
-import { PRODUTO, SITE_CHECKLIST_LABEL } from '@app/domain';
+import { permissionForScreen, PRODUTO, SITE_CHECKLIST_LABEL } from '@app/domain';
 import { I18nProvider } from 'react-aria-components';
 import { LoadingNote } from './components/index.ts';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, type RouteObject } from 'react-router';
@@ -74,6 +74,10 @@ export function returnAddress(asked: unknown): string {
   if (typeof asked !== 'string' || !asked.startsWith('/') || asked.startsWith('//') || asked.startsWith('/\\')) return '/';
   const path = asked.split(/[?#]/, 1)[0] ?? '';
   if (path === '/login' || path.startsWith('/login/')) return '/';
+  // Open reading (Story 26.5): only a screen of a module is worth returning to; Home, Account and Sync
+  // status carry no key (`permissionForScreen` 'none') and sign-in lands on Home for them, as before
+  // (`auth.spec.ts` 1.3-E2E-002b reloads on Account and expects Home).
+  if (permissionForScreen(path) === 'none') return '/';
   return asked;
 }
 

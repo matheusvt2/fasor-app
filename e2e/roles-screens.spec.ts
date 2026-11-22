@@ -1,6 +1,10 @@
-import { permissionRefusalText, READ_ONLY_BANNER_TEXT, SCREEN_UNAVAILABLE_TEXT } from '@app/domain';
+import { permissionRefusalText, READ_ONLY_BANNER_TEXT, SCREEN_UNAVAILABLE_TEXT, SYSTEM_ROLE_ROW_IDS, userRolePath } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { seedAccount, seedRoleUser } from '../apps/api/src/db/seed.ts';
+import { now } from '../apps/api/src/clock.ts';
+import { asCompanyId } from '../apps/api/src/db/repositories/company-id.ts';
+import { roleOp } from '../apps/api/src/db/roles.ts';
+import { seedRoleUser } from '../apps/api/src/db/seed.ts';
+import { applyServerBatch } from '../apps/api/src/sync/apply.ts';
 import { workerRoleUser, type WorkerRole, type WorkerRoleUser } from '../apps/api/src/db/e2e-worker-seed.ts';
 import { duplicateLibraryType, openTypeList } from './support/company-type.ts';
 import { resetEmpresaBWithFixture, type SmallFixtureCopy } from './support/export-fixture.ts';
@@ -90,7 +94,7 @@ test.describe('26.5 the screens by role', () => {
     await templatesLink(page).click();
     await expect(page).toHaveURL(/\/templates$/);
     await openTypeList(page);
-    await duplicateLibraryType(page, 'transformador');
+    await duplicateLibraryType(page, 'transformador_forca');
     await page.goto('/');
     await cadastrosLink(page).click();
     await expect(page).toHaveURL(/\/cadastros$/);
@@ -179,8 +183,12 @@ test.describe('26.5 the screens by role', () => {
     });
 
     await context.setOffline(true);
-    // The Admin changes the role on the server: a re-seed naming the role puts `user/{id}/role_id`.
-    await withSeedDb((db, auth) => seedAccount(db, auth, { ...user, role: 'gestor_do_projeto' }, user.password, { standardTemplate: false }));
+    // The Admin changes the role on the server: the server-only `user/{id}/role_id` put (a re-seed would
+    // also revoke the sessions, which is not what a role change does).
+    const companyId = asCompanyId(seed.companies[1].companyId);
+    await withSeedDb((db) =>
+      applyServerBatch(db, companyId, [roleOp(companyId, { kind: 'put', path: userRolePath(user.userId), value: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto })], { now }),
+    );
     await context.setOffline(false);
 
     await syncNow(page);
