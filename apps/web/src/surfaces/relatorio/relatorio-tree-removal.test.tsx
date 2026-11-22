@@ -637,11 +637,15 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     pendingRead.held = true;
     renderAt(`/relatorio/${RELATORIO}`);
     await screen.findByRole('list', { name: 'Locais do relatório' });
-    const dialog = await openRestore();
     // With the live rows standing in, SEC-C05 and SEC-OLD (their coluna unknown to the list) would each be offered alone.
-    expect(within(dialog).getByText('Nenhuma ficha removida para restaurar')).toBeVisible();
-    expect(dialog.querySelector('.restore-list')).toBeNull();
-    expect(within(dialog).queryAllByRole('button', { name: /^Restaurar / })).toHaveLength(0);
+    // Story 27.10 (F28): with nothing offered the entry is disabled with its reason, and no dialog opens.
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    const item = await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    expect(item).toHaveAccessibleDescription('Nada para restaurar');
+    await userEvent.click(item);
+    expect(screen.queryByRole('dialog', { name: 'Restaurar ficha removida' })).toBeNull();
+    expect(document.querySelector('.restore-list')).toBeNull();
   });
 
   it('restoring a painel writes one batch from the plan (locations, sheets, equipment), opens section 9 on the restored row, says it, and marks a TAG reused meanwhile as a duplicate; "Desfazer" removes the same rows again', async () => {

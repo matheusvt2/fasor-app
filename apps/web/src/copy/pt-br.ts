@@ -952,6 +952,8 @@ export const copy = {
     restore: 'Restaurar ficha removida',
     restoreTitle: 'Restaurar ficha removida',
     restoreNone: 'Nenhuma ficha removida para restaurar',
+    // authored (Story 27.10, F28, listed for Bruno): the reason under the disabled "Restaurar ficha removida".
+    restoreNoneReason: 'Nada para restaurar',
     restoreAction: 'Restaurar',
     // authored: the accessible name of each row's "Restaurar", so two rows never read alike.
     restoreLabel: (name: string) => `Restaurar ${name}`,
@@ -2075,6 +2077,11 @@ export const copy = {
       close: 'Fechar edição',
       panelClose: 'Fechar',
       nameLabel: 'Nome',
+      // authored (Story 27.10, F23, listed for Bruno): a name another client has, by the Novo relatório dialog's rule
+      // (case, accents and spaces aside); that dialog picks the existing client without a word, so these are new.
+      nameRepeats: (name: string) => `Já existe um cliente com este nome: ${name}`,
+      // authored (Story 27.10, F23, listed for Bruno): the action that creates the client anyway.
+      createAnyway: 'Criar mesmo assim',
       cnpjLabel: 'CNPJ',
       contactNameLabel: 'Contato',
       contactPhoneLabel: 'Telefone do contato',

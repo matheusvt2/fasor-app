@@ -42,7 +42,8 @@ async function saveAsTemplate(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
   const labels = await page.getByRole('menu').getByRole('menuitem').allTextContents();
   // `40-relatorio-overview.html` `#sum-menu-rel`: right after "Restaurar ficha removida".
-  expect(labels[labels.indexOf('Restaurar ficha removida') + 1]).toBe('Salvar como template');
+  // Story 27.10 (F28): with nothing removed the entry is disabled and its text carries its reason.
+  expect(labels[labels.findIndex((label) => label.startsWith('Restaurar ficha removida')) + 1]).toBe('Salvar como template');
   await page.getByRole('menuitem', { name: 'Salvar como template' }).click();
   const dialog = page.getByRole('dialog', { name: 'Salvar como template' });
   const field = dialog.getByRole('textbox', { name: 'Nome do template' });
