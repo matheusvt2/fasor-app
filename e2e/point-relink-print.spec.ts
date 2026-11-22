@@ -1,4 +1,4 @@
-import { newPointRow, type OpDraft, type PointRow } from '@app/domain';
+import { newPointRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -31,7 +31,7 @@ const POINTS_HEADING = 'PONTOS DE ATENÇÃO';
 const TO_EQUIPMENT = 'Ponto religado ao equipamento';
 const TO_LOCAL = 'Ponto religado ao local';
 const TO_GERAL = 'Ponto devolvido ao Geral';
-const LOCAL = '1° Subsolo';
+const LOCAL = STANDARD_SUBSOLO_NAME;
 
 const toast = (page: Page) => page.getByTestId('toast');
 const cards = (page: Page) => page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)');

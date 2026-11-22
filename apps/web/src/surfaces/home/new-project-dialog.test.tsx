@@ -109,7 +109,7 @@ function renderDialog() {
 
 const dialog = () => screen.getByRole('dialog', { name: 'Novo relatório' });
 const clientBox = () => within(dialog()).getByRole('combobox', { name: 'Cliente' });
-const siteBox = () => within(dialog()).getByRole('combobox', { name: 'Local (obra)' });
+const siteBox = () => within(dialog()).getByRole('combobox', { name: 'Obra' });
 const proceed = () => within(dialog()).getByRole('button', { name: 'Continuar' });
 /** Opens one of the two lists by its chevron: 0 the client's, 1 the obra's. */
 const openList = (which: 0 | 1) => userEvent.click(within(dialog()).getAllByRole('button', { name: /Abrir lista/ })[which]!);
@@ -198,7 +198,7 @@ describe('4.1 NewProjectDialog', () => {
     expect(await optionNames()).toEqual(['Torre Norte']);
   });
 
-  it('F-05: the chosen client\'s registered sites are offered in "Local (obra)"; picking one creates its obra and continues', async () => {
+  it('F-05: the chosen client\'s registered sites are offered in "Obra"; picking one creates its obra and continues', async () => {
     database = await freshDb();
     await seed(database);
     await database.entities.put(

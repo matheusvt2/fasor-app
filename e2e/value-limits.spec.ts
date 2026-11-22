@@ -9,6 +9,7 @@ import {
   outOfRangeText,
   preIssue,
   RESISTANCE_POSITIVE_ONLY_TEXT,
+  SEED_VERSION,
   SITE_ALTITUDE_RANGE_M,
   temperatureRemarkText,
   type LocationRow,
@@ -237,7 +238,7 @@ test('@p0 27.2-E2E-004 e27a-review R2: a humidity of 150 % reaches no op on the 
   await expect.poll(async () => (await storedRow<Extract<LocationRow, { kind: 'cabine' }>>(page, 'location', previous.id))?.env.humidity_pct, { timeout: SYNC_CYCLE_TIMEOUT }).toEqual({ raw: '150', unit: '%', state: 'measured' });
   const freshHumidity = `location/${fresh.id}/env/humidity_pct`;
   const freshTemperature = `location/${fresh.id}/env/temperature_c`;
-  const plan = cabineEnvCopy({ cabineId: previous.id, name: previous.name, temperature_c: { raw: '25', unit: '°C', state: 'measured' }, humidity_pct: { raw: '150', unit: '%', state: 'measured' } }, fresh.id, 'v16');
+  const plan = cabineEnvCopy({ cabineId: previous.id, name: previous.name, temperature_c: { raw: '25', unit: '°C', state: 'measured' }, humidity_pct: { raw: '150', unit: '%', state: 'measured' } }, fresh.id, SEED_VERSION);
   expect(plan.skippedText).toBe(`Umidade relativa do ar não copiada: ${outOfRangeText(HUMIDITY_RANGE_PCT, '%')}`);
   await env(page).getByRole('button', { name: 'Copiar do local anterior' }).click();
   await expect(page.getByTestId('toast')).toContainText(copy.ficha.cabine.copiedFromSkipping(previous.name, plan.skippedText!));

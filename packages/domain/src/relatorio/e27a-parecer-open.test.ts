@@ -84,8 +84,8 @@ const row10Meta = (snapshot: RelatorioSnapshot): string => {
 };
 
 /** One v16 relatório holding only its first two breakers; `a` is open with a reading out, `b` as `bState` leaves it. */
-function state(bState: 'none' | 'aprovado' | 'reprovado' | 'open-out' | 'open-stored-reprovado') {
-  const base = relatorioOf('v16');
+function state(bState: 'none' | 'aprovado' | 'reprovado' | 'open-out' | 'open-stored-reprovado', seedVersion = 'v16') {
+  const base = relatorioOf(seedVersion);
   const [a, b] = breakers(base) as [BlockRow, BlockRow];
   let snapshot = only(base, [a.id, b.id]);
   snapshot = edit(snapshot, a.id, (block) => contacts(block, '310'));
@@ -165,9 +165,10 @@ describe('27.3-UNIT an open ficha with a reading out of criterion is named apart
 });
 
 describe('27.3-UNIT the print keeps its bytes unless the seed turns parecer_open_apart on', () => {
-  it('no shipped seed turns the flag on', async () => {
+  // Story 27.8 (batch e27b): seed v17 turns the flag on; every older seed leaves it off.
+  it('no shipped seed but v17 turns the flag on', async () => {
     const actual = await vi.importActual<typeof import('../seed/definitions.ts')>('../seed/definitions.ts');
-    for (const version of Object.keys(SEED_VERSIONS)) expect(actual.seedRule(version, 'parecer_open_apart'), version).toBe(false);
+    for (const version of Object.keys(SEED_VERSIONS)) expect(actual.seedRule(version, 'parecer_open_apart'), version).toBe(version === 'v17');
   });
 
   it('v16, flag off: parecerTextForPrint is the sentence printed before Story 27.3', () => {
@@ -180,6 +181,19 @@ describe('27.3-UNIT the print keeps its bytes unless the seed turns parecer_open
     const { snapshot } = state('aprovado');
     const concluded = edit(snapshot, breakers(snapshot)[0]!.id, (block) => stored(block, 'reprovado', true));
     expect(composeParecer(concluded, { print: true })).toEqual(composeParecer(concluded));
+  });
+
+  // Story 27.8 (batch e27b, 27.8-UNIT): seed v17 turns the flag on as shipped (no mock), so a v17 relatório prints Story
+  // 27.3's sentence; the v16 one beside it keeps the sentence printed before Story 27.3 (the test above).
+  it('v17, as shipped: the print names the open ficha apart, as the screen does; v16 keeps its printed sentence', () => {
+    expect(on.size).toBe(0);
+    const v17 = state('none', 'v17');
+    expect(v17.snapshot.relatorio.seed_version).toBe('v17');
+    expect(parecerTextForPrint(v17.snapshot)).toBe(`Foi registrada 1 ficha de ensaio: 1 ainda não concluída. 1 ficha em aberto com leitura fora do critério: ${v17.a}.`);
+    expect(composeParecer(v17.snapshot, { print: true })).toEqual(composeParecer(v17.snapshot));
+    const v16 = state('none');
+    expect(parecerTextForPrint(v16.snapshot)).toMatch(/1 ficha foi reprovada: /);
+    expect(parecerTextForPrint(v16.snapshot)).not.toMatch(/em aberto/);
   });
 
   it('flag on: the print equals the screen', () => {

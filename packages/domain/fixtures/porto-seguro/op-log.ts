@@ -234,7 +234,14 @@ push({
 
 // --- location skeleton: the real `standardTemplate()` skeleton, real per-cabine data -----
 
-const template = standardTemplate({ id: fixedId(10), seedVersion: SEED_VERSION });
+/*
+ * Story 27.8 (batch e27b): the standard template built since names its second local "1º Subsolo" (the ordinal sign);
+ * the delivered relatório this fixture reproduces names it "1° Subsolo", so the fixture keeps the delivered name and
+ * every one of its goldens its bytes.
+ */
+const DELIVERED_SUBSOLO_NAME = '1° Subsolo';
+const built = standardTemplate({ id: fixedId(10), seedVersion: SEED_VERSION });
+const template = { ...built, skeleton: built.skeleton.map((node) => (node.ref === 'subsolo-1' ? { ...node, name: DELIVERED_SUBSOLO_NAME } : node)) };
 
 const locationIdOf = new Map<string, string>();
 for (const node of template.skeleton) locationIdOf.set(node.ref, newId());

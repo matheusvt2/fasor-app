@@ -51,7 +51,8 @@ test('@p0 25.19-E2E-001 at 1024: a v16 transformer, TP and TC copied from a v15 
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1024, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Pinned to v16 since seed v17 opened (batch e27b): a new relatório is born on v17.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v16' });
   const { relatorioId } = built;
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, relatorioId)]);
   const sheets = TYPES.map((type) => built.sheets.find((sheet) => sheet.blockType === type)!);
@@ -97,7 +98,7 @@ test('@p0 25.19-E2E-001 at 1024: a v16 transformer, TP and TC copied from a v15 
     // The dry rules, as on the older seed: every oil item NA with no tap, VOL. ÓLEO not asked and says why.
     for (const key of definition.oil_rule!.items) await expect(checked(page, key), `${type} ${key}`).toHaveAttribute('data-value', 'na');
     await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper'), type).toHaveText(
-      `Não se aplica: TIPO DE ISOLAÇÃO é ${DRY}.`,
+      `Não se aplica: Tipo de isolação é ${DRY}.`,
     );
   }
 

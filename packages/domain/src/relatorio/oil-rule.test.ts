@@ -665,7 +665,7 @@ describe('e23p-P4 the dry fields of a v13 oil unit (behaviour pass F5)', () => {
     ]);
     const block = blockOf(oil);
     for (const key of ['temperatura_enrolamento_c', 'classe_termica']) {
-      expect(dryFieldExcusedReason(block, key, EMPTY_DEFINITION_CONTEXT), key).toBe('Não se aplica: TIPO DE ISOLAÇÃO é ÓLEO ISOLANTE.');
+      expect(dryFieldExcusedReason(block, key, EMPTY_DEFINITION_CONTEXT), key).toBe('Não se aplica: Tipo de isolação é ÓLEO ISOLANTE.');
       expect(isOilFieldExcused(block, key, EMPTY_DEFINITION_CONTEXT), key).toBe(true);
       expect(nameplateMissingKeys({ blocks: [block], equipment: [], equipment_types: undefined }, BLOCK).has(key), key).toBe(false);
     }

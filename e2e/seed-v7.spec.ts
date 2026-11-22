@@ -1,4 +1,4 @@
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, oilFieldExcusedReason, paletteItems, screenLabel, SEED_VERSION, SELV_VOLTAGE_NOTICE, TEST_VOLTAGE_NOT_CHECKED, type BlockRow, type OpDraft } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, oilFieldExcusedReason, paletteItems, screenLabel, SEED_VERSION, SELV_VOLTAGE_NOTICE, sentenceCase, TEST_VOLTAGE_NOT_CHECKED, type BlockRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -129,7 +129,8 @@ test('@p0 14.14-E2E-001 offline, a disjuntor on "Outro" shows its oil item and V
   await expect(volumeReadOnly.locator('.mf-value')).toHaveText('—');
   await expect(volumeReadOnly.locator('.mf-value')).toHaveClass(/is-empty/);
   const reason = oilFieldExcusedReason(await blockOf(page, blockId), 'vol_oleo', EMPTY_DEFINITION_CONTEXT);
-  expect(reason).toBe(`Não se aplica: ${MEDIUM_LABEL} é ${NON_OIL}.`);
+  // Story 27.9 (F37): the reason names the field in sentence case.
+  expect(reason).toBe(`Não se aplica: ${sentenceCase(MEDIUM_LABEL)} é ${NON_OIL}.`);
   await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: VOL_LABEL, exact: true }) }).locator('.helper')).toHaveText(reason!);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   {

@@ -1,4 +1,4 @@
-import { photoToken } from './refs.ts';
+import { extractPhotoRefs, photoToken } from './refs.ts';
 import { livePhotos } from '../photos/order.ts';
 import { conclusionFloor, effectiveConclusionPair, restrictedItems, restrictedPointItems } from '../relatorio/conclusion.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
@@ -109,13 +109,33 @@ export function equipmentPointTitle(node: Pick<TreeEquipmentNode, 'name' | 'loca
   return path === '' ? node.name : `${node.name}${SEP}${path}`;
 }
 
-/** "Item 3 (mufla): oxidação nos terminais", the NC row as its entry names it; the label alone with "não conforme" when it holds no observation. */
-function ncText(n: number, label: string, observation: string | null, photoIds: readonly string[]): string {
+/**
+ * "Item 3 (mufla): oxidação nos terminais", the NC row as its entry names it; the label alone with "não conforme" when it holds no observation.
+ * Story 27.9 (F36): on a seed whose `wording_pass` is on (v17) the row's photos close it as a clause, ", conforme
+ * Imagem 1" (", conforme Imagens 1 e 2" once printed or shown), where older seeds append the bare tokens.
+ */
+function ncText(n: number, label: string, observation: string | null, photoIds: readonly string[], seedVersion: string): string {
   const item = `Item ${n} (${label.toLocaleLowerCase('pt-BR')})`;
   // authored (Story 22.5, open for Bruno): an NC entry's text.
   const body = observation === null || observation === '' ? `${item} não conforme` : `${item}: ${observation}`;
+  if (seedRule(seedVersion, 'wording_pass')) return `${body}${photoCitation(photoIds)}`;
   return [body, ...photoIds.map((id) => photoToken(id))].join(' ');
 }
+
+/**
+ * Story 27.9 (F36): the clause that cites a row's photos at the end of a point's text, ", conforme ⟨token⟩", the
+ * tokens of two or more joined as a list ("⟨a⟩ e ⟨b⟩", "⟨a⟩, ⟨b⟩ e ⟨c⟩"); '' with none.
+ */
+function photoCitation(photoIds: readonly string[]): string {
+  if (photoIds.length === 0) return '';
+  const tokens = photoIds.map((id) => photoToken(id));
+  const list = tokens.length === 1 ? tokens[0]! : `${tokens.slice(0, -1).join(', ')} e ${tokens.at(-1)!}`;
+  // authored (Story 27.9, listed for Bruno): was the bare tokens after the text ("ressecadas Imagem 1").
+  return `, conforme ${list}`;
+}
+
+/** Story 27.9: the citation clause a text ends with (`photoCitation`), so a photo added later joins its list. */
+const CITATION_AT_END = /, conforme ((?:\[\[foto:[0-9a-fA-F-]{36}\]\](?:, | e )?)+)$/;
 
 /** The photos of one checklist row, in section 7's order: its sheet's (or local's) photos tagged with its item key. */
 function rowPhotoIds(photos: ReturnType<typeof livePhotos>, owner: { blockId: string } | { locationId: string }, itemKey: string): string[] {
@@ -199,7 +219,7 @@ function sheetEntries(
         kind: 'nc',
         key: `nc:${block.id}:${item.key}`,
         item_key: item.key,
-        ...texts(ncText(index + 1, item.label, observation, rowPhotoIds(photos, { blockId: block.id }, item.key))),
+        ...texts(ncText(index + 1, item.label, observation, rowPhotoIds(photos, { blockId: block.id }, item.key), block.seed_version)),
       });
     });
   }
@@ -386,7 +406,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): De
           name: local.name.trim(),
           title: sitePointTitle(local.name),
           item_key: item.key,
-          ...texts(ncText(item.number, item.label, siteObservationOf(local, item.key), rowPhotoIds(photos, { locationId: local.id }, item.key))),
+          ...texts(ncText(item.number, item.label, siteObservationOf(local, item.key), rowPhotoIds(photos, { locationId: local.id }, item.key), snapshot.relatorio.seed_version)),
         });
       }
       continue;
@@ -577,11 +597,11 @@ export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'rela
     if (definition === null || index < 0) return '';
     const cell = owner.block.sheet.checklist[itemKey]?.observation;
     const observation = isCellFilled(cell) && typeof cell!.value === 'string' ? cell!.value.trim() : null;
-    return ncText(index + 1, definition.checklist![index]!.label, observation, rowPhotoIds(photos, { blockId: owner.block.id }, itemKey));
+    return ncText(index + 1, definition.checklist![index]!.label, observation, rowPhotoIds(photos, { blockId: owner.block.id }, itemKey), owner.block.seed_version);
   }
   const item = siteItems(snapshot.relatorio.seed_version).find((row) => row.key === itemKey);
   if (item === undefined) return '';
-  return ncText(item.number, item.label, siteObservationOf(owner.location, itemKey), rowPhotoIds(photos, { locationId: owner.location.id }, itemKey));
+  return ncText(item.number, item.label, siteObservationOf(owner.location, itemKey), rowPhotoIds(photos, { locationId: owner.location.id }, itemKey), snapshot.relatorio.seed_version);
 }
 
 /** A Não ensaiado finding's text: "⟨reason⟩ — ⟨justification⟩", the typed text alone for "Outro", the reason alone when nothing is printed for it. */
@@ -600,9 +620,19 @@ export function notTestedPointText(block: Pick<BlockRow, 'not_tested' | 'seed_ve
  * Story 22.5: a text followed by the token of every photo it does not cite yet (a photo taken
  * just before the tap is not in the snapshot the text was composed from); the tokens alone with
  * no text, what "Criar ponto de atenção" on an NC row starts the point with.
+ *
+ * Story 27.9 (F36): on a relatório whose seed turns `wording_pass` on (`seedVersion`, v17), a text
+ * the missing photos join cites them in its closing clause (", conforme ⟨a⟩ e ⟨b⟩"), the clause
+ * already there extended; with no text the tokens stand alone as before.
  */
-export function withPhotoTokens(text: string | null, photoIds: readonly string[]): string {
+export function withPhotoTokens(text: string | null, photoIds: readonly string[], seedVersion?: string | null): string {
   const base = text ?? '';
-  const missing = photoIds.filter((id) => !base.includes(photoToken(id))).map((id) => photoToken(id));
+  const missingIds = photoIds.filter((id) => !base.includes(photoToken(id)));
+  if (seedVersion !== undefined && seedVersion !== null && seedRule(seedVersion, 'wording_pass') && base.trim() !== '' && missingIds.length > 0) {
+    const clause = CITATION_AT_END.exec(base);
+    if (clause === null) return `${base}${photoCitation(missingIds)}`;
+    return `${base.slice(0, clause.index)}${photoCitation([...extractPhotoRefs(clause[0]), ...missingIds])}`;
+  }
+  const missing = missingIds.map((id) => photoToken(id));
   return [base, ...missing].filter((part) => part !== '').join(' ');
 }

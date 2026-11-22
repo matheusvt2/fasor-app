@@ -42,7 +42,7 @@ const headerPill = (page: Page) => page.locator('.sheet-meta .status-pill');
 
 /** Status flow 2026-10-10: the one emitter of `issue`, in the result block and on the Sumário's foot. */
 const MARK_SENT = 'Marcar como enviado ao cliente';
-const NOT_SENT_2 = 'Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.';
+const NOT_SENT_2 = 'Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 2.';
 const SENT_2 = 'Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.';
 
 const IDLE_1 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.';

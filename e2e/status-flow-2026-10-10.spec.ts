@@ -32,7 +32,7 @@ import { appOrigin } from './support/origin.ts';
  *   1280 px: an Emitido relatório regenerated with nothing edited (`unchanged`) stays Emitido;
  *   once it holds content the client does not have and no status op came with it (another
  *   device's edit, pulled here), "Gerar relatório" builds revision 2 and reopens it as
- *   Em revisão, "Ainda não enviada ao cliente", with "Marcar como enviado ao cliente" offered.
+ *   Em revisão, "Ainda não enviado ao cliente", with "Marcar como enviado ao cliente" offered.
  *
  * The second and third tests generate through the one queue and LibreOffice, so the file runs
  * in the serial `queue` lane (`support/groups.ts`), each on this worker's own copy of the small
@@ -288,7 +288,7 @@ for (const viewport of WIDTHS) {
     await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
     await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
     await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Em revisão');
-    await expect(dialog(page).locator('.row-wrap .t-meta')).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.');
+    await expect(dialog(page).locator('.row-wrap .t-meta')).toHaveText('Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 2.');
     // The action stands above "Gerar de novo".
     const markInDialog = dialog(page).getByRole('button', { name: MARK_SENT });
     await expect(markInDialog).toBeVisible();
@@ -379,7 +379,7 @@ for (const viewport of WIDTHS) {
     await generateButton(page).click();
     await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible({ timeout: JOB_TIMEOUT });
     const note = dialog(page).locator('.row-wrap .t-meta');
-    await expect(note).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
+    await expect(note).toHaveText('Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
     await dialog(page).getByRole('button', { name: MARK_SENT }).click();
     await expect(note).toHaveText('Enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
     await escapeDialog(page, dialog(page));
@@ -453,7 +453,7 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await expect.poll(() => statusValues(page, fixture.relatorioId), { timeout: 30_000 }).toEqual(['em_revisao', 'emitido', 'em_revisao']);
   await expect(ready(2)).toBeVisible({ timeout: JOB_TIMEOUT });
   await expect(pill).toHaveText('Em revisão');
-  await expect(note).toHaveText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
+  await expect(note).toHaveText('Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
   await expect(dialog(page).getByRole('button', { name: MARK_SENT })).toBeVisible();
   expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido', 'em_revisao']);
   await escapeDialog(page, dialog(page));

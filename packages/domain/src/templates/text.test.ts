@@ -29,16 +29,17 @@ const standard = standardTemplate({ id: '019966b0-0035-7000-8000-000000000001' }
 
 describe('3.3-UNIT templateSummaryText', () => {
   it('reads the seed, the sections and the skeleton counts of the standard template', () => {
-    expect(templateSummaryText(standard, 0)).toBe('Semente v16 · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento');
+    // The current seed, read from the kernel (batch e27b: v17).
+    expect(templateSummaryText(standard, 0)).toBe(`9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`);
   });
 
   it('adds the use at one and at many, and omits every zero part except the sections', () => {
     expect(templateSummaryText(standard, 1)).toMatch(/ · usado em 1 relatório$/);
     expect(templateSummaryText(standard, 3)).toMatch(/ · usado em 3 relatórios$/);
-    expect(templateSummaryText(emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), 0)).toBe('Semente v1 · 0 seções');
+    expect(templateSummaryText(emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), 0)).toBe('0 seções');
     const one = { ...emptyTemplate('019966b0-0035-7000-8000-000000000002', 'v1'), skeleton: addCabine([], 'c', 'C') };
     const withBlock = { ...one, blocks: setQuantity(one, 'c', 'tp', 1, EMPTY_DEFINITION_CONTEXT) };
-    expect(templateSummaryText(withBlock, 0)).toBe('Semente v1 · 0 seções · 1 local · 1 bloco de equipamento');
+    expect(templateSummaryText(withBlock, 0)).toBe('0 seções · 1 local · 1 bloco de equipamento');
   });
 });
 
@@ -169,7 +170,7 @@ describe('14.2-UNIT composer texts: Local › Painel › Coluna', () => {
 
   it('heads the skeleton and the Templates row with the three counts, the painéis part only when there is one', () => {
     expect(skeletonHeading(view)).toBe('Esqueleto de locais · 3 locais · 2 painéis · 3 colunas · 5 blocos');
-    expect(templateSummaryText(composed(), 0)).toBe('Semente v3 · 0 seções · 3 locais · 2 painéis · 3 colunas · 5 blocos de equipamento');
+    expect(templateSummaryText(composed(), 0)).toBe('0 seções · 3 locais · 2 painéis · 3 colunas · 5 blocos de equipamento');
     const one = { ...emptyTemplate('019966b0-0035-7000-8000-00000000000a', 'v3'), skeleton: addPainel(addCabine([], 'a', 'A'), 'a', 'p', 'Painel 1') };
     expect(skeletonHeading(composerView(one))).toBe('Esqueleto de locais · 1 local · 1 painel');
   });

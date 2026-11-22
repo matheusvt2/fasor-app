@@ -523,7 +523,7 @@ describe('14.3 a photo taken on a site item', () => {
     expect(photoCabineId(photo, snapshot)).toBe(SUBSOLO);
     expect(photoSiteLocal(photo, snapshot)?.id).toBe(SUBSOLO);
     expect(galleryCabineOptions(snapshot, [photo])).toEqual([
-      { id: 'all', label: 'Todos' },
+      { id: 'all', label: 'Todas' },
       { id: SUBSOLO, label: '1° Subsolo' },
     ]);
     // An unanswered item reads without a result.
@@ -692,7 +692,7 @@ describe('2026-10-14 (Bruno): an NC site item counts as an NC (N1, N2, N3)', () 
     expect(siteNcItems(snapshot)).toEqual(expected);
   });
 
-  it('15.2-UNIT F37: the NC badges of the tree (sheets and site cards) add up to the header\'s "N NC abertos"', () => {
+  it('15.2-UNIT F37: the NC badges of the tree (sheets and site cards) add up to the header\'s "N NC abertas"', () => {
     const f = opFactory();
     // NC on two sheets (one item on Cubículo Enel's, two on the coluna's) and on one site item of 1° Subsolo.
     const second: BlockRow = {
@@ -720,7 +720,7 @@ describe('2026-10-14 (Bruno): an NC site item counts as an NC (N1, N2, N3)', () 
     expect(sheets.map((node) => [node.nc, node.ncBadge])).toEqual([[1, '1 NC'], [2, '2 NC']]);
   });
 
-  it('N3: "NC abertos" lands on a local\'s site row before its equipment; a sheet NC first in order lands on its row', () => {
+  it('N3: "NC abertas" lands on a local\'s site row before its equipment; a sheet NC first in order lands on its row', () => {
     const f = opFactory();
     // Cubículo Enel (first in tree order) holds the NC sheet; 1° Subsolo the site NCs: the sheet comes first.
     const sheetFirst = snapshotOf(n1(f));

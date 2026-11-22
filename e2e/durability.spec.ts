@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, PRODUTO, type Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, PRODUTO, type Op, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import {
@@ -468,16 +468,16 @@ test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', asy
   await dialog.getByRole('combobox', { name: 'Cliente' }).fill('Cliente por toque');
   await page.getByRole('option', { name: 'Criar “Cliente por toque”' }).tap();
   await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente por toque');
-  await dialog.getByRole('combobox', { name: 'Local (obra)' }).fill('Obra por toque');
+  await dialog.getByRole('combobox', { name: 'Obra' }).fill('Obra por toque');
   await page.getByRole('option', { name: 'Criar “Obra por toque”' }).tap();
-  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra por toque');
+  await expect(dialog.getByRole('combobox', { name: 'Obra' })).toHaveValue('Obra por toque');
   await dialog.getByRole('button', { name: 'Continuar' }).tap();
   await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
 
   // The Project's dialog: the start date by touch and keyboard, then Criar.
   // F-28 (D3): the second step, named apart.
   const create = page.getByRole('dialog', { name: 'Novo relatório — tipo e datas', exact: true });
-  await create.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton').first().tap();
+  await create.getByRole('group', { name: 'Início da execução' }).getByRole('spinbutton').first().tap();
   await page.keyboard.type('06092026');
   await create.getByRole('button', { name: 'Criar relatório' }).tap();
   // Criar opens Relatório setup at Etapa 1 (Q1); "Voltar" leads to the Sumário.
@@ -520,16 +520,16 @@ test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by B
   await dialog.getByRole('combobox', { name: 'Cliente' }).fill('Cliente texto por toque');
   await page.getByRole('option', { name: 'Criar “Cliente texto por toque”' }).tap();
   await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente texto por toque');
-  await dialog.getByRole('combobox', { name: 'Local (obra)' }).fill('Obra texto por toque');
+  await dialog.getByRole('combobox', { name: 'Obra' }).fill('Obra texto por toque');
   await page.getByRole('option', { name: 'Criar “Obra texto por toque”' }).tap();
-  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra texto por toque');
+  await expect(dialog.getByRole('combobox', { name: 'Obra' })).toHaveValue('Obra texto por toque');
   await dialog.getByRole('button', { name: 'Continuar' }).tap();
   await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
 
   // The Project's dialog: the start date by touch and keyboard, then Criar.
   // F-28 (D3): the second step, named apart.
   const create = page.getByRole('dialog', { name: 'Novo relatório — tipo e datas', exact: true });
-  await create.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton').first().tap();
+  await create.getByRole('group', { name: 'Início da execução' }).getByRole('spinbutton').first().tap();
   await page.keyboard.type('06092026');
   await create.getByRole('button', { name: 'Criar relatório' }).tap();
   // Criar opens Relatório setup at Etapa 1 (Q1); "Voltar" leads to the Sumário.
@@ -579,13 +579,13 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   await chevron.tap();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).tap();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).tap();
   const col1 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 1$/ }) });
   const tags = col1.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
   await expect(tags).toHaveText(['SEC-C01']);
 
   // The palette from the coluna row: a bottom sheet across the phone.
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).tap();
+  await page.getByRole('button', { name: `Mais opções de Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true }).tap();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).tap();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   await expect(palette.locator('.sheet-grip')).toBeVisible();

@@ -730,7 +730,7 @@ describe('Home: empty state and shortcuts', () => {
     await userEvent.click(novo);
     const dialog = await screen.findByRole('dialog', { name: 'Novo relatório' });
     expect(within(dialog).getByRole('combobox', { name: 'Cliente' })).toBeVisible();
-    const site = within(dialog).getByRole('combobox', { name: 'Local (obra)' });
+    const site = within(dialog).getByRole('combobox', { name: 'Obra' });
     expect(site).toHaveAttribute('aria-disabled', 'true');
     const proceed = within(dialog).getByRole('button', { name: 'Continuar' });
     expect(proceed).toHaveAttribute('aria-disabled', 'true');

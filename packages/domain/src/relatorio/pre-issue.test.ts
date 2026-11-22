@@ -14,7 +14,7 @@ import { EMPTY_DEFINITION_CONTEXT, SEED_VERSION, siteItems } from '../seed/defin
 const SITE_COUNT = siteItems(SEED_VERSION).length;
 
 const TEMPLATE_ID = '019966b0-0051-7000-8000-000000000001';
-const CABINES = ['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'];
+const CABINES = ['Cubículo Enel', '1º Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'];
 
 /** A fresh relatório from the standard template, no setup, no client, no empresa. */
 function fresh(): RelatorioSnapshot {
@@ -33,8 +33,8 @@ describe('4.3-UNIT preIssue', () => {
     const rows = preIssue(fresh());
     expect(preIssueRowsFor(rows, 'capa').map((r) => [r.kind, r.text, r.severity])).toEqual([
       ['setup_missing', 'Cliente em branco', 'pending'],
-      ['setup_missing', 'Início da parada em branco', 'pending'],
-      ['setup_missing', 'Fim da parada em branco', 'pending'],
+      ['setup_missing', 'Início da execução em branco', 'pending'],
+      ['setup_missing', 'Fim da execução em branco', 'pending'],
       ['setup_missing', 'Responsável técnico em branco', 'pending'],
       ['setup_missing', 'Número da ART/TRT em branco', 'pending'],
       ['company', 'Razão social não cadastrada', 'info'],

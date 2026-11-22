@@ -158,16 +158,16 @@ test('@p0 F-02 a typed altitude is written when the field is left and when "Conc
 
   // Typed and left for another field: written, and still there after a reload.
   await page.goto(`/relatorio/${built.relatorioId}/setup?etapa=5`);
-  const altitude = page.getByLabel('Altitude do site', { exact: true });
+  const altitude = page.getByLabel('Altitude do local', { exact: true });
   await expect(altitude).toBeVisible({ timeout: 30_000 });
   await altitude.fill('760');
   await page.getByLabel('Justificativa').click();
   await expect.poll(async () => (await altitudeOps()).map((row) => row.value)).toEqual([760]);
   await page.reload();
-  await expect(page.getByLabel('Altitude do site', { exact: true })).toHaveValue('760', { timeout: 30_000 });
+  await expect(page.getByLabel('Altitude do local', { exact: true })).toHaveValue('760', { timeout: 30_000 });
 
   // Typed, then "Concluir dados do relatório" at once: the altitude lands before the status.
-  await page.getByLabel('Altitude do site', { exact: true }).fill('840');
+  await page.getByLabel('Altitude do local', { exact: true }).fill('840');
   const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });
   await expect(complete).not.toHaveAttribute('aria-disabled', 'true');
   await complete.click();
@@ -181,24 +181,24 @@ test('@p0 F-02 a typed altitude is written when the field is left and when "Conc
   const relatorio = (await entities<{ setup: { site_altitude_m: number | null } }>(page)).find((record) => record.entity === 'relatorio' && record.id === built.relatorioId)!;
   expect(relatorio.row.setup.site_altitude_m).toBe(840);
 
-  // The cabine's first sheet reads it, "Do setup do relatório".
+  // The cabine's first sheet reads it, "Dos Dados do relatório".
   const [first] = enelSeccionadoras(built);
   await openSheet(page, built.relatorioId, first.blockId);
   const shown = page.getByRole('textbox', { name: 'Altitude', exact: true });
   await expect(shown.locator('.mf-value')).toHaveText('840');
   await expect(shown.locator('.mf-unit')).toHaveText('m');
-  await expect(page.getByText('Do setup do relatório')).toBeVisible();
+  await expect(page.getByText('Dos Dados do relatório')).toBeVisible();
 });
 
 test('@p1 F-02 "Confirmar" writes the typed altitude once, with the confirmation', async ({ page }) => {
   test.setTimeout(150_000);
   const built = await setUp(page);
   await page.goto(`/relatorio/${built.relatorioId}/setup?etapa=5`);
-  const altitude = page.getByLabel('Altitude do site', { exact: true });
+  const altitude = page.getByLabel('Altitude do local', { exact: true });
   await expect(altitude).toBeVisible({ timeout: 30_000 });
   await altitude.fill('760');
   await page.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
+  await expect(page.getByText('Altitude do local: < 1000 m — confirmada')).toBeVisible();
   await expect.poll(async () => (await outbox(page)).filter((row) => row.path === 'relatorio/setup/site_altitude_confirmed').map((row) => row.value)).toEqual([true]);
   expect((await outbox(page)).filter((row) => row.path === 'relatorio/setup/site_altitude_m').map((row) => row.value)).toEqual([760]);
 });

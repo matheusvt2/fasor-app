@@ -107,6 +107,8 @@ export * from './relatorio/ficha.ts';
 export * from './relatorio/readings.ts';
 export * from './relatorio/tap-rows.ts';
 export * from './relatorio/applicability.ts';
+// Story 27.9: the sentence case an applicability reason names its field in, for the specs that compose it.
+export { sentenceCase } from './relatorio/reading-cells.ts';
 export * from './relatorio/vector-group.ts';
 export * from './relatorio/measurement-evaluation.ts';
 // Story 25.14 (contract 54): a row the technician adds to a measurement test.
@@ -142,6 +144,7 @@ export * from './photos/captions.ts';
 export * from './photos/numbering.ts';
 export * from './photos/save.ts';
 export * from './points/refs.ts';
+export * from './points/display.ts';
 export * from './points/checks.ts';
 export * from './points/derived.ts';
 export * from './points/summary.ts';

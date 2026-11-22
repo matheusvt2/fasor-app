@@ -193,12 +193,13 @@ describe('7.3-UNIT-004 section 8 layout', () => {
     });
     const snapshot = addPoint({ ...base, files: [photo(B, '2026-09-06T18:00:00.000Z'), photo(A, '2026-09-06T17:00:00.000Z')] }, { text: `Ver ${photoToken(B)} e ${photoToken(A)}.` });
     expect(numberPhotos(snapshot).get(B)).toBe(2);
+    // Story 27.9: a relatório of the current seed (v17, `wording_pass`) prints a list of references as one plural.
     expect(section8Layout(snapshot, heading)).toEqual({
       number: 8,
       title: heading.title,
       kind: 'points',
-      bullets: ['Ver Imagem 2 e Imagem 1.'],
-      table: [{ number: '1', point: 'Ver Imagem 2 e Imagem 1.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '2, 1' }],
+      bullets: ['Ver Imagens 2 e 1.'],
+      table: [{ number: '1', point: 'Ver Imagens 2 e 1.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '2, 1' }],
       // Batch e24p (Story 24.17): the standard template is born on seed v14, whose action plan keeps its rows whole.
       keepRowsWhole: true,
     });
@@ -283,10 +284,11 @@ describe('11.10-UNIT action-plan table', () => {
     const title = rows[0]!.local;
     expect(title).not.toBe('—');
     expect(title).toContain(' · ');
+    // Story 27.9: a relatório of the current seed (v17, `wording_pass`) prints a list of references as one plural.
     expect(rows).toEqual([
       {
         number: '1',
-        point: 'Aquecimento na base, conforme Imagem 12 e Imagem 5; ver imagem removida e Imagem 12.',
+        point: 'Aquecimento na base, conforme Imagens 12 e 5; ver imagem removida e Imagem 12.',
         local: title,
         priority: 'P1 · Curto prazo',
         deadline: '08/10/2026',

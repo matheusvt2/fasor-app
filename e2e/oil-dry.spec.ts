@@ -164,7 +164,7 @@ test('@p0 14.11-E2E-001 a transformer: Á SECO marks the oil items NA with no ta
   // Batch e24s (Story 24.11): VOL. ÓLEO of the dry unit is drawn read-only and empty with the kernel's reason.
   await expect(volume).toHaveCount(0);
   await expect(page.locator('#ficha-nameplate').getByRole('textbox', { name: 'Vol. óleo', exact: true })).toHaveAttribute('aria-readonly', 'true');
-  await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper')).toHaveText(`Não se aplica: TIPO DE ISOLAÇÃO é ${DRY_VALUE}.`);
+  await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper')).toHaveText(`Não se aplica: Tipo de isolação é ${DRY_VALUE}.`);
   await expect(missingMarker(page, 'vol_oleo')).toHaveCount(0);
   await expect(row(page, 'termometro').locator('.photo-list .photo-row')).toHaveCount(0);
   // The photo stays on the sheet: in its strip, untied from the item, never removed.
@@ -330,7 +330,7 @@ test('@p0 e23p-E2E-002 a v13 transformer: ÓLEO ISOLANTE draws TEMPERATURA DO EN
   const oil = await blockOf(page, blockId);
   for (const key of dryKeys) {
     const reason = dryFieldExcusedReason(oil, key, EMPTY_DEFINITION_CONTEXT);
-    expect(reason, key).toBe('Não se aplica: TIPO DE ISOLAÇÃO é ÓLEO ISOLANTE.');
+    expect(reason, key).toBe('Não se aplica: Tipo de isolação é ÓLEO ISOLANTE.');
     await expect(readOnly(key), key).toHaveAttribute('aria-readonly', 'true');
     await expect(readOnly(key), key).toHaveText(/—/);
     await expect(readOnlyHelper(key), key).toHaveText(reason!);

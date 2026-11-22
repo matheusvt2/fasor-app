@@ -218,7 +218,7 @@ test('@p0 23.12-E2E-001 the base imported on Tipos makes the company copies with
 /*
  * Fix batch e23z (W3-3): the imported copies of the eight print as their base. After the import, a relatório cut down
  * to one cabine grouped by type holds a sheet of the imported TR-SE transformer, TC and TP copies (office ops, born
- * at v1). The issued DOCX's section 9 prints them under "TP's e TC's" (the TP before its TC) and "Transformadores e
+ * at v1). The issued DOCX's section 9 prints them under "TPs e TCs" (Story 27.8; the TP before its TC) and "Transformadores e
  * Cabos de Alimentação", never under "Outros equipamentos", the groups and titles the kernel's over the device's rows;
  * no measurement table carries an "E1 ·" number.
  */

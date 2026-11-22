@@ -1,4 +1,5 @@
 import {
+  exclusionsWithoutBlanks,
   permissionForPath,
   permissionRefusalText,
   putRelatorioStatusOp,
@@ -243,7 +244,14 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
         const current = await relatorioRow(db, relatorioId);
         const next = current === null ? null : statusTable(current.status, 'setup_complete');
         if (next === null) return null;
-        return (await commitBatch(db, [putRelatorioStatusOp(author, relatorioId, next)], { newId, now })).batch_id;
+        // Story 27.10 (F25): an exclusion row left empty is dropped in the same batch, so the stored
+        // list holds none (the kernel's rule, the print's own); written only where the role may.
+        const kept = current === null || !allowed('exclusions') ? null : exclusionsWithoutBlanks(current.setup.exclusions);
+        const drafts = [
+          ...(kept === null ? [] : [{ ...relatorioOpEnvelope(author, relatorioId), kind: 'put' as const, path: relatorioSetupPath('exclusions'), value: kept as never }]),
+          putRelatorioStatusOp(author, relatorioId, next),
+        ];
+        return (await commitBatch(db, drafts, { newId, now })).batch_id;
       })
       .catch(() => null);
     if (batchId === null) return;

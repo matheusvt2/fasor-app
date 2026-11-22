@@ -260,7 +260,7 @@ describe('23.19-UNIT HH fuses on the seccionadora (Base rev08 SC-04)', () => {
   it('SEM CARGA: NA with its reason, not missing, absent from section 9; "Aplicar este ensaio" applies it; an empty type applies it', () => {
     const block = plate(sheet('chave_seccionadora'), { tipo_seccionadora: 'SEM CARGA' });
     const test = measurement(block, 'resistencia_fusiveis');
-    expect(test.applicability).toMatchObject({ state: 'na', reason: 'Não se aplica: TIPO DE SECCIONADORA sem fusíveis.' });
+    expect(test.applicability).toMatchObject({ state: 'na', reason: 'Não se aplica: Tipo de seccionadora sem fusíveis.' });
     expect(measurementCounts([test]).missing).toBe(0);
     const applied = structuredClone(block);
     applied.sheet.test.resistencia_fusiveis = { cells: {}, applicability: cell(APPLICABILITY_APPLIED) };
@@ -348,7 +348,7 @@ describe('23.17-UNIT the insulating liquid and the oil sampling (Base rev08 TR-O
     const block = plate(sheet('transformador_forca'), { tipo_de_isolacao: 'EPÓXI' });
     for (const key of ['natureza_liquido', 'tipo_anp']) expect(isOilFieldExcused(block, key, ctx), key).toBe(true);
     const sampling = measurement(block, 'coleta_oleo');
-    expect(sampling.applicability).toMatchObject({ state: 'na', reason: 'Não se aplica: TIPO DE ISOLAÇÃO não é ÓLEO ISOLANTE.' });
+    expect(sampling.applicability).toMatchObject({ state: 'na', reason: 'Não se aplica: Tipo de isolação não é ÓLEO ISOLANTE.' });
   });
 
   it('the older spellings ÓLEO and ÓLEO MINERAL read as ÓLEO ISOLANTE on a v13 copy', () => {

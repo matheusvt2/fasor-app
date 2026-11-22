@@ -45,9 +45,9 @@ describe('standardTemplate', () => {
       expect(withVersionSubBlocks(built.blocks, SEED_VERSION), version).toEqual(template.blocks);
       expect(built.skeleton, version).toEqual(template.skeleton);
     }
-    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type (v14 opens equal to v13, v15 to v14, v16 to v15).
+    // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type (v14 opens equal to v13, v15 to v14, v16 to v15, v17 to v16).
     const v12 = standardTemplate({ id: ID, seedVersion: 'v12' }).blocks;
-    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14' && one !== 'v15' && one !== 'v16')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
+    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14' && one !== 'v15' && one !== 'v16' && one !== 'v17')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
     expect(withVersionSubBlocks(v12, 'v12')).toEqual(v12);
   });
 
@@ -144,16 +144,16 @@ describe('standardTemplate', () => {
 
   it('has the skeleton of the reference job', () => {
     const cabines = template.skeleton.filter((n) => n.kind === 'cabine');
-    expect(cabines.map((n) => n.name)).toEqual(['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']);
+    expect(cabines.map((n) => n.name)).toEqual(['Cubículo Enel', '1º Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']);
     const colunas = template.skeleton.filter((n) => n.kind === 'coluna');
     expect(colunas.map((n) => n.name)).toEqual(Array.from({ length: 17 }, (_, i) => `Coluna ${i + 1}`));
     for (const coluna of colunas) expect(coluna.parent_ref).toBe('subsolo-1');
     expect(new Set(template.skeleton.map((n) => n.ref)).size).toBe(template.skeleton.length);
   });
 
-  it('turns agrupar_por_tipo on only for 1° Subsolo and Geradores', () => {
+  it('turns agrupar_por_tipo on only for 1º Subsolo and Geradores', () => {
     const grouped = template.skeleton.filter((n) => n.kind === 'cabine' && n.agrupar_por_tipo).map((n) => n.name);
-    expect(grouped).toEqual(['1° Subsolo', 'Geradores']);
+    expect(grouped).toEqual(['1º Subsolo', 'Geradores']);
   });
 
   it('places every equipment block on a skeleton node', () => {

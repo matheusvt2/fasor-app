@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { duplicateSeededType, publishedText, SEED_VERSION } from '@app/domain';
+import { duplicateSeededType, publishedText, SEED_VERSION, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { duplicateLibraryType, openTypeList, publishButton } from './support/company-type.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -61,7 +61,7 @@ interface EntityRecord {
   row: { kind?: string; reading_kind?: string | null; reading_status?: string; block_id?: string | null; caption?: string | null; reading_target?: unknown; block_type?: string; location_id?: string };
 }
 
-/** Resets Empresa B, signs in, opens the Sumário of a relatório pushed from the office with section 9 and 1° Subsolo open. */
+/** Resets Empresa B, signs in, opens the Sumário of a relatório pushed from the office with section 9 and 1º Subsolo open. */
 async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: string }> {
   await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: 900 });
@@ -73,16 +73,16 @@ async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: 
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   return ids;
 }
 
 /** Opens the field palette on Coluna 1 and checks its first row is the camera tile. */
 async function openPalette(page: Page): Promise<Locator> {
-  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
+  await menuOf(page, `Coluna 1 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
-  await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();
+  await expect(palette.getByText(`Em: ${STANDARD_SUBSOLO_NAME} › Coluna 1`)).toBeVisible();
   const tile = palette.locator('.pal-camera .camera-capture-tile');
   await expect(tile).toHaveText('Fotografar equipamento');
   await expect(tile).toHaveAccessibleDescription('Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.');
@@ -124,7 +124,7 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SC-02 · Chave s
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 768);
   // SC-01 is taken first (a Chave seccionadora placed on Coluna 9 from its palette), so the read one is SC-02 (Story 24.8: PREFIX-NN, free in the obra).
-  await menuOf(page, 'Coluna 9 de 1° Subsolo').click();
+  await menuOf(page, `Coluna 9 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   await page.getByRole('dialog', { name: 'Adicionar bloco' }).getByRole('button', { name: /^Chave seccionadora/ }).click();
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SC-01']);
@@ -153,7 +153,7 @@ test('@p0 9.2-E2E-001 online: the panel suggestion reads "Criar SC-02 · Chave s
 
   const field = dialog.locator('.suggestion-field');
   await expect(field.locator('.sv-main')).toHaveText('Criar SC-02 · Chave seccionadora · Coluna 9?', { timeout: 60_000 });
-  await expect(field.locator('.sv-sub')).toHaveText('1° Subsolo › Coluna 9');
+  await expect(field.locator('.sv-sub')).toHaveText(`${STANDARD_SUBSOLO_NAME} › Coluna 9`);
   await expect(field).toHaveAttribute('data-state', 'suggested');
   await expect(field.locator('.suggested-pill')).toHaveText('Sugerido');
   await expect(field.getByRole('button', { name: 'Ver recorte da etiqueta' })).toBeVisible();
@@ -368,13 +368,13 @@ test('@p1 24.19-E2E-003 (batch e24c) online, with a published copy of the transf
   await expect(page.getByTestId('toast')).toHaveText(publishedText(1));
   await syncNow(page);
   const label = duplicateSeededType(SEED_VERSION, 'transformador_forca').draft.label;
-  // Back to the Sumário, section 9 and 1° Subsolo open.
+  // Back to the Sumário, section 9 and 1º Subsolo open.
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(tree(page)).toBeVisible();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   await holdPhotoBytes(page);
   const photoId = await shootPanel(page, await openPalette(page));
   const dialog = result(page);

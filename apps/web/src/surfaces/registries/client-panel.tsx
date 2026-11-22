@@ -1,4 +1,4 @@
-import { registryFieldPath, registryPath, textCapOf, type ClientRow, type OpDraft } from '@app/domain';
+import { clientNamedLike, registryFieldPath, registryPath, textCapOf, type ClientRow, type OpDraft } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button, CharCount, ConfirmDialog, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -18,8 +18,12 @@ export interface ClientPanelProps {
   client: ClientRow | null;
   /** Story 2.4 AC1: whether a live Project still points at this client. */
   referenced: boolean;
+  /** Story 27.10 (F23): the registry's clients, for the warning of a name another one already has. */
+  clients?: readonly ClientRow[];
   onClose: () => void;
 }
+
+const NO_CLIENTS: readonly ClientRow[] = [];
 
 type Site = ClientRow['sites'][number];
 
@@ -42,7 +46,7 @@ function defaultRow(id: string): ClientRow {
  * the first field of a new client carries a `create` op, every field after that is a
  * `registry/client/{id}/{field}` put.
  */
-export function ClientPanel({ clientId, client, referenced, onClose }: ClientPanelProps) {
+export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS, onClose }: ClientPanelProps) {
   const session = useSession();
   const db = session.database;
   const user = session.user;
@@ -121,7 +125,14 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
       </div>
       <div className="panel-body">
         <div className="field-grid">
-          <TextField className="span-2" label={t.nameLabel} value={client?.name ?? ''} onCommit={(v) => commitField('name', v)} />
+          <NameField
+            label={t.nameLabel}
+            value={client?.name ?? ''}
+            clients={clients}
+            clientId={clientId}
+            created={() => created.current}
+            onCommit={(v) => commitField('name', v)}
+          />
           <CnpjField value={client?.cnpj ?? ''} label={t.cnpjLabel} invalidText={copy.registries.cnpjInvalid} onCommit={(v) => commitField('cnpj', v)} />
           <TextField
             label={t.contactNameLabel}
@@ -211,6 +222,73 @@ function TextField({ label, value, onCommit, className }: TextFieldProps) {
       />
       <CharCount length={text.length} cap={CLIENT_FIELD_CAP} />
     </label>
+  );
+}
+
+interface NameFieldProps {
+  label: string;
+  value: string;
+  clients: readonly ClientRow[];
+  clientId: string;
+  /** Whether the row exists already (its first field committed): a repeated name then only warns. */
+  created: () => boolean;
+  onCommit: (value: string) => void | Promise<void>;
+}
+
+/**
+ * Story 27.10 (F23): the client's name, warned when another client has it by the Novo relatório dialog's
+ * rule (`clientNamedLike`, `normalizeRegistryName`). Before the client exists the repeated name is held
+ * (nothing is created) until "Criar mesmo assim"; the user may still create it.
+ */
+function NameField({ label, value, clients, clientId, created, onCommit }: NameFieldProps) {
+  const t = copy.registries.clientes;
+  const [text, setText] = useState(value);
+  const [confirmed, setConfirmed] = useState(false);
+  const confirmedRef = useRef(false);
+  const twin = clientNamedLike(clients, text, clientId);
+  const held = (name: string) => !created() && !confirmedRef.current && clientNamedLike(clients, name, clientId) !== null;
+  // A new client's name commits on blur or Enter only, never on a pause in typing: a half-typed name
+  // would create the client before the whole name could be checked.
+  const [idleMs] = useState(() => (created() ? undefined : null));
+  const committer = useFieldCommit<string>({ commit: (name) => (held(name) ? undefined : onCommit(name)), ...(idleMs === undefined ? {} : { idleMs }) });
+  const warningId = useId();
+  return (
+    <div className="field span-2">
+      <label className="field">
+        <span className="field-label">{label}</span>
+        <input
+          className="input"
+          value={text}
+          maxLength={CLIENT_FIELD_CAP ?? undefined}
+          aria-describedby={twin === null ? undefined : warningId}
+          onChange={(event) => {
+            setText(event.target.value);
+            committer.change(event.target.value);
+          }}
+          onBlur={() => committer.blur()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') committer.enter();
+          }}
+        />
+        <CharCount length={text.length} cap={CLIENT_FIELD_CAP} />
+      </label>
+      {twin === null ? null : (
+        <span className="helper" data-tone="amber" id={warningId} role="status">
+          {t.nameRepeats(twin.name)}
+        </span>
+      )}
+      {twin === null || created() || confirmed ? null : (
+        <TextButton
+          onPress={() => {
+            confirmedRef.current = true;
+            setConfirmed(true);
+            committer.immediate(text);
+          }}
+        >
+          {t.createAnyway}
+        </TextButton>
+      )}
+    </div>
   );
 }
 

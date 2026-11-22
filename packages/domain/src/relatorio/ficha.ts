@@ -293,16 +293,31 @@ export function ncObservationOnLeave(from: string | null, to: string | null, sto
 /**
  * A chip's phrase inserted at the caret of an observation, without repeating a phrase the
  * text already holds. Returns the new text and where the caret goes.
+ *
+ * Story 27.9 (F36, every seed: a tap is typing): a phrase joined after a comma starts in lower
+ * case ("…ausentes, luvas com furos"), a leading acronym kept ("…, TC sem placa"); the first
+ * phrase of the text keeps its case. A phrase already held in either case is not repeated.
  */
 export function insertPhrase(text: string, phrase: string, caret: number = text.length): { text: string; caret: number } {
-  if (text.includes(phrase)) return { text, caret: Math.min(caret, text.length) };
   const at = Math.max(0, Math.min(caret, text.length));
   const before = text.slice(0, at);
   const after = text.slice(at);
   const lead = before === '' || /[\s(]$/.test(before) ? '' : before.endsWith(',') || before.endsWith(';') ? ' ' : ', ';
+  const afterComma = lead === ', ' || /,\s*$/.test(before);
+  const joined = afterComma ? lowerFirstWord(phrase) : phrase;
+  if (text.includes(phrase) || text.includes(joined)) return { text, caret: Math.min(caret, text.length) };
   const trail = after === '' || /^[\s,.;)]/.test(after) ? '' : ', ';
-  const inserted = `${lead}${phrase}${trail}`;
-  return { text: `${before}${inserted}${after}`, caret: before.length + lead.length + phrase.length };
+  const inserted = `${lead}${joined}${trail}`;
+  return { text: `${before}${inserted}${after}`, caret: before.length + lead.length + joined.length };
+}
+
+/** Story 27.9: a phrase's first letter lowered, unless its first word is an acronym ("TC", "EPI"). */
+function lowerFirstWord(phrase: string): string {
+  const first = phrase.trimStart().split(/\s+/)[0] ?? '';
+  const acronym = first.length > 1 && first === first.toLocaleUpperCase('pt-BR') && /\p{L}/u.test(first);
+  if (acronym) return phrase;
+  const at = phrase.search(/\p{L}/u);
+  return at < 0 ? phrase : `${phrase.slice(0, at)}${phrase.charAt(at).toLocaleLowerCase('pt-BR')}${phrase.slice(at + 1)}`;
 }
 
 // --- the nameplate's registry chips (Story 2.5's chip row + "Outro…") ----------------------

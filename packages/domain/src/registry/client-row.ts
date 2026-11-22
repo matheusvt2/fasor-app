@@ -1,4 +1,5 @@
 import type { RegistryRow } from '../schemas/entities.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
 
 /*
  * AD-2, AGENTS.md "composed row": the Clientes row text and its sort order are derived
@@ -27,4 +28,15 @@ export function compareClientRows(a: ClientRow, b: ClientRow): number {
 /** The Clientes list's own sort: alphabetical by name. */
 export function sortClientRegistryRows(clients: readonly ClientRow[]): ClientRow[] {
   return [...clients].sort(compareClientRows);
+}
+
+/**
+ * Story 27.10 (F23): the client whose name another one repeats, by the Novo relatório dialog's rule
+ * (`normalizeRegistryName`: case, accents and repeated spaces aside): "cliente  local" repeats
+ * "Cliente Local". `exceptId` is the row being edited, never its own twin; null for a blank name or none.
+ */
+export function clientNamedLike(clients: readonly ClientRow[], name: string, exceptId: string | null = null): ClientRow | null {
+  const key = normalizeRegistryName(name);
+  if (key === '') return null;
+  return clients.find((row) => row.id !== exceptId && normalizeRegistryName(row.name) === key) ?? null;
 }

@@ -544,10 +544,15 @@ describe('14.3 "Verificações do local": the surface', () => {
     await waitFor(() => expect(toastText()).toContain('2 itens sem resposta — o primeiro é o item 6, EPI disponível'));
     expect(rowOf('epi_disponivel').contains(document.activeElement)).toBe(true);
     expect(document.activeElement).toHaveAttribute('role', 'radio');
+    // Story 27.10 (F26): the same sentence stays beside the button, and describes it.
+    expect(screen.getByTestId('local-missing')).toHaveTextContent('2 itens sem resposta — o primeiro é o item 6, EPI disponível');
+    expect(screen.getByRole('button', { name: 'Concluir verificações' })).toHaveAccessibleDescription('2 itens sem resposta — o primeiro é o item 6, EPI disponível');
     // Nothing was written: the checklist stores no "concluded" state.
     expect(await outbox()).toEqual([]);
 
     await userEvent.click(seg('epi_disponivel', 'Conforme'));
+    // One answered: the sentence counts it, in the kernel's singular.
+    await waitFor(() => expect(screen.getByTestId('local-missing')).toHaveTextContent(/^1 item sem resposta — é o item \d+, /));
     await userEvent.click(seg('ventilacao', 'Não se aplica'));
     await waitFor(() => expect(counter19()).toHaveTextContent('19 de 19'));
     await userEvent.click(screen.getByRole('button', { name: 'Concluir verificações' }));

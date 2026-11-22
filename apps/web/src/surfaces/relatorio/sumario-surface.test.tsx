@@ -220,7 +220,7 @@ describe('4.3 SumarioSurface', () => {
     ]);
     const [capa, controle, ...numbered] = rows();
     expect(capa!.querySelector('.sum-ro')).toHaveTextContent('sempre no início');
-    expect(controle!.querySelector('.sum-ro')).toHaveTextContent('montado sozinho');
+    expect(controle!.querySelector('.sum-ro')).toHaveTextContent('preenchido automaticamente');
     expect(capa!.querySelector('.pos-box')).toBeNull();
     expect(controle!.querySelector('.overflow-trigger')).toBeNull();
     expect(numbered.map((li) => (li.querySelector('.pos-box') as HTMLInputElement).value)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
@@ -237,8 +237,8 @@ describe('4.3 SumarioSurface', () => {
     expect(numbered[9]!.querySelector('.sum-status')).toHaveTextContent('Apto com restrições');
     // The header counts and the foot reason.
     const summary = screen.getByRole('group', { name: 'Resumo do relatório' });
-    expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['0 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
-    expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da parada em branco');
+    expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['0 de 3 fichas concluídas', '0 NC abertas', '1 não ensaiada', '0 sugestões por confirmar']);
+    expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da execução em branco');
     expect(container.querySelector('.sticky-action-bar .btn-reason')).toHaveTextContent(/^Nada impede gerar\./);
     // Status flow 2026-10-10 (M6, decision 5): the status's next step, right under the status pill.
     const step = screen.getByTestId('status-next-step');
@@ -405,7 +405,7 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(chevron);
     expect(container.querySelector('.sum-s9')).not.toHaveClass('is-open');
     expect(chevron).toHaveAttribute('aria-expanded', 'false');
-    await userEvent.click(screen.getByRole('button', { name: '0 NC abertos' }));
+    await userEvent.click(screen.getByRole('button', { name: '0 NC abertas' }));
     await waitFor(() => expect(container.querySelector('.sum-s9')).toHaveClass('is-open'));
     await waitFor(() => expect(chevron).toHaveFocus());
     cleanup();
@@ -474,7 +474,7 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveFocus());
     // No sheet holds an NC: section 9's own row takes the focus.
     (document.activeElement as HTMLElement).blur();
-    await userEvent.click(within(summary).getByRole('button', { name: '0 NC abertos' }));
+    await userEvent.click(within(summary).getByRole('button', { name: '0 NC abertas' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 8' })).toHaveFocus());
   });
 

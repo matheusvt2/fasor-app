@@ -122,7 +122,7 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(numberedRows(rows)).toHaveLength(11);
     expect(numberedRows(rows).every((r) => r.siblings === 11 && r.blockId !== null)).toBe(true);
     expect(fixedRowNote('capa')).toBe('sempre no início');
-    expect(fixedRowNote('controle')).toBe('montado sozinho');
+    expect(fixedRowNote('controle')).toBe('preenchido automaticamente');
   });
 
   it('writes every meta from the kernel: gaps on the cover, "0 de 94" on row 9, the fixed lines elsewhere', () => {
@@ -139,9 +139,9 @@ describe('4.3-UNIT sumarioRows', () => {
       [
         '0 de 94',
         '94 fichas vazias',
-        ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`),
+        ...['Cubículo Enel', '1º Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`),
         // Story 14.3: every local of a new relatório owes its site items.
-        `Verificações do local sem resposta: Cubículo Enel (${SITE_COUNT} itens), 1° Subsolo (${SITE_COUNT} itens), Oxigênio (${SITE_COUNT} itens), Cobertura A (${SITE_COUNT} itens), Cobertura B (${SITE_COUNT} itens) e Geradores (${SITE_COUNT} itens)`,
+        `Verificações do local sem resposta: Cubículo Enel (${SITE_COUNT} itens), 1º Subsolo (${SITE_COUNT} itens), Oxigênio (${SITE_COUNT} itens), Cobertura A (${SITE_COUNT} itens), Cobertura B (${SITE_COUNT} itens) e Geradores (${SITE_COUNT} itens)`,
       ].join(' · '),
     );
     // Stories 6.3/6.5: section 7 counts its photos (none yet).
@@ -206,8 +206,8 @@ describe('4.3-UNIT sumarioRows', () => {
       { ...sheet, removed_at: '2026-09-05T10:00:00.000Z' },
     ];
     const restorable = restorableBlocks(blocks, snapshot.equipment, snapshot.locations);
-    expect(restorable.map((r) => r.label)).toEqual(['2 Definições', '2 Definições (2)', '2 Definições (3)', 'SEC-C01 — 1° Subsolo › Coluna 1']);
-    expect(restorable.at(-1)).toMatchObject({ name: 'SEC-C01', detail: '1° Subsolo › Coluna 1', equipmentId: sheet.equipment_id });
+    expect(restorable.map((r) => r.label)).toEqual(['2 Definições', '2 Definições (2)', '2 Definições (3)', 'SEC-C01 — 1º Subsolo › Coluna 1']);
+    expect(restorable.at(-1)).toMatchObject({ name: 'SEC-C01', detail: '1º Subsolo › Coluna 1', equipmentId: sheet.equipment_id });
     expect(restorable[0]).toMatchObject({ detail: null, equipmentId: null });
     expect(new Set(restorable.map((r) => r.label)).size).toBe(4);
   });

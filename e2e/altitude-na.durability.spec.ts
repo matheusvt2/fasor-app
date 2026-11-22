@@ -36,9 +36,9 @@ const NA_PATH = 'relatorio/setup/site_altitude_na';
 const M_PATH = 'relatorio/setup/site_altitude_m';
 const lastValue = async (page: Page, path: string): Promise<unknown> =>
   (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path === path).at(-1)?.value;
-const resolvedLine = (page: Page) => page.getByText(`Altitude do site: ${NOT_APPLICABLE_TEXT}`, { exact: true });
+const resolvedLine = (page: Page) => page.getByText(`Altitude do local: ${NOT_APPLICABLE_TEXT}`, { exact: true });
 
-test('@p0 17.6-DUR-001 at 390 px the "N/A" control on "Altitude do site" writes the mark, the store holds it, a reload keeps it, and the sheet reads "N/A"', async ({ page, context }) => {
+test('@p0 17.6-DUR-001 at 390 px the "N/A" control on "Altitude do local" writes the mark, the store holds it, a reload keeps it, and the sheet reads "N/A"', async ({ page, context }) => {
   test.setTimeout(180_000);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'geolocation', {
@@ -56,10 +56,10 @@ test('@p0 17.6-DUR-001 at 390 px the "N/A" control on "Altitude do site" writes 
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
 
   await page.goto(`/relatorio/${built.relatorioId}/setup?etapa=5`);
-  const input = page.getByRole('spinbutton', { name: 'Altitude do site', exact: true });
+  const input = page.getByRole('spinbutton', { name: 'Altitude do local', exact: true });
   await expect(input).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('O aparelho não informou a altitude: digite o valor ou marque N/A')).toBeVisible();
-  const button = page.getByRole('button', { name: 'Marcar Altitude do site como não aplicável', exact: true });
+  const button = page.getByRole('button', { name: 'Marcar Altitude do local como não aplicável', exact: true });
   await button.scrollIntoViewIfNeeded();
   await button.click();
   await expect(resolvedLine(page)).toBeVisible();

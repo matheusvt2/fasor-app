@@ -3,6 +3,7 @@ import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { isValueCondition, type AppliesWhen, type PlateAppliesWhen, type ValueAppliesWhen } from '../seed/measurement.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
+import { sentenceCase } from './reading-cells.ts';
 import { isCellFilled } from './sheet-state.ts';
 
 /*
@@ -30,7 +31,7 @@ export type ApplicabilityState = 'always' | 'met' | 'na' | 'applied';
 
 export interface TestApplicability {
   state: ApplicabilityState;
-  /** While the condition is unmet (`na`, `applied`): "Não se aplica: TIPO DE SECCIONADORA sem fusíveis."; null otherwise. */
+  /** While the condition is unmet (`na`, `applied`): "Não se aplica: Tipo de seccionadora sem fusíveis." (Story 27.9: the field in sentence case); null otherwise. */
   reason: string | null;
   /** The reason after its lead, "TIPO DE SECCIONADORA sem fusíveis." (the band draws the lead in bold); null with `reason`. */
   phrase: string | null;
@@ -154,7 +155,8 @@ export function testApplicability(block: Pick<BlockRow, 'sheet'>, definition: Pi
   if (field === undefined) return MET;
   const outcome = outcomeOf(condition, field, block.sheet.nameplate[field.key]);
   if (outcome.met) return MET;
-  const phrase = `${field.label} ${outcome.phrase}.`;
+  // Story 27.9 (F37): the reason names the field in sentence case ("Meio de extinção"), not its printed capitals.
+  const phrase = `${sentenceCase(field.label)} ${outcome.phrase}.`;
   const applied = block.sheet.test[testKey]?.applicability?.value === APPLICABILITY_APPLIED;
   return {
     state: applied ? 'applied' : 'na',

@@ -670,7 +670,16 @@
  * `contract/errors.ts`. MIN follows to 56 (below). Stored ops are
  * not judged again; an op queued on an older device and refused takes the rejected-ops path.
  */
-export const CONTRACT_VERSION = 56;
+/*
+ * 57 (2026-11-22, batch e27b, Epic 27 wave 2, Story 27.8): no new op or path family. Seed v17 opens equal to
+ * v16 (the same content and the same rule flags; v16 froze at the deploy of 4ecc3009) and becomes the version
+ * a new Template is created with (`SEED_VERSION`); the server's boot step moves every template to it
+ * (`templateSeedUpgrade`), so every relatório created afterwards is born on v17 and every one already made
+ * keeps its seed. Story 27.8 then puts the form's words right on v17 ("ITEM", "Para-raios", "limpeza e
+ * reaperto" with its participle in the masculine plural, the surge arrester's caption word) through v17 keys
+ * and rule flags (decision 2 of 2026-11-21). MIN follows to 57 (below).
+ */
+export const CONTRACT_VERSION = 57;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1072,7 +1081,14 @@ export const CONTRACT_VERSION = 56;
  * company than the document. Its pull answers `426 contract_outdated` and it updates; its pushes are still
  * accepted, and an op the new limits refuse lands in its rejected list.
  */
-export const MIN_CONTRACT_VERSION = 56;
+/*
+ * 57 (2026-11-22, batch e27b, Story 27.8): a version-56 (or older) bundle ships no seed v17, so it cannot
+ * resolve a single definition of a v17 relatório or of a template the server moved to v17: a pulled block
+ * create or template put naming `v17` fails to fold, and the sheets it could show would have no nameplate,
+ * checklist or tests, nor print the words Story 27.8 puts right on v17. Its pull answers `426
+ * contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 57;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

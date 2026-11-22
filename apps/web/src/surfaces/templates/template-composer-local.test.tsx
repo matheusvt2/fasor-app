@@ -384,10 +384,10 @@ describe('14.2 composer: the three levels', () => {
   it('a local from before the painel level keeps its colunas directly under it and its "Adicionar coluna"; a local with none does not offer it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    const subsolo = await card(/^Local 1° Subsolo/);
+    const subsolo = await card(/^Local 1º Subsolo/);
     expect(subsolo.querySelector(':scope > .block-body .loc-flag')).toHaveTextContent('17 colunas · 49 blocos');
-    expect(names(within(subsolo).getByRole('list', { name: 'Colunas de 1° Subsolo' }), '.col-name')).toHaveLength(17);
-    expect(within(subsolo).queryByRole('list', { name: 'Painéis de 1° Subsolo' })).toBeNull();
+    expect(names(within(subsolo).getByRole('list', { name: 'Colunas de 1º Subsolo' }), '.col-name')).toHaveLength(17);
+    expect(within(subsolo).queryByRole('list', { name: 'Painéis de 1º Subsolo' })).toBeNull();
     await user.click(within(subsolo).getByRole('button', { name: 'Adicionar coluna' }));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 18 adicionada'));
     expect((await skeletonOf()).find((n) => n.name === 'Coluna 18')).toMatchObject({ kind: 'coluna', parent_ref: 'subsolo-1' });

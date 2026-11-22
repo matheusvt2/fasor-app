@@ -38,7 +38,7 @@ describe('11.2-UNIT moveTargets', () => {
     const targets = moveTargets(snapshot.locations, sec);
     expect(targets).toHaveLength(snapshot.locations.length - 1);
     expect(targets.some((row) => row.id === coluna5.id)).toBe(false);
-    expect(targets.find((row) => row.id === coluna9.id)!.label).toBe('1° Subsolo › Coluna 9');
+    expect(targets.find((row) => row.id === coluna9.id)!.label).toBe('1º Subsolo › Coluna 9');
     expect(targets[0]!.kind).toBe('cabine');
   });
 

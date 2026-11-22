@@ -35,7 +35,8 @@ import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { siteUnanswered, siteUnansweredText } from './site-checklist.ts';
 import { blocksWithPendingSuggestions, fichasComSugestoesText, livePendingSuggestions } from './suggestions.ts';
-import { sectionBlocks } from './sumario.ts';
+import { isTextSectionRow, sectionBlocks, sectionRowTitle } from './sumario.ts';
+import { sectionTextEmpty } from './section-variables.ts';
 
 /*
  * AD-15, Story 4.3: the one pre-issue check the Sumário rows and the Export dialog both
@@ -95,7 +96,9 @@ export type PreIssueKind =
   | 'last_send'
   // Story 27.2 (decision 3 of 2026-11-21): an improbable value, remarked and never blocking.
   | 'temperature_unusual'
-  | 'art_trt_not_numeric';
+  | 'art_trt_not_numeric'
+  // Story 27.10 (F24): a section text emptied in the editor, pending and never blocking.
+  | 'section_text_empty';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -122,8 +125,9 @@ export interface PreIssueSheet {
 // the same register as the Clientes tab's "CNPJ do contratante em branco".
 const SETUP_TEXTS: Readonly<Record<Exclude<SetupGap, 'art_trt_number'>, string>> = {
   client: 'Cliente em branco',
-  service_start: 'Início da parada em branco',
-  service_end: 'Fim da parada em branco',
+  // authored (Story 27.9, F38, listed for Bruno): was "Início/Fim da parada em branco"; "execução" is the form's word.
+  service_start: 'Início da execução em branco',
+  service_end: 'Fim da execução em branco',
   responsible_user_id: 'Responsável técnico em branco',
   registration_number: 'Registro profissional do responsável em branco',
   instruments: 'Nenhum instrumento em Dados do relatório',
@@ -226,6 +230,12 @@ export function seedUnknownText(seedVersion: string): string {
 export function sectionVariablesText(labels: readonly string[]): string {
   // authored: a section text prints `[Label]` for these (Story 4.7); the row names them.
   return `${labels.length === 1 ? 'Dado do relatório em branco' : 'Dados do relatório em branco'}: ${listPtBr(labels)}`;
+}
+
+/** Story 27.10 (F24): "Texto vazio em Requisitos básicos", a section whose own text was emptied. */
+export function sectionTextEmptyText(title: string): string {
+  // authored (Story 27.10, F24, listed for Bruno): the "Antes de emitir" row of an emptied section text.
+  return `Texto vazio em ${title}`;
 }
 
 /** "2 fichas concluídas sem texto de conclusão confirmado". */
@@ -393,6 +403,18 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       severity: 'pending',
       text: sectionVariablesText(unresolved.map((name) => SECTION_VARIABLE_LABELS[name])),
       kind: 'section_variables',
+    });
+  }
+  // Story 27.10 (F24): a section text emptied in the editor prints the section with no text; its row
+  // names the section (the Sumário's row reads "texto vazio"), pending, never blocking.
+  for (const block of sectionBlocks(snapshot.blocks)) {
+    if (!isTextSectionRow(block.block_type) || !sectionTextEmpty(block.config)) continue;
+    rows.push({
+      id: `section_text_empty:${block.id}`,
+      row: block.block_type,
+      severity: 'pending',
+      text: sectionTextEmptyText(sectionRowTitle(block.block_type)),
+      kind: 'section_text_empty',
     });
   }
 
@@ -679,6 +701,8 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   // Story 27.2 (decision 3): an unusual temperature and an ART/TRT number that is not numeric, named one by one.
   'temperature_unusual',
   'art_trt_not_numeric',
+  // Story 27.10 (F24): an emptied section text, named in "Antes de emitir".
+  'section_text_empty',
 ]);
 
 export interface ExportPrecheck {

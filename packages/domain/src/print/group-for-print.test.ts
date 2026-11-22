@@ -182,7 +182,7 @@ describe('7.1-UNIT-001 groupForPrint: por_local_e_tipo is built on the base case
     ];
     const grouping = groupForPrint(snapshotOf(locations, sheets), 'por_local_e_tipo');
     expect(summary(grouping.subsections)).toEqual([
-      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT dos Geradores", blockIds: [block(1), block(3), block(2), block(4), block(6), block(5), block(7), block(8)] },
+      { kind: 'tps_tcs', title: 'TPs e TCs dos Cubículos de MT dos Geradores', blockIds: [block(1), block(3), block(2), block(4), block(6), block(5), block(7), block(8)] },
     ]);
   });
 
@@ -262,14 +262,14 @@ describe('7.1-UNIT-001 groupForPrint on the Porto Seguro fixture', () => {
       ['Cubículo Enel', 9],
       ['Seccionadoras dos Cubículos de MT do 1° Subsolo', 13],
       ['Disjuntores dos Cubículos de MT do 1° Subsolo', 14],
-      ["TP's e TC's dos Cubículos de MT do 1° Subsolo", 12],
+      ['TPs e TCs dos Cubículos de MT do 1° Subsolo', 12],
       ['Transformadores e Cabos de Alimentação do 1° Subsolo', 10],
       ['Oxigênio', 5],
       ['Cobertura A', 6],
       ['Cobertura B', 6],
       ['Seccionadoras dos Cubículos de MT dos Geradores', 7],
       ['Disjuntores dos Cubículos de MT dos Geradores', 4],
-      ["TP's e TC's dos Cubículos de MT dos Geradores", 8],
+      ['TPs e TCs dos Cubículos de MT dos Geradores', 8],
     ]);
     expect(grouping.warnings).toEqual([]);
     // Every one of the 94 sheets prints exactly once.
@@ -355,7 +355,7 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
       { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Subestação', blockIds: [block(3)], painelId: id(10) },
       { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 2 do Painel de média tensão — Subestação', blockIds: [block(4)], painelId: id(10) },
       // The TP before its TC, paired inside Coluna 3.
-      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT da Coluna 3 do Painel de média tensão — Subestação", blockIds: [block(6), block(5)], painelId: id(10) },
+      { kind: 'tps_tcs', title: 'TPs e TCs dos Cubículos de MT da Coluna 3 do Painel de média tensão — Subestação', blockIds: [block(6), block(5)], painelId: id(10) },
       { kind: 'painel', title: 'Painel B', blockIds: [], painelId: id(20) },
       { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel B — Subestação', blockIds: [block(8)], painelId: id(20) },
       { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 1 do Painel B — Subestação', blockIds: [block(7)], painelId: id(20) },
@@ -374,7 +374,7 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
       { kind: 'painel', title: 'Painel de média tensão', blockIds: [], painelId: id(10) },
       { kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Coluna 1 do Painel de média tensão — Subestação', blockIds: [block(3)], painelId: id(10) },
       { kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Coluna 2 do Painel de média tensão — Subestação', blockIds: [block(4)], painelId: id(10) },
-      { kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT da Coluna 3 do Painel de média tensão — Subestação", blockIds: [block(6), block(5)], painelId: id(10) },
+      { kind: 'tps_tcs', title: 'TPs e TCs dos Cubículos de MT da Coluna 3 do Painel de média tensão — Subestação', blockIds: [block(6), block(5)], painelId: id(10) },
     ]);
   });
 
@@ -517,7 +517,7 @@ describe('14.2-UNIT groupForPrint: a painel is a heading over its colunas', () =
     expect(groupForPrint(snapshot, 'por_local_e_tipo').subsections).toEqual([
       { cabineId: id(1), kind: 'seccionadoras', title: 'Seccionadoras dos Cubículos de MT da Cabine A', blockIds: [block(2)] },
       { cabineId: id(1), kind: 'disjuntores', title: 'Disjuntores dos Cubículos de MT da Cabine A', blockIds: [block(4)] },
-      { cabineId: id(1), kind: 'tps_tcs', title: "TP's e TC's dos Cubículos de MT da Cabine A", blockIds: [block(3)] },
+      { cabineId: id(1), kind: 'tps_tcs', title: 'TPs e TCs dos Cubículos de MT da Cabine A', blockIds: [block(3)] },
       { cabineId: id(1), kind: 'transformadores', title: 'Transformadores e Cabos de Alimentação da Cabine A', blockIds: [block(1)] },
       { cabineId: id(5), kind: 'cabine', title: 'Cubículo C', blockIds: [block(5)] },
     ]);
@@ -589,14 +589,14 @@ describe('14.3/14.4-UNIT groupForPrint: on a relatório with a site list every l
       'Cubículo Enel',
       'Seccionadoras dos Cubículos de MT do 1° Subsolo',
       'Disjuntores dos Cubículos de MT do 1° Subsolo',
-      "TP's e TC's dos Cubículos de MT do 1° Subsolo",
+      'TPs e TCs dos Cubículos de MT do 1° Subsolo',
       'Transformadores e Cabos de Alimentação do 1° Subsolo',
       'Oxigênio',
       'Cobertura A',
       'Cobertura B',
       'Seccionadoras dos Cubículos de MT dos Geradores',
       'Disjuntores dos Cubículos de MT dos Geradores',
-      "TP's e TC's dos Cubículos de MT dos Geradores",
+      'TPs e TCs dos Cubículos de MT dos Geradores',
     ]);
   });
 });

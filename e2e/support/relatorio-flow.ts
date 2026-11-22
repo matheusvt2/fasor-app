@@ -26,9 +26,9 @@ export async function createProjectFromHome(page: Page): Promise<void> {
   await page.getByRole('option', { name: `Criar “${CLIENT}”` }).click();
   await expect(page.getByText('Cliente criado no cadastro de Clientes')).toBeVisible();
   await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue(CLIENT);
-  await dialog.getByRole('combobox', { name: 'Local (obra)' }).fill(SITE);
+  await dialog.getByRole('combobox', { name: 'Obra' }).fill(SITE);
   await page.getByRole('option', { name: `Criar “${SITE}”` }).click();
-  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue(SITE);
+  await expect(dialog.getByRole('combobox', { name: 'Obra' })).toHaveValue(SITE);
   await dialog.getByRole('button', { name: 'Continuar' }).click();
   await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
   await expect(page.locator('.app-bar h1')).toHaveText('Obra');
@@ -51,14 +51,14 @@ export async function createRelatorio(page: Page, options: { whileOnSetup?: () =
   const create = dialog.getByRole('button', { name: 'Criar relatório' });
   // Story 12.2 (J-12): both dates open on today (America/Sao_Paulo), so Criar is ready.
   const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
-  await expect(dialog.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton')).toHaveText([day!, month!, year!]);
-  await expect(dialog.getByRole('group', { name: 'Fim da parada' }).getByRole('spinbutton')).toHaveText([day!, month!, year!]);
+  await expect(dialog.getByRole('group', { name: 'Início da execução' }).getByRole('spinbutton')).toHaveText([day!, month!, year!]);
+  await expect(dialog.getByRole('group', { name: 'Fim da execução' }).getByRole('spinbutton')).toHaveText([day!, month!, year!]);
   await expect(create).not.toHaveAttribute('aria-disabled', 'true');
-  await typeDate(dialog, 'Início da parada', '06092026');
+  await typeDate(dialog, 'Início da execução', '06092026');
   // The end follows the start.
-  await expect(dialog.getByRole('group', { name: 'Fim da parada' }).getByRole('spinbutton')).toHaveText(['06', '09', '2026']);
+  await expect(dialog.getByRole('group', { name: 'Fim da execução' }).getByRole('spinbutton')).toHaveText(['06', '09', '2026']);
   await expect(create).not.toHaveAttribute('aria-disabled', 'true');
-  await typeDate(dialog, 'Fim da parada', '08092026');
+  await typeDate(dialog, 'Fim da execução', '08092026');
   await create.click();
   await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}\/setup\?etapa=1$/, { timeout: 30_000 });
   await expect(page.locator('.app-bar h1')).toHaveText('Dados do relatório');
