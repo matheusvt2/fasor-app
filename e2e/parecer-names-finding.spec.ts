@@ -6,7 +6,6 @@ import {
   getDefinition,
   instantiateTemplate,
   resultsItemsText,
-  SEED_VERSION,
   snapshotDefinitionContext,
   standardTemplate,
   visitContextOf,
@@ -37,6 +36,13 @@ import { syncNowAndReturn } from './support/sync.ts';
  * template carries no sections 3 to 6), with no "8 e 9" left. Every expected word is the kernel's over
  * the device's own rows (E12-A6). Both issue a revision, so the file runs in the `queue` lane.
  */
+
+/**
+ * Batch e27b (Story 27.8, seed v17): the relatórios are pinned to v16, the last seed without `parecer_open_apart`, so
+ * a Reprovado breaker that was never concluded still prints the sentence this file asserts; on v17 section 10 names it
+ * apart as an open ficha (Story 27.3), asserted by the kernel tests and the v17 layout-lock golden.
+ */
+const SEED = 'v16';
 
 let account: SeedAccount;
 let database: string;
@@ -90,7 +96,7 @@ async function setUp(page: Page, type: string, options: { ownConclusao?: boolean
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const base = standardTemplate({ id: newId() });
+  const base = standardTemplate({ id: newId(), seedVersion: SEED });
   const template =
     options.ownConclusao === true
       ? {
@@ -123,7 +129,7 @@ async function setUp(page: Page, type: string, options: { ownConclusao?: boolean
   const created = (prefix: string) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);
   const block = created('block/').find((row) => row.block_type === type)!;
   const tag = created('equipment/').find((row) => row.id === block.equipment_id)!.tag as string;
-  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', type);
+  const definition = getDefinition(SEED, 'cabine_primaria', type);
   const scope = { relatorioId };
   const checklistOf = options.checklist ?? (() => 'C');
   await pushDrafts(page, database, [
@@ -233,7 +239,7 @@ test('@p1 24.4-E2E-002 a v14 NC observation typed in two lines prints its conclu
   const observation = page.getByLabel('Observação do item 2', { exact: true });
   await observation.fill('Mufla com sinais de aquecimento\nVerificar na próxima visita');
   await observation.blur();
-  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'cabos_saida');
+  const definition = getDefinition(SEED, 'cabine_primaria', 'cabos_saida');
   const itemKey = definition.checklist![1]!.key;
   await expect.poll(async () => (await outbox(database, page)).filter((op) => op.path === `sheet/${cable.blockId}/checklist/${itemKey}/observation`).at(-1)?.value).toBe('Mufla com sinais de aquecimento\nVerificar na próxima visita');
 
