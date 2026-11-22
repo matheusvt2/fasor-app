@@ -1454,6 +1454,7 @@ button.pp-mod-toggle { cursor: pointer; }
   .pp-root.pp-many .pp-corner { width: auto; }
   .pp-root.pp-many .pp-role { width: 104px; }
   .pp-root.pp-many .pp-grid .is-unpicked { display: none; }
+}
 /* ---------- Story 26.9 (Usuarios) ----------
    `mockups/prototype/screens/92-usuarios.html` `<style data-screen="usuarios">`, declarations verbatim. The screen's
    `<main data-route="/usuarios">` is the mock's `[data-route="/usuarios"]`. Left out on purpose: the prototype's
