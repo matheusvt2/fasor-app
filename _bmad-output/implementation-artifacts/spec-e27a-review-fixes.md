@@ -2,7 +2,7 @@
 title: 'e27a fixes: the wave 1 review findings (Stories 27.1 to 27.6)'
 type: 'bugfix'
 created: '2026-11-22'
-status: 'in-progress'
+status: 'in-review'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -81,3 +81,11 @@ Run everything from this worktree, compose project `fasor-e27a`. Write the code 
 3. Run `podman compose restart api` after any change under `packages/domain` or `apps/api`.
 4. With `scripts/e2e.ts`, spec paths go before `--project`.
 5. While iterating, run the narrowest suite: the touched unit files, `pnpm static`, `pnpm lint`, and the touched specs alone. The orchestrator runs the final gate.
+
+## Auto Run Result
+
+Status: in-review (PR open, not merged by the batch).
+
+- Implementation: subagent bmad-dev-opus-high a3635349a5ab81505, returned complete; R1 to R8 confirmed and fixed, R9 recorded.
+- Gate on 604e3cb1 (main 1c69862c merged; lock wait 0 s; load 2.50 at start, 7.38 at end): lint 0, static 0, test:api 1124 passed and 6 skipped, test:unit 7457 of 7457, 7 specs 11 of 11.
+- Open: R5 changes what the server accepts with no contract bump (56 unreleased), a decision for the coordinator.
