@@ -370,6 +370,11 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   const chips = nc.getByRole('group', { name: 'Observações sugeridas do item 11' });
   await expect(chips.getByRole('button')).toHaveText(['Luminária de emergência inoperante', NC_PHRASE, 'Sem iluminação de emergência']);
   const ncField = nc.getByRole('textbox', { name: 'Observação do item 11' });
+  // Story 27.13 (F19): the red reason waits until the field is left empty, never on the row just marked NC.
+  await expect(ncField).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(nc.locator('.helper[data-tone="red"]')).toHaveCount(0);
+  await ncField.click();
+  await page.keyboard.press('Tab');
   await expect(ncField).toHaveAttribute('aria-invalid', 'true');
   await expect(nc.locator('.helper[data-tone="red"]')).toHaveText('Obrigatória em item não conforme');
   await chips.getByRole('button', { name: NC_PHRASE }).click();

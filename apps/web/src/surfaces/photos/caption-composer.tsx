@@ -208,6 +208,12 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
     onClose();
   };
 
+  // Story 27.13 (F17): one hint at a time, the one of the composer's state, each in its old place and
+  // words: the text edited by hand ("Texto editado à mão…" under the toggle), a caption the rows
+  // generated ("Legenda gerada" over it), or nothing composed yet ("A legenda é montada com os três
+  // campos abaixo." over the rows).
+  const hint: 'edited' | 'generated' | 'composed' = editing ? 'edited' : generated !== null ? 'generated' : 'composed';
+
   // E6-Q3 (`71-legenda.html`): the photo and the caption the rows compose come first (on a
   // phone they stay pinned while the chips scroll under them), then the rows, then the
   // Sticky action bar with "Salvar legenda", always in view.
@@ -237,7 +243,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
           data-editing={editing ? '' : undefined}
           data-state={dictated ? 'suggested' : undefined}
         >
-          <span className="field-label">{t.previewLabel}</span>
+          {hint === 'generated' ? <span className="field-label">{t.previewLabel}</span> : null}
           {editing ? (
             <>
               <label className="visually-hidden" htmlFor={textId}>
@@ -287,10 +293,10 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
               {dictated ? <span className="dictated-note">{t.dictatedNote}</span> : null}
             </span>
           </div>
-          {editing ? <p className="helper caption-edit-note">{t.editingNote}</p> : null}
+          {hint === 'edited' ? <p className="helper caption-edit-note">{t.editingNote}</p> : null}
         </div>
       </div>
-      <p className="section-note">{t.note}</p>
+      {hint === 'composed' ? <p className="section-note">{t.note}</p> : null}
       {KINDS.map((kind) => (
         <PartRow key={kind} kind={kind} options={optionsOf(kind)} value={parts[kind]?.name ?? null} onChange={(name) => setPart(kind, name)} inactive={editing} />
       ))}

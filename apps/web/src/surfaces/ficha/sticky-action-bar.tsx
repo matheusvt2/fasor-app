@@ -7,12 +7,12 @@ import { useStickyBarScrollPadding } from '../../components/toast.tsx';
  * the button row. Story 6.1 fills the slot at the left of the row with the 56 px Camera
  * capture button (`.has-camera`), and Story 6.4 puts "Adicionar fotos" beside it (the import
  * path, `70-fotos.html`); a denied camera's reason and OS path go under the row
- * (`camera-denied`). `secondary` is the Bulk action bar's mirror while the checklist is on
- * screen. It sits above the keyboard and unsticks below a 480 px viewport (`ficha.css`).
+ * (`camera-denied`). Story 27.11 (F14): the Bulk action bar's mirror is gone from this bar; the
+ * bar stands in the checklist's flow (`ChecklistSection`). It sits above the keyboard and unsticks
+ * below a 480 px viewport (`ficha.css`).
  */
 export function StickyActionBar({
   stepper,
-  secondary,
   camera,
   importButton,
   cameraNote,
@@ -22,7 +22,6 @@ export function StickyActionBar({
   primaryTelemetry,
 }: {
   stepper: ReactNode;
-  secondary: ReactNode;
   /** The Camera capture button (and its camera view), or nothing. */
   camera?: ReactNode;
   /** Story 6.4: "Adicionar fotos" beside the camera, or nothing. */
@@ -43,7 +42,6 @@ export function StickyActionBar({
   return (
     <div className="sticky-action-bar">
       {stepper}
-      {secondary}
       <div className={hasCamera ? 'bar-buttons has-camera' : 'bar-buttons'}>
         {camera}
         {importButton}

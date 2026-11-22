@@ -1,6 +1,7 @@
 import { calendarDateOfInstant, dateRangeText, projectLabel, relatorioOpEnvelope, relatorioSetupPath, textCapOf, type RelatorioSnapshot } from '@app/domain';
 import { useId } from 'react';
 import { CharCount, DateField, UploadTile } from '../../../components/index.ts';
+import { useAssetUrl } from '../../../components/use-asset-url.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { commitFilePick, useAttachedFile } from '../../../db/file-commit.ts';
@@ -36,6 +37,8 @@ export function Etapa1Capa({
 
   const additionalInfo = useTextField(setup.additional_info ?? '', (v) => onCommit('additional_info', v === '' ? null : v));
   const cover = useAttachedFile(db, setup.cover_photo_file_id);
+  // Story 27.12 (F15): the tile's thumbnail, read from this device's file as the Empresa tab's tiles do.
+  const coverSrc = useAssetUrl(db, setup.cover_photo_file_id);
   const additionalInfoId = useId();
   const period = useServicePeriod(setup.service_start, setup.service_end, onCommitFields);
   const datesEcho = dateRangeText(period.start, period.end);
@@ -102,9 +105,11 @@ export function Etapa1Capa({
             <label className="field-label" htmlFor={additionalInfoId}>
               {t.additionalInfoLabel}
             </label>
-            <input
+            {/* Story 27.12 (F16): long text gets a text area of the mock's textarea class
+                (`components.css` `.observation-field`); the mock draws a one-line `.input`. */}
+            <textarea
               id={additionalInfoId}
-              className="input"
+              className="observation-field"
               value={additionalInfo.text}
               maxLength={ADDITIONAL_INFO_CAP ?? undefined}
               onChange={(event) => additionalInfo.change(event.target.value)}
@@ -118,6 +123,7 @@ export function Etapa1Capa({
             layout="tile"
             label={t.coverPhotoLabel}
             file={cover}
+            previewSrc={coverSrc}
             onPick={(picked) => attachCover(picked)}
           />
         </div>

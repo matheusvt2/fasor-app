@@ -215,7 +215,7 @@ describe('24.3 B-8 a v14 sheet concluded Aprovado · Com restrições, a reading
     expect(screen.queryByRole('radiogroup', { name: 'Restrições' })).toBeNull();
     const note = document.querySelector<HTMLElement>('.conclusion-hint[role="status"]')!;
     expect(note).toHaveTextContent('Conclusão ajustada pela ficha');
-    await userEvent.click(within(note).getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(within(note).getByRole('button', { name: 'Confirmar resultado' }));
     const now = composeConclusion(shown, definition, 'CE-01');
     expect(writes(builds.at(-1)!, shown)).toEqual([
       ['result', 'reprovado'],

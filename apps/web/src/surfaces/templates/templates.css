@@ -139,6 +139,15 @@
 /* A local card's parts beside its body: the Agrupar por tipo label and toggle (EXPERIENCE.md ›
    Toggle keeps the switch on the row; the mock shows the flag in the sub line, which stays too). */
 [data-route="/templates/:id"] .cabine-toggle { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; }
+/* authored (batch e27c, Story 27.14, F20): from 768 px the "Agrupar por tipo" pair stood beside the card
+   body and squeezed its meta line into a column (measured at 768 px: card 720 px, meta 213 px, the pair
+   257 px). It takes a line of its own under the card's head, before the expanded body, aligned with the
+   body's text (the drag handle, the 56 px Position box and their two gaps), so the meta line takes the
+   card's width and wraps as a sentence. Below 768 px the pair already wraps (the phone rule in `app.css`). */
+@media (min-width: 768px) {
+  [data-route="/templates/:id"] .local-card > .cabine-toggle { order: 1; flex-basis: 100%; padding-left: calc(var(--touch-min) + 56px + 2 * var(--sp-2)); }
+  [data-route="/templates/:id"] .local-card > .block-expand { order: 2; }
+}
 /* The block body of a local or painel card is the button that expands and collapses it (the
    mock toggles on a tap anywhere on the card): it keeps the mock's column layout. */
 [data-route="/templates/:id"] .block-card button.block-body { text-align: left; cursor: pointer; align-items: stretch; }

@@ -4,25 +4,22 @@ import {
   registryFieldPath,
   registryPath,
   textCapOf,
-  toIso,
   type EmpresaRow,
   type OpDraft,
   type UploadFileKind,
 } from '@app/domain';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { CharCount, LoadingNote, UploadTile, type PickedFile } from '../../components/index.ts';
+import { useAssetUrl } from '../../components/use-asset-url.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { commitFilePick, useAttachedFile } from '../../db/file-commit.ts';
-import { previewBlob } from '../../db/file-store.ts';
 import { empresaRow } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
-import type { AppDatabase } from '../../db/schema.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSyncActions } from '../../state/sync-actions.ts';
 import { BrandPreview } from './brand-preview.tsx';
 import { CnpjField } from './cnpj-field.tsx';
 import { sameFieldValue } from './field-value.ts';
@@ -253,36 +250,6 @@ export function EmpresaTab() {
       </div>
     </div>
   );
-}
-
-/**
- * The object URL of a brand asset. The bytes come from this device when it picked them
- * (the original, which is all it has before the upload lands) and from
- * `GET /api/files/{id}/thumb` otherwise — asked for here, by a surface, and never by a
- * sync cycle (AC 2.2-3).
- */
-function useAssetUrl(db: AppDatabase | null, fileId: string | null): string | null {
-  const { fetchFile } = useSyncActions();
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (db === null || fileId === null) {
-      setUrl(null);
-      return;
-    }
-    let cancelled = false;
-    let created: string | null = null;
-    void previewBlob(db, fileId, { fetchFile, nowIso: toIso(now()) }).then((blob) => {
-      if (cancelled || blob === null) return;
-      created = URL.createObjectURL(blob);
-      setUrl(created);
-    });
-    return () => {
-      cancelled = true;
-      if (created !== null) URL.revokeObjectURL(created);
-      setUrl(null);
-    };
-  }, [db, fileId, fetchFile]);
-  return url;
 }
 
 interface EmpresaFieldProps {

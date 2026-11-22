@@ -30,7 +30,7 @@ import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import '../relatorio/relatorio.css';
 import { CabineBlock, QuickNotes } from './cabine-block.tsx';
-import { BulkActionBar, ChecklistSection, useChecklistBulk } from './checklist-section.tsx';
+import { ChecklistSection, ConcludeAttemptedContext, useChecklistBulk } from './checklist-section.tsx';
 import { ConfiguracaoSection } from './configuracao-section.tsx';
 import { ConclusaoSection } from './conclusao-section.tsx';
 import { EnsaiosSection } from './ensaios-section.tsx';
@@ -48,7 +48,6 @@ import { SheetPhotos } from './sheet-photos-section.tsx';
 import { SheetObservationDictationProvider } from './sheet-observation-dictation.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
-import { useChecklistMirror } from './use-checklist-mirror.ts';
 import { useFichaActions } from './use-ficha-actions.ts';
 import { useFichaData } from './use-ficha-data.ts';
 import { useFichaPhotos } from './use-ficha-photos.ts';
@@ -131,7 +130,6 @@ function FichaBody({
   const { current, focusIn, stepClass, goTo } = useFichaSteps(progress, shownSteps);
   const photos = useFichaPhotos({ relatorioId, snapshot, block, current, db, api, showToast });
   const { photoTarget, sheetCamera, checklistPhotos, setImporting, fichaMain, dragging } = photos;
-  const { checklistEl, showMirror } = useChecklistMirror(block, definition, bulk);
   const actions = useFichaActions({
     relatorioId,
     snapshot,
@@ -214,6 +212,8 @@ function FichaBody({
           <SheetReadOnlyProvider value={notTested ? 'not_tested' : roleReadOnly ? 'role' : false}>
             {/* Story 9.4: the sheet observation's dictated text, offered by its own mic and by the tables. */}
             <SheetObservationDictationProvider enabled={enabled.has('observations')}>
+            {/* Story 27.13 (F19): a refused conclude shows the red reason of an NC row left empty. */}
+            <ConcludeAttemptedContext.Provider value={actions.concludeAttempted}>
             <div className="content">
               {roleReadOnly ? (
                 <ReadOnlyBanner />
@@ -249,9 +249,6 @@ function FichaBody({
                   photos={checklistPhotos}
                   pending={pending}
                   learned={ncPhrases}
-                  sectionRef={(element) => {
-                    checklistEl.current = element;
-                  }}
                 />
               </div>
               {enabled.has('observations') ? <QuickNotes api={api} snapshot={snapshot} cabine={cabine} observations={observations} /> : null}
@@ -286,14 +283,12 @@ function FichaBody({
               {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}
               <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />
             </div>
+            </ConcludeAttemptedContext.Provider>
             </SheetObservationDictationProvider>
           </SheetReadOnlyProvider>
           <DropHint dragging={dragging} />
           <StickyActionBar
             stepper={<SectionStepper steps={shownSteps} progress={progress} current={current} titles={{ placa: plateTitle }} onGo={(step) => goTo(step, false)} />}
-            // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
-            // the list head keeps its disabled action with the reason.
-            secondary={showMirror && !roleReadOnly ? <BulkActionBar bulk={bulk} compact /> : null}
             camera={roleReadOnly ? null : sheetCamera.button}
             importButton={
               roleReadOnly ? null : (

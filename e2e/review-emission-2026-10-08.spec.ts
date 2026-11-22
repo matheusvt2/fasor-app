@@ -138,7 +138,8 @@ for (const size of [
     await page.evaluate(() => window.scrollTo(0, 0));
     expect(await page.evaluate(() => document.documentElement.scrollHeight > 2 * window.innerHeight)).toBe(true);
 
-    for (const name of ['Pré-visualizar', 'Gerar relatório']) {
+    // Story 27.11 (F14): below 768 px the foot keeps "Gerar relatório" alone ("Pré-visualizar" is in the header menu).
+    for (const name of size.width < 768 ? ['Gerar relatório'] : ['Pré-visualizar', 'Gerar relatório']) {
       const button = bar(page).getByRole('button', { name });
       const box = (await button.boundingBox())!;
       expect(box.y).toBeGreaterThanOrEqual(0);

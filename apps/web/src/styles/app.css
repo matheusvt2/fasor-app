@@ -113,6 +113,13 @@ body {
   min-height: 100%;
 }
 
+/* authored (batch e27c, Story 27.11, F14): the Sumário's header draws two Overflow menus and CSS
+   shows one, the wide one (today's entries) from 768 px; below 768 px the phone one, which also holds
+   the foot's "Pré-visualizar" and "Marcar como enviado ao cliente" (the phone rules below). The
+   wrappers take no box of their own, so `.header-side` lays out the trigger as before. */
+[data-route="/relatorio/:id"] .sumario-menu { display: contents; }
+[data-route="/relatorio/:id"] .sumario-menu[data-width="phone"], [data-route="/relatorio/:id"] .sumario-preview-working { display: none; }
+
 /* ---------- Phone: `.frame-phone X` -> below 768px ---------- */
 @media (max-width: 767.98px) {
   /* `.frame-phone .content` */
@@ -125,6 +132,17 @@ body {
   .sticky-action-bar .bar-buttons { flex-direction: column; }
   .sticky-action-bar .bar-buttons.has-camera { flex-direction: row; flex-wrap: wrap; }
   .sticky-action-bar .bar-buttons.has-camera .btn { flex: 1 1 160px; }
+  /* authored (batch e27c, Story 27.11, F14), a departure from `40-relatorio-overview.html`'s phone frame, whose foot
+     stacks its three buttons (the column rule above): on the Sumário the foot keeps "Gerar relatório" alone; its
+     secondary buttons (and a reason one of them draws beside itself) are hidden here and stand in the header's phone
+     menu (above), the preview's working label in the foot instead. The foot is capped at a share of the viewport and
+     scrolls inside itself past it, so with the App bar and a banner the content keeps at least half the screen. */
+  [data-route="/relatorio/:id"] .sumario-menu[data-width="wide"] { display: none; }
+  [data-route="/relatorio/:id"] .sumario-menu[data-width="phone"] { display: contents; }
+  [data-route="/relatorio/:id"] .sumario-preview-working { display: inline; }
+  [data-route="/relatorio/:id"] .sticky-action-bar .bar-buttons > .btn-secondary,
+  [data-route="/relatorio/:id"] .sticky-action-bar .bar-buttons > .btn-secondary + .btn-reason { display: none; }
+  [data-route="/relatorio/:id"] .sticky-action-bar { max-height: 25dvh; overflow-y: auto; }
   /* `.frame-phone .section-stepper …` */
   .section-stepper .step-name .long { display: none; }
   .section-stepper .step-name .short { display: inline; }

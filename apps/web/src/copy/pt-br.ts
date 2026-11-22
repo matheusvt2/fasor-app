@@ -1810,6 +1810,12 @@ export const copy = {
       comRestricoes: 'Com restrições',
       // authored (Story 22.4, open for Bruno): the note over a stored pair a later floor made stricter.
       adjustedNote: 'Conclusão ajustada pela ficha',
+      // authored (batch e27c, Story 27.13, F18, the coordinator's reading, listed for Bruno): the three conclusion
+      // buttons that all said "Confirmar" name what each writes: the adjusted pair, the conclusion text, the
+      // sheet observation composed of the NC items.
+      confirmResult: 'Confirmar resultado',
+      confirmText: 'Confirmar texto',
+      confirmObservation: 'Confirmar observação',
       // ~~authored: the suggestion row's field label. 'Sugestão'~~
       // authored (e24b, listed for Bruno): Story 24.5, the preview row's label (`60-ficha.html` `.e24-conc`).
       suggestionLabel: 'Prévia da conclusão',

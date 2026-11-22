@@ -158,3 +158,32 @@ describe('E6-R2 the Caption composer chips while "Editar texto" is on', () => {
     for (const chip of chips()) expect(chip).not.toHaveAttribute('aria-disabled');
   });
 });
+
+describe('27.13-UNIT Story 27.13 (F17): the Caption composer shows the one hint of its state', () => {
+  const GENERATED = 'Legenda gerada';
+  const COMPOSED = 'A legenda é montada com os três campos abaixo.';
+  const shown = (dialog: HTMLElement) => [GENERATED, NOTE, COMPOSED].filter((hint) => dialog.textContent!.includes(hint));
+  const empty: CaptionParts = { atividade: null, equipamento: null, local: null };
+
+  it('a caption the rows generated: "Legenda gerada" alone', () => {
+    const { dialog } = renderComposer(null);
+    expect(dialog.querySelector('.caption-preview')).toHaveTextContent(composeCaption(prefill)!);
+    expect(shown(dialog)).toEqual([GENERATED]);
+  });
+
+  it('a text edited by hand: the editing note alone', () => {
+    const { dialog } = renderComposer('Legenda escrita à mão pela equipe');
+    expect(within(dialog).getByRole('textbox', { name: 'Texto da legenda' })).toBeInTheDocument();
+    expect(shown(dialog)).toEqual([NOTE]);
+  });
+
+  it('nothing composed yet: the note on the three fields alone; one chip later "Legenda gerada" alone; "Editar texto" the editing note alone', async () => {
+    const { dialog } = renderComposer(null, { prefill: empty });
+    expect(shown(dialog)).toEqual([COMPOSED]);
+    const atividade = within(dialog).getByRole('group', { name: 'Atividade' });
+    await userEvent.click(within(atividade).getByRole('button', { name: 'limpeza e reaperto' }));
+    expect(shown(dialog)).toEqual([GENERATED]);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Editar texto' }));
+    expect(shown(dialog)).toEqual([NOTE]);
+  });
+});
