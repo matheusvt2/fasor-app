@@ -277,9 +277,14 @@ export function createAdminUsersService(deps: AdminUsersDeps) {
     return deliver(actor, { to: target.email, ...content, purpose: 'reset' });
   }
 
-  /** The tables a pause or a remove clears: the user's sessions and his password links. */
+  /**
+   * What a pause or a remove clears: the user's password links (a pending invitation or reset). His
+   * sessions stay (2026-11-22, Matheus, Story 26.11): every route answers `401 user_inactive` for a
+   * user who is not active (`requireSession`, and the get-session guard of `http/app.ts`), so a kept
+   * session is inert, and it is how the device learns the cause and keeps its unsent work. A
+   * reactivation makes the kept sessions work again.
+   */
   const endAccess = (userId: string) => async (tx: Tx) => {
-    await tx.delete(session).where(eq(session.userId, userId));
     await purgePasswordLinks(tx, userId);
   };
 

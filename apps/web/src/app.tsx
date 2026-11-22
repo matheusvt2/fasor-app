@@ -1,7 +1,7 @@
 import { permissionForScreen, PRODUTO, SITE_CHECKLIST_LABEL } from '@app/domain';
 import { I18nProvider } from 'react-aria-components';
 import { LoadingNote } from './components/index.ts';
-import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, type RouteObject } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, useNavigate, type RouteObject } from 'react-router';
 import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
@@ -26,6 +26,8 @@ import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.t
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { VerificacoesSurface } from './surfaces/local/verificacoes-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
+import { ForgotPasswordSurface } from './surfaces/login/forgot-surface.tsx';
+import { PASSWORD_SAVED_NOTICE, SetPasswordSurface } from './surfaces/login/set-password-surface.tsx';
 import { PointsSurface } from './surfaces/points/points-surface.tsx';
 import { ProjectSurface } from './surfaces/project/project-surface.tsx';
 import { SectionTextSurface } from './surfaces/relatorio/section-text-surface.tsx';
@@ -33,6 +35,7 @@ import { SetupSurface } from './surfaces/relatorio/setup-surface.tsx';
 import { SumarioSurface } from './surfaces/relatorio/sumario-surface.tsx';
 import { TreeSurface } from './surfaces/relatorio/tree-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
+import { UsersSurface } from './surfaces/users/users-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 import { TemplateComposerSurface } from './surfaces/templates/template-composer.tsx';
 import { TypeEditorSurface } from './surfaces/templates/type-editor.tsx';
@@ -131,10 +134,30 @@ export function RequireSession() {
 export function LoginRoute() {
   const session = useSession();
   const location = useLocation();
+  const navigate = useNavigate();
   if (session.status === 'booting') return <Booting />;
   // Story 26.5: back to the address asked while signed out, when it is one of this app's.
   if (session.status === 'signed-in' && !session.reAuthRequired) return <Navigate to={returnAddress(askedOf(location.state))} replace />;
-  return <LoginSurface />;
+  // Story 26.6: the set-password page's line, and "Esqueci minha senha" with the typed e-mail.
+  return (
+    <LoginSurface
+      notice={noticeOf(location.state) === PASSWORD_SAVED_NOTICE ? copy.login.passwordSaved : null}
+      onForgot={(email) => void navigate('/login/esqueci', { state: { email } })}
+    />
+  );
+}
+
+/** Story 26.6: the notice a set-password page carries to Login (`location.state.notice`). */
+function noticeOf(state: unknown): unknown {
+  return typeof state === 'object' && state !== null && 'notice' in state ? (state as { notice: unknown }).notice : undefined;
+}
+
+/** Story 26.6: "Esqueci minha senha" is for a visitor who cannot sign in; a live session goes Home, as Login does. */
+export function ForgotRoute() {
+  const session = useSession();
+  if (session.status === 'booting') return <Booting />;
+  if (session.status === 'signed-in' && !session.reAuthRequired) return <Navigate to="/" replace />;
+  return <ForgotPasswordSurface />;
 }
 
 /**
@@ -163,6 +186,10 @@ export const appRoutes: RouteObject[] = [
     ),
     children: [
       { path: '/login', element: <LoginRoute /> },
+      // Story 26.6: "Esqueci minha senha", and the page a password link opens (outside the session:
+      // an invited user has none yet, and the token in the fragment is the only credential).
+      { path: '/login/esqueci', element: <ForgotRoute /> },
+      { path: '/definir-senha', element: <SetPasswordSurface /> },
       {
         element: <RequireSession />,
         children: [
@@ -176,6 +203,8 @@ export const appRoutes: RouteObject[] = [
               { path: '/account', element: <AccountSurface />, handle: { title: copy.account.title } },
               { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
               { path: '/cadastros', element: <RegistriesSurface />, handle: { title: copy.registries.title } },
+              // Story 26.9: the Usuários screen, behind `users.manage` (the kernel's screen map).
+              { path: '/usuarios', element: <UsersSurface />, handle: { title: copy.users.title } },
               { path: '/templates', element: <TemplatesSurface />, handle: { title: copy.templates.title } },
               {
                 path: '/templates/:id',

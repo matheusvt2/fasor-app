@@ -4241,3 +4241,29 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/api/src/sync/e27a-company-and-limits.integration.test.ts` (27.1-API-002); `apps/api/src/sync/rules.ts` `holdsOtherEmpresa`; `packages/domain/src/registry/empresa.ts` `pickEmpresa`.
   class: gap
   state: open (owner: Matheus, the production count; the coordinator, the local cleanup)
+
+## Deferred from: Epic 26 batch e26d, Stories 26.9, 26.11 and 26.6 web (2026-11-22)
+
+- source_spec: Story 26.11 (out of scope)
+  summary: An Admin view of what a device holds unsent (the server cannot know it) and exporting the unsent work of a paused user to a file are not built.
+  evidence: Story 26.11 "Out of scope".
+  class: gap
+  state: open (owner: Matheus, when someone asks)
+
+- source_spec: Story 26.6 web half (frames 13 and 14)
+  summary: The set-password page does not say the invitee's name, e-mail or the link's expiry ("Olá, Fernanda", the read-only e-mail, "vale até 23/11 10:30"): the link route gives no lookup of the token, so the page cannot know them. A used link is known only when "Salvar senha" is pressed. A read-only `GET` that names the user and the expiry of a token would let the page show them.
+  evidence: `apps/web/src/surfaces/login/set-password-surface.tsx`.
+  class: gap
+  state: open (owner: Matheus, a small api route if wanted)
+
+- source_spec: Story 26.9
+  summary: The "Papéis e permissões" tab links to `/usuarios/papeis`, which batch e26e builds; until it merges the link lands on Home. `UsersTabs` (`surfaces/users/users-tabs.tsx`) is e26d's component; e26e should reuse it.
+  evidence: `apps/web/src/surfaces/users/users-tabs.tsx`.
+  class: gap
+  state: open (owner: batch e26e)
+
+- source_spec: Story 26.5 (found by batch e26d's gate, 2026-11-22)
+  summary: `e2e/home.spec.ts` 1.6-E2E-003 (cold open with a session and no connection) fails whenever the whole file runs (4 of 5 pass) and passes alone with `--grep` (1 of 1). The page shows the shell and "Sem conexão" with an empty `main`: the reload follows the sign-in at once, the company pull has not brought the user's role row, and `permissionsStatus` answers `ready` with no key when the device is offline (fail closed), so Home shows no relatórios. Reading only; the batch did not touch `permissions.tsx`. A first sign-in followed at once by an offline cold open is rare; the test could wait for the company pull (`waitForCompanyPull`) before it reloads, or the provider could stay `loading` offline until the role row is known to be absent after a pull.
+  evidence: `apps/web/src/state/permissions.tsx` (`permissionsStatus`); `e2e/home.spec.ts:390`.
+  class: gap
+  state: open (owner: the coordinator, with the Epic 26 integrated gate)

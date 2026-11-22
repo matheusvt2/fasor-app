@@ -87,7 +87,7 @@ export function HomeSurface() {
   const canView = useCan('relatorio.view') || permissions?.status === 'loading';
   const canCreate = useCan('relatorio.create');
   const shortcuts = useShortcuts();
-  const anyShortcut = shortcuts.templates || shortcuts.cadastros;
+  const anyShortcut = shortcuts.templates || shortcuts.cadastros || shortcuts.usuarios;
 
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
   // Story 20.2: the search text is screen state only, never stored; the kernel matches it.

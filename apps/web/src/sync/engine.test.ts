@@ -740,6 +740,20 @@ describe('sync engine', () => {
     h.db.close();
   });
 
+  it('26.11 the re-auth hears the failure, so a paused account (user_inactive) is told from an ended session', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    const before = await h.db.outbox.count();
+    h.server.failNext.pushes = [{ kind: 'http', status: 401, code: 'user_inactive' }];
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(h.onReAuth).toHaveBeenCalledTimes(1);
+    expect(h.onReAuth).toHaveBeenCalledWith({ kind: 'http', status: 401, code: 'user_inactive' });
+    expect(h.engine.status().paused).toBe(true);
+    // The outbox is never touched: every op stays on the device.
+    expect(await h.db.outbox.count()).toBe(before);
+    h.db.close();
+  });
+
   it('a 426 flags outdated, never moves the cursor and keeps pushing on later cycles', async () => {
     const h = await harness();
     h.server.failNext.pulls = [{ kind: 'http', status: 426, code: 'contract_outdated' }];

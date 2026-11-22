@@ -29,7 +29,15 @@ export const BANNER_PRIORITY = [
   'unsynced-5-days',
 ] as const;
 
-export type BannerKind = (typeof BANNER_PRIORITY)[number];
+/**
+ * Story 26.11 (frame 94-conta-pausada.html, `#slot-paused` in `shell-head.html`): the paused account
+ * leads the slot, before every kind of the spine list above, and replaces the session banner. It is
+ * kept out of `BANNER_PRIORITY` itself, whose order the spine owns and Story 1.6's test pins; the
+ * slot ranks by this list.
+ */
+export const SLOT_PRIORITY = ['paused', ...BANNER_PRIORITY] as const;
+
+export type BannerKind = (typeof SLOT_PRIORITY)[number];
 
 export type BannerVariant = 'warning' | 'conflict' | 'info';
 
@@ -39,16 +47,16 @@ export interface Banner {
   text: string;
   /** Rendered inside `.banner-actions`. */
   actions?: ReactNode;
-  /** `alert` for conflict and session errors, `region` otherwise. */
-  role?: 'alert' | 'region';
+  /** `alert` for conflict and session errors, `status` for the paused account (no action), `region` otherwise. */
+  role?: 'alert' | 'region' | 'status';
 }
 
 /** The highest-priority banner of the candidates, or null when there is none. */
 export function pickBanner(candidates: readonly Banner[]): Banner | null {
   let best: Banner | null = null;
-  let bestRank: number = BANNER_PRIORITY.length;
+  let bestRank: number = SLOT_PRIORITY.length;
   for (const candidate of candidates) {
-    const rank: number = BANNER_PRIORITY.indexOf(candidate.kind);
+    const rank: number = SLOT_PRIORITY.indexOf(candidate.kind);
     if (rank === -1) continue;
     if (rank < bestRank) {
       best = candidate;
@@ -60,6 +68,8 @@ export function pickBanner(candidates: readonly Banner[]): Banner | null {
 
 export interface BannerConditions {
   reAuthRequired: boolean;
+  /** Story 26.11: why the session stands refused; `paused` shows the paused banner in place of the session one. */
+  reAuthCause?: 'paused' | 'expired' | null;
   online: boolean;
   /** "Entrar de novo": the shell owns the navigation, the candidate owns the wording. */
   reAuthAction?: ReactNode;
@@ -88,7 +98,11 @@ export interface BannerConditions {
  */
 export function bannerCandidates(conditions: BannerConditions): Banner[] {
   const candidates: Banner[] = [...(conditions.extra ?? [])];
-  if (conditions.reAuthRequired) {
+  if (conditions.reAuthRequired && conditions.reAuthCause === 'paused') {
+    // Story 26.11: no action (signing in again cannot help until the Admin reactivates the account);
+    // filling goes on and the outbox is kept.
+    candidates.push({ kind: 'paused', variant: 'warning', role: 'status', text: copy.pausedAccount.bannerText });
+  } else if (conditions.reAuthRequired) {
     candidates.push({
       kind: 're-auth',
       variant: 'warning',
@@ -146,7 +160,7 @@ export function BannerSlot({
   const textId = useId();
   const banner = pickBanner(banners);
   if (banner === null) return null;
-  const folded = banners.filter((b) => BANNER_PRIORITY.includes(b.kind)).length - 1;
+  const folded = banners.filter((b) => SLOT_PRIORITY.includes(b.kind)).length - 1;
   return (
     <div className="banner-slot">
       <div
@@ -155,7 +169,7 @@ export function BannerSlot({
         role={banner.role ?? 'region'}
         // The region is named by the sentence it already shows, not by a copy of it:
         // an `aria-label` here would replace the visible text rather than point at it.
-        aria-labelledby={banner.role === 'alert' ? undefined : textId}
+        aria-labelledby={banner.role === 'alert' || banner.role === 'status' ? undefined : textId}
         data-banner={banner.kind}
       >
         <span className="banner-text" id={textId}>

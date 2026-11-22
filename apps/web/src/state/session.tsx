@@ -4,6 +4,7 @@ import {
   registrationOfUserRow,
   registrationPuts,
   type AccountResponse,
+  type ReAuthCause,
   type Registration,
   type UserProfile,
 } from '@app/domain';
@@ -34,6 +35,7 @@ import {
   readAiFeatures,
   readLastSession,
   readPendingWipes,
+  readReAuthCause,
   readReAuthRequired,
   removePendingWipe,
   writeAiFeatures,
@@ -63,6 +65,13 @@ export interface SessionState {
   user: UserProfile | null;
   online: boolean;
   reAuthRequired: boolean;
+  /**
+   * Story 26.11: why `reAuthRequired` stands: `paused` after a `401 user_inactive` (a paused or
+   * removed account), `expired` after any other 401; null when it does not stand. Remembered beside
+   * the flag (`last-session.ts`) and cleared with it. Optional so a surface test's session needs no
+   * value (absent reads as an ended session).
+   */
+  reAuthCause?: ReAuthCause | null;
   /**
    * Story 11.8 follow-up: the server's `features.ai` (its `AI_FEATURES` flag). The fresh
    * account read wins, else the cached value, else `true`. While false every entry point of
@@ -185,6 +194,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [online, setOnline] = useState<boolean>(readOnline);
   const [reAuthRequired, setReAuthRequired] = useState(false);
+  const [reAuthCause, setReAuthCause] = useState<ReAuthCause | null>(null);
   const [aiFeatures, setAiFeatures] = useState<boolean>(() => readAiFeatures() ?? true);
   const [recoveryNeeded, setRecoveryNeeded] = useState(false);
   const [database, setDatabase] = useState<AppDatabase | null>(null);
@@ -254,6 +264,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           // A 401 seen before this open still stands until a session is confirmed, so an
           // offline open after it shows the banner too.
           setReAuthRequired(readReAuthRequired());
+          // Story 26.11: and its cause, so a paused account reopens behind the paused banner.
+          setReAuthCause(readReAuthCause());
           await attachDatabase(cached.id);
           if (cancelled) return;
           attachedFromCache = true;
@@ -286,7 +298,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Story 20.11: the device goes to Login and shows none of the local data. The pointer,
         // the remembered 401 and the database stay, so the same user's sign-in reaches the
         // outbox again, and an offline reopen still shows the banner (AD-9).
-        if (cached !== null) writeReAuthRequired(true);
+        // Story 26.11: a paused cause already remembered stays (this read cannot tell a pause apart).
+        if (cached !== null) writeReAuthRequired(true, readReAuthCause() ?? 'expired');
         if (attachedFromCache) {
           databaseRef.current?.close();
           databaseRef.current = null;
@@ -294,6 +307,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         setUser(null);
         setReAuthRequired(false);
+        setReAuthCause(null);
         setStatus('signed-out');
         setSettled(true);
         return;
@@ -302,6 +316,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const fresh = read.account.user;
       writeReAuthRequired(false);
       setReAuthRequired(false);
+      setReAuthCause(null);
       const createdFresh = await attachDatabase(fresh.id);
       if (cancelled) return;
       // A registration saved on this device and not pushed yet is newer than what the
@@ -346,9 +361,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(
     () =>
-      authClient.onReAuthRequired(() => {
-        writeReAuthRequired(true);
+      authClient.onReAuthRequired((heard) => {
+        // Story 26.11: a pause, once heard, stays the cause until the flag is cleared (every later
+        // 401 of the same account is the plain one: the pause deleted its sessions).
+        const cause: ReAuthCause = heard === 'paused' || readReAuthCause() === 'paused' ? 'paused' : 'expired';
+        writeReAuthRequired(true, cause);
         setReAuthRequired(true);
+        setReAuthCause(cause);
       }),
     [],
   );
@@ -376,6 +395,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(user);
         writeReAuthRequired(false);
         setReAuthRequired(false);
+        setReAuthCause(null);
         setStatus('signed-in');
         setSettled(true);
       }
@@ -414,6 +434,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setAiFeatures(true);
     setUser(null);
     setReAuthRequired(false);
+    setReAuthCause(null);
     setRecoveryNeeded(false);
     setStatus('signed-out');
   }, []);
@@ -461,6 +482,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       online,
       reAuthRequired,
+      reAuthCause: reAuthRequired ? (reAuthCause ?? 'expired') : null,
       aiFeatures,
       recoveryNeeded,
       database,
@@ -478,6 +500,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       online,
       reAuthRequired,
+      reAuthCause,
       aiFeatures,
       recoveryNeeded,
       database,
