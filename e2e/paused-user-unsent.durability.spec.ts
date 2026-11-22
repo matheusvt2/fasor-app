@@ -33,6 +33,7 @@ import { SYNC_CYCLE_TIMEOUT, waitForCompanyPull } from './support/sync.ts';
 
 /** Five values no fixture reading holds, typed one after the other down the insulation table. */
 const READINGS = ['501', '502', '503', '504', '505'];
+const CELLS = ['T1, Valor', 'T3, Valor', 'T5, Valor', 'Fase A, Valor', 'Fase B, Valor'];
 
 interface OutboxRow {
   path: string;
@@ -95,13 +96,15 @@ test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings throu
   const first = page.getByRole('textbox', { name: 'T1, Valor', exact: true });
   await expect(first).toBeVisible({ timeout: 30_000 });
 
-  // Offline, five readings, one after the other (Enter goes to the next cell).
+  // Offline, five readings, each in its own cell of the insulation table (the Enter run of the first
+  // table hands over after T5, so each cell is reached by its own name).
   await context.setOffline(true);
-  await first.click();
-  for (const value of READINGS) {
+  for (const [index, cell] of CELLS.entries()) {
+    const box = page.getByRole('textbox', { name: cell, exact: true });
+    await box.click();
     await page.keyboard.press('ControlOrMeta+A');
-    await page.keyboard.type(value);
-    await page.keyboard.press('Enter');
+    await page.keyboard.type(READINGS[index]!);
+    await page.keyboard.press('Tab');
   }
   await expect.poll(async () => (await unsentReadings(page, database, fixture.blockChaveId)).length).toBe(5);
 

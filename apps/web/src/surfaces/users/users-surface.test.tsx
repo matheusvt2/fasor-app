@@ -121,13 +121,13 @@ function renderSurface(sync: SyncState = makeSyncState()) {
 
 /** The list row of a user, by the name it shows. */
 function rowOf(name: string): HTMLElement {
-  const row = screen.queryAllByRole('listitem').find((item) => item.querySelector('.rr-primary')?.firstChild?.textContent === name);
+  const row = screen.queryAllByRole('listitem', { hidden: true }).find((item) => item.querySelector('.rr-primary')?.firstChild?.textContent === name);
   if (row === undefined) throw new Error(`no row for ${name}`);
   return row;
 }
 
 /** The names the list shows, in order. */
-const names = () => screen.queryAllByRole('listitem').map((item) => item.querySelector('.rr-primary')?.firstChild?.textContent ?? '');
+const names = () => screen.queryAllByRole('listitem', { hidden: true }).map((item) => item.querySelector('.rr-primary')?.firstChild?.textContent ?? '');
 const answer = (user: AdminUserView, extra: Record<string, unknown> = {}) => ({ ok: true, value: { user, ...extra } });
 
 beforeEach(() => {
@@ -155,7 +155,7 @@ describe('26.9-UNIT-020 the list', () => {
   it('renders the device rows overlaid by the route: pills, "· você", the count line; "Todos" leaves the removed out', async () => {
     database = await seededDb();
     const { container } = renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     expect(client.listAdminUsers).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('heading', { level: 2, name: 'Usuários' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Usuários' })).toHaveAttribute('aria-selected', 'true');
@@ -179,7 +179,7 @@ describe('26.9-UNIT-020 the list', () => {
   it('the Removido chip shows the removed with the frame\'s sentence; Papel narrows by role; an empty result offers "Limpar filtros"', async () => {
     database = await seededDb();
     const { container } = renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     const chips = screen.getByRole('radiogroup', { name: 'Situação' });
     expect(within(chips).getAllByRole('radio').map((chip) => chip.textContent)).toEqual(['Todos', 'Ativo', 'Convite pendente', 'Pausado', 'Removido']);
     expect(within(chips).getByRole('radio', { name: 'Todos' })).toHaveAttribute('aria-checked', 'true');
@@ -207,7 +207,7 @@ describe('26.9-UNIT-020 the list', () => {
   it('the row menu offers the frame\'s items by status, Remover last', async () => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     const items = async (name: string) => {
       await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
       const labels = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
@@ -225,7 +225,7 @@ describe('26.9-UNIT-021 offline', () => {
     online = false;
     database = await seededDb();
     const { container } = renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     const line = container.querySelector('.usr-offline')!;
     expect(line).toHaveTextContent('Sem conexão. A lista é a da última sincronização. Criar ou alterar um usuário precisa de conexão.');
     const create = screen.getByRole('button', { name: 'Novo usuário' });
@@ -246,7 +246,7 @@ describe('26.9-UNIT-021 offline', () => {
     client.listAdminUsers.mockResolvedValue({ ok: false, failure: { kind: 'offline' } });
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Novo usuário' })).toHaveAttribute('aria-disabled', 'true'));
   });
 });
@@ -256,7 +256,7 @@ describe('26.9-UNIT-022 the confirmations', () => {
     database = await seededDb();
     const sync = makeSyncState();
     renderSurface(sync);
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     client.adminUserAction.mockResolvedValue(answer(view(EDUARDO, 'Eduardo Prado', 'eduardo@exemplo.com.br', systemRoleRow('engenheiro_de_campo'), 'paused')));
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Eduardo Prado' }));
@@ -283,7 +283,7 @@ describe('26.9-UNIT-022 the confirmations', () => {
   it('Remover, Reativar, Reenviar convite and Enviar redefinição de senha say the frame\'s words', async () => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     const open = async (name: string, item: string) => {
       await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
       await userEvent.click(await screen.findByRole('menuitem', { name: item }));
@@ -318,7 +318,7 @@ describe('26.9-UNIT-022 the confirmations', () => {
   it('a reset whose e-mail did not leave says so', async () => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     client.adminUserAction.mockResolvedValue(answer(view(EDUARDO, 'Eduardo Prado', 'eduardo@exemplo.com.br', systemRoleRow('engenheiro_de_campo'), 'active'), { reset: 'failed' }));
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Eduardo Prado' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Enviar redefinição de senha' }));
@@ -331,7 +331,7 @@ describe('26.9-UNIT-023 the last Admin and the route\'s refusals', () => {
   it('the only Admin removing or pausing himself: the refusal dialog, nothing is asked', async () => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     for (const item of ['Remover', 'Pausar']) {
       await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Bruno Matsui' }));
       await userEvent.click(await screen.findByRole('menuitem', { name: item }));
@@ -369,7 +369,7 @@ describe('26.9-UNIT-023 the last Admin and the route\'s refusals', () => {
   ])('a refusal %o says its sentence and changes nothing', async (failure, sentence, reloads) => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     client.adminUserAction.mockResolvedValue({ ok: false, failure });
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Eduardo Prado' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Pausar' }));
@@ -385,7 +385,7 @@ describe('26.9-UNIT-024 the new user and the edit, from the screen', () => {
     database = await seededDb();
     const sync = makeSyncState();
     renderSurface(sync);
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     const created = view('019966b0-0270-7000-8000-0000000000b9', 'Carla Mendes', 'carla@exemplo.com.br', systemRoleRow('gestor_do_projeto'), 'invited');
     client.createAdminUser.mockResolvedValue(answer(created, { invitation: 'sent' }));
     await userEvent.click(screen.getByRole('button', { name: 'Novo usuário' }));
@@ -406,7 +406,7 @@ describe('26.9-UNIT-024 the new user and the edit, from the screen', () => {
   it('an invitation that did not leave keeps the user and says to resend', async () => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     const created = view('019966b0-0270-7000-8000-0000000000ba', 'Diego Alves', 'diego@exemplo.com.br', systemRoleRow('engenheiro_de_campo'), 'invited');
     client.createAdminUser.mockResolvedValue(answer(created, { invitation: 'failed' }));
     await userEvent.click(screen.getByRole('button', { name: 'Novo usuário' }));
@@ -422,7 +422,7 @@ describe('26.9-UNIT-024 the new user and the edit, from the screen', () => {
   it('Editar changes the role: the Toast says the device follows at its next sync', async () => {
     database = await seededDb();
     renderSurface();
-    await screen.findByText('Eduardo Prado');
+    await screen.findByText('Fernanda Rocha');
     client.editAdminUser.mockResolvedValue(answer(view(EDUARDO, 'Eduardo Prado', 'eduardo@exemplo.com.br', systemRoleRow('consulta'), 'active')));
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Eduardo Prado' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar' }));

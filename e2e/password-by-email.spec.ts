@@ -26,7 +26,7 @@ const EXPIRED = 'O link venceu ou já foi usado. Peça um link novo com o seu e-
 const NEW_PASSWORD = 'uma-senha-nova-26';
 
 /** An address no other run or spec uses. */
-const freshEmail = (index: number, word: string) => `e2e-w${index}-${word}-${Date.now().toString(36)}@teste.local`;
+const freshEmail = (index: number, word: string) => `e2e-w${index}-${word}-${Date.now().toString(36)}@e2e.example.com`;
 
 /** The messages stored for `to` (of `purpose` when given), straight from the fake provider's table. */
 async function storedEmails(to: string, purpose?: EmailPurpose): Promise<number> {

@@ -15,7 +15,7 @@ import { waitForCompanyPull } from './support/sync.ts';
 /** A name and an address no earlier run used. */
 function newcomer(seed: WorkerSeed, word: string): { name: string; email: string } {
   const stamp = `${seed.index}${Date.now().toString(36)}`;
-  return { name: `${word} ${stamp}`, email: `${word.toLowerCase()}-${stamp}@teste.local` };
+  return { name: `${word} ${stamp}`, email: `${word.toLowerCase()}-${stamp}@e2e.example.com` };
 }
 
 /** The list row of a user, by the name it shows. */
