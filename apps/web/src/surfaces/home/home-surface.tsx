@@ -86,6 +86,8 @@ export function HomeSurface() {
   const permissions = usePermissions();
   const canView = useCan('relatorio.view') || permissions?.status === 'loading';
   const canCreate = useCan('relatorio.create');
+  // e26s (2026-11-22): "Continuar: <ficha>" is a fill shortcut; a role without `relatorio.fill` does not get it.
+  const canFill = useCan('relatorio.fill');
   const shortcuts = useShortcuts();
   const anyShortcut = shortcuts.templates || shortcuts.cadastros || shortcuts.usuarios;
 
@@ -160,6 +162,8 @@ export function HomeSurface() {
       online: sync.online,
       reachable: sync.unreachable === null,
       serverAnswers: sync.serverAnswers === true,
+      // e26s: a paused account's cards read what waits, as the App bar pill does (frame 94).
+      accountPaused: sync.unreachable === 'paused',
       now: now(),
     }),
     [definitions, relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, suggestions, locations, files, sync.online, sync.unreachable, sync.serverAnswers],
@@ -316,6 +320,7 @@ export function HomeSurface() {
                       onPress={openCard}
                       resume={card.id === currentId ? resume : null}
                       onContinue={continueCard}
+                      fillShortcut={canFill}
                     />
                   ))}
                 </div>

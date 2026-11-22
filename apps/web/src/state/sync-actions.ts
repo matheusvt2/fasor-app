@@ -1,5 +1,5 @@
 import { createContext, use } from 'react';
-import { useSync as syncState, type SyncState } from './sync.tsx';
+import { SyncContext, useSync as syncState, type SyncState } from './sync.tsx';
 
 /*
  * W-8 (full review 2026-09-30): the sync provider's stable callbacks, apart from its live
@@ -12,7 +12,7 @@ import { useSync as syncState, type SyncState } from './sync.tsx';
 /** The callbacks of `SyncState`, stable for the session. */
 export type SyncActions = Pick<
   SyncState,
-  'syncNow' | 'syncRelatorio' | 'syncProject' | 'resendDead' | 'retryUpload' | 'fetchFile' | 'generate' | 'preview' | 'rereadPhoto' | 'audit'
+  'syncNow' | 'pullCompany' | 'syncRelatorio' | 'syncProject' | 'resendDead' | 'retryUpload' | 'fetchFile' | 'generate' | 'preview' | 'rereadPhoto' | 'audit'
 >;
 
 export const SyncActionsContext = createContext<SyncActions | null>(null);
@@ -27,4 +27,18 @@ export function useSyncActions(): SyncActions {
   const actions = use(SyncActionsContext);
   if (actions !== null) return actions;
   return syncState();
+}
+
+/**
+ * e26s (2026-11-22): the company pull for a surface that writes a server-only row through a route
+ * (the roles grid, the user dialog): one pull now, so the device's store holds the new row at once.
+ * A no-op where no sync provider is mounted (a surface's unit test).
+ */
+export function useCompanyPull(): () => void {
+  const actions = use(SyncActionsContext);
+  const state = use(SyncContext);
+  const pull = actions?.pullCompany ?? state?.pullCompany;
+  return () => {
+    void pull?.().catch(() => undefined);
+  };
 }

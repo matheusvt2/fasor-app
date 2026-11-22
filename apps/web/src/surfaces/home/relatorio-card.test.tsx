@@ -29,4 +29,15 @@ describe('RelatorioCard', () => {
     render(<RelatorioCard card={card({ text: '3 de 94 fichas', state: 'pending' })} onPress={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Cliente · Obra, Em campo, 3 de 94 fichas' })).toBeInTheDocument();
   });
+
+  it('e26s-UNIT the current card of a role without relatorio.fill keeps "Ver sumário" and draws no "Continuar"', () => {
+    const current = { ...card(null), isCurrent: true } as HomeCard;
+    const resume = { blockId: 'b1', text: 'SEC-C05 · 42 de 94' } as never;
+    const { unmount } = render(<RelatorioCard card={current} onPress={vi.fn()} resume={resume} onContinue={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Continuar: SEC-C05 · 42 de 94' })).toBeInTheDocument();
+    unmount();
+    render(<RelatorioCard card={current} onPress={vi.fn()} resume={resume} onContinue={vi.fn()} fillShortcut={false} />);
+    expect(screen.queryByRole('button', { name: /^Continuar/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ver sumário' })).toBeInTheDocument();
+  });
 });

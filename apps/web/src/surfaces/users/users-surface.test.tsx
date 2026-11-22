@@ -513,3 +513,23 @@ describe('26.9-UNIT-024 the new user and the edit, from the screen', () => {
     expect(within(rowOf('Eduardo Prado')).getByText(/^Consulta/)).toBeVisible();
   });
 });
+
+describe('e26s-UNIT the user dialog opens with a company pull (F2-5)', () => {
+  it('"Novo usuário" and "Editar" each ask one company pull, so a role made a moment ago is in the picker', async () => {
+    database = await seededDb();
+    const sync = makeSyncState();
+    renderSurface(sync);
+    await screen.findByText('Fernanda Rocha');
+    expect(sync.pullCompany).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Novo usuário' }));
+    await screen.findByRole('dialog', { name: 'Novo usuário' });
+    expect(sync.pullCompany).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Eduardo Prado' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar' }));
+    await screen.findByRole('dialog', { name: 'Editar usuário' });
+    expect(sync.pullCompany).toHaveBeenCalledTimes(2);
+  });
+});
+

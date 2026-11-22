@@ -7,7 +7,7 @@ vi.mock('better-auth/client', () => ({
   createAuthClient: () => ({ signIn: { email: signInEmail }, signOut: signOutCall }),
 }));
 
-const { isClientRejection, onReAuthRequired, publishReAuth, requestPasswordReset, resetPassword, signIn, signOut } = await import('./auth-client.ts');
+const { isClientRejection, onReAuthRequired, publishReAuth, readSession, requestPasswordReset, resetPassword, signIn, signOut } = await import('./auth-client.ts');
 
 const profile = {
   id: '0a000000-0000-7000-8000-0000000000a1',
@@ -114,6 +114,39 @@ describe('signIn classifies failures', () => {
     const result = await signIn('a@teste.local', 'right');
     expect(result).toEqual({ ok: false, reason: 'inactive', message: 'Conta pausada. Fale com o administrador.' });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('e26s-UNIT the account read tells a paused account from an ended session', () => {
+  const fetchMock = vi.fn();
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('401 user_inactive is inactive, any other 401 is no session, 200 is the profile, a 5xx throws', async () => {
+    fetchMock.mockResolvedValueOnce(json(401, { code: 'user_inactive', message: 'This user is not active.' }));
+    expect(await readSession()).toBe('inactive');
+    fetchMock.mockResolvedValueOnce(json(401, { code: 'unauthenticated', message: 'No session.' }));
+    expect(await readSession()).toBeNull();
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 401 }));
+    expect(await readSession()).toBeNull();
+    fetchMock.mockResolvedValueOnce(json(200, { user: profile, features: { ai: true } }));
+    expect(await readSession()).toMatchObject({ user: { id: profile.id } });
+    fetchMock.mockResolvedValueOnce(json(503, { code: 'internal_error' }));
+    await expect(readSession()).rejects.toThrow();
+  });
+
+  it('a pair accepted for a user paused before the account read is the paused line', async () => {
+    signInEmail.mockResolvedValue({ data: { user: { id: profile.id } }, error: null });
+    fetchMock.mockResolvedValueOnce(json(401, { code: 'user_inactive', message: 'This user is not active.' }));
+    expect(await signIn('a@teste.local', 'right')).toMatchObject({ ok: false, reason: 'inactive' });
   });
 });
 

@@ -161,6 +161,13 @@ export interface SyncBadgeInputs {
   late?: number;
   /** Story 25.3: sync is paused on this device (the engine waits for a sign-in): never `late` then. */
   paused?: boolean;
+  /**
+   * e26s (2026-11-22): the account is paused or removed (the server answers `401 user_inactive`).
+   * The server is reachable and keeps the session: the badge reads what waits, `pending` or `ok`, as
+   * frame `94-conta-pausada.html` draws it ("5 pendentes"), never "Sem conexão"; the paused banner
+   * and Sync status say why nothing is sent. Omitted means false.
+   */
+  accountPaused?: boolean;
 }
 
 /**
@@ -179,7 +186,8 @@ export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'se
   if ((deps.conflicts ?? 0) > 0) return 'conflict';
   if (counts.dead > 0) return 'error';
   if (!deps.online) return 'offline';
-  if (deps.reachable === false) return deps.serverAnswers === true ? 'retrying' : 'offline';
+  // e26s: a paused account is no lost connection (frame 94: the pill reads what waits).
+  if (deps.reachable === false && deps.accountPaused !== true) return deps.serverAnswers === true ? 'retrying' : 'offline';
   if (counts.pending + counts.sent > 0 && (deps.late ?? 0) > 0 && deps.paused !== true) return 'late';
   if (counts.pending + counts.sent > 0) return 'pending';
   return 'ok';

@@ -5,7 +5,9 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminRolesResult } from '../../api/admin-roles-client.ts';
 import * as client from '../../api/admin-roles-client.ts';
+import { SyncContext } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { PapeisSurface } from './papeis-surface.tsx';
 
 /*
@@ -333,3 +335,40 @@ describe('26.10-WEB-004 one role at a time', () => {
     expect(again.container.querySelector('.pp-root')).toHaveClass('pp-many');
   });
 });
+
+describe('e26s-UNIT a write the server accepts asks one company pull (F2-5)', () => {
+  it('a created role pulls the company once, so "Novo usuário" lists it; a refused name pulls nothing', async () => {
+    const sync = makeSyncState();
+    render(
+      <MemoryRouter initialEntries={['/usuarios/papeis']}>
+        <SyncContext value={sync}>
+          <ToastProvider>
+            <Routes>
+              <Route path="/usuarios/papeis" element={<PapeisSurface />} />
+            </Routes>
+            <ToastOutlet />
+          </ToastProvider>
+        </SyncContext>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('table', { name: 'Permissões por papel' });
+    vi.mocked(client.createRole).mockResolvedValueOnce({ ok: false, code: 'role_name_taken', status: 409 });
+    await userEvent.click(screen.getByRole('button', { name: 'Novo papel' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Novo papel' });
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Nome do papel' }), 'Outro nome');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Criar papel' }));
+    await waitFor(() => expect(client.createRole).toHaveBeenCalledTimes(1));
+    expect(sync.pullCompany).not.toHaveBeenCalled();
+
+    const created = custom('019966c1-2610-7000-8000-00000000e003', 'Supervisor', ['relatorio.view'], 0);
+    vi.mocked(client.createRole).mockResolvedValueOnce(ok([...LIST, created]));
+    dialog = screen.getByRole('dialog', { name: 'Novo papel' });
+    const input = within(dialog).getByRole('textbox', { name: 'Nome do papel' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Supervisor');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Criar papel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Novo papel' })).toBeNull());
+    expect(sync.pullCompany).toHaveBeenCalledTimes(1);
+  });
+});
+

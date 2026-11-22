@@ -46,6 +46,12 @@ describe('1.5-UNIT-002 retry classification', () => {
     expect(unreachableCause({ reAuthRequired: true, lastFailure: { kind: 'network' } })).toBe('session');
   });
 
+  it('e26s-UNIT a re-auth of a paused account is its own cause; an ended session stays `session`', () => {
+    expect(unreachableCause({ reAuthRequired: true, reAuthCause: 'paused', lastFailure: null })).toBe('paused');
+    expect(unreachableCause({ reAuthRequired: true, reAuthCause: 'expired', lastFailure: null })).toBe('session');
+    expect(unreachableCause({ reAuthRequired: false, reAuthCause: 'paused', lastFailure: null })).toBeNull();
+  });
+
   it('never retries a 4xx, except 401 (re-auth) and 426 (outdated)', () => {
     expect(classifyFailure({ kind: 'http', status: 400, code: 'sync_batch_invalid' })).toBe('stop');
     expect(classifyFailure({ kind: 'http', status: 403 })).toBe('stop');

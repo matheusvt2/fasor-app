@@ -103,8 +103,10 @@ export interface SyncState {
    * answered the last finished cycle: `server` after a network or 5xx failure, `session`
    * while a new sign-in is required. The badge reads `offline` then (kernel), and Sync
    * status says which of the two it is.
+   * e26s (2026-11-22): `paused` while the account is paused or removed (`401 user_inactive`): nothing
+   * is sent, the badge reads what waits (`accountPaused`) and Sync status says the paused sentence.
    */
-  unreachable: 'server' | 'session' | null;
+  unreachable: 'server' | 'session' | 'paused' | null;
   /**
    * Story 14.10 lane B: the server is unreachable for the sync (`unreachable === 'server'`) yet
    * answered the health probe sent after that cycle: the badge reads "Tentando de novo" and
@@ -186,6 +188,12 @@ export interface SyncState {
   /** AD-8: the company's relatórios as the server summarised them, including the ones never pulled. */
   summaryRelatorios: readonly RelatorioSummary[];
   syncNow: () => Promise<CycleResult>;
+  /**
+   * e26s (2026-11-22): one company pull now (`SyncEngine.pullCompany`), so a row only the server
+   * writes (a role the Admin just created, renamed or changed) reaches this device's store at once,
+   * with no optimistic local write. Optional for the older test doubles.
+   */
+  pullCompany?: () => Promise<CycleResult>;
   /** Starts following one relatório's stream and pulls it now (AD-8, "pulled on open"). */
   syncRelatorio: (relatorioId: string) => Promise<CycleResult>;
   /**
@@ -419,7 +427,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     () => syncCounts(rows, reading, status.merges, photoUploads.map((upload) => ({ id: upload.id, error: upload.error }))),
     [rows, reading, status.merges, photoUploads],
   );
-  const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
+  const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, reAuthCause: session.reAuthCause ?? null, lastFailure: status.lastFailure });
   // Story 25.3: the waiting ops that waited more than one minute while the device could send them (the kernel's
   // rule, its own timer): the wait counts from the later of each op's commit and the moment the device last became
   // online, signed in, reaching the server and not paused, so work done offline is not late the moment it reconnects.
@@ -487,12 +495,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // W-4 (full review 2026-09-30): "Sincronizar agora" and "Reenviar" run a cycle that starts
   // after any cycle in flight, never answer `busy` and leave the work to the 60 s tick.
   // Epic 18: the user waits for this cycle (`wait`, kind `sync`).
+  // e26s (F2-1): a paused account's "Sincronizar agora" first asks the server who this device is
+  // (`recheckAccount`, one account read): reactivated, the device moves to the Login re-auth; active
+  // with this session, the engine resumes and this cycle runs.
+  const recheckAccount = session.recheckAccount;
+  const pausedAccount = unreachable === 'paused';
   const syncNow = useCallback(async () => {
     const finish = startWait('sync');
+    if (pausedAccount) await recheckAccount?.();
     const result = (await engineRef.current?.runFreshCycle()) ?? 'paused';
     finish(syncWaitOutcome(result, statusRef.current));
     return result;
-  }, []);
+  }, [pausedAccount, recheckAccount]);
+  const pullCompany = useCallback(async () => (await engineRef.current?.pullCompany()) ?? 'paused', []);
   const syncRelatorio = useCallback(
     async (relatorioId: string) => (await engineRef.current?.syncRelatorio(relatorioId)) ?? 'paused',
     [],
@@ -575,8 +590,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // W-8: the callbacks alone, stable for the session, for the components that only act.
   const actions = useMemo<SyncActions>(
-    () => ({ syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit }),
-    [syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit }),
+    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   const value = useMemo<SyncState>(
@@ -584,7 +599,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       counts,
       // Story 14.10 lane B: a server that fails the sync but answers its health probe reads "Tentando de novo"; a session to renew stays as today.
       // Story 25.3: `late` only while sync is not paused (the kernel's precedence keeps the explaining states first).
-      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, serverAnswers, conflicts: decisionCount, late: lateCount, paused: status.paused }),
+      // e26s: a paused account reads what waits, not "Sem conexão" (frame 94, `accountPaused`).
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, serverAnswers, conflicts: decisionCount, late: lateCount, paused: status.paused, accountPaused: unreachable === 'paused' }),
       lateCount,
       lateText: lateCount > 0 ? syncLateText(lateCount) : '',
       serverAnswers,
@@ -616,6 +632,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       userNames,
       summaryRelatorios: company?.relatorios ?? NO_SUMMARY,
       syncNow,
+      pullCompany,
       syncRelatorio,
       syncProject,
       resendDead,
@@ -626,7 +643,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
     }),
-    [counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (

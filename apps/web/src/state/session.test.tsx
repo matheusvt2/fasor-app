@@ -32,7 +32,7 @@ import { aiFeaturesOn, setAiFeaturesValue } from './ai-features.tsx';
 // ("booting" at 1 s). A legitimately slow path, so this file, not the shared setup, gets 5 s.
 configure({ asyncUtilTimeout: 5_000 });
 
-const readSession = vi.fn<() => Promise<AccountResponse | null>>();
+const readSession = vi.fn<() => Promise<AccountResponse | null | 'inactive'>>();
 const signIn = vi.fn();
 const signOut = vi.fn<() => Promise<void>>();
 /** The listener the provider registers for a 401 mid-use (the sync engine publishes it). */
@@ -451,13 +451,16 @@ describe('26.11 the cause of the 401: a paused account', () => {
     expect(readReAuthCause()).toBe('expired');
   });
 
-  it('a boot 401 keeps a remembered pause, and a sign-in clears the cause with the flag', async () => {
+  // e26s (2026-11-22): expectation moved on purpose. The boot read now tells a paused account
+  // (`401 user_inactive`, below) from an ended session, so a plain 401 after a remembered pause is the
+  // session a reactivation ended: the remembered cause turns `expired`.
+  it('a plain boot 401 ends a remembered pause (e26s), and a sign-in clears the cause with the flag', async () => {
     writeLastSession(profile);
     writeReAuthRequired(true, 'paused');
     readSession.mockResolvedValue(null);
     renderSession();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
-    expect(readReAuthCause()).toBe('paused');
+    expect(readReAuthCause()).toBe('expired');
     signIn.mockResolvedValue({ ok: true, user: profile, features: { ai: true } });
     await act(() => current!.signIn(profile.email, 'senha').then(() => undefined));
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
@@ -476,6 +479,102 @@ describe('26.11 the cause of the 401: a paused account', () => {
     expect(current?.status).toBe('signed-out');
     expect(current?.reAuthCause).toBeNull();
     expect(readReAuthCause()).toBeNull();
+  });
+});
+
+describe('e26s a paused account at boot and its recheck (F2-1, F2-2)', () => {
+  it('a boot read answered `inactive` shows the paused state for the last user, his database attached', async () => {
+    await seedDatabase();
+    const seeded = openDatabase(profile.id);
+    await seeded.outbox.put({ op_id: 'op-1', status: 'pending', path: 'x/y' } as never);
+    seeded.close();
+    writeLastSession(profile);
+    readSession.mockResolvedValue('inactive');
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|re-auth|${profile.id}`));
+    expect(current?.reAuthCause).toBe('paused');
+    expect(current?.settled).toBe(true);
+    expect(readReAuthCause()).toBe('paused');
+    expect(await current!.database!.outbox.count()).toBe(1);
+  });
+
+  it('`inactive` with no database of his on the device, or with no pointer, is the plain Login', async () => {
+    writeLastSession(profile);
+    readSession.mockResolvedValue('inactive');
+    const first = renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
+    expect(await exists()).toBe(false);
+    first.unmount();
+    clearLastSession();
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
+  });
+
+  async function pausedSession() {
+    await seedDatabase();
+    writeLastSession(profile);
+    readSession.mockResolvedValue('inactive');
+    renderSession();
+    await waitFor(() => expect(current?.reAuthCause).toBe('paused'));
+    readSession.mockReset();
+  }
+
+  it('the recheck keeps the paused state while the server answers `inactive`', async () => {
+    await pausedSession();
+    readSession.mockResolvedValue('inactive');
+    await act(() => current!.recheckAccount!());
+    expect(readSession).toHaveBeenCalledTimes(1);
+    expect(current?.reAuthCause).toBe('paused');
+    expect(readReAuthCause()).toBe('paused');
+  });
+
+  it('a plain 401 (reactivated, the session ended) turns it into the ended-session re-auth: Login asked, the database kept', async () => {
+    await pausedSession();
+    readSession.mockResolvedValue(null);
+    await act(() => current!.recheckAccount!());
+    expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|re-auth|${profile.id}`);
+    expect(current?.reAuthCause).toBe('expired');
+    expect(readReAuthCause()).toBe('expired');
+    expect(current?.database?.name).toBe(databaseName(profile.id));
+    // No longer paused: a second recheck asks nothing.
+    await act(() => current!.recheckAccount!());
+    expect(readSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 200 for the same user resumes; an unreachable server changes nothing', async () => {
+    await pausedSession();
+    readSession.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(() => current!.recheckAccount!());
+    expect(current?.reAuthCause).toBe('paused');
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
+    await act(() => current!.recheckAccount!());
+    expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`);
+    expect(current?.reAuthCause).toBeNull();
+    expect(readReAuthRequired()).toBe(false);
+  });
+
+  it('the network coming back asks once while paused, and never in a session that stands', async () => {
+    await pausedSession();
+    readSession.mockResolvedValue('inactive');
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    await waitFor(() => expect(readSession).toHaveBeenCalledTimes(1));
+    // Let that recheck settle (one is out at a time).
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(current?.reAuthCause).toBe('paused');
+    readSession.mockResolvedValue(null);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    await waitFor(() => expect(current?.reAuthCause).toBe('expired'));
+    readSession.mockClear();
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(readSession).not.toHaveBeenCalled();
   });
 });
 

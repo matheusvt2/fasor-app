@@ -27,6 +27,7 @@ import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
 import { PanelCapture, panelAwaitingRows, type PanelCaptureHandle } from './panel-capture.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, locationRow, locationTrigger, useTreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
@@ -192,6 +193,10 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     [reveal],
   );
   const actions = useTreeActions(context, host);
+  // e26s (2026-11-22): the foot's "Adicionar local" writes a `location` create (`relatorio.fill`), so it
+  // is hidden as its sibling "Adicionar …" rows are (`relatorio-tree-sumario.tsx`): without the key, and
+  // on an Emitido relatório without `relatorio.issue` (`useFillAccess`). No op of a missing key enters the outbox.
+  const { canFill } = useFillAccess();
   // Story 14.8: the company's equipment types on this device, offered by the field palette.
   const definitions = useDefinitionContext();
 
@@ -338,14 +343,16 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
               <SumarioLocation key={node.id} node={node} shared={shared} />
             ))}
           </ul>
-          <div className="s9-foot" ref={footRef}>
-            <TextButton onPress={() => setDialog({ kind: 'local-add' })}>
-              <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-plus" />
-              </svg>
-              {t.addLocal}
-            </TextButton>
-          </div>
+          {canFill ? (
+            <div className="s9-foot" ref={footRef}>
+              <TextButton onPress={() => setDialog({ kind: 'local-add' })}>
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-plus" />
+                </svg>
+                {t.addLocal}
+              </TextButton>
+            </div>
+          ) : null}
         </>
       ) : (
         <ul className="relatorio-tree" id={id} aria-label={copy.sumario.rail.title} ref={rootRef}>
@@ -508,7 +515,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           }}
         />
       ) : null}
-      {dialog?.kind === 'local-add' ? (
+      {dialog?.kind === 'local-add' && canFill ? (
         <LocalDialog
           mode="add"
           seedVersion={context.seedVersion}

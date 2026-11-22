@@ -108,6 +108,15 @@ export function UsersSurface() {
     void refresh();
   }, [session.online, refresh]);
 
+  /**
+   * e26s (2026-11-22): the user dialog opens with one company pull, so a role created a moment ago in
+   * Papéis (a server-only row) is in the picker without waiting for the 60 s tick.
+   */
+  function openDialog(mode: UserDialogMode): void {
+    setDialog(mode);
+    void sync.pullCompany?.().catch(() => undefined);
+  }
+
   /** The answer's user replaces its row at once; one sync brings the device's own rows after it. */
   function applyAnswer(response: AdminUserResponse): void {
     setViews((current) => [...current.filter((view) => view.id !== response.user.id), response.user]);
@@ -153,7 +162,7 @@ export function UsersSurface() {
   function pick(action: UserRowAction, entry: UserListEntry): void {
     if (offline) return;
     if (action === 'edit') {
-      setDialog({ kind: 'edit', entry });
+      openDialog({ kind: 'edit', entry });
       return;
     }
     // The last-Admin rule over the rows the screen holds, before asking (the route stays the authority).
@@ -221,7 +230,7 @@ export function UsersSurface() {
             variant="primary"
             isDisabled={offline}
             {...(offline ? { disabledReasonId: offlineId } : {})}
-            onPress={() => setDialog({ kind: 'new' })}
+            onPress={() => openDialog({ kind: 'new' })}
           >
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-plus" />

@@ -190,4 +190,14 @@ describe('26.6 Login: "Esqueci minha senha" and the set-password notice', () => 
     render(<LoginSurface notice="Senha criada. Entre com o seu e-mail e a senha nova." />);
     expect(screen.getByRole('status')).toHaveTextContent('Senha criada. Entre com o seu e-mail e a senha nova.');
   });
+
+  it('e26s-UNIT the line goes once a sign-in fails, so it never stands above "E-mail ou senha incorretos."', async () => {
+    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'E-mail ou senha incorretos.' });
+    render(<LoginSurface notice="Senha criada. Entre com o seu e-mail e a senha nova." />);
+    expect(screen.getByText('Senha criada. Entre com o seu e-mail e a senha nova.')).toBeInTheDocument();
+    await fillAndSubmit('ana@teste.local', 'errada');
+    expect(await screen.findByText('E-mail ou senha incorretos.')).toBeInTheDocument();
+    expect(screen.queryByText('Senha criada. Entre com o seu e-mail e a senha nova.')).toBeNull();
+  });
 });
+
