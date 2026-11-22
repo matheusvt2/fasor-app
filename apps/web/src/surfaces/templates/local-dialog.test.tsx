@@ -94,7 +94,7 @@ describe('14.2 LocalDialog: "Adicionar local"', () => {
     await userEvent.type(name(), 'Cabine primária — 1° Subsolo');
     await userEvent.click(screen.getByRole('radio', { name: 'Transformação' }));
     expect(name()).toHaveValue('Cabine primária — 1° Subsolo');
-    expect(name()).toHaveAccessibleDescription('Vem da função; complete com o lugar, como em "Cabine primária — 1° Subsolo".');
+    expect(name()).toHaveAccessibleDescription('Vem da função; complete com o lugar, como em "Cabine primária — 1º Subsolo".');
     await userEvent.clear(name());
     expect(screen.getByRole('button', { name: 'Adicionar local' })).toHaveAccessibleDescription('Informe o nome');
     // Enter in the field tries, says why and writes nothing.
