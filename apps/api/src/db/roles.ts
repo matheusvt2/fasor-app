@@ -4,6 +4,7 @@ import {
   rolePath,
   roleRowSchema,
   SYSTEM_ADMIN_ACTOR,
+  SYSTEM_IDENTITY_ACTOR,
   SYSTEM_ROLE_ROW_IDS,
   systemRoleRows,
   toIso,
@@ -50,6 +51,25 @@ export function roleOp(companyId: CompanyId, input: { kind: Op['kind']; path: st
     opId: newId(),
     companyId,
     actorId: SYSTEM_ADMIN_ACTOR,
+    clientTs: toIso(now()),
+    kind: input.kind,
+    path: input.path,
+    value: input.value,
+    scope: 'company',
+    batchId: input.batchId ?? null,
+  });
+}
+
+/**
+ * A provisioning op in the company stream: server device, `system:identity` (A-28: the shared
+ * envelope). Shared by the seed (`db/seed.ts`) and the Admin's routes (Story 26.8), which write a
+ * user's `user/{id}` create and `user/{id}/name` put with it.
+ */
+export function identityOp(companyId: CompanyId, input: { kind: Op['kind']; path: string; value: unknown; batchId?: string | null | undefined }): Op {
+  return serverOp({
+    opId: newId(),
+    companyId,
+    actorId: SYSTEM_IDENTITY_ACTOR,
     clientTs: toIso(now()),
     kind: input.kind,
     path: input.path,

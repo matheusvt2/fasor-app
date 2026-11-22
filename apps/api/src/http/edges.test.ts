@@ -73,6 +73,9 @@ describe('20.13-UNIT the better-auth allowlist (S7)', () => {
       'POST /api/auth/sign-in/email',
       'POST /api/auth/sign-out',
       'GET /api/auth/get-session',
+      // Story 26.6 (batch e26c): extended, the two password routes.
+      'POST /api/auth/request-password-reset',
+      'POST /api/auth/reset-password',
     ]);
     for (const route of AUTH_ROUTES) {
       const res = await app.request(route.path, route.method === 'POST' ? post(route.path, { headers: headersOf({}), body: '{}' }).init : { method: 'GET' });

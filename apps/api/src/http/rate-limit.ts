@@ -112,7 +112,7 @@ export function clientAddress(c: Context, trustProxy: boolean): string {
  * The limiter key of the e-mail a sign-in body names: the sha256 of the trimmed, lower-cased
  * address, so a key is 64 characters whatever was posted; null when the body names none.
  */
-async function signInEmailKey(c: Context): Promise<string | null> {
+async function bodyEmailKey(c: Context): Promise<string | null> {
   try {
     const body: unknown = await c.req.raw.clone().json();
     const email = (body as { email?: unknown } | null)?.email;
@@ -126,6 +126,11 @@ async function signInEmailKey(c: Context): Promise<string | null> {
 const notJson: ErrorResponse = {
   code: 'invalid_request',
   message: 'Sign-in takes an application/json body.',
+};
+
+const notJsonBody: ErrorResponse = {
+  code: 'invalid_request',
+  message: 'This route takes an application/json body.',
 };
 
 function isJson(c: Context): boolean {
@@ -155,7 +160,7 @@ export function signInRateLimit(options: SignInLimitOptions): MiddlewareHandler 
     if (!isJson(c)) return c.json(notJson, 415);
     const address = byAddress.consume(clientAddress(c, options.trustProxy));
     if (!address.allowed) return tooMany(c, address.retryAfterSeconds);
-    const email = await signInEmailKey(c);
+    const email = await bodyEmailKey(c);
     const account = email === null ? null : byEmail.consume(email);
     if (account !== null && !account.allowed) return tooMany(c, account.retryAfterSeconds);
     return next();
@@ -178,6 +183,50 @@ export function pushRateLimit(options: PushLimitOptions): MiddlewareHandler<AppE
     const session = c.get('session');
     if (session === null || session === undefined) return next();
     const decision = byUser.consume(session.userId);
+    if (!decision.allowed) return tooMany(c, decision.retryAfterSeconds);
+    return next();
+  };
+}
+
+export interface PasswordResetLimitOptions {
+  /** Requests per client address. */
+  address: RateLimitRule;
+  /** Requests per e-mail address the body names (sha256 of the trimmed, lower-cased address). */
+  email: RateLimitRule;
+  trustProxy: boolean;
+  now?: () => number;
+}
+
+/**
+ * Story 26.6: limits `POST /api/auth/request-password-reset` ("Esqueci minha senha") as the sign-in
+ * is limited: per client address, then per the e-mail the body names, either one over its rule
+ * answering `429 rate_limited` before better-auth looks the address up; a body that is not JSON
+ * answers `415`. Always on.
+ */
+export function passwordResetRateLimit(options: PasswordResetLimitOptions): MiddlewareHandler {
+  const byAddress = new FixedWindowLimiter(options.address, options.now);
+  const byEmail = new FixedWindowLimiter(options.email, options.now);
+  return async (c, next) => {
+    if (c.req.method !== 'POST') return next();
+    if (!isJson(c)) return c.json(notJsonBody, 415);
+    const address = byAddress.consume(clientAddress(c, options.trustProxy));
+    if (!address.allowed) return tooMany(c, address.retryAfterSeconds);
+    const email = await bodyEmailKey(c);
+    const account = email === null ? null : byEmail.consume(email);
+    if (account !== null && !account.allowed) return tooMany(c, account.retryAfterSeconds);
+    return next();
+  };
+}
+
+/**
+ * Story 26.6: limits a route per client address alone (`POST /api/auth/reset-password`, the
+ * set-password page: its token is the secret, so the limit bounds guessing). Always on.
+ */
+export function addressRateLimit(options: { rule: RateLimitRule; trustProxy: boolean; now?: () => number }): MiddlewareHandler {
+  const byAddress = new FixedWindowLimiter(options.rule, options.now);
+  return async (c, next) => {
+    if (c.req.method !== 'POST') return next();
+    const decision = byAddress.consume(clientAddress(c, options.trustProxy));
     if (!decision.allowed) return tooMany(c, decision.retryAfterSeconds);
     return next();
   };

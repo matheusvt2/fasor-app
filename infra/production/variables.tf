@@ -228,3 +228,20 @@ variable "user_names" {
   type        = map(string)
   default     = {}
 }
+
+variable "email_domain" {
+  description = "Domain the app sends its two e-mails from (Epic 26, Story 26.7), verified in SES by three DKIM CNAME records typed at the domain's DNS (output email_dkim_records). Null creates no SES resource. Set in the untracked terraform.tfvars."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.email_domain == null || can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$", var.email_domain))
+    error_message = "email_domain must be a lower-case domain such as example.com."
+  }
+}
+
+variable "email_from_local_part" {
+  description = "Local part of the sender address at email_domain. No mailbox is needed: the address only sends."
+  type        = string
+  default     = "no-reply"
+}

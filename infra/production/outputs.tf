@@ -109,3 +109,24 @@ output "smoke_secret_id" {
 output "smoke_user_email" {
   value = var.smoke_user_email
 }
+
+output "email_from" {
+  description = "The sender address of the app's e-mails, or null when email_domain is unset."
+  value       = local.email_from
+}
+
+output "email_dkim_records" {
+  description = "The three CNAME records to type at the domain's DNS so SES verifies it and signs the mail (Story 26.7)."
+  value = local.email_enabled ? [
+    for token in aws_sesv2_email_identity.app[0].dkim_signing_attributes[0].tokens : {
+      type  = "CNAME"
+      name  = "${token}._domainkey.${var.email_domain}"
+      value = "${token}.dkim.amazonses.com"
+    }
+  ] : []
+}
+
+output "email_identity_status" {
+  description = "SES verification status of the sending domain, or null when email_domain is unset."
+  value       = local.email_enabled ? aws_sesv2_email_identity.app[0].verification_status : null
+}
