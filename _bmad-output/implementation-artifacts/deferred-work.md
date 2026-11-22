@@ -4255,3 +4255,23 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/login/set-password-surface.tsx`.
   class: gap
   state: open (owner: Matheus, a small api route if wanted)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22, F2-6)
+  summary: The "último acesso" line of the Usuários rows is computed from `session` rows (`max(session.createdAt)` in `listUsers`), so it is empty for a user with no live session and disappears at sign-out. Keeping the last sign-in past sign-out, a pause and a reactivation needs data that survives them: no column or op holds it today, so a new `user` column (migration) or a server-only op and its kernel field would be needed. Not built in e26s (report-first rule: no migration, no op).
+  evidence: `apps/api/src/admin/users.ts` `listUsers`; `packages/domain/src/permissions/user-list.ts` `userLastAccessText`.
+  class: gap
+  state: open (owner: next UX pass, Matheus decides the column or the op)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
+  summary: Frame 92's row lines are not drawn: "convite enviado em ..., vale até ..." (invited), "pausado em ... por ..." (paused) and "removido em ... por ..." (removed). The rows show the role and the last access only. The dates and the actor need data the kernel row does not hold (when and by whom a status was set; the invitation's expiry is in a `verification` row).
+  evidence: `mockups/prototype/screens/92-usuarios.html`; `packages/domain/src/permissions/user-list.ts` `userRowDetailText`.
+  class: gap
+  state: open (owner: next UX pass)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
+  summary: At 390 px the App bar pill of an offline device reads "Off". It predates Epic 26: the word is `syncBadgeShort` in `packages/domain/src/sync/counts.ts` and the phone rule in `components.css`, both from Story 1.6 (commit 3395035d, 2026-09-22; the word set was fixed by review F-29, 2026-10-06). The pass read it as a defect only beside the paused state; with F2-3 a paused account no longer shows "Off".
+  evidence: `packages/domain/src/sync/counts.ts` (the 'Off' return); `apps/web/src/styles/components.css:117`.
+  class: observation
+  state: open (owner: next UX pass, wording only if Matheus wants a clearer word)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
+  summary: The Login page, signed out, makes one `GET /api/account` that answers 401 and shows as one console error. It is the boot check of the session (expected), not a defect of the page; silencing it would need a lighter session probe the browser does not log.
+  evidence: `apps/web/src/api/auth-client.ts` account read; `apps/web/src/state/session.tsx` boot.
+  class: observation
+  state: open (owner: next UX pass)

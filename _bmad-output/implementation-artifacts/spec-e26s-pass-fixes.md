@@ -1,7 +1,7 @@
 ---
 title: 'e26s: fixes from the hands-on pass of Epic 26 (2026-11-22)'
 type: 'bugfix'
-status: 'in-progress'
+status: 'done'
 dev_model: 'opus'
 dev_effort: 'high'
 warnings: ['batched']
@@ -141,4 +141,17 @@ Shared test double: `test/sync-state.ts` gains a `pullCompany` default.
 
 ## Auto Run Result
 
-(Written at the end of the batch.)
+Batch e26s, branch `e26s-pass-fixes` on `origin/main` 8f369015 (no merge needed: main had not moved).
+
+- Orchestrator cuts: one. After Fix 1 the orchestrator handed back to wait for the pass findings (handoff: this spec,
+  `.scratch-e26s/`); resumed with the findings, Fix 2 built by the `bmad-dev-opus-high` subagent (returned), Fix 1 by the
+  orchestrator.
+- Gate on the head `1de6efbf` (+ the deferred-work rows), host load 6.38 at the start, 9.07 at the end of stage 1, other
+  stack up: `fasor-e27c` (its gate held the lock for the first waits): lint green (23 s), static green (66 s), test:api
+  1172 passed, 6 skipped (705 s), test:unit first run 7701 of 7702 (1 red: `session.test.tsx` "the network coming back asks
+  once while paused", `waitFor` timeout under load 9), second full run 7702 of 7702, 494 files, the red green (408 s the
+  first run); touched specs 130 of 130 (parallel 102, queue 22, solo 6; 472 s; lock wait 477 s).
+- Review: none inside the batch (§ 12). Verification gap read of the diff: none found beyond the open risks below.
+- Open risks: at boot, `401 user_inactive` is applied to the pointer's user without proving the cookie is his (the
+  device holds one user's database; the next real call corrects it). "último acesso" not built (needs a migration or an
+  op): `deferred-work.md` row.
