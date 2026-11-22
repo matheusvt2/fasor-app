@@ -1,6 +1,7 @@
 import { defaultExclusions, empresaRegistered, relatorioSetupPath, sectionsCaption, textCapOf, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useScreenAccess } from '../../../state/permissions.tsx';
 import { Button, CharCount, OverflowMenu, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
@@ -31,6 +32,7 @@ export function Etapa2Escopo({
 }) {
   const t = copy.setup;
   const navigate = useNavigate();
+  const cadastros = useScreenAccess('/cadastros');
   const setup = snapshot.relatorio.setup;
   const today = useMemo(() => now().toISOString().slice(0, 10), []);
   const seedExclusions = useMemo(() => defaultExclusions(snapshot.relatorio.seed_version, today), [snapshot.relatorio.seed_version, today]);
@@ -128,6 +130,9 @@ export function Etapa2Escopo({
                 with the Export dialog's own sentence, as the way there. */}
             {empresaRegistered(snapshot.empresa) ? null : (
               <TextButton
+                // Story 26.5: disabled with the kernel's reason when the role does not open Cadastros.
+                isDisabled={!cadastros.allowed}
+                disabledReason={cadastros.reason}
                 onPress={() => void navigate('/cadastros', { state: { tab: 'empresa', returnTo: `/relatorio/${snapshot.relatorio.id}/setup?etapa=2` } })}
               >
                 {copy.export.empresaMissing}

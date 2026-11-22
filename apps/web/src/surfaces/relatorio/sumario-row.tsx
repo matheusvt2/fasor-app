@@ -115,7 +115,20 @@ const StaticPosition = ({ row }: { row: Row }) => <span className="sum-pos">{row
  * actions. Alt+Up/Down anywhere in the row moves it (`useReorder`). A virtual row (E78-Q1)
  * draws its number as static text, with no Overflow and no move.
  */
-export function NumberedRow({ row, actions, openable, highlighted = false }: { row: Row; actions: RowActions; openable: boolean; highlighted?: boolean }) {
+export function NumberedRow({
+  row,
+  actions,
+  openable,
+  highlighted = false,
+  editable = true,
+}: {
+  row: Row;
+  actions: RowActions;
+  openable: boolean;
+  highlighted?: boolean;
+  /** Story 26.5: false when the role may not write the row's ops: no move, no Overflow (a menu with no entry is not drawn). */
+  editable?: boolean;
+}) {
   const reorder = useReorder({ itemKey: row.key, position: row.position, siblings: row.siblings, onMove: (to) => actions.onMove(row, to), focusFrames: LIST_FOCUS_WATCH_FRAMES });
   const menu = rowMenu(row, reorder, actions);
   const className = ['sum-row', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
@@ -129,7 +142,7 @@ export function NumberedRow({ row, actions, openable, highlighted = false }: { r
     );
   }
   return (
-    <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} {...reorder.rowProps}>
+    <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} {...(editable ? reorder.rowProps : {})}>
       <PositionBox
         name={row.title}
         position={row.position}
@@ -137,11 +150,12 @@ export function NumberedRow({ row, actions, openable, highlighted = false }: { r
         reorder={reorder}
         className="sum-pos"
         label={copy.sumario.positionLabel(row.title)}
+        readOnly={!editable}
       />
       <RowOpen row={row} onOpen={openable ? actions.onOpen : undefined} />
       <span className="sum-ctrls">
         {openable ? <Chevron onOpen={() => actions.onOpen(row)} /> : null}
-        <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />
+        {editable ? <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} /> : null}
       </span>
     </li>
   );
@@ -160,16 +174,18 @@ export interface Section9RowProps {
   chevronRef?: (element: HTMLButtonElement | null) => void;
   /** Story 7.5: marked by the Export dialog's "Ver no sumário". */
   highlighted?: boolean;
+  /** Story 26.5: false when the role may not write the row's ops (see `NumberedRow`). */
+  editable?: boolean;
 }
 
 /** Row 9: the same row with the `.tree-chevron` in front, and the note and tree below when open. */
-export function Section9Row({ row, sectionName, actions, expanded, onToggle, children, chevronRef, highlighted = false }: Section9RowProps) {
+export function Section9Row({ row, sectionName, actions, expanded, onToggle, children, chevronRef, highlighted = false, editable = true }: Section9RowProps) {
   const reorder = useReorder({ itemKey: row.key, position: row.position, siblings: row.siblings, onMove: (to) => actions.onMove(row, to), focusFrames: LIST_FOCUS_WATCH_FRAMES });
   const menu = rowMenu(row, reorder, actions);
   const treeId = useId();
   const className = ['sum-row', 'sum-s9', expanded && 'is-open', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
   return (
-    <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} data-virtual={row.virtual ? '' : undefined} {...(row.virtual ? {} : reorder.rowProps)}>
+    <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} data-virtual={row.virtual ? '' : undefined} {...(row.virtual || !editable ? {} : reorder.rowProps)}>
       <div className="sum-s9-head">
         <button
           type="button"
@@ -194,11 +210,12 @@ export function Section9Row({ row, sectionName, actions, expanded, onToggle, chi
             reorder={reorder}
             className="sum-pos"
             label={copy.sumario.positionLabel(row.title)}
+            readOnly={!editable}
           />
         )}
         <RowBody row={row} />
         <span className="sum-ctrls">
-          {row.virtual ? null : <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />}
+          {row.virtual || !editable ? null : <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />}
         </span>
       </div>
       <p className="s9-note">{copy.sumario.s9Note}</p>

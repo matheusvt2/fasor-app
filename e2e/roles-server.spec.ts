@@ -2,17 +2,18 @@ import { opRejectReasonText, OP_FORBIDDEN_BY_ROLE } from '@app/domain';
 import { seedRoleUser } from '../apps/api/src/db/seed.ts';
 import { workerRoleUser } from '../apps/api/src/db/e2e-worker-seed.ts';
 import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
-import { readStore } from './support/outbox.ts';
+import { clientCreateOp, readDeviceId, readStore, seedOutbox } from './support/outbox.ts';
 import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
 import { syncNow } from './support/sync.ts';
 
 /*
  * Story 26.4 (AD-29): the server refuses what the role does not allow, and the device says why.
  * The Engenheiro de Campo of this worker's Empresa B (`workerRoleUser`, seeded on demand: a reset
- * of Empresa B empties it) signs in and, as a person would on a build that still shows Cadastros
- * (Story 26.5 hides it), creates a client there. The server refuses the op `op_forbidden`, the
- * op stays on the device as rejected, and Sync status names the cause: the role, not the two
- * other refusals of the code.
+ * of Empresa B empties it) signs in, and his device holds a client create it should not have made
+ * (Story 26.5 hides Cadastros from his role, so the op is seeded into the outbox, as a build that
+ * still showed Cadastros would have left it). The server refuses the op `op_forbidden`, the op
+ * stays on the device as rejected, and Sync status names the cause: the role, not the two other
+ * refusals of the code.
  */
 
 test('@p0 26.4-E2E-001 an Engenheiro de Campo\'s refused op shows as rejected in Sync status with the reason of the role', async ({ page, seed }) => {
@@ -23,13 +24,9 @@ test('@p0 26.4-E2E-001 an Engenheiro de Campo\'s refused op shows as rejected in
   const database = deviceDatabaseName(campo.userId);
 
   await signIn(page, campo.email);
-  await page.getByRole('link', { name: /Cadastros/ }).click();
-  await page.getByRole('tab', { name: 'Clientes' }).click();
-  await page.getByRole('button', { name: /^(Novo|Cadastrar) cliente$/ }).click();
-  const panel = page.locator('.registry-panel');
-  await expect(panel).toBeVisible();
-  await panel.getByLabel('Nome').fill('Cliente do campo');
-  await panel.getByRole('button', { name: 'Fechar edição' }).click();
+  const deviceId = await readDeviceId(page, database);
+  await seedOutbox(page, database, [clientCreateOp({ companyId: campo.companyId, userId: campo.userId, deviceId }, undefined, 'Cliente do campo')]);
+  await page.reload();
 
   await syncNow(page);
   const row = page.getByTestId('sync-rejected-row');

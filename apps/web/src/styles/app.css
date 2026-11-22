@@ -1326,3 +1326,22 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
    (a stale text is confirmed too). Declarations verbatim; the Etapa 6 parecer summary keeps its look. */
 .ficha-conc-text .suggestion-field.is-generated > .generated-text { border: 0; min-height: 0; }
 .ficha-conc-text .suggestion-field.is-generated[data-state="confirmed"] > .generated-text { background: transparent; padding: 0; font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+
+/* ---------- Story 26.5: the screens by role ----------
+   `mockups/prototype/screens/21-home-campo.html`: "Novo relatório" disabled with its one line of reason
+   stacks the button over the reason (`[data-route="/home/campo"] .home-new` and its `.btn-reason`); the
+   Project's "Novo relatório" reuses the wrapper. Declarations verbatim. */
+.home-new { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); }
+.home-new .btn-reason { max-width: 240px; text-align: right; }
+/* `.frame-phone [data-route="/home/campo"] .home-new` and its `.btn` and `.btn-reason` (AGENTS.md § Mock container selectors). */
+@media (max-width: 767.98px) {
+  .home-new { width: 100%; align-items: stretch; }
+  .home-new .btn { width: 100%; }
+  .home-new .btn-reason { max-width: none; text-align: left; }
+}
+/* `mockups/prototype/screens/62-ficha-consulta.html` `[data-route="/consulta/ficha/DJ-C05"] .fc-banner`: the read-only
+   Banner under the sheet header (and on Fotos, Pontos, Texto da seção, Verificações do local). */
+.fc-banner { margin: 0; }
+/* authored: an Etapa of the setup the role cannot write sits in a disabled `fieldset`; the browser's own fieldset box
+   (border, padding, margin, min-width) is cleared so the Etapa keeps its band look. */
+.setup-locked { border: 0; padding: 0; margin: 0; min-width: 0; }

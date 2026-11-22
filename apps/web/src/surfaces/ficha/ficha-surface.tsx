@@ -56,6 +56,8 @@ import { useFichaSteps } from './use-ficha-steps.ts';
 import { SHEET_PRIMARY_ID } from './ficha-fields.tsx';
 import './ficha.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
+import { useCan } from '../../state/permissions.tsx';
+import { ReadOnlyBanner } from '../../components/index.ts';
 
 /** The Sticky action bar's primary: where the readings' and the plate's Enter runs end (one id, `ficha-fields.tsx`). */
 const PRIMARY_ID = SHEET_PRIMARY_ID;
@@ -150,6 +152,12 @@ function FichaBody({
   });
   const { primaryLabel, primary, primaryTelemetry, menu, filledBy, concludedBy, setRenaming } = actions;
   const [rail, setRail] = useState<RailState>('auto');
+  // Story 26.5 (`62-ficha-consulta.html`): without `relatorio.fill` the sheet opens read-only, as a not
+  // tested one does, and says why once, in the info Banner under the sheet header.
+  const canFill = useCan('relatorio.fill');
+  const notTested = block.not_tested !== null;
+  const roleReadOnly = !canFill;
+  const readOnly = notTested || roleReadOnly;
   // Story 8.1: the rail's counters read the device's pending suggestion rows, as the Sumário's do.
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const observations = typeof block.sheet.observations?.value === 'string' ? block.sheet.observations.value : null;
@@ -162,8 +170,8 @@ function FichaBody({
     [block, pending, registries.manufacturer, snapshot],
   );
   const suggestionsBanner = useMemo<Banner | null>(
-    () => (shownSuggestions === 0 || block.not_tested !== null ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
-    [shownSuggestions, block.not_tested],
+    () => (shownSuggestions === 0 || readOnly ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
+    [shownSuggestions, readOnly],
   );
   // Story 10.2: the open sheet's contradicting cells, "SEC-C12: 1 célula em contradição" with
   // "Ver"; the conflict Banner outranks every other candidate of the one slot.
@@ -184,7 +192,8 @@ function FichaBody({
       <div className="screen-body ficha-body" data-rail={rail}>
         <FichaRail relatorioId={relatorioId} projectId={projectId} snapshot={snapshot} equipment={equipment} blockId={blockId} editor={editor} onRail={setRail} pending={pending} />
 
-        <div className="ficha-main" ref={fichaMain} data-dropping={dragging ? '' : undefined}>
+        {/* Story 26.5: no drop target on a sheet the role cannot fill. */}
+        <div className="ficha-main" ref={roleReadOnly ? undefined : fichaMain} data-dropping={dragging ? '' : undefined}>
           <FichaHeader
             typeName={typeName}
             tag={tag}
@@ -195,17 +204,22 @@ function FichaBody({
             shown={shownSteps}
             plateTitle={plateTitle}
             menu={menu}
-            notTested={block.not_tested !== null}
+            notTested={notTested}
+            readOnly={roleReadOnly}
             library={definition.library === true}
             company={isCompanyBlockType(block.block_type)}
-            onRename={block.equipment_id === null ? null : () => setRenaming(true)}
+            onRename={block.equipment_id === null || roleReadOnly ? null : () => setRenaming(true)}
             savedAt={savedAt}
           />
-          <SheetReadOnlyProvider value={block.not_tested !== null}>
+          <SheetReadOnlyProvider value={notTested ? 'not_tested' : roleReadOnly ? 'role' : false}>
             {/* Story 9.4: the sheet observation's dictated text, offered by its own mic and by the tables. */}
             <SheetObservationDictationProvider enabled={enabled.has('observations')}>
             <div className="content">
-              {block.not_tested === null ? null : <NotTestedBand api={api} block={block} snapshot={snapshot} />}
+              {roleReadOnly ? (
+                <ReadOnlyBanner />
+              ) : notTested ? (
+                <NotTestedBand api={api} block={block} snapshot={snapshot} />
+              ) : null}
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
                 {cabine === null ? null : (
                   <CabineBlock api={api} state={state} snapshot={snapshot} cabine={cabine} first={cabineFirst} envTarget={() => photos.targetFor('placa', null)} />
@@ -279,17 +293,19 @@ function FichaBody({
             stepper={<SectionStepper steps={shownSteps} progress={progress} current={current} titles={{ placa: plateTitle }} onGo={(step) => goTo(step, false)} />}
             // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
             // the list head keeps its disabled action with the reason.
-            secondary={showMirror ? <BulkActionBar bulk={bulk} compact /> : null}
-            camera={sheetCamera.button}
+            secondary={showMirror && !roleReadOnly ? <BulkActionBar bulk={bulk} compact /> : null}
+            camera={roleReadOnly ? null : sheetCamera.button}
             importButton={
-              <AddPhotosButton
-                denied={sheetCamera.denied}
-                onFiles={(files) => setImporting({ target: photoTarget(null), files })}
-                onOpenSheet={() => setImporting({ target: photoTarget(null), files: null })}
-              />
+              roleReadOnly ? null : (
+                <AddPhotosButton
+                  denied={sheetCamera.denied}
+                  onFiles={(files) => setImporting({ target: photoTarget(null), files })}
+                  onOpenSheet={() => setImporting({ target: photoTarget(null), files: null })}
+                />
+              )
             }
-            cameraNote={sheetCamera.note}
-            primaryLabel={primaryLabel}
+            cameraNote={roleReadOnly ? null : sheetCamera.note}
+            primaryLabel={roleReadOnly ? null : primaryLabel}
             onPrimary={primary}
             primaryTelemetry={primaryTelemetry}
             primaryId={PRIMARY_ID}

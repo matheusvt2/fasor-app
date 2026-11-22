@@ -1,6 +1,9 @@
 import {
+  permissionForPath,
+  permissionRefusalText,
   putRelatorioStatusOp,
   relatorioOpEnvelope,
+  relatorioStatusPath,
   relatorioSetupPath,
   setupGapsNote,
   setupIncompleteReason,
@@ -9,9 +12,10 @@ import {
   type InstrumentRow,
   type RelatorioParecer,
   type RelatorioSnapshot,
+  type PermissionNeed,
   type UserRow,
 } from '@app/domain';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -23,6 +27,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
+import { useCanFn } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { Etapa1Capa } from './setup/etapa1-capa.tsx';
@@ -72,6 +77,45 @@ interface SetupContentProps {
 }
 
 /** The instrument Cadastros registered for this page (E12-Q11), from the arrival's state. */
+/**
+ * Story 26.5: the setup fields each Etapa writes (the kernel says the key of each:
+ * `SETUP_CREATE_FIELDS`, `SETUP_FILL_FIELDS` in `permissions/map.ts`). Read only to decide
+ * whether a whole Etapa is out of the role's reach.
+ */
+const ETAPA_FIELDS: Readonly<Record<1 | 2 | 3 | 4 | 5 | 6, readonly string[]>> = {
+  1: ['service_start', 'service_end', 'atividade', 'cover_photo_file_id', 'additional_info'],
+  2: ['escopo', 'exclusions', 'local'],
+  3: ['responsible_user_id', 'art_trt_number'],
+  4: ['instrument_ids'],
+  5: ['site_altitude_m', 'site_altitude_na', 'site_altitude_confirmed', 'next_intervention_date', 'next_intervention_justification'],
+  6: ['parecer'],
+};
+
+/**
+ * Story 26.5: an Etapa whose every field needs a key the role lacks shows read-only (its controls
+ * disabled by the fieldset) under one line of the kernel's reason; any other Etapa renders as is.
+ */
+function SetupBand({
+  fields,
+  allowed,
+  needOf,
+  children,
+}: {
+  fields: readonly string[];
+  allowed: (field: string) => boolean;
+  needOf: (field: string) => PermissionNeed;
+  children: ReactNode;
+}) {
+  if (fields.some(allowed)) return <>{children}</>;
+  const need = needOf(fields[0] ?? '');
+  return (
+    <fieldset className="setup-locked" disabled>
+      {need === 'none' ? null : <span className="btn-reason">{permissionRefusalText(need)}</span>}
+      {children}
+    </fieldset>
+  );
+}
+
 function registeredInstrumentOf(state: unknown): string | null {
   if (typeof state !== 'object' || state === null) return null;
   const raw = (state as Record<string, unknown>).registeredInstrumentId;
@@ -90,6 +134,11 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
   const author = user === null ? null : { id: user.id, companyId: user.companyId };
 
   const bandRefs = useRef<Record<number, HTMLElement | null>>({});
+  // Story 26.5: each setup field behind the key the kernel gives its op (`SETUP_CREATE_FIELDS`,
+  // `SETUP_FILL_FIELDS`); a field the role may not write is never written from here.
+  const canWrite = useCanFn();
+  const needOf = (field: string): PermissionNeed => permissionForPath(relatorioSetupPath(field), { kind: 'put', value: null });
+  const allowed = (field: string) => canWrite(needOf(field));
   useEffect(() => {
     const etapa = Number.parseInt(search.get('etapa') ?? '', 10);
     if (!Number.isInteger(etapa) || etapa < 1 || etapa > 6) return;
@@ -114,7 +163,9 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
     return edits.write(
       async () => {
         if (db === null || author === null) return null;
-        const drafts = fields.map(([field, value]) => ({
+        const writable = fields.filter(([field]) => allowed(field));
+        if (writable.length === 0) return null;
+        const drafts = writable.map(([field, value]) => ({
           ...relatorioOpEnvelope(author, relatorioId),
           kind: 'put' as const,
           path: relatorioSetupPath(field),
@@ -141,7 +192,7 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
    */
   async function writeParecer(build: (current: RelatorioParecer | null) => RelatorioParecer | null, options: { toast?: string } = {}): Promise<void> {
     const batchId = await edits.write(async () => {
-      if (db === null || author === null) return null;
+      if (db === null || author === null || !allowed('parecer')) return null;
       const current = (await relatorioRow(db, relatorioId))?.setup.parecer ?? null;
       const next = build(current);
       if (next === null) return null;
@@ -170,7 +221,9 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
 
   const gapReason = setupIncompleteReason(snapshot);
   // AD-22 (Epic 4 retro item 12): the kernel's table says whether this status completes setup.
-  const canComplete = statusTable(relatorio.status, 'setup_complete') !== null;
+  const completeTo = statusTable(relatorio.status, 'setup_complete');
+  // Story 26.5: the status move it writes needs its key too (`permissionForPath`).
+  const canComplete = completeTo !== null && canWrite(permissionForPath(relatorioStatusPath(), { kind: 'put', value: completeTo }));
 
   async function onComplete(): Promise<void> {
     if (gapReason !== null || db === null || author === null) return;
@@ -198,37 +251,49 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
     <div className="setup-content">
       <h1 className="visually-hidden">{t.heading}</h1>
 
-      <Etapa1Capa
-        relatorioId={relatorioId}
-        snapshot={snapshot}
-        onCommit={commitField}
-        onCommitFields={commitFields}
-        bandRef={(el) => (bandRefs.current[1] = el)}
-      />
-      <Etapa2Escopo
-        snapshot={snapshot}
-        onCommit={commitField}
-        onWriteExclusions={(value) => writeFields([['exclusions', value]], true)}
-        undoable={edits.undoable}
-        bandRef={(el) => (bandRefs.current[2] = el)}
-      />
-      <Etapa3Responsavel snapshot={snapshot} users={users} onCommit={commitField} bandRef={(el) => (bandRefs.current[3] = el)} />
-      <Etapa4Instrumentos
-        relatorioId={relatorioId}
-        snapshot={snapshot}
-        instruments={instruments}
-        onCommit={commitField}
-        bandRef={(el) => (bandRefs.current[4] = el)}
-      />
-      <Etapa5Local snapshot={snapshot} onCommit={commitField} onCommitFields={commitFields} bandRef={(el) => (bandRefs.current[5] = el)} />
+      <SetupBand fields={ETAPA_FIELDS[1]} allowed={allowed} needOf={needOf}>
+        <Etapa1Capa
+          relatorioId={relatorioId}
+          snapshot={snapshot}
+          onCommit={commitField}
+          onCommitFields={commitFields}
+          bandRef={(el) => (bandRefs.current[1] = el)}
+        />
+      </SetupBand>
+      <SetupBand fields={ETAPA_FIELDS[2]} allowed={allowed} needOf={needOf}>
+        <Etapa2Escopo
+          snapshot={snapshot}
+          onCommit={commitField}
+          onWriteExclusions={(value) => writeFields([['exclusions', value]], true)}
+          undoable={edits.undoable}
+          bandRef={(el) => (bandRefs.current[2] = el)}
+        />
+      </SetupBand>
+      <SetupBand fields={ETAPA_FIELDS[3]} allowed={allowed} needOf={needOf}>
+        <Etapa3Responsavel snapshot={snapshot} users={users} onCommit={commitField} bandRef={(el) => (bandRefs.current[3] = el)} />
+      </SetupBand>
+      <SetupBand fields={ETAPA_FIELDS[4]} allowed={allowed} needOf={needOf}>
+        <Etapa4Instrumentos
+          relatorioId={relatorioId}
+          snapshot={snapshot}
+          instruments={instruments}
+          onCommit={commitField}
+          bandRef={(el) => (bandRefs.current[4] = el)}
+        />
+      </SetupBand>
+      <SetupBand fields={ETAPA_FIELDS[5]} allowed={allowed} needOf={needOf}>
+        <Etapa5Local snapshot={snapshot} onCommit={commitField} onCommitFields={commitFields} bandRef={(el) => (bandRefs.current[5] = el)} />
+      </SetupBand>
 
-      <Etapa6Parecer
-        relatorioId={relatorioId}
-        snapshot={snapshot}
-        onWriteParecer={writeParecer}
-        onBackToExport={backToExport}
-        bandRef={(el) => (bandRefs.current[6] = el)}
-      />
+      <SetupBand fields={ETAPA_FIELDS[6]} allowed={allowed} needOf={needOf}>
+        <Etapa6Parecer
+          relatorioId={relatorioId}
+          snapshot={snapshot}
+          onWriteParecer={writeParecer}
+          onBackToExport={backToExport}
+          bandRef={(el) => (bandRefs.current[6] = el)}
+        />
+      </SetupBand>
 
       <div className="sticky-action-bar">
         {canComplete ? (

@@ -481,6 +481,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'solo',
     why: 'Story 25.3: times an edit\'s push against its commit and against slowed photo uploads, and jumps the page\'s clock a minute against a held push, so it must not share the CPU with other workers',
   },
+  // Batch e26b (Story 26.5): 26.5-E2E-001 to -003 walk each seeded role over a relatório of the fixture.
+  {
+    file: 'roles-screens.spec.ts',
+    lane: 'queue',
+    why: 'Story 26.5: loads its worker\'s own copy of the Porto Seguro fixture into Empresa B for each role walk; it generates no document and times no tap',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

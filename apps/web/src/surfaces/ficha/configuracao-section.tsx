@@ -4,7 +4,7 @@ import { SegmentedControl } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { ReadOnlyField } from './ficha-fields.tsx';
-import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 
 /*
  * Story 14.5 (`63-ficha-cta.html`, the "Configuração" section): the configuration of a
@@ -30,6 +30,7 @@ export function ConfiguracaoSection({ api, block, definition }: { api: FichaApi;
   const t = copy.ficha.configuracao;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
+  const readOnlyReason = useSheetReadOnlyReason();
   const fields = useMemo(() => configFieldsOf(block, definition), [block, definition]);
   if (fields.length === 0) return null;
 
@@ -48,7 +49,7 @@ export function ConfiguracaoSection({ api, block, definition }: { api: FichaApi;
     <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} data-section="configuracao">
       <div className="section-head">
         <h2 id={headingId}>{t.title}</h2>
-        {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
+        {readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>}
       </div>
       <p className="section-note">{t.note}</p>
       <div className="nameplate-grid">

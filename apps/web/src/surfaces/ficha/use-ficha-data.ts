@@ -26,6 +26,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { usePageTitle } from '../../state/page-title.tsx';
+import { useCan } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useProjectEquipment, useRelatorioEditor, type Build } from '../relatorio/relatorio-editor.ts';
@@ -82,25 +83,30 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
   const cabineFirst = useMemo(() => isCabineFirstSheet(snapshot, blockId), [snapshot, blockId]);
   const enabled = enabledSubBlocksOf(block);
 
+  // Story 26.5: a role without `relatorio.fill` sees the sheet read-only; behind the read-only look,
+  // the sheet's own write path writes nothing either (the server refuses on its own).
+  const canFill = useCan('relatorio.fill');
   const api: FichaApi = useMemo(
     () => ({
       relatorioId,
       projectId,
       blockId,
-      author: editor.author,
+      author: canFill ? editor.author : null,
       // Story 12.1: a typed value joins the relatório's one edit queue, so a tap's edit
       // queued after its blur or Enter commit reads it, and the commit retires only a
       // "Desfazer" toast standing when it was called (never the tap's own fresh toast).
-      commit: (drafts: OpDraft[]) => editor.commit(drafts).then(saved),
+      commit: (drafts: OpDraft[]) => (canFill ? editor.commit(drafts).then(saved) : Promise.resolve()),
       edit: (build: Build) =>
-        editor.edit(build).then((batch) => {
-          if (batch !== null) saved();
-          return batch;
-        }),
+        canFill
+          ? editor.edit(build).then((batch) => {
+              if (batch !== null) saved();
+              return batch;
+            })
+          : Promise.resolve(null),
       undoable: editor.undoable,
       announce: editor.announce,
     }),
-    [relatorioId, projectId, blockId, editor, saved],
+    [relatorioId, projectId, blockId, editor, saved, canFill],
   );
 
   return { session, db, navigate, showToast, projectId, equipment, users, instruments, ncPhrases, registries, editor, savedAt, saved, own, tag, typeName, progress, concludeProgress, next, cabine, cabineFirst, enabled, api, visit };
