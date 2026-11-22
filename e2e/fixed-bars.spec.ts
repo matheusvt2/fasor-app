@@ -1,4 +1,4 @@
-import { DOCX_MIME, makeOp, objectKey, PDF_MIME, permissionRefusalText, SERVER_DEVICE_ID, toIso, type OpInput, type RevisionRow } from '@app/domain';
+import { DOCX_MIME, generateReason, makeOp, objectKey, PDF_MIME, permissionRefusalText, SERVER_DEVICE_ID, SUMARIO_TITLES, toIso, type OpInput, type RevisionRow, type SumarioRow, type SumarioRowKey } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { loadConfig } from '../apps/api/src/config.ts';
 import { seedRoleUser } from '../apps/api/src/db/seed.ts';
@@ -327,18 +327,28 @@ test('@p0 27.11-E2E-002 at 390x844 an Emitido relatório opened by the Consulta 
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
 
-test('@p0 27.11-E2E-003 (batch e27d X4) on the phone the Sumário foot keeps "Gerar relatório" in sight under the longest reason: a new relatório, every row blocking, at 390x844 and on a short 390x560 screen', async ({ page }) => {
+test('@p0 27.11-E2E-003 (batch e27d X4) on the phone the Sumário foot keeps "Gerar relatório" in sight under the longest reason: a new relatório, then the kernel\'s sentence for every row blocking, at 390x844 and on a short 390x560 screen', async ({ page }) => {
   test.setTimeout(150_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize(WIDTHS[0]);
   await signIn(page, account.email);
-  // Nothing filled in: no client, no responsible, no parecer, every sheet empty, so the foot names every blocker.
+  // Nothing filled in: the foot names what blocks (the parecer).
   const { relatorioId } = await pushNewRelatorio(page, account, database);
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(sumarioList(page)).toBeVisible({ timeout: 30_000 });
   const reason = bar(page).locator('.btn-reason').first();
-  await expect(reason).toContainText('impedem gerar');
+  await expect(reason).toContainText('impede gerar');
   const generate = bar(page).getByRole('button', { name: 'Gerar relatório' });
+  // The longest line the foot can carry: the kernel's sentence with every Sumário row blocking, numbered as the Sumário
+  // numbers them, written into the foot's reason line (no relatório holds every blocker at once).
+  const keys = (Object.keys(SUMARIO_TITLES) as SumarioRowKey[]).filter((key) => key !== 'sync');
+  const longest = generateReason(
+    keys.map((key) => ({ rowKey: key, title: SUMARIO_TITLES[key], number: key.startsWith('section_') ? Number(key.slice('section_'.length)) : null, blocking: true }) as unknown as SumarioRow),
+  );
+  expect(longest.length).toBeGreaterThan(200);
+  await reason.evaluate((element, text) => {
+    element.textContent = text;
+  }, longest);
 
   for (const size of [WIDTHS[0], { width: 390, height: 560 }]) {
     await page.setViewportSize(size);

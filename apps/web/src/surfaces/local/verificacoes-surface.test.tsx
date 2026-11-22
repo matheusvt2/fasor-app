@@ -295,20 +295,24 @@ describe('14.3 "Verificações do local": the surface', () => {
 
   it('batch e27d X1: an item just marked NC carries no red mark; "Concluir verificações" shows it on every NC row still empty', async () => {
     await open({ second: true });
-    await userEvent.click(seg(EMERGENCIA, 'Não conforme'));
-    await userEvent.click(seg(LUVAS, 'Não conforme'));
-    for (const key of [EMERGENCIA, LUVAS]) expect(within(rowOf(key)).queryByText('Obrigatória em item não conforme')).toBeNull();
+    const fieldOf = (key: string) => within(rowOf(key)).findByRole('textbox', { name: /^Observação do item \d+$/ });
+    for (const key of [EMERGENCIA, LUVAS]) {
+      await userEvent.click(seg(key, 'Não conforme'));
+      // The row turns NC once the write lands in the store: its field opens with no red mark.
+      expect(await fieldOf(key)).not.toHaveAttribute('aria-invalid');
+      expect(within(rowOf(key)).queryByText('Obrigatória em item não conforme')).toBeNull();
+    }
     await userEvent.click(screen.getByRole('button', { name: 'Concluir verificações' }));
     for (const key of [EMERGENCIA, LUVAS]) {
-      const field = within(rowOf(key)).getByRole('textbox', { name: /^Observação do item \d+$/ });
-      expect(field).toHaveAttribute('aria-invalid', 'true');
+      const field = await fieldOf(key);
+      await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
       expect(field).toHaveAccessibleDescription('Obrigatória em item não conforme');
     }
   });
 
   it('batch e27d X1: a local opened with an NC item and no observation shows its red mark at once', async () => {
     await open({ checklist: { [LUVAS]: { result: 'NC' } } });
-    const field = within(rowOf(LUVAS)).getByRole('textbox', { name: /^Observação do item \d+$/ });
+    const field = await within(rowOf(LUVAS)).findByRole('textbox', { name: /^Observação do item \d+$/ });
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(within(rowOf(LUVAS)).getByText('Obrigatória em item não conforme')).toBeVisible();
   });
