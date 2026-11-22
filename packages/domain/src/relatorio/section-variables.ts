@@ -121,6 +121,26 @@ export function printedExclusions(exclusions: readonly string[]): string[] {
   return exclusions.filter((text) => present(text) !== undefined);
 }
 
+/**
+ * Story 27.10 (F25): the setup list "Concluir dados do relatório" writes, its blank and whitespace-only
+ * entries dropped (`printedExclusions`, the print's own rule), so the stored list holds no empty row;
+ * null when there is nothing to drop (no own list, or no blank entry), and nothing is written.
+ */
+export function exclusionsWithoutBlanks(exclusions: readonly string[] | null): string[] | null {
+  if (exclusions === null) return null;
+  const kept = printedExclusions(exclusions);
+  return kept.length === exclusions.length ? null : kept;
+}
+
+/**
+ * Story 27.10 (F24): a section block whose own text is empty or whitespace only (emptied in the section
+ * text editor): the document prints the section with no text. False while the block reads the seed's text.
+ */
+export function sectionTextEmpty(config: unknown): boolean {
+  const text = asObject(config).section_text;
+  return typeof text === 'string' && text.trim() === '';
+}
+
 /** The setup list without the entry at `index` ("Remover" of an exclusion's overflow menu). */
 export function withoutExclusion(exclusions: readonly string[], index: number): string[] {
   return exclusions.filter((_, i) => i !== index);
