@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import { activeUser, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminUserEvent, type Clock, type ErrorResponse, type NewId } from '@app/domain';
+import { activeUser, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminRoleEvent, type AdminUserEvent, type Clock, type ErrorResponse, type NewId } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -22,6 +22,7 @@ import { log, logError } from '../log.ts';
 import { stdoutSink, type TelemetrySink } from '../telemetry/sink.ts';
 import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
+import { createAdminRolesRoutes } from './admin-roles.ts';
 import { createAdminUsersRoutes } from './admin-users.ts';
 import { createAuditRoutes } from './audit.ts';
 import { createFileRoutes } from './files.ts';
@@ -162,6 +163,8 @@ export interface AppOptions {
   adminEvents?: (event: AdminUserEvent) => void;
   /** Story 26.8: the origin of the set-password link; absent, the auth's base URL. */
   appOrigin?: string;
+  /** Story 26.10: where each Admin action on a role writes its usage event; absent, one `admin_role_event` log line. */
+  adminRoleEvents?: (event: AdminRoleEvent) => void;
 }
 
 /** The defaults of `config.ts` for the e-mail limits (5 and 20 a minute, 30 per 10 minutes). */
@@ -398,6 +401,17 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       appOrigin: options.appOrigin ?? authBaseUrl(options.auth),
       emailLimit: emailLimits.adminEmail,
       ...(limitNow === undefined ? {} : { limitNow }),
+    }),
+  );
+
+  // Story 26.10: the Admin's role routes, beside the user routes; online only.
+  app.route(
+    '/',
+    createAdminRolesRoutes({
+      db: options.db,
+      events: options.adminRoleEvents,
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
     }),
   );
 

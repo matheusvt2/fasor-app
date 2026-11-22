@@ -224,7 +224,9 @@ describe('26.4-API-001 each key, a role lacking only it and a role holding it', 
     // Story 26.8 (batch e26c): extended, the one route name of `/api/admin/users`; still no client op.
     expect(keyed('users.manage')).toBe(1);
     expect(PERMISSION_ROUTES.filter((route) => permissionForRoute(route) === 'users.manage')).toEqual(['admin.users']);
-    expect(keyed('roles.manage')).toBe(0);
+    // Story 26.10 (batch e26e): extended, the one route name of `/api/admin/roles`; still no client op.
+    expect(keyed('roles.manage')).toBe(1);
+    expect(PERMISSION_ROUTES.filter((route) => permissionForRoute(route) === 'roles.manage')).toEqual(['admin.roles']);
     // A role holding users.manage still cannot write a role through the push (the Admin routes will, Story 26.8).
     await asRole(holderId);
     const op = h.clientOp(matriz(), { kind: 'put', scope: 'company', path: userRolePath(people.consulta.userId), value: SYSTEM_ROLE_ROW_IDS.admin });

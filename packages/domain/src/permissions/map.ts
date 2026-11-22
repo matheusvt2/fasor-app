@@ -166,6 +166,9 @@ export const PERMISSION_ROUTES = [
   // Story 26.8 (2026-11-21): every route under `/api/admin/users` (list, create, edit, pause,
   // reactivate, remove, resend the invitation, send a password reset).
   'admin.users',
+  // Story 26.10 (2026-11-22): every route under `/api/admin/roles` (list, set the keys, create,
+  // rename, remove).
+  'admin.roles',
 ] as const;
 export type PermissionRoute = (typeof PERMISSION_ROUTES)[number];
 
@@ -184,6 +187,7 @@ const ROUTE_NEEDS: Readonly<Record<PermissionRoute, PermissionNeed>> = {
   'account.read': 'none',
   telemetry: 'none',
   'admin.users': 'users.manage',
+  'admin.roles': 'roles.manage',
 };
 
 /** The key a route needs, or `'none'`. */

@@ -108,6 +108,17 @@ export const errorCodeSchema = z.enum([
   'last_admin',
   'role_not_found',
   'user_state_invalid',
+  // 2026-11-22, Story 26.10 (batch e26e, AD-29): the Admin's role routes (`/api/admin/roles`). No op
+  // carries them, so no contract number moves. Each is the kernel's `roleChangeVerdict`, answered
+  // 409: `role_name_taken`, the name of another live role of the company (case, accents and spaces
+  // ignored); `role_locked`, the Admin role (every change) or a seeded role (rename, remove;
+  // `details.system`); `role_in_use`, a removal while users hold the role (`details.user_count`,
+  // `details.user_names`); `role_name_invalid`, an empty name or one over 60 characters
+  // (`details.issue`). A body of the wrong shape stays 400 `invalid_request`.
+  'role_name_taken',
+  'role_locked',
+  'role_in_use',
+  'role_name_invalid',
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 
