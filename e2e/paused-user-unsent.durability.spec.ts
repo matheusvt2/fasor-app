@@ -5,7 +5,7 @@ import { createDb } from '../apps/api/src/db/client.ts';
 import { workerRoleUser } from '../apps/api/src/db/e2e-worker-seed.ts';
 import { seedRoleUser } from '../apps/api/src/db/seed.ts';
 import { adminApi } from './support/admin-route.ts';
-import { signInForDurability } from './support/durability.ts';
+import { keepFormSignInOnPlainHttp, signInForDurability } from './support/durability.ts';
 import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, SEED_PASSWORD, syncBadge, test } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -25,10 +25,16 @@ import { SYNC_CYCLE_TIMEOUT, waitForCompanyPull } from './support/sync.ts';
  * reload or a restart while paused keeps the paused state, since the boot reads `401 user_inactive`;
  * e26s-E2E-002 is the reactivation learnt with no reload, through "Sincronizar agora".)*
  *
- * Runs on `durability-desktop-chrome` (the file name matches that project's pattern). The matrix
+ * Runs on `durability-desktop-chrome` (the file name matches that project's pattern). ~~The matrix
  * projects (Android emulation, WebKit) are not run in this batch (the owner's decision); the second
  * sign-in uses the Login form, which holds the `Secure` cookie on Chromium's localhost only, so on
- * WebKit that step needs the harness's own sign-in.
+ * WebKit that step needs the harness's own sign-in.~~ *(2026-11-22, e26t: the matrix runs it, and
+ * its two tests that sign in again were red on WebKit for that very reason: the form's sign-in
+ * answered 200, WebKit refused the `Secure` cookie of the plain http origin, and the account read
+ * went out with the cookie of the session the reactivation had ended. On WebKit
+ * `keepFormSignInOnPlainHttp` now lands the form's cookie in the jar as an HTTPS origin would, so
+ * the same form and the same assertions run on the three projects; WebKit runs them with no shell
+ * worker, which that helper explains. 26.11-E2E-001b needs none of it: its sign-in is refused.)*
  */
 
 /** Five values no fixture reading holds, typed one after the other down the insulation table. */
@@ -70,8 +76,9 @@ async function restartBrowser(context: BrowserContext): Promise<Page> {
 
 const pausedBanner = (page: Page) => page.locator('.banner-slot .banner[data-banner="paused"]');
 
-test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings through the banner, "Sair", a reload and a restart, and sends them after the reactivation', async ({ page, context, request, seed }) => {
+test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings through the banner, "Sair", a reload and a restart, and sends them after the reactivation', async ({ page, context, request, seed, browserName }) => {
   test.setTimeout(300_000);
+  if (browserName === 'webkit') await keepFormSignInOnPlainHttp(context);
   const fixture = await resetEmpresaBWithFixture(seed.companies[1]);
   await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'engenheiro_de_campo'));
   const campo = workerRoleUser(seed.index, 'engenheiro_de_campo');
@@ -189,8 +196,9 @@ test('@p0 26.11-E2E-001b a paused user on a device with no data of his reads "Co
   }
 });
 
-test('@p0 e26s-E2E-002 a paused device learns of the reactivation with no reload: "Sincronizar agora" asks Login, and signing in sends the unsent change', async ({ page, context, request, seed }) => {
+test('@p0 e26s-E2E-002 a paused device learns of the reactivation with no reload: "Sincronizar agora" asks Login, and signing in sends the unsent change', async ({ page, context, request, seed, browserName }) => {
   test.setTimeout(240_000);
+  if (browserName === 'webkit') await keepFormSignInOnPlainHttp(context);
   const fixture = await resetEmpresaBWithFixture(seed.companies[1]);
   await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'engenheiro_de_campo'));
   const campo = workerRoleUser(seed.index, 'engenheiro_de_campo');
