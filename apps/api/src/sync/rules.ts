@@ -109,7 +109,8 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
   const forbidden = await roleIssue(tx, companyId, op, path, deps.cache);
   if (forbidden !== null) return forbidden;
   // Story 27.1 (F1, contract 56): beside the role's check, a company holds one live `empresa` row.
-  if (path.family === 'registry' && path.kind === 'empresa' && op.kind === 'create' && (await holdsOtherEmpresa(tx, companyId, path.id))) return 'op_forbidden';
+  const revived = revivedEmpresaId(op, path);
+  if (revived !== null && (await holdsOtherEmpresa(tx, companyId, revived))) return 'op_forbidden';
   if (path.family === 'equipment_type_version' && op.kind === 'create' && op.value !== null && typeof op.value === 'object' && vectorGroupPublishIssue((op.value as { definition?: object }).definition) !== null) return 'op_invalid';
   if (!(await targetHolds(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
   const project = createProjectOf(op, path);
@@ -153,10 +154,23 @@ async function roleIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, cac
 }
 
 /**
+ * Story 27.1 (F1, contract 56): the id of the `empresa` registry row an op would make live, or null: its create, and
+ * (fix batch e27a-review, R5) the restore of a removed one, a put of null on
+ * `registry/empresa/{id}/removed_at` (the registry panels' "Desfazer" of a removal writes that put).
+ */
+function revivedEmpresaId(op: Op, path: OpPath): string | null {
+  if (path.family === 'registry') return path.kind === 'empresa' && op.kind === 'create' ? path.id : null;
+  if (path.family === 'registry/field') return path.kind === 'empresa' && path.field === 'removed_at' && op.kind === 'put' && op.value === null ? path.id : null;
+  return null;
+}
+
+/**
  * Story 27.1 (F1, contract 56): whether the company already holds a live `empresa` registry row
  * with another id than `id`. A create of a second one is refused `op_forbidden` (no code added),
  * so the first row stays the company's only one; a create of the same id (a re-sent op) and every
  * put on the row still apply. Two rows written before the rule are read through `pickEmpresa`.
+ * Fix batch e27a-review (R5): the restore of a removed row is refused the same way while another
+ * live one exists (`revivedEmpresaId`); the restore of the company's only row still applies.
  */
 async function holdsOtherEmpresa(tx: Tx, companyId: CompanyId, id: string): Promise<boolean> {
   const [found] = await tx

@@ -197,9 +197,14 @@ describe('26.2-UNIT-008 roles and a user role and status are server-only familie
 
 describe('26.2-UNIT-009 contract 55 and the new codes', () => {
   // e27a (Stories 27.1 and 27.2, 2026-11-21): the number moved on to 56; a 55 bundle is refused too.
-  it('speaks at least 56 and refuses 54 (a 54 bundle cannot parse the role families)', () => {
-    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(56);
-    expect(MIN_CONTRACT_VERSION).toBeGreaterThanOrEqual(56);
+  // Fix batch e27a-review (R8): the exact numbers, and the refusal of 55 and 54 asserted, as the title says.
+  it('speaks 56 with a minimum of 56: a 55 bundle is refused, and so is a 54 one (it cannot parse the role families)', () => {
+    expect(CONTRACT_VERSION).toBe(56);
+    expect(MIN_CONTRACT_VERSION).toBe(56);
+    // A bundle is refused (426 contract_outdated) below MIN_CONTRACT_VERSION.
+    expect(55 < MIN_CONTRACT_VERSION).toBe(true);
+    expect(54 < MIN_CONTRACT_VERSION).toBe(true);
+    expect(CONTRACT_VERSION < MIN_CONTRACT_VERSION).toBe(false);
   });
 
   it('routes answer forbidden and an inactive user user_inactive; ops reuse op_forbidden', () => {

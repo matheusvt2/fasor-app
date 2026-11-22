@@ -1,8 +1,9 @@
-import { minimumText, voltsText } from '../relatorio/reading-evaluation.ts';
+import { manufacturerApplies, minimumText, voltsText } from '../relatorio/reading-evaluation.ts';
 import { listPtBr } from '../text/plural.ts';
 import type { CriterionSeed } from './criteria.ts';
 import { NETA_100_1, NETA_100_5, type CriterionTable, type CriterionTableRow } from './criteria-tables.ts';
 import { getSeed, SEED_VERSION } from './definitions.ts';
+import type { BlockDefinition, TestDef } from './schema.ts';
 
 /*
  * Story 27.6 (F10 of the 2026-11-21 pass): what Cadastros › Critérios de aceitação lists beside the
@@ -35,12 +36,36 @@ export interface CriteriaTableView {
   rows: CriteriaTableRowView[];
 }
 
+/** The block definitions of the latest seed, in its block order. */
+function latestDefinitions(): BlockDefinition[] {
+  return Object.values(getSeed(SEED_VERSION, 'cabine_primaria').blocks).filter((definition): definition is BlockDefinition => definition !== undefined);
+}
+
+/** The equipment labels of the latest seed with a test `matches` picks, in the seed's block order. */
+function equipmentWith(matches: (test: TestDef) => boolean): string[] {
+  return latestDefinitions().flatMap((definition) => (definition.tests.some(matches) ? [definition.label] : []));
+}
+
 /** The equipment labels of the latest seed whose tests read `table` (`criterion_table`), in the seed's block order. */
 function equipmentOf(table: CriterionTable): string[] {
-  const seed = getSeed(SEED_VERSION, 'cabine_primaria');
-  return Object.values(seed.blocks).flatMap((definition) =>
-    definition !== undefined && definition.tests.some((test) => test.criterion_table?.table.key === table.key) ? [definition.label] : [],
-  );
+  return equipmentWith((test) => test.criterion_table?.table.key === table.key);
+}
+
+/**
+ * Fix batch e27a-review (R6): whether a test `matches` picks takes the manufacturer's value on the latest seed
+ * (`manufacturerApplies`): then the value typed on the ficha judges every row of the test before the seed's
+ * criterion or a table row does (`effectiveCriterion`, `rowCriterion`).
+ */
+function takesManufacturer(matches: (test: TestDef) => boolean): boolean {
+  return latestDefinitions().some((definition) => definition.tests.some((test) => matches(test) && manufacturerApplies(test)));
+}
+
+// authored (Story 27.6, listed for Bruno): fix batch e27a-review (R6), the manufacturer's value comes first.
+const MANUFACTURER_FIRST = 'Quando a ficha traz o valor do fabricante, ele vale antes.';
+
+/** "Vale ..." with the manufacturer's sentence after it when the test takes one. */
+function withManufacturer(applies: string, manufacturer: boolean): string {
+  return manufacturer ? `${applies} ${MANUFACTURER_FIRST}` : applies;
 }
 
 function rowView(row: CriterionTableRow, previous: CriterionTableRow | undefined, columns: readonly CriteriaTableColumn[]): CriteriaTableRowView {
@@ -57,7 +82,7 @@ function tableView(table: CriterionTable, applies: (equipment: string) => string
     key: table.key,
     title: `${source.name}${source.edition === null ? '' : `-${source.edition}`}, ${table.name}`,
     equipmentText,
-    appliesText: applies(equipmentText),
+    appliesText: withManufacturer(applies(equipmentText), takesManufacturer((test) => test.criterion_table?.table.key === table.key)),
     columns,
     rows: table.rows.map((row, i) => rowView(row, table.rows[i - 1], columns)),
   };
@@ -73,10 +98,24 @@ export function criteriaTablesView(): CriteriaTableView[] {
   ];
 }
 
-/** Story 27.6: when a seeded criterion applies, one sentence; the insulation one stands in for the tables. */
+/**
+ * Story 27.6: when a seeded criterion applies, one sentence; the insulation one stands in for the tables.
+ * Fix batch e27a-review (R6): the equipment it always judges is read from the latest seed (the types whose test
+ * of that criterion carries no `criterion_table`), and the manufacturer's value, where the test takes one, is
+ * said to come first.
+ */
 export function seededCriterionAppliesText(criterion: Pick<CriterionSeed, 'key'>): string {
-  // authored (Story 27.6, listed for Bruno): the seeded insulation criterion, where no table row judges.
-  if (criterion.key === 'isolacao') return 'Vale quando a placa não informa a tensão nominal, nos cabos e nos relatórios anteriores às tabelas ANSI/NETA.';
+  const ofCriterion = (test: TestDef) => test.criterion_key === criterion.key && test.criterion === undefined;
+  const manufacturer = takesManufacturer(ofCriterion);
+  if (criterion.key === 'isolacao') {
+    const always = equipmentWith((test) => ofCriterion(test) && test.criterion_table === undefined);
+    // authored (Story 27.6, listed for Bruno): the seeded insulation criterion, where no table row judges.
+    const applies =
+      always.length === 0
+        ? 'Vale quando a placa não informa a tensão nominal ou o tipo de isolação que a tabela pede, e nos relatórios anteriores às tabelas ANSI/NETA.'
+        : `Vale sempre em ${listPtBr(always)}; nos demais, quando a placa não informa a tensão nominal ou o tipo de isolação que a tabela pede; e nos relatórios anteriores às tabelas ANSI/NETA.`;
+    return withManufacturer(applies, manufacturer);
+  }
   // authored (Story 27.6, listed for Bruno): every other seeded criterion.
-  return 'Vale em toda ficha com este ensaio.';
+  return withManufacturer('Vale em toda ficha com este ensaio.', manufacturer);
 }

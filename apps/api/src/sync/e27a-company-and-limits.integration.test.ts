@@ -79,6 +79,34 @@ describe('27.1-API-001 the server refuses a second live empresa row', () => {
     expect(await liveEmpresaIds(companyA.companyId)).toEqual([a]);
     await h.db.delete(entities).where(and(eq(entities.company_id, companyA.companyId), inArray(entities.id, [a, b])));
   });
+
+  it('e27a-review R5: a client op can restore a removed empresa row (a put of null on its removed_at); while another live one exists the restore is refused op_forbidden, and the restore of the only row still applies', async () => {
+    expect(await liveEmpresaIds(companyA.companyId), 'Empresa A holds no empresa row before the test').toEqual([]);
+    const a = newId();
+    const b = newId();
+    const removedAt = (id: string) => h.clientOp(companyA, { kind: 'remove', scope: 'company', path: `registry/empresa/${id}/removed_at`, value: null });
+    const restore = (id: string) => h.clientOp(companyA, { kind: 'put', scope: 'company', path: `registry/empresa/${id}/removed_at`, value: null });
+    // B is created, then removed: the company holds no live row, so A's create applies.
+    expect((await h.push(companyA, [empresaCreate(companyA, b, 'Empresa Removida')])).rejected).toEqual([]);
+    expect((await h.push(companyA, [removedAt(b)])).rejected).toEqual([]);
+    expect(await liveEmpresaIds(companyA.companyId)).toEqual([]);
+    expect((await h.push(companyA, [empresaCreate(companyA, a, 'Empresa Viva')])).rejected).toEqual([]);
+    expect(await liveEmpresaIds(companyA.companyId)).toEqual([a]);
+
+    // The path exists: a put of null on B's removed_at is the restore the registry panels' "Desfazer" writes. While A is live it is refused.
+    const revive = restore(b);
+    expect((await h.push(companyA, [revive])).rejected).toEqual([{ op_id: revive.op_id, code: 'op_forbidden' }]);
+    expect(await h.logged(revive.op_id)).toBe(false);
+    expect(await liveEmpresaIds(companyA.companyId)).toEqual([a]);
+    expect((await h.rowOf<{ removed_at: string | null }>(companyA, 'registry', b))?.removed_at).not.toBeNull();
+
+    // With A removed, B is the company's only row: its restore applies.
+    expect((await h.push(companyA, [removedAt(a)])).rejected).toEqual([]);
+    const only = restore(b);
+    expect((await h.push(companyA, [only])).rejected).toEqual([]);
+    expect(await liveEmpresaIds(companyA.companyId)).toEqual([b]);
+    await h.db.delete(entities).where(and(eq(entities.company_id, companyA.companyId), inArray(entities.id, [a, b])));
+  });
 });
 
 describe('27.1-API-002 the scripts of Task 1, on a company that already has an empresa row', () => {

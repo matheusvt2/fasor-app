@@ -176,7 +176,8 @@ describe('the suggestion fills (Story 18.4)', () => {
 
   it('an environment reading: one report per blur, with the field kind\'s reason', async () => {
     const field = { key: 'temperature_c', label: 'Temperatura', kind: 'number', unit: '°C' } as FieldDef;
-    const model = { type: vi.fn(() => 'invalid' as const), confirm: vi.fn(), openCrop: vi.fn() } as unknown as EnvDisplayModel;
+    // Fix batch e27a-review (R2): a refused correction is `{ refused }`; null is the field's own refusal (no number).
+    const model = { type: vi.fn(() => ({ refused: null })), confirm: vi.fn(), openCrop: vi.fn() } as unknown as EnvDisplayModel;
     render(wrap(<EnvSuggestionFill model={model} field={field} suggestion={suggestion({ raw: '23.4', unit: '°C', state: 'measured' })} />));
     const input = screen.getByRole('textbox', { name: /temperatura/i });
     expect(input).toHaveAttribute('data-telemetry', 'ficha.reading');

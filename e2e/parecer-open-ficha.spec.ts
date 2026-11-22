@@ -1,4 +1,4 @@
-import { cellAddressesOf, composeParecer, derivedParecer, getDefinition, parecerReplacedText, parecerVerdictLabel } from '@app/domain';
+import { cellAddressesOf, composeParecer, derivedParecer, getDefinition, parecerReplacedText, parecerTextForPrint, parecerVerdictLabel, printedParecer } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceSnapshot, openStep, outboxValues, typeCell } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -9,9 +9,10 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * Story 27.3 (batch e27a, F7 of the 2026-11-21 pass), driven as a person does at 1280 px on a new v16 relatório.
  * With nothing judged, Apto is tapped in Etapa 6 (one op). Then a breaker's contact reading is typed out of its
  * criterion, and the ficha is left open: the fichas now give Não apto, so Etapa 6's hint and the Sumário's row 10
- * say in one line that the chosen Apto was replaced and why, and the composed summary names the breaker as an
- * open ficha with a reading out of criterion, never as reprovada. Every expected word is the kernel's over the
- * device's own rows (E12-A6). Nothing is issued: the print of a v16 relatório keeps its sentence (27.3-UNIT).
+ * say in one line that the chosen Apto was replaced and why, naming the breaker as an open ficha with a reading out
+ * of criterion. Fix batch e27a-review (R1): the summary field says it is what section 10 prints, so it shows the
+ * printed text of this v16 relatório (no `parecer_open_apart`), where the breaker still reads among the reprovadas.
+ * Every expected word is the kernel's over the device's own rows (E12-A6). Nothing is issued.
  */
 
 let account: SeedAccount;
@@ -31,7 +32,7 @@ async function openEtapa6(page: Page, relatorioId: string): Promise<void> {
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
 }
 
-test('@p0 27.3-E2E-001 Apto chosen, then a breaker\'s contact reading out on an open ficha: Etapa 6 and the Sumário say Apto was replaced by Não apto and why; the summary names the ficha as open with a reading out, never reprovada', async ({
+test('@p0 27.3-E2E-001 Apto chosen, then a breaker\'s contact reading out on an open ficha: Etapa 6 and the Sumário say Apto was replaced by Não apto because the ficha is open with a reading out; the summary shows the text section 10 prints', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -67,19 +68,21 @@ test('@p0 27.3-E2E-001 Apto chosen, then a breaker\'s contact reading out on an 
   expect(derivedParecer(snapshot)).toBe('nao_apto');
   const replaced = parecerReplacedText(snapshot);
   expect(replaced).toBe(`O parecer escolhido (Apto) foi substituído por Não apto: 1 ficha em aberto com leitura fora do critério (${breaker.tag}).`);
-  const composed = composeParecer(snapshot);
-  expect(composed.text).toContain(`1 ficha em aberto com leitura fora do critério: ${breaker.tag}.`);
-  expect(composed.text).not.toMatch(/reprovad/);
+  expect(composeParecer(snapshot).text).toContain(`1 ficha em aberto com leitura fora do critério: ${breaker.tag}.`);
+  // R1: the field's text is the printed one; on v16 the print keeps the breaker among the reprovadas.
+  const printed = printedParecer(snapshot);
+  expect(printed.text).toBe(parecerTextForPrint(snapshot));
+  expect(printed.text).toContain(`1 ficha foi reprovada: ${breaker.tag}`);
 
-  // Etapa 6: Não apto, the looser verdicts disabled, the one replaced line, and the composed summary.
+  // Etapa 6: Não apto, the looser verdicts disabled, the one replaced line, and the summary as section 10 prints it.
   await openEtapa6(page, built.relatorioId);
   await expect(verdicts(page).getByRole('radio', { name: 'Não apto', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(apto).toBeDisabled();
   await expect(hint(page)).toHaveText(replaced!);
   const summary = page.locator('.suggestion-field.is-generated .generated-text');
-  await expect(summary).toHaveText(composed.text);
-  await expect(summary).not.toContainText('reprovada');
-  await expect(page.locator('.suggestion-field.is-generated .criteria-line')).toContainText(`em aberto com leitura fora do critério (${breaker.tag})`);
+  await expect(summary).toHaveText(printed.text);
+  await expect(summary).not.toContainText('em aberto com leitura fora do critério');
+  await expect(page.locator('.suggestion-field.is-generated .criteria-line')).toContainText(`1 reprovada (${breaker.tag})`);
 
   // The Sumário's row 10: the verdict, then the same line.
   await page.goto(`/relatorio/${built.relatorioId}`);
