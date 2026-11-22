@@ -9,6 +9,7 @@ import {
   readAiFeatures,
   readLastSession,
   readPendingWipes,
+  readReAuthCause,
   readReAuthRequired,
   writeAiFeatures,
   writeLastSession,
@@ -35,11 +36,11 @@ const readSession = vi.fn<() => Promise<AccountResponse | null>>();
 const signIn = vi.fn();
 const signOut = vi.fn<() => Promise<void>>();
 /** The listener the provider registers for a 401 mid-use (the sync engine publishes it). */
-let reAuthListener: (() => void) | null = null;
+let reAuthListener: ((cause?: 'paused' | 'expired') => void) | null = null;
 
 vi.mock('../api/auth-client.ts', () => ({
   readSession: () => readSession(),
-  onReAuthRequired: (listener: () => void) => {
+  onReAuthRequired: (listener: (cause?: 'paused' | 'expired') => void) => {
     reAuthListener = listener;
     return () => {
       reAuthListener = null;
@@ -412,6 +413,69 @@ describe('the remembered 401 (retro A8)', () => {
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
     expect(current).not.toHaveProperty('dismissReAuth');
     expect(readReAuthRequired()).toBe(true);
+  });
+});
+
+describe('26.11 the cause of the 401: a paused account', () => {
+  async function offlineReopen(view: { unmount: () => void }) {
+    current?.database?.close();
+    view.unmount();
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    return renderSession();
+  }
+
+  it('a paused 401 mid-use is the paused cause, remembered for an offline reopen; a later plain 401 keeps it', async () => {
+    writeLastSession(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
+    const view = renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
+    expect(current?.reAuthCause).toBeNull();
+    act(() => reAuthListener?.('paused'));
+    await waitFor(() => expect(current?.reAuthCause).toBe('paused'));
+    expect(current?.reAuthRequired).toBe(true);
+    expect(readReAuthCause()).toBe('paused');
+    act(() => reAuthListener?.('expired'));
+    expect(current?.reAuthCause).toBe('paused');
+    await offlineReopen(view);
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|re-auth|${profile.id}`));
+    expect(current?.reAuthCause).toBe('paused');
+  });
+
+  it('a plain 401 is the expired cause', async () => {
+    writeLastSession(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
+    act(() => reAuthListener?.());
+    await waitFor(() => expect(current?.reAuthCause).toBe('expired'));
+    expect(readReAuthCause()).toBe('expired');
+  });
+
+  it('a boot 401 keeps a remembered pause, and a sign-in clears the cause with the flag', async () => {
+    writeLastSession(profile);
+    writeReAuthRequired(true, 'paused');
+    readSession.mockResolvedValue(null);
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-out|ok|none'));
+    expect(readReAuthCause()).toBe('paused');
+    signIn.mockResolvedValue({ ok: true, user: profile, features: { ai: true } });
+    await act(() => current!.signIn(profile.email, 'senha').then(() => undefined));
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
+    expect(current?.reAuthCause).toBeNull();
+    expect(readReAuthCause()).toBeNull();
+  });
+
+  it('a sign-out clears the cause', async () => {
+    writeLastSession(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
+    renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
+    act(() => reAuthListener?.('paused'));
+    await waitFor(() => expect(current?.reAuthCause).toBe('paused'));
+    await act(() => current!.signOut());
+    expect(current?.status).toBe('signed-out');
+    expect(current?.reAuthCause).toBeNull();
+    expect(readReAuthCause()).toBeNull();
   });
 });
 

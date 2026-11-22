@@ -141,12 +141,15 @@ describe('26.8-API-001 each route', () => {
     expect(await codeOf(await create({ name: 'Sem papel', email: 'x', role_id: 'admin' }, adminCookie))).toBe('invalid_request');
   });
 
-  it('pause, reactivate, remove: the state rules, the sessions ended at once, the same password after reactivate', async () => {
+  it('pause, reactivate, remove: the state rules, the sessions kept and inert, the same password and the same sessions after reactivate', async () => {
     const cookie = await h.signIn(campoEmail, PASSWORD);
     const paused = await ok(await action('pause', campoId, adminCookie));
     expect(paused.user.status).toBe('paused');
-    expect(await db.select({ id: session.id }).from(session).where(eq(session.userId, campoId))).toEqual([]);
-    expect((await h.call('/api/account', { method: 'GET', cookie })).status).toBe(401);
+    // 2026-11-22 (Matheus, Story 26.11): the sessions stay, and every request with them is refused as an inactive user.
+    expect((await db.select({ id: session.id }).from(session).where(eq(session.userId, campoId))).length).toBeGreaterThan(0);
+    const refusedAccount = await h.call('/api/account', { method: 'GET', cookie });
+    expect(refusedAccount.status).toBe(401);
+    expect(await codeOf(refusedAccount)).toBe('user_inactive');
     expect((await h.signInRaw(campoEmail, PASSWORD)).status).toBe(401);
     const twice = await action('pause', campoId, adminCookie);
     expect(twice.status).toBe(409);
@@ -154,6 +157,8 @@ describe('26.8-API-001 each route', () => {
 
     expect((await ok(await action('reactivate', campoId, adminCookie))).user.status).toBe('active');
     expect(await codeOf(await action('reactivate', campoId, adminCookie))).toBe('user_state_invalid');
+    // The kept session works again: nothing was signed out, so a paused device keeps its place.
+    expect((await h.call('/api/account', { method: 'GET', cookie })).status).toBe(200);
     await h.signIn(campoEmail, PASSWORD);
 
     expect((await ok(await action('remove', campoId, adminCookie))).user.status).toBe('removed');
@@ -278,6 +283,44 @@ describe('26.8-API-002 the last Admin and a paused user', () => {
     await ok(await action('reactivate', rui.userId, adminCookie));
     const again = await h.signIn(rui.email);
     expect((await h.call('/api/account', { method: 'GET', cookie: again })).status).toBe(200);
+  });
+
+  it('26.11-API-001 a paused or removed user keeps his sessions and every path refuses them with user_inactive, get-session included; sign-out still works', async () => {
+    const companyId = h.company();
+    const ana = await h.seedPerson(companyId, 'admin', 'Ana Admin');
+    const rui = await h.seedPerson(companyId, 'responsavel_tecnico', 'Rui Técnico');
+    const adminCookie = await h.signIn(ana.email);
+    const ruiCookie = await h.signIn(rui.email);
+    const probes: { method: 'GET' | 'POST'; path: string; body?: unknown }[] = [
+      { method: 'GET', path: '/api/account' },
+      { method: 'GET', path: '/api/auth/get-session' },
+      { method: 'GET', path: '/api/sync/company?since=0' },
+      { method: 'POST', path: '/api/sync/ops', body: { ops: [] } },
+      { method: 'GET', path: '/api/files/019966b0-0270-7000-8000-0000000000f1/original' },
+      { method: 'POST', path: '/api/telemetry', body: {} },
+      { method: 'GET', path: '/api/admin/users' },
+    ];
+    const answers = async () =>
+      Promise.all(
+        probes.map(async (probe) => {
+          const res =
+            probe.method === 'GET' ? await h.call(probe.path, { method: 'GET', cookie: ruiCookie }) : await h.json(probe.path, probe.body, { cookie: ruiCookie });
+          return { path: probe.path, status: res.status, code: res.status === 401 ? await codeOf(res) : null };
+        }),
+      );
+    // Active: get-session answers (the session is live).
+    expect((await h.call('/api/auth/get-session', { method: 'GET', cookie: ruiCookie })).status).toBe(200);
+    for (const route of ['pause', 'remove'] as const) {
+      await ok(await action(route, rui.userId, adminCookie));
+      expect(await answers()).toEqual(probes.map((probe) => ({ path: probe.path, status: 401, code: 'user_inactive' })));
+      expect((await db.select({ id: session.id }).from(session).where(eq(session.userId, rui.userId))).length).toBeGreaterThan(0);
+      await ok(await action('reactivate', rui.userId, adminCookie));
+      expect((await h.call('/api/auth/get-session', { method: 'GET', cookie: ruiCookie })).status).toBe(200);
+    }
+    // Sign-out of a paused user ends only his own session.
+    await ok(await action('pause', rui.userId, adminCookie));
+    const out = await h.json('/api/auth/sign-out', {}, { cookie: ruiCookie });
+    expect(out.status).toBe(200);
   });
 });
 

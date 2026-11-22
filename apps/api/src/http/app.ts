@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import { SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminRoleEvent, type AdminUserEvent, type Clock, type ErrorResponse, type NewId } from '@app/domain';
+import { activeUser, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminRoleEvent, type AdminUserEvent, type Clock, type ErrorResponse, type NewId } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -308,6 +308,17 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
     }),
   );
   app.use(PASSWORD_RESET_PATH, addressRateLimit({ rule: emailLimits.passwordResetAddress, trustProxy: emailLimits.trustProxy, ...(limitNow === undefined ? {} : { now: limitNow }) }));
+  // 2026-11-22 (Story 26.11): a pause or a remove keeps the user's sessions, so better-auth's own
+  // get-session must not answer for a user who is not active: it answers the same `401 user_inactive`
+  // as every other route. Sign-out stays open (it ends only his own session); sign-in is refused by
+  // the session hook of `auth.ts`.
+  const readSession = sessionMiddleware(options.auth, options.db);
+  app.use('/api/auth/get-session', async (c, next) => {
+    await readSession(c, async () => {});
+    const session = c.get('session');
+    if (session !== null && !activeUser(session)) throw new UserInactiveError();
+    await next();
+  });
   app.on(['GET', 'POST'], '/api/auth/*', (c) => (isAuthRoute(c.req.method, c.req.path) ? options.auth.handler(c.req.raw) : c.json(notFoundBody, 404)));
 
   app.route('/', createHealthRoutes(options.probes));

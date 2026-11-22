@@ -26,9 +26,9 @@ import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { UsersTabs } from '../users/users-tabs.tsx';
 import { LockIcon, PapeisGrid } from './papeis-grid.tsx';
 import { RoleNameDialog, type RoleNameSubmitResult } from './role-name-dialog.tsx';
-import { UsuariosTabs } from './usuarios-tabs.tsx';
 
 /*
  * Story 26.10 (`mockups/prototype/screens/93-papeis.html`, approved 2026-11-21): Papéis e
@@ -212,7 +212,7 @@ export function PapeisSurface() {
 
   return (
     <main className="screen" data-route="/usuarios/papeis">
-      <UsuariosTabs selected="/usuarios/papeis" />
+      <UsersTabs current="papeis" />
       <div className="screen-wrap pp-wrap">
         <div className={['content', 'pp-root', many && 'pp-many', saved && 'is-saved'].filter(Boolean).join(' ')} data-picked={pickedId ?? undefined}>
           <div className="pp-head">

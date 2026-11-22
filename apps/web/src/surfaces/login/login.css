@@ -31,3 +31,36 @@
 .login-form .btn-reason {
   text-align: center;
 }
+
+/* Story 26.6, from `10-login.html` (`.login-forgot`) and `11-login-esqueci.html`,
+   `14-definir-senha-expirado.html` (`.login-form .btn-text`): a Text button centred in the form. */
+.login-forgot,
+.login-form .btn-text {
+  align-self: center;
+}
+
+/* Story 26.6, from `11-login-esqueci.html`, `13-definir-senha.html` and `14-definir-senha-expirado.html`:
+   the heading of the request, the set-password and the expired pages. */
+.login-form h2 {
+  font-size: var(--t-heading-size);
+  font-weight: var(--t-heading-weight);
+  line-height: var(--t-heading-lh);
+}
+
+/* Story 26.6, from `11-login-esqueci.html`: the request and its answer, each a column of the form. */
+.fg-ask,
+.fg-sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Story 26.6 (authored look): the "Senha criada" line the set-password page carries to Login, drawn
+   as a toast in `13-definir-senha.html`; Login has no toast outlet, so it takes the declarations of
+   `components.css` `.login-form .login-offline`. */
+.login-notice {
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  color: var(--ink-secondary);
+  text-align: center;
+}

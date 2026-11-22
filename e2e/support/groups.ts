@@ -488,6 +488,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'Story 26.5: loads its worker\'s own copy of the Porto Seguro fixture into Empresa B for each role walk; it generates no document and times no tap',
   },
+  // Batch e26d (Story 26.11): 26.11-E2E-001 types five readings into a sheet of the fixture while offline.
+  {
+    file: 'paused-user-unsent.durability.spec.ts',
+    lane: 'queue',
+    why: 'Story 26.11: loads its worker\'s own copy of the Porto Seguro fixture into Empresa B and types five readings into its sheet; it generates no document and times no tap',
+  },
   {
     file: 'corrected-column-fit.spec.ts',
     lane: 'solo',

@@ -4,6 +4,8 @@ import {
   registrationOfUserRow,
   KEEP_SCREEN_ON_DEFAULT,
   keepScreenOnSubText,
+  pausedSignOutNoteText,
+  pausedSignOutText,
   registrationRowText,
   signOutUnsentText,
   storageLine,
@@ -143,6 +145,10 @@ export function AccountSurface() {
   const loadedUserRow = useLiveQuery(() => (db === null || userId === null ? Promise.resolve(null) : localUser(db, userId)), [db, userId]);
   const userRow = loadedUserRow ?? null;
   const userRowPending = db !== null && userId !== null && loadedUserRow === undefined;
+  // Story 26.11 (frame 94-conta-pausada.html): while the account is paused, what waits on the device
+  // is counted for the Sessão note, since it cannot be sent before the reactivation.
+  const paused = session.reAuthCause === 'paused';
+  const pausedUnsent = useLiveQuery(() => (db === null || !paused ? Promise.resolve(0) : unsentCount(db).catch(() => 0)), [db, paused], 0);
 
   const geolocationDenied = useGeolocationDenied(db);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -210,7 +216,11 @@ export function AccountSurface() {
   const storage =
     usageBytes === undefined ? null : storageLine({ usage_bytes: usageBytes, relatorios: relatorios.length, photos, photos_awaiting: sync.counts.photos_pending });
   const pending = sync.pendingText;
-  const signOutNote = pending === '' ? copy.account.signOutNote : copy.account.signOutNotePending(pending);
+  const signOutNote =
+    paused && pausedUnsent > 0 ? pausedSignOutNoteText(pausedUnsent) : pending === '' ? copy.account.signOutNote : copy.account.signOutNotePending(pending);
+  // Story 26.11: "Sair" with unsent work while paused says the work cannot be sent now and is deleted;
+  // Cancelar stays the default action (the Confirm dialog focuses it first).
+  const pausedDialog = paused && unsent !== null && unsent > 0;
 
   const registration = userRow === null ? user : registrationOfUserRow(userRow);
   const council = registration.council ?? 'crea';
@@ -536,9 +546,17 @@ export function AccountSurface() {
       <ConfirmDialog
         isOpen={confirmingSignOut}
         onOpenChange={setConfirmingSignOut}
-        title={unsent === 0 ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
-        description={unsent === 0 ? copy.account.signOutDialogBody : unsent === null ? copy.account.signOutUnsentUnknown : signOutUnsentText(unsent)}
-        confirmLabel={copy.account.signOutConfirm}
+        title={pausedDialog ? copy.pausedAccount.signOutTitle : unsent === 0 ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
+        description={
+          pausedDialog
+            ? pausedSignOutText(unsent ?? 0)
+            : unsent === 0
+              ? copy.account.signOutDialogBody
+              : unsent === null
+                ? copy.account.signOutUnsentUnknown
+                : signOutUnsentText(unsent)
+        }
+        confirmLabel={pausedDialog ? copy.pausedAccount.signOutConfirm : copy.account.signOutConfirm}
         cancelLabel={copy.account.cancel}
         isDestructive
         onConfirm={() => void signOut()}

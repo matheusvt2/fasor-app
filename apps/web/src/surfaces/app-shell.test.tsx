@@ -177,6 +177,22 @@ describe('AppShell banner slot, live region and toast', () => {
     }
   });
 
+  it('26.11 a paused account takes the slot with its own banner, no "Entrar de novo"', () => {
+    sessionState = { ...sessionState, reAuthRequired: true, reAuthCause: 'paused' };
+    try {
+      const { container } = renderShell();
+      expect(container.querySelectorAll('.banner')).toHaveLength(1);
+      expect(container.querySelector('.banner')).toHaveAttribute('data-banner', 'paused');
+      expect(container.querySelector('.banner')).toHaveAttribute('role', 'status');
+      expect(container.querySelector('.banner')).toHaveTextContent(
+        'Conta pausada. O que você preencher fica salvo neste aparelho e é enviado quando o administrador reativar a sua conta.',
+      );
+      expect(screen.queryByRole('button', { name: 'Entrar de novo' })).toBeNull();
+    } finally {
+      sessionState = { ...sessionState, reAuthRequired: false, reAuthCause: null };
+    }
+  });
+
   it('a surface can raise a toast through the shell outlet', async () => {
     renderShell();
     await userEvent.click(screen.getByRole('button', { name: 'avisar' }));

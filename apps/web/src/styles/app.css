@@ -1363,12 +1363,12 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
 /* ---------- Story 26.10: Papéis e permissões ----------
    `mockups/prototype/screens/93-papeis.html` `<style data-screen="papeis">`, translated per AGENTS.md § Mock container
    selectors. The `[data-route="/usuarios/papeis"]` prefix is dropped for the screen's own `.pp-*` scope: the content root
-   carries `.pp-root`, the tab strip `.pp-tabs`, the column wrapper `.pp-wrap` beside the mock's `.screen-wrap`, and a role
+   carries `.pp-root`, the column wrapper `.pp-wrap` beside the mock's `.screen-wrap`, and a role
    head's menu `.pp-role-menu`. `.frame-phone` becomes `max-width: 767.98px`, `.frame-tablet` 768-1279.98px,
    `.frame-tablet-landscape` 1024-1279.98px, `.frame-desktop` 1280px and up. Declarations verbatim. The mock's
    `.chip[role="radio"][aria-checked="true"]` mirror is the app-wide rule above (Story 26.5's chips); the mock's
    `.screen-wrap:has(.pp-root.is-saved) .pp-save, .pp-discard { opacity: .4 }` is the disabled `.btn`'s own `.4`. */
-.pp-tabs .tab { text-decoration: none; }
+[data-route="/usuarios/papeis"] .tab { text-decoration: none; }   /* the frame's `[data-route="/usuarios/papeis"] .tab`; the row is Story 26.9's `UsersTabs` */
 .pp-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }
 .pp-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
 .pp-admin-note { display: flex; align-items: flex-start; gap: var(--sp-2); margin-bottom: var(--sp-4); }
@@ -1454,4 +1454,64 @@ button.pp-mod-toggle { cursor: pointer; }
   .pp-root.pp-many .pp-corner { width: auto; }
   .pp-root.pp-many .pp-role { width: 104px; }
   .pp-root.pp-many .pp-grid .is-unpicked { display: none; }
+/* ---------- Story 26.9 (Usuarios) ----------
+   `mockups/prototype/screens/92-usuarios.html` `<style data-screen="usuarios">`, declarations verbatim. The screen's
+   `<main data-route="/usuarios">` is the mock's `[data-route="/usuarios"]`. Left out on purpose: the prototype's
+   `:has()` filter rules and `.usr-count-*` toggles (the kernel filters, `filterUserList`, and writes the count line),
+   `.sim-foot` (prototype only), `.chip[role="radio"][aria-checked="true"]` (already mirrored once above, F-SPEC-6),
+   and the `.combobox-list`/`.combobox-option` rules (the Combobox's list is a portaled popover the component
+   styles). `.usr-new` is the head's `.btn` (the `Button` component takes no class). */
+[data-route="/usuarios"] .tab { text-decoration: none; }
+[data-route="/usuarios"] .usr-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+[data-route="/usuarios"] .usr-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/usuarios"] .usr-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-4); }
+[data-route="/usuarios"] .usr-filters .usr-f-status { flex: 1 1 420px; min-width: 0; }
+[data-route="/usuarios"] .usr-filters .usr-f-role { flex: 0 1 280px; min-width: 0; position: relative; }
+[data-route="/usuarios"] .chip[role="radio"] { cursor: pointer; }
+[data-route="/usuarios"] .usr-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/usuarios"] .usr-row { padding-left: var(--sp-1); }
+[data-route="/usuarios"] .usr-row .rr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/usuarios"] .usr-row .rr-primary { font-weight: 600; }
+[data-route="/usuarios"] .usr-row .rr-secondary { overflow-wrap: anywhere; }
+[data-route="/usuarios"] .usr-row .usr-you { font-weight: 400; color: var(--ink-secondary); }
+[data-route="/usuarios"] .usr-row .avatar { flex: none; }
+[data-route="/usuarios"] .usr-row .usr-state { flex: none; }
+[data-route="/usuarios"] .usr-row[data-status="removido"] .avatar { background: var(--surface-sunken); color: var(--ink-secondary); }
+/* the user status words (Status pill, page CSS on existing tokens) */
+[data-route="/usuarios"] .status-pill[data-status="ativo"] { color: var(--conforme); }
+[data-route="/usuarios"] .status-pill[data-status="convite"] { color: var(--primary); }
+[data-route="/usuarios"] .status-pill[data-status="pausado"] { color: var(--fora-do-limite); }
+[data-route="/usuarios"] .status-pill[data-status="removido"] { color: var(--ink-secondary); border-style: dashed; }
+/* Empty */
+[data-route="/usuarios"] .usr-empty { display: none; padding: var(--sp-6) var(--sp-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--r-md); }
+[data-route="/usuarios"] .usr-empty p { margin-bottom: var(--sp-2); }
+[data-route="/usuarios"] .usr-root.is-empty .usr-list, [data-route="/usuarios"] .usr-root.is-empty .usr-count { display: none; }
+[data-route="/usuarios"] .usr-root.is-empty .usr-empty { display: block; }
+/* Offline: the list stays, every action is disabled, one line says why */
+[data-route="/usuarios"] .usr-offline { display: none; margin-bottom: var(--sp-3); }
+[data-route="/usuarios"] .usr-root.is-offline .usr-offline { display: block; }
+[data-route="/usuarios"] .usr-root.is-offline .usr-head .btn, [data-route="/usuarios"] .usr-root.is-offline .usr-row .overflow-trigger { opacity: .4; pointer-events: none; }
+[data-route="/usuarios"] .usr-count { margin: var(--sp-2) 0 0; }
+/* Dialogs: portaled out of the route, so `.usr-dialog` (the user dialog's `.form-dialog`) stands for the route scope. */
+.usr-dialog.form-dialog .option-row { cursor: pointer; min-height: var(--touch-field); padding: var(--sp-2) var(--sp-3); }
+.usr-dialog.form-dialog .option-row.is-selected .radio { border-color: var(--primary); }   /* mirrors .radio.is-on */
+.usr-dialog.form-dialog .option-row.is-selected .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+.usr-dialog.form-dialog .option-row[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+.usr-dialog.form-dialog .lr-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.usr-dialog .role-options { display: flex; flex-direction: column; gap: var(--sp-2); }
+.usr-dialog .input.is-invalid { border: 2px solid var(--nao-conforme); }   /* mirrors components.css .login-form .input.is-invalid */
+.usr-dialog .dialog-banner { margin: 0; }
+/* the frame's inline style on "Ver o que cada papel pode" */
+.usr-dialog .usr-see-roles { align-self: flex-start; margin-left: calc(-1 * var(--sp-3)); }
+/* `.frame-phone [data-route="/usuarios"] X` (AGENTS.md § Mock container selectors). The frame's
+   `.frame-phone [data-route="/usuarios"] .confirm-dialog { margin: auto var(--sp-4) }` is not translated: the
+   Confirm dialog of every screen shares one class, and the route cannot scope a portaled dialog. */
+@media (max-width: 767.98px) {
+  [data-route="/usuarios"] .usr-head .btn { width: 100%; }
+  [data-route="/usuarios"] .usr-filters .usr-f-role { flex-basis: 100%; }
+  [data-route="/usuarios"] .usr-row { flex-wrap: wrap; row-gap: 0; }
+  [data-route="/usuarios"] .usr-row .rr-text { flex: 1 1 0; }
+  [data-route="/usuarios"] .usr-row .usr-state { order: 5; flex-basis: 100%; padding: 0 0 var(--sp-1) 48px; }
+  .dialog-scrim:has(.usr-dialog) { padding: 0; align-items: stretch; }
+  .usr-dialog.form-dialog { border-radius: 0; min-height: 100%; }
 }

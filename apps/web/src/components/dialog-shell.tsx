@@ -17,6 +17,8 @@ export interface DialogShellProps {
   onOpenChange?: (isOpen: boolean) => void;
   'aria-labelledby': string;
   'aria-describedby'?: string;
+  /** Story 26.9: `alertdialog` for a refusal that only informs (the last-Admin "Não é possível"); `dialog` by default. */
+  role?: 'dialog' | 'alertdialog';
   children: ReactNode | ((options: { close: () => void }) => ReactNode);
 }
 
@@ -50,7 +52,7 @@ const TABBABLE = [
  *   when the dialog closes from inside (a save that re-renders the surface) and the focus
  *   ends on `<body>` instead, the opener recorded here takes it back.
  */
-export function DialogShell({ className, overlayClassName, isOpen, onOpenChange, children, ...aria }: DialogShellProps) {
+export function DialogShell({ className, overlayClassName, isOpen, onOpenChange, role, children, ...aria }: DialogShellProps) {
   useReturnFocus(isOpen);
 
   const markModal = useCallback((element: HTMLElement | null) => {
@@ -72,7 +74,7 @@ export function DialogShell({ className, overlayClassName, isOpen, onOpenChange,
       onOpenChange={onOpenChange}
     >
       <Modal className="dialog-modal">
-        <Dialog className={className} {...aria} ref={markModal}>
+        <Dialog className={className} {...(role === undefined ? {} : { role })} {...aria} ref={markModal}>
           {children}
         </Dialog>
       </Modal>

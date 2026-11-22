@@ -1,4 +1,4 @@
-import { userProfileSchema, type UserProfile } from '@app/domain';
+import { userProfileSchema, type ReAuthCause, type UserProfile } from '@app/domain';
 
 /**
  * Who was signed in on this origin last time, cached so a cold open with no signal
@@ -54,16 +54,29 @@ export function clearLastSession(): void {
  * profile) or a sign-out; dismissing the banner hides it for the open tab only.
  */
 export function readReAuthRequired(): boolean {
+  return readReAuthCause() !== null;
+}
+
+/**
+ * Story 26.11: the stored value also says why. `'1'` (what every earlier build wrote, still read as
+ * it was) is an ended session; `'paused'` is a paused or removed account (the `user_inactive` 401).
+ * Null when no 401 stands.
+ */
+const PAUSED_VALUE = 'paused';
+
+export function readReAuthCause(): ReAuthCause | null {
   try {
-    return window.localStorage.getItem(RE_AUTH_KEY) === '1';
+    const raw = window.localStorage.getItem(RE_AUTH_KEY);
+    return raw === '1' ? 'expired' : raw === PAUSED_VALUE ? 'paused' : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function writeReAuthRequired(required: boolean): void {
+/** Story 26.11: `cause` (default `expired`) is remembered beside the flag and cleared with it. */
+export function writeReAuthRequired(required: boolean, cause: ReAuthCause = 'expired'): void {
   try {
-    if (required) window.localStorage.setItem(RE_AUTH_KEY, '1');
+    if (required) window.localStorage.setItem(RE_AUTH_KEY, cause === 'paused' ? PAUSED_VALUE : '1');
     else window.localStorage.removeItem(RE_AUTH_KEY);
   } catch {
     // Blocked storage: the banner still shows for this session, only not across a reopen.
