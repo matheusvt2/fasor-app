@@ -213,7 +213,7 @@ describe('14.11 the oil rule on the nameplate', () => {
     const vol = screen.getByRole('textbox', { name: 'Vol. óleo' });
     expect(vol.getAttribute('aria-readonly')).toBe('true');
     expect(vol.textContent).toContain('—');
-    expect(vol.closest('.field')!.querySelector('.helper')!.textContent).toBe('Não se aplica: TIPO DE ISOLAÇÃO é Á SECO.');
+    expect(vol.closest('.field')!.querySelector('.helper')!.textContent).toBe('Não se aplica: Tipo de isolação é Á SECO.');
     expect(screen.queryByRole('button', { name: 'Marcar Vol. óleo como não aplicável' })).toBeNull();
     expect(document.querySelector('#ficha-nameplate [data-missing-field]')?.textContent ?? '').not.toContain('Vol. óleo');
   });

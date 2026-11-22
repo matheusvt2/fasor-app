@@ -1,4 +1,4 @@
-import { getSeed, newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
+import { getSeed, NC_CAPTION_LEAD, newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -81,7 +81,8 @@ const LUVAS = 'luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_va
 const TAPETE = 'tapete_ou_estrado_isolante';
 const BACIA = 'bacia_de_contencao_de_oleo';
 const EMERGENCIA = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
-const CAPTION = 'Verificação de iluminação de emergência (autonomia mínima de 2 h) do Cubículo Enel';
+// Story 27.9 (F40, seed v17): the photo of an item answered NC names the non-conformity; was "Verificação de iluminação…".
+const CAPTION = `${NC_CAPTION_LEAD} iluminação de emergência (autonomia mínima de 2 h) do Cubículo Enel`;
 const NC_PHRASE = 'Autonomia abaixo de 2 h';
 const NA_NOTE = 'Sem equipamento a óleo no local';
 const POINT_ACTION = 'Substituir as baterias';
@@ -454,8 +455,9 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   const [point] = await pointsOf(page, relatorioId);
   // Story 22.5: written from the NC item (origin nc, its item), citing the item's photo.
   expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION });
-  expect(point!.text.endsWith(` ${photoToken(photoId)}`)).toBe(true);
-  const entryText = point!.text.slice(0, -` ${photoToken(photoId)}`.length);
+  // Story 27.9 (F36, seed v17): the photo closes the text as a clause, ", conforme ⟨token⟩"; was the bare token after a space.
+  expect(point!.text.endsWith(`, conforme ${photoToken(photoId)}`)).toBe(true);
+  const entryText = point!.text.slice(0, -`, conforme ${photoToken(photoId)}`.length);
   expect(entryText).toMatch(/^Item \d+ \(.+\): .+$/);
 
   // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
@@ -897,12 +899,12 @@ test('@p0 14.3-E2E-007 Epic 14 QA Q-5: a local with no equipment fills its CARAC
   await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('19');
 });
 
-test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC abertos", the tap focuses the local\'s site row, Etapa 6 suggests Apto com restrições and the summary names the item; the local removed, neither carries it', async ({ page }) => {
+test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC abertas", the tap focuses the local\'s site row, Etapa 6 suggests Apto com restrições and the summary names the item; the local removed, neither carries it', async ({ page }) => {
   test.setTimeout(180_000);
   // One local, Cubículo Enel, with no equipment: the only NC the relatório can hold is a site item.
   const { relatorioId, enelId } = await setUp(page, 1280);
   const summary = page.getByRole('group', { name: 'Resumo do relatório' });
-  await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '0 NC abertas', exact: true })).toBeVisible();
 
   await openSurface(page, relatorioId, enelId);
   await seg(page, EMERGENCIA, 'Não conforme').click();
@@ -911,7 +913,7 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
 
   // The Sumário counts it; the tap opens section 9 and moves the focus to the local's "Verificações do local".
   await openSumario(page, relatorioId);
-  const nc = summary.getByRole('button', { name: '1 NC aberto', exact: true });
+  const nc = summary.getByRole('button', { name: '1 NC aberta', exact: true });
   await expect(nc).toBeVisible();
   await nc.click();
   await expect(tree(page)).toBeVisible();
@@ -948,7 +950,7 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(confirm).toBeHidden();
   await expect(local(page, ENEL)).toHaveCount(0);
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `location/${enelId}/removed_at` && op.kind === 'remove')).toBe(true);
-  await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '0 NC abertas', exact: true })).toBeVisible();
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   // No sheet and no site NC left: the derived verdict is Apto, so no reason line at all; Story

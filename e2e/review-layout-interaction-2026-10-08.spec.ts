@@ -747,7 +747,7 @@ test('@p0 R8LAY-E2E-008 DA-1 the phone\'s "Novo relatório" dialogs fit the view
     await expectDialogFits(first, `${where} Novo relatório`, phone);
     await first.getByRole('combobox', { name: 'Cliente' }).fill(`${CLIENT} ${size.width}`);
     await page.getByRole('option', { name: `Criar “${CLIENT} ${size.width}”` }).click();
-    await first.getByRole('combobox', { name: 'Local (obra)' }).fill(`${SITE} ${size.width}`);
+    await first.getByRole('combobox', { name: 'Obra' }).fill(`${SITE} ${size.width}`);
     await page.getByRole('option', { name: `Criar “${SITE} ${size.width}”` }).click();
     const proceed = first.getByRole('button', { name: 'Continuar' });
     await proceed.scrollIntoViewIfNeeded();

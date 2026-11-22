@@ -1,4 +1,4 @@
-import { photoStampFull, photoStampShort } from '@app/domain';
+import { NC_CAPTION_LEAD, photoStampFull, photoStampShort } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { exifJpeg, plainJpeg, png, type FilePayload } from './fixtures/photos/synthetic.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -31,7 +31,8 @@ test.beforeEach(({ seed }) => {
   database = deviceDatabaseName(account.userId);
 });
 const SHEET_CAPTION = 'Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel';
-const NC_CAPTION = 'Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel';
+// Story 27.9 (F40, seed v17): a photo on an NC row names the non-conformity; was "Detalhe da verificação de contatos realizada…".
+const NC_CAPTION = `${NC_CAPTION_LEAD} contatos na chave seccionadora SEC-ENEL do Cubículo Enel`;
 
 const toast = (page: Page) => page.getByTestId('toast');
 const contatos = (page: Page) => page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
@@ -162,9 +163,9 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   }
   expect(photos.map((photo) => photo.caption)).toEqual([NC_CAPTION, SHEET_CAPTION, 'Detalhe da chave seccionadora SEC-OXIGENIO do Oxigênio']);
 
-  // The local filter (Story 14.2: "Todos" agrees with "locais"): "Todos" first, then the locais in tree order.
+  // The local filter (Story 27.9: "Todas" agrees with "fotos"): "Todas" first, then the locais in tree order.
   const filter = page.getByRole('radiogroup', { name: 'Filtrar por local' });
-  await expect(filter.getByRole('radio')).toHaveText(['Todos', 'Cubículo Enel', 'Oxigênio']);
+  await expect(filter.getByRole('radio')).toHaveText(['Todas', 'Cubículo Enel', 'Oxigênio']);
   await filter.getByRole('radio', { name: 'Cubículo Enel' }).click();
   await expect(items).toHaveCount(2);
   await expect(page.getByTestId('gallery-filter-status')).toHaveText('Mostrando 2 fotos do Cubículo Enel');
@@ -172,7 +173,7 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   await expect(items).toHaveCount(1);
   await expect(items.first().locator('.number-badge')).toHaveText('3');
   await expect(page.getByTestId('gallery-filter-status')).toHaveText('Mostrando 1 foto do Oxigênio');
-  await filter.getByRole('radio', { name: 'Todos' }).click();
+  await filter.getByRole('radio', { name: 'Todas' }).click();
   await expect(items).toHaveCount(3);
   await expect(page.getByTestId('gallery-filter-status')).toHaveText('Mostrando 3 fotos');
 
@@ -690,11 +691,11 @@ test('@p0 6.5-E2E-003 E6-Q3 at 390 px: the composer shows the photo on top, and 
   const oxigenio = local.getByRole('button', { name: 'Oxigênio', exact: true });
   await oxigenio.scrollIntoViewIfNeeded();
   await oxigenio.click();
-  await expect(preview).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Oxigênio');
+  await expect(preview).toHaveText(`${NC_CAPTION_LEAD} contatos na chave seccionadora SEC-ENEL do Oxigênio`);
   await expect(preview).toBeInViewport();
   await expect(save).toBeInViewport();
   await save.click();
-  await expect(itemOf(page, photo!.id).locator('.photo-meta')).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Oxigênio');
+  await expect(itemOf(page, photo!.id).locator('.photo-meta')).toHaveText(`${NC_CAPTION_LEAD} contatos na chave seccionadora SEC-ENEL do Oxigênio`);
 });
 
 test('@p1 6.4-E2E-009 E6-Q13: "ou arraste para cá" is said on a computer, never on a phone', async ({ page }) => {

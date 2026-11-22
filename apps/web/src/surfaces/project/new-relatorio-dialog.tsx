@@ -64,7 +64,6 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
   const t = copy.newRelatorio;
   const descriptionId = useId();
   const typeLabelId = useId();
-  const typeNoteId = useId();
   const helperId = useId();
 
   const pickable = useMemo(() => pickableTemplates(templates), [templates]);
@@ -151,7 +150,8 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
         {t.descriptionTail}
       </p>
 
-      <div className="field" role="radiogroup" aria-labelledby={typeLabelId} aria-describedby={typeNoteId}>
+      {/* Story 27.9 (F39): the note "Único tipo disponível nesta versão" left the dialog. */}
+      <div className="field" role="radiogroup" aria-labelledby={typeLabelId}>
         <span className="field-label" id={typeLabelId}>
           {t.typeLabel}
         </span>
@@ -163,9 +163,6 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
             <span className="lr-meta">{t.typeMeta}</span>
           </span>
         </div>
-        <span className="type-note" id={typeNoteId}>
-          {t.typeNote}
-        </span>
       </div>
 
       <div className="field-stack">

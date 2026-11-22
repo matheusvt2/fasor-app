@@ -239,7 +239,8 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
   // Story 22.5: the point names the row (its origin and item).
   expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
-  expect(point.text).toBe(`Contato com sinais de aquecimento ${entryText} ${photoToken(photoId)}`);
+  // Story 27.9 (F36, seed v17): the photo closes the text as a clause, ", conforme ⟨token⟩".
+  expect(point.text).toBe(`Contato com sinais de aquecimento ${entryText}, conforme ${photoToken(photoId)}`);
 
   // The Points surface titles it by the equipment; it is the one card (fix batch e24h: no automatic entry).
   await page.goto(`/relatorio/${relatorioId}/pontos`);

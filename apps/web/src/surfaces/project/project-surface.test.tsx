@@ -152,6 +152,9 @@ describe('4.1 ProjectSurface', () => {
     expect(container.querySelector('.crumbs')).toHaveTextContent(/^Início.*Seguradora Exemplo S\.A\..*Blocos Norte e Sul$/);
     expect(container.querySelector('.project-meta')).toHaveTextContent(/Cliente\s*Seguradora Exemplo S\.A\./);
     expect(container.querySelector('.project-meta')).toHaveTextContent(/Relatórios\s*0$/);
+    // Story 27.9 (F38): the place label reads "Obra", was "Obra / local".
+    expect([...container.querySelectorAll('.project-meta dt')].map((dt) => dt.textContent)).toContain('Obra');
+    expect(container.querySelector('.project-meta')).not.toHaveTextContent('Obra / local');
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -58,7 +58,7 @@ const skeletonHeading = (page: Page) => page.locator('.composer-main h2').first(
 /** The standard template's Coluna 9 of 1º Subsolo, which holds no equipment. */
 const ORPHAN_REF = 'subsolo-1/coluna-9';
 const EMPTY = 'Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.';
-const STANDARD_SUMMARY = `Semente ${SEED_VERSION} · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`;
+const STANDARD_SUMMARY = `9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`;
 const STANDARD_TOTALS =
   '25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios';
 

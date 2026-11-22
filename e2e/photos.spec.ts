@@ -1,4 +1,4 @@
-import { photoStampFull, photoStampShort } from '@app/domain';
+import { NC_CAPTION_LEAD, photoStampFull, photoStampShort } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet, shoot } from './support/photos.ts';
@@ -117,7 +117,8 @@ test('@p0 6.1-E2E-002 an NC row\'s "Adicionar foto" shoots two photos that show 
   await add.click();
   const camera = await expectCameraOpen(page);
   await expect(camera.locator('.cam-context')).toHaveText(
-    'Contexto: Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel',
+    // Story 27.9 (F40, seed v17): a photo on an NC row names the non-conformity.
+    `Contexto: ${NC_CAPTION_LEAD} contatos na chave seccionadora SEC-ENEL do Cubículo Enel`,
   );
   await shoot(page, 2);
   await camera.getByRole('button', { name: 'Concluir fotos' }).click();
@@ -128,7 +129,7 @@ test('@p0 6.1-E2E-002 an NC row\'s "Adicionar foto" shoots two photos that show 
   const tiles = row.locator('.photo-list .photo-row');
   await expect(tiles).toHaveCount(2);
   for (let i = 0; i < 2; i++) {
-    await expect(tiles.nth(i).locator('.photo-meta')).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel');
+    await expect(tiles.nth(i).locator('.photo-meta')).toHaveText(`${NC_CAPTION_LEAD} contatos na chave seccionadora SEC-ENEL do Cubículo Enel`);
     await expect(tiles.nth(i).locator('.upload-pill')).toHaveText('Aguardando envio');
     await expect(tiles.nth(i).locator('.upload-pill')).toHaveAttribute('data-state', 'pending');
     await expect(tiles.nth(i).locator('img.thumb-img')).toBeVisible();

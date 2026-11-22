@@ -268,7 +268,7 @@ describe('3.3 Templates: list', () => {
     const first = within(list).getAllByRole('listitem')[0]!;
     expect(first).toHaveClass('registry-row', 'tpl-row');
     expect(first.querySelector('.rr-secondary')).toHaveTextContent(
-      `Semente ${SEED_VERSION} · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`,
+      `9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`,
     );
     expect(within(first).getByRole('button', { name: 'Abrir template Cabine primária — padrão' })).toHaveClass('rr-text');
     expect(within(first).getByRole('button', { name: 'Duplicar' })).toBeVisible();

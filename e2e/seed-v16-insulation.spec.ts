@@ -98,7 +98,7 @@ test('@p0 25.19-E2E-001 at 1024: a v16 transformer, TP and TC copied from a v15 
     // The dry rules, as on the older seed: every oil item NA with no tap, VOL. ÓLEO not asked and says why.
     for (const key of definition.oil_rule!.items) await expect(checked(page, key), `${type} ${key}`).toHaveAttribute('data-value', 'na');
     await expect(page.locator('#ficha-nameplate .field', { has: page.getByRole('textbox', { name: 'Vol. óleo', exact: true }) }).locator('.helper'), type).toHaveText(
-      `Não se aplica: TIPO DE ISOLAÇÃO é ${DRY}.`,
+      `Não se aplica: Tipo de isolação é ${DRY}.`,
     );
   }
 

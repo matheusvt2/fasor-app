@@ -115,7 +115,7 @@ test('@p0 24.11-E2E-001 at 1024: a v14 oil transformer asks 17 items with the th
   const dry = await blockOf(page, dryId);
   const volLabel = screenLabel(TF.nameplate.find((one) => one.key === 'vol_oleo')!.label);
   const reason = oilFieldExcusedReason(dry, 'vol_oleo', EMPTY_DEFINITION_CONTEXT);
-  expect(reason).toBe('Não se aplica: TIPO DE ISOLAÇÃO é EPÓXI.');
+  expect(reason).toBe('Não se aplica: Tipo de isolação é EPÓXI.');
   await expect(readOnly(page, volLabel)).toHaveAttribute('aria-readonly', 'true');
   await expect(readOnlyHelper(page, volLabel)).toHaveText(reason!);
   // The oil sampling does not apply.
@@ -208,7 +208,7 @@ test('@p0 24.11-E2E-002 the crossing dry to oil clears the answered dry items in
     const block = await blockOf(page, sheet.blockId);
     expect(block.seed_version).toBe('v12');
     const reason = oilFieldExcusedReason(block, 'vol_oleo', EMPTY_DEFINITION_CONTEXT);
-    expect(reason, type).toBe('Não se aplica: TIPO DE ISOLAÇÃO é EPÓXI.');
+    expect(reason, type).toBe('Não se aplica: Tipo de isolação é EPÓXI.');
     await expect(readOnly(page, label), type).toHaveAttribute('aria-readonly', 'true');
     await expect(readOnlyHelper(page, label), type).toHaveText(reason!);
     await expect(page.locator('#ficha-nameplate [data-missing-field]').filter({ hasText: label })).toHaveCount(0);

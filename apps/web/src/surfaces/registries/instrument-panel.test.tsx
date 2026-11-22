@@ -134,6 +134,8 @@ describe('InstrumentPanel — ledger 310, another device edits the open instrume
     const { rerender } = render(panel({ ...instrument, calibration_interval_months: 12 }));
     const interval = screen.getByRole('spinbutton', { name: /^Intervalo de calibração \(meses\)/ });
     expect(interval).toHaveValue(12);
+    // Story 27.9 (F31): "Soma-se", was "Some-se".
+    expect(screen.getByText('Soma-se à calibração para calcular a validade')).toBeVisible();
     rerender(panel({ ...instrument, calibration_interval_months: 24, test_isolacao: { raw: '5', unit: 'kV' } }));
     expect(interval).toHaveValue(24);
     expect(screen.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Valor' })).toHaveValue('5');

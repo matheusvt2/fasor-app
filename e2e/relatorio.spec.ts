@@ -283,7 +283,7 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(sumarioTitles(page)).toHaveText(TITLES);
   const rows = sumario(page).getByRole('listitem');
   await expect(rows.nth(0).locator('.sum-ro')).toHaveText('sempre no início');
-  await expect(rows.nth(1).locator('.sum-ro')).toHaveText('montado sozinho');
+  await expect(rows.nth(1).locator('.sum-ro')).toHaveText('preenchido automaticamente');
   // Q2: the creation batch named the account as responsável, so the cover row does not ask for one.
   await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
   // Story 12.3: the cabines' empty data is pending on section 9 too (never blocking); F-03
@@ -613,7 +613,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   // Etapa 5 — Local: the altitude field is always typeable (geolocation here carries no
   // altitude, so the field stays empty rather than a false "0 m" reading); typed by hand and
   // confirmed once.
-  const altitudeInput = page.getByLabel('Altitude do site', { exact: true });
+  const altitudeInput = page.getByLabel('Altitude do local', { exact: true });
   await expect(altitudeInput).toHaveValue('');
   // Q8: with no reading nothing is suggested: no amber state, no "Sugerido" pill.
   const altitudeField = page.locator('.altitude-field');
@@ -621,14 +621,14 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(altitudeField.locator('.suggested-pill')).toHaveCount(0);
   await altitudeInput.fill('800');
   await page.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
+  await expect(page.getByText('Altitude do local: < 1000 m — confirmada')).toBeVisible();
   // Q8: "Alterar" reopens the confirmed altitude with its value kept and the focus in it.
-  await page.getByRole('button', { name: 'Alterar altitude do site' }).click();
+  await page.getByRole('button', { name: 'Alterar altitude do local' }).click();
   await expect(altitudeInput).toBeFocused();
   await expect(altitudeInput).toHaveValue('800');
   await altitudeInput.fill('820');
   await page.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
+  await expect(page.getByText('Altitude do local: < 1000 m — confirmada')).toBeVisible();
   await typeDate(setupRoot, 'Próxima intervenção recomendada', '15092027');
   await expect(setupRoot.getByRole('group', { name: 'Próxima intervenção recomendada' }).getByRole('spinbutton')).toHaveText(['15', '09', '2027']);
   await page.getByLabel('Justificativa').fill('Manutenção anual programada');

@@ -495,15 +495,15 @@ describe('4.2 SetupSurface', () => {
       row: { ...(relatorioRecord!.row as RelatorioRow), setup: { ...(relatorioRecord!.row as RelatorioRow).setup, site_altitude_m: 1200 } },
     });
     renderSetup();
-    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Altitude do site' })).toHaveValue(1200));
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Altitude do local' })).toHaveValue(1200));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
-    await waitFor(() => expect(screen.getByText('Altitude do site: 1200 m — confirmada')).toBeVisible());
+    await waitFor(() => expect(screen.getByText('Altitude do local: 1200 m — confirmada')).toBeVisible());
   });
 
   it('Q8: without a geolocation reading the altitude is a plain field, no "Sugerido" pill and no suggested state', async () => {
     database = await seeded();
     renderSetup();
-    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
     expect(input).toHaveValue(null);
     const field = input.closest('.altitude-field')!;
     expect(field).not.toHaveAttribute('data-state');
@@ -516,7 +516,7 @@ describe('4.2 SetupSurface', () => {
     try {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(input).toHaveValue(764));
       const field = input.closest('.altitude-field') as HTMLElement;
       expect(field).toHaveAttribute('data-state', 'suggested');
@@ -536,10 +536,10 @@ describe('4.2 SetupSurface', () => {
     try {
       database = await seeded();
       const first = renderSetup();
-      await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Altitude do site' })).toHaveValue(764));
+      await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Altitude do local' })).toHaveValue(764));
       first.unmount();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(input).toHaveValue(764));
       expect(input.closest('.altitude-field')).toHaveAttribute('data-state', 'suggested');
       expect(getCurrentPosition).toHaveBeenCalledTimes(1);
@@ -555,11 +555,11 @@ describe('4.2 SetupSurface', () => {
     try {
       database = await seeded();
       const first = renderSetup();
-      await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
       first.unmount();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       expect(input).toHaveValue(null);
       expect(getCurrentPosition).toHaveBeenCalledTimes(1);
     } finally {
@@ -583,12 +583,12 @@ describe('4.2 SetupSurface', () => {
     try {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(input).toHaveValue(764));
       await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
-      await screen.findByText('Altitude do site: < 1000 m — confirmada');
-      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
-      const reopened = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await screen.findByText('Altitude do local: < 1000 m — confirmada');
+      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do local' }));
+      const reopened = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       expect(reopened).toHaveValue(764);
       const field = reopened.closest('.altitude-field') as HTMLElement;
       expect(field).not.toHaveAttribute('data-state');
@@ -605,9 +605,9 @@ describe('4.2 SetupSurface', () => {
     const row = relatorioRecord!.row as RelatorioRow;
     await database.entities.put({ ...relatorioRecord!, row: { ...row, setup: { ...row.setup, site_altitude_m: 764, site_altitude_confirmed: true } } });
     renderSetup();
-    await screen.findByText('Altitude do site: < 1000 m — confirmada');
-    await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
-    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    await screen.findByText('Altitude do local: < 1000 m — confirmada');
+    await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do local' }));
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
     expect(input).toHaveValue(764);
     await waitFor(() => expect(input).toHaveFocus());
     const stored = (await database.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
@@ -621,19 +621,19 @@ describe('4.2 SetupSurface', () => {
     it('leaving the field for another one writes the typed value; a reload shows it', async () => {
       database = await seeded();
       const view = renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, '760');
       await userEvent.click(screen.getByRole('textbox', { name: 'Justificativa' }));
       await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
       view.unmount();
       renderSetup();
-      expect(await screen.findByRole('spinbutton', { name: 'Altitude do site' })).toHaveValue(760);
+      expect(await screen.findByRole('spinbutton', { name: 'Altitude do local' })).toHaveValue(760);
     });
 
     it('Enter writes the typed value', async () => {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, '760{Enter}');
       await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
     });
@@ -641,7 +641,7 @@ describe('4.2 SetupSurface', () => {
     it('an idle pause writes the typed value while the field keeps the focus', async () => {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, '760');
       expect(input).toHaveFocus();
       await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
@@ -650,7 +650,7 @@ describe('4.2 SetupSurface', () => {
     it('leaving the page with the value still typed writes it', async () => {
       database = await seeded();
       const view = renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, '760');
       view.unmount();
       await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([760]));
@@ -659,7 +659,7 @@ describe('4.2 SetupSurface', () => {
     it('text that is no number writes nothing and the field stays editable', async () => {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, 'abc');
       await userEvent.click(screen.getByRole('textbox', { name: 'Justificativa' }));
       await new Promise((resolve) => setTimeout(resolve, 700));
@@ -677,7 +677,7 @@ describe('4.2 SetupSurface', () => {
       const row = relatorioRecord!.row as RelatorioRow;
       await database.entities.put({ ...relatorioRecord!, row: { ...row, setup: { ...row.setup, site_altitude_m: 760 } } });
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(input).toHaveValue(760));
       expect(input).toHaveAttribute('data-telemetry', 'setup.altitude');
       input.focus();
@@ -695,7 +695,7 @@ describe('4.2 SetupSurface', () => {
       const row = relatorioRecord!.row as RelatorioRow;
       await database.entities.put({ ...relatorioRecord!, row: { ...row, setup: { ...row.setup, site_altitude_m: 760 } } });
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(input).toHaveValue(760));
       input.focus();
       Object.defineProperty(input, 'validity', { configurable: true, value: { badInput: true, valid: false } });
@@ -711,7 +711,7 @@ describe('4.2 SetupSurface', () => {
       vi.mocked(trackInputRefused).mockClear();
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       expect(input).toHaveAttribute('min', '-500');
       expect(input).toHaveAttribute('max', '9000');
       for (const outside of ['-501', '9001']) {
@@ -741,7 +741,7 @@ describe('4.2 SetupSurface', () => {
     it('a decimal typed is kept as typed while the field has the focus; the write rounds to whole metres', async () => {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, '812.5');
       await untilStored(altitudeOps, (ops) => expect(ops.map((op) => op.value)).toEqual([813]));
       expect(input).toHaveFocus();
@@ -754,7 +754,7 @@ describe('4.2 SetupSurface', () => {
       try {
         database = await seeded();
         const view = renderSetup();
-        const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+        const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
         await waitFor(() => expect(input).toHaveValue(764));
         await userEvent.click(input);
         await userEvent.click(screen.getByRole('textbox', { name: 'Justificativa' }));
@@ -781,7 +781,7 @@ describe('4.2 SetupSurface', () => {
         },
       });
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       const button = await screen.findByRole('button', { name: 'Concluir dados do relatório' });
       await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
       await userEvent.type(input, '760');
@@ -804,10 +804,10 @@ describe('4.2 SetupSurface', () => {
     it('"Confirmar" writes the altitude exactly once, with the confirmation', async () => {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await userEvent.type(input, '760');
       await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
-      await screen.findByText('Altitude do site: < 1000 m — confirmada');
+      await screen.findByText('Altitude do local: < 1000 m — confirmada');
       await untilStored(
         () => database!.outbox.where('path').equals('relatorio/setup/site_altitude_confirmed').toArray(),
         (ops) => expect(ops.map((op) => op.value)).toEqual([true]),
@@ -946,9 +946,9 @@ describe('4.2 SetupSurface', () => {
   });
 });
 
-describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave none', () => {
+describe('Story 17.6: "Altitude do local" takes N/A and says when the device gave none', () => {
   const HINT = 'O aparelho não informou a altitude: digite o valor ou marque N/A';
-  const NA_BUTTON = 'Marcar Altitude do site como não aplicável';
+  const NA_BUTTON = 'Marcar Altitude do local como não aplicável';
   const stub = (answer: (ok: PositionCallback, fail?: PositionErrorCallback | null) => void) => {
     const getCurrentPosition = vi.fn(answer);
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
@@ -971,7 +971,7 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
     try {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       const hint = await screen.findByText(HINT);
       expect(input).toHaveValue(null);
       expect(input).toHaveAccessibleDescription(HINT);
@@ -992,7 +992,7 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
     try {
       database = await seeded();
       renderSetup();
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(input).toHaveValue(764));
       expect(within(input.closest('.altitude-field') as HTMLElement).getByText('Sugerido')).toBeVisible();
       expect(screen.queryByText(HINT)).toBeNull();
@@ -1006,7 +1006,7 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
   it('B6: no geolocation API answers nothing: no hint, the control present', async () => {
     database = await seeded();
     renderSetup();
-    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
     expect(input).toHaveValue(null);
     expect(screen.getByRole('button', { name: NA_BUTTON })).toBeVisible();
     expect(screen.queryByText(HINT)).toBeNull();
@@ -1019,9 +1019,9 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
       renderSetup();
       await screen.findByText(HINT);
       await userEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
-      await screen.findByText('Altitude do site: N/A');
-      expect(screen.queryByRole('spinbutton', { name: 'Altitude do site' })).toBeNull();
-      expect(screen.getByRole('button', { name: 'Alterar altitude do site' })).toBeVisible();
+      await screen.findByText('Altitude do local: N/A');
+      expect(screen.queryByRole('spinbutton', { name: 'Altitude do local' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Alterar altitude do local' })).toBeVisible();
       await untilStored(storedSetup, (setup) => expect(setup).toMatchObject({ site_altitude_na: true, site_altitude_m: null }));
       const ops = (await database.outbox.toArray()).filter((op) => op.path === 'relatorio/setup/site_altitude_na' || op.path === 'relatorio/setup/site_altitude_m');
       expect(ops.map((op) => [op.path, op.value])).toEqual([
@@ -1038,22 +1038,22 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
   it('B7: tapping "N/A" over typed text ends with the mark and no number', async () => {
     database = await seeded();
     renderSetup();
-    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
     await userEvent.type(input, '12');
     await userEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
-    await screen.findByText('Altitude do site: N/A');
+    await screen.findByText('Altitude do local: N/A');
     await untilStored(storedSetup, (setup) => expect(setup).toMatchObject({ site_altitude_na: true, site_altitude_m: null }));
-    expect(screen.queryByRole('spinbutton', { name: 'Altitude do site' })).toBeNull();
+    expect(screen.queryByRole('spinbutton', { name: 'Altitude do local' })).toBeNull();
   });
 
   it('B7: a tap that leaves the focus in the field (WebKit) never writes the typed text after the mark', async () => {
     database = await seeded();
     renderSetup();
-    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
     await userEvent.type(input, '12');
     expect(input).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
-    await screen.findByText('Altitude do site: N/A');
+    await screen.findByText('Altitude do local: N/A');
     // Past the idle pause (500 ms) and the unmount flush.
     await new Promise((resolve) => setTimeout(resolve, 800));
     await untilStored(storedSetup, (setup) => expect(setup).toMatchObject({ site_altitude_na: true, site_altitude_m: null }));
@@ -1070,14 +1070,14 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
     try {
       database = await seeded();
       renderSetup();
-      await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       await waitFor(() => expect(answer).not.toBeNull());
       await userEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
-      await screen.findByText('Altitude do site: N/A');
+      await screen.findByText('Altitude do local: N/A');
       answer!();
       await new Promise((resolve) => setTimeout(resolve, 50));
-      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
-      const reopened = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do local' }));
+      const reopened = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       expect(reopened).toHaveValue(null);
       expect(within(reopened.closest('.altitude-field') as HTMLElement).queryByText('Sugerido')).toBeNull();
     } finally {
@@ -1091,8 +1091,8 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
       database = await seeded();
       await withSetup({ site_altitude_na: true, site_altitude_m: 900, site_altitude_confirmed: true });
       renderSetup();
-      await screen.findByText('Altitude do site: N/A');
-      expect(screen.queryByRole('spinbutton', { name: 'Altitude do site' })).toBeNull();
+      await screen.findByText('Altitude do local: N/A');
+      expect(screen.queryByRole('spinbutton', { name: 'Altitude do local' })).toBeNull();
       expect(screen.queryByText(/confirmada/)).toBeNull();
       expect(getCurrentPosition).not.toHaveBeenCalled();
     } finally {
@@ -1107,9 +1107,9 @@ describe('Story 17.6: "Altitude do site" takes N/A and says when the device gave
       renderSetup();
       await screen.findByText(HINT);
       await userEvent.click(screen.getByRole('button', { name: NA_BUTTON }));
-      await screen.findByText('Altitude do site: N/A');
-      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
-      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await screen.findByText('Altitude do local: N/A');
+      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do local' }));
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do local' });
       expect(input).toHaveValue(null);
       await waitFor(() => expect(input).toHaveFocus());
       expect(screen.getByText(HINT)).toBeVisible();
