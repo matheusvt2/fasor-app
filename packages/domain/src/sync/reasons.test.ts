@@ -67,4 +67,10 @@ describe('26.4-UNIT-001 rejectionCause: an op_forbidden the role explains', () =
     expect(rejectionCause({ error_code: null, path: 'relatorio/status' }, campo)).toBeNull();
     expect(rejectionCause(forbidden('not/a/path'), campo)).toBe('op_forbidden');
   });
+
+  it('e26r: an op that would reopen an issued relatório, refused for a role that does not issue, is the role\'s; a role that issues keeps op_forbidden', () => {
+    expect(rejectionCause(forbidden(`sheet/${ID}/observations`, 'x'), campo)).toBe(OP_FORBIDDEN_BY_ROLE);
+    expect(rejectionCause(forbidden('relatorio/status', 'em_revisao'), campo)).toBe(OP_FORBIDDEN_BY_ROLE);
+    expect(rejectionCause(forbidden(`sheet/${ID}/observations`, 'x'), systemRoleRow('responsavel_tecnico'))).toBe('op_forbidden');
+  });
 });

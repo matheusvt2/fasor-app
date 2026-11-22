@@ -1,5 +1,8 @@
 import {
+  ADMIN_ROLE_ROUTES,
   ADMIN_USER_ROUTES,
+  adminRoleListResponseSchema,
+  adminRoleRoutePath,
   adminUserListResponseSchema,
   adminUserResponseSchema,
   adminUserRoutePath,
@@ -8,19 +11,23 @@ import {
   PRODUTO,
   relatorioSetupPath,
   SYSTEM_ROLE_ROW_IDS,
+  userRolePath,
   type AdminUserRouteName,
 } from '@app/domain';
 import { and, eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { adminHarness, auth, db, sql, type Person } from '../admin/admin.test-support.ts';
 import { AdminUserError, createAdminUsersService } from '../admin/users.ts';
+import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from '../auth/auth.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
+import { roleOp } from '../db/roles.ts';
 import { account, ops, session, user } from '../db/schema.ts';
 import { createFakeEmailProvider } from '../email/fake.ts';
 import { fakeEmailToken, readFakeEmails, waitForFakeEmail } from '../email/fake-store.ts';
 import type { EmailProvider } from '../email/types.ts';
 import { newId } from '../ids.ts';
 import { now } from '../clock.ts';
+import { applyServerBatch } from '../sync/apply.ts';
 import { routeHarness, type Company } from '../sync/rules.test-support.ts';
 
 /*
@@ -29,6 +36,8 @@ import { routeHarness, type Company } from '../sync/rules.test-support.ts';
  * - 26.8-API-001: each route, its happy path and its state refusals; the invitation to first sign-in.
  * - 26.8-API-002: the last Admin (alone; two requests at once; lowering himself) and a paused user
  *   (401 at once, back with the same password after "reactivate").
+ * - e26r-API-001 to 003 (2026-11-22, review of Epic 26): a reactivation ends the kept sessions; the
+ *   inert session of a paused user does not slide; a reactivation needs a live role.
  * - 26.8-API-003: Gestor and Consulta 403 on every route; the tenant 404 on every route; the duplicate
  *   e-mail (a removed user's included); the shared e-mail limit; a removed responsável still named.
  */
@@ -141,7 +150,7 @@ describe('26.8-API-001 each route', () => {
     expect(await codeOf(await create({ name: 'Sem papel', email: 'x', role_id: 'admin' }, adminCookie))).toBe('invalid_request');
   });
 
-  it('pause, reactivate, remove: the state rules, the sessions kept and inert, the same password and the same sessions after reactivate', async () => {
+  it('pause, reactivate, remove: the state rules, the sessions kept and inert while paused, ended by reactivate, the same password after it', async () => {
     const cookie = await h.signIn(campoEmail, PASSWORD);
     const paused = await ok(await action('pause', campoId, adminCookie));
     expect(paused.user.status).toBe('paused');
@@ -157,8 +166,12 @@ describe('26.8-API-001 each route', () => {
 
     expect((await ok(await action('reactivate', campoId, adminCookie))).user.status).toBe('active');
     expect(await codeOf(await action('reactivate', campoId, adminCookie))).toBe('user_state_invalid');
-    // The kept session works again: nothing was signed out, so a paused device keeps its place.
-    expect((await h.call('/api/account', { method: 'GET', cookie })).status).toBe(200);
+    // 2026-11-22 (e26r, review of Epic 26; was "the kept session works again"): the reactivation
+    // ended the kept sessions, so the old cookie is no session at all; the same password signs in.
+    expect(await db.select({ id: session.id }).from(session).where(eq(session.userId, campoId))).toEqual([]);
+    const ended = await h.call('/api/account', { method: 'GET', cookie });
+    expect(ended.status).toBe(401);
+    expect(await codeOf(ended)).toBe('unauthenticated');
     await h.signIn(campoEmail, PASSWORD);
 
     expect((await ok(await action('remove', campoId, adminCookie))).user.status).toBe('removed');
@@ -256,8 +269,9 @@ describe('26.8-API-002 the last Admin and a paused user', () => {
     expect((await service.listUsers(actor)).filter((u) => u.role?.name === 'Admin' && u.status === 'active')).toHaveLength(1);
 
     // Through the routes too, in a company of exactly two Admins, each pausing the other at once. The
-    // one that loses is refused under the lock (409 last_admin), or, when the winner already ended
-    // his sessions before his request was read, 401.
+    // one that loses is refused under the lock (409 last_admin), or, when the winner's pause was
+    // committed before his request was read, 401 user_inactive (2026-11-22: a pause keeps the
+    // sessions, inert).
     const routeCompany = h.company();
     const caio = await h.seedPerson(routeCompany, 'admin', 'Caio Admin');
     const dora = await h.seedPerson(routeCompany, 'admin', 'Dora Admin');
@@ -285,12 +299,12 @@ describe('26.8-API-002 the last Admin and a paused user', () => {
     expect((await h.call('/api/account', { method: 'GET', cookie: again })).status).toBe(200);
   });
 
-  it('26.11-API-001 a paused or removed user keeps his sessions and every path refuses them with user_inactive, get-session included; sign-out still works', async () => {
+  it('26.11-API-001 a paused or removed user keeps his sessions and every path refuses them with user_inactive, get-session included; a reactivation ends them; sign-out still works', async () => {
     const companyId = h.company();
     const ana = await h.seedPerson(companyId, 'admin', 'Ana Admin');
     const rui = await h.seedPerson(companyId, 'responsavel_tecnico', 'Rui Técnico');
     const adminCookie = await h.signIn(ana.email);
-    const ruiCookie = await h.signIn(rui.email);
+    let ruiCookie = await h.signIn(rui.email);
     const probes: { method: 'GET' | 'POST'; path: string; body?: unknown }[] = [
       { method: 'GET', path: '/api/account' },
       { method: 'GET', path: '/api/auth/get-session' },
@@ -315,12 +329,101 @@ describe('26.8-API-002 the last Admin and a paused user', () => {
       expect(await answers()).toEqual(probes.map((probe) => ({ path: probe.path, status: 401, code: 'user_inactive' })));
       expect((await db.select({ id: session.id }).from(session).where(eq(session.userId, rui.userId))).length).toBeGreaterThan(0);
       await ok(await action('reactivate', rui.userId, adminCookie));
+      // 2026-11-22 (e26r, review of Epic 26; was "get-session answers 200 with the kept cookie"): the
+      // reactivation deleted his sessions, so the old cookie answers 401 and get-session holds none;
+      // the same password signs in again and that session is live.
+      expect(await db.select({ id: session.id }).from(session).where(eq(session.userId, rui.userId))).toEqual([]);
+      const ended = await h.call('/api/account', { method: 'GET', cookie: ruiCookie });
+      expect(ended.status).toBe(401);
+      expect(await codeOf(ended)).toBe('unauthenticated');
+      expect(await (await h.call('/api/auth/get-session', { method: 'GET', cookie: ruiCookie })).json()).toBeNull();
+      ruiCookie = await h.signIn(rui.email);
       expect((await h.call('/api/auth/get-session', { method: 'GET', cookie: ruiCookie })).status).toBe(200);
     }
     // Sign-out of a paused user ends only his own session.
     await ok(await action('pause', rui.userId, adminCookie));
     const out = await h.json('/api/auth/sign-out', {}, { cookie: ruiCookie });
     expect(out.status).toBe(200);
+  });
+
+  it('e26r-API-001 a reactivation ends every session of that user and no one else\'s', async () => {
+    const companyId = h.company();
+    const ana = await h.seedPerson(companyId, 'admin', 'Ana Admin');
+    const rui = await h.seedPerson(companyId, 'responsavel_tecnico', 'Rui Técnico');
+    const adminCookie = await h.signIn(ana.email);
+    const first = await h.signIn(rui.email);
+    const second = await h.signIn(rui.email);
+    await ok(await action('pause', rui.userId, adminCookie));
+    await ok(await action('reactivate', rui.userId, adminCookie));
+    for (const cookie of [first, second]) expect(await codeOf(await h.call('/api/account', { method: 'GET', cookie }))).toBe('unauthenticated');
+    // The Admin's own session is untouched.
+    expect((await h.call('/api/account', { method: 'GET', cookie: adminCookie })).status).toBe(200);
+    const again = await h.signIn(rui.email);
+    expect((await h.call('/api/account', { method: 'GET', cookie: again })).status).toBe(200);
+  });
+
+  it('e26r-API-002 a paused user\'s request after the update age leaves session.expires_at as it was; an active user\'s slides', async () => {
+    const companyId = h.company();
+    const ana = await h.seedPerson(companyId, 'admin', 'Ana Admin');
+    const rui = await h.seedPerson(companyId, 'responsavel_tecnico', 'Rui Técnico');
+    const adminCookie = await h.signIn(ana.email);
+    const ruiCookie = await h.signIn(rui.email);
+    // The session as better-auth holds it two days after its last slide: the update age elapsed.
+    const aged = new Date(Date.now() + (SESSION_EXPIRES_IN_SECONDS - 2 * SESSION_UPDATE_AGE_SECONDS) * 1000);
+    aged.setMilliseconds(0);
+    const age = async () => db.update(session).set({ expiresAt: aged }).where(eq(session.userId, rui.userId));
+    const expiries = async () => (await db.select({ at: session.expiresAt }).from(session).where(eq(session.userId, rui.userId))).map((row) => row.at.getTime());
+
+    await ok(await action('pause', rui.userId, adminCookie));
+    await age();
+    for (const path of ['/api/account', '/api/auth/get-session', '/api/sync/company?since=0']) {
+      const res = await h.call(path, { method: 'GET', cookie: ruiCookie });
+      expect(res.status, path).toBe(401);
+      expect(await codeOf(res)).toBe('user_inactive');
+    }
+    expect(await expiries()).toEqual([aged.getTime()]);
+
+    // The control: the same session of an active user past the update age slides on his next request.
+    await h.putStatus(rui, 'active');
+    await age();
+    expect((await h.call('/api/account', { method: 'GET', cookie: ruiCookie })).status).toBe(200);
+    const [slid] = await expiries();
+    expect(slid).toBeGreaterThan(aged.getTime() + SESSION_UPDATE_AGE_SECONDS * 1000);
+  });
+
+  it('e26r-API-003 a user whose role was removed is not reactivated: role_not_found and nothing changes; given a live role, he is', async () => {
+    const companyId = h.company();
+    const ana = await h.seedPerson(companyId, 'admin', 'Ana Admin');
+    const adminCookie = await h.signIn(ana.email);
+    const created = await h.json(ADMIN_ROLE_ROUTES.create.path, { name: 'Estagiário' }, { cookie: adminCookie });
+    expect(created.status, await created.clone().text()).toBe(201);
+    const estagiario = adminRoleListResponseSchema.parse(await created.json()).roles.find((role) => role.name === 'Estagiário')!;
+    const email = `estagiario-${companyId}@teste.local`;
+    h.remember(email);
+    const person = (await ok(await create({ name: 'Eva Estagiária', email, role_id: estagiario.id }, adminCookie), 201)).user;
+    await ok(await action('remove', person.id, adminCookie));
+    // A removed user holds no role for the role rules, so the role can be removed under him.
+    const removed = await h.json(adminRoleRoutePath('remove', estagiario.id), {}, { cookie: adminCookie });
+    expect(removed.status, await removed.clone().text()).toBe(200);
+
+    const before = await opCount(companyId, person.id);
+    const eventsBefore = h.events.length;
+    const refused = await action('reactivate', person.id, adminCookie);
+    expect(refused.status).toBe(404);
+    expect(await codeOf(refused)).toBe('role_not_found');
+    expect((await h.kernelOf({ companyId, userId: person.id }))?.status).toBe('removed');
+    expect(await opCount(companyId, person.id)).toBe(before);
+    expect(h.events).toHaveLength(eventsBefore);
+
+    // A paused user whose role row does not resolve is refused the same; once the Admin gives him a role, he is reactivated.
+    const rui = await h.seedPerson(companyId, 'responsavel_tecnico', 'Rui Técnico');
+    await ok(await action('pause', rui.userId, adminCookie));
+    const tenant = asCompanyId(companyId);
+    await applyServerBatch(db, tenant, [roleOp(tenant, { kind: 'put', path: userRolePath(rui.userId), value: newId() })], { now });
+    expect(await codeOf(await action('reactivate', rui.userId, adminCookie))).toBe('role_not_found');
+    expect((await h.kernelOf(rui))?.status).toBe('paused');
+    await ok(await edit(rui.userId, { role_id: SYSTEM_ROLE_ROW_IDS.consulta }, adminCookie));
+    expect((await ok(await action('reactivate', rui.userId, adminCookie))).user).toMatchObject({ status: 'active', role: { name: 'Consulta' } });
   });
 });
 

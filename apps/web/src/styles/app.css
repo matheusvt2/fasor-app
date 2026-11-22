@@ -1543,3 +1543,20 @@ button.pp-mod-toggle { cursor: pointer; }
   .dialog-scrim:has(.usr-dialog) { padding: 0; align-items: stretch; }
   .usr-dialog.form-dialog { border-radius: 0; min-height: 100%; }
 }
+
+/*
+ * e26r (2026-11-22): the Export dialog's Revisões row on the Sumário, for a role that downloads and
+ * does not issue (`surfaces/relatorio/issued-files.tsx`). The mock's rules, declarations verbatim:
+ * `.export-dialog .revision-row` (components.css, `73-exportar.html`), `[data-route] .revision-row
+ * .rev-text` and `.rev-files` (export.css), the Revisões label's `margin-bottom` (export.css), and the
+ * `.frame-phone` variants (above in this file), the dialog scope replaced by the Sumário's route.
+ */
+[data-route="/relatorio/:id"] .revision-row { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-min); font-size: var(--t-meta-size); color: var(--ink-secondary); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .revision-row .rev-text { flex: 1; min-width: 0; }
+[data-route="/relatorio/:id"] .revision-row .rev-files { display: flex; gap: var(--sp-1); }
+[data-route="/relatorio/:id"] .revisions-label { margin-bottom: var(--sp-2); }
+[data-route="/relatorio/:id"] .gen-error { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-body-size); color: var(--nao-conforme); }
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id"] .revision-row { flex-wrap: wrap; padding: var(--sp-2) 0; }
+  [data-route="/relatorio/:id"] .revision-row .rev-text { flex-basis: 100%; }
+}

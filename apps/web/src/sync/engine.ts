@@ -708,9 +708,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     for (;;) {
       const previousCursor = state.cursor_seq;
       const page = await withRetry(() => fetchPage(previousCursor));
+      // 2026-11-22 (e26r, review of Epic 26): a stopped engine stores nothing more. The sign-in's
+      // first pull (`first-pull.ts`) stops its engine at the bound while a page may still be on its
+      // way; storing it then could write this stream's state back over a newer one the app's own
+      // engine wrote meanwhile, moving the cursor back.
+      if (stopped) break;
       summary ??= page.summary;
       const { ops, stoppedAt } = parsePulled(page.ops);
       await queuePulledPairs(ops, state.downloaded_at !== null);
+      if (stopped) break;
       try {
         await applyPulled(deps.db, ops);
       } catch (error) {
@@ -734,6 +740,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         // downloaded appears. Story 1.5 read it and dropped it; Home needs it kept.
         relatorios: id === COMPANY_STREAM ? (page.summary?.relatorios ?? state.relatorios) : state.relatorios,
       };
+      if (stopped) break;
       await writeSyncState(deps.db, state);
       // Stop on a bad op, at the head, on an empty page, or when the cursor did not move (a defensive guard).
       if (stoppedAt !== undefined || complete || ops.length === 0 || cursor === previousCursor) break;

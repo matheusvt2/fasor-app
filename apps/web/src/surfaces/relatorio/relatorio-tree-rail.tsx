@@ -1,7 +1,7 @@
 import { SITE_CHECKLIST_LABEL, type TreeEquipmentNode, type TreeLocationNode } from '@app/domain';
 import { memo, useId } from 'react';
 import { OverflowMenu } from '../../components/index.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relatorio-tree-shared.tsx';
 
@@ -29,7 +29,8 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
   const groupId = useId();
   const menu = locationMenu(node, shared, null, () => null);
   // Story 26.5: without `relatorio.fill` the rail adds nothing (its Overflow is not drawn).
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill } = useFillAccess();
   // Story 14.3: a local opens on its "Verificações do local" row, so it always has something below.
   const site = node.site;
   const hasChildren = site !== null || node.equipment.length > 0 || node.locations.length > 0;

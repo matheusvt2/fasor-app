@@ -282,10 +282,20 @@ export function createAdminUsersService(deps: AdminUsersDeps) {
    * sessions stay (2026-11-22, Matheus, Story 26.11): every route answers `401 user_inactive` for a
    * user who is not active (`requireSession`, and the get-session guard of `http/app.ts`), so a kept
    * session is inert, and it is how the device learns the cause and keeps its unsent work. A
-   * reactivation makes the kept sessions work again.
+   * reactivation ends those kept sessions (`startAccess`): the user signs in again with the same
+   * password, and the device's unsent work goes through its re-auth path (2026-11-22, e26r).
    */
   const endAccess = (userId: string) => async (tx: Tx) => {
     await purgePasswordLinks(tx, userId);
+  };
+
+  /**
+   * What a reactivation clears (2026-11-22, e26r, review of Epic 26): every session of the user, the
+   * inert ones a pause or a remove kept, so an old cookie never comes back to life by itself. The
+   * device answers the 401 with its re-auth path (the Login over the kept outbox).
+   */
+  const startAccess = (companyId: CompanyId, userId: string) => async (tx: Tx) => {
+    await tx.delete(session).where(and(eq(session.userId, userId), eq(session.companyId, companyId)));
   };
 
   async function createUser(actor: AdminActor, body: AdminUserCreateRequest): Promise<{ user: AdminUserView; invitation: AdminUserEmailOutcome }> {
@@ -369,16 +379,24 @@ export function createAdminUsersService(deps: AdminUsersDeps) {
     return { user: await view(actor.companyId, userId) };
   }
 
-  /** A status change: `from` the statuses it applies to, `endsAccess` for pause and remove. */
+  /**
+   * A status change: `from` the statuses it applies to; `endAccess` for pause and remove,
+   * `startAccess` for reactivate, which also needs the user's role to be live (2026-11-22, e26r:
+   * the same `role_not_found` as create and edit, so the Admin picks a role first).
+   */
   async function setStatus(actor: AdminActor, userId: string, action: 'pause' | 'reactivate' | 'remove', to: UserStatus, from: readonly UserStatus[]): Promise<{ user: AdminUserView }> {
     await run(actor.companyId, (state) => {
       const target = targetOf(state, userId);
       if (!from.includes(target.status)) throw stateInvalid(target.status);
-      if (to !== 'active') refuseLastAdmin(state, { user_id: userId, status: to });
+      if (to === 'active') {
+        const roleId = target.kernel?.role_id;
+        if (typeof roleId !== 'string') throw new AdminUserError('role_not_found', 404);
+        liveRole(state, roleId);
+      } else refuseLastAdmin(state, { user_id: userId, status: to });
       return {
         ops: [{ kind: 'put', path: userStatusPath(userId), value: to, actor: 'admin' }],
         signature: target.status,
-        ...(to === 'active' ? {} : { write: endAccess(userId) }),
+        write: to === 'active' ? startAccess(actor.companyId, userId) : endAccess(userId),
       };
     });
     emit(action, actor, userId);

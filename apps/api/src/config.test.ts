@@ -16,6 +16,9 @@ const valid = {
   TRUSTED_ORIGINS: 'http://localhost:5173',
 };
 
+/** 2026-11-22 (e26r): what a production process needs on top of `valid` to boot (a real mailer and sender). */
+const productionMail = { EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com' };
+
 describe('config', () => {
   it('parses a valid environment and defaults providers to fake', () => {
     const config = loadConfig(valid);
@@ -85,7 +88,7 @@ describe('config', () => {
     expect(loadConfig({ ...valid, WORKER: '0' }).WORKER).toBe('0');
     expect(loadConfig({ ...valid, GENERATE_FAULT: '' }).GENERATE_FAULT).toBeUndefined();
     expect(loadConfig({ ...valid, GENERATE_FAULT: 'libreoffice_timeout' }).GENERATE_FAULT).toBe('libreoffice_timeout');
-    expect(loadConfig({ ...valid, NODE_ENV: 'production' }).NODE_ENV).toBe('production');
+    expect(loadConfig({ ...valid, ...productionMail, NODE_ENV: 'production' }).NODE_ENV).toBe('production');
     expect(() => loadConfig({ ...valid, WORKER: 'yes' })).toThrow(/WORKER/);
     expect(() => loadConfig({ ...valid, GENERATE_FAULT: 'explode' })).toThrow(/GENERATE_FAULT/);
   });
@@ -159,14 +162,14 @@ describe('config', () => {
   it('refuses the public development SESSION_SECRET in production only (security review 2026-09-30)', () => {
     const [devSecret] = [...KNOWN_DEV_SESSION_SECRETS];
     expect(loadConfig({ ...valid, SESSION_SECRET: devSecret }).SESSION_SECRET).toBe(devSecret);
-    expect(() => loadConfig({ ...valid, NODE_ENV: 'production', SESSION_SECRET: devSecret })).toThrow(/SESSION_SECRET/);
-    expect(loadConfig({ ...valid, NODE_ENV: 'production' }).SESSION_SECRET).toBe('x'.repeat(32));
+    expect(() => loadConfig({ ...valid, ...productionMail, NODE_ENV: 'production', SESSION_SECRET: devSecret })).toThrow(/SESSION_SECRET/);
+    expect(loadConfig({ ...valid, ...productionMail, NODE_ENV: 'production' }).SESSION_SECRET).toBe('x'.repeat(32));
   });
 
   it('turns the request limits on in production by default and reads overrides (E11-A5)', () => {
     expect(rateLimitEnabled(loadConfig(valid))).toBe(false);
-    expect(rateLimitEnabled(loadConfig({ ...valid, NODE_ENV: 'production' }))).toBe(true);
-    expect(rateLimitEnabled(loadConfig({ ...valid, NODE_ENV: 'production', RATE_LIMIT: 'off' }))).toBe(false);
+    expect(rateLimitEnabled(loadConfig({ ...valid, ...productionMail, NODE_ENV: 'production' }))).toBe(true);
+    expect(rateLimitEnabled(loadConfig({ ...valid, ...productionMail, NODE_ENV: 'production', RATE_LIMIT: 'off' }))).toBe(false);
     expect(rateLimitEnabled(loadConfig({ ...valid, RATE_LIMIT: 'on' }))).toBe(true);
     expect(rateLimitEnabled(loadConfig({ ...valid, RATE_LIMIT: '' }))).toBe(false);
     expect(() => loadConfig({ ...valid, RATE_LIMIT: 'maybe' })).toThrow(/RATE_LIMIT/);
@@ -187,7 +190,7 @@ describe('config', () => {
   it('hands main.ts the limits from the configuration, and none when they are off (review fixes 2026-09-30)', () => {
     expect(requestLimits(loadConfig(valid))).toBeUndefined();
     expect(
-      requestLimits(loadConfig({ ...valid, NODE_ENV: 'production', SIGN_IN_RATE_LIMIT_MAX: '7', PUSH_RATE_LIMIT_WINDOW_SECONDS: '30', TRUST_PROXY: '0' })),
+      requestLimits(loadConfig({ ...valid, ...productionMail, NODE_ENV: 'production', SIGN_IN_RATE_LIMIT_MAX: '7', PUSH_RATE_LIMIT_WINDOW_SECONDS: '30', TRUST_PROXY: '0' })),
     ).toEqual({ signIn: { max: 7, windowMs: 300_000 }, push: { max: 120, windowMs: 30_000 }, trustProxy: false });
   });
 
@@ -213,6 +216,26 @@ describe('config', () => {
     expect(loadConfig({ ...valid, EMAIL_PROVIDER: '', EMAIL_FROM: '' }).EMAIL_PROVIDER).toBe('fake');
     expect(() => loadConfig({ ...valid, EMAIL_PROVIDER: 'smtp' })).toThrow(/EMAIL_PROVIDER/);
     expect(() => loadConfig({ ...valid, EMAIL_FROM: 'not-an-address' })).toThrow(/EMAIL_FROM/);
+  });
+
+  it('e26r-UNIT-001: production refuses the fake mailer and the placeholder sender; ses with a real sender boots; outside production fake still boots', () => {
+    const variablesOf = (env: Record<string, string | undefined>): string[] => {
+      try {
+        loadConfig(env);
+      } catch (error) {
+        if (error instanceof ConfigError) return error.variables;
+        throw error;
+      }
+      return [];
+    };
+    expect(variablesOf({ ...valid, NODE_ENV: 'production' })).toEqual(['EMAIL_PROVIDER']);
+    expect(variablesOf({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'fake', EMAIL_FROM: 'no-reply@example.com' })).toEqual(['EMAIL_PROVIDER']);
+    expect(variablesOf({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses' })).toEqual(['EMAIL_FROM']);
+    expect(variablesOf({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses', EMAIL_FROM: DEFAULT_EMAIL_FROM })).toEqual(['EMAIL_FROM']);
+    const booted = loadConfig({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com' });
+    expect([booted.EMAIL_PROVIDER, booted.EMAIL_FROM]).toEqual(['ses', 'no-reply@example.com']);
+    expect(loadConfig({ ...valid, NODE_ENV: 'development' }).EMAIL_PROVIDER).toBe('fake');
+    expect(loadConfig({ ...valid, NODE_ENV: 'test', EMAIL_PROVIDER: 'ses' }).EMAIL_FROM).toBe(DEFAULT_EMAIL_FROM);
   });
 
   it('26.6-API-001a: the e-mail limits default to 5 per address and 20 per client a minute, 30 Admin e-mails per 10 minutes, whatever RATE_LIMIT says', () => {

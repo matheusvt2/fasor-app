@@ -1,6 +1,6 @@
 import { activeUser, can, userStatusSchema, type ErrorResponse, type PermissionKey, type PermissionNeed, type RoleRow, type UserStatus } from '@app/domain';
 import type { Context, MiddlewareHandler } from 'hono';
-import type { Auth } from '../auth/auth.ts';
+import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS, type Auth } from '../auth/auth.ts';
 import type { Db } from '../db/client.ts';
 import { asCompanyId, type CompanyId } from '../db/repositories/company-id.ts';
 import { roleOfUser } from '../db/roles.ts';
@@ -33,17 +33,42 @@ export interface AppEnv {
 }
 
 /**
+ * True when better-auth would slide the session on this lookup: its `updateAge` elapsed since the
+ * expiry was last set (`expiresAt - expiresIn + updateAge <= now`, the rule of better-auth's
+ * get-session). An absent or unreadable expiry is never due.
+ */
+export function sessionRefreshDue(expiresAt: unknown, nowMs: number = Date.now()): boolean {
+  const at = expiresAt instanceof Date ? expiresAt.getTime() : typeof expiresAt === 'string' ? Date.parse(expiresAt) : Number.NaN;
+  if (!Number.isFinite(at)) return false;
+  return at - SESSION_EXPIRES_IN_SECONDS * 1000 + SESSION_UPDATE_AGE_SECONDS * 1000 <= nowMs;
+}
+
+export interface SessionMiddlewareOptions {
+  /**
+   * False: never slide the session here (the get-session guard of `http/app.ts`, whose own handler
+   * slides it right after for an active user and sets the refreshed cookie). Default true.
+   */
+  refresh?: boolean;
+}
+
+/**
  * Reads the session cookie once per request and puts `{userId, companyId}` on the
  * context. Never rejects: public routes (health) stay public and only `requireSession`
  * answers. A lookup that throws (the auth database down) is logged once and recorded on
  * the context, so a protected route answers 503 and the device retries, rather than 401
  * on every device, which would read as "signed out" (A-13).
+ *
+ * 2026-11-22 (e26r, review of Epic 26): the lookup never slides the session by itself
+ * (`disableRefresh`), so the inert session of a paused or removed user keeps its expiry. Only
+ * when the user is active and the update age elapsed is the session read again with the
+ * refresh; the common case stays one auth lookup.
  */
-export function sessionMiddleware(auth: Auth, db: Db): MiddlewareHandler<AppEnv> {
+export function sessionMiddleware(auth: Auth, db: Db, options: SessionMiddlewareOptions = {}): MiddlewareHandler<AppEnv> {
+  const refresh = options.refresh ?? true;
   return async (c, next) => {
     let resolved: SessionContext | null = null;
     try {
-      const result = await auth.api.getSession({ headers: c.req.raw.headers });
+      const result = await auth.api.getSession({ headers: c.req.raw.headers, query: { disableRefresh: true } });
       const companyId: unknown = result?.user.companyId;
       if (result !== null && typeof companyId === 'string' && companyId !== '') {
         const tenant = asCompanyId(companyId);
@@ -51,6 +76,9 @@ export function sessionMiddleware(auth: Auth, db: Db): MiddlewareHandler<AppEnv>
         const { user, role } = await roleOfUser(db, tenant, result.user.id);
         const status = userStatusSchema.safeParse(user?.status);
         resolved = { userId: result.user.id, companyId: tenant, role, status: status.success ? status.data : undefined };
+        if (refresh && activeUser(resolved) && sessionRefreshDue(result.session.expiresAt)) {
+          await auth.api.getSession({ headers: c.req.raw.headers });
+        }
       }
     } catch (error) {
       logError('session lookup failed', { path: c.req.path, error: String(error) });

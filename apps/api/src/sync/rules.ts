@@ -15,6 +15,7 @@ import {
   relatorioBudgetVerdict,
   relatorioRemovalVerdict,
   relatorioStatusSchema,
+  reopenNeed,
   responsibleUserIdOf,
   statusMoveFacts,
   statusMoveVerdict,
@@ -31,6 +32,7 @@ import {
   type OpPath,
   type OpRejectCode,
   type RelatorioRow,
+  type RelatorioStatus,
   type RoleRow,
   type StatusMoveInput,
   vectorGroupPublishIssue,
@@ -70,10 +72,15 @@ export interface ClientCheckCache {
   relatorioBytes: Map<string, number>;
   /** Story 26.4: the actor's role (null for none), read once per push. */
   roles: Map<string, RoleRow | null>;
+  /**
+   * e26r (2026-11-22): a relatório's status as the server holds it, read once for an actor that
+   * does not issue; forgotten at each `relatorio/status` op, the one family that moves it.
+   */
+  statuses?: Map<string, RelatorioStatus | null>;
 }
 
 export function clientCheckCache(): ClientCheckCache {
-  return { relatorios: new Map(), projects: new Set(), createdAt: new Map(), relatorioBytes: new Map(), roles: new Map() };
+  return { relatorios: new Map(), projects: new Set(), createdAt: new Map(), relatorioBytes: new Map(), roles: new Map(), statuses: new Map() };
 }
 
 /** What `checkClientOp` reads besides the transaction. */
@@ -106,7 +113,7 @@ interface Target {
 export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target, deps: ClientCheckDeps): Promise<OpRejectCode | null> {
   const { op, path } = target;
   // Story 26.4 (AD-29): the actor's role must hold the key the op needs, first of all.
-  const forbidden = await roleIssue(tx, companyId, op, path, deps.cache);
+  const forbidden = await roleIssue(tx, companyId, op, path, deps.state, deps.cache);
   if (forbidden !== null) return forbidden;
   // Story 27.1 (F1, contract 56): beside the role's check, a company holds one live `empresa` row.
   const revived = revivedEmpresaId(op, path);
@@ -141,8 +148,20 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
  * actor's role does not hold (`can`). The role is the row the actor's user row names, read once
  * per push inside its transaction (`cache.roles`); a user with no role, or a role the company does
  * not hold, holds no key (fail closed). An op that needs no key passes.
+ *
+ * 2026-11-22 (Matheus, "sim nos dois", e26r): leaving Emitido needs `relatorio.issue`. For an actor
+ * whose role does not issue, an op into a relatório the server holds as Emitido that would reopen it
+ * (a status move away, or an edit AD-22 counts, `reopenNeed`) is refused `op_forbidden` too, judged
+ * by the status the server holds, never the op's claim. A role that issues reads nothing more.
  */
-async function roleIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, cache: ClientCheckCache | undefined): Promise<OpRejectCode | null> {
+async function roleIssue(
+  tx: Tx,
+  companyId: CompanyId,
+  op: Op,
+  path: OpPath,
+  state: ReadonlyMap<EntityKey, EntityRow>,
+  cache: ClientCheckCache | undefined,
+): Promise<OpRejectCode | null> {
   const need = permissionForPath(path, op);
   if (need === 'none') return null;
   let role = cache?.roles.get(op.actor_id);
@@ -150,7 +169,29 @@ async function roleIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, cac
     role = (await roleOfUser(tx, companyId, op.actor_id)).role;
     cache?.roles.set(op.actor_id, role);
   }
-  return can(role, need) ? null : 'op_forbidden';
+  if (!can(role, need)) return 'op_forbidden';
+  if (op.relatorio_id == null || can(role, 'relatorio.issue')) return null;
+  const status = await serverRelatorioStatus(tx, companyId, op.relatorio_id, state, cache);
+  // A status op moves the status: the next op of the push reads it again.
+  if (path.family === 'relatorio/status') cache?.statuses?.delete(op.relatorio_id);
+  return reopenNeed(op, status) === 'none' ? null : 'op_forbidden';
+}
+
+/** e26r: the status of a relatório as the server holds it (null when it holds none). */
+async function serverRelatorioStatus(
+  tx: Tx,
+  companyId: CompanyId,
+  relatorioId: string,
+  state: ReadonlyMap<EntityKey, EntityRow>,
+  cache: ClientCheckCache | undefined,
+): Promise<RelatorioStatus | null> {
+  const known = cache?.statuses?.get(relatorioId);
+  if (known !== undefined) return known;
+  const row = (state.get(entityKey('relatorio', relatorioId)) ?? (await rowOf(tx, companyId, 'relatorio', relatorioId))) as RelatorioRow | undefined;
+  const parsed = relatorioStatusSchema.safeParse(row?.status);
+  const status = parsed.success ? parsed.data : null;
+  cache?.statuses?.set(relatorioId, status);
+  return status;
 }
 
 /**

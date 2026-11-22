@@ -44,7 +44,7 @@ import { Button as AriaButton } from 'react-aria-components';
 import { useParams } from 'react-router';
 import { useBackToExport } from '../../state/back-target.tsx';
 import { Button, Chip, FilterChipGroup, OverflowMenu, PhotoRow, ReadOnlyBanner } from '../../components/index.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -148,7 +148,8 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const heading = useRef<HTMLHeadingElement>(null);
   const surface = useRef<HTMLDivElement>(null);
   // Story 26.5: a role without `relatorio.fill` opens the photos and changes none of them.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill, reason: fillReason } = useFillAccess();
 
   // --- the cabine filter --------------------------------------------------------------------
   const options = useMemo(() => galleryCabineOptions(snapshot, all), [snapshot, all]);
@@ -312,7 +313,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             )}
           </div>
           <p className="section-note">{t.note(sectionMention(snapshot, 7))}</p>
-          {canFill ? null : <ReadOnlyBanner />}
+          {canFill ? null : <ReadOnlyBanner reason={fillReason} />}
           {numbersStatus === null ? null : (
             <p className="section-note" data-testid="photo-numbers-status">
               {numbersStatus}

@@ -50,6 +50,17 @@ export const READ_ONLY_LEAD_TEXT = 'Somente leitura.';
 export const READ_ONLY_BANNER_TEXT = `${READ_ONLY_LEAD_TEXT} ${REFUSALS['relatorio.fill']}`;
 
 /**
+ * authored (e26r, 2026-11-22, Matheus "sim nos dois"): the reason of the same read-only Banner on an
+ * Emitido relatório, for a role that fills and does not issue: every change there would reopen it.
+ */
+export const ISSUED_READ_ONLY_REASON_TEXT = 'Seu papel não permite alterar um relatório emitido.';
+
+/** e26r: the reason the read-only Banner says, for the key `relatorioWriteRefusal` answered. */
+export function readOnlyReasonText(refusal: 'relatorio.fill' | 'relatorio.issue'): string {
+  return refusal === 'relatorio.issue' ? ISSUED_READ_ONLY_REASON_TEXT : REFUSALS['relatorio.fill'];
+}
+
+/**
  * Story 26.10 (authored): the line a screen shows, instead of an empty one, while the device is offline and
  * does not hold the user's own role yet (a first sign-in cut off before its company pull). Fails closed as
  * the provider does; the access comes when the device reaches the server.

@@ -1,7 +1,22 @@
-import { can as roleCan, permissionForScreen, permissionRefusalText, PRODUTO, ROLE_UNKNOWN_TEXT, SCREEN_UNAVAILABLE_TEXT, screenNeedsKnownRole, type PermissionKey, type PermissionNeed, type RoleRow } from '@app/domain';
+import {
+  can as roleCan,
+  permissionForScreen,
+  permissionRefusalText,
+  PRODUTO,
+  readOnlyReasonText,
+  relatorioWriteRefusal,
+  ROLE_UNKNOWN_TEXT,
+  SCREEN_UNAVAILABLE_TEXT,
+  screenNeedsKnownRole,
+  type PermissionKey,
+  type PermissionNeed,
+  type RelatorioStatus,
+  type RoleRow,
+} from '@app/domain';
 import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { LoadingNote } from '../components/index.ts';
+import { relatorioRow } from '../db/generate-store.ts';
 import { localRoleOf } from '../db/sync-store.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { useSession } from './session.tsx';
@@ -30,6 +45,18 @@ export interface PermissionsState {
   unknownOffline: boolean;
   /** Whether the role holds the key; false while loading. */
   can: (key: PermissionKey) => boolean;
+  /**
+   * e26r (2026-11-22, Matheus "sim nos dois"): the status of the relatório the address names
+   * (`/relatorio/{id}/…`) as this device holds it, read only for a role that fills and does not
+   * issue (the one case it changes a verdict); null otherwise.
+   */
+  relatorioStatus?: RelatorioStatus | null;
+}
+
+/** e26r: the relatório id of an address under `/relatorio/{id}`, or null. */
+export function relatorioIdOfPath(pathname: string): string | null {
+  const match = /^\/relatorio\/([^/]+)/.exec(pathname);
+  return match === null ? null : decodeURIComponent(match[1]!);
 }
 
 const PermissionsContext = createContext<PermissionsState | null>(null);
@@ -54,9 +81,18 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   if (sync.lastResult !== null && !cycled) setCycled(true);
   const status = permissionsStatus(role, cycled || sync.lastResult !== null, session.online);
   const held = role ?? null;
+  // e26r: the open relatório's status, only where it can lock the screen (a role that fills, does not issue).
+  const { pathname } = useLocation();
+  const relatorioId = relatorioIdOfPath(pathname);
+  const watched = db !== null && relatorioId !== null && roleCan(held, 'relatorio.fill') && !roleCan(held, 'relatorio.issue') ? relatorioId : null;
+  const relatorioStatus = useLiveQuery(
+    () => (db === null || watched === null ? Promise.resolve(null) : relatorioRow(db, watched).then((row) => row?.status ?? null, () => null)),
+    [db, watched],
+    null,
+  );
   const value = useMemo<PermissionsState>(
-    () => ({ status, role: held, unknownOffline: status === 'ready' && held === null && !session.online, can: (key) => status === 'ready' && roleCan(held, key) }),
-    [status, held, session.online],
+    () => ({ status, role: held, unknownOffline: status === 'ready' && held === null && !session.online, can: (key) => status === 'ready' && roleCan(held, key), relatorioStatus }),
+    [status, held, session.online, relatorioStatus],
   );
   return <PermissionsContext value={value}>{children}</PermissionsContext>;
 }
@@ -65,8 +101,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
  * A fixed, known role for a surface's unit test, with no device store behind it (production
  * mounts `PermissionsProvider`). `role` null holds no key.
  */
-export function PermissionsFixture({ role, children }: { role: RoleRow | null; children: ReactNode }) {
-  const value = useMemo<PermissionsState>(() => ({ status: 'ready', role, unknownOffline: false, can: (key) => roleCan(role, key) }), [role]);
+export function PermissionsFixture({ role, relatorioStatus = null, children }: { role: RoleRow | null; relatorioStatus?: RelatorioStatus | null; children: ReactNode }) {
+  const value = useMemo<PermissionsState>(() => ({ status: 'ready', role, unknownOffline: false, can: (key) => roleCan(role, key), relatorioStatus }), [role, relatorioStatus]);
   return <PermissionsContext value={value}>{children}</PermissionsContext>;
 }
 
@@ -85,6 +121,21 @@ export function useCan(key: PermissionNeed): boolean {
   const value = use(PermissionsContext);
   if (key === 'none' || value === null) return true;
   return value.can(key);
+}
+
+/**
+ * e26r (2026-11-22, Matheus "sim nos dois"): whether the screen of the open relatório takes writes,
+ * and the reason its one read-only Banner says when it does not. `canFill` is `useCan('relatorio.fill')`
+ * and, on an Emitido relatório, `relatorio.issue` too (every write there would reopen it, and leaving
+ * Emitido needs that key: `relatorioWriteRefusal`). `issuedLocked` is that second case alone. With no
+ * provider mounted (a surface's unit test) everything is allowed, as `useCan` does.
+ */
+export function useFillAccess(): { canFill: boolean; issuedLocked: boolean; reason: string } {
+  const value = use(PermissionsContext);
+  if (value === null) return { canFill: true, issuedLocked: false, reason: readOnlyReasonText('relatorio.fill') };
+  const refusal = value.status === 'ready' ? relatorioWriteRefusal(value.role, value.relatorioStatus) : 'relatorio.fill';
+  const issuedLocked = value.status === 'ready' && value.relatorioStatus === 'emitido' && !roleCan(value.role, 'relatorio.issue');
+  return { canFill: refusal === null, issuedLocked, reason: readOnlyReasonText(refusal ?? 'relatorio.fill') };
 }
 
 /** The same verdict for a key chosen at call time (an op's need, `permissionForPath`), from the hook's state. */

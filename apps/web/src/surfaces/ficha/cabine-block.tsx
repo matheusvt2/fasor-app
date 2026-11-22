@@ -32,7 +32,7 @@ import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { envAfter, envLineField, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 /*
@@ -99,7 +99,8 @@ export function CabineBlock({
   const definition = getSeed(snapshot.relatorio.seed_version, 'cabine_primaria').cabine;
   const envDisplay = useEnvDisplay({ api, state, snapshot, cabine });
   // Story 26.5: without `relatorio.fill` the local's data shows read-only: no field takes input, no chip, no "Ler visor".
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill } = useFillAccess();
   const progress = cabineProgress(snapshot, cabine.id);
   // Open while a field is empty; a focus inside keeps it open for the rest of the visit, so
   // the value that completes the cabine never folds the block under the finger (D-2).
@@ -275,7 +276,8 @@ export function QuickNotes({ api, snapshot, cabine, observations }: { api: Ficha
   const t = copy.ficha.cabine;
   const headingId = useId();
   // Story 26.5: the quick-text chips are not rendered for a role that cannot fill.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill } = useFillAccess();
   if (cabine === null || !humidityNoteSurfaced(cabine.env) || !canFill) return null;
   const note = quickNotes(snapshot.relatorio.seed_version)[0];
   if (note === undefined) return null;

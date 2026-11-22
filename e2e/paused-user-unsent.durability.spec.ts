@@ -20,7 +20,8 @@ import { SYNC_CYCLE_TIMEOUT, waitForCompanyPull } from './support/sync.ts';
  * device comes back the paused banner shows and the five ops stay in the outbox (read from the
  * store, never from the screen), "Sair" names five and Cancelar keeps them, a reload and a closed
  * browser keep them; after the reactivation he signs in again on the same device and the five reach
- * the server.
+ * the server. *(2026-11-22, e26r: the reactivation ends the kept session, so the old cookie answers
+ * 401 `unauthenticated` and the device stays on Login until he signs in.)*
  *
  * Runs on `durability-desktop-chrome` (the file name matches that project's pattern). The matrix
  * projects (Android emulation, WebKit) are not run in this batch (the owner's decision); the second
@@ -134,6 +135,15 @@ test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings throu
 
   // Reactivated, he signs in again on the same device: the five reach the server and the banner is gone.
   await admin.act('reactivate', campo.userId);
+  // 2026-11-22 (e26r, review of Epic 26): the reactivation ended the session the pause kept, so the
+  // device's old cookie is no session any more (401 `unauthenticated`, no longer `user_inactive`):
+  // the device stays on Login, and only signing in again sends the unsent work.
+  const ended = await tab.request.get('/api/account');
+  expect(ended.status()).toBe(401);
+  expect(((await ended.json()) as { code?: string }).code).toBe('unauthenticated');
+  await tab.reload();
+  await expect(tab).toHaveURL(/\/login$/, { timeout: 30_000 });
+  expect(await unsentReadings(tab, database, fixture.blockChaveId)).toHaveLength(5);
   await expect(tab.getByLabel('E-mail')).toHaveValue(campo.email);
   await tab.getByLabel('Senha').fill(SEED_PASSWORD);
   await tab.getByRole('button', { name: 'Entrar', exact: true }).click();
