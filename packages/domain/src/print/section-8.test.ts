@@ -63,6 +63,9 @@ function addPoint(snapshot: RelatorioSnapshot, fields: Partial<PointRow>): Relat
   return { ...snapshot, points: [...snapshot.points, { ...row, ...fields }] };
 }
 
+/** Batch e27c (W3): the same relatório on seed v16, before `wording_pass`. */
+const onV16 = (snapshot: RelatorioSnapshot): RelatorioSnapshot => ({ ...snapshot, relatorio: { ...snapshot.relatorio, seed_version: 'v16' } });
+
 const heading = { number: 8, title: 'PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES' };
 const numbering = new Map([
   [A, 5],
@@ -203,6 +206,20 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       // Batch e24p (Story 24.17): the standard template is born on seed v14, whose action plan keeps its rows whole.
       keepRowsWhole: true,
     });
+    // Batch e27c (W3): the v16 twin keeps "Imagem N e Imagem M", in the bullet and in the table.
+    expect(section8Layout(onV16(snapshot), heading)).toMatchObject({
+      bullets: ['Ver Imagem 2 e Imagem 1.'],
+      table: [{ number: '1', point: 'Ver Imagem 2 e Imagem 1.', images: '2, 1' }],
+      keepRowsWhole: true,
+    });
+  });
+
+  it('batch e27c (W3): a v16 relatório keeps the old citation form, the bare tokens after the text read as one clause of singular references', () => {
+    const snapshot = addPoint(fresh(), { text: `Item 1 (isoladores): isoladores ressecados ${photoToken(A)} ${photoToken(B)}` });
+    expect(resolveSection8(onV16(snapshot), numbering).map((bullet) => bullet.text)).toEqual(['Item 1 (isoladores): isoladores ressecados, conforme Imagem 5 e Imagem 12']);
+    expect(resolveActionPlan(onV16(snapshot), numbering)[0]!.point).toBe('Item 1 (isoladores): isoladores ressecados Imagem 5 Imagem 12');
+    // The v17 twin reads the same list as one plural.
+    expect(resolveSection8(snapshot, numbering).map((bullet) => bullet.text)).toEqual(['Item 1 (isoladores): isoladores ressecados, conforme Imagens 5 e 12']);
   });
 
   it('17.4 M8: a cited display shot of a sheet resolves as "Imagem N" in the one sequence (after the "Geral" photos); a deleted photo prints the removed text', () => {
@@ -298,6 +315,9 @@ describe('11.10-UNIT action-plan table', () => {
       },
       { number: '2', point: 'Geral, sem nada.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '—' },
     ]);
+    // Batch e27c (W3): the v16 twin keeps "Imagem 12 e Imagem 5", in the row and in its bullet.
+    expect(resolveActionPlan(onV16(snapshot), numbering)[0]).toMatchObject({ point: 'Aquecimento na base, conforme Imagem 12 e Imagem 5; ver imagem removida e Imagem 12.', images: '12, 5' });
+    expect(resolveSection8(onV16(snapshot), numbering)[0]!.text).toBe('Aquecimento na base, conforme Imagem 12 e Imagem 5; ver imagem removida e Imagem 12. Substituir o fusível');
   });
 
   it('prints a month-only deadline as mm/aaaa', () => {

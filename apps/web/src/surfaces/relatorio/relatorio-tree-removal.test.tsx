@@ -651,6 +651,29 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     expect(document.querySelector('.restore-list')).toBeNull();
   });
 
+  // Batch e27c (W4): the empty state the dialog still has; the entry is disabled with nothing to restore, so it
+  // shows only when the last removed ficha comes back (another device's pull) while the dialog is open.
+  it('the dialog open when its last removed ficha comes back on another device says "Nenhuma ficha removida para restaurar", with no list', async () => {
+    const db = await seeded();
+    for (const [entity, entityId] of [['block', TR_TEST], ['equipment', await equipmentOfIn(db, TR_TEST)]] as const) {
+      const record = (await db.entities.get([entity, entityId]))!;
+      await db.entities.put({ ...record, removed_at: T2, row: { ...(record.row as object), removed_at: T2 } as never });
+    }
+    database = db;
+    renderAt(`/relatorio/${RELATORIO}`);
+    await screen.findByRole('list', { name: 'Locais do relatório' });
+    const dialog = await openRestore();
+    await within(dialog).findByRole('button', { name: 'Restaurar TR-TEST — Cabine de Testes' });
+    // TR-TEST is live again, as another device's pull would leave it.
+    for (const [entity, entityId] of [['block', TR_TEST], ['equipment', await equipmentOfIn(db, TR_TEST)]] as const) {
+      const record = (await db.entities.get([entity, entityId]))!;
+      await db.entities.put({ ...record, removed_at: null, row: { ...(record.row as object), removed_at: null } as never });
+    }
+    await waitFor(() => expect(within(dialog).getByText('Nenhuma ficha removida para restaurar')).toBeVisible());
+    expect(dialog.querySelector('.restore-list')).toBeNull();
+    expect(within(dialog).queryAllByRole('button', { name: /^Restaurar / })).toHaveLength(0);
+  });
+
   it('restoring a painel writes one batch from the plan (locations, sheets, equipment), opens section 9 on the restored row, says it, and marks a TAG reused meanwhile as a duplicate; "Desfazer" removes the same rows again', async () => {
     database = await removedPainel();
     renderAt(`/relatorio/${RELATORIO}`);

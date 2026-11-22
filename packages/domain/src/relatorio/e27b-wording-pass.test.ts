@@ -4,7 +4,8 @@ import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import { captionPartsOf, composeCaption, contextCaption, contextCaptionParts, NC_CAPTION_LEAD, type ContextCaptionMeta } from '../photos/caption.ts';
 import { galleryCabineOptions } from '../photos/gallery.ts';
-import { pluralImageRuns } from '../print/section-8.ts';
+import { pluralImageRuns, resolveSection8 } from '../print/section-8.ts';
+import { newPointRow } from '../points/checks.ts';
 import { nextEditNote } from '../print/revisions.ts';
 import { pointTextPieces } from '../points/display.ts';
 import { ncRowPointText, withPhotoTokens } from '../points/derived.ts';
@@ -84,10 +85,11 @@ function firstSheet(snapshot: RelatorioSnapshot, type: string): BlockRow {
 }
 
 /** The relatório with its first chave seccionadora's first checklist row NC ("ressecadas"), holding `photos` of that row. */
-function withNcRow(base: RelatorioSnapshot, photoIds: readonly string[]): { snapshot: RelatorioSnapshot; block: BlockRow; key: string; label: string } {
+function withNcRow(base: RelatorioSnapshot, photoIds: readonly string[], observation: string | null = 'isoladores ressecados'): { snapshot: RelatorioSnapshot; block: BlockRow; key: string; label: string } {
   const sheet = firstSheet(base, 'chave_seccionadora');
   const item = findDefinition(sheet.seed_version, sheet.block_type)!.checklist![0]!;
-  const block: BlockRow = { ...sheet, sheet: { ...sheet.sheet, checklist: { ...sheet.sheet.checklist, [item.key]: { result: cell('NC'), observation: cell('isoladores ressecados') } } } };
+  const answer = observation === null ? { result: cell('NC') } : { result: cell('NC'), observation: cell(observation) };
+  const block: BlockRow = { ...sheet, sheet: { ...sheet.sheet, checklist: { ...sheet.sheet.checklist, [item.key]: answer } } };
   const files = photoIds.map((id, i) => photo(base, id, { block_id: block.id }, item.key, `2026-09-06T1${i}:00:00.000Z`));
   return { snapshot: { ...base, blocks: base.blocks.map((one) => (one.id === block.id ? block : one)), files: [...base.files, ...files] }, block, key: item.key, label: item.label.toLocaleLowerCase('pt-BR') };
 }
@@ -161,6 +163,88 @@ describe('27.9-UNIT the joins (F36)', () => {
     expect(pluralImageRuns('conforme Imagem 4')).toBe('conforme Imagem 4');
     // A card's reference the numbering lacks breaks the list: each reads alone.
     expect(pointTextPieces(`ver ${photoToken(PHOTO_A)} e ${photoToken(PHOTO_B)}`, new Map([[PHOTO_A, 1]])).map((piece) => (piece.kind === 'photo' ? piece.label : piece.text))).toEqual(['ver ', 'Imagem 1', ' e ', null]);
+  });
+});
+
+/*
+ * Batch e27c (wave 2 review W1, W5): the citation clause after an observation's own closing mark, an NC row with no
+ * observation, and a photo cited twice; in the stored text and in section 8's print. v16 keeps its words.
+ */
+describe('e27c-UNIT the citation clause (W1, W5)', () => {
+  const numbers = new Map([
+    [PHOTO_A, 1],
+    [PHOTO_B, 2],
+  ]);
+  /** What section 8 prints for a point holding `text` on `snapshot`'s seed. */
+  const printed = (snapshot: RelatorioSnapshot, text: string): string => {
+    const row = newPointRow({ id: '019966b0-2795-7000-8000-000000000001', relatorioId: snapshot.relatorio.id, text, equipmentId: null, origin: 'manual', action: null }, snapshot.points);
+    return resolveSection8({ ...snapshot, points: [...snapshot.points, row] }, numbers).at(-1)!.text;
+  };
+  const stored = (observation: string | null, photoIds: readonly string[], base: RelatorioSnapshot = fresh()) => {
+    const nc = withNcRow(base, photoIds, observation);
+    return { text: ncRowPointText(nc.snapshot, { block: nc.block }, nc.key), label: nc.label, snapshot: nc.snapshot };
+  };
+
+  it.each([
+    ['.', 'Oxidação nos terminais.'],
+    ['!', 'Oxidação nos terminais!'],
+    ['?', 'Oxidação nos terminais?'],
+    ['...', 'Oxidação nos terminais...'],
+    ['none', 'Oxidação nos terminais'],
+  ])('W1: an observation ending in %s gives "…terminais, conforme Imagem 1" (was "…terminais., conforme")', (_, observation) => {
+    const one = stored(observation, [PHOTO_A]);
+    expect(one.text).toBe(`Item 1 (${one.label}): Oxidação nos terminais, conforme ${photoToken(PHOTO_A)}`);
+    expect(printed(one.snapshot, one.text)).toBe(`Item 1 (${one.label}): Oxidação nos terminais, conforme Imagem 1`);
+    const two = stored(observation, [PHOTO_A, PHOTO_B]);
+    expect(printed(two.snapshot, two.text)).toBe(`Item 1 (${two.label}): Oxidação nos terminais, conforme Imagens 1 e 2`);
+  });
+
+  it('W1: a closing ";", ":" or "," goes too; "etc." keeps its period; with no photo the text stays as typed', () => {
+    for (const observation of ['Oxidação nos terminais;', 'Oxidação nos terminais:', 'Oxidação nos terminais,']) {
+      const one = stored(observation, [PHOTO_A]);
+      expect(one.text).toBe(`Item 1 (${one.label}): Oxidação nos terminais, conforme ${photoToken(PHOTO_A)}`);
+    }
+    const etc = stored('Oxidação, sujeira etc.', [PHOTO_A]);
+    expect(etc.text).toBe(`Item 1 (${etc.label}): Oxidação, sujeira etc., conforme ${photoToken(PHOTO_A)}`);
+    const none = stored('Oxidação nos terminais.', []);
+    expect(none.text).toBe(`Item 1 (${none.label}): Oxidação nos terminais.`);
+  });
+
+  it('W1: a photo taken just before the tap joins a text that ends in a period the same way', () => {
+    expect(withPhotoTokens('Oxidação nos terminais.', [PHOTO_A], SEED_VERSION)).toBe(`Oxidação nos terminais, conforme ${photoToken(PHOTO_A)}`);
+    expect(withPhotoTokens('Oxidação nos terminais...', [PHOTO_A, PHOTO_B], SEED_VERSION)).toBe(`Oxidação nos terminais, conforme ${photoToken(PHOTO_A)} e ${photoToken(PHOTO_B)}`);
+    // v16 as before: the bare tokens after the text.
+    expect(withPhotoTokens('Oxidação nos terminais.', [PHOTO_A], 'v16')).toBe(`Oxidação nos terminais. ${photoToken(PHOTO_A)}`);
+  });
+
+  it('W5 (a): an NC row with no observation and a photo reads "Item 1 (⟨item⟩) não conforme (Imagem 1)"; was "não conforme, conforme Imagem 1"', () => {
+    const one = stored(null, [PHOTO_A]);
+    expect(one.text).toBe(`Item 1 (${one.label}) não conforme (${photoToken(PHOTO_A)})`);
+    expect(printed(one.snapshot, one.text)).toBe(`Item 1 (${one.label}) não conforme (Imagem 1)`);
+    expect(pointTextPieces(one.text, numbers).map((piece) => (piece.kind === 'text' ? piece.text : piece.label)).join('')).toBe(`Item 1 (${one.label}) não conforme (Imagem 1)`);
+    const two = stored(null, [PHOTO_A, PHOTO_B]);
+    expect(printed(two.snapshot, two.text)).toBe(`Item 1 (${two.label}) não conforme (Imagens 1 e 2)`);
+    // A photo taken just before the tap joins the parentheses.
+    expect(withPhotoTokens(one.text, [PHOTO_A, PHOTO_B], SEED_VERSION)).toBe(two.text);
+    // No photo: no parentheses.
+    expect(stored(null, []).text).toBe(`Item 1 (${one.label}) não conforme`);
+    // v16 as before.
+    const v16 = stored(null, [PHOTO_A], onV16(fresh()));
+    expect(v16.text).toBe(`Item 1 (${v16.label}) não conforme ${photoToken(PHOTO_A)}`);
+  });
+
+  it('W5 (b): the same photo cited twice in a list is cited once, on the card and in the print; v16 prints as before', () => {
+    const twice = `Oxidação, conforme ${photoToken(PHOTO_A)} e ${photoToken(PHOTO_A)}`;
+    const snapshot = fresh();
+    expect(printed(snapshot, twice)).toBe('Oxidação, conforme Imagem 1');
+    expect(pointTextPieces(twice, numbers).map((piece) => (piece.kind === 'text' ? piece.text : piece.label)).join('')).toBe('Oxidação, conforme Imagem 1');
+    const thrice = `Oxidação, conforme ${photoToken(PHOTO_A)}, ${photoToken(PHOTO_B)} e ${photoToken(PHOTO_A)}`;
+    expect(printed(snapshot, thrice)).toBe('Oxidação, conforme Imagens 1 e 2');
+    expect(pointTextPieces(thrice, numbers).map((piece) => (piece.kind === 'text' ? piece.text : piece.label)).join('')).toBe('Oxidação, conforme Imagens 1 e 2');
+    expect(pluralImageRuns('conforme Imagem 1 e Imagem 1.')).toBe('conforme Imagem 1.');
+    // Without a repeat the run prints as Story 27.9 left it, separators kept.
+    expect(pluralImageRuns('Imagem 1 e Imagem 2 e Imagem 3')).toBe('Imagens 1 e 2 e 3');
+    expect(printed(onV16(snapshot), twice)).toBe('Oxidação, conforme Imagem 1 e Imagem 1');
   });
 });
 

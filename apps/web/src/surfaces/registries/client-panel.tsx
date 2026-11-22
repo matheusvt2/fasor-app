@@ -55,9 +55,20 @@ export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const t = copy.registries.clientes;
   const titleId = useId();
+  /**
+   * Batch e27c (W2): while a new client's repeated name is held, no other field creates the row (it would be
+   * born with no name and "Criar mesmo assim" would go); their values wait here and join the row's create op,
+   * made by "Criar mesmo assim" or by a name no other client has.
+   */
+  const nameHeld = useRef(false);
+  const waiting = useRef<Record<string, unknown>>({});
 
   async function commitField(field: string, value: unknown): Promise<void> {
     if (db === null || user === null) return;
+    if (!created.current && field !== 'name' && nameHeld.current) {
+      waiting.current = { ...waiting.current, [field]: value };
+      return;
+    }
     // Nothing to say when the value is the one the row already holds (Epic 2 retro D-8).
     if (client !== null && sameFieldValue((client as Record<string, unknown>)[field], value)) return;
     const base: Omit<OpDraft, 'kind' | 'path' | 'value'> = {
@@ -72,7 +83,9 @@ export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS
     };
     if (!created.current) {
       created.current = true;
-      const row = { ...defaultRow(clientId), [field]: value };
+      nameHeld.current = false;
+      const row = { ...defaultRow(clientId), ...waiting.current, [field]: value };
+      waiting.current = {};
       const op: OpDraft = { ...base, kind: 'create', path: registryPath('client', clientId), value: row as never };
       await commitBatch(db, [op], { newId, now });
       return;
@@ -131,6 +144,9 @@ export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS
             clients={clients}
             clientId={clientId}
             created={() => created.current}
+            onHold={() => {
+              nameHeld.current = true;
+            }}
             onCommit={(v) => commitField('name', v)}
           />
           <CnpjField value={client?.cnpj ?? ''} label={t.cnpjLabel} invalidText={copy.registries.cnpjInvalid} onCommit={(v) => commitField('cnpj', v)} />
@@ -232,15 +248,18 @@ interface NameFieldProps {
   clientId: string;
   /** Whether the row exists already (its first field committed): a repeated name then only warns. */
   created: () => boolean;
+  /** Batch e27c (W2): the name was left repeated before the client exists, so the panel holds the other fields too. */
+  onHold: () => void;
   onCommit: (value: string) => void | Promise<void>;
 }
 
 /**
  * Story 27.10 (F23): the client's name, warned when another client has it by the Novo relatório dialog's
  * rule (`clientNamedLike`, `normalizeRegistryName`). Before the client exists the repeated name is held
- * (nothing is created) until "Criar mesmo assim"; the user may still create it.
+ * (nothing is created) until "Criar mesmo assim"; the user may still create it. Batch e27c (W2): the
+ * warning then also says what creates it.
  */
-function NameField({ label, value, clients, clientId, created, onCommit }: NameFieldProps) {
+function NameField({ label, value, clients, clientId, created, onHold, onCommit }: NameFieldProps) {
   const t = copy.registries.clientes;
   const [text, setText] = useState(value);
   const [confirmed, setConfirmed] = useState(false);
@@ -250,8 +269,16 @@ function NameField({ label, value, clients, clientId, created, onCommit }: NameF
   // A new client's name commits on blur or Enter only, never on a pause in typing: a half-typed name
   // would create the client before the whole name could be checked.
   const [idleMs] = useState(() => (created() ? undefined : null));
-  const committer = useFieldCommit<string>({ commit: (name) => (held(name) ? undefined : onCommit(name)), ...(idleMs === undefined ? {} : { idleMs }) });
+  const committer = useFieldCommit<string>({
+    commit: (name) => {
+      if (!held(name)) return onCommit(name);
+      onHold();
+      return undefined;
+    },
+    ...(idleMs === undefined ? {} : { idleMs }),
+  });
   const warningId = useId();
+  const holding = twin !== null && !created() && !confirmed;
   return (
     <div className="field span-2">
       <label className="field">
@@ -274,10 +301,17 @@ function NameField({ label, value, clients, clientId, created, onCommit }: NameF
       </label>
       {twin === null ? null : (
         <span className="helper" data-tone="amber" id={warningId} role="status">
-          {t.nameRepeats(twin.name)}
+          {holding ? (
+            // Batch e27c (W2): the warning says what creates the held client; one helper row, so the field's grid keeps its rows.
+            <>
+              <span>{t.nameRepeats(twin.name)}</span> <span>{t.nameHeld}</span>
+            </>
+          ) : (
+            t.nameRepeats(twin.name)
+          )}
         </span>
       )}
-      {twin === null || created() || confirmed ? null : (
+      {!holding ? null : (
         <TextButton
           onPress={() => {
             confirmedRef.current = true;

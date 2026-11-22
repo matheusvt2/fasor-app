@@ -2231,6 +2231,8 @@ export const copy = {
       nameRepeats: (name: string) => `Já existe um cliente com este nome: ${name}`,
       // authored (Story 27.10, F23, listed for Bruno): the action that creates the client anyway.
       createAnyway: 'Criar mesmo assim',
+      // authored (batch e27c W2, listed for Bruno): what to do while the repeated name holds the new client back.
+      nameHeld: 'O cliente só é criado depois de Criar mesmo assim ou de um nome diferente; os outros campos esperam por ele.',
       cnpjLabel: 'CNPJ',
       contactNameLabel: 'Contato',
       contactPhoneLabel: 'Telefone do contato',

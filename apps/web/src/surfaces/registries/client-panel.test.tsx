@@ -1,10 +1,15 @@
-import type { ClientRow } from '@app/domain';
+import type { ClientRow, OpDraft } from '@app/domain';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { copy } from '../../copy/pt-br.ts';
 import { ToastProvider } from '../../state/toast.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { ClientPanel } from './client-panel.tsx';
+
+// Batch e27c (W2): the commits the panel makes, seen when a test gives the session a database.
+const { commitBatch } = vi.hoisted(() => ({ commitBatch: vi.fn<(db: unknown, ops: OpDraft[]) => Promise<{ batch_id: string }>>(async () => ({ batch_id: 'b' })) }));
+vi.mock('../../db/commit.ts', () => ({ commitBatch, undoBatch: vi.fn() }));
 
 /*
  * Mirrors `instrument-panel.test.tsx`'s harness: `database: null` keeps every commit
@@ -124,7 +129,8 @@ describe('27.10-UNIT ClientPanel — a name another client has (F23)', () => {
     const name = screen.getByLabelText('Nome');
     await user.type(name, 'cliente  local');
     expect(screen.getByText('Já existe um cliente com este nome: Cliente Local')).toBeInTheDocument();
-    expect(name).toHaveAccessibleDescription('Já existe um cliente com este nome: Cliente Local');
+    // Batch e27c (W2): the warning also says what creates the client.
+    expect(name).toHaveAccessibleDescription(`Já existe um cliente com este nome: Cliente Local ${copy.registries.clientes.nameHeld}`);
     expect(screen.getByRole('button', { name: 'Criar mesmo assim' })).toBeInTheDocument();
     await user.clear(name);
     await user.type(name, 'Cliente Novo');
@@ -145,6 +151,67 @@ describe('27.10-UNIT ClientPanel — a name another client has (F23)', () => {
     await user.type(name, 'CLIENTE LOCAL');
     expect(screen.getByText('Já existe um cliente com este nome: Cliente Local')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Criar mesmo assim' })).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.registries.clientes.nameHeld)).not.toBeInTheDocument();
+  });
+
+  describe('batch e27c W2: while the name is held no other field creates the client', () => {
+    const database = {} as never;
+    beforeEach(() => {
+      commitBatch.mockClear();
+      session.database = database;
+    });
+    afterEach(() => {
+      session.database = null;
+    });
+
+    const renderNew = () =>
+      render(
+        <ToastProvider>
+          <ClientPanel clientId={client.id} client={null} referenced={false} clients={[local]} onClose={vi.fn()} />
+        </ToastProvider>,
+      );
+    const createOp = () => commitBatch.mock.calls.map(([, ops]) => ops[0]!);
+
+    it('a repeated name then a CNPJ: nothing is created; "Criar mesmo assim" creates it with the name and the CNPJ', async () => {
+      const user = userEvent.setup();
+      renderNew();
+      await user.type(screen.getByLabelText('Nome'), 'cliente  local');
+      await user.tab();
+      await user.type(screen.getByLabelText('CNPJ'), '11222333000181');
+      await user.tab();
+      await user.type(screen.getByLabelText('Contato'), 'Ana');
+      await user.tab();
+      expect(commitBatch).not.toHaveBeenCalled();
+      expect(screen.getByText(copy.registries.clientes.nameHeld)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Criar mesmo assim' }));
+      expect(createOp()).toHaveLength(1);
+      expect(createOp()[0]).toMatchObject({ kind: 'create', path: `registry/client/${client.id}`, value: { name: 'cliente  local', cnpj: '11.222.333/0001-81', contact_name: 'Ana' } });
+    });
+
+    it('a name no other client has creates it with the fields typed while held', async () => {
+      const user = userEvent.setup();
+      renderNew();
+      const name = screen.getByLabelText('Nome');
+      await user.type(name, 'Cliente Local');
+      await user.tab();
+      await user.type(screen.getByLabelText('Contato'), 'Ana');
+      await user.tab();
+      expect(commitBatch).not.toHaveBeenCalled();
+      await user.clear(name);
+      await user.type(name, 'Cliente Novo');
+      await user.tab();
+      expect(createOp()).toHaveLength(1);
+      expect(createOp()[0]).toMatchObject({ kind: 'create', value: { name: 'Cliente Novo', contact_name: 'Ana' } });
+    });
+
+    it('with no repeated name the first field still creates the client, as before', async () => {
+      const user = userEvent.setup();
+      renderNew();
+      await user.type(screen.getByLabelText('Contato'), 'Ana');
+      await user.tab();
+      expect(createOp()).toHaveLength(1);
+      expect(createOp()[0]).toMatchObject({ kind: 'create', value: { name: '', contact_name: 'Ana' } });
+    });
   });
 });
 
