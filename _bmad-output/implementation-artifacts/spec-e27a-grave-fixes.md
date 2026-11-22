@@ -2,7 +2,7 @@
 title: 'e27a slice 1: the grave findings of the 2026-11-21 pass (Stories 27.3 to 27.7)'
 type: 'bugfix'
 created: '2026-11-21'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e7cd4259f86ee6caacea578eb697b08b988a0dd7'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -131,3 +131,17 @@ deferred: []
 - `podman compose restart api` after any change under `packages/domain` or `apps/api`, before `test:api` or a spec.
 - `... tools pnpm exec tsx scripts/e2e.ts e2e/<spec>.spec.ts --project desktop-chrome --project durability-desktop-chrome` -- spec paths before `--project`.
 - Final (orchestrator): `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api`, then every new and touched spec.
+
+## Review Triage Log
+
+- No review loop inside the batch (token economy, playbook § 12; launch prompt). The wave review on the integrated main covers it.
+
+## Auto Run Result
+
+Status: in-review (slice 1 built and gated; PR open, not merged; slice 2 with Stories 27.1 and 27.2 follows on this branch).
+
+- Implementation: one subagent (`bmad-dev-opus-high`, opus), returned complete; commit `dc4b75a0`.
+- Gate on `dc4b75a0` (load 4.68 at start, 3.31 at end; lock wait 0 s; the `fasor-e26c` stack was up beside it): lint 0 (21 s), static 0 (30 s), test:api 0 (1058 passed, 6 skipped; 607 s), test:unit 0 (7183 of 7183; 307 s), 14 new and touched specs 109 of 109 (265 s). Total 1250 s.
+- `origin/main` then moved (e26a merged); merged as `f3358d25` with no conflict, and the gate re-ran on the merge (its record is in the PR body).
+- Orchestrator cuts: one context summary while the implementation subagent ran; the handoff file is `.scratch-e27a/HANDOFF.md`.
+- Known open: `reasonParts` separates open fichas from reprovadas by name (two fichas sharing a TAG); a v13+ oil transformer table overflows its scroller at 1280 px (pre-existing); at 768 px with the tree opened by hand the disjuntor table scrolls in its own box.
