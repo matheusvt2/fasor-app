@@ -148,7 +148,11 @@ test('@p0 27.10-E2E-001 the five slips: nothing to restore, an empty exclusion, 
   await expect(row).toHaveCount(1);
   await expect(row.locator('.pc-meta')).toHaveText(`— ${sectionRefText(await deviceSnapshot(page, database, relatorioId), 4)}`);
   await expect(precheck.locator('li.is-blocking')).toHaveCount(0);
-  await expect(dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' })).toBeEnabled();
+  // Nothing is generated here (the spec stays in the parallel group): the button is only read.
+  const generate = dialog.getByRole('button', { name: 'Gerar relatório', exact: true });
+  await expect(generate).toHaveCount(1);
+  await expect(generate).toBeEnabled();
+  await expect(generate).not.toHaveAttribute('aria-disabled', 'true');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 
