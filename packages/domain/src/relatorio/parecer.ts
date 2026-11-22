@@ -4,12 +4,12 @@ import { hasPointSource } from '../points/derived.ts';
 import type { BlockRow, RelatorioParecer } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isCompanyBlockType } from '../schemas/block-config.ts';
-import { blockDefinitionIn, findSeed, seedRule, snapshotDefinitionContext } from '../seed/definitions.ts';
+import { blockDefinitionIn, findSeed, seedRule, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { isDefectReason } from '../seed/defect-reason.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
-import { effectiveConclusionPair, findingClauses } from './conclusion.ts';
+import { conclusionFloor, effectiveConclusionPair, findingClauses } from './conclusion.ts';
 import { naoEnsaiadasText } from './progress.ts';
 import { measurementCells } from './measurement-evaluation.ts';
 import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
@@ -120,6 +120,18 @@ function reprovado(block: BlockRow, definition: BlockDefinition | null, visit: V
 }
 
 /**
+ * Story 27.3 (F7 of the 2026-11-21 pass): an open ficha with a reading out of criterion: tested, not
+ * concluded, and its derived floor (not a stored pair) Reprovado. It stays effectively Reprovado (the
+ * minimum Não apto holds, `derivedParecer` reads `reprovado`), but the text names it apart from the
+ * concluded reprovadas. An open ficha whose Reprovado is only stored, with no floor, stays a reprovada.
+ */
+function openOut(block: BlockRow, definition: BlockDefinition | null, visit: VisitContext, ctx: DefinitionContext): boolean {
+  if (block.not_tested !== null) return false;
+  if (sheetState(block, ctx) === 'concluida') return false;
+  return conclusionFloor(block, definition, visit)?.pair.result === 'reprovado';
+}
+
+/**
  * Story 22.6: a tested sheet with a reading out of criterion other than a ratio row (an
  * insulation or contact capture, a measurement-table cell); the failed ratio has its own clause.
  */
@@ -208,24 +220,53 @@ export function effectiveParecer(snapshot: RelatorioSnapshot): ParecerVerdict | 
  * Story 22.6: the line under the verdict segments naming why the looser ones are disabled:
  * "O relatório exige no mínimo Não apto: 1 ficha reprovada (TR-1)." Null under Apto (nothing
  * is disabled). The counts are `parecerCounts`', so the line and the Critérios line agree.
+ * Story 27.3: a screen line, so the open fichas with a reading out of criterion are named apart
+ * from the concluded reprovadas on every seed ("1 ficha em aberto com leitura fora do critério (DJ-01)").
  */
 export function parecerReasonText(snapshot: RelatorioSnapshot): string | null {
   const derived = derivedParecer(snapshot);
   if (derived === null || derived === 'apto') return null;
+  return `O relatório exige no mínimo ${parecerVerdictLabel(derived)}: ${listPtBr(reasonParts(snapshot, derived))}.`;
+}
+
+// authored (Story 27.3, listed for Bruno): an open ficha with a reading out of criterion, singular and plural.
+const OPEN_OUT_SINGULAR = 'ficha em aberto com leitura fora do critério';
+const OPEN_OUT_PLURAL = 'fichas em aberto com leitura fora do critério';
+
+/** The parts the reason line and the replaced-choice line list, for a derived verdict stricter than Apto. */
+function reasonParts(snapshot: RelatorioSnapshot, derived: Exclude<ParecerVerdict, 'apto'>): string[] {
   const counts = parecerCounts(snapshot);
   // Fix batch e24h: the stored live points only.
   const points = livePoints(snapshot.points).length;
-  // authored (Story 22.6, open for Bruno): the reason line of the disabled verdicts.
-  const parts =
-    derived === 'nao_apto'
-      ? [`${plural(counts.reprovado.length, 'ficha reprovada', 'fichas reprovadas')} (${listPtBr(counts.reprovado)})`]
-      : [
-          counts.withRestriction.length > 0 ? `${counts.withRestriction.length} com restrições` : null,
-          counts.notTested.length > 0 ? naoEnsaiadasText(counts.notTested.length) : null,
-          counts.siteNc > 0 ? `${plural(counts.siteNc, 'NC', 'NC')} nas verificações do local` : null,
-          points > 0 ? plural(points, 'ponto de atenção', 'pontos de atenção') : null,
-        ].filter((part): part is string => part !== null);
-  return `O relatório exige no mínimo ${parecerVerdictLabel(derived)}: ${listPtBr(parts)}.`;
+  if (derived === 'nao_apto') {
+    const open = new Set(counts.openOut);
+    const reprovadas = counts.reprovado.filter((name) => !open.has(name));
+    return [
+      // authored (Story 22.6, open for Bruno): the reason line of the disabled verdicts.
+      reprovadas.length > 0 ? `${plural(reprovadas.length, 'ficha reprovada', 'fichas reprovadas')} (${listPtBr(reprovadas)})` : null,
+      counts.openOut.length > 0 ? `${plural(counts.openOut.length, OPEN_OUT_SINGULAR, OPEN_OUT_PLURAL)} (${listPtBr(counts.openOut)})` : null,
+    ].filter((part): part is string => part !== null);
+  }
+  return [
+    counts.withRestriction.length > 0 ? `${counts.withRestriction.length} com restrições` : null,
+    counts.notTested.length > 0 ? naoEnsaiadasText(counts.notTested.length) : null,
+    counts.siteNc > 0 ? `${plural(counts.siteNc, 'NC', 'NC')} nas verificações do local` : null,
+    points > 0 ? plural(points, 'ponto de atenção', 'pontos de atenção') : null,
+  ].filter((part): part is string => part !== null);
+}
+
+/**
+ * Story 27.3 (F7): the one line Etapa 6 and the Sumário's row 10 show when the verdict the engineer
+ * chose was replaced by a stricter one the fichas give: "O parecer escolhido (Apto) foi substituído
+ * por Não apto: 1 ficha em aberto com leitura fora do critério (DJ-01)." Null while no verdict is
+ * stored or the stored one is not looser than the derived one.
+ */
+export function parecerReplacedText(snapshot: RelatorioSnapshot): string | null {
+  const stored = parecerOf(snapshot)?.verdict ?? null;
+  const derived = derivedParecer(snapshot);
+  if (stored === null || derived === null || derived === 'apto' || VERDICT_RANK[stored] >= VERDICT_RANK[derived]) return null;
+  // authored (Story 27.3, listed for Bruno): the replaced-choice line.
+  return `O parecer escolhido (${parecerVerdictLabel(stored)}) foi substituído por ${parecerVerdictLabel(derived)}: ${listPtBr(reasonParts(snapshot, derived))}.`;
 }
 
 // --- the counts ------------------------------------------------------------------------------
@@ -247,6 +288,8 @@ export interface ParecerCounts {
   reprovado: string[];
   /** Story 22.6: the names of the tested sheets with a reading out of criterion other than a ratio row, in tree order. */
   outReadings: string[];
+  /** Story 27.3: the names of the open fichas whose floor is Reprovado (a subset of `reprovado`), in tree order. */
+  openOut: string[];
 }
 
 /**
@@ -270,6 +313,7 @@ export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
     siteNc: siteNcCount(snapshot),
     reprovado: reprovados,
     outReadings,
+    openOut: sheets.filter(({ block, definition, visit }) => openOut(block, definition, visit, ctx)).map(({ name }) => name),
   };
 }
 
@@ -359,10 +403,20 @@ function ncItemName(item: { n: number; label: string }): string {
  * with restrictions by TAG, NC rows grouped by checklist item, the live locals' NC site items
  * (2026-10-14) grouped by item, and the points of attention. No priority counts (source-deltas
  * row 29), no verdict sentence.
+ *
+ * Story 27.3 (F7): the screen names the open fichas with a reading out of criterion apart from the
+ * concluded reprovadas, on every seed; the print (`{ print: true }`) does so only on a seed whose
+ * rules turn `parecer_open_apart` on, so every older print keeps its bytes. With the split off, the
+ * text, the items and the basis are the ones composed before.
  */
-export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
+export function composeParecer(snapshot: RelatorioSnapshot, options: { print?: boolean } = {}): ComposedParecer {
   const sheets = countedSheets(snapshot);
-  const { total, concluded, notTested, open, withRestriction, reprovado: reprovados } = parecerCounts(snapshot);
+  const { total, concluded, notTested, open, withRestriction, reprovado: allReprovados } = parecerCounts(snapshot);
+  const split = options.print !== true || seedRule(snapshot.relatorio.seed_version, 'parecer_open_apart');
+  const ctx = snapshotDefinitionContext(snapshot);
+  const openOutSheets = split ? sheets.filter(({ block, definition, visit }) => openOut(block, definition, visit, ctx)) : [];
+  const openOutIds = new Set(openOutSheets.map(({ block }) => block.id));
+  const openOutNames = openOutSheets.map(({ name }) => name);
   const ncGroups = new Map<string, { n: number; label: string; sheets: number }>();
   for (const { block, definition } of sheets) {
     if (block.not_tested !== null) continue;
@@ -379,6 +433,11 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   // e22f N1: a Reprovado sheet is named once, in the Reprovado sentence with its reason; the
   // ratio and out-reading sentences name only the others.
   const reprovadoSet = new Set(sheets.filter(({ block, definition, visit }) => reprovado(block, definition, visit)).map(({ block }) => block.id));
+  // Story 27.3: with the split on, the Reprovado sentence, its reasons, findings and Critérios item name the
+  // concluded reprovadas only; the open ones with a reading out have their own sentence. Every other sentence
+  // still leaves out the whole Reprovado set, so each ficha is named once.
+  const reprovadaIds = new Set([...reprovadoSet].filter((id) => !openOutIds.has(id)));
+  const reprovados = split ? sheets.filter(({ block }) => reprovadaIds.has(block.id)).map(({ name }) => name) : allReprovados;
   // Batch e23e (Story 23.18, review fix): a sheet whose every failed ratio row fails by its choice alone (a polarity INVERTIDA)
   // is named by the choice's words, never "relação de transformação insatisfatória"; none on v1 to v12.
   const choiceTexts = new Map(ratioSheets.flatMap(({ block, definition, visit }) => {
@@ -392,7 +451,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   const ratioIds = new Set(ratioSheets.map(({ block }) => block.id));
   const byReason = { ratio: [] as string[], choice: [] as string[], reading: [] as string[], prerequisite: [] as string[], defect: [] as string[], other: [] as string[] };
   for (const { block, definition, name, visit } of sheets) {
-    if (!reprovadoSet.has(block.id)) continue;
+    if (!reprovadaIds.has(block.id)) continue;
     if (choiceTexts.has(block.id)) byReason.choice.push(name);
     else if (ratioIds.has(block.id)) byReason.ratio.push(name);
     else if (outReading(block, definition, visit)) byReason.reading.push(name);
@@ -404,7 +463,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   // Batch e24a (Story 24.4, seed v14): each reprovada ficha with its findings, in tree order (the relatório's seed reads the flag).
   const namesFinding = seedRule(snapshot.relatorio.seed_version, 'parecer_names_finding');
   const findings: ReprovadaFindings[] = namesFinding
-    ? sheets.filter(({ block }) => reprovadoSet.has(block.id)).map(({ block, definition, name, visit }) => ({ name, findings: reprovadaFindings(block, definition, visit) }))
+    ? sheets.filter(({ block }) => reprovadaIds.has(block.id)).map(({ block, definition, name, visit }) => ({ name, findings: reprovadaFindings(block, definition, visit) }))
     : [];
   const site = siteNcItems(snapshot).map((item) => ({ n: item.number, label: item.label, locals: item.locals.length }));
   // Fix batch e24h: the stored live points only (the sentence, the Critérios item and the basis).
@@ -424,6 +483,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     const registered = total === 1 ? 'Foi registrada 1 ficha de ensaio' : `Foram registradas ${total} fichas de ensaio`;
     sentences.push(`${registered}: ${listPtBr([done, untested, pending].filter((part): part is string => part !== null))}.`);
     if (reprovados.length > 0) sentences.push(namesFinding ? reprovadoFindingsSentence(findings) : reprovadoSentence(reprovados.length, byReason, choiceWords));
+    // authored (Story 27.3, listed for Bruno): the open fichas with a reading out of criterion, after the reprovadas.
+    if (openOutNames.length > 0) sentences.push(`${plural(openOutNames.length, OPEN_OUT_SINGULAR, OPEN_OUT_PLURAL)}: ${listPtBr(openOutNames)}.`);
     if (withRestriction.length > 0) {
       sentences.push(
         `${withRestriction.length === 1 ? '1 ficha apresentou' : `${withRestriction.length} fichas apresentaram`} restrições (${listPtBr(withRestriction)}).`,
@@ -459,6 +520,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
     ...(notTested.length > 0 ? [`${naoEnsaiadasText(notTested.length)} (${notTested.map((entry) => entry.name).join(', ')})`] : []),
     // authored (Story 22.6, open for Bruno): the Critérios item of the Reprovado sheets.
     ...(reprovados.length > 0 ? [`${plural(reprovados.length, 'reprovada', 'reprovadas')} (${reprovados.join(', ')})`] : []),
+    // authored (Story 27.3, listed for Bruno): the Critérios item of the open fichas with a reading out of criterion.
+    ...(openOutNames.length > 0 ? [`em aberto com leitura fora do critério (${openOutNames.join(', ')})`] : []),
     ...(withRestriction.length > 0 ? [`${withRestriction.length} com restrições (${withRestriction.join(', ')})`] : []),
     ...nc.map((group) => `item ${group.n} NC (${group.sheets})`),
     // authored (Story 17.5, open for Bruno): the Critérios item of the failed ratios.
@@ -505,6 +568,8 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
         : {}),
       // Batch e24a (Story 24.4): only on seed v14 with a reprovada ficha, so every basis of v1 to v13 keeps its bytes.
       ...(findings.length > 0 ? { reprovadoFindings: findings } : {}),
+      // Story 27.3: only with the split on and an open ficha floored Reprovado, so every basis written before keeps its bytes.
+      ...(openOutNames.length > 0 ? { openOut: openOutNames } : {}),
     }),
   );
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };
@@ -528,7 +593,8 @@ export function parecerTextState(parecer: RelatorioParecer | null, composed: Pic
  * (`composeParecer`). ~~The stored text once confirmed or edited~~.
  */
 export function parecerTextForPrint(snapshot: RelatorioSnapshot): string {
-  return composeParecer(snapshot).text;
+  // Story 27.3: the print names open fichas apart only where the relatório's seed turns `parecer_open_apart` on.
+  return composeParecer(snapshot, { print: true }).text;
 }
 
 /**

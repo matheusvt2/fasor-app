@@ -49,6 +49,20 @@
     "kind": "points_sem_prazo"
   },
   {
+    "id": "points_sem_prioridade",
+    "row": "section_8",
+    "severity": "info",
+    "text": "7 pontos sem prioridade",
+    "kind": "points_sem_prioridade"
+  },
+  {
+    "id": "points_sem_responsavel",
+    "row": "section_8",
+    "severity": "info",
+    "text": "7 pontos sem responsável",
+    "kind": "points_sem_responsavel"
+  },
+  {
     "id": "sheets",
     "row": "section_9",
     "severity": "pending",

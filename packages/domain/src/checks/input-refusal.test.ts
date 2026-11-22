@@ -60,7 +60,9 @@ describe('input refusal kinds (Story 18.4)', () => {
   it('a CNPJ and a voltage class: null when accepted (blank included), else the kind', () => {
     expect(cnpjInputRefusal('')).toBeNull();
     expect(cnpjInputRefusal('  ')).toBeNull();
-    expect(cnpjInputRefusal('12.345.678/0001-90')).toBeNull();
+    expect(cnpjInputRefusal('12.345.678/0001-95')).toBeNull();
+    // Story 27.2: 14 digits whose check digits do not match.
+    expect(cnpjInputRefusal('12.345.678/0001-90')).toBe('bad_format');
     expect(cnpjInputRefusal('123')).toBe('bad_format');
     expect(voltageClassInputRefusal('')).toBeNull();
     expect(voltageClassInputRefusal('17,5 kV')).toBeNull();

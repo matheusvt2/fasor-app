@@ -28,6 +28,7 @@ export type SerialLane = 'queue' | 'solo';
 
 export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: string }[] = [
   // Batch e23t (2026-11-09, Stories 23.15 to 23.17 and 23.19): each issues a revision to read its DOCX tables.
+  { file: 'document-company.spec.ts', lane: 'queue', why: 'Story 27.1: renders a draft PDF through the shared queue and LibreOffice to read the company of its document control' },
   { file: 'winding-resistance.spec.ts', lane: 'queue', why: 'Story 23.15: issues a revision through the shared queue and LibreOffice to read the winding table of the DOCX' },
   { file: 'polarization-index.spec.ts', lane: 'queue', why: 'Story 23.16: issues a revision through the shared queue and LibreOffice to read the IP column of the DOCX' },
   { file: 'oil-liquid-sampling.spec.ts', lane: 'queue', why: 'Story 23.17: issues a revision through the shared queue and LibreOffice to read the liquid fields and the absent sampling of the DOCX' },
@@ -480,6 +481,11 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     file: 'sync-by-itself.spec.ts',
     lane: 'solo',
     why: 'Story 25.3: times an edit\'s push against its commit and against slowed photo uploads, and jumps the page\'s clock a minute against a held push, so it must not share the CPU with other workers',
+  },
+  {
+    file: 'corrected-column-fit.spec.ts',
+    lane: 'solo',
+    why: 'Story 27.7 (batch e27a): measures the readings table\'s width against its scroller at 1024, 1280 and 768 px with the tree open and collapsed, a layout measure under a quiet CPU',
   },
 ];
 

@@ -1269,6 +1269,20 @@ html[data-toast-room] main.screen:not(:has(.sticky-action-bar))::after { content
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table :is(th[data-corrected-column], td[data-corrected-cell]) { display: none; }
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .corrected-stacked { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }
 }
+/* authored (batch e27a, Story 27.7, F13 of the 2026-11-21 pass): extends the e23v rule above to a landscape tablet with the
+   tree open (`.ficha-body[data-rail]` "auto" or "open", `ficha.css`), where the table does not fit beside the rail: the
+   corrected column is hidden and the value stands under its reading, the same two declarations copied. Measured on a v16
+   disjuntor at 768 px: the table (719 px with the column, 571 without) does not fit its 672 px box with the tree
+   collapsed (the default there) nor its 400 px box with the tree opened by hand, so from 768 to 1023 px the same rule
+   applies whatever the tree; with the tree open there the table still scrolls in its own `.mt-scroll` box. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .ficha-body:is([data-rail="auto"], [data-rail="open"]) .measurement-table :is(th[data-corrected-column], td[data-corrected-cell]) { display: none; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .ficha-body:is([data-rail="auto"], [data-rail="open"]) .measurement-table .corrected-stacked { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table :is(th[data-corrected-column], td[data-corrected-cell]) { display: none; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table .corrected-stacked { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); margin: var(--sp-2) 0 0; }
+}
 
 /* ---------- e23t (Stories 23.15 and 23.17, seed v13): the oil sampling and the winding's corrected line ----------
    `60-ficha.html` (Story 23.1's frames, `#/ficha/TR1` "Coleta de óleo", its page CSS of 2026-11-08): each rule below is the

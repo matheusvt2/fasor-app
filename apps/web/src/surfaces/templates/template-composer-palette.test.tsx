@@ -412,20 +412,20 @@ describe('3.4 composer: section blocks', () => {
       'Remover',
     ]);
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Descer' }));
-    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '4', '5', '6', '8', '10', '11']));
+    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '4', '5', '6', '9', '10', '11']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Seção 1 movida para a posição 2 de 9'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 3 Limite de escopo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicar' }));
-    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '3', '4', '5', '6', '8', '10', '11']));
+    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '4', '5', '6', '7', '10', '11', '12']));
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     const dialog = await screen.findByRole('dialog', { name: 'Remover 8 Pontos de atenção?' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
-    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '3', '4', '5', '6', '10', '11']));
+    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '4', '5', '6', '7', '10', '11']));
     await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
-    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '3', '4', '5', '6', '8', '10', '11']));
+    await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '4', '5', '6', '7', '10', '11', '12']));
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
   });
 
@@ -435,7 +435,7 @@ describe('3.4 composer: section blocks', () => {
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
     await userEvent.click(within(palette()).getByRole('button', { name: '1 Objetivo' }));
     await userEvent.click(within(palette()).getByRole('button', { name: '11 Certificados' }));
-    await waitFor(() => expect(tags(container)).toEqual(['1', '11']));
+    await waitFor(() => expect(tags(container)).toEqual(['1', '4']));
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar abaixo' }));
@@ -443,7 +443,7 @@ describe('3.4 composer: section blocks', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
     expect(within(drawer).getByText('A próxima seção tocada entra abaixo de 1 Objetivo.')).toBeVisible();
     await userEvent.click(within(drawer).getByRole('button', { name: '2 Definições' }));
-    await waitFor(() => expect(tags(container)).toEqual(['1', '2', '11']));
+    await waitFor(() => expect(tags(container)).toEqual(['1', '2', '5']));
   });
 
   it('p020 P-1a: with no section the warning and "Adicionar seção" show; the button opens the "Seções" group, its tap appends; with 8 and 10 no warning', async () => {
@@ -458,11 +458,11 @@ describe('3.4 composer: section blocks', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
     expect(within(drawer).queryByText(/A próxima seção tocada entra abaixo/)).toBeNull();
     await userEvent.click(within(drawer).getByRole('button', { name: '8 Pontos de atenção' }));
-    await waitFor(() => expect(tags(container)).toEqual(['8']));
+    await waitFor(() => expect(tags(container)).toEqual(['3']));
     await waitFor(() => expect(warning()).toHaveTextContent('Sem a seção 10, o parecer e a assinatura não saem nos relatórios deste template.'));
     // The drawer may still be open: the next tap goes where the palette is.
     await userEvent.click(within(screen.queryByRole('dialog', { name: 'Blocos' }) ?? palette()).getByRole('button', { name: '10 Conclusão' }));
-    await waitFor(() => expect(tags(container)).toEqual(['8', '10']));
+    await waitFor(() => expect(tags(container)).toEqual(['3', '4']));
     await waitFor(() => expect(warning()).toBeNull());
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
   });
@@ -476,7 +476,7 @@ describe('3.4 composer: section blocks', () => {
     expect(held).toHaveAccessibleDescription('No template');
     await userEvent.click(held);
     expect(await screen.findByText('1 Objetivo já está no template')).toBeVisible();
-    expect(tags(container)).toEqual(['1', '2', '3', '4', '5', '6', '8', '10', '11']);
+    expect(tags(container)).toEqual(['1', '2', '3', '4', '5', '6', '9', '10', '11']);
     expect(await outboxPaths()).toEqual([]);
   });
 
@@ -487,11 +487,11 @@ describe('3.4 composer: section blocks', () => {
     const row = () => within(palette()).getByRole('button', { name: '8 Pontos de atenção' });
     expect(row().querySelector('.pi-meta')).toBeNull();
     await userEvent.click(row());
-    await waitFor(() => expect(tags(container)).toEqual(['8']));
+    await waitFor(() => expect(tags(container)).toEqual(['3']));
     await waitFor(() => expect(row().querySelector('.pi-meta')).toHaveTextContent('No template'));
     await userEvent.click(row());
     expect(await screen.findByText('8 Pontos de atenção já está no template')).toBeVisible();
-    expect(tags(container)).toEqual(['8']);
+    expect(tags(container)).toEqual(['3']);
     expect(await outboxPaths()).toHaveLength(1);
   });
 
@@ -504,9 +504,9 @@ describe('3.4 composer: section blocks', () => {
       row.click();
       row.click();
     });
-    await waitFor(() => expect(tags(container)).toEqual(['8']));
+    await waitFor(() => expect(tags(container)).toEqual(['3']));
     expect(await screen.findByText('8 Pontos de atenção já está no template')).toBeVisible();
-    expect(tags(container)).toEqual(['8']);
+    expect(tags(container)).toEqual(['3']);
     expect(await outboxPaths()).toHaveLength(1);
   });
 

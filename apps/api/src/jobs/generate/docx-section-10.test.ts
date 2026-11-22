@@ -62,7 +62,7 @@ describe('7.4-UNIT section 10 in the DOCX', () => {
     const snapshot = fixture();
     const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
     const structure = extractStructure(await buildDocx(layout, { tocPages: placeholderPages(layout) }));
-    expect(structure.tables).toContainEqual([[`Não apto\n${composeParecer(snapshot).text}\nObservações do responsável: Resumo do parecer digitado.`]]);
+    expect(structure.tables).toContainEqual([[`Não apto\n${composeParecer(snapshot, { print: true }).text}\nObservações do responsável: Resumo do parecer digitado.`]]);
     const at = structure.paragraphs.indexOf('Este relatório tem validade apenas acompanhada da ART 2620262602583');
     expect(at).toBeGreaterThan(0);
     expect(structure.paragraphs.slice(at - 2, at).every((p) => p.length > 40)).toBe(true);

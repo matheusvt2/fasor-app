@@ -10,6 +10,8 @@ import {
   pointLinkKey,
   pointLinkOptions,
   pointLinkValues,
+  pointMissingFields,
+  pointMissingText,
   pointOrderText,
   recurringFindings,
   replaceLineText,
@@ -673,6 +675,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     });
 
   const order = position === undefined || total === undefined ? t.newOrder(sectionMention(snapshot, 8)) : pointOrderText(position, total);
+  // Story 27.4 (F8): the kernel's "Falta: …" from what is typed (action, owner) and what is stored (priority, deadline); saving stays allowed.
+  const origin = liveRow?.origin ?? link?.origin ?? point?.origin ?? 'manual';
+  const missingText = pointMissingText(pointMissingFields({ action, owner, priority, deadline, origin }));
 
   const body = (
     <div className="poa-body">
@@ -733,6 +738,12 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           </Button>
         </div>
       </div>
+
+      {missingText === null ? null : (
+        <p className="helper" data-tone="amber" data-missing="">
+          {missingText}
+        </p>
+      )}
 
       <div className="poa-fields-edit">
         <div className="field">

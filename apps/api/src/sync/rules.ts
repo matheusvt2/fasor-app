@@ -35,7 +35,7 @@ import {
   type StatusMoveInput,
   vectorGroupPublishIssue,
 } from '@app/domain';
-import { and, desc, eq, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { liveRevisions } from '../db/repositories/revisions.ts';
 import { roleOfUser } from '../db/roles.ts';
@@ -98,6 +98,7 @@ interface Target {
  * and, e20f, every other row the op names (`op_target_missing`), then
  * the attribution history and the lower bound of its instants (20.8). A refused op writes nothing.
  * Story 26.4: first of all, the actor's role must hold the op's key (`roleIssue`, `op_forbidden`).
+ * Story 27.1: then a create of a second live `empresa` row is refused `op_forbidden` (`holdsOtherEmpresa`).
  * Story 24.20: then, a published version whose ratio table can never compute
  * (`vectorGroupPublishIssue`) is refused `op_invalid`, the code a strict-schema refusal of a publish
  * gets; the rule is the push route's, not the fold's, so a version published before it still folds.
@@ -107,6 +108,8 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
   // Story 26.4 (AD-29): the actor's role must hold the key the op needs, first of all.
   const forbidden = await roleIssue(tx, companyId, op, path, deps.cache);
   if (forbidden !== null) return forbidden;
+  // Story 27.1 (F1, contract 56): beside the role's check, a company holds one live `empresa` row.
+  if (path.family === 'registry' && path.kind === 'empresa' && op.kind === 'create' && (await holdsOtherEmpresa(tx, companyId, path.id))) return 'op_forbidden';
   if (path.family === 'equipment_type_version' && op.kind === 'create' && op.value !== null && typeof op.value === 'object' && vectorGroupPublishIssue((op.value as { definition?: object }).definition) !== null) return 'op_invalid';
   if (!(await targetHolds(tx, companyId, op, path, deps.state, deps.cache))) return 'op_target_missing';
   const project = createProjectOf(op, path);
@@ -147,6 +150,29 @@ async function roleIssue(tx: Tx, companyId: CompanyId, op: Op, path: OpPath, cac
     cache?.roles.set(op.actor_id, role);
   }
   return can(role, need) ? null : 'op_forbidden';
+}
+
+/**
+ * Story 27.1 (F1, contract 56): whether the company already holds a live `empresa` registry row
+ * with another id than `id`. A create of a second one is refused `op_forbidden` (no code added),
+ * so the first row stays the company's only one; a create of the same id (a re-sent op) and every
+ * put on the row still apply. Two rows written before the rule are read through `pickEmpresa`.
+ */
+async function holdsOtherEmpresa(tx: Tx, companyId: CompanyId, id: string): Promise<boolean> {
+  const [found] = await tx
+    .select({ id: entities.id })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.entity, 'registry'),
+        isNull(entities.removed_at),
+        ne(entities.id, id),
+        sql`${entities.row}->>'kind' = 'empresa'`,
+      ),
+    )
+    .limit(1);
+  return found !== undefined;
 }
 
 /**

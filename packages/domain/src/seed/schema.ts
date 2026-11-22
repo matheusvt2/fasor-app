@@ -1085,6 +1085,8 @@ export const seedRulesSchema = z
     relay_clause_by_exclusions: z.literal(true).optional(),
     /** Story 25.22 (seed v15; M-4 of the Epic 24 proposal): section 10's validity line names the ART (or TRT) with no number: "acompanhado da respectiva ART." */
     validity_line_without_number: z.literal(true).optional(),
+    /** Story 27.3 (F7): section 10 names the open fichas with a reading out of criterion apart from the reprovadas; set on v17 by Story 27.8. */
+    parecer_open_apart: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

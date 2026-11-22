@@ -654,7 +654,18 @@
  * 403) and `user_inactive` (a user who is not active, 401). MIN follows to 55 (below). Epic 27
  * takes 56 after this.
  */
-export const CONTRACT_VERSION = 55;
+/*
+ * 56 (2026-11-21, Stories 27.1 and 27.2, batch e27a): no new op or path family; the server and the
+ * kernel refuse what could not exist. Story 27.1 (F1): a create of a second live `empresa` registry
+ * row in a company that holds one is refused `op_forbidden` (`apps/api/src/sync/rules.ts`), and every
+ * reader takes the company row through `pickEmpresa` (the live row of the smallest id). Story 27.2
+ * (F2 to F6, F11): a cabine's relative humidity outside 0 to 100 % is refused `op_value_invalid`
+ * (`ENV_VALUE_RULES`), and the device refuses where it is typed a humidity out of range, a resistance
+ * reading of zero or below on an absolute criterion (`not_positive`) and a CNPJ whose check digits
+ * do not match. No code is added to `contract/errors.ts`. MIN follows to 56 (below). Stored ops are
+ * not judged again; an op queued on an older device and refused takes the rejected-ops path.
+ */
+export const CONTRACT_VERSION = 56;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1046,7 +1057,15 @@ export const CONTRACT_VERSION = 55;
  * syncing on the first role the migration writes. Its pull answers `426 contract_outdated` and it
  * updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 55;
+/*
+ * 56 (2026-11-21, Stories 27.1 and 27.2, batch e27a): a version-55 (or older) bundle still queues a
+ * humidity above 100 %, a zero resistance on an absolute criterion and a CNPJ with wrong check digits,
+ * which the server now refuses, and still picks the first `empresa` row it finds rather than the
+ * one the print takes, so its Gerar dialog could show another company than the document. Its pull
+ * answers `426 contract_outdated` and it updates; its pushes are still accepted, and an op the new
+ * limits refuse lands in its rejected list.
+ */
+export const MIN_CONTRACT_VERSION = 56;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

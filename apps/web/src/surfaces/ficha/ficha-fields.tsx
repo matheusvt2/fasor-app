@@ -11,6 +11,7 @@ import {
   numberEchoText,
   normalizeDateValue,
   numberFieldValue,
+  numberRangeRefusal,
   parsePlateDateText,
   parseVoltageClassKv,
   plateDateAccepted,
@@ -22,6 +23,7 @@ import {
   type BlockRow,
   type FieldDef,
   type NameplateFieldInput,
+  type NumberRange,
   type WordRow,
   EMPTY_DEFINITION_CONTEXT,
   type DefinitionContext,
@@ -305,6 +307,12 @@ export interface FieldProps {
    * typed as text and parsed, echoed and shown by the kernel. Absent on every v12 field.
    */
   input?: NameplateFieldInput;
+  /**
+   * Story 27.2 (F2): the range a number field takes, the kernel's for the path it writes
+   * (`numberRangeOf`: the cabine's humidity, 0 to 100 %); a number outside it is refused where it is
+   * typed with the kernel's message (`numberRangeRefusal`), so nothing is queued the server refuses.
+   */
+  range?: NumberRange;
 }
 
 /** One sheet field, editable, rendered by its kind. */
@@ -384,7 +392,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
  * shows a secondary "N/A" button at its trailing end while it does not read N/A; a tap
  * commits the same `not_applicable` put as the typed spelling and moves no focus.
  */
-function NumberField({ field, value, commit, draft, missing, label, helper, invalidText, after, flushOnUnmount, acceptsNotApplicable, acceptsPair, input }: FieldProps) {
+function NumberField({ field, value, commit, draft, missing, label, helper, invalidText, after, flushOnUnmount, acceptsNotApplicable, acceptsPair, input, range }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
@@ -398,6 +406,8 @@ function NumberField({ field, value, commit, draft, missing, label, helper, inva
   const parseNumber = (text: string): ParsedNumber | null | 'invalid' => {
     const parsed = numberFieldValue(text, unit, { pair: acceptsPair === true, list, sqrt3 });
     if (parsed === null || parsed === 'invalid') return parsed;
+    // Story 27.2: a number outside the field's range is refused, never committed.
+    if (numberRangeRefusal(text, unit, range ?? null) !== null) return 'invalid';
     // QA G1, fx17r review: an N/A stored before the field stopped offering it still reads N/A.
     if (parsed.state === 'not_applicable' && acceptsNotApplicable !== true && !storedNotApplicable) return 'invalid';
     return parsed.state === 'not_applicable' ? { raw: '', unit: null, state: 'not_applicable' } : { raw: parsed.raw, unit: parsed.unit };
@@ -417,7 +427,7 @@ function NumberField({ field, value, commit, draft, missing, label, helper, inva
     // seed v13: nor ";" nor "√", so a list or a value over √3 asks for it too (`nameplateFieldInput`).
     inputMode: acceptsPair === true ? 'text' : (input?.inputMode ?? 'decimal'),
     // Story 18.4: a refusal on blur or Enter is an `input_refused` with the kernel's reason.
-    onRefuse: (text) => trackInputRefused('ficha.number', refusedNumberKind(text)),
+    onRefuse: (text) => trackInputRefused('ficha.number', refusedNumberKind(text, unit, range ?? null)),
     // DB-7: Enter commits (`useNumberInput`), then runs on unless the text is no number (the
     // helper shows and the focus stays) or an IME composition ends with it.
     onEnter: (event) => {
@@ -484,7 +494,7 @@ function NumberField({ field, value, commit, draft, missing, label, helper, inva
       )}
       {number.invalid ? (
         <span className="helper" data-tone="red" id={helperId}>
-          {invalidText}
+          {numberRangeRefusal(number.text, unit, range ?? null) ?? invalidText}
         </span>
       ) : null}
       {/* Seed v13 (Story 23.7): the kernel's line under the field (TAPS: "Na ordem da placa, separados por ; · 5 taps", Story 24.9). */}
