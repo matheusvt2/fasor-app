@@ -1,4 +1,4 @@
-import { getSeed, NC_CAPTION_LEAD, newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
+import { NC_CAPTION_LEAD, newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -370,6 +370,11 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   const chips = nc.getByRole('group', { name: 'Observações sugeridas do item 11' });
   await expect(chips.getByRole('button')).toHaveText(['Luminária de emergência inoperante', NC_PHRASE, 'Sem iluminação de emergência']);
   const ncField = nc.getByRole('textbox', { name: 'Observação do item 11' });
+  // Story 27.13 (F19): the red reason waits until the field is left empty, never on the row just marked NC.
+  await expect(ncField).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(nc.locator('.helper[data-tone="red"]')).toHaveCount(0);
+  await ncField.click();
+  await page.keyboard.press('Tab');
   await expect(ncField).toHaveAttribute('aria-invalid', 'true');
   await expect(nc.locator('.helper[data-tone="red"]')).toHaveText('Obrigatória em item não conforme');
   await chips.getByRole('button', { name: NC_PHRASE }).click();
@@ -553,6 +558,8 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await confirmIssue(modal, /^Gerar com 94 fichas vazias/);
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const document = await downloadDocx(page, 1);
+  // Batch e27c (W4): the seed the relatório was born on, as the device holds it.
+  const relatorioSeed = (await entities<{ id: string; seed_version: string }>(page)).find((record) => record.entity === 'relatorio' && record.row.id === relatorioId)?.row.seed_version;
 
   // Story 20.3: on a relatório created today the tests section is 8 and the points 9.
   const nine = sectionXml(document, 8);
@@ -577,8 +584,10 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
     expect(tables.slice(0, 3).map((table) => table[0]![0]), part.heading).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', SITE_TITLE]);
     expect(tables.filter((table) => table[0]![0] === SITE_TITLE), part.heading).toHaveLength(1);
     const table = tables[2]!;
-    // The seed's normalized columns, read from the kernel (Story 27.8: "ITEM" since seed v17).
-    expect(table[1]).toEqual([...getSeed(SEED_VERSION, 'cabine_primaria').checklist_columns]);
+    // ~~The seed's normalized columns, read from the kernel~~ (batch e27c W4: read from the seed the check was
+    // circular): pinned, a v17 relatório prints "ITEM" (Story 27.8; was "ÍTEM").
+    expect(relatorioSeed).toBe('v17');
+    expect(table[1]).toEqual(['ITEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
     expect(table.filter((cells) => cells.length === 1).map((cells) => cells[0])).toEqual([SITE_TITLE, ...GROUPS]);
     const items = itemRows(table);
     expect(items).toHaveLength(N);

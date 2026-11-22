@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TriStateValue } from '../../components/index.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import type { Build } from '../relatorio/relatorio-editor.ts';
-import { ChecklistRow, sheetRowTarget, type ChecklistRowApi, type ChecklistRowTarget } from './checklist-section.tsx';
+import { ChecklistRow, ConcludeAttemptedContext, sheetRowTarget, type ChecklistRowApi, type ChecklistRowTarget } from './checklist-section.tsx';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 
 /*
@@ -142,8 +142,54 @@ describe('24.6 the NC phrase follows its item (a sheet\'s row)', () => {
     h.rerender('NC', 'Texto digitado');
     expect(screen.queryByText(KEPT)).toBeNull();
     // Set back to NC, the row asks for an observation as any NC row does once it is empty.
+    // Story 27.13 (F19): its red reason waits until the field is left empty.
     h.rerender('NC', '');
+    expect(within(row()).queryByText('Obrigatória em item não conforme')).toBeNull();
+    await userEvent.click(within(row()).getByRole('textbox', { name: 'Observação do item 2' }));
+    await userEvent.tab();
     expect(within(row()).getByText('Obrigatória em item não conforme')).toBeVisible();
+  });
+});
+
+describe('27.13-UNIT Story 27.13 (F19): "Obrigatória" shows after the field is left or a conclude was refused', () => {
+  const field = () => within(row()).getByRole('textbox', { name: 'Observação do item 2' });
+  const REASON = 'Obrigatória em item não conforme';
+
+  it('a row just marked NC: required for the conclude path, no red mark; left empty, the mark; typed into and left, none', async () => {
+    renderRow('NC', '');
+    expect(field()).toHaveAttribute('data-missing-field', '');
+    expect(field()).not.toHaveAttribute('data-required');
+    expect(field()).not.toHaveAttribute('aria-invalid');
+    expect(within(row()).queryByText(REASON)).toBeNull();
+
+    await userEvent.click(field());
+    await userEvent.tab();
+    expect(field()).toHaveAttribute('data-required', '');
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(field()).toHaveAccessibleDescription(REASON);
+    expect(field()).toHaveAttribute('data-missing-field', '');
+  });
+
+  it('a conclude refused on the sheet shows the mark on an NC row never left', () => {
+    render(
+      <ToastProvider>
+        <ConcludeAttemptedContext.Provider value>
+          <ul className="checklist">
+            <ChecklistRow
+              api={{ relatorioId: REL, author: AUTHOR, commit: vi.fn(async () => undefined), edit: vi.fn(async () => null), undoable: vi.fn() }}
+              target={target('NC', '')}
+              item={{ key: ITEM }}
+              label="Isoladores"
+              number={2}
+              readOnly={false}
+              snapshot={base}
+            />
+          </ul>
+        </ConcludeAttemptedContext.Provider>
+      </ToastProvider>,
+    );
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(within(row()).getByText(REASON)).toBeVisible();
   });
 });
 

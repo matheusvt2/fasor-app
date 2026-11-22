@@ -1810,6 +1810,12 @@ export const copy = {
       comRestricoes: 'Com restrições',
       // authored (Story 22.4, open for Bruno): the note over a stored pair a later floor made stricter.
       adjustedNote: 'Conclusão ajustada pela ficha',
+      // authored (batch e27c, Story 27.13, F18, the coordinator's reading, listed for Bruno): the three conclusion
+      // buttons that all said "Confirmar" name what each writes: the adjusted pair, the conclusion text, the
+      // sheet observation composed of the NC items.
+      confirmResult: 'Confirmar resultado',
+      confirmText: 'Confirmar texto',
+      confirmObservation: 'Confirmar observação',
       // ~~authored: the suggestion row's field label. 'Sugestão'~~
       // authored (e24b, listed for Bruno): Story 24.5, the preview row's label (`60-ficha.html` `.e24-conc`).
       suggestionLabel: 'Prévia da conclusão',
@@ -2225,6 +2231,8 @@ export const copy = {
       nameRepeats: (name: string) => `Já existe um cliente com este nome: ${name}`,
       // authored (Story 27.10, F23, listed for Bruno): the action that creates the client anyway.
       createAnyway: 'Criar mesmo assim',
+      // authored (batch e27c W2, listed for Bruno): what to do while the repeated name holds the new client back.
+      nameHeld: 'O cliente só é criado depois de Criar mesmo assim ou de um nome diferente; os outros campos esperam por ele.',
       cnpjLabel: 'CNPJ',
       contactNameLabel: 'Contato',
       contactPhoneLabel: 'Telefone do contato',

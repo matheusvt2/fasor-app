@@ -3,7 +3,7 @@ import { useId } from 'react';
 import { Button, OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { sectionName } from './block-palette.tsx';
-import { DragHandle, PositionBox } from './reorder-controls.tsx';
+import { DragHandle } from './reorder-controls.tsx';
 import { useReorder, type Reorder } from './use-reorder.ts';
 
 export interface SectionListProps {
@@ -25,8 +25,11 @@ export interface SectionListProps {
 
 /**
  * The composition's section blocks (`42-template-composer.html` "Blocos"): one
- * `.block-card` per section in order, with the drag handle, the Position box, the
+ * `.block-card` per section in order, with the drag handle, ~~the Position box,~~ the
  * ~~FO.SERV-03 number~~ number the relatório will give it (Story 27.5) in `.block-tag` and the title in `.block-name`.
+ * Story 27.14 (F20): the row shows that one number, as the mock draws it; the Position box (its
+ * position among the sections, a second number beside it) is no longer drawn. The row still moves
+ * by its drag handle, Alt+arrows and the Overflow's Subir / Descer, whose announcement names the position.
  */
 export function SectionList({ sections, generatedNumbers, warning = null, onAddSection, ...props }: SectionListProps) {
   const headingId = useId();
@@ -114,7 +117,6 @@ export function SectionCard({
   return (
     <li className={reorder.dragging ? 'block-card is-dragging' : 'block-card'} {...reorder.rowProps}>
       <DragHandle name={name} reorder={reorder} />
-      <PositionBox name={name} position={section.position} siblings={section.siblings} reorder={reorder} />
       {/* E3-A9 (mock l.281, `li.block-card` opening `#tc-dlg-rich`): a section with text opens
           "Editar texto" from a tap on its body, the cabine card's `button.block-body` pattern;
           the Overflow item stays. */}

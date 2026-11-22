@@ -35,7 +35,7 @@ import {
   type SuggestionRow,
   snapshotDefinitionContext,
 } from '@app/domain';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { ConfirmDialog } from '../../components/confirm-dialog.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
@@ -83,6 +83,12 @@ import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
  * for a list with nothing to repeat from (`single`).
  */
 
+/**
+ * Story 27.13 (F19): whether a conclude on the sheet was refused for a missing field; from then on
+ * an NC row's empty observation shows its red reason (`ficha-surface.tsx` provides it).
+ */
+export const ConcludeAttemptedContext = createContext(false);
+
 /** Story 6.1: what the checklist rows need to shoot and show their photos. */
 export interface ChecklistPhotos {
   /** Every photo of this sheet (the rows pick theirs by `item_key`). */
@@ -115,21 +121,24 @@ function legendOpensHere(blockId: string): boolean {
 export interface ChecklistBulk {
   /** How many rows "Marcar os restantes como Conforme" would set. */
   unset: number;
+  /** Story 27.11: the first item still unanswered (the kernel's `checklistUnsetItems`), above which the bar stands; null with none. */
+  firstUnset: string | null;
   markRest: () => void;
   /** The concluded sheet "Repetir" copies from, or null. */
   source: BlockRow | null;
   repeat: () => void;
 }
 
-/** The two bulk actions (UX-DR36), shared by the list head and the Sticky action bar's mirror. */
+/** The two bulk actions (UX-DR36) of the sheet's Bulk action bar. */
 export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, block: BlockRow, equipment: readonly EquipmentRow[]): ChecklistBulk {
   const t = copy.ficha.checklist;
   // e22h B1: a company sheet's checklist is its version's, from the snapshot.
   const definitions = snapshotDefinitionContext(snapshot);
-  const unset = checklistUnsetItems(block, definitions).length;
+  const unsetKeys = checklistUnsetItems(block, definitions);
   const source = repeatChecklistSource(snapshot, block.id);
   return {
-    unset,
+    unset: unsetKeys.length,
+    firstUnset: unsetKeys[0] ?? null,
     source,
     markRest: () => {
       let n = 0;
@@ -166,18 +175,16 @@ export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, blo
 export type BulkMarkRest = Pick<ChecklistBulk, 'unset' | 'markRest'>;
 
 /**
- * The Bulk action bar; `compact` is the Sticky action bar's mirror (the first action only).
+ * The Bulk action bar. Story 27.11 (F14): its compact mirror in the Sticky action bar is gone.
  * Story 14.3: `single` draws the first action alone at the head of a list that has no
  * "Repetir" (the site checklist, `61-verificacoes-local.html` `.vl-intro`), under `label`.
  */
 export function BulkActionBar({
   bulk,
-  compact = false,
   single = false,
   label,
 }: {
   bulk: BulkMarkRest & Partial<Pick<ChecklistBulk, 'source' | 'repeat'>>;
-  compact?: boolean;
   single?: boolean;
   /** The group's name; the sheet's own when omitted. */
   label?: string;
@@ -190,14 +197,14 @@ export function BulkActionBar({
     </svg>
   );
   return (
-    <div className={compact ? 'bulk-action-bar is-compact' : 'bulk-action-bar'} role="group" aria-label={label ?? t.bulkLabel}>
+    <div className="bulk-action-bar" role="group" aria-label={label ?? t.bulkLabel}>
       <div className="bulk-action">
         <TextButton onPress={bulk.markRest} isDisabled={bulk.unset === 0} disabledReason={t.allMarked}>
           {markIcon}
           {t.markRest}
         </TextButton>
       </div>
-      {compact || single || repeat === undefined ? null : (
+      {single || repeat === undefined ? null : (
         <div className="bulk-action">
           <TextButton onPress={repeat} isDisabled={(bulk.source ?? null) === null} disabledReason={t.noConcluded}>
             <svg className="ico" aria-hidden="true">
@@ -240,14 +247,27 @@ export function ChecklistSection({
   const readOnlyReason = useSheetReadOnlyReason();
   const [legendOpen] = useState(() => legendOpensHere(block.id));
   const items = definition.checklist;
+  // Story 27.11 (F14, the coordinator's reading): the Bulk action bar stands in the flow, above the
+  // first unanswered item, so it never adds to the fixed bar; at the list head when that item is the
+  // first or none is left (J-15: there it stays disabled with its reason).
+  const inFlowKey = items === null || bulk.firstUnset === null || bulk.firstUnset === items[0]?.key ? null : bulk.firstUnset;
+  const barRescue = useBulkBarFocusRescue(inFlowKey);
   if (items === null || items.length === 0) return null;
+  const bar = readOnly ? null : <BulkActionBar bulk={bulk} />;
   return (
-    <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} ref={sectionRef}>
+    <section
+      className={readOnly ? 'section is-readonly' : 'section'}
+      aria-labelledby={headingId}
+      ref={(element) => {
+        barRescue.current = element;
+        sectionRef?.(element);
+      }}
+    >
       <div className="section-head">
         <h2 id={headingId}>{t.title}</h2>
         {readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>}
       </div>
-      {readOnly ? null : <BulkActionBar bulk={bulk} />}
+      {inFlowKey === null ? bar : null}
       <details className="ficha-details ficha-legend" open={legendOpen}>
         <summary>
           <svg className="ico" aria-hidden="true">
@@ -269,6 +289,7 @@ export function ChecklistSection({
             readOnly={readOnly}
             photos={photos}
             snapshot={snapshot}
+            before={item.key === inFlowKey ? bar : null}
           />
         ))}
       </ul>
@@ -278,6 +299,31 @@ export function ChecklistSection({
 
 const NO_PENDING: readonly SuggestionRow[] = [];
 const NO_LEARNED: readonly RegistryRow[] = [];
+
+/**
+ * Story 27.11: a press on the Bulk action bar moves it (above the next unanswered item, or to the
+ * list head once none is left), which unmounts the button holding the focus. When the bar held it,
+ * the focus goes to the bar's first action where it stands now (at the list head: the disabled
+ * action with its reason, J-15), never to the page body. Returns the section's ref to fill.
+ */
+function useBulkBarFocusRescue(position: string | null): { current: HTMLElement | null } {
+  const section = useRef<HTMLElement | null>(null);
+  const barFocused = useRef(false);
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      barFocused.current = event.target instanceof Element && section.current !== null && section.current.contains(event.target) && event.target.closest('.bulk-action-bar') !== null;
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+  useLayoutEffect(() => {
+    if (!barFocused.current) return;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    section.current?.querySelector<HTMLElement>('.bulk-action-bar button')?.focus({ preventScroll: true });
+  }, [position]);
+  return section;
+}
 
 /** Story 24.6: what the kept warning was shown for: the row's observation and result then. */
 interface KeptRecord {
@@ -415,6 +461,7 @@ export function ChecklistRow({
   photos,
   snapshot,
   observationLine = false,
+  before = null,
 }: {
   api: ChecklistRowApi;
   target: ChecklistRowTarget;
@@ -430,6 +477,8 @@ export function ChecklistRow({
   photos?: ChecklistPhotos;
   snapshot: RelatorioSnapshot;
   observationLine?: boolean;
+  /** Story 27.11: what stands at the top of the row, above its label: the sheet's Bulk action bar on its first unanswered item. */
+  before?: ReactNode;
 }) {
   const t = copy.ficha.checklist;
   const result = target.result;
@@ -471,6 +520,16 @@ export function ChecklistRow({
   // The reason line goes once text exists (EXPERIENCE.md › Observation field); a
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
+  // Story 27.13 (F19): the field stays required for the conclude path (`data-missing-field`), but
+  // its red mark (`data-required`, `aria-invalid`, the reason) waits until the field was left
+  // empty or a conclude on the sheet was refused; never on the row just marked NC.
+  const [leftEmpty, setLeftEmpty] = useState(false);
+  const concludeAttempted = useContext(ConcludeAttemptedContext);
+  const requiredShown = required && (leftEmpty || concludeAttempted);
+  // A row that leaves NC forgets the leave: marked NC again, it starts unmarked.
+  useEffect(() => {
+    if (!nc) setLeftEmpty(false);
+  }, [nc]);
   // Story 24.6: the row left NC keeping an edited observation: the warning shows on this device
   // until the row's observation or result changes again. Fix batch e24x (A5): the record outlives
   // leaving the ficha and a reload (this tab's `sessionStorage`, by relatório, entity and item).
@@ -601,6 +660,7 @@ export function ChecklistRow({
 
   return (
     <li className={showKept ? 'checklist-row e24-kept' : 'checklist-row'} data-item-key={item.key} data-missing-field={result === null ? '' : undefined}>
+      {before}
       <div className="row-main">
         <span className="row-label">
           <span className="row-num">{number}.</span>
@@ -655,19 +715,22 @@ export function ChecklistRow({
               value={typed.text}
               readOnly={readOnly}
               maxLength={target.observationCap ?? undefined}
-              data-required={required ? '' : undefined}
+              data-required={requiredShown ? '' : undefined}
               data-missing-field={required ? '' : undefined}
-              aria-invalid={required || undefined}
-              aria-describedby={required ? reasonId : showKept ? keptLineId : undefined}
+              aria-invalid={requiredShown || undefined}
+              aria-describedby={requiredShown ? reasonId : showKept ? keptLineId : undefined}
               onChange={(event) => {
                 discardDraft();
                 dictation.discard();
                 typed.change(event.target.value);
               }}
-              onBlur={typed.blur}
+              onBlur={() => {
+                typed.blur();
+                setLeftEmpty(typed.text.trim() === '');
+              }}
             />
             {readOnly ? null : <CharCount length={typed.text.length} cap={target.observationCap} />}
-            {required ? (
+            {requiredShown ? (
               <span className="helper" data-tone="red" id={reasonId}>
                 {t.observationRequired}
               </span>

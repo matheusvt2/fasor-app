@@ -15,6 +15,8 @@ export interface GeneratedTextFieldProps {
   state: GeneratedTextState;
   /** "Confirmar" of an unconfirmed text. */
   onConfirm: () => void;
+  /** Story 27.13 (F18): the confirm button's words where "Confirmar" alone would match another button beside it ("Confirmar texto" on the ficha). */
+  confirmLabel?: string;
   /** "Substituir" under a stale text: the recomposed text replaces the stored one. */
   onReplace: () => void;
   /** "Editar" (the current text, at once) and a text typed after it (on blur): stored as edited. */
@@ -61,6 +63,7 @@ export function GeneratedTextField({
   criteriaItems,
   state,
   onConfirm,
+  confirmLabel,
   onReplace,
   onEdit,
   draft,
@@ -251,7 +254,7 @@ export function GeneratedTextField({
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-check" />
               </svg>
-              {t.confirm}
+              {confirmLabel ?? t.confirm}
             </button>
           ) : null}
           {typing ? null : (

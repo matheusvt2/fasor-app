@@ -60,6 +60,8 @@ export function useSavedStatus(): { at: string | null; saved: () => void } {
 }
 
 export interface FichaActions {
+  /** Story 27.13 (F19): a conclude on this sheet was refused for a missing field. */
+  concludeAttempted: boolean;
   primaryLabel: string;
   primary: () => void;
   /** Epic 18: the primary's usage-event name: `ficha.conclude` while it concludes, else `ficha.next_sheet`. */
@@ -121,6 +123,9 @@ export function useFichaActions({
   const projectId = relatorio.project_id;
 
   // --- "Concluir ficha" and the way on ------------------------------------------------------
+  // Story 27.13 (F19): whether a conclude on this sheet was refused for a missing field (by block, so the next sheet starts clean).
+  const [attemptedOn, setAttemptedOn] = useState<string | null>(null);
+  const concludeAttempted = attemptedOn === blockId;
   const goNext = () => {
     if (next.kind === 'relatorio') void navigate(`/relatorio/${relatorioId}`);
     else void navigate(`/relatorio/${relatorioId}/ficha/${next.blockId}`);
@@ -194,6 +199,8 @@ export function useFichaActions({
         if (batch === null) {
           if (otherwise === 'next') goNext();
           else if (firstMissing !== null) {
+            // Story 27.13 (F19): from here a required field left empty shows its red reason.
+            setAttemptedOn(blockId);
             editor.announce(t.incomplete);
             goTo(firstMissing.step, true, firstMissing.fieldKey);
           }
@@ -311,6 +318,7 @@ export function useFichaActions({
   };
 
   return {
+    concludeAttempted,
     primaryLabel,
     primary,
     primaryTelemetry: concludable ? 'ficha.conclude' : 'ficha.next_sheet',

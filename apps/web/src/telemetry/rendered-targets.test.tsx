@@ -61,7 +61,7 @@ describe('prop-fed control names, as rendered', () => {
   it("the Sticky action bar's primary renders each name the sheet's actions give it", () => {
     const given: FichaActions['primaryTelemetry'][] = ['ficha.conclude', 'ficha.next_sheet'];
     for (const name of given) {
-      const { container, unmount } = render(<StickyActionBar stepper={null} secondary={null} primaryLabel="Concluir" onPrimary={() => undefined} primaryTelemetry={name} />);
+      const { container, unmount } = render(<StickyActionBar stepper={null} primaryLabel="Concluir" onPrimary={() => undefined} primaryTelemetry={name} />);
       expect(renderedNames(container)).toEqual([name]);
       expect(TARGETS.has(name)).toBe(true);
       unmount();

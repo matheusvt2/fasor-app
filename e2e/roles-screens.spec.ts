@@ -98,13 +98,19 @@ test.describe('26.5 the screens by role', () => {
     // Sumário: "Pré-visualizar" and "Gerar relatório" disabled, one shared line; the rows open.
     await page.goto(`/relatorio/${fixture.relatorioId}`);
     await expect(generate(page)).toHaveAttribute('aria-disabled', 'true');
-    await expect(preview(page)).toHaveAttribute('aria-disabled', 'true');
     const reason = page.locator('.sticky-action-bar .btn-reason', { hasText: permissionRefusalText('relatorio.issue') });
     await expect(reason).toHaveCount(1);
     const reasonId = await reason.getAttribute('id');
     expect(reasonId).not.toBeNull();
     await expect(generate(page)).toHaveAttribute('aria-describedby', new RegExp(reasonId!));
-    await expect(preview(page)).toHaveAttribute('aria-describedby', new RegExp(reasonId!));
+    // Story 27.11 (F14): at 390 px "Pré-visualizar" stands in the header menu, disabled with the same line.
+    await expect(preview(page)).toBeHidden();
+    await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+    const previewItem = page.getByRole('menuitem', { name: 'Pré-visualizar' });
+    await expect(previewItem).toHaveAttribute('aria-disabled', 'true');
+    await expect(previewItem).toContainText(permissionRefusalText('relatorio.issue'));
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 
     // The ficha opens and takes input: no read-only Banner, no read-only section.

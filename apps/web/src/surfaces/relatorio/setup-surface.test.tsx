@@ -276,6 +276,19 @@ describe('4.2 SetupSurface', () => {
     });
   });
 
+  it('27.12-UNIT-001 Etapa 1 "Informações adicionais" is a text area of the mock class that keeps line breaks', async () => {
+    database = await seeded();
+    renderSetup();
+    const field = await screen.findByRole('textbox', { name: 'Informações adicionais' });
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(field).toHaveClass('observation-field');
+    await userEvent.type(field, 'Primeiro{Enter}Segundo{Enter}Terceiro');
+    await userEvent.tab();
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
+      expect((row!.row as RelatorioRow).setup.additional_info).toBe('Primeiro\nSegundo\nTerceiro');
+    });
+  });
+
   it('typing a date at keyboard speed stores the full year, not a truncated one (review finding 1)', async () => {
     database = await seeded();
     renderSetup();

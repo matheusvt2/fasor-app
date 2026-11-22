@@ -101,7 +101,7 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
     const builds = renderSection(shown);
     // F43 (UX pass 2026-10-22): the helper names section 9 as the relatório numbers it.
     expect(screen.getByText(/Impresso na linha Conclusão da seção 5 depois de confirmar\./)).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar texto' }));
     expect(builds).toHaveLength(1);
     const ops = builds[0]!([shown], AUTHOR, fresh) ?? [];
     const composed = composeConclusion(shown, SEC, 'SEC-C05');
@@ -117,7 +117,7 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
   it('a confirm whose block changed since the render writes nothing', async () => {
     const shown = block({ test: readings('147'), conclusion: pair });
     const builds = renderSection(shown);
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar texto' }));
     const changed = block({ test: readings('148'), conclusion: pair });
     expect(builds[0]!([changed], AUTHOR, fresh)).toBeNull();
   });
@@ -125,11 +125,11 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
   it('carry-over F: a stale "Confirmar" says "O texto mudou; confira e confirme de novo" in the live region; a fresh one says nothing', async () => {
     const shown = block({ test: readings('147'), conclusion: pair });
     renderSection(shown, block({ test: readings('148'), conclusion: pair }));
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar texto' }));
     await waitFor(() => expect(announced).toEqual(['O texto mudou; confira e confirme de novo']));
     cleanup();
     renderSection(shown, shown);
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar texto' }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(announced).toEqual([]);
   });
@@ -301,7 +301,7 @@ describe('e23w W2-4: both confirms judge a v13 sheet under the visit context of 
     const shown = disjuntor({ result: cell('reprovado'), restriction: cell('com_restricoes') });
     const visit = visitContextOf(rows, shown);
     const builds = renderDisjuntor(shown);
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar texto' }));
     const ops = builds.at(-1)!([shown], AUTHOR, rows) ?? [];
     const composed = composeConclusion(shown, DJ, 'DJ-01', visit);
     expect(composed.basis).not.toBe(composeConclusion(shown, DJ, 'DJ-01').basis);

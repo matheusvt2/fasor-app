@@ -276,6 +276,10 @@ describe('14.3 "Verificações do local": the surface', () => {
       'Bateria da luminária vencida',
     ]);
     const field = within(row).getByRole('textbox', { name: 'Observação do item 11' });
+    // Story 27.13 (F19): the red reason waits until the field is left empty.
+    expect(field).not.toHaveAttribute('aria-invalid');
+    expect(within(row).queryByText('Obrigatória em item não conforme')).toBeNull();
+    fireEvent.blur(field);
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(within(row).getByText('Obrigatória em item não conforme')).toBeVisible();
     expect(within(row).getByRole('button', { name: 'Adicionar foto' })).toBeVisible();

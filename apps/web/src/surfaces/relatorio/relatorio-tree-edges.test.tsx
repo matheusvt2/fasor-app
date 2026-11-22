@@ -26,6 +26,9 @@ import { TreeSurface } from './tree-surface.tsx';
 const COMPANY = portoSeguroSmall.companyId;
 const USER = portoSeguroSmall.userId;
 const RELATORIO = portoSeguroSmall.relatorioId;
+
+/** Story 27.11: the header draws a wide and a phone menu (CSS shows one); a test DOM has no layout, so the wide one is queried. */
+const headerTrigger = () => within(document.querySelector<HTMLElement>('.sumario-menu[data-width="wide"]')!).getByRole('button', { name: 'Mais opções do relatório' });
 const PROJECT = portoSeguroSmall.projectId;
 
 const id = (n: number) => `019966c1-0020-7000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -300,14 +303,14 @@ describe('4.4/4.5 tree edge paths', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-C01' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     const restore = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
     await userEvent.click(within(restore).getByRole('button', { name: 'Restaurar SEC-C01 — Cabine de Testes › Coluna 1' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de SEC-C01' })).toHaveFocus());
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções do relatório' })).toHaveFocus());
+    await waitFor(() => expect(headerTrigger()).toHaveFocus());
   });
 
   it('"Desfazer" after a move focuses the row\'s Position box; after "Adicionar coluna" the cabine\'s chevron', async () => {

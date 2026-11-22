@@ -4275,3 +4275,13 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/api/auth-client.ts` account read; `apps/web/src/state/session.tsx` boot.
   class: observation
   state: open (owner: next UX pass)
+- source_spec: spec-e27c-layout.md (Story 27.14, the Home half; coordinator's decision of 2026-11-22)
+  summary: A Home card for a relatório not on the device shows no date, and two such cards of the same client and obra cannot be told apart (F21). The card comes from the company pull summary, which carries no service date. It needs `service_start` and `service_end` in `relatorioSummarySchema` (`packages/domain/src/contract/sync.ts`) and in the summary `apps/api/src/sync/pull.ts` builds, one contract number (Story 10.4's optional `progress` in the same summary took contract 11), then the line composed in `packages/domain/src/home/cards.ts` with its "27.14-UNIT" test and the Home case of `e2e/templates-home-cards.spec.ts`.
+  evidence: `packages/domain/src/home/cards.ts` `fromSummary` (service dates null); `apps/api/src/sync/pull.ts` summary mapping.
+  class: gap
+  state: open (owner: a later batch with a contract number; Matheus decides when)
+- source_spec: spec-e27c-layout.md (wave 1's known-open tables, measured by batch e27c)
+  summary: Two readings tables still do not fit their box, and the stacked corrected-column rule of Story 27.7 does not make them fit: an oil transformer's (seed v16) at 1280 px is 1448 px wide in an 864 px box, 1362 px with the corrected column stacked; the disjuntor's at 768 px with the tree opened by hand is 505 to 593 px in a 400 px box (the stacked rule already applies there), so it scrolls inside its own `.mt-scroll` box. Both need a design decision (another phone-like layout of the table below a width, fewer columns, or the tree closed), not a CSS copy.
+  evidence: `apps/web/src/styles/app.css` (the e23v and Story 27.7 rules); `e2e/corrected-column-fit.spec.ts`.
+  class: design
+  state: open (owner: Matheus, a design decision)

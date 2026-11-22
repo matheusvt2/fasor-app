@@ -485,6 +485,47 @@ test('@p2 2.4-E2E-004 a client created offline lands in the outbox at once and p
 });
 
 /*
+ * 27.10-E2E-002 (batch e27c W2): a new client whose name another client has is held, and no other field creates it
+ * while held (it was born with no name and "Criar mesmo assim" went); "Criar mesmo assim" creates it with the name
+ * typed and the CNPJ typed meanwhile, in one create op.
+ */
+test('@p0 27.10-E2E-002 Clientes: a held repeated name keeps a CNPJ from creating the client; "Criar mesmo assim" creates it with both', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  const user = await seedUser(page, account, database);
+  const twinId = newId();
+  await seedOutbox(page, database, [clientOp(user, { name: 'Cliente Repetido' }, twinId)]);
+  await page.reload();
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+  await expect(page.getByRole('button', { name: /Cliente Repetido/ })).toBeVisible();
+
+  await page.getByRole('button', { name: /^(Novo|Cadastrar) cliente$/ }).click();
+  const panel = page.locator('.registry-panel');
+  const t = copy.registries.clientes;
+  await panel.getByLabel('Nome', { exact: true }).fill('cliente  repetido');
+  await panel.getByLabel('CNPJ').click();
+  await panel.getByLabel('CNPJ').fill('11222333000181');
+  await panel.getByLabel('Contato', { exact: true }).click();
+  await expect(panel.getByText(t.nameRepeats('Cliente Repetido'))).toBeVisible();
+  await expect(panel.getByText(t.nameHeld)).toBeVisible();
+  await expect(panel.getByLabel('Nome', { exact: true })).toHaveAccessibleDescription(`${t.nameRepeats('Cliente Repetido')} ${t.nameHeld}`);
+  const created = async () =>
+    (await readStore<{ kind: string; path: string; value: { name?: string; cnpj?: string | null } }>(page, database, 'outbox')).filter(
+      (op) => op.path.startsWith('registry/client/') && !op.path.startsWith(`registry/client/${twinId}`),
+    );
+  // Nothing created: no op in the outbox, the button still offered.
+  expect(await created()).toEqual([]);
+  await expect(panel.getByRole('button', { name: t.createAnyway })).toBeVisible();
+
+  await panel.getByRole('button', { name: t.createAnyway }).click();
+  await expect.poll(async () => (await created()).map((op) => [op.kind, op.value.name, op.value.cnpj])).toEqual([['create', 'cliente  repetido', '11.222.333/0001-81']]);
+  await expect(panel.getByRole('button', { name: t.createAnyway })).toHaveCount(0);
+  await expect(panel.getByText(t.nameHeld)).toHaveCount(0);
+});
+
+/*
  * 2.5-E2E. Fabricantes and Classes de tensão: create autosaves and is queryable at once
  * (AC1), and an offline create pushes on reconnect (AC4).
  */

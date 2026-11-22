@@ -500,6 +500,21 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'solo',
     why: 'Story 27.7 (batch e27a): measures the readings table\'s width against its scroller at 1024, 1280 and 768 px with the tree open and collapsed, a layout measure under a quiet CPU',
   },
+  {
+    file: 'fixed-bars.spec.ts',
+    lane: 'solo',
+    why: 'Story 27.11 (batch e27c): measures the Sumário foot and the ficha\'s fixed bars against the viewport at 390, 768, 1024 and 1280 px, a layout measure under a quiet CPU; it generates one revision through the queue and LibreOffice, which nothing beside it shares in this lane',
+  },
+  {
+    file: 'setup-cover.spec.ts',
+    lane: 'solo',
+    why: 'Story 27.12 (batch e27c): measures Etapa 1\'s text area and cover tile at 390, 768, 1024 and 1280 px, a layout measure under a quiet CPU',
+  },
+  {
+    file: 'templates-home-cards.spec.ts',
+    lane: 'solo',
+    why: 'Story 27.14 (batch e27c): measures the template editor\'s local card meta line against the card at 768, 1024 and 1280 px, a layout measure under a quiet CPU',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

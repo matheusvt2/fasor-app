@@ -33,6 +33,9 @@ const COMPANY = portoSeguroSmall.companyId;
 const USER = portoSeguroSmall.userId;
 const RELATORIO = portoSeguroSmall.relatorioId;
 
+/** Story 27.11: the header draws a wide and a phone menu (CSS shows one); a test DOM has no layout, so the wide one is queried. */
+const headerTrigger = () => within(document.querySelector<HTMLElement>('.sumario-menu[data-width="wide"]')!).getByRole('button', { name: 'Mais opções do relatório' });
+
 let database: AppDatabase | null = null;
 let counter = 0;
 
@@ -250,7 +253,7 @@ describe('4.3 SumarioSurface', () => {
     // Story 7.5: the preview is live; "Gerar relatório" opens the dialog, where the block stops it.
     expect(screen.getByRole('button', { name: 'Pré-visualizar' })).not.toHaveAttribute('aria-disabled');
     expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveAccessibleDescription(container.querySelector('.sticky-action-bar .btn-reason')!.textContent!);
-    expect(screen.getByRole('button', { name: 'Mais opções do relatório' })).toBeVisible();
+    expect(headerTrigger()).toBeVisible();
     expect(container.querySelector('.sheet-title')).toHaveTextContent('Cliente de Testes Ltda · Local de Testes');
     expect(container.querySelector('.sheet-meta')).toHaveTextContent('Em campo 06/09/2026');
     expect(await axe(container)).toHaveNoViolations();
@@ -358,7 +361,7 @@ describe('4.3 SumarioSurface', () => {
     const ops = await database.outbox.toArray();
     expect(ops.map((op) => op.kind)).toEqual(['remove']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     const dialog = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
     expect(within(dialog).getByText('5 Recomendações gerais (NR-10)')).toBeVisible();
@@ -546,7 +549,7 @@ describe('4.3 SumarioSurface', () => {
     ]);
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(12));
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     const dialog = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
     expect(within(dialog).getAllByRole('listitem').map((li) => li.querySelector('.rr-primary')?.textContent)).toEqual(['SEC-TEST', '5 Recomendações gerais (NR-10)']);
@@ -580,7 +583,7 @@ describe('4.3 SumarioSurface', () => {
     ]);
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(11));
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     const dialog = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
     expect(within(dialog).getAllByRole('listitem').map((li) => li.querySelector('.rr-primary')?.textContent)).toEqual(['2 Definições']);
@@ -775,13 +778,29 @@ describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
     expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
   });
 
+  it('27.11-UNIT the phone header menu holds the wide entries and the foot\'s "Pré-visualizar", which asks for the preview', async () => {
+    database = await seeded();
+    const open = vi.spyOn(window, 'open').mockImplementation(() => ({ location: { href: '' }, close: vi.fn(), opener: {} }) as unknown as Window);
+    const sync = syncState();
+    renderSumario(RELATORIO, sync);
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await userEvent.click(within(document.querySelector<HTMLElement>('.sumario-menu[data-width="phone"]')!).getByRole('button', { name: 'Mais opções do relatório' }));
+    const menu = await screen.findByRole('menu');
+    const labels = within(menu).getAllByRole('menuitem').map((item) => item.textContent);
+    expect(labels).toContain('Voltar para Rascunho');
+    expect(labels.at(-1)).toBe('Pré-visualizar');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(sync.preview).toHaveBeenCalledWith(RELATORIO, expect.objectContaining({ file_ids_expected: expect.any(Array) })));
+    open.mockRestore();
+  });
+
   it('carries no backward-move item at Rascunho (nothing to move back to)', async () => {
     database = await seeded();
     const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
     await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'rascunho' } });
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: /Voltar para/ })).toBeNull();
   });
 
@@ -789,7 +808,7 @@ describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
     database = await seeded();
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
-    const trigger = screen.getByRole('button', { name: 'Mais opções do relatório' });
+    const trigger = headerTrigger();
     await userEvent.click(trigger);
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Voltar para Rascunho' }));
     const dialog = await screen.findByRole('dialog', { name: 'Voltar para Rascunho' });
