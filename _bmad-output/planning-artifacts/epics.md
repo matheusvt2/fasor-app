@@ -11340,7 +11340,9 @@ So that an invitation reaches a real inbox for cents a month.
 
 *(Definition of Ready, open. Not started before the three points are answered.)*
 
-*(2026-11-21, Matheus: on hold. He talks to Bruno first about the sender's domain, the DNS records and the sandbox request. Everything else is built with `EMAIL_PROVIDER=fake` and does not wait.)*
+~~*(2026-11-21, Matheus: on hold. He talks to Bruno first about the sender's domain, the DNS records and the sandbox request. Everything else is built with `EMAIL_PROVIDER=fake` and does not wait.)*~~
+
+*(2026-11-21, later the same day, Matheus after talking to Bruno: "pode usar o email da fasor. crie um no-reply para isso". The hold is lifted. The sender is `no-reply@` the company's domain, an exception to the product-name Policy recorded in AGENTS.md; the display name is "Conforme". Built the same day as `infra/production/email.tf`: the domain identity with DKIM, the configuration set, the app role's `ses:SendEmail` from that one address, two reputation alarms; the plan added five resources and changed none, so no task rolled. Found on the way: the domain's DNS is at the registrar, not in this account, so the three DKIM records are typed by hand from the Terraform output; the account is in the SES sandbox. Narrowings: `EMAIL_PROVIDER=ses` and `EMAIL_FROM` enter the api task with the deploy that carries Story 26.6; the alarms carry no notification, because the stack has no topic. Still open: the DKIM records at the registrar, then the sandbox request, then the delivery check on a Gmail and an Outlook inbox.)*
 - **Open, Matheus:** the sender's domain and address. It must not show the codename or the Fasor name (Policy), so the app's public domain may not serve.
 - **Open, Matheus:** who adds the DKIM and SPF records, and where. The DNS is outside Terraform today; the records are listed as Terraform outputs and typed by hand, or the zone moves into Terraform.
 - **Open, Matheus:** the request to leave the SES sandbox. A new account sends only to verified addresses until AWS approves it; the request is made by the account's owner and can take a day or more. Wave 2 is not deployed before it.

@@ -14,3 +14,6 @@ acme_email = "operator@example.com"
 # bedrock_panel_model_id      = "qwen.qwen3-vl-235b-a22b"
 # bedrock_prose_model_id      = ""
 # bedrock_escalation_model_id = "us.amazon.nova-pro-v1:0"
+
+# Domain the app sends its two e-mails from (Story 26.7); unset creates no SES resource.
+# email_domain = "example.com"
