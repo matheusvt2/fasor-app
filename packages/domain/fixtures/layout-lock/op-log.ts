@@ -91,11 +91,12 @@ import {
  * "Realizada" and "Não realizada", the TC's item 7, "A SECO"). Both goldens were taken on the batch's first commit,
  * which changes no rule. The one later change to every older golden is the group title "TPs e TCs dos Cubículos de
  * MT" (Story 27.8, decision 2 of 2026-11-21), which is code and reaches every new revision; nothing else of them
- * moves.
+ * moves. v17 is locked too, from the batch's Story 27.8 commit: its goldens pin the form's words ("ITEM", "PARA-RAIOS")
+ * and Story 27.3's section 10 sentence, the only differences from v16 ("27.8-UNIT-SAME").
  */
 
 /** The seed versions whose printed layout is locked. */
-export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16'] as const;
+export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17'] as const;
 export type LayoutLockVersion = (typeof LAYOUT_LOCK_VERSIONS)[number];
 
 /** The issue instant the DOCX golden renders with. */
@@ -633,7 +634,7 @@ export function layoutLockSnapshot(version: string, options: LayoutLockOptions =
  */
 
 /** The seed versions whose Epic 25 fixture is locked (its golden directory: `layoutLockEpic25Golden`). */
-export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14', 'v15', 'v16'] as const;
+export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14', 'v15', 'v16', 'v17'] as const;
 
 /** The golden directory of a version's Epic 25 fixture, beside `layout-lock-{version}`. */
 export const layoutLockEpic25Golden = (version: string): string => `layout-lock-${version}-epic25`;

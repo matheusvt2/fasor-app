@@ -42,7 +42,9 @@ import { placeholderPages } from './toc.ts';
  * Batch e27b, Epic 27 wave 2, Story 27.8 (27.8-UNIT-LOCK): seed v16 froze at the deploy of 4ecc3009 and v17 opens equal
  * to it, so v16 joins the lock: `golden/layout-lock-v16/` and `golden/layout-lock-v16-epic25/`, both taken once on the
  * batch's first commit, whose product code is main's. Story 27.8 then changes one line of every older golden, the
- * group title "TPs e TCs dos Cubículos de MT" (code, decision 2 of 2026-11-21), and nothing else of them.
+ * group title "TPs e TCs dos Cubículos de MT" (code, decision 2 of 2026-11-21), and nothing else of them. v17 joins
+ * the lock too (`golden/layout-lock-v17/`, `golden/layout-lock-v17-epic25/`), taken on the Story 27.8 commit that puts
+ * its words in: the goldens pin "ITEM" and "PARA-RAIOS" (below).
  */
 
 /*
@@ -127,7 +129,24 @@ describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DO
   }, 120_000);
 });
 
-describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14, v15 and v16 relatórios is byte-equal to its golden', () => {
+describe('27.8-UNIT-LOCK the v17 goldens pin the form\'s words; the v16 ones keep theirs', () => {
+  it.each(['layout-lock-v17', 'layout-lock-v17-epic25'])('%s: the body reads "ITEM" and "PARA-RAIOS", never "ÍTEM" nor "PARA-RAIO" alone', (dirName) => {
+    const body = readFileSync(resolve(GOLDEN_DIR, dirName, 'document.xml'), 'utf8');
+    expect(body).toContain('>ITEM<');
+    expect(body).not.toContain('ÍTEM');
+    expect(body).toContain('PARA-RAIOS');
+    expect(body).not.toMatch(/PARA-RAIO(?!S)/);
+  });
+
+  it.each(['layout-lock-v16', 'layout-lock-v16-epic25'])('%s: the body keeps "ÍTEM" and "PARA-RAIO"', (dirName) => {
+    const body = readFileSync(resolve(GOLDEN_DIR, dirName, 'document.xml'), 'utf8');
+    expect(body).toContain('>ÍTEM<');
+    expect(body).not.toContain('>ITEM<');
+    expect(body).toMatch(/PARA-RAIO(?!S)/);
+  });
+});
+
+describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 to v17 relatórios is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_EPIC25_VERSIONS)(
     '%s: every layout part of the relatório holding the cases Epic 25 changes matches its golden/layout-lock-{version}-epic25',
     async (version) => expectGolden(version, layoutLockEpic25Golden(version), await partsOf(version, layoutLockEpic25Snapshot)),
