@@ -15,6 +15,7 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useScreenAccess } from '../../../state/permissions.tsx';
 import { Checkbox, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
@@ -37,6 +38,7 @@ export function Etapa4Instrumentos({
 }) {
   const t = copy.setup;
   const navigate = useNavigate();
+  const cadastros = useScreenAccess('/cadastros');
   const registerReasonId = useId();
   const setup = snapshot.relatorio.setup;
   const [refusedNote, setRefusedNote] = useState<string | null>(null);
@@ -137,6 +139,9 @@ export function Etapa4Instrumentos({
         <div className="row">
           <TextButton
             aria-describedby={registerReasonId}
+            // Story 26.5: disabled with the kernel's reason when the role does not open Cadastros.
+            isDisabled={!cadastros.allowed}
+            disabledReason={cadastros.reason}
             onPress={() =>
               void navigate('/cadastros', {
                 state: { tab: 'instrumentos', newInstrument: true, returnTo: `/relatorio/${relatorioId}/setup?etapa=4` },

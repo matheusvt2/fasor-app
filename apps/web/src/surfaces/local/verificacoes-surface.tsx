@@ -28,7 +28,7 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Button } from '../../components/index.ts';
+import { Button, ReadOnlyBanner } from '../../components/index.ts';
 import { useStickyBarScrollPadding } from '../../components/toast.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -39,6 +39,7 @@ import { useHeldWhilePressed } from '../../input/press-hold.ts';
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useSession } from '../../state/session.tsx';
+import { useCan } from '../../state/permissions.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { CabineBlock } from '../ficha/cabine-block.tsx';
@@ -163,6 +164,8 @@ function VerificacoesBody({
   const relatorio = snapshot.relatorio;
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
   useStickyBarScrollPadding();
+  // Story 26.5: a role without `relatorio.fill` reads the site checks and answers none.
+  const canFill = useCan('relatorio.fill');
 
   const api: ChecklistRowApi = useMemo(
     () => ({ relatorioId, author: editor.author, commit: (drafts: OpDraft[]) => editor.commit(drafts), edit: (build: Build) => editor.edit(build), undoable: editor.undoable }),
@@ -302,10 +305,11 @@ function VerificacoesBody({
       </div>
 
       <div className="content" ref={content}>
+        {canFill ? null : <ReadOnlyBanner />}
         <CabineBlock api={localApi} state={state} snapshot={snapshot} cabine={location} first siteLine={false} />
         <div className="vl-intro">
           {/* The mock's reason line under the bar is its prototype's toggle; the action's toast carries "Desfazer". */}
-          <BulkActionBar bulk={{ unset, markRest }} single label={t.bulkLabel} />
+          {canFill ? <BulkActionBar bulk={{ unset, markRest }} single label={t.bulkLabel} /> : null}
           <p className="checklist-legend">{copy.ficha.checklist.legendText}</p>
         </div>
         {view.groups.map((group) => (
@@ -318,7 +322,7 @@ function VerificacoesBody({
                 item={row}
                 label={row.label}
                 number={row.number}
-                readOnly={false}
+                readOnly={!canFill}
                 photos={photos}
                 snapshot={snapshot}
                 observationLine
@@ -336,12 +340,14 @@ function VerificacoesBody({
             </svg>
             {t.verArvore}
           </Button>
-          <Button variant="primary" onPress={conclude}>
-            {t.concluir}
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-right" />
-            </svg>
-          </Button>
+          {canFill ? (
+            <Button variant="primary" onPress={conclude}>
+              {t.concluir}
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-chev-right" />
+              </svg>
+            </Button>
+          ) : null}
         </div>
       </div>
 

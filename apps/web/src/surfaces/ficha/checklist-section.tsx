@@ -50,7 +50,7 @@ import { CreatePointAction } from '../points/create-point-action.tsx';
 import type { PointSeed } from '../points/point-editor.tsx';
 import type { Author } from '../relatorio/relatorio-ops.ts';
 import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
-import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
 
 /*
@@ -237,6 +237,7 @@ export function ChecklistSection({
   const t = copy.ficha.checklist;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
+  const readOnlyReason = useSheetReadOnlyReason();
   const [legendOpen] = useState(() => legendOpensHere(block.id));
   const items = definition.checklist;
   if (items === null || items.length === 0) return null;
@@ -244,7 +245,7 @@ export function ChecklistSection({
     <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} ref={sectionRef}>
       <div className="section-head">
         <h2 id={headingId}>{t.title}</h2>
-        {readOnly ? <span className="btn-reason">{t.readOnlyReason}</span> : null}
+        {readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>}
       </div>
       {readOnly ? null : <BulkActionBar bulk={bulk} />}
       <details className="ficha-details ficha-legend" open={legendOpen}>

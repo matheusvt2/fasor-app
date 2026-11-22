@@ -42,7 +42,7 @@ import { ui } from '../../copy/ui.ts';
 import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
-import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { useSheetReadOnly, useSheetReadOnlyCause, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { DictatedSuggestion, DictationButton } from '../../speech/dictation.tsx';
 import { useSheetObservationDictation } from './sheet-observation-dictation.tsx';
 
@@ -231,6 +231,9 @@ export function ConclusaoSection({
   const floorReasonId = useId();
   const previewLineId = useId();
   const readOnly = useSheetReadOnly();
+  const readOnlyReason = useSheetReadOnlyReason();
+  // Story 26.5: a not tested sheet keeps its observation open; a role that cannot fill writes none.
+  const roleReadOnly = useSheetReadOnlyCause() === 'role';
   const enabled = enabledSubBlocksOf(block);
 
   // Story 22.4: the effective pair (the floor's included) is what the radiogroups show. A sheet
@@ -417,10 +420,10 @@ export function ConclusaoSection({
   return (
     <div id="ficha-step-conclusao" className={className} data-step="conclusao" tabIndex={-1} onFocus={onFocus}>
       {enabled.has('observations') ? (
-        <section className="section" aria-labelledby={obsHeading}>
+        <section className={roleReadOnly ? 'section is-readonly' : 'section'} aria-labelledby={obsHeading}>
           <div className="section-head">
             <h2 id={obsHeading}>{t.observationTitle}</h2>
-            <DictationButton label={t.dictateObservations} onStart={dictation.discard} onResult={dictation.offer} />
+            {roleReadOnly ? null : <DictationButton label={t.dictateObservations} onStart={dictation.discard} onResult={dictation.offer} />}
           </div>
           {/* The textarea keeps its place among the children, so the focus survives the switch between suggested and typed. */}
           <div className={observationSuggested ? 'field suggestion-field' : 'field'} data-state={observationSuggested ? 'suggested' : undefined}>
@@ -430,6 +433,8 @@ export function ConclusaoSection({
             <textarea
               id={obsFieldId}
               className="observation-field"
+              readOnly={roleReadOnly || undefined}
+              aria-readonly={roleReadOnly || undefined}
               value={observationSuggested ? suggestedObservation : observation.text}
               maxLength={observationCap ?? undefined}
               data-required={required ? '' : undefined}
@@ -485,7 +490,7 @@ export function ConclusaoSection({
         <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={concHeading} id="ficha-conc">
           <div className="section-head">
             <h2 id={concHeading}>{t.title}</h2>
-            {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
+            {readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>}
           </div>
           {suggestion === null || readOnly ? null : (
             <div className="ficha-conc-sug-host">

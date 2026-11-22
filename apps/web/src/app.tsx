@@ -1,7 +1,7 @@
-import { PRODUTO, SITE_CHECKLIST_LABEL } from '@app/domain';
+import { permissionForScreen, PRODUTO, SITE_CHECKLIST_LABEL } from '@app/domain';
 import { I18nProvider } from 'react-aria-components';
 import { LoadingNote } from './components/index.ts';
-import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, type RouteObject } from 'react-router';
 import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
@@ -9,6 +9,7 @@ import { GenerateWatcher } from './state/generate-watcher.tsx';
 import { StatusToaster } from './state/status-toaster.tsx';
 import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { PageTitleProvider } from './state/page-title.tsx';
+import { PermissionsProvider, RequirePermission } from './state/permissions.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SpeechEngineProvider } from './speech/dictation.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
@@ -64,31 +65,58 @@ function SessionShell() {
   return <AppShell />;
 }
 
+/**
+ * Story 26.5: the address asked while signed out, kept through Login and opened after sign-in.
+ * Only an address of this app is read: one that starts with a single `/`, is not `//…` (another
+ * host) and is not Login itself; anything else is Home. The role guard then decides the screen.
+ */
+export function returnAddress(asked: unknown): string {
+  if (typeof asked !== 'string' || !asked.startsWith('/') || asked.startsWith('//') || asked.startsWith('/\\')) return '/';
+  const path = asked.split(/[?#]/, 1)[0] ?? '';
+  if (path === '/login' || path.startsWith('/login/')) return '/';
+  // Open reading (Story 26.5): only a screen of a module is worth returning to; Home, Account and Sync
+  // status carry no key (`permissionForScreen` 'none') and sign-in lands on Home for them, as before
+  // (`auth.spec.ts` 1.3-E2E-002b reloads on Account and expects Home).
+  if (permissionForScreen(path) === 'none') return '/';
+  return asked;
+}
+
+/** The asked address a signed-out visit carries to Login (`location.state.asked`). */
+function askedOf(state: unknown): unknown {
+  return typeof state === 'object' && state !== null && 'asked' in state ? (state as { asked: unknown }).asked : undefined;
+}
+
 /** Unauthenticated routes redirect to /login; a session gets the sync engine and the shell. */
-function RequireSession() {
+export function RequireSession() {
   const session = useSession();
+  const location = useLocation();
   if (session.status === 'booting') return <Booting />;
-  if (session.status === 'signed-out') return <Navigate to="/login" replace />;
+  if (session.status === 'signed-out') {
+    return <Navigate to="/login" replace state={{ asked: `${location.pathname}${location.search}${location.hash}` }} />;
+  }
   return (
     <SyncProvider>
       <ThemeProvider>
         <ToastProvider>
-          {/* R4 (Story 7.5): the ready toast of a pressed "Gerar relatório" arrives on any surface. */}
-          <GenerateWatcher />
-          {/* Status flow 2026-10-10: every status change this device writes is said, on any surface. */}
-          <StatusToaster />
-          <DraftProvider>
-            <BackTargetProvider>
-              <PageTitleProvider>
-                <ExtraBannerProvider>
-                  {/* Story 9.4: the one speech engine and its single listening session; online-only. */}
-                  <SpeechEngineProvider online={session.online}>
-                    <SessionShell />
-                  </SpeechEngineProvider>
-                </ExtraBannerProvider>
-              </PageTitleProvider>
-            </BackTargetProvider>
-          </DraftProvider>
+          {/* Story 26.5: what the signed-in user's role allows, live from the last pull. */}
+          <PermissionsProvider>
+            {/* R4 (Story 7.5): the ready toast of a pressed "Gerar relatório" arrives on any surface. */}
+            <GenerateWatcher />
+            {/* Status flow 2026-10-10: every status change this device writes is said, on any surface. */}
+            <StatusToaster />
+            <DraftProvider>
+              <BackTargetProvider>
+                <PageTitleProvider>
+                  <ExtraBannerProvider>
+                    {/* Story 9.4: the one speech engine and its single listening session; online-only. */}
+                    <SpeechEngineProvider online={session.online}>
+                      <SessionShell />
+                    </SpeechEngineProvider>
+                  </ExtraBannerProvider>
+                </PageTitleProvider>
+              </BackTargetProvider>
+            </DraftProvider>
+          </PermissionsProvider>
         </ToastProvider>
       </ThemeProvider>
     </SyncProvider>
@@ -100,10 +128,12 @@ function RequireSession() {
  * dropped the session, in which case "Entrar de novo" must be able to land here while
  * the local data stays where it is.
  */
-function LoginRoute() {
+export function LoginRoute() {
   const session = useSession();
+  const location = useLocation();
   if (session.status === 'booting') return <Booting />;
-  if (session.status === 'signed-in' && !session.reAuthRequired) return <Navigate to="/" replace />;
+  // Story 26.5: back to the address asked while signed out, when it is one of this app's.
+  if (session.status === 'signed-in' && !session.reAuthRequired) return <Navigate to={returnAddress(askedOf(location.state))} replace />;
   return <LoginSurface />;
 }
 
@@ -136,90 +166,96 @@ export const appRoutes: RouteObject[] = [
       {
         element: <RequireSession />,
         children: [
-          // `handle.title` is the App bar's <h1>; Home hides it because the wordmark
-          // already names the page (`key-home.html`).
-          { path: '/', element: <HomeSurface />, handle: { title: copy.home.title, titleHidden: true } },
-          { path: '/account', element: <AccountSurface />, handle: { title: copy.account.title } },
-          { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
-          { path: '/cadastros', element: <RegistriesSurface />, handle: { title: copy.registries.title } },
-          { path: '/templates', element: <TemplatesSurface />, handle: { title: copy.templates.title } },
           {
-            path: '/templates/:id',
-            element: <TemplateComposerSurface />,
-            handle: { title: copy.composer.title, back: '/templates' },
+            // Story 26.5: every screen behind the key the kernel's screen map names (`permissionForScreen`).
+            element: <RequirePermission />,
+            children: [
+              // `handle.title` is the App bar's <h1>; Home hides it because the wordmark
+              // already names the page (`key-home.html`).
+              { path: '/', element: <HomeSurface />, handle: { title: copy.home.title, titleHidden: true } },
+              { path: '/account', element: <AccountSurface />, handle: { title: copy.account.title } },
+              { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
+              { path: '/cadastros', element: <RegistriesSurface />, handle: { title: copy.registries.title } },
+              { path: '/templates', element: <TemplatesSurface />, handle: { title: copy.templates.title } },
+              {
+                path: '/templates/:id',
+                element: <TemplateComposerSurface />,
+                handle: { title: copy.composer.title, back: '/templates' },
+              },
+              // Story 14.7: the editor of one company equipment type, reached only from Templates.
+              {
+                path: '/templates/tipos/:id',
+                element: <TypeEditorSurface />,
+                handle: { title: copy.typeEditor.title, back: '/templates' },
+              },
+              // Story 4.1 and 4.3: the Project, the Sumário and the two routes the Sumário
+              // opens (batch C's setup page and section text keep these paths).
+              { path: '/project/:id', element: <ProjectSurface />, handle: { title: copy.project.title, back: '/' } },
+              { path: '/relatorio/:id', element: <SumarioSurface />, handle: { title: copy.sumario.title } },
+              {
+                path: '/relatorio/:id/setup',
+                element: <SetupSurface />,
+                handle: { title: copy.setup.heading, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+              },
+              // Story 4.4: the tree's rail presentation, until Epic 5 mounts it inside a sheet.
+              // Story 15.4: no back target leads here any more; it stays for the rail and deep links.
+              {
+                path: '/relatorio/:id/arvore',
+                element: <TreeSurface />,
+                handle: { title: copy.sumario.rail.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+              },
+              // Story 5.1: the equipment sheet, keyed by block id (a TAG rename keeps the address).
+              // Its App bar title is the TAG, which the surface sets (`usePageTitle`).
+              {
+                path: '/relatorio/:id/ficha/:blockId',
+                element: <FichaSurface />,
+                // Story 15.4: at every width the sheet goes back to the Sumário, section 9 open and
+                // its row focused (journey review D-8's phone exception, Story 12.2, is revoked).
+                handle: {
+                  title: '',
+                  back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
+                  backWith: (params: Record<string, string | undefined>) => ({
+                    to: `/relatorio/${params.id ?? ''}`,
+                    state: { openSection9: true, focusBlockId: params.blockId ?? null },
+                  }),
+                },
+              },
+              // Story 14.3: "Verificações do local", the site checklist of one local (the mock's
+              // `/local/:id/verificacoes`), opened from the local's tree row and from the sheet's
+              // "Do local" line. Back goes where the sheet's goes (Story 15.4, every width): the
+              // Sumário with section 9 open and the local's "Verificações do local" focused.
+              {
+                path: '/relatorio/:id/local/:locationId/verificacoes',
+                element: <VerificacoesSurface />,
+                handle: {
+                  title: SITE_CHECKLIST_LABEL,
+                  back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
+                  backWith: (params: Record<string, string | undefined>) => ({
+                    to: `/relatorio/${params.id ?? ''}`,
+                    state: { openSection9: true, focusLocationId: params.locationId ?? null },
+                  }),
+                },
+              },
+              // Story 6.3: the gallery, reached from Sumário row 7.
+              {
+                path: '/relatorio/:id/fotos',
+                element: <GallerySurface />,
+                handle: { title: copy.gallery.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+              },
+              // Story 6.6: section 8, opened from Sumário row 8.
+              {
+                path: '/relatorio/:id/pontos',
+                element: <PointsSurface />,
+                handle: { title: copy.points.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+              },
+              {
+                path: '/relatorio/:id/secao/:blockId',
+                element: <SectionTextSurface />,
+                handle: { title: copy.sectionText.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+              },
+              ...fixtureRoutes,
+            ],
           },
-          // Story 14.7: the editor of one company equipment type, reached only from Templates.
-          {
-            path: '/templates/tipos/:id',
-            element: <TypeEditorSurface />,
-            handle: { title: copy.typeEditor.title, back: '/templates' },
-          },
-          // Story 4.1 and 4.3: the Project, the Sumário and the two routes the Sumário
-          // opens (batch C's setup page and section text keep these paths).
-          { path: '/project/:id', element: <ProjectSurface />, handle: { title: copy.project.title, back: '/' } },
-          { path: '/relatorio/:id', element: <SumarioSurface />, handle: { title: copy.sumario.title } },
-          {
-            path: '/relatorio/:id/setup',
-            element: <SetupSurface />,
-            handle: { title: copy.setup.heading, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
-          },
-          // Story 4.4: the tree's rail presentation, until Epic 5 mounts it inside a sheet.
-          // Story 15.4: no back target leads here any more; it stays for the rail and deep links.
-          {
-            path: '/relatorio/:id/arvore',
-            element: <TreeSurface />,
-            handle: { title: copy.sumario.rail.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
-          },
-          // Story 5.1: the equipment sheet, keyed by block id (a TAG rename keeps the address).
-          // Its App bar title is the TAG, which the surface sets (`usePageTitle`).
-          {
-            path: '/relatorio/:id/ficha/:blockId',
-            element: <FichaSurface />,
-            // Story 15.4: at every width the sheet goes back to the Sumário, section 9 open and
-            // its row focused (journey review D-8's phone exception, Story 12.2, is revoked).
-            handle: {
-              title: '',
-              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
-              backWith: (params: Record<string, string | undefined>) => ({
-                to: `/relatorio/${params.id ?? ''}`,
-                state: { openSection9: true, focusBlockId: params.blockId ?? null },
-              }),
-            },
-          },
-          // Story 14.3: "Verificações do local", the site checklist of one local (the mock's
-          // `/local/:id/verificacoes`), opened from the local's tree row and from the sheet's
-          // "Do local" line. Back goes where the sheet's goes (Story 15.4, every width): the
-          // Sumário with section 9 open and the local's "Verificações do local" focused.
-          {
-            path: '/relatorio/:id/local/:locationId/verificacoes',
-            element: <VerificacoesSurface />,
-            handle: {
-              title: SITE_CHECKLIST_LABEL,
-              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}`,
-              backWith: (params: Record<string, string | undefined>) => ({
-                to: `/relatorio/${params.id ?? ''}`,
-                state: { openSection9: true, focusLocationId: params.locationId ?? null },
-              }),
-            },
-          },
-          // Story 6.3: the gallery, reached from Sumário row 7.
-          {
-            path: '/relatorio/:id/fotos',
-            element: <GallerySurface />,
-            handle: { title: copy.gallery.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
-          },
-          // Story 6.6: section 8, opened from Sumário row 8.
-          {
-            path: '/relatorio/:id/pontos',
-            element: <PointsSurface />,
-            handle: { title: copy.points.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
-          },
-          {
-            path: '/relatorio/:id/secao/:blockId',
-            element: <SectionTextSurface />,
-            handle: { title: copy.sectionText.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
-          },
-          ...fixtureRoutes,
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

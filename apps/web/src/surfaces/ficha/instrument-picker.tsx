@@ -18,6 +18,7 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { useScreenAccess } from '../../state/permissions.tsx';
 import { Button } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -74,6 +75,7 @@ export function InstrumentPicker({
 }) {
   const t = copy.ficha.ensaios;
   const navigate = useNavigate();
+  const cadastros = useScreenAccess('/cadastros');
   const labelId = useId();
   const valueId = useId();
   const listId = useId();
@@ -260,7 +262,8 @@ export function InstrumentPicker({
       {!open || readOnly ? null : list.length === 0 ? (
         <div className="combobox-list ip-empty" id={listId}>
           <p className="section-note">{t.noInstruments}</p>
-          <Button variant="secondary" onPress={() => void navigate('/cadastros')}>
+          {/* Story 26.5: the jump to Cadastros is disabled with the kernel's reason when the role does not open it. */}
+          <Button variant="secondary" isDisabled={!cadastros.allowed} disabledReason={cadastros.reason} onPress={() => void navigate('/cadastros')}>
             {t.registerInstrument}
           </Button>
         </div>

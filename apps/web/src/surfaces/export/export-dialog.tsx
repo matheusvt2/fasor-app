@@ -1,4 +1,5 @@
 import {
+  permissionRefusalText,
   auditRuleRows,
   documentControlRows,
   empresaRegistered,
@@ -42,6 +43,7 @@ import { now } from '../../clock.ts';
 import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
+import { useCan } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
 import { AuditFindings } from './audit-findings.tsx';
@@ -114,6 +116,9 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();
+  // Story 26.5: without `export.download` every file button is disabled, described by one line under "Revisões".
+  const canDownload = useCan('export.download');
+  const downloadRefusedId = useId();
   const generateReasonId = useId();
   const db = useSession().database;
   const { resendDead } = useSyncActions();
@@ -187,7 +192,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
     };
   }, [isOpen, readyRevisionId, readyRevisionNumber]);
 
-  const download = (key: string, ref: RevisionFileRef) => runFile(key, () => downloadRevisionFile(ref));
+  const download = (key: string, ref: RevisionFileRef) => (canDownload ? runFile(key, () => downloadRevisionFile(ref)) : undefined);
   const share = (ref: RevisionFileRef, title: string) => {
     const inHand = prefetched !== null && prefetched.revisionId === ref.revisionId ? prefetched.files[ref.format] : undefined;
     // `shareFile` calls the sheet synchronously, inside this press.
@@ -312,8 +317,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             {/* A revision this device has not pulled yet: the row waits with its reason (the hook asks for the stream). */}
             <AriaButton
               className="rr-open"
-              aria-disabled={revision === null || undefined}
-              aria-describedby={revision === null ? downloadingReasonId : undefined}
+              aria-disabled={revision === null || !canDownload || undefined}
+              aria-describedby={revision === null ? downloadingReasonId : canDownload ? undefined : downloadRefusedId}
               onPress={() => docxRef !== null && download('result:docx', docxRef)}
             >
               <svg className="ico" aria-hidden="true">
@@ -325,7 +330,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               <span className="btn-reason" id={downloadingReasonId}>
                 {copy.export.downloadingRevision}
               </span>
-            ) : hasShareSheet() && docxRef !== null ? (
+            ) : hasShareSheet() && docxRef !== null && canDownload ? (
               <AriaButton className="icon-btn" aria-label={shareLabel('docx', copy.export.shareDocx)} aria-busy={busy.has('share:docx') || undefined} onPress={() => share(docxRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
@@ -337,8 +342,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             {/* The PDF waits on the same pulled revision, described by the DOCX row's reason. */}
             <AriaButton
               className="rr-open"
-              aria-disabled={revision === null || undefined}
-              aria-describedby={revision === null ? downloadingReasonId : undefined}
+              aria-disabled={revision === null || !canDownload || undefined}
+              aria-describedby={revision === null ? downloadingReasonId : canDownload ? undefined : downloadRefusedId}
               onPress={() => pdfRef !== null && download('result:pdf', pdfRef)}
             >
               <svg className="ico" aria-hidden="true">
@@ -346,7 +351,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               </svg>
               <span className="rr-text">{fileLabel('result:pdf', copy.export.openPdf)}</span>
             </AriaButton>
-            {pdfRef !== null && hasShareSheet() ? (
+            {pdfRef !== null && hasShareSheet() && canDownload ? (
               <AriaButton className="icon-btn" aria-label={shareLabel('pdf', copy.export.sharePdf)} aria-busy={busy.has('share:pdf') || undefined} onPress={() => share(pdfRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
@@ -643,6 +648,11 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
       </div>
       <div>
         <p className="field-label revisions-label">{copy.export.revisionsLabel}</p>
+        {canDownload ? null : (
+          <span className="btn-reason" id={downloadRefusedId}>
+            {permissionRefusalText('export.download')}
+          </span>
+        )}
         {revisions.length === 0 ? (
           <p className="section-note">{copy.export.noRevisions}</p>
         ) : (
@@ -660,13 +670,21 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                     {segments.tag}
                   </span>
                   <span className="rev-files">
-                    <TextButton onPress={() => download(docxKey, { revisionId: row.id, number: row.number, format: 'docx' })}>
+                    <TextButton
+                      isDisabled={!canDownload}
+                      disabledReasonId={canDownload ? undefined : downloadRefusedId}
+                      onPress={() => download(docxKey, { revisionId: row.id, number: row.number, format: 'docx' })}
+                    >
                       <svg className="ico" aria-hidden="true">
                         <use href="/sprite.svg#i-download" />
                       </svg>
                       {fileLabel(docxKey, copy.export.revisionDocx)}
                     </TextButton>
-                    <TextButton onPress={() => download(pdfKey, { revisionId: row.id, number: row.number, format: 'pdf' })}>
+                    <TextButton
+                      isDisabled={!canDownload}
+                      disabledReasonId={canDownload ? undefined : downloadRefusedId}
+                      onPress={() => download(pdfKey, { revisionId: row.id, number: row.number, format: 'pdf' })}
+                    >
                       <svg className="ico" aria-hidden="true">
                         <use href="/sprite.svg#i-download" />
                       </svg>

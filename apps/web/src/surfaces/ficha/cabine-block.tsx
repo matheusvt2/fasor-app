@@ -31,6 +31,7 @@ import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { envAfter, envLineField, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { useCan } from '../../state/permissions.tsx';
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 /*
@@ -96,6 +97,8 @@ export function CabineBlock({
   });
   const definition = getSeed(snapshot.relatorio.seed_version, 'cabine_primaria').cabine;
   const envDisplay = useEnvDisplay({ api, state, snapshot, cabine });
+  // Story 26.5: without `relatorio.fill` the local's data shows read-only: no field takes input, no chip, no "Ler visor".
+  const canFill = useCan('relatorio.fill');
   const progress = cabineProgress(snapshot, cabine.id);
   // Open while a field is empty; a focus inside keeps it open for the rest of the visit, so
   // the value that completes the cabine never folds the block under the finger (D-2).
@@ -139,6 +142,7 @@ export function CabineBlock({
     const path = group === 'se' ? locationSePath(cabine.id, field.key) : locationEnvPath(cabine.id, field.key);
     // Story 27.2: an improbable value (a temperature outside -10 to 60 °C) is saved and remarked in amber, never refused.
     const remark = group === 'env' ? envFieldRemarkText(field.key, value) : null;
+    if (!canFill) return <ReadOnlyField key={field.key} field={field} value={value} />;
     return (
       <SheetField
         key={field.key}
@@ -199,7 +203,7 @@ export function CabineBlock({
           <DaCabine name={cabine.name} />
         </div>
         <div className="ficha-amb-actions">
-          {previous === null ? null : (
+          {previous === null || !canFill ? null : (
             <Chip onPress={copyPrevious}>
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-repeat" />
@@ -207,12 +211,12 @@ export function CabineBlock({
               {t.copyPrevious}
             </Chip>
           )}
-          {envTarget === undefined ? null : <EnvReadDisplayButton relatorioId={api.relatorioId} cabineId={cabine.id} target={envTarget} />}
+          {envTarget === undefined || !canFill ? null : <EnvReadDisplayButton relatorioId={api.relatorioId} cabineId={cabine.id} target={envTarget} />}
         </div>
         <div className="nameplate-grid">
           {envFields.map((field) => {
             const entry = envDisplay.entries.get(field.key);
-            return entry !== undefined && entry.view === 'fill' ? (
+            return entry !== undefined && entry.view === 'fill' && canFill ? (
               <EnvSuggestionFill key={`${field.key}:${entry.suggestion.id}`} model={envDisplay} field={field} suggestion={entry.suggestion} />
             ) : (
               fieldOf('env', field, (value) => envAfter(envDisplay, field, value, envLine))
@@ -265,7 +269,9 @@ function DaCabine({ name }: { name: string }) {
 export function QuickNotes({ api, snapshot, cabine, observations }: { api: FichaApi; snapshot: RelatorioSnapshot; cabine: Cabine | null; observations: string | null }) {
   const t = copy.ficha.cabine;
   const headingId = useId();
-  if (cabine === null || !humidityNoteSurfaced(cabine.env)) return null;
+  // Story 26.5: the quick-text chips are not rendered for a role that cannot fill.
+  const canFill = useCan('relatorio.fill');
+  if (cabine === null || !humidityNoteSurfaced(cabine.env) || !canFill) return null;
   const note = quickNotes(snapshot.relatorio.seed_version)[0];
   if (note === undefined) return null;
   const added = (observations ?? '').includes(note);

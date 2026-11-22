@@ -20,6 +20,7 @@ import {
   type TemplateRow,
   pendingSuggestions,
   suggestionRowsOf,
+  permissionRefusalText,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Button as AriaButton, Input, Label, SearchField } from 'react-aria-components';
@@ -39,7 +40,8 @@ import { useToast } from '../../state/toast.tsx';
 import { track } from '../../telemetry/track.ts';
 import { NewProjectDialog } from './new-project-dialog.tsx';
 import { RelatorioCard } from './relatorio-card.tsx';
-import { ShortcutRow } from './shortcut-row.tsx';
+import { ShortcutRow, useShortcuts } from './shortcut-row.tsx';
+import { useCan, usePermissions } from '../../state/permissions.tsx';
 import { StatusBoard } from './status-board.tsx';
 import './home.css';
 import { relatorioSnapshotOf } from '../../db/relatorio-snapshot.ts';
@@ -79,6 +81,13 @@ export function HomeSurface() {
   const statusHeadingId = useId();
   const listHeadingId = useId();
   const shortcutsHeadingId = useId();
+  // Story 26.5: a module the role lacks is hidden, a control of this screen is disabled with its reason.
+  // While the role is read the list says it is loading, as before: only a known role hides it.
+  const permissions = usePermissions();
+  const canView = useCan('relatorio.view') || permissions?.status === 'loading';
+  const canCreate = useCan('relatorio.create');
+  const shortcuts = useShortcuts();
+  const anyShortcut = shortcuts.templates || shortcuts.cadastros;
 
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
   // Story 20.2: the search text is screen state only, never stored; the kernel matches it.
@@ -220,99 +229,114 @@ export function HomeSurface() {
   return (
     <main className="screen home-screen">
       <div className="content">
-        <section className="section" aria-labelledby={statusHeadingId}>
-          <h2 id={statusHeadingId} className="visually-hidden">
-            {copy.home.statusHeading}
-          </h2>
-          {/* No zero counts while the device store has not answered: the list below says it is loading. */}
-          {relatoriosPending ? null : (
-            <StatusBoard
-              counts={counts}
-              filter={filter}
-              onFilter={(status) => setFilter((current) => (current === status ? null : status))}
-            />
-          )}
-        </section>
+        {canView ? (
+          <section className="section" aria-labelledby={statusHeadingId}>
+            <h2 id={statusHeadingId} className="visually-hidden">
+              {copy.home.statusHeading}
+            </h2>
+            {/* No zero counts while the device store has not answered: the list below says it is loading. */}
+            {relatoriosPending ? null : (
+              <StatusBoard
+                counts={counts}
+                filter={filter}
+                onFilter={(status) => setFilter((current) => (current === status ? null : status))}
+              />
+            )}
+          </section>
+        ) : null}
 
         {/* Story 19.1 (2026-10-30, Matheus: "Fazer: B"): the shortcuts sit between the Status board and the list, so
             Templates and Cadastros are one tap from the top whatever the list length (EXPERIENCE.md § Home). */}
-        <section className="section" aria-labelledby={shortcutsHeadingId}>
-          <h2 id={shortcutsHeadingId} className="visually-hidden">
-            {copy.home.shortcutsHeading}
-          </h2>
-          <ShortcutRow templates={templates} />
-        </section>
+        {anyShortcut ? (
+          <section className="section" aria-labelledby={shortcutsHeadingId}>
+            <h2 id={shortcutsHeadingId} className="visually-hidden">
+              {copy.home.shortcutsHeading}
+            </h2>
+            <ShortcutRow templates={templates} />
+          </section>
+        ) : null}
 
-        <section className="section" aria-labelledby={listHeadingId}>
-          <div className="home-head">
-            <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
-            {/* Story 20.2: the search, drawn from the Cadastros toolbar's field (`80-cadastros.html`).
-                React Aria's SearchField clears on Escape and on its clear button, and keeps focus
-                in the input; the text never leaves this component but for the kernel's match. */}
-            <SearchField className="field home-search" value={query} onChange={changeQuery}>
-              <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
-              <div className="input">
-                <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-search" />
-                </svg>
-                <Input placeholder={copy.home.searchPlaceholder} />
-                <AriaButton className="icon-btn home-search-clear" aria-label={copy.home.searchClear}>
+        {canView ? (
+          <section className="section" aria-labelledby={listHeadingId}>
+            <div className="home-head">
+              <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
+              {/* Story 20.2: the search, drawn from the Cadastros toolbar's field (`80-cadastros.html`).
+                  React Aria's SearchField clears on Escape and on its clear button, and keeps focus
+                  in the input; the text never leaves this component but for the kernel's match. */}
+              <SearchField className="field home-search" value={query} onChange={changeQuery}>
+                <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
+                <div className="input">
                   <svg className="ico" aria-hidden="true">
-                    <use href="/sprite.svg#i-close" />
+                    <use href="/sprite.svg#i-search" />
                   </svg>
-                </AriaButton>
-              </div>
-            </SearchField>
-            <Button onPress={() => setCreating(true)} data-telemetry="home.new_relatorio">
-              {copy.home.newRelatorio}
-            </Button>
-          </div>
-
-          {/* E19-A2 (R-12): always mounted, so a page-size or tile change to the kernel's note is announced.
-              Story 20.2: with a search, the kernel's count or no-match sentence. */}
-          <p className="visually-hidden" role="status" data-testid="home-list-status">
-            {relatoriosPending ? '' : list.announcement}
-          </p>
-          {relatoriosPending ? (
-            <LoadingNote what={copy.loadingWhat.relatorios} />
-          ) : list.empty !== null ? (
-            // A pressed tile can read zero, and a device can hold emitted relatórios only, so
-            // an empty list is not always an empty device: say which case it is (the kernel's).
-            <div className="home-empty">
-              <p className="section-note">
-                {list.empty === 'none' ? copy.home.empty : list.empty === 'none-for-filter' ? copy.home.noneForFilter : list.empty.text}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="relatorio-cards">
-                {list.cards.map((card) => (
-                  <RelatorioCard
-                    key={card.id}
-                    card={card}
-                    onPress={openCard}
-                    resume={card.id === currentId ? resume : null}
-                    onContinue={continueCard}
-                  />
-                ))}
-              </div>
-              {list.note === null ? null : (
-                <div className="home-list-note">
-                  <p className="section-note">{list.note}</p>
-                  <FilterChipGroup
-                    options={PAGE_SIZE_OPTIONS}
-                    selectedId={String(pageSize ?? DEFAULT_HOME_PAGE_SIZE)}
-                    onChange={choosePageSize}
-                    aria-label={copy.home.pageSizeLabel}
-                  />
+                  <Input placeholder={copy.home.searchPlaceholder} />
+                  <AriaButton className="icon-btn home-search-clear" aria-label={copy.home.searchClear}>
+                    <svg className="ico" aria-hidden="true">
+                      <use href="/sprite.svg#i-close" />
+                    </svg>
+                  </AriaButton>
+                </div>
+              </SearchField>
+              {canCreate ? (
+                <Button onPress={() => setCreating(true)} data-telemetry="home.new_relatorio">
+                  {copy.home.newRelatorio}
+                </Button>
+              ) : (
+                // Story 26.5 (`21-home-campo.html`): shown, disabled, with the kernel's one line of reason.
+                <div className="home-new">
+                  <Button isDisabled disabledReason={permissionRefusalText('relatorio.create')} data-telemetry="home.new_relatorio">
+                    {copy.home.newRelatorio}
+                  </Button>
                 </div>
               )}
-            </>
-          )}
-        </section>
+            </div>
+
+            {/* E19-A2 (R-12): always mounted, so a page-size or tile change to the kernel's note is announced.
+                Story 20.2: with a search, the kernel's count or no-match sentence. */}
+            <p className="visually-hidden" role="status" data-testid="home-list-status">
+              {relatoriosPending ? '' : list.announcement}
+            </p>
+            {relatoriosPending ? (
+              <LoadingNote what={copy.loadingWhat.relatorios} />
+            ) : list.empty !== null ? (
+              // A pressed tile can read zero, and a device can hold emitted relatórios only, so
+              // an empty list is not always an empty device: say which case it is (the kernel's).
+              <div className="home-empty">
+                <p className="section-note">
+                  {list.empty === 'none' ? copy.home.empty : list.empty === 'none-for-filter' ? copy.home.noneForFilter : list.empty.text}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="relatorio-cards">
+                  {list.cards.map((card) => (
+                    <RelatorioCard
+                      key={card.id}
+                      card={card}
+                      onPress={openCard}
+                      resume={card.id === currentId ? resume : null}
+                      onContinue={continueCard}
+                    />
+                  ))}
+                </div>
+                {list.note === null ? null : (
+                  <div className="home-list-note">
+                    <p className="section-note">{list.note}</p>
+                    <FilterChipGroup
+                      options={PAGE_SIZE_OPTIONS}
+                      selectedId={String(pageSize ?? DEFAULT_HOME_PAGE_SIZE)}
+                      onChange={choosePageSize}
+                      aria-label={copy.home.pageSizeLabel}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        ) : null}
       </div>
 
-      {creating ? <NewProjectDialog clients={clients} projects={projects} onClose={() => setCreating(false)} /> : null}
+      {creating && canCreate ? <NewProjectDialog clients={clients} projects={projects} onClose={() => setCreating(false)} /> : null}
     </main>
   );
 }

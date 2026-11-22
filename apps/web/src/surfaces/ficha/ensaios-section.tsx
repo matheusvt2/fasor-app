@@ -69,7 +69,7 @@ import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useToast } from '../../state/toast.tsx';
-import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { IndexHelpAction, TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
@@ -369,6 +369,7 @@ function TestSection({
 }) {
   const headingId = useId();
   const readOnly = useSheetReadOnly();
+  const readOnlyReason = useSheetReadOnlyReason();
   const blocks = snapshot.blocks;
   const serviceEnd = snapshot.relatorio.setup.service_end;
   // Story 14.14 (seed v7): the instrument's TENSÃO ENSAIO against the band's, derived by the kernel.
@@ -461,7 +462,7 @@ function TestSection({
         <h2 id={headingId}>{screenLabel(test.title)}</h2>
         {/* Batch e23h (Story 23.10): "Como ensaiar" where the test's definition carries help, on a read-only sheet too. */}
         <TestHelpAction definition={definition} testKey={test.testKey} title={screenLabel(test.title)} />
-        {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
+        {readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>}
       </div>
       {/* Story 23.9: applied by hand, the band says so and the body shows (the mock's `.v13-na.is-applied .v13-na-body`). */}
       {applied ? (

@@ -40,7 +40,7 @@ import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applica
 import { addedRowNameOp, addedRowRemoveOp, conclusionOp, measurementCellOp, measurementChoiceCellOp, testValueOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, MeasurementField, ReadOnlyMeasurementField, useRestrictionOffered, type RunDirection } from './measurement-field.tsx';
-import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { TestHelpAction } from './test-help-dialog.tsx';
 import { TemperatureLine } from './corrected-value.tsx';
 import { ThermalPhotoButton } from './photo-openers.tsx';
@@ -146,6 +146,7 @@ function MeasurementTestSection({
   const t = copy.ficha.measurement;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
+  const readOnlyReason = useSheetReadOnlyReason();
 
   const switchTest = (enabled: boolean) => {
     void api
@@ -164,7 +165,7 @@ function MeasurementTestSection({
   const value = (item: EvaluatedMeasurementValue) => <TestValue key={item.key} api={api} testKey={test.testKey} value={item} readOnly={readOnly} />;
   // The head's end: the read-only reason, or a switchable test's switch (kept on an NA test too).
   const headEnd = readOnly ? (
-    <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span>
+    readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>
   ) : test.switchable ? (
     <Toggle className="lib-test-switch" isSelected={test.enabled} onChange={switchTest} aria-label={t.switchLabel(test.title)} />
   ) : null;

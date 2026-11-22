@@ -7,6 +7,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { DragHandle, PositionBox } from '../templates/reorder-controls.tsx';
 import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useReorder, type Reorder } from '../templates/use-reorder.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { blockTrigger, locationTrigger } from './tree-actions.ts';
 import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relatorio-tree-shared.tsx';
 
@@ -45,7 +46,11 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
     focusFrames: LIST_FOCUS_WATCH_FRAMES,
   });
   const trigger = () => locationTrigger(reorder.row());
+  // Story 26.5: without `relatorio.fill` the structure takes no edit: no move, no Overflow, no "Adicionar".
+  const canFill = useCan('relatorio.fill');
   const menu = locationMenu(node, shared, reorder, trigger);
+  const rowProps = canFill ? reorder.rowProps : {};
+  const overflow = canFill ? <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} /> : null;
   const painel = node.kind === 'painel';
   const current = shared.currentPath.has(node.id);
   const colunas = node.locations.filter((child) => child.kind !== 'painel');
@@ -77,8 +82,8 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
   // chevron and Overflow are ("Mais opções de Painel de entrada de Cubículo Enel").
   const reorderControls = (
     <>
-      <DragHandle name={node.controlName} reorder={reorder} />
-      <PositionBox name={node.controlName} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
+      {canFill ? <DragHandle name={node.controlName} reorder={reorder} /> : null}
+      <PositionBox name={node.controlName} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" readOnly={!canFill} />
     </>
   );
   const equipmentList =
@@ -134,7 +139,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
         </ul>
       ) : null;
     const addButton =
-      open && target !== null ? (
+      open && target !== null && canFill ? (
         <AriaButton
           className="btn btn-text s9-add"
           aria-label={onLocal ? t.addEquipamentoNoLocalLabel(node.name) : undefined}
@@ -145,7 +150,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
         </AriaButton>
       ) : null;
     return (
-      <li className={className} data-location-id={node.id} {...reorder.rowProps}>
+      <li className={className} data-location-id={node.id} {...rowProps}>
         <div className="s9-loc-row" onKeyDown={onKeyDown}>
           {chevron}
           {reorderControls}
@@ -176,7 +181,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
+          {overflow}
         </div>
         {/* Story 15.2: the band keeps no button; the site checklist card comes first under it. */}
         {siteCard}
@@ -205,7 +210,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
   if (painel) {
     const className = ['s9-painel', open && 'is-open', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
     return (
-      <li className={className} data-location-id={node.id} data-level={node.level} {...reorder.rowProps}>
+      <li className={className} data-location-id={node.id} data-level={node.level} {...rowProps}>
         <div className="s9-pnl-row" onKeyDown={onKeyDown}>
           {chevron}
           {reorderControls}
@@ -221,7 +226,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
             <span className="dot" aria-hidden="true" />
             {node.counterText}
           </span>
-          <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
+          {overflow}
         </div>
         {/* A painel takes no block, but a row can still sit on one (a block whose op was folded
             before the painel reached this device): it is counted, so it is drawn. A block never vanishes. */}
@@ -233,13 +238,15 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
             <p className="section-note pnl-empty" role="note">
               {t.painelEmpty}
             </p>
-            <AriaButton className="btn btn-text s9-add" onPress={() => shared.actions.addLocation(node, 'coluna')}>
-              <PlusIcon />
-              {t.addColuna}
-            </AriaButton>
+            {canFill ? (
+              <AriaButton className="btn btn-text s9-add" onPress={() => shared.actions.addLocation(node, 'coluna')}>
+                <PlusIcon />
+                {t.addColuna}
+              </AriaButton>
+            ) : null}
           </>
         ) : null}
-        {open && target !== null ? (
+        {open && target !== null && canFill ? (
           // The visible words are the mock's; the name adds the painel's local ("… de Cubículo Enel"),
           // so the first painel of two locals, "Painel 1" in each, never names two buttons alike.
           <AriaButton className="btn btn-text s9-add" aria-label={t.addBlockIn(node.controlName)} onPress={() => shared.openPalette({ locationId: target, anchorBlockId: null })}>
@@ -251,14 +258,14 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
     );
   }
   return (
-    <li className={['s9-coluna', open && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ')} data-location-id={node.id} data-level={node.level} {...reorder.rowProps}>
+    <li className={['s9-coluna', open && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ')} data-location-id={node.id} data-level={node.level} {...rowProps}>
       <div className="s9-col" onKeyDown={onKeyDown}>
         {chevron}
         {reorderControls}
         <span className="level-kicker">{node.kicker}</span>
         <span className="s9-col-name">{node.name}</span>
         <span className="s9-col-meta">{node.counterText}</span>
-        <OverflowMenu name={node.controlName} items={menu.items} destructiveItems={menu.destructiveItems} />
+        {overflow}
       </div>
       {equipmentList}
       {colunaList}
@@ -296,6 +303,8 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
   });
   const trigger = () => blockTrigger(reorder.row());
   const menu = equipmentMenu(node, shared, reorder, trigger);
+  // Story 26.5: without `relatorio.fill` the card opens the sheet and takes no edit.
+  const canFill = useCan('relatorio.fill');
   const current = shared.currentBlockId === node.blockId;
   const className = ['s9-eq', 'eq-card', 'block-card', current && 'is-current', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
   return (
@@ -304,14 +313,14 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
       data-block-id={node.blockId}
       data-level={node.level}
       aria-current={current ? 'true' : undefined}
-      {...reorder.rowProps}
+      {...(canFill ? reorder.rowProps : {})}
       onKeyDown={(event) => {
-        reorder.rowProps.onKeyDown(event);
+        if (canFill) reorder.rowProps.onKeyDown(event);
         if (!event.defaultPrevented) treeKeys(event, null, () => undefined);
       }}
     >
-      <DragHandle name={node.name} reorder={reorder} />
-      <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" />
+      {canFill ? <DragHandle name={node.name} reorder={reorder} /> : null}
+      <PositionBox name={node.name} position={node.position} siblings={node.siblings} reorder={reorder} className="s9-pos" readOnly={!canFill} />
       {/* Story 15.2 (Bruno's answer 6): the card body is the tap target; TAG and type are its title
           (a sheet with no TAG shows its type alone), the state, the NC badge and "você parou aqui" under it. */}
       <button type="button" className="s9-eq-open eq-card-open" data-tree-open data-telemetry="sumario.open_sheet" onClick={() => shared.actions.openSheet(node.blockId)}>
@@ -329,8 +338,8 @@ export const SumarioEquipment = memo(function SumarioEquipment({ node, shared }:
           {current ? <span className="sum-here">{copy.sumario.here}</span> : null}
         </span>
       </button>
-      <OverflowMenu name={node.name} items={menu.items} destructiveItems={menu.destructiveItems} />
-      {node.duplicate ? (
+      {canFill ? <OverflowMenu name={node.name} items={menu.items} destructiveItems={menu.destructiveItems} /> : null}
+      {node.duplicate && canFill ? (
         <p className="s9-dup">
           <span>{duplicateTagText(node.tag)}</span>
           <TextButton aria-label={t.renameDuplicateLabel(node.tag, shared.pathOf(node.locationId))} onPress={() => shared.openDialog({ kind: 'rename-tag', node })}>

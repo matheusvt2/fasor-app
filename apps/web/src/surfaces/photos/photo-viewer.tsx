@@ -9,6 +9,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { ensureLocalBlob, readLocalBlob } from '../../db/file-store.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { usePinchZoom, type PinchZoom, type ZoomSize } from '../../input/use-pinch-zoom.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
@@ -156,6 +157,8 @@ function ViewerBody({
   const save = useSaveFile(tile);
   const saveReason = save.status === 'none' ? t.saveReasonNone : save.status === 'loading' ? t.saveReasonLoading : save.status === 'failed' ? t.saveReasonFailed : null;
   const [confirming, setConfirming] = useState(false);
+  // Story 26.5: a role that cannot fill opens the photo and edits nothing (no caption, no removal).
+  const canFill = useCan('relatorio.fill');
   // Stories 17.1 and 17.4: every live photo is numbered (a display shot too); a tile the
   // snapshot does not hold yet draws no badge and no count for that render.
   const number = numbers.get(tile.id) ?? null;
@@ -229,18 +232,22 @@ function ViewerBody({
         )}
         {tile.caption === null ? null : <p className="viewer-caption-text">{tile.caption}</p>}
         <div className="viewer-actions">
-          <Button variant="secondary" block onPress={() => onEditCaption(tile)}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-pencil" />
-            </svg>
-            {t.editCaption}
-          </Button>
-          <Button variant="destructive" block onPress={() => setConfirming(true)}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-trash" />
-            </svg>
-            {t.remove}
-          </Button>
+          {canFill ? (
+            <>
+              <Button variant="secondary" block onPress={() => onEditCaption(tile)}>
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-pencil" />
+                </svg>
+                {t.editCaption}
+              </Button>
+              <Button variant="destructive" block onPress={() => setConfirming(true)}>
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-trash" />
+                </svg>
+                {t.remove}
+              </Button>
+            </>
+          ) : null}
           <Button
             variant="secondary"
             block
