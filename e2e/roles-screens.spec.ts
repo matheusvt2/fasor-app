@@ -57,6 +57,18 @@ async function asRole(page: Page, seed: WorkerSeed, role: WorkerRole): Promise<{
   return { fixture, user, database };
 }
 
+/**
+ * e26s (F2-4): section 9 open, the Sumário draws no "Adicionar local" (its op is a `location` create,
+ * `relatorio.fill`; on an Emitido relatório also `relatorio.issue`).
+ */
+async function noAddLocal(page: Page): Promise<void> {
+  const s9 = page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
+  if ((await s9.getAttribute('aria-expanded')) !== 'true') await s9.click();
+  await expect(page.locator('.s9-tree')).toBeVisible();
+  await expect(page.locator('.s9-foot')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Adicionar local', exact: true })).toHaveCount(0);
+}
+
 /** A typed address of a screen the role does not hold lands on Home with the frame's Toast. */
 async function typedAddressRefused(page: Page, path: string): Promise<void> {
   await page.goto(path);
@@ -157,6 +169,12 @@ test.describe('26.5 the screens by role', () => {
     await page.goto(`/relatorio/${fixture.relatorioId}`);
     await expect(generate(page)).toHaveAttribute('aria-disabled', 'true');
     await expect(page.locator('.sumario .sum-row .overflow-trigger')).toHaveCount(0);
+    // e26s (F2-4): no "Adicionar local", at 1280 px and at 768 px.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await noAddLocal(page);
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await noAddLocal(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
 
     // The ficha opens read-only: one Banner, no camera, no "Adicionar fotos", no Overflow.
     await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
@@ -184,6 +202,10 @@ test.describe('26.5 the screens by role', () => {
     await page.goto(`/relatorio/${fixture.relatorioId}/pontos`);
     await expect(page.locator('.fc-banner')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Criar/ })).toHaveCount(0);
+
+    // e26s (F2-4): after the whole walk the device's outbox holds no op at all (Story 26.5: no op of a
+    // missing key enters it).
+    expect(await readStore<{ op_id: string; path: string }>(page, database, 'outbox')).toEqual([]);
   });
 
   test('@p0 26.5-E2E-003 a signed-out user who opens a relatório lands on it after signing in', async ({ page, seed }) => {
@@ -289,6 +311,8 @@ test.describe('e26r an issued relatório by role (2026-11-22, Matheus "sim nos d
     await page.goto(`/relatorio/${fixture.relatorioId}`);
     await expect(page.locator('.sumario .sum-row').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('.sumario .sum-row .overflow-trigger')).toHaveCount(0);
+    // e26s (F2-4): no "Adicionar local" on an issued relatório for a role that does not issue.
+    await noAddLocal(page);
     await page.goto(`/relatorio/${fixture.relatorioId}/fotos`);
     await expect(page.locator('.fc-banner')).toHaveText(`${READ_ONLY_LEAD_TEXT} ${ISSUED_READ_ONLY_REASON_TEXT}`);
     await page.goto(`/relatorio/${fixture.relatorioId}/pontos`);

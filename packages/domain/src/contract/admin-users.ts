@@ -88,6 +88,15 @@ export type AdminUserEditRequest = z.infer<typeof adminUserEditRequestSchema>;
 /** The body of every action route (pause, reactivate, remove, resend-invitation, password-reset). */
 export const adminUserActionRequestSchema = z.object({});
 
+/**
+ * `POST /api/admin/users/:id/reactivate` (2026-11-22, e26s): an optional `role_id`. A user whose role
+ * was removed cannot come back with it (`role_not_found`), so the Admin gives him a live role of the
+ * company in the same request: the role change and the status change are one server batch. Without
+ * it the route behaves as before.
+ */
+export const adminUserReactivateRequestSchema = z.object({ role_id: uuidV7Schema.optional() });
+export type AdminUserReactivateRequest = z.infer<typeof adminUserReactivateRequestSchema>;
+
 /** Whether an e-mail left: `failed` keeps the change (the user stays) and the Admin may resend. */
 export const adminUserEmailOutcomeSchema = z.enum(['sent', 'failed']);
 export type AdminUserEmailOutcome = z.infer<typeof adminUserEmailOutcomeSchema>;

@@ -26,6 +26,7 @@ import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
 import { localUser, unsentRegistration, type UnsentRegistration } from '../db/sync-store.ts';
 import { databaseExists, databaseName, deleteDatabase, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { newId } from '../ids.ts';
+import { SYNC_INTERVAL_MS } from '../sync/engine.ts';
 import { firstCompanyPull } from '../sync/first-pull.ts';
 import { flushTelemetry } from '../telemetry/flush.ts';
 import { configureTelemetry } from '../telemetry/track.ts';
@@ -53,7 +54,10 @@ import {
  * on Login and never shows the local data, while the last-session pointer and the database
  * are kept, so the same user's sign-in reaches the outbox again and an offline cold open
  * still reaches the local data behind the re-auth banner (retro A8). Offline, only a
- * database that exists on the device opens.
+ * database that exists on the device opens. e26s (2026-11-22): a `401 user_inactive` at boot (a
+ * paused or removed account, whose session the server keeps) is no ended session: the pointer's
+ * database opens behind the paused banner, and while paused the device asks the server again
+ * (`recheckAccount`) to learn when the pause ends.
  *
  * A confirmed sign-out deletes the user's database (Story 20.11, S2): a pointer put back by
  * hand afterwards finds nothing to open, and nothing written then can reach the server.
@@ -108,6 +112,14 @@ export interface SessionState {
   savePhotoLocation: (enabled: boolean) => Promise<void>;
   /** Hides the recovery screen and remembers it in `local_prefs`, so it is one-time. */
   dismissRecovery: () => void;
+  /**
+   * e26s (2026-11-22): while the paused cause stands, asks the server who this device is (one account
+   * read): `401 user_inactive` keeps the paused state; any other `401` (the Admin reactivated him, which
+   * ended his sessions, or removed and ended them) turns it into the ended-session re-auth (Login asked,
+   * the outbox kept); a `200` resumes. Does nothing in any other state, offline, or while one is out.
+   * Optional so a surface test's session needs no value.
+   */
+  recheckAccount?: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionState | null>(null);
@@ -140,15 +152,24 @@ export const BOOT_SESSION_WAIT_MS = 3_000;
 /** Story 20.11: how long sign-out waits for the usage-event flush and for the database delete. */
 export const SIGN_OUT_DELETE_WAIT_MS = 5_000;
 
-/** The boot's server read: a session, a 401, or no answer at all. */
-type BootRead = { kind: 'session'; account: AccountResponse } | { kind: 'none' } | { kind: 'unreachable' };
+/**
+ * The boot's server read: a session, a 401, or no answer at all. e26s: `inactive` is the `401
+ * user_inactive` of a paused or removed account, whose session the server keeps.
+ */
+type BootRead = { kind: 'session'; account: AccountResponse } | { kind: 'inactive' } | { kind: 'none' } | { kind: 'unreachable' };
 
 function readBootSession(): Promise<BootRead> {
   return authClient.readSession().then(
-    (account): BootRead => (account === null ? { kind: 'none' } : { kind: 'session', account }),
+    (account): BootRead => (account === null ? { kind: 'none' } : account === 'inactive' ? { kind: 'inactive' } : { kind: 'session', account }),
     (): BootRead => ({ kind: 'unreachable' }),
   );
 }
+
+/**
+ * e26s (2026-11-22, authored): how often a paused device asks the server whether it is still paused,
+ * on top of "Sincronizar agora", the page turning visible and the network coming back: the sync tick.
+ */
+export const PAUSED_RECHECK_MS = SYNC_INTERVAL_MS;
 
 function raceBootRead(read: Promise<BootRead>, ms: number): Promise<BootRead | 'waiting'> {
   return new Promise((resolve) => {
@@ -294,13 +315,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (read.kind === 'none') {
+      if (read.kind === 'inactive' && cached !== null) {
+        // e26s (2026-11-22): a paused or removed account keeps its session, so the server answers
+        // `401 user_inactive`: the device shows the paused state for its last signed-in user, as it
+        // does without a reload (frame 94: the banner, Conta, the unsent count, the paused "Sair"),
+        // as long as his database is on this device. With none, it is the plain Login below.
+        const local = attachedFromCache || (await databaseExists(databaseName(cached.id)));
+        if (cancelled) return;
+        if (local) {
+          writeReAuthRequired(true, 'paused');
+          setUser(cached);
+          setReAuthRequired(true);
+          setReAuthCause('paused');
+          await attachDatabase(cached.id);
+          if (cancelled) return;
+          setStatus('signed-in');
+          setSettled(true);
+          return;
+        }
+      }
+
+      if (read.kind === 'none' || read.kind === 'inactive') {
         // The server dropped the session. Without a pointer this is a plain Login. With one,
         // Story 20.11: the device goes to Login and shows none of the local data. The pointer,
         // the remembered 401 and the database stay, so the same user's sign-in reaches the
         // outbox again, and an offline reopen still shows the banner (AD-9).
-        // Story 26.11: a paused cause already remembered stays (this read cannot tell a pause apart).
-        if (cached !== null) writeReAuthRequired(true, readReAuthCause() ?? 'expired');
+        // ~~Story 26.11: a paused cause already remembered stays (this read cannot tell a pause apart).~~
+        // (2026-11-22, e26s: the read tells it apart now, `inactive` above; a plain 401 is an ended
+        // session, whatever cause was remembered: after a reactivation the paused one no longer holds.)
+        if (cached !== null) writeReAuthRequired(true, read.kind === 'inactive' ? 'paused' : 'expired');
         if (attachedFromCache) {
           databaseRef.current?.close();
           databaseRef.current = null;
@@ -368,6 +411,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // (2026-11-22, e26r: a pause keeps the sessions, so every later 401 while paused carries
         // `user_inactive` too; once the Admin reactivates, the kept sessions are deleted and the
         // next 401 is the plain one, which still reads as the pause heard before.)
+        // (2026-11-22, e26s: the engine sends nothing while paused, so no such 401 arrives here; the
+        // paused device learns of the reactivation from `recheckAccount`, which turns the cause to
+        // `expired` itself.)
         const cause: ReAuthCause = heard === 'paused' || readReAuthCause() === 'paused' ? 'paused' : 'expired';
         writeReAuthRequired(true, cause);
         setReAuthRequired(true);
@@ -375,6 +421,59 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }),
     [],
   );
+
+  // e26s: the cause as rendered, read by the recheck at call time.
+  const pausedRef = useRef(false);
+  pausedRef.current = reAuthRequired && reAuthCause === 'paused';
+  const recheckInFlight = useRef(false);
+
+  /** e26s (F2-1): see `SessionState.recheckAccount`. */
+  const recheckAccount = useCallback(async (): Promise<void> => {
+    if (!pausedRef.current || recheckInFlight.current || !readOnline()) return;
+    recheckInFlight.current = true;
+    try {
+      const read = await readBootSession();
+      // A sign-in or a sign-out meanwhile decides on its own.
+      if (!pausedRef.current) return;
+      if (read.kind === 'unreachable' || read.kind === 'inactive') return;
+      const current = userRef.current;
+      if (read.kind === 'none' || current === null || read.account.user.id !== current.id) {
+        // The session is gone (a reactivation ends it; so may a removal): the ended-session re-auth.
+        // The banner asks Login, the outbox stays, and the same user's sign-in sends it.
+        writeReAuthRequired(true, 'expired');
+        setReAuthCause('expired');
+        return;
+      }
+      // Active again with this very session: the engine resumes (`state/sync.tsx`).
+      writeAiFeatures(read.account.features.ai);
+      setAiFeaturesValue(read.account.features.ai);
+      setAiFeatures(read.account.features.ai);
+      writeReAuthRequired(false);
+      setReAuthRequired(false);
+      setReAuthCause(null);
+    } finally {
+      recheckInFlight.current = false;
+    }
+  }, []);
+
+  // e26s (F2-1): while paused, the regular sync tick, the page turning visible and the network coming
+  // back each ask once (the engine itself sends nothing while paused).
+  const pausedNow = reAuthRequired && reAuthCause === 'paused';
+  useEffect(() => {
+    if (!pausedNow) return;
+    const check = () => void recheckAccount();
+    const timer = setInterval(check, PAUSED_RECHECK_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', check);
+    };
+  }, [pausedNow, recheckAccount]);
 
   const doSignIn = useCallback(
     async (email: string, password: string) => {
@@ -501,7 +600,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       savePhotoLocation: doSavePhotoLocation,
       // No dismissal: only a new sign-in clears `reAuthRequired`, so the paused sync
       // engine (state/sync.tsx) never resumes while the session is still gone.
+      // (2026-11-22, e26s: and a paused account's recheck that the server answers with this very
+      // session, `recheckAccount`.)
       dismissRecovery,
+      recheckAccount,
     }),
     [
       status,
@@ -518,6 +620,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       doSaveRegistration,
       doSavePhotoLocation,
       dismissRecovery,
+      recheckAccount,
     ],
   );
 

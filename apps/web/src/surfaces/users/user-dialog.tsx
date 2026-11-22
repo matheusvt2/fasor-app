@@ -236,7 +236,7 @@ export function UserDialog({ mode, roles, entries, selfId, onClose, onSaved, onR
   );
 }
 
-interface RoleOptionsProps {
+export interface RoleOptionsProps {
   roles: readonly RoleRow[];
   value: string | null;
   /** The roles the last-Admin rule refuses: shown, `aria-disabled`, out of the arrow keys. */
@@ -251,7 +251,7 @@ interface RoleOptionsProps {
  * one); the arrow keys, Home and End move the focus over the open rows, and a tap, Space or Enter
  * picks one (the Option rows of `local-dialog.tsx`).
  */
-function RoleOptions({ roles, value, locked, labelledBy, describedBy, onPick }: RoleOptionsProps) {
+export function RoleOptions({ roles, value, locked, labelledBy, describedBy, onPick }: RoleOptionsProps) {
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
   const open = roles.map((role, index) => (locked.has(role.id) ? -1 : index)).filter((index) => index !== -1);
   const checkedIndex = roles.findIndex((role) => role.id === value);

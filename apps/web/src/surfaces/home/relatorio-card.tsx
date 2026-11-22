@@ -8,6 +8,11 @@ export interface RelatorioCardProps {
   /** The current card's "Continuar" target (`resumeTarget`); null opens the Sumário. */
   resume?: ResumeTarget | null;
   onContinue?: (card: HomeCard, target: ResumeTarget | null) => void;
+  /**
+   * e26s (2026-11-22): the role fills (`relatorio.fill`). Without it the current card keeps "Ver
+   * sumário" and draws no "Continuar", which opens a sheet to fill. Omitted means true.
+   */
+  fillShortcut?: boolean;
 }
 
 /**
@@ -19,7 +24,7 @@ export interface RelatorioCardProps {
  * one still missing something), or the Sumário for a relatório with no sheet. The
  * `.progress-counter` shows only on a card whose relatório is on this device.
  */
-export function RelatorioCard({ card, onPress, resume = null, onContinue }: RelatorioCardProps) {
+export function RelatorioCard({ card, onPress, resume = null, onContinue, fillShortcut = true }: RelatorioCardProps) {
   const className = ['relatorio-card', card.isCurrent && 'is-current', card.isUnavailable && 'is-unavailable']
     .filter(Boolean)
     .join(' ');
@@ -55,16 +60,18 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue }: Rela
       </div>
       {card.isCurrent ? (
         <div className="card-continue">
-          <Button variant="primary" data-telemetry="home.continue" onPress={() => (onContinue === undefined ? onPress(card) : onContinue(card, resume))}>
-            {resume === null ? (
-              copy.home.continue
-            ) : (
-              <>
-                {copy.home.continueTo}
-                <span className="tabular">{resume.text}</span>
-              </>
-            )}
-          </Button>
+          {fillShortcut ? (
+            <Button variant="primary" data-telemetry="home.continue" onPress={() => (onContinue === undefined ? onPress(card) : onContinue(card, resume))}>
+              {resume === null ? (
+                copy.home.continue
+              ) : (
+                <>
+                  {copy.home.continueTo}
+                  <span className="tabular">{resume.text}</span>
+                </>
+              )}
+            </Button>
+          ) : null}
           <TextButton data-telemetry="home.summary" onPress={() => onPress(card)}>
             {copy.home.openSummary}
           </TextButton>
