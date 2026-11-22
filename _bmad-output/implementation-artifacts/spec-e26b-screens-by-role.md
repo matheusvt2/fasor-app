@@ -2,7 +2,7 @@
 title: 'Epic 26, batch e26b: the app shows each role only its modules (Story 26.5)'
 type: 'feature'
 created: '2026-11-21'
-status: 'ready-for-dev'
+status: 'done'
 baseline_revision: '716d4a2b'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -84,3 +84,13 @@ Only after `.scratch-e26b/STACK_OK` exists. Inside the tools container (`podman 
 - while iterating: `pnpm exec vitest run --project @app/web <file>` and `--project @app/domain <file>` (check the project names in `vitest.config.ts`);
 - gate: `pnpm lint`, `pnpm static`, `pnpm test:unit`, `pnpm test:api` (restart api first: `podman compose restart api`), then `pnpm exec tsx scripts/e2e.ts e2e/roles-screens.spec.ts e2e/roles-server.spec.ts <every spec of a screen you changed> --project desktop-chrome --project durability-desktop-chrome`.
 The orchestrator runs the gate if you cannot start containers; say so in your report.
+
+## Auto Run Result
+
+Status: done (no review loop inside the batch, the owner's decision of 2026-11-21; Edge Case Hunter and Verification Gap Reviewer not run: token economy, the coordinator's one review covers them). Implementation subagent `bmad-dev-opus-medium`: returned once, code and tests written, gate run by the orchestrator.
+
+- Provider `PermissionsProvider`, route guard `RequirePermission`, hook `useCan` (`useCanFn`, `useScreenAccess`) in `apps/web/src/state/permissions.tsx`; kernel `permissions/refusal.ts` and `permissions/screens.ts` (`permissionForScreen`). No contract change.
+- Gate on merge `53221f8c` (main with e26c and e27a, contract 56): `lint` 0 errors; `static` clean; `test:unit` 474 of 475 files, 7447 of 7448 tests: the one red, `sumario-surface.test.tsx` P5 ("never flashes ..."), took 9 s beside the Epic 27 wave gate and passes alone under the host lock (43 of 43); `test:api` 1123 passed, 6 skipped; Playwright 165 of 165 (roles-screens, roles-server, auth, home, cadastros, templates, ficha, gallery, points, tree, manufacturer-value, verificacoes-local, export), `desktop-chrome` and `durability-desktop-chrome`.
+- Before the merge of main: the first gate run had `static` red (a library type id in the new spec) and two e2e reds, both mine and fixed: 26.5-E2E-002 (a re-seed revokes sessions; it now applies the server-only `user/{id}/role_id` put) and `auth.spec.ts` 1.3-E2E-002b (see the open reading on the return address).
+- The one existing spec edited: `e2e/roles-server.spec.ts` (26.4-E2E-001), only how the refused op is produced (`seedOutbox(clientCreateOp)` instead of the Cadastros clicks, which Story 26.5 hides); assertions byte-identical.
+- Open readings and narrowings: see the PR body.
