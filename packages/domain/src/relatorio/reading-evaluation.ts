@@ -1,6 +1,6 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr, INSULATION_UNITS, NOT_APPLICABLE_TEXT, parseReadingPtBr, readOverSqrt3Raw } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
-import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
+import { compareCriterion, criterionTextInUnit, formatCriterionValue, judgesResistance, RESISTANCE_POSITIVE_ONLY_TEXT, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
 import type { CriterionTableRow } from '../seed/criteria-tables.ts';
 import { SELV_YES, type BandCriterion, type BlockDefinition, type ColumnDef, type PolarizationIndexRule, type TableDef, type TestDef } from '../seed/schema.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
@@ -266,7 +266,7 @@ export function manufacturerUnitsOf(test: TestDef): readonly string[] {
 }
 
 /** The text a manufacturer's value prints as a criterion on a table test: "≥ 5 GΩ" (a NETA minimum, approved at it). */
-function minimumText(raw: string, unit: string | null): string {
+export function minimumText(raw: string, unit: string | null): string {
   return `≥ ${formatDecimalGroupedPtBr(raw)}${unit === null ? '' : ` ${unit}`}`;
 }
 
@@ -349,7 +349,7 @@ export function plateVolts(definition: Pick<BlockDefinition, 'nameplate'>, block
 }
 
 /** A rated voltage as a helper reads it: "13,8 kV" from 1000 V up, else "380 V". */
-function voltsText(volts: number): string {
+export function voltsText(volts: number): string {
   return volts >= 1000 ? `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts / 1000)))} kV` : `${formatDecimalGroupedPtBr(canonicalDecimal(String(volts)))} V`;
 }
 
@@ -498,8 +498,9 @@ function sourceNameOf(test: TestDef, criterion: CriterionSeed | null): string {
   return test.criterion_bands?.bands[0]?.source.name ?? criterionOf(test).source.name;
 }
 
-function outHelperText(criterion: CriterionSeed): string {
-  const text = formatCriterionValue(criterion);
+/** Story 27.2 (F11): the criterion cited in `unit`, the reading's own (`criterionTextInUnit`), on screen only. */
+function outHelperText(criterion: CriterionSeed, unit: string | null): string {
+  const text = criterionTextInUnit(criterion, unit);
   if (criterion.operator === '>' || criterion.operator === '>=') return `Abaixo do aceitável (${text})`;
   if (criterion.operator === '<' || criterion.operator === '<=') return `Acima do aceitável (${text})`;
   return `Fora do aceitável (${text})`;
@@ -510,8 +511,8 @@ function outHelperText(criterion: CriterionSeed): string {
  * a raw value that reads above the criterion is never shown out without why. authored (Story 23.5,
  * listed for Bruno): "Abaixo do aceitável a 20 °C: 4 GΩ (≥ 5.000 MΩ)".
  */
-function correctedOutHelperText(criterion: CriterionSeed, corrected: string): string {
-  const text = formatCriterionValue(criterion);
+function correctedOutHelperText(criterion: CriterionSeed, corrected: string, unit: string | null): string {
+  const text = criterionTextInUnit(criterion, unit);
   if (criterion.operator === '>' || criterion.operator === '>=') return `Abaixo do aceitável a 20 °C: ${corrected} (${text})`;
   if (criterion.operator === '<' || criterion.operator === '<=') return `Acima do aceitável a 20 °C: ${corrected} (${text})`;
   return `Fora do aceitável a 20 °C: ${corrected} (${text})`;
@@ -714,7 +715,6 @@ function evaluateTable(
     // row (Story 23.8, its `row` the tap in V) takes its table's seeded row's: a rows_from table has one.
     const own = rowCriteria === null ? null : (rowCriteria[row] ?? (entry === null ? null : (rowCriteria[offset] ?? null)));
     const rowCriterionValue = own === null ? criterion : own.criterion;
-    const helper = rowCriterionValue === null ? null : outHelperText(rowCriterionValue);
     // Story 22.10: a ratio cell (a ± criterion), capture or input, never takes a reading above the limit.
     const overRange: OverRangeAllowance = ratio || rowCriterionValue?.operator === '±' ? { allowed: false, refusal: OVER_RANGE_RATIO_REFUSAL } : OVER_RANGE_ALLOWED;
     // A tap row reads its own tap as V PRIMÁRIO; a seeded row, and row 0 kept off the plate, read the plate as on v12.
@@ -788,6 +788,8 @@ function evaluateTable(
         cell.missing = state === 'empty' && cell.fallback === null && tap === null;
       } else {
         cell.missing = state === 'empty' && required;
+        // Story 27.2 (F3): a capture an absolute criterion in Ω judges takes only a reading above zero.
+        if (!ratio && rowCriterionValue !== null && judgesResistance(rowCriterionValue)) cell.positiveOnlyText = RESISTANCE_POSITIVE_ONLY_TEXT;
       }
       cells.push(cell);
     }
@@ -827,7 +829,7 @@ function evaluateTable(
       }
       if (within !== null) {
         cell.verdict = within ? 'within' : 'out';
-        cell.helperText = within ? null : corrected === null ? helper : correctedOutHelperText(rowCriterionValue, corrected.text);
+        cell.helperText = within ? null : corrected === null ? outHelperText(rowCriterionValue, cell.unit) : correctedOutHelperText(rowCriterionValue, corrected.text, cell.unit);
       } else if (cell.state === 'over_range' && overRangeInsideRange(value, cell.unit, rowCriterionValue)) {
         // Story 25.9 (every seed, screen only; e24x X6): a limit inside a range criterion says why it was not judged.
         cell.helperText = OVER_RANGE_INSIDE_RANGE_HELPER;

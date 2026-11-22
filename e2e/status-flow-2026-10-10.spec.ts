@@ -280,7 +280,7 @@ for (const viewport of WIDTHS) {
     await expect(dialog(page)).toBeVisible();
     const lastSend = dialog(page).locator('.precheck li', { hasText: `Último envio de ${account.name}` });
     await expect(lastSend).toHaveCount(1);
-    await expect(lastSend).toHaveText(new RegExp(`^Último envio de ${account.name}: \\d{2}/\\d{2} \\d{2}:\\d{2}$`));
+    await expect(lastSend).toHaveText(new RegExp(`^Último envio de ${account.name} \\(qualquer relatório\\): \\d{2}/\\d{2} \\d{2}:\\d{2}$`));
 
     // Generate from Em campo: Em revisão; the revision arrives and it stays there.
     await expect(idleReason(page)).toHaveText(IDLE_1);

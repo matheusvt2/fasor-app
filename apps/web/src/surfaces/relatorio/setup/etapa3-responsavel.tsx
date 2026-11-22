@@ -1,4 +1,4 @@
-import { artOrTrtLabel, artTrtEchoText, councilLabel, registrationNumberLabel, relatorioSetupPath, sectionRefText, sectionsCaption, textCapOf, type RelatorioSnapshot, type UserRow } from '@app/domain';
+import { artLabel, artOrTrtLabel, artTrtEchoText, artTrtRemarkText, councilLabel, registrationNumberLabel, relatorioSetupPath, sectionRefText, sectionsCaption, textCapOf, type RelatorioSnapshot, type UserRow } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { CharCount, Combobox } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
@@ -94,6 +94,15 @@ export function Etapa3Responsavel({
                 {(() => {
                   const echo = artTrtEchoText(label, artTrtNumber.text, sectionRefText(snapshot, 10), snapshot.relatorio.seed_version);
                   return echo === null ? null : <span className="echo">{echo}</span>;
+                })()}
+                {(() => {
+                  // Story 27.2 (F4): a saved number that is not numeric is remarked in amber; it is kept and never blocks.
+                  const remark = artTrtRemarkText(artLabel(selected.council), setup.art_trt_number);
+                  return remark === null ? null : (
+                    <span className="helper" data-tone="amber" data-remark="">
+                      {remark}
+                    </span>
+                  );
                 })()}
               </div>
               {selected.title === null ? null : (

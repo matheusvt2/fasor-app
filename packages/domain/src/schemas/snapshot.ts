@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { canonicalJson } from '../text/hash.ts';
 import { entityKey, splitEntityKey, type EntityState } from '../ops/apply.ts';
 import { hiddenLocationIds, pointsOnLiveLocals } from '../relatorio/location-live.ts';
+import { pickEmpresa } from '../registry/empresa.ts';
 import { companyTypeIdOf, typeVersionIdOf, typeVersionNumber, typeVersionOf } from './block-config.ts';
 import {
   blockRowSchema,
@@ -224,7 +225,8 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   const registry = rowsOf('registry', () => true);
   const pick = <K extends RegistryRow['kind']>(kind: K) =>
     live(registry.filter((r): r is Extract<RegistryRow, { kind: K }> => r.kind === kind));
-  const empresa = pick('empresa')[0] ?? null;
+  // Story 27.1: the one company row every reader takes (`pickEmpresa`), never the first of a list.
+  const empresa = pickEmpresa(registry);
   const client = pick('client').find((c) => c.id === project?.client_id) ?? null;
   const instruments = pick('instrument').filter((i) => instrumentIds.has(i.id));
 
@@ -365,7 +367,8 @@ export function createSnapshotBuilder(): SnapshotBuilder {
     }
 
     const liveRegistry = (kind: RegistryRow['kind']) => live(registryRows.filter((r) => r.kind === kind));
-    const empresaRaw = liveRegistry('empresa')[0] ?? null;
+    // Story 27.1: the same pick as `buildSnapshot` and the device's `empresaRow`.
+    const empresaRaw = pickEmpresa(registryRows);
     const clientRaw = liveRegistry('client').find((c) => c.id === projectRaw?.client_id) ?? null;
     const instrumentRaws = liveRegistry('instrument').filter((i) => instrumentIds.has(i.id));
     const responsibleId = relatorioRaw.setup.responsible_user_id;

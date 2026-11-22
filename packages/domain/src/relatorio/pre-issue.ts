@@ -1,6 +1,7 @@
 import { calibrationCheck, calibrationValidUntil } from '../checks/calibration.ts';
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
+import { artTrtRowText, temperatureRowText } from '../checks/value-remarks.ts';
 import { calendarDateOfInstant, formatCalendarDate, formatShortDateTime } from '../format/datetime.ts';
 import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts';
 import { livePhotos } from '../photos/order.ts';
@@ -15,7 +16,7 @@ import { rejectedText } from '../sync/counts.ts';
 import { isOptionalSectionVariable, resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { listPtBr, plural } from '../text/plural.ts';
-import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
+import { pointPhotoRemovedText, pointsSemAcaoText, pointsSemPrioridade, pointsSemPrioridadeText, pointsSemResponsavel, pointsSemResponsavelText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
 import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
@@ -73,6 +74,8 @@ export type PreIssueKind =
   | 'points_sem_acao'
   | 'point_photo_removed'
   | 'points_sem_prazo'
+  | 'points_sem_prioridade'
+  | 'points_sem_responsavel'
   | 'deadline_overdue'
   | 'sheets_removed_local'
   | 'calibration_missing'
@@ -89,7 +92,10 @@ export type PreIssueKind =
   | 'section_variables'
   | 'seed_unknown'
   | 'rejected'
-  | 'last_send';
+  | 'last_send'
+  // Story 27.2 (decision 3 of 2026-11-21): an improbable value, remarked and never blocking.
+  | 'temperature_unusual'
+  | 'art_trt_not_numeric';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -317,6 +323,17 @@ export function lastSendText(name: string, at: string): string {
   return `Último envio de ${name}: ${formatShortDateTime(at)}`;
 }
 
+/**
+ * Story 27.4 (F12): the Export dialog's line of another user's last send: "Último envio de Eduardo
+ * (qualquer relatório): 06/09 18:10". The device holds `last_push_at` per user and device, never per
+ * relatório, so the words say the date is that user's last send of any relatório, not of this one.
+ * The Sync status surface keeps `lastSendText`.
+ */
+export function lastSendAnyText(name: string, at: string): string {
+  // authored (Story 27.4, listed for Bruno): the scoped "Último envio" line of the Export dialog.
+  return `Último envio de ${name} (qualquer relatório): ${formatShortDateTime(at)}`;
+}
+
 /** The one blocking row's text (`73-exportar.html` `#exportar-pc-parecer`). */
 export const PARECER_MISSING_TEXT = 'Parecer não preenchido';
 
@@ -363,6 +380,10 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   for (const warning of clientPreIssueRows(snapshot.client)) {
     rows.push({ id: `client:${warning.key}`, row: 'controle', severity: 'info', text: warning.text, kind: 'client' });
   }
+  // Story 27.2 (F4): an ART/TRT number that is not numeric prints as typed in the document control;
+  // the row asks to check it and never blocks.
+  const artText = artTrtRowText(artLabel(snapshot.responsible?.council ?? null), setup.art_trt_number);
+  if (artText !== null) rows.push({ id: 'art_trt_not_numeric', row: 'controle', severity: 'pending', text: artText, kind: 'art_trt_not_numeric' });
 
   // Story 7.5: a section text with a variable that has no value prints `[Label]`; its row says which.
   for (const { block, unresolved } of sectionVariableGaps(snapshot, now)) {
@@ -416,6 +437,16 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const semPrazo = pointsSemPrazo(snapshot.points).length;
   if (semPrazo > 0) {
     rows.push({ id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: pointsSemPrazoText(semPrazo), kind: 'points_sem_prazo' });
+  }
+  // Story 27.4 (F8): the live points with no priority and with no owner, which the action plan prints
+  // as dashes; information only, never pending or blocking (decision 3 of 2026-11-21).
+  const semPrioridade = pointsSemPrioridade(snapshot.points).length;
+  if (semPrioridade > 0) {
+    rows.push({ id: 'points_sem_prioridade', row: 'section_8', severity: 'info', text: pointsSemPrioridadeText(semPrioridade), kind: 'points_sem_prioridade' });
+  }
+  const semResponsavel = pointsSemResponsavel(snapshot.points).length;
+  if (semResponsavel > 0) {
+    rows.push({ id: 'points_sem_responsavel', row: 'section_8', severity: 'info', text: pointsSemResponsavelText(semResponsavel), kind: 'points_sem_responsavel' });
   }
   // Story 25.12 (M26): the live points whose deadline is before the day of generating
   // (America/Sao_Paulo; a month only once it has passed), one pending row naming them. The
@@ -513,6 +544,14 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     }
   }
 
+  // Story 27.2 (F2): a cabine's temperature outside -10 to 60 °C is saved and printed as typed; one
+  // row per local names it, pending, never blocking.
+  for (const location of snapshot.locations) {
+    if (location.kind !== 'cabine') continue;
+    const text = temperatureRowText(location.name, location.env.temperature_c);
+    if (text !== null) rows.push({ id: `temperature_unusual:${location.id}`, row: 'section_9', severity: 'pending', text, kind: 'temperature_unusual' });
+  }
+
   // Story 14.3: one row naming every live local with unanswered site items and its count;
   // pending, never blocking. A relatório whose seed ships no site list raises none.
   const siteText = siteUnansweredText(siteUnanswered(snapshot));
@@ -592,7 +631,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const rejected = context.rejected ?? 0;
   if (rejected > 0) rows.push({ id: 'rejected', row: 'sync', severity: 'pending', text: rejectedText(rejected), kind: 'rejected' });
   (context.lastPushes ?? []).forEach((push, index) => {
-    rows.push({ id: `last_send:${index}`, row: 'sync', severity: 'info', text: lastSendText(push.name, push.at), kind: 'last_send' });
+    rows.push({ id: `last_send:${index}`, row: 'sync', severity: 'info', text: lastSendAnyText(push.name, push.at), kind: 'last_send' });
   });
   return rows;
 }
@@ -630,8 +669,16 @@ const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set([
   // Story 25.13 (`73-exportar.html`): a shared certificate and a ticked, unused instrument.
   'certificate_shared',
   'instrument_unused',
+  // Story 27.4 (F8): the points of attention missing an action, a deadline, a priority or an owner, named one by one.
+  'points_sem_acao',
+  'points_sem_prazo',
+  'points_sem_prioridade',
+  'points_sem_responsavel',
   'rejected',
   'last_send',
+  // Story 27.2 (decision 3): an unusual temperature and an ART/TRT number that is not numeric, named one by one.
+  'temperature_unusual',
+  'art_trt_not_numeric',
 ]);
 
 export interface ExportPrecheck {
@@ -641,12 +688,16 @@ export interface ExportPrecheck {
   explicit: PreIssueRow[];
   /** How many other rows stand on the Sumário ("N avisos — estão nas linhas do sumário"). */
   summarizedCount: number;
-  /** "7 avisos", "1 aviso"; '' with none. */
+  /**
+   * ~~"7 avisos", "1 aviso"; '' with none.~~ Story 27.4 (F12): "e mais 7 avisos", "e mais 1 aviso" when
+   * the dialog lists any row above the count (blocking or named), else "7 avisos"; '' with none.
+   */
   countText: string;
   /**
-   * Review fixes 2026-10-08 (XC-4): what follows the count, agreeing with it: " — está na linha
-   * do sumário; não impede gerar." for one, " — estão nas linhas do sumário; nenhum impede gerar."
-   * for more; '' with none.
+   * Review fixes 2026-10-08 (XC-4): what follows the count, agreeing with it: ~~" — está na linha
+   * do sumário; não impede gerar." for one, " — estão nas linhas do sumário; nenhum impede gerar."~~
+   * Story 27.4: " na linha do sumário; não impede gerar." for one, " nas linhas do sumário; nenhum
+   * impede gerar." for more; '' with none.
    */
   countMetaText: string;
 }
@@ -654,10 +705,19 @@ export interface ExportPrecheck {
 /** The sentence after the Export dialog's warnings count, singular or plural with it; '' with none. */
 export function precheckCountMetaText(n: number): string {
   if (n === 0) return '';
-  // authored: XC-4 (review 2026-10-08), the singular of the mock's count line.
-  if (n === 1) return ' — está na linha do sumário; não impede gerar.';
-  // authored: the mock lists the kinds of its seven warnings; the app says where they are.
-  return ' — estão nas linhas do sumário; nenhum impede gerar.';
+  // ~~authored: XC-4 (review 2026-10-08), the singular of the mock's count line.~~
+  // authored (Story 27.4, listed for Bruno): the count sentence, singular.
+  if (n === 1) return ' na linha do sumário; não impede gerar.';
+  // authored (Story 27.4, listed for Bruno): the count sentence, plural ("e mais 7 avisos nas linhas do sumário; nenhum impede gerar.").
+  return ' nas linhas do sumário; nenhum impede gerar.';
+}
+
+/** Story 27.4 (F12): the count of the rows the dialog does not list: "e mais 7 avisos" under listed rows, else "7 avisos"; '' with none. */
+export function precheckCountText(n: number, listedAbove: boolean): string {
+  if (n === 0) return '';
+  const count = plural(n, 'aviso', 'avisos');
+  // authored (Story 27.4, listed for Bruno): the count's lead under the rows the dialog lists.
+  return listedAbove ? `e mais ${count}` : count;
 }
 
 /**
@@ -674,7 +734,7 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
     blocking,
     explicit,
     summarizedCount,
-    countText: summarizedCount === 0 ? '' : plural(summarizedCount, 'aviso', 'avisos'),
+    countText: precheckCountText(summarizedCount, blocking.length + explicit.length > 0),
     countMetaText: precheckCountMetaText(summarizedCount),
   };
 }

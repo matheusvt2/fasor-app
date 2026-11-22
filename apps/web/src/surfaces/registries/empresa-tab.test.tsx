@@ -98,12 +98,13 @@ describe('2.3-UNIT-003 Empresa tab', () => {
     expect(row.form_code).toBe('FO.SERV-03');
     expect(row.form_revision).toBe('Revisão 01');
 
-    await userEvent.type(screen.getByLabelText('CNPJ'), '00.000.000/0001-00');
+    // Story 27.2: a CNPJ whose check digits match.
+    await userEvent.type(screen.getByLabelText('CNPJ'), '11.222.333/0001-81');
     await userEvent.tab();
     await waitFor(async () => expect((await outboxPaths()).some((p) => p.endsWith('/cnpj'))).toBe(true));
     const cnpjOp = (await db!.outbox.toArray()).find((op) => op.path.endsWith('/cnpj'))!;
     expect(cnpjOp.kind).toBe('put');
-    expect(cnpjOp.value).toBe('00.000.000/0001-00');
+    expect(cnpjOp.value).toBe('11.222.333/0001-81');
   });
 
   it('shows the stored values when the row already exists', async () => {
@@ -145,7 +146,7 @@ describe('2.3-UNIT-003 Empresa tab', () => {
     await renderTab();
     await userEvent.type(screen.getByLabelText('CNPJ'), '0000000000001');
     await userEvent.tab();
-    expect(screen.getByRole('alert')).toHaveTextContent('CNPJ inválido — informe 14 dígitos');
+    expect(screen.getByRole('alert')).toHaveTextContent('CNPJ inválido: este número não existe. Confira os 14 dígitos.');
     expect(await outboxPaths()).toEqual([]);
   });
 

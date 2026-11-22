@@ -16,7 +16,7 @@ import { locationRestoreDetailText, locationRestorePlan, removedAncestorIds, typ
 import { isEquipmentBlock } from './sheet-state.ts';
 import { locationControlName } from './tree.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
-import { effectiveParecer, parecerVerdictLabel } from './parecer.ts';
+import { effectiveParecer, parecerReplacedText, parecerVerdictLabel } from './parecer.ts';
 import { certificatesAttachedText, instrumentsCountText, section11Instruments } from '../print/section-11.ts';
 import { getSeed, siteChecklistOf } from '../seed/definitions.ts';
 import { idleRevisionNumber, latestRevision, revisionTitle } from '../print/revisions.ts';
@@ -268,10 +268,11 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
   if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
   // Story 7.4: row 10 names the verdict. Story 22.6: the effective one (derived from the
   // fichas, or a stricter one the engineer chose); e22f S5: while none exists its own row
-  // ("Parecer não preenchido") names what stops it.
+  // ("Parecer não preenchido") names what stops it. Story 27.3 (F7): when the verdict the engineer
+  // chose was replaced by a stricter one, the line saying so and why follows it.
   if (block.block_type === 'section_10' && own.length === 0) {
     const verdict = effectiveParecer(snapshot);
-    if (verdict !== null) return parecerVerdictLabel(verdict);
+    if (verdict !== null) return join([parecerVerdictLabel(verdict), parecerReplacedText(snapshot)]);
   }
   // Story 7.3: "3 instrumentos", then its own pre-issue rows, like section 7.
   // With no instrument at all, the pre-issue row already says so; the count would repeat it.

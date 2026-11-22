@@ -44,14 +44,14 @@ const generated = (page: Page) => page.locator('.ficha-conc-text .suggestion-fie
 const exportDialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
 
 /**
- * The Export dialog's summarized warnings ("N avisos — estão nas linhas do sumário"): the
+ * The Export dialog's summarized warnings ("e mais N avisos nas linhas do sumário", Story 27.4): the
  * stale row is one of them, like its twin `conclusion_unconfirmed` (not an explicit kind).
  */
 async function exportWarnings(page: Page): Promise<number> {
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   const line = exportDialog(page).locator('.precheck li').filter({ has: page.getByRole('button', { name: 'Ver no sumário' }) }).locator('.pc-text');
-  await expect(line).toContainText(/^\d+ avisos? — /);
-  const count = Number(/^(\d+)/.exec((await line.textContent()) ?? '')![1]);
+  await expect(line).toContainText(/^(?:e mais )?\d+ avisos? nas? linhas? do sumário; /);
+  const count = Number(/^(?:e mais )?(\d+)/.exec((await line.textContent()) ?? '')![1]);
   await page.keyboard.press('Escape');
   await expect(exportDialog(page)).toHaveCount(0);
   return count;

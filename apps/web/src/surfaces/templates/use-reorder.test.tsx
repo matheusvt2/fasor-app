@@ -10,13 +10,15 @@ import { SectionList } from './section-list.tsx';
  * is exercised here with fake timers over the section cards, each laid out 60 px apart.
  */
 
-const sections = composerView(standardTemplate({ id: '019966b0-0039-7000-8000-000000000001' })).sections;
+const view = composerView(standardTemplate({ id: '019966b0-0039-7000-8000-000000000001' }));
+const sections = view.sections;
 const ROW = 60;
 
 function renderList(onMove = vi.fn(async () => undefined)) {
   render(
     <SectionList
       sections={sections}
+      generatedNumbers={view.generatedNumbers}
       onMove={onMove}
       onAddBelow={vi.fn()}
       onDuplicate={vi.fn()}

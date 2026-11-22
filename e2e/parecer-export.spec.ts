@@ -194,7 +194,8 @@ test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with 
   await expect(group.getByRole('radio', { name: 'Não apto', exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(group.getByRole('radio', { name: 'Apto', exact: true })).toBeDisabled();
   await expect(group.getByRole('radio', { name: 'Apto com restrições', exact: true })).toBeDisabled();
-  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText(/^O relatório exige no mínimo Não apto: 1 ficha reprovada \(.+\)\.$/);
+  // Story 27.3: the stored Apto was replaced by the derived Não apto, and the hint says so in one line.
+  await expect(page.locator('#setup-parecer .conclusion-hint')).toHaveText(/^O parecer escolhido \(Apto\) foi substituído por Não apto: 1 ficha reprovada \(.+\)\.$/);
   await expect(page.locator('.parecer-box .pb-verdict')).toHaveText('Não apto');
   const summary = page.locator('.suggestion-field.is-generated .generated-text');
   await expect(summary).toContainText(/1 ficha foi reprovada \(.+\)\./);
@@ -205,7 +206,7 @@ test('@p0 22.6-E2E-001 a sheet effectively Reprovado: Etapa 6 is Não apto with 
   // Issued: the DOCX's section 10.
   await page.goto(`/relatorio/${fixture.relatorioId}`);
   await expect(sumario(page)).toBeVisible({ timeout: 30_000 });
-  await expect(sumario(page).locator('li[data-row="section_10"] .sum-status')).toHaveText('Não apto');
+  await expect(sumario(page).locator('li[data-row="section_10"] .sum-status')).toHaveText(/^Não apto · O parecer escolhido \(Apto\) foi substituído por Não apto: 1 ficha reprovada \(.+\)\.$/);
   await footButton(page).click();
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });

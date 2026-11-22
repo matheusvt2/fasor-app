@@ -131,10 +131,10 @@ describe('3.4 composer: address', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Blocos · 9 seções' })).toBeVisible();
     expect(screen.getByText('Alterações são salvas automaticamente e não alteram relatórios já criados deste template.')).toBeVisible();
     const tags = [...container.querySelectorAll('.block-list[aria-label="Blocos do template"] .block-tag')].map((el) => el.textContent);
-    expect(tags).toEqual(['1', '2', '3', '4', '5', '6', '8', '10', '11']);
-    // Review fixes 2026-10-06 (F-24, D11): the note says why the numbers skip 7 and 9.
+    expect(tags).toEqual(['1', '2', '3', '4', '5', '6', '9', '10', '11']);
+    // Review fixes 2026-10-06 (F-24, D11): the note says why the numbers skip 7 and 9. Story 27.5: each number is the relatório's (9 before 8), so they skip 7 and 8.
     expect(
-      screen.getByText('Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.'),
+      screen.getByText('Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 8 Relatórios dos ensaios entram sozinhos no relatório.'),
     ).toHaveClass('section-note');
     expect(within(palette()).getByText('Selecione um local ou uma coluna.')).toBeVisible();
     // No Save bar: every edit saves itself.

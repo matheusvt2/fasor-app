@@ -595,6 +595,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
           <SectionList
             sections={view.sections}
+            generatedNumbers={view.generatedNumbers}
             warning={composerSectionsWarning(view.sections.map((section) => section.block_type))}
             onAddSection={() => onAddBelow(null)}
             onMove={onMoveSection}

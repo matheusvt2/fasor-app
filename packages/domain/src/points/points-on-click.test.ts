@@ -235,7 +235,7 @@ describe('e24h-UNIT H3 no verdict moves', () => {
   const cases: [string, () => RelatorioSnapshot, string, string][] = [
     ['an NC row', () => { const base = fresh(); return edit(base, blockOf(base, 'transformador_forca').id, (block) => ncRow(block, 0)); }, 'apto_com_restricoes', 'O relatório exige no mínimo Apto com restrições: 1 com restrições.'],
     ['a site NC', () => siteNc(fresh()), 'apto_com_restricoes', 'O relatório exige no mínimo Apto com restrições: 1 NC nas verificações do local.'],
-    ['a reading out', () => { const base = fresh(); return edit(base, blockOf(base, 'disjuntor_mt').id, insulationOut); }, 'nao_apto', 'O relatório exige no mínimo Não apto: 1 ficha reprovada (DJ-ENEL).'],
+    ['a reading out', () => { const base = fresh(); return edit(base, blockOf(base, 'disjuntor_mt').id, insulationOut); }, 'nao_apto', 'O relatório exige no mínimo Não apto: 1 ficha em aberto com leitura fora do critério (DJ-ENEL).'], // Story 27.3: an open ficha is named apart on screen.
     ['a restricted reading', restrictedCableAlone, 'apto_com_restricoes', 'O relatório exige no mínimo Apto com restrições: 1 com restrições.'],
     ['a Reprovado by hand', () => { const base = fresh(); return edit(base, blockOf(base, 'transformador_forca').id, reprovadoByHand); }, 'nao_apto', 'O relatório exige no mínimo Não apto: 1 ficha reprovada (TR-1).'],
     ['a Não ensaiado sheet', () => { const base = fresh(); return edit(base, blockOf(base, 'transformador_forca').id, notTested); }, 'apto_com_restricoes', 'O relatório exige no mínimo Apto com restrições: 1 não ensaiada.'],

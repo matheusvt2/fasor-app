@@ -4233,3 +4233,11 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/ops/apply.ts` `assertAddedRow` (the `value === null` restore over `liveAddedRows(rows) >= max`, about line 633); `apps/web/src/db/commit.ts` `applyOne` (calls `applyOp` directly, about line 82).
   class: gap
   state: open (owner: the next batch touching added rows; low)
+
+## Deferred from: Epic 27 batch e27a, slice 2 (Story 27.1, 2026-11-21)
+
+- source_spec: Story 27.1 (Task 1 and the production count)
+  summary: Task 1, the script that wrote the local dev company's `empresa` row `01a0f32f-2052-7c4a-87af-da665ab05007` with no op: not reproduced. `seedSampleRelatorio` (`apps/api/src/db/sample-relatorio.ts`, `scripts/seed-users.ts --sample-relatorio`) run twice on a company that holds an empresa leaves one live empresa and every row with its op (27.1-API-002); the small fixture writes no empresa; `removePortoSeguroSmall`, `resetTestCompanyData`, `resetAndSeedSmokeCompany` and `dropCompany` delete ops and entities of whole companies or of the same rows. The row's UUIDv7 timestamp is 2026-09-30 16:39 UTC (a device mint), so it was written through an op that something later removed; the one cross-company op delete found is `apps/api/src/sync/porto-seguro.integration.test.ts` `beforeAll` (the full fixture's fixed op ids, any company), which only reaches a killed run's throwaway company. The server guard (`holdsOtherEmpresa`, `op_forbidden`) and `pickEmpresa` hold whoever writes a second row. The local stray row is not cleaned by the batch (the command is in the PR). The production count waits for Matheus's AWS login.
+  evidence: `apps/api/src/sync/e27a-company-and-limits.integration.test.ts` (27.1-API-002); `apps/api/src/sync/rules.ts` `holdsOtherEmpresa`; `packages/domain/src/registry/empresa.ts` `pickEmpresa`.
+  class: gap
+  state: open (owner: Matheus, the production count; the coordinator, the local cleanup)

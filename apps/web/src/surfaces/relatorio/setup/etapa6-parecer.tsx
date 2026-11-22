@@ -8,6 +8,7 @@ import {
   parecerLooser,
   parecerOwnText,
   parecerReasonText,
+  parecerReplacedText,
   parecerVerdictLabel,
   parecerWithoutOwnText,
   parecerWithVerdict,
@@ -65,7 +66,8 @@ export function Etapa6Parecer({
   const labelId = useId();
   const hintId = useId();
   const verdict = useMemo(() => effectiveParecer(snapshot), [snapshot]);
-  const reason = useMemo(() => parecerReasonText(snapshot), [snapshot]);
+  // Story 27.3 (F7): when the chosen verdict was replaced by a stricter one, that one line stands for the reason line.
+  const reason = useMemo(() => parecerReplacedText(snapshot) ?? parecerReasonText(snapshot), [snapshot]);
   const composed = useMemo(() => composeParecer(snapshot), [snapshot]);
   const ownText = parecerOwnText(snapshot);
   // p020 P-1b: a relatório without section 10 says the parecer does not print (the kernel's texts).

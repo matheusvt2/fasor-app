@@ -1160,8 +1160,8 @@ describe('Export dialog (Story 7.5)', () => {
     await userEvent.click(within(list).getByRole('button', { name: 'Reenviar' }));
     expect(sync.resendDead).toHaveBeenCalledTimes(1);
     const count = [...list.querySelectorAll('li')].at(-1)!;
-    // XC-4 (review fixes 2026-10-08): the sentence agrees with the count.
-    expect(count.querySelector('.pc-text')).toHaveTextContent(/^(1 aviso — está na linha do sumário; não impede gerar|\d+ avisos — estão nas linhas do sumário; nenhum impede gerar)\.$/);
+    // XC-4 (review fixes 2026-10-08): the sentence agrees with the count; Story 27.4: "e mais" under the rows listed above it.
+    expect(count.querySelector('.pc-text')).toHaveTextContent(/^e mais (1 aviso na linha do sumário; não impede gerar|\d+ avisos nas linhas do sumário; nenhum impede gerar)\.$/);
     await userEvent.click(within(count).getByRole('button', { name: 'Ver no sumário' }));
     expect(onSee).toHaveBeenCalledWith(expect.arrayContaining(['section_9']));
     // Document control: a dl of the kernel's rows, "Rev. 1" the next number, "—" for a missing value.
@@ -1548,7 +1548,7 @@ describe('Export dialog (Story 7.5)', () => {
       expect(found).not.toBeNull();
       return found as HTMLElement;
     });
-    expect(within(list).getByText(/^Último envio de Eduardo: \d{2}\/\d{2} \d{2}:\d{2}$/)).toBeVisible();
+    expect(within(list).getByText(/^Último envio de Eduardo \(qualquer relatório\): \d{2}\/\d{2} \d{2}:\d{2}$/)).toBeVisible();
     expect(within(list).queryByText(/Último envio de Bento/)).toBeNull();
   });
 
@@ -1571,7 +1571,7 @@ describe('Export dialog (Story 7.5)', () => {
       return found as HTMLElement;
     });
     expect(within(list).getAllByText(/^Último envio de Eduardo/)).toHaveLength(1);
-    expect(within(list).getByText('Último envio de Eduardo: 07/09 09:30')).toBeVisible();
+    expect(within(list).getByText('Último envio de Eduardo (qualquer relatório): 07/09 09:30')).toBeVisible();
     // The signed-in user's own other device is one line too.
     expect(within(list).getAllByText(/^Último envio de Bento Braga/)).toHaveLength(1);
   });

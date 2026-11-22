@@ -169,7 +169,7 @@ async function kernelOf(page: Page, sheet: Sheet): Promise<{ findings: string[];
   const snapshot = await deviceSnapshot(page, database, sheet.relatorioId);
   const block = snapshot.blocks.find((row) => row.id === sheet.blockId)! as BlockRow;
   const definition = blockDefinitionIn(snapshotDefinitionContext(snapshot), block)!;
-  return { findings: findingClauses(block, definition, visitContextOf(snapshot, block)), parecer: composeParecer(snapshot).text, reference: resultsItemsText(snapshot) };
+  return { findings: findingClauses(block, definition, visitContextOf(snapshot, block)), parecer: composeParecer(snapshot, { print: true }).text, reference: resultsItemsText(snapshot) };
 }
 
 test('@p0 24.4-E2E-001 a v14 breaker\'s contact reading out of its criterion: Etapa 6 and the DOCX\'s section 10 name it with its finding, the same finding stands in its section 9 conclusion, and section 8 holds nothing of it', async ({ page }) => {
@@ -198,11 +198,12 @@ test('@p0 24.4-E2E-001 a v14 breaker\'s contact reading out of its criterion: Et
   const conclusionText = String((await outbox(database, page)).filter((op) => op.path === `sheet/${breaker.blockId}/conclusion/text`).at(-1)?.value);
   expect(conclusionText).toContain(finding);
 
-  // Etapa 6: Não apto, and the composed summary names the breaker with its finding.
+  // Etapa 6: Não apto. Story 27.3: the breaker is not concluded (its pair confirmed, never "Concluir ficha"), so the screen
+  // names it as open with a reading out; the print of this v14 relatório keeps the sentence above (no `parecer_open_apart`).
   await page.goto(`/relatorio/${breaker.relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   await expect(page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: 'Não apto', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.locator('.suggestion-field.is-generated .generated-text')).toContainText(sentence);
+  await expect(page.locator('.suggestion-field.is-generated .generated-text')).toContainText(`1 ficha em aberto com leitura fora do critério: ${breaker.tag}.`);
 
   // The DOCX: the Parecer box Não apto with the sentence, the finding in section 9's conclusion, and nowhere else (section 8 is empty of it).
   const { structure } = await issue(page, breaker.relatorioId);

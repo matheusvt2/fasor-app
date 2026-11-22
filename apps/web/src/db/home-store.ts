@@ -1,6 +1,7 @@
 import {
   entityKey,
   entityRowSchemas,
+  pickEmpresa,
   type BlockRow,
   type EmpresaRow,
   type ClientRow,
@@ -79,10 +80,12 @@ export async function clientRows(db: AppDatabase): Promise<ClientRow[]> {
   return registries.filter((row): row is ClientRow => row.kind === 'client');
 }
 
-/** The company's Empresa row (Story 2.3), or null until a field has been committed. */
+/**
+ * The company's Empresa row (Story 2.3), or null until a field has been committed. Story 27.1:
+ * the kernel's pick (`pickEmpresa`), the one the server's snapshot and the print take.
+ */
 export async function empresaRow(db: AppDatabase): Promise<EmpresaRow | null> {
-  const registries = await rows<RegistryRow>(db, 'registry');
-  return registries.find((row): row is EmpresaRow => row.kind === 'empresa') ?? null;
+  return pickEmpresa(await rows<RegistryRow>(db, 'registry'));
 }
 
 /** The `instrument` registry rows, for the Instrumentos tab (Story 2.1). */

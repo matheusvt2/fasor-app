@@ -156,7 +156,7 @@ describe('e24y-P2-UNIT a rename carries a confirmed, current conclusion to the n
       const after = renamed(snapshot, equipment.id, 'QM8');
       const text = parecerTextForPrint(after);
       expect(text.trim()).not.toBe('');
-      expect(text).toBe(composeParecer(after).text);
+      expect(text).toBe(composeParecer(after, { print: true }).text);
       expect(text).not.toContain(equipment.tag);
       expect(JSON.stringify(section10Layout(after, { number: 10, title: 'PARECER' }))).toContain(JSON.stringify(text).slice(1, 40));
     }

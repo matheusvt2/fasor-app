@@ -476,10 +476,10 @@ describe('24.3-UNIT B-10 the arrester\'s prerequisite is read on v14 only while 
       if (version === 'v14') {
         expect(resolvedOriginPoints(with_(false)).has(point.id)).toBe(true);
         expect(derivedParecer(with_(false))).not.toBe('nao_apto');
-        expect(composeParecer(with_(false)).text).not.toContain('reprovada');
+        expect(composeParecer(with_(false), { print: true }).text).not.toContain('reprovada');
       } else {
         expect(resolvedOriginPoints(with_(false)).has(point.id)).toBe(false);
-        expect(composeParecer(with_(false)).text).toContain(`1 ficha foi reprovada por pré-requisito do ensaio não atendido (${tagOfBlock(base, arrester)}).`);
+        expect(composeParecer(with_(false), { print: true }).text).toContain(`1 ficha foi reprovada por pré-requisito do ensaio não atendido (${tagOfBlock(base, arrester)}).`);
       }
     });
   }
@@ -584,7 +584,7 @@ describe('24.4-UNIT C-1 the v14 parecer names the reprovada ficha with its findi
     const definition = definitionOf(breaker);
     const finding = 'resistência de contato máxima de 310 µΩ em T1-T2–Fase A (critério: <250 µΩ, aceitável na ficha)';
     expect(findingClauses(breaker, definition)).toEqual([finding]);
-    expect(composeParecer(snapshot).text).toContain(`1 ficha foi reprovada: ${tag}, por ${finding}.`);
+    expect(composeParecer(snapshot, { print: true }).text).toContain(`1 ficha foi reprovada: ${tag}, por ${finding}.`);
     // The same finding stands in its conclusion in section 9.
     expect(composeConclusion(breaker, definition, tag).text).toContain(finding);
     const ten = sectionTen(snapshot);
@@ -597,7 +597,7 @@ describe('24.4-UNIT C-1 the v14 parecer names the reprovada ficha with its findi
   it('v14: the basis carries the findings, so a summary confirmed over 310 µΩ reads stale once the reading is 400 µΩ; v13\'s basis does not move', () => {
     const corrected = (version: string) => {
       const { snapshot, breaker } = breakerOut(version);
-      return { before: composeParecer(snapshot), after: composeParecer(edit(snapshot, breaker.id, (block) => readings(block, 'resistencia_contato', { '0/0': measured('400', 'µΩ') }))) };
+      return { before: composeParecer(snapshot, { print: true }), after: composeParecer(edit(snapshot, breaker.id, (block) => readings(block, 'resistencia_contato', { '0/0': measured('400', 'µΩ') })), { print: true }) };
     };
     const v14 = corrected('v14');
     expect(v14.after.text).toContain('resistência de contato máxima de 400 µΩ');
@@ -610,8 +610,8 @@ describe('24.4-UNIT C-1 the v14 parecer names the reprovada ficha with its findi
 
   it('v13: the sentence as before, by reason category', () => {
     const { snapshot, tag } = breakerOut('v13');
-    expect(composeParecer(snapshot).text).toContain(`1 ficha foi reprovada por leituras fora do critério de aceitação (${tag}).`);
-    expect(composeParecer(snapshot).text).not.toContain(`${tag}, por`);
+    expect(composeParecer(snapshot, { print: true }).text).toContain(`1 ficha foi reprovada por leituras fora do critério de aceitação (${tag}).`);
+    expect(composeParecer(snapshot, { print: true }).text).not.toContain(`${tag}, por`);
   });
 });
 
@@ -642,7 +642,7 @@ describe('24.4-UNIT C-2 two reprovadas, one by two failed tests and one by a fai
     expect(tpFindings).toHaveLength(1);
     expect(tpFindings[0]).toMatch(/^desvio de relação de transformação de /);
     const expected = `2 fichas foram reprovadas: ${names.map((name) => `${name}, por ${listPtBr(findingsOf(name))}`).join('; ')}.`;
-    expect(composeParecer(snapshot).text).toContain(expected);
+    expect(composeParecer(snapshot, { print: true }).text).toContain(expected);
     expect(expected).toContain(' e resistência de contato máxima de 310 µΩ');
   });
 });
@@ -656,7 +656,7 @@ describe('24.4-UNIT C-3 a v14 ficha reprovada by a contact rise names the rise',
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatch(/^resistência de contato máxima de .+ \(alta de .+ % sobre .+ da manutenção anterior, rev\. 1 de 05\/11\/2025, acima do limite de 50 %\)$/);
     expect(findings[0]).not.toContain('critério');
-    expect(composeParecer(snapshot).text).toContain(`${tag}, por ${findings[0]}`);
+    expect(composeParecer(snapshot, { print: true }).text).toContain(`${tag}, por ${findings[0]}`);
   });
 });
 
@@ -673,9 +673,9 @@ describe('24.4-UNIT C-4 a v14 ficha the technician reproved, and a defect Não e
     const tpTag = tagOfBlock(base, tp);
     expect([...names].sort()).toEqual([cableTag, tpTag].sort());
     const entries = names.map((name) => (name === cableTag ? cableTag : `${tpTag}, por defeito no equipamento`));
-    expect(composeParecer(snapshot).text).toContain(`2 fichas foram reprovadas: ${entries.join('; ')}.`);
+    expect(composeParecer(snapshot, { print: true }).text).toContain(`2 fichas foram reprovadas: ${entries.join('; ')}.`);
     // One ficha alone: "1 ficha foi reprovada: TAG."
-    expect(composeParecer(only(snapshot, [cable.id])).text).toContain(`1 ficha foi reprovada: ${cableTag}.`);
+    expect(composeParecer(only(snapshot, [cable.id]), { print: true }).text).toContain(`1 ficha foi reprovada: ${cableTag}.`);
   });
 });
 
@@ -773,7 +773,7 @@ describe('24.4-UNIT C-6 the fixed reference replaced across formatted runs', () 
 describe('24.4-UNIT C-7 a v13 relatório with the same fichas, observation and template text', () => {
   it('the layout-lock v13 parecer, its basis and the two-line conclusion are those main composed', () => {
     const snapshot = layoutLockSnapshot('v13');
-    const parecer = composeParecer(snapshot);
+    const parecer = composeParecer(snapshot, { print: true });
     // Pinned on the code before this batch (main 8bddd986 plus Story 24.2), the kernel unchanged for v13.
     expect(parecer.basis).toBe('d32f4f01');
     expect(parecer.text).toContain('6 fichas foram reprovadas: 1 por relação de transformação insatisfatória (TR-1), 4 por leituras fora do critério de aceitação');

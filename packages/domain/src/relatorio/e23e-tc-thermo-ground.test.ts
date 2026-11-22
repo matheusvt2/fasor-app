@@ -178,11 +178,11 @@ describe('23.18-UNIT polarity, function and the S classes (Base rev08 TC-03, TP-
     expect(conclusionFloorReasonText(deviation, definitionOf(deviation))).toBe('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');
     const tagOf = (snapshot: RelatorioSnapshot) => snapshot.equipment.find((row) => row.id === snapshot.blocks.find((block) => block.block_type === 'tc')!.equipment_id)!.tag;
     const byPolarity = snapshotOf([polarity]);
-    expect(composeParecer(byPolarity).text).toContain(`1 por polaridade invertida (${tagOf(byPolarity)})`);
-    expect(composeParecer(byPolarity).text).not.toMatch(new RegExp(`insatisfatória \\([^)]*${tagOf(byPolarity)}`));
+    expect(composeParecer(byPolarity, { print: true }).text).toContain(`1 por polaridade invertida (${tagOf(byPolarity)})`);
+    expect(composeParecer(byPolarity, { print: true }).text).not.toMatch(new RegExp(`insatisfatória \\([^)]*${tagOf(byPolarity)}`));
     const byDeviation = snapshotOf([deviation]);
-    expect(composeParecer(byDeviation).text).toMatch(new RegExp(`por relação de transformação insatisfatória \\([^)]*${tagOf(byDeviation)}`));
-    expect(composeParecer(byDeviation).text).not.toContain('polaridade invertida');
+    expect(composeParecer(byDeviation, { print: true }).text).toMatch(new RegExp(`por relação de transformação insatisfatória \\([^)]*${tagOf(byDeviation)}`));
+    expect(composeParecer(byDeviation, { print: true }).text).not.toContain('polaridade invertida');
     // A v12 TC keeps its words.
     const v12 = cells(plate(sheet('tc', 'v12'), { exatidao: '0,3' }), 'relacao_transformacao', { '0/0': measured('200', 'A'), '0/1': measured('5', 'A'), '0/3': measured('41', null) });
     expect(conclusionFloorReasonText(v12, definitionOf(v12))).toBe('A ficha exige no mínimo Reprovado · Com restrições: relação de transformação insatisfatória.');

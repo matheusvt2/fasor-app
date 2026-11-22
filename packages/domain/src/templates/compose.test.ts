@@ -293,7 +293,9 @@ describe('3.4-UNIT composerView', () => {
     expect(subsolo.colunas).toHaveLength(17);
     expect(subsolo.colunas[2]).toMatchObject({ name: 'Coluna 3', position: 3, siblings: 17, blockCount: 7 });
     expect(subsolo.quantities).toMatchObject({ transformador_forca: 5, cabos_saida: 5 });
-    expect(view.sections.map((s) => s.number)).toEqual([1, 2, 3, 4, 5, 6, 8, 10, 11]);
+    // Story 27.5: the numbers a relatório created from the template gives (9 RELATÓRIOS DOS ENSAIOS before 8 PONTOS DE ATENÇÃO).
+    expect(view.sections.map((s) => s.number)).toEqual([1, 2, 3, 4, 5, 6, 9, 10, 11]);
+    expect(view.generatedNumbers).toEqual({ section_7: 7, section_9: 8 });
     expect(view.sections[6]).toMatchObject({ index: 6, block_type: 'section_8', position: 7, siblings: 9 });
     expect(findComposerNode(view, 'subsolo-1/coluna-3')?.name).toBe('Coluna 3');
     expect(findComposerNode(view, 'nowhere')).toBeNull();

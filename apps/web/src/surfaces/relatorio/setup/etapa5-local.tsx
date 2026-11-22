@@ -1,4 +1,4 @@
-import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, relatorioSetupPath, SITE_ALTITUDE_RANGE_M, siteAltitudeText, textCapOf, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, outOfRangeText, relatorioSetupPath, SITE_ALTITUDE_RANGE_M, siteAltitudeText, textCapOf, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Button, CharCount, DateField, NotApplicableButton, TextButton } from '../../../components/index.ts';
 import { useNumberInput, type ParsedNumber } from '../../../components/number-input.tsx';
@@ -263,6 +263,7 @@ function AltitudeInput({
   const t = copy.setup;
   const altitudeId = useId();
   const hintId = useId();
+  const rangeId = useId();
   const storedText = stored === null ? (reading ?? '') : String(stored);
   const element = useRef<HTMLInputElement | null>(null);
   const badInput = () => element.current?.validity?.badInput === true;
@@ -294,6 +295,8 @@ function AltitudeInput({
   const shownAltitude = parsed === null || parsed === 'invalid' ? null : metres(parsed);
   const suggested = reading !== null && altitude.text === reading;
   const showsHint = deviceGaveNone && stored === null && altitude.text.trim() === '';
+  // Story 27.2 (F6): a number outside -500 to 9000 m is refused (nothing is written) and says the range.
+  const outOfRange = altitude.invalid && altitude.text.trim() !== '' && Number.isFinite(Number(altitude.text.trim()));
 
   return (
     <div className="field suggestion-field altitude-field span-2" data-state={suggested ? 'suggested' : undefined}>
@@ -306,7 +309,7 @@ function AltitudeInput({
           data-telemetry="setup.altitude"
           {...inputProps}
           id={altitudeId}
-          aria-describedby={showsHint ? hintId : undefined}
+          aria-describedby={showsHint ? hintId : outOfRange ? rangeId : undefined}
           ref={(el) => {
             inputRef.current = el;
             element.current = el;
@@ -362,6 +365,11 @@ function AltitudeInput({
       {showsHint ? (
         <span className="helper" id={hintId}>
           {t.altitudeNoneHint}
+        </span>
+      ) : null}
+      {outOfRange ? (
+        <span className="helper" data-tone="red" id={rangeId}>
+          {outOfRangeText(SITE_ALTITUDE_RANGE_M, 'm')}
         </span>
       ) : null}
       {suggested ? <span className="suggested-pill">{t.altitudeSuggestedPill}</span> : null}

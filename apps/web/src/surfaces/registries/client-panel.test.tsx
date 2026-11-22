@@ -95,12 +95,20 @@ describe('ClientPanel — CNPJ format (AC1 I/O matrix)', () => {
     const user = userEvent.setup();
     renderPanel(false);
     const cnpjInput = screen.getByLabelText('CNPJ');
-    await user.type(cnpjInput, '00000000000100');
+    // Story 27.2: its check digits match.
+    await user.type(cnpjInput, '11222333000181');
     expect(screen.queryByText(/CNPJ inválido/)).not.toBeInTheDocument();
     await user.tab();
     expect(screen.queryByText(/CNPJ inválido/)).not.toBeInTheDocument();
   });
 
+  it('Story 27.2: refuses 14 digits whose check digits do not match, after blur', async () => {
+    const user = userEvent.setup();
+    renderPanel(false);
+    await user.type(screen.getByLabelText('CNPJ'), '11111111111111');
+    await user.tab();
+    expect(screen.getByText('CNPJ inválido: este número não existe. Confira os 14 dígitos.')).toBeInTheDocument();
+  });
 });
 
 describe('ClientPanel — sites sub-list', () => {

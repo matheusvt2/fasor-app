@@ -11328,6 +11328,8 @@ So that the Admin never knows it and nobody reads it off a screen.
 *Coordinator's reading, open to Matheus:*
 - *72 hours and 1 hour are authored. A reset ends the user's other sessions.*
 
+*(2026-11-21, api half built in batch e26c, PR #346 merged as `bf893f05`, no contract bump. Readings taken: the link is better-auth's own `verification` row, no token of ours; the password is 8 to 128 characters; a forgot-password request cancels the user's older reset and invitation links; the answer is the same for a known, unknown, paused or removed address, with limits of 5 per minute per address and 20 per IP; an invited user becomes `active` when the password is set; a send that fails after the change keeps the change and answers `invitation: 'failed'` or `reset: 'failed'`. Still owed, owner batch e26d: the Login changes, the set-password page at `/definir-senha#token` and the specs "26.6-E2E-001" and "-002". Spec: `spec-e26c-email-and-admin-routes.md`.)*
+
 ### Story 26.7: Amazon SES in Terraform, inside the budget
 
 **Dev model:** opus · **Effort:** medium · infra, by the coordinator: the sender identity, DKIM, the task role's permission, the alarm; Terraform only, on Matheus's AWS login
@@ -11426,6 +11428,8 @@ So that who enters the company's data is my decision and not a script's.
 - "26.8-API-001" to "-003": each route; the last-Admin race; the cross-company cases.
 - The codes in `errorCodeSchema`; the usage events in `docs/kbs/architecture/usage-events.md`.
 - `docs/kbs/code/api-app.md`, `log.md`.
+
+*(2026-11-21, built in batch e26c, PR #346 merged as `bf893f05`, no contract bump. Readings taken, open to Matheus: the usage events of these server actions are `admin_user_event` log lines with ids only, not events of the usage dashboard, whose schema needs a session and a device; pause works only on an `active` user, and a pending invitation is cancelled by remove; reactivate always returns the user to `active`, so a user removed while still invited needs a password reset from the Admin afterwards; `role_not_found` answers 404; the kernel's word for `invited` is "Convidado" where the criteria say "Convite pendente", chosen on the screen in e26d; in the route-level last-Admin race the loser may get 401 instead of 409, the service-level race answers `last_admin` exactly.)*
 
 ### Story 26.9: The Usuários screen
 

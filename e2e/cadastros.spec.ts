@@ -263,7 +263,7 @@ test('@p2 tabs-phone-selector-003 Cadastros: Critérios de aceitação keeps its
   await page.getByRole('menuitemradio', { name: 'Critérios de aceitação' }).click();
 
   const noteBox = await page.locator('.section-note').first().boundingBox();
-  const tableBox = await page.getByRole('table').boundingBox();
+  const tableBox = await page.getByRole('table').first().boundingBox();
   expect(noteBox).not.toBeNull();
   expect(tableBox).not.toBeNull();
   expect(noteBox!.y).toBeLessThan(tableBox!.y);
@@ -410,12 +410,13 @@ test('@p0 2.4-E2E-001 Clientes: a new client autosaves field by field and the ro
   await expect(panel.getByRole('button', { name: 'Salvar' })).toHaveCount(0);
 
   await panel.getByLabel('Nome').fill('Cliente E2E Ltda');
-  await panel.getByLabel('CNPJ').fill('00000000000100');
+  // Story 27.2: a CNPJ whose check digits match.
+  await panel.getByLabel('CNPJ').fill('11222333000181');
   await panel.getByRole('button', { name: 'Fechar edição' }).click();
 
   const row = page.getByRole('button', { name: /Cliente E2E Ltda/ });
   await expect(row).toContainText('Cliente E2E Ltda');
-  await expect(row).toContainText('CNPJ 00.000.000/0001-00');
+  await expect(row).toContainText('CNPJ 11.222.333/0001-81');
 });
 
 test('@p1 2.4-E2E-002 a non-14-digit CNPJ shows an inline error and never autosaves', async ({ page, seed }) => {
@@ -582,7 +583,7 @@ test('@p0 2.6-E2E-001 Critérios de aceitação renders the seeded criteria as a
   await page.getByRole('link', { name: /Cadastros/ }).click();
   await page.getByRole('tab', { name: 'Critérios de aceitação' }).click();
 
-  const table = page.getByRole('table');
+  const table = page.getByRole('table').first(); // Story 27.6: the seeded criteria; the ANSI/NETA tables follow (27.6-E2E-001).
   await expect(table).toBeVisible();
   for (const criterion of SEEDED_CRITERIA) {
     await expect(table).toContainText(criterion.label);
@@ -623,7 +624,7 @@ test('@p0 2.3-E2E-001 Empresa: every field autosaves its own op and the preview 
   // The CNPJ is checked like the Clientes one (Epic 2 retro D-8): 13 digits never commit.
   await form.getByLabel('CNPJ').fill('0000000000001');
   await form.getByLabel('Telefone').click();
-  await expect(form.getByRole('alert')).toHaveText('CNPJ inválido — informe 14 dígitos');
+  await expect(form.getByRole('alert')).toHaveText('CNPJ inválido: este número não existe. Confira os 14 dígitos.');
   await form.getByLabel('CNPJ').fill('00000000000191');
   await form.getByLabel('Telefone').click();
   await expect(form.getByRole('alert')).toHaveCount(0);

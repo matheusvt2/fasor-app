@@ -13,6 +13,7 @@ import {
   type SkeletonNode,
   type TemplateBlock,
 } from '../schemas/block-config.ts';
+import { creationSectionNumbers, type GeneratedSectionType } from '../relatorio/creation-order.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
 import { findDefinition, latestTypeVersion, SEED_VERSION, type DefinitionContext } from '../seed/definitions.ts';
 import { defaultBlockConfig, defaultBlockConfigIn, LOCKED_SUB_BLOCKS, lockedSubBlocksOf, zeroTotals, type TypeTotals } from '../seed/template.ts';
@@ -607,7 +608,10 @@ export interface ComposerSection extends SectionRef {
    */
   index: number;
   block_type: SectionBlockType;
-  /** The FO.SERV-03 section number. */
+  /**
+   * ~~The FO.SERV-03 section number.~~ Story 27.5 (F9): the number a relatório created from the
+   * template gives this section (`creationSectionNumbers`, the creation sort of `instantiate`).
+   */
   number: number;
   position: number;
   siblings: number;
@@ -618,6 +622,8 @@ export interface ComposerSection extends SectionRef {
 export interface ComposerView {
   cabines: ComposerCabine[];
   sections: ComposerSection[];
+  /** Story 27.5: the numbers the two sections every relatório gains at creation (Registro fotográfico, Relatórios dos ensaios) will carry. */
+  generatedNumbers: Record<GeneratedSectionType, number>;
   totals: TypeTotals;
   cabineCount: number;
   /** Story 14.2: every painel of the skeleton. */
@@ -712,19 +718,21 @@ export function composerView(template: Composition): ComposerView {
 
   const sectionBlocks = template.blocks.filter((b) => isSectionBlockType(b.block_type));
   const occurrences = sectionBlocks.map((block, index) => sectionBlocks.slice(0, index).filter((b) => b.block_type === block.block_type).length);
+  // Story 27.5 (F9): each section numbered where a relatório created from the template places it.
+  const created = creationSectionNumbers(sectionBlocks.map((block) => block.block_type));
   const sections = sectionBlocks.map(
     (block, index): ComposerSection => ({
       index,
       block_type: block.block_type as SectionBlockType,
       occurrence: occurrences[index]!,
-      number: sectionNumber(block.block_type as SectionBlockType),
+      number: created.numbers[index]!,
       position: index + 1,
       siblings: sectionBlocks.length,
       section_text: block.section_text,
     }),
   );
 
-  return { cabines, sections, totals, cabineCount: cabines.length, painelCount, colunaCount, blockCount: sum(totals) };
+  return { cabines, sections, generatedNumbers: created.generated, totals, cabineCount: cabines.length, painelCount, colunaCount, blockCount: sum(totals) };
 }
 
 /** A node of the view by its ref (a local, a painel, or a coluna at either depth), or null. */

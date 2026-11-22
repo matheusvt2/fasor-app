@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { formatCnpj, isValidCnpjFormat } from './cnpj.ts';
 
 describe('isValidCnpjFormat', () => {
+  // Story 27.2: a valid CNPJ also passes its two check digits (modulo 11).
   it('accepts 14 raw digits', () => {
-    expect(isValidCnpjFormat('00000000000100')).toBe(true);
+    expect(isValidCnpjFormat('11222333000181')).toBe(true);
   });
 
   it('accepts 14 digits with the usual punctuation', () => {
-    expect(isValidCnpjFormat('00.000.000/0001-00')).toBe(true);
+    expect(isValidCnpjFormat('11.222.333/0001-81')).toBe(true);
+  });
+
+  it('Story 27.2: rejects 14 digits whose check digits do not match', () => {
+    expect(isValidCnpjFormat('00.000.000/0001-00')).toBe(false);
+    expect(isValidCnpjFormat('11.111.111/1111-11')).toBe(false);
   });
 
   it('rejects fewer than 14 digits', () => {

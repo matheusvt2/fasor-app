@@ -256,7 +256,10 @@ describe('25.12-UNIT the Export dialog names the three rows', () => {
     };
     const rows = preIssue(snapshot, undefined, { now: NOW, removedLocalSheets: ['TP-C21'] });
     const precheck = exportPrecheck(rows);
+    // Story 27.4: the point's missing priority and owner are named rows too, with no section of their own.
     expect(precheck.explicit.filter((row) => row.kind !== 'sheets_empty').map((row) => [row.kind, namedWarningSection(row)])).toEqual([
+      ['points_sem_prioridade', null],
+      ['points_sem_responsavel', null],
       ['deadline_overdue', 8],
       ['sheets_removed_local', 9],
       ['calibration_missing', 11],
@@ -266,7 +269,7 @@ describe('25.12-UNIT the Export dialog names the three rows', () => {
     expect(precheck.blocking.filter((row) => namedWarningSection(row) !== null)).toEqual([]);
     expect(exportPrecheck(plain).explicit.filter((row) => namedWarningSection(row) !== null)).toEqual([]);
     // The other rows stay today's (the parecer row follows the points, which this relatório adds).
-    const others = (list: readonly PreIssueRow[]) => list.filter((row) => !['deadline_overdue', 'sheets_removed_local', 'calibration_missing', 'instrument_unused', 'setup_missing', 'parecer_missing'].includes(row.kind)).map((row) => row.id);
+    const others = (list: readonly PreIssueRow[]) => list.filter((row) => !['deadline_overdue', 'sheets_removed_local', 'calibration_missing', 'instrument_unused', 'setup_missing', 'parecer_missing', 'points_sem_prioridade', 'points_sem_responsavel'].includes(row.kind)).map((row) => row.id);
     expect(others(rows)).toEqual(others(plain));
   });
 });

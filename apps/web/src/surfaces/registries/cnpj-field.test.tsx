@@ -61,7 +61,8 @@ describe('CnpjField refusals (Story 18.4)', () => {
     const input = screen.getByRole('textbox', { name: 'CNPJ' });
     await userEvent.click(input);
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
-    await userEvent.type(input, '12345678000190');
+    // Story 27.2: a CNPJ whose check digits match.
+    await userEvent.type(input, '12345678000195');
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
     await whenTelemetryWritten();
     expect(await queuedUxEvents(db)).toEqual([]);

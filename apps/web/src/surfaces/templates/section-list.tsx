@@ -1,4 +1,4 @@
-import { sectionsHeading, type ComposerSection } from '@app/domain';
+import { sectionsHeading, type ComposerSection, type ComposerView } from '@app/domain';
 import { useId } from 'react';
 import { Button, OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -8,6 +8,8 @@ import { useReorder, type Reorder } from './use-reorder.ts';
 
 export interface SectionListProps {
   sections: readonly ComposerSection[];
+  /** Story 27.5 (F9): the numbers a relatório created from the template gives its two automatic sections (`ComposerView.generatedNumbers`). */
+  generatedNumbers: ComposerView['generatedNumbers'];
   /** p020 P-1a: the kernel's warning while sections 8 or 10 (or every text section) are missing (`composerSectionsWarning`). */
   warning?: string | null;
   /** p020 P-1a: "Adicionar seção" opens the palette's "Seções" group, its tap appending. */
@@ -24,9 +26,9 @@ export interface SectionListProps {
 /**
  * The composition's section blocks (`42-template-composer.html` "Blocos"): one
  * `.block-card` per section in order, with the drag handle, the Position box, the
- * FO.SERV-03 number in `.block-tag` and the title in `.block-name`.
+ * ~~FO.SERV-03 number~~ number the relatório will give it (Story 27.5) in `.block-tag` and the title in `.block-name`.
  */
-export function SectionList({ sections, warning = null, onAddSection, ...props }: SectionListProps) {
+export function SectionList({ sections, generatedNumbers, warning = null, onAddSection, ...props }: SectionListProps) {
   const headingId = useId();
   return (
     <section className="section" aria-labelledby={headingId}>
@@ -35,7 +37,7 @@ export function SectionList({ sections, warning = null, onAddSection, ...props }
         <h2 id={headingId} tabIndex={-1}>
           {sectionsHeading(sections.length)}
         </h2>
-        <span className="section-note">{copy.composer.sectionsNote}</span>
+        <span className="section-note">{copy.composer.sectionsNote(generatedNumbers.section_7, generatedNumbers.section_9)}</span>
       </div>
       {warning === null ? null : (
         <div className="banner composer-sections-warning" role="status">
@@ -68,7 +70,7 @@ export function SectionList({ sections, warning = null, onAddSection, ...props }
  * Duplicar · Editar texto (Story 3.6, only for a section with text), then Remover in its
  * red group. A move off either end is not offered.
  */
-export function sectionMenu(section: ComposerSection, reorder: Reorder, props: Omit<SectionListProps, 'sections'>) {
+export function sectionMenu(section: ComposerSection, reorder: Reorder, props: Omit<SectionListProps, 'sections' | 'generatedNumbers'>) {
   const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .overflow-trigger') ?? null;
   const items: OverflowMenuAction[] = [{ id: 'add-below', label: copy.composer.addBelow, onAction: () => props.onAddBelow(section) }];
   if (section.position > 1) {
@@ -94,7 +96,7 @@ export function SectionCard({
   section,
   itemKey,
   ...props
-}: Omit<SectionListProps, 'sections'> & { section: ComposerSection; itemKey: string }) {
+}: Omit<SectionListProps, 'sections' | 'generatedNumbers'> & { section: ComposerSection; itemKey: string }) {
   const reorder = useReorder({
     itemKey,
     position: section.position,
