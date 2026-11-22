@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { SEED_PASSWORD } from './merged-fixtures.ts';
 import { appOrigin } from './origin.ts';
+import { plainHttpCookie } from './plain-http-cookie.ts';
 
 /**
  * Helpers for the three FR-54 scenarios (NFR-17). They run against the built bundle on
@@ -121,6 +122,51 @@ export async function withoutServiceWorker(page: Page): Promise<void> {
   await page.addInitScript(() => {
     if (navigator.serviceWorker === undefined) return;
     navigator.serviceWorker.register = () => Promise.reject(new Error('no shell worker in this scenario'));
+  });
+}
+
+/** The sign-in route the Login form posts to (`AUTH_ROUTES` of the api). */
+const isFormSignIn = (url: URL) => url.pathname === '/api/auth/sign-in/email';
+
+/**
+ * Batch e26t (2026-11-22): lets a sign-in through the Login form hold its session on the WebKit
+ * project, for a scenario whose user signs in again in the middle (a paused account reactivated,
+ * `paused-user-unsent.durability.spec.ts`). Call it on WebKit only, before the first navigation.
+ *
+ * The reason is the harness, the same one `signInForDurability` names: the session cookie is
+ * `Secure`, the e2e origin is plain http, and WebKit refuses such a cookie where Chromium stores it
+ * on localhost. So on WebKit the form's sign-in answered 200, the jar stayed as the harness had
+ * left it (the cookie of the session the reactivation ended), the account read that follows went
+ * out with that dead cookie and was answered 401, and Login said "E-mail ou senha incorretos."
+ * with the right password typed (two reds of the 2026-11-22 matrix; read off the real `Cookie` and
+ * `Set-Cookie` headers). On an HTTPS origin, the one a real device sees, the browser stores the
+ * new cookie over the old one of the same name before the form's request resolves.
+ *
+ * This does for the form what the browser does there, in the same order: the sign-in request goes
+ * to the server as the page sent it, its `Set-Cookie` lands in the jar without `Secure`
+ * (`plainHttpCookie`) and only then does the page get the answer, so the account read that follows
+ * carries the new session and never an older one. Nothing the server sees changes.
+ *
+ * It also keeps this context free of a service worker (as `withoutServiceWorker` does for one
+ * page): on WebKit a route is never asked about the requests of a page a worker controls (checked
+ * here: with the shell worker in control neither `page.route` nor `context.route` saw the sign-in).
+ * A scenario that needs the shell cache on WebKit cannot use this.
+ */
+export async function keepFormSignInOnPlainHttp(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    if (navigator.serviceWorker === undefined) return;
+    navigator.serviceWorker.register = () => Promise.reject(new Error('no shell worker in this scenario'));
+  });
+  await context.route(isFormSignIn, async (route) => {
+    const response = await route.fetch();
+    const origin = new URL(route.request().url()).origin;
+    const cookies = response
+      .headersArray()
+      .filter((entry) => entry.name.toLowerCase() === 'set-cookie')
+      .map((entry) => plainHttpCookie(entry.value, origin))
+      .filter((cookie) => cookie !== null);
+    if (cookies.length > 0) await context.addCookies(cookies);
+    await route.fulfill({ response });
   });
 }
 
