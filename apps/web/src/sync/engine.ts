@@ -118,7 +118,8 @@ export interface SyncEngineDeps {
   elapsedMs?: () => number;
   newId: NewId;
   isOnline: () => boolean;
-  onReAuth: () => void;
+  /** A 401 paused the engine. Story 26.11: with the failure, whose `code` names a paused account (`user_inactive`). */
+  onReAuth: (failure: SyncFailure) => void;
   onOutdated: () => void;
   onChange: (status: EngineStatus) => void;
   /** Subscribes to the `online` event; returns the unsubscribe. Defaults to `window`. */
@@ -381,7 +382,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         failure = error.failure;
         if (error.action === 'reauth') {
           status.paused = true;
-          deps.onReAuth();
+          deps.onReAuth(error.failure);
         } else if (error.action === 'outdated' && !status.outdated) {
           status.outdated = true;
           deps.onOutdated();
@@ -866,7 +867,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       recordFailure(error.failure);
       if (error.action === 'reauth') {
         status.paused = true;
-        deps.onReAuth();
+        deps.onReAuth(error.failure);
       } else if (error.action === 'outdated') {
         if (!status.outdated) {
           status.outdated = true;

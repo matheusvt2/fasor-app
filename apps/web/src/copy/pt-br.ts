@@ -44,6 +44,66 @@ export const copy = {
     emailRequired: 'Informe o e-mail',
     emailInvalid: 'E-mail inválido',
     passwordRequired: 'Informe a senha',
+    // Story 26.6, verbatim from `10-login.html`: the Text button under "Entrar".
+    forgot: 'Esqueci minha senha',
+    // Story 26.11, verbatim from `12-login-pausada.html`; a removed account reads the same line (Matheus, 2026-11-21).
+    inactive: 'Conta pausada. Fale com o administrador.',
+    // Story 26.6, verbatim from `13-definir-senha.html` (its toast; Login has no toast outlet, so a status line).
+    passwordSaved: 'Senha criada. Entre com o seu e-mail e a senha nova.',
+  },
+  // Story 26.6: "Esqueci minha senha", verbatim from `11-login-esqueci.html` unless marked.
+  forgot: {
+    title: 'Criar uma senha nova',
+    intro: 'Informe o seu e-mail. Enviamos um link para você criar uma senha nova.',
+    emailLabel: 'E-mail',
+    submit: 'Enviar link',
+    // authored (Story 26.6): the in-flight state of "Enviar link", as Login's "Entrando…".
+    sending: 'Enviando…',
+    // authored (Story 26.6): offline, after Login's "Entrar precisa de conexão".
+    offlineReason: 'Enviar link precisa de conexão',
+    back: 'Voltar ao login',
+    sentTitle: 'Confira o seu e-mail',
+    sentBody: 'Se este e-mail estiver cadastrado, o link chega em alguns minutos. Ele vale por 1 hora. Veja também a caixa de spam.',
+    useOther: 'Usar outro e-mail',
+    // authored (Story 26.6): the server answered 429 (five requests a minute for one address, twenty per device).
+    rateLimited: 'Muitos pedidos de link. Tente novamente em alguns minutos.',
+  },
+  // Story 26.6: the page of a password link, verbatim from `13-definir-senha.html` and
+  // `14-definir-senha-expirado.html` unless marked. The frame's greeting by name, the read-only
+  // e-mail and the "vale até" line need data the link does not carry, so they are not shown.
+  setPassword: {
+    // The frames' `data-title` (13, 14): the browser tab.
+    pageTitle: 'Criar senha',
+    title: 'Crie a sua senha',
+    // The frame's sentence without its greeting ("Olá, Fernanda."): the page does not know the name.
+    intro: 'Escolha a senha que você vai usar para entrar.',
+    passwordLabel: 'Senha',
+    repeatLabel: 'Repita a senha',
+    showPassword: 'Mostrar',
+    // The frame's "Pelo menos 8 caracteres.", from the kernel's `PASSWORD_MIN_LENGTH`.
+    rule: (min: number) => `Pelo menos ${min} caracteres.`,
+    // authored (Story 26.6): the kernel's `PASSWORD_MAX_LENGTH`, said only when it is passed.
+    tooLong: (max: number) => `No máximo ${max} caracteres.`,
+    // authored (Story 26.6): the two fields differ.
+    mismatch: 'As duas senhas não são iguais.',
+    submit: 'Salvar senha',
+    // authored (Story 26.6): the in-flight state of "Salvar senha".
+    saving: 'Salvando…',
+    // authored (Story 26.6): offline, after Login's "Entrar precisa de conexão".
+    offlineReason: 'Salvar senha precisa de conexão',
+    // authored (Story 26.6): the server answered 429 for this device.
+    rateLimited: 'Muitas tentativas. Tente novamente em alguns minutos.',
+    expiredTitle: 'Este link não vale mais',
+    expiredBody: 'O link venceu ou já foi usado. Peça um link novo com o seu e-mail: ele serve também para um convite que venceu.',
+    askNew: 'Pedir um link novo',
+    back: 'Voltar ao login',
+  },
+  // Story 26.11: a paused account, verbatim from `shell-head.html` `#slot-paused` and `94-conta-pausada.html`.
+  // The two sentences with a count are the kernel's (`pausedSignOutNoteText`, `pausedSignOutText`).
+  pausedAccount: {
+    bannerText: 'Conta pausada. O que você preencher fica salvo neste aparelho e é enviado quando o administrador reativar a sua conta.',
+    signOutTitle: 'Sair e apagar o que não foi enviado?',
+    signOutConfirm: 'Sair e apagar',
   },
   account: {
     title: 'Conta',
@@ -1923,6 +1983,89 @@ export const copy = {
     empresa: 'empresa',
     account: 'conta',
     sync: 'sincronização',
+  },
+  // Story 26.9: the Usuários screen (`mockups/prototype/screens/92-usuarios.html`) and its Home
+  // shortcut (`20-home.html`). Verbatim from the frames unless marked authored; the pill words, the
+  // filters, the count line, the row menu, the Toasts and the last-Admin sentence are the kernel's
+  // (`permissions/user-list.ts`).
+  users: {
+    title: 'Usuários',
+    shortcut: 'Usuários',
+    shortcutSub: 'Pessoas, papéis e permissões',
+    tabsLabel: 'Usuários',
+    tabUsers: 'Usuários',
+    tabRoles: 'Papéis e permissões',
+    heading: 'Usuários',
+    newUser: 'Novo usuário',
+    offlineLead: 'Sem conexão.',
+    offlineText: 'A lista é a da última sincronização. Criar ou alterar um usuário precisa de conexão.',
+    statusLabel: 'Situação',
+    roleLabel: 'Papel',
+    allRoles: 'Todos os papéis',
+    listLabel: 'Usuários da empresa',
+    you: '· você',
+    empty: 'Nenhum usuário com estes filtros.',
+    clearFilters: 'Limpar filtros',
+    newTitle: 'Novo usuário',
+    newDescription: 'A pessoa recebe um e-mail com um link para criar a própria senha. Você nunca vê a senha.',
+    nameLabel: 'Nome',
+    emailLabel: 'E-mail',
+    emailHelper: (hours: number) => `O convite chega neste endereço. O link vale por ${hours} horas.`,
+    emailTaken: 'Este e-mail já está cadastrado. Se a pessoa foi removida, use Reativar na lista, filtro Removido.',
+    seeRoles: 'Ver o que cada papel pode',
+    sendInvitation: 'Enviar convite',
+    editTitle: 'Editar usuário',
+    emailFixed: 'O e-mail não muda depois do convite.',
+    save: 'Salvar',
+    // authored (Story 26.9): why "Enviar convite" or "Salvar" waits.
+    nameMissing: 'Escreva o nome da pessoa.',
+    // authored (Story 26.9)
+    emailMissing: 'Escreva um e-mail válido.',
+    // authored (Story 26.9)
+    roleMissing: 'Escolha um papel.',
+    // authored (Story 26.9)
+    sending: 'Enviando…',
+    // authored (Story 26.9)
+    unchanged: 'Mude o nome ou o papel para salvar.',
+    pauseTitle: (name: string) => `Pausar ${name}?`,
+    pauseBody: 'Ele não entra mais até ser reativado. O aparelho dele para na próxima vez que falar com o servidor. O que ele ainda não enviou fica guardado no aparelho e é enviado depois da reativação.',
+    pauseConfirm: 'Pausar',
+    reactivateTitle: (name: string) => `Reativar ${name}?`,
+    reactivateBody: (role: string) => `Ele volta a entrar com a mesma senha e o mesmo papel, ${role}. O que ficou guardado no aparelho dele é enviado quando ele entrar.`,
+    // authored (Story 26.9): the same sentence for a user whose role does not resolve on this device.
+    reactivateBodyNoRole: 'Ele volta a entrar com a mesma senha e o mesmo papel. O que ficou guardado no aparelho dele é enviado quando ele entrar.',
+    reactivateConfirm: 'Reativar',
+    removeTitle: (name: string) => `Remover ${name}?`,
+    removeBody: 'Ele perde o acesso. O nome dele continua nos relatórios que preencheu ou assinou. Para trazê-lo de volta, use Reativar no filtro Removido.',
+    removeConfirm: 'Remover',
+    resetTitle: 'Enviar redefinição de senha?',
+    resetBody: (name: string, email: string, life: string) => `${name} recebe em ${email} um link para criar uma senha nova. O link vale por ${life}.`,
+    resetConfirm: 'Enviar',
+    resendTitle: 'Reenviar convite?',
+    resendBody: (name: string, email: string, hours: number) => `${name} recebe em ${email} um link novo, que vale por ${hours} horas. O link anterior deixa de valer.`,
+    resendConfirm: 'Reenviar',
+    lastAdminTitle: 'Não é possível',
+    lastAdminOk: 'Entendi',
+    // authored (Story 26.9): a request that got no answer; the device is online by its own account.
+    errorOffline: 'Sem conexão com o servidor. Nada foi alterado; tente de novo.',
+    // authored (Story 26.9): an answer the screen cannot read (a 5xx).
+    errorServer: 'O servidor não respondeu. Nada foi alterado; tente de novo.',
+    // authored (Story 26.9): 429, the route's limit of e-mails.
+    errorRateLimited: 'Muitos envios em pouco tempo. Espere alguns minutos e tente de novo.',
+    // authored (Story 26.9): 404 `role_not_found`, the role was removed meanwhile.
+    errorRoleNotFound: 'Esse papel não existe mais. Escolha outro.',
+    // authored (Story 26.9): 409 `user_state_invalid`, the user changed status meanwhile.
+    errorStateInvalid: 'A situação deste usuário mudou. A lista foi atualizada; confira e tente de novo.',
+    // authored (Story 26.9): 404 `user_not_found`.
+    errorNotFound: 'Este usuário não está mais na lista da empresa. A lista foi atualizada.',
+    // authored (Story 26.9): 401, the session ended.
+    errorSession: 'A sua sessão terminou. Entre de novo para alterar usuários.',
+    // authored (Story 26.9): `invitation: 'failed'` on create, the user was saved.
+    invitationFailed: (name: string) => `${name} foi salvo, mas o e-mail do convite não saiu. Use Reenviar convite.`,
+    // authored (Story 26.9): `invitation: 'failed'` on resend.
+    resendFailed: 'O convite não saiu. Use Reenviar convite de novo.',
+    // authored (Story 26.9): `reset: 'failed'`.
+    resetFailed: 'O e-mail não saiu. Use Enviar redefinição de senha de novo.',
   },
   // Registries (`80-cadastros.html`, `key-registries.html`). Empresa and Instrumentos are
   // the real tabs; the other four are placeholders (Stories 2.4-2.6), whose one shared

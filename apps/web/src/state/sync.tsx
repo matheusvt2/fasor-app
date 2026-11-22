@@ -37,6 +37,7 @@ import {
   type UserRow,
   type RoleRow,
   rejectionCause,
+  reAuthCauseOf,
   EMPTY_DEFINITION_CONTEXT,
 } from '@app/domain';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -314,7 +315,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       elapsedMs: elapsedNowMs,
       newId,
       isOnline: () => onlineRef.current,
-      onReAuth: publishReAuth,
+      // Story 26.11: the 401's code says whether the account was paused (`user_inactive`).
+      onReAuth: (failure) => publishReAuth(reAuthCauseOf(failure.kind === 'http' ? failure.code : undefined)),
       onOutdated: () => {},
       onChange: (next) => {
         observeCycle(db, statusRef.current, next);

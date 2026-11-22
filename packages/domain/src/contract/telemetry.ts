@@ -58,6 +58,8 @@ export const SCREENS = [
   'cadastros',
   'sync',
   'account',
+  // 2026-11-22, Story 26.9 (batch e26d): the Usuários screen.
+  'usuarios',
   'recovery',
   'update',
   'other',
@@ -284,6 +286,10 @@ const ID = '[^/]+';
 const SCREEN_ROUTES: readonly (readonly [RegExp, Screen])[] = [
   [/^\/$/, 'home'],
   [/^\/login$/, 'login'],
+  // Story 26.6 (2026-11-22): "Esqueci minha senha" and the page of a password link belong to Login
+  // (no screen of their own in the event contract, so no contract number moves).
+  [/^\/login\/esqueci$/, 'login'],
+  [/^\/definir-senha$/, 'login'],
   [new RegExp(`^/project/${ID}$`), 'project'],
   [new RegExp(`^/relatorio/${ID}(/arvore)?$`), 'sumario'],
   [new RegExp(`^/relatorio/${ID}/setup$`), 'setup'],
@@ -298,6 +304,8 @@ const SCREEN_ROUTES: readonly (readonly [RegExp, Screen])[] = [
   [/^\/cadastros$/, 'cadastros'],
   [/^\/sync$/, 'sync'],
   [/^\/account$/, 'account'],
+  // Story 26.9: the Usuários screen.
+  [/^\/usuarios$/, 'usuarios'],
 ];
 
 /** The screen a route shows; anything unknown (section text included) is `other`. */

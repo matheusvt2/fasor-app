@@ -155,3 +155,39 @@ describe('Login surface', () => {
     expect(document.title).toBe(PRODUTO);
   });
 });
+
+describe('26.11 Login: a paused or removed account (frame 12-login-pausada.html)', () => {
+  it('reads "Conta pausada. Fale com o administrador." under the password, marks no field, keeps both values', async () => {
+    signIn.mockResolvedValue({ ok: false, reason: 'inactive', message: 'Conta pausada. Fale com o administrador.' });
+    const { container } = render(<LoginSurface />);
+    await fillAndSubmit('diego@teste.local', 'a-senha-dele');
+    const password = screen.getByLabelText('Senha');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Conta pausada. Fale com o administrador.');
+    expect(password).toHaveAccessibleDescription('Conta pausada. Fale com o administrador.');
+    expect(password).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByLabelText('E-mail')).not.toHaveAttribute('aria-invalid');
+    expect(container.querySelector('.input.is-invalid')).toBeNull();
+    expect(screen.getByLabelText('E-mail')).toHaveValue('diego@teste.local');
+    expect(password).toHaveValue('a-senha-dele');
+    expect(container).not.toHaveTextContent('E-mail ou senha incorretos.');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('26.6 Login: "Esqueci minha senha" and the set-password notice', () => {
+  it('the Text button under "Entrar" hands the typed e-mail to the route', async () => {
+    const onForgot = vi.fn();
+    render(<LoginSurface onForgot={onForgot} />);
+    await userEvent.type(screen.getByLabelText('E-mail'), ' ana@teste.local ');
+    const forgot = screen.getByRole('button', { name: 'Esqueci minha senha' });
+    expect(forgot).toHaveClass('btn', 'btn-text', 'login-forgot');
+    await userEvent.click(forgot);
+    expect(onForgot).toHaveBeenCalledWith('ana@teste.local');
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it('the line a set-password page carries is a status line on Login', () => {
+    render(<LoginSurface notice="Senha criada. Entre com o seu e-mail e a senha nova." />);
+    expect(screen.getByRole('status')).toHaveTextContent('Senha criada. Entre com o seu e-mail e a senha nova.');
+  });
+});
