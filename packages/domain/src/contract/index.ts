@@ -17,6 +17,8 @@ export * from './reading.ts';
 export * from './prose.ts';
 export * from './audit.ts';
 export * from './telemetry.ts';
+// Story 26.8 (2026-11-21): the Admin's user routes.
+export * from './admin-users.ts';
 
 export const componentStatusSchema = z.enum(['up', 'down']);
 

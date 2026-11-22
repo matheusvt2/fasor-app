@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import { SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type Clock, type ErrorResponse, type NewId } from '@app/domain';
+import { SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminUserEvent, type Clock, type ErrorResponse, type NewId } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -16,10 +16,13 @@ import type { GeneratePayload } from '../jobs/generate/job.ts';
 import { enqueueGenerate } from '../jobs/generate/worker.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { enqueueReading } from '../jobs/reading/worker.ts';
+import { createFakeEmailProvider } from '../email/fake.ts';
+import type { EmailProvider } from '../email/types.ts';
 import { log, logError } from '../log.ts';
 import { stdoutSink, type TelemetrySink } from '../telemetry/sink.ts';
 import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
+import { createAdminUsersRoutes } from './admin-users.ts';
 import { createAuditRoutes } from './audit.ts';
 import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
@@ -27,7 +30,7 @@ import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { originGuard, type OriginGuardOptions } from './origin-guard.ts';
 import { createReadingRoutes } from './reading.ts';
 import { createTelemetryRoutes } from './telemetry.ts';
-import { pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
+import { addressRateLimit, passwordResetRateLimit, pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
 import { htmlContentSecurityPolicy, securityHeaders } from './security-headers.ts';
 import {
   type AppEnv,
@@ -145,7 +148,29 @@ export interface AppOptions {
    * `'off'` in an in-process test that is about something else.
    */
   originGuard: OriginGuardOptions | 'off';
+  /**
+   * Story 26.6 and 26.8: where the Admin's routes send the invitation and the reset (absent, the
+   * `fake` provider over `db`; `main.ts` shares one provider with `createAuth`).
+   */
+  email?: EmailProvider;
+  /**
+   * Story 26.6 and 26.8: the limits of the e-mail routes, always on; absent, the configuration's
+   * defaults (`DEFAULT_EMAIL_LIMITS`). `now` is the limiters' clock.
+   */
+  emailLimits?: { passwordResetEmail: RateLimitRule; passwordResetAddress: RateLimitRule; adminEmail: RateLimitRule; trustProxy: boolean; now?: () => number };
+  /** Story 26.8: where each Admin action's usage event goes; absent, one `admin_user_event` log line. */
+  adminEvents?: (event: AdminUserEvent) => void;
+  /** Story 26.8: the origin of the set-password link; absent, the auth's base URL. */
+  appOrigin?: string;
 }
+
+/** The defaults of `config.ts` for the e-mail limits (5 and 20 a minute, 30 per 10 minutes). */
+export const DEFAULT_EMAIL_LIMITS = {
+  passwordResetEmail: { max: 5, windowMs: 60_000 },
+  passwordResetAddress: { max: 20, windowMs: 60_000 },
+  adminEmail: { max: 30, windowMs: 600_000 },
+  trustProxy: true,
+} as const;
 
 /** `config.API_BODY_LIMIT_BYTES`'s default: far above the largest push (500 ops), far below a memory exhaustion. */
 export const DEFAULT_API_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
@@ -191,10 +216,23 @@ export const AUTH_ROUTES: ReadonlyArray<{ method: 'GET' | 'POST'; path: string }
   { method: 'POST', path: '/api/auth/sign-in/email' },
   { method: 'POST', path: '/api/auth/sign-out' },
   { method: 'GET', path: '/api/auth/get-session' },
+  // Story 26.6 (2026-11-21): "Esqueci minha senha" and the set-password page of a link.
+  { method: 'POST', path: '/api/auth/request-password-reset' },
+  { method: 'POST', path: '/api/auth/reset-password' },
 ];
+
+/** Story 26.6: the two password routes, limited whatever `rateLimits` says. */
+const PASSWORD_RESET_REQUEST_PATH = '/api/auth/request-password-reset';
+const PASSWORD_RESET_PATH = '/api/auth/reset-password';
 
 function isAuthRoute(method: string, path: string): boolean {
   return AUTH_ROUTES.some((route) => route.method === method && route.path === path);
+}
+
+/** The base URL the auth was configured with (absent on a test stub). */
+function authBaseUrl(auth: Auth): string {
+  const baseURL = (auth as { options?: { baseURL?: unknown } }).options?.baseURL;
+  return typeof baseURL === 'string' ? baseURL : '';
 }
 
 export function createApp(options: AppOptions): Hono<AppEnv> {
@@ -255,6 +293,18 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   });
   const limits = options.rateLimits;
   if (limits !== undefined) app.use('/api/auth/sign-in/*', signInRateLimit({ rule: limits.signIn, trustProxy: limits.trustProxy }));
+  const emailLimits = options.emailLimits ?? DEFAULT_EMAIL_LIMITS;
+  const limitNow = options.emailLimits?.now;
+  app.use(
+    PASSWORD_RESET_REQUEST_PATH,
+    passwordResetRateLimit({
+      address: emailLimits.passwordResetAddress,
+      email: emailLimits.passwordResetEmail,
+      trustProxy: emailLimits.trustProxy,
+      ...(limitNow === undefined ? {} : { now: limitNow }),
+    }),
+  );
+  app.use(PASSWORD_RESET_PATH, addressRateLimit({ rule: emailLimits.passwordResetAddress, trustProxy: emailLimits.trustProxy, ...(limitNow === undefined ? {} : { now: limitNow }) }));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => (isAuthRoute(c.req.method, c.req.path) ? options.auth.handler(c.req.raw) : c.json(notFoundBody, 404)));
 
   app.route('/', createHealthRoutes(options.probes));
@@ -321,6 +371,22 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       ...(sendAudit === undefined ? {} : { enqueue: sendAudit }),
       aiFeatures,
       dailyQuota: quotas.audits,
+    }),
+  );
+
+  // Story 26.8: the Admin's user routes, behind the same session middleware; online only.
+  app.route(
+    '/',
+    createAdminUsersRoutes({
+      db: options.db,
+      auth: options.auth,
+      email: options.email ?? createFakeEmailProvider(options.db),
+      events: options.adminEvents,
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
+      appOrigin: options.appOrigin ?? authBaseUrl(options.auth),
+      emailLimit: emailLimits.adminEmail,
+      ...(limitNow === undefined ? {} : { limitNow }),
     }),
   );
 

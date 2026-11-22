@@ -174,7 +174,9 @@ export const aiUsageDaily = pgTable(
  * inserts their rows itself, so their `company_id` is nullable: `session.company_id` is
  * filled by the `databaseHooks.session.create.before` hook, and `verification` is never
  * written in the MVP (no e-mail verification, no password reset by e-mail) so it has no
- * tenant at row creation.
+ * tenant at row creation. *(2026-11-21, Story 26.6: `verification` now holds the password links,
+ * `reset-password:<token>` with the user's id as value; the Admin's routes fill `company_id`, and
+ * the forgot-password hook stamps it on the row better-auth inserted.)*
  */
 
 export const company = pgTable('company', {
@@ -267,4 +269,26 @@ export const verification = pgTable(
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
+/*
+ * Story 26.6 (AD-9): what the `fake` e-mail provider "sent", one row per message, read by the api
+ * tests and the e2e helpers (`email/fake-store.ts`). Never written by the `ses` provider, never
+ * synced; it holds addresses, so it stays out of every log and every pull. No `company_id`: a
+ * message belongs to an address, and the forgot-password path has no company until the address
+ * resolves to a user.
+ */
+export const fakeEmail = pgTable(
+  'fake_email',
+  {
+    id: uuid('id').primaryKey(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    to_email: text('to_email').notNull(),
+    purpose: text('purpose').notNull(),
+    subject: text('subject').notNull(),
+    text_body: text('text_body').notNull(),
+    html_body: text('html_body').notNull(),
+  },
+  (t) => [index('fake_email_to_created_idx').on(t.to_email, t.created_at), check('fake_email_purpose_check', sql`${t.purpose} in ('invitation', 'reset')`)],
+);
+
+// `fakeEmail` stays out: better-auth's adapter reads only its own four models from here.
 export const schema = { ops, entities, syncDevicePush, readingRuns, aiUsageDaily, company, user, session, account, verification };

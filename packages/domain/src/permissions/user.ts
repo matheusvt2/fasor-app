@@ -21,6 +21,16 @@ export function activeUser(user: { status?: UserStatus | null | undefined }): bo
   return userStatusOf(user) === 'active';
 }
 
+/**
+ * Story 26.6: whether a password link (an invitation or a reset) may be sent to the user. A paused
+ * or removed user receives none, whoever asks (the Login's "Esqueci minha senha" or the Admin);
+ * an invited or active one may (absent status counts as active).
+ */
+export function passwordLinkAllowed(user: { status?: UserStatus | null | undefined }): boolean {
+  const status = userStatusOf(user);
+  return status !== 'paused' && status !== 'removed';
+}
+
 const STATUS_WORDS: Readonly<Record<UserStatus, string>> = {
   // authored (Story 26.2)
   active: 'Ativo',

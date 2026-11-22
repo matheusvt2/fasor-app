@@ -2,7 +2,7 @@ import { TELEMETRY_BATCH_MAX } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ConfigError, KNOWN_DEV_SESSION_SECRETS, loadConfig, rateLimitEnabled, requestLimits } from './config.ts';
+import { ConfigError, DEFAULT_EMAIL_FROM, emailLimits, KNOWN_DEV_SESSION_SECRETS, loadConfig, rateLimitEnabled, requestLimits } from './config.ts';
 
 const valid = {
   DATABASE_URL: 'postgres://app:app@localhost:5432/app',
@@ -200,6 +200,32 @@ describe('config', () => {
     expect(() => loadConfig({ ...valid, TELEMETRY_SINK: 'cloudwatch' })).toThrow(/TELEMETRY_LOG_GROUP/);
     expect(() => loadConfig({ ...valid, TELEMETRY_SINK: 'cloudwatch', TELEMETRY_LOG_GROUP: '' })).toThrow(/TELEMETRY_LOG_GROUP/);
     expect(() => loadConfig({ ...valid, TELEMETRY_SINK: 'kinesis' })).toThrow(/TELEMETRY_SINK/);
+  });
+
+  it('26.6-API-001a: the e-mail provider defaults to fake, the sender to a placeholder, SES to us-east-1, and ses is read', () => {
+    const config = loadConfig(valid);
+    expect(config.EMAIL_PROVIDER).toBe('fake');
+    expect(config.EMAIL_FROM).toBe(DEFAULT_EMAIL_FROM);
+    expect(DEFAULT_EMAIL_FROM).not.toMatch(/fasor/i);
+    expect(config.SES_REGION).toBe('us-east-1');
+    const ses = loadConfig({ ...valid, EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'nao-responda@mail.example.com', SES_REGION: 'sa-east-1' });
+    expect([ses.EMAIL_PROVIDER, ses.EMAIL_FROM, ses.SES_REGION]).toEqual(['ses', 'nao-responda@mail.example.com', 'sa-east-1']);
+    expect(loadConfig({ ...valid, EMAIL_PROVIDER: '', EMAIL_FROM: '' }).EMAIL_PROVIDER).toBe('fake');
+    expect(() => loadConfig({ ...valid, EMAIL_PROVIDER: 'smtp' })).toThrow(/EMAIL_PROVIDER/);
+    expect(() => loadConfig({ ...valid, EMAIL_FROM: 'not-an-address' })).toThrow(/EMAIL_FROM/);
+  });
+
+  it('26.6-API-001a: the e-mail limits default to 5 per address and 20 per client a minute, 30 Admin e-mails per 10 minutes, whatever RATE_LIMIT says', () => {
+    const limits = emailLimits(loadConfig({ ...valid, RATE_LIMIT: 'off' }));
+    expect(limits).toEqual({
+      passwordResetEmail: { max: 5, windowMs: 60_000 },
+      passwordResetAddress: { max: 20, windowMs: 60_000 },
+      adminEmail: { max: 30, windowMs: 600_000 },
+      trustProxy: true,
+    });
+    const tuned = emailLimits(loadConfig({ ...valid, PASSWORD_RESET_RATE_LIMIT_MAX: '2', PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS: '10', PASSWORD_RESET_IP_RATE_LIMIT_MAX: '3', ADMIN_EMAIL_RATE_LIMIT_MAX: '4', ADMIN_EMAIL_RATE_LIMIT_WINDOW_SECONDS: '5', TRUST_PROXY: '0' }));
+    expect(tuned).toEqual({ passwordResetEmail: { max: 2, windowMs: 10_000 }, passwordResetAddress: { max: 3, windowMs: 10_000 }, adminEmail: { max: 4, windowMs: 5_000 }, trustProxy: false });
+    expect(() => loadConfig({ ...valid, ADMIN_EMAIL_RATE_LIMIT_MAX: '0' })).toThrow(/ADMIN_EMAIL_RATE_LIMIT_MAX/);
   });
 
   it('knows every development SESSION_SECRET this repository commits', () => {
