@@ -5,7 +5,7 @@ import { loadConfig } from '../config.ts';
 import { createDb, type Db } from '../db/client.ts';
 import { findUserProfile } from '../db/repositories/users.ts';
 import { asCompanyId, type CompanyId } from '../db/repositories/company-id.ts';
-import { user } from '../db/schema.ts';
+import { session, user } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { createAuth } from './auth.ts';
 import { parseTrustedOrigins } from './trusted-origins.ts';
@@ -174,6 +174,47 @@ describe('1.3-API-001 session, cookie and provisioning', () => {
     expect((await call('/api/account', { headers: { cookie } })).status).toBe(200);
     await seedTestCompanies(db, auth);
     expect((await call('/api/account', { headers: { cookie } })).status).toBe(401);
+  });
+
+  // Batch e26t (2026-11-22). The device of a user whose sessions were deleted (a reactivation,
+  // `admin/users.ts`; an expired session leaves the same) still sends the old cookie when he signs
+  // in again. Two WebKit reds of the matrix looked like a late 401 clearing the cookie the sign-in
+  // had just set; the cause was the harness (a `Secure` cookie on a plain http origin, which WebKit
+  // refuses: `e2e/support/plain-http-cookie.ts`). This pins what the server owes that sign-in.
+  it('e26t-API-001 a sign-in carrying the cookie of a deleted session answers a new session, and no 401 of the old cookie sets a cookie', async () => {
+    const dead = await signIn(companyA.email);
+    // The cookie's value is `token.signature`, percent-encoded; the row is the session it named.
+    const token = decodeURIComponent(dead.cookie.slice(dead.cookie.indexOf('=') + 1)).split('.')[0]!;
+    const deleted = await db.delete(session).where(eq(session.token, token)).returning({ id: session.id });
+    expect(deleted).toHaveLength(1);
+
+    // The old cookie is refused with no Set-Cookie on the answer, on the account read and on a sync
+    // route: a 401 still in flight can neither clear nor replace the cookie a sign-in sets meanwhile.
+    for (const path of ['/api/account', '/api/sync/company']) {
+      const refused = await call(path, { headers: { cookie: dead.cookie } });
+      expect(refused.status, path).toBe(401);
+      expect(await refused.json(), path).toMatchObject({ code: 'unauthenticated' });
+      expect(refused.headers.getSetCookie(), path).toEqual([]);
+    }
+
+    // The sign-in over it: one cookie, the same name and path with a new value, so the browser
+    // replaces the old one; the account read that follows it is answered.
+    const again = await call('/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: { cookie: dead.cookie },
+      body: JSON.stringify({ email: companyA.email, password: TEST_SEED.password }),
+    });
+    expect(again.status, await again.clone().text()).toBe(200);
+    const set = again.headers.getSetCookie();
+    expect(set).toHaveLength(1);
+    const fresh = set[0]!.split(';')[0]!;
+    expect(fresh.split('=')[0]).toBe(dead.cookie.split('=')[0]);
+    expect(fresh).not.toBe(dead.cookie);
+    expect(set[0]).toMatch(/Path=\//i);
+    expect(set[0]).not.toMatch(/Max-Age=0\b/i);
+    const read = await call('/api/account', { headers: { cookie: fresh } });
+    expect(read.status).toBe(200);
+    expect(accountResponseSchema.parse(await read.json()).user.id).toBe(companyA.userId);
   });
 
   it('applied the migrations at boot', async () => {

@@ -516,6 +516,16 @@ describe('e26s a paused account at boot and its recheck (F2-1, F2-2)', () => {
     readSession.mockResolvedValue('inactive');
     renderSession();
     await waitFor(() => expect(current?.reAuthCause).toBe('paused'));
+    // e26t (2026-11-22): the paused state is read off the render, while the provider's paused effect
+    // (its tick and its `visibilitychange` and `online` listeners) is passive and may be flushed in
+    // a later task. On a loaded host `waitFor` returned before it ran (measured: one `online`
+    // listener registered where there are two), so the `online` event of the test below found no
+    // listener and its wait ran out ("called 1 times, but got 0": 6 of 10 runs alone at host load
+    // 6.5; 20 of 20 with this). React's scheduler queues that flush with `setImmediate` under
+    // Node, so one turn of the same queue, taken after it, lets the flush run first.
+    await act(async () => {
+      await new Promise((resolve) => setImmediate(resolve));
+    });
     readSession.mockReset();
   }
 
