@@ -6,9 +6,7 @@ import {
   seededVoltageClassRow,
   STANDARD_TEMPLATE_NAME,
   standardTemplate,
-  SYSTEM_IDENTITY_ACTOR,
   SYSTEM_ROLE_ROW_IDS,
-  toIso,
   userRolePath,
   userStatusPath,
   uuidV7Schema,
@@ -22,13 +20,12 @@ import type { Auth } from '../auth/auth.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../sync/apply.ts';
-import { serverOp } from '../sync/server-op.ts';
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
 import { account, aiUsageDaily, company, entities, ops, readingRuns, session, syncDevicePush, user } from './schema.ts';
 import { isE2eWorkerCompany, workerRoleUser, workerSeed, type SeedAccount, type WorkerRole } from './e2e-worker-seed.ts';
-import { ensureSystemRoles, roleOp } from './roles.ts';
+import { ensureSystemRoles, identityOp, roleOp } from './roles.ts';
 import { LEGACY_TEST_COMPANY_IDS, TEST_SEED } from './test-seed.ts';
 
 export { LEGACY_TEST_COMPANY_IDS, TEST_SEED };
@@ -92,20 +89,8 @@ async function dropLegacyUser(db: Db, companyId: CompanyId, userId: string): Pro
   });
 }
 
-/** A provisioning op in the company stream: server device, `system:identity` (A-28: the shared envelope). */
-function provisioningOp(companyId: CompanyId, input: { kind: Op['kind']; path: string; value: unknown; batchId?: string }): Op {
-  return serverOp({
-    opId: newId(),
-    companyId,
-    actorId: SYSTEM_IDENTITY_ACTOR,
-    clientTs: toIso(now()),
-    kind: input.kind,
-    path: input.path,
-    value: input.value,
-    scope: 'company',
-    batchId: input.batchId ?? null,
-  });
-}
+/** A provisioning op in the company stream (`identityOp`, shared with the Admin's routes since Story 26.8). */
+const provisioningOp = identityOp;
 
 /**
  * Projects one identity user into the company stream. The first run applies one

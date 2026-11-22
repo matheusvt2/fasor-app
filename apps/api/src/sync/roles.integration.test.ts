@@ -217,11 +217,13 @@ describe('26.4-API-001 each key, a role lacking only it and a role holding it', 
     }, 60_000);
   }
 
-  it('suggestion.review, users.manage and roles.manage open no client op and no route yet: no client action reaches them', async () => {
+  it('suggestion.review, users.manage and roles.manage open no client op and no route yet: no client action reaches them (since Story 26.8 users.manage opens the Admin routes alone)', async () => {
     const keyed = (key: PermissionKey) =>
       FAMILIES.filter((def) => def.serverOnly !== true && FAMILY_PERMISSION_NEEDS[def.family] === key).length + PERMISSION_ROUTES.filter((route) => permissionForRoute(route) === key).length;
     expect(keyed('suggestion.review')).toBe(0);
-    expect(keyed('users.manage')).toBe(0);
+    // Story 26.8 (batch e26c): extended, the one route name of `/api/admin/users`; still no client op.
+    expect(keyed('users.manage')).toBe(1);
+    expect(PERMISSION_ROUTES.filter((route) => permissionForRoute(route) === 'users.manage')).toEqual(['admin.users']);
     expect(keyed('roles.manage')).toBe(0);
     // A role holding users.manage still cannot write a role through the push (the Admin routes will, Story 26.8).
     await asRole(holderId);

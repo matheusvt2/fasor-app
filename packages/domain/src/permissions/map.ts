@@ -163,6 +163,9 @@ export const PERMISSION_ROUTES = [
   'sync.pull',
   'account.read',
   'telemetry',
+  // Story 26.8 (2026-11-21): every route under `/api/admin/users` (list, create, edit, pause,
+  // reactivate, remove, resend the invitation, send a password reset).
+  'admin.users',
 ] as const;
 export type PermissionRoute = (typeof PERMISSION_ROUTES)[number];
 
@@ -180,6 +183,7 @@ const ROUTE_NEEDS: Readonly<Record<PermissionRoute, PermissionNeed>> = {
   'sync.pull': 'none',
   'account.read': 'none',
   telemetry: 'none',
+  'admin.users': 'users.manage',
 };
 
 /** The key a route needs, or `'none'`. */
