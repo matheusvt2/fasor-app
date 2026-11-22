@@ -6,6 +6,7 @@ import {
   linkLifeText,
   permissionRefusalText,
   RESET_LINK_HOURS,
+  reactivateNeedsRole,
   roleOriginText,
   USER_STATUS_FILTERS,
   userActionDoneText,
@@ -38,6 +39,7 @@ import { localUserDirectory, type UserDirectoryRows } from '../../db/users-store
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { ReactivateRoleDialog } from './reactivate-dialog.tsx';
 import { UserDialog, type UserDialogMode } from './user-dialog.tsx';
 import { UsersTabs } from './users-tabs.tsx';
 
@@ -55,8 +57,11 @@ const ALL_ROLES = '__all__';
 
 const EMPTY: UserDirectoryRows = { users: [], roles: [] };
 
-/** What a confirmation asks for. */
-type Confirmation = { action: Exclude<UserRowAction, 'edit'>; entry: UserListEntry };
+/**
+ * What a confirmation asks for. `pickRole`: a reactivation that asks for a role too (2026-11-22,
+ * e26s), because the user's role is gone (known from the device's rows, or the route said so).
+ */
+type Confirmation = { action: Exclude<UserRowAction, 'edit'>; entry: UserListEntry; pickRole?: boolean };
 
 export function UsersSurface() {
   const session = useSession();
@@ -156,15 +161,20 @@ export function UsersSurface() {
       setRefusal(lastAdminText({ isSelf: entry.id === selfId, name: entry.name }));
       return;
     }
-    setConfirmation({ action, entry });
+    setConfirmation({ action, entry, ...(action === 'reactivate' && reactivateNeedsRole(entry.role_id, local.roles) ? { pickRole: true } : {}) });
   }
 
-  async function run({ action, entry }: Confirmation): Promise<void> {
+  async function run({ action, entry }: Confirmation, newRoleId?: string): Promise<void> {
     if (busy.current) return;
     busy.current = true;
     try {
-      const result = await adminUserAction(action, entry.id);
+      const result = newRoleId === undefined ? await adminUserAction(action, entry.id) : await adminUserAction(action, entry.id, { role_id: newRoleId });
       if (!result.ok) {
+        // The role is gone: the Admin picks another one in the same confirmation instead of a dead end.
+        if (action === 'reactivate' && result.failure.kind === 'refused' && result.failure.code === 'role_not_found') {
+          setConfirmation({ action, entry, pickRole: true });
+          return;
+        }
         sayRefusal(result.failure, entry);
         return;
       }
@@ -289,7 +299,9 @@ export function UsersSurface() {
         />
       )}
 
-      {confirmation === null ? null : (
+      {confirmation === null ? null : confirmation.pickRole === true ? (
+        <ReactivateRoleDialog entry={confirmation.entry} roles={roles} onClose={() => setConfirmation(null)} onConfirm={(newRoleId) => void run(confirmation, newRoleId)} />
+      ) : (
         <ConfirmDialog
           isOpen
           onOpenChange={(open) => {

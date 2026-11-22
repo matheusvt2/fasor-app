@@ -5,6 +5,7 @@ import {
   filterUserList,
   lastAdminText,
   linkLifeText,
+  reactivateNeedsRole,
   roleModulesText,
   roleOriginText,
   USER_ROW_ACTIONS,
@@ -203,5 +204,23 @@ describe('26.9-UNIT-008 the last Admin, before the route answers', () => {
   it('the frame\'s sentence for himself, the authored one for another user', () => {
     expect(lastAdminText({ isSelf: true, name: 'Bruno' })).toBe('Você é o único Admin ativo. Dê o papel Admin a outra pessoa antes de pausar, remover ou mudar o seu papel.');
     expect(lastAdminText({ isSelf: false, name: 'Rafael' })).toBe('Rafael é o único Admin ativo. Dê o papel Admin a outra pessoa antes de pausar, remover ou mudar o papel dele.');
+  });
+});
+
+describe('e26s-UNIT reactivateNeedsRole: whether a reactivation asks for a role first', () => {
+  const removed: RoleRow = { id: '019966b0-0269-7000-8000-0000000000c2', name: 'Antigo', permissions: [], removed_at: '2026-11-20T10:00:00.000Z' };
+  const live: RoleRow = { id: '019966b0-0269-7000-8000-0000000000c3', name: 'Almoxarife', permissions: ['relatorio.view'], removed_at: null };
+  const unset: RoleRow = { id: '019966b0-0269-7000-8000-0000000000c4', name: 'Sem marca', permissions: [] };
+
+  it('asks for a user with no role and for a role the device holds as removed', () => {
+    expect(reactivateNeedsRole(null, [live])).toBe(true);
+    expect(reactivateNeedsRole(removed.id, [removed, live])).toBe(true);
+  });
+
+  it('does not ask for a live role (removed_at null or absent) or for a role the device does not hold yet', () => {
+    expect(reactivateNeedsRole(live.id, [removed, live])).toBe(false);
+    expect(reactivateNeedsRole(unset.id, [unset])).toBe(false);
+    expect(reactivateNeedsRole('019966b0-0269-7000-8000-0000000000c9', [removed, live])).toBe(false);
+    expect(reactivateNeedsRole(systemRoleRow('consulta').id, [])).toBe(false);
   });
 });

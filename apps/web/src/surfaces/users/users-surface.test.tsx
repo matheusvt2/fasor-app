@@ -380,24 +380,82 @@ describe('26.9-UNIT-023 the last Admin and the route\'s refusals', () => {
   });
 });
 
-describe('e26r-UNIT the reactivation the route refuses for a role that is gone', () => {
+describe('e26r-UNIT, e26s-UNIT the reactivation of a user whose role is gone', () => {
+  const removedEstagiario: RoleRow = { ...ESTAGIARIO, removed_at: '2026-11-20T10:00:00.000Z' };
+
+  /** The Papel dialog of the reactivation, with the existing sentence and "Reativar" waiting for a role. */
+  async function expectPicker(name: string) {
+    const dialog = await screen.findByRole('dialog', { name: `Reativar ${name}?` });
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Esse papel não existe mais. Escolha outro.');
+    expect(within(dialog).getByRole('radio', { name: /Consulta/ })).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Reativar' })).toHaveAttribute('aria-disabled', 'true');
+    return dialog;
+  }
+
   it.each([
-    ['Paulo Nunes', 'Removido', 'removed'],
-    ['Eduardo Prado', 'Pausado', 'paused'],
-  ] as const)('Reativar %s answered 404 role_not_found: the kernel sentence in a Toast, the row unchanged', async (name, pill, status) => {
+    ['Paulo Nunes', 'Removido', 'removed', PAULO],
+    ['Eduardo Prado', 'Pausado', 'paused', EDUARDO],
+  ] as const)('Reativar %s answered 404 role_not_found: the same dialog asks for another role, then sends role_id and the row turns Ativo', async (name, pill, status, id) => {
     const rows = ROWS.map((row) => (row.id === EDUARDO ? { ...row, role_id: ESTAGIARIO.id, status: 'paused' as const } : row));
     database = await seededDb(rows);
     client.listAdminUsers.mockResolvedValue({ ok: true, value: [] });
-    renderSurface();
+    const sync = makeSyncState();
+    renderSurface(sync);
     await screen.findByText('Fernanda Rocha');
     if (status === 'removed') await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Situação' })).getByRole('radio', { name: 'Removido' }));
-    client.adminUserAction.mockResolvedValue({ ok: false, failure: { kind: 'refused', status: 404, code: 'role_not_found' } });
+    client.adminUserAction.mockResolvedValueOnce({ ok: false, failure: { kind: 'refused', status: 404, code: 'role_not_found' } });
     await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Reativar' }));
     await userEvent.click(within(await screen.findByRole('dialog', { name: `Reativar ${name}?` })).getByRole('button', { name: 'Reativar' }));
-    await waitFor(() => expect(client.adminUserAction).toHaveBeenCalledWith('reactivate', status === 'removed' ? PAULO : EDUARDO));
-    expect(await screen.findByText('Esse papel não existe mais. Escolha outro.')).toBeVisible();
+    // The plain call first, with no role: the route's answer opens the picker instead of a dead-end Toast.
+    await waitFor(() => expect(client.adminUserAction).toHaveBeenCalledWith('reactivate', id));
+    const dialog = await expectPicker(name);
     expect(rowOf(name).querySelector('.status-pill')).toHaveTextContent(pill);
+
+    client.adminUserAction.mockResolvedValueOnce(answer(view(id, name, `${name.split(' ')[0]!.toLowerCase()}@exemplo.com.br`, systemRoleRow('consulta'), 'active')));
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Consulta/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reativar' }));
+    await waitFor(() => expect(client.adminUserAction).toHaveBeenLastCalledWith('reactivate', id, { role_id: CONSULTA }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(sync.syncNow).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(`${name} reativado. Ele já pode entrar.`)).toBeVisible();
+  });
+
+  it('a role the device already holds as removed opens the picker at once, with no call before the choice', async () => {
+    const rows = ROWS.map((row) => (row.id === PAULO ? { ...row, role_id: ESTAGIARIO.id } : row));
+    database = await seededDb(rows);
+    await database.entities.put(toRecord(`role:${ESTAGIARIO.id}`, removedEstagiario as unknown as EntityRow));
+    client.listAdminUsers.mockResolvedValue({ ok: true, value: [] });
+    renderSurface();
+    await screen.findByText('Fernanda Rocha');
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Situação' })).getByRole('radio', { name: 'Removido' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Paulo Nunes' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Reativar' }));
+    const dialog = await expectPicker('Paulo Nunes');
+    expect(client.adminUserAction).not.toHaveBeenCalled();
+    // The removed role is not offered.
+    expect(within(dialog).queryByRole('radio', { name: /Estagiário/ })).toBeNull();
+    client.adminUserAction.mockResolvedValueOnce(answer(view(PAULO, 'Paulo Nunes', 'paulo@exemplo.com.br', systemRoleRow('gestor_do_projeto'), 'active')));
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Gestor do Projeto/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reativar' }));
+    await waitFor(() => expect(client.adminUserAction).toHaveBeenCalledWith('reactivate', PAULO, { role_id: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto }));
+  });
+
+  it('Cancelar closes the picker, asks nothing more and leaves the user removed', async () => {
+    database = await seededDb();
+    client.listAdminUsers.mockResolvedValue({ ok: true, value: [] });
+    renderSurface();
+    await screen.findByText('Fernanda Rocha');
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Situação' })).getByRole('radio', { name: 'Removido' }));
+    client.adminUserAction.mockResolvedValueOnce({ ok: false, failure: { kind: 'refused', status: 404, code: 'role_not_found' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Paulo Nunes' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Reativar' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Reativar Paulo Nunes?' })).getByRole('button', { name: 'Reativar' }));
+    const dialog = await expectPicker('Paulo Nunes');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(client.adminUserAction).toHaveBeenCalledTimes(1);
+    expect(rowOf('Paulo Nunes').querySelector('.status-pill')).toHaveTextContent('Removido');
   });
 });
 

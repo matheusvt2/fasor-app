@@ -8,6 +8,7 @@ import {
   errorResponseSchema,
   type AdminUserCreateRequest,
   type AdminUserEditRequest,
+  type AdminUserReactivateRequest,
   type AdminUserResponse,
   type AdminUserView,
 } from '@app/domain';
@@ -90,8 +91,11 @@ export function editAdminUser(userId: string, body: AdminUserEditRequest): Promi
   return call(route.method, adminUserRoutePath('edit', userId), body, (json) => adminUserResponseSchema.parse(json));
 }
 
-/** `POST /api/admin/users/:id/{pause|reactivate|remove|resend-invitation|password-reset}` with `{}`. */
-export function adminUserAction(action: AdminUserActionRoute, userId: string): Promise<AdminUsersResult<AdminUserResponse>> {
+/**
+ * `POST /api/admin/users/:id/{pause|reactivate|remove|resend-invitation|password-reset}` with `{}`;
+ * `reactivate` may carry a `role_id` (2026-11-22, e26s), the role the user comes back with.
+ */
+export function adminUserAction(action: AdminUserActionRoute, userId: string, body: AdminUserReactivateRequest = {}): Promise<AdminUsersResult<AdminUserResponse>> {
   const route = ADMIN_USER_ROUTES[action];
-  return call(route.method, adminUserRoutePath(action, userId), {}, (json) => adminUserResponseSchema.parse(json));
+  return call(route.method, adminUserRoutePath(action, userId), body, (json) => adminUserResponseSchema.parse(json));
 }
