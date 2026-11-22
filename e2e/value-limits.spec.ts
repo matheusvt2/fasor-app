@@ -1,8 +1,11 @@
 import {
   artLabel,
   artTrtRemarkText,
+  cabineEnvCopy,
   exportPrecheck,
   HUMIDITY_RANGE_PCT,
+  makeOp,
+  newLocation,
   outOfRangeText,
   preIssue,
   RESISTANCE_POSITIVE_ONLY_TEXT,
@@ -10,15 +13,18 @@ import {
   temperatureRemarkText,
   type LocationRow,
   type RelatorioRow,
+  type SuggestionRow,
 } from '@app/domain';
+import { newId } from '../apps/api/src/ids.ts';
 import type { Page } from '@playwright/test';
 import { copy } from '../apps/web/src/copy/pt-br.ts';
 import { deviceSnapshot } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
+import { applyAsServer, pushSuggestion } from './support/push-server-ops.ts';
 import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { SYNC_CYCLE_TIMEOUT } from './support/sync.ts';
+import { SYNC_CYCLE_TIMEOUT, syncNowAndReturn } from './support/sync.ts';
 
 /*
  * Story 27.2 (batch e27a, F2 to F6 and F11 of the 2026-11-21 pass; decision 3: the impossible is refused, the
@@ -202,4 +208,65 @@ test('@p0 27.2-E2E-003 a device on contract 55 is answered 426 by the server and
   expect(((await response.json()) as { code?: string }).code).toBe('contract_outdated');
   await expect(page.getByRole('heading', { level: 1, name: 'Atualização necessária' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Atualizar' })).toBeVisible();
+});
+
+test('@p0 27.2-E2E-004 e27a-review R2: a humidity of 150 % reaches no op on the other device paths: "Copiar do local anterior" skips it and says so, the thermo-hygrometer suggestion cannot be confirmed and says why, and a correction typed over it is refused alike', async ({ page }) => {
+  test.setTimeout(240_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  const scope = { relatorioId: built.relatorioId };
+  const locations = built.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('location/')).map((draft) => draft.value as LocationRow);
+  // The last local in order: the one a new local, placed after every sibling, copies from.
+  const previous = locations.filter((row) => row.parent_id === null).sort((a, b) => (a.order_key < b.order_key ? -1 : 1)).at(-1)!;
+  expect(previous.kind).toBe('cabine');
+  // A second local after the first: its "Copiar do local anterior" reads the first one.
+  const fresh = newLocation(locations, { id: newId(), relatorioId: built.relatorioId, parentId: null, kind: 'cabine', name: 'Local da cópia' });
+  await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), officeDraft(account, scope, `location/${fresh.id}`, fresh, 'create')]);
+  // The first local's environment as an op stored before Story 27.2 left it: 25 °C and 150 %, written as the server holds it.
+  const stored = [
+    officeDraft(account, scope, `location/${previous.id}/env/temperature_c`, { raw: '25', unit: '°C', state: 'measured' }),
+    officeDraft(account, scope, `location/${previous.id}/env/humidity_pct`, { raw: '150', unit: '%', state: 'measured' }),
+  ].map((draft) => makeOp({ ...draft, device_id: 'office-e27a' }, { newId, now: new Date() }));
+  await applyAsServer(account.companyId, stored);
+
+  // The second local's own surface (no sheet): its AMBIENTE DE ENSAIO with the copy chip.
+  await page.goto(`/relatorio/${built.relatorioId}/local/${fresh.id}/verificacoes`);
+  await syncNowAndReturn(page);
+  await expect.poll(async () => (await storedRow<Extract<LocationRow, { kind: 'cabine' }>>(page, 'location', previous.id))?.env.humidity_pct, { timeout: SYNC_CYCLE_TIMEOUT }).toEqual({ raw: '150', unit: '%', state: 'measured' });
+  const freshHumidity = `location/${fresh.id}/env/humidity_pct`;
+  const freshTemperature = `location/${fresh.id}/env/temperature_c`;
+  const plan = cabineEnvCopy({ cabineId: previous.id, name: previous.name, temperature_c: { raw: '25', unit: '°C', state: 'measured' }, humidity_pct: { raw: '150', unit: '%', state: 'measured' } }, fresh.id, 'v16');
+  expect(plan.skippedText).toBe(`Umidade relativa do ar não copiada: ${outOfRangeText(HUMIDITY_RANGE_PCT, '%')}`);
+  await env(page).getByRole('button', { name: 'Copiar do local anterior' }).click();
+  await expect(page.getByTestId('toast')).toContainText(copy.ficha.cabine.copiedFromSkipping(previous.name, plan.skippedText!));
+  await expect.poll(() => valuesAt(page, freshTemperature)).toEqual([{ raw: '25', unit: '°C', state: 'measured' }]);
+  expect(await valuesAt(page, freshHumidity)).toEqual([]);
+  expect((await storedRow<Extract<LocationRow, { kind: 'cabine' }>>(page, 'location', fresh.id))?.env.humidity_pct).toBeNull();
+
+  // A thermo-hygrometer reading of 150 % on the second local's empty humidity: Confirmar is refused with the range and writes nothing.
+  const suggestionId = await pushSuggestion(account.companyId, built.relatorioId, { targetPath: freshHumidity, value: { raw: '150', unit: '%', state: 'measured' }, actorId: account.userId });
+  await syncNowAndReturn(page);
+  const fill = env(page).locator(`.ficha-suggestion[data-suggestion-id="${suggestionId}"]`);
+  await expect(fill).toBeVisible({ timeout: SYNC_CYCLE_TIMEOUT });
+  await fill.locator('.confirm-btn').click();
+  await expect(fill.locator('.helper[data-tone="red"]')).toHaveText(outOfRangeText(HUMIDITY_RANGE_PCT, '%'));
+  await expect(fill.locator('input.mf-value')).toHaveAttribute('aria-invalid', 'true');
+  const statusPath = `suggestion/${suggestionId}/status`;
+  expect(await valuesAt(page, statusPath)).toEqual([]);
+  expect(await valuesAt(page, freshHumidity)).toEqual([]);
+  expect((await storedRow<SuggestionRow>(page, 'suggestion', suggestionId))?.status).toBe('pending');
+
+  // A correction typed over it, 120 %, is refused the same way; 65 % is written and the suggestion discarded.
+  await fill.locator('input.mf-value').fill('120');
+  await fill.locator('input.mf-value').press('Enter');
+  await expect(fill.locator('.helper[data-tone="red"]')).toHaveText(outOfRangeText(HUMIDITY_RANGE_PCT, '%'));
+  expect(await valuesAt(page, freshHumidity)).toEqual([]);
+  expect(await valuesAt(page, statusPath)).toEqual([]);
+  await fill.locator('input.mf-value').fill('65');
+  await fill.locator('input.mf-value').press('Enter');
+  await expect.poll(() => valuesAt(page, freshHumidity)).toEqual([{ raw: '65', unit: '%', state: 'measured' }]);
+  expect(await valuesAt(page, statusPath)).toEqual(['discarded']);
+  await expect.poll(async () => (await storedRow<Extract<LocationRow, { kind: 'cabine' }>>(page, 'location', fresh.id))?.env.humidity_pct).toEqual({ raw: '65', unit: '%', state: 'measured' });
 });

@@ -239,8 +239,9 @@ function reasonParts(snapshot: RelatorioSnapshot, derived: Exclude<ParecerVerdic
   // Fix batch e24h: the stored live points only.
   const points = livePoints(snapshot.points).length;
   if (derived === 'nao_apto') {
-    const open = new Set(counts.openOut);
-    const reprovadas = counts.reprovado.filter((name) => !open.has(name));
+    // Fix batch e27a-review (R4): the open fichas are told apart from the reprovadas by block id, as `composeParecer`
+    // does, never by name: two untagged fichas of one type share the type's label as their name.
+    const reprovadas = reprovadasApart(snapshot);
     return [
       // authored (Story 22.6, open for Bruno): the reason line of the disabled verdicts.
       reprovadas.length > 0 ? `${plural(reprovadas.length, 'ficha reprovada', 'fichas reprovadas')} (${listPtBr(reprovadas)})` : null,
@@ -315,6 +316,18 @@ export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
     outReadings,
     openOut: sheets.filter(({ block, definition, visit }) => openOut(block, definition, visit, ctx)).map(({ name }) => name),
   };
+}
+
+/**
+ * Fix batch e27a-review (R4): the names of the effectively Reprovado sheets that are not open with a reading
+ * out of criterion, in tree order, the two sets told apart by block id (a name can repeat: an untagged ficha
+ * is named by its type's label).
+ */
+function reprovadasApart(snapshot: RelatorioSnapshot): string[] {
+  const ctx = snapshotDefinitionContext(snapshot);
+  return countedSheets(snapshot)
+    .filter(({ block, definition, visit }) => reprovado(block, definition, visit) && !openOut(block, definition, visit, ctx))
+    .map(({ name }) => name);
 }
 
 // --- the composed summary -------------------------------------------------------------------
@@ -594,7 +607,19 @@ export function parecerTextState(parecer: RelatorioParecer | null, composed: Pic
  */
 export function parecerTextForPrint(snapshot: RelatorioSnapshot): string {
   // Story 27.3: the print names open fichas apart only where the relatório's seed turns `parecer_open_apart` on.
-  return composeParecer(snapshot, { print: true }).text;
+  return printedParecer(snapshot).text;
+}
+
+/**
+ * Fix batch e27a-review (R1): the summary as section 10 prints it, with its Critérios items, for
+ * every screen text that says it is what prints (Etapa 6's summary field, under "impresso na caixa
+ * de parecer", and the box "Como imprime"). It is composed exactly as the print composes it for the
+ * relatório's seed: on a seed that does not turn `parecer_open_apart` on, an open ficha with a reading
+ * out of criterion reads among the reprovadas here as on paper. The split stays in the lines that do
+ * not claim to print: the reason line, the replaced-choice line and the Sumário's row 10.
+ */
+export function printedParecer(snapshot: RelatorioSnapshot): ComposedParecer {
+  return composeParecer(snapshot, { print: true });
 }
 
 /**

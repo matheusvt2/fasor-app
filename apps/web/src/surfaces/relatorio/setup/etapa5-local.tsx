@@ -1,4 +1,4 @@
-import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, outOfRangeText, relatorioSetupPath, SITE_ALTITUDE_RANGE_M, siteAltitudeText, textCapOf, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, NOT_APPLICABLE_TEXT, relatorioSetupPath, SITE_ALTITUDE_RANGE_M, siteAltitudeRefusal, siteAltitudeText, textCapOf, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Button, CharCount, DateField, NotApplicableButton, TextButton } from '../../../components/index.ts';
 import { useNumberInput, type ParsedNumber } from '../../../components/number-input.tsx';
@@ -221,10 +221,9 @@ export function parseAltitude(text: string, badInput: boolean): ParsedNumber | n
   if (badInput) return 'invalid';
   const trimmed = text.trim();
   if (trimmed === '') return null;
-  const value = Number(trimmed);
-  if (!Number.isFinite(value)) return 'invalid';
-  const whole = Math.round(value);
-  if (whole < SITE_ALTITUDE_RANGE_M.min || whole > SITE_ALTITUDE_RANGE_M.max) return 'invalid';
+  if (!Number.isFinite(Number(trimmed))) return 'invalid';
+  // Fix batch e27a-review (R7): the range is the kernel's rule (`siteAltitudeRefusal`, the push route's own).
+  if (siteAltitudeRefusal(trimmed) !== null) return 'invalid';
   return { raw: trimmed, unit: null };
 }
 
@@ -276,7 +275,7 @@ function AltitudeInput({
     flushOnUnmount: true,
     // Story 18.4: the altitude's parse is this surface's own (whole metres of a browser number): no number,
     // or (Story 20.9) a number outside the kernel's range.
-    onRefuse: (text) => trackInputRefused('setup.altitude', Number.isFinite(Number(text.trim())) && text.trim() !== '' ? 'out_of_range' : 'not_a_number'),
+    onRefuse: (text) => trackInputRefused('setup.altitude', siteAltitudeRefusal(text) !== null ? 'out_of_range' : 'not_a_number'),
   });
   const { ref: hookRef, onChange, ...inputProps } = altitude.inputProps;
 
@@ -295,8 +294,10 @@ function AltitudeInput({
   const shownAltitude = parsed === null || parsed === 'invalid' ? null : metres(parsed);
   const suggested = reading !== null && altitude.text === reading;
   const showsHint = deviceGaveNone && stored === null && altitude.text.trim() === '';
-  // Story 27.2 (F6): a number outside -500 to 9000 m is refused (nothing is written) and says the range.
-  const outOfRange = altitude.invalid && altitude.text.trim() !== '' && Number.isFinite(Number(altitude.text.trim()));
+  // Story 27.2 (F6): a number outside -500 to 9000 m is refused (nothing is written) and says the range; fix batch
+  // e27a-review (R7): the refusal and its words are the kernel's (`siteAltitudeRefusal`).
+  const rangeRefusal = altitude.invalid ? siteAltitudeRefusal(altitude.text) : null;
+  const outOfRange = rangeRefusal !== null;
 
   return (
     <div className="field suggestion-field altitude-field span-2" data-state={suggested ? 'suggested' : undefined}>
@@ -369,7 +370,7 @@ function AltitudeInput({
       ) : null}
       {outOfRange ? (
         <span className="helper" data-tone="red" id={rangeId}>
-          {outOfRangeText(SITE_ALTITUDE_RANGE_M, 'm')}
+          {rangeRefusal}
         </span>
       ) : null}
       {suggested ? <span className="suggested-pill">{t.altitudeSuggestedPill}</span> : null}

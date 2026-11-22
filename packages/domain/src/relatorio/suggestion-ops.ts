@@ -5,8 +5,9 @@ import type { JsonValue, SuggestionRow } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { dateFieldText } from '../format/datetime.ts';
 import { plural } from '../text/plural.ts';
+import { numberValueRefusal } from '../checks/value-remarks.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
-import { fieldInputText, valueText } from './suggestion-group.ts';
+import { fieldInputText, parseFieldInput, valueText } from './suggestion-group.ts';
 import { numberShape } from './suggestion-rows.ts';
 
 /*
@@ -17,22 +18,54 @@ import { numberShape } from './suggestion-rows.ts';
 // --- the ops ---------------------------------------------------------------------------------
 
 /**
+ * Fix batch e27a-review (R2): why a suggestion cannot be confirmed, or null: the value it would put
+ * is refused at its target by the range the push route takes (`numberValueRefusal`: a thermo-hygrometer
+ * humidity outside 0 to 100 %, "Fora da faixa: 0 a 100 %"). `value` stands for the suggestion's own, as
+ * `confirmSuggestionOps` takes it.
+ */
+export function suggestionConfirmRefusal(s: Pick<SuggestionRow, 'target_path' | 'value'>, value?: JsonValue): string | null {
+  return numberValueRefusal(s.target_path, value === undefined ? s.value : value);
+}
+
+/**
  * Confirmar (and "Substituir", and the device's auto-confirm with `auto`): the status put
  * and the target put carrying `meta.source_suggestion_id`, one batch. `value` replaces the
  * suggestion's value in the put: the auto-confirm writes the engineer's own cell value back
  * (only its provenance changes), never the reading's spelling of it.
+ *
+ * Fix batch e27a-review (R2): no op at all (an empty batch, which writes nothing) while the value
+ * is refused (`suggestionConfirmRefusal`), so the suggestion never ends "confirmed" with no value and
+ * nothing is queued the server refuses; the suggestion stays pending.
  */
 export function confirmSuggestionOps(
   author: Author,
   s: Pick<SuggestionRow, 'id' | 'relatorio_id' | 'target_path' | 'value'>,
   opts: { auto?: boolean; value?: JsonValue } = {},
 ): OpDraft[] {
+  if (suggestionConfirmRefusal(s, opts.value) !== null) return [];
   const envelope = relatorioOpEnvelope(author, s.relatorio_id);
   const auto = opts.auto === true ? { auto: true } : {};
   return [
     { ...envelope, meta: opts.auto === true ? { auto: true } : null, kind: 'put', path: suggestionStatusPath(s.id), value: 'confirmed' },
     { ...envelope, meta: { source_suggestion_id: s.id, ...auto }, kind: 'put', path: s.target_path, value: (opts.value === undefined ? s.value : opts.value) as JsonValue },
   ];
+}
+
+/**
+ * Fix batch e27a-review (R2): a correction typed over a suggestion, read as the field reads it
+ * (`parseFieldInput`) and judged by its target's range (`numberValueRefusal`): the value to put
+ * (null for an emptied field), or a refusal with its message (null for a text that is no value of
+ * the field, which takes the field's own message).
+ */
+export function suggestionCorrection(
+  field: Parameters<typeof parseFieldInput>[0],
+  text: string,
+  targetPath: string,
+): { ok: true; value: JsonValue | null } | { ok: false; refusal: string | null } {
+  const parsed = parseFieldInput(field, text);
+  if (!parsed.ok) return { ok: false, refusal: null };
+  const refusal = numberValueRefusal(targetPath, parsed.value, field.unit ?? null);
+  return refusal === null ? parsed : { ok: false, refusal };
 }
 
 /** Typing into a suggested field: this suggestion alone is discarded (the typed value op is the caller's). */

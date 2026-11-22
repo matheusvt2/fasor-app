@@ -1,5 +1,4 @@
 import {
-  composeParecer,
   effectiveParecer,
   PARECER_VERDICTS,
   parecerBoxText,
@@ -12,6 +11,7 @@ import {
   parecerVerdictLabel,
   parecerWithoutOwnText,
   parecerWithVerdict,
+  printedParecer,
   sectionRefText,
   sectionsCaption,
   type ParecerVerdict,
@@ -68,7 +68,9 @@ export function Etapa6Parecer({
   const verdict = useMemo(() => effectiveParecer(snapshot), [snapshot]);
   // Story 27.3 (F7): when the chosen verdict was replaced by a stricter one, that one line stands for the reason line.
   const reason = useMemo(() => parecerReplacedText(snapshot) ?? parecerReasonText(snapshot), [snapshot]);
-  const composed = useMemo(() => composeParecer(snapshot), [snapshot]);
+  // Fix batch e27a-review (R1): the field says it is what section 10 prints, so it is composed as the print composes it
+  // for this relatório's seed; the split of the open fichas stays in the reason line above.
+  const composed = useMemo(() => printedParecer(snapshot), [snapshot]);
   const ownText = parecerOwnText(snapshot);
   // p020 P-1b: a relatório without section 10 says the parecer does not print (the kernel's texts).
   const absent = useMemo(() => parecerAbsentTexts(snapshot), [snapshot]);

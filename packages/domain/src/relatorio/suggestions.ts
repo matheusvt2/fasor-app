@@ -51,6 +51,8 @@ export {
 } from './suggestion-group.ts';
 export {
   confirmSuggestionOps,
+  suggestionConfirmRefusal,
+  suggestionCorrection,
   discardSuggestionOp,
   suggestionValueText,
   confirmarTodosText,

@@ -1,3 +1,5 @@
+import { numberValueRefusal } from '../checks/value-remarks.ts';
+import { locationEnvPath } from '../ops/path.ts';
 import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, getSeed, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
@@ -24,6 +26,7 @@ import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
 import { isMediumItem } from './oil-rule.ts';
 import { isReadingValue } from './over-range.ts';
+import { screenLabel } from './screen-label.ts';
 import { checklistResultIsStored, checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
 import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
@@ -94,6 +97,44 @@ export function previousCabineEnv(
   if (temperature_c.state === 'empty' || humidity_pct.state === 'empty') return null;
   if (isNotApplicableNumber(temperature_c) || isNotApplicableNumber(humidity_pct)) return null;
   return { cabineId: previous.id, name: previous.name, temperature_c, humidity_pct };
+}
+
+/** The two values "Copiar do local anterior" writes. */
+export type CabineEnvCopyKey = 'temperature_c' | 'humidity_pct';
+
+export interface CabineEnvCopy {
+  /** The values to put on the cabine, in this order; a refused one is left out. */
+  values: { key: CabineEnvCopyKey; value: NonNullable<Extract<LocationRow, { kind: 'cabine' }>['env']['humidity_pct']> }[];
+  /** The sentence the copy adds when it left a value out, or null: "Umidade relativa do ar não copiada: Fora da faixa: 0 a 100 %". */
+  skippedText: string | null;
+}
+
+/**
+ * Fix batch e27a-review (R2): what "Copiar do local anterior" writes on `cabineId` from `previous`
+ * (`previousCabineEnv`). Each value is judged by the range its path takes (`numberValueRefusal`, the typed
+ * field's and the push route's rule), so a value stored on the previous cabine before the range (a humidity
+ * of 150 %) is skipped, never queued for the server to refuse, and the copy says so in one sentence.
+ */
+export function cabineEnvCopy(
+  previous: NonNullable<ReturnType<typeof previousCabineEnv>>,
+  cabineId: string,
+  seedVersion: string,
+): CabineEnvCopy {
+  const keys: readonly CabineEnvCopyKey[] = ['temperature_c', 'humidity_pct'];
+  const fields = getSeed(seedVersion, 'cabine_primaria').cabine.env;
+  const values: CabineEnvCopy['values'] = [];
+  const skipped: string[] = [];
+  for (const key of keys) {
+    const value = previous[key];
+    const refusal = numberValueRefusal(locationEnvPath(cabineId, key), value);
+    if (refusal === null) values.push({ key, value });
+    else {
+      const label = screenLabel(fields.find((field) => field.key === key)?.label ?? key);
+      // authored (Story 27.2, listed for Bruno): a value "Copiar do local anterior" left out, with the refusal of its range.
+      skipped.push(`${label} não copiada: ${refusal}`);
+    }
+  }
+  return { values, skippedText: skipped.length === 0 ? null : skipped.join('. ') };
 }
 
 // --- humidity and the quick notes --------------------------------------------------------

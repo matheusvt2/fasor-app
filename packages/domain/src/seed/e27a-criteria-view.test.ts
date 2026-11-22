@@ -3,7 +3,7 @@ import { rowCriterion } from '../relatorio/reading-evaluation.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { criteriaTablesView, seededCriterionAppliesText } from './criteria-view.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
-import { getDefinition, SEED_VERSION } from './definitions.ts';
+import { getDefinition, getSeed, SEED_VERSION } from './definitions.ts';
 
 /*
  * 27.6-UNIT (batch e27a, Story 27.6, F10 of the 2026-11-21 pass): the rows Cadastros › Critérios lists beside
@@ -46,10 +46,28 @@ describe('27.6-UNIT criteriaTablesView', () => {
   });
 
   it('each seeded criterion says when it applies', () => {
+    // Fix batch e27a-review (R6): the equipment the insulation criterion always judges is the seed's (the types whose
+    // insulation test reads no table), and the manufacturer's value typed on the ficha is said to come first.
     expect(SEEDED_CRITERIA.map((criterion) => seededCriterionAppliesText(criterion))).toEqual([
-      'Vale quando a placa não informa a tensão nominal, nos cabos e nos relatórios anteriores às tabelas ANSI/NETA.',
-      'Vale em toda ficha com este ensaio.',
-      'Vale em toda ficha com este ensaio.',
+      'Vale sempre em Cabos de entrada, Cabos de saída e Quadro elétrico (QGBT/QD); nos demais, quando a placa não informa a tensão nominal ou o tipo de isolação que a tabela pede; e nos relatórios anteriores às tabelas ANSI/NETA. Quando a ficha traz o valor do fabricante, ele vale antes.',
+      'Vale em toda ficha com este ensaio. Quando a ficha traz o valor do fabricante, ele vale antes.',
+      'Vale em toda ficha com este ensaio. Quando a ficha traz o valor do fabricante, ele vale antes.',
     ]);
+  });
+
+  it('e27a-review R6: the scope is read from the seed, and the manufacturer\'s value judges before the seeded criterion and a table row', () => {
+    const definitions = Object.values(getSeed(SEED_VERSION, 'cabine_primaria').blocks).filter((definition): definition is NonNullable<typeof definition> => definition !== undefined);
+    const untabled = definitions.filter((definition) => definition.tests.some((test) => test.key === 'isolacao' && test.criterion_table === undefined)).map((definition) => definition.label);
+    expect(untabled.length).toBeGreaterThan(0);
+    for (const label of untabled) expect(seededCriterionAppliesText({ key: 'isolacao' })).toContain(label);
+    for (const view of criteriaTablesView()) expect(view.appliesText).toMatch(/ Quando a ficha traz o valor do fabricante, ele vale antes\.$/);
+    // The sentence is true: a manufacturer's value on a 15 kV disjuntor judges the row the table would have judged.
+    const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'disjuntor_mt');
+    const test = definition.tests.find((candidate) => candidate.criterion_table !== undefined)!;
+    const field = test.criterion_table!.voltage === 'winding' ? null : test.criterion_table!.voltage.field;
+    const block = {
+      sheet: { nameplate: { [field!]: { value: '15', source_suggestion_id: null, op_id: 'x' } }, checklist: {}, test: { [test.key]: { cells: {}, criterion_override: { value: { raw: '2000', unit: 'MΩ' }, source_suggestion_id: null, op_id: 'y' } } } },
+    } as unknown as BlockRow;
+    expect(rowCriterion(block, definition, test, 0).kind).toBe('manufacturer');
   });
 });

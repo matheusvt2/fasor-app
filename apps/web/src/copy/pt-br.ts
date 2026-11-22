@@ -1564,6 +1564,8 @@ export const copy = {
       copyPrevious: 'Copiar do local anterior',
       // "Copiado de ⟨cabine⟩ — Desfazer" (Story 5.2 AC 3); "Desfazer" is the toast action.
       copiedFrom: (name: string) => `Copiado de ${name}`,
+      // authored (Story 27.2, listed for Bruno): the same toast when the copy left a value out; `skipped` is the kernel's sentence (`cabineEnvCopy`).
+      copiedFromSkipping: (name: string, skipped: string) => `Copiado de ${name}. ${skipped}`,
       // authored: the select's empty option.
       selectEmpty: 'Selecione',
       // authored: a number the field cannot read (kept typed, not committed).

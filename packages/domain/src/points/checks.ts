@@ -86,6 +86,18 @@ export function pointMissingFields(point: Pick<PointRow, 'action' | 'deadline' |
   return missing;
 }
 
+const POINT_FIELDS: readonly PointMissingField[] = ['acao', 'prazo', 'prioridade', 'responsavel'];
+
+/**
+ * Fix batch e27a-review (R7): the action-plan fields a point's card lists, in order: every one the point does
+ * not lack (`pointMissingFields`); empty when the card lists none, and then it draws no list. A point written
+ * from an untested sheet is never asked for an action, so its "Ação" row stays (with a dash) whatever it lacks.
+ */
+export function pointCardFields(point: Pick<PointRow, 'action' | 'deadline' | 'priority' | 'owner' | 'origin'>): PointMissingField[] {
+  const missing = new Set(pointMissingFields(point));
+  return POINT_FIELDS.filter((field) => !missing.has(field));
+}
+
 // authored (Story 27.4, listed for Bruno): the words of the "Falta:" line.
 const MISSING_WORDS: Readonly<Record<PointMissingField, string>> = { acao: 'ação', prazo: 'prazo', prioridade: 'prioridade', responsavel: 'responsável' };
 
