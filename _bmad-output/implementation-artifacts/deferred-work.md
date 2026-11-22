@@ -4241,3 +4241,29 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/api/src/sync/e27a-company-and-limits.integration.test.ts` (27.1-API-002); `apps/api/src/sync/rules.ts` `holdsOtherEmpresa`; `packages/domain/src/registry/empresa.ts` `pickEmpresa`.
   class: gap
   state: open (owner: Matheus, the production count; the coordinator, the local cleanup)
+
+## Deferred from: Epic 26 batch e26d, Stories 26.9, 26.11 and 26.6 web (2026-11-22)
+
+- source_spec: Story 26.11 (the device learns the cause) and Story 26.8 (pause ends the sessions)
+  summary: `POST /api/admin/users/:id/pause` and `remove` delete the user's session rows (`endAccess` in `apps/api/src/admin/users.ts`, asserted by `admin-users.integration.test.ts`). The device's next request therefore carries no session and answers `401 unauthenticated`, not `401 user_inactive`, so a real pause through the route never shows the paused banner or the paused "Sair" dialog; only a user whose session survives (a status put written beside the session, as `e2e/paused-user-unsent.durability.spec.ts` does) reads `user_inactive`. The device logic is built and tested for the code; the route does not produce it. Fixes to decide: keep a paused or removed user's sessions (every route already answers `user_inactive` through `requireSession`, so they are inert) and edit the e26c assertion, or keep a record of the ended sessions the 401 can name, or let a failed re-sign-in set the cause.
+  evidence: `apps/api/src/admin/users.ts` (`endAccess`); `apps/api/src/http/session.ts` (`requireSession`); `e2e/paused-user-unsent.durability.spec.ts` (`setStatus`).
+  class: defect
+  state: open (owner: the coordinator and Matheus, before the Epic 26 deploy)
+
+- source_spec: Story 26.11 (out of scope)
+  summary: An Admin view of what a device holds unsent (the server cannot know it) and exporting the unsent work of a paused user to a file are not built.
+  evidence: Story 26.11 "Out of scope".
+  class: gap
+  state: open (owner: Matheus, when someone asks)
+
+- source_spec: Story 26.6 web half (frames 13 and 14)
+  summary: The set-password page does not say the invitee's name, e-mail or the link's expiry ("Olá, Fernanda", the read-only e-mail, "vale até 23/11 10:30"): the link route gives no lookup of the token, so the page cannot know them. A used link is known only when "Salvar senha" is pressed. A read-only `GET` that names the user and the expiry of a token would let the page show them.
+  evidence: `apps/web/src/surfaces/login/set-password-surface.tsx`.
+  class: gap
+  state: open (owner: Matheus, a small api route if wanted)
+
+- source_spec: Story 26.9
+  summary: The "Papéis e permissões" tab links to `/usuarios/papeis`, which batch e26e builds; until it merges the link lands on Home. `UsersTabs` (`surfaces/users/users-tabs.tsx`) is e26d's component; e26e should reuse it.
+  evidence: `apps/web/src/surfaces/users/users-tabs.tsx`.
+  class: gap
+  state: open (owner: batch e26e)
