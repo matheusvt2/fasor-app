@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { axe } from '../../test-axe.ts';
 import { describe, expect, it, vi } from 'vitest';
 import { requestSyncCycle, SyncContext, type SyncState } from '../../state/sync.tsx';
@@ -51,6 +52,30 @@ describe('Sync status surface: server unreachable or session expired (retro U5)'
   it('names an expired session', () => {
     renderWith(state({ badgeState: 'offline', unreachable: 'session' }));
     expect(screen.getByTestId('sync-unreachable')).toHaveTextContent('Sua sessão expirou. Entre de novo para enviar.');
+  });
+
+  it('e26s-UNIT a paused account says the paused sentence, not the expired one, and offers no Login', () => {
+    renderWith(state({ badgeState: 'pending', unreachable: 'paused', counts: { pending: 5 } }));
+    expect(screen.getByTestId('sync-unreachable')).toHaveTextContent(
+      'Conta pausada. O que você preencher fica salvo neste aparelho e é enviado quando o administrador reativar a sua conta.',
+    );
+    expect(screen.getByTestId('sync-unreachable')).not.toHaveTextContent('Sua sessão expirou');
+    expect(screen.queryByRole('button', { name: 'Entrar de novo' })).toBeNull();
+  });
+
+  it('e26s-UNIT an expired session offers "Entrar de novo", which opens Login', async () => {
+    render(
+      <MemoryRouter initialEntries={['/sync']}>
+        <SyncContext value={state({ badgeState: 'offline', unreachable: 'session' })}>
+          <Routes>
+            <Route path="/sync" element={<SyncStatusSurface />} />
+            <Route path="/login" element={<p>login page</p>} />
+          </Routes>
+        </SyncContext>
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar de novo' }));
+    expect(screen.getByText('login page')).toBeInTheDocument();
   });
 
   it('says nothing more when the server answered', () => {

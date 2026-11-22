@@ -25,6 +25,7 @@ import { Button, ConfirmDialog, FilterChipGroup, LoadingNote } from '../../compo
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useSession } from '../../state/session.tsx';
+import { useCompanyPull } from '../../state/sync-actions.ts';
 import { useToast } from '../../state/toast.tsx';
 import { UsersTabs } from '../users/users-tabs.tsx';
 import { LockIcon, PapeisGrid } from './papeis-grid.tsx';
@@ -73,6 +74,9 @@ function nameIssue(details: unknown): RoleNameIssue {
 export function PapeisSurface() {
   const { online } = useSession();
   const { showToast } = useToast();
+  // e26s (2026-11-22): every write the server accepts here changes a server-only `role/*` row, so one
+  // company pull brings it to this device at once ("Novo usuário" lists a new role with no 60 s wait).
+  const pullCompany = useCompanyPull();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [draft, setDraft] = useState<Record<string, PermissionKey[]>>({});
   const [openModules, setOpenModules] = useState<ReadonlySet<PermissionModule>>(() => new Set());
@@ -132,6 +136,7 @@ export function PapeisSurface() {
     const answer = await saveRolePermissions(body);
     setBusy(false);
     if (!settle(answer)) return;
+    pullCompany();
     setDraft({});
     setSaved(true);
     showToast(t.savedToast);
@@ -167,6 +172,7 @@ export function PapeisSurface() {
     const before = new Set(roles.map((role) => role.id));
     const answer = await createRole(name);
     if (!answer.ok) return nameRefusal(answer);
+    pullCompany();
     setLoad({ status: 'ready', roles: answer.roles });
     setSaved(false);
     // The new column is the one a phone shows next.
@@ -179,6 +185,7 @@ export function PapeisSurface() {
   async function submitRename(role: AdminRoleView, name: string): Promise<RoleNameSubmitResult> {
     const answer = await renameRole(role.id, name);
     if (!answer.ok) return nameRefusal(answer);
+    pullCompany();
     setLoad({ status: 'ready', roles: answer.roles });
     setDialog(null);
     showToast(t.renamedToast);
@@ -193,6 +200,7 @@ export function PapeisSurface() {
       return;
     }
     if (!settle(answer)) return;
+    pullCompany();
     setSaved(false);
     showToast(t.removedToast);
   }

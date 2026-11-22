@@ -18,6 +18,7 @@ import {
   type AdminUserCreateRequest,
   type AdminUserEditRequest,
   type AdminUserEmailOutcome,
+  type AdminUserReactivateRequest,
   type AdminUserEvent,
   type AdminUserView,
   type Clock,
@@ -384,22 +385,38 @@ export function createAdminUsersService(deps: AdminUsersDeps) {
    * `startAccess` for reactivate, which also needs the user's role to be live (2026-11-22, e26r:
    * the same `role_not_found` as create and edit, so the Admin picks a role first).
    */
-  async function setStatus(actor: AdminActor, userId: string, action: 'pause' | 'reactivate' | 'remove', to: UserStatus, from: readonly UserStatus[]): Promise<{ user: AdminUserView }> {
+  async function setStatus(
+    actor: AdminActor,
+    userId: string,
+    action: 'pause' | 'reactivate' | 'remove',
+    to: UserStatus,
+    from: readonly UserStatus[],
+    newRoleId?: string,
+  ): Promise<{ user: AdminUserView }> {
     await run(actor.companyId, (state) => {
       const target = targetOf(state, userId);
       if (!from.includes(target.status)) throw stateInvalid(target.status);
+      const ops: Plan['ops'] = [];
       if (to === 'active') {
-        const roleId = target.kernel?.role_id;
-        if (typeof roleId !== 'string') throw new AdminUserError('role_not_found', 404);
-        liveRole(state, roleId);
+        // 2026-11-22, e26s: a reactivation may carry a role, so a user whose role is gone comes back with
+        // another one in the same transaction (the role op first, then the status).
+        const current = target.kernel?.role_id;
+        const wanted = newRoleId ?? current;
+        if (typeof wanted !== 'string') throw new AdminUserError('role_not_found', 404);
+        const role = liveRole(state, wanted);
+        if (newRoleId !== undefined) {
+          refuseLastAdmin(state, { user_id: userId, status: to, role });
+          if (newRoleId !== current) ops.push({ kind: 'put', path: userRolePath(userId), value: role.id, actor: 'admin' });
+        }
       } else refuseLastAdmin(state, { user_id: userId, status: to });
+      ops.push({ kind: 'put', path: userStatusPath(userId), value: to, actor: 'admin' });
       return {
-        ops: [{ kind: 'put', path: userStatusPath(userId), value: to, actor: 'admin' }],
+        ops,
         signature: target.status,
         write: to === 'active' ? startAccess(actor.companyId, userId) : endAccess(userId),
       };
     });
-    emit(action, actor, userId);
+    emit(action, actor, userId, newRoleId);
     return { user: await view(actor.companyId, userId) };
   }
 
@@ -441,7 +458,7 @@ export function createAdminUsersService(deps: AdminUsersDeps) {
     createUser,
     editUser,
     pauseUser: (actor: AdminActor, userId: string) => setStatus(actor, userId, 'pause', 'paused', ['active']),
-    reactivateUser: (actor: AdminActor, userId: string) => setStatus(actor, userId, 'reactivate', 'active', ['paused', 'removed']),
+    reactivateUser: (actor: AdminActor, userId: string, body: AdminUserReactivateRequest = {}) => setStatus(actor, userId, 'reactivate', 'active', ['paused', 'removed'], body.role_id),
     removeUser: (actor: AdminActor, userId: string) => setStatus(actor, userId, 'remove', 'removed', ['active', 'invited', 'paused']),
     resendInvitation,
     sendPasswordReset,

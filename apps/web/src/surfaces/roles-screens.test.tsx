@@ -277,6 +277,39 @@ describe('e26r-UNIT-003 an issued relatório for a role that does not issue (202
   });
 });
 
+describe('e26s-UNIT the Sumário\'s "Adicionar local" follows the fill access (F2-4)', () => {
+  /** Opens section 9 (the tree and its foot draw only while it is open) and answers its container. */
+  async function openSection9(as: RoleRow, status: RelatorioStatus | null = null): Promise<HTMLElement> {
+    const { container } = renderAt(`/relatorio/${RELATORIO}`, '/relatorio/:id', <SumarioSurface />, as, status);
+    const chevron = await screen.findByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
+    if (chevron.getAttribute('aria-expanded') !== 'true') fireEvent.click(chevron);
+    await waitFor(() => expect(container.querySelector('.s9-tree')).not.toBeNull());
+    return container;
+  }
+
+  it('the Admin and the Engenheiro de Campo get it; the Consulta does not, and nothing enters the outbox', async () => {
+    ({ db: database } = await fixtureDb());
+    for (const system of ['admin', 'engenheiro_de_campo'] as const) {
+      await openSection9(role(system));
+      expect(screen.getByRole('button', { name: 'Adicionar local' })).toBeInTheDocument();
+      cleanup();
+    }
+    const container = await openSection9(role('consulta'));
+    expect(container.querySelector('.s9-foot')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adicionar local' })).toBeNull();
+    expect(await database!.outbox.count()).toBe(0);
+  });
+
+  it('on an Emitido relatório the Engenheiro de Campo does not get it; the Responsável Técnico does', async () => {
+    ({ db: database } = await fixtureDb());
+    const container = await openSection9(role('engenheiro_de_campo'), 'emitido');
+    expect(container.querySelector('.s9-foot')).toBeNull();
+    cleanup();
+    await openSection9(role('responsavel_tecnico'), 'emitido');
+    expect(screen.getByRole('button', { name: 'Adicionar local' })).toBeInTheDocument();
+  });
+});
+
 describe('e26r-UNIT-004 the issued files for a role that downloads and does not issue (2026-11-22, Matheus "sim nos dois")', () => {
   const REVISION = '019966c1-0268-7000-8000-000000000001';
 

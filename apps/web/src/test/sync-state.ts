@@ -41,6 +41,7 @@ export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
     userNames: {},
     summaryRelatorios: [],
     syncNow: vi.fn(async () => 'ran' as const),
+    pullCompany: vi.fn(async () => 'ran' as const),
     syncRelatorio: vi.fn(async () => 'ran' as const),
     syncProject: vi.fn(async () => 'ran' as const),
     resendDead: vi.fn(async () => {}),

@@ -59,14 +59,21 @@ export type SignInResult =
   | { ok: true; user: UserProfile; features: AccountResponse['features'] }
   | { ok: false; reason: SignInFailure; message: string };
 
-async function readAccount(): Promise<AccountResponse | null> {
+/**
+ * e26s (2026-11-22): the account read's answers. The profile; `null` for a `401` that ends the
+ * session (no cookie, an ended or deleted session: `unauthenticated`); `'inactive'` for the `401
+ * user_inactive` of a paused or removed account, whose session the server keeps. Unreachable throws.
+ */
+export type AccountRead = AccountResponse | null | 'inactive';
+
+async function readAccount(): Promise<AccountRead> {
   const route = ACCOUNT_ROUTES.read;
   const response = await fetch(route.path, {
     method: route.method,
     credentials: 'same-origin',
     headers: { accept: 'application/json' },
   });
-  if (response.status === 401) return null;
+  if (response.status === 401) return (await bodyCode(response)) === USER_INACTIVE_CODE ? 'inactive' : null;
   if (!response.ok) throw new Error(`${route.method} ${route.path} failed with ${response.status}`);
   return accountResponseSchema.parse(await response.json());
 }
@@ -75,9 +82,11 @@ async function readAccount(): Promise<AccountResponse | null> {
  * Boot read. A 401 here only means "no session yet", so it raises no banner: the router
  * sends the visitor to Login instead. A thrown error means the server was unreachable,
  * which the caller tells apart from a 401. Story 11.8 follow-up: the server's feature flags
- * travel beside the profile.
+ * travel beside the profile. e26s: `'inactive'` is a paused or removed account, whose session the
+ * server keeps: the boot shows the paused state, and a paused device asks it again to learn when the
+ * Admin reactivated it (the answer turns to `null`) or removed and ended it.
  */
-export function readSession(): Promise<AccountResponse | null> {
+export function readSession(): Promise<AccountRead> {
   return readAccount();
 }
 
@@ -152,6 +161,7 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   try {
     const account = await readAccount();
     if (account === null) return credentialsRejected;
+    if (account === 'inactive') return accountInactive;
     return { ok: true, user: account.user, features: account.features };
   } catch {
     return unreachable();

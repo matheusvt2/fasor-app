@@ -1,5 +1,6 @@
 import { formatShortDateTime, opRejectReasonText, rejectedText, syncStatusWord } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
+import { useInRouterContext, useNavigate } from 'react-router';
 import { Button, LoadingNote, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { requestSyncCycle, useSync } from '../../state/sync.tsx';
@@ -21,6 +22,8 @@ const NO_UPLOADS = { rows: NO_ROWS, more: 0 };
  */
 export function SyncStatusSurface() {
   const sync = useSync();
+  // e26s: the way to Login needs the router; a surface rendered alone (a unit test) has none.
+  const routed = useInRouterContext();
   const titleId = useId();
   const [resending, setResending] = useState(false);
   // Story 25.3: opening Sync status asks for a cycle (online only, coalesced with one in flight),
@@ -109,12 +112,26 @@ export function SyncStatusSurface() {
             </div>
           ) : null}
 
-          {late ? null : <div className="sync-actions">{syncNowButton}</div>}
+          {/* e26s (2026-11-22): an ended session offers the way to Login beside "Sincronizar agora", the shell
+              banner's own "Entrar de novo" (outside the cause line, which keeps its one sentence). */}
+          {late ? null : (
+            <div className="sync-actions">
+              {syncNowButton}
+              {sync.online && sync.unreachable === 'session' && routed ? <ReAuthAction /> : null}
+            </div>
+          )}
 
-          {/* The badge reads "Sem conexão" for both causes (kernel); this line names the real one. Story 14.10 lane B: "Tentando de novo" has its own line. */}
+          {/* The badge reads "Sem conexão" for both causes (kernel); this line names the real one. Story 14.10 lane B: "Tentando de novo" has its own line.
+              e26s (2026-11-22): a paused account says the paused banner's sentence (the badge reads what waits, frame 94). */}
           {sync.online && sync.unreachable !== null ? (
             <p className="section-note sync-cause" data-testid="sync-unreachable">
-              {sync.unreachable === 'session' ? copy.sync.sessionExpired : sync.serverAnswers === true ? copy.sync.serverRetrying : copy.sync.serverUnreachable}
+              {sync.unreachable === 'paused'
+                ? copy.pausedAccount.bannerText
+                : sync.unreachable === 'session'
+                  ? copy.sync.sessionExpired
+                  : sync.serverAnswers === true
+                    ? copy.sync.serverRetrying
+                    : copy.sync.serverUnreachable}
             </p>
           ) : null}
 
@@ -173,4 +190,10 @@ export function SyncStatusSurface() {
       </div>
     </main>
   );
+}
+
+/** e26s: "Entrar de novo", the shell's re-auth action (`app-shell.tsx`), beside the expired-session line. */
+function ReAuthAction() {
+  const navigate = useNavigate();
+  return <TextButton onPress={() => void navigate('/login')}>{copy.banner.reAuthAction}</TextButton>;
 }

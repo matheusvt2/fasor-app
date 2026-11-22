@@ -427,6 +427,100 @@ describe('26.8-API-002 the last Admin and a paused user', () => {
   });
 });
 
+describe('e26s-API-001 the reactivation that carries a role (2026-11-22)', () => {
+  const companyId = h.company();
+  const otherId = h.company();
+  let adminCookie = '';
+  let otherCookie = '';
+  let estagiarioId = '';
+  let otherRoleId = '';
+  const reactivate = (id: string, body: unknown, cookie: string) => h.json(adminUserRoutePath('reactivate', id), body, { cookie });
+  const sessionsOf = async (userId: string) => (await db.select({ id: session.id }).from(session).where(eq(session.userId, userId))).length;
+
+  /** A user of the company holding the custom role, then removed (the role goes under him in the test). */
+  async function strand(name: string): Promise<Person> {
+    const person = await h.seedPerson(companyId, 'consulta', name);
+    await ok(await edit(person.userId, { role_id: estagiarioId }, adminCookie));
+    await ok(await action('remove', person.userId, adminCookie));
+    return person;
+  }
+
+  beforeAll(async () => {
+    const admin = await h.seedPerson(companyId, 'admin', 'Ana Admin');
+    adminCookie = await h.signIn(admin.email);
+    const otherAdmin = await h.seedPerson(otherId, 'admin', 'Otto Outra');
+    otherCookie = await h.signIn(otherAdmin.email);
+    const made = await h.json(ADMIN_ROLE_ROUTES.create.path, { name: 'Estagiário' }, { cookie: adminCookie });
+    expect(made.status, await made.clone().text()).toBe(201);
+    estagiarioId = adminRoleListResponseSchema.parse(await made.json()).roles.find((role) => role.name === 'Estagiário')!.id;
+    const madeOther = await h.json(ADMIN_ROLE_ROUTES.create.path, { name: 'De outra empresa' }, { cookie: otherCookie });
+    expect(madeOther.status, await madeOther.clone().text()).toBe(201);
+    otherRoleId = adminRoleListResponseSchema.parse(await madeOther.json()).roles.find((role) => role.name === 'De outra empresa')!.id;
+  }, 60_000);
+
+  it('a removed user whose role was removed: refused without a role, with a removed role and with another company\'s role, nothing changes; with a live role he is reactivated and signs in', async () => {
+    const person = await strand('Eva Estagiária');
+    // The role can only go once nobody active holds it.
+    const gone = await h.json(adminRoleRoutePath('remove', estagiarioId), {}, { cookie: adminCookie });
+    expect(gone.status, await gone.clone().text()).toBe(200);
+
+    const before = await opCount(companyId, person.userId);
+    const eventsBefore = h.events.length;
+    const sessionsBefore = await sessionsOf(person.userId);
+    for (const body of [{}, { role_id: estagiarioId }, { role_id: otherRoleId }, { role_id: newId() }]) {
+      const refused = await reactivate(person.userId, body, adminCookie);
+      expect(refused.status).toBe(404);
+      expect(await codeOf(refused)).toBe('role_not_found');
+    }
+    expect((await h.kernelOf(person))?.status).toBe('removed');
+    expect((await h.kernelOf(person))?.role_id).toBe(estagiarioId);
+    expect(await opCount(companyId, person.userId)).toBe(before);
+    expect(h.events).toHaveLength(eventsBefore);
+    expect(await sessionsOf(person.userId)).toBe(sessionsBefore);
+
+    const bad = await reactivate(person.userId, { role_id: 'consulta' }, adminCookie);
+    expect(bad.status).toBe(400);
+    expect(await codeOf(bad)).toBe('invalid_request');
+
+    const done = await ok(await reactivate(person.userId, { role_id: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto }, adminCookie));
+    expect(done.user).toMatchObject({ id: person.userId, status: 'active', role: { id: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto, name: 'Gestor do Projeto' } });
+    expect(await h.kernelOf(person)).toMatchObject({ status: 'active', role_id: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto });
+    // One batch: the role op and the status op, both the Admin's, the role first.
+    expect(await opCount(companyId, person.userId)).toBe(before + 2);
+    expect((await opsAt(companyId, userRolePath(person.userId))).at(-1)).toMatchObject({ value: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto, actor: 'system:admin' });
+    expect((await opsAt(companyId, `user/${person.userId}/status`)).at(-1)).toMatchObject({ value: 'active', actor: 'system:admin' });
+    expect(h.events.at(-1)).toMatchObject({ action: 'reactivate', target_user_id: person.userId, role_id: SYSTEM_ROLE_ROW_IDS.gestor_do_projeto });
+    // The same password, and the new role is the one he holds.
+    const cookie = await h.signIn(person.email);
+    expect((await h.call('/api/account', { method: 'GET', cookie })).status).toBe(200);
+    expect((await h.call(ADMIN_USER_ROUTES.list.path, { method: 'GET', cookie })).status).toBe(403);
+  });
+
+  it('a paused user is reactivated with a live role too; the same role as his own writes only the status; the last-Admin and state rules hold', async () => {
+    const paused = await h.seedPerson(companyId, 'responsavel_tecnico', 'Rui Técnico');
+    await ok(await action('pause', paused.userId, adminCookie));
+    const before = await opCount(companyId, paused.userId);
+    const same = await ok(await reactivate(paused.userId, { role_id: SYSTEM_ROLE_ROW_IDS.responsavel_tecnico }, adminCookie));
+    expect(same.user).toMatchObject({ status: 'active', role: { name: 'Responsável Técnico' } });
+    expect(await opCount(companyId, paused.userId)).toBe(before + 1);
+
+    // An active user is not reactivated, with a role or without.
+    expect(await codeOf(await reactivate(paused.userId, { role_id: SYSTEM_ROLE_ROW_IDS.consulta }, adminCookie))).toBe('user_state_invalid');
+    expect((await h.kernelOf(paused))?.role_id).toBe(SYSTEM_ROLE_ROW_IDS.responsavel_tecnico);
+
+    // A paused Admin comes back as an Admin or as another role; the active Admin stays.
+    const second = await h.seedPerson(companyId, 'admin', 'Sara Segunda');
+    await ok(await action('pause', second.userId, adminCookie));
+    expect((await ok(await reactivate(second.userId, { role_id: SYSTEM_ROLE_ROW_IDS.consulta }, adminCookie))).user).toMatchObject({ status: 'active', role: { name: 'Consulta' } });
+
+    // Another company's user is not found, with a role or without (the tenant refusal).
+    const foreign = await h.seedPerson(otherId, 'consulta', 'Cora Consulta');
+    await h.putStatus(foreign, 'paused');
+    expect(await codeOf(await reactivate(foreign.userId, { role_id: SYSTEM_ROLE_ROW_IDS.consulta }, adminCookie))).toBe('user_not_found');
+    expect((await h.kernelOf(foreign))?.status).toBe('paused');
+  });
+});
+
 describe('26.8-API-003 roles, tenants, duplicates, the limit and history', () => {
   const companyId = h.company();
   const otherId = h.company();
