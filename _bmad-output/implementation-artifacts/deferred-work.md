@@ -4261,3 +4261,9 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/users/users-tabs.tsx`.
   class: gap
   state: open (owner: batch e26e)
+
+- source_spec: Story 26.5 (found by batch e26d's gate, 2026-11-22)
+  summary: `e2e/home.spec.ts` 1.6-E2E-003 (cold open with a session and no connection) fails whenever the whole file runs (4 of 5 pass) and passes alone with `--grep` (1 of 1). The page shows the shell and "Sem conexão" with an empty `main`: the reload follows the sign-in at once, the company pull has not brought the user's role row, and `permissionsStatus` answers `ready` with no key when the device is offline (fail closed), so Home shows no relatórios. Reading only; the batch did not touch `permissions.tsx`. A first sign-in followed at once by an offline cold open is rare; the test could wait for the company pull (`waitForCompanyPull`) before it reloads, or the provider could stay `loading` offline until the role row is known to be absent after a pull.
+  evidence: `apps/web/src/state/permissions.tsx` (`permissionsStatus`); `e2e/home.spec.ts:390`.
+  class: gap
+  state: open (owner: the coordinator, with the Epic 26 integrated gate)
