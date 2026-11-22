@@ -11698,6 +11698,8 @@ So that no document reaches a client under another company's name (F1).
 - The Task 1 finding and the production count (or "not run yet, waits for Matheus's login") in the PR and in `deferred-work.md`.
 - `docs/kbs/architecture/sync.md` (the rule) and `log.md`.
 
+*(2026-11-22, built in batch e27a, slice 2, PR #345 merged as `4d5c961a`; review fix R5 in PR #350 merged as `f29a1b15`. Contract 56 (see Story 27.2); no migration. One selector, `pickEmpresa`, picks the live `empresa` row with the smallest id (registry rows carry no `created_at`; UUIDv7 ids are time-ordered); the snapshot and the web store both use it. The server refuses a create of a second live `empresa` and, after R5, a restore of a removed one while another is live (`op_forbidden`); R5 changed the server without a contract bump, a decision left to the coordinator or Matheus. **Task 1: the cause of the op-less `empresa` row was not found.** Two suspects were ruled out with tests: 27.1-API-002 (the sample relatório seeded twice) and 27.1-API-003 (the Porto Seguro test cleanup). The stray row is a device-minted UUIDv7 of 2026-09-30 whose op was removed later. The guard stands. Production was counted read-only on 2026-11-21: no duplicate. The extra row in the local dev database is not cleaned yet. Spec: `spec-e27a-slice2-company-and-limits.md`.)*
+
 ### Story 27.2: The impossible value is refused, the improbable one is remarked
 
 **Dev model:** opus · **Effort:** high · kernel: humidity refused outside 0 to 100, temperature remarked outside -10 to 60 °C, a resistance of zero refused on an absolute criterion, the CNPJ check digits, the ART and altitude messages, the reading message in the unit typed; contract 56
@@ -11767,6 +11769,8 @@ So that a typing slip never reaches the client's document (F2, F3, F4, F5, F6, F
 - A dated `source-deltas.md` row for decision 3; the dated reason in `contract/version.ts`.
 - `docs/kbs/architecture/ops-and-local-first.md` (the limits) and `log.md`.
 
+*(2026-11-22, built in batch e27a, slice 2, PR #345 merged as `4d5c961a`; review fixes R2, R3 and R9 in PR #350 merged as `f29a1b15`. Contract 56, current and minimum (a device on 55 gets 426 and the update notice); no migration. Narrowings: zero resistance and the CNPJ check digits are refused on the device only, and the server refuses humidity outside 0 to 100 (`op_value_invalid`); the "Antes de emitir" temperature row names the local, not the ficha, because the temperature is stored per cabine and shared by its fichas (R9, record only); Etapa 1 shows no CNPJ field, so the check digits are covered on Cadastros › Clientes and › Empresa; altitude 99999 was never written as an op (`parseAltitude` has refused it since Story 20.9), the field now shows its range. After the review, a refused value can no longer be confirmed from a reading suggestion or copied from the previous ficha (R2). Spec: `spec-e27a-slice2-company-and-limits.md`, `spec-e27a-review-fixes.md`.)*
+
 ### Story 27.3: A ficha not yet concluded does not read as reprovada
 
 **Dev model:** opus · **Effort:** high · kernel: the parecer counts concluded reproved fichas apart from open fichas with a reading out of criterion; the minimum "Não apto" stays; Etapa 6 and the Sumário say when the user's choice was replaced; the printed sentence of section 10 on v17 only
@@ -11815,6 +11819,8 @@ So that a ficha nobody concluded is not printed as reprovada (F7).
 - `e2e/parecer-open-ficha.spec.ts` "27.3-E2E-001 @p0": a reading out of criterion, Apto chosen, the Etapa 6 and Sumário lines.
 - `docs/kbs/architecture/kernel-and-seed.md` and `log.md`.
 
+*(2026-11-22, built in batch e27a, slice 1, PR #345 merged as `4d5c961a`; review fixes R1 and R4 in PR #350 merged as `f29a1b15`; no contract of its own. Narrowings: the printed sentence splits only under the new seed rule `parecer_open_apart`, which no seed sets yet (Story 27.8 sets it on v17), so every earlier print is byte-identical; the screen splits on every seed. Etapa 6's "as printed" text is composed by `printedParecer`, the same text as section 10 of the print (R1). Open question: an open ficha that is Reprovado only by a stored choice, with no derived floor, stays among the reprovadas. `reasonParts` now separates open fichas from reprovadas by block id, not by name (R4). Spec: `spec-e27a-grave-fixes.md`.)*
+
 ### Story 27.4: A point of attention says what it lacks, and the Gerar dialog lists it
 
 **Dev model:** opus · **Effort:** high · kernel and web: the points without action, deadline, priority or owner listed one by one in the Gerar dialog, the count sentence rewritten, "Falta: …" in amber on the point's card and editor; the "Último envio" lines scoped; no blocking
@@ -11860,6 +11866,8 @@ So that the action plan table does not print dashes I did not notice (F8, F12).
 - `e2e/point-missing-fields.spec.ts` "27.4-E2E-001 @p0": a point saved bare, its card, the dialog's rows and count, then filled one field at a time.
 - `docs/kbs/architecture/kernel-and-seed.md` (pre-issue) and `log.md`.
 
+*(2026-11-22, built in batch e27a, slice 1, PR #345 merged as `4d5c961a`; review fix R7 in PR #350 merged as `f29a1b15`; no contract of its own. Narrowing: the "Último envio" line is reworded, not filtered. The device keeps `last_push_at` per user and device, never per relatório, so the dialog reads "Último envio de {nome} (qualquer relatório): dd/mm hh:mm"; the Sync status surface keeps `lastSendText`. The Porto Seguro `pre-issue.golden.json` gained the two new screen rows (a pre-issue golden, not a printed document). Which card rows show is now a kernel rule, `pointCardFields` (R7). Spec: `spec-e27a-grave-fixes.md`.)*
+
 ### Story 27.5: The template numbers its sections as the relatório will
 
 **Dev model:** sonnet · **Effort:** medium · web and the composer's kernel view: the section number the relatório will give, the fixed note and the type editor's "seção 9" through `sectionRefText`
@@ -11897,6 +11905,8 @@ So that "seção 9" means the same thing on every screen (F9).
 - `e2e/template-section-numbers.spec.ts` "27.5-E2E-001": the template's numbers, then a relatório from it, compared.
 - `docs/kbs/ux/copy-homes.md` if a string moves, and `log.md`.
 
+*(2026-11-22, built in batch e27a, slice 1, PR #345 merged as `4d5c961a`; no contract of its own. **Acceptance criterion 2 is not met and stays open.** `instantiate` orders sections by FO.SERV-03 creation position, not by the template's list order across section types (only duplicates of one type keep the template order), so after a reorder the template's numbers show where each section will land in the relatório, not the list order. Open decision for Matheus: remove the cross-type reorder from the template (coordinator's recommendation), or make the relatório follow the template's order. The new `relatorio/creation-order.ts` is read by both `instantiate` and the composer; each template section shows the number the relatório will give it, and the fixed note and the type editor's two helpers name section 9 through the kernel or by its title. Spec: `spec-e27a-grave-fixes.md`.)*
+
 ### Story 27.6: Critérios de aceitação shows every criterion the fichas judge by
 
 **Dev model:** sonnet · **Effort:** medium · web: Cadastros › Critérios de aceitação lists the Tabela 100.1 beside the seeded criteria and says when each applies
@@ -11929,6 +11939,8 @@ So that ">400 MΩ" on one screen and "≥ 5.000 MΩ" on the ficha stop contradic
 - Web test of the tab over the kernel's rows.
 - `e2e/criterios-tab.spec.ts` "27.6-E2E-001": the tab, then a ficha whose criterion is one of its rows.
 - `log.md`.
+
+*(2026-11-22, built in batch e27a, slice 1, PR #345 merged as `4d5c961a`; review fix R6 in PR #350 merged as `f29a1b15`; no contract of its own. Narrowing: the tab lists Tabela 100.5 (windings: TR, TC, TP) beside 100.1, since the story title says every criterion the fichas judge by while the DoR names only 100.1. After the review the sentences read their scope from the seed and say that the manufacturer's value on the ficha comes first ("na ficha", not "na placa", because the value is typed on the ficha). EXPERIENCE.md › Data table amended (dated). Spec: `spec-e27a-grave-fixes.md`.)*
 
 ### Story 27.7: The corrected column fits on a tablet in landscape
 
@@ -11965,6 +11977,8 @@ So that the corrected reading is not cut off with no sign that it scrolls (F13).
 - `e2e/corrected-column-fit.spec.ts` "27.7-E2E-001": the table's width against its container at 1024, 1280 and 768 px.
 - The dated amendment in `EXPERIENCE.md` › Measurement table (the stacked line also on a landscape tablet with the tree open).
 - `log.md`.
+
+*(2026-11-22, built in batch e27a, slice 1, PR #345 merged as `4d5c961a`; no contract of its own. Narrowing: at 768 px with the tree opened by hand, the disjuntor table still scrolls inside its own `.mt-scroll` box (571 px in 400); the page never scrolls sideways. Known open, predating the epic: an oil transformer's readings table overflows at 1280 px (1423 px in 864); owner wave 3 (e27c) or a deferred row. EXPERIENCE.md › Measurement table amended (dated). Spec: `spec-e27a-grave-fixes.md`.)*
 
 ### Story 27.8: The form's words, right on screen and in the document (seed v17)
 
