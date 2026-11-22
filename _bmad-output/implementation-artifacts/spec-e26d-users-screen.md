@@ -80,4 +80,10 @@ Tools container (`--user root`), under `lockf /tmp/fasor-verify.lock`, logs in `
 
 ## Auto Run Result
 
-(written when the batch ends)
+Status: done in the batch (no review loop, owner's decision of 2026-11-21). Two implementation subagents (opus, high) ran in parallel, lane A (26.9) and lane B (26.6 web, 26.11), both returned; the orchestrator ran the gate and fixed what it found (lint no-useless-assignment, three timing and aria-hidden defects in the new `users-surface.test.tsx`, the serial-lane entry of the paused spec, a fixed e-mail domain in two specs, five cells instead of one Enter run in the paused spec).
+
+- **Built:** kernel `permissions/user-list.ts`, `permissions/paused.ts`; web `surfaces/users/` (`UsersSurface`, `UserDialog`, `UsersTabs`), `api/admin-users-client.ts`, `db/users-store.ts`, `surfaces/login/{forgot-surface,set-password-surface}.tsx`, `reAuthCause` in `session.tsx` and `last-session.ts`, the `paused` banner, the paused "Sair" dialog; specs `users-screen`, `password-by-email`, `paused-user-unsent.durability`.
+- **Open (stop-and-report):** the pause and remove routes delete the user's sessions, so a real pause gives the device `401 unauthenticated`, not `user_inactive`; the paused banner is built and tested for the code, but 26.11-E2E-001 pauses by the server's status put with the session left in place. `deferred-work.md`, "Deferred from: Epic 26 batch e26d".
+- **Narrowings:** the set-password page omits the name, e-mail and expiry; "Papeis e permissoes" tab leads to Home until e26e; matrix projects not run (owner's decision).
+- **Existing tests red because of the batch, not edited (the batch may not edit what an existing test asserts):** `packages/domain/src/contract/telemetry.test.ts` (`SCREENS` gains `usuarios`), `apps/web/src/styles/sprite.test.ts` (`i-lock`, `i-mail`, `i-users`), `apps/web/src/surfaces/home/home-surface.test.tsx` (the Admin sees 3 shortcut cards) and `e2e/home.spec.ts` 1.6-E2E-001 (`toHaveCount(2)` becomes 3).
+- **Orchestrator cuts:** none.
