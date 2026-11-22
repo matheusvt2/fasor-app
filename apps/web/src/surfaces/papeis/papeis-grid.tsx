@@ -99,7 +99,7 @@ export function PapeisGrid(props: PapeisGridProps) {
       </thead>
       {PERMISSION_MODULES.map((module) => {
         const keys = permissionKeysOf(module);
-        const only = keys.length === 1 ? keys[0] : undefined;
+        const only = keys.length < 2 ? keys[0] : undefined;
         const isOpen = openModules.has(module);
         const name = permissionModuleName(module);
         const text = (
