@@ -142,8 +142,8 @@ describe('23.9-UNIT a test made not applicable by the nameplate', () => {
     const definition = definitionOf(snapshot);
     expect(testApplicability(block, definition, 'resistencia_contato')).toEqual({
       state: 'na',
-      reason: 'Não se aplica: TIPO DE SECCIONADORA sem fusíveis.',
-      phrase: 'TIPO DE SECCIONADORA sem fusíveis.',
+      reason: 'Não se aplica: Tipo de seccionadora sem fusíveis.',
+      phrase: 'Tipo de seccionadora sem fusíveis.',
       appliedText: 'A placa diz sem fusíveis.',
     });
     expect(testApplicability(block, definition, 'isolacao').state).toBe('always');
@@ -183,7 +183,7 @@ describe('23.9-UNIT a test made not applicable by the nameplate', () => {
     const empty = snapshotOf(log(fusedCopy(), null));
     expect(testApplicability(blockOf(empty), definitionOf(empty), 'resistencia_contato').state).toBe('met');
     const needs = snapshotOf(log(fusedCopy({ ...CONDITION, needs_value: true }), null));
-    expect(testApplicability(blockOf(needs), definitionOf(needs), 'resistencia_contato')).toMatchObject({ state: 'na', reason: 'Não se aplica: TIPO DE SECCIONADORA sem valor.' });
+    expect(testApplicability(blockOf(needs), definitionOf(needs), 'resistencia_contato')).toMatchObject({ state: 'na', reason: 'Não se aplica: Tipo de seccionadora sem valor.' });
   });
 
   it('the fold: the override is accepted as "applied" or null on a test with a condition, refused on any other value or test', () => {
@@ -285,7 +285,7 @@ describe('23.9-UNIT the condition grammar', () => {
   it('in: one of the values (an older spelling read through its option), else NA naming the values', () => {
     expect(stateOf({ op: 'in', field: 'tipo', values: [FUSED] }, { tipo: FUSED }).state).toBe('met');
     expect(stateOf({ op: 'in', field: 'tipo', values: [FUSED] }, { tipo: 'sob carga com fusiveis' }).state).toBe('met');
-    expect(stateOf({ op: 'in', field: 'tipo', values: [FUSED] }, { tipo: 'SEM CARGA' })).toMatchObject({ state: 'na', reason: `Não se aplica: TIPO DE SECCIONADORA não é ${FUSED}.`, appliedText: `A placa diz TIPO DE SECCIONADORA não é ${FUSED}.` });
+    expect(stateOf({ op: 'in', field: 'tipo', values: [FUSED] }, { tipo: 'SEM CARGA' })).toMatchObject({ state: 'na', reason: `Não se aplica: Tipo de seccionadora não é ${FUSED}.`, appliedText: `A placa diz TIPO DE SECCIONADORA não é ${FUSED}.` });
   });
 
   it('filled, above and below, an empty field and an N/A', () => {
@@ -376,7 +376,7 @@ describe('23.9-UNIT the measurement grammar and the initial state', () => {
     block.sheet.nameplate.tem_monitor = { value: 'NÃO', source_suggestion_id: null, op_id: fixed(901) };
     const [test] = evaluateSheetMeasurements(block, definition);
     expect(test!.applicability.state).toBe('na');
-    expect(test!.applicability.reason).toBe('Não se aplica: POSSUI MONITOR sem monitor.');
+    expect(test!.applicability.reason).toBe('Não se aplica: Possui monitor sem monitor.');
     expect(measurementCounts([test!])).toEqual({ missing: 0, outOfLimit: 0 });
     block.sheet.test.monitor = { cells: {}, applicability: { value: 'applied', source_suggestion_id: null, op_id: fixed(902) } };
     const [applied] = evaluateSheetMeasurements(block, definition);

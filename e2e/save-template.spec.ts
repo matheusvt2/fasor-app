@@ -1,4 +1,4 @@
-import { templateRowSchema, type TemplateRow } from '@app/domain';
+import { templateRowSchema, type TemplateRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -42,7 +42,8 @@ async function saveAsTemplate(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
   const labels = await page.getByRole('menu').getByRole('menuitem').allTextContents();
   // `40-relatorio-overview.html` `#sum-menu-rel`: right after "Restaurar ficha removida".
-  expect(labels[labels.indexOf('Restaurar ficha removida') + 1]).toBe('Salvar como template');
+  // Story 27.10 (F28): with nothing removed the entry is disabled and its text carries its reason.
+  expect(labels[labels.findIndex((label) => label.startsWith('Restaurar ficha removida')) + 1]).toBe('Salvar como template');
   await page.getByRole('menuitem', { name: 'Salvar como template' }).click();
   const dialog = page.getByRole('dialog', { name: 'Salvar como template' });
   const field = dialog.getByRole('textbox', { name: 'Nome do template' });
@@ -81,7 +82,7 @@ test('@p0 11.3-E2E-001 "Salvar como template" from the Sumário header: one temp
   expect(template).toMatchObject({ name: 'Modelo da árvore', version: 1, archived_at: null, removed_at: null });
   expect(template.skeleton.filter((node) => node.kind === 'cabine')).toHaveLength(6);
   expect(template.skeleton.filter((node) => node.kind === 'coluna')).toHaveLength(17);
-  expect(template.skeleton.find((node) => node.name === '1° Subsolo')).toMatchObject({ kind: 'cabine', agrupar_por_tipo: true });
+  expect(template.skeleton.find((node) => node.name === STANDARD_SUBSOLO_NAME)).toMatchObject({ kind: 'cabine', agrupar_por_tipo: true });
   expect(template.blocks.filter((block) => block.skeleton_location_ref !== null).reduce((sum, block) => sum + block.quantity, 0)).toBe(94);
   const text = JSON.stringify(template);
   expect(text).not.toContain('SEC-C05');
@@ -118,11 +119,11 @@ test('@p1 11.3-E2E-003 11.3-AFTER-MOVE: SEC-C05 moved to Coluna 9, then saved: t
   await openRelatorio(page, account);
   await page.getByRole('button', { name: 'Expandir ou recolher a seção 8' }).click();
   await expect(tree(page)).toBeVisible();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   await page.getByRole('button', { name: 'Mais opções de SEC-C05', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Mover para…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Mover SEC-C05 para…' });
-  await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
+  await dialog.getByRole('radio', { name: `${STANDARD_SUBSOLO_NAME} › Coluna 9`, exact: true }).click();
   await dialog.getByRole('button', { name: 'Mover', exact: true }).click();
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
 

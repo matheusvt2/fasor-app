@@ -121,7 +121,8 @@ export function sheetsUnderRemovedLocalsText(names: readonly string[]): string {
  */
 export function namedWarningSection(row: Pick<PreIssueRow, 'kind' | 'row'>): number | null {
   // Story 25.13: and its two section 11 rows.
-  const named = ['deadline_overdue', 'calibration_missing', 'sheets_removed_local', 'certificate_shared', 'instrument_unused'];
+  // Story 27.10: and an emptied section text ("Texto vazio em Requisitos básicos — seção 4").
+  const named = ['deadline_overdue', 'calibration_missing', 'sheets_removed_local', 'certificate_shared', 'instrument_unused', 'section_text_empty'];
   if (!named.includes(row.kind)) return null;
   return relatorioSectionNumber(row.row);
 }

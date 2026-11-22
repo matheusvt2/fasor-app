@@ -381,7 +381,7 @@ describe('Export dialog (Story 4.8)', () => {
     // the result says the revision is not yet with the client.
     await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
     // Said once the device has read that nothing was edited since revision 1.
-    expect(await within(modal).findByText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
+    expect(await within(modal).findByText('Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
     expect(await statusOps(database!)).toEqual(['em_revisao']);
     // "Marcar como enviado ao cliente" stands above "Gerar de novo" (nothing edited since revision 1).
     const markSent = await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' });
@@ -486,7 +486,7 @@ describe('Export dialog (Story 4.8)', () => {
     expect(within(modal).queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull();
     // P3: with edits since the revision the note claims nothing about the sending.
     expect(within(modal).getByText('Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
-    expect(within(modal).queryByText(/Ainda não enviada ao cliente/)).toBeNull();
+    expect(within(modal).queryByText(/Ainda não enviado ao cliente/)).toBeNull();
     await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
     await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
   });
@@ -665,7 +665,7 @@ describe('Export dialog (Story 4.8)', () => {
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeInTheDocument());
     await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
-    expect(await within(modal).findByText('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.')).toBeInTheDocument();
+    expect(await within(modal).findByText('Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 3.')).toBeInTheDocument();
     expect(within(modal).queryByText(/^Enviada ao cliente/)).toBeNull();
     expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeVisible();
     expect(await statusOps(database!)).toEqual(['em_revisao']);
@@ -1128,7 +1128,7 @@ describe('F43 (UX pass 2026-10-22): the Export dialog speaks the Sumário positi
     await database.entities.bulkPut(sections.map((b) => toRecord(`block:${b.id}`, b)));
     render(<Harness sync={syncState()} />);
     const modal = dialog();
-    await waitFor(() => expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 4 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).'));
+    await waitFor(() => expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 4 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a opção Agrupar por tipo de cada local).'));
     // Story 22.6: no blocking row any more (the parecer is derived); the dialog still names no FO.SERV-03 section number.
     await waitFor(() => expect(modal.querySelector('.generate-row')).not.toBeNull());
     expect(modal.querySelector('li.is-blocking')).toBeNull();
@@ -1172,7 +1172,7 @@ describe('Export dialog (Story 7.5)', () => {
     expect(pairs[1]![1]).toBe('Rev. 1');
     // F-15: the fixture has no Empresa: the note under the table says where to fill it in.
     expect(modal.querySelector('.export-empresa-missing')).toHaveTextContent('Cadastre a empresa em Cadastros › Empresa');
-    expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada local).');
+    expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a opção Agrupar por tipo de cada local).');
     expect(await axe(modal)).toHaveNoViolations();
   });
 

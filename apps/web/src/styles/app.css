@@ -557,6 +557,15 @@ body {
   opacity: 0.4;
 }
 
+/* Story 27.10 (F28): a disabled item's reason ("Restaurar ficha removida" with nothing removed) sits
+   under its label in the mock's `.btn-reason` type (components.css), the way the mock draws a reason
+   under a disabled control. No mock draws a menu item with a reason. */
+.overflow-menu .menu-item:has(> .btn-reason) {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
 /* e22f S6 (Stories 22.4 and 22.6): a conclusion or parecer segment looser than the floor or the
    derived verdict is disabled; mirrors `.btn.is-disabled, .btn[aria-disabled="true"] { opacity: .4 }`
    (components.css), the mock's only disabled look (DESIGN.md: "reduced opacity on the whole

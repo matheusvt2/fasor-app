@@ -126,7 +126,7 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item); e22f
     // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({
-      text: withPhotoTokens(ncRowPointText(snapshot, { location }, row.key), photoIds),
+      text: withPhotoTokens(ncRowPointText(snapshot, { location }, row.key), photoIds, snapshot.relatorio.seed_version),
       equipmentId: null,
       origin: 'nc',
       locationId: location.id,
@@ -263,6 +263,11 @@ function VerificacoesBody({
   // --- the Sticky action bar
   const goTree = () => void navigate(`/relatorio/${relatorioId}`, { state: { openSection9: true } });
   const content = useRef<HTMLDivElement>(null);
+  // Story 27.10 (F26): once "Concluir verificações" found items unanswered, the kernel's sentence stays
+  // beside the button (the toast alone was missed), counting down as items are answered; gone at none.
+  const [missingAsked, setMissingAsked] = useState(false);
+  const missingNow = missingAsked ? siteMissingText(snapshot, locationId) : null;
+  const missingId = useId();
   const conclude = () => {
     const missing = siteMissingText(snapshot, locationId);
     const first = siteFirstUnanswered(snapshot, locationId);
@@ -270,6 +275,7 @@ function VerificacoesBody({
       goTree();
       return;
     }
+    setMissingAsked(true);
     showToast(missing);
     const row = content.current?.querySelector<HTMLElement>(`li.checklist-row[data-item-key="${CSS.escape(first.key)}"]`) ?? null;
     if (row === null) return;
@@ -333,6 +339,11 @@ function VerificacoesBody({
       </div>
 
       <div className="sticky-action-bar">
+        {canFill && missingNow !== null ? (
+          <span className="btn-reason" id={missingId} data-testid="local-missing">
+            {missingNow}
+          </span>
+        ) : null}
         <div className="bar-buttons">
           <Button variant="secondary" onPress={goTree}>
             <svg className="ico" aria-hidden="true">
@@ -341,7 +352,7 @@ function VerificacoesBody({
             {t.verArvore}
           </Button>
           {canFill ? (
-            <Button variant="primary" onPress={conclude}>
+            <Button variant="primary" onPress={conclude} {...(missingNow === null ? {} : { 'aria-describedby': missingId })}>
               {t.concluir}
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-chev-right" />

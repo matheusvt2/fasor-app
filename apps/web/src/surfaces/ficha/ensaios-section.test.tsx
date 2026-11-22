@@ -117,7 +117,7 @@ describe('Epic 23 QA: "Como ensaiar" on the head of a seeded-grammar test the na
     const head = isolacao.querySelector<HTMLElement>('.section-head')!;
     expect(head.querySelector('.v13-na-pill')).toHaveTextContent('Não se aplica');
     expect(within(head).getByRole('button', { name: 'Como ensaiar' })).toBeVisible();
-    expect(isolacao.querySelector('.v13-na-band')).toHaveTextContent('Não se aplica: CORRENTE NOMINAL de até 1.000 A.');
+    expect(isolacao.querySelector('.v13-na-band')).toHaveTextContent('Não se aplica: Corrente nominal de até 1.000 A.');
     // NA: no instrument picker, no table.
     expect(isolacao.querySelector('table')).toBeNull();
     expect(within(isolacao).queryByRole('button', { name: /^Instrumento/ })).toBeNull();

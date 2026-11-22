@@ -440,7 +440,10 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // E78-Q1: a virtual text row has no block for the section text editor, so it does not open.
   // Story 26.5: an entry whose op the role may not write is not rendered; a menu left with none is not drawn.
   const headerItems = [
-    ...(editable ? [{ id: 'restore', label: t.restore, onAction: () => setRestoring(true) }] : []),
+    // Story 27.10 (F28): with nothing to restore the entry stays, disabled, with its reason.
+    ...(editable
+      ? [removable.length === 0 ? { id: 'restore', label: t.restore, onAction: () => undefined, disabled: true, reason: t.restoreNoneReason } : { id: 'restore', label: t.restore, onAction: () => setRestoring(true) }]
+      : []),
     ...(canSaveTemplate ? [{ id: 'save-template', label: t.saveTemplate, onAction: () => setSavingTemplate(true) }] : []),
     ...(backMove === null || !canMoveBack ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
   ];

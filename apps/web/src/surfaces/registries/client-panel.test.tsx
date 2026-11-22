@@ -111,6 +111,43 @@ describe('ClientPanel — CNPJ format (AC1 I/O matrix)', () => {
   });
 });
 
+describe('27.10-UNIT ClientPanel — a name another client has (F23)', () => {
+  const local: ClientRow = { ...client, id: '0a000000-0000-7000-8000-0000000000c2', name: 'Cliente Local' };
+
+  it('a new client typed "cliente  local" is warned before it exists, with "Criar mesmo assim"; another name is not', async () => {
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <ClientPanel clientId={client.id} client={null} referenced={false} clients={[local]} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    const name = screen.getByLabelText('Nome');
+    await user.type(name, 'cliente  local');
+    expect(screen.getByText('Já existe um cliente com este nome: Cliente Local')).toBeInTheDocument();
+    expect(name).toHaveAccessibleDescription('Já existe um cliente com este nome: Cliente Local');
+    expect(screen.getByRole('button', { name: 'Criar mesmo assim' })).toBeInTheDocument();
+    await user.clear(name);
+    await user.type(name, 'Cliente Novo');
+    expect(screen.queryByText(/Já existe um cliente/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Criar mesmo assim' })).not.toBeInTheDocument();
+  });
+
+  it('an existing client is never its own twin; renamed onto another one it is warned, with nothing to confirm', async () => {
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <ClientPanel clientId={client.id} client={client} referenced={false} clients={[client, local]} onClose={vi.fn()} />
+      </ToastProvider>,
+    );
+    expect(screen.queryByText(/Já existe um cliente/)).not.toBeInTheDocument();
+    const name = screen.getByLabelText('Nome');
+    await user.clear(name);
+    await user.type(name, 'CLIENTE LOCAL');
+    expect(screen.getByText('Já existe um cliente com este nome: Cliente Local')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Criar mesmo assim' })).not.toBeInTheDocument();
+  });
+});
+
 describe('ClientPanel — sites sub-list', () => {
   it('adds and removes a site row', async () => {
     const user = userEvent.setup();

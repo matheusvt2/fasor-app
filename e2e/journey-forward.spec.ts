@@ -236,10 +236,10 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await journey.tap(page.getByRole('option', { name: 'Criar “Cliente da jornada”' }));
   await expect(start.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente da jornada');
   // E12-Q11: the obra is next, and the focus is already there.
-  await expect(start.getByRole('combobox', { name: 'Local (obra)' })).toBeFocused();
+  await expect(start.getByRole('combobox', { name: 'Obra' })).toBeFocused();
   await page.keyboard.type('Obra da jornada');
   await journey.tap(page.getByRole('option', { name: 'Criar “Obra da jornada”' }));
-  await expect(start.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra da jornada');
+  await expect(start.getByRole('combobox', { name: 'Obra' })).toHaveValue('Obra da jornada');
   await journey.tap(start.getByRole('button', { name: 'Continuar' }));
 
   // The Project's dialog: today in both dates, Criar ready at once.

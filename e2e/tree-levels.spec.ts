@@ -19,7 +19,7 @@ import { expandLocation, section9Chevron } from './support/tree.ts';
  * kicker and "2 colunas"; each coluna header's kicker and "N de M"; the transformer's card under
  * "Equipamentos no local"; "Adicionar equipamento no local" the local's last row. A sheet opened
  * from its card gets one item answered NC (held in the outbox, E12-A6); "Voltar" lands on that
- * card, focused, and the header's "1 NC aberto" equals the one badge "1 NC" on it (F37). The four
+ * card, focused, and the header's "1 NC aberta" equals the one badge "1 NC" on it (F37). The four
  * header counters sit in two rows of two and the first Sumário row is on screen unscrolled (F50).
  *
  * 15.2-E2E-002 (1180 x 820, F19): every card shows its type label beside its TAG.
@@ -204,7 +204,7 @@ test('@p0 15.2-E2E-001 at 390 px the tree reads Local, Painel, Coluna and the ca
   expect((await box(add)).y).toBeGreaterThan((await box(painel)).y);
   // No card carries an NC badge yet.
   await expect(tree(page).locator('.nc-badge')).toHaveCount(0);
-  await expect(summary(page).getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+  await expect(summary(page).getByRole('button', { name: '0 NC abertas', exact: true })).toBeVisible();
 
   // A sheet opened from its card: one checklist item answered NC.
   const target = built.coluna1[0]!;
@@ -223,8 +223,8 @@ test('@p0 15.2-E2E-001 at 390 px the tree reads Local, Painel, Coluna and the ca
   await expect(page).toHaveURL(new RegExp(`/relatorio/${built.relatorioId}$`));
   await expect(card(page, target.blockId).locator('.s9-eq-open')).toBeFocused();
   await expect(card(page, target.blockId).locator('.s9-eq-open')).toBeInViewport();
-  const nc = summary(page).getByRole('button', { name: /^\d+ NC abertos?$/ });
-  await expect(nc).toHaveText('1 NC aberto');
+  const nc = summary(page).getByRole('button', { name: /^\d+ NC abertas?$/ });
+  await expect(nc).toHaveText('1 NC aberta');
   const badges = tree(page).locator('.nc-badge');
   await expect(badges).toHaveCount(1);
   await expect(badges).toHaveText('1 NC');

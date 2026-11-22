@@ -1,5 +1,5 @@
 import type { FileChooser, Locator, Page } from '@playwright/test';
-import { makeOp, SERVER_DEVICE_ID, toIso, type OpDraft } from '@app/domain';
+import { makeOp, SERVER_DEVICE_ID, toIso, type OpDraft, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { loadConfig } from '../apps/api/src/config.ts';
 import { createDb } from '../apps/api/src/db/client.ts';
 import { asCompanyId } from '../apps/api/src/db/repositories/company-id.ts';
@@ -212,8 +212,8 @@ test.describe('on a touch screen', () => {
     await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
     const chevron = page.getByRole('button', { name: /^Expandir ou recolher a seção \d+$/ });
     if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-    await expandLocation(page, '1° Subsolo');
-    await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
+    await expandLocation(page, STANDARD_SUBSOLO_NAME);
+    await page.getByRole('button', { name: `Mais opções de Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true }).click();
     await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
     const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
     const panel = await shootThroughCameraApp(page, palette.getByRole('button', { name: 'Fotografar equipamento' }), jpeg, 'IMG_0006.jpg');

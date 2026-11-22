@@ -106,7 +106,7 @@ describe('3.4 composer: quantities per node', () => {
     const { container } = renderComposer();
     await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
     // Story 14.2 (`.pal-target`): the palette names where it adds, the coluna with what holds it.
-    expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1° Subsolo');
+    expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1º Subsolo');
 
     const stepper = within(palette()).getByRole('group', { name: 'Seccionadoras, 0' });
     await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
@@ -335,7 +335,7 @@ describe('15.5 composer: "Adicionar equipamento" on an open coluna', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
     expect(drawer.querySelector('.palette-head')).toHaveTextContent('Blocos');
     const target = drawer.querySelector('.palette-head + .pal-target');
-    expect(target).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1° Subsolo');
+    expect(target).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1º Subsolo');
     expect(drawer.querySelectorAll('.pal-target')).toHaveLength(1);
     expect(drawer.querySelector('.palette-items')).toHaveAttribute('data-more-below');
 
@@ -377,7 +377,7 @@ describe('15.5 composer: "Adicionar equipamento" on an open coluna', () => {
         await userEvent.click(add);
         expect(row).toHaveClass('is-open');
         expect(screen.queryByRole('dialog')).toBeNull();
-        expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1° Subsolo');
+        expect(palette().querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Coluna 9 · 1º Subsolo');
         expect(add).toHaveFocus();
         expect(add).toHaveAttribute('aria-pressed', 'true');
       }

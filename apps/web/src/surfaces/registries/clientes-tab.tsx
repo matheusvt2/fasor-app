@@ -95,7 +95,7 @@ export function ClientesTab() {
       </div>
 
       {openId === null ? null : (
-        <ClientPanel key={openId} clientId={openId} client={openClient} referenced={referenced} onClose={() => setOpenId(null)} />
+        <ClientPanel key={openId} clientId={openId} client={openClient} referenced={referenced} clients={clients} onClose={() => setOpenId(null)} />
       )}
     </div>
   );

@@ -177,12 +177,16 @@ describe('4.1 NewRelatorioDialog', () => {
     const radio = within(dialog()).getByRole('radio', { name: /Cabine primária/ });
     expect(radio).toHaveAttribute('aria-checked', 'true');
     expect(radio).toHaveClass('option-row', 'is-selected');
+    // Story 27.9 (F39): "Único tipo disponível nesta versão" left the dialog; the dates read "execução" (F38).
+    expect(within(dialog()).queryByText(/Único tipo disponível/)).toBeNull();
+    expect(within(dialog()).getByRole('group', { name: 'Início da execução' })).toBeVisible();
+    expect(within(dialog()).getByRole('group', { name: 'Fim da execução' })).toBeVisible();
     expect(within(dialog()).getByRole('combobox', { name: 'Template' })).toHaveValue('Cabine primária — padrão');
     expect(within(dialog()).getByText('Os 94 blocos nascem nos locais e colunas do template, com a TAG final. Arquivados não aparecem.')).toHaveClass('helper');
     // Story 12.2 (J-12): today in America/Sao_Paulo, both dates.
     const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
-    expect(segments('Início da parada').map((seg) => seg.textContent)).toEqual([day, month, year]);
-    expect(segments('Fim da parada').map((seg) => seg.textContent)).toEqual([day, month, year]);
+    expect(segments('Início da execução').map((seg) => seg.textContent)).toEqual([day, month, year]);
+    expect(segments('Fim da execução').map((seg) => seg.textContent)).toEqual([day, month, year]);
     expect(create()).not.toHaveAttribute('aria-disabled');
     expect(await axe(document.body)).toHaveNoViolations();
   });
@@ -196,14 +200,14 @@ describe('4.1 NewRelatorioDialog', () => {
   it('the end follows the start until typed by hand, and an end before the start is refused', async () => {
     database = await freshDb();
     renderDialog();
-    await typeDate('Início da parada', '06092026');
-    await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual(['06', '09', '2026']));
+    await typeDate('Início da execução', '06092026');
+    await waitFor(() => expect(segments('Fim da execução').map((s) => s.textContent)).toEqual(['06', '09', '2026']));
     expect(create()).not.toHaveAttribute('aria-disabled');
-    await typeDate('Fim da parada', '05092026');
+    await typeDate('Fim da execução', '05092026');
     await waitFor(() => expect(create()).toHaveAccessibleDescription('Criar relatório: o fim é anterior ao início'));
     // A start typed again does not overwrite the end the user chose.
-    await typeDate('Início da parada', '01092026');
-    await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual(['05', '09', '2026']));
+    await typeDate('Início da execução', '01092026');
+    await waitFor(() => expect(segments('Fim da execução').map((s) => s.textContent)).toEqual(['05', '09', '2026']));
     expect(create()).not.toHaveAttribute('aria-disabled');
   });
 
@@ -213,22 +217,22 @@ describe('4.1 NewRelatorioDialog', () => {
     renderDialog();
     const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
     const hoje = (label: string) => within(group(label).closest('.field') as HTMLElement).queryByRole('button', { name: `Hoje em ${label}` });
-    expect(hoje('Início da parada')).toBeNull();
-    expect(hoje('Fim da parada')).toBeNull();
+    expect(hoje('Início da execução')).toBeNull();
+    expect(hoje('Fim da execução')).toBeNull();
 
-    await clearDate('Fim da parada');
-    await waitFor(() => expect(hoje('Fim da parada')).not.toBeNull());
-    await userEvent.click(hoje('Fim da parada')!);
-    await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual([day, month, year]));
-    expect(hoje('Fim da parada')).toBeNull();
-    expect(segments('Fim da parada')[0]).toHaveFocus();
+    await clearDate('Fim da execução');
+    await waitFor(() => expect(hoje('Fim da execução')).not.toBeNull());
+    await userEvent.click(hoje('Fim da execução')!);
+    await waitFor(() => expect(segments('Fim da execução').map((s) => s.textContent)).toEqual([day, month, year]));
+    expect(hoje('Fim da execução')).toBeNull();
+    expect(segments('Fim da execução')[0]).toHaveFocus();
     expect(create()).not.toHaveAttribute('aria-disabled');
 
-    await clearDate('Início da parada');
-    await waitFor(() => expect(hoje('Início da parada')).not.toBeNull());
-    await userEvent.click(hoje('Início da parada')!);
-    await waitFor(() => expect(segments('Início da parada').map((s) => s.textContent)).toEqual([day, month, year]));
-    expect(segments('Fim da parada').map((s) => s.textContent)).toEqual([day, month, year]);
+    await clearDate('Início da execução');
+    await waitFor(() => expect(hoje('Início da execução')).not.toBeNull());
+    await userEvent.click(hoje('Início da execução')!);
+    await waitFor(() => expect(segments('Início da execução').map((s) => s.textContent)).toEqual([day, month, year]));
+    expect(segments('Fim da execução').map((s) => s.textContent)).toEqual([day, month, year]);
     await waitFor(() => expect(create()).not.toHaveAttribute('aria-disabled'));
   });
 
@@ -236,8 +240,8 @@ describe('4.1 NewRelatorioDialog', () => {
     database = await freshDb();
     await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
     const onClose = renderDialog();
-    await typeDate('Início da parada', '06092026');
-    await typeDate('Fim da parada', '08092026');
+    await typeDate('Início da execução', '06092026');
+    await typeDate('Fim da execução', '08092026');
     await userEvent.click(create());
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('1');
     expect(onClose).toHaveBeenCalled();
@@ -259,7 +263,7 @@ describe('4.1 NewRelatorioDialog', () => {
     registration = { council: 'crea', registrationNumber: 'SP 5069912345' };
     await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
     renderDialog();
-    await typeDate('Início da parada', '06092026');
+    await typeDate('Início da execução', '06092026');
     await userEvent.click(create());
     await screen.findByTestId('setup-route');
     const relatorio = (await database.outbox.toArray()).find((op) => op.path.startsWith('relatorio/'))!.value as { setup: { responsible_user_id: string | null } };
@@ -272,7 +276,7 @@ describe('4.1 NewRelatorioDialog', () => {
     const existing: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'chave_seccionadora', last_nameplate: null, removed_at: null };
     await database.entities.bulkPut([toRecord(`template:${TEMPLATE}`, template()), toRecord(`equipment:${EQUIPMENT}`, existing)]);
     renderDialog();
-    await typeDate('Início da parada', '06092026');
+    await typeDate('Início da execução', '06092026');
     await userEvent.click(create());
     await screen.findByTestId('setup-route');
     const outbox = await database.outbox.toArray();
@@ -290,7 +294,7 @@ describe('4.1 NewRelatorioDialog', () => {
     const existing: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'tp', last_nameplate: null, removed_at: null };
     await database.entities.bulkPut([toRecord(`template:${TEMPLATE}`, template()), toRecord(`equipment:${EQUIPMENT}`, existing)]);
     renderDialog();
-    await typeDate('Início da parada', '06092026');
+    await typeDate('Início da execução', '06092026');
     await userEvent.click(create());
     await screen.findByTestId('setup-route');
     const created = (await database.outbox.toArray()).filter((op) => op.path.startsWith('equipment/')).map((op) => op.value as EquipmentRow);
@@ -316,7 +320,7 @@ describe('4.1 NewRelatorioDialog', () => {
       database = await deviceThatNeverPulledIt();
       sync = makeSyncState({ online: false });
       renderDialog();
-      await typeDate('Início da parada', '06092026');
+      await typeDate('Início da execução', '06092026');
       await waitFor(() => expect(create()).toHaveAccessibleDescription('Criar relatório: conecte-se para baixar os equipamentos desta obra'));
       expect(create()).toHaveAttribute('aria-disabled', 'true');
       await userEvent.click(create());
@@ -335,7 +339,7 @@ describe('4.1 NewRelatorioDialog', () => {
       });
       sync = makeSyncState({ syncProject });
       renderDialog();
-      await typeDate('Início da parada', '06092026');
+      await typeDate('Início da execução', '06092026');
       await userEvent.click(create());
       await screen.findByTestId('setup-route');
       expect(syncProject).toHaveBeenCalledWith(PROJECT);
@@ -348,7 +352,7 @@ describe('4.1 NewRelatorioDialog', () => {
       database = await deviceThatNeverPulledIt();
       sync = makeSyncState({ syncProject: vi.fn(async () => 'ran' as const) });
       renderDialog();
-      await typeDate('Início da parada', '06092026');
+      await typeDate('Início da execução', '06092026');
       await userEvent.click(create());
       expect(await screen.findByText('Criar relatório: conecte-se para baixar os equipamentos desta obra')).toBeInTheDocument();
       expect(screen.queryByTestId('setup-route')).toBeNull();

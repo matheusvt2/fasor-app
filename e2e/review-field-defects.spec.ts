@@ -248,7 +248,7 @@ test('@p1 F-03 "Restaurar texto do template" brings back the template\'s own sec
   expect((await stored()).section_text_edited).toBe(false);
 });
 
-test('@p1 F-05 a registered client\'s site is offered in "Local (obra)"; picking it creates the obra of that site', async ({ page }) => {
+test('@p1 F-05 a registered client\'s site is offered in "Obra"; picking it creates the obra of that site', async ({ page }) => {
   test.setTimeout(180_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -279,7 +279,7 @@ test('@p1 F-05 a registered client\'s site is offered in "Local (obra)"; picking
   // The obra list, opened by its chevron with nothing typed, already holds the site.
   await dialog.getByRole('button', { name: /Abrir lista/ }).nth(1).click();
   await page.getByRole('option', { name: 'Obra UX', exact: true }).click();
-  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra UX');
+  await expect(dialog.getByRole('combobox', { name: 'Obra' })).toHaveValue('Obra UX');
   await expect
     .poll(async () => (await outbox(page)).filter((row) => row.kind === 'create' && row.path.startsWith('project/')).map((row) => row.value))
     .toEqual([expect.objectContaining({ client_id: clientId, site: 'Obra UX', name: 'Obra UX' })]);
@@ -534,7 +534,7 @@ test('@p1 F-24 a Sumário count takes the engineer to the first sheet it counts'
   });
   await openSumario(page, built.relatorioId);
   const summary = page.getByRole('group', { name: 'Resumo do relatório' });
-  await summary.getByRole('button', { name: '1 NC aberto' }).click();
+  await summary.getByRole('button', { name: '1 NC aberta' }).click();
   const row = page.locator(`li.s9-eq[data-block-id="${nc!.blockId}"]`);
   await expect(row).toBeVisible();
   await expect(row.locator('[data-tree-open]').first()).toBeFocused();

@@ -6,7 +6,7 @@ import { emCampoDraft, newRelatorioDrafts, pushDrafts, type SeededSheet } from '
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
- * Story 17.6 (contract 27): "Altitude do site" (Etapa 5) takes N/A and says when the device gave
+ * Story 17.6 (contract 27): "Altitude do local" (Etapa 5) takes N/A and says when the device gave
  * none, driven as the engineer drives it. The committed state is asserted in the outbox and the
  * device store (E12-A6), and what the sheet shows after it.
  *
@@ -42,9 +42,9 @@ const M_PATH = 'relatorio/setup/site_altitude_m';
 
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 const entities = <T,>(page: Page) => readStore<EntityRecord<T>>(page, database, 'entities');
-const altitudeInput = (page: Page) => page.getByRole('spinbutton', { name: 'Altitude do site', exact: true });
-const control = (page: Page) => page.getByRole('button', { name: 'Marcar Altitude do site como não aplicável', exact: true });
-const resolvedLine = (page: Page) => page.getByText(`Altitude do site: ${NOT_APPLICABLE_TEXT}`, { exact: true });
+const altitudeInput = (page: Page) => page.getByRole('spinbutton', { name: 'Altitude do local', exact: true });
+const control = (page: Page) => page.getByRole('button', { name: 'Marcar Altitude do local como não aplicável', exact: true });
+const resolvedLine = (page: Page) => page.getByText(`Altitude do local: ${NOT_APPLICABLE_TEXT}`, { exact: true });
 const lastValue = async (page: Page, path: string): Promise<unknown> => (await outbox(page)).filter((row) => row.path === path).at(-1)?.value;
 
 /** The standard relatório, Em campo, pushed from the office. */
@@ -111,11 +111,11 @@ test.describe('no altitude from the device', () => {
     const shown = page.getByRole('textbox', { name: 'Altitude', exact: true });
     await expect(shown.locator('.mf-value')).toHaveText(NOT_APPLICABLE_TEXT, { timeout: 30_000 });
     await expect(shown.locator('.mf-unit')).toHaveCount(0);
-    await expect(page.getByText('Do setup do relatório')).toBeVisible();
+    await expect(page.getByText('Dos Dados do relatório')).toBeVisible();
 
     // "Alterar": the field, the control and the hint come back; a typed value is written.
     await openEtapa5(page, built.relatorioId);
-    await page.getByRole('button', { name: 'Alterar altitude do site' }).click();
+    await page.getByRole('button', { name: 'Alterar altitude do local' }).click();
     await expect(altitudeInput(page)).toBeVisible();
     await expect(altitudeInput(page)).toBeFocused();
     await expect(control(page)).toBeVisible();

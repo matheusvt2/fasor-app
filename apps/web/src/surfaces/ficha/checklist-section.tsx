@@ -384,7 +384,7 @@ export function sheetRowTarget(
     // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item); e22f
     // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({
-      text: withPhotoTokens(ncRowPointText(snapshot, { block }, item.key), photoIds),
+      text: withPhotoTokens(ncRowPointText(snapshot, { block }, item.key), photoIds, snapshot.relatorio.seed_version),
       equipmentId: block.equipment_id,
       origin: 'nc',
       itemKey: item.key,

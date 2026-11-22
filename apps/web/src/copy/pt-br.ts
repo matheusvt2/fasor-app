@@ -217,8 +217,9 @@ export const copy = {
     newProject: {
       title: 'Novo relatório',
       clientLabel: 'Cliente',
-      // Verbatim from `50-relatorio-setup.html` Etapa 1.
-      siteLabel: 'Local (obra)',
+      // ~~Verbatim from `50-relatorio-setup.html` Etapa 1: "Local (obra)".~~
+      // authored (Story 27.9, F38, listed for Bruno): the place is "Obra", one name on every screen.
+      siteLabel: 'Obra',
       // authored: the dialog asks for both before the Project surface can open.
       continue: 'Continuar',
       cancel: 'Cancelar',
@@ -606,7 +607,8 @@ export const copy = {
     // Equipment row names, verbatim from the mock's palette and `.qty-name`.
     equipmentNames: {
       cabos_entrada: 'Cabos de entrada',
-      para_raio: 'Para-raio',
+      // Story 27.8 (F35): the form's word, on every seed (the screen name prints nothing).
+      para_raio: 'Para-raios',
       chave_seccionadora: 'Chave seccionadora',
       disjuntor_mt: 'Disjuntor MT',
       tp: 'TP',
@@ -874,7 +876,8 @@ export const copy = {
     empresaMissing: 'Cadastre a empresa em Cadastros › Empresa',
     docControlAria: 'Controle do documento — impresso após a capa',
     // F43: `section` is the kernel's `sectionRefText` for section 9, capitalized ("Seção 5").
-    sec9NoteBefore: (section: string) => `${section} impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag `,
+    // authored (Story 27.9, F39, listed for Bruno): was "(por local e tipo, com a flag ".
+    sec9NoteBefore: (section: string) => `${section} impressa no agrupamento do FO.SERV-03 (por local e tipo, com a opção `,
     // authored (F43, coordinator review): section 9 absent, in place of the whole note.
     sec9NoteAbsent: (m: Mention) => `As fichas não saem no documento: o relatório não tem a ${m.ref}.`,
     sec9NoteFlag: 'Agrupar por tipo',
@@ -917,7 +920,8 @@ export const copy = {
     crumbsHome: 'Início',
     newRelatorio: 'Novo relatório a partir de template',
     clientLabel: 'Cliente',
-    siteLabel: 'Obra / local',
+    // authored (Story 27.9, F38, listed for Bruno): was "Obra / local".
+    siteLabel: 'Obra',
     relatoriosLabel: 'Relatórios',
     columns: { relatorio: 'Relatório', status: 'Status', dates: 'Datas', template: 'Template', progress: 'Progresso' },
     // Verbatim from EXPERIENCE.md State Patterns › Empty (Project).
@@ -943,7 +947,7 @@ export const copy = {
     otherLabel: 'Qual função',
     otherHelper: 'Escrita como deve aparecer na árvore e no relatório.',
     nameLabel: 'Nome',
-    nameHelper: 'Vem da função; complete com o lugar, como em "Cabine primária — 1° Subsolo".',
+    nameHelper: 'Vem da função; complete com o lugar, como em "Cabine primária — 1º Subsolo".',
     cancel: 'Cancelar',
     add: 'Adicionar local',
     // authored: the primary of the dialog when it edits.
@@ -964,10 +968,12 @@ export const copy = {
     typeLabel: 'Tipo de relatório',
     typeName: 'Cabine primária',
     typeMeta: 'Relatório de inspeção e ensaios em cabine primária de média tensão (FO.SERV-03)',
-    typeNote: 'Único tipo disponível nesta versão. Outros tipos (painel, SPDA) entram aqui quando existirem.',
+    // ~~typeNote: 'Único tipo disponível nesta versão. Outros tipos (painel, SPDA) entram aqui quando existirem.'~~
+    // Story 27.9 (F39): the note left the dialog.
     templateLabel: 'Template',
-    startLabel: 'Início da parada',
-    endLabel: 'Fim da parada',
+    // authored (Story 27.9, F38, listed for Bruno): was "Início da parada" / "Fim da parada"; "execução" is the form's word.
+    startLabel: 'Início da execução',
+    endLabel: 'Fim da execução',
     cancel: 'Cancelar',
     create: 'Criar relatório',
     // authored: the reason beside "Criar relatório" while its 223 ops are being written.
@@ -1006,6 +1012,8 @@ export const copy = {
     restore: 'Restaurar ficha removida',
     restoreTitle: 'Restaurar ficha removida',
     restoreNone: 'Nenhuma ficha removida para restaurar',
+    // authored (Story 27.10, F28, listed for Bruno): the reason under the disabled "Restaurar ficha removida".
+    restoreNoneReason: 'Nada para restaurar',
     restoreAction: 'Restaurar',
     // authored: the accessible name of each row's "Restaurar", so two rows never read alike.
     restoreLabel: (name: string) => `Restaurar ${name}`,
@@ -1559,7 +1567,8 @@ export const copy = {
       daCabine: (name: string) => `Do local · ${name}`,
       // The note under the SE title is the kernel's, by seed version (Epic 14 QA Q-17: `cabineDataNoteText`).
       // authored: the altitude is confirmed once in the relatório setup (Etapa 5).
-      altitudeHelper: 'Do setup do relatório',
+      // authored (Story 27.9, F39, listed for Bruno): was "Do setup do relatório".
+      altitudeHelper: 'Dos Dados do relatório',
       // authored (Story 14.2; open with Bruno): the chip said "Copiar da cabine anterior".
       copyPrevious: 'Copiar do local anterior',
       // "Copiado de ⟨cabine⟩ — Desfazer" (Story 5.2 AC 3); "Desfazer" is the toast action.
@@ -1840,7 +1849,8 @@ export const copy = {
     // authored: this batch's own band note, since the mock's Etapa 1 covers a superset.
     etapa1Note: 'Capa do relatório',
     clientLabel: 'Cliente',
-    obraLabel: 'Local (obra)',
+    // authored (Story 27.9, F38, listed for Bruno): was "Local (obra)".
+    obraLabel: 'Obra',
     startLabel: 'Início da execução',
     endLabel: 'Fim da execução',
     // authored: the echo line under "Fim da execução" (`50-relatorio-setup.html`'s own
@@ -1898,20 +1908,21 @@ export const copy = {
     // Etapa 5 — Local.
     etapa5Title: 'Etapa 5 — Local',
     etapa5Note: 'Ambiente de ensaio',
-    altitudeLabel: 'Altitude do site',
+    // authored (Story 27.9, F39, listed for Bruno): was "Altitude do site", here and in the lines below.
+    altitudeLabel: 'Altitude do local',
     // Verbatim from `50-relatorio-setup.html`'s `.suggested-pill`.
     altitudeSuggestedPill: 'Sugerido',
     altitudeConfirm: 'Confirmar',
     // authored: the echo line once the altitude is confirmed.
-    altitudeConfirmed: (text: string) => `Altitude do site: ${text} — confirmada`,
+    altitudeConfirmed: (text: string) => `Altitude do local: ${text} — confirmada`,
     // authored: the confirmed line's way back to the field (Epic 4 QA Q8), the value kept.
     altitudeChange: 'Alterar',
     // authored: its accessible name, naming what it changes.
-    altitudeChangeLabel: 'Alterar altitude do site',
+    altitudeChangeLabel: 'Alterar altitude do local',
     // authored (Story 17.6, open for Bruno): under the empty altitude when the device gave none.
     altitudeNoneHint: 'O aparelho não informou a altitude: digite o valor ou marque N/A',
     // authored: the resolved line once the altitude is marked N/A (`NOT_APPLICABLE_TEXT`).
-    altitudeNotApplicable: (text: string) => `Altitude do site: ${text}`,
+    altitudeNotApplicable: (text: string) => `Altitude do local: ${text}`,
     nextInterventionDateLabel: 'Próxima intervenção recomendada',
     nextInterventionJustificationLabel: 'Justificativa',
     // Etapa 6 — Conclusão e parecer (Story 7.4), verbatim from `50-relatorio-setup.html`
@@ -2159,7 +2170,8 @@ export const copy = {
       // authored: worded to never repeat "Data de calibração" as a substring — the
       // helper sits inside this field's own <label>, which would otherwise fold that
       // text into its accessible name and collide with the other field's.
-      calibrationIntervalHelper: 'Some-se à calibração para calcular a validade',
+      // authored (Story 27.9, F31, listed for Bruno): was "Some-se à calibração".
+      calibrationIntervalHelper: 'Soma-se à calibração para calcular a validade',
       validityLabel: 'Validade',
       validityHelper: 'Vencida = linha âmbar na ficha; nunca bloqueia',
       laboratoryLabel: 'Emissor do certificado',
@@ -2208,6 +2220,11 @@ export const copy = {
       close: 'Fechar edição',
       panelClose: 'Fechar',
       nameLabel: 'Nome',
+      // authored (Story 27.10, F23, listed for Bruno): a name another client has, by the Novo relatório dialog's rule
+      // (case, accents and spaces aside); that dialog picks the existing client without a word, so these are new.
+      nameRepeats: (name: string) => `Já existe um cliente com este nome: ${name}`,
+      // authored (Story 27.10, F23, listed for Bruno): the action that creates the client anyway.
+      createAnyway: 'Criar mesmo assim',
       cnpjLabel: 'CNPJ',
       contactNameLabel: 'Contato',
       contactPhoneLabel: 'Telefone do contato',

@@ -1,4 +1,4 @@
-import { getDefinition, materializeEntity, naDefaultsCountText, naDefaultsFor, screenLabel, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { getDefinition, materializeEntity, naDefaultsCountText, naDefaultsFor, screenLabel, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { pullAll, readStore } from './support/outbox.ts';
 import {
@@ -55,10 +55,10 @@ const colunaNames = (page: Page, parent: string) => page.getByRole('list', { nam
 const COLUNAS_OF_PAINEL_1 = 'Painel 1 em Cabine 1';
 const skeletonHeading = (page: Page) => page.locator('.composer-main h2').first();
 
-/** The standard template's Coluna 9 of 1° Subsolo, which holds no equipment. */
+/** The standard template's Coluna 9 of 1º Subsolo, which holds no equipment. */
 const ORPHAN_REF = 'subsolo-1/coluna-9';
 const EMPTY = 'Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.';
-const STANDARD_SUMMARY = `Semente ${SEED_VERSION} · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`;
+const STANDARD_SUMMARY = `9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`;
 const STANDARD_TOTALS =
   '25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios';
 
@@ -144,7 +144,7 @@ test('@p0 3.3-E2E-001 Empresa A reads the standard template row: summary line, N
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
   await expect(page.getByRole('heading', { level: 2, name: 'Templates (1)' })).toBeVisible();
   const row = activeList(page).getByRole('listitem');
-  // The kernel's line for the standard template, which has 17 colunas (all in 1° Subsolo).
+  // The kernel's line for the standard template, which has 17 colunas (all in 1º Subsolo).
   await expect(row.locator('.rr-secondary')).toHaveText(STANDARD_SUMMARY);
   await expect(page.getByRole('button', { name: 'Novo template' })).toBeVisible();
   await expect(row.getByRole('button', { name: 'Duplicar' })).toBeVisible();
@@ -547,7 +547,7 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
     await expect(second.locator('.composer-meta')).toHaveText(/^26 seccionadoras · 22 disjuntores/);
 
     // Context 1 removes Coluna 9 and syncs FIRST.
-    await page.getByRole('button', { name: 'Mais opções de Coluna 9 em 1° Subsolo' }).click();
+    await page.getByRole('button', { name: `Mais opções de Coluna 9 em ${STANDARD_SUBSOLO_NAME}` }).click();
     await page.getByRole('menuitem', { name: 'Remover' }).click();
     await page.getByRole('dialog', { name: 'Remover Coluna 9?' }).getByRole('button', { name: 'Remover' }).click();
     await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 6 locais · 16 colunas · 94 blocos');
@@ -1140,10 +1140,10 @@ test('@p1 E3-A9-E2E-001 composer polish: a tap on a section card body opens "Edi
 
   // A blank rename is refused in place: the message under the field, the dialog open. (Story
   // 14.2: "Renomear" is a coluna's and a painel's; a local's rename is "Função e nome".)
-  const cabines = colunaNames(page, '1° Subsolo');
+  const cabines = colunaNames(page, STANDARD_SUBSOLO_NAME);
   const first = (await cabines.first().textContent())!;
   // A coluna's controls name it with its local (second pass, 2026-10-13); the rename dialog keeps the coluna's own name.
-  await page.getByRole('button', { name: `Mais opções de ${first} em 1° Subsolo`, exact: true }).click();
+  await page.getByRole('button', { name: `Mais opções de ${first} em ${STANDARD_SUBSOLO_NAME}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const rename = page.getByRole('dialog', { name: `Renomear ${first}`, exact: true });
   const field = rename.getByRole('textbox', { name: 'Nome' });

@@ -131,15 +131,17 @@ export interface GalleryFilterOption {
 }
 
 /**
- * The local Filter chips: "Todos" first, then each local (the cabine row) holding a photo's
- * sheet, in tree order. authored (Story 14.2): "Todos" agrees with "locais".
+ * The local Filter chips: "Todas" first, then each local (the cabine row) holding a photo's
+ * sheet, in tree order. ~~authored (Story 14.2): "Todos" agrees with "locais".~~ Story 27.9 (F33):
+ * the chip filters the photos, so "Todas" agrees with "fotos".
  */
 export function galleryCabineOptions(
   snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
   photos: readonly { block_id: string | null; location_id?: string | null }[],
 ): GalleryFilterOption[] {
   const holding = new Set(photos.map((photo) => photoCabineId(photo, snapshot)).filter((id): id is string => id !== null));
-  const options: GalleryFilterOption[] = [{ id: GALLERY_ALL, label: 'Todos' }];
+  // authored (Story 27.9, listed for Bruno): was "Todos".
+  const options: GalleryFilterOption[] = [{ id: GALLERY_ALL, label: 'Todas' }];
   for (const root of locationTree(snapshot)) {
     if (root.kind === 'cabine' && holding.has(root.id)) options.push({ id: root.id, label: root.name });
   }

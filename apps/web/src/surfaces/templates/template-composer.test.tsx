@@ -231,7 +231,7 @@ describe('3.4 composer: skeleton', () => {
       return names;
     });
     fireEvent.keyDown(screen.getByRole('button', { name: /^Coluna 3/ }), { key: 'ArrowUp', altKey: true });
-    await waitFor(() => expect(colunaNames('1° Subsolo').slice(0, 3)).toEqual(['Coluna 1', 'Coluna 3', 'Coluna 2']));
+    await waitFor(() => expect(colunaNames('1º Subsolo').slice(0, 3)).toEqual(['Coluna 1', 'Coluna 3', 'Coluna 2']));
     expect(cabines()).toEqual(before);
     expect(announcer()).toHaveTextContent('Coluna 3 movida para a posição 2 de 17');
     const row = await templateRow(database, ID);
@@ -243,7 +243,7 @@ describe('3.4 composer: skeleton', () => {
   it('a later edit takes the undo of a removal away, so "Desfazer" can never discard it', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1° Subsolo' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3 em 1º Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 3?' })).getByRole('button', { name: 'Remover' }));
     expect(await screen.findByText('Coluna 3 removida')).toBeVisible();
@@ -263,7 +263,7 @@ describe('3.4 composer: skeleton', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cubículo Enel' }));
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Função e nome', 'Descer', 'Adicionar painel', 'Remover']);
     await userEvent.keyboard('{Escape}');
-    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 1 em 1° Subsolo' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 1 em 1º Subsolo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear Coluna 1' });
     const field = within(dialog).getByRole('textbox', { name: 'Nome' });
@@ -280,7 +280,7 @@ describe('3.4 composer: skeleton', () => {
     expect(within(dialog).queryByRole('alert')).toBeNull();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(colunaNames('1° Subsolo')[0]).toBe('Coluna 1');
+    expect(colunaNames('1º Subsolo')[0]).toBe('Coluna 1');
     expect(await outboxPaths()).toEqual([]);
   });
 });

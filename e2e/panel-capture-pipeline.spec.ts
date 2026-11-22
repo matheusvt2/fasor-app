@@ -1,3 +1,4 @@
+import { STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
@@ -49,10 +50,10 @@ test('@p1 9.2-E2E-004 the panel is read by the real job, the corrected type is c
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   const before = await tagsIn(coluna(page, 'Coluna 9')).allTextContents();
 
-  await page.getByRole('button', { name: 'Mais opções de Coluna 1 de 1° Subsolo', exact: true }).click();
+  await page.getByRole('button', { name: `Mais opções de Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   const chooser = page.waitForEvent('filechooser');

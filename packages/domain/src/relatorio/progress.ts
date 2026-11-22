@@ -276,15 +276,19 @@ export function fichasConcluidasText(p: Pick<Progress, 'sheets_concluded' | 'she
   return `${p.sheets_concluded} de ${p.sheets_total} fichas concluídas`;
 }
 
-/** "2 NC abertos", "1 NC aberto", "0 NC abertos". */
+/**
+ * "2 NC abertas", "1 NC aberta", "0 NC abertas". ~~"NC aberto/abertos"~~ Story 27.9 (F32): a não conformidade is
+ * feminine, so the count agrees with it.
+ */
 export function ncAbertosText(n: number): string {
-  return plural(n, 'NC aberto', 'NC abertos');
+  // authored (Story 27.9, listed for Bruno): was "NC aberto" / "NC abertos".
+  return plural(n, 'NC aberta', 'NC abertas');
 }
 
 /**
  * Story 15.2 (F37, `40-relatorio-overview.html` `.nc-badge`): "1 NC", "2 NC", the badge of a
  * sheet card or of a local's site checklist card. The tree's nodes hold none at 0; the badges'
- * numbers add up to `Progress.nc_open`, the header's "N NC abertos".
+ * numbers add up to `Progress.nc_open`, the header's "N NC abertas".
  */
 export function ncBadgeText(n: number): string {
   return `${n} NC`;

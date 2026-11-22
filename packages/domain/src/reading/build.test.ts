@@ -83,8 +83,8 @@ function union(ids: string[]): [number, number, number, number] {
 
 describe('23.7-UNIT the committed transformer plate on a v13 sheet', () => {
   it('suggests the same values but TAP ATUAL, whose text key v13 replaced (the plate prints no TAPS)', () => {
-    // The current seed since batch e25s is v16, which keeps v13's transformer nameplate as v14 and v15 did; this sheet names v13.
-    expect(SEED_VERSION).toBe('v16');
+    // The current seed since batch e27b is v17, which keeps v13's transformer nameplate as v14 to v16 did; this sheet names v13.
+    expect(SEED_VERSION).toBe('v17');
     const { rows, dropped } = buildReadingSuggestions(input({ block: block({}, 'transformador_forca', 'v13') }));
     expect(dropped).toEqual([{ key: 'tap_atual', reason: 'unknown_key' }]);
     expect(rows.map((row) => row.target_path.split('/').at(-1))).toEqual(TABLE.map(([key]) => key).filter((key) => key !== 'tap_atual'));

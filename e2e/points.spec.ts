@@ -1,4 +1,4 @@
-import { getDefinition, newPointRow, photoToken, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { getDefinition, newPointRow, photoToken, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -228,7 +228,9 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   const entryText = `Item 1 (${FIRST_ITEM.label.toLocaleLowerCase('pt-BR')}) não conforme`;
   await expect(textArea(dialog)).toContainText(entryText);
   await textArea(dialog).click();
-  await page.keyboard.press('Home');
+  // Story 27.9 (", conforme Imagem 1"): the longer text wraps before the photo chip, so "Home" would land on the
+  // chip's line; the start of the whole text is Control+Home.
+  await page.keyboard.press('Control+Home');
   await page.keyboard.type('Contato com sinais de aquecimento ');
   await dialog.getByRole('textbox', { name: 'Ação recomendada' }).fill('Reapertar e medir de novo');
   await dialog.getByRole('button', { name: 'Concluir' }).click();
@@ -239,7 +241,8 @@ test('@p0 6.6-E2E-002 22.5-E2E an NC row\'s "Criar ponto de atenção" links the
   const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
   // Story 22.5: the point names the row (its origin and item).
   expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'nc', item_key: FIRST_ITEM.key, action: 'Reapertar e medir de novo' });
-  expect(point.text).toBe(`Contato com sinais de aquecimento ${entryText} ${photoToken(photoId)}`);
+  // Story 27.9 (F36, seed v17): the photo closes the text as a clause, ", conforme ⟨token⟩".
+  expect(point.text).toBe(`Contato com sinais de aquecimento ${entryText}, conforme ${photoToken(photoId)}`);
 
   // The Points surface titles it by the equipment; it is the one card (fix batch e24h: no automatic entry).
   await page.goto(`/relatorio/${relatorioId}/pontos`);
@@ -895,7 +898,7 @@ test.describe('on a touch screen', () => {
       // A labelled listbox with groups, the current link selected.
       await expect(list.getByRole('option', { name: 'Geral', exact: true })).toHaveAttribute('aria-selected', 'true');
       await expect(list.getByRole('group', { name: 'Cubículo Enel' })).toBeVisible();
-      await expect(list.getByRole('group', { name: '1° Subsolo' })).toBeAttached();
+      await expect(list.getByRole('group', { name: STANDARD_SUBSOLO_NAME })).toBeAttached();
       await list.getByRole('option', { name: chaveOption(chave), exact: true }).tap();
       await expect(list).toHaveCount(0);
       await expect(picker).toBeFocused();
@@ -1214,7 +1217,7 @@ test('@p0 20.4-E2E-006 a pick in a new point\'s editor goes into its create: fro
   await expect(picker).toContainText('Geral');
   const before = (await pointOutbox(page)).length;
   await picker.click();
-  const option = linkList(page).getByRole('group', { name: '1° Subsolo' }).getByRole('option').nth(1);
+  const option = linkList(page).getByRole('group', { name: STANDARD_SUBSOLO_NAME }).getByRole('option').nth(1);
   const key = (await option.getAttribute('data-key'))!;
   const text = (await option.textContent())!;
   expect(key).toMatch(/^equipment:/);

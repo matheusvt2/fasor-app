@@ -1,4 +1,4 @@
-import { Button, Menu, MenuItem, MenuSection, MenuTrigger, Popover } from 'react-aria-components';
+import { Button, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Text } from 'react-aria-components';
 import { relabelDismissButtons } from './dismiss-label.ts';
 import { ui } from '../copy/ui';
 
@@ -17,6 +17,11 @@ export interface OverflowMenuAction {
    * hide an end item keep doing so.
    */
   disabled?: boolean;
+  /**
+   * Story 27.10 (F28): why a disabled item cannot be chosen ("Restaurar ficha removida" with nothing
+   * removed), drawn under its label as the item's description (`aria-describedby`).
+   */
+  reason?: string;
 }
 
 export interface OverflowMenuProps {
@@ -67,7 +72,16 @@ export function OverflowMenu({ name, items, destructiveItems = [], label }: Over
           {items.map((item) =>
             item.checked === undefined ? (
               <MenuItem key={item.id} id={item.id} className="menu-item" textValue={item.label}>
-                {item.label}
+                {item.reason === undefined ? (
+                  item.label
+                ) : (
+                  <>
+                    <Text slot="label">{item.label}</Text>
+                    <Text slot="description" className="btn-reason">
+                      {item.reason}
+                    </Text>
+                  </>
+                )}
               </MenuItem>
             ) : (
               <MenuSection

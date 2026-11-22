@@ -8,7 +8,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { blockingRows, issueConfirmReason, preIssueRowsFor, type IssueConfirmation, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
 import { progressCounterText, type Progress } from './progress.ts';
-import { sectionTextEdited } from './section-variables.ts';
+import { sectionTextEdited, sectionTextEmpty } from './section-variables.ts';
 import { funcaoLabel } from './local.ts';
 import { hiddenLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
@@ -72,6 +72,11 @@ const KIND_OF: Readonly<Record<RelatorioSectionType, SumarioRowKind>> = {
   section_10: 'setup',
   section_11: 'generated',
 };
+
+/** Story 27.10: whether a section block's row is a section text one (2, 4, 5, 6), the rows the section text editor opens. */
+export function isTextSectionRow(blockType: string): blockType is RelatorioSectionType {
+  return isRelatorioSectionType(blockType) && KIND_OF[blockType] === 'text';
+}
 
 export interface SumarioRow {
   /** Unique in the list: the block id of a numbered row, `capa` or `controle`. */
@@ -174,7 +179,8 @@ const join = (parts: readonly (string | null | undefined)[]) => parts.filter((p)
 // Verbatim from `40-relatorio-overview.html`.
 const META = {
   capaFixed: 'sempre no início',
-  controleFixed: 'montado sozinho',
+  // authored (Story 27.9, F39, listed for Bruno): was the mock's "montado sozinho".
+  controleFixed: 'preenchido automaticamente',
   controle: 'montado dos dados do relatório',
   controleFirst: 'Rev. 1 na primeira emissão',
   setup: 'editado em Dados do relatório › Etapa 2',
@@ -184,6 +190,8 @@ const META = {
   // authored (Epic 4 retro item 22): the relatório's own text, edited in the section text
   // editor (`config.section_text_edited`); no mock covers an edited section row.
   textEdited: 'texto editado',
+  // authored (Story 27.10, F24, listed for Bruno): a section text emptied in the editor, in place of "texto editado".
+  textEmpty: 'texto vazio',
   // authored: rows whose epic has not landed.
   pendingEpic: 'disponível em uma próxima etapa',
 } as const;
@@ -246,7 +254,8 @@ export function sectionBlocks(blocks: readonly BlockRow[]): BlockRow[] {
 
 function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: readonly PreIssueRow[], computed: Progress, snapshot: RelatorioSnapshot): string {
   const kind = isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text';
-  const own = issues.map((row) => row.text);
+  // Story 27.10: the empty-text row is said by the row's own "texto vazio" below, never repeated.
+  const own = issues.filter((row) => row.kind !== 'section_text_empty').map((row) => row.text);
   if (block.block_type === 'section_9') {
     // Story 25.7: a blocking part reads as its row draws it ("— impede gerar").
     const parts = section9MetaParts(issues);
@@ -289,6 +298,8 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {
+    // Story 27.10 (F24): an emptied text reads "texto vazio"; its pre-issue row marks the row pending.
+    if (sectionTextEmpty(block.config)) return META.textEmpty;
     if (sectionTextEdited(block.config)) return META.textEdited;
     const config = block.config as { section_text?: unknown } | null;
     return typeof config?.section_text === 'string' ? META.textFromTemplate : META.textDefault;

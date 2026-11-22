@@ -46,7 +46,7 @@ test('@p0 23.19-E2E-001 HH fuses at 10, 10 and 12 mΩ: the third fails (Reprovad
   await plateField(page, 'tipo_seccionadora').locator('select').selectOption('SEM CARGA');
   await expect.poll(async () => (await outboxValues(database, page, `sheet/${sc.blockId}/nameplate/tipo_seccionadora`)).at(-1)).toBe('SEM CARGA');
   const na = (await kernelOf(page, database, relatorioId, sc.blockId)).measurement(KEY).applicability;
-  expect(na).toMatchObject({ state: 'na', reason: 'Não se aplica: TIPO DE SECCIONADORA sem fusíveis.' });
+  expect(na).toMatchObject({ state: 'na', reason: 'Não se aplica: Tipo de seccionadora sem fusíveis.' });
   await openStep(page, relatorioId, sc.blockId, 'Ensaios');
   await expect(section).toHaveAttribute('data-applicability', 'na');
   await expect(section.locator('.v13-na-band .band-text')).toContainText(na.phrase!);

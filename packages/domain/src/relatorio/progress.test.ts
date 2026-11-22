@@ -66,11 +66,11 @@ describe('4.3-UNIT progress over the Porto Seguro fixture', () => {
     expect(fichasConcluidasText(handled)).toBe('1 de 96 fichas concluídas');
     const allHandled = { sheets_concluded: 90, sheets_handled: 96, sheets_total: 96 };
     expect(progressCounterState(allHandled)).toBe('complete');
-    expect(ncAbertosText(0)).toBe('0 NC abertos');
-    expect(ncAbertosText(1)).toBe('1 NC aberto');
+    expect(ncAbertosText(0)).toBe('0 NC abertas');
+    expect(ncAbertosText(1)).toBe('1 NC aberta');
     // Story 15.2 (F37): the badge of one card; the tree holds none at 0.
     expect([ncBadgeText(0), ncBadgeText(1), ncBadgeText(2)]).toEqual(['0 NC', '1 NC', '2 NC']);
-    expect(ncAbertosText(2)).toBe('2 NC abertos');
+    expect(ncAbertosText(2)).toBe('2 NC abertas');
     expect(naoEnsaiadasText(1)).toBe('1 não ensaiada');
     expect(naoEnsaiadasText(3)).toBe('3 não ensaiadas');
     expect(sugestoesText(12)).toBe('12 sugestões por confirmar');

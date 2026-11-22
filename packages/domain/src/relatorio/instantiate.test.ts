@@ -86,8 +86,8 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
     }
   });
 
-  it('the cabines carry se/env defaults and agrupar_por_tipo, the colunas hang under 1° Subsolo in order', () => {
-    const subsolo = locations.find((l) => l.name === '1° Subsolo')!;
+  it('the cabines carry se/env defaults and agrupar_por_tipo, the colunas hang under 1º Subsolo in order', () => {
+    const subsolo = locations.find((l) => l.name === '1º Subsolo')!;
     expect(subsolo).toMatchObject({
       kind: 'cabine',
       parent_id: null,
@@ -100,7 +100,7 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
     expect(colunas.map((c) => c.name)).toEqual(Array.from({ length: 17 }, (_, n) => `Coluna ${n + 1}`));
     expect(sortByOrderKey(locations.filter((l) => l.kind === 'cabine')).map((c) => c.name)).toEqual([
       'Cubículo Enel',
-      '1° Subsolo',
+      '1º Subsolo',
       'Oxigênio',
       'Cobertura A',
       'Cobertura B',

@@ -277,11 +277,11 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     // section 1 phrase, never the card title. Without it, the older fallback stands.
     const title =
       project === undefined ? join([clientName, source.local]) || UNTITLED : sumarioTitle(clientName === null ? null : { name: clientName }, project);
-    const meta = join([
-      formatServiceDates(source.service_start, source.service_end),
-      source.template_id === null ? null : (templates.get(source.template_id) ?? null),
-    ]);
-    const searchKeys = (project === undefined ? [source.local] : [clientName, project.name, project.site])
+    const dates = formatServiceDates(source.service_start, source.service_end);
+    const templateName = source.template_id === null ? null : (templates.get(source.template_id) ?? null);
+    const meta = join([dates, templateName]);
+    // Story 27.9 (F29): the search also reads the template's name and the dates as the card shows them.
+    const searchKeys = [...(project === undefined ? [source.local] : [clientName, project.name, project.site]), templateName, dates]
       .map((key) => (key === null ? '' : normalizeRegistryName(key)))
       .filter((key) => key !== '');
     const counts = syncCounts(outboxByRelatorio.get(source.id) ?? []);
@@ -383,10 +383,17 @@ export function noneActiveText(emitted: number): string {
   return `Nenhum relatório em andamento. ${plural(emitted, 'emitido', 'emitidos')}: toque em ${statusLabel('emitido')}.`;
 }
 
-/** Story 20.2: the empty sentence of a search that matches nothing. */
-export function noSearchMatchText(query: string): string {
+/**
+ * Story 20.2: the empty sentence of a search that matches nothing. Story 27.9 (F29): with a status tile
+ * pressed (`filter`) and `elsewhere` relatórios of other statuses matching, it names the filter and that
+ * count: "Nenhum relatório com status Em revisão encontrado para X. 1 relatório em outro status."
+ */
+export function noSearchMatchText(query: string, filter: RelatorioStatus | null = null, elsewhere = 0): string {
+  const shown = query.trim().replace(/\s+/g, ' ');
   // authored (Story 20.2 DoR): no mock draws a search with no match.
-  return `Nenhum relatório encontrado para ${query.trim().replace(/\s+/g, ' ')}.`;
+  if (filter === null || elsewhere === 0) return `Nenhum relatório encontrado para ${shown}.`;
+  // authored (Story 27.9, listed for Bruno): was "Nenhum relatório encontrado para X." with a tile pressed too.
+  return `Nenhum relatório com status ${statusLabel(filter)} encontrado para ${shown}. ${plural(elsewhere, 'relatório em outro status', 'relatórios em outros status')}.`;
 }
 
 /** Story 20.2: the polite count of a search's results. */
@@ -448,9 +455,12 @@ export function homeList(
   const page = selection.slice(0, homePageSizeOf(options.pageSize));
   const total = selection.length;
   let empty: HomeListEmpty = null;
+  // Story 27.9 (F29): what the search matches in the statuses the pressed tile hides.
+  const elsewhere = searching && options.filter !== null ? cards.filter((card) => card.status !== options.filter && matches(card)).length : 0;
+  const noMatch = noSearchMatchText(options.query ?? '', options.filter, elsewhere);
   if (cards.length === 0) empty = 'none';
   else if (total === 0) {
-    if (searching) empty = { kind: 'none-for-query', text: noSearchMatchText(options.query ?? '') };
+    if (searching) empty = { kind: 'none-for-query', text: noMatch };
     else
       empty =
         options.filter === null
@@ -460,7 +470,7 @@ export function homeList(
   const note = total > HOME_PAGE_SIZES[0] ? homeListNote(page.length, total) : null;
   let announcement = note ?? '';
   if (searching && cards.length > 0) {
-    if (total === 0) announcement = noSearchMatchText(options.query ?? '');
+    if (total === 0) announcement = noMatch;
     else if (note === null) announcement = searchCountText(total);
   }
   return { cards: page, shown: page.length, total, note, empty, announcement };

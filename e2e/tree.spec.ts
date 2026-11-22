@@ -1,4 +1,4 @@
-import { equipmentTypesOf, LIBRARY_GROUP_LABEL, SEED_VERSION } from '@app/domain';
+import { equipmentTypesOf, LIBRARY_GROUP_LABEL, SEED_VERSION, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -79,7 +79,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   // Story 14.2: a local nothing hangs under (Cubículo Enel holds its sheets itself) closes its line with "sem painéis".
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('sem painéis · faltam 6 campos');
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta .cl-missing')).toHaveText('faltam 6 campos');
-  await expect(cabine(page, '1° Subsolo').locator('.s9-loc-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
+  await expect(cabine(page, STANDARD_SUBSOLO_NAME).locator('.s9-loc-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-row .progress-counter')).toHaveText('0 de 9');
 
   // Left/Right on the chevron.
@@ -91,8 +91,8 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await expect(page.getByRole('button', { name: 'Expandir Cubículo Enel' })).toHaveAttribute('aria-expanded', 'false');
   await expect(tagsIn(cabine(page, 'Cubículo Enel'))).toHaveCount(0);
 
-  // 1° Subsolo: its own blocks, then its colunas open with it; every sheet reads its state.
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  // 1º Subsolo: its own blocks, then its colunas open with it; every sheet reads its state.
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   await expect(coluna(page, 'Coluna 1')).toHaveClass(/is-open/);
   await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01']);
   await expect(coluna(page, 'Coluna 1').locator('.s9-col-meta')).toHaveText('0 de 1');
@@ -104,10 +104,10 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   // Left on a leaf's body goes to its coluna's chevron.
   await sec.locator('.s9-eq-open').focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(page.getByRole('button', { name: 'Recolher Coluna 1 de 1° Subsolo', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: `Recolher Coluna 1 de ${STANDARD_SUBSOLO_NAME}`, exact: true })).toBeFocused();
   // Review F-3: "Adicionar bloco em ⟨cabine⟩" opens on the cabine's current coluna (its last, no sheet worked yet).
-  await page.getByRole('button', { name: 'Adicionar bloco em 1° Subsolo' }).click();
-  await expect(page.getByRole('dialog', { name: 'Adicionar bloco' }).getByText('Em: 1° Subsolo › Coluna 17')).toBeVisible();
+  await page.getByRole('button', { name: `Adicionar bloco em ${STANDARD_SUBSOLO_NAME}` }).click();
+  await expect(page.getByRole('dialog', { name: 'Adicionar bloco' }).getByText(`Em: ${STANDARD_SUBSOLO_NAME} › Coluna 17`)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   // Story 11.2: "Mover para…" sits in the equipment Overflow, after "Descer" (DESIGN.md Block card).
@@ -145,28 +145,28 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-loc-meta')).toHaveText('agrupar por tipo · sem painéis · faltam 6 campos');
 
   // "Adicionar coluna", "Renomear", and a local moved up by the Overflow. Story 14.2: a local
-  // that already holds colunas directly (1° Subsolo) keeps adding them; one with none (Cubículo
+  // that already holds colunas directly (1º Subsolo) keeps adding them; one with none (Cubículo
   // Enel) offers "Adicionar painel" instead (`local-painel-coluna.spec.ts` walks that path).
   await menuOf(page, 'Cubículo Enel').click();
   await expect(page.getByRole('menuitem', { name: 'Adicionar painel' })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: 'Adicionar coluna' })).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await menuOf(page, '1° Subsolo').click();
+  await menuOf(page, STANDARD_SUBSOLO_NAME).click();
   await page.getByRole('menuitem', { name: 'Adicionar coluna' }).click();
-  await expect(page.getByRole('button', { name: 'Recolher Coluna 18 de 1° Subsolo', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: `Recolher Coluna 18 de ${STANDARD_SUBSOLO_NAME}`, exact: true })).toBeFocused();
   await expect(toast(page)).toContainText('Coluna 18 adicionada');
-  await menuOf(page, 'Coluna 18 de 1° Subsolo').click();
+  await menuOf(page, `Coluna 18 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Renomear' }).click();
   const rename = page.getByRole('dialog', { name: 'Renomear Coluna 18' });
   await rename.getByRole('textbox', { name: 'Nome' }).fill('Entrada');
   await rename.getByRole('button', { name: 'Salvar' }).click();
   await expect(coluna(page, 'Entrada')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Recolher Entrada de 1° Subsolo' })).toBeFocused();
+  await expect(page.getByRole('button', { name: `Recolher Entrada de ${STANDARD_SUBSOLO_NAME}` })).toBeFocused();
   await menuOf(page, 'Geradores').click();
   await page.getByRole('menuitem', { name: 'Subir' }).click();
   await expect(announcer(page)).toHaveText('Local Geradores movido para a posição 5 de 6');
   // Cubículo Enel is collapsed and holds the last sheet worked on, so its row says it.
-  await expect(tree(page).locator(':scope > li.s9-local .s9-loc-name')).toHaveText(['Cubículo Enel você parou aqui', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Geradores', 'Cobertura B']);
+  await expect(tree(page).locator(':scope > li.s9-local .s9-loc-name')).toHaveText(['Cubículo Enel você parou aqui', STANDARD_SUBSOLO_NAME, 'Oxigênio', 'Cobertura A', 'Geradores', 'Cobertura B']);
   await expect(page.getByRole('button', { name: 'Desfazer' })).toBeVisible();
   // Alt+ArrowUp on its chevron moves it again.
   await page.getByRole('button', { name: /^(Expandir|Recolher) Geradores$/ }).focus();
@@ -190,16 +190,16 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 768);
   await openSection9(page);
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   const col1 = coluna(page, 'Coluna 1');
   await expect(tagsIn(col1)).toHaveText(['SEC-C01']);
 
   // The field palette, as a right drawer, one tap, offline.
   await context.setOffline(true);
-  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
+  await menuOf(page, `Coluna 1 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
-  await expect(palette.getByText('Em: 1° Subsolo › Coluna 1')).toBeVisible();
+  await expect(palette.getByText(`Em: ${STANDARD_SUBSOLO_NAME} › Coluna 1`)).toBeVisible();
   const paletteBox = (await palette.boundingBox())!;
   // A right drawer at the rail width, against the right edge (a scrollbar may take its width).
   expect(Math.round(paletteBox.width)).toBe(320);
@@ -230,11 +230,11 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await context.setOffline(false);
   await page.reload();
   await openSection9(page);
-  await page.getByRole('button', { name: /^(Expandir|Recolher) 1° Subsolo$/ }).click();
+  await page.getByRole('button', { name: new RegExp(`^(Expandir|Recolher) ${STANDARD_SUBSOLO_NAME}$`) }).click();
   await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-01']);
   await syncNowAndReturn(page);
   await openSection9(page);
-  if ((await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).count()) > 0) await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  if ((await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).count()) > 0) await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
 
   // The Position box: "9" clamps to the last slot; the focus stays in the box.
   const secBox = eqRow(page, 'SEC-C01').getByRole('textbox', { name: 'Posição de SEC-C01' });
@@ -275,7 +275,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await expect(tagField).toHaveValue('SC-01');
   await tagField.fill('sec-c02');
   await tagField.press('Tab');
-  await expect(duplicate.getByRole('alert')).toHaveText('TAG já existe nesta obra — SEC-C02 em 1° Subsolo › Coluna 2');
+  await expect(duplicate.getByRole('alert')).toHaveText(`TAG já existe nesta obra — SEC-C02 em ${STANDARD_SUBSOLO_NAME} › Coluna 2`);
   await expect(duplicate.getByRole('button', { name: 'Duplicar' })).toHaveAttribute('aria-disabled', 'true');
   await tagField.fill('SEC-C01-9');
   await duplicate.getByRole('button', { name: 'Duplicar' }).click();
@@ -311,7 +311,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   ]);
   await syncNowAndReturn(page);
   await openSection9(page);
-  if ((await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).count()) > 0) await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  if ((await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).count()) > 0) await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   await expect(eqRow(page, 'SEC-C01').locator('.s9-state')).toHaveText('⊘ Não ensaiada · Solicitação do cliente');
   await menuOf(page, 'SEC-C01').click();
   await page.getByRole('menuitem', { name: 'Remover' }).click();
@@ -324,7 +324,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
   await page.getByRole('menuitem', { name: 'Restaurar ficha removida' }).click();
   const restore = page.getByRole('dialog', { name: 'Restaurar ficha removida' });
-  await restore.getByRole('button', { name: 'Restaurar SEC-C01 — 1° Subsolo › Coluna 1' }).click();
+  await restore.getByRole('button', { name: `Restaurar SEC-C01 — ${STANDARD_SUBSOLO_NAME} › Coluna 1` }).click();
   await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'SEC-C01-B', 'DJ-01']);
   await expect(menuOf(page, 'SEC-C01')).toBeFocused();
   await expect(toast(page)).toContainText('Ficha restaurada');
@@ -334,8 +334,8 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
 test('@p0 4.5-E2E-002 at 1280: the office palette asks TAG and Local prefilled and refuses an existing TAG on blur', async ({ page }) => {
   await openRelatorio(page, 1280);
   await openSection9(page);
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
-  await menuOf(page, 'Coluna 1 de 1° Subsolo').click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
+  await menuOf(page, `Coluna 1 de ${STANDARD_SUBSOLO_NAME}`).click();
   await page.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
   const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
   // From 1280 px each type opens its confirm instead of creating at once.
@@ -347,15 +347,15 @@ test('@p0 4.5-E2E-002 at 1280: the office palette asks TAG and Local prefilled a
   const tag = type.getByRole('textbox', { name: 'TAG' });
   const local = type.getByRole('combobox', { name: 'Local' });
   await expect(tag).toHaveValue('SC-01');
-  await expect(local.locator('option:checked')).toHaveText('1° Subsolo › Coluna 1');
+  await expect(local.locator('option:checked')).toHaveText(`${STANDARD_SUBSOLO_NAME} › Coluna 1`);
   await tag.fill('sec-c05 ');
   await tag.press('Tab');
-  await expect(type.getByRole('alert')).toHaveText('TAG já existe nesta obra — SEC-C05 em 1° Subsolo › Coluna 5');
+  await expect(type.getByRole('alert')).toHaveText(`TAG já existe nesta obra — SEC-C05 em ${STANDARD_SUBSOLO_NAME} › Coluna 5`);
   const confirm = type.getByRole('button', { name: 'Confirmar' });
   await expect(confirm).toHaveAttribute('aria-disabled', 'true');
   await expect(type.getByText('Confirmar: a TAG já existe nesta obra')).toBeVisible();
   await tag.fill('SEC-C01-X');
-  await local.selectOption({ label: '1° Subsolo › Coluna 3' });
+  await local.selectOption({ label: `${STANDARD_SUBSOLO_NAME} › Coluna 3` });
   await expect(tag).toHaveValue('SEC-C01-X');
   await confirm.click();
   await expect(palette).toBeHidden();
@@ -373,10 +373,10 @@ test('@p1 4.5-E2E-003 a TAG duplicated by sync reads "TAG ⟨TAG⟩ duplicada" a
   ]);
   await syncNowAndReturn(page);
   await openSection9(page);
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   const line = eqRow(page, 'SEC-C01').locator('.s9-dup');
   await expect(line).toContainText('TAG SEC-C01 duplicada');
-  await line.getByRole('button', { name: 'Renomear TAG SEC-C01 em 1° Subsolo › Coluna 1' }).click();
+  await line.getByRole('button', { name: `Renomear TAG SEC-C01 em ${STANDARD_SUBSOLO_NAME} › Coluna 1` }).click();
   const dialog = page.getByRole('dialog', { name: 'Renomear TAG SEC-C01' });
   await dialog.getByRole('textbox', { name: 'TAG' }).fill('SEC-C01-A');
   await dialog.getByRole('button', { name: 'Salvar' }).click();
@@ -564,7 +564,7 @@ test('@p1 4.6-E2E-006 an Emitido relatório whose block references an equipment 
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Emitido', { timeout: 30_000 });
 
   await openSection9(page);
-  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  await page.getByRole('button', { name: `Expandir ${STANDARD_SUBSOLO_NAME}` }).click();
   const blockId = await blockIdOf(page, 'SEC-C01');
   await menuOf(page, 'SEC-C01').click();
   await page.getByRole('menuitem', { name: 'Renomear TAG' }).click();

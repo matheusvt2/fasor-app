@@ -1,4 +1,4 @@
-import { newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow } from '@app/domain';
+import { getSeed, NC_CAPTION_LEAD, newPointRow, photoToken, SEED_VERSION, siteChecklistOf, siteItems, type BlockRow, type LocationRow, type OpDraft, type PointRow, STANDARD_SUBSOLO_NAME } from '@app/domain';
 import { newId } from '../apps/api/src/ids.ts';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -81,7 +81,8 @@ const LUVAS = 'luvas_isolantes_compativeis_com_a_tensao_com_ensaio_dieletrico_va
 const TAPETE = 'tapete_ou_estrado_isolante';
 const BACIA = 'bacia_de_contencao_de_oleo';
 const EMERGENCIA = 'iluminacao_de_emergencia_autonomia_minima_de_2_h';
-const CAPTION = 'Verificação de iluminação de emergência (autonomia mínima de 2 h) do Cubículo Enel';
+// Story 27.9 (F40, seed v17): the photo of an item answered NC names the non-conformity; was "Verificação de iluminação…".
+const CAPTION = `${NC_CAPTION_LEAD} iluminação de emergência (autonomia mínima de 2 h) do Cubículo Enel`;
 const NC_PHRASE = 'Autonomia abaixo de 2 h';
 const NA_NOTE = 'Sem equipamento a óleo no local';
 const POINT_ACTION = 'Substituir as baterias';
@@ -301,7 +302,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await expect(headerPill(page)).toHaveText('Rascunho');
   const before = await locals(page, relatorioId);
   // The standard template's six locals, then the new one.
-  const names = [ENEL, '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores', EMPTY_LOCAL];
+  const names = [ENEL, STANDARD_SUBSOLO_NAME, 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores', EMPTY_LOCAL];
   expect(before.map((location) => location.name)).toEqual(names);
   const enelId = before[0]!.id;
   const emptyId = before.at(-1)!.id;
@@ -454,8 +455,9 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   const [point] = await pointsOf(page, relatorioId);
   // Story 22.5: written from the NC item (origin nc, its item), citing the item's photo.
   expect(point).toMatchObject({ location_id: enelId, equipment_id: null, origin: 'nc', item_key: EMERGENCIA, action: POINT_ACTION });
-  expect(point!.text.endsWith(` ${photoToken(photoId)}`)).toBe(true);
-  const entryText = point!.text.slice(0, -` ${photoToken(photoId)}`.length);
+  // Story 27.9 (F36, seed v17): the photo closes the text as a clause, ", conforme ⟨token⟩"; was the bare token after a space.
+  expect(point!.text.endsWith(`, conforme ${photoToken(photoId)}`)).toBe(true);
+  const entryText = point!.text.slice(0, -`, conforme ${photoToken(photoId)}`.length);
   expect(entryText).toMatch(/^Item \d+ \(.+\): .+$/);
 
   // "Concluir verificações" with nothing missing returns to the tree; the row reads N de N.
@@ -527,7 +529,7 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   await openSumario(page, relatorioId);
   const row9 = sumario(page).locator('li.sum-s9 .sum-status').first();
   await expect(row9).toContainText(
-    `Verificações do local sem resposta: 1° Subsolo (${N} itens), Oxigênio (${N} itens), Cobertura A (${N} itens), Cobertura B (${N} itens), Geradores (${N} itens) e Sala dos painéis (${N} itens)`,
+    `Verificações do local sem resposta: ${STANDARD_SUBSOLO_NAME} (${N} itens), Oxigênio (${N} itens), Cobertura A (${N} itens), Cobertura B (${N} itens), Geradores (${N} itens) e Sala dos painéis (${N} itens)`,
   );
   await expect(row9).not.toContainText('Cubículo Enel (');
   // Epic 14 QA Q-4: the NC item has its point now: no row names it.
@@ -559,10 +561,10 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
   const withTable = parts.filter((part) => tablesOf(part.xml).some((table) => table[0]![0] === SITE_TITLE));
   expect(paragraphsOf(nine).filter((paragraph) => paragraph === SITE_TITLE)).toHaveLength(names.length);
   expect(withTable).toHaveLength(names.length);
-  // A local with no type grouping prints under its own name; 1° Subsolo and Geradores (grouped by type) under their first type group.
+  // A local with no type grouping prints under its own name; 1º Subsolo and Geradores (grouped by type) under their first type group.
   expect(withTable.map((part) => part.heading.replace(/^8\.\d+ /, ''))).toEqual([
     ENEL,
-    expect.stringContaining('1° Subsolo'),
+    expect.stringContaining(STANDARD_SUBSOLO_NAME),
     'Oxigênio',
     'Cobertura A',
     'Cobertura B',
@@ -575,7 +577,8 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
     expect(tables.slice(0, 3).map((table) => table[0]![0]), part.heading).toEqual(['CARACTERÍSTICAS DA SE', 'AMBIENTE DE ENSAIO', SITE_TITLE]);
     expect(tables.filter((table) => table[0]![0] === SITE_TITLE), part.heading).toHaveLength(1);
     const table = tables[2]!;
-    expect(table[1]).toEqual(['ÍTEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
+    // The seed's normalized columns, read from the kernel (Story 27.8: "ITEM" since seed v17).
+    expect(table[1]).toEqual([...getSeed(SEED_VERSION, 'cabine_primaria').checklist_columns]);
     expect(table.filter((cells) => cells.length === 1).map((cells) => cells[0])).toEqual([SITE_TITLE, ...GROUPS]);
     const items = itemRows(table);
     expect(items).toHaveLength(N);
@@ -896,12 +899,12 @@ test('@p0 14.3-E2E-007 Epic 14 QA Q-5: a local with no equipment fills its CARAC
   await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('19');
 });
 
-test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC abertos", the tap focuses the local\'s site row, Etapa 6 suggests Apto com restrições and the summary names the item; the local removed, neither carries it', async ({ page }) => {
+test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC abertas", the tap focuses the local\'s site row, Etapa 6 suggests Apto com restrições and the summary names the item; the local removed, neither carries it', async ({ page }) => {
   test.setTimeout(180_000);
   // One local, Cubículo Enel, with no equipment: the only NC the relatório can hold is a site item.
   const { relatorioId, enelId } = await setUp(page, 1280);
   const summary = page.getByRole('group', { name: 'Resumo do relatório' });
-  await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '0 NC abertas', exact: true })).toBeVisible();
 
   await openSurface(page, relatorioId, enelId);
   await seg(page, EMERGENCIA, 'Não conforme').click();
@@ -910,7 +913,7 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
 
   // The Sumário counts it; the tap opens section 9 and moves the focus to the local's "Verificações do local".
   await openSumario(page, relatorioId);
-  const nc = summary.getByRole('button', { name: '1 NC aberto', exact: true });
+  const nc = summary.getByRole('button', { name: '1 NC aberta', exact: true });
   await expect(nc).toBeVisible();
   await nc.click();
   await expect(tree(page)).toBeVisible();
@@ -947,7 +950,7 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(confirm).toBeHidden();
   await expect(local(page, ENEL)).toHaveCount(0);
   await expect.poll(async () => (await outbox(page)).some((op) => op.path === `location/${enelId}/removed_at` && op.kind === 'remove')).toBe(true);
-  await expect(summary.getByRole('button', { name: '0 NC abertos', exact: true })).toBeVisible();
+  await expect(summary.getByRole('button', { name: '0 NC abertas', exact: true })).toBeVisible();
   await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
   // No sheet and no site NC left: the derived verdict is Apto, so no reason line at all; Story
@@ -966,7 +969,7 @@ test('@p1 14.3-E2E-005 a coluna and a relatório on seed v3 offer no entry: no t
   const v4 = await setUp(page, 1280, { keepSheets: true });
   await openSection9(page);
   // One per local of the standard template. Story 15.2: the card is drawn under its open local.
-  for (const name of [ENEL, '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']) await expandLocation(page, name);
+  for (const name of [ENEL, STANDARD_SUBSOLO_NAME, 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores']) await expandLocation(page, name);
   await expect(tree(page).locator('.s9-verif')).toHaveCount(6);
   await expect(tree(page).locator('li.s9-coluna').first()).toBeVisible();
   await expect(tree(page).locator('li.s9-coluna .s9-verif')).toHaveCount(0);
