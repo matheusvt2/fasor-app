@@ -33,8 +33,12 @@ const SIGN_IN_REFUSED_STATUSES: ReadonlySet<unknown> = new Set(['paused', 'remov
 
 /** 30-day sliding session (AD-9). */
 export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
-/** The cookie is refreshed on use once a day, which is what makes the 30 days sliding. */
-const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
+/**
+ * The cookie is refreshed on use once a day, which is what makes the 30 days sliding. Exported
+ * (2026-11-22, e26r) for `http/session.ts`, which looks a session up without the refresh and asks
+ * for it only when the user is active and the day elapsed.
+ */
+export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 
 export interface AuthOptions {
   db: Db;

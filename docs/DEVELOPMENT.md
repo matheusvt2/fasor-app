@@ -90,7 +90,7 @@ docker compose --profile prod up -d
 curl http://localhost:3001/api/health
 ```
 
-It refuses the public `SESSION_SECRET`: put your own (32 characters or more) in `.env` first. The sign-in and push rate limits are on; `RATE_LIMIT=off` turns them off.
+It refuses the public `SESSION_SECRET`: put your own (32 characters or more) in `.env` first. The sign-in and push rate limits are on; `RATE_LIMIT=off` turns them off. *(2026-11-22, e26r: production also refuses `EMAIL_PROVIDER=fake` and the placeholder sender, so `api-prod` sets `EMAIL_PROVIDER=ses` and `EMAIL_FROM=no-reply@example.com`; without AWS credentials an invitation or a reset it tries to send fails, and nothing else does.)*
 
 ## A tablet on the local network
 

@@ -1,5 +1,6 @@
 import { now } from '../clock.ts';
-import type { AppDatabase } from '../db/schema.ts';
+import { COMPANY_STREAM, type AppDatabase } from '../db/schema.ts';
+import { readSyncState } from '../db/sync-store.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient, type SyncClient } from './client.ts';
 import { createSyncEngine } from './engine.ts';
@@ -30,9 +31,24 @@ export interface FirstCompanyPullOptions {
   client?: SyncClient;
 }
 
-/** Whether the engine ran the company pull inside the bound (a failure it recorded included); false when skipped offline or cut. Never rejects. */
+/**
+ * Whether the engine ran the company pull inside the bound (a failure it recorded included); false when
+ * skipped offline, cut, or skipped because the company stream was downloaded before. Never rejects.
+ *
+ * 2026-11-22 (e26r, review of Epic 26): only a company stream this device never downloaded is pulled
+ * here. Once downloaded, a pull lists the "merged by rule" pairs of the ops it brings
+ * (`queuePulledPairs`) and moves the cursor past them; this throwaway engine would consume both, so
+ * the app's own engine would never show them. A re-auth sign-in on a device that already holds the
+ * company's rows has nothing to wait for: the app's engine pulls as it always does.
+ */
 export async function firstCompanyPull(db: AppDatabase, options: FirstCompanyPullOptions = {}): Promise<boolean> {
   if (!(options.online ?? browserOnline())) return false;
+  try {
+    const company = await readSyncState(db, COMPANY_STREAM);
+    if (company !== undefined && company.downloaded_at !== null) return false;
+  } catch {
+    return false;
+  }
   const engine = createSyncEngine({
     db,
     client: options.client ?? createBrowserSyncClient(),

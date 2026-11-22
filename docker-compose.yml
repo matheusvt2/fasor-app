@@ -218,6 +218,12 @@ services:
       # Production also refuses the public default SESSION_SECRET above: set your own in .env
       # (README "Running the prod profile"), and it turns the request limits on (RATE_LIMIT).
       NODE_ENV: production
+      # 2026-11-22 (e26r): production also refuses the fake mailer and the placeholder sender
+      # (config.ts), so this profile names SES and a sender of example.com. The SES client is built
+      # at boot without calling AWS, so the api starts; with no AWS credentials here an e-mail it
+      # tries to send fails (the Admin's routes answer `failed`, the reset request stays silent).
+      EMAIL_PROVIDER: ses
+      EMAIL_FROM: no-reply@example.com
     command: pnpm --filter @app/api start
     ports:
       - '127.0.0.1:${API_PROD_PORT:-3001}:3000'

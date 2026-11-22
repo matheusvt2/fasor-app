@@ -166,6 +166,23 @@ export const configSchema = z
         message: 'is the public development default; production needs its own secret',
       });
     }
+    // 2026-11-22 (e26r, review of Epic 26): a production process sends the two e-mails for real,
+    // from a real sender. The `fake` mailer only stores them, and the placeholder sender is no
+    // address anyone can answer or a mail server accepts.
+    if (config.NODE_ENV === 'production' && config.EMAIL_PROVIDER === 'fake') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_PROVIDER'],
+        message: 'is fake; production sends the invitation and the password reset through ses',
+      });
+    }
+    if (config.NODE_ENV === 'production' && config.EMAIL_PROVIDER === 'ses' && config.EMAIL_FROM === DEFAULT_EMAIL_FROM) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_FROM'],
+        message: 'is the placeholder sender; production needs the address of the verified SES identity',
+      });
+    }
     if (config.TELEMETRY_SINK === 'cloudwatch' && config.TELEMETRY_LOG_GROUP === undefined) {
       ctx.addIssue({ code: 'custom', path: ['TELEMETRY_LOG_GROUP'], message: 'required when TELEMETRY_SINK is cloudwatch' });
     }

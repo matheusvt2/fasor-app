@@ -106,10 +106,8 @@ if (config.WORKER === '1') {
 const trustedOrigins = parseTrustedOrigins(config.TRUSTED_ORIGINS);
 // Story 26.6: one e-mail provider, shared by the forgot-password hook and the Admin's routes.
 const email = emailProviderOf(config, db);
+// 2026-11-22 (e26r): production with the fake mailer no longer boots (`config.ts`).
 log('email provider', { provider: config.EMAIL_PROVIDER });
-if (config.NODE_ENV === 'production' && config.EMAIL_PROVIDER === 'fake') {
-  logError('EMAIL_PROVIDER is fake in production: invitations and password resets are stored, not sent');
-}
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,
