@@ -14,13 +14,15 @@ import {
   type TemplateRow,
 } from '@app/domain';
 import { and, desc, eq, inArray, like, or } from 'drizzle-orm';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createAuth } from '../auth/auth.ts';
+import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
 import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
-import { TEST_SEED } from '../db/seed.ts';
+import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { newId } from '../ids.ts';
 import { applyOps } from './apply.ts';
 import { templateSeedDecision } from './template-seed-step.ts';
@@ -41,7 +43,21 @@ const DEVICE = 'tablet-test-template-seed';
 const config = loadConfig();
 const { sql, db } = createDb(config.DATABASE_URL);
 
+const auth = createAuth({
+  db,
+  secret: config.SESSION_SECRET,
+  baseURL: config.AUTH_BASE_URL,
+  trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
+});
+
 const templateIds = new Set<string>();
+
+// The file seeds its own company: `test-reset.integration.test.ts` empties the test companies'
+// entities, the user and role rows included, and a push by a user with no role row is refused
+// (`op_forbidden`, Epic 26). Without this the file was green only after a file that seeds.
+beforeAll(async () => {
+  await seedTestCompanies(db, auth);
+});
 
 function call(path: string, init: RequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = {
