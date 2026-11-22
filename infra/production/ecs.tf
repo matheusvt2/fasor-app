@@ -26,11 +26,20 @@ locals {
 
   trusted_origins = compact([local.app_url, local.public_url, local.cloudfront_url])
 
+  # Story 26.7 (2026-11-22, e26r): the api sends the invitation and the password reset through
+  # SES from the verified sender (email.tf), only when `email_domain` is set. The display name
+  # stays "Conforme", in code (EMAIL_SENDER_NAME). With `email_domain` null these two entries are
+  # absent and the api, the migration and the smoke seed refuse to boot: in production config.ts
+  # refuses EMAIL_PROVIDER=fake and the placeholder sender. Set `email_domain` before deploying.
+  api_email_environment = {
+    for name, value in { EMAIL_PROVIDER = "ses", EMAIL_FROM = local.email_from } : name => value if local.email_enabled
+  }
+
   # The api's environment, shared by the service and the migration task (migrate-cli.ts
   # loads the full configuration). No S3_ENDPOINT and no static keys: the SDK default
   # chain supplies the task role (apps/api/src/storage/s3.ts).
   api_environment = [
-    for name, value in {
+    for name, value in merge({
       NODE_ENV        = "production"
       PORT            = "3000"
       WORKER          = "1"
@@ -54,7 +63,7 @@ locals {
       BEDROCK_PANEL_MODEL_ID      = var.bedrock_panel_model_id
       BEDROCK_PROSE_MODEL_ID      = var.bedrock_prose_model_id
       BEDROCK_ESCALATION_MODEL_ID = var.bedrock_escalation_model_id
-    } : { name = name, value = value }
+    }, local.api_email_environment) : { name = name, value = value }
   ]
 
   api_secrets = [

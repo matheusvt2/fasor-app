@@ -363,8 +363,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(
     () =>
       authClient.onReAuthRequired((heard) => {
-        // Story 26.11: a pause, once heard, stays the cause until the flag is cleared (every later
-        // 401 of the same account is the plain one: the pause deleted its sessions).
+        // Story 26.11: a pause, once heard, stays the cause until the flag is cleared (a sign-in).
+        // ~~Every later 401 of the same account is the plain one: the pause deleted its sessions.~~
+        // (2026-11-22, e26r: a pause keeps the sessions, so every later 401 while paused carries
+        // `user_inactive` too; once the Admin reactivates, the kept sessions are deleted and the
+        // next 401 is the plain one, which still reads as the pause heard before.)
         const cause: ReAuthCause = heard === 'paused' || readReAuthCause() === 'paused' ? 'paused' : 'expired';
         writeReAuthRequired(true, cause);
         setReAuthRequired(true);

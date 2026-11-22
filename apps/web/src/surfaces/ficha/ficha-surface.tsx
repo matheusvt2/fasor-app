@@ -56,7 +56,7 @@ import { useFichaSteps } from './use-ficha-steps.ts';
 import { SHEET_PRIMARY_ID } from './ficha-fields.tsx';
 import './ficha.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { ReadOnlyBanner } from '../../components/index.ts';
 
 /** The Sticky action bar's primary: where the readings' and the plate's Enter runs end (one id, `ficha-fields.tsx`). */
@@ -154,7 +154,8 @@ function FichaBody({
   const [rail, setRail] = useState<RailState>('auto');
   // Story 26.5 (`62-ficha-consulta.html`): without `relatorio.fill` the sheet opens read-only, as a not
   // tested one does, and says why once, in the info Banner under the sheet header.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill, reason: fillReason } = useFillAccess();
   const notTested = block.not_tested !== null;
   const roleReadOnly = !canFill;
   const readOnly = notTested || roleReadOnly;
@@ -179,8 +180,9 @@ function FichaBody({
   // Status flow 2026-10-10: on an Emitido relatório the sheet says that editing reopens it.
   const issuedBanner = useFichaIssuedBanner(state, relatorioId, snapshot.relatorio.status);
   const banner = useMemo(
-    () => pickBanner([conflict.banner, suggestionsBanner, issuedBanner].filter((row): row is Banner => row !== null)),
-    [conflict.banner, suggestionsBanner, issuedBanner],
+    // e26r: a sheet the role cannot write says so once, in its read-only Banner, not that editing reopens it.
+    () => pickBanner([conflict.banner, suggestionsBanner, roleReadOnly ? null : issuedBanner].filter((row): row is Banner => row !== null)),
+    [conflict.banner, suggestionsBanner, issuedBanner, roleReadOnly],
   );
   useExtraBanner(banner);
   // Batch e24p (Story 24.17): the kernel's findings a point can be created from on this sheet, and where each sits.
@@ -216,7 +218,7 @@ function FichaBody({
             <SheetObservationDictationProvider enabled={enabled.has('observations')}>
             <div className="content">
               {roleReadOnly ? (
-                <ReadOnlyBanner />
+                <ReadOnlyBanner reason={fillReason} />
               ) : notTested ? (
                 <NotTestedBand api={api} block={block} snapshot={snapshot} />
               ) : null}

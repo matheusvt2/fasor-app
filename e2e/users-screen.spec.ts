@@ -1,5 +1,16 @@
+import {
+  ADMIN_ROLE_ROUTES,
+  ADMIN_USER_ROUTES,
+  adminRoleListResponseSchema,
+  adminRoleRoutePath,
+  adminUserResponseSchema,
+  adminUserRoutePath,
+  CONTRACT_VERSION,
+  CONTRACT_VERSION_HEADER,
+} from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { waitForEmail } from './support/fake-email.ts';
+import { appOrigin } from './support/origin.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, SEED_PASSWORD, signIn, test, type WorkerSeed } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { waitForCompanyPull } from './support/sync.ts';
@@ -217,5 +228,30 @@ test.describe('26.9 the Usuários screen', () => {
     } finally {
       await page.context().setOffline(false);
     }
+  });
+
+  test('@p1 e26r-E2E-001 a removed user whose custom role was removed: Reativar is refused with the sentence and he stays removed', async ({ page, seed }) => {
+    test.setTimeout(120_000);
+    await adminOnUsers(page, seed);
+    const person = newcomer(seed, 'Estagiario');
+    // The setup through the Admin's routes, as the screens would call them: a custom role, a user
+    // holding it, the user removed, then the role removed (a removed user holds no role for the role rules).
+    const headers = { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) };
+    const role = await page.request.post(ADMIN_ROLE_ROUTES.create.path, { headers, data: { name: 'Estagiário' } });
+    expect(role.status(), await role.text()).toBe(201);
+    const roleId = adminRoleListResponseSchema.parse(await role.json()).roles.find((entry) => entry.name === 'Estagiário')!.id;
+    const created = await page.request.post(ADMIN_USER_ROUTES.create.path, { headers, data: { name: person.name, email: person.email, role_id: roleId } });
+    expect(created.status(), await created.text()).toBe(201);
+    const userId = adminUserResponseSchema.parse(await created.json()).user.id;
+    expect((await page.request.post(adminUserRoutePath('remove', userId), { headers, data: {} })).status()).toBe(200);
+    expect((await page.request.post(adminRoleRoutePath('remove', roleId), { headers, data: {} })).status()).toBe(200);
+
+    await page.reload();
+    await page.getByRole('radiogroup', { name: 'Situação' }).getByRole('radio', { name: 'Removido' }).click();
+    await expect(userRow(page, person.name).locator('.status-pill')).toHaveText('Removido');
+    await rowAction(page, person.name, 'Reativar');
+    await page.getByRole('dialog', { name: `Reativar ${person.name}?` }).getByRole('button', { name: 'Reativar' }).click();
+    await expect(page.getByText('Esse papel não existe mais. Escolha outro.')).toBeVisible();
+    await expect(userRow(page, person.name).locator('.status-pill')).toHaveText('Removido');
   });
 });

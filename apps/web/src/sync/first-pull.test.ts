@@ -110,3 +110,37 @@ describe('26.10-WEB-FIRSTPULL the sign-in finishes the first company pull', () =
     expect(FIRST_PULL_WAIT_MS).toBe(10_000);
   });
 });
+
+describe('e26r-WEB-FIRSTPULL only a company stream never downloaded is pulled at sign-in', () => {
+  const downloaded = { id: 'company', cursor_seq: 5, complete: true, files_pending: 0, downloaded_at: '2026-11-21T10:00:00.000Z', last_sync_at: '2026-11-21T10:00:00.000Z', last_push_at: [] };
+
+  it('a downloaded stream: no request, the cursor and the stored state untouched, so the app\'s engine pulls (and lists) the ops after it', async () => {
+    const database = await freshDb();
+    await database.sync_state.put(downloaded);
+    const { client: fake, calls } = client({
+      pullCompany: async (since) => {
+        calls.push(since);
+        return { ops: companyOps().map((op, index) => ({ ...op, seq: 6 + index })), seq: 7, summary: { last_push_at: [], relatorios: [] } } as unknown as SyncPullResponse;
+      },
+    });
+    expect(await firstCompanyPull(database, { online: true, client: fake })).toBe(false);
+    expect(calls).toEqual([]);
+    expect(await database.sync_state.get('company')).toEqual(downloaded);
+    expect(await localRoleOf(database, USER)).toBeNull();
+  });
+
+  it('a stream started but never complete (downloaded_at null) is pulled from its cursor', async () => {
+    const database = await freshDb();
+    await database.sync_state.put({ ...downloaded, cursor_seq: 0, complete: false, downloaded_at: null });
+    const ops = companyOps();
+    const { client: fake, calls } = client({
+      pullCompany: async (since) => {
+        calls.push(since);
+        return { ops: since === 0 ? ops : [], seq: 2, summary: { last_push_at: [], relatorios: [] } } as unknown as SyncPullResponse;
+      },
+    });
+    expect(await firstCompanyPull(database, { online: true, client: fake })).toBe(true);
+    expect(calls).toEqual([0]);
+    expect((await database.sync_state.get('company'))?.downloaded_at).not.toBeNull();
+  });
+});

@@ -20,7 +20,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, Chip, ReadOnlyBanner, TextButton } from '../../components/index.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -108,7 +108,8 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
   const edits = useUndoableEdits();
   const t = copy.sectionText;
   // Story 26.5: a role without `relatorio.fill` reads the section text and changes nothing.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill, reason: fillReason } = useFillAccess();
 
   const config = block.config as { section_text?: unknown } | null;
   const own = typeof config?.section_text === 'string' ? config.section_text : null;
@@ -202,7 +203,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
       </div>
 
       <div className="secao-content">
-        {canFill ? null : <ReadOnlyBanner />}
+        {canFill ? null : <ReadOnlyBanner reason={fillReason} />}
         <div>
           <p className="field-label" id="secao-lbl">
             {t.fieldLabel}

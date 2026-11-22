@@ -1,6 +1,7 @@
 # Epic 26, Story 26.7: outbound e-mail through Amazon SES, for the invitation and the
 # password reset only (Story 26.6). Everything here exists only when `email_domain` is set
-# in the untracked terraform.tfvars; with it null the api keeps `EMAIL_PROVIDER=fake`.
+# in the untracked terraform.tfvars; ~~with it null the api keeps `EMAIL_PROVIDER=fake`.~~
+# (2026-11-22, e26r: with it null the production api does not boot; see below.)
 #
 # The domain's DNS is not in this account (no Route 53 zone), so Terraform cannot publish the
 # three DKIM CNAME records: the `email_dkim_records` output lists them and the domain's owner
@@ -8,8 +9,12 @@
 # SES sandbox is a request to AWS made once by the account's owner
 # (`infra/bin/aws sesv2 put-account-details`, infra/README.md "E-mail"); it is not a resource.
 #
-# Not here on purpose: the `EMAIL_PROVIDER` and `EMAIL_FROM` entries of the api task. They
-# enter `ecs.tf` with the deploy that carries Story 26.6's code, so this apply rolls no task.
+# ~~Not here on purpose: the `EMAIL_PROVIDER` and `EMAIL_FROM` entries of the api task. They
+# enter `ecs.tf` with the deploy that carries Story 26.6's code, so this apply rolls no task.~~
+# (2026-11-22, e26r, review of Epic 26: the two entries are in `ecs.tf` now, `api_email_environment`,
+# present only when `email_domain` is set. A production api refuses to boot with the fake mailer or
+# the placeholder sender (apps/api/src/config.ts), so with `email_domain` null the api, the
+# migration and the smoke seed no longer start: set it before the deploy that carries this.)
 
 locals {
   email_enabled = var.email_domain != null

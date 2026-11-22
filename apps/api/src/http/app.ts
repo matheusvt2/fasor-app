@@ -311,8 +311,9 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   // 2026-11-22 (Story 26.11): a pause or a remove keeps the user's sessions, so better-auth's own
   // get-session must not answer for a user who is not active: it answers the same `401 user_inactive`
   // as every other route. Sign-out stays open (it ends only his own session); sign-in is refused by
-  // the session hook of `auth.ts`.
-  const readSession = sessionMiddleware(options.auth, options.db);
+  // the session hook of `auth.ts`. 2026-11-22 (e26r): this read never slides the session; for an
+  // active user better-auth's own get-session, right after, slides it and sets the cookie.
+  const readSession = sessionMiddleware(options.auth, options.db, { refresh: false });
   app.use('/api/auth/get-session', async (c, next) => {
     await readSession(c, async () => {});
     const session = c.get('session');

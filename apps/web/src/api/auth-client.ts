@@ -164,7 +164,8 @@ export async function signIn(email: string, password: string): Promise<SignInRes
  * pretending the user is out: the better-auth client reports failures as a returned
  * error rather than a rejection, so both shapes are turned into one.
  *
- * Story 26.11: a server that holds no session for this device (a pause deleted it, or it ended)
+ * Story 26.11: a server that holds no session for this device (~~a pause deleted it~~ a
+ * reactivation deleted it, 2026-11-22 e26r: a pause keeps it; or it ended)
  * answers the sign-out `401`, or `400` when the cookie itself is gone (better-auth's "failed to get
  * session"). There is then nothing left to end on the server, so the device signs out: a paused
  * user who confirmed "Sair e apagar" is never kept in.

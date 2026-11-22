@@ -6,7 +6,10 @@ import {
   READ_ONLY_BANNER_TEXT,
   standardTemplate,
   systemRoleRow,
+  ISSUED_READ_ONLY_REASON_TEXT,
+  READ_ONLY_LEAD_TEXT,
   type BlockRow,
+  type RelatorioStatus,
   type RoleRow,
   type SystemRoleId,
 } from '@app/domain';
@@ -99,12 +102,12 @@ async function fixtureDb(): Promise<{ db: AppDatabase; sections: BlockRow[] }> {
 
 const role = (system: SystemRoleId): RoleRow => systemRoleRow(system);
 
-function renderAt(path: string, route: string, element: ReactElement, as: RoleRow) {
+function renderAt(path: string, route: string, element: ReactElement, as: RoleRow, relatorioStatus: RelatorioStatus | null = null) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <SyncContext value={makeSyncState()}>
         <ToastProvider>
-          <PermissionsFixture role={as}>
+          <PermissionsFixture role={as} relatorioStatus={relatorioStatus}>
             <BackTargetProvider>
               <ExtraBannerProvider>
                 <Routes>
@@ -228,5 +231,102 @@ describe('26.5-UNIT-008 a relatório the role cannot fill', () => {
     expect(container.querySelector('.rt-toolbar')).toBeNull();
     expect(container.querySelector('.chip-row')).toBeNull();
     expect(screen.queryByRole('button', { name: /Restaurar/ })).toBeNull();
+  });
+});
+
+describe('e26r-UNIT-003 an issued relatório for a role that does not issue (2026-11-22, Matheus "sim nos dois")', () => {
+  const ISSUED_BANNER = `${READ_ONLY_LEAD_TEXT} ${ISSUED_READ_ONLY_REASON_TEXT}`;
+
+  it('the Engenheiro de Campo: the ficha opens read-only under one Banner that says why, and a press enters no op', async () => {
+    ({ db: database } = await fixtureDb());
+    const { container } = renderAt(`/relatorio/${RELATORIO}/ficha/${BLOCK_CHAVE_ID}`, '/relatorio/:id/ficha/:blockId', <FichaSurface />, role('engenheiro_de_campo'), 'emitido');
+    await waitFor(() => expect(container.querySelector('.fc-banner')).toHaveTextContent(ISSUED_BANNER));
+    expect(container.querySelectorAll('.fc-banner')).toHaveLength(1);
+    expect(container.querySelector('.ficha-main .section.is-readonly')).not.toBeNull();
+    expect(container.querySelector('.bar-buttons.has-camera')).toBeNull();
+    for (const cell of container.querySelectorAll<HTMLElement>('.tri-state .seg, .measurement-field, [role="textbox"]')) fireEvent.click(cell);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(await database!.outbox.count()).toBe(0);
+  });
+
+  it('the points and the photos of the same relatório read the same Banner; the Sumário rows take no edit', async () => {
+    ({ db: database } = await fixtureDb());
+    let view = renderAt(`/relatorio/${RELATORIO}/pontos`, '/relatorio/:id/pontos', <PointsSurface />, role('engenheiro_de_campo'), 'emitido');
+    await waitFor(() => expect(view.container.querySelector('.fc-banner')).toHaveTextContent(ISSUED_BANNER));
+    expect(screen.queryByRole('button', { name: /^Criar/ })).toBeNull();
+    cleanup();
+    view = renderAt(`/relatorio/${RELATORIO}/fotos`, '/relatorio/:id/fotos', <GallerySurface />, role('gestor_do_projeto'), 'emitido');
+    await waitFor(() => expect(view.container.querySelector('.fc-banner')).toHaveTextContent(ISSUED_BANNER));
+    expect(screen.queryByRole('button', { name: /Adicionar fotos/ })).toBeNull();
+    cleanup();
+    view = renderAt(`/relatorio/${RELATORIO}`, '/relatorio/:id', <SumarioSurface />, role('engenheiro_de_campo'), 'emitido');
+    await waitFor(() => expect(view.container.querySelectorAll('.sumario .sum-row').length).toBeGreaterThan(0));
+    expect(view.container.querySelectorAll('.sumario .sum-row .overflow-trigger')).toHaveLength(0);
+  });
+
+  it('the Responsável Técnico and the Admin write an issued relatório as before; the Consulta keeps the fill reason', async () => {
+    ({ db: database } = await fixtureDb());
+    for (const system of ['responsavel_tecnico', 'admin'] as const) {
+      const { container } = renderAt(`/relatorio/${RELATORIO}/pontos`, '/relatorio/:id/pontos', <PointsSurface />, role(system), 'emitido');
+      await waitFor(() => expect(container.querySelector('.sticky-action-bar')).not.toBeNull());
+      expect(container.querySelector('.fc-banner')).toBeNull();
+      cleanup();
+    }
+    const { container } = renderAt(`/relatorio/${RELATORIO}/pontos`, '/relatorio/:id/pontos', <PointsSurface />, role('consulta'), 'emitido');
+    await waitFor(() => expect(container.querySelector('.fc-banner')).toHaveTextContent(READ_ONLY_BANNER_TEXT));
+  });
+});
+
+describe('e26r-UNIT-004 the issued files for a role that downloads and does not issue (2026-11-22, Matheus "sim nos dois")', () => {
+  const REVISION = '019966c1-0268-7000-8000-000000000001';
+
+  /** The fixture moved to Emitido on the device, with revision 1. */
+  async function issuedDb(): Promise<AppDatabase> {
+    const { db } = await fixtureDb();
+    const record = await db.entities.get(['relatorio', RELATORIO]);
+    await db.entities.put({ ...record!, row: { ...(record!.row as object), status: 'emitido' } as never });
+    const revision = {
+      id: REVISION,
+      relatorio_id: RELATORIO,
+      number: 1,
+      snapshot_seq: 1,
+      created_by: USER,
+      docx_file_id: '019966c1-0268-7000-8000-000000000002',
+      pdf_file_id: '019966c1-0268-7000-8000-000000000003',
+      created_at: '2026-11-20T10:00:00.000Z',
+    };
+    await db.entities.put(toRecord(`revision:${REVISION}`, revision as never));
+    return db;
+  }
+
+  it('the Consulta and the Gestor do Projeto: the latest revision\'s DOCX and PDF on the Sumário, with "Gerar relatório" still refused', async () => {
+    for (const system of ['consulta', 'gestor_do_projeto'] as const) {
+      database = await issuedDb();
+      const { container } = renderAt(`/relatorio/${RELATORIO}`, '/relatorio/:id', <SumarioSurface />, role(system));
+      const row = await waitFor(() => {
+        const found = container.querySelector<HTMLElement>('.revision-row');
+        expect(found).not.toBeNull();
+        return found!;
+      });
+      expect(row.querySelector('.rev-text')).toHaveTextContent(/^Rev\. 1 — /);
+      expect(within(row).getByRole('button', { name: 'DOCX' })).not.toHaveAttribute('aria-disabled');
+      expect(within(row).getByRole('button', { name: 'PDF' })).not.toHaveAttribute('aria-disabled');
+      expect(within(container.querySelector<HTMLElement>('.sticky-action-bar')!).getByRole('button', { name: 'Gerar relatório' })).toHaveAttribute('aria-disabled', 'true');
+      cleanup();
+      database?.close();
+      database = null;
+    }
+  });
+
+  it('the Engenheiro de Campo (no export.download) and the Admin (the Export dialog) see no such row', async () => {
+    for (const system of ['engenheiro_de_campo', 'admin'] as const) {
+      database = await issuedDb();
+      const { container } = renderAt(`/relatorio/${RELATORIO}`, '/relatorio/:id', <SumarioSurface />, role(system));
+      await waitFor(() => expect(container.querySelectorAll('.sumario .sum-row').length).toBeGreaterThan(0));
+      expect(container.querySelector('.revision-row')).toBeNull();
+      cleanup();
+      database?.close();
+      database = null;
+    }
   });
 });

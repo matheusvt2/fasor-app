@@ -31,7 +31,7 @@ import {
 import { useId, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, ReadOnlyBanner, TextButton, type OverflowMenuAction } from '../../components/index.ts';
-import { useCan } from '../../state/permissions.tsx';
+import { useFillAccess } from '../../state/permissions.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -82,7 +82,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const user = session.user;
   const edits = useUndoableEdits();
   // Story 26.5: a role without `relatorio.fill` opens the points and changes none of them.
-  const canFill = useCan('relatorio.fill');
+  // e26r: and, on an Emitido relatório, `relatorio.issue` (`useFillAccess`).
+  const { canFill, reason: fillReason } = useFillAccess();
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const entries = useMemo(() => sectionEightEntries(snapshot), [snapshot]);
   const live = useMemo(() => entries.map((entry) => entry.point), [entries]);
@@ -172,7 +173,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
             </h2>
           </div>
           <p className="section-note">{t.sectionNote(sectionMention(snapshot, 8))}</p>
-          {canFill ? null : <ReadOnlyBanner />}
+          {canFill ? null : <ReadOnlyBanner reason={fillReason} />}
           {empty ? <p className="poa-empty">{t.empty}</p> : null}
           <div className="poa-list" aria-label={t.listLabel(sectionMention(snapshot, 8))} role="group" ref={listRef}>
             {live.map((point, i) =>

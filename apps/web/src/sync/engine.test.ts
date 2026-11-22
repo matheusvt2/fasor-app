@@ -5,6 +5,7 @@ import {
   mergeInfoText,
   READING_FAST_POLL_WINDOW_MS,
   SYNC_PUSH_MAX_BYTES,
+  systemRoleRow,
   type BlockRow,
   type FilePutResponse,
   type FileVariantName,
@@ -2625,4 +2626,36 @@ describe('e25x A2 a commit nudge is a push-only pass', () => {
     expect(withPushNow).toBeLessThanOrEqual(NUDGES + 1 + (STREAMS + 3));
     expect(withPushNow).toBeGreaterThanOrEqual(NUDGES);
   }, 120_000);
+});
+
+describe('e26r-UNIT a stopped engine stores nothing of a page that arrives after the stop', () => {
+  it('a company pull still on its way at stop() (the sign-in\'s first pull cut at its bound) leaves the stored cursor, the state and the rows as they were', async () => {
+    const h = await harness();
+    const stored = { id: 'company', cursor_seq: 3, complete: true, files_pending: 0, downloaded_at: '2026-09-21T15:00:00.000Z', last_sync_at: '2026-09-21T15:00:00.000Z', last_push_at: [] };
+    await h.db.sync_state.put(stored);
+    const role = systemRoleRow('consulta');
+    const op: Op = {
+      ...makeOp(
+        { kind: 'create', scope: 'company', company_id: COMPANY_ID, relatorio_id: null, project_id: null, prev_op_id: null, batch_id: null, meta: null, path: `role/${role.id}`, value: role, actor_id: 'system:admin', device_id: 'server' },
+        { newId: ids('019966b0-0e26-7000-8000-'), now: new Date('2026-09-21T16:00:00.000Z') },
+      ),
+      seq: 4,
+    };
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let asked = false;
+    h.server.pullCompany = async () => {
+      asked = true;
+      await gate;
+      return { ops: [op], seq: 4, summary: { last_push_at: [], relatorios: [] } } as unknown as SyncPullResponse;
+    };
+    const pulled = h.engine.pullCompany();
+    await waitFor(() => asked, 'the pull asked');
+    h.engine.stop();
+    release();
+    await pulled;
+    expect(await h.db.sync_state.get('company')).toEqual(stored);
+    expect(await h.db.entities.get(['role', role.id])).toBeUndefined();
+    h.db.close();
+  });
 });

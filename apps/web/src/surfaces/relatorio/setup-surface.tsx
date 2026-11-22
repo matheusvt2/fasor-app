@@ -18,7 +18,7 @@ import {
 } from '@app/domain';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
-import { Button } from '../../components/index.ts';
+import { Button, ReadOnlyBanner } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -28,7 +28,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
-import { useCanFn } from '../../state/permissions.tsx';
+import { useCanFn, useFillAccess } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { Etapa1Capa } from './setup/etapa1-capa.tsx';
@@ -100,18 +100,21 @@ function SetupBand({
   fields,
   allowed,
   needOf,
+  silent = false,
   children,
 }: {
   fields: readonly string[];
   allowed: (field: string) => boolean;
   needOf: (field: string) => PermissionNeed;
+  /** e26r: the read-only Banner above already says why (an Emitido relatório): no line of its own. */
+  silent?: boolean;
   children: ReactNode;
 }) {
   if (fields.some(allowed)) return <>{children}</>;
   const need = needOf(fields[0] ?? '');
   return (
     <fieldset className="setup-locked" disabled>
-      {need === 'none' ? null : <span className="btn-reason">{permissionRefusalText(need)}</span>}
+      {need === 'none' || silent ? null : <span className="btn-reason">{permissionRefusalText(need)}</span>}
       {children}
     </fieldset>
   );
@@ -139,7 +142,10 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
   // `SETUP_FILL_FIELDS`); a field the role may not write is never written from here.
   const canWrite = useCanFn();
   const needOf = (field: string): PermissionNeed => permissionForPath(relatorioSetupPath(field), { kind: 'put', value: null });
-  const allowed = (field: string) => canWrite(needOf(field));
+  // e26r (2026-11-22, Matheus "sim nos dois"): on an Emitido relatório a role that does not issue
+  // writes no field (each would reopen it); the setup says so once, in the read-only Banner.
+  const fill = useFillAccess();
+  const allowed = (field: string) => canWrite(needOf(field)) && !fill.issuedLocked;
   useEffect(() => {
     const etapa = Number.parseInt(search.get('etapa') ?? '', 10);
     if (!Number.isInteger(etapa) || etapa < 1 || etapa > 6) return;
@@ -224,7 +230,7 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
   // AD-22 (Epic 4 retro item 12): the kernel's table says whether this status completes setup.
   const completeTo = statusTable(relatorio.status, 'setup_complete');
   // Story 26.5: the status move it writes needs its key too (`permissionForPath`).
-  const canComplete = completeTo !== null && canWrite(permissionForPath(relatorioStatusPath(), { kind: 'put', value: completeTo }));
+  const canComplete = completeTo !== null && canWrite(permissionForPath(relatorioStatusPath(), { kind: 'put', value: completeTo }, { relatorioStatus: relatorio.status }));
 
   async function onComplete(): Promise<void> {
     if (gapReason !== null || db === null || author === null) return;
@@ -258,8 +264,9 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
   return (
     <div className="setup-content">
       <h1 className="visually-hidden">{t.heading}</h1>
+      {fill.issuedLocked ? <ReadOnlyBanner reason={fill.reason} /> : null}
 
-      <SetupBand fields={ETAPA_FIELDS[1]} allowed={allowed} needOf={needOf}>
+      <SetupBand fields={ETAPA_FIELDS[1]} allowed={allowed} needOf={needOf} silent={fill.issuedLocked}>
         <Etapa1Capa
           relatorioId={relatorioId}
           snapshot={snapshot}
@@ -268,7 +275,7 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
           bandRef={(el) => (bandRefs.current[1] = el)}
         />
       </SetupBand>
-      <SetupBand fields={ETAPA_FIELDS[2]} allowed={allowed} needOf={needOf}>
+      <SetupBand fields={ETAPA_FIELDS[2]} allowed={allowed} needOf={needOf} silent={fill.issuedLocked}>
         <Etapa2Escopo
           snapshot={snapshot}
           onCommit={commitField}
@@ -277,10 +284,10 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
           bandRef={(el) => (bandRefs.current[2] = el)}
         />
       </SetupBand>
-      <SetupBand fields={ETAPA_FIELDS[3]} allowed={allowed} needOf={needOf}>
+      <SetupBand fields={ETAPA_FIELDS[3]} allowed={allowed} needOf={needOf} silent={fill.issuedLocked}>
         <Etapa3Responsavel snapshot={snapshot} users={users} onCommit={commitField} bandRef={(el) => (bandRefs.current[3] = el)} />
       </SetupBand>
-      <SetupBand fields={ETAPA_FIELDS[4]} allowed={allowed} needOf={needOf}>
+      <SetupBand fields={ETAPA_FIELDS[4]} allowed={allowed} needOf={needOf} silent={fill.issuedLocked}>
         <Etapa4Instrumentos
           relatorioId={relatorioId}
           snapshot={snapshot}
@@ -289,11 +296,11 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
           bandRef={(el) => (bandRefs.current[4] = el)}
         />
       </SetupBand>
-      <SetupBand fields={ETAPA_FIELDS[5]} allowed={allowed} needOf={needOf}>
+      <SetupBand fields={ETAPA_FIELDS[5]} allowed={allowed} needOf={needOf} silent={fill.issuedLocked}>
         <Etapa5Local snapshot={snapshot} onCommit={commitField} onCommitFields={commitFields} bandRef={(el) => (bandRefs.current[5] = el)} />
       </SetupBand>
 
-      <SetupBand fields={ETAPA_FIELDS[6]} allowed={allowed} needOf={needOf}>
+      <SetupBand fields={ETAPA_FIELDS[6]} allowed={allowed} needOf={needOf} silent={fill.issuedLocked}>
         <Etapa6Parecer
           relatorioId={relatorioId}
           snapshot={snapshot}
