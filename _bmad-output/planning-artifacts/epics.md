@@ -11541,6 +11541,8 @@ So that the app follows how my company divides the work.
 *Coordinator's reading, open to Matheus:*
 - *An op written under the old keys and pushed after the change is judged by the new keys. Nothing is lost: it stays on the device, and "Reenviar" sends it if the key comes back.*
 
+*(2026-11-22, built in batch e26e, PR #352 merged as `8a214062`, no contract number, no migration. Routes `/api/admin/roles` (list, set permissions, create, rename, remove); codes `role_name_taken`, `role_locked`, `role_in_use`, `role_name_invalid`. Readings taken, open to Matheus: "8 or more roles" shows one role at a time at every width below 1280 px; a removed user does not count as a holder of a role; the grid reads the list route and works online only; the warning on granting `users.manage` or `roles.manage` is a second sentence in the sticky bar; seeded roles cannot be renamed; "Remover" on a role in use goes to the server, whose refusal names the users; ops already in the log are judged by the keys the role holds now. The same PR carries a fix to Story 26.5: sign-in awaits the first company pull, bounded at 10 seconds, so the user's role is on the device before the app opens; offline with the role still unknown, the screen says "Seu acesso será carregado quando houver conexão." instead of showing nothing ("1.6-E2E-003" passes unchanged).)*
+
 ### Story 26.11: A paused user keeps the unsent work
 
 **Dev model:** opus · **Effort:** high · web and api: the paused banner, "Sair" that warns, the queue sent after reactivation; a durability spec on the matrix
