@@ -1,5 +1,6 @@
 import {
   dateRangeText,
+  permissionRefusalText,
   projectRelatoriosHeading,
   projectLabel,
   projectRelatoriosMeta,
@@ -21,6 +22,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { allLocationRows, blockRowsOf, clientRows, projectRow, relatoriosOfProject, suggestionRowsOfRelatorio, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useDefinitionContext } from '../../state/definition-context.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 import '../relatorio/relatorio.css';
@@ -78,6 +80,8 @@ export function ProjectSurface() {
   // live-query emission, Cancelar, Back or a reload never opens the dialog again; and only
   // once the templates are read, so the dialog preselects the template.
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Story 26.5: "Novo relatório" is disabled with the kernel's reason without `relatorio.create`.
+  const canCreate = useCan('relatorio.create');
   const openNew = (location.state as { openNew?: boolean } | null)?.openNew === true;
   const consumedEntry = useRef<string | null>(null);
   useEffect(() => {
@@ -108,14 +112,20 @@ export function ProjectSurface() {
   }
 
   const site = projectLabel(project);
-  const newButton = (
-    <Button onPress={() => setDialogOpen(true)}>
+  const newButtonOnly = (
+    <Button
+      onPress={() => setDialogOpen(true)}
+      isDisabled={!canCreate}
+      disabledReason={canCreate ? undefined : permissionRefusalText('relatorio.create')}
+    >
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-plus" />
       </svg>
       {t.newRelatorio}
     </Button>
   );
+  // Story 26.5: the disabled button and its reason stack as on Home (`.home-new`, `21-home-campo.html`).
+  const newButton = canCreate ? newButtonOnly : <div className="home-new">{newButtonOnly}</div>;
 
   return (
     <main className="screen" data-route="/project/:id">
@@ -207,7 +217,7 @@ export function ProjectSurface() {
         </section>
       </div>
 
-      {dialogOpen ? (
+      {dialogOpen && canCreate ? (
         <NewRelatorioDialog project={project} client={client} relatorios={ordered} templates={templates} onClose={() => setDialogOpen(false)} />
       ) : null}
     </main>

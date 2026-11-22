@@ -29,7 +29,8 @@ export function StickyActionBar({
   importButton?: ReactNode;
   /** The denied-camera reason under the button row, or nothing. */
   cameraNote?: ReactNode;
-  primaryLabel: string;
+  /** Story 26.5: null on a sheet the role cannot fill (it concludes nothing): no primary is drawn. */
+  primaryLabel: string | null;
   onPrimary: () => void;
   /** The primary's id: the continuous Enter run of the readings ends on it (Story 5.6). */
   primaryId?: string;
@@ -46,12 +47,14 @@ export function StickyActionBar({
       <div className={hasCamera ? 'bar-buttons has-camera' : 'bar-buttons'}>
         {camera}
         {importButton}
-        <Button variant="primary" onPress={onPrimary} id={primaryId} data-telemetry={primaryTelemetry}>
-          {primaryLabel}
-          <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-right" />
-          </svg>
-        </Button>
+        {primaryLabel === null ? null : (
+          <Button variant="primary" onPress={onPrimary} id={primaryId} data-telemetry={primaryTelemetry}>
+            {primaryLabel}
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-chev-right" />
+            </svg>
+          </Button>
+        )}
       </div>
       {cameraNote}
     </div>

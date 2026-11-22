@@ -43,7 +43,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { useParams } from 'react-router';
 import { useBackToExport } from '../../state/back-target.tsx';
-import { Button, Chip, FilterChipGroup, OverflowMenu, PhotoRow } from '../../components/index.ts';
+import { Button, Chip, FilterChipGroup, OverflowMenu, PhotoRow, ReadOnlyBanner } from '../../components/index.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -146,6 +147,8 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const sources = useCaptionSources(relatorioId, snapshot);
   const heading = useRef<HTMLHeadingElement>(null);
   const surface = useRef<HTMLDivElement>(null);
+  // Story 26.5: a role without `relatorio.fill` opens the photos and changes none of them.
+  const canFill = useCan('relatorio.fill');
 
   // --- the cabine filter --------------------------------------------------------------------
   const options = useMemo(() => galleryCabineOptions(snapshot, all), [snapshot, all]);
@@ -294,7 +297,8 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   return (
     <>
-      <div className="content gallery-content" ref={surface} data-dropping={dragging ? '' : undefined}>
+      {/* Story 26.5: no drop target for a role that cannot fill. */}
+      <div className="content gallery-content" ref={canFill ? surface : undefined} data-dropping={dragging ? '' : undefined}>
         <section className="section" aria-labelledby="fotos-heading">
           <div className="section-head">
             <h2 id="fotos-heading" ref={heading} tabIndex={-1}>
@@ -308,12 +312,13 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             )}
           </div>
           <p className="section-note">{t.note(sectionMention(snapshot, 7))}</p>
+          {canFill ? null : <ReadOnlyBanner />}
           {numbersStatus === null ? null : (
             <p className="section-note" data-testid="photo-numbers-status">
               {numbersStatus}
             </p>
           )}
-          {suggested.size === 0 ? null : (
+          {suggested.size === 0 || !canFill ? null : (
             <div className="banner sug-banner" data-variant="info" role="status">
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-sparkles" />
@@ -353,7 +358,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
                   <PhotoRow
                     label={photoTileLabel(number, { suggested: suggestion !== undefined })}
                     suggestion={
-                      suggestion === undefined || suggestionText === null ? undefined : (
+                      suggestion === undefined || suggestionText === null || !canFill ? undefined : (
                         <SuggestionBlock
                           label={t.suggestedCaption}
                           text={suggestionText}
@@ -364,7 +369,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
                       )
                     }
                     people={
-                      offersPeopleMark(tile) ? (
+                      offersPeopleMark(tile) && canFill ? (
                         <div className="chip-row photo-people">
                           <Chip isSelected={marked} onSelectedChange={(on) => markPeople(tile, on)}>
                             {t.peopleInPhoto}
@@ -379,9 +384,9 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     state={photoUploadState({ uploaded_at: tile.uploaded_at, localError: tile.upload_error })}
                     onRetry={() => void retryUpload?.(tile.id)}
                     onOpen={() => setViewing(tile.id)}
-                    onCaption={() => setCaptioning(tile)}
+                    onCaption={canFill ? () => setCaptioning(tile) : undefined}
                     menu={
-                      moves === null ? undefined : (
+                      moves === null || !canFill ? undefined : (
                         <OverflowMenu
                           name={captionPhotoLabel(number)}
                           items={[
@@ -400,22 +405,24 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
         <DropHint dragging={dragging} />
       </div>
 
-      <div className="sticky-action-bar gallery-bar">
-        <div className="bar-buttons has-camera">
-          {camera.button}
-          <span className="cam-reason">{t.camReason}</span>
-          <Button variant="secondary" onPress={camera.denied ? () => setImporting({ files: null }) : picker.open}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-image" />
-            </svg>
-            {copy.photos.addPhotos}
-          </Button>
-          {picker.input}
-          <span className="btn-reason drag-reason">{copy.photos.dragReason}</span>
+      {canFill ? (
+        <div className="sticky-action-bar gallery-bar">
+          <div className="bar-buttons has-camera">
+            {camera.button}
+            <span className="cam-reason">{t.camReason}</span>
+            <Button variant="secondary" onPress={camera.denied ? () => setImporting({ files: null }) : picker.open}>
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-image" />
+              </svg>
+              {copy.photos.addPhotos}
+            </Button>
+            {picker.input}
+            <span className="btn-reason drag-reason">{copy.photos.dragReason}</span>
+          </div>
+          {camera.note}
+          <p className="section-note gallery-geral-note">{t.geralNote(sectionMention(snapshot, 7))}</p>
         </div>
-        {camera.note}
-        <p className="section-note gallery-geral-note">{t.geralNote(sectionMention(snapshot, 7))}</p>
-      </div>
+      ) : null}
 
       <PhotoViewer
         snapshot={snapshot}

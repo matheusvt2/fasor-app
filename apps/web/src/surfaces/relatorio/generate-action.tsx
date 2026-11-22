@@ -14,6 +14,11 @@ export interface GenerateActionProps {
   onSeeInSumario: (rows: SumarioRowKey[]) => void;
   /** Story 13.8: an audit finding's "Ver", the Sumário's own (`seeAuditTarget`). */
   onSeeAuditTarget?: (target: AuditTarget) => void;
+  /**
+   * Story 26.5: the role does not hold `relatorio.issue`: the button is disabled, described by the
+   * foot's one shared line (`reasonId`), and the dialog never opens, even from `?exportar=1`.
+   */
+  isDisabled?: boolean;
 }
 
 /** The Sumário's search parameter that holds the Export dialog open (Story 7.5). */
@@ -27,10 +32,10 @@ export const EXPORT_PARAM = 'exportar';
  * inside the dialog, where its reason and its way to Dados do relatório are; the foot's
  * `generateReason` says it here. The dialog returns the focus here when it closes.
  */
-export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAuditTarget }: GenerateActionProps) {
+export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAuditTarget, isDisabled = false }: GenerateActionProps) {
   const [search, setSearch] = useSearchParams();
   const navigate = useNavigate();
-  const open = search.get(EXPORT_PARAM) === '1';
+  const open = search.get(EXPORT_PARAM) === '1' && !isDisabled;
   const setOpen = (next: boolean) => {
     if (next === open) return;
     setSearch(
@@ -46,7 +51,14 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
   };
   return (
     <>
-      <Button variant="primary" aria-describedby={reasonId} data-telemetry="sumario.export" onPress={() => setOpen(true)}>
+      <Button
+        variant="primary"
+        aria-describedby={isDisabled ? undefined : reasonId}
+        isDisabled={isDisabled}
+        disabledReasonId={isDisabled ? reasonId : undefined}
+        data-telemetry="sumario.export"
+        onPress={() => setOpen(true)}
+      >
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-doc" />
         </svg>

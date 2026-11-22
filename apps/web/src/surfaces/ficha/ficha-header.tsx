@@ -22,6 +22,7 @@ export function FichaHeader({
   plateTitle = null,
   menu,
   notTested = false,
+  readOnly = false,
   library = false,
   company = false,
   onRename,
@@ -40,6 +41,8 @@ export function FichaHeader({
   menu: OverflowMenuAction[];
   /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
   notTested?: boolean;
+  /** Story 26.5: the role cannot fill the sheet: no Overflow menu. */
+  readOnly?: boolean;
   /** Story 14.5 (`63-ficha-cta.html` `.lib-pill`): the sheet of a library type says so beside its TAG. */
   library?: boolean;
   /** e22h N11: the sheet of a company type (`type:{id}`) says "Tipo da empresa" in the same pill instead. */
@@ -114,7 +117,7 @@ export function FichaHeader({
             {sheetProgressText(progress)}
           </div>
         ) : null}
-        <OverflowMenu name="" label={t.headerMenu(tag)} items={menu} />
+        {readOnly ? null : <OverflowMenu name="" label={t.headerMenu(tag)} items={menu} />}
       </div>
     </div>
   );

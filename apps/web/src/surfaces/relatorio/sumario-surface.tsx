@@ -1,4 +1,9 @@
 import {
+  blockPath,
+  permissionForPath,
+  permissionRefusalText,
+  relatorioStatusPath,
+  templatePath,
   absentSectionsSentence,
   backwardMoveConsequenceText,
   backwardMoveLabel,
@@ -62,6 +67,7 @@ import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useDefinitionContext } from '../../state/definition-context.ts';
+import { useCan, useCanFn } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useStickyBarScrollPadding } from '../../components/toast.tsx';
@@ -265,6 +271,15 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const headingRef = useRef<HTMLHeadingElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const reasonId = useId();
+  // Story 26.5 (`44-sumario-sem-emissao.html`): each control behind the key of the op it would write
+  // (`permissionForPath`; the path's family is what the map reads) or of its route.
+  const canIssue = useCan('relatorio.issue');
+  const canWrite = useCanFn();
+  const editable = canWrite(permissionForPath(blockPath(relatorioId), { kind: 'create', value: null }));
+  const canSaveTemplate = canWrite(permissionForPath(templatePath(relatorioId), { kind: 'create', value: null }));
+  const canMoveBack = backMove !== null && canWrite(permissionForPath(relatorioStatusPath(), { kind: 'put', value: backMove.to }));
+  const sentNeed = permissionForPath(relatorioStatusPath(), { kind: 'put', value: 'emitido' });
+  const canMarkSent = canWrite(sentNeed);
 
   // One write path for the rows and the tree: the serialised edit queue, the announcer and
   // the undo toast that any later edit or leaving the Sumário retires.
@@ -423,6 +438,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   // Story 6.3: row 7 opens the gallery; Story 6.6: row 8 opens the Points surface (`/relatorio/:id/pontos`).
   // E78-Q1: a virtual text row has no block for the section text editor, so it does not open.
+  // Story 26.5: an entry whose op the role may not write is not rendered; a menu left with none is not drawn.
+  const headerItems = [
+    ...(editable ? [{ id: 'restore', label: t.restore, onAction: () => setRestoring(true) }] : []),
+    ...(canSaveTemplate ? [{ id: 'save-template', label: t.saveTemplate, onAction: () => setSavingTemplate(true) }] : []),
+    ...(backMove === null || !canMoveBack ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
+  ];
   const openable = (row: SumarioRow) =>
     row.kind === 'setup' || (row.kind === 'text' && !row.virtual) || row.rowKey === 'section_7' || row.rowKey === 'section_8';
 
@@ -449,15 +470,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           </p>
         </div>
         <div className="header-side" ref={headerMenuRef}>
-          <OverflowMenu
-            name=""
-            label={t.headerMenu}
-            items={[
-              { id: 'restore', label: t.restore, onAction: () => setRestoring(true) },
-              { id: 'save-template', label: t.saveTemplate, onAction: () => setSavingTemplate(true) },
-              ...(backMove === null ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
-            ]}
-          />
+          {headerItems.length === 0 ? null : <OverflowMenu name="" label={t.headerMenu} items={headerItems} />}
         </div>
       </div>
 
@@ -481,6 +494,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                 row={row}
                 sectionName={sectionRefText(snapshot, 9)}
                 actions={actions}
+                editable={editable}
                 expanded={expanded}
                 highlighted={highlighted.has(row.rowKey)}
                 onToggle={() => setExpanded((open) => !open)}
@@ -508,7 +522,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                 )}
               </Section9Row>
             ) : (
-              <NumberedRow key={row.key} row={row} actions={actions} openable={openable(row)} highlighted={highlighted.has(row.rowKey)} />
+              <NumberedRow key={row.key} row={row} actions={actions} openable={openable(row)} highlighted={highlighted.has(row.rowKey)} editable={editable} />
             ),
           )}
         </ol>
@@ -524,8 +538,10 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
       </div>
 
       <div className="sticky-action-bar">
+        {/* Story 26.5: without `relatorio.issue` the one line is the role's, shared by "Pré-visualizar" and "Gerar relatório";
+            the blockers line is not drawn then. */}
         <span className="btn-reason" id={reasonId}>
-          {generateReason(rows, issues, confirmCounts ?? undefined, absentSentence)}
+          {canIssue ? generateReason(rows, issues, confirmCounts ?? undefined, absentSentence) : permissionRefusalText('relatorio.issue')}
         </span>
         {preview.phase.kind === 'blocked' ? (
           <span className="btn-reason" role="alert">
@@ -544,8 +560,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
         <div className="bar-buttons">
           <Button
             variant="secondary"
-            isDisabled={!preview.online}
-            disabledReason={preview.online ? undefined : copy.export.offlineReason}
+            isDisabled={!canIssue || !preview.online}
+            disabledReasonId={canIssue ? undefined : reasonId}
+            disabledReason={!canIssue || preview.online ? undefined : copy.export.offlineReason}
             onPress={preview.start}
           >
             <svg className="ico" aria-hidden="true">
@@ -555,11 +572,19 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           </Button>
           {/* Decision 2 (2026-10-10): only in Em revisão with nothing edited since the latest revision. */}
           {sent.offered ? (
-            <Button variant="secondary" aria-describedby={stepId} onPress={() => void sent.markSent()}>
+            <Button
+              variant="secondary"
+              aria-describedby={stepId}
+              onPress={() => void sent.markSent()}
+              isDisabled={!canMarkSent}
+              // The same refusal as the bar's line shares it; another key says its own.
+              disabledReasonId={!canMarkSent && sentNeed === 'relatorio.issue' && !canIssue ? reasonId : undefined}
+              disabledReason={!canMarkSent && !(sentNeed === 'relatorio.issue' && !canIssue) && sentNeed !== 'none' ? permissionRefusalText(sentNeed) : undefined}
+            >
               {MARK_SENT_LABEL}
             </Button>
           ) : null}
-          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} onSeeAuditTarget={(target) => seeAuditTarget(target, true)} />
+          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} isDisabled={!canIssue} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} onSeeAuditTarget={(target) => seeAuditTarget(target, true)} />
         </div>
       </div>
 

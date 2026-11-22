@@ -19,7 +19,8 @@ import {
 } from '@app/domain';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Button, Chip, TextButton } from '../../components/index.ts';
+import { Button, Chip, ReadOnlyBanner, TextButton } from '../../components/index.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -106,6 +107,8 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
   const navigate = useNavigate();
   const edits = useUndoableEdits();
   const t = copy.sectionText;
+  // Story 26.5: a role without `relatorio.fill` reads the section text and changes nothing.
+  const canFill = useCan('relatorio.fill');
 
   const config = block.config as { section_text?: unknown } | null;
   const own = typeof config?.section_text === 'string' ? config.section_text : null;
@@ -199,32 +202,37 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
       </div>
 
       <div className="secao-content">
+        {canFill ? null : <ReadOnlyBanner />}
         <div>
           <p className="field-label" id="secao-lbl">
             {t.fieldLabel}
           </p>
-          <RichTextField editor={editor} focused={focused} labelledBy="secao-lbl" areaClassName="secao-text" />
+          <RichTextField editor={editor} focused={focused} labelledBy="secao-lbl" areaClassName="secao-text" readOnly={!canFill} />
         </div>
 
-        <div>
-          <p className="field-label" aria-hidden="true">
-            {t.insertVariable}
-          </p>
-          <div className="chip-row" role="group" aria-label={t.insertVariable}>
-            {INSERTABLE_SECTION_VARIABLES.map((name) => (
-              <Chip key={name} onPress={() => insert(name)}>
-                {sectionVariableChipLabel(name)}
-              </Chip>
-            ))}
+        {canFill ? (
+          <div>
+            <p className="field-label" aria-hidden="true">
+              {t.insertVariable}
+            </p>
+            <div className="chip-row" role="group" aria-label={t.insertVariable}>
+              {INSERTABLE_SECTION_VARIABLES.map((name) => (
+                <Chip key={name} onPress={() => insert(name)}>
+                  {sectionVariableChipLabel(name)}
+                </Chip>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="secao-note">
-          <span>{t.autosaveNote}</span>
-          <TextButton isDisabled={!canRestore} disabledReason={t.nothingToRestore} onPress={() => void onRestore()}>
-            {t.restore}
-          </TextButton>
-        </div>
+        {canFill ? (
+          <div className="secao-note">
+            <span>{t.autosaveNote}</span>
+            <TextButton isDisabled={!canRestore} disabledReason={t.nothingToRestore} onPress={() => void onRestore()}>
+              {t.restore}
+            </TextButton>
+          </div>
+        ) : null}
       </div>
 
       <div className="sticky-action-bar">

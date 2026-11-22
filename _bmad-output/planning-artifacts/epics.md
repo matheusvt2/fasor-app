@@ -11270,6 +11270,8 @@ So that the tablet shows the ficha and nothing I would be refused.
 - The real-browser pass at 390, 768 and 1280 px as an Engenheiro de Campo.
 - `docs/kbs/code/web-app.md`, `log.md`.
 
+*(2026-11-22, built in batch e26b, PR #348 merged as `b8e904d4`, no contract change. Readings taken, open to Matheus: the return to the asked address after sign-in skips Home, Account and Sync status, because "1.3-E2E-002b" reloads on Account and expects Home; no screen removes a relatório today, so `relatorio.delete` disables nothing yet; Consulta and Gestor do Projeto hold `export.download` but cannot reach a download, since it lives in the Export dialog, which needs `relatorio.issue`; Home without `relatorio.view` hides the board and the list; the read-only ficha shows one banner for the whole screen, as frame `62-ficha-consulta.html` says; a setup step whose fields are all outside the role is a disabled group with the reason line; `/templates` and the composer need `template.edit`, `/templates/tipos/:id` needs `equipment_type.edit`. One existing spec edited: "26.4-E2E-001" now produces its refused op by seeding the outbox, because the Cadastros link it used is hidden for that role; its assertions are unchanged. Not done, by the owner's decision of 2026-11-21: the real-browser pass at 390, 768 and 1280 px, which falls to the hands-on pass before the deploy; the 390 px fit of Home and Sumário is asserted in "26.5-E2E-001a".)*
+
 ### Story 26.6: E-mail leaves the app: the invitation and the password reset
 
 **Dev model:** opus · **Effort:** high · api and web: the e-mail seam with a fake default, the one-time link that sets a password, "Esqueci minha senha"; no AWS needed to build

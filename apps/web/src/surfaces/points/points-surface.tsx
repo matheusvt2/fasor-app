@@ -30,7 +30,8 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
-import { Button, ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
+import { Button, ConfirmDialog, OverflowMenu, ReadOnlyBanner, TextButton, type OverflowMenuAction } from '../../components/index.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -80,6 +81,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const db = session.database;
   const user = session.user;
   const edits = useUndoableEdits();
+  // Story 26.5: a role without `relatorio.fill` opens the points and changes none of them.
+  const canFill = useCan('relatorio.fill');
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const entries = useMemo(() => sectionEightEntries(snapshot), [snapshot]);
   const live = useMemo(() => entries.map((entry) => entry.point), [entries]);
@@ -169,6 +172,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
             </h2>
           </div>
           <p className="section-note">{t.sectionNote(sectionMention(snapshot, 8))}</p>
+          {canFill ? null : <ReadOnlyBanner />}
           {empty ? <p className="poa-empty">{t.empty}</p> : null}
           <div className="poa-list" aria-label={t.listLabel(sectionMention(snapshot, 8))} role="group" ref={listRef}>
             {live.map((point, i) =>
@@ -197,7 +201,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
                   snapshot={snapshot}
                   numbers={numbers}
                   tiles={tiles}
-                  editable={editing === null}
+                  editable={editing === null && canFill}
+                  readOnly={!canFill}
                   flag={resolved.has(point.id) ? t.originResolved : null}
                   onMove={(to) => move(point, to)}
                   onEdit={() => setEditing({ kind: 'point', id: point.id })}
@@ -220,16 +225,19 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
         </section>
       </div>
 
-      <div className="sticky-action-bar" ref={bar}>
-        <div className="bar-buttons">
-          <Button variant="primary" isDisabled={editing !== null} disabledReason={t.editingReason} onPress={() => setEditing({ kind: 'new', id: newId() })}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
-            </svg>
-            {t.create}
-          </Button>
+      {/* Story 26.5: no "Criar ponto de atenção" for a role that cannot fill. */}
+      {canFill ? (
+        <div className="sticky-action-bar" ref={bar}>
+          <div className="bar-buttons">
+            <Button variant="primary" isDisabled={editing !== null} disabledReason={t.editingReason} onPress={() => setEditing({ kind: 'new', id: newId() })}>
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-plus" />
+              </svg>
+              {t.create}
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <p className="visually-hidden" role="status" data-testid="points-announcer">
         {announcement}
@@ -277,6 +285,7 @@ function PointCard({
   numbers,
   tiles,
   editable,
+  readOnly = false,
   flag,
   onMove,
   onEdit,
@@ -289,6 +298,8 @@ function PointCard({
   numbers: ReadonlyMap<string, number>;
   tiles: readonly PhotoTile[];
   editable: boolean;
+  /** Story 26.5: the role cannot fill: no move and no Overflow. */
+  readOnly?: boolean;
   /** Story 22.5: "Origem resolvida", the kernel's flag; null without it. */
   flag: string | null;
   onMove: (toIndex: number) => Promise<void>;
@@ -317,9 +328,9 @@ function PointCard({
     <article
       className={reorder.dragging ? 'point-of-attention-card is-dragging' : 'point-of-attention-card'}
       aria-labelledby={titleId}
-      {...reorder.rowProps}
+      {...(readOnly ? {} : reorder.rowProps)}
     >
-      <DragHandle name={name} reorder={reorder} />
+      {readOnly ? null : <DragHandle name={name} reorder={reorder} />}
       <div className="poa-body">
         <div>
           <span className="poa-order">{pointOrderText(position, total)}</span>
@@ -407,7 +418,7 @@ function PointCard({
           </div>
         ) : null}
       </div>
-      <OverflowMenu name={name} items={items} destructiveItems={[{ id: 'remove', label: t.remove, onAction: onRemove }]} />
+      {readOnly ? null : <OverflowMenu name={name} items={items} destructiveItems={[{ id: 'remove', label: t.remove, onAction: onRemove }]} />}
     </article>
   );
 }

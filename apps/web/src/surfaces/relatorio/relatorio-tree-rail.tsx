@@ -1,6 +1,7 @@
 import { SITE_CHECKLIST_LABEL, type TreeEquipmentNode, type TreeLocationNode } from '@app/domain';
 import { memo, useId } from 'react';
 import { OverflowMenu } from '../../components/index.ts';
+import { useCan } from '../../state/permissions.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relatorio-tree-shared.tsx';
 
@@ -27,6 +28,8 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
   const open = shared.isOpen(node);
   const groupId = useId();
   const menu = locationMenu(node, shared, null, () => null);
+  // Story 26.5: without `relatorio.fill` the rail adds nothing (its Overflow is not drawn).
+  const canFill = useCan('relatorio.fill');
   // Story 14.3: a local opens on its "Verificações do local" row, so it always has something below.
   const site = node.site;
   const hasChildren = site !== null || node.equipment.length > 0 || node.locations.length > 0;
@@ -55,7 +58,7 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
           {/* Story 14.2: the rail line of each level is the kernel's (Story 15.2: "Entrada · 1 painel · 3 de 9 fichas", "1 coluna · 3 de 9", "3 de 9"). */}
           <span className="tree-meta">{node.railMeta}</span>
         </div>
-        {menu.items.length > 0 ? <OverflowMenu name={node.controlName} items={menu.items} /> : null}
+        {menu.items.length > 0 && canFill ? <OverflowMenu name={node.controlName} items={menu.items} /> : null}
       </div>
       {open && hasChildren ? (
         <ul className="relatorio-tree" id={groupId}>

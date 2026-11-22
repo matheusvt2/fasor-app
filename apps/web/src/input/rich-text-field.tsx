@@ -25,9 +25,11 @@ export interface RichTextFieldProps {
   variable?: { expanded: boolean; controls: string; onPress: () => void };
   /** Extra class names on the area (a surface's own sizing). */
   areaClassName?: string;
+  /** Story 26.5: the role cannot fill: the text shows formatted and takes no input; no toolbar, no count. */
+  readOnly?: boolean;
 }
 
-export function RichTextField({ editor, focused, label, labelledBy, describedBy, variable, areaClassName }: RichTextFieldProps) {
+export function RichTextField({ editor, focused, label, labelledBy, describedBy, variable, areaClassName, readOnly = false }: RichTextFieldProps) {
   const tools: ToolSpec[] = [
     { label: ui.richText.bold, pressed: editor.pressed.bold, onPress: () => editor.toggleMark('bold') },
     { label: ui.richText.italic, pressed: editor.pressed.italic, onPress: () => editor.toggleMark('italic') },
@@ -38,9 +40,10 @@ export function RichTextField({ editor, focused, label, labelledBy, describedBy,
   return (
     <>
       <div className={focused ? 'rich-text is-focus' : 'rich-text'}>
-        <Toolbar tools={tools} />
+        {readOnly ? null : <Toolbar tools={tools} />}
         <div
           {...editor.areaProps}
+          {...(readOnly ? { contentEditable: false, 'aria-readonly': true } : {})}
           className={areaClassName === undefined ? 'rt-area' : `rt-area ${areaClassName}`}
           aria-label={label}
           aria-labelledby={labelledBy}
@@ -48,7 +51,7 @@ export function RichTextField({ editor, focused, label, labelledBy, describedBy,
         />
       </div>
       {/* Story 20.9: the stored text's count under the box, from 90 % of the kernel's cap. */}
-      <CharCount length={editor.length} cap={editor.maxLength} />
+      {readOnly ? null : <CharCount length={editor.length} cap={editor.maxLength} />}
     </>
   );
 }

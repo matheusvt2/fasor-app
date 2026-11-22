@@ -28,6 +28,8 @@ export interface PositionBoxProps {
   className?: string;
   /** The accessible name; defaults to "Posição de ⟨nome⟩". */
   label?: string;
+  /** Story 26.5: the role may not move the row; the number shows and takes no input. */
+  readOnly?: boolean;
 }
 
 /**
@@ -35,11 +37,11 @@ export interface PositionBoxProps {
  * typed and committed on blur or Enter moves the row there, clamped to the ends. Anything
  * else puts the position back with no op (`parsePositionInput`).
  */
-export function PositionBox({ name, position, siblings, reorder, className, label }: PositionBoxProps) {
+export function PositionBox({ name, position, siblings, reorder, className, label, readOnly = false }: PositionBoxProps) {
   const [text, setText] = useState<string | null>(null);
 
   function commit(keepFocus: boolean, input: HTMLInputElement) {
-    if (text === null) return;
+    if (text === null || readOnly) return;
     const to = parsePositionInput(text, siblings);
     setText(null);
     if (to === null || to === position - 1) return;
@@ -52,6 +54,8 @@ export function PositionBox({ name, position, siblings, reorder, className, labe
       inputMode="numeric"
       aria-label={label ?? ui.reorder.position(name)}
       value={text ?? String(position)}
+      readOnly={readOnly || undefined}
+      aria-readonly={readOnly || undefined}
       // `text` holds only what the user typed: the box follows the row's position until
       // then, so a move that gives the focus back (and a later "Desfazer") never leaves a
       // stale number in it. The focus selects the number, so typing replaces it. Only while
