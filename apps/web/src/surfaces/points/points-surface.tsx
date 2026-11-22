@@ -15,7 +15,7 @@ import {
   printsSection,
   sectionMention,
   sectionRefText,
-  pointTextTokens,
+  pointTextPieces,
   pointTitle,
   priorityLabel,
   priorityTone,
@@ -260,16 +260,16 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   );
 }
 
-/** A point's text as the card reads it: literal runs and "Imagem N" references. */
+/** A point's text as the card reads it: literal runs and "Imagem N" references (Story 27.9: a list reads "Imagens 1 e 2", `pointTextPieces`). */
 function PointText({ text, numbers }: { text: string; numbers: ReadonlyMap<string, number> }) {
   return (
     <p className="poa-text">
-      {pointTextTokens(text).map((token, i) =>
-        token.kind === 'text' ? (
-          <span key={i}>{token.text}</span>
+      {pointTextPieces(text, numbers).map((piece, i) =>
+        piece.kind === 'text' ? (
+          <span key={i}>{piece.text}</span>
         ) : (
           <span key={i} className="photo-ref">
-            {numbers.has(token.id) ? photoRefLabel(numbers.get(token.id)!) : copy.points.removedPhoto}
+            {piece.label ?? copy.points.removedPhoto}
           </span>
         ),
       )}

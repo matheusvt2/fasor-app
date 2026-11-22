@@ -122,8 +122,9 @@ export interface PreIssueSheet {
 // the same register as the Clientes tab's "CNPJ do contratante em branco".
 const SETUP_TEXTS: Readonly<Record<Exclude<SetupGap, 'art_trt_number'>, string>> = {
   client: 'Cliente em branco',
-  service_start: 'Início da parada em branco',
-  service_end: 'Fim da parada em branco',
+  // authored (Story 27.9, F38, listed for Bruno): was "Início/Fim da parada em branco"; "execução" is the form's word.
+  service_start: 'Início da execução em branco',
+  service_end: 'Fim da execução em branco',
   responsible_user_id: 'Responsável técnico em branco',
   registration_number: 'Registro profissional do responsável em branco',
   instruments: 'Nenhum instrumento em Dados do relatório',

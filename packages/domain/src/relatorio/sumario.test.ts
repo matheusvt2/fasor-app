@@ -122,7 +122,7 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(numberedRows(rows)).toHaveLength(11);
     expect(numberedRows(rows).every((r) => r.siblings === 11 && r.blockId !== null)).toBe(true);
     expect(fixedRowNote('capa')).toBe('sempre no início');
-    expect(fixedRowNote('controle')).toBe('montado sozinho');
+    expect(fixedRowNote('controle')).toBe('preenchido automaticamente');
   });
 
   it('writes every meta from the kernel: gaps on the cover, "0 de 94" on row 9, the fixed lines elsewhere', () => {

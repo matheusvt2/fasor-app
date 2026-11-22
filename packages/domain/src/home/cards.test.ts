@@ -766,19 +766,21 @@ describe('homeList (Story 20.2): the search by client and obra', () => {
     );
   }
 
-  it('each card carries the normalized client name, obra name and obra site as its keys, empty ones dropped', () => {
+  // Story 27.9 (F29): the template's name and the card's dates follow the client and the obra.
+  it('each card carries the normalized client name, obra name and obra site as its keys, then its template and dates, empty ones dropped', () => {
     const [porto] = build(many('rascunho', 1, 10, portoProject.id));
-    expect(porto!.searchKeys).toEqual(['seguradora exemplo companhia de seguros', 'sede central', 'avenida do porto 100']);
+    expect(porto!.searchKeys).toEqual(['seguradora exemplo companhia de seguros', 'sede central', 'avenida do porto 100', 'cabine primaria — padrao']);
     const [textile] = build(many('rascunho', 1, 10, textileProject.id));
-    expect(textile!.searchKeys).toEqual(['industria textil ltda', 'fabrica norte']);
+    expect(textile!.searchKeys).toEqual(['industria textil ltda', 'fabrica norte', 'cabine primaria — padrao']);
   });
 
   it('with no project row the key is the setup local', () => {
     const id = genIds();
     const [card] = homeCards(input({ relatorios: [relatorio(id, 'rascunho', { local: 'Galpão  Leste' })], projects: [] }));
-    expect(card!.searchKeys).toEqual(['galpao leste']);
+    expect(card!.searchKeys).toEqual(['galpao leste', 'cabine primaria — padrao']);
     const [bare] = homeCards(input({ relatorios: [relatorio(genIds(), 'rascunho')], projects: [] }));
-    expect(bare!.searchKeys).toEqual([]);
+    // Story 27.9: the template's name is a key of its own.
+    expect(bare!.searchKeys).toEqual(['cabine primaria — padrao']);
   });
 
   it('matches a substring of any key, free of accents, case and spacing', () => {

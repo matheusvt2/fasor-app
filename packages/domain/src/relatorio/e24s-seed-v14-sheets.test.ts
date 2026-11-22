@@ -420,7 +420,7 @@ describe('24.11-UNIT an oil field of a non-oil unit reads "Não se aplica" on ev
         const dryValue = 'EPÓXI';
         const block = plate(sheet(type, version), { tipo_de_isolacao: dryValue, vol_oleo: measured('120', 'L') });
         for (const key of rule.fields) {
-          expect(oilFieldExcusedReason(block, key, ctx), `${version} ${type} ${key}`).toBe(`Não se aplica: TIPO DE ISOLAÇÃO é ${dryValue}.`);
+          expect(oilFieldExcusedReason(block, key, ctx), `${version} ${type} ${key}`).toBe(`Não se aplica: Tipo de isolação é ${dryValue}.`);
           expect(isOilFieldExcused(block, key, ctx), `${version} ${type} ${key}`).toBe(true);
         }
         // The stored value is kept, never cleared by reading.
@@ -435,13 +435,13 @@ describe('24.11-UNIT an oil field of a non-oil unit reads "Não se aplica" on ev
   });
 
   it('a dry subtype with TIPO empty names the subtype; the disjuntor reads its medium; "Outro" (read as oil) has no reason', () => {
-    expect(oilFieldExcusedReason(sheet('tp', 'v12', 'a_seco'), 'vol_oleo', ctx)).toBe('Não se aplica: TIPO DE ISOLAÇÃO é Á SECO.');
+    expect(oilFieldExcusedReason(sheet('tp', 'v12', 'a_seco'), 'vol_oleo', ctx)).toBe('Não se aplica: Tipo de isolação é Á SECO.');
     const disjuntor = (value: string) => plate(sheet('disjuntor_mt', 'v12'), { meio_de_extincao: value });
-    expect(oilFieldExcusedReason(disjuntor('AR'), 'vol_oleo', ctx)).toBe('Não se aplica: MEIO DE EXTINÇÃO é AR.');
+    expect(oilFieldExcusedReason(disjuntor('AR'), 'vol_oleo', ctx)).toBe('Não se aplica: Meio de extinção é AR.');
     expect(oilFieldExcusedReason(disjuntor('Outro'), 'vol_oleo', ctx)).toBeNull();
     // The two reasons never meet: a dry field of an oil unit keeps its own.
     const oilTransformer = plate(transformer(), { tipo_de_isolacao: OLEO });
-    expect(dryFieldExcusedReason(oilTransformer, 'classe_termica', ctx)).toBe(`Não se aplica: TIPO DE ISOLAÇÃO é ${OLEO}.`);
+    expect(dryFieldExcusedReason(oilTransformer, 'classe_termica', ctx)).toBe(`Não se aplica: Tipo de isolação é ${OLEO}.`);
     expect(oilFieldExcusedReason(oilTransformer, 'classe_termica', ctx)).toBeNull();
   });
 

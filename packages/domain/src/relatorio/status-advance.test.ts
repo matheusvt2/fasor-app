@@ -140,7 +140,7 @@ describe('2026-10-13 advanceOnGenerate', () => {
       'Em revisão: a revisão 2 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".',
     );
     expect(controleMetaText({ revisions: [revision(1), revision(2)], edited: false, status: 'em_revisao' })).toContain('Rev. 2 gerada');
-    expect(nextEditNote(2, { status: 'em_revisao', edited: false })).toBe('Ainda não enviada ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
+    expect(nextEditNote(2, { status: 'em_revisao', edited: false })).toBe('Ainda não enviado ao cliente. Qualquer alteração a partir de agora gera a revisão 3.');
     expect(issuedBannerText('em_revisao', revision(2))).toBe('Revisão 2 gerada em 10/09, ainda não enviada ao cliente.');
     expect(canMarkSent({ status: 'em_revisao', latest: 2, edited: false })).toBe(true);
   });

@@ -2273,6 +2273,8 @@ const E25P22_FLAGS = ['obra_reads_site', 'relay_clause_by_exclusions', 'validity
 const E27A_FLAGS = ['parecer_open_apart'] as const;
 /** Story 27.8 (batch e27b, seed v17): the caption's "para-raios". */
 const E27B8_NEW_FLAGS = ['caption_para_raios'] as const;
+/** Story 27.9 (batch e27b, seed v17): the printed half of the wording pass. */
+const E27B9_FLAGS = ['wording_pass'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2346,7 +2348,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2375,7 +2377,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2654,7 +2656,8 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
  * Batch e27b, first commit (2026-11-22): v17 opens equal to v16, the same content and the same rule flags.
  */
 // Story 27.8 (batch e27b): "ITEM", "Para-raios", the participle of "limpeza e reaperto" and two flags (`withoutE27b8` below).
-const V17_HASH = 'dd52c08a2b76b36cc961f9a33ba1ecd579751bb65d6b6c5cdf9d32e78fbf1ecc';
+// Story 27.9 (batch e27b): the `wording_pass` flag (`withoutE27b9` below).
+const V17_HASH = 'c909f38ad394437eb2d5039d0fd1e373d85a7d1d4c4b2958fc79d209c051fcdb';
 
 /**
  * Batch e27b: each story's delta on v17, undone, in the order `seed/v17.ts` applies them. A story that adds a v17 key,
@@ -2662,7 +2665,7 @@ const V17_HASH = 'dd52c08a2b76b36cc961f9a33ba1ecd579751bb65d6b6c5cdf9d32e78fbf1e
  * `withoutE27b<N>` helper below this line (e.g. `withoutE27b8`), and names it here, so `withoutE27b(v17)` stays v16
  * and "27.8-UNIT" keeps pinning that every other byte of v17 is v16's.
  */
-const E27B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE27b8];
+const E27B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE27b8, withoutE27b9];
 
 /** Story 27.8's delta undone: "ÍTEM" and "Para-raio" back, the activity's participle and the two flags dropped. */
 function withoutE27b8(seed: ReportSeed): ReportSeed {
@@ -2674,6 +2677,13 @@ function withoutE27b8(seed: ReportSeed): ReportSeed {
   return out;
 }
 const E27B8_FLAGS: readonly SeedRuleFlag[] = [...E27B8_NEW_FLAGS, ...E27A_FLAGS];
+
+/** Story 27.9's delta undone: the wording pass's flag dropped. */
+function withoutE27b9(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  if (out.rules !== undefined) for (const flag of E27B9_FLAGS) delete out.rules[flag];
+  return out;
+}
 
 /** v17 with every batch e27b story's delta undone: v16 as it shipped. */
 function withoutE27b(seed: ReportSeed): ReportSeed {
@@ -2747,6 +2757,12 @@ describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios
       expect(seedRule('v17', flag), flag).toBe(true);
       for (const version of older) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
     }
+  });
+});
+
+describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v17 only', () => {
+  it('turns on wording_pass on v17 and on no older seed', () => {
+    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17');
   });
 });
 

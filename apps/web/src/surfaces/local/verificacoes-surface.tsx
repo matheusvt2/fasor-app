@@ -126,7 +126,7 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item); e22f
     // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({
-      text: withPhotoTokens(ncRowPointText(snapshot, { location }, row.key), photoIds),
+      text: withPhotoTokens(ncRowPointText(snapshot, { location }, row.key), photoIds, snapshot.relatorio.seed_version),
       equipmentId: null,
       origin: 'nc',
       locationId: location.id,

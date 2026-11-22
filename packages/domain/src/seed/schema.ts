@@ -1096,6 +1096,12 @@ export const seedRulesSchema = z
     parecer_open_apart: z.literal(true).optional(),
     /** Story 27.8 (seed v17, F30): a photo caption names the surge arrester "para-raios" (masculine singular), not "para-raio". */
     caption_para_raios: z.literal(true).optional(),
+    /**
+     * Story 27.9 (seed v17, F36, F40): the texts the kernel composes into a printed text read as the wording pass
+     * says: a photo taken on a non-conforming item is born "Não conformidade em ⟨item⟩…", a point started from an NC
+     * row ends ", conforme Imagem 1", and section 8 prints a run of photo references as one "Imagens 1 e 2".
+     */
+    wording_pass: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

@@ -29,6 +29,7 @@ const v16 = CABINE_PRIMARIA_V16;
 function cabinePrimariaV17(): ReportSeed {
   const seed = structuredClone(v16);
   story27_8(seed);
+  story27_9(seed);
   return seed;
 }
 
@@ -62,6 +63,18 @@ function story27_8(seed: ReportSeed): void {
   activity.participle = structuredClone(STORY_27_8_ACTIVITY_PARTICIPLE);
   if (seed.rules?.caption_para_raios !== undefined || seed.rules?.parecer_open_apart !== undefined) throw new Error('seed v17: a Story 27.8 rule flag is already set');
   seed.rules = { ...(seed.rules ?? {}), caption_para_raios: true, parecer_open_apart: true };
+}
+
+// --- Story 27.9: Agreement, one name for each thing, and no internal words on screen ----------------
+
+/**
+ * Story 27.9 (F36, F40): the printed half of the wording pass on a new relatório (`wording_pass`): a photo taken on a
+ * non-conforming item is born "Não conformidade em ⟨item⟩…", a point started from an NC row ends ", conforme Imagem 1",
+ * and section 8 prints a run of photo references as one "Imagens 1 e 2". The screen half reads on every seed.
+ */
+function story27_9(seed: ReportSeed): void {
+  if (seed.rules?.wording_pass !== undefined) throw new Error('seed v17: the Story 27.9 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), wording_pass: true };
 }
 
 export const CABINE_PRIMARIA_V17: ReportSeed = cabinePrimariaV17();

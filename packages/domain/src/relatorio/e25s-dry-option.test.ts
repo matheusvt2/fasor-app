@@ -105,8 +105,8 @@ describe('25.19-UNIT the readers of the dry option on v16 read "A SECO" and "Á 
   it.each(TYPES)('%s: the reason under an oil field of a dry unit names "A SECO", also for a stored "Á SECO"; v15 names "Á SECO"', (type) => {
     const ctx = EMPTY_DEFINITION_CONTEXT;
     const field = getDefinition('v16', 'cabine_primaria', type).oil_rule!.fields[0]!;
-    expect(oilFieldExcusedReason(block('v16', type, 'A SECO'), field, ctx)).toBe('Não se aplica: TIPO DE ISOLAÇÃO é A SECO.');
-    expect(oilFieldExcusedReason(block('v16', type, 'Á SECO'), field, ctx)).toBe('Não se aplica: TIPO DE ISOLAÇÃO é A SECO.');
-    expect(oilFieldExcusedReason(block('v15', type, 'Á SECO'), field, ctx)).toBe('Não se aplica: TIPO DE ISOLAÇÃO é Á SECO.');
+    expect(oilFieldExcusedReason(block('v16', type, 'A SECO'), field, ctx)).toBe('Não se aplica: Tipo de isolação é A SECO.');
+    expect(oilFieldExcusedReason(block('v16', type, 'Á SECO'), field, ctx)).toBe('Não se aplica: Tipo de isolação é A SECO.');
+    expect(oilFieldExcusedReason(block('v15', type, 'Á SECO'), field, ctx)).toBe('Não se aplica: Tipo de isolação é Á SECO.');
   });
 });

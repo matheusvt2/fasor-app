@@ -4,7 +4,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { cabineOf } from '../relatorio/cabine.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import type { SheetStep } from '../relatorio/sheet-progress.ts';
-import { siteLocalOf } from '../relatorio/site-checklist.ts';
+import { siteLocalOf, siteResultOf } from '../relatorio/site-checklist.ts';
 import { blockDefinitionIn, seedRule, siteItems, snapshotDefinitionContext } from '../seed/definitions.ts';
 import type { SeedWord } from '../seed/schema.ts';
 
@@ -102,6 +102,11 @@ export interface CaptionWord extends Agreement {
   name: string;
   /** Story 27.8 (seed v17): an activity's participle agreement when it is not the word's own (`SeedWord.participle`). */
   participle?: Agreement;
+  /**
+   * Story 27.9 (seed v17 `wording_pass`, F40): the activity is a checklist item answered NC, so the caption opens
+   * "Não conformidade em ⟨item⟩" (`composeCaption`) instead of "Detalhe da verificação de ⟨item⟩ realizada".
+   */
+  nc?: true;
 }
 
 /** Story 6.5: the three parts a caption is composed of; a null part is left out. */
@@ -120,6 +125,11 @@ function activityOf(photo: { item_key: string | null }, block: BlockRow, meta: C
   if (photo.item_key !== null) {
     const label = definitionOf(block, snapshot)?.checklist?.find((item) => item.key === photo.item_key)?.label ?? null;
     if (label === null) return null;
+    // Story 27.9 (F40): on a seed whose `wording_pass` is on, a row answered NC names the non-conformity. The stored
+    // answer is read (`checklistResultOf` is not imported here: it closes an import cycle through the print).
+    if (seedRule(block.seed_version, 'wording_pass') && block.sheet.checklist[photo.item_key]?.result?.value === 'NC') {
+      return { name: itemNoun(label), gender: 'f', number: 'singular', nc: true };
+    }
     return { name: `verificação de ${itemNoun(label)}`, gender: 'f', number: 'singular' };
   }
   if (meta.step !== 'ensaios') return null;
@@ -245,7 +255,16 @@ export function composeCaption(parts: CaptionParts): string | null {
   const equipment = usable(parts.equipamento);
   const local = usable(parts.local);
   const out: string[] = [];
-  if (activity !== null) {
+  if (activity?.nc === true) {
+    // Story 27.9 (F40): "Não conformidade em ⟨item⟩ n⟨o/a⟩(s) ⟨equipamento⟩ d⟨o/a⟩(s) ⟨local⟩".
+    out.push(`${NC_CAPTION_LEAD} ${activity.name}`);
+    if (equipment !== null) {
+      out.push(`n${article(equipment)} ${equipment.name}`);
+      if (local !== null) out.push(`d${article(local)} ${local.name}`);
+    } else if (local !== null) {
+      out.push(`n${article(local)} ${local.name}`);
+    }
+  } else if (activity !== null) {
     const participle = activity.participle ?? activity;
     out.push(`Detalhe d${article(activity)} ${activity.name} realizad${participle.gender === 'f' ? 'a' : 'o'}${participle.number === 'plural' ? 's' : ''}`);
     if (equipment !== null) {
@@ -266,7 +285,12 @@ export function composeCaption(parts: CaptionParts): string | null {
 /** An activity read off a composed caption: "Detalhe d⟨o/a⟩(s) ⟨atividade⟩ realizad⟨o/a⟩(s)…", its agreement from the article. */
 const COMPOSED_ACTIVITY = /^Detalhe d(o|a)(s?) (.+?) realizad(?:o|a)s?(?: |$)/u;
 
+/** Story 27.9: the item a composed NC caption names, "Não conformidade em ⟨item⟩ n⟨o/a⟩(s) …" (the item may hold "na"/"no" too, so only a full match is kept). */
+const COMPOSED_NC = /^Não conformidade em (.+?)(?: n(?:o|a)s? |$)/u;
+
 function activityInCaption(text: string): CaptionWord | null {
+  const nc = COMPOSED_NC.exec(text);
+  if (nc !== null) return { name: nc[1]!, gender: 'f', number: 'singular', nc: true };
   const match = COMPOSED_ACTIVITY.exec(text);
   if (match === null) return null;
   return { name: match[3]!, gender: match[1] === 'a' ? 'f' : 'm', number: match[2] === 's' ? 'plural' : 'singular' };
@@ -341,7 +365,10 @@ export function siteCaption(
   if (local === null || item === undefined) return null;
   const name = local.name.trim();
   // authored: 2026-10-13, the wording of the batch spec's matrix (open for Bruno).
-  const head = `Verificação de ${siteItemNoun(item.label)}`;
+  // Story 27.9 (F40, seed v17 `wording_pass`): an item answered NC names the non-conformity, not the item's conforming wording.
+  const nc = siteResultOf(local, photo.item_key) === 'NC' && seedRule(snapshot.relatorio.seed_version, 'wording_pass');
+  // authored (Story 27.9, listed for Bruno): was "Verificação de ⟨item⟩" on an NC item too.
+  const head = nc ? `${NC_CAPTION_LEAD} ${siteItemNoun(item.label)}` : `Verificação de ${siteItemNoun(item.label)}`;
   return name === '' ? head : `${head} d${article(locationAgreement(name, meta))} ${name}`;
 }
 
@@ -360,6 +387,10 @@ export function contextCaption(
   if (photo.block_id === null) return siteCaption(photo, snapshot, meta);
   return composeCaption(contextCaptionParts(photo, snapshot, meta));
 }
+
+/** Story 27.9 (F40): how the caption of a photo taken on a non-conforming item opens. */
+// authored (Story 27.9, listed for Bruno).
+export const NC_CAPTION_LEAD = 'Não conformidade em';
 
 /**
  * Story 6.5: the agreement of a word the engineer picked or typed in the composer. A live

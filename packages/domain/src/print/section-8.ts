@@ -202,12 +202,28 @@ function v14Points(snapshot: Pick<RelatorioSnapshot, 'relatorio'>): boolean {
   return seedRule(snapshot.relatorio.seed_version, 'recommendation_as_action');
 }
 
+/**
+ * Story 27.9 (F36, seed v17 `wording_pass`): a list of photo references printed as one plural reference,
+ * "Imagem 1 e Imagem 2" as "Imagens 1 e 2", "Imagem 1, Imagem 2 e Imagem 3" as "Imagens 1, 2 e 3". A
+ * single reference and v1 to v16 print as before.
+ */
+const IMAGE_RUN = /\bImagem (\d+)((?:(?:, | e )Imagem \d+)*(?: e Imagem \d+))/gu;
+export function pluralImageRuns(text: string): string {
+  return text.replace(IMAGE_RUN, (_, first: string, rest: string) => `Imagens ${first}${rest.replaceAll('Imagem ', '')}`);
+}
+
+/** Story 27.9: the print of a relatório whose seed turns `wording_pass` on reads a run of references as one plural. */
+function wordingPass(snapshot: Pick<RelatorioSnapshot, 'relatorio'>): (text: string) => string {
+  return seedRule(snapshot.relatorio.seed_version, 'wording_pass') ? pluralImageRuns : (text) => text;
+}
+
 /** Every bullet of section 8 in print order: the live points. */
 export function resolveSection8(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): Section8Bullet[] {
   const spaced = v14Points(snapshot);
+  const runs = wordingPass(snapshot);
   return livePoints(snapshot.points).map((point) => {
     const parts = [point.text, point.action ?? '']
-      .map((part) => resolveBulletPhotoTokens(part, numbering, spaced).trim())
+      .map((part) => runs(resolveBulletPhotoTokens(part, numbering, spaced)).trim())
       .filter((part) => part !== '');
     // F-05: the action starts a sentence of its own after the point's text.
     return { kind: 'point' as const, text: parts.length === 2 ? `${sentence(parts[0]!)} ${parts[1]!}` : (parts[0] ?? ''), point_id: point.id };
@@ -234,13 +250,14 @@ function pointLocal(point: Pick<PointRow, 'equipment_id' | 'location_id'>, snaps
  */
 export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): ActionPlanRow[] {
   const spaced = v14Points(snapshot);
+  const runs = wordingPass(snapshot);
   return livePoints(snapshot.points).map((point, i) => ({
     number: String(i + 1),
-    point: cell(resolvePhotoTokens(point.text, numbering, spaced)),
+    point: cell(runs(resolvePhotoTokens(point.text, numbering, spaced))),
     local: pointLocal(point, snapshot),
     priority: point.priority === null ? ACTION_PLAN_NONE : priorityLabel(point.priority),
     deadline: cell(formatCalendarDate(point.deadline)),
-    action: cell(resolvePhotoTokens(point.action ?? '', numbering, spaced)),
+    action: cell(runs(resolvePhotoTokens(point.action ?? '', numbering, spaced))),
     owner: cell(point.owner),
     images: pointImages(point, numbering),
   }));

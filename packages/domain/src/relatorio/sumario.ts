@@ -174,7 +174,8 @@ const join = (parts: readonly (string | null | undefined)[]) => parts.filter((p)
 // Verbatim from `40-relatorio-overview.html`.
 const META = {
   capaFixed: 'sempre no início',
-  controleFixed: 'montado sozinho',
+  // authored (Story 27.9, F39, listed for Bruno): was the mock's "montado sozinho".
+  controleFixed: 'preenchido automaticamente',
   controle: 'montado dos dados do relatório',
   controleFirst: 'Rev. 1 na primeira emissão',
   setup: 'editado em Dados do relatório › Etapa 2',

@@ -250,7 +250,9 @@ export function readyToast(number: number): string {
 export function nextEditNote(number: number, state?: { status: RelatorioStatus; edited: boolean }): string {
   const next = `Qualquer alteração a partir de agora gera a revisão ${number + 1}.`;
   // authored: 2026-10-10, the two leading sentences.
-  if (state?.status === 'em_revisao' && !state.edited) return `Ainda não enviada ao cliente. ${next}`;
+  // authored (Story 27.9, F34, listed for Bruno): was "Ainda não enviada ao cliente.", now the masculine of
+  // "Marcar como enviado ao cliente", the action it answers.
+  if (state?.status === 'em_revisao' && !state.edited) return `Ainda não enviado ao cliente. ${next}`;
   if (state?.status === 'emitido') return `Enviada ao cliente. ${next}`;
   return next;
 }

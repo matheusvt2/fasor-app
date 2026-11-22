@@ -40,7 +40,7 @@ describe('F-24 firstCountedTarget', () => {
     expect(firstCountedTarget(locationTree({ ...snapshot, blocks }), blocks, 'concluded', [], EMPTY_DEFINITION_CONTEXT)).toEqual({ kind: 'block', blockId: later });
   });
 
-  it('"NC abertos" lands on the first sheet holding an NC answer; none when no sheet holds one', () => {
+  it('"NC abertas" lands on the first sheet holding an NC answer; none when no sheet holds one', () => {
     expect(firstCountedTarget(tree, snapshot.blocks, 'nc_open', [], EMPTY_DEFINITION_CONTEXT)).toBeNull();
     // A sheet of the type whose checklist has "limpeza" (the fixture's first block), past the first rows.
     const target = byId.get(order.find((id, i) => i > 3 && byId.get(id)!.block_type === snapshot.blocks[0]!.block_type)!)!;

@@ -136,13 +136,14 @@ function skeletonCountParts(view: ComposerView): string[] {
 
 /**
  * The Templates row's `.rr-secondary`, e.g. for the standard template used by three
- * relatórios: "Semente v1 · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento ·
- * usado em 3 relatórios" (the painéis part only when there is one). Every zero part is
- * omitted except the sections; the use part is omitted at zero.
+ * relatórios: "9 seções · 6 locais · 17 colunas · 94 blocos de equipamento · usado em 3
+ * relatórios" (the painéis part only when there is one). Every zero part is omitted except the
+ * sections; the use part is omitted at zero. ~~It opened with "Semente v1".~~ Story 27.9 (F39):
+ * the seed version is an internal word and leaves the line; the counts stay.
  */
 export function templateSummaryText(row: Pick<TemplateRow, 'seed_version' | 'blocks' | 'skeleton'>, useCount: number): string {
   const view = composerView(row);
-  const parts = [`Semente ${row.seed_version}`, plural(view.sections.length, 'seção', 'seções'), ...skeletonCountParts(view)];
+  const parts = [plural(view.sections.length, 'seção', 'seções'), ...skeletonCountParts(view)];
   if (view.blockCount > 0) parts.push(plural(view.blockCount, 'bloco de equipamento', 'blocos de equipamento'));
   if (useCount > 0) parts.push(`usado em ${relatoriosCount(useCount)}`);
   return parts.join(SEP);
