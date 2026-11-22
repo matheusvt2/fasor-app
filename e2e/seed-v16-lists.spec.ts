@@ -46,7 +46,8 @@ test('@p0 25.18-E2E-001 at 1024: a v16 TC asks its secondary as item 7, answered
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1024, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Pinned to v16 since seed v17 opened (batch e27b): a new relatório is born on v17.
+  const built = newRelatorioDrafts(account, { seedVersion: 'v16' });
   const { relatorioId } = built;
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, relatorioId)]);
   await page.goto(`/relatorio/${relatorioId}`);

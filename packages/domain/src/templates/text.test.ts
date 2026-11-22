@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_DEFINITION_CONTEXT, getDefinition, siteItems } from '../seed/definitions.ts';
+import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION, siteItems } from '../seed/definitions.ts';
 import { standardTemplate, templateTotals, zeroTotals } from '../seed/template.ts';
 import { addCabine, addColuna, addPainel, composerView, findComposerNode, setAgruparPorTipo, setQuantity } from './compose.ts';
 import { emptyTemplate } from './list.ts';
@@ -29,7 +29,8 @@ const standard = standardTemplate({ id: '019966b0-0035-7000-8000-000000000001' }
 
 describe('3.3-UNIT templateSummaryText', () => {
   it('reads the seed, the sections and the skeleton counts of the standard template', () => {
-    expect(templateSummaryText(standard, 0)).toBe('Semente v16 · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento');
+    // The current seed, read from the kernel (batch e27b: v17).
+    expect(templateSummaryText(standard, 0)).toBe(`Semente ${SEED_VERSION} · 9 seções · 6 locais · 17 colunas · 94 blocos de equipamento`);
   });
 
   it('adds the use at one and at many, and omits every zero part except the sections', () => {

@@ -129,9 +129,11 @@ describe('25.14-UNIT the definition key', () => {
     for (const [version, bundle] of Object.entries(SEED_VERSIONS)) {
       for (const block of Object.values(bundle.report_types.cabine_primaria.blocks)) {
         for (const test of block.measurement_tests ?? []) {
-          const story2516 = version === 'v16' && block.block_type === 'malha_aterramento' && test.key === 'continuidade_malha';
+          // Seed v17 (batch e27b) keeps v16's keys.
+          const fromV16 = version === 'v16' || version === 'v17';
+          const story2516 = fromV16 && block.block_type === 'malha_aterramento' && test.key === 'continuidade_malha';
           if (story2516) expect(test.added_rows).toEqual({ label: 'Adicionar ponto' });
-          else if (version !== 'v16' || test.key !== 'termografia') expect(test.added_rows, `${version} ${block.block_type}/${test.key}`).toBeUndefined();
+          else if (!fromV16 || test.key !== 'termografia') expect(test.added_rows, `${version} ${block.block_type}/${test.key}`).toBeUndefined();
         }
       }
     }

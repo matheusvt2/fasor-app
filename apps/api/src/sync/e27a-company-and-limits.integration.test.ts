@@ -180,7 +180,8 @@ describe('27.2-API-001 the new limits on the server', () => {
   });
 
   it('contract 56: a version-55 pull is answered 426 contract_outdated; the current one is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(56);
+    // Batch e27b (seed v17) moved the contract to 57: 55 stays refused.
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(56);
     const pull = (contract: string) => h.authed(companyA, '/api/sync/company?since=0', { headers: { 'x-contract-version': contract } });
     const old = await pull('55');
     expect(old.status).toBe(426);

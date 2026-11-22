@@ -38,6 +38,11 @@ import { placeholderPages } from './toc.ts';
  * it, so v15 joins the lock: `golden/layout-lock-v15/` (the relatório by the rule, every type v15 offers) and
  * `golden/layout-lock-v15-epic25/` (the Epic 25 relatório on v15, which holds what the wave changes on v16), both
  * taken once on the batch's first commit, whose product code is 8d5e9e2e's. Every other golden stays byte-equal.
+ *
+ * Batch e27b, Epic 27 wave 2, Story 27.8 (27.8-UNIT-LOCK): seed v16 froze at the deploy of 4ecc3009 and v17 opens equal
+ * to it, so v16 joins the lock: `golden/layout-lock-v16/` and `golden/layout-lock-v16-epic25/`, both taken once on the
+ * batch's first commit, whose product code is main's. Story 27.8 then changes one line of every older golden, the
+ * group title "TPs e TCs dos Cubículos de MT" (code, decision 2 of 2026-11-21), and nothing else of them.
  */
 
 /*
@@ -107,7 +112,7 @@ async function partsOf(version: string, snapshotOf: (version: string) => Relator
   return parts;
 }
 
-describe('e25s-UNIT-LOCK (24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
+describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_VERSIONS)(
     '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
     async (version) => expectGolden(version, `layout-lock-${version}`, await partsOf(version)),
@@ -120,7 +125,7 @@ describe('e25s-UNIT-LOCK (24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked
   }, 120_000);
 });
 
-describe('e25s-UNIT-LOCK (25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 and v15 relatórios is byte-equal to its golden', () => {
+describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14, v15 and v16 relatórios is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_EPIC25_VERSIONS)(
     '%s: every layout part of the relatório holding the cases Epic 25 changes matches its golden/layout-lock-{version}-epic25',
     async (version) => expectGolden(version, layoutLockEpic25Golden(version), await partsOf(version, layoutLockEpic25Snapshot)),
@@ -400,6 +405,58 @@ describe('e25s-UNIT-SAME a v16 relatório with the v15 fixtures\' answers conclu
       const [a, b] = await Promise.all([partsOf('v15', snapshotOf), partsOf('v16', snapshotOf)]);
       expect([...b.keys()]).toEqual([...a.keys()]);
       for (const [name, text] of a) expect(masked('v16', b.get(name)!) === masked('v15', text), name).toBe(true);
+    },
+    120_000,
+  );
+});
+
+/**
+ * Batch e27b, Story 27.8 (27.8-UNIT-SAME): at its opening seed v17 changes nothing, so a v17 relatório with the same
+ * answers as the v16 one (the rule-built fixture and the Epic 25 fixture, each built on both versions) concludes and
+ * prints the same: every ficha's effective pair and the composed parecer are equal, and the layout and the DOCX parts
+ * differ in nothing but the ids the fixtures derive from the version, their op ids and the version's own name.
+ */
+describe('27.8-UNIT-SAME a v17 relatório with the v16 fixtures\' answers concludes and prints as the v16 one', () => {
+  /** The version's ids, op ids and name masked (`019a6100-0NVV-…` for the four id families, `vVV`). */
+  const masked = (version: string, text: string) => {
+    const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
+    let out = text;
+    for (const family of ['00', '01', '02', '03']) out = out.replaceAll(`019a6100-${family}${hex}-`, `019a6100-${family}VV-`);
+    return out.replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
+  };
+
+  const FIXTURES = [
+    ['the rule-built fixture', (version: string) => layoutLockSnapshot(version)],
+    ['the Epic 25 fixture', layoutLockEpic25Snapshot],
+  ] as const;
+
+  /** Every equipment sheet's effective conclusion pair, by masked block id, and the composed parecer. */
+  const verdictsOf = (version: string, snapshotOf: (version: string) => RelatorioSnapshot) => {
+    const snapshot = snapshotOf(version);
+    const ctx = snapshotDefinitionContext(snapshot);
+    const pairs = snapshot.blocks
+      .filter((block) => block.equipment_id !== null)
+      .map((block) => [masked(version, block.id), effectiveConclusionPair(block, blockDefinitionIn(ctx, block)!, visitContextOf(snapshot, block))] as const);
+    return { pairs, parecer: masked(version, JSON.stringify(composeParecer(snapshot))) };
+  };
+
+  it.each(FIXTURES)('%s: v16 and v17 give the same verdicts, each ficha\'s pair and the parecer', (_name, snapshotOf) => {
+    expect(snapshotOf('v17').relatorio.seed_version).toBe('v17');
+    const a = verdictsOf('v16', snapshotOf);
+    const b = verdictsOf('v17', snapshotOf);
+    expect(a.pairs.length).toBeGreaterThan(10);
+    expect(b.pairs).toEqual(a.pairs);
+    expect(b.parecer).toBe(a.parecer);
+  });
+
+  it.each(FIXTURES)(
+    '%s: v16 and v17 give one layout and one DOCX once ids and the version are masked',
+    async (_name, snapshotOf) => {
+      const layoutOf = (version: string) => masked(version, JSON.stringify(layoutSpec(snapshotOf(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT })));
+      expect(layoutOf('v17')).toBe(layoutOf('v16'));
+      const [a, b] = await Promise.all([partsOf('v16', snapshotOf), partsOf('v17', snapshotOf)]);
+      expect([...b.keys()]).toEqual([...a.keys()]);
+      for (const [name, text] of a) expect(masked('v17', b.get(name)!) === masked('v16', text), name).toBe(true);
     },
     120_000,
   );
