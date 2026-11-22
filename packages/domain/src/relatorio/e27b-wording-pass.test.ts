@@ -246,6 +246,52 @@ describe('e27c-UNIT the citation clause (W1, W5)', () => {
     expect(pluralImageRuns('Imagem 1 e Imagem 2 e Imagem 3')).toBe('Imagens 1 e 2 e 3');
     expect(printed(onV16(snapshot), twice)).toBe('Oxidação, conforme Imagem 1 e Imagem 1');
   });
+
+  it.each([
+    ['aprox.', 'Distância aprox.'],
+    ['etc.', 'Oxidação, sujeira etc.'],
+    ['máx.', 'Corrente máx.'],
+    ['MÍN.', 'Nível MÍN.'],
+    ['nº.', 'Ver placa nº.'],
+    ['ref.', 'Conforme ref.'],
+    ['Obs.', 'Ver Obs.'],
+    ['cf.', 'Ver cf.'],
+  ])('e27d X6: an abbreviation (%s) keeps its period before the clause; was "Distância aprox, conforme Imagem 1"', (_, observation) => {
+    const one = stored(observation, [PHOTO_A]);
+    expect(one.text).toBe(`Item 1 (${one.label}): ${observation}, conforme ${photoToken(PHOTO_A)}`);
+    expect(printed(one.snapshot, one.text)).toBe(`Item 1 (${one.label}): ${observation}, conforme Imagem 1`);
+    expect(withPhotoTokens(observation, [PHOTO_A], SEED_VERSION)).toBe(`${observation}, conforme ${photoToken(PHOTO_A)}`);
+  });
+
+  it('e27d X6: an abbreviation keeps one period of a longer closing run; a word that only ends like one, or one apart from its period, does not', () => {
+    expect(withPhotoTokens('Distância aprox.;', [PHOTO_A], SEED_VERSION)).toBe(`Distância aprox., conforme ${photoToken(PHOTO_A)}`);
+    expect(withPhotoTokens('Distância aprox...', [PHOTO_A], SEED_VERSION)).toBe(`Distância aprox., conforme ${photoToken(PHOTO_A)}`);
+    // The ellipsis character is a closing run, not a period: it goes, as "..." does.
+    expect(withPhotoTokens('Distância aprox…', [PHOTO_A], SEED_VERSION)).toBe(`Distância aprox, conforme ${photoToken(PHOTO_A)}`);
+    // "href." and "cobs." end with the letters of "ref" and "obs" but are other words.
+    expect(withPhotoTokens('Ver href.', [PHOTO_A], SEED_VERSION)).toBe(`Ver href, conforme ${photoToken(PHOTO_A)}`);
+    expect(withPhotoTokens('Ver cobs.', [PHOTO_A], SEED_VERSION)).toBe(`Ver cobs, conforme ${photoToken(PHOTO_A)}`);
+    // A space between the word and its period: not an abbreviation.
+    expect(withPhotoTokens('Distância aprox .', [PHOTO_A], SEED_VERSION)).toBe(`Distância aprox, conforme ${photoToken(PHOTO_A)}`);
+    // The abbreviation alone is a text too.
+    expect(withPhotoTokens('etc.', [PHOTO_A], SEED_VERSION)).toBe(`etc., conforme ${photoToken(PHOTO_A)}`);
+  });
+
+  it.each([
+    ['…', 'Oxidação nos terminais…'],
+    ['…!', 'Oxidação nos terminais…!'],
+    ['.…', 'Oxidação nos terminais.…'],
+  ])('e27d X6: a closing "%s" goes like "..." (was kept: "terminais…, conforme")', (_, observation) => {
+    const one = stored(observation, [PHOTO_A]);
+    expect(one.text).toBe(`Item 1 (${one.label}): Oxidação nos terminais, conforme ${photoToken(PHOTO_A)}`);
+  });
+
+  it('e27d X6: v16 keeps its bare tokens after an abbreviation and after "…"', () => {
+    expect(withPhotoTokens('Distância aprox.', [PHOTO_A], 'v16')).toBe(`Distância aprox. ${photoToken(PHOTO_A)}`);
+    expect(withPhotoTokens('Oxidação nos terminais…', [PHOTO_A], 'v16')).toBe(`Oxidação nos terminais… ${photoToken(PHOTO_A)}`);
+    const v16 = stored('Distância aprox.', [PHOTO_A], onV16(fresh()));
+    expect(v16.text).toBe(`Item 1 (${v16.label}): Distância aprox. ${photoToken(PHOTO_A)}`);
+  });
 });
 
 describe('27.9-UNIT applicability in sentence case (F37)', () => {

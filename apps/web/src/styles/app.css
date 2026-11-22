@@ -143,6 +143,11 @@ body {
   [data-route="/relatorio/:id"] .sticky-action-bar .bar-buttons > .btn-secondary,
   [data-route="/relatorio/:id"] .sticky-action-bar .bar-buttons > .btn-secondary + .btn-reason { display: none; }
   [data-route="/relatorio/:id"] .sticky-action-bar { max-height: 25dvh; overflow-y: auto; }
+  /* authored (batch e27d, X4 of the wave 3 review): the reason lines come before the button, so a long one would push
+     "Gerar relatório" out of the capped foot; the button row stays pinned at the foot's bottom while only the lines
+     above it scroll. Its background is the bar's own (`.sticky-action-bar` `background: var(--surface-raised)`), so
+     nothing new is drawn. */
+  [data-route="/relatorio/:id"] .sticky-action-bar .bar-buttons { position: sticky; bottom: 0; background: var(--surface-raised); }
   /* `.frame-phone .section-stepper …` */
   .section-stepper .step-name .long { display: none; }
   .section-stepper .step-name .short { display: inline; }

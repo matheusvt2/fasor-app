@@ -7,7 +7,8 @@ import { newId } from '../apps/api/src/ids.ts';
 import { createS3, putObject } from '../apps/api/src/storage/s3.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { applyAsServer, pushStatusAsServer } from './support/push-server-ops.ts';
-import { withSeedDb } from './support/reset-empresa-b.ts';
+import { resetEmpresaB, withSeedDb } from './support/reset-empresa-b.ts';
+import { pushNewRelatorio } from './support/relatorio-seed.ts';
 import { waitForCompanyPull } from './support/sync.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
@@ -21,8 +22,9 @@ import { copy } from '../apps/web/src/copy/pt-br.ts';
  *
  * The ficha (its Porto Seguro chave with every item but the first cleared from the office): the Sticky action bar
  * holds no bulk bar at 390, 768 and 1024 px, so the fixed bar is the stepper and the button row alone; the Bulk
- * action bar stands in the checklist's flow above the first unanswered item and follows it; its keyboard press marks
- * every item left (the outbox holds one C put per item), the focus goes to the list head's action, never the page.
+ * action bar stands (batch e27d, X2) once at the head of the checklist and never moves: answering the first unanswered
+ * item leaves every row's controls where they were; its keyboard press marks every item left (the outbox holds one C
+ * put per item), the focus stays on its action, disabled with its reason, never the page.
  *
  * The Sumário (Em revisão after one real revision, "Marcar como enviado ao cliente" offered, the banner shown): at
  * 1280 and 768 px the foot is as before (its three buttons); at 390x844 the foot shows "Gerar relatório" alone, the
@@ -51,6 +53,21 @@ const WIDTHS = [
 const bar = (page: Page) => page.locator('.sticky-action-bar');
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const rows = (page: Page) => page.locator('#ficha-step-verificacoes li.checklist-row');
+/** Batch e27d (X2): the Bulk action bar at the head of the checklist, its section's own child. */
+const head = (page: Page) => page.locator('#ficha-step-verificacoes .section > .bulk-action-bar');
+/** A locator's top on the page (not the viewport), in whole CSS pixels. */
+const pageTop = (locator: ReturnType<Page['locator']>) => locator.evaluate((element) => Math.round(element.getBoundingClientRect().top + window.scrollY));
+/** Batch e27d (X2): each checklist row's Tri-state control and Overflow trigger, by item, as their top on the page. */
+async function controlPlaces(page: Page): Promise<Record<string, { triState: number; overflow: number }>> {
+  return rows(page).evaluateAll((items) =>
+    Object.fromEntries(
+      items.map((li) => {
+        const top = (selector: string) => Math.round((li.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN) + window.scrollY);
+        return [li.getAttribute('data-item-key')!, { triState: top('.row-main .tri-state'), overflow: top('.row-main .overflow-trigger') }];
+      }),
+    ),
+  );
+}
 const sumarioList = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
 const headerTrigger = (page: Page) => page.getByRole('button', { name: 'Mais opções do relatório' });
 
@@ -123,13 +140,13 @@ async function sumarioBoxes(page: Page) {
   });
 }
 
-test('@p0 27.11-E2E-001 the fixed bars leave room for the work: no bulk bar in the ficha\'s fixed bar (it stands above the first unanswered item); the phone Sumário foot keeps "Gerar relatório" alone and its other actions are in the header menu; 768 and 1280 px as before', async ({ page, context }) => {
+test('@p0 27.11-E2E-001 the fixed bars leave room for the work: no bulk bar in the ficha\'s fixed bar (it stands at the head of the checklist and never moves); the phone Sumário foot keeps "Gerar relatório" alone and its other actions are in the header menu; 768 and 1280 px as before', async ({ page, context }) => {
   test.setTimeout(420_000);
   const fixture = await resetEmpresaBWithFixture(account);
   await page.setViewportSize({ width: 1024, height: 768 });
   await signIn(page, account.email);
 
-  // --- the ficha: every answered item but the first cleared with its "Limpar", so the bar stands in the flow ---
+  // --- the ficha: every answered item but the first cleared with its "Limpar", so the first unanswered item is not the first ---
   await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
@@ -148,8 +165,10 @@ test('@p0 27.11-E2E-001 the fixed bars leave room for the work: no bulk bar in t
   for (const size of [WIDTHS[0], WIDTHS[1], WIDTHS[2]]) {
     await page.setViewportSize(size);
     const { firstUnanswered } = await checklistState(page);
-    // The bar in the flow, above the first unanswered item; one bulk bar on the page, none in the fixed bar.
-    await expect(page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${firstUnanswered}"] > .bulk-action-bar`)).toBeVisible();
+    // Batch e27d (X2): the bar at the head of the checklist, not in any row; one bulk bar on the page, none in the fixed bar.
+    expect(firstUnanswered).not.toBe(keys[0]);
+    await expect(head(page)).toBeVisible();
+    await expect(rows(page).locator('.bulk-action-bar')).toHaveCount(0);
     await expect(page.locator('.bulk-action-bar')).toHaveCount(1);
     const bars = await fichaBars(page);
     console.log(`MEASURE 27.11 ficha ${size.width}x${size.height} ${JSON.stringify(bars)}`);
@@ -158,24 +177,36 @@ test('@p0 27.11-E2E-001 the fixed bars leave room for the work: no bulk bar in t
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   }
 
-  // At 1024x768: answered in order, the bar moves below the item just answered, above the next one.
+  // At 1024x768 (batch e27d, X2): answering the first unanswered item moves nothing under the finger: the bar stays at
+  // the head, and every row's controls (the answered one and the rows after it) keep their place on the page.
   await page.setViewportSize(WIDTHS[2]);
   const before = (await checklistState(page)).firstUnanswered!;
-  await page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${before}"]`).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  const answered = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${before}"]`);
+  await answered.scrollIntoViewIfNeeded();
+  const placesBefore = await controlPlaces(page);
+  const headBefore = await pageTop(head(page));
+  await answered.getByRole('radio', { name: 'Conforme', exact: true }).click();
   await expect.poll(async () => (await checklistState(page)).firstUnanswered).not.toBe(before);
-  const next = (await checklistState(page)).firstUnanswered!;
-  const inFlow = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${next}"] > .bulk-action-bar`);
-  await expect(inFlow).toBeVisible();
+  const placesAfter = await controlPlaces(page);
+  console.log(`MEASURE e27d X2 ${JSON.stringify({ before, placesBefore, placesAfter })}`);
+  expect(placesAfter).toEqual(placesBefore);
+  expect(await pageTop(head(page))).toBe(headBefore);
+  await expect(rows(page).locator('.bulk-action-bar')).toHaveCount(0);
+  // A second tap on the same row lands on its own control, never on a bulk action.
+  await answered.getByRole('radio', { name: 'Não se aplica', exact: true }).click();
+  await expect(answered.getByRole('radio', { name: 'Não se aplica', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await answered.getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect(answered.getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
   const left = (await checklistState(page)).unanswered;
+  expect(left.length).toBeGreaterThan(0);
 
-  // Its keyboard press marks every item left; the focus follows the bar to the list head, never the body.
-  await inFlow.getByRole('button', { name: 'Marcar os restantes como Conforme' }).focus();
+  // Its keyboard press marks every item left; the focus stays on its action, now disabled with its reason, never the body.
+  await head(page).getByRole('button', { name: 'Marcar os restantes como Conforme' }).focus();
   await page.keyboard.press('Enter');
   await expect(stepper(page).getByRole('button', { name: /^Verificações, 0 faltando/ })).toBeVisible();
-  const head = page.locator('#ficha-step-verificacoes .section > .bulk-action-bar');
-  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
-  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toHaveAttribute('aria-disabled', 'true');
-  await expect(head.getByText('Todos os itens já estão marcados')).toBeVisible();
+  await expect(head(page).getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
+  await expect(head(page).getByRole('button', { name: 'Marcar os restantes como Conforme' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(head(page).getByText('Todos os itens já estão marcados')).toBeVisible();
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
   await expect
     .poll(async () => {
@@ -294,4 +325,44 @@ test('@p0 27.11-E2E-002 at 390x844 an Emitido relatório opened by the Consulta 
   expect(download.suggestedFilename()).toBe('relatorio-rev-1.pdf');
   expect((await downloadBytes(download)).byteLength).toBe(pdf.byteLength);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+});
+
+test('@p0 27.11-E2E-003 (batch e27d X4) on the phone the Sumário foot keeps "Gerar relatório" in sight under the longest reason: a new relatório, every row blocking, at 390x844 and on a short 390x560 screen', async ({ page }) => {
+  test.setTimeout(150_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize(WIDTHS[0]);
+  await signIn(page, account.email);
+  // Nothing filled in: no client, no responsible, no parecer, every sheet empty, so the foot names every blocker.
+  const { relatorioId } = await pushNewRelatorio(page, account, database);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(sumarioList(page)).toBeVisible({ timeout: 30_000 });
+  const reason = bar(page).locator('.btn-reason').first();
+  await expect(reason).toContainText('impedem gerar');
+  const generate = bar(page).getByRole('button', { name: 'Gerar relatório' });
+
+  for (const size of [WIDTHS[0], { width: 390, height: 560 }]) {
+    await page.setViewportSize(size);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(generate).toBeVisible();
+    const foot = await bar(page).evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom, scrolls: element.scrollHeight > element.clientHeight, scrollTop: element.scrollTop };
+    });
+    const button = (await generate.boundingBox())!;
+    const reasonBox = (await reason.boundingBox())!;
+    console.log(`MEASURE e27d X4 ${size.width}x${size.height} ${JSON.stringify({ foot, button, reasonHeight: reasonBox.height })}`);
+    // The button whole inside the viewport and inside the foot's visible box, the foot's own scroll at its start.
+    expect(foot.scrollTop).toBe(0);
+    expect(button.y).toBeGreaterThanOrEqual(foot.top - 1);
+    expect(button.y + button.height).toBeLessThanOrEqual(foot.bottom + 1);
+    expect(button.y + button.height).toBeLessThanOrEqual(size.height + 1);
+    // The press reaches it where it stands: the Gerar dialog opens.
+    await generate.click();
+    const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+    await expect(dialog).toBeVisible();
+    await escapeDialog(page, dialog);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+    // On the short screen the reason is taller than the foot leaves it: the case the pinned button row is for.
+    if (size.height === 560) expect(foot.scrolls, JSON.stringify(foot)).toBe(true);
+  }
 });

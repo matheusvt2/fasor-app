@@ -69,6 +69,9 @@ export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS
       waiting.current = { ...waiting.current, [field]: value };
       return;
     }
+    // Batch e27d (X3): an empty name never creates the client (a held name cleared and left would create
+    // it nameless with the waiting fields); nothing is created and the waiting fields keep waiting.
+    if (!created.current && field === 'name' && (typeof value !== 'string' || value.trim() === '')) return;
     // Nothing to say when the value is the one the row already holds (Epic 2 retro D-8).
     if (client !== null && sameFieldValue((client as Record<string, unknown>)[field], value)) return;
     const base: Omit<OpDraft, 'kind' | 'path' | 'value'> = {

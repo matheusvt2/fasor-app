@@ -131,13 +131,23 @@ function photoList(photoIds: readonly string[]): string {
 /** Batch e27c (W5): an NC row's text with no observation, "Item 3 (mufla) não conforme", which cites its photos in parentheses. */
 const NC_WITHOUT_OBSERVATION = /^Item \d+ \(.*\) não conforme$/su;
 
-/** Batch e27c (W1): the sentence marks a text may end with before its citation; a run of them ("...", "?!") goes as one. */
-const TRAILING_MARKS = /[.!?;:,]+$/u;
+/**
+ * Batch e27c (W1): the sentence marks a text may end with before its citation; a run of them ("...", "?!") goes as one.
+ * Batch e27d (X6): the one-character ellipsis "…" goes like "...".
+ */
+const TRAILING_MARKS = /[.!?;:,\u2026]+$/u;
+
+/**
+ * Batch e27d (X6): the abbreviations whose period stays before the citation ("Distância aprox., conforme Imagem 1"),
+ * matched on the text's last word, whatever its case. "etc." was the only one (batch e27c W1).
+ */
+const ABBREVIATION_AT_END = /(?:^|[^\p{L}\p{N}])(?:aprox|etc|máx|mín|nº|ref|obs|cf)$/iu;
 
 /**
  * Story 27.9 (F36): a point's text closed by the clause that cites its photos, ", conforme ⟨list⟩"; the text alone
  * with none. Batch e27c (seed v17 `wording_pass`, for Bruno): W1, the text's own closing mark run goes before the
- * clause ("terminais." gives "terminais, conforme Imagem 1"; "etc." keeps its period, as section 8 prints it);
+ * clause ("terminais." gives "terminais, conforme Imagem 1"; "etc." keeps its period, as section 8 prints it; batch e27d X6:
+ * so does every abbreviation of `ABBREVIATION_AT_END`, and "…" goes like "...");
  * W5, an NC row with no observation reads "Item 3 (mufla) não conforme (Imagem 1)".
  */
 function citedText(text: string, photoIds: readonly string[]): string {
@@ -146,7 +156,9 @@ function citedText(text: string, photoIds: readonly string[]): string {
   const list = photoList(photoIds);
   // authored (batch e27c W5, listed for Bruno): was "Item 3 (mufla) não conforme, conforme Imagem 1".
   if (NC_WITHOUT_OBSERVATION.test(body)) return `${body} (${list})`;
-  const open = /\betc\.$/iu.test(body) ? body : body.replace(TRAILING_MARKS, '').trimEnd();
+  // The closing run goes; an abbreviation right before it keeps its own period ("aprox.;" gives "aprox.").
+  const bare = body.replace(TRAILING_MARKS, '');
+  const open = ABBREVIATION_AT_END.test(bare) && body.slice(bare.length).startsWith('.') ? `${bare}.` : bare.trimEnd();
   // Nothing but marks: the tokens alone, as with no text.
   if (open === '') return [...new Set(photoIds)].map((id) => photoToken(id)).join(' ');
   // authored (Story 27.9, listed for Bruno): was the bare tokens after the text ("ressecadas Imagem 1").

@@ -293,6 +293,26 @@ describe('14.3 "Verificações do local": the surface', () => {
     expect((await localRow()).checklist?.[EMERGENCIA]).toMatchObject({ result: { value: 'NC' }, observation: { value: 'Autonomia abaixo de 2 h' } });
   });
 
+  it('batch e27d X1: an item just marked NC carries no red mark; "Concluir verificações" shows it on every NC row still empty', async () => {
+    await open({ second: true });
+    await userEvent.click(seg(EMERGENCIA, 'Não conforme'));
+    await userEvent.click(seg(LUVAS, 'Não conforme'));
+    for (const key of [EMERGENCIA, LUVAS]) expect(within(rowOf(key)).queryByText('Obrigatória em item não conforme')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Concluir verificações' }));
+    for (const key of [EMERGENCIA, LUVAS]) {
+      const field = within(rowOf(key)).getByRole('textbox', { name: /^Observação do item \d+$/ });
+      expect(field).toHaveAttribute('aria-invalid', 'true');
+      expect(field).toHaveAccessibleDescription('Obrigatória em item não conforme');
+    }
+  });
+
+  it('batch e27d X1: a local opened with an NC item and no observation shows its red mark at once', async () => {
+    await open({ checklist: { [LUVAS]: { result: 'NC' } } });
+    const field = within(rowOf(LUVAS)).getByRole('textbox', { name: /^Observação do item \d+$/ });
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(within(rowOf(LUVAS)).getByText('Obrigatória em item não conforme')).toBeVisible();
+  });
+
   it('an answered C or NA row with an observation shows the .vl-obs-line; "Editar" opens the field in its place', async () => {
     await open({ checklist: { [EXTINTOR]: { result: 'C', observation: 'CO2 6 kg · validade 03/2027' }, [TAPETE]: { result: 'C' } } });
     const row = rowOf(EXTINTOR);

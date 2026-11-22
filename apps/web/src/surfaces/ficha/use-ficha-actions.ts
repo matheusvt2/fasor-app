@@ -60,7 +60,7 @@ export function useSavedStatus(): { at: string | null; saved: () => void } {
 }
 
 export interface FichaActions {
-  /** Story 27.13 (F19): a conclude on this sheet was refused for a missing field. */
+  /** Story 27.13 (F19): a conclude was tried on this sheet; batch e27d (X1): accepted or refused. */
   concludeAttempted: boolean;
   primaryLabel: string;
   primary: () => void;
@@ -123,7 +123,8 @@ export function useFichaActions({
   const projectId = relatorio.project_id;
 
   // --- "Concluir ficha" and the way on ------------------------------------------------------
-  // Story 27.13 (F19): whether a conclude on this sheet was refused for a missing field (by block, so the next sheet starts clean).
+  // Story 27.13 (F19): whether a conclude was tried on this sheet (by block, so the next sheet starts clean). Batch e27d
+  // (X1): any attempt, accepted or refused, since an NC row's empty observation never refuses a conclude.
   const [attemptedOn, setAttemptedOn] = useState<string | null>(null);
   const concludeAttempted = attemptedOn === blockId;
   const goNext = () => {
@@ -154,6 +155,7 @@ export function useFichaActions({
       goNext();
       return;
     }
+    setAttemptedOn(blockId);
     let firstMissing: SheetJumpTarget | null = null;
     void api
       .edit((blocks, by, rows) => {
@@ -199,8 +201,6 @@ export function useFichaActions({
         if (batch === null) {
           if (otherwise === 'next') goNext();
           else if (firstMissing !== null) {
-            // Story 27.13 (F19): from here a required field left empty shows its red reason.
-            setAttemptedOn(blockId);
             editor.announce(t.incomplete);
             goTo(firstMissing.step, true, firstMissing.fieldKey);
           }

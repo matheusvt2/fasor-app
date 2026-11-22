@@ -204,6 +204,39 @@ describe('27.10-UNIT ClientPanel — a name another client has (F23)', () => {
       expect(createOp()[0]).toMatchObject({ kind: 'create', value: { name: 'Cliente Novo', contact_name: 'Ana' } });
     });
 
+    it('batch e27d X3: a held name cleared and left creates nothing; the CNPJ keeps waiting and joins the create of the next name', async () => {
+      const user = userEvent.setup();
+      renderNew();
+      const name = screen.getByLabelText('Nome');
+      await user.type(name, 'cliente  local');
+      await user.tab();
+      await user.type(screen.getByLabelText('CNPJ'), '11222333000181');
+      await user.tab();
+      await user.clear(name);
+      await user.tab();
+      expect(commitBatch).not.toHaveBeenCalled();
+      // Typing in another field while the name is empty still creates nothing.
+      await user.type(screen.getByLabelText('Contato'), 'Ana');
+      await user.tab();
+      expect(commitBatch).not.toHaveBeenCalled();
+      await user.type(name, 'Cliente Novo');
+      await user.tab();
+      expect(createOp()).toHaveLength(1);
+      expect(createOp()[0]).toMatchObject({ kind: 'create', value: { name: 'Cliente Novo', cnpj: '11.222.333/0001-81', contact_name: 'Ana' } });
+    });
+
+    it('batch e27d X3: a name typed and cleared before anything else creates nothing', async () => {
+      const user = userEvent.setup();
+      renderNew();
+      const name = screen.getByLabelText('Nome');
+      await user.type(name, 'Cliente Novo');
+      await user.clear(name);
+      await user.tab();
+      await user.type(name, '   ');
+      await user.tab();
+      expect(commitBatch).not.toHaveBeenCalled();
+    });
+
     it('with no repeated name the first field still creates the client, as before', async () => {
       const user = userEvent.setup();
       renderNew();

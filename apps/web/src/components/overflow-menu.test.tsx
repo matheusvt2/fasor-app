@@ -143,4 +143,26 @@ describe('OverflowMenu', () => {
     await userEvent.click(down);
     expect(onDown).toHaveBeenCalledTimes(1);
   });
+
+  it('batch e27d X5: an enabled item with a description is named by its label and described by it; a reason wins over it', async () => {
+    const onSend = vi.fn();
+    render(
+      <OverflowMenu
+        name="Relatório"
+        items={[
+          { id: 'send', label: 'Marcar como enviado ao cliente', onAction: onSend, description: 'Em revisão: envie a revisão 1.' },
+          { id: 'both', label: 'Pré-visualizar', onAction: vi.fn(), disabled: true, reason: 'Sem conexão.', description: 'Não aparece.' },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Relatório' }));
+    const send = screen.getByRole('menuitem', { name: 'Marcar como enviado ao cliente' });
+    expect(send).toHaveAccessibleDescription('Em revisão: envie a revisão 1.');
+    expect(send).not.toHaveAttribute('aria-disabled');
+    const both = screen.getByRole('menuitem', { name: 'Pré-visualizar' });
+    expect(both).toHaveAccessibleDescription('Sem conexão.');
+    expect(screen.queryByText('Não aparece.')).toBeNull();
+    await userEvent.click(send);
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
 });
