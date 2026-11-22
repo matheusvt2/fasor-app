@@ -256,7 +256,7 @@ async function storedRevision(account: { companyId: string; userId: string }, re
 }
 
 test.describe('e26r an issued relatório by role (2026-11-22, Matheus "sim nos dois")', () => {
-  test('@p0 e26r-E2E-001 the Engenheiro de Campo opens an issued relatório read-only under one Banner and writes nothing; the Admin still reopens it with an edit', async ({ page, browser, seed }) => {
+  test('@p0 e26r-E2E-003 the Engenheiro de Campo opens an issued relatório read-only under one Banner and writes nothing; the Admin still reopens it with an edit', async ({ page, browser, seed }) => {
     test.setTimeout(200_000);
     const admin = seed.companies[1];
     const fixture = await resetEmpresaBWithFixture(admin);
@@ -310,7 +310,7 @@ test.describe('e26r an issued relatório by role (2026-11-22, Matheus "sim nos d
     }
   });
 
-  test('@p0 e26r-E2E-002 the Consulta downloads the PDF of an issued relatório from the Sumário, with no Export dialog and no generation', async ({ page, seed }) => {
+  test('@p0 e26r-E2E-004 the Consulta downloads the PDF of an issued relatório from the Sumário, with no Export dialog and no generation', async ({ page, seed }) => {
     test.setTimeout(150_000);
     const admin = seed.companies[1];
     const { fixture } = await asRole(page, seed, 'consulta');
