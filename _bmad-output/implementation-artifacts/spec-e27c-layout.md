@@ -2,7 +2,7 @@
 title: 'e27c: layout and organisation (Stories 27.11 to 27.14)'
 type: 'feature'
 created: '2026-11-22'
-status: 'in-progress'
+status: 'in-review'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -127,3 +127,9 @@ All under `lockf -t 7200 /tmp/fasor-verify.lock`, inside the tools container (`p
 - `pnpm exec tsx scripts/e2e.ts <spec paths> --project desktop-chrome --project durability-desktop-chrome` -- the new specs, `corrected-column-fit`, and every spec the greps hit.
 
 ## Auto Run Result
+
+Status: in-review (PR opened against main, not merged).
+- Stories 27.11, 27.12, 27.13 built; 27.14 templates half built, Home half narrowed (no service date in the pull summary; needs a contract number; `deferred-work.md`). The two wave 1 tables were measured and left for a design decision (`deferred-work.md`). Wave 2 review findings W1 to W5 (added by the coordinator) all held and are fixed.
+- Implementers: A (opus high: 27.11, the tables, 27.13, then 27.11-E2E-002), B (opus medium: 27.12, 27.14 templates), C (opus high: W1 to W5); all returned. No review loop (token economy of 2026-11-12).
+- Gate on `2f7e33fe`: lint, static, test:api 1172 passed, test:unit 7725 passed, e2e 46 specs 303 of 303; lock waits 0 s; load 3.5 to 9.3. Two e26r-API-004 reds seen during the build were the stack's api started before main `8f369015` was merged (5 of 5 green after a restart).
+- Orchestrator cuts: two, both by the runtime's hand-back enforcement while waiting on the host lock and on implementer A (`.scratch-e27c/HANDOFF.md`); the coordinator resumed the batch each time.
