@@ -12897,6 +12897,11 @@ So that he stops correcting them (B-12, B-14, B-3).
 - **Q-4 (Stories 28.4 and 28.5): the reason is right, with his sentence.** The default justification of "Equipamento da concessionária" is: "Ensaios não realizados no(s) equipamento(s) ⟨TAG⟩, de propriedade da concessionária ⟨nome⟩ e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção." The utility's name and the whole text are editable on the ficha, since the case may be another (a measurement turned off, or moved out of the cabine). It replaces the authored sentence of Story 28.4. *Coordinator's reading:* ⟨TAG⟩ is the sheet's own tag, filled by the kernel; ⟨nome⟩ starts empty and is typed, and the sentence does not print with an empty name left in it (the story writes that rule); "no point for this reason" (Story 28.5) stands.
 - **Q-5 (B-13): yes.** On v18 the No-break de comando's plate field reads "BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA". Label only, same key and value; it joins Story 28.4's seed data.
 
+*(2026-11-23, Matheus answered Q-2, Q-6 and Q-7: "1. Como hoje 2. Ok 3. Ok". No question of Epic 28 stays open.)*
+- **Q-2 (Story 28.3): as today.** On a dry transformer the printed plate keeps the row NATUREZA DO LÍQUIDO with "-". By the same answer, as it was put to him, CONSTRUÇÃO prints "-" on an oil unit.
+- **Q-6 (Story 28.5): agreed.** The deadline is computed in print from the stored suggestion and the issue date; nothing new is stored.
+- **Q-7 (Story 28.8): agreed.** A change of level is judged by today's criterion; no new key, no contract number for it.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
