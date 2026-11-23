@@ -4285,3 +4285,21 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/styles/app.css` (the e23v and Story 27.7 rules); `e2e/corrected-column-fit.spec.ts`.
   class: design
   state: open (owner: Matheus, a design decision)
+
+## Deferred from: Epic 27 batch e27d and the browser pass (2026-11-22)
+
+- source_spec: spec-e27d-review-fixes.md (X3 b, wave 3 review of Epic 27, 2026-11-22)
+  summary: Cadastros › Clientes: when the repeated-name warning holds a new client, the other fields typed meanwhile wait for "Criar mesmo assim" or a new name (W2, X3 a). If the panel is closed while the name is held, those waiting fields are dropped with no word. The panel has no leave or discard confirmation to reuse, so no one-line fix exists.
+  evidence: `apps/web/src/surfaces/registries/client-panel.tsx`; `apps/web/src/surfaces/registries/client-panel.test.tsx`.
+  class: gap
+  state: open (owner: next UX pass; Matheus decides whether the panel gets a leave confirmation)
+- source_spec: spec-e27d-review-fixes.md (X3, Story 2.1's pattern)
+  summary: A new client whose first filled field is not the name (a CNPJ, a contact) is still created on that field with an empty name, as before Epic 27. Only the name field never creates a nameless client (X3 a). The test "with no repeated name the first field still creates the client" pins the Story 2.1 behaviour.
+  evidence: `apps/web/src/surfaces/registries/client-panel.tsx`; `apps/web/src/surfaces/registries/client-panel.test.tsx`.
+  class: gap
+  state: open (owner: Matheus decides whether a client may exist without a name)
+- source_spec: browser pass of Epic 27 on 886af55e (2026-11-22)
+  summary: Section 10 of the printed relatório reads "N ficha apresentou restrições (TAG)" for a ficha still open that holds one NC item, next to "ainda não concluídas". Story 27.3 split the wording of the open ficha only for a failed reading (`parecer_open_apart`, `OPEN_OUT_SINGULAR`), so an open ficha with an NC item is still counted among the fichas with restrictions. Authored sentence, open for Bruno.
+  evidence: `packages/domain/src/relatorio/parecer.ts` (the `pending` clause and the `withRestriction` sentence of the summary); found in the 2026-11-22 browser pass.
+  class: gap
+  state: open (owner: Matheus decides with Bruno whether an open ficha with an NC item reads as restrictions or as open)
