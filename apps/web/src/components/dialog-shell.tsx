@@ -113,7 +113,10 @@ function useReturnFocus(isOpen: boolean | undefined) {
       requestAnimationFrame(() => {
         if (target === null || !target.isConnected) return;
         const active = document.activeElement;
-        if (active === null || active === document.body || !active.isConnected) target.focus();
+        // Story 29.2: without scrolling, as React Aria's own restore does. A plain focus on an opener
+        // inside a sticky bar (the Sumário's "Gerar relatório") scrolled the page to the bar's place
+        // in the flow, so closing the Export dialog on a phone moved the Sumário.
+        if (active === null || active === document.body || !active.isConnected) target.focus({ preventScroll: true });
       });
     };
   }, [isOpen]);

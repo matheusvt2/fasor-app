@@ -84,7 +84,8 @@ for (const role of ['engenheiro_de_campo', 'consulta'] as const) {
     try {
       await expect(action).toHaveAttribute('aria-disabled', 'true');
       await expect(action).toHaveAccessibleDescription('Alterar senha precisa de conexão');
-      await action.click();
+      await action.focus();
+      await page.keyboard.press('Enter');
       await expect(page.getByRole('dialog')).toHaveCount(0);
     } finally {
       await page.context().setOffline(false);

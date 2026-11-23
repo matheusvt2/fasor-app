@@ -15,6 +15,17 @@ export const RESTORE_BUDGET_MS = 3_000;
 
 const kept = new Map<string, number>();
 
+/**
+ * The router key of the history entry the browser is on now. Read from `history.state` (React
+ * Router keeps its `key` there), not from the rendered location: a scroll that lands between an
+ * address change and the render of the new screen is the new entry's, never the old one's.
+ */
+function entryKey(): string {
+  const state: unknown = window.history.state;
+  const key = typeof state === 'object' && state !== null ? (state as { key?: unknown }).key : undefined;
+  return typeof key === 'string' ? key : 'default';
+}
+
 export function useScrollRestoration(): void {
   const location = useLocation();
   const navigationType = useNavigationType();
@@ -24,7 +35,7 @@ export function useScrollRestoration(): void {
     if (typeof window === 'undefined') return;
     const previous = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
-    const onScroll = () => kept.set(keyRef.current, window.scrollY);
+    const onScroll = () => kept.set(entryKey(), window.scrollY);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
