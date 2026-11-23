@@ -35,7 +35,7 @@ import {
   type SuggestionRow,
   snapshotDefinitionContext,
 } from '@app/domain';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { ConfirmDialog } from '../../components/confirm-dialog.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
@@ -83,6 +83,13 @@ import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
  * for a list with nothing to repeat from (`single`).
  */
 
+/**
+ * Story 27.13 (F19): whether a conclude was tried on the surface; from then on an NC row's empty
+ * observation shows its red reason, the row just marked NC included. Batch e27d (X1): any conclude
+ * attempt, accepted or refused; `ficha-surface.tsx` and `verificacoes-surface.tsx` provide it.
+ */
+export const ConcludeAttemptedContext = createContext(false);
+
 /** Story 6.1: what the checklist rows need to shoot and show their photos. */
 export interface ChecklistPhotos {
   /** Every photo of this sheet (the rows pick theirs by `item_key`). */
@@ -121,15 +128,15 @@ export interface ChecklistBulk {
   repeat: () => void;
 }
 
-/** The two bulk actions (UX-DR36), shared by the list head and the Sticky action bar's mirror. */
+/** The two bulk actions (UX-DR36) of the sheet's Bulk action bar. */
 export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, block: BlockRow, equipment: readonly EquipmentRow[]): ChecklistBulk {
   const t = copy.ficha.checklist;
   // e22h B1: a company sheet's checklist is its version's, from the snapshot.
   const definitions = snapshotDefinitionContext(snapshot);
-  const unset = checklistUnsetItems(block, definitions).length;
+  const unsetKeys = checklistUnsetItems(block, definitions);
   const source = repeatChecklistSource(snapshot, block.id);
   return {
-    unset,
+    unset: unsetKeys.length,
     source,
     markRest: () => {
       let n = 0;
@@ -166,18 +173,16 @@ export function useChecklistBulk(api: FichaApi, snapshot: RelatorioSnapshot, blo
 export type BulkMarkRest = Pick<ChecklistBulk, 'unset' | 'markRest'>;
 
 /**
- * The Bulk action bar; `compact` is the Sticky action bar's mirror (the first action only).
+ * The Bulk action bar. Story 27.11 (F14): its compact mirror in the Sticky action bar is gone.
  * Story 14.3: `single` draws the first action alone at the head of a list that has no
  * "Repetir" (the site checklist, `61-verificacoes-local.html` `.vl-intro`), under `label`.
  */
 export function BulkActionBar({
   bulk,
-  compact = false,
   single = false,
   label,
 }: {
   bulk: BulkMarkRest & Partial<Pick<ChecklistBulk, 'source' | 'repeat'>>;
-  compact?: boolean;
   single?: boolean;
   /** The group's name; the sheet's own when omitted. */
   label?: string;
@@ -190,14 +195,14 @@ export function BulkActionBar({
     </svg>
   );
   return (
-    <div className={compact ? 'bulk-action-bar is-compact' : 'bulk-action-bar'} role="group" aria-label={label ?? t.bulkLabel}>
+    <div className="bulk-action-bar" role="group" aria-label={label ?? t.bulkLabel}>
       <div className="bulk-action">
         <TextButton onPress={bulk.markRest} isDisabled={bulk.unset === 0} disabledReason={t.allMarked}>
           {markIcon}
           {t.markRest}
         </TextButton>
       </div>
-      {compact || single || repeat === undefined ? null : (
+      {single || repeat === undefined ? null : (
         <div className="bulk-action">
           <TextButton onPress={repeat} isDisabled={(bulk.source ?? null) === null} disabledReason={t.noConcluded}>
             <svg className="ico" aria-hidden="true">
@@ -247,6 +252,9 @@ export function ChecklistSection({
         <h2 id={headingId}>{t.title}</h2>
         {readOnlyReason === null ? null : <span className="btn-reason">{readOnlyReason}</span>}
       </div>
+      {/* Story 27.11 (F14): never in the Sticky action bar. Batch e27d (X2): drawn once, at the head of the
+          checklist in every state, so it never moves under the finger while the items are answered (J-15:
+          with none left it stays here, disabled with its reason). */}
       {readOnly ? null : <BulkActionBar bulk={bulk} />}
       <details className="ficha-details ficha-legend" open={legendOpen}>
         <summary>
@@ -471,6 +479,20 @@ export function ChecklistRow({
   // The reason line goes once text exists (EXPERIENCE.md › Observation field); a
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
+  // Story 27.13 (F19): the field stays required for the conclude path (`data-missing-field`), but
+  // its red mark (`data-required`, `aria-invalid`, the reason) is hidden on a row just marked NC.
+  // Batch e27d (X1): hidden only while the row became NC in this mounted row and its field was not
+  // left yet; a row that mounts already NC and empty (reopened, or received by sync) shows it at once,
+  // and so does every such row once a conclude was tried on its surface (accepted or refused).
+  const [wasNc, setWasNc] = useState(nc);
+  const [justMarked, setJustMarked] = useState(false);
+  if (wasNc !== nc) {
+    // Adjusted during render (not in an effect), so the row just marked NC never draws the mark for one frame.
+    setWasNc(nc);
+    setJustMarked(nc);
+  }
+  const concludeAttempted = useContext(ConcludeAttemptedContext);
+  const requiredShown = required && (!justMarked || concludeAttempted);
   // Story 24.6: the row left NC keeping an edited observation: the warning shows on this device
   // until the row's observation or result changes again. Fix batch e24x (A5): the record outlives
   // leaving the ficha and a reload (this tab's `sessionStorage`, by relatório, entity and item).
@@ -655,19 +677,22 @@ export function ChecklistRow({
               value={typed.text}
               readOnly={readOnly}
               maxLength={target.observationCap ?? undefined}
-              data-required={required ? '' : undefined}
+              data-required={requiredShown ? '' : undefined}
               data-missing-field={required ? '' : undefined}
-              aria-invalid={required || undefined}
-              aria-describedby={required ? reasonId : showKept ? keptLineId : undefined}
+              aria-invalid={requiredShown || undefined}
+              aria-describedby={requiredShown ? reasonId : showKept ? keptLineId : undefined}
               onChange={(event) => {
                 discardDraft();
                 dictation.discard();
                 typed.change(event.target.value);
               }}
-              onBlur={typed.blur}
+              onBlur={() => {
+                typed.blur();
+                setJustMarked(false);
+              }}
             />
             {readOnly ? null : <CharCount length={typed.text.length} cap={target.observationCap} />}
-            {required ? (
+            {requiredShown ? (
               <span className="helper" data-tone="red" id={reasonId}>
                 {t.observationRequired}
               </span>

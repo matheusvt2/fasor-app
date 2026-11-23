@@ -34,6 +34,17 @@ export function pointTextPieces(text: string, numbering: ReadonlyMap<string, num
     }
     const photos = run.filter((at) => tokens[at]!.kind === 'photo').map((at) => tokens[at] as { kind: 'photo'; id: string });
     const plural = photos.length > 1 && photos.every((photo) => numbering.has(photo.id)) && (tokens[run.at(-2)!] as { text: string }).text === ' e ';
+    const once = [...new Map(photos.map((photo) => [photo.id, photo])).values()];
+    if (plural && once.length < photos.length) {
+      // Batch e27c (W5): a photo cited twice in the list is cited once ("Imagem 1"; was "Imagens 1 e 1").
+      once.forEach((photo, k) => {
+        if (k > 0) out.push({ kind: 'text', text: k === once.length - 1 ? ' e ' : ', ' });
+        const n = numbering.get(photo.id)!;
+        out.push({ kind: 'photo', id: photo.id, label: once.length === 1 ? photoRefLabel(n) : k === 0 ? `Imagens ${n}` : String(n) });
+      });
+      i = j;
+      continue;
+    }
     if (!plural) {
       const n = numbering.get(token.id);
       out.push({ kind: 'photo', id: token.id, label: n === undefined ? null : photoRefLabel(n) });

@@ -60,6 +60,8 @@ export function useSavedStatus(): { at: string | null; saved: () => void } {
 }
 
 export interface FichaActions {
+  /** Story 27.13 (F19): a conclude was tried on this sheet; batch e27d (X1): accepted or refused. */
+  concludeAttempted: boolean;
   primaryLabel: string;
   primary: () => void;
   /** Epic 18: the primary's usage-event name: `ficha.conclude` while it concludes, else `ficha.next_sheet`. */
@@ -121,6 +123,10 @@ export function useFichaActions({
   const projectId = relatorio.project_id;
 
   // --- "Concluir ficha" and the way on ------------------------------------------------------
+  // Story 27.13 (F19): whether a conclude was tried on this sheet (by block, so the next sheet starts clean). Batch e27d
+  // (X1): any attempt, accepted or refused, since an NC row's empty observation never refuses a conclude.
+  const [attemptedOn, setAttemptedOn] = useState<string | null>(null);
+  const concludeAttempted = attemptedOn === blockId;
   const goNext = () => {
     if (next.kind === 'relatorio') void navigate(`/relatorio/${relatorioId}`);
     else void navigate(`/relatorio/${relatorioId}/ficha/${next.blockId}`);
@@ -149,6 +155,7 @@ export function useFichaActions({
       goNext();
       return;
     }
+    setAttemptedOn(blockId);
     let firstMissing: SheetJumpTarget | null = null;
     void api
       .edit((blocks, by, rows) => {
@@ -311,6 +318,7 @@ export function useFichaActions({
   };
 
   return {
+    concludeAttempted,
     primaryLabel,
     primary,
     primaryTelemetry: concludable ? 'ficha.conclude' : 'ficha.next_sheet',

@@ -155,6 +155,10 @@ export function EnsaiosSection({
     if (visible === undefined) return false;
     visible.focus();
     visible.select();
+    // Batch e27d (23.8-E2E-001): the focus scroll clears the Sticky action bar (`scroll-padding-bottom`) for the input
+    // alone; a row taller than its input (a tap row's "Tap N" mark) is brought whole above the bar. Before Story 27.11
+    // the bar's bulk mirror, the one change the bar took, likely hid the difference. jsdom has no `scrollIntoView`.
+    visible.closest('tr')?.scrollIntoView?.({ block: 'nearest' });
     return true;
   };
 

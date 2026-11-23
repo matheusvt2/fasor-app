@@ -59,12 +59,16 @@ export function isUnreachableFailure(failure: SyncFailure): boolean {
  * Why the server cannot be reached although the browser may be online: `session` while a
  * new sign-in is required, `server` while the last finished cycle ended unreachable, or
  * null when the server answered. `syncBadgeState` gets `reachable: cause === null`.
+ * e26s (2026-11-22): `paused` while the re-auth stands for a paused or removed account
+ * (`reAuthCause: 'paused'`): nothing is sent, yet the server answers and keeps the session, so
+ * `syncBadgeState` gets `accountPaused` and Sync status says the paused sentence.
  */
 export function unreachableCause(input: {
   reAuthRequired: boolean;
+  reAuthCause?: 'paused' | 'expired' | null;
   lastFailure: SyncFailure | null;
-}): 'server' | 'session' | null {
-  if (input.reAuthRequired) return 'session';
+}): 'server' | 'session' | 'paused' | null {
+  if (input.reAuthRequired) return input.reAuthCause === 'paused' ? 'paused' : 'session';
   if (input.lastFailure !== null && isUnreachableFailure(input.lastFailure)) return 'server';
   return null;
 }

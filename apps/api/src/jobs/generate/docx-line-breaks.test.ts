@@ -68,3 +68,39 @@ describe('e23f (a) section 8 line breaks in the DOCX', () => {
     }
   });
 });
+
+/*
+ * Batch e27d (X7 of the wave 3 review): "Informações adicionais" is a text area since Story 27.12, so the cover's value
+ * may hold line breaks. The cover's key/value table prints each as `<w:br/>` inside the value's one paragraph, as
+ * section 8 does (e23f); a value with no break is the one run it was, so no golden moves.
+ */
+describe('e27d-UNIT X7 the cover\'s "Informações adicionais" with line breaks', () => {
+  const COVER_LINES = ['Manutenção preventiva da cabine primária', 'Ensaios elétricos nos transformadores', 'Termografia dos painéis'];
+  const coverLayout = (additional: string): DocumentLayout => {
+    const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+    const withInfo = { ...snapshot, relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, additional_info: additional } } };
+    return layoutSpec(withInfo, { revisionNumber: 1, issuedAt: ISSUED_AT });
+  };
+  const coverValue = (of: DocumentLayout) => of.cover.table.rows.find((row) => row.label === 'Informações adicionais')!.value;
+
+  it('the kernel keeps the breaks; the DOCX prints them as two <w:br/> in one paragraph, never a line feed in a run', async () => {
+    for (const separator of ['\n', '\r\n']) {
+      const of = coverLayout(COVER_LINES.join(separator));
+      expect(coverValue(of)).toBe(COVER_LINES.join(separator));
+      const xml = await documentXml(of);
+      expect([...xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].filter((m) => /[\r\n]/.test(m[1]!))).toEqual([]);
+      const paragraph = paragraphWith(xml, COVER_LINES[0]!);
+      expect(paragraph.match(/<w:br\/>/g)).toHaveLength(2);
+      for (const line of COVER_LINES) expect(paragraph).toContain(line);
+    }
+  });
+
+  it('a value with no break is one run with no break, as before', async () => {
+    const of = layout();
+    const value = coverValue(of);
+    expect(value).not.toMatch(/[\r\n]/);
+    const paragraph = paragraphWith(await documentXml(of), value.slice(0, 30).replace(/&/g, '&amp;'));
+    expect(paragraph.match(/<w:r[ >]/g)).toHaveLength(1);
+    expect(paragraph).not.toContain('<w:br/>');
+  });
+});

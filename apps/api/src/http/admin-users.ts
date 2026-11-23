@@ -1,6 +1,7 @@
 import {
   ADMIN_USER_ROUTES,
   adminUserActionRequestSchema,
+  adminUserReactivateRequestSchema,
   adminUserCreateRequestSchema,
   adminUserEditRequestSchema,
   permissionForRoute,
@@ -113,7 +114,13 @@ export function createAdminUsersRoutes(options: AdminUsersRouteOptions): Hono<Ap
     });
 
   action(ADMIN_USER_ROUTES.pause.path, service.pauseUser);
-  action(ADMIN_USER_ROUTES.reactivate.path, service.reactivateUser);
+  // Reactivate takes an optional `role_id` (2026-11-22, e26s): the role change and the status change are one batch.
+  app.post(ADMIN_USER_ROUTES.reactivate.path, async (c) => {
+    const actor = actorOf(c);
+    const body = await bodyOf(c, adminUserReactivateRequestSchema);
+    if (!body.ok) return body.response;
+    return answer(c, () => service.reactivateUser(actor, c.req.param('id') ?? '', body.value));
+  });
   action(ADMIN_USER_ROUTES.remove.path, service.removeUser);
   action(ADMIN_USER_ROUTES.resend_invitation.path, service.resendInvitation, true);
   action(ADMIN_USER_ROUTES.send_reset.path, service.sendPasswordReset, true);

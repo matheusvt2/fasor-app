@@ -230,28 +230,75 @@ test.describe('26.9 the Usuários screen', () => {
     }
   });
 
-  test('@p1 e26r-E2E-001 a removed user whose custom role was removed: Reativar is refused with the sentence and he stays removed', async ({ page, seed }) => {
-    test.setTimeout(120_000);
+  test('@p1 e26s-E2E-001 a removed user whose custom role was removed: Reativar asks for another role in the same dialog, and he signs in with it', async ({ page, browser, seed }) => {
+    test.setTimeout(180_000);
     await adminOnUsers(page, seed);
     const person = newcomer(seed, 'Estagiario');
     // The setup through the Admin's routes, as the screens would call them: a custom role, a user
-    // holding it, the user removed, then the role removed (a removed user holds no role for the role rules).
+    // holding it who sets his password on the invitation's link, the user removed, then the role removed
+    // (a removed user holds no role for the role rules). Replaces e26r-E2E-001, which stopped at the refusal.
     const headers = { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) };
     const role = await page.request.post(ADMIN_ROLE_ROUTES.create.path, { headers, data: { name: 'Estagiário' } });
     expect(role.status(), await role.text()).toBe(201);
     const roleId = adminRoleListResponseSchema.parse(await role.json()).roles.find((entry) => entry.name === 'Estagiário')!.id;
+    const since = new Date(Date.now() - 5_000);
     const created = await page.request.post(ADMIN_USER_ROUTES.create.path, { headers, data: { name: person.name, email: person.email, role_id: roleId } });
     expect(created.status(), await created.text()).toBe(201);
     const userId = adminUserResponseSchema.parse(await created.json()).user.id;
+    const message = await waitForEmail(person.email, 'invitation', { since });
+    const device = await browser.newContext();
+    try {
+      const invited = await device.newPage();
+      await invited.goto(`/definir-senha#${message.token}`);
+      await invited.getByLabel('Senha', { exact: true }).fill(SEED_PASSWORD);
+      await invited.getByLabel('Repita a senha', { exact: true }).fill(SEED_PASSWORD);
+      await invited.getByRole('button', { name: 'Salvar senha' }).click();
+      await expect(invited).toHaveURL(/\/login$/);
+    } finally {
+      await device.close();
+    }
     expect((await page.request.post(adminUserRoutePath('remove', userId), { headers, data: {} })).status()).toBe(200);
     expect((await page.request.post(adminRoleRoutePath('remove', roleId), { headers, data: {} })).status()).toBe(200);
 
+    // The Admin's screen, after the device took the removed role: Reativar asks for a role.
     await page.reload();
     await page.getByRole('radiogroup', { name: 'Situação' }).getByRole('radio', { name: 'Removido' }).click();
     await expect(userRow(page, person.name).locator('.status-pill')).toHaveText('Removido');
-    await rowAction(page, person.name, 'Reativar');
-    await page.getByRole('dialog', { name: `Reativar ${person.name}?` }).getByRole('button', { name: 'Reativar' }).click();
-    await expect(page.getByText('Esse papel não existe mais. Escolha outro.')).toBeVisible();
+    const dialog = page.getByRole('dialog', { name: `Reativar ${person.name}?` });
+    const confirm = dialog.getByRole('button', { name: 'Reativar' });
+    const sentence = dialog.getByRole('alert');
+    /** Opens Reativar; when the device had not yet taken the role's removal the plain confirmation comes first, and the route's refusal opens the picker. */
+    const openPicker = async (): Promise<void> => {
+      await rowAction(page, person.name, 'Reativar');
+      await expect(dialog).toBeVisible();
+      if (!(await sentence.isVisible())) await confirm.click();
+      await expect(sentence).toHaveText('Esse papel não existe mais. Escolha outro.');
+    };
+    await openPicker();
+    await expect(dialog.getByRole('radio', { name: /Estagiário/ })).toHaveCount(0);
+    await expect(confirm).toHaveAttribute('aria-disabled', 'true');
+    // Cancelar leaves him removed; a second try picks Consulta.
+    await dialog.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(dialog).toBeHidden();
     await expect(userRow(page, person.name).locator('.status-pill')).toHaveText('Removido');
+    await openPicker();
+    await dialog.getByRole('radio', { name: /^Consulta/ }).click();
+    await expect(confirm).not.toHaveAttribute('aria-disabled', 'true');
+    await confirm.click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText(`${person.name} reativado. Ele já pode entrar.`)).toBeVisible();
+    await page.getByRole('radiogroup', { name: 'Situação' }).getByRole('radio', { name: 'Todos' }).click();
+    await expect(userRow(page, person.name).locator('.status-pill')).toHaveText('Ativo');
+    await expect(userRow(page, person.name)).toContainText('Consulta');
+
+    // He signs in with the password he set, and holds the role he was given: no Usuários shortcut.
+    const own = await browser.newContext();
+    try {
+      const signedIn = await own.newPage();
+      await signIn(signedIn, person.email);
+      await expect(signedIn.locator('.shortcut-row').getByRole('link', { name: /Usuários/ })).toHaveCount(0);
+    } finally {
+      await own.close();
+    }
   });
 });

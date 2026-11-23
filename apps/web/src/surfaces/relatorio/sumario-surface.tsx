@@ -55,7 +55,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { allLocationRows, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -101,6 +101,18 @@ const NO_USERS: UserRow[] = [];
 const NO_HIGHLIGHT: ReadonlySet<SumarioRowKey> = new Set();
 /** The restore list while the read of every location row has not landed: nothing is known yet, so nothing is offered. */
 const NO_RESTORABLE: RestorableEntry[] = [];
+
+/**
+ * Story 27.11 (F14): the header draws two Overflow menus and CSS shows one (`app.css`, the
+ * phone one below 768 px, never a JS media query). The wrapper of the one on screen, for the
+ * focus helpers that hand the focus back to "Mais opções do relatório"; the wide one when
+ * neither has a box (no layout, as in a test DOM).
+ */
+function shownHeaderMenu(side: HTMLElement | null): HTMLElement | null {
+  if (side === null) return null;
+  const menus = [...side.querySelectorAll<HTMLElement>('.sumario-menu')];
+  return menus.find((menu) => menu.querySelector('.overflow-trigger')?.getClientRects().length) ?? menus.find((menu) => menu.dataset.width === 'wide') ?? menus[0] ?? null;
+}
 
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
@@ -309,7 +321,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     {
       list: () => listRef.current,
       heading: () => headingRef.current,
-      headerMenu: () => headerMenuRef.current,
+      headerMenu: () => shownHeaderMenu(headerMenuRef.current),
       tree: () => treeRef.current,
       expandSection9: () => setExpanded(true),
       pickBelow: setAdding,
@@ -364,7 +376,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
    */
   function onSaveTemplate(name: string): void {
     setSavingTemplate(false);
-    const focusMenu = () => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null;
+    const focusMenu = () => shownHeaderMenu(headerMenuRef.current)?.querySelector<HTMLElement>('.overflow-trigger') ?? null;
     void editor
       .edit((blocks, by, fresh) => [
         createTemplateOp(by, templateFromRelatorio({ relatorio, locations: fresh.locations, blocks }, { id: newId(), name })),
@@ -455,6 +467,26 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     ...(canSaveTemplate ? [{ id: 'save-template', label: t.saveTemplate, onAction: () => setSavingTemplate(true) }] : []),
     ...(backMove === null || !canMoveBack ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
   ];
+  // Story 27.11 (F14): below 768 px the foot keeps "Gerar relatório" alone and its other actions
+  // join the header menu, each with the foot button's disabled condition and reason.
+  const markSentReason = canMarkSent || sentNeed === 'none' ? undefined : permissionRefusalText(sentNeed);
+  // Batch e27d (X5): the item carries the status's next step as its description, as the foot button does (`aria-describedby={stepId}`).
+  const markSentStep = editedRead ? { description: statusStepText(flow) } : {};
+  const phoneItems: OverflowMenuAction[] = [
+    ...headerItems,
+    !canIssue
+      ? { id: 'preview', label: t.preview, onAction: () => undefined, disabled: true, reason: permissionRefusalText('relatorio.issue') }
+      : !preview.online
+        ? { id: 'preview', label: t.preview, onAction: () => undefined, disabled: true, reason: copy.export.offlineReason }
+        : { id: 'preview', label: t.preview, onAction: preview.start },
+    ...(sent.offered
+      ? [
+          !canMarkSent
+            ? { id: 'mark-sent', label: MARK_SENT_LABEL, onAction: () => undefined, disabled: true, ...markSentStep, ...(markSentReason === undefined ? {} : { reason: markSentReason }) }
+            : { id: 'mark-sent', label: MARK_SENT_LABEL, onAction: () => void sent.markSent(), ...markSentStep },
+        ]
+      : []),
+  ];
   const openable = (row: SumarioRow) =>
     row.kind === 'setup' || (row.kind === 'text' && !row.virtual) || row.rowKey === 'section_7' || row.rowKey === 'section_8';
 
@@ -481,7 +513,15 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           </p>
         </div>
         <div className="header-side" ref={headerMenuRef}>
-          {headerItems.length === 0 ? null : <OverflowMenu name="" label={t.headerMenu} items={headerItems} />}
+          {headerItems.length === 0 ? null : (
+            <div className="sumario-menu" data-width="wide">
+              <OverflowMenu name="" label={t.headerMenu} items={headerItems} />
+            </div>
+          )}
+          {/* Story 27.11: the phone's menu, drawn always (it holds the foot's moved actions); CSS shows it below 768 px. */}
+          <div className="sumario-menu" data-width="phone">
+            <OverflowMenu name="" label={t.headerMenu} items={phoneItems} />
+          </div>
         </div>
       </div>
 
@@ -577,6 +617,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </span>
           )
         ) : null}
+        {/* Story 27.11: below 768 px "Pré-visualizar" is in the header menu, so its working label stands here (CSS hides it from 768 px, where the button says it). */}
+        {preview.phase.kind === 'working' ? (
+          <span className="btn-reason sumario-preview-working" role="status">
+            {copy.export.previewing}
+          </span>
+        ) : null}
         <div className="bar-buttons">
           <Button
             variant="secondary"
@@ -619,7 +665,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           onSubmit={onSaveTemplate}
           onClose={() => {
             setSavingTemplate(false);
-            requestAnimationFrame(() => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger')?.focus());
+            requestAnimationFrame(() => shownHeaderMenu(headerMenuRef.current)?.querySelector<HTMLElement>('.overflow-trigger')?.focus());
           }}
         />
       ) : null}

@@ -61,6 +61,8 @@ export function LoginSurface({ notice = null, onForgot }: { notice?: string | nu
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(NO_FIELD_ERRORS);
   const [failure, setFailure] = useState<{ reason: SignInFailure; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // e26s (2026-11-22): the set-password page's line ("Senha criada. …") stands until a sign-in fails.
+  const [noticeShown, setNoticeShown] = useState(true);
 
   useEffect(() => {
     document.title = PRODUTO;
@@ -90,8 +92,12 @@ export function LoginSurface({ notice = null, onForgot }: { notice?: string | nu
     setSubmitting(true);
     try {
       const result = await session.signIn(email.trim(), password);
-      if (!result.ok) setFailure({ reason: result.reason, message: result.message });
+      if (!result.ok) {
+        setNoticeShown(false);
+        setFailure({ reason: result.reason, message: result.message });
+      }
     } catch {
+      setNoticeShown(false);
       setFailure({ reason: 'server', message: copy.login.serverUnavailable });
     } finally {
       setSubmitting(false);
@@ -106,7 +112,7 @@ export function LoginSurface({ notice = null, onForgot }: { notice?: string | nu
             {PRODUTO}
           </h1>
 
-          {notice === null ? null : (
+          {notice === null || !noticeShown ? null : (
             <p className="login-notice" role="status">
               {notice}
             </p>

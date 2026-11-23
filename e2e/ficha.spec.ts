@@ -227,10 +227,12 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   await page.keyboard.press('ArrowRight');
   await expect(row2.getByRole('radio', { name: 'Não conforme' })).toHaveAttribute('aria-checked', 'true');
   await expect(row2.getByRole('radio', { name: 'Não conforme' })).toBeFocused();
-  // NC expands the row: the seed's chips and the required Observation field.
+  // NC expands the row: the seed's chips and the required Observation field. Story 27.13 (F19): its red
+  // reason waits until the field is left empty (or a conclude is refused), never on the row just marked.
   const observation2 = page.getByLabel('Observação do item 2', { exact: true });
-  await expect(observation2).toHaveAttribute('data-required', '');
-  await expect(observation2).toHaveAccessibleDescription('Obrigatória em item não conforme');
+  await expect(observation2).toBeVisible();
+  await expect(observation2).not.toHaveAttribute('data-required');
+  await expect(observation2).not.toHaveAttribute('aria-invalid');
   await expect(stepper(page).getByRole('button', { name: `Verificações, ${items.length - 1} faltando` })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(row2.getByRole('radio', { name: 'Não se aplica' })).toHaveAttribute('aria-checked', 'true');
@@ -248,9 +250,14 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   await expect(observation3).not.toHaveAttribute('data-required');
   await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${blockId}/checklist/${items[2]!.key}/observation`)?.value).toBe(phrase);
 
-  // Row 4 NC and left without observation: it stays counted, visibly required, and blocks nothing.
+  // Row 4 NC and left without observation: it stays counted, visibly required once left (Story 27.13), and blocks nothing.
   await checklistRow(page, 4).getByRole('radio', { name: 'Não conforme' }).click();
-  await expect(page.getByLabel('Observação do item 4', { exact: true })).toHaveAttribute('data-required', '');
+  const observation4 = page.getByLabel('Observação do item 4', { exact: true });
+  await expect(observation4).not.toHaveAttribute('data-required');
+  await observation4.click();
+  await page.keyboard.press('Tab');
+  await expect(observation4).toHaveAttribute('data-required', '');
+  await expect(observation4).toHaveAccessibleDescription('Obrigatória em item não conforme');
 
   // Bulk: the unset rows (2 and 5) become C in one batch; NC rows untouched; undo reverses both.
   const bulk = page.locator('#ficha-step-verificacoes .bulk-action-bar');
@@ -278,7 +285,6 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   await expect(checklistRow(page, 1).locator('.seg[aria-checked="true"]')).toHaveCount(0);
 
   // Row 4's observation typed across the idle commit: "abc", a pause past it, "def", blur.
-  const observation4 = page.getByLabel('Observação do item 4', { exact: true });
   await observation4.click();
   await page.keyboard.type('abc');
   await page.waitForTimeout(1000);
@@ -1300,7 +1306,7 @@ test('@p0 12.1-E2E-011 D-2: the NC chip completing the checklist keeps it open; 
   await expect(stepHost(page, 'placa')).toHaveClass(/is-collapsed/);
 });
 
-test('@p1 12.1-E2E-012 J-15: once the checklist is complete the Sticky action bar drops its bulk mirror (its focus goes to the list head); the list head keeps the disabled action with its reason', async ({ page }) => {
+test('@p1 12.1-E2E-012 J-15, Story 27.11, batch e27d (X2): the Sticky action bar holds no bulk bar; with one item left the bar stands at the head of the list, not above the item, and its keyboard press keeps the focus on it, which keeps the disabled action with its reason', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -1311,17 +1317,26 @@ test('@p1 12.1-E2E-012 J-15: once the checklist is complete the Sticky action ba
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
-  const mirror = page.locator('.sticky-action-bar .bulk-action-bar');
-  await expect(mirror.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
+  // Story 27.11 (F14): no mirror in the fixed bar. Batch e27d (X2): the bar at the list head, never inside a row.
+  await expect(page.locator('.sticky-action-bar .bulk-action-bar')).toHaveCount(0);
+  const head = page.locator('#ficha-step-verificacoes .section > .bulk-action-bar');
+  await expect(page.locator('#ficha-step-verificacoes li.checklist-row .bulk-action-bar')).toHaveCount(0);
+  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
 
-  // The mirror by keyboard marks the last item and leaves; the focus lands on the list head's action.
-  await mirror.getByRole('button', { name: 'Marcar os restantes como Conforme' }).focus();
+  // By keyboard it marks the last item; the bar does not move and the focus stays on it, never the page body.
+  // Batch e27d: the step jump's focus watch may still take the focus back for a few frames, so the press waits until
+  // the button holds it (12.1-E2E-012 went red once in three with the Enter landing elsewhere).
+  const markRest = head.getByRole('button', { name: 'Marcar os restantes como Conforme' });
+  await expect(async () => {
+    await markRest.focus();
+    await expect(markRest).toBeFocused({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
+  await page.waitForFunction(() => new Promise<boolean>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+  await expect(markRest).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
-  await expect(mirror).toHaveCount(0);
-  await expect(page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
+  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
   await expect(page.locator('.sticky-action-bar')).not.toContainText('Todos os itens já estão marcados');
-  const head = page.locator('#ficha-step-verificacoes .bulk-action-bar');
   await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toHaveAttribute('aria-disabled', 'true');
   await expect(head.getByText('Todos os itens já estão marcados')).toBeVisible();
 });

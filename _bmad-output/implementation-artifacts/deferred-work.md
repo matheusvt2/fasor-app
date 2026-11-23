@@ -4255,3 +4255,51 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/login/set-password-surface.tsx`.
   class: gap
   state: open (owner: Matheus, a small api route if wanted)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22, F2-6)
+  summary: The "último acesso" line of the Usuários rows is computed from `session` rows (`max(session.createdAt)` in `listUsers`), so it is empty for a user with no live session and disappears at sign-out. Keeping the last sign-in past sign-out, a pause and a reactivation needs data that survives them: no column or op holds it today, so a new `user` column (migration) or a server-only op and its kernel field would be needed. Not built in e26s (report-first rule: no migration, no op).
+  evidence: `apps/api/src/admin/users.ts` `listUsers`; `packages/domain/src/permissions/user-list.ts` `userLastAccessText`.
+  class: gap
+  state: open (owner: next UX pass, Matheus decides the column or the op)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
+  summary: Frame 92's row lines are not drawn: "convite enviado em ..., vale até ..." (invited), "pausado em ... por ..." (paused) and "removido em ... por ..." (removed). The rows show the role and the last access only. The dates and the actor need data the kernel row does not hold (when and by whom a status was set; the invitation's expiry is in a `verification` row).
+  evidence: `mockups/prototype/screens/92-usuarios.html`; `packages/domain/src/permissions/user-list.ts` `userRowDetailText`.
+  class: gap
+  state: open (owner: next UX pass)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
+  summary: At 390 px the App bar pill of an offline device reads "Off". It predates Epic 26: the word is `syncBadgeShort` in `packages/domain/src/sync/counts.ts` and the phone rule in `components.css`, both from Story 1.6 (commit 3395035d, 2026-09-22; the word set was fixed by review F-29, 2026-10-06). The pass read it as a defect only beside the paused state; with F2-3 a paused account no longer shows "Off".
+  evidence: `packages/domain/src/sync/counts.ts` (the 'Off' return); `apps/web/src/styles/components.css:117`.
+  class: observation
+  state: open (owner: next UX pass, wording only if Matheus wants a clearer word)
+- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
+  summary: The Login page, signed out, makes one `GET /api/account` that answers 401 and shows as one console error. It is the boot check of the session (expected), not a defect of the page; silencing it would need a lighter session probe the browser does not log.
+  evidence: `apps/web/src/api/auth-client.ts` account read; `apps/web/src/state/session.tsx` boot.
+  class: observation
+  state: open (owner: next UX pass)
+- source_spec: spec-e27c-layout.md (Story 27.14, the Home half; coordinator's decision of 2026-11-22)
+  summary: A Home card for a relatório not on the device shows no date, and two such cards of the same client and obra cannot be told apart (F21). The card comes from the company pull summary, which carries no service date. It needs `service_start` and `service_end` in `relatorioSummarySchema` (`packages/domain/src/contract/sync.ts`) and in the summary `apps/api/src/sync/pull.ts` builds, one contract number (Story 10.4's optional `progress` in the same summary took contract 11), then the line composed in `packages/domain/src/home/cards.ts` with its "27.14-UNIT" test and the Home case of `e2e/templates-home-cards.spec.ts`.
+  evidence: `packages/domain/src/home/cards.ts` `fromSummary` (service dates null); `apps/api/src/sync/pull.ts` summary mapping.
+  class: gap
+  state: open (owner: a later batch with a contract number; Matheus decides when)
+- source_spec: spec-e27c-layout.md (wave 1's known-open tables, measured by batch e27c)
+  summary: Two readings tables still do not fit their box, and the stacked corrected-column rule of Story 27.7 does not make them fit: an oil transformer's (seed v16) at 1280 px is 1448 px wide in an 864 px box, 1362 px with the corrected column stacked; the disjuntor's at 768 px with the tree opened by hand is 505 to 593 px in a 400 px box (the stacked rule already applies there), so it scrolls inside its own `.mt-scroll` box. Both need a design decision (another phone-like layout of the table below a width, fewer columns, or the tree closed), not a CSS copy.
+  evidence: `apps/web/src/styles/app.css` (the e23v and Story 27.7 rules); `e2e/corrected-column-fit.spec.ts`.
+  class: design
+  state: open (owner: Matheus, a design decision)
+
+## Deferred from: Epic 27 batch e27d and the browser pass (2026-11-22)
+
+- source_spec: spec-e27d-review-fixes.md (X3 b, wave 3 review of Epic 27, 2026-11-22)
+  summary: Cadastros › Clientes: when the repeated-name warning holds a new client, the other fields typed meanwhile wait for "Criar mesmo assim" or a new name (W2, X3 a). If the panel is closed while the name is held, those waiting fields are dropped with no word. The panel has no leave or discard confirmation to reuse, so no one-line fix exists.
+  evidence: `apps/web/src/surfaces/registries/client-panel.tsx`; `apps/web/src/surfaces/registries/client-panel.test.tsx`.
+  class: gap
+  state: open (owner: next UX pass; Matheus decides whether the panel gets a leave confirmation)
+- source_spec: spec-e27d-review-fixes.md (X3, Story 2.1's pattern)
+  summary: A new client whose first filled field is not the name (a CNPJ, a contact) is still created on that field with an empty name, as before Epic 27. Only the name field never creates a nameless client (X3 a). The test "with no repeated name the first field still creates the client" pins the Story 2.1 behaviour.
+  evidence: `apps/web/src/surfaces/registries/client-panel.tsx`; `apps/web/src/surfaces/registries/client-panel.test.tsx`.
+  class: gap
+  state: open (owner: Matheus decides whether a client may exist without a name)
+- source_spec: browser pass of Epic 27 on 886af55e (2026-11-22)
+  summary: Section 10 of the printed relatório reads "N ficha apresentou restrições (TAG)" for a ficha still open that holds one NC item, next to "ainda não concluídas". Story 27.3 split the wording of the open ficha only for a failed reading (`parecer_open_apart`, `OPEN_OUT_SINGULAR`), so an open ficha with an NC item is still counted among the fichas with restrictions. Authored sentence, open for Bruno.
+  evidence: `packages/domain/src/relatorio/parecer.ts` (the `pending` clause and the `withRestriction` sentence of the summary); found in the 2026-11-22 browser pass.
+  class: gap
+  state: open (owner: Matheus decides with Bruno whether an open ficha with an NC item reads as restrictions or as open)

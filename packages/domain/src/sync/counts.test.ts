@@ -211,3 +211,20 @@ describe('14.10-UNIT-003 the retrying state: the server answers, the last sync f
     expect(syncStatusWord('retrying', pending, false)).toBe('Tentando de novo');
   });
 });
+
+describe('e26s-UNIT syncBadgeState of a paused account (frame 94-conta-pausada.html)', () => {
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, upload_errors: 0 };
+  it('reads what waits, never "Sem conexão", while the server answers user_inactive', () => {
+    expect(syncBadgeState({ ...base, pending: 5 }, { online: true, reachable: false, accountPaused: true, paused: true, late: 5 })).toBe('pending');
+    expect(syncBadgeState(base, { online: true, reachable: false, accountPaused: true })).toBe('ok');
+    expect(syncBadgeLabel('pending', { ...base, pending: 5 })).toBe('5 pendentes');
+  });
+  it('keeps the states that explain more first, and the browser offline still reads offline', () => {
+    expect(syncBadgeState({ ...base, dead: 1 }, { online: true, reachable: false, accountPaused: true })).toBe('error');
+    expect(syncBadgeState({ ...base, pending: 1 }, { online: true, reachable: false, accountPaused: true, conflicts: 1 })).toBe('conflict');
+    expect(syncBadgeState({ ...base, pending: 1 }, { online: false, reachable: false, accountPaused: true })).toBe('offline');
+  });
+  it('an ended session is still "Sem conexão" (the re-auth state)', () => {
+    expect(syncBadgeState({ ...base, pending: 1 }, { online: true, reachable: false, accountPaused: false })).toBe('offline');
+  });
+});

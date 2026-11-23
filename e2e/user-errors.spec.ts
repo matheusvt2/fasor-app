@@ -183,7 +183,8 @@ test('@p0 27.10-E2E-001 the five slips: nothing to restore, an empty exclusion, 
   const warning = copy.registries.clientes.nameRepeats(CLIENT_NAME);
   expect(warning).toBe('Já existe um cliente com este nome: Cliente Local');
   await expect(panel.getByText(warning)).toBeVisible();
-  await expect(name).toHaveAccessibleDescription(warning);
+  // Batch e27c (W2): while held, the warning also says what creates the client.
+  await expect(name).toHaveAccessibleDescription(`${warning} ${copy.registries.clientes.nameHeld}`);
   // Left for another field: still nothing created.
   await name.press('Enter');
   await panel.getByLabel('Contato', { exact: true }).click();

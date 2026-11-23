@@ -39,6 +39,9 @@ import { loadIndependentWaits } from '../../test/load.ts';
 const COMPANY = portoSeguroSmall.companyId;
 const USER = portoSeguroSmall.userId;
 const RELATORIO = portoSeguroSmall.relatorioId;
+
+/** Story 27.11: the header draws a wide and a phone menu (CSS shows one); a test DOM has no layout, so the wide one is queried. */
+const headerTrigger = () => within(document.querySelector<HTMLElement>('.sumario-menu[data-width="wide"]')!).getByRole('button', { name: 'Mais opções do relatório' });
 const PROJECT = portoSeguroSmall.projectId;
 
 const id = (n: number) => `019966c1-0020-7000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -274,7 +277,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_TEST}"]`)).toBeNull());
     await waitFor(() => expect(eqRow(DJ_TEST).querySelector('.s9-eq-open')).toHaveFocus());
 
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     const restore = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
     await userEvent.click(within(restore).getByRole('button', { name: 'Restaurar SEC-TEST — Cabine de Testes' }));

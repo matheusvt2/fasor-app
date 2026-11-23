@@ -228,6 +228,18 @@ function liveRole(role: RoleRow): boolean {
 }
 
 /**
+ * Whether a reactivation must ask the Admin for a role first (2026-11-22, e26s): the user holds none
+ * (`roleId` null) or the device already knows the role he holds was removed. A role the device does
+ * not hold at all (not pulled yet) is not judged here: the route is asked and its `role_not_found`
+ * is the authority.
+ */
+export function reactivateNeedsRole(roleId: string | null, localRoles: readonly RoleRow[]): boolean {
+  if (roleId === null) return true;
+  const row = localRoles.find((role) => role.id === roleId);
+  return row !== undefined && !liveRole(row);
+}
+
+/**
  * The roles the screen offers (the Papel filter, the user dialog): the five seeded ones in the
  * table's order, each as the device holds it (or as seeded until the pull brings it), then the
  * company's own live roles by name.

@@ -209,7 +209,14 @@ function v14Points(snapshot: Pick<RelatorioSnapshot, 'relatorio'>): boolean {
  */
 const IMAGE_RUN = /\bImagem (\d+)((?:(?:, | e )Imagem \d+)*(?: e Imagem \d+))/gu;
 export function pluralImageRuns(text: string): string {
-  return text.replace(IMAGE_RUN, (_, first: string, rest: string) => `Imagens ${first}${rest.replaceAll('Imagem ', '')}`);
+  return text.replace(IMAGE_RUN, (run: string, first: string, rest: string) => {
+    // Batch e27c (W5): a photo cited twice in the run is cited once ("Imagem 1 e Imagem 1" prints "Imagem 1"; was "Imagens 1 e 1").
+    const numbers = [...run.matchAll(/Imagem (\d+)/gu)].map((match) => match[1]!);
+    const once = [...new Set(numbers)];
+    if (once.length === numbers.length) return `Imagens ${first}${rest.replaceAll('Imagem ', '')}`;
+    if (once.length === 1) return `Imagem ${once[0]!}`;
+    return `Imagens ${once.slice(0, -1).join(', ')} e ${once.at(-1)!}`;
+  });
 }
 
 /** Story 27.9: the print of a relatório whose seed turns `wording_pass` on reads a run of references as one plural. */

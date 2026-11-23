@@ -66,6 +66,17 @@ const foot = (page: Page) => bar(page).locator('.btn-reason').first();
 const step = (page: Page) => page.getByTestId('status-next-step');
 const footGenerate = (page: Page) => bar(page).getByRole('button', { name: 'Gerar relatório' });
 const footMarkSent = (page: Page) => bar(page).getByRole('button', { name: MARK_SENT });
+/** Story 27.11 (F14): below 768 px the action is in the header menu; from 768 px in the foot. */
+const onPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
+async function pressMarkSent(page: Page): Promise<void> {
+  if (!onPhone(page)) {
+    await footMarkSent(page).click();
+    return;
+  }
+  await expect(footMarkSent(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+  await page.getByRole('menuitem', { name: MARK_SENT }).click();
+}
 const controle = (page: Page) => sumarioList(page).locator('li[data-row="controle"]');
 const banner = (page: Page) => page.locator('.banner-slot .banner');
 const toast = (page: Page) => page.getByTestId('toast');
@@ -305,7 +316,14 @@ for (const viewport of WIDTHS) {
     await expect(controle(page)).toContainText('Rev. 1 gerada');
     const notSent = 'Em revisão: a revisão 1 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".';
     await expect(step(page)).toHaveText(notSent);
-    await expect(footMarkSent(page)).toHaveAccessibleDescription(notSent);
+    if (!onPhone(page)) await expect(footMarkSent(page)).toHaveAccessibleDescription(notSent);
+    else {
+      // Batch e27d (X5): the phone menu's item carries the same sentence as its description.
+      await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+      await expect(page.getByRole('menuitem', { name: MARK_SENT })).toHaveAccessibleDescription(notSent);
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+    }
     await expect(foot(page)).not.toContainText('Em revisão');
     // Decision 5: the bar is no taller than before plus one button row (48 px and its gap), and
     // nothing scrolls sideways (390 x 844 above all).
@@ -314,7 +332,7 @@ for (const viewport of WIDTHS) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
     // "Marcar como enviado ao cliente" from the foot: one issue op, Emitido, and the toast names it.
-    await footMarkSent(page).click();
+    await pressMarkSent(page);
     await expect(headerPill(page)).toHaveText('Emitido');
     await expect(toast(page)).toHaveText('Revisão 1 marcada como enviada ao cliente. Relatório emitido.', { timeout: 20_000 });
     await expect(footMarkSent(page)).toHaveCount(0);
@@ -463,7 +481,7 @@ test('@p0 SF-E2E-003 Emitido with content the client does not have: an unchanged
   await expect(step(page)).toHaveText('Em revisão: a revisão 2 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".');
   await expect(banner(page)).toContainText(/Revisão 2 gerada em \d{2}\/\d{2}, ainda não enviada ao cliente\./);
   await expect(controle(page)).toContainText('Rev. 2 gerada');
-  await footMarkSent(page).click();
+  await pressMarkSent(page);
   await expect(headerPill(page)).toHaveText('Emitido');
   await expect(controle(page)).toContainText('Rev. 2 emitida');
   expect(await statusValues(page, fixture.relatorioId)).toEqual(['em_revisao', 'emitido', 'em_revisao', 'emitido']);

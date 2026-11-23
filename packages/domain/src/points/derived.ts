@@ -118,24 +118,57 @@ function ncText(n: number, label: string, observation: string | null, photoIds: 
   const item = `Item ${n} (${label.toLocaleLowerCase('pt-BR')})`;
   // authored (Story 22.5, open for Bruno): an NC entry's text.
   const body = observation === null || observation === '' ? `${item} não conforme` : `${item}: ${observation}`;
-  if (seedRule(seedVersion, 'wording_pass')) return `${body}${photoCitation(photoIds)}`;
+  if (seedRule(seedVersion, 'wording_pass')) return citedText(body, photoIds);
   return [body, ...photoIds.map((id) => photoToken(id))].join(' ');
 }
 
-/**
- * Story 27.9 (F36): the clause that cites a row's photos at the end of a point's text, ", conforme ⟨token⟩", the
- * tokens of two or more joined as a list ("⟨a⟩ e ⟨b⟩", "⟨a⟩, ⟨b⟩ e ⟨c⟩"); '' with none.
- */
-function photoCitation(photoIds: readonly string[]): string {
-  if (photoIds.length === 0) return '';
-  const tokens = photoIds.map((id) => photoToken(id));
-  const list = tokens.length === 1 ? tokens[0]! : `${tokens.slice(0, -1).join(', ')} e ${tokens.at(-1)!}`;
-  // authored (Story 27.9, listed for Bruno): was the bare tokens after the text ("ressecadas Imagem 1").
-  return `, conforme ${list}`;
+/** Story 27.9: the tokens of a row's photos as a list, "⟨a⟩", "⟨a⟩ e ⟨b⟩", "⟨a⟩, ⟨b⟩ e ⟨c⟩"; batch e27c (W5): each photo once. */
+function photoList(photoIds: readonly string[]): string {
+  const tokens = [...new Set(photoIds)].map((id) => photoToken(id));
+  return tokens.length === 1 ? tokens[0]! : `${tokens.slice(0, -1).join(', ')} e ${tokens.at(-1)!}`;
 }
 
-/** Story 27.9: the citation clause a text ends with (`photoCitation`), so a photo added later joins its list. */
+/** Batch e27c (W5): an NC row's text with no observation, "Item 3 (mufla) não conforme", which cites its photos in parentheses. */
+const NC_WITHOUT_OBSERVATION = /^Item \d+ \(.*\) não conforme$/su;
+
+/**
+ * Batch e27c (W1): the sentence marks a text may end with before its citation; a run of them ("...", "?!") goes as one.
+ * Batch e27d (X6): the one-character ellipsis "…" goes like "...".
+ */
+const TRAILING_MARKS = /[.!?;:,\u2026]+$/u;
+
+/**
+ * Batch e27d (X6): the abbreviations whose period stays before the citation ("Distância aprox., conforme Imagem 1"),
+ * matched on the text's last word, whatever its case. "etc." was the only one (batch e27c W1).
+ */
+const ABBREVIATION_AT_END = /(?:^|[^\p{L}\p{N}])(?:aprox|etc|máx|mín|nº|ref|obs|cf)$/iu;
+
+/**
+ * Story 27.9 (F36): a point's text closed by the clause that cites its photos, ", conforme ⟨list⟩"; the text alone
+ * with none. Batch e27c (seed v17 `wording_pass`, for Bruno): W1, the text's own closing mark run goes before the
+ * clause ("terminais." gives "terminais, conforme Imagem 1"; "etc." keeps its period, as section 8 prints it; batch e27d X6:
+ * so does every abbreviation of `ABBREVIATION_AT_END`, and "…" goes like "...");
+ * W5, an NC row with no observation reads "Item 3 (mufla) não conforme (Imagem 1)".
+ */
+function citedText(text: string, photoIds: readonly string[]): string {
+  if (photoIds.length === 0) return text;
+  const body = text.trimEnd();
+  const list = photoList(photoIds);
+  // authored (batch e27c W5, listed for Bruno): was "Item 3 (mufla) não conforme, conforme Imagem 1".
+  if (NC_WITHOUT_OBSERVATION.test(body)) return `${body} (${list})`;
+  // The closing run goes; an abbreviation right before it keeps its own period ("aprox.;" gives "aprox.").
+  const bare = body.replace(TRAILING_MARKS, '');
+  const open = ABBREVIATION_AT_END.test(bare) && body.slice(bare.length).startsWith('.') ? `${bare}.` : bare.trimEnd();
+  // Nothing but marks: the tokens alone, as with no text.
+  if (open === '') return [...new Set(photoIds)].map((id) => photoToken(id)).join(' ');
+  // authored (Story 27.9, listed for Bruno): was the bare tokens after the text ("ressecadas Imagem 1").
+  return `${open}, conforme ${list}`;
+}
+
+/** Story 27.9: the citation clause a text ends with (`citedText`), so a photo added later joins its list. */
 const CITATION_AT_END = /, conforme ((?:\[\[foto:[0-9a-fA-F-]{36}\]\](?:, | e )?)+)$/;
+/** Batch e27c (W5): the parenthesized citation of an NC row with no observation, " (⟨list⟩)", which a later photo joins. */
+const PAREN_CITATION_AT_END = / \(((?:\[\[foto:[0-9a-fA-F-]{36}\]\](?:, | e )?)+)\)$/;
 
 /** The photos of one checklist row, in section 7's order: its sheet's (or local's) photos tagged with its item key. */
 function rowPhotoIds(photos: ReturnType<typeof livePhotos>, owner: { blockId: string } | { locationId: string }, itemKey: string): string[] {
@@ -623,15 +656,18 @@ export function notTestedPointText(block: Pick<BlockRow, 'not_tested' | 'seed_ve
  *
  * Story 27.9 (F36): on a relatório whose seed turns `wording_pass` on (`seedVersion`, v17), a text
  * the missing photos join cites them in its closing clause (", conforme ⟨a⟩ e ⟨b⟩"), the clause
- * already there extended; with no text the tokens stand alone as before.
+ * already there extended; with no text the tokens stand alone as before. Batch e27c (W1, W5): the text's
+ * closing mark run goes before a new clause, and an NC row's parenthesized list is extended the same way.
  */
 export function withPhotoTokens(text: string | null, photoIds: readonly string[], seedVersion?: string | null): string {
   const base = text ?? '';
   const missingIds = photoIds.filter((id) => !base.includes(photoToken(id)));
   if (seedVersion !== undefined && seedVersion !== null && seedRule(seedVersion, 'wording_pass') && base.trim() !== '' && missingIds.length > 0) {
+    const paren = PAREN_CITATION_AT_END.exec(base);
+    if (paren !== null) return `${base.slice(0, paren.index)} (${photoList([...extractPhotoRefs(paren[0]), ...missingIds])})`;
     const clause = CITATION_AT_END.exec(base);
-    if (clause === null) return `${base}${photoCitation(missingIds)}`;
-    return `${base.slice(0, clause.index)}${photoCitation([...extractPhotoRefs(clause[0]), ...missingIds])}`;
+    if (clause === null) return citedText(base, missingIds);
+    return `${base.slice(0, clause.index)}, conforme ${photoList([...extractPhotoRefs(clause[0]), ...missingIds])}`;
   }
   const missing = missingIds.map((id) => photoToken(id));
   return [base, ...missing].filter((part) => part !== '').join(' ');

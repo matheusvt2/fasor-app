@@ -29,6 +29,9 @@ import { TreeSurface } from './tree-surface.tsx';
 const COMPANY = portoSeguroSmall.companyId;
 const USER = portoSeguroSmall.userId;
 const RELATORIO = portoSeguroSmall.relatorioId;
+
+/** Story 27.11: the header draws a wide and a phone menu (CSS shows one); a test DOM has no layout, so the wide one is queried. */
+const headerTrigger = () => within(document.querySelector<HTMLElement>('.sumario-menu[data-width="wide"]')!).getByRole('button', { name: 'Mais opções do relatório' });
 const PROJECT = portoSeguroSmall.projectId;
 
 const id = (n: number) => `019966c1-0152-7000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -595,7 +598,7 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
   const equipmentOfIn = async (db: AppDatabase, blockId: string) => ((await db.entities.get(['block', blockId]))!.row as BlockRow).equipment_id!;
 
   async function openRestore() {
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     return screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
   }
@@ -639,13 +642,36 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     await screen.findByRole('list', { name: 'Locais do relatório' });
     // With the live rows standing in, SEC-C05 and SEC-OLD (their coluna unknown to the list) would each be offered alone.
     // Story 27.10 (F28): with nothing offered the entry is disabled with its reason, and no dialog opens.
-    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(headerTrigger());
     const item = await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' });
     expect(item).toHaveAttribute('aria-disabled', 'true');
     expect(item).toHaveAccessibleDescription('Nada para restaurar');
     await userEvent.click(item);
     expect(screen.queryByRole('dialog', { name: 'Restaurar ficha removida' })).toBeNull();
     expect(document.querySelector('.restore-list')).toBeNull();
+  });
+
+  // Batch e27c (W4): the empty state the dialog still has; the entry is disabled with nothing to restore, so it
+  // shows only when the last removed ficha comes back (another device's pull) while the dialog is open.
+  it('the dialog open when its last removed ficha comes back on another device says "Nenhuma ficha removida para restaurar", with no list', async () => {
+    const db = await seeded();
+    for (const [entity, entityId] of [['block', TR_TEST], ['equipment', await equipmentOfIn(db, TR_TEST)]] as const) {
+      const record = (await db.entities.get([entity, entityId]))!;
+      await db.entities.put({ ...record, removed_at: T2, row: { ...(record.row as object), removed_at: T2 } as never });
+    }
+    database = db;
+    renderAt(`/relatorio/${RELATORIO}`);
+    await screen.findByRole('list', { name: 'Locais do relatório' });
+    const dialog = await openRestore();
+    await within(dialog).findByRole('button', { name: 'Restaurar TR-TEST — Cabine de Testes' });
+    // TR-TEST is live again, as another device's pull would leave it.
+    for (const [entity, entityId] of [['block', TR_TEST], ['equipment', await equipmentOfIn(db, TR_TEST)]] as const) {
+      const record = (await db.entities.get([entity, entityId]))!;
+      await db.entities.put({ ...record, removed_at: null, row: { ...(record.row as object), removed_at: null } as never });
+    }
+    await waitFor(() => expect(within(dialog).getByText('Nenhuma ficha removida para restaurar')).toBeVisible());
+    expect(dialog.querySelector('.restore-list')).toBeNull();
+    expect(within(dialog).queryAllByRole('button', { name: /^Restaurar / })).toHaveLength(0);
   });
 
   it('restoring a painel writes one batch from the plan (locations, sheets, equipment), opens section 9 on the restored row, says it, and marks a TAG reused meanwhile as a duplicate; "Desfazer" removes the same rows again', async () => {
@@ -696,7 +722,7 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
     // "Desfazer" puts the removal's own timestamp back on every row, so they still restore together.
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(row(PAINEL)).toBeNull());
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções do relatório' })).toHaveFocus());
+    await waitFor(() => expect(headerTrigger()).toHaveFocus());
     for (const [entity, entityId] of [['location', PAINEL], ['location', COLUNA_5], ['location', COLUNA_6], ['block', SEC_C05], ['equipment', SEC_C05_EQUIPMENT]] as const) {
       expect(await removedAt(entity, entityId), `${entity} ${entityId}`).toBe(T);
     }
@@ -765,7 +791,7 @@ describe('14.2 second pass: "Restaurar ficha removida" with removed locations', 
       const seededRows = await removedTogether([...locations], [...blocks]);
       database = seededRows.db;
       renderAt(`/relatorio/${RELATORIO}`);
-      await screen.findByRole('button', { name: 'Mais opções do relatório' });
+      await waitFor(() => headerTrigger());
       await waitFor(() => expect(document.querySelector('.sum-s9')).not.toBeNull());
       expect(row(target)).toBeNull();
 

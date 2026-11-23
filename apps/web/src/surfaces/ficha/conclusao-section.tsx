@@ -468,7 +468,7 @@ export function ConclusaoSection({
                   data-missing-field={observationMissing ? '' : undefined}
                   onClick={confirmObservation}
                 >
-                  {ui.suggestionField.confirm}
+                  {t.confirmObservation}
                 </button>
               </div>
             ) : null}
@@ -541,7 +541,7 @@ export function ConclusaoSection({
               <span className="conclusion-hint" role="status">
                 {t.adjustedNote}{' '}
                 <button type="button" className="btn btn-secondary confirm-action" onClick={confirmAdjusted}>
-                  {ui.suggestionField.confirm}
+                  {t.confirmResult}
                 </button>
               </span>
             ) : null}
@@ -562,6 +562,8 @@ export function ConclusaoSection({
                 criteriaItems={composed.criteriaItems}
                 state={textState}
                 onConfirm={() => confirmText(composed.text, 'confirmed')}
+                // Story 27.13 (F18): each conclusion button names what it writes.
+                confirmLabel={t.confirmText}
                 onReplace={() => confirmText(composed.text, 'confirmed')}
                 onEdit={(text) => confirmText(text, 'edited')}
                 draft={{ surface: DRAFT_SURFACE, entityId: api.blockId, field: 'conclusion-text' }}

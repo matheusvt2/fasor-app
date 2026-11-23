@@ -5,9 +5,9 @@ import { createDb } from '../apps/api/src/db/client.ts';
 import { workerRoleUser } from '../apps/api/src/db/e2e-worker-seed.ts';
 import { seedRoleUser } from '../apps/api/src/db/seed.ts';
 import { adminApi } from './support/admin-route.ts';
-import { signInForDurability } from './support/durability.ts';
+import { keepFormSignInOnPlainHttp, signInForDurability } from './support/durability.ts';
 import { resetEmpresaBWithFixture } from './support/export-fixture.ts';
-import { deviceDatabaseName, expect, SEED_PASSWORD, test } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, SEED_PASSWORD, syncBadge, test } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { withSeedDb } from './support/reset-empresa-b.ts';
 import { SYNC_CYCLE_TIMEOUT, waitForCompanyPull } from './support/sync.ts';
@@ -21,12 +21,20 @@ import { SYNC_CYCLE_TIMEOUT, waitForCompanyPull } from './support/sync.ts';
  * store, never from the screen), "Sair" names five and Cancelar keeps them, a reload and a closed
  * browser keep them; after the reactivation he signs in again on the same device and the five reach
  * the server. *(2026-11-22, e26r: the reactivation ends the kept session, so the old cookie answers
- * 401 `unauthenticated` and the device stays on Login until he signs in.)*
+ * 401 `unauthenticated` and the device stays on Login until he signs in.)* *(2026-11-22, e26s: a
+ * reload or a restart while paused keeps the paused state, since the boot reads `401 user_inactive`;
+ * e26s-E2E-002 is the reactivation learnt with no reload, through "Sincronizar agora".)*
  *
- * Runs on `durability-desktop-chrome` (the file name matches that project's pattern). The matrix
+ * Runs on `durability-desktop-chrome` (the file name matches that project's pattern). ~~The matrix
  * projects (Android emulation, WebKit) are not run in this batch (the owner's decision); the second
  * sign-in uses the Login form, which holds the `Secure` cookie on Chromium's localhost only, so on
- * WebKit that step needs the harness's own sign-in.
+ * WebKit that step needs the harness's own sign-in.~~ *(2026-11-22, e26t: the matrix runs it, and
+ * its two tests that sign in again were red on WebKit for that very reason: the form's sign-in
+ * answered 200, WebKit refused the `Secure` cookie of the plain http origin, and the account read
+ * went out with the cookie of the session the reactivation had ended. On WebKit
+ * `keepFormSignInOnPlainHttp` now lands the form's cookie in the jar as an HTTPS origin would, so
+ * the same form and the same assertions run on the three projects; WebKit runs them with no shell
+ * worker, which that helper explains. 26.11-E2E-001b needs none of it: its sign-in is refused.)*
  */
 
 /** Five values no fixture reading holds, typed one after the other down the insulation table. */
@@ -68,8 +76,9 @@ async function restartBrowser(context: BrowserContext): Promise<Page> {
 
 const pausedBanner = (page: Page) => page.locator('.banner-slot .banner[data-banner="paused"]');
 
-test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings through the banner, "Sair", a reload and a restart, and sends them after the reactivation', async ({ page, context, request, seed }) => {
+test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings through the banner, "Sair", a reload and a restart, and sends them after the reactivation', async ({ page, context, request, seed, browserName }) => {
   test.setTimeout(300_000);
+  if (browserName === 'webkit') await keepFormSignInOnPlainHttp(context);
   const fixture = await resetEmpresaBWithFixture(seed.companies[1]);
   await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'engenheiro_de_campo'));
   const campo = workerRoleUser(seed.index, 'engenheiro_de_campo');
@@ -123,14 +132,21 @@ test('@p0 26.11-E2E-001 a paused field engineer keeps five unsent readings throu
   await expect(dialog).toHaveCount(0);
   expect(await unsentReadings(page, database, fixture.blockChaveId)).toHaveLength(5);
 
-  // A reload: the boot lands on Login (Story 20.11) with the pointer and the database kept.
+  // ~~A reload: the boot lands on Login (Story 20.11) with the pointer and the database kept.~~
+  // 2026-11-22 (e26s, F2-2; expectation moved on purpose): the pause keeps the session, so the boot
+  // reads `401 user_inactive` and keeps the paused state for him, as without a reload: the banner,
+  // Conta and "Sair" naming the five, and the five in the outbox.
   await page.reload();
-  await expect(page).toHaveURL(/\/login$/, { timeout: 30_000 });
+  await expect(pausedBanner(page)).toBeVisible({ timeout: 30_000 });
+  await expect(pausedBanner(page)).toHaveText(PAUSED_BANNER);
+  await expect(page).not.toHaveURL(/\/login$/);
   expect(await unsentReadings(page, database, fixture.blockChaveId)).toHaveLength(5);
+  await page.locator('.app-bar').getByRole('link', { name: 'Conta' }).click();
+  await expect(page.getByRole('button', { name: 'Sair', exact: true })).toHaveAccessibleDescription(pausedSignOutNoteText(5));
 
-  // A browser restart (every tab closed, a fresh one): still the five.
+  // A browser restart (every tab closed, a fresh one): still the five, still the paused banner.
   const tab = await restartBrowser(context);
-  await expect(tab).toHaveURL(/\/login$/, { timeout: 30_000 });
+  await expect(pausedBanner(tab)).toBeVisible({ timeout: 30_000 });
   expect(await unsentReadings(tab, database, fixture.blockChaveId)).toHaveLength(5);
 
   // Reactivated, he signs in again on the same device: the five reach the server and the banner is gone.
@@ -178,4 +194,65 @@ test('@p0 26.11-E2E-001b a paused user on a device with no data of his reads "Co
   } finally {
     await admin.act('reactivate', campo.userId);
   }
+});
+
+test('@p0 e26s-E2E-002 a paused device learns of the reactivation with no reload: "Sincronizar agora" asks Login, and signing in sends the unsent change', async ({ page, context, request, seed, browserName }) => {
+  test.setTimeout(240_000);
+  if (browserName === 'webkit') await keepFormSignInOnPlainHttp(context);
+  const fixture = await resetEmpresaBWithFixture(seed.companies[1]);
+  await withSeedDb((db, auth) => seedRoleUser(db, auth, seed.index, 'engenheiro_de_campo'));
+  const campo = workerRoleUser(seed.index, 'engenheiro_de_campo');
+  const database = deviceDatabaseName(campo.userId);
+  const admin = await adminApi(request, seed.companies[1].email);
+
+  await signInForDurability(page, context, campo.email);
+  await waitForCompanyPull(page, database);
+  await page.goto(`/relatorio/${fixture.relatorioId}/ficha/${fixture.blockChaveId}`);
+  await expect(page.locator('.ficha-main')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' }).getByRole('button', { name: /^Ensaios,/ }).click();
+  const first = page.getByRole('textbox', { name: CELLS[0]!, exact: true });
+  await expect(first).toBeVisible({ timeout: 30_000 });
+
+  // One unsent change, typed offline; the Admin pauses him meanwhile.
+  await context.setOffline(true);
+  await first.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type(READINGS[0]!);
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await unsentReadings(page, database, fixture.blockChaveId)).length).toBe(1);
+  await admin.act('pause', campo.userId);
+  await context.setOffline(false);
+  await expect(pausedBanner(page)).toBeVisible({ timeout: SYNC_CYCLE_TIMEOUT });
+  // F2-3: the pill reads what waits (frame 94, "1 pendente"), never "Sem conexão".
+  await expect(syncBadge(page)).toHaveAttribute('data-state', 'pending');
+
+  // F2-3: Sync status says the pause, not an expired session.
+  await syncBadge(page).click();
+  await expect(page).toHaveURL(/\/sync$/);
+  await expect(page.getByTestId('sync-unreachable')).toHaveText(PAUSED_BANNER);
+
+  // The Admin reactivates him (the session ends). With no reload, "Sincronizar agora" asks the
+  // server, which answers that the session is gone: the device moves to the ended-session re-auth.
+  await admin.act('reactivate', campo.userId);
+  await page.getByRole('button', { name: 'Sincronizar agora' }).click();
+  const reAuth = page.locator('.banner-slot .banner[data-banner="re-auth"]');
+  await expect(reAuth).toBeVisible({ timeout: 30_000 });
+  await expect(pausedBanner(page)).toHaveCount(0);
+  await expect(page.getByTestId('sync-unreachable')).toHaveText('Sua sessão expirou. Entre de novo para enviar.');
+  await expect(page.locator('.sync-actions').getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+  expect(await unsentReadings(page, database, fixture.blockChaveId)).toHaveLength(1);
+  // Conta no longer speaks of a paused account.
+  await page.locator('.app-bar').getByRole('link', { name: 'Conta' }).click();
+  await expect(page.getByRole('button', { name: 'Sair', exact: true })).not.toHaveAccessibleDescription(pausedSignOutNoteText(1));
+
+  // Login is asked; signing in sends the change.
+  await reAuth.getByRole('button', { name: 'Entrar de novo' }).click();
+  await expect(page).toHaveURL(/\/login$/, { timeout: 30_000 });
+  await expect(page.getByLabel('E-mail')).toHaveValue(campo.email);
+  await page.getByLabel('Senha').fill(SEED_PASSWORD);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/login$/, { timeout: 30_000 });
+  await expect.poll(() => serverReadings(campo.companyId, campo.userId, fixture.blockChaveId), { timeout: SYNC_CYCLE_TIMEOUT }).toBe(1);
+  await expect.poll(async () => (await unsentReadings(page, database, fixture.blockChaveId)).length, { timeout: SYNC_CYCLE_TIMEOUT }).toBe(0);
+  await expect(page.locator('.banner-slot .banner[data-banner="paused"], .banner-slot .banner[data-banner="re-auth"]')).toHaveCount(0);
 });

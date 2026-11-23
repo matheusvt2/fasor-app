@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TriStateValue } from '../../components/index.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import type { Build } from '../relatorio/relatorio-editor.ts';
-import { ChecklistRow, sheetRowTarget, type ChecklistRowApi, type ChecklistRowTarget } from './checklist-section.tsx';
+import { ChecklistRow, ConcludeAttemptedContext, sheetRowTarget, type ChecklistRowApi, type ChecklistRowTarget } from './checklist-section.tsx';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 
 /*
@@ -142,8 +142,95 @@ describe('24.6 the NC phrase follows its item (a sheet\'s row)', () => {
     h.rerender('NC', 'Texto digitado');
     expect(screen.queryByText(KEPT)).toBeNull();
     // Set back to NC, the row asks for an observation as any NC row does once it is empty.
+    // Story 27.13 (F19): its red reason waits until the field is left empty.
     h.rerender('NC', '');
+    expect(within(row()).queryByText('Obrigatória em item não conforme')).toBeNull();
+    await userEvent.click(within(row()).getByRole('textbox', { name: 'Observação do item 2' }));
+    await userEvent.tab();
     expect(within(row()).getByText('Obrigatória em item não conforme')).toBeVisible();
+  });
+});
+
+describe('27.13-UNIT Story 27.13 (F19), batch e27d (X1): "Obrigatória" is hidden only on the row just marked NC', () => {
+  const field = () => within(row()).getByRole('textbox', { name: 'Observação do item 2' });
+  const REASON = 'Obrigatória em item não conforme';
+  const shown = () => {
+    expect(field()).toHaveAttribute('data-required', '');
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(field()).toHaveAccessibleDescription(REASON);
+    expect(within(row()).getByText(REASON)).toBeVisible();
+  };
+  const hidden = () => {
+    expect(field()).not.toHaveAttribute('data-required');
+    expect(field()).not.toHaveAttribute('aria-invalid');
+    expect(within(row()).queryByText(REASON)).toBeNull();
+  };
+
+  /** A row under the conclude context, rerendered with a new result or context. */
+  function renderInContext(result: TriStateValue | null, attempted: boolean) {
+    const api: ChecklistRowApi = { relatorioId: REL, author: AUTHOR, commit: vi.fn(async () => undefined), edit: vi.fn(async () => null), undoable: vi.fn() };
+    const ui = (r: TriStateValue | null, a: boolean) => (
+      <ToastProvider>
+        <ConcludeAttemptedContext.Provider value={a}>
+          <ul className="checklist">
+            <ChecklistRow api={api} target={target(r, '')} item={{ key: ITEM }} label="Isoladores" number={2} readOnly={false} snapshot={base} />
+          </ul>
+        </ConcludeAttemptedContext.Provider>
+      </ToastProvider>
+    );
+    const view = render(ui(result, attempted));
+    return (r: TriStateValue | null, a: boolean) => view.rerender(ui(r, a));
+  }
+
+  it('just marked NC: required for the conclude path, no red mark; left empty, the mark; typed into and left, none', async () => {
+    const h = renderRow(null, '');
+    h.rerender('NC', '');
+    expect(field()).toHaveAttribute('data-missing-field', '');
+    hidden();
+    await userEvent.click(field());
+    await userEvent.tab();
+    shown();
+    expect(field()).toHaveAttribute('data-missing-field', '');
+  });
+
+  it('a row that mounts already NC and empty (the ficha reopened, the row received by sync): the mark at once, nothing touched', () => {
+    renderRow('NC', '');
+    expect(field()).toHaveAttribute('data-missing-field', '');
+    shown();
+  });
+
+  it('a row received NC by sync while on screen counts as just marked; remounted, it shows', () => {
+    const h = renderRow('C', '');
+    h.rerender('NC', '');
+    hidden();
+    cleanup();
+    renderRow('NC', '');
+    shown();
+  });
+
+  it('a conclude tried on the surface (accepted or refused) shows the mark on every NC row still empty, the one just marked included', () => {
+    const rerender = renderInContext(null, false);
+    rerender('NC', false);
+    hidden();
+    rerender('NC', true);
+    shown();
+  });
+
+  it('marked NC after the conclude attempt: the mark at once', () => {
+    const rerender = renderInContext('C', true);
+    rerender('NC', true);
+    shown();
+  });
+
+  it('left NC and marked again: hidden again until the field is left', async () => {
+    const h = renderRow('NC', '');
+    shown();
+    h.rerender('C', '');
+    h.rerender('NC', '');
+    hidden();
+    await userEvent.click(field());
+    await userEvent.tab();
+    shown();
   });
 });
 
