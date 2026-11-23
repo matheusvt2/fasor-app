@@ -2,7 +2,7 @@ import { fileFieldPath, sheetChecklistPath, sheetNameplatePath } from '../ops/pa
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
-import type { FieldDef, OilRule } from '../seed/schema.ts';
+import type { BlockDefinition, ChecklistItem, FieldDef, OilRule } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
 import { sentenceCase } from './reading-cells.ts';
@@ -93,6 +93,19 @@ export function oilDerivedNaKeysUnder(rule: OilRule | null, block: Partial<State
   // Batch e24s (Story 24.11): an oil unit shows the rule's dry items NA (none on v6 to v13, which have no `dry_items`).
   if (state === true && rule.dry_items !== undefined) return new Set(rule.dry_items);
   return NONE;
+}
+
+/**
+ * Seed v18, batch e28a (Story 28.4, Bruno's Q-3): the words of a checklist item on this sheet: its `dry_label` on a dry
+ * unit (the definition's oil rule reads it non-oil), else its `label`. The one reader of an item's words on the screen,
+ * in print, in the points, the captions and the conclusion; no item of v1 to v17 has a `dry_label`, so they read
+ * `label` as before.
+ */
+export function checklistItemLabel(item: Pick<ChecklistItem, 'label' | 'dry_label'>, definition: Pick<BlockDefinition, 'oil_rule'> | null, block: Partial<Pick<BlockRow, 'sheet' | 'config'>>): string {
+  if (item.dry_label === undefined) return item.label;
+  const rule = definition?.oil_rule ?? null;
+  if (rule === null || block.sheet === undefined) return item.label;
+  return oilStateOf(rule, block.sheet.nameplate[rule.field], block.config) === false ? item.dry_label : item.label;
 }
 
 /** True when the block's rule names `itemKey` (the rule, not the config's NA defaults, decides it). */

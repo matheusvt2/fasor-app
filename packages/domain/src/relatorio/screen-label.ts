@@ -49,6 +49,8 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
   'LEDs',
   // Seed v16 (batch e25s, Story 25.18): a proper name, in the transformer's hint "RELÉ BUCHHOLZ, QUANDO HOUVER".
   'Buchholz',
+  // Seed v18 (batch e28a, Story 28.4): the dry transformer's temperature sensor, in item 18's dry words.
+  'PT100',
 ];
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));

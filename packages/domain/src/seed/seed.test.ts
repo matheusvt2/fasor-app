@@ -48,6 +48,13 @@ import {
   STORY_28_3_TRANSFORMER_ALIASES,
   STORY_28_3_TRANSFORMER_OPTIONS,
   STORY_28_3_VEGETAL,
+  STORY_28_4_BATTERY_DATE_KEY,
+  STORY_28_4_BATTERY_DATE_LABEL,
+  STORY_28_4_BATTERY_DATE_LABEL_BEFORE,
+  STORY_28_4_THERMOGRAPHY_REASONS,
+  STORY_28_4_THERMOGRAPHY_TYPES,
+  STORY_28_4_TRANSFORMER_ITEMS,
+  STORY_28_4_UTILITY_REASON,
 } from './v18.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
@@ -323,7 +330,8 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     // Batch e24s (seed v14, contract 47) appended four: the transformer's three and the Inspeção de QGBT's function test.
     // Batch e24s (Story 24.13) then the No-break de comando's six.
     // Batch e25s (seed v16, Story 25.18, contract 54) appended the TC's item 7 on its secondary.
-    expect(ITEM_KEYS).toHaveLength(90);
+    // Batch e28a (seed v18, Story 28.4, contract 58) appended the transformer's items 18 and 19.
+    expect(ITEM_KEYS).toHaveLength(92);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -2786,7 +2794,7 @@ describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v
  * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pins it, after it a change is a new version.
  * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
  */
-const V18_HASH = 'e47f2fd2a90498a08909908583c35431c1ab70ba263361444814fe360985fd7e';
+const V18_HASH = 'bd769c9fc4d8223397a4a742cc4fedfbca9f5c607f9ec5fe18c75a1130a7ae2d';
 
 /**
  * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
@@ -2795,7 +2803,23 @@ const V18_HASH = 'e47f2fd2a90498a08909908583c35431c1ab70ba263361444814fe360985fd
  * here, so `withoutE28(v18)` stays v17 and "28.2-UNIT-001" keeps pinning that every other byte of v18 is v17's.
  */
 // Story 28.3 (batch e28a): the transformer's "A SECO" / "A ÓLEO", CONSTRUÇÃO, the TP's and the TC's ÓLEO VEGETAL (`withoutE283` below).
-const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283];
+// Story 28.4 (batch e28a): the transformer's items 18 and 19, two thermography reasons, the utility reason, the battery date label (`withoutE284` below).
+const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283, withoutE284];
+
+/** Story 28.4's delta undone: v17's seventeen transformer items, four thermography reasons, five not-tested reasons and battery label. */
+function withoutE284(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const added = new Set(STORY_28_4_TRANSFORMER_ITEMS.map((item) => item.key as string));
+  out.blocks.transformador_forca.checklist = out.blocks.transformador_forca.checklist!.filter((item) => !added.has(item.key));
+  const reasons = new Set(STORY_28_4_THERMOGRAPHY_REASONS.map((reason) => reason.key));
+  for (const type of STORY_28_4_THERMOGRAPHY_TYPES) {
+    const motivo = out.blocks[type]!.measurement_tests!.find((test) => test.key === 'termografia')!.values!.find((value) => value.key === 'motivo')!;
+    motivo.options = motivo.options!.filter((option) => !reasons.has(option.key));
+  }
+  out.not_tested_reasons = out.not_tested_reasons.filter((reason) => reason.key !== STORY_28_4_UTILITY_REASON.key);
+  out.blocks.no_break_comando!.nameplate.find((field) => field.key === STORY_28_4_BATTERY_DATE_KEY)!.label = STORY_28_4_BATTERY_DATE_LABEL_BEFORE;
+  return out;
+}
 
 /** Story 28.3's delta undone: v17's three transformer options and aliases, no CONSTRUÇÃO, v17's oil value and sampling, the TP and TC without ÓLEO VEGETAL. */
 function withoutE283(seed: ReportSeed): ReportSeed {
@@ -2907,6 +2931,63 @@ describe('28.3-UNIT-001 seed v18 (Story 28.3): the oil\'s names on the transform
         for (const one of definition.nameplate) expect(one.screen_after === undefined && one.implied_by === undefined, `${version} ${definition.block_type}/${one.key}`).toBe(true);
       }
     }
+  });
+});
+
+describe('28.4-UNIT-001 seed v18 (Story 28.4): items 18 and 19, the thermography\'s and the not-tested reasons, the battery date; v17 unchanged', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const motivo = (seed: ReportSeed, type: string) => (seed.blocks as Record<string, BlockDefinition>)[type]!.measurement_tests!.find((test) => test.key === 'termografia')!.values!.find((value) => value.key === 'motivo')!.options!.map((option) => option.label);
+
+  it('the transformer asks nineteen items: v17\'s seventeen, then 18 and 19 with Bruno\'s words for each kind, neither an oil nor a dry item', () => {
+    const checklist = v18.blocks.transformador_forca.checklist!;
+    expect(checklist).toHaveLength(19);
+    expect(checklist.slice(0, 17)).toEqual(v17.blocks.transformador_forca.checklist);
+    expect(checklist.slice(17)).toEqual(STORY_28_4_TRANSFORMER_ITEMS);
+    expect(checklist.slice(17).map((item) => [item.key, item.label, item.dry_label])).toEqual([
+      ['temperatura_alarme_e_desligamento', 'RELÉ/TERMÔMETRO DE TEMPERATURA: ALARME E DESLIGAMENTO', 'SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO'],
+      ['aterramento_carcaca_tanque_e_neutro', 'ATERRAMENTO DO TANQUE E DO NEUTRO', 'ATERRAMENTO DA CARCAÇA E DO NEUTRO'],
+    ]);
+    const rule = v18.blocks.transformador_forca.oil_rule!;
+    for (const item of STORY_28_4_TRANSFORMER_ITEMS) {
+      expect(rule.items as readonly string[]).not.toContain(item.key);
+      expect((rule.dry_items ?? []) as readonly string[]).not.toContain(item.key);
+      expect(ITEM_KEYS as readonly string[]).toContain(item.key);
+    }
+    expect(v17.blocks.transformador_forca.checklist).toHaveLength(17);
+  });
+
+  it('no item of v1 to v17 has a dry label; on v18 only items 18 and 19 do', () => {
+    for (const version of Object.keys(SEED_VERSIONS)) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        const dry = (definition.checklist ?? []).filter((item) => item.dry_label !== undefined).map((item) => `${definition.block_type}/${item.key}`);
+        expect(dry, version).toEqual(version === 'v18' && definition.block_type === 'transformador_forca' ? STORY_28_4_TRANSFORMER_ITEMS.map((item) => `transformador_forca/${item.key}`) : []);
+      }
+    }
+  });
+
+  it('every v18 thermography offers six reasons, the two new ones before "Outro"; v17 offers four', () => {
+    for (const type of STORY_28_4_THERMOGRAPHY_TYPES) {
+      expect(motivo(v18, type), type).toEqual(['Equipamento fora de carga', 'Sem acesso seguro ao equipamento', 'Sem termovisor disponível', 'Carga insuficiente para avaliação', 'Fora do escopo contratado', 'Outro']);
+      expect(motivo(v17, type), type).toEqual(['Equipamento fora de carga', 'Sem acesso seguro ao equipamento', 'Sem termovisor disponível', 'Outro']);
+    }
+  });
+
+  it('the not-tested reasons offer "Equipamento da concessionária" before "Outro", with Bruno\'s default justification; v17 offers five', () => {
+    expect(v18.not_tested_reasons.map((reason) => reason.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'equipamento_inacessivel', 'defeito_no_equipamento', 'equipamento_concessionaria', 'outro']);
+    expect(v18.not_tested_reasons[4]).toEqual(STORY_28_4_UTILITY_REASON);
+    expect(STORY_28_4_UTILITY_REASON.justification).toBe(
+      'Ensaios não realizados no(s) equipamento(s) {tag}, de propriedade da concessionária {concessionaria} e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção.',
+    );
+    expect(v17.not_tested_reasons.map((reason) => reason.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'equipamento_inacessivel', 'defeito_no_equipamento', 'outro']);
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(getSeed(version, 'cabine_primaria').not_tested_reasons.some((reason) => reason.utility !== undefined), version).toBe(false);
+  });
+
+  it('the No-break de comando\'s battery date names the exchange on v18, the same key; v17 keeps its label', () => {
+    const field = (seed: ReportSeed) => seed.blocks.no_break_comando!.nameplate.find((one) => one.key === STORY_28_4_BATTERY_DATE_KEY)!;
+    expect(field(v18).label).toBe(STORY_28_4_BATTERY_DATE_LABEL);
+    expect(STORY_28_4_BATTERY_DATE_LABEL).toBe('BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA');
+    expect({ ...field(v18), label: STORY_28_4_BATTERY_DATE_LABEL_BEFORE }).toEqual(field(v17));
   });
 });
 
@@ -3071,7 +3152,8 @@ describe('25.18-UNIT seed v16 (Story 25.18): the TC asks its secondary as item 7
     // Asked on every TC: no subtype marks it NA and the oil rule does not name it.
     expect(v16.blocks.tc.subtypes.flatMap((subtype) => subtype.na_defaults)).not.toContain(STORY_25_18_TC_ITEM.key);
     expect(v16.blocks.tc.oil_rule!.items).toEqual(v15.blocks.tc.oil_rule!.items);
-    expect(ITEM_KEYS.at(-1)).toBe(STORY_25_18_TC_ITEM.key);
+    // Batch e28a (Story 28.4) appended the v18 transformer's two items after it.
+    expect(ITEM_KEYS.at(-3)).toBe(STORY_25_18_TC_ITEM.key);
   });
 
   it('the v16 TP is the v15 list (its rule is the opposite one)', () => {

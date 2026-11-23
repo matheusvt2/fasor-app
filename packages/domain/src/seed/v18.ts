@@ -1,4 +1,5 @@
-import type { BlockDefinition, FieldDef, ReportSeed } from './schema.ts';
+import type { MeasurementValue } from './measurement.ts';
+import type { BlockDefinition, ChecklistItem, FieldDef, NotTestedReason, ReportSeed } from './schema.ts';
 import { CABINE_PRIMARIA_V17 } from './v17.ts';
 
 /*
@@ -29,6 +30,7 @@ const v17 = CABINE_PRIMARIA_V17;
 function cabinePrimariaV18(): ReportSeed {
   const seed = structuredClone(v17);
   story28_3(seed);
+  story28_4(seed);
   return seed;
 }
 
@@ -122,6 +124,85 @@ function story28_3(seed: ReportSeed): void {
     field.options = [...field.options!, STORY_28_3_VEGETAL];
     definition.oil_rule!.oil_values = [...definition.oil_rule!.oil_values, STORY_28_3_VEGETAL];
   }
+}
+
+// --- Story 28.4: Two items on the transformer, two reasons for a thermography not done, and the reason "Equipamento da concessionária" ---
+
+/**
+ * The transformer's items 18 and 19 on v18 (B-5, B-17; Bruno's Q-3: asked on both kinds, with their own words). `label` is
+ * the oil unit's, `dry_label` the dry unit's; the kernel picks the words by the oil rule (`checklistItemLabel`), so the
+ * answer stays one when TIPO DE ISOLAÇÃO changes. Neither is an oil item. The NC phrases are authored, listed for Bruno.
+ */
+export const STORY_28_4_TRANSFORMER_ITEMS: readonly ChecklistItem[] = [
+  {
+    key: 'temperatura_alarme_e_desligamento',
+    label: 'RELÉ/TERMÔMETRO DE TEMPERATURA: ALARME E DESLIGAMENTO',
+    dry_label: 'SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO',
+    // authored (Story 28.4, listed for Bruno): the NC phrases of item 18, true of both kinds.
+    nc_phrases: ['alarme de temperatura não atua', 'desligamento por temperatura não atua', 'sensor de temperatura danificado ou desconectado'],
+  },
+  {
+    key: 'aterramento_carcaca_tanque_e_neutro',
+    label: 'ATERRAMENTO DO TANQUE E DO NEUTRO',
+    dry_label: 'ATERRAMENTO DA CARCAÇA E DO NEUTRO',
+    // authored (Story 28.4, listed for Bruno): the NC phrases of item 19, true of both kinds.
+    nc_phrases: ['aterramento do neutro desconectado', 'conexão de aterramento oxidada ou frouxa', 'cordoalha de aterramento danificada'],
+  },
+];
+
+/** The two reasons of a thermography not done that v18 adds before "Outro" (B-17, Bruno's words), on every type that carries it. */
+export const STORY_28_4_THERMOGRAPHY_REASONS: readonly { key: string; label: string }[] = [
+  { key: 'carga_insuficiente', label: 'Carga insuficiente para avaliação' },
+  { key: 'fora_do_escopo', label: 'Fora do escopo contratado' },
+];
+
+/**
+ * The not-tested reason "Equipamento da concessionária" (B-8, B-15; Bruno's Q-4), before "Outro". Its default
+ * justification is Bruno's sentence: `{tag}` is the sheet's TAG, filled by the kernel, and `{concessionaria}` the
+ * utility's name, typed on the ficha (`notTestedJustification`); the engineer may rewrite the whole text there.
+ */
+export const STORY_28_4_UTILITY_REASON: NotTestedReason = {
+  key: 'equipamento_concessionaria',
+  label: 'Equipamento da concessionária',
+  justification:
+    'Ensaios não realizados no(s) equipamento(s) {tag}, de propriedade da concessionária {concessionaria} e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção.',
+  utility: true,
+};
+
+/** The No-break de comando's battery date on v18 (Bruno's Q-5, B-13): the label only, same key and value. */
+export const STORY_28_4_BATTERY_DATE_KEY = 'baterias_data_de_fabricacao_ou_instalacao';
+export const STORY_28_4_BATTERY_DATE_LABEL = 'BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA';
+export const STORY_28_4_BATTERY_DATE_LABEL_BEFORE = 'BATERIAS: DATA DE FABRICAÇÃO OU INSTALAÇÃO';
+/** The types whose v18 thermography takes the two reasons: every type that carries it since v16. */
+export const STORY_28_4_THERMOGRAPHY_TYPES = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca', 'inspecao_qgbt'] as const;
+
+/**
+ * Story 28.4 (B-5, B-17, B-8, B-15, with Bruno's Q-3, Q-4 and Q-5): the transformer asks items 18 and 19 on both kinds;
+ * every thermography's "Motivo" offers the two new reasons before "Outro"; the relatório's not-tested reasons offer
+ * "Equipamento da concessionária" before "Outro"; the No-break de comando's battery date names the exchange. No label,
+ * key or order of an existing item or reason changes.
+ */
+function story28_4(seed: ReportSeed): void {
+  const transformer = seed.blocks.transformador_forca;
+  if (transformer.checklist === null || transformer.checklist.length !== 17) throw new Error('seed v18: the transformer does not ask v17\'s seventeen items');
+  transformer.checklist = [...transformer.checklist, ...structuredClone(STORY_28_4_TRANSFORMER_ITEMS)];
+
+  for (const type of STORY_28_4_THERMOGRAPHY_TYPES) {
+    const motivo: MeasurementValue | undefined = seed.blocks[type]?.measurement_tests?.find((test) => test.key === 'termografia')?.values?.find((value) => value.key === 'motivo');
+    const options = motivo?.options;
+    if (motivo === undefined || motivo.kind !== 'choice' || options === undefined || options.at(-1)?.key !== 'outro') throw new Error(`seed v18: the ${type}'s thermography lacks its reasons`);
+    motivo.options = [...options.slice(0, -1), ...structuredClone([...STORY_28_4_THERMOGRAPHY_REASONS]), options.at(-1)!];
+  }
+
+  const reasons = seed.not_tested_reasons;
+  if (reasons.at(-1)?.key !== 'outro' || reasons.some((reason) => reason.key === STORY_28_4_UTILITY_REASON.key)) throw new Error('seed v18: the not-tested reasons are not v17\'s');
+  seed.not_tested_reasons = [...reasons.slice(0, -1), structuredClone(STORY_28_4_UTILITY_REASON), reasons.at(-1)!];
+
+  const noBreak = seed.blocks.no_break_comando;
+  if (noBreak === undefined) throw new Error('seed v18: the No-break de comando is missing');
+  const battery = fieldOf(noBreak, STORY_28_4_BATTERY_DATE_KEY);
+  if (battery.label !== STORY_28_4_BATTERY_DATE_LABEL_BEFORE) throw new Error('seed v18: the battery date is not v17\'s');
+  battery.label = STORY_28_4_BATTERY_DATE_LABEL;
 }
 
 export const CABINE_PRIMARIA_V18: ReportSeed = cabinePrimariaV18();

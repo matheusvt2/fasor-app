@@ -12,6 +12,7 @@ import { isReadingValue, OVER_RANGE_TEXT_PREFIX } from './over-range.ts';
 import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, namedReadings, readingRowLabel, type TestEvaluation, type TestKey, type WorstReading } from './readings.ts';
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
+import { checklistItemLabel } from './oil-rule.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled, registerConcludedAprovadoRefused } from './sheet-state.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
@@ -111,7 +112,7 @@ function ncItems(block: BlockRow, definition: BlockDefinition): { n: number; lab
     if (checklistResultUnder(block, item.key, definition) !== 'NC') return [];
     const cell = block.sheet.checklist[item.key]?.observation;
     const observation = isCellFilled(cell) && typeof cell!.value === 'string' ? cell!.value.trim() : null;
-    return [{ n: index + 1, label: item.label, observation }];
+    return [{ n: index + 1, label: checklistItemLabel(item, definition, block), observation }];
   });
 }
 

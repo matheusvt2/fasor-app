@@ -1,9 +1,13 @@
 import {
+  blockFieldPath,
+  choiceValue,
   EMPTY_DEFINITION_CONTEXT,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   instantiateTemplate,
   makeOp,
+  sheetChecklistPath,
+  sheetTestValuePath,
   MIN_CONTRACT_VERSION,
   SEED_VERSION,
   standardTemplate,
@@ -487,6 +491,83 @@ describe('28.2-API-001 seed v18 through the sync route', () => {
       expect(current.status, await current.clone().text()).toBe(200);
       const pulled = syncPullResponseSchema.parse(await current.json()).ops as Op[];
       expect(pulled.find((op) => op.path === `relatorio/${relatorioId}`)?.value).toMatchObject({ seed_version: 'v18' });
+    },
+    60_000,
+  );
+});
+
+/*
+ * 28.4-API-001 (batch e28a, Story 28.4, contract 58): the v18 keys through the sync route. On a v18 relatório created
+ * from the standard template, the transformer's item 18 answered NC, a TP's thermography not done for "Carga
+ * insuficiente para avaliação" and a TC marked not tested for "Equipamento da concessionária" with the utility's name are
+ * applied as pushed; a version-57 client is refused the stream that holds them (426), the current one reads them.
+ */
+describe('28.4-API-001 the v18 item and reason keys through the sync route', () => {
+  it(
+    'item 18, the new thermography reason and the utility reason with its name are applied; a version-57 pull of the relatório is refused with 426',
+    async () => {
+      const projectId = newId();
+      const projectDraft: OpDraft = {
+        kind: 'create',
+        scope: 'company',
+        company_id: company.companyId,
+        project_id: null,
+        relatorio_id: null,
+        path: `project/${projectId}`,
+        value: { id: projectId, client_id: null, name: 'Obra v18 listas', site: 'Obra v18 listas', removed_at: null },
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: company.userId,
+      };
+      const { relatorioId, drafts } = instantiateTemplate(
+        standardTemplate({ id: newId() }),
+        { id: projectId },
+        { service_start: '2026-11-23', service_end: '2026-11-23', existingEquipment: [], responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT },
+        { newId, actorId: company.userId, companyId: company.companyId },
+      );
+      const blockOf = (type: string) => drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('block/') && (draft.value as { block_type?: string }).block_type === type)!.value as { id: string };
+      const transformer = blockOf('transformador_forca');
+      const tp = blockOf('tp');
+      const tc = blockOf('tc');
+      const put = (path: string, value: unknown): OpDraft => ({ ...projectDraft, kind: 'put', scope: 'relatorio', project_id: projectId, relatorio_id: relatorioId, path, value: value as never });
+      const mark = { reason: 'equipamento_concessionaria', text: null, at: '2026-11-23T12:00:00.000Z', by: company.userId, utility_name: 'Concessionária Exemplo' };
+      const writes = [
+        put(sheetChecklistPath(transformer.id, 'temperatura_alarme_e_desligamento', 'result'), 'NC'),
+        put(sheetTestValuePath(tp.id, 'termografia', 'realizacao'), choiceValue('nao_realizada')),
+        put(sheetTestValuePath(tp.id, 'termografia', 'motivo'), choiceValue('carga_insuficiente')),
+        put(blockFieldPath(tc.id, 'not_tested'), mark),
+      ];
+      const batchId = newId();
+      const at = now();
+      const batch: Op[] = [projectDraft, ...drafts, ...writes].map((draft) => makeOp({ ...draft, batch_id: batchId, device_id: DEVICE }, { newId, now: at }));
+      for (const op of batch) {
+        written.opIds.add(op.op_id);
+        if (op.kind === 'create') written.entityIds.add((op.value as { id: string }).id);
+      }
+      const res = await authed('/api/sync/ops', { method: 'POST', body: JSON.stringify({ ops: batch }) });
+      expect(res.status, await res.clone().text()).toBe(200);
+      expect(syncPushResponseSchema.parse(await res.json()).rejected).toEqual([]);
+
+      const rowOf = async (id: string) =>
+        (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, company.companyId), eq(entities.entity, 'block'), eq(entities.id, id))))[0]!.row as {
+          seed_version: string;
+          not_tested: unknown;
+          sheet: { checklist: Record<string, { result?: { value: unknown } }>; test: Record<string, { values?: Record<string, { value: unknown }> }> };
+        };
+      const tr = await rowOf(transformer.id);
+      expect(tr.seed_version).toBe('v18');
+      expect(tr.sheet.checklist.temperatura_alarme_e_desligamento?.result?.value).toBe('NC');
+      expect((await rowOf(tp.id)).sheet.test.termografia?.values?.motivo?.value).toEqual(choiceValue('carga_insuficiente'));
+      expect((await rowOf(tc.id)).not_tested).toMatchObject({ reason: 'equipamento_concessionaria', utility_name: 'Concessionária Exemplo' });
+
+      const old = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '57' } });
+      expect(old.status).toBe(426);
+      expect(((await old.json()) as { code: string }).code).toBe('contract_outdated');
+      const current = await authed(`/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) } });
+      expect(current.status, await current.clone().text()).toBe(200);
+      const pulled = syncPullResponseSchema.parse(await current.json()).ops as Op[];
+      expect(pulled.find((op) => op.path === blockFieldPath(tc.id, 'not_tested'))?.value).toMatchObject({ utility_name: 'Concessionária Exemplo' });
     },
     60_000,
   );

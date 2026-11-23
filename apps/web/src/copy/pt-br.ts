@@ -1535,6 +1535,17 @@ export const copy = {
     notTestedConfirmTitle: 'Desfazer "Marcar não ensaiado"?',
     notTestedConfirmDescription: 'A marca já foi sincronizada com o servidor. A ficha volta a pedir os campos normalmente.',
     notTestedConfirmAction: 'Desfazer',
+    // Story 28.1's frames (`60-ficha.html` `#/ficha/TP-04`, `#/ficha/TC-03`; listed for Bruno): the justification of
+    // "Equipamento da concessionária" (seed v18, Story 28.4), its name and its editable text.
+    utilityJustification: {
+      title: 'Justificativa',
+      nameLabel: 'Concessionária',
+      namePlaceholder: 'Nome da concessionária',
+      nameTyped: 'Digitado nesta ficha · entra no texto abaixo',
+      nameEmpty: 'Digite o nome: ele completa o texto abaixo.',
+      textLabel: 'Texto impresso na seção 9',
+      textHelper: 'Texto padrão do motivo, editável. Se o caso for outro (medição desligada ou retirada da cabine), reescreva.',
+    },
     // The Section stepper (`60-ficha.html` `.section-stepper`).
     stepperLabel: 'Seções da ficha — toque para ir à seção',
     steps: {

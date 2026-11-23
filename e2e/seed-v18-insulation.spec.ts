@@ -69,7 +69,7 @@ test('@p0 28.3-E2E-001 at 1024: v18 transformers copied from v17 visits take "A 
   const tp = built.sheets.find((sheet) => sheet.blockType === 'tp')!;
   const tc = built.sheets.find((sheet) => sheet.blockType === 'tc')!;
   const v17 = getDefinition('v17', 'cabine_primaria', 'transformador_forca');
-  const visits = [
+  const visits: { sheet: { blockId: string; tag: string }; label: string; overrides: Record<string, string>; skipped: Set<string> }[] = [
     { sheet: oilSheet!, label: 'oil', overrides: { tipo_de_isolacao: 'ÓLEO ISOLANTE', natureza_liquido: 'ÉSTER NATURAL (VEGETAL)' }, skipped: new Set(['tag', ...v17.oil_rule!.dry_fields!]) },
     { sheet: drySheet!, label: 'dry', overrides: { tipo_de_isolacao: 'EPÓXI', classe_termica: 'F (155)' }, skipped: new Set(['tag', ...v17.oil_rule!.fields]) },
   ];

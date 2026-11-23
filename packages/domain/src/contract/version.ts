@@ -683,7 +683,13 @@
  * 58 (2026-11-23, batch e28a, Epic 28 wave 1, Stories 28.2 to 28.4): seed v18 opens equal to v17 (the same
  * content and the same rule flags; v17 froze at the deploy of 886af55e) and becomes the version a new Template
  * is created with (`SEED_VERSION`); the server's boot step moves every template to it, so every relatório
- * created afterwards is born on v18 and every one already made keeps its seed. MIN follows to 58 (below).
+ * created afterwards is born on v18 and every one already made keeps its seed. Story 28.3 renames the transformer's
+ * insulation options on v18 ("A SECO", "A ÓLEO"), adds its CONSTRUÇÃO and the TP's and TC's ÓLEO VEGETAL (seed keys
+ * `screen_after` and `implied_by`). Story 28.4 appends two `ITEM_KEYS` (the transformer's items 18 and 19, with a
+ * `dry_label`), the not-tested reason `equipamento_concessionaria` (a seed `utility` reason, so `NOT_TESTED_REASON_KEYS`
+ * grows) and the mark's optional `utility_name` (`notTestedSchema`, short text), two thermography reasons and the
+ * battery date's v18 label. A pre-issue row, `utility_name_missing`, blocks the issue while the utility's name is
+ * empty. MIN follows to 58 (below).
  */
 export const CONTRACT_VERSION = 58;
 
@@ -1096,7 +1102,8 @@ export const CONTRACT_VERSION = 58;
  */
 /*
  * 58 (2026-11-23, batch e28a, Story 28.2): a version-57 (or older) bundle ships no seed v18, so it cannot
- * resolve a single definition of a v18 relatório or of a template the server moved to v18. Its pull answers
+ * resolve a single definition of a v18 relatório or of a template the server moved to v18, nor fold a put of the v18
+ * item keys, the utility reason or the mark's `utility_name` (Story 28.4). Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
 export const MIN_CONTRACT_VERSION = 58;

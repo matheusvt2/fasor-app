@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SEED_VERSIONS } from '../seed/definitions.ts';
-import { screenLabel } from './screen-label.ts';
+import { SCREEN_LABEL_ACRONYMS, screenAcronym, screenLabel } from './screen-label.ts';
 
 /**
  * Every distinct seed label of v1 and v2 that renders on screen (block types, nameplate and
@@ -300,6 +300,12 @@ const SCREEN_FORMS: Record<string, string> = {
   'BATERIAS: TENSÃO POR UNIDADE': 'Baterias: tensão por unidade',
   'BATERIAS: CAPACIDADE': 'Baterias: capacidade',
   'BATERIAS: DATA DE FABRICAÇÃO OU INSTALAÇÃO': 'Baterias: data de fabricação ou instalação',
+  // Seed v18 (batch e28a, Story 28.4): the battery date names the exchange; the transformer's items 18 and 19 in both words.
+  'BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA': 'Baterias: data de fabricação, instalação ou troca',
+  'RELÉ/TERMÔMETRO DE TEMPERATURA: ALARME E DESLIGAMENTO': 'Relé/termômetro de temperatura: alarme e desligamento',
+  'ATERRAMENTO DO TANQUE E DO NEUTRO': 'Aterramento do tanque e do neutro',
+  'SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO': 'Sensores de temperatura (PT100) e relé térmico: alarme e desligamento',
+  'ATERRAMENTO DA CARCAÇA E DO NEUTRO': 'Aterramento da carcaça e do neutro',
   'LIMPEZA, VENTILAÇÃO E VENTILADORES': 'Limpeza, ventilação e ventiladores',
   'DISPLAY, ALARMES E LEDS': 'Display, alarmes e LEDs',
   'REAPERTO DAS CONEXÕES': 'Reaperto das conexões',
@@ -330,6 +336,8 @@ function seedScreenLabels(): Set<string> {
         for (const field of definition.nameplate) labels.add(field.label);
         for (const item of definition.checklist ?? []) {
           labels.add(item.label);
+          // Seed v18 (Story 28.4): an item's words on a dry unit are a seed label too.
+          if (item.dry_label !== undefined) labels.add(item.dry_label);
           if (item.hint !== undefined) labels.add(item.hint);
         }
         for (const subtype of definition.subtypes) labels.add(subtype.label);
@@ -364,6 +372,12 @@ describe('12.5-UNIT screenLabel (D-9: sentence case on screen, caps in the docum
       expect(screenLabel(label)).toBe(screen);
     });
   }
+
+  it('28.4-UNIT-002 PT100 is an acronym of the list: kept in a label and read back from any case', () => {
+    expect(SCREEN_LABEL_ACRONYMS).toContain('PT100');
+    expect(screenAcronym('pt100')).toBe('PT100');
+    expect(screenLabel('SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO')).toBe('Sensores de temperatura (PT100) e relé térmico: alarme e desligamento');
+  });
 
   it('keeps acronyms, units and digits', () => {
     expect(screenLabel('TENSÃO PRIMÁRIA')).toBe('Tensão primária');

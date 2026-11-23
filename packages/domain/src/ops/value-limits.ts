@@ -131,7 +131,8 @@ const ENV_VALUE_RULES: Readonly<Record<string, ValueRule>> = {
   humidity_pct: { kind: 'number_value', range: HUMIDITY_RANGE_PCT },
 };
 /** A Não ensaiado mark (`notTestedSchema`): its note is medium text. */
-const NOT_TESTED_RULE: ValueRule = { kind: 'object', fields: { text: medium } };
+// Batch e28a (Story 28.4): and the utility's name of "Equipamento da concessionária" is short text.
+const NOT_TESTED_RULE: ValueRule = { kind: 'object', fields: { text: medium, utility_name: short } };
 
 const SERVER_ONLY = { kind: 'server_only' } as const;
 
