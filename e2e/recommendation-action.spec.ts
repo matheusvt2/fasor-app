@@ -246,7 +246,9 @@ test('24.17-E2E-002 v14: a restricted reading starts a restricao point with its 
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e28b: pinned to seed v17, where a restricted test's point starts with an empty action; on v18 it starts with Bruno's
+  // default action (Story 28.5).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v17' });
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId)]);
   const relatorioId = built.relatorioId;
   await page.goto(`/relatorio/${relatorioId}`);

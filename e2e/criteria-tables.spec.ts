@@ -70,7 +70,8 @@ test('@p0 23.2-E2E-001 a v13 dry transformer judged by NETA Table 100.5 row by r
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e28b: pinned to seed v17, whose insulation test prints Story 23.4's note; on v18 Bruno's line takes its place (Story 28.7).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v17' });
   const tf = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const row = megger(newId());
   const create: OpDraft = { kind: 'create', scope: 'company', company_id: account.companyId, project_id: null, relatorio_id: null, path: `registry/instrument/${row.id}`, value: row as never, prev_op_id: null, batch_id: null, meta: null, actor_id: account.userId };

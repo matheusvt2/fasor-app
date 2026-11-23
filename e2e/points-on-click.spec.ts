@@ -104,7 +104,9 @@ test('@p0 e24h-E2E-001 an NC row, a site NC, a reading out of criterion, a Repro
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e28b: pinned to seed v17, where a point from an NC row starts with no priority and no deadline; on v18 it starts at P2
+  // with its suggested deadline (Story 28.5).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v17' });
   const relatorioId = built.relatorioId;
   const enelId = (built.drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === ENEL)!.value as { id: string }).id;
   const [chave, second] = built.sheets.filter((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === ENEL) as [SeededSheet, SeededSheet];

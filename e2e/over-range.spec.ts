@@ -255,7 +255,8 @@ test('@p0 28.7-E2E-001 v18: "OL" on an insulation reading prints "> 2 TΩ" and, 
   const docx = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
   expect(docx.status()).toBe(200);
   const structure = extractStructure(Buffer.from(await docx.body()));
-  const insulation = structure.tables.find((table) => table[0]?.[0] === 'SECCIONADORA CONTATO ABERTO' && table.some((row) => row[0] === 'T1' && row.some((cell) => cell.replace(/\u00a0/gu, ' ') === '> 2 TΩ')));
+  // The seccionadora's insulation: T1 prints the limit ("> 2", its unit in VALORES (TΩ) when no other reading names another).
+  const insulation = structure.tables.find((table) => table.some((row) => row[0] === 'T1' && row.some((cell) => cell.replace(/\u00a0/gu, ' ').startsWith('> 2'))));
   expect(insulation).toBeDefined();
   expect(structure.paragraphs.filter((text) => text === note)).toHaveLength(1);
   expect(structure.paragraphs.some((text) => text.startsWith('Valores de resistência de isolamento'))).toBe(false);

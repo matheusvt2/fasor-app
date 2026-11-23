@@ -1,4 +1,4 @@
-import { getDefinition, headerParameterView, rowTestVoltage, rowVoltageSourceText, SEED_VERSION, storedInstrumentHeader, type BlockRow, type InstrumentRow, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, headerParameterView, rowTestVoltage, rowVoltageSourceText, SEED_VERSION, storedInstrumentHeader, type BlockRow, type InstrumentRow, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -216,6 +216,8 @@ test('@p0 28.6-E2E-001 v18 transformer: the rows take the header\'s test voltage
   const built = newRelatorioDrafts(account);
   const transformer = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const meggerId = newId();
+  const firstReading = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'), 'isolacao')[0]!;
+  const readingRows = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'), 'isolacao').filter((address) => address.col === firstReading.col).slice(0, 3);
   const plate = (key: string, raw: string) => officeDraft(account, { relatorioId: built.relatorioId }, `sheet/${transformer.blockId}/nameplate/${key}`, { raw, unit: 'V', state: 'measured' });
   await pushDrafts(page, database, [
     ...built.drafts,
@@ -223,6 +225,8 @@ test('@p0 28.6-E2E-001 v18 transformer: the rows take the header\'s test voltage
     instrumentDraft(meggerId, { code: '2E', serial: MEGGER_SERIAL, test_isolacao: { raw: '10', unit: 'kV' } }),
     plate('tensao_nominal_at', '13800'),
     plate('tensao_nominal_bt', '380'),
+    // A reading on each row, so the DOCX prints each row's voltage (a row with none prints "-").
+    ...readingRows.map((address) => officeDraft(account, { relatorioId: built.relatorioId }, `sheet/${transformer.blockId}/test/isolacao/cell/${address.row}/${address.col}`, { raw: '5', unit: 'GΩ', state: 'measured' })),
   ]);
   await syncNowAndReturn(page);
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${transformer.blockId}`);
@@ -295,6 +299,7 @@ test('@p0 28.6-E2E-001 v18 transformer: the rows take the header\'s test voltage
   const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
   expect(response.status()).toBe(200);
   const rows = extractStructure(Buffer.from(await response.body())).tables.flat();
-  const voltageOf = (linha: string, terra: string) => rows.find((cells) => cells[0] === linha && cells[1] === terra)?.[3];
+  // The transformer's rows, the ones holding a reading (another transformer of the template prints "-").
+  const voltageOf = (linha: string, terra: string) => rows.find((cells) => cells[0] === linha && cells[1] === terra && cells[3] !== '-')?.[3];
   expect([voltageOf('PRIMÁRIO', 'MASSA'), voltageOf('PRIMÁRIO', 'SECUNDÁRIO'), voltageOf('SECUNDÁRIO', 'MASSA')]).toEqual(['10', '2,5', '1']);
 });
